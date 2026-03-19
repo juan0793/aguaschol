@@ -1,65 +1,89 @@
-# App de inmuebles clandestinos
+# Aguas de Choluteca
 
-Primera version funcional basada en los formatos de `referencia/CLANDESTINOS2026.xlsx` y `referencia/AVISO-CLANDESTINO.docx`.
+App web para registrar inmuebles clandestinos, basada en los formatos actuales de trabajo de Aguas de Choluteca.
 
-## Hallazgos del analisis
+Esta primera versión toma como referencia:
 
-### Excel
+- `referencia/CLANDESTINOS2026.xlsx`
+- `referencia/AVISO-CLANDESTINO.docx`
 
-Las hojas del archivo no son una tabla maestra sino fichas individuales. De una ficha completa se identificaron estos bloques:
+El objetivo es reemplazar el flujo manual en Excel manteniendo una ficha y un aviso visualmente cercanos a los documentos originales.
 
-- Clave catastral
-- Informacion del abonado
-- Barrio/Colonia/Lotificacion
-- No. de identidad
-- Telefono/Celular
-- Accion de inspeccion
-- Situacion del inmueble
-- Tendencia del inmueble
-- Uso del suelo
-- Actividad
-- Codigo del sector
-- Comentarios
-- Conexion de agua potable
-- Conexion alcantarillado
-- Recoleccion de desechos
-- Fotografia del inmueble
+## Características
 
-### Word
+- Crear registros de inmuebles clandestinos
+- Editar registros existentes
+- Buscar por clave catastral
+- Listar registros
+- Subir fotografía del inmueble
+- Visualizar ficha técnica
+- Imprimir ficha en formato carta
+- Generar aviso en pestaña aparte
+- Editar el aviso antes de imprimirlo
 
-El aviso repite una estructura fija con variables principales:
+## Stack
 
-- Fecha
-- Ubicacion del inmueble
-- Clave catastral
-- Nombre y cargo de firmante
-- Listado fijo de documentos requeridos
+- Frontend: React + Vite
+- Backend: Node.js + Express
+- Base de datos: MySQL
+- Carga de archivos: Multer
+- API: REST JSON
 
-## Estructura
+## Estructura del proyecto
 
 ```text
 backend/
-  sql/schema.sql
+  sql/
   src/
+  uploads/
 frontend/
   src/
 referencia/
 ```
 
-## Schema SQL propuesto
+## Qué se detectó en los archivos de referencia
 
-El schema base esta en [backend/sql/schema.sql](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/sql/schema.sql).
+### Excel
 
-Tabla principal: `inmuebles_clandestinos`
+El archivo no trae una tabla maestra, sino fichas individuales por inmueble. Los bloques principales detectados fueron:
 
-- `clave_catastral` como identificador unico de negocio
-- Campos textuales para replicar la ficha actual
-- `foto_path` para guardar la ruta del archivo subido
-- `fecha_aviso`, `firmante_aviso` y `cargo_firmante` para generar el aviso
+- Clave catastral
+- Información del abonado
+- Identificación del inmueble
+- Datos del inmueble
+- Datos de los servicios
+- Fotografía
+- Firmas de levantamiento y análisis
 
-## Backend
+### Word
 
-API REST en Express con rutas:
+El aviso utiliza una estructura fija con variables como:
+
+- Fecha
+- Ubicación del inmueble
+- Clave catastral
+- Firmante
+- Cargo
+
+## Base de datos
+
+El script inicial está en [backend/sql/schema.sql](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/sql/schema.sql).
+
+Tabla principal:
+
+- `inmuebles_clandestinos`
+
+Campos destacados:
+
+- `clave_catastral` como identificador único
+- datos del abonado, inmueble y servicios
+- `foto_path` para almacenar la ruta de la imagen
+- `fecha_aviso`, `firmante_aviso`, `cargo_firmante`
+- `levantamiento_datos`, `analista_datos`
+
+## API disponible
+
+Rutas principales:
 
 - `GET /api/health`
 - `GET /api/inmuebles`
@@ -68,22 +92,9 @@ API REST en Express con rutas:
 - `PUT /api/inmuebles/:id`
 - `POST /api/inmuebles/:id/foto`
 - `GET /api/inmuebles/:id/aviso`
+- `POST /api/inmuebles/aviso-preview`
 
-Si defines `USE_MEMORY_DB=true`, el backend levanta con un registro semilla mientras se configura MySQL.
-
-## Frontend
-
-Interfaz React + Vite con:
-
-- Busqueda por clave catastral
-- Listado lateral de registros
-- Formulario principal inspirado en la ficha actual
-- Carga de fotografia
-- Ficha visual mas completa
-- Generacion de aviso desde la API
-- Impresion de ficha y aviso
-
-## Como correr localmente
+## Cómo ejecutar el proyecto
 
 ### 1. Backend
 
@@ -93,7 +104,7 @@ copy .env.example .env
 npm install
 ```
 
-Configura MySQL en `.env` o usa temporalmente:
+Si todavía no vas a conectar MySQL, puedes usar modo temporal en memoria:
 
 ```env
 USE_MEMORY_DB=true
@@ -107,7 +118,13 @@ npm run dev
 
 ### 2. Base de datos
 
-Ejecuta el script [backend/sql/schema.sql](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/sql/schema.sql) en tu servidor MySQL.
+Si vas a usar MySQL, ejecuta:
+
+```sql
+backend/sql/schema.sql
+```
+
+Y configura las credenciales en `backend/.env`.
 
 ### 3. Frontend
 
@@ -117,13 +134,33 @@ npm install
 npm run dev
 ```
 
-Opcionalmente crea `.env`:
+Opcionalmente puedes definir:
 
 ```env
 VITE_API_URL=http://localhost:4000/api
 VITE_FILES_URL=http://localhost:4000
 ```
 
-## Siguiente paso recomendado
+## Estado actual
 
-Conectar la app a MySQL real y empezar a cargar datos historicos desde las fichas existentes del Excel.
+La aplicación ya incluye:
+
+- interfaz moderna azul/blanco basada en la identidad del logo
+- formulario por secciones para evitar una página demasiado larga
+- ficha técnica visual e imprimible
+- aviso editable en una pestaña aparte
+- soporte para fotografía
+- modo temporal en memoria para pruebas rápidas
+
+## Siguientes pasos sugeridos
+
+- conectar MySQL real en producción
+- importar datos históricos desde Excel
+- mejorar la ficha para replicar aún más el formato original
+- agregar autenticación en una segunda versión
+
+## Notas
+
+- `backend/.env` no se sube al repositorio
+- `node_modules` y `dist` están excluidos por `.gitignore`
+- la carpeta `referencia/` se conserva porque forma parte del contexto del proyecto
