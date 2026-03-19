@@ -1,0 +1,48 @@
+Quiero que construyas una app web para registrar inmuebles clandestinos.
+
+Usa este stack:
+- Frontend: React + Vite
+- Backend: Node.js + Express
+- Base de datos: MySQL
+
+Archivos de referencia:
+- referencia/CLANDESTINOS2026.xlsx
+- referencia/AVISO-CLANDESTINO.docx
+
+Objetivo:
+La app debe reemplazar el uso manual del Excel actual, pero conservar una apariencia muy parecida al formato que ya usamos. Debe permitir guardar registros en base de datos, consultar por clave catastral, subir foto del inmueble y generar una ficha visual e imprimible.
+
+Necesito que hagas esto:
+
+1. Analiza el Excel y detecta columnas o campos relevantes.
+2. Analiza el Word y detecta la estructura del aviso.
+3. Diseña una base de datos MySQL simple y funcional.
+4. Crea un backend en Express con endpoints para:
+   - crear registro
+   - listar registros
+   - buscar por clave catastral
+   - obtener registro por id
+   - actualizar registro
+   - subir fotografía
+5. Crea un frontend en React + Vite con estas vistas:
+   - formulario principal
+   - búsqueda/listado
+   - vista de ficha
+   - vista para generar aviso
+6. La interfaz debe actualizarse sin recargar toda la página.
+7. La ficha debe parecerse visualmente al formato actual del Excel.
+8. La foto debe poder subirse y mostrarse dentro de la ficha.
+9. Déjame instrucciones claras para correr frontend y backend localmente.
+
+Quiero que me entregues:
+- estructura de carpetas
+- schema SQL
+- código inicial funcional
+- instrucciones de instalación
+- comandos para ejecutar el proyecto
+
+Empieza por:
+1. resumir los campos detectados
+2. proponer el esquema SQL
+3. crear la estructura base del proyecto
+4. generar la primera versión funcional
