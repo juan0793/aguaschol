@@ -3,6 +3,8 @@ import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
 const FILES_URL = (import.meta.env.VITE_FILES_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const AUTH_STORAGE_KEY = "aguaschol-auth";
+const DRAFT_STORAGE_KEY = "aguaschol-draft";
 
 const emptyForm = {
   id: null,
@@ -28,7 +30,7 @@ const emptyForm = {
   firmante_aviso: "Maria Eugenia Berrios",
   cargo_firmante: "Jefe de Facturacion",
   levantamiento_datos: "LUIS FERNANDO HERRERA SOLIZ",
-  analista_datos: "JUAN ORDONEZ BONILLA"
+  analista_datos: "Juan Ordoñez Bonilla"
 };
 
 const fieldGroups = [
@@ -59,8 +61,20 @@ const fieldGroups = [
   ]
 ];
 
-const printDocument = async (title, bodyMarkup) => {
-  const printWindow = window.open("", "_blank", "width=980,height=1200");
+const hasDraftContent = (candidate) =>
+  Object.entries(emptyForm).some(([key, defaultValue]) => {
+    if (["id", "foto_path"].includes(key)) return false;
+    return (candidate?.[key] ?? "") !== defaultValue;
+  });
+
+const printDocument = async (title, bodyMarkup, options = {}) => {
+  const {
+    pageSize = "Letter portrait",
+    pageMargin = "10mm",
+    windowFeatures = "width=980,height=1200",
+    bodyClassName = ""
+  } = options;
+  const printWindow = window.open("", "_blank", windowFeatures);
 
   if (!printWindow) {
     window.alert("No fue posible abrir la ventana de impresion.");
@@ -73,8 +87,8 @@ const printDocument = async (title, bodyMarkup) => {
         <title>${title}</title>
         <style>
           @page {
-            size: Letter portrait;
-            margin: 10mm;
+            size: ${pageSize};
+            margin: ${pageMargin};
           }
           body {
             font-family: Arial, sans-serif;
@@ -155,6 +169,93 @@ const printDocument = async (title, bodyMarkup) => {
             display: block;
             margin-bottom: 10px;
           }
+          .print-ficha {
+            max-width: 100%;
+            padding-left: 4mm;
+          }
+          .print-ficha p {
+            margin-bottom: 3px;
+          }
+          .print-ficha .print-header {
+            margin-bottom: 6px;
+          }
+          .print-ficha .print-logo {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 4px;
+          }
+          .print-ficha .print-title {
+            font-size: 12px;
+            margin-bottom: 2px;
+          }
+          .print-ficha .print-key {
+            padding: 3px 8px;
+            margin-top: 2px;
+            font-size: 10px;
+          }
+          .print-ficha .print-section {
+            padding: 5px;
+            margin-bottom: 5px;
+          }
+          .print-ficha .print-layout {
+            display: grid;
+            gap: 6px;
+          }
+          .print-ficha .print-top-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.95fr);
+            gap: 8px;
+            align-items: start;
+          }
+          .print-ficha .print-main-column,
+          .print-ficha .print-side-column {
+            display: grid;
+            gap: 5px;
+          }
+          .print-ficha .print-section h3 {
+            font-size: 10px;
+            margin-bottom: 4px;
+          }
+          .print-ficha .print-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px 8px;
+          }
+          .print-ficha .print-field {
+            min-height: 18px;
+            padding-bottom: 2px;
+            font-size: 10px;
+          }
+          .print-ficha .print-field strong {
+            font-size: 8px;
+            margin-bottom: 1px;
+          }
+          .print-ficha .print-photo {
+            margin-top: 0;
+            height: 205px;
+            max-height: 205px;
+          }
+          .print-ficha .print-photo-panel {
+            display: grid;
+            gap: 5px;
+          }
+          .print-ficha .print-photo-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0;
+          }
+          .print-ficha .print-roles {
+            gap: 12px;
+            margin-top: 6px;
+          }
+          .print-ficha .print-signature-line {
+            min-height: 74px;
+            padding-top: 14px;
+          }
+          .print-ficha .print-signature-line strong {
+            margin-bottom: 10px;
+            line-height: 1.25;
+          }
           .aviso {
             max-width: 720px;
             margin: 0 auto;
@@ -189,7 +290,7 @@ const printDocument = async (title, bodyMarkup) => {
           }
         </style>
       </head>
-      <body>${bodyMarkup}</body>
+      <body class="${bodyClassName}">${bodyMarkup}</body>
     </html>
       `);
   printWindow.document.close();
@@ -244,8 +345,26 @@ const urlToDataUrl = async (url) => {
 };
 
 function App() {
+  const [session, setSession] = useState(() => {
+    const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [loginForm, setLoginForm] = useState({ username: "admin", password: "abcd123" });
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [draftForm, setDraftForm] = useState(() => {
+    const saved = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!saved) return null;
+
+    try {
+      const parsed = JSON.parse(saved);
+      return hasDraftContent(parsed) ? { ...emptyForm, ...parsed, id: null } : null;
+    } catch {
+      return null;
+    }
+  });
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("Cargando registros...");
   const [saving, setSaving] = useState(false);
@@ -254,6 +373,20 @@ function App() {
   const [avisoHtml, setAvisoHtml] = useState("");
   const [loadingAviso, setLoadingAviso] = useState(false);
   const [activeSection, setActiveSection] = useState("abonado");
+  const isAuthenticated = Boolean(session?.token);
+
+  const apiFetch = async (path, options = {}) => {
+    const headers = new Headers(options.headers ?? {});
+
+    if (session?.token) {
+      headers.set("Authorization", `Bearer ${session.token}`);
+    }
+
+    return fetch(`${API_URL}${path}`, {
+      ...options,
+      headers
+    });
+  };
 
   const selectedPhotoUrl = useMemo(() => {
     if (!form.foto_path) return "";
@@ -275,9 +408,10 @@ function App() {
   }, [localSelectedPhotoUrl]);
 
   const loadRecords = async (query = "") => {
+    if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/inmuebles?q=${encodeURIComponent(query)}`);
+      const response = await apiFetch(`/inmuebles?q=${encodeURIComponent(query)}`);
       const data = await response.json();
       setRecords(data);
       setMessage(data.length ? "" : "No hay registros para mostrar.");
@@ -289,8 +423,20 @@ function App() {
   };
 
   useEffect(() => {
-    loadRecords();
-  }, []);
+    if (isAuthenticated) {
+      loadRecords();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (form.id || !hasDraftContent(form)) {
+      return;
+    }
+
+    const nextDraft = { ...emptyForm, ...form, id: null };
+    setDraftForm(nextDraft);
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+  }, [form]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -311,7 +457,7 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/inmuebles/clave/${encodeURIComponent(search)}`);
+      const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(search)}`);
       if (!response.ok) {
         setMessage("No se encontro esa clave catastral.");
         setRecords([]);
@@ -327,6 +473,15 @@ function App() {
     }
   };
 
+  const handleSearchInputChange = (event) => {
+    const value = event.target.value;
+    setSearch(value);
+
+    if (!value.trim()) {
+      loadRecords("");
+    }
+  };
+
   const handleSelectRecord = (record) => {
     applyRecord(record);
     setMessage(`Registro ${record.clave_catastral} cargado.`);
@@ -339,6 +494,60 @@ function App() {
     setActiveSection("abonado");
   };
 
+  const restoreDraft = () => {
+    if (!draftForm) {
+      setMessage("No hay borrador pendiente.");
+      return;
+    }
+
+    setForm({ ...emptyForm, ...draftForm, id: null });
+    setSelectedFile(null);
+    setAvisoHtml("");
+    setActiveSection("abonado");
+    setMessage("Borrador recuperado.");
+  };
+
+  const handleLoginChange = (event) => {
+    const { name, value } = event.target;
+    setLoginForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setLoginLoading(true);
+    setLoginError("");
+
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(loginForm)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No fue posible iniciar sesion.");
+      }
+
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+      setSession(data);
+      setMessage("");
+    } catch (error) {
+      setLoginError(error.message);
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    setSession(null);
+    setRecords([]);
+    resetForm();
+  };
+
   const saveRecord = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -348,7 +557,7 @@ function App() {
     const method = isEdit ? "PUT" : "POST";
 
     try {
-      const response = await fetch(url, {
+      const response = await apiFetch(url.replace(API_URL, ""), {
         method,
         headers: {
           "Content-Type": "application/json"
@@ -367,7 +576,7 @@ function App() {
         const upload = new FormData();
         upload.append("foto", selectedFile);
 
-        const uploadResponse = await fetch(`${API_URL}/inmuebles/${data.id}/foto`, {
+        const uploadResponse = await apiFetch(`/inmuebles/${data.id}/foto`, {
           method: "POST",
           body: upload
         });
@@ -378,6 +587,8 @@ function App() {
       }
 
       applyRecord(updated);
+      setDraftForm(null);
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY);
       setMessage(isEdit ? "Registro actualizado." : "Registro creado.");
       loadRecords(search);
     } catch (error) {
@@ -391,8 +602,8 @@ function App() {
     setLoadingAviso(true);
     try {
       const response = form.id
-        ? await fetch(`${API_URL}/inmuebles/${form.id}/aviso`)
-        : await fetch(`${API_URL}/inmuebles/aviso-preview`, {
+        ? await apiFetch(`/inmuebles/${form.id}/aviso`)
+        : await apiFetch(`/inmuebles/aviso-preview`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
@@ -709,54 +920,74 @@ function App() {
           <h2 class="print-title">Ficha Tecnica de Informacion Catastral</h2>
           <div class="print-key">CLAVE CATASTRAL: ${form.clave_catastral || "--"}</div>
         </div>
-        <section class="print-section">
-          <h3>Informacion del abonado</h3>
-          <div class="print-grid">
-            <div class="print-field"><strong>Abonado</strong>${form.abonado || "--"}</div>
-            <div class="print-field"><strong>Catastral</strong>${form.nombre_catastral || "--"}</div>
-            <div class="print-field"><strong>Inquilino</strong>${form.inquilino || "--"}</div>
-            <div class="print-field"><strong>Barrio/Colonia</strong>${form.barrio_colonia || "--"}</div>
-            <div class="print-field"><strong>Identidad</strong>${form.identidad || "--"}</div>
-            <div class="print-field"><strong>Telefono</strong>${form.telefono || "--"}</div>
-          </div>
-        </section>
-        <section class="print-section">
-          <h3>Identificacion del inmueble</h3>
-          <p>${form.accion_inspeccion || "--"}</p>
-        </section>
-        <section class="print-section">
-          <h3>Datos del inmueble</h3>
-          <div class="print-grid">
-            <div class="print-field"><strong>Situacion</strong>${form.situacion_inmueble || "--"}</div>
-            <div class="print-field"><strong>Tendencia</strong>${form.tendencia_inmueble || "--"}</div>
-            <div class="print-field"><strong>Uso del suelo</strong>${form.uso_suelo || "--"}</div>
-            <div class="print-field"><strong>Actividad</strong>${form.actividad || "--"}</div>
-            <div class="print-field"><strong>Codigo del sector</strong>${form.codigo_sector || "--"}</div>
-            <div class="print-field"><strong>Comentarios</strong>${form.comentarios || "--"}</div>
-          </div>
-        </section>
-        <section class="print-section">
-          <h3>Datos de los servicios</h3>
-          <div class="print-grid">
-            <div class="print-field"><strong>Agua potable</strong>${form.conexion_agua || "--"}</div>
-            <div class="print-field"><strong>Alcantarillado</strong>${form.conexion_alcantarillado || "--"}</div>
-            <div class="print-field"><strong>Desechos</strong>${form.recoleccion_desechos || "--"}</div>
-          </div>
-          ${photoMarkup}
-        </section>
-        <section class="print-section">
-          <div class="print-roles">
-            <div class="print-signature-line">
-              <strong>${form.levantamiento_datos || "--"}</strong><br />
-              LEVANTAMIENTO DE DATOS
+        <div class="print-layout">
+          <div class="print-top-layout">
+            <div class="print-main-column">
+              <section class="print-section">
+                <h3>Informacion del abonado</h3>
+                <div class="print-grid">
+                  <div class="print-field"><strong>Abonado</strong>${form.abonado || "--"}</div>
+                  <div class="print-field"><strong>Catastral</strong>${form.nombre_catastral || "--"}</div>
+                  <div class="print-field"><strong>Inquilino</strong>${form.inquilino || "--"}</div>
+                  <div class="print-field"><strong>Barrio/Colonia</strong>${form.barrio_colonia || "--"}</div>
+                  <div class="print-field"><strong>Identidad</strong>${form.identidad || "--"}</div>
+                  <div class="print-field"><strong>Telefono</strong>${form.telefono || "--"}</div>
+                </div>
+              </section>
+              <section class="print-section">
+                <h3>Identificacion del inmueble</h3>
+                <p>${form.accion_inspeccion || "--"}</p>
+              </section>
+              <section class="print-section">
+                <h3>Datos del inmueble</h3>
+                <div class="print-grid">
+                  <div class="print-field"><strong>Situacion</strong>${form.situacion_inmueble || "--"}</div>
+                  <div class="print-field"><strong>Tendencia</strong>${form.tendencia_inmueble || "--"}</div>
+                  <div class="print-field"><strong>Uso del suelo</strong>${form.uso_suelo || "--"}</div>
+                  <div class="print-field"><strong>Actividad</strong>${form.actividad || "--"}</div>
+                  <div class="print-field"><strong>Codigo del sector</strong>${form.codigo_sector || "--"}</div>
+                  <div class="print-field"><strong>Comentarios</strong>${form.comentarios || "--"}</div>
+                </div>
+              </section>
+              <section class="print-section">
+                <h3>Datos de los servicios</h3>
+                <div class="print-grid">
+                  <div class="print-field"><strong>Agua potable</strong>${form.conexion_agua || "--"}</div>
+                  <div class="print-field"><strong>Alcantarillado</strong>${form.conexion_alcantarillado || "--"}</div>
+                  <div class="print-field"><strong>Desechos</strong>${form.recoleccion_desechos || "--"}</div>
+                </div>
+              </section>
             </div>
-            <div class="print-signature-line">
-              <strong>${form.analista_datos || "--"}</strong><br />
-              ANALISTA DE DATOS
+            <div class="print-side-column">
+              <section class="print-section">
+                <h3>Fotografia del inmueble</h3>
+                <div class="print-photo-panel">
+                  ${photoMarkup || '<div class="print-field"><strong>Fotografia</strong>Sin fotografia registrada.</div>'}
+                </div>
+              </section>
             </div>
           </div>
-        </section>
-      `
+          <section class="print-section">
+            <h3>Firmas</h3>
+            <div class="print-roles">
+              <div class="print-signature-line">
+                <strong>${form.levantamiento_datos || "--"}</strong><br />
+                LEVANTAMIENTO DE DATOS
+              </div>
+              <div class="print-signature-line">
+                <strong>${form.analista_datos || "--"}</strong><br />
+                ANALISTA DE DATOS
+              </div>
+            </div>
+          </section>
+        </div>
+      `,
+      {
+        bodyClassName: "print-ficha",
+        pageSize: "Letter landscape",
+        pageMargin: "8mm 8mm 8mm 12mm",
+        windowFeatures: "width=1400,height=900"
+      }
     );
   };
 
@@ -771,6 +1002,38 @@ function App() {
       `<div class="print-header"><img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" /></div>${avisoHtml}`
     );
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="login-shell">
+        <div className="login-card">
+          <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
+          <p className="eyebrow">Aguas de Choluteca</p>
+          <h1>Iniciar sesion</h1>
+          <p className="lead">Acceso administrativo al registro de inmuebles clandestinos.</p>
+          <form className="login-form" onSubmit={handleLogin}>
+            <label>
+              <span>Usuario</span>
+              <input name="username" value={loginForm.username} onChange={handleLoginChange} />
+            </label>
+            <label>
+              <span>Contrasena</span>
+              <input
+                name="password"
+                type="password"
+                value={loginForm.password}
+                onChange={handleLoginChange}
+              />
+            </label>
+            {loginError ? <p className="helper-text">{loginError}</p> : null}
+            <button type="submit" disabled={loginLoading}>
+              {loginLoading ? "Ingresando..." : "Entrar"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-shell">
@@ -792,13 +1055,16 @@ function App() {
             <input
               id="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={handleSearchInputChange}
               placeholder="Ej. 10-22-23"
             />
             <button type="submit">Buscar</button>
           </div>
           <button type="button" className="button-secondary" onClick={() => loadRecords(search)}>
             Refrescar listado
+          </button>
+          <button type="button" className="button-secondary" onClick={handleLogout}>
+            Cerrar sesion
           </button>
         </form>
       </header>
@@ -807,15 +1073,36 @@ function App() {
         <aside className="sidebar no-print">
           <div className="panel-header">
             <h2>Registros</h2>
-            <button type="button" className="button-secondary" onClick={resetForm}>
-              Nuevo
-            </button>
+            <div className="sidebar-actions">
+              {draftForm ? (
+                <button type="button" className="button-secondary" onClick={restoreDraft}>
+                  Borrador
+                </button>
+              ) : null}
+              <button type="button" className="button-secondary" onClick={resetForm}>
+                Nuevo
+              </button>
+            </div>
           </div>
 
           {loading ? <p className="helper-text">Cargando...</p> : null}
           {message ? <p className="helper-text">{message}</p> : null}
 
           <div className="record-list">
+            {draftForm ? (
+              <button
+                type="button"
+                className={`record-card draft-card ${!form.id ? "active" : ""}`}
+                onClick={restoreDraft}
+              >
+                <div className="record-card-top">
+                  <strong>{draftForm.clave_catastral || "Borrador nuevo"}</strong>
+                  <span className="record-badge">Borrador</span>
+                </div>
+                <span>{draftForm.barrio_colonia || "Continua la ficha en proceso"}</span>
+                <small>{draftForm.comentarios || "Datos aun no guardados"}</small>
+              </button>
+            ) : null}
             {records.map((record) => (
               <button
                 type="button"
@@ -823,7 +1110,10 @@ function App() {
                 className={`record-card ${form.id === record.id ? "active" : ""}`}
                 onClick={() => handleSelectRecord(record)}
               >
-                <strong>{record.clave_catastral}</strong>
+                <div className="record-card-top">
+                  <strong>{record.clave_catastral}</strong>
+                  <span className="record-badge">Ver</span>
+                </div>
                 <span>{record.barrio_colonia || "Sin ubicacion"}</span>
                 <small>{record.comentarios || "Sin comentario"}</small>
               </button>

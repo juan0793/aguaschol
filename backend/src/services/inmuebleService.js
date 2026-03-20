@@ -29,7 +29,7 @@ const memoryRecords = [
     firmante_aviso: "Maria Eugenia Berrios",
     cargo_firmante: "Jefe de Facturacion",
     levantamiento_datos: "LUIS FERNANDO HERRERA SOLIZ",
-    analista_datos: "JUAN ORDONEZ BONILLA",
+    analista_datos: "Juan Ordoñez Bonilla",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }
