@@ -6,6 +6,16 @@ import { env } from "./env.js";
 import { hashPassword } from "../utils/password.js";
 
 let pool;
+let initializationPromise = null;
+let retryTimer = null;
+
+const dbStatus = {
+  ready: env.useMemoryDb,
+  mode: env.useMemoryDb ? "memory" : "mysql",
+  lastError: null,
+  attempts: 0,
+  connectedAt: env.useMemoryDb ? new Date().toISOString() : null
+};
 
 const schemaPath = path.resolve(env.dbRoot, "backend", "sql", "schema.sql");
 
@@ -21,6 +31,30 @@ const connectionConfig = (includeDatabase = true, multipleStatements = false) =>
 });
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createConfigError = (message) => {
+  const error = new Error(message);
+  error.status = 503;
+  return error;
+};
+
+const getMissingDatabaseFields = () => {
+  const missing = [];
+
+  if (!env.dbHost) {
+    missing.push("DB_HOST o MYSQLHOST o DATABASE_URL");
+  }
+
+  if (!env.dbUser) {
+    missing.push("DB_USER o MYSQLUSER o DATABASE_URL");
+  }
+
+  if (!env.dbName) {
+    missing.push("DB_NAME o MYSQLDATABASE o DATABASE_URL");
+  }
+
+  return missing;
+};
 
 const canConnect = async (includeDatabase = true) => {
   let connection;
@@ -138,6 +172,16 @@ const startLocalMariaDb = async () => {
   throw new Error("MariaDB local no logro iniciar en el tiempo esperado.");
 };
 
+const closePool = async () => {
+  if (!pool) {
+    return;
+  }
+
+  const currentPool = pool;
+  pool = null;
+  await currentPool.end().catch(() => {});
+};
+
 const ensureSchema = async () => {
   const admin = await mysql.createConnection(connectionConfig(false, true));
 
@@ -188,34 +232,97 @@ const ensureDefaultAdminUser = async () => {
   }
 };
 
-export const ensureDatabaseReady = async () => {
+const initializeDatabase = async () => {
   if (env.useMemoryDb) {
+    dbStatus.ready = true;
+    dbStatus.lastError = null;
     return "memory";
+  }
+
+  const missingFields = getMissingDatabaseFields();
+  if (missingFields.length) {
+    throw createConfigError(`Configuracion MySQL incompleta: falta ${missingFields.join(", ")}.`);
   }
 
   if (!(await canConnect(false))) {
     await startLocalMariaDb();
   }
 
+  await closePool();
   await ensureSchema();
   await ensureDefaultAdminUser();
 
-  if (!pool) {
-    pool = mysql.createPool({
-      ...connectionConfig(true),
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    });
-  }
+  pool = mysql.createPool({
+    ...connectionConfig(true),
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  });
 
   await pool.query("SELECT 1");
   return "mysql";
 };
 
+export const ensureDatabaseReady = async () => {
+  if (dbStatus.ready && pool) {
+    return dbStatus.mode;
+  }
+
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+
+  initializationPromise = (async () => {
+    dbStatus.attempts += 1;
+
+    try {
+      const mode = await initializeDatabase();
+      dbStatus.ready = true;
+      dbStatus.mode = mode;
+      dbStatus.lastError = null;
+      dbStatus.connectedAt = new Date().toISOString();
+      return mode;
+    } catch (error) {
+      dbStatus.ready = false;
+      dbStatus.lastError = error.message;
+      throw error;
+    } finally {
+      initializationPromise = null;
+    }
+  })();
+
+  return initializationPromise;
+};
+
+export const getDatabaseStatus = () => ({ ...dbStatus });
+
+export const startDatabaseReconnectLoop = async () => {
+  try {
+    const mode = await ensureDatabaseReady();
+    console.log(`Base de datos disponible en modo ${mode}.`);
+    return mode;
+  } catch (error) {
+    console.error(`Base de datos aun no disponible: ${error.message}`);
+
+    if (env.dbConnectRetries > 0 && dbStatus.attempts >= env.dbConnectRetries) {
+      console.error("Se alcanzo el limite de reintentos de conexion a MySQL.");
+      return null;
+    }
+
+    if (!retryTimer) {
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        startDatabaseReconnectLoop().catch(() => {});
+      }, env.dbConnectRetryDelayMs);
+    }
+
+    return null;
+  }
+};
+
 export const getPool = () => {
   if (!pool) {
-    throw new Error("La base de datos aun no esta inicializada.");
+    throw createConfigError("La base de datos aun no esta lista. Intenta de nuevo en unos segundos.");
   }
 
   return pool;

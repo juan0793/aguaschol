@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import { getDatabaseStatus } from "./config/db.js";
 import { env } from "./config/env.js";
 import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -8,7 +9,8 @@ import inmuebleRoutes from "./routes/inmuebleRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
-const allowedOrigins = new Set([...env.frontendUrls, "http://127.0.0.1:5173", "http://localhost:5173"]);
+const localOrigins = env.isRailway ? [] : ["http://127.0.0.1:5173", "http://localhost:5173"];
+const allowedOrigins = new Set([...env.frontendUrls, ...localOrigins]);
 
 app.use(
   cors({
@@ -26,7 +28,13 @@ app.use(express.json());
 app.use("/uploads", express.static(env.uploadDir));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, mode: env.useMemoryDb ? "memory" : "mysql" });
+  const db = getDatabaseStatus();
+  res.json({
+    ok: true,
+    mode: db.mode,
+    dbReady: db.ready,
+    dbError: db.lastError
+  });
 });
 
 app.use("/api/auth", authRoutes);

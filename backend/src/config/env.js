@@ -33,7 +33,8 @@ const parseDatabaseUrl = (value) => {
 };
 
 const databaseUrlConfig = parseDatabaseUrl(process.env.DATABASE_URL);
-const frontendUrls = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? "http://localhost:5173")
+const frontendUrlDefaults = isRailway ? "" : "http://localhost:5173";
+const frontendUrls = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? frontendUrlDefaults)
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
@@ -41,15 +42,17 @@ const frontendUrls = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? "
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   isRailway,
-  frontendUrl: frontendUrls[0] ?? "http://localhost:5173",
+  frontendUrl: frontendUrls[0] ?? "",
   frontendUrls,
-  dbHost: process.env.DB_HOST ?? process.env.MYSQLHOST ?? databaseUrlConfig.dbHost ?? "localhost",
+  dbHost: process.env.DB_HOST ?? process.env.MYSQLHOST ?? databaseUrlConfig.dbHost ?? (isRailway ? "" : "localhost"),
   dbPort: Number(process.env.DB_PORT ?? process.env.MYSQLPORT ?? databaseUrlConfig.dbPort ?? 3306),
-  dbUser: process.env.DB_USER ?? process.env.MYSQLUSER ?? databaseUrlConfig.dbUser ?? "root",
+  dbUser: process.env.DB_USER ?? process.env.MYSQLUSER ?? databaseUrlConfig.dbUser ?? (isRailway ? "" : "root"),
   dbPassword: process.env.DB_PASSWORD ?? process.env.MYSQLPASSWORD ?? databaseUrlConfig.dbPassword ?? "",
-  dbName: process.env.DB_NAME ?? process.env.MYSQLDATABASE ?? databaseUrlConfig.dbName ?? "app_clandestinos",
+  dbName: process.env.DB_NAME ?? process.env.MYSQLDATABASE ?? databaseUrlConfig.dbName ?? (isRailway ? "" : "app_clandestinos"),
   useMemoryDb: String(process.env.USE_MEMORY_DB ?? "false").toLowerCase() === "true",
   dbAutoStart: String(process.env.DB_AUTO_START ?? (isRailway ? "false" : "true")).toLowerCase() === "true",
+  dbConnectRetries: Number(process.env.DB_CONNECT_RETRIES ?? (isRailway ? 0 : 10)),
+  dbConnectRetryDelayMs: Number(process.env.DB_CONNECT_RETRY_DELAY_MS ?? 5000),
   dbRoot: projectRoot,
   dbWorkspaceDir: path.resolve(projectRoot, ".db"),
   dbDataDir: path.resolve(projectRoot, ".db", "mariadb-data"),
