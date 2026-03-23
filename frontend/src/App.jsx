@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
-const FILES_URL = (import.meta.env.VITE_FILES_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const rawApiBase = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? "http://localhost:4000" : "")).replace(/\/$/, "");
+const API_URL = (rawApiBase ? (rawApiBase.endsWith("/api") ? rawApiBase : `${rawApiBase}/api`) : "/api").replace(/\/$/, "");
+const FILES_URL = (import.meta.env.VITE_FILES_URL?.trim() || rawApiBase).replace(/\/$/, "");
 const AUTH_STORAGE_KEY = "aguaschol-auth";
 const DRAFT_STORAGE_KEY = "aguaschol-draft";
 

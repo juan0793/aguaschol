@@ -183,6 +183,29 @@ VITE_API_URL=http://localhost:4000/api
 VITE_FILES_URL=http://localhost:4000
 ```
 
+## Despliegue en Vercel
+
+El frontend ya queda preparado para desplegarse desde la carpeta `frontend/`.
+
+Configuracion recomendada en Vercel:
+
+- Root Directory: `frontend`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+Variables requeridas:
+
+```env
+VITE_API_URL=https://tu-backend.up.railway.app/api
+VITE_FILES_URL=https://tu-backend.up.railway.app
+```
+
+Notas:
+
+- [frontend/vercel.json](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/frontend/vercel.json) deja lista la app como SPA
+- [frontend/.env.example](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/frontend/.env.example) incluye las variables base
+- en desarrollo local el frontend sigue usando `http://localhost:4000`
+
 ## Estado actual
 
 La aplicacion ya incluye:
