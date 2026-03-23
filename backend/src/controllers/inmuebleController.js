@@ -1,16 +1,21 @@
 import {
   attachPhoto,
+  archiveInmueble,
   buildAviso,
   buildAvisoPreview,
   createInmueble,
   getByClave,
   listInmuebles,
+  restoreInmueble,
   updateInmueble
 } from "../services/inmuebleService.js";
 
 export const list = async (req, res, next) => {
   try {
-    const data = await listInmuebles({ query: req.query.q ?? "" });
+    const data = await listInmuebles({
+      query: req.query.q ?? "",
+      archived: String(req.query.archived ?? "false").toLowerCase() === "true"
+    });
     res.json(data);
   } catch (error) {
     next(error);
@@ -32,7 +37,7 @@ export const getByClaveHandler = async (req, res, next) => {
 
 export const create = async (req, res, next) => {
   try {
-    const inmueble = await createInmueble(req.body);
+    const inmueble = await createInmueble(req.body, { actorUserId: req.authUser?.id });
     res.status(201).json(inmueble);
   } catch (error) {
     next(error);
@@ -41,7 +46,25 @@ export const create = async (req, res, next) => {
 
 export const update = async (req, res, next) => {
   try {
-    const inmueble = await updateInmueble(req.params.id, req.body);
+    const inmueble = await updateInmueble(req.params.id, req.body, { actorUserId: req.authUser?.id });
+    res.json(inmueble);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const archive = async (req, res, next) => {
+  try {
+    const inmueble = await archiveInmueble(req.params.id, req.body, { actorUserId: req.authUser?.id });
+    res.json(inmueble);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restore = async (req, res, next) => {
+  try {
+    const inmueble = await restoreInmueble(req.params.id, { actorUserId: req.authUser?.id });
     res.json(inmueble);
   } catch (error) {
     next(error);
@@ -54,7 +77,9 @@ export const uploadPhoto = async (req, res, next) => {
       return res.status(400).json({ message: "Debes seleccionar una fotografia." });
     }
 
-    const inmueble = await attachPhoto(req.params.id, `/uploads/${req.file.filename}`);
+    const inmueble = await attachPhoto(req.params.id, `/uploads/${req.file.filename}`, {
+      actorUserId: req.authUser?.id
+    });
     return res.json(inmueble);
   } catch (error) {
     next(error);

@@ -2,10 +2,11 @@ import cors from "cors";
 import express from "express";
 import path from "node:path";
 import { env } from "./config/env.js";
-import { requireAuth } from "./middleware/authMiddleware.js";
+import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/authRoutes.js";
 import inmuebleRoutes from "./routes/inmuebleRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 const allowedOrigins = new Set([env.frontendUrl, "http://127.0.0.1:5173", "http://localhost:5173"]);
@@ -31,6 +32,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
+app.use("/api/users", requireAuth, requireAdmin, userRoutes);
 app.use(errorHandler);
 
 export default app;

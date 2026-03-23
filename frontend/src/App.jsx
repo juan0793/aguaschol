@@ -30,7 +30,7 @@ const emptyForm = {
   firmante_aviso: "Maria Eugenia Berrios",
   cargo_firmante: "Jefe de Facturacion",
   levantamiento_datos: "LUIS FERNANDO HERRERA SOLIZ",
-  analista_datos: "Juan Ordoñez Bonilla"
+  analista_datos: "Ing. Juan Ordoñez Bonilla"
 };
 
 const fieldGroups = [
@@ -66,6 +66,141 @@ const hasDraftContent = (candidate) =>
     if (["id", "foto_path"].includes(key)) return false;
     return (candidate?.[key] ?? "") !== defaultValue;
   });
+
+const normalizeDateField = (value) => {
+  if (!value) return "";
+  const normalized = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+};
+
+const normalizeRecord = (record) => ({
+  ...record,
+  fecha_aviso: normalizeDateField(record?.fecha_aviso),
+  archived_at: record?.archived_at ?? null,
+  archived_reason: record?.archived_reason ?? ""
+});
+
+const formatDateTime = (value) => {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat("es-HN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+};
+
+const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
+
+const actionLabel = (action) =>
+  (
+    {
+      "auth.login": "Inicio de sesion",
+      "auth.logout": "Cierre de sesion",
+      "user.created": "Usuario creado",
+      "inmueble.created": "Ficha creada",
+      "inmueble.updated": "Ficha actualizada",
+      "inmueble.archived": "Ficha archivada",
+      "inmueble.restored": "Ficha restaurada",
+      "inmueble.photo_attached": "Fotografia cargada"
+    }[action] ?? action
+  );
+
+const iconPaths = {
+  records:
+    "M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5z M8 8h8M8 12h8M8 16h5",
+  users:
+    "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4m0 2c-3.8 0-7 2.1-7 4.7V20h14v-1.3C19 16.1 15.8 14 12 14",
+  logs:
+    "M7 5.5h10M7 10.5h10M7 15.5h6M6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13A2.5 2.5 0 0 1 6.5 3",
+  refresh:
+    "M19 6v5h-5M5 18v-5h5M18 11a6.5 6.5 0 0 0-11-3.8L5 11M6 13a6.5 6.5 0 0 0 11 3.8L19 13",
+  logout:
+    "M14 7V5.5A2.5 2.5 0 0 0 11.5 3h-5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h5a2.5 2.5 0 0 0 2.5-2.5V17M10 12h10m0 0-3-3m3 3-3 3",
+  search:
+    "M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14m9 3-4.2-4.2",
+  plus:
+    "M12 5v14M5 12h14",
+  archive:
+    "M4 7.5h16M9 12l3 3 3-3M12 15V8M6.5 4h11A1.5 1.5 0 0 1 19 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5v-13A1.5 1.5 0 0 1 6.5 4",
+  history:
+    "M12 7v5l3 2M12 22a10 10 0 1 1 10-10A10 10 0 0 1 12 22",
+  activity:
+    "M4 13h3l2-5 3 10 2-5h4",
+  success:
+    "M20 6 9 17l-5-5",
+  userCreated:
+    "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4m7.5 6.5L21 20l-2.5 2.5-2-2M5 20v-1.3C5 16.1 8.2 14 12 14c1.3 0 2.6.2 3.7.6",
+  auth:
+    "M12 3l7 4v5c0 4.3-2.9 8.2-7 9-4.1-.8-7-4.7-7-9V7z"
+};
+
+const Icon = ({ name, className = "" }) => (
+  <span className={`app-icon ${className}`.trim()} aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d={iconPaths[name] || iconPaths.records} />
+    </svg>
+  </span>
+);
+
+const actionIconName = (action) =>
+  (
+    {
+      "auth.login": "auth",
+      "auth.logout": "logout",
+      "user.created": "userCreated",
+      "inmueble.created": "plus",
+      "inmueble.updated": "records",
+      "inmueble.archived": "archive",
+      "inmueble.restored": "refresh",
+      "inmueble.photo_attached": "activity"
+    }[action] ?? "activity"
+  );
+
+const getRecordGroupDate = (record, recordView) =>
+  recordView === "archived"
+    ? record?.archived_at || record?.updated_at || record?.created_at
+    : record?.updated_at || record?.created_at || record?.fecha_aviso;
+
+const formatMonthGroup = (value) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return new Intl.DateTimeFormat("es-HN", {
+    month: "long",
+    year: "numeric"
+  }).format(date);
+};
+
+const comparableFormShape = (candidate = {}) => ({
+  clave_catastral: candidate.clave_catastral ?? "",
+  abonado: candidate.abonado ?? "",
+  nombre_catastral: candidate.nombre_catastral ?? "",
+  inquilino: candidate.inquilino ?? "",
+  barrio_colonia: candidate.barrio_colonia ?? "",
+  identidad: candidate.identidad ?? "",
+  telefono: candidate.telefono ?? "",
+  accion_inspeccion: candidate.accion_inspeccion ?? "",
+  situacion_inmueble: candidate.situacion_inmueble ?? "",
+  tendencia_inmueble: candidate.tendencia_inmueble ?? "",
+  uso_suelo: candidate.uso_suelo ?? "",
+  actividad: candidate.actividad ?? "",
+  codigo_sector: candidate.codigo_sector ?? "",
+  comentarios: candidate.comentarios ?? "",
+  conexion_agua: candidate.conexion_agua ?? "",
+  conexion_alcantarillado: candidate.conexion_alcantarillado ?? "",
+  recoleccion_desechos: candidate.recoleccion_desechos ?? "",
+  fecha_aviso: normalizeDateField(candidate.fecha_aviso ?? ""),
+  firmante_aviso: candidate.firmante_aviso ?? "",
+  cargo_firmante: candidate.cargo_firmante ?? "",
+  levantamiento_datos: candidate.levantamiento_datos ?? "",
+  analista_datos: candidate.analista_datos ?? ""
+});
+
+const pause = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const printDocument = async (title, bodyMarkup, options = {}) => {
   const {
@@ -317,11 +452,15 @@ const printDocument = async (title, bodyMarkup, options = {}) => {
 
 const formatSpanishDate = (value) => {
   if (!value) return "--";
+  const normalized = normalizeDateField(value);
+  if (!normalized) return "--";
+  const date = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "--";
   return new Intl.DateTimeFormat("es-HN", {
     day: "numeric",
     month: "long",
     year: "numeric"
-  }).format(new Date(`${value}T00:00:00`));
+  }).format(date);
 };
 
 const fileToDataUrl = (file) =>
@@ -350,8 +489,8 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [loginForm, setLoginForm] = useState({ username: "admin", password: "abcd123" });
-  const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [authFx, setAuthFx] = useState(null);
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [draftForm, setDraftForm] = useState(() => {
@@ -366,14 +505,117 @@ function App() {
     }
   });
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState("Cargando registros...");
+  const [emptyRecordsMessage, setEmptyRecordsMessage] = useState("Cargando registros...");
+  const [alert, setAlert] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [avisoHtml, setAvisoHtml] = useState("");
   const [loadingAviso, setLoadingAviso] = useState(false);
   const [activeSection, setActiveSection] = useState("abonado");
+  const [recordView, setRecordView] = useState("active");
+  const [selectedRecordId, setSelectedRecordId] = useState(null);
+  const [draftSavedAt, setDraftSavedAt] = useState(null);
+  const [workspaceView, setWorkspaceView] = useState("records");
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [userForm, setUserForm] = useState({
+    full_name: "",
+    email: "",
+    role: "operator"
+  });
+  const [latestUserResult, setLatestUserResult] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
   const isAuthenticated = Boolean(session?.token);
+  const isAdmin = session?.user?.role === "admin";
+  const safeRecords = Array.isArray(records) ? records : [];
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
+  const headerMeta = useMemo(
+    () =>
+      (
+        {
+          records: {
+            panelClass: "hero-panel-records",
+            cardClass: "search-card-records",
+            toplineLabel: "Panel operativo",
+            title: "Registro de inmuebles clandestinos",
+            lead: "Gestion centralizada de fichas, avisos y seguimiento operativo del sistema.",
+            kicker: "Operacion segura"
+          },
+          users: {
+            panelClass: "hero-panel-users",
+            cardClass: "search-card-users",
+            toplineLabel: "Administracion de accesos",
+            title: "Gestion de usuarios",
+            lead: "Creacion de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
+            kicker: "Control de acceso"
+          },
+          logs: {
+            panelClass: "hero-panel-logs",
+            cardClass: "search-card-logs",
+            toplineLabel: "Bitacora profesional",
+            title: "Historial de actividad",
+            lead: "Seguimiento continuo de movimientos relevantes con una lectura mas limpia y trazable.",
+            kicker: "Trazabilidad"
+          }
+        }[workspaceView] ?? {
+          panelClass: "hero-panel-records",
+          cardClass: "search-card-records",
+          toplineLabel: "Panel operativo",
+          title: "Registro de inmuebles clandestinos",
+          lead: "Gestion centralizada de fichas, avisos y seguimiento operativo del sistema.",
+          kicker: "Operacion segura"
+        }
+      ),
+    [workspaceView]
+  );
+  const isDirty = useMemo(() => {
+    const baseline = form.id
+      ? comparableFormShape(safeRecords.find((record) => record.id === form.id) ?? emptyForm)
+      : comparableFormShape(draftForm ?? emptyForm);
+
+    return (
+      JSON.stringify(comparableFormShape(form)) !== JSON.stringify(baseline) || Boolean(selectedFile)
+    );
+  }, [draftForm, form, safeRecords, selectedFile]);
+  const visibleRecordGroups = useMemo(() => {
+    const visibleLimit = draftForm ? 9 : 10;
+    const limitedRecords = safeRecords.slice(0, Math.max(visibleLimit, 0));
+    const groups = [];
+
+    limitedRecords.forEach((record) => {
+      const label = formatMonthGroup(getRecordGroupDate(record, recordView));
+      const currentGroup = groups[groups.length - 1];
+
+      if (!currentGroup || currentGroup.label !== label) {
+        groups.push({ label, items: [record] });
+        return;
+      }
+
+      currentGroup.items.push(record);
+    });
+
+    return groups;
+  }, [draftForm, safeRecords, recordView]);
+
+  const showAlert = (text) => {
+    if (!text) return;
+    setAlert({ text, id: Date.now() });
+  };
+
+  const clearSession = () => {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    setSession(null);
+    setRecords([]);
+    setUsers([]);
+    setAuditLogs([]);
+    setLatestUserResult(null);
+    setWorkspaceView("records");
+    resetForm();
+  };
 
   const apiFetch = async (path, options = {}) => {
     const headers = new Headers(options.headers ?? {});
@@ -407,26 +649,128 @@ function App() {
     };
   }, [localSelectedPhotoUrl]);
 
-  const loadRecords = async (query = "") => {
+  useEffect(() => {
+    if (!alert) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setAlert(null);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [alert]);
+
+  const loadRecords = async (query = "", view = recordView) => {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const response = await apiFetch(`/inmuebles?q=${encodeURIComponent(query)}`);
+      const response = await apiFetch(
+        `/inmuebles?q=${encodeURIComponent(query)}&archived=${view === "archived"}`
+      );
       const data = await response.json();
-      setRecords(data);
-      setMessage(data.length ? "" : "No hay registros para mostrar.");
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar los registros.");
+      }
+
+      const list = Array.isArray(data) ? data : [];
+      setRecords(list);
+      setEmptyRecordsMessage(
+        list.length ? "" : view === "archived" ? "No hay fichas archivadas." : "No hay registros para mostrar."
+      );
     } catch (_error) {
-      setMessage("No fue posible cargar los registros.");
+      setRecords([]);
+      setEmptyRecordsMessage("");
+      showAlert("No fue posible cargar los registros.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadRecords();
+    if (isAuthenticated && workspaceView === "records") {
+      loadRecords(search, recordView);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, recordView, workspaceView]);
+
+  const loadUsers = async () => {
+    if (!isAuthenticated || !isAdmin) return;
+    setLoadingUsers(true);
+
+    try {
+      const response = await apiFetch("/users");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar los usuarios.");
+      }
+
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setUsers([]);
+      showAlert(error.message || "No fue posible cargar los usuarios.");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const loadAuditLogs = async () => {
+    if (!isAuthenticated || !isAdmin) return;
+    setLoadingLogs(true);
+
+    try {
+      const response = await apiFetch("/users/audit-logs?limit=120");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar el historial.");
+      }
+
+      setAuditLogs(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setAuditLogs([]);
+      showAlert(error.message || "No fue posible cargar el historial.");
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) {
+      return;
+    }
+
+    if (workspaceView === "users") {
+      loadUsers();
+    }
+
+    if (workspaceView === "logs") {
+      loadAuditLogs();
+    }
+  }, [isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
+    if (isAuthenticated && !isAdmin && workspaceView !== "records") {
+      setWorkspaceView("records");
+    }
+  }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
     if (form.id || !hasDraftContent(form)) {
@@ -436,6 +780,7 @@ function App() {
     const nextDraft = { ...emptyForm, ...form, id: null };
     setDraftForm(nextDraft);
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+    setDraftSavedAt(new Date().toISOString());
   }, [form]);
 
   const handleChange = (event) => {
@@ -444,7 +789,7 @@ function App() {
   };
 
   const applyRecord = (record) => {
-    setForm({ ...emptyForm, ...record });
+    setForm({ ...emptyForm, ...normalizeRecord(record) });
     setSelectedFile(null);
     setAvisoHtml("");
   };
@@ -452,24 +797,36 @@ function App() {
   const handleSearch = async (event) => {
     event.preventDefault();
     if (!search.trim()) {
-      loadRecords("");
+      loadRecords("", recordView);
+      return;
+    }
+
+    if (recordView === "archived") {
+      loadRecords(search, "archived");
       return;
     }
 
     try {
       const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(search)}`);
       if (!response.ok) {
-        setMessage("No se encontro esa clave catastral.");
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
         setRecords([]);
+        setEmptyRecordsMessage("No se encontraron coincidencias.");
+        showAlert("No se encontro esa clave catastral.");
         return;
       }
 
       const data = await response.json();
       setRecords([data]);
+      setEmptyRecordsMessage("");
       applyRecord(data);
-      setMessage("");
     } catch (_error) {
-      setMessage("No fue posible completar la busqueda.");
+      showAlert("No fue posible completar la busqueda.");
     }
   };
 
@@ -478,16 +835,34 @@ function App() {
     setSearch(value);
 
     if (!value.trim()) {
-      loadRecords("");
+      loadRecords("", recordView);
     }
   };
 
   const handleSelectRecord = (record) => {
+    setSelectedRecordId(record.id ?? null);
     applyRecord(record);
-    setMessage(`Registro ${record.clave_catastral} cargado.`);
+  };
+
+  const handleCopyClave = async (record, event) => {
+    event.stopPropagation();
+
+    try {
+      await navigator.clipboard.writeText(record.clave_catastral || "");
+      showAlert(`Clave ${record.clave_catastral} copiada.`);
+    } catch {
+      showAlert("No se pudo copiar la clave.");
+    }
+  };
+
+  const handleQuickEdit = (record, event) => {
+    event.stopPropagation();
+    handleSelectRecord(record);
+    setActiveSection("abonado");
   };
 
   const resetForm = () => {
+    setSelectedRecordId(null);
     setForm(emptyForm);
     setSelectedFile(null);
     setAvisoHtml("");
@@ -496,15 +871,15 @@ function App() {
 
   const restoreDraft = () => {
     if (!draftForm) {
-      setMessage("No hay borrador pendiente.");
+      showAlert("No hay borrador pendiente.");
       return;
     }
 
+    setSelectedRecordId(null);
     setForm({ ...emptyForm, ...draftForm, id: null });
     setSelectedFile(null);
     setAvisoHtml("");
     setActiveSection("abonado");
-    setMessage("Borrador recuperado.");
   };
 
   const handleLoginChange = (event) => {
@@ -512,10 +887,14 @@ function App() {
     setLoginForm((current) => ({ ...current, [name]: value }));
   };
 
+  const handleUserFormChange = (event) => {
+    const { name, value } = event.target;
+    setUserForm((current) => ({ ...current, [name]: value }));
+  };
+
   const handleLogin = async (event) => {
     event.preventDefault();
     setLoginLoading(true);
-    setLoginError("");
 
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
@@ -532,20 +911,122 @@ function App() {
       }
 
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+      setAuthFx({ mode: "login", text: "Abriendo sesion..." });
+      await pause(550);
       setSession(data);
-      setMessage("");
+      setWorkspaceView("records");
+      setAlert(null);
     } catch (error) {
-      setLoginError(error.message);
+      showAlert(error.message);
     } finally {
+      setAuthFx(null);
       setLoginLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    setSession(null);
-    setRecords([]);
-    resetForm();
+  const handleLogout = async () => {
+    try {
+      setAuthFx({ mode: "logout", text: "Cerrando sesion..." });
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // The local session should still be removed even if the request fails.
+    } finally {
+      await pause(450);
+      clearSession();
+      setAuthFx(null);
+    }
+  };
+
+  const handleCreateUser = async (event) => {
+    event.preventDefault();
+    setCreatingUser(true);
+
+    try {
+      const response = await apiFetch("/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(userForm)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo crear el usuario.");
+      }
+
+      setLatestUserResult(data);
+      setUserForm({
+        full_name: "",
+        email: "",
+        role: "operator"
+      });
+      showAlert("Usuario creado satisfactoriamente.");
+      loadUsers();
+      loadAuditLogs();
+    } catch (error) {
+      showAlert(error.message || "No se pudo crear el usuario.");
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const handleArchiveRecord = async () => {
+    if (!form.id) {
+      showAlert("Primero selecciona o guarda una ficha.");
+      return;
+    }
+
+    const reason = window.prompt("Motivo de archivo (opcional):", form.archived_reason || "");
+    if (reason === null) return;
+
+    try {
+      const response = await apiFetch(`/inmuebles/${form.id}/archive`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ archived_reason: reason })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo archivar la ficha.");
+      }
+
+      resetForm();
+      setRecordView("archived");
+      showAlert(`Ficha ${data.clave_catastral} archivada.`);
+      loadRecords(search, "archived");
+    } catch (error) {
+      showAlert(error.message);
+    }
+  };
+
+  const handleRestoreRecord = async (recordId) => {
+    try {
+      const response = await apiFetch(`/inmuebles/${recordId}/restore`, {
+        method: "POST"
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo restaurar la ficha.");
+      }
+
+      setRecordView("active");
+      applyRecord(data);
+      showAlert(`Ficha ${data.clave_catastral} restaurada.`);
+      loadRecords(search, "active");
+    } catch (error) {
+      showAlert(error.message);
+    }
   };
 
   const saveRecord = async (event) => {
@@ -588,11 +1069,12 @@ function App() {
 
       applyRecord(updated);
       setDraftForm(null);
+      setDraftSavedAt(null);
       window.localStorage.removeItem(DRAFT_STORAGE_KEY);
-      setMessage(isEdit ? "Registro actualizado." : "Registro creado.");
+      setEmptyRecordsMessage("");
       loadRecords(search);
     } catch (error) {
-      setMessage(error.message);
+      showAlert(error.message);
     } finally {
       setSaving(false);
     }
@@ -616,11 +1098,10 @@ function App() {
       }
 
       setAvisoHtml(data.aviso_html);
-      setMessage(form.id ? "Aviso generado." : "Aviso preliminar generado.");
       const avisoWindow = window.open("", "_blank", "width=980,height=1200");
       if (avisoWindow) {
         const initialData = {
-          fecha_aviso: data.fecha_aviso || form.fecha_aviso || "",
+          fecha_aviso: normalizeDateField(data.fecha_aviso || form.fecha_aviso || ""),
           barrio_colonia: data.barrio_colonia || form.barrio_colonia || "",
           clave_catastral: data.clave_catastral || form.clave_catastral || "",
           firmante_aviso: data.firmante_aviso || form.firmante_aviso || "",
@@ -823,7 +1304,10 @@ function App() {
                 const state = ${JSON.stringify(initialData)};
                 const formatSpanishDate = (value) => {
                   if (!value) return "__________";
-                  const date = new Date(value + "T00:00:00");
+                  const normalized = String(value).slice(0, 10);
+                  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(normalized)) return "__________";
+                  const date = new Date(normalized + "T00:00:00");
+                  if (Number.isNaN(date.getTime())) return "__________";
                   return new Intl.DateTimeFormat("es-HN", {
                     day: "numeric",
                     month: "long",
@@ -888,7 +1372,7 @@ function App() {
         avisoWindow.document.close();
       }
     } catch (error) {
-      setMessage(error.message);
+      showAlert(error.message);
     } finally {
       setLoadingAviso(false);
     }
@@ -906,7 +1390,7 @@ function App() {
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       }
     } catch (_error) {
-      setMessage("La ficha se imprimira sin foto porque no fue posible cargarla a tiempo.");
+      showAlert("La ficha se imprimira sin foto porque no fue posible cargarla a tiempo.");
     }
 
     await printDocument(
@@ -993,7 +1477,7 @@ function App() {
 
   const handlePrintAviso = async () => {
     if (!avisoHtml) {
-      setMessage("Genera el aviso antes de imprimir.");
+      showAlert("Genera el aviso antes de imprimir.");
       return;
     }
 
@@ -1006,30 +1490,84 @@ function App() {
   if (!isAuthenticated) {
     return (
       <div className="login-shell">
-        <div className="login-card">
-          <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
-          <p className="eyebrow">Aguas de Choluteca</p>
-          <h1>Iniciar sesion</h1>
-          <p className="lead">Acceso administrativo al registro de inmuebles clandestinos.</p>
-          <form className="login-form" onSubmit={handleLogin}>
-            <label>
-              <span>Usuario</span>
-              <input name="username" value={loginForm.username} onChange={handleLoginChange} />
-            </label>
-            <label>
-              <span>Contrasena</span>
-              <input
-                name="password"
-                type="password"
-                value={loginForm.password}
-                onChange={handleLoginChange}
-              />
-            </label>
-            {loginError ? <p className="helper-text">{loginError}</p> : null}
-            <button type="submit" disabled={loginLoading}>
-              {loginLoading ? "Ingresando..." : "Entrar"}
-            </button>
-          </form>
+        {authFx ? (
+          <div className={`auth-fx auth-fx-${authFx.mode}`}>
+            <div className="auth-fx-card">
+              <span className="auth-fx-dot" />
+              <strong>{authFx.text}</strong>
+            </div>
+          </div>
+        ) : null}
+        {alert ? (
+          <div className="app-alert login-alert" role="alert">
+            <strong>Atencion</strong>
+            <span>{alert.text}</span>
+          </div>
+        ) : null}
+        <div className="login-layout">
+          <section className="login-intro-card">
+            <div className="login-intro-topline">
+              <span className="hero-topline-item">
+                <Icon name="records" />
+                Sistema operativo
+              </span>
+              <span className="hero-topline-item">
+                <Icon name="history" />
+                Trazabilidad activa
+              </span>
+            </div>
+            <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
+            <p className="eyebrow">Aguas de Choluteca</p>
+            <h1>Control de inmuebles clandestinos</h1>
+            <p className="lead">
+              Una sola plataforma para registrar fichas, emitir avisos y dar seguimiento a la actividad del sistema.
+            </p>
+            <div className="login-intro-grid">
+              <div className="login-intro-stat">
+                <span>Fichas</span>
+                <strong>Registro rapido</strong>
+              </div>
+              <div className="login-intro-stat">
+                <span>Usuarios</span>
+                <strong>Accesos controlados</strong>
+              </div>
+              <div className="login-intro-stat">
+                <span>Historial</span>
+                <strong>Eventos auditables</strong>
+              </div>
+            </div>
+          </section>
+
+          <div className="login-card">
+            <div className="login-card-head">
+              <p className="eyebrow">Acceso seguro</p>
+              <h2>Iniciar sesion</h2>
+              <p className="lead">Ingresa con tu usuario o correo para continuar.</p>
+            </div>
+            <form className="login-form" onSubmit={handleLogin}>
+              <label>
+                <span>Usuario o correo</span>
+                <input name="username" value={loginForm.username} onChange={handleLoginChange} />
+              </label>
+              <label>
+                <span>Contrasena</span>
+                <input
+                  name="password"
+                  type="password"
+                  value={loginForm.password}
+                  onChange={handleLoginChange}
+                />
+              </label>
+              <button type="submit" disabled={loginLoading}>
+                <Icon name="auth" />
+                {loginLoading ? "Ingresando..." : "Entrar"}
+              </button>
+            </form>
+            <div className="login-footnote">
+              <span className="login-footnote-line" />
+              <p>Acceso protegido para usuarios autorizados.</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1037,43 +1575,175 @@ function App() {
 
   return (
     <div className="page-shell">
+      {authFx ? (
+        <div className={`auth-fx auth-fx-${authFx.mode}`}>
+          <div className="auth-fx-card">
+            <span className="auth-fx-dot" />
+            <strong>{authFx.text}</strong>
+          </div>
+        </div>
+      ) : null}
+      {alert ? (
+        <div className="app-alert no-print" role="alert">
+          <strong>Atencion</strong>
+          <span>{alert.text}</span>
+        </div>
+      ) : null}
       <header className="hero no-print">
-        <div className="hero-brand">
-          <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="hero-logo" />
-          <div>
-            <p className="eyebrow">Aguas de Choluteca</p>
-            <h1>Registro de inmuebles clandestinos</h1>
-            <p className="lead">
-              Primera version basada en la ficha tecnica y el formato de aviso del flujo actual.
-            </p>
+        <div className={`hero-panel ${headerMeta.panelClass}`}>
+          <div className="hero-topline">
+            <span className="hero-topline-item">
+              <Icon name="records" />
+              {headerMeta.toplineLabel}
+            </span>
+            <span className="hero-topline-item">
+              <Icon name="users" />
+              {session?.user?.full_name || session?.user?.username || "Sesion activa"}
+            </span>
+          </div>
+          <div className="hero-brand">
+            <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="hero-logo" />
+            <div>
+              <p className="eyebrow">Aguas de Choluteca</p>
+              <h1>{headerMeta.title}</h1>
+              <p className="lead">{headerMeta.lead}</p>
+              <div className="hero-status-row">
+                <span className={`hero-status-pill ${isDirty ? "is-live" : ""}`}>
+                  {isDirty ? "Cambios sin guardar" : "Todo guardado"}
+                </span>
+                {draftSavedAt ? (
+                  <span className="hero-status-pill subtle">
+                    Borrador: {formatDateTime(draftSavedAt)}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div className="hero-strip">
+            <div className="hero-stat">
+              <span className="hero-stat-icon"><Icon name="records" /></span>
+              <span>Registros visibles</span>
+              <strong>{safeRecords.length}</strong>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-icon"><Icon name={form.id ? "activity" : "plus"} /></span>
+              <span>Modo</span>
+              <strong>{form.id ? "Edicion" : "Nueva ficha"}</strong>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-icon"><Icon name={draftForm ? "success" : "refresh"} /></span>
+              <span>Borrador</span>
+              <strong>{draftForm ? "Disponible" : "Sin cambios"}</strong>
+            </div>
           </div>
         </div>
 
-        <form className="search-card" onSubmit={handleSearch}>
-          <label htmlFor="search">Busqueda por clave catastral</label>
-          <div className="search-row">
-            <input
-              id="search"
-              value={search}
-              onChange={handleSearchInputChange}
-              placeholder="Ej. 10-22-23"
-            />
-            <button type="submit">Buscar</button>
+        <div className={`search-card ${headerMeta.cardClass}`}>
+          <div className="search-card-head">
+            <label htmlFor="search">Espacios de trabajo</label>
+            <span className="search-card-kicker">{headerMeta.kicker}</span>
           </div>
-          <button type="button" className="button-secondary" onClick={() => loadRecords(search)}>
-            Refrescar listado
-          </button>
-          <button type="button" className="button-secondary" onClick={handleLogout}>
-            Cerrar sesion
-          </button>
-        </form>
+          <div className="workspace-nav">
+            <button
+              type="button"
+              className={workspaceView === "records" ? "button-secondary active-filter" : "button-secondary"}
+              onClick={() => setWorkspaceView("records")}
+            >
+              <Icon name="records" />
+              Fichas
+            </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                className={workspaceView === "users" ? "button-secondary active-filter" : "button-secondary"}
+                onClick={() => setWorkspaceView("users")}
+              >
+                <Icon name="users" />
+                Usuarios
+              </button>
+            ) : null}
+            {isAdmin ? (
+              <button
+                type="button"
+                className={workspaceView === "logs" ? "button-secondary active-filter" : "button-secondary"}
+                onClick={() => setWorkspaceView("logs")}
+              >
+                <Icon name="logs" />
+                Historial
+              </button>
+            ) : null}
+          </div>
+          {workspaceView === "records" ? (
+            <form onSubmit={handleSearch}>
+              <div className="search-row">
+                <input
+                  id="search"
+                  value={search}
+                  onChange={handleSearchInputChange}
+                  placeholder="Ej. 10-22-23"
+                />
+                <button type="submit"><Icon name="search" />Buscar</button>
+              </div>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={() => loadRecords(search)}>
+                  <Icon name="refresh" />
+                  Refrescar listado
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                {workspaceView === "users"
+                  ? "Alta de usuarios con envio por correo y perfiles de acceso."
+                  : "Bitacora operativa con eventos de acceso, cambios y archivado."}
+              </p>
+              <div className="search-actions">
+                {workspaceView === "users" ? (
+                  <button type="button" className="button-secondary" onClick={loadUsers}>
+                    <Icon name="refresh" />
+                    Refrescar usuarios
+                  </button>
+                ) : (
+                  <button type="button" className="button-secondary" onClick={loadAuditLogs}>
+                    <Icon name="refresh" />
+                    Refrescar historial
+                  </button>
+                )}
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </header>
 
+      {workspaceView === "records" ? (
       <main className="layout">
         <aside className="sidebar no-print">
           <div className="panel-header">
             <h2>Registros</h2>
             <div className="sidebar-actions">
+              <button
+                type="button"
+                className={recordView === "active" ? "button-secondary active-filter" : "button-secondary"}
+                onClick={() => setRecordView("active")}
+              >
+                Activas
+              </button>
+              <button
+                type="button"
+                className={recordView === "archived" ? "button-secondary active-filter" : "button-secondary"}
+                onClick={() => setRecordView("archived")}
+              >
+                Archivadas
+              </button>
               {draftForm ? (
                 <button type="button" className="button-secondary" onClick={restoreDraft}>
                   Borrador
@@ -1086,43 +1756,82 @@ function App() {
           </div>
 
           {loading ? <p className="helper-text">Cargando...</p> : null}
-          {message ? <p className="helper-text">{message}</p> : null}
+          {emptyRecordsMessage ? <p className="helper-text">{emptyRecordsMessage}</p> : null}
 
-          <div className="record-list">
-            {draftForm ? (
-              <button
-                type="button"
-                className={`record-card draft-card ${!form.id ? "active" : ""}`}
-                onClick={restoreDraft}
-              >
-                <div className="record-card-top">
+        <div className="record-list-head">
+          <span>No.</span>
+          <span>Ficha</span>
+          <span>Top 10</span>
+        </div>
+
+        <div className="record-list">
+          {draftForm ? (
+            <button
+              type="button"
+              className={`record-card draft-card ${!form.id ? "active" : ""}`}
+              onClick={restoreDraft}
+            >
+              <div className="record-card-top">
+                <span className="record-number">D</span>
+                <div className="record-main">
                   <strong>{draftForm.clave_catastral || "Borrador nuevo"}</strong>
-                  <span className="record-badge">Borrador</span>
+                  <span className="record-location">{draftForm.barrio_colonia || "Continua la ficha en proceso"}</span>
                 </div>
-                <span>{draftForm.barrio_colonia || "Continua la ficha en proceso"}</span>
-                <small>{draftForm.comentarios || "Datos aun no guardados"}</small>
-              </button>
-            ) : null}
-            {records.map((record) => (
-              <button
-                type="button"
-                key={record.id ?? record.clave_catastral}
-                className={`record-card ${form.id === record.id ? "active" : ""}`}
-                onClick={() => handleSelectRecord(record)}
-              >
-                <div className="record-card-top">
-                  <strong>{record.clave_catastral}</strong>
-                  <span className="record-badge">Ver</span>
-                </div>
-                <span>{record.barrio_colonia || "Sin ubicacion"}</span>
-                <small>{record.comentarios || "Sin comentario"}</small>
-              </button>
-            ))}
-          </div>
+                <span className="record-badge">Borrador</span>
+              </div>
+              <small>{draftForm.comentarios || "Datos aun no guardados"}</small>
+              <div className="record-quick-actions">
+                <span className="record-quick-chip muted">Autosave activo</span>
+              </div>
+            </button>
+          ) : null}
+          {visibleRecordGroups.map((group) => (
+            <section key={group.label} className="record-month-group">
+              <div className="record-month-heading">{group.label}</div>
+              {group.items.map((record, index) => {
+                const globalIndex = safeRecords.findIndex((item) => item.id === record.id) + 1;
+
+                return (
+                  <button
+                    type="button"
+                    key={record.id ?? record.clave_catastral}
+                    className={`record-card ${form.id === record.id ? "active" : ""}`}
+                    onClick={() => handleSelectRecord(record)}
+                  >
+                    <div className="record-card-top">
+                      <span className="record-number">{globalIndex || index + 1}</span>
+                      <div className="record-main">
+                        <strong>{record.clave_catastral}</strong>
+                        <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
+                      </div>
+                      <span className="record-badge">{recordView === "archived" ? "Log" : "Ver"}</span>
+                    </div>
+                    <small>
+                      {recordView === "archived"
+                        ? `Archivada: ${formatSpanishDate(record.archived_at)}${record.archived_reason ? ` - ${record.archived_reason}` : ""}`
+                        : record.comentarios || "Sin comentario"}
+                    </small>
+                    <div className="record-quick-actions">
+                      <button type="button" className="record-quick-chip" onClick={(event) => handleQuickEdit(record, event)}>
+                        Abrir
+                      </button>
+                      <button type="button" className="record-quick-chip" onClick={(event) => handleCopyClave(record, event)}>
+                        Copiar clave
+                      </button>
+                    </div>
+                  </button>
+                );
+              })}
+            </section>
+          ))}
+        </div>
         </aside>
 
         <section className="content">
-          <form className="sheet no-print" onSubmit={saveRecord}>
+          <form className={`sheet no-print ${selectedRecordId ? "sheet-selected" : ""}`} onSubmit={saveRecord}>
+            {selectedRecordId ? (
+              <div className="sheet-selection-flag">Ficha seleccionada</div>
+            ) : null}
             <div className="sheet-topbar">
               <div className="sheet-brand">
                 <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
@@ -1282,6 +1991,16 @@ function App() {
               <button type="submit" disabled={saving}>
                 {saving ? "Guardando..." : form.id ? "Actualizar ficha" : "Guardar ficha"}
               </button>
+              {form.id ? (
+                <button type="button" className="button-danger" onClick={handleArchiveRecord}>
+                  Archivar ficha
+                </button>
+              ) : null}
+              {recordView === "archived" && form.id ? (
+                <button type="button" className="button-secondary" onClick={() => handleRestoreRecord(form.id)}>
+                  Restaurar ficha
+                </button>
+              ) : null}
               <button type="button" className="button-secondary" onClick={resetForm}>
                 Limpiar
               </button>
@@ -1372,29 +2091,230 @@ function App() {
                 </div>
               </section>
             </article>
-
-            <h2>Aviso</h2>
-            <article className="aviso-preview-card">
-              <div className="aviso-logo-wrap">
-                <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="aviso-logo" />
-              </div>
-              <h3>AVISO IMPORTANTE AL ABONADO</h3>
-              <p className="aviso-preview-date">Fecha: Choluteca, {formatSpanishDate(form.fecha_aviso)}</p>
-              <p className="aviso-preview-body">
-                El aviso ya no se incrusta en esta pantalla. Usa <strong>Generar aviso</strong> para abrirlo en una
-                pestaña aparte con formato de documento e impresión propia.
-              </p>
-              {avisoHtml ? (
-                <p className="helper-text">Ya se generó un aviso para esta ficha en una pestaña independiente.</p>
-              ) : (
-                <p className="helper-text">
-                  Puedes generar un aviso preliminar con los datos actuales o guardar la ficha para usar el registro final.
-                </p>
-              )}
-            </article>
           </section>
         </section>
       </main>
+      ) : (
+        <main className={`admin-layout ${workspaceView === "logs" ? "admin-layout-logs" : ""}`}>
+          {workspaceView === "users" ? (
+          <aside className="sidebar no-print">
+            {workspaceView === "users" ? (
+              <>
+                <div className="panel-header">
+                  <h2>Usuarios</h2>
+                  <span className="panel-pill">{safeUsers.length}</span>
+                </div>
+                {loadingUsers ? <p className="helper-text">Cargando usuarios...</p> : null}
+                <div className="record-list">
+                  {safeUsers.map((user) => (
+                    <article key={user.id} className="record-card info-card">
+                      <div className="record-card-top user-card-top">
+                        <strong className="user-name">{user.full_name}</strong>
+                        <span className="record-badge">{roleLabel(user.role)}</span>
+                      </div>
+                      <span className="user-email">{user.email}</span>
+                      <small className="user-meta">
+                        Usuario: {user.username} - Ultimo acceso: {formatDateTime(user.last_login_at)}
+                      </small>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="panel-header">
+                  <h2>Actividad reciente</h2>
+                  <span className="panel-pill">{safeAuditLogs.length}</span>
+                </div>
+                {loadingLogs ? <p className="helper-text">Cargando historial...</p> : null}
+                <div className="record-list">
+                  {safeAuditLogs.map((log) => (
+                    <article key={log.id} className="record-card info-card">
+                      <div className="record-card-top">
+                        <strong>{actionLabel(log.action)}</strong>
+                        <span className="record-badge">{log.entity_type}</span>
+                      </div>
+                      <span>{log.summary || "Movimiento registrado"}</span>
+                      <small>{formatDateTime(log.created_at)}</small>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </aside>
+          ) : null}
+
+          <section className={`admin-content ${workspaceView === "logs" ? "admin-content-logs" : ""}`}>
+            {workspaceView === "users" ? (
+              <>
+                <form className="sheet no-print" onSubmit={handleCreateUser}>
+                  <div className="admin-section-head">
+                    <div>
+                      <p className="sheet-kicker">Administracion de usuarios</p>
+                      <h2><Icon name="users" className="title-icon" />Crear nuevo acceso</h2>
+                    </div>
+                    <span className="panel-pill">Correo transaccional</span>
+                  </div>
+                  <section className="sheet-section">
+                    <h3>Datos del usuario</h3>
+                    <div className="form-grid">
+                      <label>
+                        <span>Nombre completo</span>
+                        <input name="full_name" value={userForm.full_name} onChange={handleUserFormChange} required />
+                      </label>
+                      <label>
+                        <span>Correo electronico</span>
+                        <input name="email" type="email" value={userForm.email} onChange={handleUserFormChange} required />
+                      </label>
+                      <label>
+                        <span>Perfil</span>
+                        <select name="role" value={userForm.role} onChange={handleUserFormChange}>
+                          <option value="operator">Operador</option>
+                          <option value="admin">Administrador</option>
+                        </select>
+                      </label>
+                    </div>
+                  </section>
+                  <div className="action-row">
+                    <button type="submit" disabled={creatingUser}>
+                      <Icon name="plus" />
+                      {creatingUser ? "Creando..." : "Crear usuario"}
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() =>
+                        setUserForm({
+                          full_name: "",
+                          email: "",
+                          role: "operator"
+                        })
+                      }
+                    >
+                      <Icon name="refresh" />
+                      Limpiar
+                    </button>
+                  </div>
+                </form>
+
+                <section className="preview-panel">
+                  <div className="admin-section-head">
+                    <div>
+                      <p className="sheet-kicker">Entrega y credenciales</p>
+                      <h2><Icon name="success" className="title-icon" />Resultado mas reciente</h2>
+                    </div>
+                    {latestUserResult?.user ? <span className="panel-pill">{latestUserResult.user.username}</span> : null}
+                  </div>
+                  <article className="document-sheet">
+                    {latestUserResult?.user ? (
+                      <div className="admin-result-grid">
+                        <div className="document-block">
+                          <h4>Usuario creado</h4>
+                          <p className="user-detail-line"><strong>Nombre:</strong> <span className="user-name">{latestUserResult.user.full_name}</span></p>
+                          <p className="user-detail-line"><strong>Correo:</strong> <span className="user-email">{latestUserResult.user.email}</span></p>
+                          <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{latestUserResult.user.username}</span></p>
+                          <p><strong>Perfil:</strong> {roleLabel(latestUserResult.user.role)}</p>
+                        </div>
+                        <div className="document-block">
+                          <h4>Entrega por correo</h4>
+                          <p>
+                            <strong>Estado:</strong>{" "}
+                            {latestUserResult.delivery?.sent
+                              ? latestUserResult.delivery?.sandbox
+                                ? "Enviado en sandbox"
+                                : "Enviado"
+                              : "Pendiente o manual"}
+                          </p>
+                          <p><strong>Proveedor:</strong> Brevo</p>
+                          <p>
+                            <strong>Detalle:</strong>{" "}
+                            {latestUserResult.delivery?.reason || "La notificacion fue procesada correctamente."}
+                          </p>
+                          {latestUserResult.temp_password ? (
+                            <p><strong>Contrasena temporal:</strong> {latestUserResult.temp_password}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="empty-state">
+                        <h3>Sin altas recientes</h3>
+                        <p>
+                          Cuando crees un usuario veras aqui el resultado del envio de correo y la credencial temporal de respaldo.
+                        </p>
+                      </div>
+                    )}
+                  </article>
+                </section>
+              </>
+            ) : (
+              <section className="preview-panel log-panel-full">
+                <div className="log-shell">
+                  <div className="log-hero">
+                    <div className="admin-section-head">
+                      <div>
+                        <p className="sheet-kicker">Bitacora profesional</p>
+                        <h2><Icon name="history" className="title-icon" />Historial de actividad</h2>
+                        <p className="workspace-title">
+                          Un seguimiento continuo de accesos, altas y movimientos relevantes del sistema.
+                        </p>
+                      </div>
+                      <span className="panel-pill">{safeAuditLogs.length} eventos</span>
+                    </div>
+                    <div className="log-summary-strip">
+                      <div className="log-summary-card">
+                        <span>Vista</span>
+                        <strong>Centralizada</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Orden</span>
+                        <strong>Mas reciente primero</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Control</span>
+                        <strong>Trazabilidad activa</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <article className="document-sheet log-sheet log-sheet-minimal">
+                    {safeAuditLogs.length ? (
+                      safeAuditLogs.map((log) => (
+                        <div key={log.id} className="log-row">
+                          <div className="log-pin">
+                            <Icon name={actionIconName(log.action)} />
+                          </div>
+                          <div className="log-meta">
+                            <div className="log-topline">
+                              <span className="record-badge">{actionLabel(log.action)}</span>
+                              <small>{formatDateTime(log.created_at)}</small>
+                            </div>
+                            <strong>{log.summary || "Movimiento registrado"}</strong>
+                          </div>
+                          <div className="log-detail">
+                            <div className="log-chips">
+                              <span className="log-chip">Actor: {log.actor_name || log.actor_email || "Sistema"}</span>
+                              <span className="log-chip">Entidad: {log.entity_type} #{log.entity_id || "--"}</span>
+                            </div>
+                            {log.details_json ? (
+                              <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
+                            ) : (
+                              <p>Sin detalle adicional.</p>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="empty-state">
+                        <h3>Sin eventos registrados</h3>
+                        <p>Las altas de usuarios, accesos y cambios de fichas apareceran aqui automaticamente.</p>
+                      </div>
+                    )}
+                  </article>
+                </div>
+              </section>
+            )}
+          </section>
+        </main>
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ backend-dev.log
 backend-dev.err.log
 frontend-dev.log
 frontend-dev.err.log
+.db/
+.tools/
 
 .DS_Store
 Thumbs.db

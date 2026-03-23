@@ -1,10 +1,12 @@
 import { Router } from "express";
 import {
+  archive,
   create,
   getAviso,
   getByClaveHandler,
   list,
   previewAviso,
+  restore,
   update,
   uploadPhoto
 } from "../controllers/inmuebleController.js";
@@ -18,6 +20,8 @@ router.get("/:id/aviso", getAviso);
 router.post("/aviso-preview", previewAviso);
 router.post("/", create);
 router.put("/:id", update);
+router.post("/:id/archive", archive);
+router.post("/:id/restore", restore);
 router.post("/:id/foto", upload.single("foto"), uploadPhoto);
 
 export default router;

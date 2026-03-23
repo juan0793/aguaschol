@@ -1,22 +1,25 @@
 import { Router } from "express";
-import { env } from "../config/env.js";
+import { requireAuth } from "../middleware/authMiddleware.js";
+import { loginUser, logoutUser } from "../services/authService.js";
 
 const router = Router();
 
-router.post("/login", (req, res) => {
-  const { username, password } = req.body ?? {};
-
-  if (username !== env.authUsername || password !== env.authPassword) {
-    return res.status(401).json({ message: "Usuario o contrasena incorrectos." });
+router.post("/login", async (req, res, next) => {
+  try {
+    const session = await loginUser(req.body ?? {});
+    res.json(session);
+  } catch (error) {
+    next(error);
   }
+});
 
-  return res.json({
-    token: env.authToken,
-    user: {
-      username: env.authUsername,
-      role: "admin"
-    }
-  });
+router.post("/logout", requireAuth, async (req, res, next) => {
+  try {
+    await logoutUser(req.authToken, req.authUser);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

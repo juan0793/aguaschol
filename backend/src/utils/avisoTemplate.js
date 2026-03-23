@@ -1,5 +1,20 @@
 const formatSpanishDate = (value) => {
-  const date = value ? new Date(value) : new Date();
+  let date;
+
+  if (!value) {
+    date = new Date();
+  } else if (value instanceof Date) {
+    date = value;
+  } else {
+    const normalized = String(value).slice(0, 10);
+    date = /^\d{4}-\d{2}-\d{2}$/.test(normalized)
+      ? new Date(`${normalized}T00:00:00`)
+      : new Date(value);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    date = new Date();
+  }
 
   return new Intl.DateTimeFormat("es-HN", {
     day: "numeric",

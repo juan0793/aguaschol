@@ -1,5 +1,6 @@
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
+import { createAuditLog } from "./auditService.js";
 import { buildAvisoHtml } from "../utils/avisoTemplate.js";
 import { likeValue, normalizeKey } from "../utils/normalize.js";
 
@@ -29,7 +30,7 @@ const memoryRecords = [
     firmante_aviso: "Maria Eugenia Berrios",
     cargo_firmante: "Jefe de Facturacion",
     levantamiento_datos: "LUIS FERNANDO HERRERA SOLIZ",
-    analista_datos: "Juan Ordoñez Bonilla",
+    analista_datos: "Ing. Juan Ordoñez Bonilla",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }
@@ -60,6 +61,10 @@ const mapPayload = (payload) => ({
   analista_datos: payload.analista_datos?.trim() ?? ""
 });
 
+const mapArchivePayload = (payload = {}) => ({
+  archived_reason: payload.archived_reason?.trim() ?? ""
+});
+
 const ensureKey = (payload) => {
   if (!payload.clave_catastral) {
     const error = new Error("La clave catastral es obligatoria.");
@@ -71,17 +76,18 @@ const ensureKey = (payload) => {
 const sortByUpdatedAt = (items) =>
   [...items].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
-export const listInmuebles = async ({ query = "" } = {}) => {
+export const listInmuebles = async ({ query = "", archived = false } = {}) => {
   if (env.useMemoryDb) {
     const term = query.trim().toLowerCase();
+    const scoped = memoryRecords.filter((item) => Boolean(item.archived_at) === archived);
     const filtered = term
-      ? memoryRecords.filter((item) =>
+      ? scoped.filter((item) =>
           [item.clave_catastral, item.abonado, item.barrio_colonia]
             .join(" ")
             .toLowerCase()
             .includes(term)
         )
-      : memoryRecords;
+      : scoped;
 
     return sortByUpdatedAt(filtered);
   }
@@ -90,7 +96,8 @@ export const listInmuebles = async ({ query = "" } = {}) => {
   const sql = `
     SELECT *
     FROM inmuebles_clandestinos
-    WHERE (? = '' OR clave_catastral LIKE ? OR abonado LIKE ? OR barrio_colonia LIKE ?)
+    WHERE archived_at IS ${archived ? "NOT NULL" : "NULL"}
+      AND (? = '' OR clave_catastral LIKE ? OR abonado LIKE ? OR barrio_colonia LIKE ?)
     ORDER BY updated_at DESC
   `;
   const term = query.trim();
@@ -102,28 +109,39 @@ export const getByClave = async (clave) => {
   const normalized = normalizeKey(clave);
 
   if (env.useMemoryDb) {
-    return memoryRecords.find((item) => item.clave_catastral === normalized) ?? null;
+    return (
+      memoryRecords.find((item) => item.clave_catastral === normalized && !item.archived_at) ?? null
+    );
   }
 
   const pool = getPool();
   const [rows] = await pool.query(
-    "SELECT * FROM inmuebles_clandestinos WHERE clave_catastral = ? LIMIT 1",
+    "SELECT * FROM inmuebles_clandestinos WHERE clave_catastral = ? AND archived_at IS NULL LIMIT 1",
     [normalized]
   );
   return rows[0] ?? null;
 };
 
-export const getById = async (id) => {
+export const getById = async (id, { includeArchived = true } = {}) => {
   if (env.useMemoryDb) {
-    return memoryRecords.find((item) => item.id === Number(id)) ?? null;
+    return (
+      memoryRecords.find(
+        (item) => item.id === Number(id) && (includeArchived ? true : !item.archived_at)
+      ) ?? null
+    );
   }
 
   const pool = getPool();
-  const [rows] = await pool.query("SELECT * FROM inmuebles_clandestinos WHERE id = ? LIMIT 1", [id]);
+  const [rows] = await pool.query(
+    `SELECT * FROM inmuebles_clandestinos WHERE id = ? ${
+      includeArchived ? "" : "AND archived_at IS NULL"
+    } LIMIT 1`,
+    [id]
+  );
   return rows[0] ?? null;
 };
 
-export const createInmueble = async (payload) => {
+export const createInmueble = async (payload, options = {}) => {
   const data = mapPayload(payload);
   ensureKey(data);
 
@@ -139,10 +157,19 @@ export const createInmueble = async (payload) => {
       id: memoryRecords.length + 1,
       ...data,
       foto_path: "",
+      archived_at: null,
+      archived_reason: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
     memoryRecords.unshift(record);
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "inmueble.created",
+      entityType: "inmueble",
+      entityId: record.id,
+      summary: `Ficha ${record.clave_catastral} creada`
+    });
     return record;
   }
 
@@ -183,10 +210,18 @@ export const createInmueble = async (payload) => {
     ]
   );
 
-  return getById(result.insertId);
+  const record = await getById(result.insertId);
+  await createAuditLog({
+    actorUserId: options.actorUserId ?? null,
+    action: "inmueble.created",
+    entityType: "inmueble",
+    entityId: record.id,
+    summary: `Ficha ${record.clave_catastral} creada`
+  });
+  return record;
 };
 
-export const updateInmueble = async (id, payload) => {
+export const updateInmueble = async (id, payload, options = {}) => {
   const data = mapPayload(payload);
   ensureKey(data);
 
@@ -201,9 +236,18 @@ export const updateInmueble = async (id, payload) => {
     memoryRecords[index] = {
       ...memoryRecords[index],
       ...data,
+      archived_at: memoryRecords[index].archived_at ?? null,
+      archived_reason: memoryRecords[index].archived_reason ?? "",
       updated_at: new Date().toISOString()
     };
 
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "inmueble.updated",
+      entityType: "inmueble",
+      entityId: memoryRecords[index].id,
+      summary: `Ficha ${memoryRecords[index].clave_catastral} actualizada`
+    });
     return memoryRecords[index];
   }
 
@@ -252,10 +296,18 @@ export const updateInmueble = async (id, payload) => {
     throw error;
   }
 
-  return getById(id);
+  const record = await getById(id);
+  await createAuditLog({
+    actorUserId: options.actorUserId ?? null,
+    action: "inmueble.updated",
+    entityType: "inmueble",
+    entityId: record.id,
+    summary: `Ficha ${record.clave_catastral} actualizada`
+  });
+  return record;
 };
 
-export const attachPhoto = async (id, fotoPath) => {
+export const attachPhoto = async (id, fotoPath, options = {}) => {
   if (env.useMemoryDb) {
     const record = memoryRecords.find((item) => item.id === Number(id));
     if (!record) {
@@ -266,6 +318,13 @@ export const attachPhoto = async (id, fotoPath) => {
 
     record.foto_path = fotoPath;
     record.updated_at = new Date().toISOString();
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "inmueble.photo_attached",
+      entityType: "inmueble",
+      entityId: record.id,
+      summary: `Fotografia actualizada para ${record.clave_catastral}`
+    });
     return record;
   }
 
@@ -281,11 +340,121 @@ export const attachPhoto = async (id, fotoPath) => {
     throw error;
   }
 
-  return getById(id);
+  const record = await getById(id);
+  await createAuditLog({
+    actorUserId: options.actorUserId ?? null,
+    action: "inmueble.photo_attached",
+    entityType: "inmueble",
+    entityId: record.id,
+    summary: `Fotografia actualizada para ${record.clave_catastral}`
+  });
+  return record;
+};
+
+export const archiveInmueble = async (id, payload = {}, options = {}) => {
+  const archiveData = mapArchivePayload(payload);
+
+  if (env.useMemoryDb) {
+    const record = memoryRecords.find((item) => item.id === Number(id));
+    if (!record || record.archived_at) {
+      const error = new Error("Inmueble no encontrado.");
+      error.status = 404;
+      throw error;
+    }
+
+    record.archived_at = new Date().toISOString();
+    record.archived_reason = archiveData.archived_reason;
+    record.updated_at = new Date().toISOString();
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "inmueble.archived",
+      entityType: "inmueble",
+      entityId: record.id,
+      summary: `Ficha ${record.clave_catastral} archivada`,
+      details: { archived_reason: record.archived_reason }
+    });
+    return record;
+  }
+
+  const pool = getPool();
+  const [result] = await pool.query(
+    `
+      UPDATE inmuebles_clandestinos
+      SET archived_at = CURRENT_TIMESTAMP, archived_reason = ?
+      WHERE id = ? AND archived_at IS NULL
+    `,
+    [archiveData.archived_reason, id]
+  );
+
+  if (result.affectedRows === 0) {
+    const error = new Error("Inmueble no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  const record = await getById(id);
+  await createAuditLog({
+    actorUserId: options.actorUserId ?? null,
+    action: "inmueble.archived",
+    entityType: "inmueble",
+    entityId: record.id,
+    summary: `Ficha ${record.clave_catastral} archivada`,
+    details: { archived_reason: record.archived_reason }
+  });
+  return record;
+};
+
+export const restoreInmueble = async (id, options = {}) => {
+  if (env.useMemoryDb) {
+    const record = memoryRecords.find((item) => item.id === Number(id));
+    if (!record || !record.archived_at) {
+      const error = new Error("Inmueble archivado no encontrado.");
+      error.status = 404;
+      throw error;
+    }
+
+    record.archived_at = null;
+    record.archived_reason = "";
+    record.updated_at = new Date().toISOString();
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "inmueble.restored",
+      entityType: "inmueble",
+      entityId: record.id,
+      summary: `Ficha ${record.clave_catastral} restaurada`
+    });
+    return record;
+  }
+
+  const pool = getPool();
+  const [result] = await pool.query(
+    `
+      UPDATE inmuebles_clandestinos
+      SET archived_at = NULL, archived_reason = ''
+      WHERE id = ? AND archived_at IS NOT NULL
+    `,
+    [id]
+  );
+
+  if (result.affectedRows === 0) {
+    const error = new Error("Inmueble archivado no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  const record = await getById(id);
+  await createAuditLog({
+    actorUserId: options.actorUserId ?? null,
+    action: "inmueble.restored",
+    entityType: "inmueble",
+    entityId: record.id,
+    summary: `Ficha ${record.clave_catastral} restaurada`
+  });
+  return record;
 };
 
 export const buildAviso = async (id) => {
-  const record = await getById(id);
+  const record = await getById(id, { includeArchived: false });
 
   if (!record) {
     const error = new Error("Inmueble no encontrado.");

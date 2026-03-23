@@ -1,0 +1,8 @@
+{
+  "name": "app-clandestinos-root",
+  "private": true,
+  "scripts": {
+    "app": "levantar-app.bat",
+    "app:stop": "detener-app.bat"
+  }
+}

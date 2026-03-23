@@ -2,30 +2,31 @@
 
 App web para registrar inmuebles clandestinos, basada en los formatos actuales de trabajo de Aguas de Choluteca.
 
-Esta primera versión toma como referencia:
+Esta primera version toma como referencia:
 
 - `referencia/CLANDESTINOS2026.xlsx`
 - `referencia/AVISO-CLANDESTINO.docx`
 
 El objetivo es reemplazar el flujo manual en Excel manteniendo una ficha y un aviso visualmente cercanos a los documentos originales.
 
-## Características
+## Caracteristicas
 
 - Crear registros de inmuebles clandestinos
 - Editar registros existentes
 - Buscar por clave catastral
 - Listar registros
-- Subir fotografía del inmueble
-- Visualizar ficha técnica
+- Subir fotografia del inmueble
+- Visualizar ficha tecnica
 - Imprimir ficha en formato carta
-- Generar aviso en pestaña aparte
+- Generar aviso en pestana aparte
 - Editar el aviso antes de imprimirlo
+- Guardado persistente con MariaDB/MySQL
 
 ## Stack
 
 - Frontend: React + Vite
 - Backend: Node.js + Express
-- Base de datos: MySQL
+- Base de datos: MySQL / MariaDB
 - Carga de archivos: Multer
 - API: REST JSON
 
@@ -41,33 +42,9 @@ frontend/
 referencia/
 ```
 
-## Qué se detectó en los archivos de referencia
-
-### Excel
-
-El archivo no trae una tabla maestra, sino fichas individuales por inmueble. Los bloques principales detectados fueron:
-
-- Clave catastral
-- Información del abonado
-- Identificación del inmueble
-- Datos del inmueble
-- Datos de los servicios
-- Fotografía
-- Firmas de levantamiento y análisis
-
-### Word
-
-El aviso utiliza una estructura fija con variables como:
-
-- Fecha
-- Ubicación del inmueble
-- Clave catastral
-- Firmante
-- Cargo
-
 ## Base de datos
 
-El script inicial está en [backend/sql/schema.sql](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/sql/schema.sql).
+El script inicial esta en [backend/sql/schema.sql](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/sql/schema.sql).
 
 Tabla principal:
 
@@ -75,7 +52,7 @@ Tabla principal:
 
 Campos destacados:
 
-- `clave_catastral` como identificador único
+- `clave_catastral` como identificador unico
 - datos del abonado, inmueble y servicios
 - `foto_path` para almacenar la ruta de la imagen
 - `fecha_aviso`, `firmante_aviso`, `cargo_firmante`
@@ -94,37 +71,62 @@ Rutas principales:
 - `GET /api/inmuebles/:id/aviso`
 - `POST /api/inmuebles/aviso-preview`
 
-## Cómo ejecutar el proyecto
+## Como ejecutar el proyecto
 
-### 1. Backend
+### Inicio rapido
+
+Desde la raiz del proyecto ahora tienes dos opciones sencillas:
 
 ```bash
-cd backend
-copy .env.example .env
-npm install
+levantar-app.bat
 ```
 
-Si todavía no vas a conectar MySQL, puedes usar modo temporal en memoria:
+o bien:
+
+```bash
+npm run app
+```
+
+Eso abre una ventana para backend y otra para frontend.
+
+Si luego quieres detenerlos rapido:
+
+```bash
+npm run app:stop
+```
+
+### 1. Base de datos local
+
+La app puede usar MariaDB/MySQL persistente desde la carpeta `.db/` del proyecto.
+
+Configuracion recomendada en `backend/.env`:
+
+```env
+DB_HOST=localhost
+DB_PORT=3307
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=app_clandestinos
+USE_MEMORY_DB=false
+DB_AUTO_START=true
+```
+
+Si necesitas volver al modo temporal en memoria:
 
 ```env
 USE_MEMORY_DB=true
 ```
 
-Luego:
+### 2. Backend
 
 ```bash
+cd backend
+copy .env.example .env
+npm install
 npm run dev
 ```
 
-### 2. Base de datos
-
-Si vas a usar MySQL, ejecuta:
-
-```sql
-backend/sql/schema.sql
-```
-
-Y configura las credenciales en `backend/.env`.
+Al iniciar, el backend intenta conectarse a MySQL/MariaDB, arranca la instancia local si existe en `.db/mariadb` y ejecuta `backend/sql/schema.sql`.
 
 ### 3. Frontend
 
@@ -143,24 +145,26 @@ VITE_FILES_URL=http://localhost:4000
 
 ## Estado actual
 
-La aplicación ya incluye:
+La aplicacion ya incluye:
 
 - interfaz moderna azul/blanco basada en la identidad del logo
-- formulario por secciones para evitar una página demasiado larga
-- ficha técnica visual e imprimible
-- aviso editable en una pestaña aparte
-- soporte para fotografía
-- modo temporal en memoria para pruebas rápidas
+- formulario por secciones para evitar una pagina demasiado larga
+- ficha tecnica visual e imprimible
+- aviso editable en una pestana aparte
+- soporte para fotografia
+- guardado persistente con MariaDB/MySQL
+- modo temporal en memoria para pruebas rapidas
 
 ## Siguientes pasos sugeridos
 
-- conectar MySQL real en producción
-- importar datos históricos desde Excel
-- mejorar la ficha para replicar aún más el formato original
-- agregar autenticación en una segunda versión
+- endurecer credenciales y respaldos automaticos
+- importar datos historicos desde Excel
+- mejorar la ficha para replicar aun mas el formato original
+- agregar autenticacion en una segunda version
 
 ## Notas
 
 - `backend/.env` no se sube al repositorio
-- `node_modules` y `dist` están excluidos por `.gitignore`
+- `.db/` y `.tools/` se usan como soporte local de la base portable
+- `node_modules` y `dist` estan excluidos por `.gitignore`
 - la carpeta `referencia/` se conserva porque forma parte del contexto del proyecto

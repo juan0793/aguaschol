@@ -4,6 +4,56 @@ CREATE DATABASE IF NOT EXISTS app_clandestinos
 
 USE app_clandestinos;
 
+CREATE TABLE IF NOT EXISTS app_users (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  full_name VARCHAR(180) NOT NULL,
+  email VARCHAR(180) NOT NULL UNIQUE,
+  username VARCHAR(120) NOT NULL UNIQUE,
+  role ENUM('admin', 'operator') NOT NULL DEFAULT 'operator',
+  password_hash VARCHAR(255) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  last_login_at TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  token CHAR(64) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_auth_sessions_user
+    FOREIGN KEY (user_id) REFERENCES app_users(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user
+  ON auth_sessions (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at
+  ON auth_sessions (expires_at);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  actor_user_id INT UNSIGNED NULL,
+  action VARCHAR(80) NOT NULL,
+  entity_type VARCHAR(80) NOT NULL,
+  entity_id VARCHAR(80) NOT NULL DEFAULT '',
+  summary VARCHAR(255) NOT NULL DEFAULT '',
+  details_json LONGTEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_audit_logs_actor
+    FOREIGN KEY (actor_user_id) REFERENCES app_users(id)
+    ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at
+  ON audit_logs (created_at);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity
+  ON audit_logs (entity_type, entity_id);
+
 CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   clave_catastral VARCHAR(30) NOT NULL UNIQUE,
@@ -29,11 +79,13 @@ CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   cargo_firmante VARCHAR(180) NOT NULL DEFAULT '',
   levantamiento_datos VARCHAR(180) NOT NULL DEFAULT '',
   analista_datos VARCHAR(180) NOT NULL DEFAULT '',
+  archived_at TIMESTAMP NULL DEFAULT NULL,
+  archived_reason VARCHAR(255) NOT NULL DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_inmuebles_barrio_colonia
+CREATE INDEX IF NOT EXISTS idx_inmuebles_barrio_colonia
   ON inmuebles_clandestinos (barrio_colonia);
 
 INSERT INTO inmuebles_clandestinos (
@@ -81,9 +133,10 @@ INSERT INTO inmuebles_clandestinos (
   'Maria Eugenia Berrios',
   'Jefe de Facturacion',
   'LUIS FERNANDO HERRERA SOLIZ',
-  'Juan Ordoñez Bonilla'
+  'Ing. Juan Ordoñez Bonilla'
 )
 ON DUPLICATE KEY UPDATE
   barrio_colonia = VALUES(barrio_colonia),
   accion_inspeccion = VALUES(accion_inspeccion),
-  comentarios = VALUES(comentarios);
+  comentarios = VALUES(comentarios),
+  analista_datos = VALUES(analista_datos);
