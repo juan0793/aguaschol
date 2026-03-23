@@ -2,6 +2,8 @@
   "name": "app-clandestinos-root",
   "private": true,
   "scripts": {
+    "start": "npm --prefix backend start",
+    "postinstall": "npm --prefix backend install",
     "app": "levantar-app.bat",
     "app:stop": "detener-app.bat"
   }

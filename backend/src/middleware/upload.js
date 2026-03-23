@@ -1,9 +1,10 @@
 import multer from "multer";
 import path from "node:path";
+import { env } from "../config/env.js";
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, "uploads");
+    cb(null, env.uploadDir);
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname);

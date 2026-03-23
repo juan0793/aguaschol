@@ -128,6 +128,46 @@ npm run dev
 
 Al iniciar, el backend intenta conectarse a MySQL/MariaDB, arranca la instancia local si existe en `.db/mariadb` y ejecuta `backend/sql/schema.sql`.
 
+## Despliegue en Railway
+
+El backend ya queda preparado para desplegarse desde la raiz del repositorio.
+
+Comportamiento que ya soporta:
+
+- usa `PORT` dinamico de Railway
+- instala dependencias del backend desde el `postinstall` de la raiz
+- arranca con `npm start` desde la raiz
+- acepta `DATABASE_URL` o las variables tipo `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`
+- desactiva por defecto el autoarranque de MariaDB local cuando detecta Railway
+
+Variables recomendadas en Railway:
+
+```env
+NODE_ENV=production
+FRONTEND_URL=https://tu-frontend.app
+FRONTEND_URLS=https://tu-frontend.app
+DB_AUTO_START=false
+USE_MEMORY_DB=false
+AUTH_USERNAME=admin
+AUTH_PASSWORD=cambia-esta-clave
+AUTH_SEED_NAME=Administrador General
+EMAIL_PROVIDER=brevo
+EMAIL_FROM=
+EMAIL_FROM_NAME=Aguas de Choluteca
+EMAIL_API_KEY=
+EMAIL_SANDBOX=true
+```
+
+Opciones de base de datos:
+
+- si agregas un servicio MySQL en Railway, normalmente bastara con las variables `MYSQL*`
+- si usas una cadena unica, tambien funciona `DATABASE_URL`
+
+Nota importante sobre archivos:
+
+- `backend/uploads` funciona en Railway, pero el sistema de archivos del contenedor no debe considerarse permanente
+- para fotografias realmente persistentes conviene migrar luego a S3, Cloudinary o un volumen montado
+
 ### 3. Frontend
 
 ```bash
