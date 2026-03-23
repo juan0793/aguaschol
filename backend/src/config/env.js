@@ -32,7 +32,7 @@ const parseDatabaseUrl = (value) => {
   }
 };
 
-const databaseUrlConfig = parseDatabaseUrl(process.env.DATABASE_URL);
+const databaseUrlConfig = parseDatabaseUrl(process.env.DATABASE_URL ?? process.env.MYSQL_URL);
 const frontendUrlDefaults = isRailway ? "" : "http://localhost:5173";
 const frontendUrls = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? frontendUrlDefaults)
   .split(",")
