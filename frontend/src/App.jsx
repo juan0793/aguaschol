@@ -62,6 +62,13 @@ const fieldGroups = [
   ]
 ];
 
+const sectionDefinitions = [
+  { key: "abonado", label: "Abonado", mobileLabel: "Datos" },
+  { key: "inmueble", label: "Inmueble", mobileLabel: "Inmueble" },
+  { key: "servicios", label: "Servicios", mobileLabel: "Servicios" },
+  { key: "aviso", label: "Aviso y Foto", mobileLabel: "Aviso" }
+];
+
 const hasDraftContent = (candidate) =>
   Object.entries(emptyForm).some(([key, defaultValue]) => {
     if (["id", "foto_path"].includes(key)) return false;
@@ -2146,19 +2153,27 @@ function App() {
 
             <div className="sheet-title">FICHA TECNICA DE INFORMACION CATASTRAL</div>
 
-            <div className="section-tabs">
-              <button type="button" className={activeSection === "abonado" ? "tab active" : "tab"} onClick={() => setActiveSection("abonado")}>
-                Abonado
-              </button>
-              <button type="button" className={activeSection === "inmueble" ? "tab active" : "tab"} onClick={() => setActiveSection("inmueble")}>
-                Inmueble
-              </button>
-              <button type="button" className={activeSection === "servicios" ? "tab active" : "tab"} onClick={() => setActiveSection("servicios")}>
-                Servicios
-              </button>
-              <button type="button" className={activeSection === "aviso" ? "tab active" : "tab"} onClick={() => setActiveSection("aviso")}>
-                Aviso y Foto
-              </button>
+            <div className="section-tabs-wrap">
+              <div className="section-tabs-head">
+                <span className="section-tabs-kicker">Secciones de la ficha</span>
+                <strong>
+                  Paso {sectionDefinitions.findIndex((section) => section.key === activeSection) + 1} de {sectionDefinitions.length}
+                </strong>
+              </div>
+              <div className="section-tabs">
+                {sectionDefinitions.map((section, index) => (
+                  <button
+                    key={section.key}
+                    type="button"
+                    className={activeSection === section.key ? "tab active" : "tab"}
+                    onClick={() => setActiveSection(section.key)}
+                  >
+                    <span className="tab-step">{index + 1}</span>
+                    <span className="tab-label-desktop">{section.label}</span>
+                    <span className="tab-label-mobile">{section.mobileLabel}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {activeSection === "abonado" ? (
