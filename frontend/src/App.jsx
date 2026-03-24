@@ -665,6 +665,7 @@ function App() {
 
     return fetch(`${API_URL}${path}`, {
       ...options,
+      cache: options.cache ?? "no-store",
       headers
     });
   };
@@ -806,12 +807,15 @@ function App() {
       }
     };
 
-    const intervalId = window.setInterval(refreshRecords, 15000);
+    const handleWindowFocus = () => refreshRecords();
+    const intervalId = window.setInterval(refreshRecords, 8000);
     document.addEventListener("visibilitychange", refreshRecords);
+    window.addEventListener("focus", handleWindowFocus);
 
     return () => {
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", refreshRecords);
+      window.removeEventListener("focus", handleWindowFocus);
     };
   }, [isAuthenticated, recordView, search, workspaceView]);
 
