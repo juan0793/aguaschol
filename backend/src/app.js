@@ -32,7 +32,9 @@ if (frontendDistAvailable) {
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin)) {
+      const allowByRailwayFallback = env.isRailway && allowedOrigins.size === 0;
+
+      if (!origin || allowedOrigins.has(origin) || allowByRailwayFallback) {
         callback(null, true);
         return;
       }
