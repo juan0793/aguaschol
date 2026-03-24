@@ -748,9 +748,13 @@ function App() {
     return () => window.removeEventListener("pagehide", handleAppExit);
   }, [session]);
 
-  const loadRecords = async (query = "", view = recordView) => {
+  const loadRecords = async (query = "", view = recordView, options = {}) => {
+    const { silent = false } = options;
+
     if (!isAuthenticated) return;
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const response = await apiFetch(
         `/inmuebles?q=${encodeURIComponent(query)}&archived=${view === "archived"}`
@@ -773,11 +777,15 @@ function App() {
         list.length ? "" : view === "archived" ? "No hay fichas archivadas." : "No hay registros para mostrar."
       );
     } catch (_error) {
-      setRecords([]);
-      setEmptyRecordsMessage("");
-      showAlert("No fue posible cargar los registros.");
+      if (!silent) {
+        setRecords([]);
+        setEmptyRecordsMessage("");
+        showAlert("No fue posible cargar los registros.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -786,6 +794,26 @@ function App() {
       loadRecords(search, recordView);
     }
   }, [isAuthenticated, recordView, workspaceView]);
+
+  useEffect(() => {
+    if (!isAuthenticated || workspaceView !== "records") {
+      return undefined;
+    }
+
+    const refreshRecords = () => {
+      if (document.visibilityState === "visible") {
+        loadRecords(search, recordView, { silent: true });
+      }
+    };
+
+    const intervalId = window.setInterval(refreshRecords, 15000);
+    document.addEventListener("visibilitychange", refreshRecords);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshRecords);
+    };
+  }, [isAuthenticated, recordView, search, workspaceView]);
 
   const loadUsers = async () => {
     if (!isAuthenticated || !isAdmin) return;
