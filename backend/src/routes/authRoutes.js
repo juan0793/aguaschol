@@ -22,6 +22,18 @@ router.post("/logout", requireAuth, async (req, res, next) => {
   }
 });
 
+router.post("/logout-on-exit", async (req, res, next) => {
+  try {
+    await logoutUser(req.body?.token, {
+      id: req.body?.user?.id ?? null,
+      username: req.body?.user?.username ?? "usuario"
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/change-password", requireAuth, async (req, res, next) => {
   try {
     const user = await changeOwnPassword({

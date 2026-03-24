@@ -709,6 +709,45 @@ function App() {
     }
   }, [isAuthenticated, mustChangePassword]);
 
+  useEffect(() => {
+    if (!session?.token) {
+      return undefined;
+    }
+
+    const handleAppExit = () => {
+      const payload = JSON.stringify({
+        token: session.token,
+        user: {
+          id: session.user?.id ?? null,
+          username: session.user?.username ?? "usuario"
+        }
+      });
+
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([payload], { type: "application/json" });
+          navigator.sendBeacon(`${API_URL}/auth/logout-on-exit`, blob);
+        } else {
+          fetch(`${API_URL}/auth/logout-on-exit`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: payload,
+            keepalive: true
+          }).catch(() => {});
+        }
+      } catch {
+        // Best-effort logout on exit.
+      }
+
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    };
+
+    window.addEventListener("pagehide", handleAppExit);
+    return () => window.removeEventListener("pagehide", handleAppExit);
+  }, [session]);
+
   const loadRecords = async (query = "", view = recordView) => {
     if (!isAuthenticated) return;
     setLoading(true);
