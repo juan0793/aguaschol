@@ -1,9 +1,3 @@
-CREATE DATABASE IF NOT EXISTS app_clandestinos
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE app_clandestinos;
-
 CREATE TABLE IF NOT EXISTS app_users (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(180) NOT NULL,

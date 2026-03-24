@@ -14,6 +14,20 @@ const app = express();
 const localOrigins = env.isRailway ? [] : ["http://127.0.0.1:5173", "http://localhost:5173"];
 const allowedOrigins = new Set([...env.frontendUrls, ...localOrigins]);
 const frontendDistAvailable = fs.existsSync(env.frontendDistDir);
+const frontendAssetsDir = path.join(env.frontendDistDir, "assets");
+const frontendAssetsAvailable = fs.existsSync(frontendAssetsDir);
+
+if (frontendDistAvailable) {
+  if (frontendAssetsAvailable) {
+    app.use("/assets", express.static(frontendAssetsDir));
+  }
+
+  app.use(express.static(env.frontendDistDir));
+
+  app.get(/^\/(?!api(?:\/|$)|uploads(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(path.join(env.frontendDistDir, "index.html"));
+  });
+}
 
 app.use(
   cors({
@@ -43,14 +57,6 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
 app.use("/api/users", requireAuth, requireAdmin, userRoutes);
-
-if (frontendDistAvailable) {
-  app.use(express.static(env.frontendDistDir));
-
-  app.get(/^\/(?!api(?:\/|$)|uploads(?:\/|$)).*/, (_req, res) => {
-    res.sendFile(path.join(env.frontendDistDir, "index.html"));
-  });
-}
 
 app.use(errorHandler);
 

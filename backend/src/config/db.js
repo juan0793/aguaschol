@@ -236,6 +236,7 @@ const ensureSchema = async () => {
     await admin.query(
       `CREATE DATABASE IF NOT EXISTS ${escapeIdentifier(env.dbName)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
     );
+    await admin.query(`USE ${escapeIdentifier(env.dbName)}`);
 
     const schemaSql = await fs.readFile(schemaPath, "utf8");
     await admin.query(schemaSql);
