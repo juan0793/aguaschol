@@ -95,6 +95,28 @@ const ensureIndex = async (connection, { tableName, indexName, columns, unique =
   );
 };
 
+const ensureColumn = async (connection, { tableName, columnName, definition }) => {
+  const [rows] = await connection.query(
+    `
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = ?
+        AND table_name = ?
+        AND column_name = ?
+      LIMIT 1
+    `,
+    [env.dbName, tableName, columnName]
+  );
+
+  if (rows.length) {
+    return;
+  }
+
+  await connection.query(
+    `ALTER TABLE ${escapeIdentifier(tableName)} ADD COLUMN ${escapeIdentifier(columnName)} ${definition}`
+  );
+};
+
 const findLocalMariaDbBin = async () => {
   try {
     const entries = await fs.readdir(path.resolve(env.dbWorkspaceDir, "mariadb"), {
@@ -217,15 +239,21 @@ const ensureSchema = async () => {
 
     const schemaSql = await fs.readFile(schemaPath, "utf8");
     await admin.query(schemaSql);
-    await admin.query(`
-      ALTER TABLE app_users
-      ADD COLUMN IF NOT EXISTS full_name VARCHAR(180) NOT NULL DEFAULT 'Usuario'
-    `);
-    await admin.query(`
-      ALTER TABLE inmuebles_clandestinos
-      ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL,
-      ADD COLUMN IF NOT EXISTS archived_reason VARCHAR(255) NOT NULL DEFAULT ''
-    `);
+    await ensureColumn(admin, {
+      tableName: "app_users",
+      columnName: "full_name",
+      definition: "VARCHAR(180) NOT NULL DEFAULT 'Usuario'"
+    });
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "archived_at",
+      definition: "TIMESTAMP NULL DEFAULT NULL"
+    });
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "archived_reason",
+      definition: "VARCHAR(255) NOT NULL DEFAULT ''"
+    });
     await ensureIndex(admin, {
       tableName: "auth_sessions",
       indexName: "idx_auth_sessions_user",
