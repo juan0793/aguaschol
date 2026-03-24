@@ -115,3 +115,64 @@ export const createUser = async ({ full_name, email, role = "operator" }, actorU
     temp_password: emailResult.sent ? null : password
   };
 };
+
+export const deleteUser = async (userId, actorUser) => {
+  const pool = getPool();
+  const targetId = Number(userId);
+
+  if (!Number.isInteger(targetId) || targetId <= 0) {
+    const error = new Error("Usuario invalido.");
+    error.status = 400;
+    throw error;
+  }
+
+  if (actorUser?.id === targetId) {
+    const error = new Error("No puedes eliminar tu propio usuario.");
+    error.status = 400;
+    throw error;
+  }
+
+  const [rows] = await pool.query(
+    `
+      SELECT id, full_name, email, username, role, force_password_change, is_active, last_login_at, created_at, updated_at
+      FROM app_users
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [targetId]
+  );
+
+  const user = rows[0];
+  if (!user) {
+    const error = new Error("Usuario no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  await pool.query("DELETE FROM auth_sessions WHERE user_id = ?", [targetId]);
+  await pool.query(
+    `
+      UPDATE app_users
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    [targetId]
+  );
+
+  await createAuditLog({
+    actorUserId: actorUser?.id ?? null,
+    action: "user.deleted",
+    entityType: "user",
+    entityId: targetId,
+    summary: `Usuario ${user.username} desactivado`,
+    details: {
+      email: user.email,
+      role: user.role
+    }
+  });
+
+  return {
+    ...sanitizeUser(user),
+    is_active: false
+  };
+};

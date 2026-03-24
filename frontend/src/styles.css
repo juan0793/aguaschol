@@ -1387,6 +1387,20 @@ textarea {
   gap: 0.1rem;
 }
 
+.user-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.record-badge-muted {
+  background: #f2f4f7;
+  color: #667085;
+}
+
 .log-sheet {
   display: grid;
   gap: 0.9rem;

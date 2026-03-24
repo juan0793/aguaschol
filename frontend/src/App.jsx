@@ -1076,6 +1076,40 @@ function App() {
     }
   };
 
+  const handleDeleteUser = async (user) => {
+    if (!user?.id) return;
+
+    const confirmed = window.confirm(`Se desactivara el acceso de ${user.full_name || user.username}. Deseas continuar?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await apiFetch(`/users/${user.id}`, {
+        method: "DELETE"
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo eliminar el usuario.");
+      }
+
+      setUsers((current) => current.filter((item) => item.id !== user.id));
+      if (latestUserResult?.user?.id === user.id) {
+        setLatestUserResult(null);
+      }
+      showAlert(`Usuario ${user.username} eliminado.`);
+      loadUsers();
+      loadAuditLogs();
+    } catch (error) {
+      showAlert(error.message || "No se pudo eliminar el usuario.");
+    }
+  };
+
   const handleArchiveRecord = async () => {
     if (!form.id) {
       showAlert("Primero selecciona o guarda una ficha.");
@@ -2286,6 +2320,20 @@ function App() {
                       <small className="user-meta">
                         Usuario: {user.username} - Ultimo acceso: {formatDateTime(user.last_login_at)}
                       </small>
+                      <div className="user-card-actions">
+                        <span className={`record-badge ${user.is_active ? "" : "record-badge-muted"}`}>
+                          {user.is_active ? "Activo" : "Inactivo"}
+                        </span>
+                        {session?.user?.id !== user.id && user.is_active ? (
+                          <button
+                            type="button"
+                            className="button-danger"
+                            onClick={() => handleDeleteUser(user)}
+                          >
+                            Eliminar
+                          </button>
+                        ) : null}
+                      </div>
                     </article>
                   ))}
                 </div>
