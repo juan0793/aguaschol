@@ -113,6 +113,7 @@ const actionLabel = (action) =>
       "inmueble.created": "Ficha creada",
       "inmueble.updated": "Ficha actualizada",
       "inmueble.archived": "Ficha archivada",
+      "inmueble.deleted": "Ficha eliminada",
       "inmueble.restored": "Ficha restaurada",
       "inmueble.photo_attached": "Fotografia cargada"
     }[action] ?? action
@@ -165,6 +166,7 @@ const actionIconName = (action) =>
       "inmueble.created": "plus",
       "inmueble.updated": "records",
       "inmueble.archived": "archive",
+      "inmueble.deleted": "logout",
       "inmueble.restored": "refresh",
       "inmueble.photo_attached": "activity"
     }[action] ?? "activity"
@@ -546,6 +548,7 @@ function App() {
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
+  const [pendingDeleteRecord, setPendingDeleteRecord] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [userForm, setUserForm] = useState({
@@ -898,6 +901,12 @@ function App() {
       setWorkspaceView("records");
     }
   }, [isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
+    if (!isAdmin && recordView === "archived") {
+      setRecordView("active");
+    }
+  }, [isAdmin, recordView]);
 
   useEffect(() => {
     if (form.id || !hasDraftContent(form)) {
@@ -1315,6 +1324,31 @@ function App() {
       loadRecords(search, "active");
     } catch (error) {
       showAlert(error.message);
+    }
+  };
+
+  const handleDeleteArchivedRecord = async (record) => {
+    if (!record?.id) return;
+
+    try {
+      const response = await apiFetch(`/inmuebles/${record.id}`, {
+        method: "DELETE"
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo eliminar la ficha archivada.");
+      }
+
+      if (form.id === record.id) {
+        resetForm();
+      }
+
+      setPendingDeleteRecord(null);
+      showAlert(`Ficha ${data.inmueble?.clave_catastral || record.clave_catastral} eliminada del registro archivado.`);
+      loadRecords(search, "archived");
+    } catch (error) {
+      showAlert(error.message || "No se pudo eliminar la ficha archivada.");
     }
   };
 
@@ -1963,6 +1997,28 @@ function App() {
           </div>
         </div>
       ) : null}
+      {pendingDeleteRecord ? (
+        <div className="password-modal-backdrop">
+          <div className="password-modal-card">
+            <div className="password-modal-head">
+              <p className="eyebrow">Registro archivado</p>
+              <h2>Eliminar ficha archivada</h2>
+              <p className="lead">
+                Se eliminara definitivamente la ficha <strong>{pendingDeleteRecord.clave_catastral}</strong>.
+                Esta accion solo aplica al registro archivado y no se puede deshacer.
+              </p>
+            </div>
+            <div className="password-form-actions">
+              <button type="button" className="button-secondary" onClick={() => setPendingDeleteRecord(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="button-danger" onClick={() => handleDeleteArchivedRecord(pendingDeleteRecord)}>
+                Eliminar ficha
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <header className="hero no-print">
         <div className={`hero-panel ${headerMeta.panelClass}`}>
           <div className="hero-topline">
@@ -2127,13 +2183,15 @@ function App() {
               >
                 Activas
               </button>
-              <button
-                type="button"
-                className={recordView === "archived" ? "button-secondary active-filter" : "button-secondary"}
-                onClick={() => setRecordView("archived")}
-              >
-                Archivadas
-              </button>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  className={recordView === "archived" ? "button-secondary active-filter" : "button-secondary"}
+                  onClick={() => setRecordView("archived")}
+                >
+                  Archivadas
+                </button>
+              ) : null}
               {draftForm ? (
                 <button type="button" className="button-secondary" onClick={restoreDraft}>
                   Borrador
@@ -2397,6 +2455,11 @@ function App() {
               {recordView === "archived" && form.id ? (
                 <button type="button" className="button-secondary" onClick={() => handleRestoreRecord(form.id)}>
                   Restaurar ficha
+                </button>
+              ) : null}
+              {recordView === "archived" && form.id && isAdmin ? (
+                <button type="button" className="button-danger" onClick={() => setPendingDeleteRecord(form)}>
+                  Eliminar archivada
                 </button>
               ) : null}
               <button type="button" className="button-secondary" onClick={resetForm}>

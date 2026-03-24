@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
@@ -450,6 +452,61 @@ export const restoreInmueble = async (id, options = {}) => {
     entityId: record.id,
     summary: `Ficha ${record.clave_catastral} restaurada`
   });
+  return record;
+};
+
+export const deleteArchivedInmueble = async (id, options = {}) => {
+  if (env.useMemoryDb) {
+    const index = memoryRecords.findIndex((item) => item.id === Number(id) && item.archived_at);
+    if (index === -1) {
+      const error = new Error("Ficha archivada no encontrada.");
+      error.status = 404;
+      throw error;
+    }
+
+    const [record] = memoryRecords.splice(index, 1);
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "inmueble.deleted",
+      entityType: "inmueble",
+      entityId: record.id,
+      summary: `Ficha archivada ${record.clave_catastral} eliminada`,
+      details: { archived_reason: record.archived_reason }
+    });
+    return record;
+  }
+
+  const record = await getById(id);
+  if (!record || !record.archived_at) {
+    const error = new Error("Ficha archivada no encontrada.");
+    error.status = 404;
+    throw error;
+  }
+
+  const pool = getPool();
+  const [result] = await pool.query("DELETE FROM inmuebles_clandestinos WHERE id = ? AND archived_at IS NOT NULL", [id]);
+
+  if (result.affectedRows === 0) {
+    const error = new Error("Ficha archivada no encontrada.");
+    error.status = 404;
+    throw error;
+  }
+
+  if (record.foto_path) {
+    const relativePhotoPath = record.foto_path.startsWith("/") ? `.${record.foto_path}` : record.foto_path;
+    const absolutePhotoPath = path.resolve(env.dbRoot, relativePhotoPath);
+    await fs.unlink(absolutePhotoPath).catch(() => {});
+  }
+
+  await createAuditLog({
+    actorUserId: options.actorUserId ?? null,
+    action: "inmueble.deleted",
+    entityType: "inmueble",
+    entityId: record.id,
+    summary: `Ficha archivada ${record.clave_catastral} eliminada`,
+    details: { archived_reason: record.archived_reason }
+  });
+
   return record;
 };
 

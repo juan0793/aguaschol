@@ -4,6 +4,7 @@ import {
   buildAviso,
   buildAvisoPreview,
   createInmueble,
+  deleteArchivedInmueble,
   getByClave,
   listInmuebles,
   restoreInmueble,
@@ -12,9 +13,14 @@ import {
 
 export const list = async (req, res, next) => {
   try {
+    const archived = String(req.query.archived ?? "false").toLowerCase() === "true";
+    if (archived && req.authUser?.role !== "admin") {
+      return res.status(403).json({ message: "Solo administradores pueden ver fichas archivadas." });
+    }
+
     const data = await listInmuebles({
       query: req.query.q ?? "",
-      archived: String(req.query.archived ?? "false").toLowerCase() === "true"
+      archived
     });
     res.json(data);
   } catch (error) {
@@ -66,6 +72,18 @@ export const restore = async (req, res, next) => {
   try {
     const inmueble = await restoreInmueble(req.params.id, { actorUserId: req.authUser?.id });
     res.json(inmueble);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteArchived = async (req, res, next) => {
+  try {
+    const inmueble = await deleteArchivedInmueble(req.params.id, { actorUserId: req.authUser?.id });
+    res.json({
+      ok: true,
+      inmueble
+    });
   } catch (error) {
     next(error);
   }
