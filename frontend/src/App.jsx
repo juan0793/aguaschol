@@ -487,7 +487,14 @@ const urlToDataUrl = async (url) => {
 function App() {
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+
+    try {
+      return JSON.parse(saved);
+    } catch {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
   });
   const [loginForm, setLoginForm] = useState({ username: "admin", password: "abcd123" });
   const [loginLoading, setLoginLoading] = useState(false);
