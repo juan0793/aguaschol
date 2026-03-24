@@ -1414,6 +1414,12 @@ textarea {
   flex-wrap: wrap;
 }
 
+.user-detail-actions {
+  justify-content: flex-start;
+  margin-top: 0;
+  margin-bottom: 0.85rem;
+}
+
 .record-badge-muted {
   background: #f2f4f7;
   color: #667085;

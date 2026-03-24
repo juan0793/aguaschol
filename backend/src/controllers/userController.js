@@ -1,5 +1,5 @@
 import { listAuditLogs } from "../services/auditService.js";
-import { createUser, deleteUser, listUsers } from "../services/userService.js";
+import { createUser, deleteUser, listUsers, resetUserPassword } from "../services/userService.js";
 
 export const listUsersHandler = async (_req, res, next) => {
   try {
@@ -26,6 +26,15 @@ export const deleteUserHandler = async (req, res, next) => {
       ok: true,
       user
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetUserPasswordHandler = async (req, res, next) => {
+  try {
+    const result = await resetUserPassword(req.params.id, req.authUser);
+    res.json(result);
   } catch (error) {
     next(error);
   }

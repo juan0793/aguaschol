@@ -1,6 +1,6 @@
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
-import { sendUserCreatedEmail } from "./emailService.js";
+import { sendPasswordResetEmail, sendUserCreatedEmail } from "./emailService.js";
 import { generatePassword, hashPassword } from "../utils/password.js";
 
 const sanitizeUser = (user) => ({
@@ -165,4 +165,74 @@ export const deleteUser = async (userId, actorUser) => {
   await pool.query("DELETE FROM app_users WHERE id = ?", [targetId]);
 
   return sanitizeUser(user);
+};
+
+export const resetUserPassword = async (userId, actorUser) => {
+  const pool = getPool();
+  const targetId = Number(userId);
+
+  if (!Number.isInteger(targetId) || targetId <= 0) {
+    const error = new Error("Usuario invalido.");
+    error.status = 400;
+    throw error;
+  }
+
+  const [rows] = await pool.query(
+    `
+      SELECT id, full_name, email, username, role, force_password_change, is_active, last_login_at, created_at, updated_at
+      FROM app_users
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [targetId]
+  );
+
+  const user = rows[0];
+  if (!user) {
+    const error = new Error("Usuario no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  const password = generatePassword();
+  const passwordHash = await hashPassword(password);
+
+  await pool.query(
+    `
+      UPDATE app_users
+      SET password_hash = ?, force_password_change = 1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    [passwordHash, targetId]
+  );
+  await pool.query("DELETE FROM auth_sessions WHERE user_id = ?", [targetId]);
+
+  const delivery = await sendPasswordResetEmail({
+    fullName: user.full_name,
+    username: user.username,
+    email: user.email,
+    password
+  });
+
+  await createAuditLog({
+    actorUserId: actorUser?.id ?? null,
+    action: "user.password_reset",
+    entityType: "user",
+    entityId: targetId,
+    summary: `Contrasena temporal regenerada para ${user.username}`,
+    details: {
+      email_sent: delivery.sent,
+      email_skipped: delivery.skipped ?? false,
+      sandbox: delivery.sandbox ?? false
+    }
+  });
+
+  return {
+    user: {
+      ...sanitizeUser(user),
+      force_password_change: true
+    },
+    delivery,
+    temp_password: delivery.sent ? null : password
+  };
 };

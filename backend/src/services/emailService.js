@@ -1,10 +1,10 @@
 import { env } from "../config/env.js";
 
-const buildUserCreatedHtml = ({ fullName, username, email, password }) => `
+const buildTemporaryPasswordHtml = ({ fullName, username, email, password, title, intro }) => `
   <div style="font-family: Arial, sans-serif; color: #17324a; line-height: 1.5;">
-    <h2>Usuario creado satisfactoriamente</h2>
+    <h2>${title}</h2>
     <p>Hola ${fullName},</p>
-    <p>Se te ha creado un usuario para acceder al sistema de inmuebles clandestinos.</p>
+    <p>${intro}</p>
     <p><strong>Usuario:</strong> ${username}</p>
     <p><strong>Correo:</strong> ${email}</p>
     <p><strong>Contrasena temporal:</strong> ${password}</p>
@@ -13,7 +13,7 @@ const buildUserCreatedHtml = ({ fullName, username, email, password }) => `
   </div>
 `;
 
-export const sendUserCreatedEmail = async ({ fullName, username, email, password }) => {
+const sendTemporaryPasswordEmail = async ({ fullName, username, email, password, subject, title, intro }) => {
   if (!env.emailApiKey || !env.emailFrom) {
     return {
       sent: false,
@@ -45,8 +45,8 @@ export const sendUserCreatedEmail = async ({ fullName, username, email, password
           name: fullName
         }
       ],
-      subject: "Usuario creado satisfactoriamente",
-      htmlContent: buildUserCreatedHtml({ fullName, username, email, password })
+      subject,
+      htmlContent: buildTemporaryPasswordHtml({ fullName, username, email, password, title, intro })
     })
   });
 
@@ -66,3 +66,25 @@ export const sendUserCreatedEmail = async ({ fullName, username, email, password
     messageId: data.messageId ?? null
   };
 };
+
+export const sendUserCreatedEmail = async ({ fullName, username, email, password }) =>
+  sendTemporaryPasswordEmail({
+    fullName,
+    username,
+    email,
+    password,
+    subject: "Usuario creado satisfactoriamente",
+    title: "Usuario creado satisfactoriamente",
+    intro: "Se te ha creado un usuario para acceder al sistema de inmuebles clandestinos."
+  });
+
+export const sendPasswordResetEmail = async ({ fullName, username, email, password }) =>
+  sendTemporaryPasswordEmail({
+    fullName,
+    username,
+    email,
+    password,
+    subject: "Contrasena temporal restablecida",
+    title: "Contrasena temporal restablecida",
+    intro: "Se ha generado una nueva contrasena temporal para tu acceso al sistema de inmuebles clandestinos."
+  });

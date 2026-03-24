@@ -1120,6 +1120,44 @@ function App() {
     }
   };
 
+  const handleResetUserPassword = async (user) => {
+    if (!user?.id) return;
+
+    try {
+      const response = await apiFetch(`/users/${user.id}/reset-password`, {
+        method: "POST"
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo regenerar la contrasena temporal.");
+      }
+
+      setLatestUserResult(data);
+      setSelectedUserId(data.user?.id ?? user.id);
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === user.id
+            ? {
+                ...item,
+                ...data.user
+              }
+            : item
+        )
+      );
+      showAlert(`Se genero una nueva contrasena temporal para ${data.user?.username || user.username}.`);
+      loadAuditLogs();
+    } catch (error) {
+      showAlert(error.message || "No se pudo regenerar la contrasena temporal.");
+    }
+  };
+
   const handleArchiveRecord = async () => {
     if (!form.id) {
       showAlert("Primero selecciona o guarda una ficha.");
@@ -2476,6 +2514,18 @@ function App() {
                         </div>
                         <div className="document-block">
                           <h4>Estado y entrega</h4>
+                          <div className="user-card-actions user-detail-actions">
+                            {session?.user?.id !== selectedUser.id ? (
+                              <button
+                                type="button"
+                                className="button-secondary"
+                                onClick={() => handleResetUserPassword(selectedUser)}
+                              >
+                                <Icon name="refresh" />
+                                Regenerar contrasena temporal
+                              </button>
+                            ) : null}
+                          </div>
                           {latestUserResult?.user?.id === selectedUser.id ? (
                             <>
                               <p>
