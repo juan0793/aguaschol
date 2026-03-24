@@ -1666,6 +1666,263 @@ textarea {
   .sidebar {
     position: static;
   }
+
+  .record-list {
+    max-height: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-shell {
+    padding: 0.9rem;
+    align-items: start;
+  }
+
+  .login-intro-card,
+  .login-card,
+  .hero-panel,
+  .search-card,
+  .sidebar,
+  .preview-panel,
+  .sheet,
+  .document-sheet {
+    border-radius: 20px;
+  }
+
+  .login-intro-card,
+  .login-card,
+  .hero-panel,
+  .search-card,
+  .sidebar,
+  .preview-panel,
+  .sheet {
+    padding: 1rem;
+  }
+
+  .page-shell {
+    width: min(100%, calc(100% - 1rem));
+    padding: 0.5rem 0 1rem;
+  }
+
+  .hero {
+    gap: 0.8rem;
+  }
+
+  .hero-brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  .hero-logo,
+  .login-logo,
+  .document-logo {
+    width: 78px;
+    height: 78px;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .lead {
+    font-size: 0.92rem;
+  }
+
+  .search-card-head,
+  .panel-header,
+  .action-row,
+  .sheet-topbar,
+  .admin-section-head,
+  .preview-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-row {
+    flex-direction: column;
+  }
+
+  .search-actions,
+  .workspace-nav,
+  .preview-actions,
+  .action-row,
+  .password-form-actions,
+  .sidebar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .search-actions button,
+  .workspace-nav button,
+  .preview-actions button,
+  .action-row button,
+  .password-form-actions button,
+  .sidebar-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .session-chip,
+  .hero-topline-item,
+  .hero-status-pill,
+  .panel-pill,
+  .record-badge {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .layout,
+  .admin-layout,
+  .content,
+  .admin-content {
+    gap: 0.8rem;
+  }
+
+  .sidebar {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .record-list {
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+    padding-right: 0;
+  }
+
+  .record-card,
+  .info-card {
+    padding: 0.8rem;
+  }
+
+  .record-card-top {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .record-number {
+    display: none;
+  }
+
+  .record-card small,
+  .record-quick-actions {
+    padding-left: 0;
+  }
+
+  .record-quick-actions {
+    margin-top: 0.45rem;
+  }
+
+  .sheet-title {
+    text-align: left;
+    font-size: 0.96rem;
+  }
+
+  .clave-box {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .section-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tab {
+    width: 100%;
+  }
+
+  .form-grid,
+  .document-grid,
+  .two-columns,
+  .document-signatures,
+  .admin-result-grid,
+  .login-intro-grid,
+  .log-summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .document-grid div,
+  .document-signatures div {
+    min-height: auto;
+  }
+
+  .photo-preview,
+  .photo-placeholder,
+  .document-photo {
+    max-height: 180px;
+    min-height: 180px;
+  }
+
+  .password-modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .password-modal-card {
+    padding: 1rem;
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-shell {
+    width: min(100%, calc(100% - 0.75rem));
+  }
+
+  .login-shell {
+    padding: 0.6rem;
+  }
+
+  .login-intro-card,
+  .login-card,
+  .hero-panel,
+  .search-card,
+  .sidebar,
+  .preview-panel,
+  .sheet,
+  .document-sheet {
+    padding: 0.85rem;
+    border-radius: 18px;
+  }
+
+  .hero h1 {
+    font-size: 1.35rem;
+  }
+
+  .hero-topline,
+  .hero-status-row {
+    gap: 0.45rem;
+  }
+
+  .hero-strip {
+    gap: 0.55rem;
+  }
+
+  .hero-stat {
+    padding: 0.7rem 0.75rem;
+  }
+
+  .section-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  input,
+  textarea,
+  select {
+    padding: 0.68rem 0.72rem;
+    font-size: 0.9rem;
+  }
+
+  button {
+    padding: 0.72rem 0.95rem;
+  }
+
+  .document-key,
+  .session-chip {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media print {
