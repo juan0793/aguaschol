@@ -28,12 +28,6 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_auth_sessions_user
-  ON auth_sessions (user_id);
-
-CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at
-  ON auth_sessions (expires_at);
-
 CREATE TABLE IF NOT EXISTS audit_logs (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   actor_user_id INT UNSIGNED NULL,
@@ -47,12 +41,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     FOREIGN KEY (actor_user_id) REFERENCES app_users(id)
     ON DELETE SET NULL
 );
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at
-  ON audit_logs (created_at);
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_entity
-  ON audit_logs (entity_type, entity_id);
 
 CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -84,9 +72,6 @@ CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-
-CREATE INDEX IF NOT EXISTS idx_inmuebles_barrio_colonia
-  ON inmuebles_clandestinos (barrio_colonia);
 
 INSERT INTO inmuebles_clandestinos (
   clave_catastral,

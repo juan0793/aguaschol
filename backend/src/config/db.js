@@ -70,6 +70,31 @@ const canConnect = async (includeDatabase = true) => {
   }
 };
 
+const ensureIndex = async (connection, { tableName, indexName, columns, unique = false }) => {
+  const [rows] = await connection.query(
+    `
+      SELECT 1
+      FROM information_schema.statistics
+      WHERE table_schema = ?
+        AND table_name = ?
+        AND index_name = ?
+      LIMIT 1
+    `,
+    [env.dbName, tableName, indexName]
+  );
+
+  if (rows.length) {
+    return;
+  }
+
+  const safeColumns = columns.map((column) => escapeIdentifier(column)).join(", ");
+  const uniqueKeyword = unique ? "UNIQUE " : "";
+
+  await connection.query(
+    `CREATE ${uniqueKeyword}INDEX ${escapeIdentifier(indexName)} ON ${escapeIdentifier(tableName)} (${safeColumns})`
+  );
+};
+
 const findLocalMariaDbBin = async () => {
   try {
     const entries = await fs.readdir(path.resolve(env.dbWorkspaceDir, "mariadb"), {
@@ -201,10 +226,36 @@ const ensureSchema = async () => {
       ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL,
       ADD COLUMN IF NOT EXISTS archived_reason VARCHAR(255) NOT NULL DEFAULT ''
     `);
-    await admin.query(`
-      CREATE INDEX IF NOT EXISTS idx_inmuebles_archived_at
-      ON inmuebles_clandestinos (archived_at)
-    `);
+    await ensureIndex(admin, {
+      tableName: "auth_sessions",
+      indexName: "idx_auth_sessions_user",
+      columns: ["user_id"]
+    });
+    await ensureIndex(admin, {
+      tableName: "auth_sessions",
+      indexName: "idx_auth_sessions_expires_at",
+      columns: ["expires_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "audit_logs",
+      indexName: "idx_audit_logs_created_at",
+      columns: ["created_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "audit_logs",
+      indexName: "idx_audit_logs_entity",
+      columns: ["entity_type", "entity_id"]
+    });
+    await ensureIndex(admin, {
+      tableName: "inmuebles_clandestinos",
+      indexName: "idx_inmuebles_barrio_colonia",
+      columns: ["barrio_colonia"]
+    });
+    await ensureIndex(admin, {
+      tableName: "inmuebles_clandestinos",
+      indexName: "idx_inmuebles_archived_at",
+      columns: ["archived_at"]
+    });
   } finally {
     await admin.end();
   }
