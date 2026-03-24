@@ -17,6 +17,16 @@ const frontendDistAvailable = fs.existsSync(env.frontendDistDir);
 const frontendAssetsDir = path.join(env.frontendDistDir, "assets");
 const frontendAssetsAvailable = fs.existsSync(frontendAssetsDir);
 
+const getOriginHost = (value) => {
+  if (!value) return "";
+
+  try {
+    return new URL(value).host;
+  } catch {
+    return "";
+  }
+};
+
 if (frontendDistAvailable) {
   if (frontendAssetsAvailable) {
     app.use("/assets", express.static(frontendAssetsDir));
@@ -30,17 +40,20 @@ if (frontendDistAvailable) {
 }
 
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      const allowByRailwayFallback = env.isRailway && allowedOrigins.size === 0;
+  cors((req, callback) => {
+    const origin = req.headers.origin;
+    const requestHost = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "")
+      .split(",")[0]
+      .trim();
+    const sameHost = Boolean(origin) && getOriginHost(origin) === requestHost;
+    const allowByRailwayFallback = env.isRailway && (allowedOrigins.size === 0 || sameHost);
 
-      if (!origin || allowedOrigins.has(origin) || allowByRailwayFallback) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error("Origen no permitido por CORS."));
+    if (!origin || allowedOrigins.has(origin) || sameHost || allowByRailwayFallback) {
+      callback(null, { origin: true });
+      return;
     }
+
+    callback(new Error("Origen no permitido por CORS."));
   })
 );
 app.use(express.json());
