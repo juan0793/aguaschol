@@ -756,6 +756,10 @@ function App() {
     const { silent = false } = options;
 
     if (!isAuthenticated) return;
+    if (!isAdmin && view === "archived") {
+      setRecordView("active");
+      return;
+    }
     if (!silent) {
       setLoading(true);
     }
@@ -769,6 +773,11 @@ function App() {
         if (response.status === 401) {
           clearSession();
           showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        if (response.status === 403 && view === "archived" && !isAdmin) {
+          setRecordView("active");
           return;
         }
 
