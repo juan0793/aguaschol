@@ -1676,6 +1676,16 @@ textarea {
   gap: 0.9rem;
 }
 
+.password-feedback {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  background: #fff1f3;
+  border: 1px solid rgba(193, 39, 45, 0.18);
+  color: #8d1f28;
+  font-size: 0.88rem;
+}
+
 .password-form label {
   display: grid;
   gap: 0.35rem;

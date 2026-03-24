@@ -510,6 +510,7 @@ function App() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState("");
   const [passwordForm, setPasswordForm] = useState({
     current_password: "",
     new_password: "",
@@ -641,6 +642,7 @@ function App() {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     setSession(null);
     setShowPasswordModal(false);
+    setPasswordFeedback("");
     setPasswordForm({
       current_password: "",
       new_password: "",
@@ -960,6 +962,7 @@ function App() {
 
   const handlePasswordFormChange = (event) => {
     const { name, value } = event.target;
+    setPasswordFeedback("");
     setPasswordForm((current) => ({ ...current, [name]: value }));
   };
 
@@ -986,6 +989,7 @@ function App() {
       await pause(550);
       setSession(data);
       setShowPasswordModal(Boolean(data?.user?.force_password_change));
+      setPasswordFeedback("");
       setPasswordForm({
         current_password: loginForm.password,
         new_password: "",
@@ -1016,9 +1020,20 @@ function App() {
 
   const handleChangePassword = async (event) => {
     event.preventDefault();
+    setPasswordFeedback("");
+
+    if (!passwordForm.current_password.trim()) {
+      setPasswordFeedback("Ingresa la contrasena actual.");
+      return;
+    }
+
+    if (passwordForm.new_password.trim().length < 8) {
+      setPasswordFeedback("La nueva contrasena debe tener al menos 8 caracteres.");
+      return;
+    }
 
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      showAlert("La confirmacion de la nueva contrasena no coincide.");
+      setPasswordFeedback("La confirmacion de la nueva contrasena no coincide.");
       return;
     }
 
@@ -1052,6 +1067,7 @@ function App() {
       setSession(nextSession);
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
       setShowPasswordModal(false);
+      setPasswordFeedback("");
       setPasswordForm({
         current_password: "",
         new_password: "",
@@ -1060,6 +1076,7 @@ function App() {
       showAlert("Contrasena actualizada correctamente.");
       loadAuditLogs();
     } catch (error) {
+      setPasswordFeedback(error.message || "No se pudo actualizar la contrasena.");
       showAlert(error.message || "No se pudo actualizar la contrasena.");
     } finally {
       setChangingPassword(false);
@@ -1803,6 +1820,7 @@ function App() {
               </p>
             </div>
             <form className="password-form" onSubmit={handleChangePassword}>
+              {passwordFeedback ? <p className="password-feedback">{passwordFeedback}</p> : null}
               <label>
                 <span>Contrasena actual</span>
                 <input
@@ -1810,6 +1828,7 @@ function App() {
                   type="password"
                   value={passwordForm.current_password}
                   onChange={handlePasswordFormChange}
+                  required
                 />
               </label>
               <label>
@@ -1819,6 +1838,8 @@ function App() {
                   type="password"
                   value={passwordForm.new_password}
                   onChange={handlePasswordFormChange}
+                  minLength={8}
+                  required
                 />
               </label>
               <label>
@@ -1828,6 +1849,7 @@ function App() {
                   type="password"
                   value={passwordForm.confirm_password}
                   onChange={handlePasswordFormChange}
+                  required
                 />
               </label>
               <div className="password-form-actions">
