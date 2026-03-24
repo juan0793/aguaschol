@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 
 const rawApiBase = (import.meta.env.VITE_API_URL?.trim() || "").replace(/\/$/, "");
@@ -487,6 +487,7 @@ const urlToDataUrl = async (url) => {
 };
 
 function App() {
+  const sheetRef = useRef(null);
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -885,9 +886,19 @@ function App() {
     }
   };
 
+  const focusSheet = () => {
+    window.requestAnimationFrame(() => {
+      sheetRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  };
+
   const handleSelectRecord = (record) => {
     setSelectedRecordId(record.id ?? null);
     applyRecord(record);
+    focusSheet();
   };
 
   const handleCopyClave = async (record, event) => {
@@ -913,6 +924,7 @@ function App() {
     setSelectedFile(null);
     setAvisoHtml("");
     setActiveSection("abonado");
+    focusSheet();
   };
 
   const restoreDraft = () => {
@@ -926,6 +938,7 @@ function App() {
     setSelectedFile(null);
     setAvisoHtml("");
     setActiveSection("abonado");
+    focusSheet();
   };
 
   const handleLoginChange = (event) => {
@@ -2105,7 +2118,7 @@ function App() {
         </aside>
 
         <section className="content">
-          <form className={`sheet no-print ${selectedRecordId ? "sheet-selected" : ""}`} onSubmit={saveRecord}>
+          <form ref={sheetRef} className={`sheet no-print ${selectedRecordId ? "sheet-selected" : ""}`} onSubmit={saveRecord}>
             {selectedRecordId ? (
               <div className="sheet-selection-flag">Ficha seleccionada</div>
             ) : null}
