@@ -54,6 +54,7 @@ export const env = {
   dbConnectRetries: Number(process.env.DB_CONNECT_RETRIES ?? (isRailway ? 0 : 10)),
   dbConnectRetryDelayMs: Number(process.env.DB_CONNECT_RETRY_DELAY_MS ?? 5000),
   dbRoot: projectRoot,
+  frontendDistDir: path.resolve(projectRoot, "frontend", "dist"),
   dbWorkspaceDir: path.resolve(projectRoot, ".db"),
   dbDataDir: path.resolve(projectRoot, ".db", "mariadb-data"),
   dbRunDir: path.resolve(projectRoot, ".db", "mariadb-run"),

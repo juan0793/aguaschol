@@ -130,13 +130,13 @@ Al iniciar, el backend intenta conectarse a MySQL/MariaDB, arranca la instancia 
 
 ## Despliegue en Railway
 
-El backend ya queda preparado para desplegarse desde la raiz del repositorio.
+La app ya queda preparada para desplegarse en un solo servicio de Railway desde la raiz del repositorio.
 
 Comportamiento que ya soporta:
 
 - usa `PORT` dinamico de Railway
-- instala dependencias del backend desde el `postinstall` de la raiz
-- arranca con `npm start` desde la raiz
+- construye el frontend durante el build y lo sirve desde Express
+- arranca con `npm --prefix backend start`
 - acepta `DATABASE_URL` o las variables tipo `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`
 - desactiva por defecto el autoarranque de MariaDB local cuando detecta Railway
 
@@ -144,8 +144,6 @@ Variables recomendadas en Railway:
 
 ```env
 NODE_ENV=production
-FRONTEND_URL=https://tu-frontend.app
-FRONTEND_URLS=https://tu-frontend.app
 DB_AUTO_START=false
 USE_MEMORY_DB=false
 AUTH_USERNAME=admin
@@ -162,6 +160,16 @@ Opciones de base de datos:
 
 - si agregas un servicio MySQL en Railway, normalmente bastara con las variables `MYSQL*`
 - si usas una cadena unica, tambien funciona `DATABASE_URL`
+
+Flujo recomendado:
+
+1. crea un proyecto nuevo en Railway desde este repositorio
+2. agrega un servicio MySQL
+3. configura las variables de entorno del bloque anterior
+4. despliega la raiz del repositorio
+5. abre la URL publica de Railway y la app servira tanto frontend como API
+
+Si luego deseas separar frontend y backend en servicios distintos, todavia puedes hacerlo, pero ya no es obligatorio para una primera version.
 
 Nota importante sobre archivos:
 

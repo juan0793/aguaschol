@@ -1,5 +1,7 @@
 import cors from "cors";
 import express from "express";
+import fs from "node:fs";
+import path from "node:path";
 import { getDatabaseStatus } from "./config/db.js";
 import { env } from "./config/env.js";
 import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
@@ -11,6 +13,7 @@ import userRoutes from "./routes/userRoutes.js";
 const app = express();
 const localOrigins = env.isRailway ? [] : ["http://127.0.0.1:5173", "http://localhost:5173"];
 const allowedOrigins = new Set([...env.frontendUrls, ...localOrigins]);
+const frontendDistAvailable = fs.existsSync(env.frontendDistDir);
 
 app.use(
   cors({
@@ -40,6 +43,15 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
 app.use("/api/users", requireAuth, requireAdmin, userRoutes);
+
+if (frontendDistAvailable) {
+  app.use(express.static(env.frontendDistDir));
+
+  app.get(/^\/(?!api(?:\/|$)|uploads(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(path.join(env.frontendDistDir, "index.html"));
+  });
+}
+
 app.use(errorHandler);
 
 export default app;
