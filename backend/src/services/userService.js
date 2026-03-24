@@ -149,30 +149,20 @@ export const deleteUser = async (userId, actorUser) => {
     throw error;
   }
 
-  await pool.query("DELETE FROM auth_sessions WHERE user_id = ?", [targetId]);
-  await pool.query(
-    `
-      UPDATE app_users
-      SET is_active = 0, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `,
-    [targetId]
-  );
-
   await createAuditLog({
     actorUserId: actorUser?.id ?? null,
     action: "user.deleted",
     entityType: "user",
     entityId: targetId,
-    summary: `Usuario ${user.username} desactivado`,
+    summary: `Usuario ${user.username} eliminado`,
     details: {
       email: user.email,
       role: user.role
     }
   });
 
-  return {
-    ...sanitizeUser(user),
-    is_active: false
-  };
+  await pool.query("DELETE FROM auth_sessions WHERE user_id = ?", [targetId]);
+  await pool.query("DELETE FROM app_users WHERE id = ?", [targetId]);
+
+  return sanitizeUser(user);
 };

@@ -526,6 +526,19 @@ button:disabled {
   margin-bottom: 0.5rem;
 }
 
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.8rem;
+  margin-bottom: 0.9rem;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #184a7a;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
 .search-card label {
   display: block;
   font-weight: 600;
@@ -1311,7 +1324,12 @@ textarea {
 }
 
 .info-card {
-  cursor: default;
+  cursor: pointer;
+}
+
+.info-card.is-selected {
+  border-color: rgba(21, 118, 209, 0.45);
+  box-shadow: 0 12px 28px rgba(21, 118, 209, 0.14);
 }
 
 .admin-section-head {

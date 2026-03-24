@@ -535,6 +535,8 @@ function App() {
   const [draftSavedAt, setDraftSavedAt] = useState(null);
   const [workspaceView, setWorkspaceView] = useState("records");
   const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [userForm, setUserForm] = useState({
@@ -552,6 +554,8 @@ function App() {
   const safeRecords = Array.isArray(records) ? records : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
+  const selectedUser =
+    safeUsers.find((user) => user.id === selectedUserId) ?? latestUserResult?.user ?? safeUsers[0] ?? null;
   const headerMeta = useMemo(
     () =>
       (
@@ -753,8 +757,14 @@ function App() {
       }
 
       setUsers(Array.isArray(data) ? data : []);
+      setSelectedUserId((current) => {
+        const nextUsers = Array.isArray(data) ? data : [];
+        if (!nextUsers.length) return null;
+        return nextUsers.some((user) => user.id === current) ? current : nextUsers[0].id;
+      });
     } catch (error) {
       setUsers([]);
+      setSelectedUserId(null);
       showAlert(error.message || "No fue posible cargar los usuarios.");
     } finally {
       setLoadingUsers(false);
@@ -1061,6 +1071,7 @@ function App() {
       }
 
       setLatestUserResult(data);
+      setSelectedUserId(data.user?.id ?? null);
       setUserForm({
         full_name: "",
         email: "",
@@ -1079,9 +1090,6 @@ function App() {
   const handleDeleteUser = async (user) => {
     if (!user?.id) return;
 
-    const confirmed = window.confirm(`Se desactivara el acceso de ${user.full_name || user.username}. Deseas continuar?`);
-    if (!confirmed) return;
-
     try {
       const response = await apiFetch(`/users/${user.id}`, {
         method: "DELETE"
@@ -1099,9 +1107,11 @@ function App() {
       }
 
       setUsers((current) => current.filter((item) => item.id !== user.id));
+      setSelectedUserId((current) => (current === user.id ? null : current));
       if (latestUserResult?.user?.id === user.id) {
         setLatestUserResult(null);
       }
+      setPendingDeleteUser(null);
       showAlert(`Usuario ${user.username} eliminado.`);
       loadUsers();
       loadAuditLogs();
@@ -1781,6 +1791,27 @@ function App() {
           </div>
         </div>
       ) : null}
+      {pendingDeleteUser ? (
+        <div className="password-modal-backdrop">
+          <div className="password-modal-card">
+            <div className="password-modal-head">
+              <p className="eyebrow">Confirmacion requerida</p>
+              <h2>Eliminar usuario</h2>
+              <p className="lead">
+                Se eliminara el registro de <strong>{pendingDeleteUser.full_name}</strong> y se cerraran sus sesiones activas.
+              </p>
+            </div>
+            <div className="password-form-actions">
+              <button type="button" className="button-secondary" onClick={() => setPendingDeleteUser(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="button-danger" onClick={() => handleDeleteUser(pendingDeleteUser)}>
+                Eliminar usuario
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <header className="hero no-print">
         <div className={`hero-panel ${headerMeta.panelClass}`}>
           <div className="hero-topline">
@@ -1834,6 +1865,10 @@ function App() {
           <div className="search-card-head">
             <label htmlFor="search">Espacios de trabajo</label>
             <span className="search-card-kicker">{headerMeta.kicker}</span>
+          </div>
+          <div className="session-chip">
+            <Icon name="auth" />
+            <span>Usuario actual: {session?.user?.full_name || session?.user?.username || "--"}</span>
           </div>
           <div className="workspace-nav">
             <button
@@ -2311,7 +2346,11 @@ function App() {
                 {loadingUsers ? <p className="helper-text">Cargando usuarios...</p> : null}
                 <div className="record-list">
                   {safeUsers.map((user) => (
-                    <article key={user.id} className="record-card info-card">
+                    <article
+                      key={user.id}
+                      className={`record-card info-card ${selectedUser?.id === user.id ? "is-selected" : ""}`}
+                      onClick={() => setSelectedUserId(user.id)}
+                    >
                       <div className="record-card-top user-card-top">
                         <strong className="user-name">{user.full_name}</strong>
                         <span className="record-badge">{roleLabel(user.role)}</span>
@@ -2321,14 +2360,15 @@ function App() {
                         Usuario: {user.username} - Ultimo acceso: {formatDateTime(user.last_login_at)}
                       </small>
                       <div className="user-card-actions">
-                        <span className={`record-badge ${user.is_active ? "" : "record-badge-muted"}`}>
-                          {user.is_active ? "Activo" : "Inactivo"}
-                        </span>
-                        {session?.user?.id !== user.id && user.is_active ? (
+                        <span className="record-badge">{user.username}</span>
+                        {session?.user?.id !== user.id ? (
                           <button
                             type="button"
                             className="button-danger"
-                            onClick={() => handleDeleteUser(user)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setPendingDeleteUser(user);
+                            }}
                           >
                             Eliminar
                           </button>
@@ -2418,46 +2458,57 @@ function App() {
                 <section className="preview-panel">
                   <div className="admin-section-head">
                     <div>
-                      <p className="sheet-kicker">Entrega y credenciales</p>
-                      <h2><Icon name="success" className="title-icon" />Resultado mas reciente</h2>
+                      <p className="sheet-kicker">Detalle del usuario</p>
+                      <h2><Icon name="success" className="title-icon" />Informacion del acceso</h2>
                     </div>
-                    {latestUserResult?.user ? <span className="panel-pill">{latestUserResult.user.username}</span> : null}
+                    {selectedUser ? <span className="panel-pill">{selectedUser.username}</span> : null}
                   </div>
                   <article className="document-sheet">
-                    {latestUserResult?.user ? (
+                    {selectedUser ? (
                       <div className="admin-result-grid">
                         <div className="document-block">
-                          <h4>Usuario creado</h4>
-                          <p className="user-detail-line"><strong>Nombre:</strong> <span className="user-name">{latestUserResult.user.full_name}</span></p>
-                          <p className="user-detail-line"><strong>Correo:</strong> <span className="user-email">{latestUserResult.user.email}</span></p>
-                          <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{latestUserResult.user.username}</span></p>
-                          <p><strong>Perfil:</strong> {roleLabel(latestUserResult.user.role)}</p>
+                          <h4>Datos generales</h4>
+                          <p className="user-detail-line"><strong>Nombre:</strong> <span className="user-name">{selectedUser.full_name}</span></p>
+                          <p className="user-detail-line"><strong>Correo:</strong> <span className="user-email">{selectedUser.email}</span></p>
+                          <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{selectedUser.username}</span></p>
+                          <p><strong>Perfil:</strong> {roleLabel(selectedUser.role)}</p>
+                          <p><strong>Ultimo acceso:</strong> {formatDateTime(selectedUser.last_login_at)}</p>
                         </div>
                         <div className="document-block">
-                          <h4>Entrega por correo</h4>
-                          <p>
-                            <strong>Estado:</strong>{" "}
-                            {latestUserResult.delivery?.sent
-                              ? latestUserResult.delivery?.sandbox
-                                ? "Enviado en sandbox"
-                                : "Enviado"
-                              : "Pendiente o manual"}
-                          </p>
-                          <p><strong>Proveedor:</strong> Brevo</p>
-                          <p>
-                            <strong>Detalle:</strong>{" "}
-                            {latestUserResult.delivery?.reason || "La notificacion fue procesada correctamente."}
-                          </p>
-                          {latestUserResult.temp_password ? (
-                            <p><strong>Contrasena temporal:</strong> {latestUserResult.temp_password}</p>
-                          ) : null}
+                          <h4>Estado y entrega</h4>
+                          {latestUserResult?.user?.id === selectedUser.id ? (
+                            <>
+                              <p>
+                                <strong>Estado de correo:</strong>{" "}
+                                {latestUserResult.delivery?.sent
+                                  ? latestUserResult.delivery?.sandbox
+                                    ? "Enviado en sandbox"
+                                    : "Enviado"
+                                  : "Pendiente o manual"}
+                              </p>
+                              <p>
+                                <strong>Detalle:</strong>{" "}
+                                {latestUserResult.delivery?.reason || "La notificacion fue procesada correctamente."}
+                              </p>
+                              {latestUserResult.temp_password ? (
+                                <p><strong>Contrasena temporal:</strong> {latestUserResult.temp_password}</p>
+                              ) : null}
+                            </>
+                          ) : (
+                            <>
+                              <p><strong>Estado:</strong> Usuario registrado en el sistema.</p>
+                              <p><strong>Creado:</strong> {formatDateTime(selectedUser.created_at)}</p>
+                              <p><strong>Actualizado:</strong> {formatDateTime(selectedUser.updated_at)}</p>
+                              <p><strong>Cambio de contrasena:</strong> {selectedUser.force_password_change ? "Pendiente" : "Completado"}</p>
+                            </>
+                          )}
                         </div>
                       </div>
                     ) : (
                       <div className="empty-state">
-                        <h3>Sin altas recientes</h3>
+                        <h3>Sin usuario seleccionado</h3>
                         <p>
-                          Cuando crees un usuario veras aqui el resultado del envio de correo y la credencial temporal de respaldo.
+                          Selecciona un usuario del listado para ver su informacion detallada y administrar su acceso.
                         </p>
                       </div>
                     )}
