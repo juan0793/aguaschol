@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   username VARCHAR(120) NOT NULL UNIQUE,
   role ENUM('admin', 'operator') NOT NULL DEFAULT 'operator',
   password_hash VARCHAR(255) NOT NULL,
+  force_password_change TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   last_login_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

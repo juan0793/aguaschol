@@ -9,6 +9,7 @@ const sanitizeUser = (user) => ({
   email: user.email,
   username: user.username,
   role: user.role,
+  force_password_change: Boolean(user.force_password_change),
   is_active: Boolean(user.is_active),
   last_login_at: user.last_login_at,
   created_at: user.created_at,
@@ -36,7 +37,7 @@ export const listUsers = async () => {
   const pool = getPool();
   const [rows] = await pool.query(
     `
-      SELECT id, full_name, email, username, role, is_active, last_login_at, created_at, updated_at
+      SELECT id, full_name, email, username, role, force_password_change, is_active, last_login_at, created_at, updated_at
       FROM app_users
       ORDER BY created_at DESC
     `
@@ -70,15 +71,15 @@ export const createUser = async ({ full_name, email, role = "operator" }, actorU
 
   const [result] = await pool.query(
     `
-      INSERT INTO app_users (full_name, email, username, role, password_hash, is_active)
-      VALUES (?, ?, ?, ?, ?, 1)
+      INSERT INTO app_users (full_name, email, username, role, password_hash, force_password_change, is_active)
+      VALUES (?, ?, ?, ?, ?, 1, 1)
     `,
     [cleanName, cleanEmail, username, cleanRole, passwordHash]
   );
 
   const [rows] = await pool.query(
     `
-      SELECT id, full_name, email, username, role, is_active, last_login_at, created_at, updated_at
+      SELECT id, full_name, email, username, role, force_password_change, is_active, last_login_at, created_at, updated_at
       FROM app_users
       WHERE id = ?
       LIMIT 1

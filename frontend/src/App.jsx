@@ -101,6 +101,7 @@ const actionLabel = (action) =>
     {
       "auth.login": "Inicio de sesion",
       "auth.logout": "Cierre de sesion",
+      "auth.password_changed": "Contrasena actualizada",
       "user.created": "Usuario creado",
       "inmueble.created": "Ficha creada",
       "inmueble.updated": "Ficha actualizada",
@@ -152,6 +153,7 @@ const actionIconName = (action) =>
     {
       "auth.login": "auth",
       "auth.logout": "logout",
+      "auth.password_changed": "success",
       "user.created": "userCreated",
       "inmueble.created": "plus",
       "inmueble.updated": "records",
@@ -498,6 +500,13 @@ function App() {
   });
   const [loginForm, setLoginForm] = useState({ username: "admin", password: "abcd123" });
   const [loginLoading, setLoginLoading] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: ""
+  });
   const [authFx, setAuthFx] = useState(null);
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -538,6 +547,8 @@ function App() {
   const [loadingLogs, setLoadingLogs] = useState(false);
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
+  const mustChangePassword = Boolean(session?.user?.force_password_change);
+  const passwordModalVisible = isAuthenticated && (mustChangePassword || showPasswordModal);
   const safeRecords = Array.isArray(records) ? records : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
@@ -617,6 +628,12 @@ function App() {
   const clearSession = () => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     setSession(null);
+    setShowPasswordModal(false);
+    setPasswordForm({
+      current_password: "",
+      new_password: "",
+      confirm_password: ""
+    });
     setRecords([]);
     setUsers([]);
     setAuditLogs([]);
@@ -666,6 +683,17 @@ function App() {
 
     return () => window.clearTimeout(timer);
   }, [alert]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowPasswordModal(false);
+      return;
+    }
+
+    if (mustChangePassword) {
+      setShowPasswordModal(true);
+    }
+  }, [isAuthenticated, mustChangePassword]);
 
   const loadRecords = async (query = "", view = recordView) => {
     if (!isAuthenticated) return;
@@ -900,6 +928,11 @@ function App() {
     setUserForm((current) => ({ ...current, [name]: value }));
   };
 
+  const handlePasswordFormChange = (event) => {
+    const { name, value } = event.target;
+    setPasswordForm((current) => ({ ...current, [name]: value }));
+  };
+
   const handleLogin = async (event) => {
     event.preventDefault();
     setLoginLoading(true);
@@ -922,6 +955,12 @@ function App() {
       setAuthFx({ mode: "login", text: "Abriendo sesion..." });
       await pause(550);
       setSession(data);
+      setShowPasswordModal(Boolean(data?.user?.force_password_change));
+      setPasswordForm({
+        current_password: loginForm.password,
+        new_password: "",
+        confirm_password: ""
+      });
       setWorkspaceView("records");
       setAlert(null);
     } catch (error) {
@@ -942,6 +981,58 @@ function App() {
       await pause(450);
       clearSession();
       setAuthFx(null);
+    }
+  };
+
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      showAlert("La confirmacion de la nueva contrasena no coincide.");
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const response = await apiFetch("/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(passwordForm)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo actualizar la contrasena.");
+      }
+
+      const nextSession = {
+        ...session,
+        user: data.user
+      };
+
+      setSession(nextSession);
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
+      setShowPasswordModal(false);
+      setPasswordForm({
+        current_password: "",
+        new_password: "",
+        confirm_password: ""
+      });
+      showAlert("Contrasena actualizada correctamente.");
+      loadAuditLogs();
+    } catch (error) {
+      showAlert(error.message || "No se pudo actualizar la contrasena.");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -1597,6 +1688,65 @@ function App() {
           <span>{alert.text}</span>
         </div>
       ) : null}
+      {passwordModalVisible ? (
+        <div className={`password-modal-backdrop ${mustChangePassword ? "is-forced" : ""}`}>
+          <div className="password-modal-card">
+            <div className="password-modal-head">
+              <p className="eyebrow">{mustChangePassword ? "Accion requerida" : "Seguridad de acceso"}</p>
+              <h2>{mustChangePassword ? "Cambia tu contrasena temporal" : "Cambiar contrasena"}</h2>
+              <p className="lead">
+                {mustChangePassword
+                  ? "Antes de continuar, define una nueva contrasena personal para proteger tu cuenta."
+                  : "Actualiza tu contrasena cuando lo necesites."}
+              </p>
+            </div>
+            <form className="password-form" onSubmit={handleChangePassword}>
+              <label>
+                <span>Contrasena actual</span>
+                <input
+                  name="current_password"
+                  type="password"
+                  value={passwordForm.current_password}
+                  onChange={handlePasswordFormChange}
+                />
+              </label>
+              <label>
+                <span>Nueva contrasena</span>
+                <input
+                  name="new_password"
+                  type="password"
+                  value={passwordForm.new_password}
+                  onChange={handlePasswordFormChange}
+                />
+              </label>
+              <label>
+                <span>Confirmar nueva contrasena</span>
+                <input
+                  name="confirm_password"
+                  type="password"
+                  value={passwordForm.confirm_password}
+                  onChange={handlePasswordFormChange}
+                />
+              </label>
+              <div className="password-form-actions">
+                <button type="submit" disabled={changingPassword}>
+                  <Icon name="auth" />
+                  {changingPassword ? "Actualizando..." : "Guardar nueva contrasena"}
+                </button>
+                {!mustChangePassword ? (
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => setShowPasswordModal(false)}
+                  >
+                    Cerrar
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
       <header className="hero no-print">
         <div className={`hero-panel ${headerMeta.panelClass}`}>
           <div className="hero-topline">
@@ -1697,6 +1847,14 @@ function App() {
                   <Icon name="refresh" />
                   Refrescar listado
                 </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setShowPasswordModal(true)}
+                >
+                  <Icon name="auth" />
+                  Cambiar contrasena
+                </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
                   Cerrar sesion
@@ -1725,6 +1883,10 @@ function App() {
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
                   Cerrar sesion
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contrasena
                 </button>
               </div>
             </div>

@@ -246,6 +246,11 @@ const ensureSchema = async () => {
       definition: "VARCHAR(180) NOT NULL DEFAULT 'Usuario'"
     });
     await ensureColumn(admin, {
+      tableName: "app_users",
+      columnName: "force_password_change",
+      definition: "TINYINT(1) NOT NULL DEFAULT 0"
+    });
+    await ensureColumn(admin, {
       tableName: "inmuebles_clandestinos",
       columnName: "archived_at",
       definition: "TIMESTAMP NULL DEFAULT NULL"
