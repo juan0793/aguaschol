@@ -613,6 +613,14 @@ function App() {
             lead: "Creacion de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
             kicker: "Control de acceso"
           },
+          padron: {
+            panelClass: "hero-panel-users",
+            cardClass: "search-card-users",
+            toplineLabel: "Administracion de padron",
+            title: "Padron maestro",
+            lead: "Carga y reemplazo del archivo maestro usado por la consulta rapida de claves.",
+            kicker: "Actualizacion central"
+          },
           lookup: {
             panelClass: "hero-panel-records",
             cardClass: "search-card-records",
@@ -665,6 +673,26 @@ function App() {
       ];
     }
 
+    if (workspaceView === "padron") {
+      return [
+        {
+          icon: "refresh",
+          label: "Estado",
+          value: uploadingPadron ? "Actualizando" : "Listo"
+        },
+        {
+          icon: "records",
+          label: "Claves activas",
+          value: String(padronMeta?.total_records ?? 0)
+        },
+        {
+          icon: "activity",
+          label: "Archivo",
+          value: padronMeta?.file_name || "Sin padrón"
+        }
+      ];
+    }
+
     return [
       {
         icon: "records",
@@ -682,7 +710,7 @@ function App() {
         value: draftForm ? "Disponible" : "Sin cambios"
       }
     ];
-  }, [draftForm, form.id, lookupResult, safeRecords.length, workspaceView]);
+  }, [draftForm, form.id, lookupResult, padronMeta, safeRecords.length, uploadingPadron, workspaceView]);
   const isDirty = useMemo(() => {
     const baseline = form.id
       ? comparableFormShape(safeRecords.find((record) => record.id === form.id) ?? emptyForm)
@@ -1002,6 +1030,9 @@ function App() {
 
     if (workspaceView === "users") {
       loadUsers();
+    }
+
+    if (workspaceView === "padron") {
       loadPadronMeta();
     }
 
@@ -2281,20 +2312,24 @@ function App() {
               <h1>{headerMeta.title}</h1>
               <p className="lead">{headerMeta.lead}</p>
               <div className="hero-status-row">
-                {workspaceView === "lookup" ? (
+                {["lookup", "padron"].includes(workspaceView) ? (
                   <span className={`hero-status-pill ${lookupResult?.exists ? "is-live" : ""}`}>
-                    {lookupResult
-                      ? lookupResult.exists
-                        ? "Coincidencia encontrada"
-                        : "Sin coincidencias"
-                      : "Listo para consultar"}
+                    {workspaceView === "padron"
+                      ? uploadingPadron
+                        ? "Actualizando padron"
+                        : "Padron disponible"
+                      : lookupResult
+                        ? lookupResult.exists
+                          ? "Coincidencia encontrada"
+                          : "Sin coincidencias"
+                        : "Listo para consultar"}
                   </span>
                 ) : (
                   <span className={`hero-status-pill ${isDirty ? "is-live" : ""}`}>
                     {isDirty ? "Cambios sin guardar" : "Todo guardado"}
                   </span>
                 )}
-                {workspaceView !== "lookup" && draftSavedAt ? (
+                {!["lookup", "padron"].includes(workspaceView) && draftSavedAt ? (
                   <span className="hero-status-pill subtle">
                     Borrador: {formatDateTime(draftSavedAt)}
                   </span>
@@ -2339,6 +2374,16 @@ function App() {
               <Icon name="search" />
               Buscar clave
             </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                className={workspaceView === "padron" ? "button-secondary active-filter" : "button-secondary"}
+                onClick={() => setWorkspaceView("padron")}
+              >
+                <Icon name="refresh" />
+                Padron
+              </button>
+            ) : null}
             {isAdmin ? (
               <button
                 type="button"
@@ -2404,6 +2449,26 @@ function App() {
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
                   Cerrar sesion
+                </button>
+              </div>
+            </div>
+          ) : workspaceView === "padron" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                Sube un nuevo Excel maestro para reemplazar el padron usado por <strong>Buscar clave</strong>.
+              </p>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={loadPadronMeta}>
+                  <Icon name="refresh" />
+                  Ver estado actual
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contrasena
                 </button>
               </div>
             </div>
@@ -2932,6 +2997,62 @@ function App() {
             </div>
           </section>
         </main>
+      ) : workspaceView === "padron" ? (
+        <main className="lookup-layout">
+          <section className="lookup-shell no-print">
+            <form className="lookup-card" onSubmit={handleUploadPadron}>
+              <div className="lookup-card-head">
+                <div>
+                  <p className="sheet-kicker">Padron maestro</p>
+                  <h2><Icon name="refresh" className="title-icon" />Actualizar padron de consulta</h2>
+                </div>
+                <span className="panel-pill">{padronMeta?.total_records ?? 0} claves</span>
+              </div>
+
+              <div className="admin-result-grid padron-admin-grid">
+                <div className="document-block">
+                  <h4>Archivo activo</h4>
+                  <p><strong>Archivo:</strong> {padronMeta?.file_name || "Sin registro"}</p>
+                  <p><strong>Hoja:</strong> {padronMeta?.sheet_name || "--"}</p>
+                  <p><strong>Ultima actualizacion:</strong> {formatDateTime(padronMeta?.updated_at)}</p>
+                </div>
+                <div className="document-block">
+                  <h4>Nuevo archivo</h4>
+                  <label className="file-input">
+                    <span>Seleccionar Excel maestro</span>
+                    <input
+                      type="file"
+                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      onChange={handlePadronFileChange}
+                    />
+                  </label>
+                  <p className="helper-text">
+                    Sube el padrón maestro en Excel y el módulo <strong>Buscar clave</strong> usará la nueva versión de inmediato.
+                  </p>
+                  {padronFile ? <p><strong>Archivo listo:</strong> {padronFile.name}</p> : null}
+                </div>
+              </div>
+
+              <div className="search-actions lookup-actions">
+                <button type="submit" disabled={uploadingPadron}>
+                  <Icon name="refresh" />
+                  {uploadingPadron ? "Actualizando..." : "Actualizar padron maestro"}
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => {
+                    setPadronFile(null);
+                    loadPadronMeta();
+                  }}
+                >
+                  <Icon name="records" />
+                  Ver estado actual
+                </button>
+              </div>
+            </form>
+          </section>
+        </main>
       ) : (
         <main className={`admin-layout ${workspaceView === "logs" ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (
@@ -3050,53 +3171,6 @@ function App() {
                     >
                       <Icon name="refresh" />
                       Limpiar
-                    </button>
-                  </div>
-                </form>
-
-                <form className="sheet no-print" onSubmit={handleUploadPadron}>
-                  <div className="admin-section-head">
-                    <div>
-                      <p className="sheet-kicker">Padron maestro</p>
-                      <h2><Icon name="refresh" className="title-icon" />Actualizar padron de consulta</h2>
-                    </div>
-                    <span className="panel-pill">{padronMeta?.total_records ?? 0} claves</span>
-                  </div>
-                  <section className="sheet-section">
-                    <h3>Archivo activo</h3>
-                    <div className="admin-result-grid">
-                      <div className="document-block">
-                        <p><strong>Archivo:</strong> {padronMeta?.file_name || "Sin registro"}</p>
-                        <p><strong>Hoja:</strong> {padronMeta?.sheet_name || "--"}</p>
-                        <p><strong>Ultima actualizacion:</strong> {formatDateTime(padronMeta?.updated_at)}</p>
-                      </div>
-                      <div className="document-block">
-                        <label className="file-input">
-                          <span>Seleccionar Excel maestro</span>
-                          <input type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handlePadronFileChange} />
-                        </label>
-                        <p className="helper-text">
-                          Sube el padron maestro en Excel y el modulo <strong>Buscar clave</strong> usara la nueva version de inmediato.
-                        </p>
-                        {padronFile ? <p><strong>Archivo listo:</strong> {padronFile.name}</p> : null}
-                      </div>
-                    </div>
-                  </section>
-                  <div className="action-row">
-                    <button type="submit" disabled={uploadingPadron}>
-                      <Icon name="refresh" />
-                      {uploadingPadron ? "Actualizando..." : "Actualizar padron maestro"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => {
-                        setPadronFile(null);
-                        loadPadronMeta();
-                      }}
-                    >
-                      <Icon name="records" />
-                      Ver estado actual
                     </button>
                   </div>
                 </form>
