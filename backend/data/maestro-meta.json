@@ -2,5 +2,10 @@
   "file_name": "maestro_completo.xls",
   "sheet_name": "maestro_completo",
   "total_records": 21606,
-  "updated_at": "2026-03-25T17:26:22.556Z"
+  "updated_at": "2026-03-25T20:16:30.179Z",
+  "last_import_summary": {
+    "added": 0,
+    "removed": 0,
+    "changed": 0
+  }
 }
