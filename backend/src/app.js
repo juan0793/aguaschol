@@ -5,6 +5,7 @@ import path from "node:path";
 import { getDatabaseStatus } from "./config/db.js";
 import { env } from "./config/env.js";
 import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
+import claveLookupRoutes from "./routes/claveLookupRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/authRoutes.js";
 import inmuebleRoutes from "./routes/inmuebleRoutes.js";
@@ -70,6 +71,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/claves", requireAuth, claveLookupRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
 app.use("/api/users", requireAuth, requireAdmin, userRoutes);
 

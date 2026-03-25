@@ -88,6 +88,17 @@ const normalizeRecord = (record) => ({
   archived_reason: record?.archived_reason ?? ""
 });
 
+const formatClaveInput = (value = "") => {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  const groups = [];
+
+  for (let index = 0; index < digits.length; index += 2) {
+    groups.push(digits.slice(index, index + 2));
+  }
+
+  return groups.join("-");
+};
+
 const formatDateTime = (value) => {
   if (!value) return "--";
   const date = new Date(value);
@@ -545,6 +556,9 @@ function App() {
   const [selectedRecordId, setSelectedRecordId] = useState(null);
   const [draftSavedAt, setDraftSavedAt] = useState(null);
   const [workspaceView, setWorkspaceView] = useState("records");
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState(null);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -588,6 +602,14 @@ function App() {
             lead: "Creacion de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
             kicker: "Control de acceso"
           },
+          lookup: {
+            panelClass: "hero-panel-records",
+            cardClass: "search-card-records",
+            toplineLabel: "Consulta rapida",
+            title: "Buscar clave catastral",
+            lead: "Consulta apartada del modulo de fichas para validar si una clave ya existe en el padron maestro.",
+            kicker: "Uso en campo"
+          },
           logs: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-logs",
@@ -607,6 +629,49 @@ function App() {
       ),
     [workspaceView]
   );
+  const headerStats = useMemo(() => {
+    if (workspaceView === "lookup") {
+      return [
+        {
+          icon: "search",
+          label: "Modo",
+          value: "Consulta"
+        },
+        {
+          icon: "records",
+          label: "Coincidencias",
+          value: String(lookupResult?.total_matches ?? 0)
+        },
+        {
+          icon: lookupResult?.exists ? "success" : "activity",
+          label: "Resultado",
+          value: lookupResult
+            ? lookupResult.exists
+              ? "Registrada"
+              : "Posible clandestino"
+            : "Sin consulta"
+        }
+      ];
+    }
+
+    return [
+      {
+        icon: "records",
+        label: "Registros visibles",
+        value: String(safeRecords.length)
+      },
+      {
+        icon: form.id ? "activity" : "plus",
+        label: "Modo",
+        value: form.id ? "Edicion" : "Nueva ficha"
+      },
+      {
+        icon: draftForm ? "success" : "refresh",
+        label: "Borrador",
+        value: draftForm ? "Disponible" : "Sin cambios"
+      }
+    ];
+  }, [draftForm, form.id, lookupResult, safeRecords.length, workspaceView]);
   const isDirty = useMemo(() => {
     const baseline = form.id
       ? comparableFormShape(safeRecords.find((record) => record.id === form.id) ?? emptyForm)
@@ -655,6 +720,8 @@ function App() {
     setUsers([]);
     setAuditLogs([]);
     setLatestUserResult(null);
+    setLookupQuery("");
+    setLookupResult(null);
     setWorkspaceView("records");
     resetForm();
   };
@@ -906,7 +973,7 @@ function App() {
   }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
-    if (isAuthenticated && !isAdmin && workspaceView !== "records") {
+    if (isAuthenticated && !isAdmin && !["records", "lookup"].includes(workspaceView)) {
       setWorkspaceView("records");
     }
   }, [isAuthenticated, isAdmin, workspaceView]);
@@ -981,6 +1048,43 @@ function App() {
 
     if (!value.trim()) {
       loadRecords("", recordView);
+    }
+  };
+
+  const handleLookupInputChange = (event) => {
+    setLookupQuery(formatClaveInput(event.target.value));
+  };
+
+  const handleLookupSearch = async (event) => {
+    event.preventDefault();
+    if (!lookupQuery.trim()) {
+      setLookupResult(null);
+      showAlert("Ingresa una clave catastral para consultar.");
+      return;
+    }
+
+    setLookupLoading(true);
+
+    try {
+      const response = await apiFetch(`/claves/search?clave=${encodeURIComponent(lookupQuery)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible consultar la clave.");
+      }
+
+      setLookupResult(data);
+    } catch (error) {
+      setLookupResult(null);
+      showAlert(error.message || "No fue posible consultar la clave.");
+    } finally {
+      setLookupLoading(false);
     }
   };
 
@@ -2053,10 +2157,20 @@ function App() {
               <h1>{headerMeta.title}</h1>
               <p className="lead">{headerMeta.lead}</p>
               <div className="hero-status-row">
-                <span className={`hero-status-pill ${isDirty ? "is-live" : ""}`}>
-                  {isDirty ? "Cambios sin guardar" : "Todo guardado"}
-                </span>
-                {draftSavedAt ? (
+                {workspaceView === "lookup" ? (
+                  <span className={`hero-status-pill ${lookupResult?.exists ? "is-live" : ""}`}>
+                    {lookupResult
+                      ? lookupResult.exists
+                        ? "Coincidencia encontrada"
+                        : "Sin coincidencias"
+                      : "Listo para consultar"}
+                  </span>
+                ) : (
+                  <span className={`hero-status-pill ${isDirty ? "is-live" : ""}`}>
+                    {isDirty ? "Cambios sin guardar" : "Todo guardado"}
+                  </span>
+                )}
+                {workspaceView !== "lookup" && draftSavedAt ? (
                   <span className="hero-status-pill subtle">
                     Borrador: {formatDateTime(draftSavedAt)}
                   </span>
@@ -2065,21 +2179,13 @@ function App() {
             </div>
           </div>
           <div className="hero-strip">
-            <div className="hero-stat">
-              <span className="hero-stat-icon"><Icon name="records" /></span>
-              <span>Registros visibles</span>
-              <strong>{safeRecords.length}</strong>
-            </div>
-            <div className="hero-stat">
-              <span className="hero-stat-icon"><Icon name={form.id ? "activity" : "plus"} /></span>
-              <span>Modo</span>
-              <strong>{form.id ? "Edicion" : "Nueva ficha"}</strong>
-            </div>
-            <div className="hero-stat">
-              <span className="hero-stat-icon"><Icon name={draftForm ? "success" : "refresh"} /></span>
-              <span>Borrador</span>
-              <strong>{draftForm ? "Disponible" : "Sin cambios"}</strong>
-            </div>
+            {headerStats.map((stat) => (
+              <div className="hero-stat" key={stat.label}>
+                <span className="hero-stat-icon"><Icon name={stat.icon} /></span>
+                <span>{stat.label}</span>
+                <strong>{stat.value}</strong>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -2100,6 +2206,14 @@ function App() {
             >
               <Icon name="records" />
               Fichas
+            </button>
+            <button
+              type="button"
+              className={workspaceView === "lookup" ? "button-secondary active-filter" : "button-secondary"}
+              onClick={() => setWorkspaceView("lookup")}
+            >
+              <Icon name="search" />
+              Buscar clave
             </button>
             {isAdmin ? (
               <button
@@ -2152,6 +2266,23 @@ function App() {
                 </button>
               </div>
             </form>
+          ) : workspaceView === "lookup" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                Consulta el padron maestro sin entrar al modulo de fichas. Acepta clave base `00-00-00` o clave completa
+                `00-00-00-00`.
+              </p>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contrasena
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="workspace-summary">
               <p className="workspace-title">
@@ -2570,6 +2701,105 @@ function App() {
           </section>
         </section>
       </main>
+      ) : workspaceView === "lookup" ? (
+        <main className="lookup-layout">
+          <section className="lookup-shell no-print">
+            <div className="lookup-card">
+              <div className="lookup-card-head">
+                <div>
+                  <p className="sheet-kicker">Padron maestro</p>
+                  <h2><Icon name="search" className="title-icon" />Buscar clave</h2>
+                </div>
+                <span className="panel-pill">Consulta separada</span>
+              </div>
+
+              <form className="lookup-form" onSubmit={handleLookupSearch}>
+                <label className="lookup-field">
+                  <span>Clave catastral</span>
+                  <input
+                    value={lookupQuery}
+                    onChange={handleLookupInputChange}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="00-00-00 o 00-00-00-00"
+                    maxLength={11}
+                  />
+                </label>
+                <div className="lookup-helper-row">
+                  <span className="helper-text">Base de 3 bloques: trae todas las coincidencias. Clave de 4 bloques: busca exacto.</span>
+                  <div className="lookup-example-chips">
+                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("10-10-10")}>
+                      10-10-10
+                    </button>
+                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("10-10-10-01")}>
+                      10-10-10-01
+                    </button>
+                  </div>
+                </div>
+                <div className="search-actions lookup-actions">
+                  <button type="submit" disabled={lookupLoading}>
+                    <Icon name="search" />
+                    {lookupLoading ? "Consultando..." : "Consultar clave"}
+                  </button>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => {
+                      setLookupQuery("");
+                      setLookupResult(null);
+                    }}
+                  >
+                    <Icon name="refresh" />
+                    Limpiar
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="lookup-results">
+              {lookupResult ? (
+                <article className={`lookup-result-card ${lookupResult.exists ? "is-found" : "is-missing"}`}>
+                  <div className="lookup-result-head">
+                    <div>
+                      <p className="eyebrow">{lookupResult.mode === "base" ? "Busqueda por base" : "Busqueda exacta"}</p>
+                      <h3>{lookupResult.normalized_query}</h3>
+                    </div>
+                    <span className={`lookup-status-pill ${lookupResult.exists ? "is-found" : "is-missing"}`}>
+                      {lookupResult.exists ? "Si registrada" : "Sin registro"}
+                    </span>
+                  </div>
+
+                  <p className="lookup-result-message">
+                    {lookupResult.exists
+                      ? lookupResult.mode === "base"
+                        ? `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa clave base.`
+                        : "La clave consultada si existe en el sistema maestro."
+                      : "No existe registro en el sistema. Posible clandestino."}
+                  </p>
+
+                  {lookupResult.exists ? (
+                    <div className="lookup-match-list">
+                      {lookupResult.matches.map((match) => (
+                        <article key={`${match.clave_catastral}-${match.inquilino}`} className="lookup-match-card">
+                          <strong>{match.clave_catastral}</strong>
+                          <span>{match.inquilino || "Sin nombre asociado"}</span>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              ) : (
+                <article className="lookup-empty-card">
+                  <h3>Consulta rapida de clave</h3>
+                  <p>
+                    Usa esta pantalla para validar en campo si una clave ya existe en el padron maestro, sin entrar al
+                    modulo de registro de clandestinos.
+                  </p>
+                </article>
+              )}
+            </div>
+          </section>
+        </main>
       ) : (
         <main className={`admin-layout ${workspaceView === "logs" ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (

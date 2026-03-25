@@ -21,6 +21,7 @@ El objetivo es reemplazar el flujo manual en Excel manteniendo una ficha y un av
 - Generar aviso en pestana aparte
 - Editar el aviso antes de imprimirlo
 - Guardado persistente con MariaDB/MySQL
+- Consulta separada de clave catastral contra padron maestro
 
 ## Stack
 
@@ -34,6 +35,7 @@ El objetivo es reemplazar el flujo manual en Excel manteniendo una ficha y un av
 
 ```text
 backend/
+  data/
   sql/
   src/
   uploads/
@@ -65,11 +67,30 @@ Rutas principales:
 - `GET /api/health`
 - `GET /api/inmuebles`
 - `GET /api/inmuebles/clave/:clave`
+- `GET /api/claves/search?clave=00-00-00`
+- `GET /api/claves/search?clave=00-00-00-00`
 - `POST /api/inmuebles`
 - `PUT /api/inmuebles/:id`
 - `POST /api/inmuebles/:id/foto`
 - `GET /api/inmuebles/:id/aviso`
 - `POST /api/inmuebles/aviso-preview`
+
+## Modulo Buscar clave
+
+La app incluye una pestana separada llamada `Buscar clave`.
+
+Comportamiento:
+
+- acepta clave base `00-00-00`
+- acepta clave completa `00-00-00-00`
+- si consultas 3 bloques, devuelve todas las coincidencias asociadas
+- si consultas 4 bloques, valida la clave exacta
+- si no encuentra coincidencias, muestra el mensaje de posible clandestino
+
+Fuente de consulta:
+
+- [backend/data/maestro-claves.json](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/data/maestro-claves.json)
+- este archivo fue generado a partir del maestro `maestro_completo.xls`
 
 ## Como ejecutar el proyecto
 
