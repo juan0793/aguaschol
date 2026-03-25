@@ -2165,6 +2165,40 @@ textarea {
   color: var(--muted);
 }
 
+.record-history-sheet {
+  margin-top: 1rem;
+}
+
+.record-history-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.record-history-item {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background: rgba(242, 247, 252, 0.84);
+  border: 1px solid rgba(21, 118, 209, 0.1);
+}
+
+.record-history-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.record-history-item strong,
+.record-history-item p {
+  margin: 0;
+}
+
+.record-history-item p {
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
 @media (max-width: 768px) {
   .lookup-layout {
     width: min(100%, calc(100% - 1rem));
@@ -2213,6 +2247,11 @@ textarea {
 
   .lookup-actions button {
     width: 100%;
+  }
+
+  .record-history-topline {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

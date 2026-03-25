@@ -39,3 +39,27 @@ export const listAuditLogs = async ({ limit = 100 } = {}) => {
     details_json: row.details_json ? JSON.parse(row.details_json) : null
   }));
 };
+
+export const listEntityAuditLogs = async ({ entityType, entityId, limit = 50 } = {}) => {
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `
+      SELECT
+        audit_logs.*,
+        app_users.full_name AS actor_name,
+        app_users.email AS actor_email
+      FROM audit_logs
+      LEFT JOIN app_users ON app_users.id = audit_logs.actor_user_id
+      WHERE audit_logs.entity_type = ?
+        AND audit_logs.entity_id = ?
+      ORDER BY audit_logs.created_at DESC
+      LIMIT ?
+    `,
+    [String(entityType ?? ""), String(entityId ?? ""), Math.min(Number(limit) || 50, 200)]
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    details_json: row.details_json ? JSON.parse(row.details_json) : null
+  }));
+};

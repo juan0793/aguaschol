@@ -555,6 +555,7 @@ function App() {
   const [alert, setAlert] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingRecordHistory, setLoadingRecordHistory] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [avisoHtml, setAvisoHtml] = useState("");
   const [loadingAviso, setLoadingAviso] = useState(false);
@@ -583,6 +584,7 @@ function App() {
   });
   const [latestUserResult, setLatestUserResult] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [recordHistory, setRecordHistory] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
@@ -758,6 +760,7 @@ function App() {
     setRecords([]);
     setUsers([]);
     setAuditLogs([]);
+    setRecordHistory([]);
     setLatestUserResult(null);
     setLookupQuery("");
     setLookupResult(null);
@@ -1023,6 +1026,37 @@ function App() {
     }
   };
 
+  const loadRecordHistory = async (recordId) => {
+    if (!isAuthenticated || !recordId) {
+      setRecordHistory([]);
+      return;
+    }
+
+    setLoadingRecordHistory(true);
+
+    try {
+      const response = await apiFetch(`/inmuebles/${recordId}/history?limit=25`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar el historial de la ficha.");
+      }
+
+      setRecordHistory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setRecordHistory([]);
+      showAlert(error.message || "No fue posible cargar el historial de la ficha.");
+    } finally {
+      setLoadingRecordHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
       return;
@@ -1052,6 +1086,15 @@ function App() {
       setRecordView("active");
     }
   }, [isAdmin, recordView]);
+
+  useEffect(() => {
+    if (workspaceView !== "records" || !form.id) {
+      setRecordHistory([]);
+      return;
+    }
+
+    loadRecordHistory(form.id);
+  }, [form.id, workspaceView]);
 
   useEffect(() => {
     if (!isAuthenticated || workspaceView !== "lookup") {
@@ -2886,6 +2929,44 @@ function App() {
                   </div>
                 </div>
               </section>
+            </article>
+
+            <article className="document-sheet record-history-sheet no-print">
+              <div className="admin-section-head">
+                <div>
+                  <p className="sheet-kicker">Trazabilidad de la ficha</p>
+                  <h2><Icon name="history" className="title-icon" />Historial por ficha</h2>
+                </div>
+                {form.id ? <span className="panel-pill">#{form.id}</span> : null}
+              </div>
+              {loadingRecordHistory ? (
+                <p className="helper-text">Cargando historial de la ficha...</p>
+              ) : form.id ? (
+                recordHistory.length ? (
+                  <div className="record-history-list">
+                    {recordHistory.map((log) => (
+                      <div key={log.id} className="record-history-item">
+                        <div className="record-history-topline">
+                          <span className="record-badge">{actionLabel(log.action)}</span>
+                          <small>{formatDateTime(log.created_at)}</small>
+                        </div>
+                        <strong>{log.actor_name || log.actor_email || "Sistema"}</strong>
+                        <p>{log.summary || "Movimiento registrado"}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <h3>Sin movimientos registrados</h3>
+                    <p>Esta ficha todavia no tiene eventos auditados para mostrar.</p>
+                  </div>
+                )
+              ) : (
+                <div className="empty-state">
+                  <h3>Selecciona una ficha</h3>
+                  <p>Cuando abras una ficha guardada, aqui veras quien la creo, edito, archivo o restauro.</p>
+                </div>
+              )}
             </article>
           </section>
         </section>

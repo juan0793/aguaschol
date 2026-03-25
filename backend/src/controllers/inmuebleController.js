@@ -10,6 +10,7 @@ import {
   restoreInmueble,
   updateInmueble
 } from "../services/inmuebleService.js";
+import { listEntityAuditLogs } from "../services/auditService.js";
 
 export const list = async (req, res, next) => {
   try {
@@ -108,6 +109,19 @@ export const getAviso = async (req, res, next) => {
   try {
     const aviso = await buildAviso(req.params.id);
     res.json(aviso);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getHistory = async (req, res, next) => {
+  try {
+    const logs = await listEntityAuditLogs({
+      entityType: "inmueble",
+      entityId: req.params.id,
+      limit: req.query.limit ?? 40
+    });
+    res.json(logs);
   } catch (error) {
     next(error);
   }

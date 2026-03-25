@@ -5,6 +5,7 @@ import {
   deleteArchived,
   getAviso,
   getByClaveHandler,
+  getHistory,
   list,
   previewAviso,
   restore,
@@ -18,6 +19,7 @@ const router = Router();
 
 router.get("/", list);
 router.get("/clave/:clave", getByClaveHandler);
+router.get("/:id/history", getHistory);
 router.get("/:id/aviso", getAviso);
 router.post("/aviso-preview", previewAviso);
 router.post("/", create);
