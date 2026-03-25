@@ -508,7 +508,7 @@ function App() {
       return null;
     }
   });
-  const [loginForm, setLoginForm] = useState({ username: "admin", password: "abcd123" });
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [loginLoading, setLoginLoading] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -1879,7 +1879,12 @@ function App() {
             <form className="login-form" onSubmit={handleLogin}>
               <label>
                 <span>Usuario o correo</span>
-                <input name="username" value={loginForm.username} onChange={handleLoginChange} />
+                <input
+                  name="username"
+                  value={loginForm.username}
+                  onChange={handleLoginChange}
+                  autoComplete="username"
+                />
               </label>
               <label>
                 <span>Contrasena</span>
@@ -1888,6 +1893,7 @@ function App() {
                   type="password"
                   value={loginForm.password}
                   onChange={handleLoginChange}
+                  autoComplete="current-password"
                 />
               </label>
               <button type="submit" disabled={loginLoading}>
