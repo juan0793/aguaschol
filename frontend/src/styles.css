@@ -1986,11 +1986,22 @@ textarea {
 .lookup-card,
 .lookup-result-card,
 .lookup-empty-card {
+  position: relative;
+  overflow: hidden;
   background: var(--panel);
   border: 1px solid rgba(21, 118, 209, 0.14);
   border-radius: 28px;
   box-shadow: 0 20px 48px rgba(21, 118, 209, 0.08);
   padding: 1.4rem;
+  background-image:
+    linear-gradient(90deg, transparent 0, transparent 64px, rgba(220, 66, 66, 0.18) 64px, rgba(220, 66, 66, 0.18) 66px, transparent 66px),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.97) 0,
+      rgba(255, 255, 255, 0.97) 35px,
+      rgba(21, 118, 209, 0.08) 35px,
+      rgba(21, 118, 209, 0.08) 36px
+    );
 }
 
 .lookup-card-head,
@@ -2011,11 +2022,16 @@ textarea {
   display: grid;
   gap: 0.9rem;
   margin-top: 1rem;
+  padding-left: 84px;
 }
 
 .lookup-field {
   display: grid;
   gap: 0.4rem;
+}
+
+.lookup-field span {
+  font-weight: 700;
 }
 
 .lookup-field input {
@@ -2027,6 +2043,31 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.18em;
   text-align: center;
+}
+
+.lookup-guide-sheet {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.15rem 0 0;
+}
+
+.lookup-guide-sheet span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border-radius: 14px;
+  border: 1px dashed rgba(21, 118, 209, 0.18);
+  background: rgba(255, 255, 255, 0.6);
+  color: #466581;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.lookup-guide-sheet .is-optional {
+  opacity: 0.7;
 }
 
 .lookup-helper-row {
@@ -2045,6 +2086,16 @@ textarea {
 
 .lookup-actions {
   justify-content: flex-start;
+}
+
+.lookup-feedback {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  background: rgba(21, 118, 209, 0.08);
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  color: #1d4a74;
+  font-size: 0.9rem;
 }
 
 .lookup-results {
@@ -2124,6 +2175,15 @@ textarea {
   .lookup-empty-card {
     padding: 1rem;
     border-radius: 20px;
+    background-image:
+      linear-gradient(90deg, transparent 0, transparent 42px, rgba(220, 66, 66, 0.18) 42px, rgba(220, 66, 66, 0.18) 44px, transparent 44px),
+      repeating-linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.97) 0,
+        rgba(255, 255, 255, 0.97) 32px,
+        rgba(21, 118, 209, 0.08) 32px,
+        rgba(21, 118, 209, 0.08) 33px
+      );
   }
 
   .lookup-card-head,
@@ -2133,10 +2193,18 @@ textarea {
     align-items: stretch;
   }
 
+  .lookup-form {
+    padding-left: 54px;
+  }
+
   .lookup-field input {
     min-height: 58px;
     font-size: 1.12rem;
     letter-spacing: 0.12em;
+  }
+
+  .lookup-guide-sheet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .lookup-actions {
@@ -2221,6 +2289,10 @@ textarea {
   .lookup-field input {
     font-size: 1rem;
     letter-spacing: 0.08em;
+  }
+
+  .lookup-form {
+    padding-left: 46px;
   }
 }
 

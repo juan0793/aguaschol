@@ -99,6 +99,11 @@ const formatClaveInput = (value = "") => {
   return groups.join("-");
 };
 
+const isLookupKeyComplete = (value = "") => {
+  const parts = value.split("-").filter(Boolean);
+  return [3, 4].includes(parts.length) && parts.every((part) => /^\d{2}$/.test(part));
+};
+
 const formatDateTime = (value) => {
   if (!value) return "--";
   const date = new Date(value);
@@ -559,6 +564,7 @@ function App() {
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState(null);
+  const [lookupFeedback, setLookupFeedback] = useState("");
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -722,6 +728,7 @@ function App() {
     setLatestUserResult(null);
     setLookupQuery("");
     setLookupResult(null);
+    setLookupFeedback("");
     setWorkspaceView("records");
     resetForm();
   };
@@ -985,6 +992,30 @@ function App() {
   }, [isAdmin, recordView]);
 
   useEffect(() => {
+    if (!isAuthenticated || workspaceView !== "lookup") {
+      return undefined;
+    }
+
+    if (!lookupQuery.trim()) {
+      setLookupFeedback("");
+      setLookupResult(null);
+      return undefined;
+    }
+
+    if (!isLookupKeyComplete(lookupQuery)) {
+      setLookupResult(null);
+      setLookupFeedback("Completa la clave en formato 00-00-00 o 00-00-00-00.");
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      handleLookupSearch();
+    }, 280);
+
+    return () => window.clearTimeout(timer);
+  }, [isAuthenticated, lookupQuery, workspaceView]);
+
+  useEffect(() => {
     if (form.id || !hasDraftContent(form)) {
       return;
     }
@@ -1052,21 +1083,39 @@ function App() {
   };
 
   const handleLookupInputChange = (event) => {
-    setLookupQuery(formatClaveInput(event.target.value));
+    const nextValue = formatClaveInput(event.target.value);
+    setLookupQuery(nextValue);
+    setLookupFeedback("");
+
+    if (!nextValue.trim()) {
+      setLookupResult(null);
+    }
   };
 
   const handleLookupSearch = async (event) => {
-    event.preventDefault();
-    if (!lookupQuery.trim()) {
+    if (event) {
+      event.preventDefault();
+    }
+
+    const normalizedLookupQuery = lookupQuery.trim();
+
+    if (!normalizedLookupQuery) {
       setLookupResult(null);
-      showAlert("Ingresa una clave catastral para consultar.");
+      setLookupFeedback("Ingresa una clave catastral para consultar.");
+      return;
+    }
+
+    if (!isLookupKeyComplete(normalizedLookupQuery)) {
+      setLookupResult(null);
+      setLookupFeedback("La clave debe tener formato 00-00-00 o 00-00-00-00.");
       return;
     }
 
     setLookupLoading(true);
+    setLookupFeedback("");
 
     try {
-      const response = await apiFetch(`/claves/search?clave=${encodeURIComponent(lookupQuery)}`);
+      const response = await apiFetch(`/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -1082,7 +1131,7 @@ function App() {
       setLookupResult(data);
     } catch (error) {
       setLookupResult(null);
-      showAlert(error.message || "No fue posible consultar la clave.");
+      setLookupFeedback(error.message || "No fue posible consultar la clave.");
     } finally {
       setLookupLoading(false);
     }
@@ -2725,6 +2774,12 @@ function App() {
                     maxLength={11}
                   />
                 </label>
+                <div className="lookup-guide-sheet">
+                  <span>##</span>
+                  <span>##</span>
+                  <span>##</span>
+                  <span className="is-optional">##</span>
+                </div>
                 <div className="lookup-helper-row">
                   <span className="helper-text">Base de 3 bloques: trae todas las coincidencias. Clave de 4 bloques: busca exacto.</span>
                   <div className="lookup-example-chips">
@@ -2736,6 +2791,7 @@ function App() {
                     </button>
                   </div>
                 </div>
+                {lookupFeedback ? <p className="lookup-feedback">{lookupFeedback}</p> : null}
                 <div className="search-actions lookup-actions">
                   <button type="submit" disabled={lookupLoading}>
                     <Icon name="search" />
@@ -2747,6 +2803,7 @@ function App() {
                     onClick={() => {
                       setLookupQuery("");
                       setLookupResult(null);
+                      setLookupFeedback("");
                     }}
                   >
                     <Icon name="refresh" />
