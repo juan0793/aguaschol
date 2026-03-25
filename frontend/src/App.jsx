@@ -2657,6 +2657,10 @@ function App() {
                 </div>
                 <span className="record-badge">Borrador</span>
               </div>
+              <div className="record-meta-row">
+                <span className="record-meta-chip">Sin guardar</span>
+                <span className="record-meta-chip">Edicion local</span>
+              </div>
               <small>{draftForm.comentarios || "Datos aun no guardados"}</small>
               <div className="record-quick-actions">
                 <span className="record-quick-chip muted">Autosave activo</span>
@@ -2683,6 +2687,16 @@ function App() {
                         <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
                       </div>
                       <span className="record-badge">{recordView === "archived" ? "Log" : "Ver"}</span>
+                    </div>
+                    <div className="record-meta-row">
+                      <span className="record-meta-chip">
+                        {record.inquilino || record.abonado || "Sin nombre"}
+                      </span>
+                      <span className="record-meta-chip">
+                        {recordView === "archived"
+                          ? `Archivada ${formatSpanishDate(record.archived_at)}`
+                          : `Actualizada ${formatDateTime(record.updated_at || record.created_at)}`}
+                      </span>
                     </div>
                     <small>
                       {recordView === "archived"
