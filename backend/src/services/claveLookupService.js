@@ -67,6 +67,39 @@ const writeJsonFile = (filePath, data) => {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
 };
 
+const summarizePadronChanges = (currentRows = [], nextRows = []) => {
+  const currentMap = new Map(currentRows.map((item) => [item.clave_catastral, item]));
+  const nextMap = new Map(nextRows.map((item) => [item.clave_catastral, item]));
+
+  let added = 0;
+  let removed = 0;
+  let changed = 0;
+
+  nextMap.forEach((nextItem, clave) => {
+    const currentItem = currentMap.get(clave);
+    if (!currentItem) {
+      added += 1;
+      return;
+    }
+
+    if ((currentItem.inquilino ?? "") !== (nextItem.inquilino ?? "")) {
+      changed += 1;
+    }
+  });
+
+  currentMap.forEach((_currentItem, clave) => {
+    if (!nextMap.has(clave)) {
+      removed += 1;
+    }
+  });
+
+  return {
+    added,
+    removed,
+    changed
+  };
+};
+
 const normalizeMasterRows = (rows = []) =>
   sortByClave(
     rows
@@ -128,7 +161,12 @@ let masterMeta = readJsonFile(maestroMetaPath, {
   file_name: fs.existsSync(maestroPath) ? path.basename(maestroPath) : "",
   sheet_name: "",
   total_records: masterRecords.length,
-  updated_at: fs.existsSync(maestroPath) ? fs.statSync(maestroPath).mtime.toISOString() : null
+  updated_at: fs.existsSync(maestroPath) ? fs.statSync(maestroPath).mtime.toISOString() : null,
+  last_import_summary: {
+    added: 0,
+    removed: 0,
+    changed: 0
+  }
 });
 
 export const getClaveLookupMeta = async () => ({
@@ -137,7 +175,12 @@ export const getClaveLookupMeta = async () => ({
     file_name: masterMeta.file_name || "",
     sheet_name: masterMeta.sheet_name || "",
     total_records: Number(masterMeta.total_records) || masterRecords.length,
-    updated_at: masterMeta.updated_at || null
+    updated_at: masterMeta.updated_at || null,
+    last_import_summary: masterMeta.last_import_summary ?? {
+      added: 0,
+      removed: 0,
+      changed: 0
+    }
   }
 });
 
@@ -156,13 +199,15 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
     throw error;
   }
 
+  const importSummary = summarizePadronChanges(masterRecords, rows);
   writeJsonFile(maestroPath, rows);
 
   masterMeta = {
     file_name: originalName || "padron-maestro.xlsx",
     sheet_name: sheetName,
     total_records: rows.length,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    last_import_summary: importSummary
   };
   writeJsonFile(maestroMetaPath, masterMeta);
   masterRecords = rows;
@@ -177,7 +222,8 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
       details: {
         file_name: masterMeta.file_name,
         sheet_name: masterMeta.sheet_name,
-        total_records: masterMeta.total_records
+        total_records: masterMeta.total_records,
+        import_summary: importSummary
       }
     });
   } catch {
@@ -186,7 +232,8 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
 
   return {
     ok: true,
-    meta: masterMeta
+    meta: masterMeta,
+    import_summary: importSummary
   };
 };
 

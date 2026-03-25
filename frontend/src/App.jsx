@@ -569,6 +569,7 @@ function App() {
   const [lookupResult, setLookupResult] = useState(null);
   const [lookupFeedback, setLookupFeedback] = useState("");
   const [padronMeta, setPadronMeta] = useState(null);
+  const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
   const [uploadingPadron, setUploadingPadron] = useState(false);
   const [users, setUsers] = useState([]);
@@ -766,6 +767,7 @@ function App() {
     setLookupResult(null);
     setLookupFeedback("");
     setPadronMeta(null);
+    setPadronImportSummary(null);
     setPadronFile(null);
     setWorkspaceView("records");
     resetForm();
@@ -994,6 +996,7 @@ function App() {
       }
 
       setPadronMeta(data.meta ?? null);
+      setPadronImportSummary(data.meta?.last_import_summary ?? null);
     } catch (error) {
       showAlert(error.message || "No fue posible cargar la informacion del padron.");
     }
@@ -1465,6 +1468,7 @@ function App() {
       }
 
       setPadronMeta(data.meta ?? null);
+      setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
       setPadronFile(null);
       showAlert(`Padron maestro actualizado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
@@ -3096,6 +3100,21 @@ function App() {
                   <p><strong>Archivo:</strong> {padronMeta?.file_name || "Sin registro"}</p>
                   <p><strong>Hoja:</strong> {padronMeta?.sheet_name || "--"}</p>
                   <p><strong>Ultima actualizacion:</strong> {formatDateTime(padronMeta?.updated_at)}</p>
+                  <p className="helper-text">`Cambiadas` compara la misma clave contra el padrón anterior y detecta cambios en el nombre asociado.</p>
+                  <div className="padron-summary-strip">
+                    <div className="log-summary-card">
+                      <span>Nuevas</span>
+                      <strong>{padronImportSummary?.added ?? 0}</strong>
+                    </div>
+                    <div className="log-summary-card">
+                      <span>Removidas</span>
+                      <strong>{padronImportSummary?.removed ?? 0}</strong>
+                    </div>
+                    <div className="log-summary-card">
+                      <span>Cambiadas</span>
+                      <strong>{padronImportSummary?.changed ?? 0}</strong>
+                    </div>
+                  </div>
                 </div>
                 <div className="document-block">
                   <h4>Nuevo archivo</h4>
