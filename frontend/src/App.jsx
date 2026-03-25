@@ -587,6 +587,14 @@ function App() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [recordHistory, setRecordHistory] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [auditFilters, setAuditFilters] = useState({
+    action: "",
+    entity_type: "",
+    actor: "",
+    search: "",
+    date_from: "",
+    date_to: ""
+  });
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
   const mustChangePassword = Boolean(session?.user?.force_password_change);
@@ -1007,7 +1015,14 @@ function App() {
     setLoadingLogs(true);
 
     try {
-      const response = await apiFetch("/users/audit-logs?limit=120");
+      const params = new URLSearchParams({ limit: "120" });
+      Object.entries(auditFilters).forEach(([key, value]) => {
+        if (String(value ?? "").trim()) {
+          params.set(key, String(value).trim());
+        }
+      });
+
+      const response = await apiFetch(`/users/audit-logs?${params.toString()}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -1076,7 +1091,7 @@ function App() {
     if (workspaceView === "logs") {
       loadAuditLogs();
     }
-  }, [isAuthenticated, isAdmin, workspaceView]);
+  }, [auditFilters, isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
     if (isAuthenticated && !isAdmin && !["records", "lookup"].includes(workspaceView)) {
@@ -1314,6 +1329,11 @@ function App() {
     setPadronFile(event.target.files?.[0] ?? null);
   };
 
+  const handleAuditFilterChange = (event) => {
+    const { name, value } = event.target;
+    setAuditFilters((current) => ({ ...current, [name]: value }));
+  };
+
   const handlePasswordFormChange = (event) => {
     const { name, value } = event.target;
     setPasswordFeedback("");
@@ -1475,6 +1495,34 @@ function App() {
       showAlert(error.message || "No se pudo actualizar el padron maestro.");
     } finally {
       setUploadingPadron(false);
+    }
+  };
+
+  const handleExportAuditLogs = async () => {
+    try {
+      const params = new URLSearchParams({ limit: "500" });
+      Object.entries(auditFilters).forEach(([key, value]) => {
+        if (String(value ?? "").trim()) {
+          params.set(key, String(value).trim());
+        }
+      });
+
+      const response = await apiFetch(`/users/audit-logs/export?${params.toString()}`);
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "No se pudo exportar la bitacora.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "bitacora-auditoria.csv";
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      showAlert(error.message || "No se pudo exportar la bitacora.");
     }
   };
 
@@ -3361,6 +3409,71 @@ function App() {
                       </div>
                       <span className="panel-pill">{safeAuditLogs.length} eventos</span>
                     </div>
+                    <form className="log-filters" onSubmit={(event) => event.preventDefault()}>
+                      <label>
+                        <span>Accion</span>
+                        <select name="action" value={auditFilters.action} onChange={handleAuditFilterChange}>
+                          <option value="">Todas</option>
+                          <option value="auth.login">Inicio de sesion</option>
+                          <option value="auth.logout">Cierre de sesion</option>
+                          <option value="user.created">Usuario creado</option>
+                          <option value="padron.updated">Padron actualizado</option>
+                          <option value="inmueble.created">Ficha creada</option>
+                          <option value="inmueble.updated">Ficha actualizada</option>
+                          <option value="inmueble.archived">Ficha archivada</option>
+                          <option value="inmueble.restored">Ficha restaurada</option>
+                          <option value="inmueble.deleted">Ficha eliminada</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>Entidad</span>
+                        <select name="entity_type" value={auditFilters.entity_type} onChange={handleAuditFilterChange}>
+                          <option value="">Todas</option>
+                          <option value="user">Usuario</option>
+                          <option value="inmueble">Ficha</option>
+                          <option value="padron">Padron</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>Actor</span>
+                        <input name="actor" value={auditFilters.actor} onChange={handleAuditFilterChange} placeholder="Nombre o correo" />
+                      </label>
+                      <label>
+                        <span>Buscar</span>
+                        <input name="search" value={auditFilters.search} onChange={handleAuditFilterChange} placeholder="Resumen, id o detalle" />
+                      </label>
+                      <label>
+                        <span>Desde</span>
+                        <input type="date" name="date_from" value={auditFilters.date_from} onChange={handleAuditFilterChange} />
+                      </label>
+                      <label>
+                        <span>Hasta</span>
+                        <input type="date" name="date_to" value={auditFilters.date_to} onChange={handleAuditFilterChange} />
+                      </label>
+                      <div className="log-filter-actions">
+                        <button type="button" className="button-secondary" onClick={handleExportAuditLogs}>
+                          <Icon name="records" />
+                          Exportar CSV
+                        </button>
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={() =>
+                            setAuditFilters({
+                              action: "",
+                              entity_type: "",
+                              actor: "",
+                              search: "",
+                              date_from: "",
+                              date_to: ""
+                            })
+                          }
+                        >
+                          <Icon name="refresh" />
+                          Limpiar filtros
+                        </button>
+                      </div>
+                    </form>
                     <div className="log-summary-strip">
                       <div className="log-summary-card">
                         <span>Vista</span>

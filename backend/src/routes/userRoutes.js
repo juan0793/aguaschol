@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createUserHandler,
   deleteUserHandler,
+  exportAuditLogsHandler,
   listAuditLogsHandler,
   listUsersHandler,
   resetUserPasswordHandler
@@ -14,5 +15,6 @@ router.post("/", createUserHandler);
 router.post("/:id/reset-password", resetUserPasswordHandler);
 router.delete("/:id", deleteUserHandler);
 router.get("/audit-logs", listAuditLogsHandler);
+router.get("/audit-logs/export", exportAuditLogsHandler);
 
 export default router;

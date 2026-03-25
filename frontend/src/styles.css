@@ -1519,6 +1519,29 @@ textarea {
   margin-top: 1rem;
 }
 
+.log-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(21, 118, 209, 0.1);
+}
+
+.log-filters label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.log-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
 .log-summary-card {
   padding: 0.85rem 0.95rem;
   border-radius: 18px;
@@ -1712,6 +1735,7 @@ textarea {
   .hero-strip,
   .admin-result-grid,
   .log-summary-strip,
+  .log-filters,
   .login-intro-grid {
     grid-template-columns: 1fr;
   }
@@ -2252,6 +2276,11 @@ textarea {
   .record-history-topline {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .log-filter-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

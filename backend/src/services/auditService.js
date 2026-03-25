@@ -18,8 +18,55 @@ export const createAuditLog = async ({
   );
 };
 
-export const listAuditLogs = async ({ limit = 100 } = {}) => {
+const mapAuditRows = (rows) =>
+  rows.map((row) => ({
+    ...row,
+    details_json: row.details_json ? JSON.parse(row.details_json) : null
+  }));
+
+export const listAuditLogs = async ({
+  limit = 100,
+  action = "",
+  entityType = "",
+  actor = "",
+  search = "",
+  dateFrom = "",
+  dateTo = ""
+} = {}) => {
   const pool = getPool();
+  const filters = [];
+  const params = [];
+
+  if (action.trim()) {
+    filters.push("audit_logs.action = ?");
+    params.push(action.trim());
+  }
+
+  if (entityType.trim()) {
+    filters.push("audit_logs.entity_type = ?");
+    params.push(entityType.trim());
+  }
+
+  if (actor.trim()) {
+    filters.push("(app_users.full_name LIKE ? OR app_users.email LIKE ?)");
+    params.push(`%${actor.trim()}%`, `%${actor.trim()}%`);
+  }
+
+  if (search.trim()) {
+    filters.push("(audit_logs.summary LIKE ? OR audit_logs.entity_id LIKE ? OR audit_logs.details_json LIKE ?)");
+    params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
+  }
+
+  if (dateFrom.trim()) {
+    filters.push("DATE(audit_logs.created_at) >= ?");
+    params.push(dateFrom.trim());
+  }
+
+  if (dateTo.trim()) {
+    filters.push("DATE(audit_logs.created_at) <= ?");
+    params.push(dateTo.trim());
+  }
+
   const [rows] = await pool.query(
     `
       SELECT
@@ -28,16 +75,14 @@ export const listAuditLogs = async ({ limit = 100 } = {}) => {
         app_users.email AS actor_email
       FROM audit_logs
       LEFT JOIN app_users ON app_users.id = audit_logs.actor_user_id
+      ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
       ORDER BY audit_logs.created_at DESC
       LIMIT ?
     `,
-    [Math.min(Number(limit) || 100, 500)]
+    [...params, Math.min(Number(limit) || 100, 500)]
   );
 
-  return rows.map((row) => ({
-    ...row,
-    details_json: row.details_json ? JSON.parse(row.details_json) : null
-  }));
+  return mapAuditRows(rows);
 };
 
 export const listEntityAuditLogs = async ({ entityType, entityId, limit = 50 } = {}) => {
@@ -58,8 +103,43 @@ export const listEntityAuditLogs = async ({ entityType, entityId, limit = 50 } =
     [String(entityType ?? ""), String(entityId ?? ""), Math.min(Number(limit) || 50, 200)]
   );
 
-  return rows.map((row) => ({
-    ...row,
-    details_json: row.details_json ? JSON.parse(row.details_json) : null
-  }));
+  return mapAuditRows(rows);
+};
+
+const escapeCsvValue = (value) => {
+  const text = value == null ? "" : String(value);
+  if (!/[",\n]/.test(text)) {
+    return text;
+  }
+
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+export const exportAuditLogsCsv = async (filters = {}) => {
+  const logs = await listAuditLogs({ ...filters, limit: 500 });
+  const headers = [
+    "fecha",
+    "accion",
+    "entidad",
+    "id_entidad",
+    "actor",
+    "correo_actor",
+    "resumen"
+  ];
+
+  const lines = logs.map((log) =>
+    [
+      log.created_at,
+      log.action,
+      log.entity_type,
+      log.entity_id,
+      log.actor_name || "",
+      log.actor_email || "",
+      log.summary || ""
+    ]
+      .map(escapeCsvValue)
+      .join(",")
+  );
+
+  return [headers.join(","), ...lines].join("\n");
 };
