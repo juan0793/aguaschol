@@ -325,7 +325,10 @@ export const attachPhoto = async (id, fotoPath, options = {}) => {
       action: "inmueble.photo_attached",
       entityType: "inmueble",
       entityId: record.id,
-      summary: `Fotografia actualizada para ${record.clave_catastral}`
+      summary: `Fotografia actualizada para ${record.clave_catastral}`,
+      details: {
+        foto_path: record.foto_path
+      }
     });
     return record;
   }
@@ -348,7 +351,10 @@ export const attachPhoto = async (id, fotoPath, options = {}) => {
     action: "inmueble.photo_attached",
     entityType: "inmueble",
     entityId: record.id,
-    summary: `Fotografia actualizada para ${record.clave_catastral}`
+    summary: `Fotografia actualizada para ${record.clave_catastral}`,
+    details: {
+      foto_path: record.foto_path
+    }
   });
   return record;
 };

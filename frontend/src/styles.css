@@ -2272,6 +2272,17 @@ textarea {
   margin-top: 0.25rem;
 }
 
+.record-history-photo {
+  width: 100%;
+  margin-top: 0.8rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: #eef6ff;
+  object-fit: cover;
+  max-height: 240px;
+  box-shadow: 0 12px 24px rgba(11, 39, 72, 0.08);
+}
+
 @media (max-width: 768px) {
   .lookup-layout {
     width: min(100%, calc(100% - 1rem));

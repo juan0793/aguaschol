@@ -2979,6 +2979,22 @@ function App() {
                         </div>
                         <strong>{log.actor_name || log.actor_email || "Sistema"}</strong>
                         <p>{log.summary || "Movimiento registrado"}</p>
+                        {(() => {
+                          const photoPath =
+                            log.details_json?.foto_path ||
+                            (log.action === "inmueble.photo_attached" ? form.foto_path : "");
+
+                          if (!photoPath) return null;
+
+                          return (
+                            <img
+                              src={`${FILES_URL}${photoPath}?v=${encodeURIComponent(log.created_at || form.updated_at || Date.now())}`}
+                              alt="Fotografia registrada en el historial"
+                              className="record-history-photo"
+                              loading="lazy"
+                            />
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
