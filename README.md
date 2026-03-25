@@ -92,6 +92,12 @@ Fuente de consulta:
 - [backend/data/maestro-claves.json](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/data/maestro-claves.json)
 - este archivo fue generado a partir del maestro `maestro_completo.xls`
 
+Actualizacion del padron:
+
+- un administrador puede subir un nuevo Excel desde el panel de administracion
+- el sistema procesa el archivo y reemplaza el padron activo automaticamente
+- la consulta `Buscar clave` empieza a usar la nueva version inmediatamente
+
 ## Como ejecutar el proyecto
 
 ### Inicio rapido

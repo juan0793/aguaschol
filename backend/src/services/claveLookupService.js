@@ -1,33 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
+import XLSX from "xlsx";
 import { env } from "../config/env.js";
+import { createAuditLog } from "./auditService.js";
 
 const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
+const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
 
 const sortByClave = (items) =>
   [...items].sort((a, b) => a.clave_catastral.localeCompare(b.clave_catastral, "es"));
 
-const readMasterRecords = () => {
-  if (!fs.existsSync(maestroPath)) {
-    return [];
-  }
-
-  try {
-    const raw = fs.readFileSync(maestroPath, "utf8").replace(/^\uFEFF/, "");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const masterRecords = sortByClave(
-  readMasterRecords().map((item) => ({
-    clave_catastral: String(item?.clave_catastral ?? "").trim().toUpperCase(),
-    clave_base: String(item?.clave_base ?? "").trim().toUpperCase(),
-    inquilino: String(item?.inquilino ?? "").trim()
-  }))
-);
+const normalizeHeader = (value = "") =>
+  value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 
 const normalizeLookupKey = (value = "") => {
   const cleaned = value
@@ -46,6 +37,157 @@ const normalizeLookupKey = (value = "") => {
   }
 
   return parts.join("-");
+};
+
+const buildBaseKey = (clave = "") => {
+  const parts = clave.split("-").filter(Boolean);
+  return parts.length >= 3 ? parts.slice(0, 3).join("-") : "";
+};
+
+const ensureDataDir = () => {
+  fs.mkdirSync(path.dirname(maestroPath), { recursive: true });
+};
+
+const readJsonFile = (filePath, fallback) => {
+  if (!fs.existsSync(filePath)) {
+    return fallback;
+  }
+
+  try {
+    const raw = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writeJsonFile = (filePath, data) => {
+  ensureDataDir();
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+};
+
+const normalizeMasterRows = (rows = []) =>
+  sortByClave(
+    rows
+      .map((item) => {
+        try {
+          const clave = normalizeLookupKey(String(item?.clave_catastral ?? item?.catastral ?? ""));
+          return {
+            clave_catastral: clave,
+            clave_base: buildBaseKey(clave),
+            inquilino: String(item?.inquilino ?? item?.nombre ?? "").trim()
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+  );
+
+const detectColumnKey = (columns, candidates) =>
+  columns.find((column) => candidates.includes(normalizeHeader(column))) ?? "";
+
+const parseWorkbookRows = (buffer) => {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const firstSheetName = workbook.SheetNames[0];
+
+  if (!firstSheetName) {
+    const error = new Error("El archivo no contiene hojas para procesar.");
+    error.status = 400;
+    throw error;
+  }
+
+  const worksheet = workbook.Sheets[firstSheetName];
+  const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+  const columns = rows.length ? Object.keys(rows[0]) : [];
+  const catastralKey = detectColumnKey(columns, ["catastral", "clave_catastral", "clave", "catastral"]);
+  const inquilinoKey = detectColumnKey(columns, ["inquilino", "nombre", "propietario", "abonado"]);
+
+  if (!catastralKey) {
+    const error = new Error("No se encontro una columna de clave catastral en el Excel.");
+    error.status = 400;
+    throw error;
+  }
+
+  const normalizedRows = rows
+    .map((row) => ({
+      clave_catastral: row[catastralKey],
+      inquilino: inquilinoKey ? row[inquilinoKey] : ""
+    }))
+    .filter((row) => String(row.clave_catastral ?? "").trim());
+
+  return {
+    sheetName: firstSheetName,
+    rows: normalizeMasterRows(normalizedRows)
+  };
+};
+
+let masterRecords = normalizeMasterRows(readJsonFile(maestroPath, []));
+let masterMeta = readJsonFile(maestroMetaPath, {
+  file_name: fs.existsSync(maestroPath) ? path.basename(maestroPath) : "",
+  sheet_name: "",
+  total_records: masterRecords.length,
+  updated_at: fs.existsSync(maestroPath) ? fs.statSync(maestroPath).mtime.toISOString() : null
+});
+
+export const getClaveLookupMeta = async () => ({
+  ok: true,
+  meta: {
+    file_name: masterMeta.file_name || "",
+    sheet_name: masterMeta.sheet_name || "",
+    total_records: Number(masterMeta.total_records) || masterRecords.length,
+    updated_at: masterMeta.updated_at || null
+  }
+});
+
+export const uploadClavePadron = async ({ buffer, originalName = "" }, options = {}) => {
+  if (!buffer || !buffer.length) {
+    const error = new Error("Debes seleccionar un archivo de padron maestro.");
+    error.status = 400;
+    throw error;
+  }
+
+  const { sheetName, rows } = parseWorkbookRows(buffer);
+
+  if (!rows.length) {
+    const error = new Error("El archivo no contiene claves catastrales validas.");
+    error.status = 400;
+    throw error;
+  }
+
+  writeJsonFile(maestroPath, rows);
+
+  masterMeta = {
+    file_name: originalName || "padron-maestro.xlsx",
+    sheet_name: sheetName,
+    total_records: rows.length,
+    updated_at: new Date().toISOString()
+  };
+  writeJsonFile(maestroMetaPath, masterMeta);
+  masterRecords = rows;
+
+  try {
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "padron.updated",
+      entityType: "padron",
+      entityId: "maestro",
+      summary: `Padron maestro actualizado con ${rows.length} claves`,
+      details: {
+        file_name: masterMeta.file_name,
+        sheet_name: masterMeta.sheet_name,
+        total_records: masterMeta.total_records
+      }
+    });
+  } catch {
+    // The padrón should still be updated even if audit logging is temporarily unavailable.
+  }
+
+  return {
+    ok: true,
+    meta: masterMeta
+  };
 };
 
 export const searchClaveCatastral = async (value) => {

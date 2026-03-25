@@ -126,6 +126,7 @@ const actionLabel = (action) =>
       "auth.logout": "Cierre de sesion",
       "auth.password_changed": "Contrasena actualizada",
       "user.created": "Usuario creado",
+      "padron.updated": "Padron actualizado",
       "inmueble.created": "Ficha creada",
       "inmueble.updated": "Ficha actualizada",
       "inmueble.archived": "Ficha archivada",
@@ -179,6 +180,7 @@ const actionIconName = (action) =>
       "auth.logout": "logout",
       "auth.password_changed": "success",
       "user.created": "userCreated",
+      "padron.updated": "refresh",
       "inmueble.created": "plus",
       "inmueble.updated": "records",
       "inmueble.archived": "archive",
@@ -565,6 +567,9 @@ function App() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState(null);
   const [lookupFeedback, setLookupFeedback] = useState("");
+  const [padronMeta, setPadronMeta] = useState(null);
+  const [padronFile, setPadronFile] = useState(null);
+  const [uploadingPadron, setUploadingPadron] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -729,6 +734,8 @@ function App() {
     setLookupQuery("");
     setLookupResult(null);
     setLookupFeedback("");
+    setPadronMeta(null);
+    setPadronFile(null);
     setWorkspaceView("records");
     resetForm();
   };
@@ -938,6 +945,29 @@ function App() {
     }
   };
 
+  const loadPadronMeta = async () => {
+    if (!isAuthenticated || !isAdmin) return;
+
+    try {
+      const response = await apiFetch("/claves/meta");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar la informacion del padron.");
+      }
+
+      setPadronMeta(data.meta ?? null);
+    } catch (error) {
+      showAlert(error.message || "No fue posible cargar la informacion del padron.");
+    }
+  };
+
   const loadAuditLogs = async () => {
     if (!isAuthenticated || !isAdmin) return;
     setLoadingLogs(true);
@@ -972,6 +1002,7 @@ function App() {
 
     if (workspaceView === "users") {
       loadUsers();
+      loadPadronMeta();
     }
 
     if (workspaceView === "logs") {
@@ -1202,6 +1233,10 @@ function App() {
     setUserForm((current) => ({ ...current, [name]: value }));
   };
 
+  const handlePadronFileChange = (event) => {
+    setPadronFile(event.target.files?.[0] ?? null);
+  };
+
   const handlePasswordFormChange = (event) => {
     const { name, value } = event.target;
     setPasswordFeedback("");
@@ -1322,6 +1357,46 @@ function App() {
       showAlert(error.message || "No se pudo actualizar la contrasena.");
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handleUploadPadron = async (event) => {
+    event.preventDefault();
+
+    if (!padronFile) {
+      showAlert("Selecciona un archivo Excel del padron maestro.");
+      return;
+    }
+
+    setUploadingPadron(true);
+
+    try {
+      const payload = new FormData();
+      payload.append("padron", padronFile);
+
+      const response = await apiFetch("/claves/upload", {
+        method: "POST",
+        body: payload
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo actualizar el padron maestro.");
+      }
+
+      setPadronMeta(data.meta ?? null);
+      setPadronFile(null);
+      showAlert(`Padron maestro actualizado con ${data.meta?.total_records ?? 0} claves.`);
+    } catch (error) {
+      showAlert(error.message || "No se pudo actualizar el padron maestro.");
+    } finally {
+      setUploadingPadron(false);
     }
   };
 
@@ -2975,6 +3050,53 @@ function App() {
                     >
                       <Icon name="refresh" />
                       Limpiar
+                    </button>
+                  </div>
+                </form>
+
+                <form className="sheet no-print" onSubmit={handleUploadPadron}>
+                  <div className="admin-section-head">
+                    <div>
+                      <p className="sheet-kicker">Padron maestro</p>
+                      <h2><Icon name="refresh" className="title-icon" />Actualizar padron de consulta</h2>
+                    </div>
+                    <span className="panel-pill">{padronMeta?.total_records ?? 0} claves</span>
+                  </div>
+                  <section className="sheet-section">
+                    <h3>Archivo activo</h3>
+                    <div className="admin-result-grid">
+                      <div className="document-block">
+                        <p><strong>Archivo:</strong> {padronMeta?.file_name || "Sin registro"}</p>
+                        <p><strong>Hoja:</strong> {padronMeta?.sheet_name || "--"}</p>
+                        <p><strong>Ultima actualizacion:</strong> {formatDateTime(padronMeta?.updated_at)}</p>
+                      </div>
+                      <div className="document-block">
+                        <label className="file-input">
+                          <span>Seleccionar Excel maestro</span>
+                          <input type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handlePadronFileChange} />
+                        </label>
+                        <p className="helper-text">
+                          Sube el padron maestro en Excel y el modulo <strong>Buscar clave</strong> usara la nueva version de inmediato.
+                        </p>
+                        {padronFile ? <p><strong>Archivo listo:</strong> {padronFile.name}</p> : null}
+                      </div>
+                    </div>
+                  </section>
+                  <div className="action-row">
+                    <button type="submit" disabled={uploadingPadron}>
+                      <Icon name="refresh" />
+                      {uploadingPadron ? "Actualizando..." : "Actualizar padron maestro"}
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => {
+                        setPadronFile(null);
+                        loadPadronMeta();
+                      }}
+                    >
+                      <Icon name="records" />
+                      Ver estado actual
                     </button>
                   </div>
                 </form>

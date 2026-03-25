@@ -1,4 +1,4 @@
-import { searchClaveCatastral } from "../services/claveLookupService.js";
+import { getClaveLookupMeta, searchClaveCatastral, uploadClavePadron } from "../services/claveLookupService.js";
 
 export const searchClave = async (req, res, next) => {
   try {
@@ -9,3 +9,32 @@ export const searchClave = async (req, res, next) => {
   }
 };
 
+export const getPadronMeta = async (_req, res, next) => {
+  try {
+    const result = await getClaveLookupMeta();
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadPadron = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Debes seleccionar un archivo Excel del padron." });
+    }
+
+    const result = await uploadClavePadron(
+      {
+        buffer: req.file.buffer,
+        originalName: req.file.originalname
+      },
+      {
+        actorUserId: req.authUser?.id
+      }
+    );
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
