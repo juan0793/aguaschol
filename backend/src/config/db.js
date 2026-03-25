@@ -260,6 +260,31 @@ const ensureSchema = async () => {
       columnName: "archived_reason",
       definition: "VARCHAR(255) NOT NULL DEFAULT ''"
     });
+    await ensureColumn(admin, {
+      tableName: "audit_logs",
+      columnName: "actor_name_snapshot",
+      definition: "VARCHAR(180) NOT NULL DEFAULT ''"
+    });
+    await ensureColumn(admin, {
+      tableName: "audit_logs",
+      columnName: "actor_email_snapshot",
+      definition: "VARCHAR(180) NOT NULL DEFAULT ''"
+    });
+    await admin.query(
+      `
+        UPDATE audit_logs
+        LEFT JOIN app_users ON app_users.id = audit_logs.actor_user_id
+        SET
+          audit_logs.actor_name_snapshot = CASE
+            WHEN audit_logs.actor_name_snapshot = '' THEN COALESCE(app_users.full_name, audit_logs.actor_name_snapshot)
+            ELSE audit_logs.actor_name_snapshot
+          END,
+          audit_logs.actor_email_snapshot = CASE
+            WHEN audit_logs.actor_email_snapshot = '' THEN COALESCE(app_users.email, audit_logs.actor_email_snapshot)
+            ELSE audit_logs.actor_email_snapshot
+          END
+      `
+    );
     await ensureIndex(admin, {
       tableName: "auth_sessions",
       indexName: "idx_auth_sessions_user",

@@ -2,6 +2,8 @@ import { getPool } from "../config/db.js";
 
 export const createAuditLog = async ({
   actorUserId = null,
+  actorName = "",
+  actorEmail = "",
   action,
   entityType,
   entityId = "",
@@ -9,12 +11,33 @@ export const createAuditLog = async ({
   details = null
 }) => {
   const pool = getPool();
+  let snapshotName = actorName?.trim?.() ?? "";
+  let snapshotEmail = actorEmail?.trim?.() ?? "";
+
+  if (actorUserId && (!snapshotName || !snapshotEmail)) {
+    const [rows] = await pool.query("SELECT full_name, email FROM app_users WHERE id = ? LIMIT 1", [actorUserId]);
+    const actor = rows[0];
+    snapshotName = snapshotName || actor?.full_name || "";
+    snapshotEmail = snapshotEmail || actor?.email || "";
+  }
+
   await pool.query(
     `
-      INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, summary, details_json)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO audit_logs (
+        actor_user_id, actor_name_snapshot, actor_email_snapshot, action, entity_type, entity_id, summary, details_json
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    [actorUserId, action, entityType, String(entityId ?? ""), summary, details ? JSON.stringify(details) : null]
+    [
+      actorUserId,
+      snapshotName,
+      snapshotEmail,
+      action,
+      entityType,
+      String(entityId ?? ""),
+      summary,
+      details ? JSON.stringify(details) : null
+    ]
   );
 };
 
@@ -71,8 +94,8 @@ export const listAuditLogs = async ({
     `
       SELECT
         audit_logs.*,
-        app_users.full_name AS actor_name,
-        app_users.email AS actor_email
+        COALESCE(NULLIF(audit_logs.actor_name_snapshot, ''), app_users.full_name) AS actor_name,
+        COALESCE(NULLIF(audit_logs.actor_email_snapshot, ''), app_users.email) AS actor_email
       FROM audit_logs
       LEFT JOIN app_users ON app_users.id = audit_logs.actor_user_id
       ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
@@ -91,8 +114,8 @@ export const listEntityAuditLogs = async ({ entityType, entityId, limit = 50 } =
     `
       SELECT
         audit_logs.*,
-        app_users.full_name AS actor_name,
-        app_users.email AS actor_email
+        COALESCE(NULLIF(audit_logs.actor_name_snapshot, ''), app_users.full_name) AS actor_name,
+        COALESCE(NULLIF(audit_logs.actor_email_snapshot, ''), app_users.email) AS actor_email
       FROM audit_logs
       LEFT JOIN app_users ON app_users.id = audit_logs.actor_user_id
       WHERE audit_logs.entity_type = ?
