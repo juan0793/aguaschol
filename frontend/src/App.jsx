@@ -501,6 +501,70 @@ const fileToDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
+const loadImageFromFile = (file) =>
+  new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("No fue posible procesar la imagen seleccionada."));
+    };
+    image.src = objectUrl;
+  });
+
+const canvasToBlob = (canvas, type, quality) =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("No fue posible optimizar la fotografia."));
+        return;
+      }
+
+      resolve(blob);
+    }, type, quality);
+  });
+
+const optimizeImageForUpload = async (file) => {
+  if (!(file instanceof File) || !file.type.startsWith("image/")) {
+    return file;
+  }
+
+  const sourceImage = await loadImageFromFile(file);
+  const maxDimension = 1600;
+  const scale = Math.min(1, maxDimension / Math.max(sourceImage.width, sourceImage.height));
+  const width = Math.max(1, Math.round(sourceImage.width * scale));
+  const height = Math.max(1, Math.round(sourceImage.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return file;
+  }
+
+  context.drawImage(sourceImage, 0, 0, width, height);
+
+  const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+  const optimizedBlob = await canvasToBlob(canvas, outputType, outputType === "image/png" ? undefined : 0.78);
+
+  if (optimizedBlob.size >= file.size) {
+    return file;
+  }
+
+  const extension = outputType === "image/png" ? ".png" : ".jpg";
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "fotografia";
+
+  return new File([optimizedBlob], `${baseName}${extension}`, {
+    type: outputType,
+    lastModified: Date.now()
+  });
+};
+
 const urlToDataUrl = async (url) => {
   const response = await fetch(url, { cache: "no-store" });
   const blob = await response.blob();
@@ -1702,7 +1766,8 @@ function App() {
 
       if (selectedFile && data.id) {
         const upload = new FormData();
-        upload.append("foto", selectedFile);
+        const optimizedPhoto = await optimizeImageForUpload(selectedFile);
+        upload.append("foto", optimizedPhoto);
 
         const uploadResponse = await apiFetch(`/inmuebles/${data.id}/foto`, {
           method: "POST",
@@ -1986,7 +2051,7 @@ function App() {
                         <li>Copia de Escritura pública del Inmueble.</li>
                         <li>Copia de Constancia Catastral vigente.</li>
                         <li>Copia de Documento Nacional de Identificación (DNI).</li>
-                        <li>Copia de Permiso de Construcción.</li>
+                        <li>Constancia de solvencia municipal.</li>
                       </ul>
                       <p class="aviso-body">
                         En caso de no presentarse dentro del plazo indicado, la empresa procederá conforme a los lineamientos administrativos establecidos por la ley que implican recargos y multas.
@@ -2808,7 +2873,11 @@ function App() {
                       onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
                     />
                   </label>
-                  {selectedFile ? <p className="helper-text">Archivo listo: {selectedFile.name}</p> : null}
+                  {selectedFile ? (
+                    <p className="helper-text">
+                      Archivo listo: {selectedFile.name}. Se optimizara automaticamente al guardar.
+                    </p>
+                  ) : null}
                   {localSelectedPhotoUrl || selectedPhotoUrl ? (
                     <img
                       src={localSelectedPhotoUrl || selectedPhotoUrl}

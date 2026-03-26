@@ -57,7 +57,7 @@ export const buildAvisoHtml = (inmueble) => {
         <li>Copia de Escritura publica del Inmueble.</li>
         <li>Copia de Constancia Catastral vigente.</li>
         <li>Copia de Documento Nacional de Identificacion (DNI).</li>
-        <li>Copia de Permiso de Construccion.</li>
+        <li>Constancia de solvencia municipal.</li>
       </ul>
       <p class="aviso-body">
         En caso de no presentarse dentro del plazo indicado, la empresa procedera
