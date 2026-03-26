@@ -1,16 +1,9 @@
 import multer from "multer";
-import path from "node:path";
 import { env } from "../config/env.js";
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, env.uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, "-").toLowerCase();
-    cb(null, `${Date.now()}-${base}${ext}`);
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: Math.max(env.uploadMaxFileSizeMb, 1) * 1024 * 1024
   }
 });
-
-export const upload = multer({ storage });

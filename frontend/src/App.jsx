@@ -88,6 +88,19 @@ const normalizeRecord = (record) => ({
   archived_reason: record?.archived_reason ?? ""
 });
 
+const buildPhotoUrl = (photoPath = "", version = "") => {
+  if (!photoPath) return "";
+
+  const separator = photoPath.includes("?") ? "&" : "?";
+  const versionSuffix = version ? `${separator}v=${encodeURIComponent(version)}` : "";
+
+  if (/^https?:\/\//i.test(photoPath)) {
+    return `${photoPath}${versionSuffix}`;
+  }
+
+  return `${FILES_URL}${photoPath}${versionSuffix}`;
+};
+
 const formatClaveInput = (value = "") => {
   const digits = value.replace(/\D/g, "").slice(0, 8);
   const groups = [];
@@ -861,8 +874,8 @@ function App() {
 
   const selectedPhotoUrl = useMemo(() => {
     if (!form.foto_path) return "";
-    const version = encodeURIComponent(form.updated_at || Date.now());
-    return `${FILES_URL}${form.foto_path}?v=${version}`;
+    const version = form.updated_at || Date.now();
+    return buildPhotoUrl(form.foto_path, version);
   }, [form.foto_path, form.updated_at]);
 
   const localSelectedPhotoUrl = useMemo(() => {
@@ -2663,9 +2676,9 @@ function App() {
           {emptyRecordsMessage ? <p className="helper-text">{emptyRecordsMessage}</p> : null}
 
         <div className="record-list-head">
-          <span>No.</span>
-          <span>Ficha</span>
-          <span>Top 10</span>
+          <span>Exp.</span>
+          <span>Fichas activas</span>
+          <span>Vista</span>
         </div>
 
         <div className="record-list">
@@ -2675,21 +2688,31 @@ function App() {
               className={`record-card draft-card ${!form.id ? "active" : ""}`}
               onClick={restoreDraft}
             >
-              <div className="record-card-top">
+              <div className="record-card-shell">
                 <span className="record-number">D</span>
-                <div className="record-main">
-                  <strong>{draftForm.clave_catastral || "Borrador nuevo"}</strong>
-                  <span className="record-location">{draftForm.barrio_colonia || "Continua la ficha en proceso"}</span>
+                <div className="record-card-body">
+                  <div className="record-card-top">
+                    <div className="record-main">
+                      <strong>{draftForm.clave_catastral || "Borrador nuevo"}</strong>
+                      <span className="record-location">{draftForm.barrio_colonia || "Continua la ficha en proceso"}</span>
+                    </div>
+                    <span className="record-badge">Borrador</span>
+                  </div>
+                  <div className="record-ledger">
+                    <div className="record-ledger-row">
+                      <span className="record-ledger-label">Titular</span>
+                      <span className="record-ledger-value">Sin guardar</span>
+                    </div>
+                    <div className="record-ledger-row">
+                      <span className="record-ledger-label">Estado</span>
+                      <span className="record-ledger-value">Edicion local</span>
+                    </div>
+                  </div>
+                  <small>{draftForm.comentarios || "Datos aun no guardados"}</small>
+                  <div className="record-quick-actions">
+                    <span className="record-quick-chip muted">Autosave activo</span>
+                  </div>
                 </div>
-                <span className="record-badge">Borrador</span>
-              </div>
-              <div className="record-meta-row">
-                <span className="record-meta-chip">Sin guardar</span>
-                <span className="record-meta-chip">Edicion local</span>
-              </div>
-              <small>{draftForm.comentarios || "Datos aun no guardados"}</small>
-              <div className="record-quick-actions">
-                <span className="record-quick-chip muted">Autosave activo</span>
               </div>
             </button>
           ) : null}
@@ -2706,36 +2729,48 @@ function App() {
                     className={`record-card ${form.id === record.id ? "active" : ""}`}
                     onClick={() => handleSelectRecord(record)}
                   >
-                    <div className="record-card-top">
+                    <div className="record-card-shell">
                       <span className="record-number">{globalIndex || index + 1}</span>
-                      <div className="record-main">
-                        <strong>{record.clave_catastral}</strong>
-                        <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
+                      <div className="record-card-body">
+                        <div className="record-card-top">
+                          <div className="record-main">
+                            <strong>{record.clave_catastral}</strong>
+                            <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
+                          </div>
+                          <span className="record-badge">{recordView === "archived" ? "Log" : "Ficha"}</span>
+                        </div>
+                        <div className="record-ledger">
+                          <div className="record-ledger-row">
+                            <span className="record-ledger-label">Titular</span>
+                            <span className="record-ledger-value">
+                              {record.inquilino || record.abonado || "Sin nombre"}
+                            </span>
+                          </div>
+                          <div className="record-ledger-row">
+                            <span className="record-ledger-label">
+                              {recordView === "archived" ? "Archivo" : "Ultimo mov."}
+                            </span>
+                            <span className="record-ledger-value">
+                              {recordView === "archived"
+                                ? formatSpanishDate(record.archived_at)
+                                : formatDateTime(record.updated_at || record.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <small>
+                          {recordView === "archived"
+                            ? `Archivada${record.archived_reason ? `: ${record.archived_reason}` : ""}`
+                            : record.comentarios || "Sin comentario"}
+                        </small>
+                        <div className="record-quick-actions">
+                          <button type="button" className="record-quick-chip" onClick={(event) => handleQuickEdit(record, event)}>
+                            Abrir
+                          </button>
+                          <button type="button" className="record-quick-chip" onClick={(event) => handleCopyClave(record, event)}>
+                            Copiar clave
+                          </button>
+                        </div>
                       </div>
-                      <span className="record-badge">{recordView === "archived" ? "Log" : "Ver"}</span>
-                    </div>
-                    <div className="record-meta-row">
-                      <span className="record-meta-chip">
-                        {record.inquilino || record.abonado || "Sin nombre"}
-                      </span>
-                      <span className="record-meta-chip">
-                        {recordView === "archived"
-                          ? `Archivada ${formatSpanishDate(record.archived_at)}`
-                          : `Actualizada ${formatDateTime(record.updated_at || record.created_at)}`}
-                      </span>
-                    </div>
-                    <small>
-                      {recordView === "archived"
-                        ? `Archivada: ${formatSpanishDate(record.archived_at)}${record.archived_reason ? ` - ${record.archived_reason}` : ""}`
-                        : record.comentarios || "Sin comentario"}
-                    </small>
-                    <div className="record-quick-actions">
-                      <button type="button" className="record-quick-chip" onClick={(event) => handleQuickEdit(record, event)}>
-                        Abrir
-                      </button>
-                      <button type="button" className="record-quick-chip" onClick={(event) => handleCopyClave(record, event)}>
-                        Copiar clave
-                      </button>
                     </div>
                   </button>
                 );
@@ -3057,7 +3092,7 @@ function App() {
 
                           return (
                             <img
-                              src={`${FILES_URL}${photoPath}?v=${encodeURIComponent(log.created_at || form.updated_at || Date.now())}`}
+                              src={buildPhotoUrl(photoPath, log.created_at || form.updated_at || Date.now())}
                               alt="Fotografia registrada en el historial"
                               className="record-history-photo"
                               loading="lazy"

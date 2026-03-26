@@ -1,9 +1,8 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { buildAvisoHtml } from "../utils/avisoTemplate.js";
+import { deleteStoredPhoto, saveUploadedPhoto } from "./fileStorageService.js";
 import { likeValue, normalizeKey } from "../utils/normalize.js";
 
 const memoryRecords = [
@@ -309,7 +308,7 @@ export const updateInmueble = async (id, payload, options = {}) => {
   return record;
 };
 
-export const attachPhoto = async (id, fotoPath, options = {}) => {
+export const attachPhoto = async (id, photoFile, options = {}) => {
   if (env.useMemoryDb) {
     const record = memoryRecords.find((item) => item.id === Number(id));
     if (!record) {
@@ -318,8 +317,13 @@ export const attachPhoto = async (id, fotoPath, options = {}) => {
       throw error;
     }
 
-    record.foto_path = fotoPath;
+    const previousPhotoPath = record.foto_path;
+    const storedPhoto = await saveUploadedPhoto(photoFile);
+    record.foto_path = storedPhoto.photoPath;
     record.updated_at = new Date().toISOString();
+    if (previousPhotoPath && previousPhotoPath !== record.foto_path) {
+      await deleteStoredPhoto(previousPhotoPath);
+    }
     await createAuditLog({
       actorUserId: options.actorUserId ?? null,
       action: "inmueble.photo_attached",
@@ -327,25 +331,38 @@ export const attachPhoto = async (id, fotoPath, options = {}) => {
       entityId: record.id,
       summary: `Fotografia actualizada para ${record.clave_catastral}`,
       details: {
-        foto_path: record.foto_path
+        foto_path: record.foto_path,
+        storage: storedPhoto.storage
       }
     });
     return record;
   }
 
+  const previousRecord = await getById(id);
+  if (!previousRecord) {
+    const error = new Error("Inmueble no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  const storedPhoto = await saveUploadedPhoto(photoFile);
   const pool = getPool();
   const [result] = await pool.query(
     "UPDATE inmuebles_clandestinos SET foto_path = ? WHERE id = ?",
-    [fotoPath, id]
+    [storedPhoto.photoPath, id]
   );
 
   if (result.affectedRows === 0) {
+    await deleteStoredPhoto(storedPhoto.photoPath);
     const error = new Error("Inmueble no encontrado.");
     error.status = 404;
     throw error;
   }
 
   const record = await getById(id);
+  if (previousRecord.foto_path && previousRecord.foto_path !== record.foto_path) {
+    await deleteStoredPhoto(previousRecord.foto_path);
+  }
   await createAuditLog({
     actorUserId: options.actorUserId ?? null,
     action: "inmueble.photo_attached",
@@ -353,7 +370,8 @@ export const attachPhoto = async (id, fotoPath, options = {}) => {
     entityId: record.id,
     summary: `Fotografia actualizada para ${record.clave_catastral}`,
     details: {
-      foto_path: record.foto_path
+      foto_path: record.foto_path,
+      storage: storedPhoto.storage
     }
   });
   return record;
@@ -499,9 +517,7 @@ export const deleteArchivedInmueble = async (id, options = {}) => {
   }
 
   if (record.foto_path) {
-    const relativePhotoPath = record.foto_path.startsWith("/") ? `.${record.foto_path}` : record.foto_path;
-    const absolutePhotoPath = path.resolve(env.dbRoot, relativePhotoPath);
-    await fs.unlink(absolutePhotoPath).catch(() => {});
+    await deleteStoredPhoto(record.foto_path);
   }
 
   await createAuditLog({

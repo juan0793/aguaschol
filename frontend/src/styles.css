@@ -601,13 +601,13 @@ button:disabled {
 
 .layout {
   display: grid;
-  grid-template-columns: 278px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   gap: 0.85rem;
 }
 
 .admin-layout {
   display: grid;
-  grid-template-columns: 278px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   gap: 0.85rem;
 }
 
@@ -616,12 +616,14 @@ button:disabled {
 }
 
 .sidebar {
-  padding: 0.72rem;
+  padding: 0.65rem;
   align-self: start;
   position: sticky;
   top: 1rem;
   max-height: calc(100vh - 2rem);
   overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 250, 255, 0.97) 100%);
 }
 
 .panel-header,
@@ -648,11 +650,11 @@ button:disabled {
 
 .record-list {
   display: grid;
-  gap: 0.55rem;
-  margin-top: 0.65rem;
-  max-height: calc(100vh - 12.4rem);
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+  max-height: calc(100vh - 11.9rem);
   overflow: auto;
-  padding-right: 0.2rem;
+  padding-right: 0.1rem;
 }
 
 .record-list-head {
@@ -664,29 +666,29 @@ button:disabled {
   padding: 0 0.2rem 0.3rem;
   border-bottom: 1px solid rgba(21, 118, 209, 0.14);
   color: var(--muted);
-  font-size: 0.64rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .record-month-group {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.45rem;
 }
 
 .record-month-heading {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 0.35rem 0.55rem;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #edf6ff 0%, #e4f1ff 100%);
+  padding: 0.32rem 0.5rem;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #eef6ff 0%, #e7f1fb 100%);
   color: var(--brand-blue-deep);
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: capitalize;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   border: 1px solid rgba(21, 118, 209, 0.12);
 }
 
@@ -695,17 +697,17 @@ button:disabled {
   overflow: hidden;
   width: 100%;
   text-align: left;
-  border-radius: 18px;
-  padding: 0.72rem 0.78rem;
+  border-radius: 22px;
+  padding: 0.62rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 248, 255, 0.96) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(244, 249, 255, 0.97) 100%);
   color: var(--brand-blue-deep);
   display: grid;
-  gap: 0.35rem;
+  gap: 0.2rem;
   box-shadow:
-    0 12px 22px rgba(11, 39, 72, 0.08),
+    0 10px 22px rgba(11, 39, 72, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(21, 118, 209, 0.14);
+  border: 1px solid rgba(21, 118, 209, 0.12);
   font-weight: 400;
 }
 
@@ -713,36 +715,49 @@ button:disabled {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 7px;
+  width: 6px;
   background: linear-gradient(180deg, #1576d1 0%, #25c7f0 100%);
   opacity: 0.9;
 }
 
-.record-card-top {
+.record-card-shell {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.5rem;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.record-card-body {
+  display: grid;
+  gap: 0.48rem;
+  min-width: 0;
+}
+
+.record-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
 }
 
 .record-card strong {
-  font-size: 0.88rem;
+  font-size: 0.98rem;
   line-height: 1.2;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
 }
 
 .record-card span {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   line-height: 1.2;
 }
 
 .record-number {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: inline-grid;
   place-items: center;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(21, 118, 209, 0.14) 0%, rgba(37, 199, 240, 0.12) 100%);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(21, 118, 209, 0.12) 0%, rgba(202, 229, 249, 0.18) 100%);
   color: var(--brand-blue-deep);
   border: 1px solid rgba(21, 118, 209, 0.12);
   font-size: 0.75rem;
@@ -751,61 +766,67 @@ button:disabled {
 
 .record-main {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.12rem;
   min-width: 0;
 }
 
 .record-location {
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   white-space: normal;
 }
 
-.record-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding-left: calc(38px + 0.5rem);
+.record-ledger {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.52rem 0.65rem;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(235, 244, 253, 0.95) 0%, rgba(225, 238, 251, 0.95) 100%);
+  border: 1px solid rgba(21, 118, 209, 0.1);
 }
 
-.record-meta-chip {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  min-height: 24px;
-  padding: 0.16rem 0.5rem;
-  border-radius: 999px;
-  background: rgba(21, 118, 209, 0.08);
-  color: #29516f;
-  border: 1px solid rgba(21, 118, 209, 0.08);
-  font-size: 0.64rem;
+.record-ledger-row {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.record-ledger-label {
+  color: #547188;
+  font-size: 0.58rem !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.record-ledger-value {
+  color: #163651;
+  font-size: 0.84rem !important;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  line-height: 1.2;
 }
 
 .record-card small {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   line-height: 1.35;
-  padding-left: calc(38px + 0.5rem);
-  padding-top: 0.1rem;
+  padding-top: 0.02rem;
 }
 
 .record-quick-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
-  padding-left: calc(38px + 0.5rem);
-  margin-top: 0.1rem;
+  margin-top: 0.05rem;
 }
 
 .record-quick-chip {
-  border: 1px solid rgba(21, 118, 209, 0.12);
-  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(255, 255, 255, 0.94);
   color: var(--brand-blue-deep);
   border-radius: 999px;
-  padding: 0.18rem 0.54rem;
-  font-size: 0.64rem;
+  padding: 0.2rem 0.58rem;
+  font-size: 0.66rem;
   font-weight: 700;
   box-shadow: none;
 }
@@ -819,18 +840,19 @@ button:disabled {
 .record-badge {
   flex-shrink: 0;
   border-radius: 999px;
-  padding: 0.14rem 0.4rem;
-  background: rgba(21, 118, 209, 0.1);
+  padding: 0.2rem 0.48rem;
+  background: rgba(21, 118, 209, 0.08);
   color: var(--brand-blue-deep);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
 }
 
 .draft-card {
-  border-color: rgba(37, 199, 240, 0.45);
-  background: linear-gradient(180deg, #f8fdff 0%, #edf9ff 100%);
+  border-color: rgba(37, 199, 240, 0.3);
+  background:
+    linear-gradient(180deg, rgba(248, 253, 255, 0.99) 0%, rgba(237, 249, 255, 0.97) 100%);
 }
 
 .record-card small {
@@ -838,18 +860,25 @@ button:disabled {
 }
 
 .record-card.active {
-  background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-blue-deep) 100%);
+  background:
+    linear-gradient(160deg, #0f68ba 0%, #0d4d86 58%, #0b3e69 100%);
   color: #fff;
   border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 20px 34px rgba(11, 39, 72, 0.22);
+  box-shadow: 0 18px 34px rgba(11, 39, 72, 0.24);
 }
 
 .record-card.active small,
-.record-card.active .record-meta-chip,
+.record-card.active .record-ledger-label,
+.record-card.active .record-ledger-value,
 .record-card.active .record-badge,
 .record-card.active .record-location,
 .record-card.active .record-number {
   color: inherit;
+}
+
+.record-card.active .record-ledger {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .record-card.active .record-badge {
@@ -859,11 +888,6 @@ button:disabled {
 .record-card.active .record-number {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.2);
-}
-
-.record-card.active .record-meta-chip {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .record-card.active .record-quick-chip {
@@ -1925,16 +1949,18 @@ textarea {
     padding: 0.8rem;
   }
 
-  .record-card-top {
+  .record-card-shell {
     grid-template-columns: minmax(0, 1fr);
-    align-items: start;
+  }
+
+  .record-card-top {
+    align-items: flex-start;
   }
 
   .record-number {
     display: none;
   }
 
-  .record-meta-row,
   .record-card small,
   .record-quick-actions {
     padding-left: 0;

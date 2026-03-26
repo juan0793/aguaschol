@@ -59,6 +59,11 @@ export const env = {
   dbDataDir: path.resolve(projectRoot, ".db", "mariadb-data"),
   dbRunDir: path.resolve(projectRoot, ".db", "mariadb-run"),
   uploadDir: path.resolve(projectRoot, process.env.UPLOAD_DIR ?? "backend/uploads"),
+  uploadMaxFileSizeMb: Number(process.env.UPLOAD_MAX_FILE_SIZE_MB ?? 8),
+  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME ?? "",
+  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY ?? "",
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET ?? "",
+  cloudinaryFolder: process.env.CLOUDINARY_FOLDER ?? "aguas-clandestinos",
   authUsername: process.env.AUTH_USERNAME ?? "admin",
   authPassword: process.env.AUTH_PASSWORD ?? "abcd123",
   authSeedName: process.env.AUTH_SEED_NAME ?? "Administrador General",
@@ -69,3 +74,5 @@ export const env = {
   emailApiKey: process.env.EMAIL_API_KEY ?? "",
   emailSandbox: String(process.env.EMAIL_SANDBOX ?? "true").toLowerCase() === "true"
 };
+
+env.useCloudinary = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);

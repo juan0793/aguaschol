@@ -96,7 +96,7 @@ export const uploadPhoto = async (req, res, next) => {
       return res.status(400).json({ message: "Debes seleccionar una fotografia." });
     }
 
-    const inmueble = await attachPhoto(req.params.id, `/uploads/${req.file.filename}`, {
+    const inmueble = await attachPhoto(req.params.id, req.file, {
       actorUserId: req.authUser?.id
     });
     return res.json(inmueble);
