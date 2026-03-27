@@ -2253,6 +2253,13 @@ textarea {
   border: 1px solid rgba(21, 118, 209, 0.12);
 }
 
+.lookup-match-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
 .lookup-match-card strong {
   color: #123b5d;
   font-size: 1rem;
@@ -2289,6 +2296,31 @@ textarea {
   color: #123b5d;
 }
 
+.lookup-match-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 30px;
+  padding: 0.26rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: rgba(255, 255, 255, 0.88);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.lookup-match-status .app-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.lookup-match-status.is-debt {
+  color: #9b202d;
+  background: rgba(155, 32, 45, 0.08);
+  border-color: rgba(155, 32, 45, 0.14);
+}
+
 .lookup-match-total.is-debt {
   color: #9b202d;
 }
@@ -2303,21 +2335,16 @@ textarea {
   color: #16704b;
 }
 
-.lookup-match-helper {
-  font-size: 0.72rem !important;
-  font-weight: 700;
+.lookup-match-status.is-zero {
+  color: #466581;
+  background: rgba(70, 101, 129, 0.08);
+  border-color: rgba(70, 101, 129, 0.14);
 }
 
-.lookup-match-helper.is-debt {
-  color: #9b202d !important;
-}
-
-.lookup-match-helper.is-zero {
-  color: #466581 !important;
-}
-
-.lookup-match-helper.is-credit {
-  color: #16704b !important;
+.lookup-match-status.is-credit {
+  color: #16704b;
+  background: rgba(22, 112, 75, 0.08);
+  border-color: rgba(22, 112, 75, 0.14);
 }
 
 .record-history-sheet {
@@ -2409,6 +2436,11 @@ textarea {
 
   .lookup-match-grid {
     grid-template-columns: 1fr;
+  }
+
+  .lookup-match-top {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .lookup-actions {

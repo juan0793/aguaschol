@@ -144,7 +144,8 @@ const getLookupTotalMeta = (value) => {
     return {
       text: "--",
       helper: "Sin referencia",
-      tone: ""
+      tone: "",
+      icon: "activity"
     };
   }
 
@@ -152,7 +153,8 @@ const getLookupTotalMeta = (value) => {
     return {
       text: "Sin saldo",
       helper: "Cuenta al dia",
-      tone: "is-zero"
+      tone: "is-zero",
+      icon: "success"
     };
   }
 
@@ -160,14 +162,16 @@ const getLookupTotalMeta = (value) => {
     return {
       text: formatCurrency(Math.abs(numeric)),
       helper: "Pago adelantado",
-      tone: "is-credit"
+      tone: "is-credit",
+      icon: "refresh"
     };
   }
 
   return {
     text: formatCurrency(numeric),
     helper: "Saldo pendiente",
-    tone: "is-debt"
+    tone: "is-debt",
+    icon: "activity"
   };
 };
 
@@ -3273,31 +3277,36 @@ function App() {
                   {lookupResult.exists ? (
                     <div className="lookup-match-list">
                       {lookupResult.matches.map((match) => (
-                        <article key={`${match.clave_catastral}-${match.inquilino}-${match.nombre}`} className="lookup-match-card">
-                          <strong>{match.clave_catastral}</strong>
-                          {(() => {
-                            const totalMeta = getLookupTotalMeta(match.total);
-                            return (
-                          <div className="lookup-match-grid">
-                            <div className="lookup-match-field">
-                              <span className="lookup-match-label">Nombre</span>
-                              <span>{match.inquilino || "Sin nombre asociado"}</span>
-                            </div>
-                            <div className="lookup-match-field">
-                              <span className="lookup-match-label">Abonado</span>
-                              <span>{match.nombre || "--"}</span>
-                            </div>
-                            <div className="lookup-match-field">
-                              <span className="lookup-match-label">Total</span>
-                              <strong className={`lookup-match-total ${totalMeta.tone}`}>
-                                {totalMeta.text}
-                              </strong>
-                              <span className={`lookup-match-helper ${totalMeta.tone}`}>{totalMeta.helper}</span>
-                            </div>
-                          </div>
-                            );
-                          })()}
-                        </article>
+                        (() => {
+                          const totalMeta = getLookupTotalMeta(match.total);
+                          return (
+                            <article key={`${match.clave_catastral}-${match.inquilino}-${match.nombre}`} className="lookup-match-card">
+                              <div className="lookup-match-top">
+                                <strong>{match.clave_catastral}</strong>
+                                <span className={`lookup-match-status ${totalMeta.tone}`}>
+                                  <Icon name={totalMeta.icon} />
+                                  {totalMeta.helper}
+                                </span>
+                              </div>
+                              <div className="lookup-match-grid">
+                                <div className="lookup-match-field">
+                                  <span className="lookup-match-label">Nombre</span>
+                                  <span>{match.inquilino || "Sin nombre asociado"}</span>
+                                </div>
+                                <div className="lookup-match-field">
+                                  <span className="lookup-match-label">Abonado</span>
+                                  <span>{match.nombre || "--"}</span>
+                                </div>
+                                <div className="lookup-match-field">
+                                  <span className="lookup-match-label">Total</span>
+                                  <strong className={`lookup-match-total ${totalMeta.tone}`}>
+                                    {totalMeta.text}
+                                  </strong>
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        })()
                       ))}
                     </div>
                   ) : null}
