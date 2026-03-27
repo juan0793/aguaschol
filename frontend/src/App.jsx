@@ -130,16 +130,45 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
-const formatLookupTotal = (value) => {
-  const numeric = Number(value ?? 0);
-  if (!Number.isFinite(numeric)) return "--";
-  if (numeric === 0) return "Sin saldo";
-  return new Intl.NumberFormat("es-HN", {
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("es-HN", {
     style: "currency",
     currency: "HNL",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(numeric);
+  }).format(value);
+
+const getLookupTotalMeta = (value) => {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) {
+    return {
+      text: "--",
+      helper: "Sin referencia",
+      tone: ""
+    };
+  }
+
+  if (numeric === 0) {
+    return {
+      text: "Sin saldo",
+      helper: "Cuenta al dia",
+      tone: "is-zero"
+    };
+  }
+
+  if (numeric < 0) {
+    return {
+      text: formatCurrency(Math.abs(numeric)),
+      helper: "Pago adelantado",
+      tone: "is-credit"
+    };
+  }
+
+  return {
+    text: formatCurrency(numeric),
+    helper: "Saldo pendiente",
+    tone: "is-debt"
+  };
 };
 
 const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
@@ -3246,6 +3275,9 @@ function App() {
                       {lookupResult.matches.map((match) => (
                         <article key={`${match.clave_catastral}-${match.inquilino}-${match.nombre}`} className="lookup-match-card">
                           <strong>{match.clave_catastral}</strong>
+                          {(() => {
+                            const totalMeta = getLookupTotalMeta(match.total);
+                            return (
                           <div className="lookup-match-grid">
                             <div className="lookup-match-field">
                               <span className="lookup-match-label">Nombre</span>
@@ -3257,11 +3289,14 @@ function App() {
                             </div>
                             <div className="lookup-match-field">
                               <span className="lookup-match-label">Total</span>
-                              <strong className={`lookup-match-total ${Number(match.total ?? 0) === 0 ? "is-zero" : ""}`}>
-                                {formatLookupTotal(match.total)}
+                              <strong className={`lookup-match-total ${totalMeta.tone}`}>
+                                {totalMeta.text}
                               </strong>
+                              <span className={`lookup-match-helper ${totalMeta.tone}`}>{totalMeta.helper}</span>
                             </div>
                           </div>
+                            );
+                          })()}
                         </article>
                       ))}
                     </div>

@@ -2289,10 +2289,35 @@ textarea {
   color: #123b5d;
 }
 
+.lookup-match-total.is-debt {
+  color: #9b202d;
+}
+
 .lookup-match-total.is-zero {
   color: #466581;
   font-size: 0.82rem !important;
   letter-spacing: 0.04em;
+}
+
+.lookup-match-total.is-credit {
+  color: #16704b;
+}
+
+.lookup-match-helper {
+  font-size: 0.72rem !important;
+  font-weight: 700;
+}
+
+.lookup-match-helper.is-debt {
+  color: #9b202d !important;
+}
+
+.lookup-match-helper.is-zero {
+  color: #466581 !important;
+}
+
+.lookup-match-helper.is-credit {
+  color: #16704b !important;
 }
 
 .record-history-sheet {
