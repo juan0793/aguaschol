@@ -142,8 +142,21 @@ const normalizeMasterRows = (rows = []) =>
       .filter(Boolean)
   );
 
-const detectColumnKey = (columns, candidates) =>
-  columns.find((column) => candidates.includes(normalizeHeader(column))) ?? "";
+const detectColumnKey = (columns, candidates) => {
+  const normalizedColumns = columns.map((column) => ({
+    original: column,
+    normalized: normalizeHeader(column)
+  }));
+
+  for (const candidate of candidates) {
+    const match = normalizedColumns.find((column) => column.normalized === candidate);
+    if (match) {
+      return match.original;
+    }
+  }
+
+  return "";
+};
 
 const parseWorkbookRows = (buffer) => {
   const workbook = XLSX.read(buffer, { type: "buffer" });
