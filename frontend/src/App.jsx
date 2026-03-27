@@ -3221,11 +3221,11 @@ function App() {
                           <strong>{match.clave_catastral}</strong>
                           <div className="lookup-match-grid">
                             <div className="lookup-match-field">
-                              <span className="lookup-match-label">Inquilino</span>
+                              <span className="lookup-match-label">Nombre</span>
                               <span>{match.inquilino || "Sin nombre asociado"}</span>
                             </div>
                             <div className="lookup-match-field">
-                              <span className="lookup-match-label">Nombre</span>
+                              <span className="lookup-match-label">Abonado</span>
                               <span>{match.nombre || "--"}</span>
                             </div>
                             <div className="lookup-match-field">
