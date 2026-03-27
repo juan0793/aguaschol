@@ -2246,7 +2246,7 @@ textarea {
 
 .lookup-match-card {
   display: grid;
-  gap: 0.18rem;
+  gap: 0.45rem;
   padding: 0.9rem 1rem;
   border-radius: 18px;
   background: rgba(237, 246, 255, 0.82);
@@ -2262,6 +2262,31 @@ textarea {
 .lookup-match-card span,
 .lookup-empty-card p {
   color: var(--muted);
+}
+
+.lookup-match-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lookup-match-field {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.lookup-match-label {
+  font-size: 0.68rem !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #466581 !important;
+}
+
+.lookup-match-total {
+  font-size: 0.95rem !important;
+  color: #123b5d;
 }
 
 .record-history-sheet {
@@ -2349,6 +2374,10 @@ textarea {
 
   .lookup-guide-sheet {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lookup-match-grid {
+    grid-template-columns: 1fr;
   }
 
   .lookup-actions {

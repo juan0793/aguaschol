@@ -130,6 +130,17 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
+const formatLookupTotal = (value) => {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) return "--";
+  return new Intl.NumberFormat("es-HN", {
+    style: "currency",
+    currency: "HNL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(numeric);
+};
+
 const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
 
 const actionLabel = (action) =>
@@ -3205,9 +3216,22 @@ function App() {
                   {lookupResult.exists ? (
                     <div className="lookup-match-list">
                       {lookupResult.matches.map((match) => (
-                        <article key={`${match.clave_catastral}-${match.inquilino}`} className="lookup-match-card">
+                        <article key={`${match.clave_catastral}-${match.inquilino}-${match.nombre}`} className="lookup-match-card">
                           <strong>{match.clave_catastral}</strong>
-                          <span>{match.inquilino || "Sin nombre asociado"}</span>
+                          <div className="lookup-match-grid">
+                            <div className="lookup-match-field">
+                              <span className="lookup-match-label">Inquilino</span>
+                              <span>{match.inquilino || "Sin nombre asociado"}</span>
+                            </div>
+                            <div className="lookup-match-field">
+                              <span className="lookup-match-label">Nombre</span>
+                              <span>{match.nombre || "--"}</span>
+                            </div>
+                            <div className="lookup-match-field">
+                              <span className="lookup-match-label">Total</span>
+                              <strong className="lookup-match-total">{formatLookupTotal(match.total)}</strong>
+                            </div>
+                          </div>
                         </article>
                       ))}
                     </div>

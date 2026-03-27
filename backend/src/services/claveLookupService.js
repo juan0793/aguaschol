@@ -82,7 +82,11 @@ const summarizePadronChanges = (currentRows = [], nextRows = []) => {
       return;
     }
 
-    if ((currentItem.inquilino ?? "") !== (nextItem.inquilino ?? "")) {
+    if (
+      (currentItem.inquilino ?? "") !== (nextItem.inquilino ?? "") ||
+      (currentItem.nombre ?? "") !== (nextItem.nombre ?? "") ||
+      Number(currentItem.total ?? 0) !== Number(nextItem.total ?? 0)
+    ) {
       changed += 1;
     }
   });
@@ -100,16 +104,36 @@ const summarizePadronChanges = (currentRows = [], nextRows = []) => {
   };
 };
 
+const parseNumericValue = (value) => {
+  if (value == null || value === "") return 0;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const normalized = String(value)
+    .trim()
+    .replace(/,/g, "")
+    .replace(/\s+/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const normalizeMasterRows = (rows = []) =>
   sortByClave(
     rows
       .map((item) => {
         try {
           const clave = normalizeLookupKey(String(item?.clave_catastral ?? item?.catastral ?? ""));
+          const valor = parseNumericValue(item?.valor);
+          const intereses = parseNumericValue(item?.intereses);
           return {
             clave_catastral: clave,
             clave_base: buildBaseKey(clave),
-            inquilino: String(item?.inquilino ?? item?.nombre ?? "").trim()
+            inquilino: String(item?.inquilino ?? item?.nombre ?? "").trim(),
+            nombre: String(item?.nombre ?? item?.abonado ?? "").trim(),
+            valor,
+            intereses,
+            total: Number((valor + intereses).toFixed(2))
           };
         } catch {
           return null;
@@ -136,6 +160,9 @@ const parseWorkbookRows = (buffer) => {
   const columns = rows.length ? Object.keys(rows[0]) : [];
   const catastralKey = detectColumnKey(columns, ["catastral", "clave_catastral", "clave", "catastral"]);
   const inquilinoKey = detectColumnKey(columns, ["inquilino", "nombre", "propietario", "abonado"]);
+  const nombreKey = detectColumnKey(columns, ["nombre", "abonado", "propietario", "titular"]);
+  const valorKey = detectColumnKey(columns, ["valor", "saldo", "principal"]);
+  const interesesKey = detectColumnKey(columns, ["intereses", "mora", "recargo"]);
 
   if (!catastralKey) {
     const error = new Error("No se encontro una columna de clave catastral en el Excel.");
@@ -146,7 +173,10 @@ const parseWorkbookRows = (buffer) => {
   const normalizedRows = rows
     .map((row) => ({
       clave_catastral: row[catastralKey],
-      inquilino: inquilinoKey ? row[inquilinoKey] : ""
+      inquilino: inquilinoKey ? row[inquilinoKey] : "",
+      nombre: nombreKey ? row[nombreKey] : "",
+      valor: valorKey ? row[valorKey] : 0,
+      intereses: interesesKey ? row[interesesKey] : 0
     }))
     .filter((row) => String(row.clave_catastral ?? "").trim());
 
