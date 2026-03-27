@@ -2274,7 +2274,7 @@ textarea {
 .lookup-match-grid {
   display: grid;
   gap: 0.6rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
 .lookup-match-field {
@@ -2294,6 +2294,11 @@ textarea {
 .lookup-match-total {
   font-size: 0.95rem !important;
   color: #123b5d;
+}
+
+.lookup-match-amount {
+  font-size: 0.88rem !important;
+  color: #24425d;
 }
 
 .lookup-match-status {

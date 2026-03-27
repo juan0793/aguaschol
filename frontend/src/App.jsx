@@ -138,6 +138,12 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 2
   }).format(value);
 
+const formatLookupAmount = (value) => {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) return "--";
+  return formatCurrency(numeric);
+};
+
 const getLookupTotalMeta = (value) => {
   const numeric = Number(value ?? 0);
   if (!Number.isFinite(numeric)) {
@@ -3298,7 +3304,19 @@ function App() {
                                   <span>{match.nombre || "--"}</span>
                                 </div>
                                 <div className="lookup-match-field">
-                                  <span className="lookup-match-label">Total</span>
+                                  <span className="lookup-match-label">Sin interes</span>
+                                  <strong className="lookup-match-amount">
+                                    {formatLookupAmount(match.valor)}
+                                  </strong>
+                                </div>
+                                <div className="lookup-match-field">
+                                  <span className="lookup-match-label">Interes</span>
+                                  <strong className="lookup-match-amount">
+                                    {formatLookupAmount(match.intereses)}
+                                  </strong>
+                                </div>
+                                <div className="lookup-match-field">
+                                  <span className="lookup-match-label">Con interes</span>
                                   <strong className={`lookup-match-total ${totalMeta.tone}`}>
                                     {totalMeta.text}
                                   </strong>
