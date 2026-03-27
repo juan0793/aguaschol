@@ -2313,34 +2313,36 @@ function App() {
         ) : null}
         <div className="login-layout">
           <section className="login-intro-card">
+            <div className="login-intro-orb login-intro-orb-primary" />
+            <div className="login-intro-orb login-intro-orb-secondary" />
             <div className="login-intro-topline">
-              <span className="hero-topline-item">
-                <Icon name="records" />
-                Sistema operativo
-              </span>
-              <span className="hero-topline-item">
+              <span className="login-chip">
                 <Icon name="history" />
-                Trazabilidad activa
+                Operacion trazable
+              </span>
+              <span className="login-chip">
+                <Icon name="auth" />
+                Acceso protegido
               </span>
             </div>
-            <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
-            <p className="eyebrow">Aguas de Choluteca</p>
-            <h1>Control de inmuebles clandestinos</h1>
+            <div className="login-brand">
+              <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
+              <div>
+                <p className="eyebrow">Aguas de Choluteca</p>
+                <h1>Control de inmuebles clandestinos</h1>
+              </div>
+            </div>
             <p className="lead">
-              Una sola plataforma para registrar fichas, emitir avisos y dar seguimiento a la actividad del sistema.
+              Registro, consulta y seguimiento en una interfaz ligera para trabajo de campo y oficina.
             </p>
-            <div className="login-intro-grid">
-              <div className="login-intro-stat">
-                <span>Fichas</span>
-                <strong>Registro rapido</strong>
+            <div className="login-intro-notes">
+              <div className="login-intro-note">
+                <strong>Fichas y avisos</strong>
+                <span>Consulta y captura en un solo flujo.</span>
               </div>
-              <div className="login-intro-stat">
-                <span>Usuarios</span>
-                <strong>Accesos controlados</strong>
-              </div>
-              <div className="login-intro-stat">
-                <span>Historial</span>
-                <strong>Eventos auditables</strong>
+              <div className="login-intro-note">
+                <strong>Bitacora activa</strong>
+                <span>Cada accion queda asociada al usuario.</span>
               </div>
             </div>
           </section>
@@ -2378,7 +2380,7 @@ function App() {
             </form>
             <div className="login-footnote">
               <span className="login-footnote-line" />
-              <p>Acceso protegido para usuarios autorizados.</p>
+              <p>Solo usuarios autorizados pueden continuar.</p>
             </div>
           </div>
         </div>
