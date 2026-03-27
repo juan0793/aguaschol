@@ -309,3 +309,23 @@ export const searchClaveCatastral = async (value) => {
     matches
   };
 };
+
+export const exportClavePadronWorkbook = async () => {
+  const workbook = XLSX.utils.book_new();
+  const rows = masterRecords.map((item) => ({
+    catastral: item.clave_catastral,
+    abonado: item.nombre ?? "",
+    inquilino: item.inquilino ?? "",
+    valor: Number(item.valor ?? 0),
+    intereses: Number(item.intereses ?? 0),
+    total: Number(item.total ?? 0)
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, worksheet, masterMeta.sheet_name || "padron");
+
+  return {
+    fileName: `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
+  };
+};

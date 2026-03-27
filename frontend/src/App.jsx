@@ -1576,6 +1576,33 @@ function App() {
     }
   };
 
+  const handleDownloadPadron = async () => {
+    try {
+      const response = await apiFetch("/claves/download");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "No se pudo descargar el padron maestro.");
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fallbackName = `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+
+      link.href = downloadUrl;
+      link.download = fileNameMatch?.[1] || fallbackName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      showAlert("Descarga del padron iniciada.");
+    } catch (error) {
+      showAlert(error.message || "No se pudo descargar el padron maestro.");
+    }
+  };
+
   const handleCreateUser = async (event) => {
     event.preventDefault();
     setCreatingUser(true);
@@ -3307,6 +3334,10 @@ function App() {
                 <button type="submit" disabled={uploadingPadron}>
                   <Icon name="refresh" />
                   {uploadingPadron ? "Actualizando..." : "Actualizar padron maestro"}
+                </button>
+                <button type="button" className="button-secondary" onClick={handleDownloadPadron}>
+                  <Icon name="records" />
+                  Descargar Excel actual
                 </button>
                 <button
                   type="button"

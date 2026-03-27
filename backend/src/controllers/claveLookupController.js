@@ -1,4 +1,9 @@
-import { getClaveLookupMeta, searchClaveCatastral, uploadClavePadron } from "../services/claveLookupService.js";
+import {
+  exportClavePadronWorkbook,
+  getClaveLookupMeta,
+  searchClaveCatastral,
+  uploadClavePadron
+} from "../services/claveLookupService.js";
 
 export const searchClave = async (req, res, next) => {
   try {
@@ -34,6 +39,17 @@ export const uploadPadron = async (req, res, next) => {
       }
     );
     return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const downloadPadron = async (_req, res, next) => {
+  try {
+    const exportResult = await exportClavePadronWorkbook();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${exportResult.fileName}"`);
+    return res.send(exportResult.buffer);
   } catch (error) {
     return next(error);
   }
