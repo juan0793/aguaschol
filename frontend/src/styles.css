@@ -92,8 +92,10 @@ body {
   place-items: center;
   padding: 1.2rem;
   background:
-    radial-gradient(circle at top left, rgba(37, 199, 240, 0.16), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(21, 118, 209, 0.12), transparent 28%);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at top left, rgba(37, 199, 240, 0.2), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(21, 118, 209, 0.12), transparent 20%),
+    radial-gradient(circle at bottom right, rgba(21, 118, 209, 0.14), transparent 28%);
 }
 
 .login-layout {
@@ -111,10 +113,27 @@ body {
   padding: 1.5rem;
   border-radius: 30px;
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 248, 255, 0.95) 100%);
+    linear-gradient(155deg, rgba(255, 255, 255, 0.93) 0%, rgba(239, 247, 255, 0.9) 48%, rgba(228, 242, 255, 0.94) 100%);
   border: 1px solid rgba(21, 118, 209, 0.12);
   box-shadow: 0 18px 46px rgba(21, 118, 209, 0.08);
   backdrop-filter: blur(14px);
+}
+
+.login-intro-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.15) 0,
+      rgba(255, 255, 255, 0.15) 1px,
+      transparent 1px,
+      transparent 18px
+    );
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .login-intro-orb {
@@ -130,6 +149,7 @@ body {
   width: 160px;
   height: 160px;
   background: radial-gradient(circle, rgba(37, 199, 240, 0.2), rgba(37, 199, 240, 0));
+  animation: loginFloat 12s ease-in-out infinite;
 }
 
 .login-intro-orb-secondary {
@@ -139,6 +159,7 @@ body {
   height: 200px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(21, 118, 209, 0.14), transparent 70%);
+  animation: loginFloat 15s ease-in-out infinite reverse;
 }
 
 .login-intro-topline {
@@ -191,6 +212,22 @@ body {
   text-align: left;
   align-self: center;
   backdrop-filter: blur(16px);
+  position: relative;
+}
+
+.login-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(145deg, rgba(37, 199, 240, 0.24), rgba(21, 118, 209, 0.08), rgba(255, 255, 255, 0.3));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .login-card-head {
@@ -206,6 +243,7 @@ body {
   height: 78px;
   object-fit: contain;
   margin: 0;
+  filter: drop-shadow(0 12px 18px rgba(21, 118, 209, 0.14));
 }
 
 .login-form {
@@ -213,6 +251,63 @@ body {
   gap: 0.8rem;
   margin-top: 0.95rem;
   text-align: left;
+}
+
+.login-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.login-form label span {
+  font-size: 0.84rem;
+  color: #36526b;
+  font-weight: 600;
+}
+
+.login-form input {
+  min-height: 52px;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(245, 250, 255, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: rgba(21, 118, 209, 0.32);
+  box-shadow:
+    0 0 0 4px rgba(21, 118, 209, 0.1),
+    0 12px 24px rgba(21, 118, 209, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 247, 255, 0.98));
+  transform: translateY(-1px);
+}
+
+.login-form button {
+  min-height: 50px;
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, #1f88e2 0%, #156bc0 42%, #0d4d86 100%);
+}
+
+.login-form button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 18%, rgba(255, 255, 255, 0.24) 50%, transparent 82%);
+  transform: translateX(-130%);
+  transition: transform 0.45s ease;
+}
+
+.login-form button:hover::after {
+  transform: translateX(130%);
 }
 
 .login-intro-notes {
@@ -248,6 +343,17 @@ body {
   margin-top: 0.95rem;
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+@keyframes loginFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
 }
 
 .login-footnote-line {
