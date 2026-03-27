@@ -700,6 +700,7 @@ function App() {
   const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
   const [uploadingPadron, setUploadingPadron] = useState(false);
+  const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -1077,6 +1078,7 @@ function App() {
 
   const loadPadronMeta = async () => {
     if (!isAuthenticated || !isAdmin) return;
+    setLoadingPadronMeta(true);
 
     try {
       const response = await apiFetch("/claves/meta");
@@ -1096,6 +1098,8 @@ function App() {
       setPadronImportSummary(data.meta?.last_import_summary ?? null);
     } catch (error) {
       showAlert(error.message || "No fue posible cargar la informacion del padron.");
+    } finally {
+      setLoadingPadronMeta(false);
     }
   };
 
@@ -3359,6 +3363,7 @@ function App() {
                   <p><strong>Archivo:</strong> {padronMeta?.file_name || "Sin registro"}</p>
                   <p><strong>Hoja:</strong> {padronMeta?.sheet_name || "--"}</p>
                   <p><strong>Ultima actualizacion:</strong> {formatDateTime(padronMeta?.updated_at)}</p>
+                  <p><strong>Estado actual:</strong> {loadingPadronMeta ? "Consultando..." : "Sincronizado"}</p>
                   <p className="helper-text">`Cambiadas` compara la misma clave contra el padrón anterior y detecta cambios en el nombre asociado.</p>
                   <div className="padron-summary-strip">
                     <div className="log-summary-card">
@@ -3408,9 +3413,10 @@ function App() {
                     setPadronFile(null);
                     loadPadronMeta();
                   }}
+                  disabled={loadingPadronMeta}
                 >
                   <Icon name="records" />
-                  Ver estado actual
+                  {loadingPadronMeta ? "Consultando..." : "Ver estado actual"}
                 </button>
               </div>
             </form>
