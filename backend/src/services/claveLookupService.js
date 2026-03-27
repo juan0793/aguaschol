@@ -170,19 +170,24 @@ const parseWorkbookRows = (buffer) => {
     throw error;
   }
 
-  const normalizedRows = rows
+  const rowsWithClave = rows.filter((row) => String(row[catastralKey] ?? "").trim());
+  const discardedMissingClave = rows.length - rowsWithClave.length;
+  const normalizedRows = rowsWithClave
     .map((row) => ({
       clave_catastral: row[catastralKey],
       inquilino: inquilinoKey ? row[inquilinoKey] : "",
       nombre: nombreKey ? row[nombreKey] : "",
       valor: valorKey ? row[valorKey] : 0,
       intereses: interesesKey ? row[interesesKey] : 0
-    }))
-    .filter((row) => String(row.clave_catastral ?? "").trim());
+    }));
 
   return {
     sheetName: firstSheetName,
-    rows: normalizeMasterRows(normalizedRows)
+    rows: normalizeMasterRows(normalizedRows),
+    stats: {
+      source_rows: rows.length,
+      discarded_missing_clave: discardedMissingClave
+    }
   };
 };
 
@@ -221,7 +226,7 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
     throw error;
   }
 
-  const { sheetName, rows } = parseWorkbookRows(buffer);
+  const { sheetName, rows, stats } = parseWorkbookRows(buffer);
 
   if (!rows.length) {
     const error = new Error("El archivo no contiene claves catastrales validas.");
@@ -237,7 +242,11 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
     sheet_name: sheetName,
     total_records: rows.length,
     updated_at: new Date().toISOString(),
-    last_import_summary: importSummary
+    last_import_summary: {
+      ...importSummary,
+      discarded_missing_clave: stats?.discarded_missing_clave ?? 0,
+      source_rows: stats?.source_rows ?? rows.length
+    }
   };
   writeJsonFile(maestroMetaPath, masterMeta);
   masterRecords = rows;
@@ -253,7 +262,7 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
         file_name: masterMeta.file_name,
         sheet_name: masterMeta.sheet_name,
         total_records: masterMeta.total_records,
-        import_summary: importSummary
+        import_summary: masterMeta.last_import_summary
       }
     });
   } catch {
@@ -263,7 +272,7 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
   return {
     ok: true,
     meta: masterMeta,
-    import_summary: importSummary
+    import_summary: masterMeta.last_import_summary
   };
 };
 
