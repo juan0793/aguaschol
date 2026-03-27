@@ -2289,6 +2289,12 @@ textarea {
   color: #123b5d;
 }
 
+.lookup-match-total.is-zero {
+  color: #466581;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.04em;
+}
+
 .record-history-sheet {
   margin-top: 1rem;
 }

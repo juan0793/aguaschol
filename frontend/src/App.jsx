@@ -133,6 +133,7 @@ const formatDateTime = (value) => {
 const formatLookupTotal = (value) => {
   const numeric = Number(value ?? 0);
   if (!Number.isFinite(numeric)) return "--";
+  if (numeric === 0) return "Sin saldo";
   return new Intl.NumberFormat("es-HN", {
     style: "currency",
     currency: "HNL",
@@ -3229,7 +3230,9 @@ function App() {
                             </div>
                             <div className="lookup-match-field">
                               <span className="lookup-match-label">Total</span>
-                              <strong className="lookup-match-total">{formatLookupTotal(match.total)}</strong>
+                              <strong className={`lookup-match-total ${Number(match.total ?? 0) === 0 ? "is-zero" : ""}`}>
+                                {formatLookupTotal(match.total)}
+                              </strong>
                             </div>
                           </div>
                         </article>
