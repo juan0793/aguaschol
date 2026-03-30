@@ -68,6 +68,24 @@ CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS map_points (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  point_type VARCHAR(60) NOT NULL DEFAULT 'caja_registro',
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  accuracy_meters DECIMAL(8,2) NULL DEFAULT NULL,
+  description TEXT NOT NULL,
+  reference_note VARCHAR(255) NOT NULL DEFAULT '',
+  created_by INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_map_points_creator
+    FOREIGN KEY (created_by) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  KEY idx_map_points_created_at (created_at),
+  KEY idx_map_points_creator (created_by)
+);
+
 INSERT INTO inmuebles_clandestinos (
   clave_catastral,
   abonado,

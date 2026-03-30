@@ -9,6 +9,7 @@ import claveLookupRoutes from "./routes/claveLookupRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/authRoutes.js";
 import inmuebleRoutes from "./routes/inmuebleRoutes.js";
+import mapPointRoutes from "./routes/mapPointRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
@@ -73,6 +74,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/claves", requireAuth, claveLookupRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
+app.use("/api/map-points", requireAuth, mapPointRoutes);
 app.use("/api/users", requireAuth, requireAdmin, userRoutes);
 
 app.use(errorHandler);

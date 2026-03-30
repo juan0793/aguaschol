@@ -315,6 +315,16 @@ const ensureSchema = async () => {
       indexName: "idx_inmuebles_archived_at",
       columns: ["archived_at"]
     });
+    await ensureIndex(admin, {
+      tableName: "map_points",
+      indexName: "idx_map_points_created_at",
+      columns: ["created_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "map_points",
+      indexName: "idx_map_points_creator",
+      columns: ["created_by"]
+    });
   } finally {
     await admin.end();
   }

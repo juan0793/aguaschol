@@ -13,6 +13,7 @@
     "start": "node ./server.js"
   },
   "dependencies": {
+    "maplibre-gl": "^5.21.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

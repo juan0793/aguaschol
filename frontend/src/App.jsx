@@ -6,6 +6,41 @@ const API_URL = (rawApiBase ? (rawApiBase.endsWith("/api") ? rawApiBase : `${raw
 const FILES_URL = (import.meta.env.VITE_FILES_URL?.trim() || rawApiBase).replace(/\/$/, "");
 const AUTH_STORAGE_KEY = "aguaschol-auth";
 const DRAFT_STORAGE_KEY = "aguaschol-draft";
+const MAP_POINT_TYPES = [
+  { value: "caja_registro", label: "Caja de registro" },
+  { value: "descarga", label: "Descarga" },
+  { value: "pozo", label: "Pozo de visita" },
+  { value: "punto_observado", label: "Punto observado" }
+];
+const MAP_STYLE = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors"
+    }
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm"
+    }
+  ]
+};
+let mapLibraryPromise;
+
+const loadMapLibrary = async () => {
+  if (!mapLibraryPromise) {
+    mapLibraryPromise = Promise.all([import("maplibre-gl"), import("maplibre-gl/dist/maplibre-gl.css")]).then(
+      ([library]) => library.default
+    );
+  }
+
+  return mapLibraryPromise;
+};
 
 const emptyForm = {
   id: null,
@@ -182,6 +217,13 @@ const getLookupTotalMeta = (value) => {
 };
 
 const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
+const formatCoordinate = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toFixed(6) : "--";
+};
+
+const getMapPointTypeLabel = (value) =>
+  MAP_POINT_TYPES.find((option) => option.value === value)?.label ?? "Punto de campo";
 
 const actionLabel = (action) =>
   (
@@ -191,6 +233,8 @@ const actionLabel = (action) =>
       "auth.password_changed": "Contrasena actualizada",
       "user.created": "Usuario creado",
       "padron.updated": "Padron actualizado",
+      "map_point.created": "Punto de campo creado",
+      "map_point.deleted": "Punto de campo eliminado",
       "inmueble.created": "Ficha creada",
       "inmueble.updated": "Ficha actualizada",
       "inmueble.archived": "Ficha archivada",
@@ -213,6 +257,8 @@ const iconPaths = {
     "M14 7V5.5A2.5 2.5 0 0 0 11.5 3h-5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h5a2.5 2.5 0 0 0 2.5-2.5V17M10 12h10m0 0-3-3m3 3-3 3",
   search:
     "M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14m9 3-4.2-4.2",
+  map:
+    "M12 21s7-4.4 7-10a7 7 0 1 0-14 0c0 5.6 7 10 7 10m0-7.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5",
   plus:
     "M12 5v14M5 12h14",
   archive:
@@ -245,6 +291,8 @@ const actionIconName = (action) =>
       "auth.password_changed": "success",
       "user.created": "userCreated",
       "padron.updated": "refresh",
+      "map_point.created": "map",
+      "map_point.deleted": "archive",
       "inmueble.created": "plus",
       "inmueble.updated": "records",
       "inmueble.archived": "archive",
@@ -643,6 +691,11 @@ const urlToDataUrl = async (url) => {
 
 function App() {
   const sheetRef = useRef(null);
+  const mapContainerRef = useRef(null);
+  const mapLibRef = useRef(null);
+  const mapRef = useRef(null);
+  const mapMarkersRef = useRef([]);
+  const mapDraftMarkerRef = useRef(null);
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -696,6 +749,20 @@ function App() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState(null);
   const [lookupFeedback, setLookupFeedback] = useState("");
+  const [mapPoints, setMapPoints] = useState([]);
+  const [loadingMapPoints, setLoadingMapPoints] = useState(false);
+  const [savingMapPoint, setSavingMapPoint] = useState(false);
+  const [locatingUser, setLocatingUser] = useState(false);
+  const [selectedMapPointId, setSelectedMapPointId] = useState(null);
+  const [mapStatus, setMapStatus] = useState("Sincronizado");
+  const [mapDraft, setMapDraft] = useState({
+    latitude: "",
+    longitude: "",
+    accuracy_meters: "",
+    point_type: "caja_registro",
+    description: "",
+    reference: ""
+  });
   const [padronMeta, setPadronMeta] = useState(null);
   const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
@@ -729,8 +796,10 @@ function App() {
   const mustChangePassword = Boolean(session?.user?.force_password_change);
   const passwordModalVisible = isAuthenticated && (mustChangePassword || showPasswordModal);
   const safeRecords = Array.isArray(records) ? records : [];
+  const safeMapPoints = Array.isArray(mapPoints) ? mapPoints : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
+  const selectedMapPoint = safeMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
   const selectedUser =
     safeUsers.find((user) => user.id === selectedUserId) ?? latestUserResult?.user ?? safeUsers[0] ?? null;
   const headerMeta = useMemo(
@@ -768,6 +837,14 @@ function App() {
             title: "Buscar clave catastral",
             lead: "Consulta apartada del modulo de fichas para validar si una clave ya existe en el padron maestro.",
             kicker: "Uso en campo"
+          },
+          map: {
+            panelClass: "hero-panel-records",
+            cardClass: "search-card-records",
+            toplineLabel: "Geolocalizacion operativa",
+            title: "Mapa de campo",
+            lead: "Modulo independiente para ubicar y registrar puntos tecnicos de cajas y descargas en terreno.",
+            kicker: "Trabajo en sitio"
           },
           logs: {
             panelClass: "hero-panel-logs",
@@ -833,6 +910,26 @@ function App() {
       ];
     }
 
+    if (workspaceView === "map") {
+      return [
+        {
+          icon: "map",
+          label: "Puntos guardados",
+          value: String(safeMapPoints.length)
+        },
+        {
+          icon: locatingUser ? "refresh" : "activity",
+          label: "Geolocalizacion",
+          value: locatingUser ? "Buscando" : mapStatus
+        },
+        {
+          icon: selectedMapPoint ? "success" : "map",
+          label: "Seleccion",
+          value: selectedMapPoint ? getMapPointTypeLabel(selectedMapPoint.point_type) : "Sin punto"
+        }
+      ];
+    }
+
     return [
       {
         icon: "records",
@@ -850,7 +947,19 @@ function App() {
         value: draftForm ? "Disponible" : "Sin cambios"
       }
     ];
-  }, [draftForm, form.id, lookupResult, padronMeta, safeRecords.length, uploadingPadron, workspaceView]);
+  }, [
+    draftForm,
+    form.id,
+    locatingUser,
+    lookupResult,
+    mapStatus,
+    padronMeta,
+    safeMapPoints.length,
+    safeRecords.length,
+    selectedMapPoint,
+    uploadingPadron,
+    workspaceView
+  ]);
   const isDirty = useMemo(() => {
     const baseline = form.id
       ? comparableFormShape(safeRecords.find((record) => record.id === form.id) ?? emptyForm)
@@ -903,6 +1012,17 @@ function App() {
     setLookupQuery("");
     setLookupResult(null);
     setLookupFeedback("");
+    setMapPoints([]);
+    setSelectedMapPointId(null);
+    setMapStatus("Sincronizado");
+    setMapDraft({
+      latitude: "",
+      longitude: "",
+      accuracy_meters: "",
+      point_type: "caja_registro",
+      description: "",
+      reference: ""
+    });
     setPadronMeta(null);
     setPadronImportSummary(null);
     setPadronFile(null);
@@ -1103,6 +1223,45 @@ function App() {
     }
   };
 
+  const loadMapPoints = async ({ silent = false } = {}) => {
+    if (!isAuthenticated) return;
+
+    if (!silent) {
+      setLoadingMapPoints(true);
+    }
+
+    try {
+      const response = await apiFetch("/map-points");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar los puntos del mapa.");
+      }
+
+      const nextPoints = Array.isArray(data) ? data : [];
+      setMapPoints(nextPoints);
+      setSelectedMapPointId((current) =>
+        nextPoints.some((point) => point.id === current) ? current : nextPoints[0]?.id ?? null
+      );
+      setMapStatus("Sincronizado");
+    } catch (error) {
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar los puntos del mapa.");
+      }
+      setMapStatus("Sin conexion");
+    } finally {
+      if (!silent) {
+        setLoadingMapPoints(false);
+      }
+    }
+  };
+
   const loadAuditLogs = async () => {
     if (!isAuthenticated || !isAdmin) return;
     setLoadingLogs(true);
@@ -1187,10 +1346,39 @@ function App() {
   }, [auditFilters, isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
-    if (isAuthenticated && !isAdmin && !["records", "lookup"].includes(workspaceView)) {
+    if (isAuthenticated && workspaceView === "map") {
+      loadMapPoints();
+    }
+  }, [isAuthenticated, workspaceView]);
+
+  useEffect(() => {
+    if (isAuthenticated && !isAdmin && !["records", "lookup", "map"].includes(workspaceView)) {
       setWorkspaceView("records");
     }
   }, [isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
+    if (!isAuthenticated || workspaceView !== "map") {
+      return undefined;
+    }
+
+    const refreshMapPoints = () => {
+      if (document.visibilityState === "visible") {
+        loadMapPoints({ silent: true });
+      }
+    };
+
+    const handleWindowFocus = () => refreshMapPoints();
+    const intervalId = window.setInterval(refreshMapPoints, 12000);
+    document.addEventListener("visibilitychange", refreshMapPoints);
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshMapPoints);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [isAuthenticated, workspaceView]);
 
   useEffect(() => {
     if (!isAdmin && recordView === "archived") {
@@ -1230,6 +1418,108 @@ function App() {
 
     return () => window.clearTimeout(timer);
   }, [isAuthenticated, lookupQuery, workspaceView]);
+
+  useEffect(() => {
+    if (workspaceView !== "map" || !mapContainerRef.current) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    loadMapLibrary().then((maplibregl) => {
+      if (cancelled || mapRef.current) {
+        return;
+      }
+
+      mapLibRef.current = maplibregl;
+      const map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: MAP_STYLE,
+        center: [-87.1889, 13.3017],
+        zoom: 14
+      });
+
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
+      map.on("click", (event) => {
+        setMapDraft((current) => ({
+          ...current,
+          latitude: Number(event.lngLat.lat).toFixed(6),
+          longitude: Number(event.lngLat.lng).toFixed(6),
+          accuracy_meters: current.accuracy_meters || ""
+        }));
+      });
+
+      mapRef.current = map;
+      window.setTimeout(() => map.resize(), 80);
+    });
+
+    const resizeTimer = window.setTimeout(() => {
+      mapRef.current?.resize();
+    }, 120);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(resizeTimer);
+    };
+  }, [workspaceView]);
+
+  useEffect(() => {
+    if (!mapRef.current || !mapLibRef.current) {
+      return;
+    }
+
+    mapMarkersRef.current.forEach((marker) => marker.remove());
+    mapMarkersRef.current = safeMapPoints.map((point) => {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = `map-pin ${point.id === selectedMapPointId ? "is-active" : ""}`;
+      element.innerHTML = "<span></span>";
+      element.addEventListener("click", () => {
+        setSelectedMapPointId(point.id);
+      });
+
+      return new mapLibRef.current.Marker({ element, anchor: "bottom" })
+        .setLngLat([Number(point.longitude), Number(point.latitude)])
+        .addTo(mapRef.current);
+    });
+  }, [safeMapPoints, selectedMapPointId]);
+
+  useEffect(() => {
+    if (!mapRef.current || !mapLibRef.current) {
+      return;
+    }
+
+    const latitude = Number(mapDraft.latitude);
+    const longitude = Number(mapDraft.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      mapDraftMarkerRef.current?.remove();
+      mapDraftMarkerRef.current = null;
+      return;
+    }
+
+    if (!mapDraftMarkerRef.current) {
+      const element = document.createElement("div");
+      element.className = "map-draft-pin";
+      mapDraftMarkerRef.current = new mapLibRef.current.Marker({ element, anchor: "bottom" })
+        .setLngLat([longitude, latitude])
+        .addTo(mapRef.current);
+    } else {
+      mapDraftMarkerRef.current.setLngLat([longitude, latitude]);
+    }
+  }, [mapDraft.latitude, mapDraft.longitude]);
+
+  useEffect(() => {
+    if (!mapRef.current || !selectedMapPoint) {
+      return;
+    }
+
+    mapRef.current.easeTo({
+      center: [Number(selectedMapPoint.longitude), Number(selectedMapPoint.latitude)],
+      zoom: Math.max(mapRef.current.getZoom(), 16),
+      duration: 700
+    });
+  }, [selectedMapPoint]);
 
   useEffect(() => {
     if (form.id || !hasDraftContent(form)) {
@@ -1350,6 +1640,148 @@ function App() {
       setLookupFeedback(error.message || "No fue posible consultar la clave.");
     } finally {
       setLookupLoading(false);
+    }
+  };
+
+  const handleMapDraftChange = (event) => {
+    const { name, value } = event.target;
+    setMapDraft((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleLocateUser = () => {
+    if (!navigator.geolocation) {
+      showAlert("Este dispositivo no soporta geolocalizacion.");
+      setMapStatus("Sin GPS");
+      return;
+    }
+
+    setLocatingUser(true);
+    setMapStatus("Buscando");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nextDraft = {
+          latitude: Number(position.coords.latitude).toFixed(6),
+          longitude: Number(position.coords.longitude).toFixed(6),
+          accuracy_meters: Math.round(position.coords.accuracy || 0),
+          point_type: mapDraft.point_type,
+          description: mapDraft.description,
+          reference: mapDraft.reference
+        };
+
+        setMapDraft(nextDraft);
+        setMapStatus("GPS listo");
+        setLocatingUser(false);
+
+        if (mapRef.current) {
+          mapRef.current.easeTo({
+            center: [Number(nextDraft.longitude), Number(nextDraft.latitude)],
+            zoom: 17,
+            duration: 800
+          });
+        }
+      },
+      (error) => {
+        setLocatingUser(false);
+        setMapStatus("Sin permiso");
+        showAlert(
+          error.code === error.PERMISSION_DENIED
+            ? "El navegador bloqueo la ubicacion. Habilita el permiso para usar el mapa."
+            : "No fue posible obtener la ubicacion actual."
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  const resetMapDraft = () => {
+    setMapDraft({
+      latitude: "",
+      longitude: "",
+      accuracy_meters: "",
+      point_type: "caja_registro",
+      description: "",
+      reference: ""
+    });
+  };
+
+  const handleSaveMapPoint = async (event) => {
+    event.preventDefault();
+
+    const latitude = Number(mapDraft.latitude);
+    const longitude = Number(mapDraft.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      showAlert("Define la ubicacion del punto usando GPS o tocando el mapa.");
+      return;
+    }
+
+    setSavingMapPoint(true);
+
+    try {
+      const response = await apiFetch("/map-points", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          latitude,
+          longitude,
+          accuracy_meters: Number(mapDraft.accuracy_meters) || null,
+          point_type: mapDraft.point_type,
+          description: mapDraft.description,
+          reference: mapDraft.reference
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible guardar el punto.");
+      }
+
+      setMapPoints((current) => [data, ...current]);
+      setSelectedMapPointId(data.id);
+      setMapStatus("Punto guardado");
+      showAlert("Punto de campo guardado correctamente.");
+      resetMapDraft();
+    } catch (error) {
+      showAlert(error.message || "No fue posible guardar el punto.");
+    } finally {
+      setSavingMapPoint(false);
+    }
+  };
+
+  const handleDeleteMapPoint = async (pointId) => {
+    if (!isAdmin) {
+      showAlert("Solo administradores pueden eliminar puntos guardados.");
+      return;
+    }
+
+    try {
+      const response = await apiFetch(`/map-points/${pointId}`, {
+        method: "DELETE"
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No fue posible eliminar el punto.");
+      }
+
+      setMapPoints((current) => current.filter((point) => point.id !== pointId));
+      setSelectedMapPointId((current) => (current === pointId ? null : current));
+      showAlert("Punto eliminado del mapa.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible eliminar el punto.");
     }
   };
 
@@ -2592,6 +3024,14 @@ function App() {
               <Icon name="search" />
               Buscar clave
             </button>
+            <button
+              type="button"
+              className={workspaceView === "map" ? "button-secondary active-filter" : "button-secondary"}
+              onClick={() => setWorkspaceView("map")}
+            >
+              <Icon name="map" />
+              Mapa de campo
+            </button>
             {isAdmin ? (
               <button
                 type="button"
@@ -2660,6 +3100,30 @@ function App() {
                 `00-00-00-00`.
               </p>
               <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contrasena
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+              </div>
+            </div>
+          ) : workspaceView === "map" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                Modulo independiente para geolocalizar puntos tecnicos en campo y dejar registro de cajas de aguas negras.
+              </p>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
+                  <Icon name="map" />
+                  {locatingUser ? "Ubicando..." : "Mi ubicacion"}
+                </button>
+                <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
+                  <Icon name="refresh" />
+                  {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
+                </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
                   Cambiar contrasena
@@ -3422,6 +3886,146 @@ function App() {
                 </button>
               </div>
             </form>
+          </section>
+        </main>
+      ) : workspaceView === "map" ? (
+        <main className="map-layout no-print">
+          <section className="map-shell">
+            <article className="map-stage-card">
+              <div className="lookup-card-head map-card-head">
+                <div>
+                  <p className="sheet-kicker">Geolocalizacion de campo</p>
+                  <h2><Icon name="map" className="title-icon" />Mapa de campo</h2>
+                </div>
+                <span className="panel-pill">{safeMapPoints.length} puntos</span>
+              </div>
+              <div className="map-toolbar">
+                <span className={`map-status-chip ${mapStatus === "Sin conexion" ? "is-offline" : ""}`}>
+                  <Icon name={mapStatus === "GPS listo" ? "success" : mapStatus === "Sin conexion" ? "activity" : "map"} />
+                  {mapStatus}
+                </span>
+                <span className="helper-text">Toca el mapa para fijar coordenadas o usa tu ubicacion actual.</span>
+              </div>
+              <div ref={mapContainerRef} className="map-canvas" />
+            </article>
+
+            <aside className="map-side-panel">
+              <form className="map-form-card" onSubmit={handleSaveMapPoint}>
+                <div className="lookup-card-head map-card-head">
+                  <div>
+                    <p className="sheet-kicker">Nuevo punto</p>
+                    <h3>Registrar ubicacion</h3>
+                  </div>
+                  <button type="button" className="button-secondary" onClick={resetMapDraft}>
+                    <Icon name="refresh" />
+                    Limpiar
+                  </button>
+                </div>
+
+                <div className="map-coordinates-grid">
+                  <label>
+                    <span>Latitud</span>
+                    <input name="latitude" value={mapDraft.latitude} onChange={handleMapDraftChange} placeholder="13.301700" />
+                  </label>
+                  <label>
+                    <span>Longitud</span>
+                    <input name="longitude" value={mapDraft.longitude} onChange={handleMapDraftChange} placeholder="-87.188900" />
+                  </label>
+                  <label>
+                    <span>Precision (m)</span>
+                    <input
+                      name="accuracy_meters"
+                      value={mapDraft.accuracy_meters}
+                      onChange={handleMapDraftChange}
+                      inputMode="decimal"
+                      placeholder="5"
+                    />
+                  </label>
+                  <label>
+                    <span>Tipo de punto</span>
+                    <select name="point_type" value={mapDraft.point_type} onChange={handleMapDraftChange}>
+                      {MAP_POINT_TYPES.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label>
+                  <span>Referencia</span>
+                  <input
+                    name="reference"
+                    value={mapDraft.reference}
+                    onChange={handleMapDraftChange}
+                    placeholder="Frente a poste, esquina noroeste, casa verde..."
+                  />
+                </label>
+                <label>
+                  <span>Descripcion tecnica</span>
+                  <textarea
+                    name="description"
+                    value={mapDraft.description}
+                    onChange={handleMapDraftChange}
+                    rows="4"
+                    placeholder="Detalle de la caja, descarga o punto observado."
+                  />
+                </label>
+                <div className="map-form-actions">
+                  <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
+                    <Icon name="map" />
+                    {locatingUser ? "Ubicando..." : "Usar mi ubicacion"}
+                  </button>
+                  <button type="submit" disabled={savingMapPoint}>
+                    <Icon name="plus" />
+                    {savingMapPoint ? "Guardando..." : "Guardar punto"}
+                  </button>
+                </div>
+              </form>
+
+              <article className="map-list-card">
+                <div className="lookup-card-head map-card-head">
+                  <div>
+                    <p className="sheet-kicker">Registro tecnico</p>
+                    <h3>Puntos guardados</h3>
+                  </div>
+                  <span className="panel-pill">{safeMapPoints.length}</span>
+                </div>
+                {loadingMapPoints ? <p className="helper-text">Cargando puntos...</p> : null}
+                <div className="map-point-list">
+                  {safeMapPoints.length ? (
+                    safeMapPoints.map((point) => (
+                      <article
+                        key={point.id}
+                        className={`map-point-card ${selectedMapPointId === point.id ? "is-active" : ""}`}
+                      >
+                        <button type="button" className="map-point-main" onClick={() => setSelectedMapPointId(point.id)}>
+                          <div className="map-point-top">
+                            <strong>{getMapPointTypeLabel(point.point_type)}</strong>
+                            <span className="map-point-meta">{formatDateTime(point.created_at)}</span>
+                          </div>
+                          <p>{point.reference || point.description || "Sin referencia adicional."}</p>
+                          <div className="map-point-coords">
+                            <span>{formatCoordinate(point.latitude)}</span>
+                            <span>{formatCoordinate(point.longitude)}</span>
+                            <span>{point.accuracy_meters ? `±${point.accuracy_meters} m` : "Sin precision"}</span>
+                          </div>
+                        </button>
+                        {isAdmin ? (
+                          <button type="button" className="record-quick-chip" onClick={() => handleDeleteMapPoint(point.id)}>
+                            Eliminar
+                          </button>
+                        ) : null}
+                      </article>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <h3>Sin puntos aun</h3>
+                      <p>Usa el GPS o toca el mapa para comenzar a registrar ubicaciones tecnicas.</p>
+                    </div>
+                  )}
+                </div>
+              </article>
+            </aside>
           </section>
         </main>
       ) : (
