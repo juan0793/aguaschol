@@ -229,6 +229,8 @@ const formatCoordinate = (value) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric.toFixed(6) : "--";
 };
+const buildExternalMapUrl = (latitude, longitude) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
 
 const getMapPointTypeLabel = (value) =>
   MAP_POINT_TYPES.find((option) => option.value === value)?.label ?? "Punto de campo";
@@ -267,6 +269,8 @@ const iconPaths = {
     "M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14m9 3-4.2-4.2",
   map:
     "M12 21s7-4.4 7-10a7 7 0 1 0-14 0c0 5.6 7 10 7 10m0-7.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5",
+  copy:
+    "M9 9h9v11H9zM6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1",
   plus:
     "M12 5v14M5 12h14",
   archive:
@@ -1793,6 +1797,23 @@ function App() {
       showAlert("Punto eliminado del mapa.");
     } catch (error) {
       showAlert(error.message || "No fue posible eliminar el punto.");
+    }
+  };
+
+  const handleOpenPointInMaps = (point, event) => {
+    event?.stopPropagation();
+    const url = buildExternalMapUrl(point.latitude, point.longitude);
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleCopyCoordinates = async (point, event) => {
+    event?.stopPropagation();
+
+    try {
+      await navigator.clipboard.writeText(`${formatCoordinate(point.latitude)}, ${formatCoordinate(point.longitude)}`);
+      showAlert("Coordenadas copiadas.");
+    } catch {
+      showAlert("No fue posible copiar las coordenadas.");
     }
   };
 
@@ -3997,6 +4018,36 @@ function App() {
                 </div>
               </form>
 
+              {selectedMapPoint ? (
+                <article className="map-detail-card">
+                  <div className="lookup-card-head map-card-head">
+                    <div>
+                      <p className="sheet-kicker">Punto seleccionado</p>
+                      <h3>{getMapPointTypeLabel(selectedMapPoint.point_type)}</h3>
+                    </div>
+                    <span className="panel-pill">#{selectedMapPoint.id}</span>
+                  </div>
+                  <p className="map-detail-copy">
+                    {selectedMapPoint.reference_note || selectedMapPoint.description || "Sin referencia adicional."}
+                  </p>
+                  <div className="map-point-coords">
+                    <span>{formatCoordinate(selectedMapPoint.latitude)}</span>
+                    <span>{formatCoordinate(selectedMapPoint.longitude)}</span>
+                    <span>{selectedMapPoint.accuracy_meters ? `±${selectedMapPoint.accuracy_meters} m` : "Sin precision"}</span>
+                  </div>
+                  <div className="map-point-actions">
+                    <button type="button" className="button-secondary" onClick={(event) => handleOpenPointInMaps(selectedMapPoint, event)}>
+                      <Icon name="map" />
+                      Ver en Maps
+                    </button>
+                    <button type="button" className="button-secondary" onClick={(event) => handleCopyCoordinates(selectedMapPoint, event)}>
+                      <Icon name="copy" />
+                      Copiar coords
+                    </button>
+                  </div>
+                </article>
+              ) : null}
+
               <article className="map-list-card">
                 <div className="lookup-card-head map-card-head">
                   <div>
@@ -4024,18 +4075,26 @@ function App() {
                             <strong>{getMapPointTypeLabel(point.point_type)}</strong>
                             <span className="map-point-meta">{formatDateTime(point.created_at)}</span>
                           </div>
-                          <p>{point.reference || point.description || "Sin referencia adicional."}</p>
+                          <p>{point.reference_note || point.description || "Sin referencia adicional."}</p>
                           <div className="map-point-coords">
                             <span>{formatCoordinate(point.latitude)}</span>
                             <span>{formatCoordinate(point.longitude)}</span>
                             <span>{point.accuracy_meters ? `±${point.accuracy_meters} m` : "Sin precision"}</span>
                           </div>
                         </button>
+                        <div className="map-point-actions">
+                          <button type="button" className="record-quick-chip" onClick={(event) => handleOpenPointInMaps(point, event)}>
+                            Ver en Maps
+                          </button>
+                          <button type="button" className="record-quick-chip" onClick={(event) => handleCopyCoordinates(point, event)}>
+                            Copiar coords
+                          </button>
                         {isAdmin ? (
                           <button type="button" className="record-quick-chip" onClick={() => handleDeleteMapPoint(point.id)}>
                             Eliminar
                           </button>
                         ) : null}
+                        </div>
                       </article>
                     ))
                   ) : (

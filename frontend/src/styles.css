@@ -2573,7 +2573,8 @@ textarea {
 
 .map-stage-card,
 .map-form-card,
-.map-list-card {
+.map-list-card,
+.map-detail-card {
   background: var(--panel);
   border: 1px solid rgba(21, 118, 209, 0.14);
   border-radius: 28px;
@@ -2695,6 +2696,18 @@ textarea {
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 255, 0.96));
 }
 
+.map-detail-card {
+  display: grid;
+  gap: 0.8rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(237, 246, 255, 0.95));
+}
+
+.map-detail-copy {
+  margin: 0;
+  color: var(--muted);
+}
+
 .map-form-card label {
   display: grid;
   gap: 0.35rem;
@@ -2774,6 +2787,12 @@ textarea {
   font-size: 0.86rem;
 }
 
+.map-point-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 @media (max-width: 768px) {
   .lookup-layout {
     width: min(100%, calc(100% - 1rem));
@@ -2790,7 +2809,8 @@ textarea {
 
   .map-stage-card,
   .map-form-card,
-  .map-list-card {
+  .map-list-card,
+  .map-detail-card {
     padding: 1rem;
     border-radius: 20px;
   }
@@ -2819,6 +2839,11 @@ textarea {
 
   .map-coordinates-grid,
   .map-form-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .map-point-actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
@@ -2930,7 +2955,8 @@ textarea {
 
   .map-stage-card,
   .map-form-card,
-  .map-list-card {
+  .map-list-card,
+  .map-detail-card {
     padding: 0.85rem;
     border-radius: 18px;
   }
