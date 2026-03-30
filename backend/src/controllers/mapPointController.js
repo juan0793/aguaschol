@@ -1,4 +1,4 @@
-import { createMapPoint, deleteMapPoint, listMapPoints } from "../services/mapPointService.js";
+import { createMapPoint, deleteMapPoint, exportMapPointsCsv, listMapPoints } from "../services/mapPointService.js";
 
 export const listMapPointsHandler = async (_req, res, next) => {
   try {
@@ -25,6 +25,17 @@ export const deleteMapPointHandler = async (req, res, next) => {
       ok: true,
       point
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const exportMapPointsHandler = async (_req, res, next) => {
+  try {
+    const csv = await exportMapPointsCsv();
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="reporte-puntos-campo.csv"');
+    res.send(csv);
   } catch (error) {
     next(error);
   }

@@ -50,6 +50,46 @@ export const listMapPoints = async () => {
   return rows;
 };
 
+const escapeCsvValue = (value) => {
+  const text = value == null ? "" : String(value);
+  if (!/[",\n]/.test(text)) {
+    return text;
+  }
+
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+export const exportMapPointsCsv = async () => {
+  const points = await listMapPoints();
+  const headers = [
+    "fecha",
+    "tipo_punto",
+    "latitud",
+    "longitud",
+    "precision_metros",
+    "referencia",
+    "descripcion",
+    "creado_por"
+  ];
+
+  const lines = points.map((point) =>
+    [
+      point.created_at,
+      point.point_type,
+      point.latitude,
+      point.longitude,
+      point.accuracy_meters ?? "",
+      point.reference_note ?? "",
+      point.description ?? "",
+      point.created_by_name ?? ""
+    ]
+      .map(escapeCsvValue)
+      .join(",")
+  );
+
+  return [headers.join(","), ...lines].join("\n");
+};
+
 export const createMapPoint = async (payload, authUser) => {
   const data = normalizePayload(payload);
   validateCoordinates(data);

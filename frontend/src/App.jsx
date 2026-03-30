@@ -12,6 +12,14 @@ const MAP_POINT_TYPES = [
   { value: "pozo", label: "Pozo de visita" },
   { value: "punto_observado", label: "Punto observado" }
 ];
+const emptyMapDraft = {
+  latitude: "",
+  longitude: "",
+  accuracy_meters: "",
+  point_type: "caja_registro",
+  description: "",
+  reference: ""
+};
 const MAP_STYLE = {
   version: 8,
   sources: {
@@ -755,14 +763,7 @@ function App() {
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
   const [mapStatus, setMapStatus] = useState("Sincronizado");
-  const [mapDraft, setMapDraft] = useState({
-    latitude: "",
-    longitude: "",
-    accuracy_meters: "",
-    point_type: "caja_registro",
-    description: "",
-    reference: ""
-  });
+  const [mapDraft, setMapDraft] = useState(emptyMapDraft);
   const [padronMeta, setPadronMeta] = useState(null);
   const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
@@ -1015,14 +1016,7 @@ function App() {
     setMapPoints([]);
     setSelectedMapPointId(null);
     setMapStatus("Sincronizado");
-    setMapDraft({
-      latitude: "",
-      longitude: "",
-      accuracy_meters: "",
-      point_type: "caja_registro",
-      description: "",
-      reference: ""
-    });
+    setMapDraft(emptyMapDraft);
     setPadronMeta(null);
     setPadronImportSummary(null);
     setPadronFile(null);
@@ -1699,14 +1693,7 @@ function App() {
   };
 
   const resetMapDraft = () => {
-    setMapDraft({
-      latitude: "",
-      longitude: "",
-      accuracy_meters: "",
-      point_type: "caja_registro",
-      description: "",
-      reference: ""
-    });
+    setMapDraft({ ...emptyMapDraft });
   };
 
   const handleSaveMapPoint = async (event) => {
@@ -1758,6 +1745,30 @@ function App() {
       showAlert(error.message || "No fue posible guardar el punto.");
     } finally {
       setSavingMapPoint(false);
+    }
+  };
+
+  const handleDownloadMapReport = async () => {
+    try {
+      const response = await apiFetch("/map-points/export");
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "No fue posible descargar el reporte.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `reporte-puntos-campo-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showAlert("Reporte de puntos descargado.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar el reporte.");
     }
   };
 
@@ -3124,6 +3135,10 @@ function App() {
                   <Icon name="refresh" />
                   {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
                 </button>
+                <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
+                  <Icon name="records" />
+                  Descargar reporte
+                </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
                   Cambiar contrasena
@@ -3988,7 +4003,13 @@ function App() {
                     <p className="sheet-kicker">Registro tecnico</p>
                     <h3>Puntos guardados</h3>
                   </div>
-                  <span className="panel-pill">{safeMapPoints.length}</span>
+                  <div className="map-list-head-actions">
+                    <span className="panel-pill">{safeMapPoints.length}</span>
+                    <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
+                      <Icon name="records" />
+                      Reporte
+                    </button>
+                  </div>
                 </div>
                 {loadingMapPoints ? <p className="helper-text">Cargando puntos...</p> : null}
                 <div className="map-point-list">
