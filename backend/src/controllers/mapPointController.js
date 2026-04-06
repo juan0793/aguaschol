@@ -34,7 +34,7 @@ export const exportMapPointsHandler = async (_req, res, next) => {
   try {
     const csv = await exportMapPointsCsv();
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", 'attachment; filename="reporte-puntos-campo.csv"');
+    res.setHeader("Content-Disposition", 'attachment; filename="reporte-detallado-puntos-campo.csv"');
     res.send(csv);
   } catch (error) {
     next(error);

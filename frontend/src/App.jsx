@@ -1765,12 +1765,12 @@ function App() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `reporte-puntos-campo-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `reporte-detallado-puntos-campo-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      showAlert("Reporte de puntos descargado.");
+      showAlert("Reporte detallado de puntos descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el reporte.");
     }
@@ -3158,7 +3158,7 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
                   <Icon name="records" />
-                  Descargar reporte
+                  Descargar reporte detallado
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
@@ -4058,7 +4058,7 @@ function App() {
                     <span className="panel-pill">{safeMapPoints.length}</span>
                     <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
                       <Icon name="records" />
-                      Reporte
+                      Reporte detallado
                     </button>
                   </div>
                 </div>

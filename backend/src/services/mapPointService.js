@@ -3,6 +3,8 @@ import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 
 const memoryPoints = [];
+const buildMapsUrl = (latitude, longitude) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
 
 const normalizePayload = (payload = {}) => ({
   point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
@@ -60,8 +62,21 @@ const escapeCsvValue = (value) => {
 };
 
 export const exportMapPointsCsv = async () => {
-  const points = await listMapPoints();
+  const points = (await listMapPoints()).sort((left, right) => {
+    const latitudeDiff = Number(left.latitude) - Number(right.latitude);
+    if (latitudeDiff !== 0) {
+      return latitudeDiff;
+    }
+
+    const longitudeDiff = Number(left.longitude) - Number(right.longitude);
+    if (longitudeDiff !== 0) {
+      return longitudeDiff;
+    }
+
+    return new Date(left.created_at) - new Date(right.created_at);
+  });
   const headers = [
+    "punto_exacto",
     "fecha",
     "tipo_punto",
     "latitud",
@@ -69,11 +84,13 @@ export const exportMapPointsCsv = async () => {
     "precision_metros",
     "referencia",
     "descripcion",
-    "creado_por"
+    "creado_por",
+    "maps_url"
   ];
 
   const lines = points.map((point) =>
     [
+      `${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)}`,
       point.created_at,
       point.point_type,
       point.latitude,
@@ -81,7 +98,8 @@ export const exportMapPointsCsv = async () => {
       point.accuracy_meters ?? "",
       point.reference_note ?? "",
       point.description ?? "",
-      point.created_by_name ?? ""
+      point.created_by_name ?? "",
+      buildMapsUrl(point.latitude, point.longitude)
     ]
       .map(escapeCsvValue)
       .join(",")
