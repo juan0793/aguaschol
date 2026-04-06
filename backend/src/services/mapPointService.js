@@ -6,6 +6,8 @@ import XLSX from "xlsx";
 const memoryPoints = [];
 const buildMapsUrl = (latitude, longitude) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
+const formatExactPoint = (latitude, longitude) =>
+  `${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`;
 
 const normalizePayload = (payload = {}) => ({
   point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
@@ -72,19 +74,19 @@ export const exportMapPointsWorkbook = async () => {
   const points = await getSortedMapPoints();
   const workbook = XLSX.utils.book_new();
   const generatedAt = new Date().toISOString();
-
-  const groupedRows = Array.from(
+  const groupedPoints = Array.from(
     points.reduce((groups, point) => {
-      const key = `${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)}`;
+      const key = formatExactPoint(point.latitude, point.longitude);
       const current = groups.get(key) ?? {
-        punto_exacto: key,
+        key,
         latitud: Number(point.latitude),
         longitud: Number(point.longitude),
-        precision_promedio_m: [],
         total_puntos: 0,
+        precision_values: [],
         tipos: new Set(),
         referencias: [],
-        maps_url: buildMapsUrl(point.latitude, point.longitude)
+        maps_url: buildMapsUrl(point.latitude, point.longitude),
+        items: []
       };
 
       current.total_puntos += 1;
@@ -93,22 +95,21 @@ export const exportMapPointsWorkbook = async () => {
         current.referencias.push(point.reference_note);
       }
       if (Number.isFinite(Number(point.accuracy_meters))) {
-        current.precision_promedio_m.push(Number(point.accuracy_meters));
+        current.precision_values.push(Number(point.accuracy_meters));
       }
+      current.items.push(point);
       groups.set(key, current);
       return groups;
     }, new Map()).values()
-  ).map((group) => ({
-    punto_exacto: group.punto_exacto,
+  );
+
+  const groupedRows = groupedPoints.map((group) => ({
+    punto_exacto: group.key,
     latitud: group.latitud,
     longitud: group.longitud,
     total_puntos: group.total_puntos,
-    precision_promedio_m: group.precision_promedio_m.length
-      ? Number(
-          (
-            group.precision_promedio_m.reduce((total, value) => total + value, 0) / group.precision_promedio_m.length
-          ).toFixed(2)
-        )
+    precision_promedio_m: group.precision_values.length
+      ? Number((group.precision_values.reduce((total, value) => total + value, 0) / group.precision_values.length).toFixed(2))
       : "",
     tipos_registrados: Array.from(group.tipos).join(", "),
     referencias: group.referencias.join(" | "),
@@ -117,7 +118,7 @@ export const exportMapPointsWorkbook = async () => {
 
   const detailRows = points.map((point, index) => ({
     no: index + 1,
-    punto_exacto: `${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)}`,
+    punto_exacto: formatExactPoint(point.latitude, point.longitude),
     fecha: point.created_at,
     tipo_punto: point.point_type,
     latitud: Number(point.latitude),
@@ -128,6 +129,53 @@ export const exportMapPointsWorkbook = async () => {
     creado_por: point.created_by_name ?? "",
     maps_url: buildMapsUrl(point.latitude, point.longitude)
   }));
+
+  const visualRows = [
+    ["REPORTE DETALLADO DE PUNTOS DE CAMPO"],
+    ["Generado", generatedAt],
+    ["Total de puntos", points.length, "Ubicaciones exactas", groupedPoints.length],
+    ["Orden del reporte", "Agrupado por coordenada exacta y luego por fecha de registro"],
+    []
+  ];
+  const visualMerges = [
+    XLSX.utils.decode_range("A1:H1"),
+    XLSX.utils.decode_range("B2:H2"),
+    XLSX.utils.decode_range("B4:H4")
+  ];
+
+  groupedPoints.forEach((group, groupIndex) => {
+    const averageAccuracy = group.precision_values.length
+      ? Number((group.precision_values.reduce((total, value) => total + value, 0) / group.precision_values.length).toFixed(2))
+      : "";
+
+    const startRow = visualRows.length + 1;
+    visualRows.push([`UBICACION ${groupIndex + 1}`, group.key]);
+    visualRows.push(["Google Maps", group.maps_url]);
+    visualRows.push(["Total de puntos", group.total_puntos, "Precision promedio (m)", averageAccuracy || "--"]);
+    visualRows.push(["Tipos registrados", Array.from(group.tipos).join(", ") || "--"]);
+    visualRows.push(["Referencias", group.referencias.join(" | ") || "--"]);
+    visualRows.push(["#", "Fecha", "Tipo de punto", "Referencia", "Descripcion", "Precision (m)", "Creado por", "Maps"]);
+
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow}:H${startRow}`));
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 1}:H${startRow + 1}`));
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 3}:H${startRow + 3}`));
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 4}:H${startRow + 4}`));
+
+    group.items.forEach((point, pointIndex) => {
+      visualRows.push([
+        pointIndex + 1,
+        point.created_at,
+        point.point_type,
+        point.reference_note || "--",
+        point.description || "--",
+        point.accuracy_meters ?? "--",
+        point.created_by_name || "--",
+        buildMapsUrl(point.latitude, point.longitude)
+      ]);
+    });
+
+    visualRows.push([]);
+  });
 
   const summarySheet = XLSX.utils.json_to_sheet(groupedRows);
   summarySheet["!cols"] = [
@@ -169,7 +217,21 @@ export const exportMapPointsWorkbook = async () => {
   ]);
   metaSheet["!cols"] = [{ wch: 24 }, { wch: 80 }];
 
+  const visualSheet = XLSX.utils.aoa_to_sheet(visualRows);
+  visualSheet["!cols"] = [
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 42 },
+    { wch: 16 },
+    { wch: 22 },
+    { wch: 46 }
+  ];
+  visualSheet["!merges"] = visualMerges;
+
   XLSX.utils.book_append_sheet(workbook, metaSheet, "resumen");
+  XLSX.utils.book_append_sheet(workbook, visualSheet, "reporte_visual");
   XLSX.utils.book_append_sheet(workbook, summarySheet, "por_ubicacion");
   XLSX.utils.book_append_sheet(workbook, detailSheet, "detalle_puntos");
 
