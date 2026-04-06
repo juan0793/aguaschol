@@ -1765,7 +1765,7 @@ function App() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `reporte-detallado-puntos-campo-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `reporte-detallado-puntos-campo-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();

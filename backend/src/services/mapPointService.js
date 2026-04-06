@@ -1,6 +1,7 @@
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
+import XLSX from "xlsx";
 
 const memoryPoints = [];
 const buildMapsUrl = (latitude, longitude) =>
@@ -52,17 +53,8 @@ export const listMapPoints = async () => {
   return rows;
 };
 
-const escapeCsvValue = (value) => {
-  const text = value == null ? "" : String(value);
-  if (!/[",\n]/.test(text)) {
-    return text;
-  }
-
-  return `"${text.replace(/"/g, '""')}"`;
-};
-
-export const exportMapPointsCsv = async () => {
-  const points = (await listMapPoints()).sort((left, right) => {
+const getSortedMapPoints = async () =>
+  (await listMapPoints()).sort((left, right) => {
     const latitudeDiff = Number(left.latitude) - Number(right.latitude);
     if (latitudeDiff !== 0) {
       return latitudeDiff;
@@ -75,37 +67,116 @@ export const exportMapPointsCsv = async () => {
 
     return new Date(left.created_at) - new Date(right.created_at);
   });
-  const headers = [
-    "punto_exacto",
-    "fecha",
-    "tipo_punto",
-    "latitud",
-    "longitud",
-    "precision_metros",
-    "referencia",
-    "descripcion",
-    "creado_por",
-    "maps_url"
+
+export const exportMapPointsWorkbook = async () => {
+  const points = await getSortedMapPoints();
+  const workbook = XLSX.utils.book_new();
+  const generatedAt = new Date().toISOString();
+
+  const groupedRows = Array.from(
+    points.reduce((groups, point) => {
+      const key = `${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)}`;
+      const current = groups.get(key) ?? {
+        punto_exacto: key,
+        latitud: Number(point.latitude),
+        longitud: Number(point.longitude),
+        precision_promedio_m: [],
+        total_puntos: 0,
+        tipos: new Set(),
+        referencias: [],
+        maps_url: buildMapsUrl(point.latitude, point.longitude)
+      };
+
+      current.total_puntos += 1;
+      current.tipos.add(point.point_type);
+      if (point.reference_note) {
+        current.referencias.push(point.reference_note);
+      }
+      if (Number.isFinite(Number(point.accuracy_meters))) {
+        current.precision_promedio_m.push(Number(point.accuracy_meters));
+      }
+      groups.set(key, current);
+      return groups;
+    }, new Map()).values()
+  ).map((group) => ({
+    punto_exacto: group.punto_exacto,
+    latitud: group.latitud,
+    longitud: group.longitud,
+    total_puntos: group.total_puntos,
+    precision_promedio_m: group.precision_promedio_m.length
+      ? Number(
+          (
+            group.precision_promedio_m.reduce((total, value) => total + value, 0) / group.precision_promedio_m.length
+          ).toFixed(2)
+        )
+      : "",
+    tipos_registrados: Array.from(group.tipos).join(", "),
+    referencias: group.referencias.join(" | "),
+    maps_url: group.maps_url
+  }));
+
+  const detailRows = points.map((point, index) => ({
+    no: index + 1,
+    punto_exacto: `${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)}`,
+    fecha: point.created_at,
+    tipo_punto: point.point_type,
+    latitud: Number(point.latitude),
+    longitud: Number(point.longitude),
+    precision_metros: point.accuracy_meters ?? "",
+    referencia: point.reference_note ?? "",
+    descripcion: point.description ?? "",
+    creado_por: point.created_by_name ?? "",
+    maps_url: buildMapsUrl(point.latitude, point.longitude)
+  }));
+
+  const summarySheet = XLSX.utils.json_to_sheet(groupedRows);
+  summarySheet["!cols"] = [
+    { wch: 24 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 48 },
+    { wch: 48 }
   ];
+  summarySheet["!autofilter"] = { ref: `A1:H${Math.max(groupedRows.length + 1, 2)}` };
 
-  const lines = points.map((point) =>
-    [
-      `${Number(point.latitude).toFixed(6)}, ${Number(point.longitude).toFixed(6)}`,
-      point.created_at,
-      point.point_type,
-      point.latitude,
-      point.longitude,
-      point.accuracy_meters ?? "",
-      point.reference_note ?? "",
-      point.description ?? "",
-      point.created_by_name ?? "",
-      buildMapsUrl(point.latitude, point.longitude)
-    ]
-      .map(escapeCsvValue)
-      .join(",")
-  );
+  const detailSheet = XLSX.utils.json_to_sheet(detailRows);
+  detailSheet["!cols"] = [
+    { wch: 6 },
+    { wch: 24 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 16 },
+    { wch: 34 },
+    { wch: 48 },
+    { wch: 24 },
+    { wch: 48 }
+  ];
+  detailSheet["!autofilter"] = { ref: `A1:K${Math.max(detailRows.length + 1, 2)}` };
 
-  return [headers.join(","), ...lines].join("\n");
+  const metaSheet = XLSX.utils.aoa_to_sheet([
+    ["Reporte detallado de puntos de campo"],
+    ["Generado", generatedAt],
+    ["Total de puntos", points.length],
+    ["Ubicaciones exactas", groupedRows.length],
+    ["Orden", "Latitud ascendente, longitud ascendente y luego fecha"],
+    [],
+    ["Este archivo contiene una hoja resumen por punto exacto y otra hoja con el detalle completo de cada registro."]
+  ]);
+  metaSheet["!cols"] = [{ wch: 24 }, { wch: 80 }];
+
+  XLSX.utils.book_append_sheet(workbook, metaSheet, "resumen");
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "por_ubicacion");
+  XLSX.utils.book_append_sheet(workbook, detailSheet, "detalle_puntos");
+
+  return {
+    fileName: `reporte-detallado-puntos-campo-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
+  };
 };
 
 export const createMapPoint = async (payload, authUser) => {

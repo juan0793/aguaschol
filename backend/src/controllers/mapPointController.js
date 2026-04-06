@@ -1,4 +1,4 @@
-import { createMapPoint, deleteMapPoint, exportMapPointsCsv, listMapPoints } from "../services/mapPointService.js";
+import { createMapPoint, deleteMapPoint, exportMapPointsWorkbook, listMapPoints } from "../services/mapPointService.js";
 
 export const listMapPointsHandler = async (_req, res, next) => {
   try {
@@ -32,10 +32,13 @@ export const deleteMapPointHandler = async (req, res, next) => {
 
 export const exportMapPointsHandler = async (_req, res, next) => {
   try {
-    const csv = await exportMapPointsCsv();
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", 'attachment; filename="reporte-detallado-puntos-campo.csv"');
-    res.send(csv);
+    const workbook = await exportMapPointsWorkbook();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${workbook.fileName}"`);
+    res.send(workbook.buffer);
   } catch (error) {
     next(error);
   }
