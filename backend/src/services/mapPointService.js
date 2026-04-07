@@ -199,20 +199,22 @@ export const exportMapPointsWorkbook = async () => {
     });
 
     visualRows.push([]);
+    visualRows.push([]);
   });
 
   const summarySheet = XLSX.utils.json_to_sheet(groupedRows);
   summarySheet["!cols"] = [
-    { wch: 24 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 18 },
-    { wch: 24 },
-    { wch: 48 },
-    { wch: 48 }
+    { wch: 28 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 28 },
+    { wch: 56 },
+    { wch: 22 }
   ];
   summarySheet["!autofilter"] = { ref: `A1:H${Math.max(groupedRows.length + 1, 2)}` };
+  summarySheet["!rows"] = [{ hpt: 24 }, ...groupedRows.map(() => ({ hpt: 22 }))];
   groupedPoints.forEach((group, index) => {
     setSheetHyperlink(summarySheet, `H${index + 2}`, group.maps_url);
   });
@@ -220,18 +222,19 @@ export const exportMapPointsWorkbook = async () => {
   const detailSheet = XLSX.utils.json_to_sheet(detailRows);
   detailSheet["!cols"] = [
     { wch: 6 },
-    { wch: 24 },
+    { wch: 28 },
     { wch: 22 },
     { wch: 18 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 16 },
+    { wch: 13 },
+    { wch: 13 },
+    { wch: 17 },
     { wch: 34 },
-    { wch: 48 },
+    { wch: 50 },
     { wch: 24 },
-    { wch: 48 }
+    { wch: 22 }
   ];
   detailSheet["!autofilter"] = { ref: `A1:K${Math.max(detailRows.length + 1, 2)}` };
+  detailSheet["!rows"] = [{ hpt: 24 }, ...detailRows.map(() => ({ hpt: 22 }))];
   points.forEach((point, index) => {
     setSheetHyperlink(detailSheet, `K${index + 2}`, buildMapsUrl(point.latitude, point.longitude));
   });
@@ -245,27 +248,36 @@ export const exportMapPointsWorkbook = async () => {
     [],
     ["Este archivo contiene una hoja visual por ubicacion exacta, una hoja resumen por punto exacto y una hoja con el detalle completo de cada registro."]
   ]);
-  metaSheet["!cols"] = [{ wch: 24 }, { wch: 80 }];
+  metaSheet["!cols"] = [{ wch: 24 }, { wch: 90 }];
+  metaSheet["!rows"] = [{ hpt: 26 }, { hpt: 22 }, { hpt: 22 }, { hpt: 22 }, { hpt: 22 }, { hpt: 12 }, { hpt: 38 }];
 
   const visualSheet = XLSX.utils.aoa_to_sheet(visualRows);
   visualSheet["!cols"] = [
     { wch: 18 },
-    { wch: 24 },
-    { wch: 20 },
-    { wch: 20 },
-    { wch: 42 },
-    { wch: 16 },
+    { wch: 28 },
     { wch: 22 },
-    { wch: 46 }
+    { wch: 22 },
+    { wch: 50 },
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 22 }
   ];
   visualSheet["!merges"] = visualMerges;
+  visualSheet["!rows"] = visualRows.map((row, index) => {
+    if (index === 0) return { hpt: 28 };
+    if (index >= 1 && index <= 3) return { hpt: 22 };
+    if (!row.some(Boolean)) return { hpt: 12 };
+    if (String(row[0] ?? "").startsWith("UBICACION")) return { hpt: 24 };
+    if (row[0] === "#") return { hpt: 22 };
+    return { hpt: 20 };
+  });
   let visualCursor = 6;
   groupedPoints.forEach((group) => {
     setSheetHyperlink(visualSheet, `B${visualCursor + 1}`, group.maps_url, "Abrir punto en el mapa");
     group.items.forEach((point, index) => {
       setSheetHyperlink(visualSheet, `H${visualCursor + 5 + index + 1}`, buildMapsUrl(point.latitude, point.longitude));
     });
-    visualCursor += 6 + group.items.length + 1;
+    visualCursor += 6 + group.items.length + 2;
   });
 
   XLSX.utils.book_append_sheet(workbook, metaSheet, "resumen");
