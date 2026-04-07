@@ -677,6 +677,73 @@ const printDocument = async (title, bodyMarkup, options = {}) => {
             flex-wrap: wrap;
             gap: 6px;
           }
+          .field-report-cover {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+            gap: 12px;
+            border: 1px solid #c7dcef;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff, #eef6fc);
+            padding: 12px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-report-cover-copy h2 {
+            font-size: 16px;
+            margin-bottom: 5px;
+          }
+          .field-report-cover-copy p {
+            margin-bottom: 8px;
+          }
+          .field-report-cover-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin: 10px 0;
+          }
+          .field-report-cover-metrics div {
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 7px 8px;
+          }
+          .field-report-cover-metrics strong {
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #315b7d;
+            margin-bottom: 3px;
+          }
+          .field-report-cover-metrics span {
+            display: block;
+            font-size: 14px;
+            font-weight: 700;
+            color: #16324a;
+          }
+          .field-report-cover-map {
+            display: grid;
+            align-items: stretch;
+          }
+          .field-report-map-image,
+          .field-report-map-fallback {
+            width: 100%;
+            min-height: 220px;
+            height: 100%;
+            border: 1px solid #d2e4f3;
+            border-radius: 14px;
+            background: #edf3f9;
+          }
+          .field-report-map-image {
+            object-fit: cover;
+          }
+          .field-report-map-fallback {
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 12px;
+            font-size: 10px;
+            color: #45607a;
+          }
           .field-report-staff {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -755,13 +822,26 @@ const printDocument = async (title, bodyMarkup, options = {}) => {
             padding: 16px;
             background: #fff;
           }
+          .field-report-page {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            text-align: right;
+            padding: 0 8mm 2mm;
+            font-size: 10px;
+            color: #45607a;
+          }
+          .field-report-page::after {
+            content: "Pagina " counter(page);
+          }
           ul { margin-top: 0; }
           @media print {
             body { margin: 0; }
           }
         </style>
       </head>
-      <body class="${bodyClassName}">${bodyMarkup}</body>
+      <body class="${bodyClassName}">${bodyMarkup}<div class="field-report-page"></div></body>
     </html>
       `);
   printWindow.document.close();
@@ -883,8 +963,17 @@ const urlToDataUrl = async (url) => {
   });
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 function App() {
   const sheetRef = useRef(null);
+  const reportMapCaptureRef = useRef(null);
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -1280,6 +1369,10 @@ function App() {
       zones
     };
   }, [mapPointContexts, safeMapPoints]);
+  const totalCajaRegistro = useMemo(
+    () => safeMapPoints.filter((point) => point.point_type === "caja_registro").length,
+    [safeMapPoints]
+  );
   const mapReportPagination = useMemo(() => {
     const pageSize = 5;
     const totalPages = Math.max(1, Math.ceil(mapReportData.zones.length / pageSize));
@@ -2032,6 +2125,25 @@ function App() {
     }));
   };
 
+  const captureReportMapImage = async () => {
+    if (!reportMapCaptureRef.current) {
+      return "";
+    }
+
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(reportMapCaptureRef.current, {
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: "#edf3f9",
+        scale: Math.min(window.devicePixelRatio || 1, 2)
+      });
+      return canvas.toDataURL("image/png");
+    } catch {
+      return "";
+    }
+  };
+
   const handleEditReportMapPoint = (pointId) => {
     const point = safeMapPoints.find((item) => item.id === pointId);
     if (!point) {
@@ -2190,6 +2302,7 @@ function App() {
 
   const handlePrintMapFieldReport = async () => {
     const generatedAt = formatDateTime(new Date().toISOString());
+    const mapImageDataUrl = await captureReportMapImage();
     const totalsMarkup = Object.entries(mapReportData.totalsByType)
       .map(
         ([label, total]) => `
@@ -2200,6 +2313,46 @@ function App() {
         `
       )
       .join("");
+    const portadaMarkup = `
+      <section class="field-report-cover">
+        <div class="field-report-cover-copy">
+          <span class="field-report-kicker">Resumen ejecutivo</span>
+          <h2>Levantamiento consolidado de puntos de campo</h2>
+          <p>Vista institucional del trabajo levantado, lista para seguimiento y revision administrativa.</p>
+          <div class="field-report-cover-metrics">
+            <div>
+              <strong>Total de puntos</strong>
+              <span>${mapReportData.totalPoints}</span>
+            </div>
+            <div>
+              <strong>Total de zonas</strong>
+              <span>${mapReportData.totalZones}</span>
+            </div>
+            <div>
+              <strong>Cajas de registro</strong>
+              <span>${totalCajaRegistro}</span>
+            </div>
+          </div>
+          <div class="field-report-staff">
+            <div>
+              <strong>Tecnicos de campo</strong>
+              <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
+            </div>
+            <div>
+              <strong>Ingeniero de datos</strong>
+              <span>${escapeHtml(mapReportStaff.data_engineer || "--")}</span>
+            </div>
+          </div>
+        </div>
+        <div class="field-report-cover-map">
+          ${
+            mapImageDataUrl
+              ? `<img src="${mapImageDataUrl}" alt="Mapa visual del levantamiento" class="field-report-map-image" />`
+              : `<div class="field-report-map-fallback">No fue posible capturar la vista del mapa para esta impresion.</div>`
+          }
+        </div>
+      </section>
+    `;
 
     const zonesMarkup = mapReportData.zones
       .map(
@@ -2280,14 +2433,15 @@ function App() {
             <div class="field-report-staff">
               <div>
                 <strong>Tecnicos de campo</strong>
-                <span>${mapReportStaff.field_technicians || "--"}</span>
+                <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
               </div>
               <div>
                 <strong>Ingeniero de datos</strong>
-                <span>${mapReportStaff.data_engineer || "--"}</span>
+                <span>${escapeHtml(mapReportStaff.data_engineer || "--")}</span>
               </div>
             </div>
           </header>
+          ${portadaMarkup}
           <section class="field-report-summary">
             ${totalsMarkup || '<div class="field-report-total-chip"><strong>Sin puntos</strong><span>0</span></div>'}
           </section>
@@ -2313,6 +2467,16 @@ function App() {
         compress: true
       });
       const generatedAt = formatDateTime(new Date().toISOString());
+      const mapImageDataUrl = await captureReportMapImage();
+      const addPdfPageFooter = () => {
+        const pageWidth = document.internal.pageSize.getWidth();
+        const pageHeight = document.internal.pageSize.getHeight();
+        const currentPage = document.getCurrentPageInfo().pageNumber;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(9);
+        document.setTextColor(69, 96, 122);
+        document.text(`Pagina ${currentPage}`, pageWidth - 14, pageHeight - 8, { align: "right" });
+      };
 
       try {
         const logoDataUrl = await urlToDataUrl(logoAguasCholuteca);
@@ -2335,9 +2499,23 @@ function App() {
       document.text(`Total de zonas: ${mapReportData.totalZones}`, 138, 36);
       document.text(`Tecnicos de campo: ${mapReportStaff.field_technicians || "--"}`, 14, 42);
       document.text(`Ingeniero de datos: ${mapReportStaff.data_engineer || "--"}`, 138, 42);
+      document.text(`Cajas de registro: ${totalCajaRegistro}`, 14, 48);
+
+      if (mapImageDataUrl) {
+        document.setFillColor(237, 245, 252);
+        document.roundedRect(154, 48, 104, 48, 3, 3, "F");
+        document.addImage(mapImageDataUrl, "PNG", 156, 50, 100, 44);
+      } else {
+        document.setFillColor(237, 245, 252);
+        document.roundedRect(154, 48, 104, 48, 3, 3, "F");
+        document.setFont("helvetica", "normal");
+        document.setFontSize(9);
+        document.setTextColor(69, 96, 122);
+        document.text("Mapa no disponible", 206, 73, { align: "center" });
+      }
 
       autoTable(document, {
-        startY: 48,
+        startY: 58,
         head: [["Resumen", "Cantidad"]],
         body: Object.entries(mapReportData.totalsByType).length
           ? Object.entries(mapReportData.totalsByType)
@@ -2360,13 +2538,15 @@ function App() {
         margin: { left: 14, right: 14 }
       });
 
-      let currentY = (document.lastAutoTable?.finalY ?? 48) + 6;
+      addPdfPageFooter();
+      let currentY = (document.lastAutoTable?.finalY ?? 58) + 6;
 
       for (let index = 0; index < mapReportData.zones.length; index += 1) {
         const zone = mapReportData.zones[index];
 
         if (currentY > 175) {
           document.addPage("letter", "landscape");
+          addPdfPageFooter();
           currentY = 16;
         }
 
@@ -2435,6 +2615,7 @@ function App() {
         });
 
         currentY = (document.lastAutoTable?.finalY ?? currentY + 20) + 7;
+        addPdfPageFooter();
       }
 
       document.save(`reporte-campo-${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -5018,18 +5199,20 @@ function App() {
                           </div>
                           <span className="panel-pill">{reportMapStatus}</span>
                         </div>
-                        <FieldMap
-                          apiUrl={API_URL}
-                          isActive={workspaceView === "mapReports"}
-                          mapDraft={reportMapDraft}
-                          mapFocusRequest={reportMapFocusRequest}
-                          mapPoints={safeMapPoints}
-                          onDraftChange={setReportMapDraft}
-                          onEditPoint={handleEditReportMapPoint}
-                          onSelectPoint={handleSelectReportMapPoint}
-                          onStatusChange={setReportMapStatus}
-                          selectedMapPointId={selectedReportMapPointId}
-                        />
+                        <div ref={reportMapCaptureRef} className="map-report-capture-shell">
+                          <FieldMap
+                            apiUrl={API_URL}
+                            isActive={workspaceView === "mapReports"}
+                            mapDraft={reportMapDraft}
+                            mapFocusRequest={reportMapFocusRequest}
+                            mapPoints={safeMapPoints}
+                            onDraftChange={setReportMapDraft}
+                            onEditPoint={handleEditReportMapPoint}
+                            onSelectPoint={handleSelectReportMapPoint}
+                            onStatusChange={setReportMapStatus}
+                            selectedMapPointId={selectedReportMapPointId}
+                          />
+                        </div>
                         <div className="map-report-legend">
                           {MAP_MARKER_COLORS.map((option) => (
                             <span key={option.value}>

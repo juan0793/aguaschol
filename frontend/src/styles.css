@@ -2930,6 +2930,11 @@ textarea {
   overflow: hidden;
 }
 
+.map-report-capture-shell {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
 .map-report-legend {
   display: flex;
   flex-wrap: wrap;
