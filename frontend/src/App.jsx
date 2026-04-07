@@ -38,6 +38,10 @@ const emptyMapReportDraft = {
   marker_color: "#1576d1",
   is_terminal_point: false
 };
+const defaultMapReportStaff = {
+  field_technicians: "LUIS FERNANDO HERRERA SOLIZ",
+  data_engineer: "Ing. Juan Ordoñez Bonilla"
+};
 const buildMapStyle = (basemapIndex = 0) => ({
   version: 8,
   sources: {
@@ -673,6 +677,29 @@ const printDocument = async (title, bodyMarkup, options = {}) => {
             flex-wrap: wrap;
             gap: 6px;
           }
+          .field-report-staff {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+          }
+          .field-report-staff div {
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 7px 9px;
+          }
+          .field-report-staff strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #315b7d;
+          }
+          .field-report-staff span {
+            display: block;
+            font-size: 10px;
+          }
           .field-report-total-chip strong {
             margin-right: 6px;
           }
@@ -922,6 +949,7 @@ function App() {
   const [reportMapStatus, setReportMapStatus] = useState("Sincronizado");
   const [reportMapDraft, setReportMapDraft] = useState(emptyMapReportDraft);
   const [reportMapFocusRequest, setReportMapFocusRequest] = useState(null);
+  const [mapReportStaff, setMapReportStaff] = useState(defaultMapReportStaff);
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
@@ -1996,6 +2024,14 @@ function App() {
     }));
   };
 
+  const handleMapReportStaffChange = (event) => {
+    const { name, value } = event.target;
+    setMapReportStaff((current) => ({
+      ...current,
+      [name]: value
+    }));
+  };
+
   const handleEditReportMapPoint = (pointId) => {
     const point = safeMapPoints.find((item) => item.id === pointId);
     if (!point) {
@@ -2240,6 +2276,16 @@ function App() {
               <span>Generado: ${generatedAt}</span>
               <span>Total de puntos: ${mapReportData.totalPoints}</span>
               <span>Total de zonas: ${mapReportData.totalZones}</span>
+            </div>
+            <div class="field-report-staff">
+              <div>
+                <strong>Tecnicos de campo</strong>
+                <span>${mapReportStaff.field_technicians || "--"}</span>
+              </div>
+              <div>
+                <strong>Ingeniero de datos</strong>
+                <span>${mapReportStaff.data_engineer || "--"}</span>
+              </div>
             </div>
           </header>
           <section class="field-report-summary">
@@ -4746,6 +4792,26 @@ function App() {
                         <Icon name="records" />
                         Imprimir formato de oficina
                       </button>
+                    </div>
+                    <div className="map-report-staff-grid">
+                      <label className="map-report-staff-card">
+                        <span>Tecnicos de campo</span>
+                        <input
+                          name="field_technicians"
+                          value={mapReportStaff.field_technicians}
+                          onChange={handleMapReportStaffChange}
+                          placeholder="Nombres del personal de campo"
+                        />
+                      </label>
+                      <label className="map-report-staff-card">
+                        <span>Ingeniero de datos</span>
+                        <input
+                          name="data_engineer"
+                          value={mapReportStaff.data_engineer}
+                          onChange={handleMapReportStaffChange}
+                          placeholder="Responsable de datos"
+                        />
+                      </label>
                     </div>
                     <div className="map-report-pagination">
                       <div className="map-report-pagination-copy">
