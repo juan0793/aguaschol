@@ -13,6 +13,13 @@ const MAP_POINT_TYPES = [
   { value: "pozo", label: "Pozo de visita" },
   { value: "punto_observado", label: "Punto observado" }
 ];
+const MAP_MARKER_COLORS = [
+  { value: "#1576d1", label: "Azul operativo" },
+  { value: "#ef4444", label: "Rojo critico" },
+  { value: "#f59e0b", label: "Amarillo alerta" },
+  { value: "#10b981", label: "Verde validado" },
+  { value: "#7c3aed", label: "Morado referencia" }
+];
 const emptyMapDraft = {
   latitude: "",
   longitude: "",
@@ -20,6 +27,16 @@ const emptyMapDraft = {
   point_type: "caja_registro",
   description: "",
   reference: ""
+};
+const emptyMapReportDraft = {
+  latitude: "",
+  longitude: "",
+  accuracy_meters: "",
+  point_type: "caja_registro",
+  description: "",
+  reference: "",
+  marker_color: "#1576d1",
+  is_terminal_point: false
 };
 const buildMapStyle = (basemapIndex = 0) => ({
   version: 8,
@@ -198,6 +215,17 @@ const formatCoordinate = (value) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric.toFixed(6) : "--";
 };
+
+const buildMapReportDraftFromPoint = (point = {}) => ({
+  latitude: Number(point.latitude).toFixed(6),
+  longitude: Number(point.longitude).toFixed(6),
+  accuracy_meters: point.accuracy_meters ?? "",
+  point_type: point.point_type || "caja_registro",
+  description: point.description || "",
+  reference: point.reference_note || "",
+  marker_color: point.marker_color || "#1576d1",
+  is_terminal_point: Boolean(point.is_terminal_point)
+});
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("es-HN", {
@@ -888,6 +916,12 @@ function App() {
   const [loadingMapContexts, setLoadingMapContexts] = useState(false);
   const [mapPointContexts, setMapPointContexts] = useState({});
   const [mapReportPage, setMapReportPage] = useState(1);
+  const [savingReportMapPoint, setSavingReportMapPoint] = useState(false);
+  const [editingReportMapPointId, setEditingReportMapPointId] = useState(null);
+  const [selectedReportMapPointId, setSelectedReportMapPointId] = useState(null);
+  const [reportMapStatus, setReportMapStatus] = useState("Sincronizado");
+  const [reportMapDraft, setReportMapDraft] = useState(emptyMapReportDraft);
+  const [reportMapFocusRequest, setReportMapFocusRequest] = useState(null);
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
@@ -931,6 +965,7 @@ function App() {
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
   const selectedMapPoint = safeMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
+  const selectedReportMapPoint = safeMapPoints.find((point) => point.id === selectedReportMapPointId) ?? null;
   const selectedUser =
     safeUsers.find((user) => user.id === selectedUserId) ?? latestUserResult?.user ?? safeUsers[0] ?? null;
   const headerMeta = useMemo(
@@ -1482,7 +1517,9 @@ function App() {
       const nextPoints = Array.isArray(data) ? data : [];
       setMapPoints(nextPoints);
       setSelectedMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
+      setSelectedReportMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
       setMapStatus("Sincronizado");
+      setReportMapStatus("Sincronizado");
     } catch (error) {
       if (!silent) {
         showAlert(error.message || "No fue posible cargar los puntos del mapa.");
@@ -1887,6 +1924,12 @@ function App() {
     setMapDraft({ ...emptyMapDraft });
   };
 
+  const resetReportMapDraft = () => {
+    setEditingReportMapPointId(null);
+    setSelectedReportMapPointId(null);
+    setReportMapDraft({ ...emptyMapReportDraft });
+  };
+
   const handleSaveMapPoint = async (event) => {
     event.preventDefault();
 
@@ -1942,6 +1985,109 @@ function App() {
       showAlert(error.message || "No fue posible guardar el punto.");
     } finally {
       setSavingMapPoint(false);
+    }
+  };
+
+  const handleReportMapDraftChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setReportMapDraft((current) => ({
+      ...current,
+      [name]: type === "checkbox" ? checked : value
+    }));
+  };
+
+  const handleEditReportMapPoint = (pointId) => {
+    const point = safeMapPoints.find((item) => item.id === pointId);
+    if (!point) {
+      return;
+    }
+
+    setSelectedReportMapPointId(point.id);
+    setEditingReportMapPointId(point.id);
+    setReportMapDraft(buildMapReportDraftFromPoint(point));
+    setReportMapStatus("Edicion activa");
+    setReportMapFocusRequest({
+      latitude: Number(point.latitude),
+      longitude: Number(point.longitude),
+      zoom: 17,
+      key: Date.now()
+    });
+  };
+
+  const handleSelectReportMapPoint = (pointId) => {
+    setSelectedReportMapPointId(pointId);
+    const point = safeMapPoints.find((item) => item.id === pointId);
+    if (!point) return;
+
+    setReportMapFocusRequest({
+      latitude: Number(point.latitude),
+      longitude: Number(point.longitude),
+      zoom: 16,
+      key: Date.now()
+    });
+  };
+
+  const handleSaveReportMapPoint = async (event) => {
+    event.preventDefault();
+
+    const latitude = Number(reportMapDraft.latitude);
+    const longitude = Number(reportMapDraft.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      showAlert("Define la ubicacion del punto en el mapa o escribiendo las coordenadas.");
+      return;
+    }
+
+    setSavingReportMapPoint(true);
+
+    try {
+      const isEditing = Boolean(editingReportMapPointId);
+      const response = await apiFetch(isEditing ? `/map-points/${editingReportMapPointId}` : "/map-points", {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          latitude,
+          longitude,
+          accuracy_meters: Number(reportMapDraft.accuracy_meters) || null,
+          point_type: reportMapDraft.point_type,
+          description: reportMapDraft.description,
+          reference: reportMapDraft.reference,
+          marker_color: reportMapDraft.marker_color,
+          is_terminal_point: reportMapDraft.is_terminal_point
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible guardar el punto del reporte.");
+      }
+
+      setMapPoints((current) =>
+        isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
+      );
+      setSelectedReportMapPointId(data.id);
+      setEditingReportMapPointId(null);
+      setReportMapStatus(isEditing ? "Punto actualizado" : "Punto agregado");
+      setReportMapFocusRequest({
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        zoom: 17,
+        key: Date.now()
+      });
+      setReportMapDraft({ ...emptyMapReportDraft });
+      showAlert(isEditing ? "Punto del reporte actualizado." : "Punto agregado desde reportes de campo.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible guardar el punto del reporte.");
+    } finally {
+      setSavingReportMapPoint(false);
     }
   };
 
@@ -2041,6 +2187,7 @@ function App() {
                 <tr>
                   <th>#</th>
                   <th>Tipo</th>
+                  <th>Marca</th>
                   <th>Latitud</th>
                   <th>Longitud</th>
                   <th>Precision</th>
@@ -2057,6 +2204,7 @@ function App() {
                       <tr>
                         <td>${pointIndex + 1}</td>
                         <td>${getMapPointTypeLabel(point.point_type)}</td>
+                        <td>${point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1"}</td>
                         <td>${formatCoordinate(point.latitude)}</td>
                         <td>${formatCoordinate(point.longitude)}</td>
                         <td>${point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
@@ -3522,6 +3670,10 @@ function App() {
                   <Icon name="map" />
                   {loadingMapContexts ? "Ubicando zonas..." : "Actualizar zonas"}
                 </button>
+                <button type="button" className="button-secondary" onClick={resetReportMapDraft}>
+                  <Icon name="plus" />
+                  Nuevo punto visual
+                </button>
                 <button
                   type="button"
                   className="button-secondary"
@@ -4636,6 +4788,161 @@ function App() {
                         </div>
                       )}
                     </div>
+                    <div className="map-report-editor-grid">
+                      <article className="document-block map-report-map-panel">
+                        <div className="lookup-card-head map-card-head">
+                          <div>
+                            <p className="sheet-kicker">Edicion visual</p>
+                            <h3>Mapa de reportes</h3>
+                            <p className="helper-text">
+                              Haz doble click sobre un punto para editarlo o toca el mapa para preparar uno nuevo.
+                            </p>
+                          </div>
+                          <span className="panel-pill">{reportMapStatus}</span>
+                        </div>
+                        <FieldMap
+                          apiUrl={API_URL}
+                          isActive={workspaceView === "mapReports"}
+                          mapDraft={reportMapDraft}
+                          mapFocusRequest={reportMapFocusRequest}
+                          mapPoints={safeMapPoints}
+                          onDraftChange={setReportMapDraft}
+                          onEditPoint={handleEditReportMapPoint}
+                          onSelectPoint={handleSelectReportMapPoint}
+                          onStatusChange={setReportMapStatus}
+                          selectedMapPointId={selectedReportMapPointId}
+                        />
+                        <div className="map-report-legend">
+                          {MAP_MARKER_COLORS.map((option) => (
+                            <span key={option.value}>
+                              <i style={{ "--legend-color": option.value }} />
+                              {option.label}
+                            </span>
+                          ))}
+                          <span className="is-pin">
+                            <i />
+                            Pin final
+                          </span>
+                        </div>
+                      </article>
+                      <form className="document-block map-report-editor-card" onSubmit={handleSaveReportMapPoint}>
+                        <div className="lookup-card-head map-card-head">
+                          <div>
+                            <p className="sheet-kicker">{editingReportMapPointId ? "Edicion activa" : "Nuevo punto"}</p>
+                            <h3>{editingReportMapPointId ? "Ajustar punto del reporte" : "Agregar punto al reporte"}</h3>
+                          </div>
+                          <button type="button" className="button-secondary" onClick={resetReportMapDraft}>
+                            <Icon name="refresh" />
+                            Limpiar
+                          </button>
+                        </div>
+                        {selectedReportMapPoint ? (
+                          <p className="helper-text map-report-editor-helper">
+                            Punto seleccionado: {getMapPointTypeLabel(selectedReportMapPoint.point_type)} en{" "}
+                            {formatCoordinate(selectedReportMapPoint.latitude)}, {formatCoordinate(selectedReportMapPoint.longitude)}
+                          </p>
+                        ) : null}
+                        <div className="map-coordinates-grid">
+                          <label>
+                            <span>Latitud</span>
+                            <input
+                              name="latitude"
+                              value={reportMapDraft.latitude}
+                              onChange={handleReportMapDraftChange}
+                              placeholder="13.301700"
+                            />
+                          </label>
+                          <label>
+                            <span>Longitud</span>
+                            <input
+                              name="longitude"
+                              value={reportMapDraft.longitude}
+                              onChange={handleReportMapDraftChange}
+                              placeholder="-87.188900"
+                            />
+                          </label>
+                          <label>
+                            <span>Precision (m)</span>
+                            <input
+                              name="accuracy_meters"
+                              value={reportMapDraft.accuracy_meters}
+                              onChange={handleReportMapDraftChange}
+                              placeholder="5"
+                            />
+                          </label>
+                          <label>
+                            <span>Tipo de punto</span>
+                            <select name="point_type" value={reportMapDraft.point_type} onChange={handleReportMapDraftChange}>
+                              {MAP_POINT_TYPES.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        <div className="map-report-color-grid">
+                          <span>Color del punto</span>
+                          <div className="map-report-color-options">
+                            {MAP_MARKER_COLORS.map((option) => (
+                              <label key={option.value} className="map-report-color-option">
+                                <input
+                                  type="radio"
+                                  name="marker_color"
+                                  value={option.value}
+                                  checked={reportMapDraft.marker_color === option.value}
+                                  onChange={handleReportMapDraftChange}
+                                />
+                                <span className="map-report-color-chip" style={{ "--chip-color": option.value }} />
+                                <strong>{option.label}</strong>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <label className="map-report-pin-toggle">
+                          <input
+                            type="checkbox"
+                            name="is_terminal_point"
+                            checked={reportMapDraft.is_terminal_point}
+                            onChange={handleReportMapDraftChange}
+                          />
+                          <span>Marcar como pin final del recorrido</span>
+                        </label>
+                        <label>
+                          <span>Referencia</span>
+                          <input
+                            name="reference"
+                            value={reportMapDraft.reference}
+                            onChange={handleReportMapDraftChange}
+                            placeholder="Casa amarilla, esquina, tienda cercana..."
+                          />
+                        </label>
+                        <label>
+                          <span>Descripcion</span>
+                          <textarea
+                            name="description"
+                            value={reportMapDraft.description}
+                            onChange={handleReportMapDraftChange}
+                            rows="4"
+                            placeholder="Detalle operativo del punto para el reporte"
+                          />
+                        </label>
+                        <div className="map-form-actions">
+                          <button type="submit" disabled={savingReportMapPoint}>
+                            <Icon name={editingReportMapPointId ? "records" : "plus"} />
+                            {savingReportMapPoint
+                              ? "Guardando..."
+                              : editingReportMapPointId
+                                ? "Actualizar punto"
+                                : "Agregar punto"}
+                          </button>
+                          <button type="button" className="button-secondary" onClick={resetReportMapDraft}>
+                            <Icon name="refresh" />
+                            Cancelar
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                     <div className="map-report-zone-list">
                       {mapReportPagination.zones.length ? (
                         mapReportPagination.zones.map((zone, zoneIndex) => (
@@ -4674,9 +4981,22 @@ function App() {
                                 </thead>
                                 <tbody>
                                   {zone.items.map((point, pointIndex) => (
-                                    <tr key={point.id}>
+                                    <tr
+                                      key={point.id}
+                                      className={selectedReportMapPointId === point.id ? "is-selected" : ""}
+                                      onClick={() => handleSelectReportMapPoint(point.id)}
+                                      onDoubleClick={() => handleEditReportMapPoint(point.id)}
+                                    >
                                       <td>{pointIndex + 1}</td>
-                                      <td>{getMapPointTypeLabel(point.point_type)}</td>
+                                      <td>
+                                        <div className="map-report-point-cell">
+                                          <span
+                                            className={`map-report-point-dot ${point.is_terminal_point ? "is-pin" : ""}`}
+                                            style={{ "--point-color": point.marker_color || "#1576d1" }}
+                                          />
+                                          <span>{getMapPointTypeLabel(point.point_type)}</span>
+                                        </div>
+                                      </td>
                                       <td>{formatCoordinate(point.latitude)}</td>
                                       <td>{formatCoordinate(point.longitude)}</td>
                                       <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>

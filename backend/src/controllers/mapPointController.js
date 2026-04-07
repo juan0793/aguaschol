@@ -1,4 +1,10 @@
-import { createMapPoint, deleteMapPoint, exportMapPointsWorkbook, listMapPoints } from "../services/mapPointService.js";
+import {
+  createMapPoint,
+  deleteMapPoint,
+  exportMapPointsWorkbook,
+  listMapPoints,
+  updateMapPoint
+} from "../services/mapPointService.js";
 import { fetchMapPointContexts } from "../services/mapPointContextService.js";
 
 export const listMapPointsHandler = async (_req, res, next) => {
@@ -26,6 +32,15 @@ export const deleteMapPointHandler = async (req, res, next) => {
       ok: true,
       point
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMapPointHandler = async (req, res, next) => {
+  try {
+    const point = await updateMapPoint(req.params.id, req.body ?? {}, req.authUser);
+    res.json(point);
   } catch (error) {
     next(error);
   }

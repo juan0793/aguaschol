@@ -4,6 +4,11 @@ import { createAuditLog } from "./auditService.js";
 import XLSX from "xlsx";
 
 const memoryPoints = [];
+const DEFAULT_MARKER_COLOR = "#1576d1";
+const normalizeMarkerColor = (value) => {
+  const candidate = String(value ?? "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : DEFAULT_MARKER_COLOR;
+};
 const buildMapsUrl = (latitude, longitude) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
 const formatExactPoint = (latitude, longitude) =>
@@ -41,7 +46,9 @@ const normalizePayload = (payload = {}) => ({
       ? null
       : Number(payload.accuracy_meters),
   description: String(payload.description ?? "").trim(),
-  reference_note: String(payload.reference ?? payload.reference_note ?? "").trim()
+  reference_note: String(payload.reference ?? payload.reference_note ?? "").trim(),
+  marker_color: normalizeMarkerColor(payload.marker_color),
+  is_terminal_point: Boolean(payload.is_terminal_point)
 });
 
 const validateCoordinates = ({ latitude, longitude }) => {
@@ -145,6 +152,8 @@ export const exportMapPointsWorkbook = async () => {
     punto_exacto: formatExactPoint(point.latitude, point.longitude),
     fecha: formatReportDate(point.created_at),
     tipo_punto: point.point_type,
+    color: point.marker_color || DEFAULT_MARKER_COLOR,
+    pin_final: point.is_terminal_point ? "Si" : "No",
     latitud: Number(point.latitude),
     longitud: Number(point.longitude),
     precision_metros: point.accuracy_meters ?? "",
@@ -225,6 +234,8 @@ export const exportMapPointsWorkbook = async () => {
     { wch: 28 },
     { wch: 22 },
     { wch: 18 },
+    { wch: 12 },
+    { wch: 10 },
     { wch: 13 },
     { wch: 13 },
     { wch: 17 },
@@ -233,10 +244,10 @@ export const exportMapPointsWorkbook = async () => {
     { wch: 24 },
     { wch: 22 }
   ];
-  detailSheet["!autofilter"] = { ref: `A1:K${Math.max(detailRows.length + 1, 2)}` };
+  detailSheet["!autofilter"] = { ref: `A1:M${Math.max(detailRows.length + 1, 2)}` };
   detailSheet["!rows"] = [{ hpt: 24 }, ...detailRows.map(() => ({ hpt: 22 }))];
   points.forEach((point, index) => {
-    setSheetHyperlink(detailSheet, `K${index + 2}`, buildMapsUrl(point.latitude, point.longitude));
+    setSheetHyperlink(detailSheet, `M${index + 2}`, buildMapsUrl(point.latitude, point.longitude));
   });
 
   const metaSheet = XLSX.utils.aoa_to_sheet([
@@ -312,9 +323,9 @@ export const createMapPoint = async (payload, authUser) => {
   const [result] = await pool.query(
     `
       INSERT INTO map_points (
-        point_type, latitude, longitude, accuracy_meters, description, reference_note, created_by
+        point_type, latitude, longitude, accuracy_meters, description, reference_note, marker_color, is_terminal_point, created_by
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.point_type,
@@ -323,6 +334,8 @@ export const createMapPoint = async (payload, authUser) => {
       data.accuracy_meters,
       data.description,
       data.reference_note,
+      data.marker_color,
+      data.is_terminal_point ? 1 : 0,
       authUser?.id ?? null
     ]
   );
@@ -349,10 +362,124 @@ export const createMapPoint = async (payload, authUser) => {
     entityType: "map_point",
     entityId: point.id,
     summary: `Punto ${point.point_type} registrado en mapa`,
+      details: {
+        latitude: point.latitude,
+        longitude: point.longitude,
+      reference_note: point.reference_note,
+      marker_color: point.marker_color,
+      is_terminal_point: Boolean(point.is_terminal_point)
+    }
+  });
+
+  return point;
+};
+
+export const updateMapPoint = async (id, payload, authUser) => {
+  const data = normalizePayload(payload);
+  validateCoordinates(data);
+
+  if (env.useMemoryDb) {
+    const index = memoryPoints.findIndex((point) => point.id === Number(id));
+    if (index === -1) {
+      const error = new Error("Punto no encontrado.");
+      error.status = 404;
+      throw error;
+    }
+
+    memoryPoints[index] = {
+      ...memoryPoints[index],
+      ...data,
+      updated_at: new Date().toISOString()
+    };
+
+    return memoryPoints[index];
+  }
+
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `
+      SELECT
+        map_points.*,
+        app_users.full_name AS created_by_name
+      FROM map_points
+      LEFT JOIN app_users ON app_users.id = map_points.created_by
+      WHERE map_points.id = ?
+      LIMIT 1
+    `,
+    [id]
+  );
+  const current = rows[0];
+
+  if (!current) {
+    const error = new Error("Punto no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  await pool.query(
+    `
+      UPDATE map_points
+      SET
+        point_type = ?,
+        latitude = ?,
+        longitude = ?,
+        accuracy_meters = ?,
+        description = ?,
+        reference_note = ?,
+        marker_color = ?,
+        is_terminal_point = ?
+      WHERE id = ?
+    `,
+    [
+      data.point_type,
+      data.latitude,
+      data.longitude,
+      data.accuracy_meters,
+      data.description,
+      data.reference_note,
+      data.marker_color,
+      data.is_terminal_point ? 1 : 0,
+      id
+    ]
+  );
+
+  const [updatedRows] = await pool.query(
+    `
+      SELECT
+        map_points.*,
+        app_users.full_name AS created_by_name
+      FROM map_points
+      LEFT JOIN app_users ON app_users.id = map_points.created_by
+      WHERE map_points.id = ?
+      LIMIT 1
+    `,
+    [id]
+  );
+  const point = updatedRows[0];
+
+  await createAuditLog({
+    actorUserId: authUser?.id ?? null,
+    actorName: authUser?.full_name ?? authUser?.username ?? "",
+    actorEmail: authUser?.email ?? "",
+    action: "map_point.updated",
+    entityType: "map_point",
+    entityId: point.id,
+    summary: `Punto ${point.point_type} actualizado en reportes de campo`,
     details: {
-      latitude: point.latitude,
-      longitude: point.longitude,
-      reference_note: point.reference_note
+      previous: {
+        latitude: current.latitude,
+        longitude: current.longitude,
+        reference_note: current.reference_note,
+        marker_color: current.marker_color,
+        is_terminal_point: Boolean(current.is_terminal_point)
+      },
+      next: {
+        latitude: point.latitude,
+        longitude: point.longitude,
+        reference_note: point.reference_note,
+        marker_color: point.marker_color,
+        is_terminal_point: Boolean(point.is_terminal_point)
+      }
     }
   });
 

@@ -15,6 +15,7 @@ function FieldMap({
   mapFocusRequest,
   mapPoints,
   onDraftChange,
+  onEditPoint,
   onSelectPoint,
   onStatusChange,
   selectedMapPointId
@@ -40,6 +41,7 @@ function FieldMap({
       zoom: DEFAULT_ZOOM,
       zoomControl: true,
       preferCanvas: true,
+      doubleClickZoom: false,
       fadeAnimation: false,
       zoomAnimation: false,
       markerZoomAnimation: false
@@ -124,21 +126,40 @@ function FieldMap({
         return;
       }
 
-      const marker = L.circleMarker([Number(point.latitude), Number(point.longitude)], {
-        radius: point.id === selectedMapPointId ? 10 : 8,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: point.id === selectedMapPointId ? "#25c7f0" : "#1576d1",
-        fillOpacity: 0.95
-      });
+      const markerColor = String(point.marker_color || "#1576d1");
+      const isSelected = point.id === selectedMapPointId;
+      const isTerminalPoint = Boolean(point.is_terminal_point);
+      const marker = isTerminalPoint
+        ? L.marker([Number(point.latitude), Number(point.longitude)], {
+            icon: L.divIcon({
+              className: "field-map-pin-shell",
+              html: `
+                <div class="field-map-pin ${isSelected ? "is-selected" : ""}" style="--pin-color:${markerColor}">
+                  <span></span>
+                </div>
+              `,
+              iconSize: [22, 30],
+              iconAnchor: [11, 26]
+            })
+          })
+        : L.circleMarker([Number(point.latitude), Number(point.longitude)], {
+            radius: isSelected ? 10 : 8,
+            color: "#ffffff",
+            weight: 2,
+            fillColor: markerColor,
+            fillOpacity: 0.95
+          });
 
       marker.on("click", () => {
         onSelectPoint(point.id);
       });
+      marker.on("dblclick", () => {
+        onEditPoint?.(point.id);
+      });
 
       marker.addTo(pointLayerRef.current);
     });
-  }, [mapPoints, onSelectPoint, selectedMapPointId]);
+  }, [mapPoints, onEditPoint, onSelectPoint, selectedMapPointId]);
 
   useEffect(() => {
     if (!mapRef.current) {

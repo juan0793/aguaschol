@@ -270,6 +270,16 @@ const ensureSchema = async () => {
       columnName: "actor_email_snapshot",
       definition: "VARCHAR(180) NOT NULL DEFAULT ''"
     });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "marker_color",
+      definition: "VARCHAR(20) NOT NULL DEFAULT '#1576d1'"
+    });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "is_terminal_point",
+      definition: "TINYINT(1) NOT NULL DEFAULT 0"
+    });
     await admin.query(
       `
         UPDATE audit_logs

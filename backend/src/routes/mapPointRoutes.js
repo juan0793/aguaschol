@@ -4,7 +4,8 @@ import {
   deleteMapPointHandler,
   exportMapPointsHandler,
   listMapPointsHandler,
-  mapPointContextsHandler
+  mapPointContextsHandler,
+  updateMapPointHandler
 } from "../controllers/mapPointController.js";
 import { requireAdmin } from "../middleware/authMiddleware.js";
 
@@ -14,6 +15,7 @@ router.get("/", listMapPointsHandler);
 router.get("/export", exportMapPointsHandler);
 router.post("/context", requireAdmin, mapPointContextsHandler);
 router.post("/", createMapPointHandler);
+router.put("/:id", requireAdmin, updateMapPointHandler);
 router.delete("/:id", requireAdmin, deleteMapPointHandler);
 
 export default router;
