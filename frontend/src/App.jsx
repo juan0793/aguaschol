@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import FieldMap from "./components/FieldMap";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 
 const rawApiBase = (import.meta.env.VITE_API_URL?.trim() || "").replace(/\/$/, "");
@@ -20,36 +21,6 @@ const emptyMapDraft = {
   description: "",
   reference: ""
 };
-const MAP_BASEMAPS = [
-  {
-    label: "CARTO claro",
-    tiles: [
-      "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-      "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-      "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-      "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-    ],
-    attribution: "OpenStreetMap contributors | CARTO"
-  },
-  {
-    label: "OpenStreetMap",
-    tiles: [
-      "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
-    ],
-    attribution: "OpenStreetMap contributors"
-  },
-  {
-    label: "OpenStreetMap HOT",
-    tiles: [
-      "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-      "https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-      "https://c.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
-    ],
-    attribution: "OpenStreetMap contributors | HOT"
-  }
-];
 const buildMapStyle = (basemapIndex = 0) => ({
   version: 8,
   sources: {
@@ -733,11 +704,6 @@ const urlToDataUrl = async (url) => {
 
 function App() {
   const sheetRef = useRef(null);
-  const mapContainerRef = useRef(null);
-  const mapLibRef = useRef(null);
-  const mapRef = useRef(null);
-  const mapMarkersRef = useRef([]);
-  const mapDraftMarkerRef = useRef(null);
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -1448,120 +1414,6 @@ function App() {
   }, [isAuthenticated, lookupQuery, workspaceView]);
 
   useEffect(() => {
-    if (workspaceView !== "map" || !mapContainerRef.current) {
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    loadMapLibrary().then((maplibregl) => {
-      if (cancelled || mapRef.current) {
-        return;
-      }
-
-      mapLibRef.current = maplibregl;
-      const map = maplibregl.map(mapContainerRef.current, {
-        center: [13.3017, -87.1889],
-        zoom: 14,
-        zoomControl: true
-      });
-
-      const tileLayer = maplibregl.tileLayer(`${API_URL}/map-tiles/{z}/{x}/{y}.png`, {
-        attribution: "OpenStreetMap contributors",
-        maxZoom: 19
-      });
-
-      tileLayer.on("tileerror", () => {
-        setMapStatus("Mapa sin capa base");
-      });
-
-      tileLayer.addTo(map);
-
-      map.on("click", (event) => {
-        setMapDraft((current) => ({
-          ...current,
-          latitude: Number(event.latlng.lat).toFixed(6),
-          longitude: Number(event.latlng.lng).toFixed(6),
-          accuracy_meters: current.accuracy_meters || ""
-        }));
-      });
-
-      mapRef.current = map;
-      window.setTimeout(() => map.invalidateSize(), 80);
-    });
-
-    const resizeTimer = window.setTimeout(() => {
-      mapRef.current?.invalidateSize();
-    }, 120);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(resizeTimer);
-    };
-  }, [workspaceView]);
-
-  useEffect(() => {
-    if (!mapRef.current || !mapLibRef.current) {
-      return;
-    }
-
-    mapMarkersRef.current.forEach((marker) => marker.remove());
-    mapMarkersRef.current = safeMapPoints.map((point) => {
-      const marker = mapLibRef.current.circleMarker([Number(point.latitude), Number(point.longitude)], {
-        radius: point.id === selectedMapPointId ? 10 : 8,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: point.id === selectedMapPointId ? "#25c7f0" : "#1576d1",
-        fillOpacity: 0.95
-      });
-
-      marker.on("click", () => {
-        setSelectedMapPointId(point.id);
-      });
-
-      marker.addTo(mapRef.current);
-      return marker;
-    });
-  }, [safeMapPoints, selectedMapPointId]);
-
-  useEffect(() => {
-    if (!mapRef.current || !mapLibRef.current) {
-      return;
-    }
-
-    const latitude = Number(mapDraft.latitude);
-    const longitude = Number(mapDraft.longitude);
-
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      mapDraftMarkerRef.current?.remove();
-      mapDraftMarkerRef.current = null;
-      return;
-    }
-
-    if (!mapDraftMarkerRef.current) {
-      mapDraftMarkerRef.current = mapLibRef.current.circleMarker([latitude, longitude], {
-        radius: 9,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: "#f8b043",
-        fillOpacity: 0.95
-      }).addTo(mapRef.current);
-    } else {
-      mapDraftMarkerRef.current.setLatLng([latitude, longitude]);
-    }
-  }, [mapDraft.latitude, mapDraft.longitude]);
-
-  useEffect(() => {
-    if (!mapRef.current || !selectedMapPoint) {
-      return;
-    }
-
-    mapRef.current.flyTo([Number(selectedMapPoint.latitude), Number(selectedMapPoint.longitude)], Math.max(mapRef.current.getZoom(), 16), {
-      duration: 0.7
-    });
-  }, [selectedMapPoint]);
-
-  useEffect(() => {
     if (form.id || !hasDraftContent(form)) {
       return;
     }
@@ -1712,14 +1564,6 @@ function App() {
         setMapDraft(nextDraft);
         setMapStatus("GPS listo");
         setLocatingUser(false);
-
-        if (mapRef.current) {
-          mapRef.current.easeTo({
-            center: [Number(nextDraft.longitude), Number(nextDraft.latitude)],
-            zoom: 17,
-            duration: 800
-          });
-        }
       },
       (error) => {
         setLocatingUser(false);
@@ -3984,7 +3828,16 @@ function App() {
                 </span>
                 <span className="helper-text">Toca el mapa para fijar coordenadas o usa tu ubicacion actual.</span>
               </div>
-              <div ref={mapContainerRef} className="map-canvas" />
+              <FieldMap
+                apiUrl={API_URL}
+                isActive={workspaceView === "map"}
+                mapDraft={mapDraft}
+                mapPoints={safeMapPoints}
+                onDraftChange={setMapDraft}
+                onSelectPoint={setSelectedMapPointId}
+                onStatusChange={setMapStatus}
+                selectedMapPointId={selectedMapPointId}
+              />
             </article>
 
             <aside className="map-side-panel">
