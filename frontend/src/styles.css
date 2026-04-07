@@ -2852,6 +2852,37 @@ textarea {
   gap: 0.75rem;
 }
 
+.map-report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(21, 118, 209, 0.05);
+  border: 1px solid rgba(21, 118, 209, 0.1);
+}
+
+.map-report-pagination-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.map-report-pagination-copy strong {
+  color: #10375b;
+}
+
+.map-report-pagination-copy span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.map-report-pagination-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
 .map-report-type-card {
   display: grid;
   gap: 0.3rem;
@@ -2903,6 +2934,10 @@ textarea {
 
 .map-report-reference-line {
   max-width: 720px;
+}
+
+.map-report-location-line {
+  max-width: 860px;
 }
 
 .map-report-table-wrap {
@@ -2975,13 +3010,23 @@ textarea {
   }
 
   .map-report-office-head,
-  .map-report-zone-top {
+  .map-report-zone-top,
+  .map-report-pagination {
     flex-direction: column;
     align-items: flex-start;
   }
 
   .map-report-zone-metrics {
     justify-content: flex-start;
+  }
+
+  .map-report-pagination-actions {
+    width: 100%;
+  }
+
+  .map-report-pagination-actions .button-secondary {
+    width: 100%;
+    justify-content: center;
   }
 
   .map-list-head-actions {

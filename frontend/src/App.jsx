@@ -887,6 +887,7 @@ function App() {
   const [loadingMapPoints, setLoadingMapPoints] = useState(false);
   const [loadingMapContexts, setLoadingMapContexts] = useState(false);
   const [mapPointContexts, setMapPointContexts] = useState({});
+  const [mapReportPage, setMapReportPage] = useState(1);
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
@@ -1175,7 +1176,8 @@ function App() {
         items: [],
         accuracyValues: [],
         pointTypes: new Set(),
-        nearbyReferences: new Set()
+        nearbyReferences: new Set(),
+        locationHints: new Set()
       };
 
       current.total += 1;
@@ -1189,6 +1191,9 @@ function App() {
       if (context?.reference) {
         current.nearbyReferences.add(context.reference);
       }
+      if (context?.display_name) {
+        current.locationHints.add(context.display_name);
+      }
       if (Number.isFinite(Number(point.accuracy_meters))) {
         current.accuracyValues.push(Number(point.accuracy_meters));
       }
@@ -1201,7 +1206,8 @@ function App() {
         ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
         : null,
       pointTypesLabel: Array.from(zone.pointTypes).join(", "),
-      nearbyReferencesLabel: Array.from(zone.nearbyReferences).slice(0, 3).join(" | ")
+      nearbyReferencesLabel: Array.from(zone.nearbyReferences).slice(0, 3).join(" | "),
+      primaryLocationLabel: Array.from(zone.locationHints)[0] || ""
     }));
 
     return {
@@ -1211,6 +1217,18 @@ function App() {
       zones
     };
   }, [mapPointContexts, safeMapPoints]);
+  const mapReportPagination = useMemo(() => {
+    const pageSize = 5;
+    const totalPages = Math.max(1, Math.ceil(mapReportData.zones.length / pageSize));
+    const currentPage = Math.min(mapReportPage, totalPages);
+    const start = (currentPage - 1) * pageSize;
+    return {
+      pageSize,
+      totalPages,
+      currentPage,
+      zones: mapReportData.zones.slice(start, start + pageSize)
+    };
+  }, [mapReportData.zones, mapReportPage]);
 
   const showAlert = (text) => {
     if (!text) return;
@@ -1614,6 +1632,15 @@ function App() {
   }, [isAdmin, safeMapPoints, workspaceView]);
 
   useEffect(() => {
+    setMapReportPage(1);
+  }, [workspaceView]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(mapReportData.zones.length / 5));
+    setMapReportPage((current) => Math.min(current, totalPages));
+  }, [mapReportData.zones.length]);
+
+  useEffect(() => {
     if (isAuthenticated && !isAdmin && !["records", "lookup", "map"].includes(workspaceView)) {
       setWorkspaceView("records");
     }
@@ -2001,6 +2028,7 @@ function App() {
                 <span class="field-report-zone-kicker">Zona ${index + 1}</span>
                 <h3>${zone.zone}</h3>
                 <p>Referencia sugerida: ${zone.nearbyReferencesLabel || "Sin contexto cercano"}</p>
+                <p>Ubicacion completa: ${zone.primaryLocationLabel || "Sin direccion ampliada"}</p>
               </div>
               <div class="field-report-zone-meta">
                 <span>Total: ${zone.total}</span>
@@ -3494,6 +3522,15 @@ function App() {
                   <Icon name="map" />
                   {loadingMapContexts ? "Ubicando zonas..." : "Actualizar zonas"}
                 </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setMapReportPage(1)}
+                  disabled={mapReportPagination.currentPage === 1}
+                >
+                  <Icon name="records" />
+                  Ir a pagina 1
+                </button>
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
                   Imprimir reporte
@@ -4537,6 +4574,10 @@ function App() {
                         <span>Formato</span>
                         <strong>Oficina compacta</strong>
                       </div>
+                      <div className="log-summary-card">
+                        <span>Paginado</span>
+                        <strong>{mapReportPagination.currentPage} / {mapReportPagination.totalPages}</strong>
+                      </div>
                     </div>
                   </div>
                   <article className="document-sheet log-sheet map-report-sheet">
@@ -4554,6 +4595,32 @@ function App() {
                         Imprimir formato de oficina
                       </button>
                     </div>
+                    <div className="map-report-pagination">
+                      <div className="map-report-pagination-copy">
+                        <strong>Pagina {mapReportPagination.currentPage} de {mapReportPagination.totalPages}</strong>
+                        <span>Mostrando {mapReportPagination.zones.length} zonas por vista para mantener el reporte legible.</span>
+                      </div>
+                      <div className="map-report-pagination-actions">
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={() => setMapReportPage((current) => Math.max(1, current - 1))}
+                          disabled={mapReportPagination.currentPage === 1}
+                        >
+                          Anterior
+                        </button>
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={() =>
+                            setMapReportPage((current) => Math.min(mapReportPagination.totalPages, current + 1))
+                          }
+                          disabled={mapReportPagination.currentPage === mapReportPagination.totalPages}
+                        >
+                          Siguiente
+                        </button>
+                      </div>
+                    </div>
                     <div className="map-report-type-grid">
                       {Object.entries(mapReportData.totalsByType).length ? (
                         Object.entries(mapReportData.totalsByType).map(([label, total]) => (
@@ -4570,15 +4637,18 @@ function App() {
                       )}
                     </div>
                     <div className="map-report-zone-list">
-                      {mapReportData.zones.length ? (
-                        mapReportData.zones.map((zone, zoneIndex) => (
+                      {mapReportPagination.zones.length ? (
+                        mapReportPagination.zones.map((zone, zoneIndex) => (
                           <section key={zone.zone} className="document-block map-report-zone-card">
                             <div className="map-report-zone-top">
                               <div>
-                                <span className="sheet-kicker">Zona {zoneIndex + 1}</span>
+                                <span className="sheet-kicker">Zona {(mapReportPagination.currentPage - 1) * mapReportPagination.pageSize + zoneIndex + 1}</span>
                                 <h4>{zone.zone}</h4>
                                 <p className="helper-text map-report-reference-line">
                                   Referencia sugerida: {zone.nearbyReferencesLabel || "Sin contexto cercano"}
+                                </p>
+                                <p className="helper-text map-report-location-line">
+                                  Ubicacion completa: {zone.primaryLocationLabel || "Sin direccion ampliada"}
                                 </p>
                               </div>
                               <div className="map-report-zone-metrics">
