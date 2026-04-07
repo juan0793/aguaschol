@@ -2657,34 +2657,6 @@ textarea {
   background: linear-gradient(180deg, #edf3f9, #dce7f2);
 }
 
-.map-canvas.leaflet-container .leaflet-pane,
-.map-canvas.leaflet-container .leaflet-layer,
-.map-canvas.leaflet-container .leaflet-tile-container,
-.map-canvas.leaflet-container .leaflet-map-pane,
-.map-canvas.leaflet-container .leaflet-tile-pane {
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.map-canvas.leaflet-container .leaflet-tile {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  max-width: none !important;
-  max-height: none !important;
-  image-rendering: auto;
-}
-
-.map-canvas.leaflet-container img.leaflet-tile {
-  width: 256px !important;
-  height: 256px !important;
-  transform-origin: 0 0;
-}
-
-.map-canvas.leaflet-container .leaflet-control-container {
-  z-index: 700;
-}
-
 .map-debug-card {
   position: absolute;
   left: 0.9rem;
