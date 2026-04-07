@@ -29,6 +29,10 @@ const formatReportDate = (value) => {
   }).format(date);
 };
 const uniqueText = (values = []) => Array.from(new Set(values.filter(Boolean)));
+const normalizeDiaryDate = (value) => {
+  const candidate = String(value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(candidate) ? candidate : "";
+};
 const setSheetHyperlink = (worksheet, address, url, label = "Abrir punto") => {
   worksheet[address] = {
     t: "s",
@@ -65,9 +69,12 @@ const validateCoordinates = ({ latitude, longitude }) => {
   }
 };
 
-export const listMapPoints = async () => {
+export const listMapPoints = async ({ date = "" } = {}) => {
+  const diaryDate = normalizeDiaryDate(date);
   if (env.useMemoryDb) {
-    return [...memoryPoints].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return [...memoryPoints]
+      .filter((point) => !diaryDate || String(point.created_at).startsWith(diaryDate))
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
   const pool = getPool();
@@ -78,15 +85,17 @@ export const listMapPoints = async () => {
         app_users.full_name AS created_by_name
       FROM map_points
       LEFT JOIN app_users ON app_users.id = map_points.created_by
+      ${diaryDate ? "WHERE DATE(map_points.created_at) = ?" : ""}
       ORDER BY map_points.created_at DESC
       LIMIT 500
-    `
+    `,
+    diaryDate ? [diaryDate] : []
   );
   return rows;
 };
 
-const getSortedMapPoints = async () =>
-  (await listMapPoints()).sort((left, right) => {
+const getSortedMapPoints = async (options = {}) =>
+  (await listMapPoints(options)).sort((left, right) => {
     const latitudeDiff = Number(left.latitude) - Number(right.latitude);
     if (latitudeDiff !== 0) {
       return latitudeDiff;
@@ -100,8 +109,9 @@ const getSortedMapPoints = async () =>
     return new Date(left.created_at) - new Date(right.created_at);
   });
 
-export const exportMapPointsWorkbook = async () => {
-  const points = await getSortedMapPoints();
+export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
+  const diaryDate = normalizeDiaryDate(date);
+  const points = await getSortedMapPoints({ date: diaryDate });
   const workbook = XLSX.utils.book_new();
   const generatedAt = new Date().toISOString();
   const generatedLabel = formatReportDate(generatedAt);
@@ -297,7 +307,7 @@ export const exportMapPointsWorkbook = async () => {
   XLSX.utils.book_append_sheet(workbook, detailSheet, "detalle_puntos");
 
   return {
-    fileName: `reporte-detallado-puntos-campo-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    fileName: `reporte-detallado-puntos-campo-${diaryDate || new Date().toISOString().slice(0, 10)}.xlsx`,
     buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
   };
 };

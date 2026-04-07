@@ -166,6 +166,27 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
+const getMapDiaryDateKey = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatMapDiaryLabel = (dateKey) => {
+  if (!dateKey) return "Sin fecha";
+  const date = new Date(`${dateKey}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return dateKey;
+  return new Intl.DateTimeFormat("es-HN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+};
+
 const deriveMapPointZone = (point = {}) => {
   const source = String(point.reference_note || point.reference || point.description || "").trim();
   if (!source) return "Zona no especificada";
@@ -1016,6 +1037,7 @@ function App() {
   const [mapStatus, setMapStatus] = useState("Sincronizado");
   const [mapDraft, setMapDraft] = useState(emptyMapDraft);
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
+  const [mapDiaryDateKey, setMapDiaryDateKey] = useState(() => getMapDiaryDateKey(new Date()));
   const [padronMeta, setPadronMeta] = useState(null);
   const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
@@ -1052,8 +1074,31 @@ function App() {
   const safeMapPoints = Array.isArray(mapPoints) ? mapPoints : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
-  const selectedMapPoint = safeMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
-  const selectedReportMapPoint = safeMapPoints.find((point) => point.id === selectedReportMapPointId) ?? null;
+  const mapDiaryGroups = useMemo(() => {
+    const groups = safeMapPoints.reduce((accumulator, point) => {
+      const key = getMapDiaryDateKey(point.created_at);
+      if (!key) return accumulator;
+      const current = accumulator.get(key) ?? { key, total: 0 };
+      current.total += 1;
+      accumulator.set(key, current);
+      return accumulator;
+    }, new Map());
+
+    return Array.from(groups.values()).sort((left, right) => right.key.localeCompare(left.key));
+  }, [safeMapPoints]);
+  const activeMapDiaryDateKey = useMemo(
+    () =>
+      mapDiaryGroups.some((group) => group.key === mapDiaryDateKey)
+        ? mapDiaryDateKey
+        : mapDiaryGroups[0]?.key ?? getMapDiaryDateKey(new Date()),
+    [mapDiaryDateKey, mapDiaryGroups]
+  );
+  const visibleMapPoints = useMemo(
+    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point.created_at) === activeMapDiaryDateKey),
+    [activeMapDiaryDateKey, safeMapPoints]
+  );
+  const selectedMapPoint = visibleMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
+  const selectedReportMapPoint = visibleMapPoints.find((point) => point.id === selectedReportMapPointId) ?? null;
   const selectedUser =
     safeUsers.find((user) => user.id === selectedUserId) ?? latestUserResult?.user ?? safeUsers[0] ?? null;
   const onlineUsers = useMemo(
@@ -1181,7 +1226,7 @@ function App() {
         {
           icon: "map",
           label: "Puntos guardados",
-          value: String(safeMapPoints.length)
+          value: String(visibleMapPoints.length)
         },
         {
           icon: locatingUser ? "refresh" : "activity",
@@ -1197,12 +1242,12 @@ function App() {
     }
 
     if (workspaceView === "mapReports") {
-      const zones = new Set(safeMapPoints.map((point) => deriveMapPointZone(point)));
+      const zones = new Set(visibleMapPoints.map((point) => deriveMapPointZone(point)));
       return [
         {
           icon: "map",
           label: "Puntos incluidos",
-          value: String(safeMapPoints.length)
+          value: String(visibleMapPoints.length)
         },
         {
           icon: "records",
@@ -1242,7 +1287,7 @@ function App() {
     mapStatus,
     padronMeta,
     loadingMapPoints,
-    safeMapPoints.length,
+    visibleMapPoints.length,
     safeRecords.length,
     selectedMapPoint,
     uploadingPadron,
@@ -1277,7 +1322,7 @@ function App() {
     return groups;
   }, [draftForm, safeRecords, recordView]);
   const mapReportData = useMemo(() => {
-    const points = [...safeMapPoints].sort((left, right) => {
+    const points = [...visibleMapPoints].sort((left, right) => {
       const leftContext = mapPointContexts[getMapPointContextKey(left)] ?? null;
       const rightContext = mapPointContexts[getMapPointContextKey(right)] ?? null;
       const leftZone = leftContext?.zone || deriveMapPointZone(left);
@@ -1343,7 +1388,7 @@ function App() {
       totalsByType,
       zones
     };
-  }, [mapPointContexts, safeMapPoints]);
+  }, [mapPointContexts, visibleMapPoints]);
   const adminWorkspaceItems = useMemo(
     () =>
       isAdmin
@@ -1368,8 +1413,8 @@ function App() {
     ]
   );
   const totalCajaRegistro = useMemo(
-    () => safeMapPoints.filter((point) => point.point_type === "caja_registro").length,
-    [safeMapPoints]
+    () => visibleMapPoints.filter((point) => point.point_type === "caja_registro").length,
+    [visibleMapPoints]
   );
   const mapReportPagination = useMemo(() => {
     const pageSize = 5;
@@ -1383,6 +1428,23 @@ function App() {
       zones: mapReportData.zones.slice(start, start + pageSize)
     };
   }, [mapReportData.zones, mapReportPage]);
+
+  useEffect(() => {
+    if (mapDiaryDateKey !== activeMapDiaryDateKey) {
+      setMapDiaryDateKey(activeMapDiaryDateKey);
+    }
+  }, [activeMapDiaryDateKey, mapDiaryDateKey]);
+
+  useEffect(() => {
+    setSelectedMapPointId((current) => (visibleMapPoints.some((point) => point.id === current) ? current : null));
+    setSelectedReportMapPointId((current) =>
+      visibleMapPoints.some((point) => point.id === current) ? current : null
+    );
+  }, [visibleMapPoints]);
+
+  useEffect(() => {
+    setMapReportPage(1);
+  }, [activeMapDiaryDateKey]);
 
   const showAlert = (text) => {
     if (!text) return;
@@ -1813,9 +1875,9 @@ function App() {
 
   useEffect(() => {
     if (workspaceView === "mapReports" && isAdmin) {
-      loadMapPointContexts(safeMapPoints);
+      loadMapPointContexts(visibleMapPoints);
     }
-  }, [isAdmin, safeMapPoints, workspaceView]);
+  }, [isAdmin, visibleMapPoints, workspaceView]);
 
   useEffect(() => {
     setMapReportPage(1);
@@ -2120,6 +2182,7 @@ function App() {
       }
 
       setMapPoints((current) => [data, ...current]);
+      setMapDiaryDateKey(getMapDiaryDateKey(data.created_at) || getMapDiaryDateKey(new Date()));
       setSelectedMapPointId(data.id);
       setMapStatus("Punto guardado");
       setMapFocusRequest({
@@ -2173,7 +2236,7 @@ function App() {
   };
 
   const handleEditReportMapPoint = (pointId) => {
-    const point = safeMapPoints.find((item) => item.id === pointId);
+    const point = visibleMapPoints.find((item) => item.id === pointId) ?? safeMapPoints.find((item) => item.id === pointId);
     if (!point) {
       return;
     }
@@ -2192,7 +2255,7 @@ function App() {
 
   const handleSelectReportMapPoint = (pointId) => {
     setSelectedReportMapPointId(pointId);
-    const point = safeMapPoints.find((item) => item.id === pointId);
+    const point = visibleMapPoints.find((item) => item.id === pointId) ?? safeMapPoints.find((item) => item.id === pointId);
     if (!point) return;
 
     setReportMapFocusRequest({
@@ -2249,6 +2312,7 @@ function App() {
       setMapPoints((current) =>
         isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
       );
+      setMapDiaryDateKey(getMapDiaryDateKey(data.created_at) || getMapDiaryDateKey(new Date()));
       setSelectedReportMapPointId(data.id);
       setEditingReportMapPointId(null);
       setReportMapStatus(isEditing ? "Punto actualizado" : "Punto agregado");
@@ -2269,7 +2333,7 @@ function App() {
 
   const handleDownloadMapReport = async () => {
     try {
-      const response = await apiFetch("/map-points/export");
+      const response = await apiFetch(`/map-points/export?date=${encodeURIComponent(activeMapDiaryDateKey)}`);
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -2317,7 +2381,7 @@ function App() {
 
   const handleSelectMapPoint = (pointId) => {
     setSelectedMapPointId(pointId);
-    const point = safeMapPoints.find((item) => item.id === pointId);
+    const point = visibleMapPoints.find((item) => item.id === pointId) ?? safeMapPoints.find((item) => item.id === pointId);
     if (!point) return;
 
     setMapFocusRequest({
@@ -4024,6 +4088,10 @@ function App() {
               <p className="workspace-title">
                 Modulo independiente para geolocalizar puntos tecnicos en campo y dejar registro de cajas de aguas negras.
               </p>
+              <div className="map-diary-summary">
+                <span className="panel-pill">Bitacora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                <span className="helper-text">{visibleMapPoints.length} puntos de {mapDiaryGroups.length} jornadas registradas.</span>
+              </div>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
                   <Icon name="map" />
@@ -4072,12 +4140,16 @@ function App() {
               <p className="workspace-title">
                 Reporte administrativo compacto de puntos levantados en campo, agrupados por zona y listo para impresion institucional.
               </p>
+              <div className="map-diary-summary">
+                <span className="panel-pill">Bitacora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                <span className="helper-text">{visibleMapPoints.length} puntos y {mapReportData.totalZones} zonas en la jornada seleccionada.</span>
+              </div>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
                   <Icon name="refresh" />
                   {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
                 </button>
-                <button type="button" className="button-secondary" onClick={() => loadMapPointContexts()} disabled={loadingMapContexts}>
+                <button type="button" className="button-secondary" onClick={() => loadMapPointContexts(visibleMapPoints)} disabled={loadingMapContexts}>
                   <Icon name="map" />
                   {loadingMapContexts ? "Ubicando zonas..." : "Actualizar zonas"}
                 </button>
@@ -4855,7 +4927,7 @@ function App() {
                   <p className="sheet-kicker">Geolocalizacion de campo</p>
                   <h2><Icon name="map" className="title-icon" />Mapa de campo</h2>
                 </div>
-                <span className="panel-pill">{safeMapPoints.length} puntos</span>
+                <span className="panel-pill">{visibleMapPoints.length} puntos</span>
               </div>
               <div className="map-toolbar">
                 <span className={`map-status-chip ${mapStatus === "Sin conexion" ? "is-offline" : ""}`}>
@@ -4864,12 +4936,35 @@ function App() {
                 </span>
                 <span className="helper-text">Toca el mapa para fijar coordenadas o usa tu ubicacion actual.</span>
               </div>
+              <div className="map-diary-strip">
+                <div className="map-diary-strip-head">
+                  <strong>Bitacora por dia</strong>
+                  <span>{formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                </div>
+                <div className="map-diary-tabs">
+                  {mapDiaryGroups.length ? (
+                    mapDiaryGroups.map((group) => (
+                      <button
+                        key={group.key}
+                        type="button"
+                        className={`map-diary-tab ${activeMapDiaryDateKey === group.key ? "is-active" : ""}`}
+                        onClick={() => setMapDiaryDateKey(group.key)}
+                      >
+                        <strong>{formatMapDiaryLabel(group.key)}</strong>
+                        <span>{group.total} puntos</span>
+                      </button>
+                    ))
+                  ) : (
+                    <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
+                  )}
+                </div>
+              </div>
               <FieldMap
                 apiUrl={API_URL}
                 isActive={workspaceView === "map"}
                 mapDraft={mapDraft}
                 mapFocusRequest={mapFocusRequest}
-                mapPoints={safeMapPoints}
+                mapPoints={visibleMapPoints}
                 onDraftChange={setMapDraft}
                 onSelectPoint={handleSelectMapPoint}
                 onStatusChange={setMapStatus}
@@ -4987,17 +5082,18 @@ function App() {
                     <h3>Puntos guardados</h3>
                   </div>
                   <div className="map-list-head-actions">
-                    <span className="panel-pill">{safeMapPoints.length}</span>
+                    <span className="panel-pill">{visibleMapPoints.length}</span>
                     <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
                       <Icon name="records" />
                       Reporte detallado
                     </button>
                   </div>
                 </div>
+                <p className="helper-text">Mostrando la jornada del {formatMapDiaryLabel(activeMapDiaryDateKey)}.</p>
                 {loadingMapPoints ? <p className="helper-text">Cargando puntos...</p> : null}
                 <div className="map-point-list">
-                  {safeMapPoints.length ? (
-                    safeMapPoints.map((point) => (
+                  {visibleMapPoints.length ? (
+                    visibleMapPoints.map((point) => (
                       <article
                         key={point.id}
                         className={`map-point-card ${selectedMapPointId === point.id ? "is-active" : ""}`}
@@ -5128,6 +5224,32 @@ function App() {
                         </p>
                       </div>
                       <span className="panel-pill">{mapReportData.totalPoints} puntos</span>
+                    </div>
+                    <div className="map-diary-strip map-diary-strip-report">
+                      <div className="map-diary-strip-head">
+                        <strong>Jornadas de bitacora</strong>
+                        <span>{formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                      </div>
+                      <div className="map-diary-tabs">
+                        {mapDiaryGroups.length ? (
+                          mapDiaryGroups.map((group) => (
+                            <button
+                              key={group.key}
+                              type="button"
+                              className={`map-diary-tab ${activeMapDiaryDateKey === group.key ? "is-active" : ""}`}
+                              onClick={() => {
+                                setMapDiaryDateKey(group.key);
+                                setMapReportPage(1);
+                              }}
+                            >
+                              <strong>{formatMapDiaryLabel(group.key)}</strong>
+                              <span>{group.total} puntos</span>
+                            </button>
+                          ))
+                        ) : (
+                          <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
+                        )}
+                      </div>
                     </div>
                     <div className="log-summary-strip map-report-summary-strip">
                       <div className="log-summary-card">
@@ -5261,7 +5383,7 @@ function App() {
                             isActive={workspaceView === "mapReports"}
                             mapDraft={reportMapDraft}
                             mapFocusRequest={reportMapFocusRequest}
-                            mapPoints={safeMapPoints}
+                            mapPoints={visibleMapPoints}
                             onDraftChange={setReportMapDraft}
                             onEditPoint={handleEditReportMapPoint}
                             onSelectPoint={handleSelectReportMapPoint}

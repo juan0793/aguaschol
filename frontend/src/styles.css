@@ -2757,6 +2757,82 @@ textarea {
   gap: 0.7rem;
 }
 
+.map-diary-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.map-diary-strip {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+  background: rgba(237, 246, 255, 0.72);
+  border: 1px solid rgba(21, 118, 209, 0.12);
+}
+
+.map-diary-strip-report {
+  margin-bottom: 1rem;
+}
+
+.map-diary-strip-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.map-diary-strip-head strong {
+  color: #123b5d;
+}
+
+.map-diary-strip-head span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.map-diary-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.map-diary-tab {
+  display: grid;
+  justify-items: start;
+  gap: 0.12rem;
+  min-width: 170px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: #16324a;
+}
+
+.map-diary-tab.is-active {
+  background: linear-gradient(135deg, rgba(21, 118, 209, 0.14), rgba(37, 199, 240, 0.12), rgba(255, 255, 255, 0.98));
+  border-color: rgba(21, 118, 209, 0.26);
+  box-shadow: 0 12px 26px rgba(21, 118, 209, 0.08);
+}
+
+.map-diary-tab strong {
+  font-size: 0.86rem;
+}
+
+.map-diary-tab span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.map-diary-empty {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .map-status-chip {
   display: inline-flex;
   align-items: center;
@@ -3364,6 +3440,17 @@ textarea {
   .map-point-coords {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .map-diary-summary,
+  .map-diary-strip-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .map-diary-tab {
+    width: 100%;
+    min-width: 0;
   }
 
   .map-report-office-head,

@@ -7,9 +7,9 @@ import {
 } from "../services/mapPointService.js";
 import { fetchMapPointContexts } from "../services/mapPointContextService.js";
 
-export const listMapPointsHandler = async (_req, res, next) => {
+export const listMapPointsHandler = async (req, res, next) => {
   try {
-    const points = await listMapPoints();
+    const points = await listMapPoints({ date: req.query?.date });
     res.json(points);
   } catch (error) {
     next(error);
@@ -46,9 +46,9 @@ export const updateMapPointHandler = async (req, res, next) => {
   }
 };
 
-export const exportMapPointsHandler = async (_req, res, next) => {
+export const exportMapPointsHandler = async (req, res, next) => {
   try {
-    const workbook = await exportMapPointsWorkbook();
+    const workbook = await exportMapPointsWorkbook({ date: req.query?.date });
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
