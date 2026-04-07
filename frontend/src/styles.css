@@ -446,6 +446,15 @@ button:disabled {
   margin-bottom: 1rem;
 }
 
+.hero-admin {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+.hero-admin .search-card {
+  padding: 0.9rem 1rem;
+}
+
 .hero-panel {
   position: relative;
   overflow: hidden;

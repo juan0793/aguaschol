@@ -3837,7 +3837,7 @@ function App() {
           </div>
         </div>
       ) : null}
-      <header className="hero no-print">
+      <header className={`hero no-print ${isAdmin ? "hero-admin" : ""}`}>
         <div className={`hero-panel ${headerMeta.panelClass}`}>
           <div className="hero-topline">
             <span className="hero-topline-item">
