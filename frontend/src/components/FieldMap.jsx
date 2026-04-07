@@ -24,6 +24,7 @@ function FieldMap({
   const tileLayerRef = useRef(null);
   const pointLayerRef = useRef(null);
   const draftMarkerRef = useRef(null);
+  const accuracyCircleRef = useRef(null);
   const tileTemplate = useMemo(
     () => `${apiUrl}/map-tiles/{z}/{x}/{y}.png?v=${encodeURIComponent(TILE_CACHE_BUSTER)}`,
     [apiUrl]
@@ -43,6 +44,7 @@ function FieldMap({
       zoomAnimation: false,
       markerZoomAnimation: false
     });
+    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
     const tileLayer = L.tileLayer(tileTemplate, {
       attribution: "OpenStreetMap contributors",
@@ -87,6 +89,7 @@ function FieldMap({
     return () => {
       resizeObserver.disconnect();
       draftMarkerRef.current?.remove();
+      accuracyCircleRef.current?.remove();
       pointLayerRef.current?.clearLayers();
       pointLayerRef.current?.remove();
       tileLayerRef.current?.remove();
@@ -95,6 +98,7 @@ function FieldMap({
       tileLayerRef.current = null;
       pointLayerRef.current = null;
       draftMarkerRef.current = null;
+      accuracyCircleRef.current = null;
     };
   }, [onDraftChange, onStatusChange, tileTemplate]);
 
@@ -146,9 +150,13 @@ function FieldMap({
 
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       draftMarkerRef.current?.remove();
+      accuracyCircleRef.current?.remove();
       draftMarkerRef.current = null;
+      accuracyCircleRef.current = null;
       return;
     }
+
+    const accuracyMeters = Number(mapDraft.accuracy_meters);
 
     if (!draftMarkerRef.current) {
       draftMarkerRef.current = L.circleMarker([latitude, longitude], {
@@ -161,7 +169,25 @@ function FieldMap({
     } else {
       draftMarkerRef.current.setLatLng([latitude, longitude]);
     }
-  }, [mapDraft.latitude, mapDraft.longitude]);
+
+    if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {
+      if (!accuracyCircleRef.current) {
+        accuracyCircleRef.current = L.circle([latitude, longitude], {
+          radius: accuracyMeters,
+          color: "#1576d1",
+          weight: 1.5,
+          fillColor: "#25c7f0",
+          fillOpacity: 0.12
+        }).addTo(mapRef.current);
+      } else {
+        accuracyCircleRef.current.setLatLng([latitude, longitude]);
+        accuracyCircleRef.current.setRadius(accuracyMeters);
+      }
+    } else {
+      accuracyCircleRef.current?.remove();
+      accuracyCircleRef.current = null;
+    }
+  }, [mapDraft.accuracy_meters, mapDraft.latitude, mapDraft.longitude]);
 
   useEffect(() => {
     if (!mapRef.current || !mapFocusRequest) {
@@ -175,12 +201,21 @@ function FieldMap({
       return;
     }
 
-    mapRef.current.setView([latitude, longitude], Number.isFinite(zoom) ? zoom : mapRef.current.getZoom(), {
-      animate: false
+    const targetZoom = Number.isFinite(zoom) ? zoom : mapRef.current.getZoom();
+    if (mapRef.current.getZoom() !== targetZoom) {
+      mapRef.current.setZoom(targetZoom, { animate: false });
+    }
+    mapRef.current.panTo([latitude, longitude], {
+      animate: true,
+      duration: 0.45,
+      easeLinearity: 0.25
     });
     window.requestAnimationFrame(() => {
       mapRef.current?.invalidateSize(false);
     });
+    window.setTimeout(() => {
+      mapRef.current?.invalidateSize(false);
+    }, 260);
   }, [mapFocusRequest]);
 
   return <div ref={containerRef} className="map-canvas" />;
