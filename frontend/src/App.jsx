@@ -72,7 +72,7 @@ let mapLibraryPromise;
 
 const loadMapLibrary = async () => {
   if (!mapLibraryPromise) {
-    mapLibraryPromise = Promise.all([import("maplibre-gl"), import("maplibre-gl/dist/maplibre-gl.css")]).then(
+    mapLibraryPromise = Promise.all([import("leaflet"), import("leaflet/dist/leaflet.css")]).then(
       ([library]) => library.default
     );
   }
@@ -736,8 +736,6 @@ function App() {
   const mapContainerRef = useRef(null);
   const mapLibRef = useRef(null);
   const mapRef = useRef(null);
-  const mapBasemapIndexRef = useRef(0);
-  const mapBasemapFailuresRef = useRef(new Set());
   const mapMarkersRef = useRef([]);
   const mapDraftMarkerRef = useRef(null);
   const [session, setSession] = useState(() => {
@@ -1462,50 +1460,38 @@ function App() {
       }
 
       mapLibRef.current = maplibregl;
-      const map = new maplibregl.Map({
-        container: mapContainerRef.current,
-        style: buildMapStyle(mapBasemapIndexRef.current),
-        center: [-87.1889, 13.3017],
-        zoom: 14
+      const map = maplibregl.map(mapContainerRef.current, {
+        center: [13.3017, -87.1889],
+        zoom: 14,
+        zoomControl: true
       });
 
-      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
+      const tileLayer = maplibregl.tileLayer(`${API_URL}/map-tiles/{z}/{x}/{y}.png`, {
+        attribution: "OpenStreetMap contributors",
+        maxZoom: 19
+      });
+
+      tileLayer.on("tileerror", () => {
+        setMapStatus("Mapa sin capa base");
+      });
+
+      tileLayer.addTo(map);
+
       map.on("click", (event) => {
         setMapDraft((current) => ({
           ...current,
-          latitude: Number(event.lngLat.lat).toFixed(6),
-          longitude: Number(event.lngLat.lng).toFixed(6),
+          latitude: Number(event.latlng.lat).toFixed(6),
+          longitude: Number(event.latlng.lng).toFixed(6),
           accuracy_meters: current.accuracy_meters || ""
         }));
       });
-      map.on("error", (event) => {
-        const sourceId = event?.sourceId ?? "";
-        if (sourceId === "basemap") {
-          const failedIndex = mapBasemapIndexRef.current;
-          if (mapBasemapFailuresRef.current.has(failedIndex)) {
-            return;
-          }
-
-          mapBasemapFailuresRef.current.add(failedIndex);
-          const nextIndex = failedIndex + 1;
-
-          if (nextIndex < MAP_BASEMAPS.length) {
-            mapBasemapIndexRef.current = nextIndex;
-            map.setStyle(buildMapStyle(nextIndex));
-            setMapStatus(`Capa alternativa: ${MAP_BASEMAPS[nextIndex].label}`);
-            return;
-          }
-
-          setMapStatus("Mapa sin capa base");
-        }
-      });
 
       mapRef.current = map;
-      window.setTimeout(() => map.resize(), 80);
+      window.setTimeout(() => map.invalidateSize(), 80);
     });
 
     const resizeTimer = window.setTimeout(() => {
-      mapRef.current?.resize();
+      mapRef.current?.invalidateSize();
     }, 120);
 
     return () => {
@@ -1521,17 +1507,20 @@ function App() {
 
     mapMarkersRef.current.forEach((marker) => marker.remove());
     mapMarkersRef.current = safeMapPoints.map((point) => {
-      const element = document.createElement("button");
-      element.type = "button";
-      element.className = `map-pin ${point.id === selectedMapPointId ? "is-active" : ""}`;
-      element.innerHTML = "<span></span>";
-      element.addEventListener("click", () => {
+      const marker = mapLibRef.current.circleMarker([Number(point.latitude), Number(point.longitude)], {
+        radius: point.id === selectedMapPointId ? 10 : 8,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: point.id === selectedMapPointId ? "#25c7f0" : "#1576d1",
+        fillOpacity: 0.95
+      });
+
+      marker.on("click", () => {
         setSelectedMapPointId(point.id);
       });
 
-      return new mapLibRef.current.Marker({ element, anchor: "bottom" })
-        .setLngLat([Number(point.longitude), Number(point.latitude)])
-        .addTo(mapRef.current);
+      marker.addTo(mapRef.current);
+      return marker;
     });
   }, [safeMapPoints, selectedMapPointId]);
 
@@ -1550,13 +1539,15 @@ function App() {
     }
 
     if (!mapDraftMarkerRef.current) {
-      const element = document.createElement("div");
-      element.className = "map-draft-pin";
-      mapDraftMarkerRef.current = new mapLibRef.current.Marker({ element, anchor: "bottom" })
-        .setLngLat([longitude, latitude])
-        .addTo(mapRef.current);
+      mapDraftMarkerRef.current = mapLibRef.current.circleMarker([latitude, longitude], {
+        radius: 9,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#f8b043",
+        fillOpacity: 0.95
+      }).addTo(mapRef.current);
     } else {
-      mapDraftMarkerRef.current.setLngLat([longitude, latitude]);
+      mapDraftMarkerRef.current.setLatLng([latitude, longitude]);
     }
   }, [mapDraft.latitude, mapDraft.longitude]);
 
@@ -1565,10 +1556,8 @@ function App() {
       return;
     }
 
-    mapRef.current.easeTo({
-      center: [Number(selectedMapPoint.longitude), Number(selectedMapPoint.latitude)],
-      zoom: Math.max(mapRef.current.getZoom(), 16),
-      duration: 700
+    mapRef.current.flyTo([Number(selectedMapPoint.latitude), Number(selectedMapPoint.longitude)], Math.max(mapRef.current.getZoom(), 16), {
+      duration: 0.7
     });
   }, [selectedMapPoint]);
 
