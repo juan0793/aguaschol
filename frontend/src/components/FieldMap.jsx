@@ -23,13 +23,6 @@ function FieldMap({
   const tileLayerRef = useRef(null);
   const pointLayerRef = useRef(null);
   const draftMarkerRef = useRef(null);
-  const [tileStats, setTileStats] = useState({
-    requested: 0,
-    loaded: 0,
-    failed: 0,
-    lastEvent: "Inicializando",
-    lastFailure: ""
-  });
   const tileTemplate = useMemo(
     () => `${apiUrl}/map-tiles/{z}/{x}/{y}.png?v=${encodeURIComponent(TILE_CACHE_BUSTER)}`,
     [apiUrl]
@@ -44,7 +37,10 @@ function FieldMap({
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       zoomControl: true,
-      preferCanvas: true
+      preferCanvas: true,
+      fadeAnimation: false,
+      zoomAnimation: false,
+      markerZoomAnimation: false
     });
 
     const tileLayer = L.tileLayer(tileTemplate, {
@@ -52,38 +48,15 @@ function FieldMap({
       maxZoom: 19
     });
 
-    tileLayer.on("tileloadstart", () => {
-      setTileStats((current) => ({
-        ...current,
-        requested: current.requested + 1,
-        lastEvent: "Solicitando tile"
-      }));
-    });
-
     tileLayer.on("loading", () => {
       onStatusChange((current) => (current === "Sin conexion" ? current : "Cargando mapa"));
-    });
-
-    tileLayer.on("tileload", () => {
-      setTileStats((current) => ({
-        ...current,
-        loaded: current.loaded + 1,
-        lastEvent: "Tile cargado"
-      }));
     });
 
     tileLayer.on("load", () => {
       onStatusChange((current) => (current === "GPS listo" ? current : "Sincronizado"));
     });
 
-    tileLayer.on("tileerror", (event) => {
-      const failedUrl = event?.tile?.src || "";
-      setTileStats((current) => ({
-        ...current,
-        failed: current.failed + 1,
-        lastEvent: "Tile con error",
-        lastFailure: failedUrl
-      }));
+    tileLayer.on("tileerror", () => {
       onStatusChange("Mapa sin capa base");
     });
 
@@ -199,11 +172,14 @@ function FieldMap({
       return;
     }
 
-    mapRef.current.flyTo(
+    mapRef.current.setView(
       [Number(selectedPoint.latitude), Number(selectedPoint.longitude)],
       Math.max(mapRef.current.getZoom(), 16),
-      { duration: 0.7 }
+      { animate: false }
     );
+    window.requestAnimationFrame(() => {
+      mapRef.current?.invalidateSize(false);
+    });
   }, [mapPoints, selectedMapPointId]);
 
   useEffect(() => {
@@ -217,27 +193,15 @@ function FieldMap({
       return;
     }
 
-    mapRef.current.flyTo([latitude, longitude], Math.max(mapRef.current.getZoom(), 17), {
-      duration: 0.7
+    mapRef.current.setView([latitude, longitude], Math.max(mapRef.current.getZoom(), 17), {
+      animate: false
+    });
+    window.requestAnimationFrame(() => {
+      mapRef.current?.invalidateSize(false);
     });
   }, [mapDraft.latitude, mapDraft.longitude]);
 
-  return (
-    <div className="map-canvas-shell">
-      <div ref={containerRef} className="map-canvas" />
-      <div className="map-debug-card">
-        <strong>Depuracion de mapa</strong>
-        <span>URL base: <code>{tileTemplate}</code></span>
-        <span>Solicitados: {tileStats.requested}</span>
-        <span>Cargados: {tileStats.loaded}</span>
-        <span>Fallidos: {tileStats.failed}</span>
-        <span>Ultimo evento: {tileStats.lastEvent}</span>
-        {tileStats.lastFailure ? (
-          <span className="map-debug-error">Ultimo tile fallido: <code>{tileStats.lastFailure}</code></span>
-        ) : null}
-      </div>
-    </div>
-  );
+  return <div ref={containerRef} className="map-canvas" />;
 }
 
 export default FieldMap;

@@ -2636,10 +2636,6 @@ textarea {
   border-color: rgba(155, 32, 45, 0.14);
 }
 
-.map-canvas-shell {
-  position: relative;
-}
-
 .map-canvas {
   position: relative;
   width: 100%;
@@ -2655,38 +2651,6 @@ textarea {
 .map-canvas.leaflet-container {
   z-index: 0;
   background: linear-gradient(180deg, #edf3f9, #dce7f2);
-}
-
-.map-debug-card {
-  position: absolute;
-  left: 0.9rem;
-  right: 0.9rem;
-  bottom: 0.9rem;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(21, 118, 209, 0.14);
-  box-shadow: 0 12px 28px rgba(11, 39, 72, 0.12);
-  z-index: 500;
-  font-size: 0.76rem;
-  color: #26425e;
-  pointer-events: none;
-}
-
-.map-debug-card strong,
-.map-debug-card code {
-  color: #10375b;
-}
-
-.map-debug-card code {
-  font-size: 0.72rem;
-  word-break: break-all;
-}
-
-.map-debug-error {
-  color: #9b202d;
 }
 
 .maplibregl-map {
