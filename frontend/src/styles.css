@@ -2879,6 +2879,11 @@ textarea {
   gap: 0.75rem;
 }
 
+.map-report-download-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .map-report-staff-card {
   display: grid;
   gap: 0.45rem;

@@ -2302,6 +2302,148 @@ function App() {
     );
   };
 
+  const handleDownloadMapFieldPdf = async () => {
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "letter",
+        compress: true
+      });
+      const generatedAt = formatDateTime(new Date().toISOString());
+
+      try {
+        const logoDataUrl = await urlToDataUrl(logoAguasCholuteca);
+        document.addImage(logoDataUrl, "PNG", 14, 10, 20, 20);
+      } catch {
+        // Keep the report generation going even if the logo cannot be embedded.
+      }
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(16);
+      document.text("Reporte de levantamiento de campo", 38, 16);
+      document.setFontSize(9.5);
+      document.setTextColor(64, 91, 117);
+      document.text("Aguas de Choluteca, S.A. de C.V.", 38, 22);
+
+      document.setTextColor(22, 50, 74);
+      document.setFont("helvetica", "normal");
+      document.text(`Generado: ${generatedAt}`, 14, 36);
+      document.text(`Total de puntos: ${mapReportData.totalPoints}`, 86, 36);
+      document.text(`Total de zonas: ${mapReportData.totalZones}`, 138, 36);
+      document.text(`Tecnicos de campo: ${mapReportStaff.field_technicians || "--"}`, 14, 42);
+      document.text(`Ingeniero de datos: ${mapReportStaff.data_engineer || "--"}`, 138, 42);
+
+      autoTable(document, {
+        startY: 48,
+        head: [["Resumen", "Cantidad"]],
+        body: Object.entries(mapReportData.totalsByType).length
+          ? Object.entries(mapReportData.totalsByType)
+          : [["Sin puntos", "0"]],
+        theme: "grid",
+        styles: {
+          fontSize: 8.5,
+          cellPadding: 2.6,
+          textColor: [24, 42, 60]
+        },
+        headStyles: {
+          fillColor: [21, 118, 209],
+          textColor: [255, 255, 255],
+          fontStyle: "bold"
+        },
+        columnStyles: {
+          0: { cellWidth: 54 },
+          1: { cellWidth: 20, halign: "center" }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      let currentY = (document.lastAutoTable?.finalY ?? 48) + 6;
+
+      for (let index = 0; index < mapReportData.zones.length; index += 1) {
+        const zone = mapReportData.zones[index];
+
+        if (currentY > 175) {
+          document.addPage("letter", "landscape");
+          currentY = 16;
+        }
+
+        document.setFillColor(237, 245, 252);
+        document.roundedRect(14, currentY, 250, 16, 3, 3, "F");
+        document.setFont("helvetica", "bold");
+        document.setFontSize(11.5);
+        document.setTextColor(16, 55, 91);
+        document.text(`Zona ${index + 1}: ${zone.zone}`, 18, currentY + 6);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.text(`Referencia sugerida: ${zone.nearbyReferencesLabel || "Sin contexto cercano"}`, 18, currentY + 11);
+        document.text(`Ubicacion completa: ${zone.primaryLocationLabel || "Sin direccion ampliada"}`, 128, currentY + 11);
+
+        autoTable(document, {
+          startY: currentY + 20,
+          head: [[
+            "#",
+            "Tipo",
+            "Marca",
+            "Latitud",
+            "Longitud",
+            "Precision",
+            "Referencia cercana",
+            "Referencia",
+            "Fecha"
+          ]],
+          body: zone.items.map((point, pointIndex) => [
+            String(pointIndex + 1),
+            getMapPointTypeLabel(point.point_type),
+            point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1",
+            formatCoordinate(point.latitude),
+            formatCoordinate(point.longitude),
+            point.accuracy_meters ? `${point.accuracy_meters} m` : "--",
+            point.suggested_reference || "--",
+            point.reference_note || point.description || "--",
+            formatDateTime(point.created_at)
+          ]),
+          theme: "grid",
+          styles: {
+            fontSize: 7.6,
+            cellPadding: 2.1,
+            textColor: [28, 44, 62],
+            overflow: "linebreak"
+          },
+          headStyles: {
+            fillColor: [21, 118, 209],
+            textColor: [255, 255, 255],
+            fontStyle: "bold"
+          },
+          alternateRowStyles: {
+            fillColor: [248, 251, 255]
+          },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 8, halign: "center" },
+            1: { cellWidth: 24 },
+            2: { cellWidth: 18 },
+            3: { cellWidth: 20 },
+            4: { cellWidth: 20 },
+            5: { cellWidth: 18 },
+            6: { cellWidth: 38 },
+            7: { cellWidth: 58 },
+            8: { cellWidth: 26 }
+          }
+        });
+
+        currentY = (document.lastAutoTable?.finalY ?? currentY + 20) + 7;
+      }
+
+      document.save(`reporte-campo-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Reporte PDF descargado.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar el reporte PDF.");
+    }
+  };
+
   const handleOpenPointInMaps = (point, event) => {
     event?.stopPropagation();
     const url = buildExternalMapUrl(point.latitude, point.longitude);
@@ -3729,6 +3871,10 @@ function App() {
                   <Icon name="records" />
                   Ir a pagina 1
                 </button>
+                <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
+                  <Icon name="records" />
+                  Descargar PDF
+                </button>
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
                   Imprimir reporte
@@ -4791,6 +4937,12 @@ function App() {
                       <button type="button" onClick={handlePrintMapFieldReport}>
                         <Icon name="records" />
                         Imprimir formato de oficina
+                      </button>
+                    </div>
+                    <div className="map-report-download-row">
+                      <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
+                        <Icon name="records" />
+                        Descargar PDF institucional
                       </button>
                     </div>
                     <div className="map-report-staff-grid">
