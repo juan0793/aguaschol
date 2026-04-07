@@ -764,6 +764,7 @@ function App() {
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
   const [mapStatus, setMapStatus] = useState("Sincronizado");
   const [mapDraft, setMapDraft] = useState(emptyMapDraft);
+  const [mapFocusRequest, setMapFocusRequest] = useState(null);
   const [padronMeta, setPadronMeta] = useState(null);
   const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
@@ -1017,6 +1018,7 @@ function App() {
     setSelectedMapPointId(null);
     setMapStatus("Sincronizado");
     setMapDraft(emptyMapDraft);
+    setMapFocusRequest(null);
     setPadronMeta(null);
     setPadronImportSummary(null);
     setPadronFile(null);
@@ -1240,9 +1242,7 @@ function App() {
 
       const nextPoints = Array.isArray(data) ? data : [];
       setMapPoints(nextPoints);
-      setSelectedMapPointId((current) =>
-        nextPoints.some((point) => point.id === current) ? current : nextPoints[0]?.id ?? null
-      );
+      setSelectedMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
       setMapStatus("Sincronizado");
     } catch (error) {
       if (!silent) {
@@ -1564,6 +1564,12 @@ function App() {
         setMapDraft(nextDraft);
         setMapStatus("GPS listo");
         setLocatingUser(false);
+        setMapFocusRequest({
+          latitude: Number(nextDraft.latitude),
+          longitude: Number(nextDraft.longitude),
+          zoom: 17,
+          key: Date.now()
+        });
       },
       (error) => {
         setLocatingUser(false);
@@ -1629,6 +1635,12 @@ function App() {
       setMapPoints((current) => [data, ...current]);
       setSelectedMapPointId(data.id);
       setMapStatus("Punto guardado");
+      setMapFocusRequest({
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        zoom: 17,
+        key: Date.now()
+      });
       showAlert("Punto de campo guardado correctamente.");
       resetMapDraft();
     } catch (error) {
@@ -1684,6 +1696,19 @@ function App() {
     } catch (error) {
       showAlert(error.message || "No fue posible eliminar el punto.");
     }
+  };
+
+  const handleSelectMapPoint = (pointId) => {
+    setSelectedMapPointId(pointId);
+    const point = safeMapPoints.find((item) => item.id === pointId);
+    if (!point) return;
+
+    setMapFocusRequest({
+      latitude: Number(point.latitude),
+      longitude: Number(point.longitude),
+      zoom: 16,
+      key: Date.now()
+    });
   };
 
   const handleOpenPointInMaps = (point, event) => {
@@ -3832,9 +3857,10 @@ function App() {
                 apiUrl={API_URL}
                 isActive={workspaceView === "map"}
                 mapDraft={mapDraft}
+                mapFocusRequest={mapFocusRequest}
                 mapPoints={safeMapPoints}
                 onDraftChange={setMapDraft}
-                onSelectPoint={setSelectedMapPointId}
+                onSelectPoint={handleSelectMapPoint}
                 onStatusChange={setMapStatus}
                 selectedMapPointId={selectedMapPointId}
               />
@@ -3965,7 +3991,7 @@ function App() {
                         key={point.id}
                         className={`map-point-card ${selectedMapPointId === point.id ? "is-active" : ""}`}
                       >
-                        <button type="button" className="map-point-main" onClick={() => setSelectedMapPointId(point.id)}>
+                        <button type="button" className="map-point-main" onClick={() => handleSelectMapPoint(point.id)}>
                           <div className="map-point-top">
                             <strong>{getMapPointTypeLabel(point.point_type)}</strong>
                             <span className="map-point-meta">{formatDateTime(point.created_at)}</span>

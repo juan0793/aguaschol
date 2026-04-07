@@ -12,6 +12,7 @@ function FieldMap({
   apiUrl,
   isActive,
   mapDraft,
+  mapFocusRequest,
   mapPoints,
   onDraftChange,
   onSelectPoint,
@@ -163,43 +164,24 @@ function FieldMap({
   }, [mapDraft.latitude, mapDraft.longitude]);
 
   useEffect(() => {
-    if (!mapRef.current || !selectedMapPointId) {
+    if (!mapRef.current || !mapFocusRequest) {
       return;
     }
 
-    const selectedPoint = mapPoints.find((point) => point.id === selectedMapPointId);
-    if (!selectedPoint || !isFiniteCoordinate(selectedPoint.latitude) || !isFiniteCoordinate(selectedPoint.longitude)) {
-      return;
-    }
-
-    mapRef.current.setView(
-      [Number(selectedPoint.latitude), Number(selectedPoint.longitude)],
-      Math.max(mapRef.current.getZoom(), 16),
-      { animate: false }
-    );
-    window.requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize(false);
-    });
-  }, [mapPoints, selectedMapPointId]);
-
-  useEffect(() => {
-    if (!mapRef.current) {
-      return;
-    }
-
-    const latitude = Number(mapDraft.latitude);
-    const longitude = Number(mapDraft.longitude);
+    const latitude = Number(mapFocusRequest.latitude);
+    const longitude = Number(mapFocusRequest.longitude);
+    const zoom = Number(mapFocusRequest.zoom);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       return;
     }
 
-    mapRef.current.setView([latitude, longitude], Math.max(mapRef.current.getZoom(), 17), {
+    mapRef.current.setView([latitude, longitude], Number.isFinite(zoom) ? zoom : mapRef.current.getZoom(), {
       animate: false
     });
     window.requestAnimationFrame(() => {
       mapRef.current?.invalidateSize(false);
     });
-  }, [mapDraft.latitude, mapDraft.longitude]);
+  }, [mapFocusRequest]);
 
   return <div ref={containerRef} className="map-canvas" />;
 }
