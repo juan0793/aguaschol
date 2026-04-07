@@ -1060,29 +1060,6 @@ function App() {
     () => safeUsers.filter((user) => user.is_online),
     [safeUsers]
   );
-  const adminWorkspaceItems = useMemo(
-    () =>
-      isAdmin
-        ? [
-            { key: "records", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles` },
-            { key: "lookup", label: "Buscar clave", icon: "search", meta: "Consulta rapida" },
-            { key: "map", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos` },
-            { key: "mapReports", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas` },
-            { key: "users", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados` },
-            { key: "padron", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves` },
-            { key: "logs", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos` }
-          ]
-        : [],
-    [
-      isAdmin,
-      mapReportData.totalZones,
-      padronMeta?.total_records,
-      safeAuditLogs.length,
-      safeMapPoints.length,
-      safeRecords.length,
-      safeUsers.length
-    ]
-  );
   const headerMeta = useMemo(
     () =>
       (
@@ -1367,6 +1344,29 @@ function App() {
       zones
     };
   }, [mapPointContexts, safeMapPoints]);
+  const adminWorkspaceItems = useMemo(
+    () =>
+      isAdmin
+        ? [
+            { key: "records", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles` },
+            { key: "lookup", label: "Buscar clave", icon: "search", meta: "Consulta rapida" },
+            { key: "map", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos` },
+            { key: "mapReports", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas` },
+            { key: "users", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados` },
+            { key: "padron", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves` },
+            { key: "logs", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos` }
+          ]
+        : [],
+    [
+      isAdmin,
+      mapReportData.totalZones,
+      padronMeta?.total_records,
+      safeAuditLogs.length,
+      safeMapPoints.length,
+      safeRecords.length,
+      safeUsers.length
+    ]
+  );
   const totalCajaRegistro = useMemo(
     () => safeMapPoints.filter((point) => point.point_type === "caja_registro").length,
     [safeMapPoints]
