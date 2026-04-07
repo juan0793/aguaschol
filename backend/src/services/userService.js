@@ -12,6 +12,9 @@ const sanitizeUser = (user) => ({
   force_password_change: Boolean(user.force_password_change),
   is_active: Boolean(user.is_active),
   last_login_at: user.last_login_at,
+  active_sessions: Number(user.active_sessions ?? 0),
+  is_online: Number(user.active_sessions ?? 0) > 0,
+  latest_session_expires_at: user.latest_session_expires_at ?? null,
   created_at: user.created_at,
   updated_at: user.updated_at
 });
@@ -37,9 +40,35 @@ export const listUsers = async () => {
   const pool = getPool();
   const [rows] = await pool.query(
     `
-      SELECT id, full_name, email, username, role, force_password_change, is_active, last_login_at, created_at, updated_at
+      SELECT
+        app_users.id,
+        app_users.full_name,
+        app_users.email,
+        app_users.username,
+        app_users.role,
+        app_users.force_password_change,
+        app_users.is_active,
+        app_users.last_login_at,
+        app_users.created_at,
+        app_users.updated_at,
+        COUNT(auth_sessions.id) AS active_sessions,
+        MAX(auth_sessions.expires_at) AS latest_session_expires_at
       FROM app_users
-      ORDER BY created_at DESC
+      LEFT JOIN auth_sessions
+        ON auth_sessions.user_id = app_users.id
+       AND auth_sessions.expires_at > NOW()
+      GROUP BY
+        app_users.id,
+        app_users.full_name,
+        app_users.email,
+        app_users.username,
+        app_users.role,
+        app_users.force_password_change,
+        app_users.is_active,
+        app_users.last_login_at,
+        app_users.created_at,
+        app_users.updated_at
+      ORDER BY active_sessions DESC, app_users.full_name ASC, app_users.created_at DESC
     `
   );
 

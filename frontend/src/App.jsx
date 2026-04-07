@@ -43,36 +43,6 @@ const defaultMapReportStaff = {
   field_technician_secondary: "Oscar Ivan Alvarez",
   data_engineer: "Ing. Juan Ordoñez Bonilla"
 };
-const buildMapStyle = (basemapIndex = 0) => ({
-  version: 8,
-  sources: {
-    basemap: {
-      type: "raster",
-      tiles: [`${API_URL}/map-tiles/{z}/{x}/{y}.png`],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors"
-    }
-  },
-  layers: [
-    {
-      id: "basemap",
-      type: "raster",
-      source: "basemap"
-    }
-  ]
-});
-let mapLibraryPromise;
-
-const loadMapLibrary = async () => {
-  if (!mapLibraryPromise) {
-    mapLibraryPromise = Promise.all([import("leaflet"), import("leaflet/dist/leaflet.css")]).then(
-      ([library]) => library.default
-    );
-  }
-
-  return mapLibraryPromise;
-};
-
 const emptyForm = {
   id: null,
   clave_catastral: "",
@@ -1086,6 +1056,33 @@ function App() {
   const selectedReportMapPoint = safeMapPoints.find((point) => point.id === selectedReportMapPointId) ?? null;
   const selectedUser =
     safeUsers.find((user) => user.id === selectedUserId) ?? latestUserResult?.user ?? safeUsers[0] ?? null;
+  const onlineUsers = useMemo(
+    () => safeUsers.filter((user) => user.is_online),
+    [safeUsers]
+  );
+  const adminWorkspaceItems = useMemo(
+    () =>
+      isAdmin
+        ? [
+            { key: "records", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles` },
+            { key: "lookup", label: "Buscar clave", icon: "search", meta: "Consulta rapida" },
+            { key: "map", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos` },
+            { key: "mapReports", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas` },
+            { key: "users", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados` },
+            { key: "padron", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves` },
+            { key: "logs", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos` }
+          ]
+        : [],
+    [
+      isAdmin,
+      mapReportData.totalZones,
+      padronMeta?.total_records,
+      safeAuditLogs.length,
+      safeMapPoints.length,
+      safeRecords.length,
+      safeUsers.length
+    ]
+  );
   const headerMeta = useMemo(
     () =>
       (
@@ -1555,9 +1552,11 @@ function App() {
     };
   }, [isAuthenticated, recordView, search, workspaceView]);
 
-  const loadUsers = async () => {
+  const loadUsers = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !isAdmin) return;
-    setLoadingUsers(true);
+    if (!silent) {
+      setLoadingUsers(true);
+    }
 
     try {
       const response = await apiFetch("/users");
@@ -1580,11 +1579,15 @@ function App() {
         return nextUsers.some((user) => user.id === current) ? current : nextUsers[0].id;
       });
     } catch (error) {
-      setUsers([]);
-      setSelectedUserId(null);
-      showAlert(error.message || "No fue posible cargar los usuarios.");
+      if (!silent) {
+        setUsers([]);
+        setSelectedUserId(null);
+        showAlert(error.message || "No fue posible cargar los usuarios.");
+      }
     } finally {
-      setLoadingUsers(false);
+      if (!silent) {
+        setLoadingUsers(false);
+      }
     }
   };
 
@@ -1777,6 +1780,30 @@ function App() {
       loadAuditLogs();
     }
   }, [auditFilters, isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) {
+      return undefined;
+    }
+
+    loadUsers({ silent: true });
+
+    const refreshOnlineUsers = () => {
+      if (document.visibilityState === "visible") {
+        loadUsers({ silent: true });
+      }
+    };
+
+    const intervalId = window.setInterval(refreshOnlineUsers, 20000);
+    document.addEventListener("visibilitychange", refreshOnlineUsers);
+    window.addEventListener("focus", refreshOnlineUsers);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshOnlineUsers);
+      window.removeEventListener("focus", refreshOnlineUsers);
+    };
+  }, [isAuthenticated, isAdmin]);
 
   useEffect(() => {
     if (isAuthenticated && ["map", "mapReports"].includes(workspaceView)) {
@@ -3870,76 +3897,81 @@ function App() {
             <label htmlFor="search">Espacios de trabajo</label>
             <span className="search-card-kicker">{headerMeta.kicker}</span>
           </div>
-          <div className="session-chip">
-            <Icon name="auth" />
-            <span>Usuario actual: {session?.user?.full_name || session?.user?.username || "--"}</span>
-          </div>
-          <div className="workspace-nav">
-            <button
-              type="button"
-              className={workspaceView === "records" ? "button-secondary active-filter" : "button-secondary"}
-              onClick={() => setWorkspaceView("records")}
-            >
-              <Icon name="records" />
-              Fichas
-            </button>
-            <button
-              type="button"
-              className={workspaceView === "lookup" ? "button-secondary active-filter" : "button-secondary"}
-              onClick={() => setWorkspaceView("lookup")}
-            >
-              <Icon name="search" />
-              Buscar clave
-            </button>
-            <button
-              type="button"
-              className={workspaceView === "map" ? "button-secondary active-filter" : "button-secondary"}
-              onClick={() => setWorkspaceView("map")}
-            >
-              <Icon name="map" />
-              Mapa de campo
-            </button>
-            {isAdmin ? (
-              <button
-                type="button"
-                className={workspaceView === "padron" ? "button-secondary active-filter" : "button-secondary"}
-                onClick={() => setWorkspaceView("padron")}
-              >
-                <Icon name="refresh" />
-                Padron
-              </button>
-            ) : null}
-            {isAdmin ? (
-              <button
-                type="button"
-                className={workspaceView === "mapReports" ? "button-secondary active-filter" : "button-secondary"}
-                onClick={() => setWorkspaceView("mapReports")}
-              >
-                <Icon name="records" />
-                Reportes campo
-              </button>
-            ) : null}
-            {isAdmin ? (
-              <button
-                type="button"
-                className={workspaceView === "users" ? "button-secondary active-filter" : "button-secondary"}
-                onClick={() => setWorkspaceView("users")}
-              >
-                <Icon name="users" />
-                Usuarios
-              </button>
-            ) : null}
-            {isAdmin ? (
-              <button
-                type="button"
-                className={workspaceView === "logs" ? "button-secondary active-filter" : "button-secondary"}
-                onClick={() => setWorkspaceView("logs")}
-              >
-                <Icon name="logs" />
-                Historial
-              </button>
-            ) : null}
-          </div>
+          {isAdmin ? (
+            <div className="admin-console">
+              <div className="admin-console-head">
+                <div className="session-chip admin-session-chip">
+                  <Icon name="auth" />
+                  <span>Administrador: {session?.user?.full_name || session?.user?.username || "--"}</span>
+                </div>
+                <div className="admin-online-cluster">
+                  <span className="admin-online-count">
+                    <Icon name="success" />
+                    {onlineUsers.length} en linea
+                  </span>
+                  <div className="admin-online-list">
+                    {onlineUsers.length ? (
+                      onlineUsers.slice(0, 5).map((user) => (
+                        <span key={user.id} className="admin-online-user">
+                          <i />
+                          {user.full_name || user.username}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="admin-online-user is-empty">Sin usuarios conectados</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="admin-workspace-grid">
+                {adminWorkspaceItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`admin-workspace-card ${workspaceView === item.key ? "is-active" : ""}`}
+                    onClick={() => setWorkspaceView(item.key)}
+                  >
+                    <span className="admin-workspace-icon"><Icon name={item.icon} /></span>
+                    <strong>{item.label}</strong>
+                    <small>{item.meta}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="session-chip">
+                <Icon name="auth" />
+                <span>Usuario actual: {session?.user?.full_name || session?.user?.username || "--"}</span>
+              </div>
+              <div className="workspace-nav">
+                <button
+                  type="button"
+                  className={workspaceView === "records" ? "button-secondary active-filter" : "button-secondary"}
+                  onClick={() => setWorkspaceView("records")}
+                >
+                  <Icon name="records" />
+                  Fichas
+                </button>
+                <button
+                  type="button"
+                  className={workspaceView === "lookup" ? "button-secondary active-filter" : "button-secondary"}
+                  onClick={() => setWorkspaceView("lookup")}
+                >
+                  <Icon name="search" />
+                  Buscar clave
+                </button>
+                <button
+                  type="button"
+                  className={workspaceView === "map" ? "button-secondary active-filter" : "button-secondary"}
+                  onClick={() => setWorkspaceView("map")}
+                >
+                  <Icon name="map" />
+                  Mapa de campo
+                </button>
+              </div>
+            </>
+          )}
           {workspaceView === "records" ? (
             <form onSubmit={handleSearch}>
               <div className="search-row">
@@ -5028,14 +5060,19 @@ function App() {
                     >
                       <div className="record-card-top user-card-top">
                         <strong className="user-name">{user.full_name}</strong>
-                        <span className="record-badge">{roleLabel(user.role)}</span>
+                        <div className="user-badge-stack">
+                          <span className={`record-badge ${user.is_online ? "is-online" : ""}`}>
+                            {user.is_online ? "En linea" : roleLabel(user.role)}
+                          </span>
+                          <span className="record-badge">{roleLabel(user.role)}</span>
+                        </div>
                       </div>
                       <span className="user-email">{user.email}</span>
                       <small className="user-meta">
                         Usuario: {user.username} - Ultimo acceso: {formatDateTime(user.last_login_at)}
                       </small>
                       <div className="user-card-actions">
-                        <span className="record-badge">{user.username}</span>
+                        <span className="record-badge">{user.active_sessions || 0} sesiones</span>
                         {session?.user?.id !== user.id ? (
                           <button
                             type="button"
@@ -5511,6 +5548,8 @@ function App() {
                           <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{selectedUser.username}</span></p>
                           <p><strong>Perfil:</strong> {roleLabel(selectedUser.role)}</p>
                           <p><strong>Ultimo acceso:</strong> {formatDateTime(selectedUser.last_login_at)}</p>
+                          <p><strong>Estado en linea:</strong> {selectedUser.is_online ? "Conectado" : "Sin conexion activa"}</p>
+                          <p><strong>Sesiones activas:</strong> {selectedUser.active_sessions || 0}</p>
                         </div>
                         <div className="document-block">
                           <h4>Estado y entrega</h4>
