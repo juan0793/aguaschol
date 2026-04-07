@@ -23,18 +23,23 @@ const emptyMapDraft = {
 const MAP_STYLE = {
   version: 8,
   sources: {
-    osm: {
+    basemap: {
       type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+      ],
       tileSize: 256,
       attribution: "© OpenStreetMap contributors"
     }
   },
   layers: [
     {
-      id: "osm",
+      id: "basemap",
       type: "raster",
-      source: "osm"
+      source: "basemap"
     }
   ]
 };
@@ -1445,6 +1450,12 @@ function App() {
           longitude: Number(event.lngLat.lng).toFixed(6),
           accuracy_meters: current.accuracy_meters || ""
         }));
+      });
+      map.on("error", (event) => {
+        const sourceId = event?.sourceId ?? "";
+        if (sourceId === "basemap") {
+          setMapStatus("Mapa sin capa base");
+        }
       });
 
       mapRef.current = map;
