@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 
 const DEFAULT_CENTER = [13.3017, -87.1889];
 const DEFAULT_ZOOM = 14;
+const TILE_CACHE_BUSTER = "osm-20260407";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
 
@@ -29,7 +30,10 @@ function FieldMap({
     lastEvent: "Inicializando",
     lastFailure: ""
   });
-  const tileTemplate = useMemo(() => `${apiUrl}/map-tiles/{z}/{x}/{y}.png`, [apiUrl]);
+  const tileTemplate = useMemo(
+    () => `${apiUrl}/map-tiles/{z}/{x}/{y}.png?v=${encodeURIComponent(TILE_CACHE_BUSTER)}`,
+    [apiUrl]
+  );
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {

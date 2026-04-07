@@ -40,7 +40,7 @@ export const getMapTileHandler = async (req, res, next) => {
 
       const arrayBuffer = await response.arrayBuffer();
       res.setHeader("Content-Type", response.headers.get("content-type") || "image/png");
-      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.setHeader("Cache-Control", "no-store, max-age=0");
       res.send(Buffer.from(arrayBuffer));
       return;
     } catch {
