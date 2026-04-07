@@ -55,7 +55,7 @@ const buildMapStyle = (basemapIndex = 0) => ({
   sources: {
     basemap: {
       type: "raster",
-      tiles: MAP_BASEMAPS[basemapIndex]?.tiles ?? MAP_BASEMAPS[0].tiles,
+      tiles: [`${API_URL}/map-tiles/{z}/{x}/{y}.png`],
       tileSize: 256,
       attribution: "© OpenStreetMap contributors"
     }

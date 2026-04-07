@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { getDatabaseStatus } from "./config/db.js";
 import { env } from "./config/env.js";
+import { getMapTileHandler } from "./controllers/mapTileController.js";
 import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
 import claveLookupRoutes from "./routes/claveLookupRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -70,6 +71,8 @@ app.get("/api/health", (_req, res) => {
     dbError: db.lastError
   });
 });
+
+app.get("/api/map-tiles/:z/:x/:y.png", getMapTileHandler);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/claves", requireAuth, claveLookupRoutes);
