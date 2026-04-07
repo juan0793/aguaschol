@@ -40,6 +40,7 @@ const emptyMapReportDraft = {
 };
 const defaultMapReportStaff = {
   field_technicians: "LUIS FERNANDO HERRERA SOLIZ",
+  field_technician_secondary: "Oscar Ivan Alvarez",
   data_engineer: "Ing. Juan Ordoñez Bonilla"
 };
 const buildMapStyle = (basemapIndex = 0) => ({
@@ -2335,8 +2336,12 @@ function App() {
           </div>
           <div class="field-report-staff">
             <div>
-              <strong>Tecnicos de campo</strong>
+              <strong>Tecnico de campo 1</strong>
               <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
+            </div>
+            <div>
+              <strong>Tecnico de campo 2</strong>
+              <span>${escapeHtml(mapReportStaff.field_technician_secondary || "--")}</span>
             </div>
             <div>
               <strong>Ingeniero de datos</strong>
@@ -2432,8 +2437,12 @@ function App() {
             </div>
             <div class="field-report-staff">
               <div>
-                <strong>Tecnicos de campo</strong>
+                <strong>Tecnico de campo 1</strong>
                 <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
+              </div>
+              <div>
+                <strong>Tecnico de campo 2</strong>
+                <span>${escapeHtml(mapReportStaff.field_technician_secondary || "--")}</span>
               </div>
               <div>
                 <strong>Ingeniero de datos</strong>
@@ -2497,9 +2506,10 @@ function App() {
       document.text(`Generado: ${generatedAt}`, 14, 36);
       document.text(`Total de puntos: ${mapReportData.totalPoints}`, 86, 36);
       document.text(`Total de zonas: ${mapReportData.totalZones}`, 138, 36);
-      document.text(`Tecnicos de campo: ${mapReportStaff.field_technicians || "--"}`, 14, 42);
+      document.text(`Tecnico de campo 1: ${mapReportStaff.field_technicians || "--"}`, 14, 42);
+      document.text(`Tecnico de campo 2: ${mapReportStaff.field_technician_secondary || "--"}`, 14, 48);
       document.text(`Ingeniero de datos: ${mapReportStaff.data_engineer || "--"}`, 138, 42);
-      document.text(`Cajas de registro: ${totalCajaRegistro}`, 14, 48);
+      document.text(`Cajas de registro: ${totalCajaRegistro}`, 14, 54);
 
       if (mapImageDataUrl) {
         document.setFillColor(237, 245, 252);
@@ -2515,7 +2525,7 @@ function App() {
       }
 
       autoTable(document, {
-        startY: 58,
+        startY: 62,
         head: [["Resumen", "Cantidad"]],
         body: Object.entries(mapReportData.totalsByType).length
           ? Object.entries(mapReportData.totalsByType)
@@ -5128,12 +5138,21 @@ function App() {
                     </div>
                     <div className="map-report-staff-grid">
                       <label className="map-report-staff-card">
-                        <span>Tecnicos de campo</span>
+                        <span>Tecnico de campo 1</span>
                         <input
                           name="field_technicians"
                           value={mapReportStaff.field_technicians}
                           onChange={handleMapReportStaffChange}
                           placeholder="Nombres del personal de campo"
+                        />
+                      </label>
+                      <label className="map-report-staff-card">
+                        <span>Tecnico de campo 2</span>
+                        <input
+                          name="field_technician_secondary"
+                          value={mapReportStaff.field_technician_secondary}
+                          onChange={handleMapReportStaffChange}
+                          placeholder="Segundo tecnico de campo"
                         />
                       </label>
                       <label className="map-report-staff-card">
