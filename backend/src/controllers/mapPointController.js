@@ -1,4 +1,5 @@
 import { createMapPoint, deleteMapPoint, exportMapPointsWorkbook, listMapPoints } from "../services/mapPointService.js";
+import { fetchMapPointContexts } from "../services/mapPointContextService.js";
 
 export const listMapPointsHandler = async (_req, res, next) => {
   try {
@@ -39,6 +40,16 @@ export const exportMapPointsHandler = async (_req, res, next) => {
     );
     res.setHeader("Content-Disposition", `attachment; filename="${workbook.fileName}"`);
     res.send(workbook.buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const mapPointContextsHandler = async (req, res, next) => {
+  try {
+    const points = Array.isArray(req.body?.points) ? req.body.points : [];
+    const contexts = await fetchMapPointContexts(points);
+    res.json({ contexts });
   } catch (error) {
     next(error);
   }

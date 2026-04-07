@@ -187,6 +187,13 @@ const deriveMapPointZone = (point = {}) => {
   return firstSegment.slice(0, 96);
 };
 
+const getMapPointContextKey = (point = {}) => {
+  const latitude = Number(point.latitude);
+  const longitude = Number(point.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return "";
+  return `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+};
+
 const formatCoordinate = (value) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric.toFixed(6) : "--";
@@ -878,6 +885,8 @@ function App() {
   const [lookupFeedback, setLookupFeedback] = useState("");
   const [mapPoints, setMapPoints] = useState([]);
   const [loadingMapPoints, setLoadingMapPoints] = useState(false);
+  const [loadingMapContexts, setLoadingMapContexts] = useState(false);
+  const [mapPointContexts, setMapPointContexts] = useState({});
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
@@ -1141,7 +1150,11 @@ function App() {
   }, [draftForm, safeRecords, recordView]);
   const mapReportData = useMemo(() => {
     const points = [...safeMapPoints].sort((left, right) => {
-      const zoneDiff = deriveMapPointZone(left).localeCompare(deriveMapPointZone(right), "es");
+      const leftContext = mapPointContexts[getMapPointContextKey(left)] ?? null;
+      const rightContext = mapPointContexts[getMapPointContextKey(right)] ?? null;
+      const leftZone = leftContext?.zone || deriveMapPointZone(left);
+      const rightZone = rightContext?.zone || deriveMapPointZone(right);
+      const zoneDiff = leftZone.localeCompare(rightZone, "es");
       if (zoneDiff !== 0) return zoneDiff;
       return new Date(right.created_at) - new Date(left.created_at);
     });
@@ -1154,18 +1167,28 @@ function App() {
     }, {});
 
     points.forEach((point) => {
-      const zone = deriveMapPointZone(point);
+      const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
+      const zone = context?.zone || deriveMapPointZone(point);
       const current = zoneMap.get(zone) ?? {
         zone,
         total: 0,
         items: [],
         accuracyValues: [],
-        pointTypes: new Set()
+        pointTypes: new Set(),
+        nearbyReferences: new Set()
       };
 
       current.total += 1;
-      current.items.push(point);
+      current.items.push({
+        ...point,
+        suggested_zone: context?.zone || "",
+        suggested_reference: context?.reference || "",
+        suggested_display_name: context?.display_name || ""
+      });
       current.pointTypes.add(getMapPointTypeLabel(point.point_type));
+      if (context?.reference) {
+        current.nearbyReferences.add(context.reference);
+      }
       if (Number.isFinite(Number(point.accuracy_meters))) {
         current.accuracyValues.push(Number(point.accuracy_meters));
       }
@@ -1177,7 +1200,8 @@ function App() {
       averageAccuracy: zone.accuracyValues.length
         ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
         : null,
-      pointTypesLabel: Array.from(zone.pointTypes).join(", ")
+      pointTypesLabel: Array.from(zone.pointTypes).join(", "),
+      nearbyReferencesLabel: Array.from(zone.nearbyReferences).slice(0, 3).join(" | ")
     }));
 
     return {
@@ -1186,7 +1210,7 @@ function App() {
       totalsByType,
       zones
     };
-  }, [safeMapPoints]);
+  }, [mapPointContexts, safeMapPoints]);
 
   const showAlert = (text) => {
     if (!text) return;
@@ -1453,6 +1477,47 @@ function App() {
     }
   };
 
+  const loadMapPointContexts = async (points = safeMapPoints) => {
+    if (!isAuthenticated || !isAdmin) return;
+
+    const payloadPoints = Array.isArray(points) ? points : [];
+    if (!payloadPoints.length) {
+      setMapPointContexts({});
+      return;
+    }
+
+    setLoadingMapContexts(true);
+
+    try {
+      const response = await apiFetch("/map-points/context", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          points: payloadPoints.map((point) => ({
+            latitude: point.latitude,
+            longitude: point.longitude
+          }))
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No fue posible consultar las zonas del levantamiento.");
+      }
+
+      const nextContexts = Object.fromEntries(
+        (Array.isArray(data.contexts) ? data.contexts : []).map((context) => [context.key, context])
+      );
+      setMapPointContexts(nextContexts);
+    } catch (error) {
+      showAlert(error.message || "No fue posible consultar las zonas del levantamiento.");
+    } finally {
+      setLoadingMapContexts(false);
+    }
+  };
+
   const loadAuditLogs = async () => {
     if (!isAuthenticated || !isAdmin) return;
     setLoadingLogs(true);
@@ -1541,6 +1606,12 @@ function App() {
       loadMapPoints();
     }
   }, [isAuthenticated, workspaceView]);
+
+  useEffect(() => {
+    if (workspaceView === "mapReports" && isAdmin) {
+      loadMapPointContexts(safeMapPoints);
+    }
+  }, [isAdmin, safeMapPoints, workspaceView]);
 
   useEffect(() => {
     if (isAuthenticated && !isAdmin && !["records", "lookup", "map"].includes(workspaceView)) {
@@ -1929,6 +2000,7 @@ function App() {
               <div>
                 <span class="field-report-zone-kicker">Zona ${index + 1}</span>
                 <h3>${zone.zone}</h3>
+                <p>Referencia sugerida: ${zone.nearbyReferencesLabel || "Sin contexto cercano"}</p>
               </div>
               <div class="field-report-zone-meta">
                 <span>Total: ${zone.total}</span>
@@ -1944,6 +2016,8 @@ function App() {
                   <th>Latitud</th>
                   <th>Longitud</th>
                   <th>Precision</th>
+                  <th>Zona</th>
+                  <th>Referencia cercana</th>
                   <th>Referencia</th>
                   <th>Fecha</th>
                 </tr>
@@ -1958,6 +2032,8 @@ function App() {
                         <td>${formatCoordinate(point.latitude)}</td>
                         <td>${formatCoordinate(point.longitude)}</td>
                         <td>${point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
+                        <td>${point.suggested_zone || zone.zone}</td>
+                        <td>${point.suggested_reference || "--"}</td>
                         <td>${point.reference_note || point.description || "--"}</td>
                         <td>${formatDateTime(point.created_at)}</td>
                       </tr>
@@ -3414,6 +3490,10 @@ function App() {
                   <Icon name="refresh" />
                   {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
                 </button>
+                <button type="button" className="button-secondary" onClick={() => loadMapPointContexts()} disabled={loadingMapContexts}>
+                  <Icon name="map" />
+                  {loadingMapContexts ? "Ubicando zonas..." : "Actualizar zonas"}
+                </button>
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
                   Imprimir reporte
@@ -4450,6 +4530,10 @@ function App() {
                         <strong>{mapReportData.totalZones}</strong>
                       </div>
                       <div className="log-summary-card">
+                        <span>Contexto cercano</span>
+                        <strong>{loadingMapContexts ? "Buscando" : "Listo"}</strong>
+                      </div>
+                      <div className="log-summary-card">
                         <span>Formato</span>
                         <strong>Oficina compacta</strong>
                       </div>
@@ -4493,6 +4577,9 @@ function App() {
                               <div>
                                 <span className="sheet-kicker">Zona {zoneIndex + 1}</span>
                                 <h4>{zone.zone}</h4>
+                                <p className="helper-text map-report-reference-line">
+                                  Referencia sugerida: {zone.nearbyReferencesLabel || "Sin contexto cercano"}
+                                </p>
                               </div>
                               <div className="map-report-zone-metrics">
                                 <span>Total: {zone.total}</span>
@@ -4509,6 +4596,8 @@ function App() {
                                     <th>Latitud</th>
                                     <th>Longitud</th>
                                     <th>Precision</th>
+                                    <th>Zona</th>
+                                    <th>Referencia cercana</th>
                                     <th>Referencia</th>
                                     <th>Fecha</th>
                                   </tr>
@@ -4521,6 +4610,8 @@ function App() {
                                       <td>{formatCoordinate(point.latitude)}</td>
                                       <td>{formatCoordinate(point.longitude)}</td>
                                       <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
+                                      <td>{point.suggested_zone || zone.zone}</td>
+                                      <td>{point.suggested_reference || "--"}</td>
                                       <td>{point.reference_note || point.description || "--"}</td>
                                       <td>{formatDateTime(point.created_at)}</td>
                                     </tr>

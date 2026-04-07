@@ -2901,6 +2901,10 @@ textarea {
   font-weight: 700;
 }
 
+.map-report-reference-line {
+  max-width: 720px;
+}
+
 .map-report-table-wrap {
   overflow: auto;
   border-radius: 16px;
@@ -2909,7 +2913,7 @@ textarea {
 
 .map-report-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   border-collapse: collapse;
   background: #fff;
 }
@@ -3007,7 +3011,7 @@ textarea {
   }
 
   .map-report-table {
-    min-width: 620px;
+    min-width: 820px;
   }
 
   .map-form-actions button,
