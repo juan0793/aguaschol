@@ -20,17 +20,42 @@ const emptyMapDraft = {
   description: "",
   reference: ""
 };
-const MAP_STYLE = {
+const MAP_BASEMAPS = [
+  {
+    label: "CARTO claro",
+    tiles: [
+      "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+    ],
+    attribution: "OpenStreetMap contributors | CARTO"
+  },
+  {
+    label: "OpenStreetMap",
+    tiles: [
+      "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    ],
+    attribution: "OpenStreetMap contributors"
+  },
+  {
+    label: "OpenStreetMap HOT",
+    tiles: [
+      "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+      "https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+      "https://c.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+    ],
+    attribution: "OpenStreetMap contributors | HOT"
+  }
+];
+const buildMapStyle = (basemapIndex = 0) => ({
   version: 8,
   sources: {
     basemap: {
       type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-      ],
+      tiles: MAP_BASEMAPS[basemapIndex]?.tiles ?? MAP_BASEMAPS[0].tiles,
       tileSize: 256,
       attribution: "© OpenStreetMap contributors"
     }
@@ -42,7 +67,7 @@ const MAP_STYLE = {
       source: "basemap"
     }
   ]
-};
+});
 let mapLibraryPromise;
 
 const loadMapLibrary = async () => {
@@ -711,6 +736,8 @@ function App() {
   const mapContainerRef = useRef(null);
   const mapLibRef = useRef(null);
   const mapRef = useRef(null);
+  const mapBasemapIndexRef = useRef(0);
+  const mapBasemapFailuresRef = useRef(new Set());
   const mapMarkersRef = useRef([]);
   const mapDraftMarkerRef = useRef(null);
   const [session, setSession] = useState(() => {
@@ -1437,7 +1464,7 @@ function App() {
       mapLibRef.current = maplibregl;
       const map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: MAP_STYLE,
+        style: buildMapStyle(mapBasemapIndexRef.current),
         center: [-87.1889, 13.3017],
         zoom: 14
       });
@@ -1454,6 +1481,21 @@ function App() {
       map.on("error", (event) => {
         const sourceId = event?.sourceId ?? "";
         if (sourceId === "basemap") {
+          const failedIndex = mapBasemapIndexRef.current;
+          if (mapBasemapFailuresRef.current.has(failedIndex)) {
+            return;
+          }
+
+          mapBasemapFailuresRef.current.add(failedIndex);
+          const nextIndex = failedIndex + 1;
+
+          if (nextIndex < MAP_BASEMAPS.length) {
+            mapBasemapIndexRef.current = nextIndex;
+            map.setStyle(buildMapStyle(nextIndex));
+            setMapStatus(`Capa alternativa: ${MAP_BASEMAPS[nextIndex].label}`);
+            return;
+          }
+
           setMapStatus("Mapa sin capa base");
         }
       });
