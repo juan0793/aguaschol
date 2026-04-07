@@ -8,6 +8,29 @@ const buildMapsUrl = (latitude, longitude) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
 const formatExactPoint = (latitude, longitude) =>
   `${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`;
+const formatReportDate = (value) => {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("es-HN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+};
+const uniqueText = (values = []) => Array.from(new Set(values.filter(Boolean)));
+const setSheetHyperlink = (worksheet, address, url, label = "Abrir punto") => {
+  worksheet[address] = {
+    t: "s",
+    v: label,
+    l: { Target: url, Tooltip: url }
+  };
+};
 
 const normalizePayload = (payload = {}) => ({
   point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
@@ -74,6 +97,7 @@ export const exportMapPointsWorkbook = async () => {
   const points = await getSortedMapPoints();
   const workbook = XLSX.utils.book_new();
   const generatedAt = new Date().toISOString();
+  const generatedLabel = formatReportDate(generatedAt);
   const groupedPoints = Array.from(
     points.reduce((groups, point) => {
       const key = formatExactPoint(point.latitude, point.longitude);
@@ -112,14 +136,14 @@ export const exportMapPointsWorkbook = async () => {
       ? Number((group.precision_values.reduce((total, value) => total + value, 0) / group.precision_values.length).toFixed(2))
       : "",
     tipos_registrados: Array.from(group.tipos).join(", "),
-    referencias: group.referencias.join(" | "),
-    maps_url: group.maps_url
+    referencias: uniqueText(group.referencias).join(" | "),
+    maps_url: "Abrir punto"
   }));
 
   const detailRows = points.map((point, index) => ({
     no: index + 1,
     punto_exacto: formatExactPoint(point.latitude, point.longitude),
-    fecha: point.created_at,
+    fecha: formatReportDate(point.created_at),
     tipo_punto: point.point_type,
     latitud: Number(point.latitude),
     longitud: Number(point.longitude),
@@ -127,12 +151,12 @@ export const exportMapPointsWorkbook = async () => {
     referencia: point.reference_note ?? "",
     descripcion: point.description ?? "",
     creado_por: point.created_by_name ?? "",
-    maps_url: buildMapsUrl(point.latitude, point.longitude)
+    maps_url: "Abrir punto"
   }));
 
   const visualRows = [
     ["REPORTE DETALLADO DE PUNTOS DE CAMPO"],
-    ["Generado", generatedAt],
+    ["Generado", generatedLabel],
     ["Total de puntos", points.length, "Ubicaciones exactas", groupedPoints.length],
     ["Orden del reporte", "Agrupado por coordenada exacta y luego por fecha de registro"],
     []
@@ -150,10 +174,10 @@ export const exportMapPointsWorkbook = async () => {
 
     const startRow = visualRows.length + 1;
     visualRows.push([`UBICACION ${groupIndex + 1}`, group.key]);
-    visualRows.push(["Google Maps", group.maps_url]);
+    visualRows.push(["Google Maps", "Abrir punto en el mapa"]);
     visualRows.push(["Total de puntos", group.total_puntos, "Precision promedio (m)", averageAccuracy || "--"]);
     visualRows.push(["Tipos registrados", Array.from(group.tipos).join(", ") || "--"]);
-    visualRows.push(["Referencias", group.referencias.join(" | ") || "--"]);
+    visualRows.push(["Referencias", uniqueText(group.referencias).join(" | ") || "--"]);
     visualRows.push(["#", "Fecha", "Tipo de punto", "Referencia", "Descripcion", "Precision (m)", "Creado por", "Maps"]);
 
     visualMerges.push(XLSX.utils.decode_range(`B${startRow}:H${startRow}`));
@@ -164,13 +188,13 @@ export const exportMapPointsWorkbook = async () => {
     group.items.forEach((point, pointIndex) => {
       visualRows.push([
         pointIndex + 1,
-        point.created_at,
+        formatReportDate(point.created_at),
         point.point_type,
         point.reference_note || "--",
         point.description || "--",
         point.accuracy_meters ?? "--",
         point.created_by_name || "--",
-        buildMapsUrl(point.latitude, point.longitude)
+        "Abrir punto"
       ]);
     });
 
@@ -189,6 +213,9 @@ export const exportMapPointsWorkbook = async () => {
     { wch: 48 }
   ];
   summarySheet["!autofilter"] = { ref: `A1:H${Math.max(groupedRows.length + 1, 2)}` };
+  groupedPoints.forEach((group, index) => {
+    setSheetHyperlink(summarySheet, `H${index + 2}`, group.maps_url);
+  });
 
   const detailSheet = XLSX.utils.json_to_sheet(detailRows);
   detailSheet["!cols"] = [
@@ -205,15 +232,18 @@ export const exportMapPointsWorkbook = async () => {
     { wch: 48 }
   ];
   detailSheet["!autofilter"] = { ref: `A1:K${Math.max(detailRows.length + 1, 2)}` };
+  points.forEach((point, index) => {
+    setSheetHyperlink(detailSheet, `K${index + 2}`, buildMapsUrl(point.latitude, point.longitude));
+  });
 
   const metaSheet = XLSX.utils.aoa_to_sheet([
     ["Reporte detallado de puntos de campo"],
-    ["Generado", generatedAt],
+    ["Generado", generatedLabel],
     ["Total de puntos", points.length],
     ["Ubicaciones exactas", groupedRows.length],
     ["Orden", "Latitud ascendente, longitud ascendente y luego fecha"],
     [],
-    ["Este archivo contiene una hoja resumen por punto exacto y otra hoja con el detalle completo de cada registro."]
+    ["Este archivo contiene una hoja visual por ubicacion exacta, una hoja resumen por punto exacto y una hoja con el detalle completo de cada registro."]
   ]);
   metaSheet["!cols"] = [{ wch: 24 }, { wch: 80 }];
 
@@ -229,6 +259,14 @@ export const exportMapPointsWorkbook = async () => {
     { wch: 46 }
   ];
   visualSheet["!merges"] = visualMerges;
+  let visualCursor = 6;
+  groupedPoints.forEach((group) => {
+    setSheetHyperlink(visualSheet, `B${visualCursor + 1}`, group.maps_url, "Abrir punto en el mapa");
+    group.items.forEach((point, index) => {
+      setSheetHyperlink(visualSheet, `H${visualCursor + 5 + index + 1}`, buildMapsUrl(point.latitude, point.longitude));
+    });
+    visualCursor += 6 + group.items.length + 1;
+  });
 
   XLSX.utils.book_append_sheet(workbook, metaSheet, "resumen");
   XLSX.utils.book_append_sheet(workbook, visualSheet, "reporte_visual");
