@@ -174,6 +174,24 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
+const deriveMapPointZone = (point = {}) => {
+  const source = String(point.reference_note || point.reference || point.description || "").trim();
+  if (!source) return "Zona no especificada";
+
+  const normalized = source
+    .split(/\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean)[0] || source;
+
+  const firstSegment = normalized.split(/\s+[|-]\s+|[;|]/)[0]?.trim() || normalized;
+  return firstSegment.slice(0, 96);
+};
+
+const formatCoordinate = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toFixed(6) : "--";
+};
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat("es-HN", {
     style: "currency",
@@ -226,10 +244,6 @@ const getLookupTotalMeta = (value) => {
 };
 
 const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
-const formatCoordinate = (value) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric.toFixed(6) : "--";
-};
 const buildExternalMapUrl = (latitude, longitude) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
 
@@ -574,6 +588,111 @@ const printDocument = async (title, bodyMarkup, options = {}) => {
           .aviso-signature p {
             margin-bottom: 8px;
           }
+          .field-report-body {
+            background: #f7fbff;
+            color: #16324a;
+          }
+          .field-report-shell {
+            display: grid;
+            gap: 10px;
+          }
+          .field-report-header {
+            border: 1px solid #c7dcef;
+            background: linear-gradient(180deg, #ffffff, #eef6fc);
+            border-radius: 14px;
+            padding: 10px 12px;
+          }
+          .field-report-brand {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+          }
+          .field-report-kicker,
+          .field-report-zone-kicker {
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 9px;
+            font-weight: 700;
+            color: #315b7d;
+          }
+          .field-report-header h1 {
+            font-size: 18px;
+            margin-bottom: 4px;
+          }
+          .field-report-meta {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+          .field-report-meta span,
+          .field-report-total-chip {
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            border-radius: 999px;
+            padding: 4px 8px;
+          }
+          .field-report-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+          }
+          .field-report-total-chip strong {
+            margin-right: 6px;
+          }
+          .field-report-zone {
+            border: 1px solid #c7dcef;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 10px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-report-zone-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+            align-items: flex-start;
+          }
+          .field-report-zone-head h3 {
+            font-size: 13px;
+            margin-bottom: 2px;
+          }
+          .field-report-zone-meta {
+            display: grid;
+            gap: 4px;
+            text-align: right;
+            font-size: 10px;
+          }
+          .field-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+          .field-report-table th,
+          .field-report-table td {
+            border: 1px solid #d8e7f4;
+            padding: 5px 6px;
+            text-align: left;
+            vertical-align: top;
+            word-break: break-word;
+          }
+          .field-report-table th {
+            background: #edf5fc;
+            font-size: 9px;
+            text-transform: uppercase;
+          }
+          .field-report-table td {
+            font-size: 9.5px;
+          }
+          .field-report-empty {
+            border: 1px dashed #c7dcef;
+            border-radius: 14px;
+            padding: 16px;
+            background: #fff;
+          }
           ul { margin-top: 0; }
           @media print {
             body { margin: 0; }
@@ -848,6 +967,14 @@ function App() {
             lead: "Modulo independiente para ubicar y registrar puntos tecnicos de cajas y descargas en terreno.",
             kicker: "Trabajo en sitio"
           },
+          mapReports: {
+            panelClass: "hero-panel-logs",
+            cardClass: "search-card-users",
+            toplineLabel: "Administracion de campo",
+            title: "Reportes de levantamiento",
+            lead: "Centro de reportes compacto para imprimir coordenadas, totales y zonas del trabajo levantado en campo.",
+            kicker: "Reporte institucional"
+          },
           logs: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-logs",
@@ -932,6 +1059,27 @@ function App() {
       ];
     }
 
+    if (workspaceView === "mapReports") {
+      const zones = new Set(safeMapPoints.map((point) => deriveMapPointZone(point)));
+      return [
+        {
+          icon: "map",
+          label: "Puntos incluidos",
+          value: String(safeMapPoints.length)
+        },
+        {
+          icon: "records",
+          label: "Zonas",
+          value: String(zones.size)
+        },
+        {
+          icon: "activity",
+          label: "Estado",
+          value: loadingMapPoints ? "Actualizando" : "Listo para imprimir"
+        }
+      ];
+    }
+
     return [
       {
         icon: "records",
@@ -956,6 +1104,7 @@ function App() {
     lookupResult,
     mapStatus,
     padronMeta,
+    loadingMapPoints,
     safeMapPoints.length,
     safeRecords.length,
     selectedMapPoint,
@@ -990,6 +1139,54 @@ function App() {
 
     return groups;
   }, [draftForm, safeRecords, recordView]);
+  const mapReportData = useMemo(() => {
+    const points = [...safeMapPoints].sort((left, right) => {
+      const zoneDiff = deriveMapPointZone(left).localeCompare(deriveMapPointZone(right), "es");
+      if (zoneDiff !== 0) return zoneDiff;
+      return new Date(right.created_at) - new Date(left.created_at);
+    });
+
+    const zoneMap = new Map();
+    const totalsByType = points.reduce((totals, point) => {
+      const typeLabel = getMapPointTypeLabel(point.point_type);
+      totals[typeLabel] = (totals[typeLabel] ?? 0) + 1;
+      return totals;
+    }, {});
+
+    points.forEach((point) => {
+      const zone = deriveMapPointZone(point);
+      const current = zoneMap.get(zone) ?? {
+        zone,
+        total: 0,
+        items: [],
+        accuracyValues: [],
+        pointTypes: new Set()
+      };
+
+      current.total += 1;
+      current.items.push(point);
+      current.pointTypes.add(getMapPointTypeLabel(point.point_type));
+      if (Number.isFinite(Number(point.accuracy_meters))) {
+        current.accuracyValues.push(Number(point.accuracy_meters));
+      }
+      zoneMap.set(zone, current);
+    });
+
+    const zones = Array.from(zoneMap.values()).map((zone) => ({
+      ...zone,
+      averageAccuracy: zone.accuracyValues.length
+        ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
+        : null,
+      pointTypesLabel: Array.from(zone.pointTypes).join(", ")
+    }));
+
+    return {
+      totalPoints: points.length,
+      totalZones: zones.length,
+      totalsByType,
+      zones
+    };
+  }, [safeMapPoints]);
 
   const showAlert = (text) => {
     if (!text) return;
@@ -1340,7 +1537,7 @@ function App() {
   }, [auditFilters, isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
-    if (isAuthenticated && workspaceView === "map") {
+    if (isAuthenticated && ["map", "mapReports"].includes(workspaceView)) {
       loadMapPoints();
     }
   }, [isAuthenticated, workspaceView]);
@@ -1709,6 +1906,102 @@ function App() {
       zoom: 16,
       key: Date.now()
     });
+  };
+
+  const handlePrintMapFieldReport = async () => {
+    const generatedAt = formatDateTime(new Date().toISOString());
+    const totalsMarkup = Object.entries(mapReportData.totalsByType)
+      .map(
+        ([label, total]) => `
+          <div class="field-report-total-chip">
+            <strong>${label}</strong>
+            <span>${total}</span>
+          </div>
+        `
+      )
+      .join("");
+
+    const zonesMarkup = mapReportData.zones
+      .map(
+        (zone, index) => `
+          <section class="field-report-zone">
+            <div class="field-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">Zona ${index + 1}</span>
+                <h3>${zone.zone}</h3>
+              </div>
+              <div class="field-report-zone-meta">
+                <span>Total: ${zone.total}</span>
+                <span>Tipos: ${zone.pointTypesLabel || "--"}</span>
+                <span>Precision prom.: ${zone.averageAccuracy ?? "--"} m</span>
+              </div>
+            </div>
+            <table class="field-report-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tipo</th>
+                  <th>Latitud</th>
+                  <th>Longitud</th>
+                  <th>Precision</th>
+                  <th>Referencia</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${zone.items
+                  .map(
+                    (point, pointIndex) => `
+                      <tr>
+                        <td>${pointIndex + 1}</td>
+                        <td>${getMapPointTypeLabel(point.point_type)}</td>
+                        <td>${formatCoordinate(point.latitude)}</td>
+                        <td>${formatCoordinate(point.longitude)}</td>
+                        <td>${point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
+                        <td>${point.reference_note || point.description || "--"}</td>
+                        <td>${formatDateTime(point.created_at)}</td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </section>
+        `
+      )
+      .join("");
+
+    await printDocument(
+      "Reporte de levantamiento de campo",
+      `
+        <div class="field-report-shell">
+          <header class="field-report-header">
+            <div class="field-report-brand">
+              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+              <div>
+                <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                <h1>Reporte de levantamiento de campo</h1>
+                <p>Consolidado institucional de coordenadas, totales y zonas registradas por el equipo tecnico.</p>
+              </div>
+            </div>
+            <div class="field-report-meta">
+              <span>Generado: ${generatedAt}</span>
+              <span>Total de puntos: ${mapReportData.totalPoints}</span>
+              <span>Total de zonas: ${mapReportData.totalZones}</span>
+            </div>
+          </header>
+          <section class="field-report-summary">
+            ${totalsMarkup || '<div class="field-report-total-chip"><strong>Sin puntos</strong><span>0</span></div>'}
+          </section>
+          ${zonesMarkup || '<p class="field-report-empty">No hay puntos guardados para generar el reporte.</p>'}
+        </div>
+      `,
+      {
+        pageSize: "Letter landscape",
+        pageMargin: "8mm",
+        bodyClassName: "field-report-body"
+      }
+    );
   };
 
   const handleOpenPointInMaps = (point, event) => {
@@ -2988,6 +3281,16 @@ function App() {
             {isAdmin ? (
               <button
                 type="button"
+                className={workspaceView === "mapReports" ? "button-secondary active-filter" : "button-secondary"}
+                onClick={() => setWorkspaceView("mapReports")}
+              >
+                <Icon name="records" />
+                Reportes campo
+              </button>
+            ) : null}
+            {isAdmin ? (
+              <button
+                type="button"
                 className={workspaceView === "users" ? "button-secondary active-filter" : "button-secondary"}
                 onClick={() => setWorkspaceView("users")}
               >
@@ -3090,6 +3393,30 @@ function App() {
                 <button type="button" className="button-secondary" onClick={loadPadronMeta}>
                   <Icon name="refresh" />
                   Ver estado actual
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contrasena
+                </button>
+              </div>
+            </div>
+          ) : workspaceView === "mapReports" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                Reporte administrativo compacto de puntos levantados en campo, agrupados por zona y listo para impresion institucional.
+              </p>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
+                  <Icon name="refresh" />
+                  {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
+                </button>
+                <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
+                  <Icon name="records" />
+                  Imprimir reporte
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
@@ -4030,7 +4357,7 @@ function App() {
           </section>
         </main>
       ) : (
-        <main className={`admin-layout ${workspaceView === "logs" ? "admin-layout-logs" : ""}`}>
+        <main className={`admin-layout ${["logs", "mapReports"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (
           <aside className="sidebar no-print">
             {workspaceView === "users" ? (
@@ -4098,8 +4425,122 @@ function App() {
           </aside>
           ) : null}
 
-          <section className={`admin-content ${workspaceView === "logs" ? "admin-content-logs" : ""}`}>
-            {workspaceView === "users" ? (
+          <section className={`admin-content ${["logs", "mapReports"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
+            {workspaceView === "mapReports" ? (
+              <section className="preview-panel log-panel-full">
+                <div className="log-shell">
+                  <div className="log-hero">
+                    <div className="admin-section-head">
+                      <div>
+                        <p className="sheet-kicker">Reporte administrativo</p>
+                        <h2><Icon name="records" className="title-icon" />Levantamiento de campo</h2>
+                        <p className="workspace-title">
+                          Coordenadas, totales y zonas consolidadas para una lectura institucional mas compacta y lista para impresion.
+                        </p>
+                      </div>
+                      <span className="panel-pill">{mapReportData.totalPoints} puntos</span>
+                    </div>
+                    <div className="log-summary-strip map-report-summary-strip">
+                      <div className="log-summary-card">
+                        <span>Total general</span>
+                        <strong>{mapReportData.totalPoints}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Zonas detectadas</span>
+                        <strong>{mapReportData.totalZones}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Formato</span>
+                        <strong>Oficina compacta</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <article className="document-sheet log-sheet map-report-sheet">
+                    <div className="map-report-office-head">
+                      <div className="map-report-brand">
+                        <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
+                        <div>
+                          <p className="sheet-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                          <h3>Centro de reportes de campo</h3>
+                          <p className="helper-text">Resumen imprimible por zona, con coordenadas y totales del levantamiento.</p>
+                        </div>
+                      </div>
+                      <button type="button" onClick={handlePrintMapFieldReport}>
+                        <Icon name="records" />
+                        Imprimir formato de oficina
+                      </button>
+                    </div>
+                    <div className="map-report-type-grid">
+                      {Object.entries(mapReportData.totalsByType).length ? (
+                        Object.entries(mapReportData.totalsByType).map(([label, total]) => (
+                          <div key={label} className="document-block map-report-type-card">
+                            <h4>{label}</h4>
+                            <strong>{total}</strong>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="document-block map-report-type-card">
+                          <h4>Sin puntos</h4>
+                          <strong>0</strong>
+                        </div>
+                      )}
+                    </div>
+                    <div className="map-report-zone-list">
+                      {mapReportData.zones.length ? (
+                        mapReportData.zones.map((zone, zoneIndex) => (
+                          <section key={zone.zone} className="document-block map-report-zone-card">
+                            <div className="map-report-zone-top">
+                              <div>
+                                <span className="sheet-kicker">Zona {zoneIndex + 1}</span>
+                                <h4>{zone.zone}</h4>
+                              </div>
+                              <div className="map-report-zone-metrics">
+                                <span>Total: {zone.total}</span>
+                                <span>Precision prom.: {zone.averageAccuracy ?? "--"} m</span>
+                              </div>
+                            </div>
+                            <p className="helper-text">Tipos: {zone.pointTypesLabel || "--"}</p>
+                            <div className="map-report-table-wrap">
+                              <table className="map-report-table">
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Tipo</th>
+                                    <th>Latitud</th>
+                                    <th>Longitud</th>
+                                    <th>Precision</th>
+                                    <th>Referencia</th>
+                                    <th>Fecha</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {zone.items.map((point, pointIndex) => (
+                                    <tr key={point.id}>
+                                      <td>{pointIndex + 1}</td>
+                                      <td>{getMapPointTypeLabel(point.point_type)}</td>
+                                      <td>{formatCoordinate(point.latitude)}</td>
+                                      <td>{formatCoordinate(point.longitude)}</td>
+                                      <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
+                                      <td>{point.reference_note || point.description || "--"}</td>
+                                      <td>{formatDateTime(point.created_at)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </section>
+                        ))
+                      ) : (
+                        <div className="empty-state">
+                          <h3>Sin puntos para reportar</h3>
+                          <p>Cuando los tecnicos registren puntos en mapa de campo, este centro administrativo podra consolidarlos.</p>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                </div>
+              </section>
+            ) : workspaceView === "users" ? (
               <>
                 <form className="sheet no-print" onSubmit={handleCreateUser}>
                   <div className="admin-section-head">
