@@ -1,14 +1,14 @@
 const TILE_PROVIDERS = [
-  "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-  "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-  "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-  "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
   "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
   "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
   "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
   "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
   "https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-  "https://c.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+  "https://c.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+  "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
 ];
 
 const buildTileUrl = (template, z, x, y) =>
