@@ -1,10 +1,10 @@
 {
   "file_name": "catastro_maestro.xls",
   "sheet_name": "catastro_maestro",
-  "total_records": 21612,
-  "updated_at": "2026-03-27T16:35:12.135Z",
+  "total_records": 24047,
+  "updated_at": "2026-04-08T20:18:42.292Z",
   "last_import_summary": {
-    "added": 0,
+    "added": 2405,
     "removed": 0,
     "changed": 0,
     "discarded_missing_clave": 358,

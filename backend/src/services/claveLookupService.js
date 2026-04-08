@@ -20,10 +20,33 @@ const normalizeHeader = (value = "") =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+const formatLookupKeyFromDigits = (digits = "") => {
+  const cleanedDigits = String(digits).replace(/\D/g, "");
+
+  if (![6, 7, 8, 9].includes(cleanedDigits.length)) {
+    return "";
+  }
+
+  const chunkSizes = [7, 9].includes(cleanedDigits.length) ? [3, 2, 2, 2] : [2, 2, 2, 2];
+  const groups = [];
+  let cursor = 0;
+
+  for (const size of chunkSizes) {
+    if (cursor >= cleanedDigits.length) break;
+    groups.push(cleanedDigits.slice(cursor, cursor + size));
+    cursor += size;
+  }
+
+  return groups.join("-");
+};
+
 const normalizeLookupKey = (value = "") => {
-  const cleaned = value
+  const raw = value
     .toString()
-    .trim()
+    .trim();
+  const digitsOnly = raw.replace(/\D/g, "");
+  const inferred = raw.includes("-") ? "" : formatLookupKeyFromDigits(digitsOnly);
+  const cleaned = (inferred || raw)
     .replace(/[^\d-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
