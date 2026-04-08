@@ -30,8 +30,14 @@ const normalizeLookupKey = (value = "") => {
 
   const parts = cleaned.split("-").filter(Boolean);
 
-  if (![3, 4].includes(parts.length) || parts.some((part) => !/^\d{2}$/.test(part))) {
-    const error = new Error("La clave debe tener formato 00-00-00 o 00-00-00-00.");
+  const [firstPart, ...rest] = parts;
+
+  if (
+    ![3, 4].includes(parts.length) ||
+    !/^\d{2,3}$/.test(firstPart || "") ||
+    rest.some((part) => !/^\d{2}$/.test(part))
+  ) {
+    const error = new Error("La clave debe tener formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.");
     error.status = 400;
     throw error;
   }

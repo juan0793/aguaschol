@@ -138,11 +138,29 @@ const buildPhotoUrl = (photoPath = "", version = "") => {
 };
 
 const formatClaveInput = (value = "") => {
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-  const groups = [];
+  const raw = String(value ?? "");
+  const digits = raw.replace(/\D/g, "").slice(0, 9);
 
-  for (let index = 0; index < digits.length; index += 2) {
-    groups.push(digits.slice(index, index + 2));
+  if (raw.includes("-")) {
+    const parts = raw
+      .replace(/[^\d-]/g, "")
+      .split("-")
+      .filter((part, index, list) => part || index < list.length - 1)
+      .slice(0, 4)
+      .map((part, index) => part.slice(0, index === 0 ? 3 : 2));
+
+    return parts.join("-");
+  }
+
+  const useThreeDigitPrefix = [7, 9].includes(digits.length);
+  const chunkSizes = useThreeDigitPrefix ? [3, 2, 2, 2] : [2, 2, 2, 2];
+  const groups = [];
+  let cursor = 0;
+
+  for (const size of chunkSizes) {
+    if (cursor >= digits.length) break;
+    groups.push(digits.slice(cursor, cursor + size));
+    cursor += size;
   }
 
   return groups.join("-");
@@ -150,7 +168,9 @@ const formatClaveInput = (value = "") => {
 
 const isLookupKeyComplete = (value = "") => {
   const parts = value.split("-").filter(Boolean);
-  return [3, 4].includes(parts.length) && parts.every((part) => /^\d{2}$/.test(part));
+  if (![3, 4].includes(parts.length)) return false;
+  const [firstPart, ...rest] = parts;
+  return /^\d{2,3}$/.test(firstPart) && rest.every((part) => /^\d{2}$/.test(part));
 };
 
 const formatDateTime = (value) => {
@@ -2102,7 +2122,7 @@ function App() {
 
     if (!isLookupKeyComplete(lookupQuery)) {
       setLookupResult(null);
-      setLookupFeedback("Completa la clave en formato 00-00-00 o 00-00-00-00.");
+      setLookupFeedback("Completa la clave en formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.");
       return undefined;
     }
 
@@ -2205,7 +2225,7 @@ function App() {
 
     if (!isLookupKeyComplete(normalizedLookupQuery)) {
       setLookupResult(null);
-      setLookupFeedback("La clave debe tener formato 00-00-00 o 00-00-00-00.");
+      setLookupFeedback("La clave debe tener formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.");
       return;
     }
 
@@ -4285,8 +4305,8 @@ function App() {
           ) : workspaceView === "lookup" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Consulta el padron maestro sin entrar al modulo de fichas. Acepta clave base `00-00-00` o clave completa
-                `00-00-00-00`.
+                Consulta el padron maestro sin entrar al modulo de fichas. Acepta clave base `00-00-00` o `000-00-00`,
+                y clave completa `00-00-00-00` o `000-00-00-00`.
               </p>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
@@ -5049,7 +5069,7 @@ function App() {
                     onChange={handleLookupInputChange}
                     inputMode="numeric"
                     autoComplete="off"
-                    placeholder="00-00-00 o 00-00-00-00"
+                    placeholder="00-00-00, 000-00-00 o clave completa"
                     maxLength={11}
                   />
                 </label>
@@ -5060,13 +5080,19 @@ function App() {
                   <span className="is-optional">##</span>
                 </div>
                 <div className="lookup-helper-row">
-                  <span className="helper-text">Base de 3 bloques: trae todas las coincidencias. Clave de 4 bloques: busca exacto.</span>
+                  <span className="helper-text">Base de 3 bloques: trae todas las coincidencias. Se acepta primer bloque de 2 o 3 digitos.</span>
                   <div className="lookup-example-chips">
                     <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("10-10-10")}>
                       10-10-10
                     </button>
+                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("100-10-10")}>
+                      100-10-10
+                    </button>
                     <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("10-10-10-01")}>
                       10-10-10-01
+                    </button>
+                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("100-10-10-01")}>
+                      100-10-10-01
                     </button>
                   </div>
                 </div>
