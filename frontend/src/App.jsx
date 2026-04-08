@@ -140,19 +140,13 @@ const buildPhotoUrl = (photoPath = "", version = "") => {
 const formatClaveInput = (value = "") => {
   const raw = String(value ?? "");
   const digits = raw.replace(/\D/g, "").slice(0, 9);
-
-  if (raw.includes("-")) {
-    const parts = raw
-      .replace(/[^\d-]/g, "")
-      .split("-")
-      .filter((part, index, list) => part || index < list.length - 1)
-      .slice(0, 4)
-      .map((part, index) => part.slice(0, index === 0 ? 3 : 2));
-
-    return parts.join("-");
-  }
-
-  const useThreeDigitPrefix = [7, 9].includes(digits.length);
+  const explicitPrefixLength = raw.includes("-")
+    ? raw
+        .replace(/[^\d-]/g, "")
+        .split("-")
+        .filter(Boolean)[0]?.length ?? 0
+    : 0;
+  const useThreeDigitPrefix = explicitPrefixLength === 3 || (!explicitPrefixLength && [7, 9].includes(digits.length));
   const chunkSizes = useThreeDigitPrefix ? [3, 2, 2, 2] : [2, 2, 2, 2];
   const groups = [];
   let cursor = 0;
