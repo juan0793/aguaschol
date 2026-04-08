@@ -2776,6 +2776,30 @@ textarea {
   padding: 0.15rem 0 0;
 }
 
+.lookup-prefix-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.lookup-prefix-toggle button {
+  min-height: 36px;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: #40607c;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.lookup-prefix-toggle button.is-active {
+  background: rgba(21, 118, 209, 0.12);
+  border-color: rgba(21, 118, 209, 0.26);
+  color: #0d4d86;
+  box-shadow: 0 10px 20px rgba(21, 118, 209, 0.08);
+}
+
 .lookup-guide-sheet span {
   display: inline-flex;
   align-items: center;
@@ -3937,6 +3961,11 @@ textarea {
   .lookup-helper-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .lookup-prefix-toggle {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .lookup-form {

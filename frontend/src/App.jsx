@@ -137,7 +137,7 @@ const buildPhotoUrl = (photoPath = "", version = "") => {
   return `${FILES_URL}${photoPath}${versionSuffix}`;
 };
 
-const formatClaveInput = (value = "") => {
+const formatClaveInput = (value = "", prefixMode = "auto") => {
   const raw = String(value ?? "");
   const digits = raw.replace(/\D/g, "").slice(0, 9);
   const explicitPrefixLength = raw.includes("-")
@@ -146,7 +146,9 @@ const formatClaveInput = (value = "") => {
         .split("-")
         .filter(Boolean)[0]?.length ?? 0
     : 0;
-  const useThreeDigitPrefix = explicitPrefixLength === 3 || (!explicitPrefixLength && [7, 9].includes(digits.length));
+  const useThreeDigitPrefix =
+    prefixMode === "three" ||
+    (prefixMode !== "two" && (explicitPrefixLength === 3 || (!explicitPrefixLength && [7, 9].includes(digits.length))));
   const chunkSizes = useThreeDigitPrefix ? [3, 2, 2, 2] : [2, 2, 2, 2];
   const groups = [];
   let cursor = 0;
@@ -1034,6 +1036,7 @@ function App() {
     session?.user?.role === "admin" ? "dashboard" : "records"
   );
   const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupPrefixMode, setLookupPrefixMode] = useState("auto");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState(null);
   const [lookupFeedback, setLookupFeedback] = useState("");
@@ -2195,13 +2198,19 @@ function App() {
   };
 
   const handleLookupInputChange = (event) => {
-    const nextValue = formatClaveInput(event.target.value);
+    const nextValue = formatClaveInput(event.target.value, lookupPrefixMode);
     setLookupQuery(nextValue);
     setLookupFeedback("");
 
     if (!nextValue.trim()) {
       setLookupResult(null);
     }
+  };
+
+  const handleLookupPrefixModeChange = (mode) => {
+    setLookupPrefixMode(mode);
+    setLookupQuery((current) => formatClaveInput(current, mode));
+    setLookupFeedback("");
   };
 
   const handleLookupSearch = async (event) => {
@@ -5067,8 +5076,31 @@ function App() {
                     maxLength={11}
                   />
                 </label>
+                <div className="lookup-prefix-toggle" role="group" aria-label="Tipo de prefijo">
+                  <button
+                    type="button"
+                    className={lookupPrefixMode === "auto" ? "is-active" : ""}
+                    onClick={() => handleLookupPrefixModeChange("auto")}
+                  >
+                    Auto
+                  </button>
+                  <button
+                    type="button"
+                    className={lookupPrefixMode === "two" ? "is-active" : ""}
+                    onClick={() => handleLookupPrefixModeChange("two")}
+                  >
+                    Prefijo 2
+                  </button>
+                  <button
+                    type="button"
+                    className={lookupPrefixMode === "three" ? "is-active" : ""}
+                    onClick={() => handleLookupPrefixModeChange("three")}
+                  >
+                    Prefijo 3
+                  </button>
+                </div>
                 <div className="lookup-guide-sheet">
-                  <span>##</span>
+                  <span>{lookupPrefixMode === "three" ? "###" : "##"}</span>
                   <span>##</span>
                   <span>##</span>
                   <span className="is-optional">##</span>
@@ -5076,16 +5108,44 @@ function App() {
                 <div className="lookup-helper-row">
                   <span className="helper-text">Base de 3 bloques: trae todas las coincidencias. Se acepta primer bloque de 2 o 3 digitos.</span>
                   <div className="lookup-example-chips">
-                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("10-10-10")}>
+                    <button
+                      type="button"
+                      className="record-quick-chip"
+                      onClick={() => {
+                        setLookupPrefixMode("auto");
+                        setLookupQuery("10-10-10");
+                      }}
+                    >
                       10-10-10
                     </button>
-                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("100-10-10")}>
+                    <button
+                      type="button"
+                      className="record-quick-chip"
+                      onClick={() => {
+                        setLookupPrefixMode("three");
+                        setLookupQuery("100-10-10");
+                      }}
+                    >
                       100-10-10
                     </button>
-                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("10-10-10-01")}>
+                    <button
+                      type="button"
+                      className="record-quick-chip"
+                      onClick={() => {
+                        setLookupPrefixMode("auto");
+                        setLookupQuery("10-10-10-01");
+                      }}
+                    >
                       10-10-10-01
                     </button>
-                    <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("100-10-10-01")}>
+                    <button
+                      type="button"
+                      className="record-quick-chip"
+                      onClick={() => {
+                        setLookupPrefixMode("three");
+                        setLookupQuery("100-10-10-01");
+                      }}
+                    >
                       100-10-10-01
                     </button>
                   </div>
