@@ -1427,14 +1427,14 @@ function App() {
     () =>
       isAdmin
         ? [
-            { key: "dashboard", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva" },
-            { key: "records", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles` },
-            { key: "lookup", label: "Buscar clave", icon: "search", meta: "Consulta rapida" },
-            { key: "map", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos` },
-            { key: "mapReports", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas` },
-            { key: "users", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados` },
-            { key: "padron", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves` },
-            { key: "logs", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos` }
+            { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
+            { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
+            { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
+            { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
+            { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
+            { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
+            { key: "padron", section: "control", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
+            { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
           ]
         : [],
     [
@@ -1447,6 +1447,73 @@ function App() {
       safeUsers.length
     ]
   );
+  const adminWorkspaceSections = useMemo(() => {
+    const sectionMeta = {
+      vision: {
+        title: "Vision",
+        detail: "Lectura rapida del sistema y acceso al tablero."
+      },
+      operacion: {
+        title: "Operacion",
+        detail: "Trabajo diario de fichas, consulta y levantamiento."
+      },
+      control: {
+        title: "Control",
+        detail: "Supervision, reportes, usuarios y padron maestro."
+      }
+    };
+
+    return Object.entries(sectionMeta)
+      .map(([key, meta]) => ({
+        key,
+        ...meta,
+        items: adminWorkspaceItems.filter((item) => item.section === key)
+      }))
+      .filter((section) => section.items.length);
+  }, [adminWorkspaceItems]);
+  const adminInsight = useMemo(() => {
+    if (!isAdmin) {
+      return null;
+    }
+
+    if (!padronMeta?.total_records) {
+      return {
+        icon: "refresh",
+        title: "Padron pendiente",
+        detail: "Conviene validar o actualizar el padron maestro antes de abrir consultas masivas."
+      };
+    }
+
+    if (onlineUsers.length >= 4) {
+      return {
+        icon: "users",
+        title: "Equipo conectado",
+        detail: `Hay ${onlineUsers.length} usuarios en linea; el tablero te ayuda a monitorear campo, fichas y actividad sin cambiar de modulo.`
+      };
+    }
+
+    if (mapDiaryGroups.length > 1) {
+      return {
+        icon: "map",
+        title: "Bitacora activa",
+        detail: `Ya hay ${mapDiaryGroups.length} jornadas registradas; puedes entrar a Reportes campo para revisar la del dia con mejor contexto.`
+      };
+    }
+
+    if (safeAuditLogs.length > 0) {
+      return {
+        icon: "logs",
+        title: "Actividad reciente",
+        detail: "Revisa el historial si necesitas rastrear cambios, ediciones o movimientos del equipo."
+      };
+    }
+
+    return {
+      icon: "dashboard",
+      title: "Centro de control listo",
+      detail: "Empieza por Tablero para una vista ejecutiva o entra directo al modulo que necesites."
+    };
+  }, [isAdmin, mapDiaryGroups.length, onlineUsers.length, padronMeta?.total_records, safeAuditLogs.length]);
   const totalCajaRegistro = useMemo(
     () => visibleMapPoints.filter((point) => point.point_type === "caja_registro").length,
     [visibleMapPoints]
@@ -4077,19 +4144,45 @@ function App() {
                   </div>
                 </div>
               </div>
-              <div className="admin-workspace-grid">
-                {adminWorkspaceItems.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className={`admin-workspace-card ${workspaceView === item.key ? "is-active" : ""}`}
-                    onClick={() => setWorkspaceView(item.key)}
-                  >
-                    <span className="admin-workspace-icon"><Icon name={item.icon} /></span>
-                    <strong>{item.label}</strong>
-                    <small>{item.meta}</small>
-                  </button>
-                ))}
+              <div className="admin-console-shell">
+                <div className="admin-console-menu">
+                  {adminWorkspaceSections.map((section) => (
+                    <section key={section.key} className="admin-workspace-section">
+                      <div className="admin-workspace-section-head">
+                        <div>
+                          <strong>{section.title}</strong>
+                          <small>{section.detail}</small>
+                        </div>
+                        <span className="admin-section-count">{section.items.length}</span>
+                      </div>
+                      <div className="admin-workspace-grid">
+                        {section.items.map((item) => (
+                          <button
+                            key={item.key}
+                            type="button"
+                            className={`admin-workspace-card ${item.tone} ${workspaceView === item.key ? "is-active" : ""}`}
+                            onClick={() => setWorkspaceView(item.key)}
+                          >
+                            <span className="admin-workspace-icon"><Icon name={item.icon} /></span>
+                            <div className="admin-workspace-copy">
+                              <strong>{item.label}</strong>
+                              <small>{item.meta}</small>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+                {adminInsight ? (
+                  <aside className="admin-insight-card">
+                    <span className="admin-insight-icon"><Icon name={adminInsight.icon} /></span>
+                    <div>
+                      <strong>{adminInsight.title}</strong>
+                      <p>{adminInsight.detail}</p>
+                    </div>
+                  </aside>
+                ) : null}
               </div>
             </div>
           ) : (
