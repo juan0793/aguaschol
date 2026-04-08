@@ -301,6 +301,8 @@ const actionLabel = (action) =>
   );
 
 const iconPaths = {
+  dashboard:
+    "M4 5.5A1.5 1.5 0 0 1 5.5 4h5A1.5 1.5 0 0 1 12 5.5v5A1.5 1.5 0 0 1 10.5 12h-5A1.5 1.5 0 0 1 4 10.5zM14 5.5A1.5 1.5 0 0 1 15.5 4h3A1.5 1.5 0 0 1 20 5.5v3A1.5 1.5 0 0 1 18.5 10h-3A1.5 1.5 0 0 1 14 8.5zM14 14.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 20 14.5v5a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5zM4 15.5A1.5 1.5 0 0 1 5.5 14h5A1.5 1.5 0 0 1 12 15.5v3A1.5 1.5 0 0 1 10.5 20h-5A1.5 1.5 0 0 1 4 18.5z",
   records:
     "M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5z M8 8h8M8 12h8M8 16h5",
   users:
@@ -1014,7 +1016,9 @@ function App() {
   const [recordView, setRecordView] = useState("active");
   const [selectedRecordId, setSelectedRecordId] = useState(null);
   const [draftSavedAt, setDraftSavedAt] = useState(null);
-  const [workspaceView, setWorkspaceView] = useState("records");
+  const [workspaceView, setWorkspaceView] = useState(() =>
+    session?.user?.role === "admin" ? "dashboard" : "records"
+  );
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState(null);
@@ -1125,6 +1129,14 @@ function App() {
             lead: "Creacion de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
             kicker: "Control de acceso"
           },
+          dashboard: {
+            panelClass: "hero-panel-dashboard",
+            cardClass: "search-card-dashboard",
+            toplineLabel: "Centro administrativo",
+            title: "Tablero de control",
+            lead: "Resumen ejecutivo con operaciones, actividad reciente y accesos rapidos para gestionar toda la plataforma.",
+            kicker: "Vision general"
+          },
           padron: {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
@@ -1177,6 +1189,26 @@ function App() {
     [workspaceView]
   );
   const headerStats = useMemo(() => {
+    if (workspaceView === "dashboard") {
+      return [
+        {
+          icon: "records",
+          label: "Fichas activas",
+          value: String(safeRecords.length)
+        },
+        {
+          icon: "users",
+          label: "Usuarios en linea",
+          value: String(onlineUsers.length)
+        },
+        {
+          icon: "map",
+          label: "Jornadas de campo",
+          value: String(mapDiaryGroups.length)
+        }
+      ];
+    }
+
     if (workspaceView === "lookup") {
       return [
         {
@@ -1284,7 +1316,9 @@ function App() {
     form.id,
     locatingUser,
     lookupResult,
+    mapDiaryGroups.length,
     mapStatus,
+    onlineUsers.length,
     padronMeta,
     loadingMapPoints,
     visibleMapPoints.length,
@@ -1393,6 +1427,7 @@ function App() {
     () =>
       isAdmin
         ? [
+            { key: "dashboard", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva" },
             { key: "records", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", meta: "Consulta rapida" },
             { key: "map", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos` },
@@ -1428,6 +1463,37 @@ function App() {
       zones: mapReportData.zones.slice(start, start + pageSize)
     };
   }, [mapReportData.zones, mapReportPage]);
+  const dashboardMetrics = useMemo(
+    () => [
+      {
+        label: "Fichas activas",
+        value: safeRecords.length,
+        helper: emptyRecordsMessage || "Registros visibles y listos para gestion",
+        icon: "records"
+      },
+      {
+        label: "Usuarios conectados",
+        value: onlineUsers.length,
+        helper: `${safeUsers.length} usuarios registrados en el sistema`,
+        icon: "users"
+      },
+      {
+        label: "Puntos de campo",
+        value: safeMapPoints.length,
+        helper: `${mapDiaryGroups.length} jornadas con bitacora disponible`,
+        icon: "map"
+      },
+      {
+        label: "Padron maestro",
+        value: padronMeta?.total_records ?? 0,
+        helper: padronMeta?.file_name || "Sin archivo consultado aun",
+        icon: "refresh"
+      }
+    ],
+    [emptyRecordsMessage, mapDiaryGroups.length, onlineUsers.length, padronMeta?.file_name, padronMeta?.total_records, safeMapPoints.length, safeRecords.length, safeUsers.length]
+  );
+  const dashboardActivity = useMemo(() => safeAuditLogs.slice(0, 5), [safeAuditLogs]);
+  const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
@@ -1653,9 +1719,11 @@ function App() {
     }
   };
 
-  const loadPadronMeta = async () => {
+  const loadPadronMeta = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !isAdmin) return;
-    setLoadingPadronMeta(true);
+    if (!silent) {
+      setLoadingPadronMeta(true);
+    }
 
     try {
       const response = await apiFetch("/claves/meta");
@@ -1674,9 +1742,13 @@ function App() {
       setPadronMeta(data.meta ?? null);
       setPadronImportSummary(data.meta?.last_import_summary ?? null);
     } catch (error) {
-      showAlert(error.message || "No fue posible cargar la informacion del padron.");
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar la informacion del padron.");
+      }
     } finally {
-      setLoadingPadronMeta(false);
+      if (!silent) {
+        setLoadingPadronMeta(false);
+      }
     }
   };
 
@@ -1760,9 +1832,11 @@ function App() {
     }
   };
 
-  const loadAuditLogs = async () => {
+  const loadAuditLogs = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !isAdmin) return;
-    setLoadingLogs(true);
+    if (!silent) {
+      setLoadingLogs(true);
+    }
 
     try {
       const params = new URLSearchParams({ limit: "120" });
@@ -1788,9 +1862,13 @@ function App() {
       setAuditLogs(Array.isArray(data) ? data : []);
     } catch (error) {
       setAuditLogs([]);
-      showAlert(error.message || "No fue posible cargar el historial.");
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar el historial.");
+      }
     } finally {
-      setLoadingLogs(false);
+      if (!silent) {
+        setLoadingLogs(false);
+      }
     }
   };
 
@@ -1866,6 +1944,18 @@ function App() {
       window.removeEventListener("focus", refreshOnlineUsers);
     };
   }, [isAuthenticated, isAdmin]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") {
+      return;
+    }
+
+    loadRecords("", "active", { silent: true });
+    loadMapPoints({ silent: true });
+    loadUsers({ silent: true });
+    loadPadronMeta({ silent: true });
+    loadAuditLogs({ silent: true });
+  }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
     if (isAuthenticated && ["map", "mapReports"].includes(workspaceView)) {
@@ -4036,7 +4126,40 @@ function App() {
               </div>
             </>
           )}
-          {workspaceView === "records" ? (
+          {workspaceView === "dashboard" ? (
+            <div className="workspace-summary dashboard-summary">
+              <p className="workspace-title">
+                Centro ejecutivo para arrancar el dia con una lectura clara de fichas, campo, usuarios y actividad reciente.
+              </p>
+              <div className="dashboard-summary-chips">
+                <span className="panel-pill">Admin en linea: {onlineUsers.length}</span>
+                <span className="panel-pill">Jornada activa: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                <span className="panel-pill">Bitacora: {mapDiaryGroups.length} dias</span>
+              </div>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("records")}>
+                  <Icon name="records" />
+                  Abrir fichas
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("map")}>
+                  <Icon name="map" />
+                  Ir a campo
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("users")}>
+                  <Icon name="users" />
+                  Ver usuarios
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
+                  <Icon name="logs" />
+                  Revisar actividad
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+              </div>
+            </div>
+          ) : workspaceView === "records" ? (
             <form onSubmit={handleSearch}>
               <div className="search-row">
                 <input
@@ -4217,7 +4340,124 @@ function App() {
         </div>
       </header>
 
-      {workspaceView === "records" ? (
+      {workspaceView === "dashboard" ? (
+      <main className="dashboard-layout">
+        <section className="dashboard-main">
+          <div className="dashboard-metric-grid">
+            {dashboardMetrics.map((metric) => (
+              <article key={metric.label} className="dashboard-metric-card">
+                <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
+                <strong>{metric.value}</strong>
+                <span>{metric.label}</span>
+                <small>{metric.helper}</small>
+              </article>
+            ))}
+          </div>
+
+          <section className="preview-panel dashboard-panel">
+            <div className="dashboard-panel-head">
+              <div>
+                <p className="sheet-kicker">Actividad reciente</p>
+                <h2><Icon name="activity" className="title-icon" />Pulso operativo</h2>
+              </div>
+              <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
+                <Icon name="logs" />
+                Bitacora completa
+              </button>
+            </div>
+            <div className="dashboard-activity-list">
+              {dashboardActivity.length ? (
+                dashboardActivity.map((log) => (
+                  <article key={log.id} className="dashboard-activity-item">
+                    <span className="dashboard-activity-icon">
+                      <Icon name={actionIconName(log.action)} />
+                    </span>
+                    <div>
+                      <strong>{log.summary || actionLabel(log.action)}</strong>
+                      <p>{log.actor_name || log.actor_email || "Sistema"} · {formatDateTime(log.created_at)}</p>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="empty-state">
+                  <h3>Sin actividad reciente</h3>
+                  <p>Cuando el equipo opere fichas, mapa o usuarios, veras el resumen aqui.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="dashboard-dual-grid">
+            <article className="preview-panel dashboard-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Campo</p>
+                  <h2><Icon name="map" className="title-icon" />Jornadas recientes</h2>
+                </div>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("mapReports")}>
+                  <Icon name="records" />
+                  Reportes campo
+                </button>
+              </div>
+              <div className="dashboard-journey-list">
+                {dashboardJourneys.length ? (
+                  dashboardJourneys.map((journey) => (
+                    <button
+                      key={journey.key}
+                      type="button"
+                      className="dashboard-journey-card"
+                      onClick={() => {
+                        setMapDiaryDateKey(journey.key);
+                        setWorkspaceView("map");
+                      }}
+                    >
+                      <strong>{formatMapDiaryLabel(journey.key)}</strong>
+                      <span>{journey.total} puntos levantados</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <h3>Sin jornadas de campo</h3>
+                    <p>Los levantamientos del mapa apareceran aqui por fecha.</p>
+                  </div>
+                )}
+              </div>
+            </article>
+
+            <article className="preview-panel dashboard-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Equipo activo</p>
+                  <h2><Icon name="users" className="title-icon" />Usuarios en linea</h2>
+                </div>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("users")}>
+                  <Icon name="users" />
+                  Gestionar accesos
+                </button>
+              </div>
+              <div className="dashboard-online-list">
+                {onlineUsers.length ? (
+                  onlineUsers.map((user) => (
+                    <article key={user.id} className="dashboard-online-card">
+                      <div>
+                        <strong>{user.full_name || user.username}</strong>
+                        <p>{roleLabel(user.role)} · {user.active_sessions || 0} sesiones</p>
+                      </div>
+                      <span className="record-badge is-online">En linea</span>
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <h3>Sin usuarios conectados</h3>
+                    <p>Cuando alguien tenga sesion activa, lo veras reflejado aqui.</p>
+                  </div>
+                )}
+              </div>
+            </article>
+          </section>
+        </section>
+      </main>
+      ) : workspaceView === "records" ? (
       <main className="layout">
         <aside className="sidebar no-print">
           <div className="panel-header">
