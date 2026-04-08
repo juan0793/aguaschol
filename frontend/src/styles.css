@@ -2852,6 +2852,10 @@ textarea {
   border-color: rgba(155, 32, 45, 0.14);
 }
 
+.map-canvas-shell {
+  position: relative;
+}
+
 .map-canvas {
   position: relative;
   width: 100%;
@@ -2863,6 +2867,70 @@ textarea {
   background: linear-gradient(180deg, #edf3f9, #dce7f2);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   cursor: crosshair;
+}
+
+.map-precision-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  z-index: 401;
+}
+
+.map-precision-crosshair {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.96);
+  box-shadow: 0 0 0 1px rgba(13, 77, 134, 0.34), 0 6px 16px rgba(13, 77, 134, 0.14);
+  background: rgba(21, 118, 209, 0.1);
+}
+
+.map-precision-crosshair::before,
+.map-precision-crosshair::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(13, 77, 134, 0.7);
+  transform: translate(-50%, -50%);
+}
+
+.map-precision-crosshair::before {
+  width: 2px;
+  height: 34px;
+}
+
+.map-precision-crosshair::after {
+  width: 34px;
+  height: 2px;
+}
+
+.map-precision-chip {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 402;
+  display: grid;
+  gap: 0.1rem;
+  max-width: min(260px, calc(100% - 5rem));
+  padding: 0.55rem 0.75rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(21, 118, 209, 0.14);
+  box-shadow: 0 12px 24px rgba(13, 77, 134, 0.12);
+}
+
+.map-precision-chip strong {
+  color: #123b5d;
+  font-size: 0.82rem;
+}
+
+.map-precision-chip span {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .map-canvas.leaflet-container {

@@ -28,6 +28,7 @@ function FieldMap({
   const pointLayerRef = useRef(null);
   const draftMarkerRef = useRef(null);
   const accuracyCircleRef = useRef(null);
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const tileTemplate = useMemo(
     () => `${apiUrl}/map-tiles/{z}/{x}/{y}.png?v=${encodeURIComponent(TILE_CACHE_BUSTER)}`,
     [apiUrl]
@@ -53,6 +54,7 @@ function FieldMap({
       markerZoomAnimation: false,
       bounceAtZoomLimits: false
     });
+    setZoomLevel(map.getZoom());
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
     const tileLayer = L.tileLayer(tileTemplate, {
@@ -83,6 +85,16 @@ function FieldMap({
         longitude: Number(event.latlng.lng).toFixed(6),
         accuracy_meters: current.accuracy_meters || ""
       }));
+
+      const precisionZoom = Math.max(map.getZoom(), 19.25);
+      if (map.getZoom() < precisionZoom) {
+        map.setView(event.latlng, precisionZoom, { animate: false });
+      } else {
+        map.panTo(event.latlng, { animate: true, duration: 0.3, easeLinearity: 0.25 });
+      }
+    });
+    map.on("zoomend", () => {
+      setZoomLevel(map.getZoom());
     });
 
     mapRef.current = map;
@@ -251,7 +263,18 @@ function FieldMap({
     }, 260);
   }, [mapFocusRequest]);
 
-  return <div ref={containerRef} className="map-canvas" />;
+  return (
+    <div className="map-canvas-shell">
+      <div ref={containerRef} className="map-canvas" />
+      <div className="map-precision-overlay" aria-hidden="true">
+        <span className="map-precision-crosshair" />
+      </div>
+      <div className="map-precision-chip">
+        <strong>Zoom {zoomLevel.toFixed(2)}</strong>
+        <span>{zoomLevel >= 19 ? "Modo precision activo" : "Acerca un poco mas para afinar la casa"}</span>
+      </div>
+    </div>
+  );
 }
 
 export default FieldMap;
