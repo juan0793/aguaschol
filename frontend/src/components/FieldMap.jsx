@@ -4,6 +4,8 @@ import "leaflet/dist/leaflet.css";
 
 const DEFAULT_CENTER = [13.3017, -87.1889];
 const DEFAULT_ZOOM = 14;
+const MAX_NATIVE_ZOOM = 19;
+const MAX_INTERACTION_ZOOM = 21;
 const TILE_CACHE_BUSTER = "osm-20260407";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
@@ -39,18 +41,26 @@ function FieldMap({
     const map = L.map(containerRef.current, {
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
+      maxZoom: MAX_INTERACTION_ZOOM,
+      zoomSnap: 0.25,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 90,
       zoomControl: true,
       preferCanvas: true,
       doubleClickZoom: false,
       fadeAnimation: false,
       zoomAnimation: false,
-      markerZoomAnimation: false
+      markerZoomAnimation: false,
+      bounceAtZoomLimits: false
     });
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
     const tileLayer = L.tileLayer(tileTemplate, {
       attribution: "OpenStreetMap contributors",
-      maxZoom: 19
+      maxNativeZoom: MAX_NATIVE_ZOOM,
+      maxZoom: MAX_INTERACTION_ZOOM,
+      keepBuffer: 4,
+      updateWhenIdle: true
     });
 
     tileLayer.on("loading", () => {
@@ -222,7 +232,9 @@ function FieldMap({
       return;
     }
 
-    const targetZoom = Number.isFinite(zoom) ? zoom : mapRef.current.getZoom();
+    const targetZoom = Number.isFinite(zoom)
+      ? Math.min(Math.max(zoom, DEFAULT_ZOOM), MAX_INTERACTION_ZOOM)
+      : mapRef.current.getZoom();
     if (mapRef.current.getZoom() !== targetZoom) {
       mapRef.current.setZoom(targetZoom, { animate: false });
     }

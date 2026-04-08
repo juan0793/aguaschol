@@ -2110,7 +2110,7 @@ function App() {
         setMapFocusRequest({
           latitude: Number(nextDraft.latitude),
           longitude: Number(nextDraft.longitude),
-          zoom: 17,
+          zoom: 18.5,
           key: Date.now()
         });
       },
@@ -2188,7 +2188,7 @@ function App() {
       setMapFocusRequest({
         latitude: Number(data.latitude),
         longitude: Number(data.longitude),
-        zoom: 17,
+        zoom: 19,
         key: Date.now()
       });
       showAlert("Punto de campo guardado correctamente.");
@@ -2248,7 +2248,7 @@ function App() {
     setReportMapFocusRequest({
       latitude: Number(point.latitude),
       longitude: Number(point.longitude),
-      zoom: 17,
+      zoom: 19,
       key: Date.now()
     });
   };
@@ -2261,7 +2261,7 @@ function App() {
     setReportMapFocusRequest({
       latitude: Number(point.latitude),
       longitude: Number(point.longitude),
-      zoom: 16,
+      zoom: 18.5,
       key: Date.now()
     });
   };
@@ -2319,7 +2319,7 @@ function App() {
       setReportMapFocusRequest({
         latitude: Number(data.latitude),
         longitude: Number(data.longitude),
-        zoom: 17,
+        zoom: 19,
         key: Date.now()
       });
       setReportMapDraft({ ...emptyMapReportDraft });
@@ -2387,7 +2387,7 @@ function App() {
     setMapFocusRequest({
       latitude: Number(point.latitude),
       longitude: Number(point.longitude),
-      zoom: 16,
+      zoom: 18.5,
       key: Date.now()
     });
   };
