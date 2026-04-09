@@ -3074,6 +3074,47 @@ textarea {
   margin: 0;
 }
 
+.lookup-card-description {
+  margin: 0.45rem 0 0;
+  max-width: 640px;
+  color: #52728d;
+}
+
+.lookup-info-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-left: 84px;
+}
+
+.lookup-info-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(235, 245, 255, 0.88) 100%);
+  border: 1px solid rgba(21, 118, 209, 0.12);
+}
+
+.lookup-info-chip .app-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: #0d4d86;
+}
+
+.lookup-info-chip strong {
+  display: block;
+  color: #123b5d;
+  font-size: 0.9rem;
+}
+
+.lookup-info-chip span {
+  color: #648099;
+  font-size: 0.76rem;
+}
+
 .lookup-form {
   display: grid;
   gap: 1rem;
@@ -3269,6 +3310,36 @@ textarea {
   font-size: 1rem;
 }
 
+.lookup-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.lookup-summary-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 247, 255, 0.9) 100%);
+  border: 1px solid rgba(21, 118, 209, 0.12);
+}
+
+.lookup-summary-card span {
+  color: #69849b;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lookup-summary-card strong {
+  color: #123b5d;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
 .lookup-match-list {
   display: grid;
   gap: 0.7rem;
@@ -3430,6 +3501,28 @@ textarea {
 .lookup-service-pill strong {
   font-size: 0.95rem;
   color: #153f61;
+}
+
+.lookup-service-pill-top {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.lookup-service-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: rgba(21, 118, 209, 0.08);
+  color: #0d4d86 !important;
+}
+
+.lookup-service-icon .app-icon {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .lookup-service-pill.is-on {
@@ -4416,6 +4509,8 @@ textarea {
     align-items: stretch;
   }
 
+  .lookup-info-strip,
+  .lookup-summary-strip,
   .lookup-mode-switch {
     grid-template-columns: 1fr;
   }
@@ -4426,6 +4521,10 @@ textarea {
   }
 
   .lookup-form {
+    padding-left: 54px;
+  }
+
+  .lookup-info-strip {
     padding-left: 54px;
   }
 
@@ -4563,6 +4662,10 @@ textarea {
   }
 
   .lookup-form {
+    padding-left: 46px;
+  }
+
+  .lookup-info-strip {
     padding-left: 46px;
   }
 

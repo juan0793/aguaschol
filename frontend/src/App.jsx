@@ -402,6 +402,14 @@ const iconPaths = {
     "M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14m9 3-4.2-4.2",
   map:
     "M12 21s7-4.4 7-10a7 7 0 1 0-14 0c0 5.6 7 10 7 10m0-7.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5",
+  water:
+    "M12 3.5c2.6 3 4.8 5.7 4.8 8.5A4.8 4.8 0 1 1 7.2 12c0-2.8 2.2-5.5 4.8-8.5",
+  sewer:
+    "M4 13h16M7 13V8h10v5M9 8V5h6v3M8 17h8M10 20h4",
+  broom:
+    "M8 4l8 8M13 3l8 8M5 15l4 4M3 17l4 4M10 9l-6 6",
+  waste:
+    "M9 5h6M4 7h16M8 7l.7 11.2A2 2 0 0 0 10.7 20h2.6a2 2 0 0 0 2-1.8L16 7M10 10v6M14 10v6M10 3h4l1 2H9z",
   copy:
     "M9 9h9v11H9zM6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1",
   plus:
@@ -5321,8 +5329,35 @@ function App() {
                 <div>
                   <p className="sheet-kicker">Padron maestro</p>
                   <h2><Icon name="search" className="title-icon" />Buscar clave</h2>
+                  <p className="lookup-card-description">
+                    Consulta rapida para campo por clave, nombre o abonado, con lectura clara de saldo y servicios.
+                  </p>
                 </div>
                 <span className="panel-pill">Consulta separada</span>
+              </div>
+
+              <div className="lookup-info-strip">
+                <div className="lookup-info-chip">
+                  <Icon name="search" />
+                  <div>
+                    <strong>Consulta rapida</strong>
+                    <span>Resultados sin salir del flujo de campo</span>
+                  </div>
+                </div>
+                <div className="lookup-info-chip">
+                  <Icon name="activity" />
+                  <div>
+                    <strong>Lectura de saldo</strong>
+                    <span>Sin interes, interes y total con estado visual</span>
+                  </div>
+                </div>
+                <div className="lookup-info-chip">
+                  <Icon name="success" />
+                  <div>
+                    <strong>Servicios claros</strong>
+                    <span>Si y No traducidos para lectura inmediata</span>
+                  </div>
+                </div>
               </div>
 
               <form className="lookup-form" onSubmit={handleLookupSearch}>
@@ -5524,7 +5559,30 @@ function App() {
                   </p>
 
                   {lookupResult.exists ? (
-                    <div className="lookup-match-list">
+                    <>
+                      <div className="lookup-summary-strip">
+                        <div className="lookup-summary-card">
+                          <span>Coincidencias</span>
+                          <strong>{lookupResult.total_matches}</strong>
+                        </div>
+                        <div className="lookup-summary-card">
+                          <span>Modo</span>
+                          <strong>
+                            {lookupResult.field === "clave"
+                              ? lookupResult.mode === "base"
+                                ? "Base"
+                                : "Exacta"
+                              : lookupResult.field === "nombre"
+                                ? "Nombre"
+                                : "Abonado"}
+                          </strong>
+                        </div>
+                        <div className="lookup-summary-card">
+                          <span>Consulta</span>
+                          <strong>{lookupResult.normalized_query}</strong>
+                        </div>
+                      </div>
+                      <div className="lookup-match-list">
                       {lookupResult.matches.map((match) => (
                         (() => {
                           const totalMeta = getLookupTotalMeta(match.total);
@@ -5574,16 +5632,21 @@ function App() {
                               </div>
                               <div className="lookup-service-grid">
                                 {[
-                                  { label: "Agua", value: match.agua },
-                                  { label: "Alcantarillado", value: match.alcantarillado },
-                                  { label: "Barrido", value: match.barrido },
-                                  { label: "Recoleccion", value: match.recoleccion },
-                                  { label: "Desechos peligrosos", value: match.desechos_peligrosos }
+                                  { label: "Agua", value: match.agua, icon: "water" },
+                                  { label: "Alcantarillado", value: match.alcantarillado, icon: "sewer" },
+                                  { label: "Barrido", value: match.barrido, icon: "broom" },
+                                  { label: "Recoleccion", value: match.recoleccion, icon: "refresh" },
+                                  { label: "Desechos peligrosos", value: match.desechos_peligrosos, icon: "waste" }
                                 ].map((service) => {
                                   const serviceMeta = getLookupServiceMeta(service.value);
                                   return (
                                     <div key={service.label} className={`lookup-service-pill ${serviceMeta.tone}`}>
-                                      <span>{service.label}</span>
+                                      <div className="lookup-service-pill-top">
+                                        <span className="lookup-service-icon">
+                                          <Icon name={service.icon} />
+                                        </span>
+                                        <span>{service.label}</span>
+                                      </div>
                                       <strong>{serviceMeta.label}</strong>
                                     </div>
                                   );
@@ -5593,7 +5656,8 @@ function App() {
                           );
                         })()
                       ))}
-                    </div>
+                      </div>
+                    </>
                   ) : null}
                 </article>
               ) : (
