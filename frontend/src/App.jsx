@@ -290,6 +290,73 @@ const getLookupTotalMeta = (value) => {
   };
 };
 
+const LOOKUP_SEARCH_MODES = [
+  {
+    value: "clave",
+    label: "Clave",
+    helper: "Consulta exacta o por base catastral",
+    inputMode: "numeric"
+  },
+  {
+    value: "nombre",
+    label: "Nombre",
+    helper: "Busca por inquilino o nombre asociado",
+    inputMode: "text"
+  },
+  {
+    value: "abonado",
+    label: "Abonado",
+    helper: "Busca por numero de abonado",
+    inputMode: "numeric"
+  }
+];
+
+const sanitizeLookupInput = (value = "", mode = "clave", prefixMode = "auto") => {
+  if (mode === "clave") {
+    return formatClaveInput(value, prefixMode);
+  }
+
+  if (mode === "abonado") {
+    return String(value ?? "").replace(/\D/g, "").slice(0, 18);
+  }
+
+  return String(value ?? "").replace(/\s+/g, " ").replace(/^\s+/, "");
+};
+
+const isLookupQueryReady = (value = "", mode = "clave") => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return false;
+  if (mode === "clave") return isLookupKeyComplete(trimmed);
+  if (mode === "nombre") return trimmed.length >= 3;
+  return trimmed.replace(/\D/g, "").length >= 3;
+};
+
+const getLookupValidationMessage = (mode = "clave") => {
+  if (mode === "nombre") {
+    return "Escribe al menos 3 caracteres para buscar por nombre.";
+  }
+
+  if (mode === "abonado") {
+    return "El numero de abonado debe tener al menos 3 digitos.";
+  }
+
+  return "La clave debe tener formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.";
+};
+
+const getLookupServiceMeta = (value = "") => {
+  const normalized = String(value ?? "").trim().toUpperCase();
+
+  if (normalized === "S") {
+    return { label: "Si", tone: "is-on", icon: "success" };
+  }
+
+  if (normalized === "N") {
+    return { label: "No", tone: "is-off", icon: "logout" };
+  }
+
+  return { label: normalized || "--", tone: "is-neutral", icon: "activity" };
+};
+
 const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
 const buildExternalMapUrl = (latitude, longitude) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
@@ -1040,6 +1107,7 @@ function App() {
     session?.user?.role === "admin" ? "dashboard" : "records"
   );
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
+  const [lookupSearchMode, setLookupSearchMode] = useState("clave");
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupPrefixMode, setLookupPrefixMode] = useState("auto");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -1092,6 +1160,22 @@ function App() {
     date_from: "",
     date_to: ""
   });
+  const lookupModeConfig =
+    LOOKUP_SEARCH_MODES.find((mode) => mode.value === lookupSearchMode) ?? LOOKUP_SEARCH_MODES[0];
+  const lookupInputLabel =
+    lookupSearchMode === "clave"
+      ? "Clave catastral"
+      : lookupSearchMode === "nombre"
+        ? "Nombre o inquilino"
+        : "Numero de abonado";
+  const lookupInputPlaceholder =
+    lookupSearchMode === "clave"
+      ? lookupPrefixMode === "three"
+        ? "000-00-00 o 000-00-00-00"
+        : "00-00-00, 000-00-00 o clave completa"
+      : lookupSearchMode === "nombre"
+        ? "Ej. Juan Aguilera Estrada"
+        : "Ej. 16523";
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
   const mustChangePassword = Boolean(session?.user?.force_password_change);
@@ -1661,6 +1745,7 @@ function App() {
     setAuditLogs([]);
     setRecordHistory([]);
     setLatestUserResult(null);
+    setLookupSearchMode("clave");
     setLookupQuery("");
     setLookupResult(null);
     setLookupFeedback("");
@@ -2166,9 +2251,9 @@ function App() {
       return undefined;
     }
 
-    if (!isLookupKeyComplete(lookupQuery)) {
+    if (!isLookupQueryReady(lookupQuery, lookupSearchMode)) {
       setLookupResult(null);
-      setLookupFeedback("Completa la clave en formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.");
+      setLookupFeedback(getLookupValidationMessage(lookupSearchMode));
       return undefined;
     }
 
@@ -2177,7 +2262,7 @@ function App() {
     }, 280);
 
     return () => window.clearTimeout(timer);
-  }, [isAuthenticated, lookupQuery, workspaceView]);
+  }, [isAuthenticated, lookupQuery, lookupSearchMode, workspaceView]);
 
   useEffect(() => {
     if (form.id || !hasDraftContent(form)) {
@@ -2247,7 +2332,7 @@ function App() {
   };
 
   const handleLookupInputChange = (event) => {
-    const nextValue = formatClaveInput(event.target.value, lookupPrefixMode);
+    const nextValue = sanitizeLookupInput(event.target.value, lookupSearchMode, lookupPrefixMode);
     setLookupQuery(nextValue);
     setLookupFeedback("");
 
@@ -2258,8 +2343,18 @@ function App() {
 
   const handleLookupPrefixModeChange = (mode) => {
     setLookupPrefixMode(mode);
-    setLookupQuery((current) => formatClaveInput(current, mode));
+    setLookupQuery((current) => sanitizeLookupInput(current, lookupSearchMode, mode));
     setLookupFeedback("");
+  };
+
+  const handleLookupSearchModeChange = (mode) => {
+    setLookupSearchMode(mode);
+    setLookupQuery("");
+    setLookupResult(null);
+    setLookupFeedback("");
+    if (mode !== "clave") {
+      setLookupPrefixMode("auto");
+    }
   };
 
   const handleLookupSearch = async (event) => {
@@ -2271,13 +2366,19 @@ function App() {
 
     if (!normalizedLookupQuery) {
       setLookupResult(null);
-      setLookupFeedback("Ingresa una clave catastral para consultar.");
+      setLookupFeedback(
+        lookupSearchMode === "clave"
+          ? "Ingresa una clave catastral para consultar."
+          : lookupSearchMode === "nombre"
+            ? "Ingresa un nombre para consultar."
+            : "Ingresa un numero de abonado para consultar."
+      );
       return;
     }
 
-    if (!isLookupKeyComplete(normalizedLookupQuery)) {
+    if (!isLookupQueryReady(normalizedLookupQuery, lookupSearchMode)) {
       setLookupResult(null);
-      setLookupFeedback("La clave debe tener formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.");
+      setLookupFeedback(getLookupValidationMessage(lookupSearchMode));
       return;
     }
 
@@ -2285,7 +2386,9 @@ function App() {
     setLookupFeedback("");
 
     try {
-      const response = await apiFetch(`/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}`);
+      const response = await apiFetch(
+        `/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}&field=${encodeURIComponent(lookupSearchMode)}`
+      );
       const data = await response.json();
 
       if (!response.ok) {
@@ -5223,96 +5326,155 @@ function App() {
               </div>
 
               <form className="lookup-form" onSubmit={handleLookupSearch}>
+                <div className="lookup-mode-switch" role="tablist" aria-label="Tipo de busqueda">
+                  {LOOKUP_SEARCH_MODES.map((mode) => (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      role="tab"
+                      aria-selected={lookupSearchMode === mode.value}
+                      className={lookupSearchMode === mode.value ? "is-active" : ""}
+                      onClick={() => handleLookupSearchModeChange(mode.value)}
+                    >
+                      <span>{mode.label}</span>
+                      <small>{mode.helper}</small>
+                    </button>
+                  ))}
+                </div>
+
                 <label className="lookup-field">
-                  <span>Clave catastral</span>
+                  <span>{lookupInputLabel}</span>
                   <input
+                    className={lookupSearchMode === "clave" ? "" : "is-textual"}
                     value={lookupQuery}
                     onChange={handleLookupInputChange}
-                    inputMode="numeric"
+                    inputMode={lookupModeConfig.inputMode}
                     autoComplete="off"
-                    placeholder="00-00-00, 000-00-00 o clave completa"
-                    maxLength={11}
+                    placeholder={lookupInputPlaceholder}
+                    maxLength={lookupSearchMode === "clave" ? 11 : lookupSearchMode === "abonado" ? 18 : 96}
                   />
                 </label>
-                <div className="lookup-prefix-toggle" role="group" aria-label="Tipo de prefijo">
-                  <button
-                    type="button"
-                    className={lookupPrefixMode === "auto" ? "is-active" : ""}
-                    onClick={() => handleLookupPrefixModeChange("auto")}
-                  >
-                    Auto
-                  </button>
-                  <button
-                    type="button"
-                    className={lookupPrefixMode === "two" ? "is-active" : ""}
-                    onClick={() => handleLookupPrefixModeChange("two")}
-                  >
-                    Prefijo 2
-                  </button>
-                  <button
-                    type="button"
-                    className={lookupPrefixMode === "three" ? "is-active" : ""}
-                    onClick={() => handleLookupPrefixModeChange("three")}
-                  >
-                    Prefijo 3
-                  </button>
-                </div>
-                <div className="lookup-guide-sheet">
-                  <span>{lookupPrefixMode === "three" ? "###" : "##"}</span>
-                  <span>##</span>
-                  <span>##</span>
-                  <span className="is-optional">##</span>
-                </div>
+                {lookupSearchMode === "clave" ? (
+                  <>
+                    <div className="lookup-prefix-toggle" role="group" aria-label="Tipo de prefijo">
+                      <button
+                        type="button"
+                        className={lookupPrefixMode === "auto" ? "is-active" : ""}
+                        onClick={() => handleLookupPrefixModeChange("auto")}
+                      >
+                        Auto
+                      </button>
+                      <button
+                        type="button"
+                        className={lookupPrefixMode === "two" ? "is-active" : ""}
+                        onClick={() => handleLookupPrefixModeChange("two")}
+                      >
+                        Prefijo 2
+                      </button>
+                      <button
+                        type="button"
+                        className={lookupPrefixMode === "three" ? "is-active" : ""}
+                        onClick={() => handleLookupPrefixModeChange("three")}
+                      >
+                        Prefijo 3
+                      </button>
+                    </div>
+                    <div className="lookup-guide-sheet">
+                      <span>{lookupPrefixMode === "three" ? "###" : "##"}</span>
+                      <span>##</span>
+                      <span>##</span>
+                      <span className="is-optional">##</span>
+                    </div>
+                  </>
+                ) : null}
                 <div className="lookup-helper-row">
-                  <span className="helper-text">Base de 3 bloques: trae todas las coincidencias. Se acepta primer bloque de 2 o 3 digitos.</span>
+                  <span className="helper-text">
+                    {lookupSearchMode === "clave"
+                      ? "Base de 3 bloques: trae todas las coincidencias. Se acepta primer bloque de 2 o 3 digitos."
+                      : lookupSearchMode === "nombre"
+                        ? "Busca por inquilino, propietario o nombre asociado dentro del padron maestro."
+                        : "Puedes escribir una parte del numero de abonado para encontrar coincidencias rapido."}
+                  </span>
                   <div className="lookup-example-chips">
-                    <button
-                      type="button"
-                      className="record-quick-chip"
-                      onClick={() => {
-                        setLookupPrefixMode("auto");
-                        setLookupQuery("10-10-10");
-                      }}
-                    >
-                      10-10-10
-                    </button>
-                    <button
-                      type="button"
-                      className="record-quick-chip"
-                      onClick={() => {
-                        setLookupPrefixMode("three");
-                        setLookupQuery("100-10-10");
-                      }}
-                    >
-                      100-10-10
-                    </button>
-                    <button
-                      type="button"
-                      className="record-quick-chip"
-                      onClick={() => {
-                        setLookupPrefixMode("auto");
-                        setLookupQuery("10-10-10-01");
-                      }}
-                    >
-                      10-10-10-01
-                    </button>
-                    <button
-                      type="button"
-                      className="record-quick-chip"
-                      onClick={() => {
-                        setLookupPrefixMode("three");
-                        setLookupQuery("100-10-10-01");
-                      }}
-                    >
-                      100-10-10-01
-                    </button>
+                    {lookupSearchMode === "clave" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="record-quick-chip"
+                          onClick={() => {
+                            setLookupPrefixMode("auto");
+                            setLookupQuery("10-10-10");
+                          }}
+                        >
+                          10-10-10
+                        </button>
+                        <button
+                          type="button"
+                          className="record-quick-chip"
+                          onClick={() => {
+                            setLookupPrefixMode("three");
+                            setLookupQuery("100-10-10");
+                          }}
+                        >
+                          100-10-10
+                        </button>
+                        <button
+                          type="button"
+                          className="record-quick-chip"
+                          onClick={() => {
+                            setLookupPrefixMode("auto");
+                            setLookupQuery("10-10-10-01");
+                          }}
+                        >
+                          10-10-10-01
+                        </button>
+                        <button
+                          type="button"
+                          className="record-quick-chip"
+                          onClick={() => {
+                            setLookupPrefixMode("three");
+                            setLookupQuery("100-10-10-01");
+                          }}
+                        >
+                          100-10-10-01
+                        </button>
+                      </>
+                    ) : lookupSearchMode === "nombre" ? (
+                      <>
+                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("Juan")}>
+                          Juan
+                        </button>
+                        <button
+                          type="button"
+                          className="record-quick-chip"
+                          onClick={() => setLookupQuery("Aguilera")}
+                        >
+                          Aguilera
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("16523")}>
+                          16523
+                        </button>
+                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("100")}>
+                          100
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 {lookupFeedback ? <p className="lookup-feedback">{lookupFeedback}</p> : null}
                 <div className="search-actions lookup-actions">
                   <button type="submit" disabled={lookupLoading}>
                     <Icon name="search" />
-                    {lookupLoading ? "Consultando..." : "Consultar clave"}
+                    {lookupLoading
+                      ? "Consultando..."
+                      : lookupSearchMode === "clave"
+                        ? "Consultar clave"
+                        : lookupSearchMode === "nombre"
+                          ? "Buscar nombre"
+                          : "Buscar abonado"}
                   </button>
                   <button
                     type="button"
@@ -5335,7 +5497,15 @@ function App() {
                 <article className={`lookup-result-card ${lookupResult.exists ? "is-found" : "is-missing"}`}>
                   <div className="lookup-result-head">
                     <div>
-                      <p className="eyebrow">{lookupResult.mode === "base" ? "Busqueda por base" : "Busqueda exacta"}</p>
+                      <p className="eyebrow">
+                        {lookupResult.field === "clave"
+                          ? lookupResult.mode === "base"
+                            ? "Busqueda por base"
+                            : "Busqueda exacta"
+                          : lookupResult.field === "nombre"
+                            ? "Busqueda por nombre"
+                            : "Busqueda por abonado"}
+                      </p>
                       <h3>{lookupResult.normalized_query}</h3>
                     </div>
                     <span className={`lookup-status-pill ${lookupResult.exists ? "is-found" : "is-missing"}`}>
@@ -5345,9 +5515,11 @@ function App() {
 
                   <p className="lookup-result-message">
                     {lookupResult.exists
-                      ? lookupResult.mode === "base"
-                        ? `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa clave base.`
-                        : "La clave consultada si existe en el sistema maestro."
+                      ? lookupResult.field === "clave"
+                        ? lookupResult.mode === "base"
+                          ? `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa clave base.`
+                          : "La clave consultada si existe en el sistema maestro."
+                        : `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa consulta.`
                       : "No existe registro en el sistema. Posible clandestino."}
                   </p>
 
@@ -5359,7 +5531,10 @@ function App() {
                           return (
                             <article key={`${match.clave_catastral}-${match.inquilino}-${match.nombre}`} className="lookup-match-card">
                               <div className="lookup-match-top">
-                                <strong>{match.clave_catastral}</strong>
+                                <div className="lookup-match-headline">
+                                  <strong>{match.clave_catastral}</strong>
+                                  <span className="lookup-abonado-pill">Abonado {match.abonado || "--"}</span>
+                                </div>
                                 <span className={`lookup-match-status ${totalMeta.tone}`}>
                                   <Icon name={totalMeta.icon} />
                                   {totalMeta.helper}
@@ -5372,7 +5547,11 @@ function App() {
                                 </div>
                                 <div className="lookup-match-field">
                                   <span className="lookup-match-label">Abonado</span>
-                                  <span>{match.nombre || "--"}</span>
+                                  <span>{match.abonado || "--"}</span>
+                                </div>
+                                <div className="lookup-match-field">
+                                  <span className="lookup-match-label">Zona</span>
+                                  <span>{match.barrio_colonia || "--"}</span>
                                 </div>
                                 <div className="lookup-match-field">
                                   <span className="lookup-match-label">Sin interes</span>
@@ -5393,6 +5572,23 @@ function App() {
                                   </strong>
                                 </div>
                               </div>
+                              <div className="lookup-service-grid">
+                                {[
+                                  { label: "Agua", value: match.agua },
+                                  { label: "Alcantarillado", value: match.alcantarillado },
+                                  { label: "Barrido", value: match.barrido },
+                                  { label: "Recoleccion", value: match.recoleccion },
+                                  { label: "Desechos peligrosos", value: match.desechos_peligrosos }
+                                ].map((service) => {
+                                  const serviceMeta = getLookupServiceMeta(service.value);
+                                  return (
+                                    <div key={service.label} className={`lookup-service-pill ${serviceMeta.tone}`}>
+                                      <span>{service.label}</span>
+                                      <strong>{serviceMeta.label}</strong>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </article>
                           );
                         })()
@@ -5402,10 +5598,10 @@ function App() {
                 </article>
               ) : (
                 <article className="lookup-empty-card">
-                  <h3>Consulta rapida de clave</h3>
+                  <h3>Consulta rapida de padron</h3>
                   <p>
-                    Usa esta pantalla para validar en campo si una clave ya existe en el padron maestro, sin entrar al
-                    modulo de registro de clandestinos.
+                    Usa esta pantalla para validar en campo por clave, nombre o abonado sin entrar al modulo de
+                    registro de clandestinos.
                   </p>
                 </article>
               )}

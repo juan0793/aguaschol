@@ -7,7 +7,9 @@ import {
 
 export const searchClave = async (req, res, next) => {
   try {
-    const result = await searchClaveCatastral(req.query.clave ?? req.params.clave ?? "");
+    const result = await searchClaveCatastral(req.query.clave ?? req.params.clave ?? "", {
+      field: req.query.field ?? "clave"
+    });
     res.json(result);
   } catch (error) {
     next(error);

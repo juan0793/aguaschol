@@ -147,6 +147,21 @@ const parseNumericValue = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const normalizeServiceFlag = (value) => {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (normalized === "S") return "S";
+  if (normalized === "N") return "N";
+  return normalized || "";
+};
+
+const normalizeLookupText = (value = "") =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+
 const normalizeMasterRows = (rows = []) =>
   sortByClave(
     rows
@@ -155,11 +170,24 @@ const normalizeMasterRows = (rows = []) =>
           const clave = normalizeLookupKey(String(item?.clave_catastral ?? item?.catastral ?? ""));
           const valor = parseNumericValue(item?.valor);
           const intereses = parseNumericValue(item?.intereses);
+          const inquilino = String(item?.inquilino ?? item?.nombre ?? "").trim();
+          const nombre = String(item?.nombre ?? "").trim();
+          const abonado = String(item?.abonado ?? "").trim();
+          const barrioColonia = String(item?.des_coloni ?? item?.barrio_colonia ?? "").trim();
           return {
             clave_catastral: clave,
             clave_base: buildBaseKey(clave),
-            inquilino: String(item?.inquilino ?? item?.nombre ?? "").trim(),
-            nombre: String(item?.nombre ?? item?.abonado ?? "").trim(),
+            inquilino,
+            nombre,
+            abonado,
+            barrio_colonia: barrioColonia,
+            agua: normalizeServiceFlag(item?.agua),
+            alcantarillado: normalizeServiceFlag(item?.alcantarillado ?? item?.alca),
+            barrido: normalizeServiceFlag(item?.barrido ?? item?.barr),
+            recoleccion: normalizeServiceFlag(item?.recoleccion ?? item?.tren),
+            desechos_peligrosos: normalizeServiceFlag(item?.desechos_peligrosos ?? item?.bomb),
+            search_name: normalizeLookupText(`${inquilino} ${nombre}`),
+            search_abonado: normalizeLookupText(abonado),
             valor,
             intereses,
             total: Number((valor + intereses).toFixed(2))
@@ -201,8 +229,15 @@ const parseWorkbookRows = (buffer) => {
   const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
   const columns = rows.length ? Object.keys(rows[0]) : [];
   const catastralKey = detectColumnKey(columns, ["catastral", "clave_catastral", "clave", "catastral"]);
+  const abonadoKey = detectColumnKey(columns, ["abonado", "abonada", "cuenta", "numero_abonado"]);
   const inquilinoKey = detectColumnKey(columns, ["inquilino", "nombre", "propietario", "abonado"]);
-  const nombreKey = detectColumnKey(columns, ["nombre", "abonado", "propietario", "titular"]);
+  const nombreKey = detectColumnKey(columns, ["nombre", "propietario", "titular", "razon_social"]);
+  const desColoniKey = detectColumnKey(columns, ["des_coloni", "barrio_colonia", "colonia", "barrio"]);
+  const aguaKey = detectColumnKey(columns, ["agua"]);
+  const alcaKey = detectColumnKey(columns, ["alca", "alcantarillado"]);
+  const barrKey = detectColumnKey(columns, ["barr", "barrido"]);
+  const trenKey = detectColumnKey(columns, ["tren", "recoleccion"]);
+  const bombKey = detectColumnKey(columns, ["bomb", "desechos_peligrosos"]);
   const valorKey = detectColumnKey(columns, ["valor", "saldo", "principal"]);
   const interesesKey = detectColumnKey(columns, ["intereses", "mora", "recargo"]);
 
@@ -217,8 +252,15 @@ const parseWorkbookRows = (buffer) => {
   const normalizedRows = rowsWithClave
     .map((row) => ({
       clave_catastral: row[catastralKey],
+      abonado: abonadoKey ? row[abonadoKey] : "",
       inquilino: inquilinoKey ? row[inquilinoKey] : "",
       nombre: nombreKey ? row[nombreKey] : "",
+      des_coloni: desColoniKey ? row[desColoniKey] : "",
+      agua: aguaKey ? row[aguaKey] : "",
+      alca: alcaKey ? row[alcaKey] : "",
+      barr: barrKey ? row[barrKey] : "",
+      tren: trenKey ? row[trenKey] : "",
+      bomb: bombKey ? row[bombKey] : "",
       valor: valorKey ? row[valorKey] : 0,
       intereses: interesesKey ? row[interesesKey] : 0
     }));
@@ -318,20 +360,50 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
   };
 };
 
-export const searchClaveCatastral = async (value) => {
-  const normalized = normalizeLookupKey(value);
-  const parts = normalized.split("-");
-  const mode = parts.length === 4 ? "exact" : "base";
+export const searchClaveCatastral = async (value, options = {}) => {
+  const field = ["clave", "nombre", "abonado"].includes(options.field) ? options.field : "clave";
+  let normalized = String(value ?? "").trim();
+  let mode = "contains";
+
+  if (field === "clave") {
+    normalized = normalizeLookupKey(value);
+    const parts = normalized.split("-");
+    mode = parts.length === 4 ? "exact" : "base";
+  } else if (field === "nombre") {
+    normalized = normalizeLookupText(value);
+    if (normalized.length < 3) {
+      const error = new Error("El nombre debe tener al menos 3 caracteres.");
+      error.status = 400;
+      throw error;
+    }
+  } else if (field === "abonado") {
+    normalized = String(value ?? "").replace(/\D/g, "").trim();
+    if (normalized.length < 3) {
+      const error = new Error("El numero de abonado debe tener al menos 3 digitos.");
+      error.status = 400;
+      throw error;
+    }
+  }
+
   const matches = sortByClave(
-    masterRecords.filter((item) =>
-      mode === "exact" ? item.clave_catastral === normalized : item.clave_base === normalized
-    )
+    masterRecords.filter((item) => {
+      if (field === "clave") {
+        return mode === "exact" ? item.clave_catastral === normalized : item.clave_base === normalized;
+      }
+
+      if (field === "nombre") {
+        return item.search_name?.includes(normalized);
+      }
+
+      return String(item.abonado ?? "").includes(normalized);
+    })
   );
 
   return {
     ok: true,
     query: value,
     normalized_query: normalized,
+    field,
     mode,
     exists: matches.length > 0,
     total_matches: matches.length,
@@ -343,8 +415,15 @@ export const exportClavePadronWorkbook = async () => {
   const workbook = XLSX.utils.book_new();
   const rows = masterRecords.map((item) => ({
     catastral: item.clave_catastral,
-    abonado: item.nombre ?? "",
-    inquilino: item.inquilino ?? "",
+    nombre: item.inquilino ?? "",
+    numero_abonado: item.abonado ?? "",
+    titular: item.nombre ?? "",
+    barrio_colonia: item.barrio_colonia ?? "",
+    agua: item.agua ?? "",
+    alcantarillado: item.alcantarillado ?? "",
+    barrido: item.barrido ?? "",
+    recoleccion: item.recoleccion ?? "",
+    desechos_peligrosos: item.desechos_peligrosos ?? "",
     valor: Number(item.valor ?? 0),
     intereses: Number(item.intereses ?? 0),
     total: Number(item.total ?? 0)
