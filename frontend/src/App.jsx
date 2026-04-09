@@ -43,6 +43,12 @@ const defaultMapReportStaff = {
   field_technician_secondary: "Oscar Ivan Alvarez",
   data_engineer: "Ing. Juan Ordoñez Bonilla"
 };
+const defaultPadronRequestForm = {
+  preset_id: "salud",
+  title: "Listado institucional de establecimientos de salud",
+  description: "Clinicas, hospitales, odontologia y laboratorios agrupados por barrio para control administrativo.",
+  keywords: "clinica, hospital, odont, dental, laborat, policlinica, salud, medic"
+};
 const emptyForm = {
   id: null,
   clave_catastral: "",
@@ -924,6 +930,110 @@ const printDocument = async (title, bodyMarkup, options = {}) => {
           .field-report-page::after {
             content: "Pagina " counter(page);
           }
+          .request-report-shell {
+            display: grid;
+            gap: 10px;
+          }
+          .request-report-header {
+            border: 1px solid #cfe1f1;
+            border-radius: 12px;
+            padding: 10px;
+            background: linear-gradient(180deg, #f8fcff 0%, #eef6fd 100%);
+          }
+          .request-report-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .request-report-brand h1 {
+            margin: 0 0 4px;
+            font-size: 16px;
+          }
+          .request-report-brand p {
+            margin: 0;
+            color: #4a657d;
+          }
+          .request-report-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+          }
+          .request-report-summary div {
+            border: 1px solid #d6e5f2;
+            border-radius: 10px;
+            padding: 8px;
+            background: rgba(255,255,255,0.85);
+          }
+          .request-report-summary strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #5a748b;
+          }
+          .request-report-summary span {
+            font-size: 12px;
+            font-weight: 700;
+            color: #123b5d;
+          }
+          .request-report-keywords {
+            margin-top: 8px;
+            color: #30506c;
+          }
+          .request-report-zone {
+            border: 1px solid #d5e4f1;
+            border-radius: 12px;
+            padding: 8px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .request-report-zone-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+          }
+          .request-report-zone-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: flex-end;
+          }
+          .request-report-zone-meta span {
+            border-radius: 999px;
+            padding: 4px 8px;
+            background: #edf6ff;
+            border: 1px solid #d4e4f1;
+            color: #1f4e79;
+            font-weight: 700;
+          }
+          .request-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+          .request-report-table th,
+          .request-report-table td {
+            border: 1px solid #dbe5ee;
+            padding: 6px;
+            vertical-align: top;
+            word-break: break-word;
+          }
+          .request-report-table th {
+            background: #edf6ff;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #33597a;
+          }
+          .request-report-empty {
+            border: 1px dashed #c5d7e6;
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            color: #557089;
+          }
           ul { margin-top: 0; }
           @media print {
             body { margin: 0; }
@@ -1121,6 +1231,11 @@ function App() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState(null);
   const [lookupFeedback, setLookupFeedback] = useState("");
+  const [padronRequestTemplates, setPadronRequestTemplates] = useState([]);
+  const [padronRequestForm, setPadronRequestForm] = useState(defaultPadronRequestForm);
+  const [padronRequestResult, setPadronRequestResult] = useState(null);
+  const [loadingPadronRequest, setLoadingPadronRequest] = useState(false);
+  const [loadingPadronRequestMeta, setLoadingPadronRequestMeta] = useState(false);
   const [mapPoints, setMapPoints] = useState([]);
   const [loadingMapPoints, setLoadingMapPoints] = useState(false);
   const [loadingMapContexts, setLoadingMapContexts] = useState(false);
@@ -1283,6 +1398,14 @@ function App() {
             lead: "Centro de reportes compacto para imprimir coordenadas, totales y zonas del trabajo levantado en campo.",
             kicker: "Reporte institucional"
           },
+          requests: {
+            panelClass: "hero-panel-users",
+            cardClass: "search-card-users",
+            toplineLabel: "Peticiones institucionales",
+            title: "Solicitudes al padron maestro",
+            lead: "Generacion de listados administrativos filtrados desde el padron, listos para impresion y PDF.",
+            kicker: "Analisis ejecutivo"
+          },
           logs: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-logs",
@@ -1408,6 +1531,26 @@ function App() {
       ];
     }
 
+    if (workspaceView === "requests") {
+      return [
+        {
+          icon: "records",
+          label: "Registros",
+          value: String(padronRequestResult?.summary?.total_registros ?? 0)
+        },
+        {
+          icon: "dashboard",
+          label: "Barrios",
+          value: String(padronRequestResult?.summary?.total_barrios ?? 0)
+        },
+        {
+          icon: loadingPadronRequest ? "refresh" : "activity",
+          label: "Estado",
+          value: loadingPadronRequest ? "Generando" : padronRequestResult ? "Listo" : "Sin consulta"
+        }
+      ];
+    }
+
     return [
       {
         icon: "records",
@@ -1438,6 +1581,8 @@ function App() {
     visibleMapPoints.length,
     safeRecords.length,
     selectedMapPoint,
+    padronRequestResult,
+    loadingPadronRequest,
     uploadingPadron,
     workspaceView
   ]);
@@ -1546,6 +1691,7 @@ function App() {
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
+            { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
             { key: "padron", section: "control", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
             { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
@@ -1553,6 +1699,7 @@ function App() {
         : [],
     [
       isAdmin,
+      padronRequestResult?.summary?.total_registros,
       mapReportData.totalZones,
       padronMeta?.total_records,
       safeAuditLogs.length,
@@ -1593,6 +1740,7 @@ function App() {
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
+            { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
             { key: "padron", label: "Padron", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
@@ -1604,6 +1752,7 @@ function App() {
           ]),
     [
       isAdmin,
+      padronRequestResult?.summary?.total_registros,
       mapReportData.totalZones,
       padronMeta?.total_records,
       safeAuditLogs.length,
@@ -1757,6 +1906,9 @@ function App() {
     setLookupQuery("");
     setLookupResult(null);
     setLookupFeedback("");
+    setPadronRequestResult(null);
+    setPadronRequestForm(defaultPadronRequestForm);
+    setPadronRequestTemplates([]);
     setMapPoints([]);
     setSelectedMapPointId(null);
     setMapStatus("Sincronizado");
@@ -1974,6 +2126,51 @@ function App() {
     }
   };
 
+  const loadPadronRequestMeta = async ({ silent = false } = {}) => {
+    if (!isAuthenticated || !isAdmin) return;
+    if (!silent) {
+      setLoadingPadronRequestMeta(true);
+    }
+
+    try {
+      const response = await apiFetch("/claves/requests/meta");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar las plantillas de peticiones.");
+      }
+
+      const templates = Array.isArray(data.templates) ? data.templates : [];
+      setPadronRequestTemplates(templates);
+      if (templates.length) {
+        const currentTemplate =
+          templates.find((template) => template.id === padronRequestForm.preset_id) ?? templates[0];
+
+        setPadronRequestForm((current) => ({
+          ...current,
+          preset_id: currentTemplate.id,
+          title: current.title || currentTemplate.title || "",
+          description: current.description || currentTemplate.description || "",
+          keywords: current.keywords || (currentTemplate.keywords || []).join(", ")
+        }));
+      }
+    } catch (error) {
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar las plantillas de peticiones.");
+      }
+    } finally {
+      if (!silent) {
+        setLoadingPadronRequestMeta(false);
+      }
+    }
+  };
+
   const loadMapPoints = async ({ silent = false } = {}) => {
     if (!isAuthenticated) return;
 
@@ -2136,6 +2333,10 @@ function App() {
 
     if (workspaceView === "padron") {
       loadPadronMeta();
+    }
+
+    if (workspaceView === "requests") {
+      loadPadronRequestMeta();
     }
 
     if (workspaceView === "logs") {
@@ -2415,6 +2616,262 @@ function App() {
       setLookupFeedback(error.message || "No fue posible consultar la clave.");
     } finally {
       setLookupLoading(false);
+    }
+  };
+
+  const handlePadronRequestFormChange = (event) => {
+    const { name, value } = event.target;
+    setPadronRequestForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handlePadronRequestPresetChange = (event) => {
+    const nextPresetId = event.target.value;
+    const selectedTemplate = padronRequestTemplates.find((template) => template.id === nextPresetId);
+
+    setPadronRequestForm((current) => ({
+      ...current,
+      preset_id: nextPresetId,
+      title: selectedTemplate?.title || current.title,
+      description: selectedTemplate?.description || current.description,
+      keywords: (selectedTemplate?.keywords || []).join(", ") || current.keywords
+    }));
+  };
+
+  const handleRunPadronRequest = async (event) => {
+    if (event) {
+      event.preventDefault();
+    }
+
+    const keywords = String(padronRequestForm.keywords || "")
+      .split(",")
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+
+    if (!keywords.length) {
+      showAlert("Debes indicar al menos una palabra clave para generar la peticion.");
+      return;
+    }
+
+    setLoadingPadronRequest(true);
+
+    try {
+      const response = await apiFetch("/claves/requests/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          preset_id: padronRequestForm.preset_id,
+          title: padronRequestForm.title,
+          description: padronRequestForm.description,
+          keywords
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible generar la peticion.");
+      }
+
+      setPadronRequestResult(data);
+      showAlert(`Peticion generada con ${data.summary?.total_registros ?? 0} registros.`);
+    } catch (error) {
+      showAlert(error.message || "No fue posible generar la peticion.");
+    } finally {
+      setLoadingPadronRequest(false);
+    }
+  };
+
+  const handlePrintPadronRequest = async () => {
+    if (!padronRequestResult) {
+      showAlert("Genera primero la peticion para imprimirla.");
+      return;
+    }
+
+    const summary = padronRequestResult.summary ?? {};
+    const barriosMarkup = (summary.barrios ?? [])
+      .map(
+        (barrio, index) => `
+          <section class="request-report-zone">
+            <div class="request-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">Barrio ${index + 1}</span>
+                <h3>${escapeHtml(barrio.barrio_colonia)}</h3>
+              </div>
+              <div class="request-report-zone-meta">
+                <span>${barrio.total_registros} registros</span>
+                <span>Tarifa: ${formatCurrency(barrio.tarifa_total)}</span>
+                <span>Total: ${formatCurrency(barrio.total_con_interes)}</span>
+              </div>
+            </div>
+            <table class="request-report-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre</th>
+                  <th>Abonado</th>
+                  <th>Clave</th>
+                  <th>Barrio</th>
+                  <th>Tarifa</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${barrio.rows
+                  .map(
+                    (row, rowIndex) => `
+                      <tr>
+                        <td>${rowIndex + 1}</td>
+                        <td>${escapeHtml(row.nombre || "--")}</td>
+                        <td>${escapeHtml(row.abonado || "--")}</td>
+                        <td>${escapeHtml(row.clave_catastral || "--")}</td>
+                        <td>${escapeHtml(row.barrio_colonia || "--")}</td>
+                        <td>${formatCurrency(row.tarifa || 0)}</td>
+                        <td>${formatCurrency(row.total || 0)}</td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </section>
+        `
+      )
+      .join("");
+
+    await printDocument(
+      padronRequestResult.request?.title || "Peticion de padron",
+      `
+        <div class="request-report-shell">
+          <header class="request-report-header">
+            <div class="request-report-brand">
+              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+              <div>
+                <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                <h1>${escapeHtml(padronRequestResult.request?.title || "Peticion de padron")}</h1>
+                <p>${escapeHtml(padronRequestResult.request?.description || "")}</p>
+              </div>
+            </div>
+            <div class="request-report-summary">
+              <div><strong>Total de registros</strong><span>${summary.total_registros ?? 0}</span></div>
+              <div><strong>Total de barrios</strong><span>${summary.total_barrios ?? 0}</span></div>
+              <div><strong>Tarifa acumulada</strong><span>${formatCurrency(summary.tarifa_total ?? 0)}</span></div>
+              <div><strong>Total con interes</strong><span>${formatCurrency(summary.total_con_interes ?? 0)}</span></div>
+            </div>
+            <p class="request-report-keywords"><strong>Palabras clave:</strong> ${escapeHtml((padronRequestResult.request?.keywords || []).join(", "))}</p>
+          </header>
+          ${barriosMarkup || '<p class="request-report-empty">No hay registros para mostrar en esta peticion.</p>'}
+        </div>
+      `,
+      {
+        pageSize: "Letter landscape",
+        pageMargin: "10mm",
+        bodyClassName: "request-report-body"
+      }
+    );
+  };
+
+  const handleDownloadPadronRequestPdf = async () => {
+    if (!padronRequestResult) {
+      showAlert("Genera primero la peticion para descargarla en PDF.");
+      return;
+    }
+
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "letter"
+      });
+
+      document.setFillColor(237, 246, 255);
+      document.rect(0, 0, 279.4, 18, "F");
+      document.setFont("helvetica", "bold");
+      document.setFontSize(18);
+      document.setTextColor(18, 59, 93);
+      document.text(padronRequestResult.request?.title || "Peticion de padron", 14, 12);
+      document.setFontSize(9);
+      document.setFont("helvetica", "normal");
+      document.setTextColor(82, 114, 141);
+      document.text("Aguas de Choluteca, S.A. de C.V.", 14, 17);
+
+      const summary = padronRequestResult.summary ?? {};
+      document.setFontSize(10);
+      document.setTextColor(23, 52, 78);
+      document.text(`Registros: ${summary.total_registros ?? 0}`, 170, 10);
+      document.text(`Barrios: ${summary.total_barrios ?? 0}`, 170, 15);
+      document.text(`Tarifa acumulada: ${formatCurrency(summary.tarifa_total ?? 0)}`, 214, 10);
+      document.text(`Total con interes: ${formatCurrency(summary.total_con_interes ?? 0)}`, 214, 15);
+
+      let currentY = 24;
+      autoTable(document, {
+        startY: currentY,
+        head: [["Descripcion", "Palabras clave"]],
+        body: [[padronRequestResult.request?.description || "--", (padronRequestResult.request?.keywords || []).join(", ")]],
+        theme: "grid",
+        styles: { fontSize: 9, cellPadding: 2.5, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 120 },
+          1: { cellWidth: 130 }
+        }
+      });
+
+      currentY = (document.lastAutoTable?.finalY ?? currentY) + 5;
+
+      (summary.barrios ?? []).forEach((barrio, index) => {
+        if (currentY > 180) {
+          document.addPage();
+          currentY = 16;
+        }
+
+        document.setFont("helvetica", "bold");
+        document.setFontSize(12);
+        document.setTextColor(18, 59, 93);
+        document.text(`${index + 1}. ${barrio.barrio_colonia}`, 14, currentY);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(9);
+        document.setTextColor(82, 114, 141);
+        document.text(
+          `Registros: ${barrio.total_registros} | Tarifa: ${formatCurrency(barrio.tarifa_total)} | Total: ${formatCurrency(barrio.total_con_interes)}`,
+          14,
+          currentY + 5
+        );
+
+        autoTable(document, {
+          startY: currentY + 8,
+          head: [["#", "Nombre", "Abonado", "Clave", "Barrio", "Tarifa", "Total"]],
+          body: barrio.rows.map((row, rowIndex) => [
+            rowIndex + 1,
+            row.nombre || "--",
+            row.abonado || "--",
+            row.clave_catastral || "--",
+            row.barrio_colonia || "--",
+            formatCurrency(row.tarifa || 0),
+            formatCurrency(row.total || 0)
+          ]),
+          theme: "striped",
+          styles: { fontSize: 8, cellPadding: 2, textColor: [23, 52, 78] },
+          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255] },
+          alternateRowStyles: { fillColor: [244, 248, 252] },
+          margin: { left: 14, right: 14 }
+        });
+
+        currentY = (document.lastAutoTable?.finalY ?? currentY + 30) + 6;
+      });
+
+      document.save(`peticion-padron-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Peticion descargada en PDF.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar la peticion en PDF.");
     }
   };
 
@@ -5968,7 +6425,7 @@ function App() {
           </section>
         </main>
       ) : (
-        <main className={`admin-layout ${["logs", "mapReports"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
+        <main className={`admin-layout ${["logs", "mapReports", "requests"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (
           <aside className="sidebar no-print">
             {workspaceView === "users" ? (
@@ -6041,7 +6498,7 @@ function App() {
           </aside>
           ) : null}
 
-          <section className={`admin-content ${["logs", "mapReports"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
+          <section className={`admin-content ${["logs", "mapReports", "requests"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
             {workspaceView === "mapReports" ? (
               <section className="preview-panel log-panel-full">
                 <div className="log-shell">
@@ -6425,6 +6882,215 @@ function App() {
                         <div className="empty-state">
                           <h3>Sin puntos para reportar</h3>
                           <p>Cuando los tecnicos registren puntos en mapa de campo, este centro administrativo podra consolidarlos.</p>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                </div>
+              </section>
+            ) : workspaceView === "requests" ? (
+              <section className="preview-panel log-panel-full">
+                <div className="log-shell">
+                  <div className="log-hero">
+                    <div className="admin-section-head">
+                      <div>
+                        <p className="sheet-kicker">Peticiones al padron</p>
+                        <h2><Icon name="dashboard" className="title-icon" />Centro de solicitudes administrativas</h2>
+                        <p className="workspace-title">
+                          Genera listados institucionales desde el padron maestro con estructura clara, agrupacion por barrio y salida lista para impresion o PDF.
+                        </p>
+                      </div>
+                      <span className="panel-pill">{padronRequestResult?.summary?.total_registros ?? 0} filas</span>
+                    </div>
+                    <div className="log-summary-strip map-report-summary-strip">
+                      <div className="log-summary-card">
+                        <span>Plantillas</span>
+                        <strong>{padronRequestTemplates.length || 0}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Registros</span>
+                        <strong>{padronRequestResult?.summary?.total_registros ?? 0}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Barrios</span>
+                        <strong>{padronRequestResult?.summary?.total_barrios ?? 0}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Estado</span>
+                        <strong>{loadingPadronRequest ? "Generando" : loadingPadronRequestMeta ? "Cargando" : "Listo"}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <article className="document-sheet log-sheet request-sheet">
+                    <div className="map-report-office-head request-office-head">
+                      <div className="map-report-brand">
+                        <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
+                        <div>
+                          <p className="sheet-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                          <h3>Centro de peticiones al padron</h3>
+                          <p className="helper-text">Listados administrados por solicitud, con formato de oficina y detalle agrupado.</p>
+                        </div>
+                      </div>
+                      <div className="request-download-row">
+                        <button type="button" onClick={handleRunPadronRequest} disabled={loadingPadronRequest}>
+                          <Icon name="refresh" />
+                          {loadingPadronRequest ? "Generando..." : "Generar peticion"}
+                        </button>
+                        <button type="button" className="button-secondary" onClick={handlePrintPadronRequest}>
+                          <Icon name="records" />
+                          Imprimir
+                        </button>
+                        <button type="button" className="button-secondary" onClick={handleDownloadPadronRequestPdf}>
+                          <Icon name="records" />
+                          Descargar PDF
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="request-editor-grid">
+                      <form className="document-block request-editor-card" onSubmit={handleRunPadronRequest}>
+                        <div className="admin-section-head">
+                          <div>
+                            <p className="sheet-kicker">Constructor</p>
+                            <h3>Configurar solicitud</h3>
+                          </div>
+                          <span className="panel-pill">{padronRequestForm.preset_id || "custom"}</span>
+                        </div>
+                        <label>
+                          <span>Plantilla</span>
+                          <select
+                            name="preset_id"
+                            value={padronRequestForm.preset_id}
+                            onChange={handlePadronRequestPresetChange}
+                          >
+                            {padronRequestTemplates.map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Titulo del reporte</span>
+                          <input
+                            name="title"
+                            value={padronRequestForm.title}
+                            onChange={handlePadronRequestFormChange}
+                            placeholder="Titulo institucional de la peticion"
+                          />
+                        </label>
+                        <label>
+                          <span>Descripcion</span>
+                          <textarea
+                            name="description"
+                            rows="3"
+                            value={padronRequestForm.description}
+                            onChange={handlePadronRequestFormChange}
+                            placeholder="Resumen de lo que necesita el solicitante"
+                          />
+                        </label>
+                        <label>
+                          <span>Palabras clave</span>
+                          <textarea
+                            name="keywords"
+                            rows="3"
+                            value={padronRequestForm.keywords}
+                            onChange={handlePadronRequestFormChange}
+                            placeholder="clinica, hospital, odont, laborat"
+                          />
+                        </label>
+                        <p className="helper-text">
+                          Usa comas para separar criterios. Esta primera plantilla viene pensada para salud, pero puedes reutilizarla para futuras peticiones.
+                        </p>
+                        <p className="helper-text">
+                          La columna <strong>Tarifa</strong> se toma del valor base registrado en el padron maestro.
+                        </p>
+                        <div className="map-form-actions">
+                          <button type="submit" disabled={loadingPadronRequest}>
+                            <Icon name="records" />
+                            {loadingPadronRequest ? "Procesando..." : "Preparar listado"}
+                          </button>
+                        </div>
+                      </form>
+
+                      <article className="document-block request-preview-card">
+                        <div className="admin-section-head">
+                          <div>
+                            <p className="sheet-kicker">Resumen ejecutivo</p>
+                            <h3>{padronRequestResult?.request?.title || "Sin peticion generada"}</h3>
+                          </div>
+                          <span className="panel-pill">{padronRequestResult?.summary?.total_barrios ?? 0} barrios</span>
+                        </div>
+                        <div className="request-summary-grid">
+                          <div className="request-summary-card">
+                            <span>Registros</span>
+                            <strong>{padronRequestResult?.summary?.total_registros ?? 0}</strong>
+                          </div>
+                          <div className="request-summary-card">
+                            <span>Tarifa acumulada</span>
+                            <strong>{formatCurrency(padronRequestResult?.summary?.tarifa_total ?? 0)}</strong>
+                          </div>
+                          <div className="request-summary-card">
+                            <span>Total con interes</span>
+                            <strong>{formatCurrency(padronRequestResult?.summary?.total_con_interes ?? 0)}</strong>
+                          </div>
+                        </div>
+                        <p className="helper-text request-keyword-line">
+                          Palabras clave activas: {(padronRequestResult?.request?.keywords || []).join(", ") || "--"}
+                        </p>
+                        <p className="workspace-title">{padronRequestResult?.request?.description || "Genera una peticion para ver el resumen detallado."}</p>
+                      </article>
+                    </div>
+
+                    <div className="request-zone-list">
+                      {padronRequestResult?.summary?.barrios?.length ? (
+                        padronRequestResult.summary.barrios.map((barrio, index) => (
+                          <section key={barrio.barrio_colonia} className="document-block request-zone-card">
+                            <div className="map-report-zone-top">
+                              <div>
+                                <span className="sheet-kicker">Barrio {index + 1}</span>
+                                <h4>{barrio.barrio_colonia}</h4>
+                              </div>
+                              <div className="map-report-zone-metrics">
+                                <span>{barrio.total_registros} registros</span>
+                                <span>Tarifa {formatCurrency(barrio.tarifa_total)}</span>
+                                <span>Total {formatCurrency(barrio.total_con_interes)}</span>
+                              </div>
+                            </div>
+                            <div className="map-report-table-wrap">
+                              <table className="map-report-table request-table">
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Nombre</th>
+                                    <th>Abonado</th>
+                                    <th>Clave</th>
+                                    <th>Barrio</th>
+                                    <th>Tarifa</th>
+                                    <th>Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {barrio.rows.map((row, rowIndex) => (
+                                    <tr key={`${row.clave_catastral}-${row.abonado}-${rowIndex}`}>
+                                      <td>{rowIndex + 1}</td>
+                                      <td>{row.nombre || "--"}</td>
+                                      <td>{row.abonado || "--"}</td>
+                                      <td>{row.clave_catastral || "--"}</td>
+                                      <td>{row.barrio_colonia || "--"}</td>
+                                      <td>{formatCurrency(row.tarifa || 0)}</td>
+                                      <td>{formatCurrency(row.total || 0)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </section>
+                        ))
+                      ) : (
+                        <div className="empty-state">
+                          <h3>Sin peticion generada</h3>
+                          <p>Selecciona una plantilla o define palabras clave para construir un listado listo para entregar.</p>
                         </div>
                       )}
                     </div>

@@ -288,6 +288,96 @@ let masterMeta = readJsonFile(maestroMetaPath, {
   }
 });
 
+const PADRON_REQUEST_TEMPLATES = [
+  {
+    id: "salud",
+    label: "Salud",
+    description: "Clinicas, hospitales, odontologia y laboratorios agrupados por barrio.",
+    title: "Listado institucional de establecimientos de salud",
+    keywords: [
+      "clinica",
+      "hospital",
+      "odont",
+      "dental",
+      "laborat",
+      "policlinica",
+      "salud",
+      "medic"
+    ]
+  }
+];
+
+const buildRequestSearchTarget = (item = {}) =>
+  normalizeLookupText([item.inquilino, item.nombre].filter(Boolean).join(" "));
+
+const normalizeRequestKeywords = (keywords = []) =>
+  [...new Set(
+    (Array.isArray(keywords) ? keywords : [])
+      .map((keyword) => normalizeLookupText(keyword))
+      .filter((keyword) => keyword.length >= 2)
+  )];
+
+const buildPadronRequestRows = (keywords = []) => {
+  const normalizedKeywords = normalizeRequestKeywords(keywords);
+
+  const rows = sortByClave(
+    masterRecords
+      .map((item) => {
+        const searchTarget = item.search_target || buildRequestSearchTarget(item);
+        const matchedKeywords = normalizedKeywords.filter((keyword) => searchTarget.includes(keyword));
+        if (!matchedKeywords.length) {
+          return null;
+        }
+
+        return {
+          clave_catastral: item.clave_catastral,
+          abonado: item.abonado ?? "",
+          nombre: item.inquilino ?? "",
+          barrio_colonia: item.barrio_colonia || "Sin barrio",
+          tarifa: Number(item.valor ?? 0),
+          intereses: Number(item.intereses ?? 0),
+          total: Number(item.total ?? 0),
+          matched_keywords: matchedKeywords
+        };
+      })
+      .filter(Boolean)
+  );
+
+  return rows;
+};
+
+const buildPadronRequestSummary = (rows = []) => {
+  const totalsByBarrio = rows.reduce((accumulator, row) => {
+    const barrio = row.barrio_colonia || "Sin barrio";
+    const current = accumulator.get(barrio) ?? {
+      barrio_colonia: barrio,
+      total_registros: 0,
+      tarifa_total: 0,
+      total_con_interes: 0,
+      rows: []
+    };
+
+    current.total_registros += 1;
+    current.tarifa_total += Number(row.tarifa ?? 0);
+    current.total_con_interes += Number(row.total ?? 0);
+    current.rows.push(row);
+    accumulator.set(barrio, current);
+    return accumulator;
+  }, new Map());
+
+  const barrios = Array.from(totalsByBarrio.values()).sort((left, right) =>
+    left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
+  );
+
+  return {
+    total_registros: rows.length,
+    total_barrios: barrios.length,
+    tarifa_total: Number(rows.reduce((sum, row) => sum + Number(row.tarifa ?? 0), 0).toFixed(2)),
+    total_con_interes: Number(rows.reduce((sum, row) => sum + Number(row.total ?? 0), 0).toFixed(2)),
+    barrios
+  };
+};
+
 export const getClaveLookupMeta = async () => ({
   ok: true,
   meta: {
@@ -301,6 +391,11 @@ export const getClaveLookupMeta = async () => ({
       changed: 0
     }
   }
+});
+
+export const getPadronRequestTemplates = async () => ({
+  ok: true,
+  templates: PADRON_REQUEST_TEMPLATES
 });
 
 export const uploadClavePadron = async ({ buffer, originalName = "" }, options = {}) => {
@@ -408,6 +503,36 @@ export const searchClaveCatastral = async (value, options = {}) => {
     exists: matches.length > 0,
     total_matches: matches.length,
     matches
+  };
+};
+
+export const generatePadronRequestReport = async (payload = {}) => {
+  const presetId = String(payload.preset_id ?? "").trim();
+  const template = PADRON_REQUEST_TEMPLATES.find((item) => item.id === presetId) ?? null;
+  const customKeywords = normalizeRequestKeywords(payload.keywords ?? []);
+  const keywords = customKeywords.length ? customKeywords : template?.keywords ?? [];
+
+  if (!keywords.length) {
+    const error = new Error("Debes indicar al menos una palabra clave para generar la peticion.");
+    error.status = 400;
+    throw error;
+  }
+
+  const rows = buildPadronRequestRows(keywords);
+  const summary = buildPadronRequestSummary(rows);
+
+  return {
+    ok: true,
+    request: {
+      preset_id: template?.id || "custom",
+      title: String(payload.title ?? template?.title ?? "Peticion de padron").trim() || "Peticion de padron",
+      description:
+        String(payload.description ?? template?.description ?? "").trim() ||
+        "Consulta administrativa filtrada desde el padron maestro.",
+      keywords
+    },
+    summary,
+    rows
   };
 };
 

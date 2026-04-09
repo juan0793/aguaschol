@@ -1,6 +1,8 @@
 import {
   exportClavePadronWorkbook,
+  generatePadronRequestReport,
   getClaveLookupMeta,
+  getPadronRequestTemplates,
   searchClaveCatastral,
   uploadClavePadron
 } from "../services/claveLookupService.js";
@@ -19,6 +21,24 @@ export const searchClave = async (req, res, next) => {
 export const getPadronMeta = async (_req, res, next) => {
   try {
     const result = await getClaveLookupMeta();
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPadronRequestMeta = async (_req, res, next) => {
+  try {
+    const result = await getPadronRequestTemplates();
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const runPadronRequest = async (req, res, next) => {
+  try {
+    const result = await generatePadronRequestReport(req.body ?? {});
     res.json(result);
   } catch (error) {
     next(error);

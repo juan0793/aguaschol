@@ -4352,6 +4352,71 @@ textarea {
   background: rgba(212, 235, 255, 0.78);
 }
 
+.request-sheet {
+  display: grid;
+  gap: 1rem;
+}
+
+.request-office-head {
+  align-items: flex-start;
+}
+
+.request-download-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.request-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
+  gap: 1rem;
+}
+
+.request-editor-card,
+.request-preview-card,
+.request-zone-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 247, 255, 0.88) 100%);
+}
+
+.request-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.request-summary-card {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.request-summary-card span {
+  color: #67839c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.request-summary-card strong {
+  color: #123b5d;
+  font-size: 1rem;
+}
+
+.request-keyword-line {
+  margin-top: 0.85rem;
+}
+
+.request-zone-list {
+  display: grid;
+  gap: 1rem;
+}
+
 @media (max-width: 768px) {
   .lookup-layout {
     width: min(100%, calc(100% - 1rem));
@@ -4474,6 +4539,20 @@ textarea {
 
   .map-report-table {
     min-width: 820px;
+  }
+
+  .request-editor-grid,
+  .request-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .request-download-row {
+    width: 100%;
+  }
+
+  .request-download-row button {
+    width: 100%;
+    justify-content: center;
   }
 
   .map-report-color-options {

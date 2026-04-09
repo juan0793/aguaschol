@@ -1,11 +1,20 @@
 import { Router } from "express";
-import { downloadPadron, getPadronMeta, searchClave, uploadPadron } from "../controllers/claveLookupController.js";
+import {
+  downloadPadron,
+  getPadronMeta,
+  getPadronRequestMeta,
+  runPadronRequest,
+  searchClave,
+  uploadPadron
+} from "../controllers/claveLookupController.js";
 import { requireAdmin } from "../middleware/authMiddleware.js";
 import { padronUpload } from "../middleware/padronUpload.js";
 
 const router = Router();
 
 router.get("/meta", requireAdmin, getPadronMeta);
+router.get("/requests/meta", requireAdmin, getPadronRequestMeta);
+router.post("/requests/run", requireAdmin, runPadronRequest);
 router.get("/download", requireAdmin, downloadPadron);
 router.get("/search", searchClave);
 router.get("/search/:clave", searchClave);
