@@ -304,6 +304,55 @@ const PADRON_REQUEST_TEMPLATES = [
       "salud",
       "medic"
     ]
+  },
+  {
+    id: "plazas_comerciales",
+    label: "Plazas comerciales",
+    description: "Locales y plazas comerciales agrupados por barrio para revision institucional.",
+    title: "Listado institucional de plazas comerciales",
+    keywords: ["plaza", "comercial", "mall", "centro comercial"]
+  },
+  {
+    id: "farmacias",
+    label: "Farmacias",
+    description: "Farmacias y establecimientos relacionados agrupados por barrio.",
+    title: "Listado institucional de farmacias",
+    keywords: ["farmacia", "botica", "drogueria"]
+  },
+  {
+    id: "educacion",
+    label: "Educacion",
+    description: "Escuelas, colegios, institutos, universidades y centros educativos.",
+    title: "Listado institucional de centros educativos",
+    keywords: ["escuela", "colegio", "instituto", "universidad", "kinder", "jardin"]
+  },
+  {
+    id: "hoteles",
+    label: "Hoteles",
+    description: "Hoteles, hostales y hospedajes agrupados por barrio.",
+    title: "Listado institucional de hoteles y hospedajes",
+    keywords: ["hotel", "hostal", "hospedaje"]
+  },
+  {
+    id: "restaurantes",
+    label: "Restaurantes",
+    description: "Restaurantes, cafeterias y comedores agrupados por barrio.",
+    title: "Listado institucional de restaurantes y cafeterias",
+    keywords: ["restaurante", "cafeteria", "comedor", "pollos", "pizzeria"]
+  },
+  {
+    id: "talleres",
+    label: "Talleres",
+    description: "Talleres mecanicos, electricos y de servicio tecnico agrupados por barrio.",
+    title: "Listado institucional de talleres y servicios tecnicos",
+    keywords: ["taller", "mecanica", "mecanico", "electrico", "reparacion"]
+  },
+  {
+    id: "gasolineras",
+    label: "Gasolineras",
+    description: "Gasolineras, estaciones de servicio y expendios de combustible.",
+    title: "Listado institucional de gasolineras y estaciones de servicio",
+    keywords: ["gasolinera", "estacion", "combustible", "bomba"]
   }
 ];
 
