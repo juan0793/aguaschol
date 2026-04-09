@@ -319,6 +319,8 @@ const actionLabel = (action) =>
 const iconPaths = {
   dashboard:
     "M4 5.5A1.5 1.5 0 0 1 5.5 4h5A1.5 1.5 0 0 1 12 5.5v5A1.5 1.5 0 0 1 10.5 12h-5A1.5 1.5 0 0 1 4 10.5zM14 5.5A1.5 1.5 0 0 1 15.5 4h3A1.5 1.5 0 0 1 20 5.5v3A1.5 1.5 0 0 1 18.5 10h-3A1.5 1.5 0 0 1 14 8.5zM14 14.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 20 14.5v5a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5zM4 15.5A1.5 1.5 0 0 1 5.5 14h5A1.5 1.5 0 0 1 12 15.5v3A1.5 1.5 0 0 1 10.5 20h-5A1.5 1.5 0 0 1 4 18.5z",
+  home:
+    "M4 11.5 12 5l8 6.5v7A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5zM9 20v-5h6v5",
   records:
     "M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5z M8 8h8M8 12h8M8 16h5",
   users:
@@ -348,7 +350,9 @@ const iconPaths = {
   userCreated:
     "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4m7.5 6.5L21 20l-2.5 2.5-2-2M5 20v-1.3C5 16.1 8.2 14 12 14c1.3 0 2.6.2 3.7.6",
   auth:
-    "M12 3l7 4v5c0 4.3-2.9 8.2-7 9-4.1-.8-7-4.7-7-9V7z"
+    "M12 3l7 4v5c0 4.3-2.9 8.2-7 9-4.1-.8-7-4.7-7-9V7z",
+  more:
+    "M5 12a1.5 1.5 0 1 0 0-.01M12 12a1.5 1.5 0 1 0 0-.01M19 12a1.5 1.5 0 1 0 0-.01"
 };
 
 const Icon = ({ name, className = "" }) => (
@@ -1035,6 +1039,7 @@ function App() {
   const [workspaceView, setWorkspaceView] = useState(() =>
     session?.user?.role === "admin" ? "dashboard" : "records"
   );
+  const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupPrefixMode, setLookupPrefixMode] = useState("auto");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -1488,6 +1493,46 @@ function App() {
       }))
       .filter((section) => section.items.length);
   }, [adminWorkspaceItems]);
+  const moduleNavigationItems = useMemo(
+    () =>
+      (isAdmin
+        ? [
+            { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
+            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
+            { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
+            { key: "padron", label: "Padron", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
+            { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
+            { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
+          ]
+        : [
+            { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
+            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
+            { key: "map", label: "Mapa", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` }
+          ]),
+    [
+      isAdmin,
+      mapReportData.totalZones,
+      padronMeta?.total_records,
+      safeAuditLogs.length,
+      safeRecords.length,
+      safeUsers.length,
+      visibleMapPoints.length
+    ]
+  );
+  const mobilePrimaryModuleKeys = useMemo(() => ["records", "lookup", "map"], []);
+  const primaryModuleNavigationItems = useMemo(
+    () => moduleNavigationItems.filter((item) => mobilePrimaryModuleKeys.includes(item.key)),
+    [mobilePrimaryModuleKeys, moduleNavigationItems]
+  );
+  const secondaryModuleNavigationItems = useMemo(
+    () => moduleNavigationItems.filter((item) => !mobilePrimaryModuleKeys.includes(item.key)),
+    [mobilePrimaryModuleKeys, moduleNavigationItems]
+  );
+  const currentModuleNavigation = useMemo(
+    () => moduleNavigationItems.find((item) => item.key === workspaceView) ?? null,
+    [moduleNavigationItems, workspaceView]
+  );
   const adminInsight = useMemo(() => {
     if (!isAdmin) {
       return null;
@@ -2067,6 +2112,10 @@ function App() {
       setWorkspaceView("records");
     }
   }, [isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
+    setShowMobileModuleMenu(false);
+  }, [workspaceView]);
 
   useEffect(() => {
     if (!isAuthenticated || workspaceView !== "map") {
@@ -4081,8 +4130,8 @@ function App() {
           </div>
         </div>
       ) : null}
-      <header className={`hero no-print ${isAdmin ? "hero-admin" : ""}`}>
-        <div className={`hero-panel ${headerMeta.panelClass}`}>
+      <header className={`hero no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""}`}>
+        <div className={`hero-panel ${headerMeta.panelClass} ${workspaceView !== "dashboard" ? "module-hero-panel" : ""}`}>
           <div className="hero-topline">
             <span className="hero-topline-item">
               <Icon name="records" />
@@ -4125,7 +4174,7 @@ function App() {
               </div>
             </div>
           </div>
-          <div className="hero-strip">
+          <div className={`hero-strip ${workspaceView !== "dashboard" ? "hero-strip-module" : ""}`}>
             {headerStats.map((stat) => (
               <div className="hero-stat" key={stat.label}>
                 <span className="hero-stat-icon"><Icon name={stat.icon} /></span>
@@ -4138,109 +4187,199 @@ function App() {
 
         <div className={`search-card ${headerMeta.cardClass}`}>
           <div className="search-card-head">
-            <label htmlFor="search">Espacios de trabajo</label>
-            <span className="search-card-kicker">{headerMeta.kicker}</span>
+            <label htmlFor="search">{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</label>
+            <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>
           </div>
-          {isAdmin ? (
-            <div className="admin-console">
-              <div className="admin-console-head">
-                <div className="session-chip admin-session-chip">
-                  <Icon name="auth" />
-                  <span>Administrador: {session?.user?.full_name || session?.user?.username || "--"}</span>
-                </div>
-                <div className="admin-online-cluster">
-                  <span className="admin-online-count">
-                    <Icon name="success" />
-                    {onlineUsers.length} en linea
-                  </span>
-                  <div className="admin-online-list">
-                    {onlineUsers.length ? (
-                      onlineUsers.slice(0, 5).map((user) => (
-                        <span key={user.id} className="admin-online-user">
-                          <i />
-                          {user.full_name || user.username}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="admin-online-user is-empty">Sin usuarios conectados</span>
-                    )}
+          {workspaceView === "dashboard" ? (
+            isAdmin ? (
+              <div className="admin-console">
+                <div className="admin-console-head">
+                  <div className="session-chip admin-session-chip">
+                    <Icon name="auth" />
+                    <span>Administrador: {session?.user?.full_name || session?.user?.username || "--"}</span>
+                  </div>
+                  <div className="admin-online-cluster">
+                    <span className="admin-online-count">
+                      <Icon name="success" />
+                      {onlineUsers.length} en linea
+                    </span>
+                    <div className="admin-online-list">
+                      {onlineUsers.length ? (
+                        onlineUsers.slice(0, 5).map((user) => (
+                          <span key={user.id} className="admin-online-user">
+                            <i />
+                            {user.full_name || user.username}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="admin-online-user is-empty">Sin usuarios conectados</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="admin-console-shell">
-                <div className="admin-console-menu">
-                  {adminWorkspaceSections.map((section) => (
-                    <section key={section.key} className="admin-workspace-section">
-                      <div className="admin-workspace-section-head">
-                        <div>
-                          <strong>{section.title}</strong>
-                          <small>{section.detail}</small>
+                <div className="admin-console-shell">
+                  <div className="admin-console-menu">
+                    {adminWorkspaceSections.map((section) => (
+                      <section key={section.key} className="admin-workspace-section">
+                        <div className="admin-workspace-section-head">
+                          <div>
+                            <strong>{section.title}</strong>
+                            <small>{section.detail}</small>
+                          </div>
+                          <span className="admin-section-count">{section.items.length}</span>
                         </div>
-                        <span className="admin-section-count">{section.items.length}</span>
+                        <div className="admin-workspace-grid">
+                          {section.items.map((item) => (
+                            <button
+                              key={item.key}
+                              type="button"
+                              className={`admin-workspace-card ${item.tone} ${workspaceView === item.key ? "is-active" : ""}`}
+                              onClick={() => setWorkspaceView(item.key)}
+                            >
+                              <span className="admin-workspace-icon"><Icon name={item.icon} /></span>
+                              <div className="admin-workspace-copy">
+                                <strong>{item.label}</strong>
+                                <small>{item.meta}</small>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                  {adminInsight ? (
+                    <aside className="admin-insight-card">
+                      <span className="admin-insight-icon"><Icon name={adminInsight.icon} /></span>
+                      <div>
+                        <strong>{adminInsight.title}</strong>
+                        <p>{adminInsight.detail}</p>
                       </div>
-                      <div className="admin-workspace-grid">
-                        {section.items.map((item) => (
-                          <button
-                            key={item.key}
-                            type="button"
-                            className={`admin-workspace-card ${item.tone} ${workspaceView === item.key ? "is-active" : ""}`}
-                            onClick={() => setWorkspaceView(item.key)}
-                          >
-                            <span className="admin-workspace-icon"><Icon name={item.icon} /></span>
-                            <div className="admin-workspace-copy">
-                              <strong>{item.label}</strong>
-                              <small>{item.meta}</small>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </section>
+                    </aside>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="session-chip">
+                  <Icon name="auth" />
+                  <span>Usuario actual: {session?.user?.full_name || session?.user?.username || "--"}</span>
+                </div>
+                <div className="workspace-nav">
+                  {moduleNavigationItems.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={workspaceView === item.key ? "button-secondary active-filter" : "button-secondary"}
+                      onClick={() => setWorkspaceView(item.key)}
+                    >
+                      <Icon name={item.icon} />
+                      {item.label}
+                    </button>
                   ))}
                 </div>
-                {adminInsight ? (
-                  <aside className="admin-insight-card">
-                    <span className="admin-insight-icon"><Icon name={adminInsight.icon} /></span>
-                    <div>
-                      <strong>{adminInsight.title}</strong>
-                      <p>{adminInsight.detail}</p>
-                    </div>
-                  </aside>
+              </>
+            )
+          ) : (
+            <div className="module-nav-wrap">
+              <div className="module-topbar">
+                <div className="module-topbar-copy">
+                  <div className="module-topbar-badges">
+                    <span className="module-badge">
+                      <Icon name={currentModuleNavigation?.icon || "records"} />
+                      {currentModuleNavigation?.group === "operacion"
+                        ? "Operacion"
+                        : currentModuleNavigation?.group === "control"
+                          ? "Control"
+                          : "Administracion"}
+                    </span>
+                    <span className="module-badge subtle">
+                      <Icon name="users" />
+                      {session?.user?.full_name || session?.user?.username || "Sesion activa"}
+                    </span>
+                  </div>
+                  <p className="module-topbar-note">{currentModuleNavigation?.helper || headerMeta.kicker}</p>
+                </div>
+                <div className="module-topbar-actions">
+                  {isAdmin ? (
+                    <span className="module-side-chip">
+                      <Icon name="success" />
+                      {onlineUsers.length} en linea
+                    </span>
+                  ) : null}
+                  {isAdmin ? (
+                    <button type="button" className="button-secondary desktop-home-button" onClick={() => setWorkspaceView("dashboard")}>
+                      <Icon name="home" />
+                      Tablero
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="module-nav desktop-only">
+                {moduleNavigationItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`module-nav-tab ${workspaceView === item.key ? "is-active" : ""}`}
+                    onClick={() => setWorkspaceView(item.key)}
+                  >
+                    <span className="module-nav-icon"><Icon name={item.icon} /></span>
+                    <span className="module-nav-copy">
+                      <strong>{item.label}</strong>
+                      <small>{item.helper}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="module-nav-mobile mobile-only">
+                <div className="module-nav-mobile-primary">
+                  {primaryModuleNavigationItems.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={`module-nav-pill ${workspaceView === item.key ? "is-active" : ""}`}
+                      onClick={() => setWorkspaceView(item.key)}
+                    >
+                      <Icon name={item.icon} />
+                      {item.label}
+                    </button>
+                  ))}
+                  {secondaryModuleNavigationItems.length ? (
+                    <button
+                      type="button"
+                      className={`module-nav-pill module-more-trigger ${showMobileModuleMenu ? "is-active" : ""}`}
+                      onClick={() => setShowMobileModuleMenu((current) => !current)}
+                    >
+                      <Icon name="more" />
+                      Mas
+                    </button>
+                  ) : null}
+                </div>
+                {showMobileModuleMenu ? (
+                  <div className="module-nav-mobile-more">
+                    {isAdmin ? (
+                      <button type="button" className="module-nav-more-item" onClick={() => setWorkspaceView("dashboard")}>
+                        <Icon name="home" />
+                        <span>
+                          <strong>Tablero</strong>
+                          <small>Accesos rapidos</small>
+                        </span>
+                      </button>
+                    ) : null}
+                    {secondaryModuleNavigationItems.map((item) => (
+                      <button key={item.key} type="button" className="module-nav-more-item" onClick={() => setWorkspaceView(item.key)}>
+                        <Icon name={item.icon} />
+                        <span>
+                          <strong>{item.label}</strong>
+                          <small>{item.helper}</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 ) : null}
               </div>
             </div>
-          ) : (
-            <>
-              <div className="session-chip">
-                <Icon name="auth" />
-                <span>Usuario actual: {session?.user?.full_name || session?.user?.username || "--"}</span>
-              </div>
-              <div className="workspace-nav">
-                <button
-                  type="button"
-                  className={workspaceView === "records" ? "button-secondary active-filter" : "button-secondary"}
-                  onClick={() => setWorkspaceView("records")}
-                >
-                  <Icon name="records" />
-                  Fichas
-                </button>
-                <button
-                  type="button"
-                  className={workspaceView === "lookup" ? "button-secondary active-filter" : "button-secondary"}
-                  onClick={() => setWorkspaceView("lookup")}
-                >
-                  <Icon name="search" />
-                  Buscar clave
-                </button>
-                <button
-                  type="button"
-                  className={workspaceView === "map" ? "button-secondary active-filter" : "button-secondary"}
-                  onClick={() => setWorkspaceView("map")}
-                >
-                  <Icon name="map" />
-                  Mapa de campo
-                </button>
-              </div>
-            </>
           )}
           {workspaceView === "dashboard" ? (
             <div className="workspace-summary dashboard-summary">

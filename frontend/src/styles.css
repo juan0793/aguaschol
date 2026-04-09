@@ -451,8 +451,17 @@ button:disabled {
   gap: 0.75rem;
 }
 
+.hero-module {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.7rem;
+}
+
 .hero-admin .search-card {
   padding: 0.82rem 0.9rem;
+}
+
+.hero-module .search-card {
+  padding: 0.8rem 0.9rem;
 }
 
 .hero-panel {
@@ -497,6 +506,11 @@ button:disabled {
     linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 249, 255, 0.94) 48%, rgba(249, 251, 255, 0.98) 100%);
   border-color: rgba(21, 118, 209, 0.18);
   box-shadow: 0 26px 60px rgba(13, 77, 134, 0.12);
+}
+
+.module-hero-panel {
+  padding: 0.95rem 1.05rem;
+  border-radius: 24px;
 }
 
 .hero-topline {
@@ -559,6 +573,11 @@ button:disabled {
   filter: drop-shadow(0 8px 18px rgba(21, 118, 209, 0.18));
 }
 
+.hero-module .hero-logo {
+  width: 72px;
+  height: 72px;
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -588,6 +607,10 @@ button:disabled {
   font-weight: 700;
   letter-spacing: -0.03em;
   color: #173f67;
+}
+
+.hero-module h1 {
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
 }
 
 .lead {
@@ -632,6 +655,12 @@ button:disabled {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.65rem;
   margin-top: 0.9rem;
+}
+
+.hero-strip-module {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.75rem;
 }
 
 .hero-stat {
@@ -757,6 +786,14 @@ button:disabled {
   gap: 0.75rem;
 }
 
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
 .app-icon {
   display: inline-flex;
   align-items: center;
@@ -773,6 +810,184 @@ button:disabled {
 
 .workspace-nav {
   margin-bottom: 0.85rem;
+}
+
+.module-nav-wrap {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.module-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.module-topbar-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.module-topbar-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.module-badge,
+.module-side-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 34px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(229, 241, 255, 0.84);
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  color: #214564;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.module-badge.subtle {
+  background: rgba(255, 255, 255, 0.72);
+  color: #54718c;
+}
+
+.module-topbar-note {
+  margin: 0;
+  color: #5d7994;
+  font-size: 0.88rem;
+}
+
+.module-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.desktop-home-button {
+  min-height: 38px;
+}
+
+.module-nav {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.module-nav-tab {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.68rem 0.8rem;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  color: #173f67;
+  text-align: left;
+  box-shadow: 0 12px 26px rgba(21, 118, 209, 0.05);
+}
+
+.module-nav-tab.is-active {
+  background: linear-gradient(135deg, rgba(21, 118, 209, 0.16), rgba(37, 199, 240, 0.12), rgba(255, 255, 255, 0.96));
+  border-color: rgba(21, 118, 209, 0.22);
+  box-shadow: 0 18px 34px rgba(21, 118, 209, 0.11);
+}
+
+.module-nav-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(21, 118, 209, 0.08);
+  color: #0d4d86;
+}
+
+.module-nav-copy {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.module-nav-copy strong {
+  font-size: 0.86rem;
+}
+
+.module-nav-copy small {
+  color: #6c8398;
+  font-size: 0.74rem;
+}
+
+.module-nav-mobile {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.module-nav-mobile-primary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.module-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  min-height: 46px;
+  padding: 0.45rem 0.7rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(255, 255, 255, 0.84);
+  color: #173f67;
+  font-weight: 700;
+}
+
+.module-nav-pill.is-active,
+.module-more-trigger.is-active {
+  background: rgba(21, 118, 209, 0.13);
+  border-color: rgba(21, 118, 209, 0.22);
+}
+
+.module-nav-mobile-more {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.module-nav-more-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.65rem 0.7rem;
+  border-radius: 14px;
+  background: rgba(244, 249, 255, 0.88);
+  border: 1px solid rgba(21, 118, 209, 0.08);
+  color: #173f67;
+  text-align: left;
+}
+
+.module-nav-more-item span {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.module-nav-more-item small {
+  color: #6c8398;
+}
+
+.module-toolbar-card {
+  padding-top: 0.1rem;
 }
 
 .workspace-summary {
@@ -2403,6 +2618,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .module-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .hero-brand {
     align-items: flex-start;
   }
@@ -2426,6 +2645,14 @@ textarea {
 }
 
 @media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+
   .login-shell {
     padding: 0.9rem;
     align-items: start;
@@ -2475,6 +2702,11 @@ textarea {
     gap: 0.8rem;
   }
 
+  .hero-module .hero-topline,
+  .hero-strip-module {
+    display: none;
+  }
+
   .hero-brand {
     flex-direction: column;
     align-items: flex-start;
@@ -2503,6 +2735,7 @@ textarea {
   .admin-section-head,
   .admin-console-head,
   .admin-workspace-section-head,
+  .module-topbar,
   .preview-actions {
     flex-direction: column;
     align-items: stretch;
@@ -2548,6 +2781,15 @@ textarea {
   .content,
   .admin-content {
     gap: 0.8rem;
+  }
+
+  .module-nav-mobile-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .module-topbar-actions,
+  .module-topbar-badges {
+    justify-content: flex-start;
   }
 
   .admin-workspace-grid {
