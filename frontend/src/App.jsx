@@ -3969,28 +3969,47 @@ function App() {
           <div className="login-card">
             <div className="login-card-head">
               <p className="eyebrow">Acceso seguro</p>
-              <h2>Iniciar sesion</h2>
+              <div className="login-card-title">
+                <span className="login-card-title-icon"><Icon name="auth" /></span>
+                <h2>Iniciar sesion</h2>
+              </div>
               <p className="lead">Ingresa con tu usuario o correo para continuar.</p>
+              <div className="login-card-badges">
+                <span className="login-card-badge">
+                  <Icon name="success" />
+                  Sesion cifrada
+                </span>
+                <span className="login-card-badge">
+                  <Icon name="history" />
+                  Registro auditado
+                </span>
+              </div>
             </div>
             <form className="login-form" onSubmit={handleLogin}>
-              <label>
+              <label className="login-field">
                 <span>Usuario o correo</span>
-                <input
-                  name="username"
-                  value={loginForm.username}
-                  onChange={handleLoginChange}
-                  autoComplete="username"
-                />
+                <div className="login-input-shell">
+                  <span className="login-input-icon"><Icon name="users" /></span>
+                  <input
+                    name="username"
+                    value={loginForm.username}
+                    onChange={handleLoginChange}
+                    autoComplete="username"
+                  />
+                </div>
               </label>
-              <label>
+              <label className="login-field">
                 <span>Contrasena</span>
-                <input
-                  name="password"
-                  type="password"
-                  value={loginForm.password}
-                  onChange={handleLoginChange}
-                  autoComplete="current-password"
-                />
+                <div className="login-input-shell">
+                  <span className="login-input-icon"><Icon name="auth" /></span>
+                  <input
+                    name="password"
+                    type="password"
+                    value={loginForm.password}
+                    onChange={handleLoginChange}
+                    autoComplete="current-password"
+                  />
+                </div>
               </label>
               <button type="submit" disabled={loginLoading}>
                 <Icon name="auth" />
