@@ -107,6 +107,12 @@ const fieldGroups = [
   ]
 ];
 
+const recordQuickFilterOptions = [
+  { key: "all", label: "Todo" },
+  { key: "today", label: "Hoy" },
+  { key: "no_photo", label: "Sin foto" }
+];
+
 const sectionDefinitions = [
   { key: "abonado", label: "Abonado", mobileLabel: "Datos" },
   { key: "inmueble", label: "Inmueble", mobileLabel: "Inmueble" },
@@ -376,6 +382,48 @@ const getLookupServiceMeta = (value = "") => {
   }
 
   return { label: normalized || "--", tone: "is-neutral", icon: "activity" };
+};
+
+const getRecordValidationIssues = (form = {}, hasExistingPhoto = false, selectedFile = null) => {
+  const issues = [];
+
+  if (!String(form.clave_catastral || "").trim()) {
+    issues.push({ field: "clave_catastral", section: "abonado", text: "Falta la clave catastral." });
+  }
+
+  if (
+    !String(form.abonado || "").trim() &&
+    !String(form.nombre_catastral || "").trim() &&
+    !String(form.inquilino || "").trim()
+  ) {
+    issues.push({ field: "abonado", section: "abonado", text: "Agrega al menos abonado, catastral o inquilino." });
+  }
+
+  if (!String(form.barrio_colonia || "").trim()) {
+    issues.push({ field: "barrio_colonia", section: "abonado", text: "Falta barrio, colonia o lotificacion." });
+  }
+
+  if (String(form.accion_inspeccion || "").trim().length < 12) {
+    issues.push({ field: "accion_inspeccion", section: "inmueble", text: "Describe mejor la inspeccion del inmueble." });
+  }
+
+  if (!String(form.fecha_aviso || "").trim()) {
+    issues.push({ field: "fecha_aviso", section: "aviso", text: "Selecciona la fecha del aviso." });
+  }
+
+  if (!String(form.levantamiento_datos || "").trim()) {
+    issues.push({ field: "levantamiento_datos", section: "aviso", text: "Indica quien levanto los datos." });
+  }
+
+  if (!String(form.analista_datos || "").trim()) {
+    issues.push({ field: "analista_datos", section: "aviso", text: "Indica el analista de datos." });
+  }
+
+  if (!hasExistingPhoto && !selectedFile) {
+    issues.push({ field: "foto_path", section: "aviso", text: "Conviene adjuntar una fotografia antes de guardar." });
+  }
+
+  return issues;
 };
 
 const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
@@ -1235,6 +1283,7 @@ function App() {
   const [loadingAviso, setLoadingAviso] = useState(false);
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
+  const [recordQuickFilter, setRecordQuickFilter] = useState("all");
   const [selectedRecordId, setSelectedRecordId] = useState(null);
   const [draftSavedAt, setDraftSavedAt] = useState(
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
@@ -1614,9 +1663,20 @@ function App() {
       JSON.stringify(comparableFormShape(form)) !== JSON.stringify(baseline) || Boolean(selectedFile)
     );
   }, [draftForm, form, safeRecords, selectedFile]);
+  const filteredRecords = useMemo(() => {
+    if (recordQuickFilter === "today") {
+      return safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey);
+    }
+
+    if (recordQuickFilter === "no_photo") {
+      return safeRecords.filter((record) => !String(record.foto_path || "").trim());
+    }
+
+    return safeRecords;
+  }, [recordQuickFilter, safeRecords, todayDateKey]);
   const visibleRecordGroups = useMemo(() => {
     const visibleLimit = draftForm ? 9 : 10;
-    const limitedRecords = safeRecords.slice(0, Math.max(visibleLimit, 0));
+    const limitedRecords = filteredRecords.slice(0, Math.max(visibleLimit, 0));
     const groups = [];
 
     limitedRecords.forEach((record) => {
@@ -1632,7 +1692,11 @@ function App() {
     });
 
     return groups;
-  }, [draftForm, safeRecords, recordView]);
+  }, [draftForm, filteredRecords, recordView]);
+  const recordValidationIssues = useMemo(
+    () => getRecordValidationIssues(form, Boolean(form.foto_path), selectedFile),
+    [form, selectedFile]
+  );
   const mapReportData = useMemo(() => {
     const points = [...visibleMapPoints].sort((left, right) => {
       const leftContext = mapPointContexts[getMapPointContextKey(left)] ?? null;
@@ -3742,6 +3806,7 @@ function App() {
 
   const handleSelectRecord = (record) => {
     setSelectedRecordId(record.id ?? null);
+    setRecordQuickFilter("all");
     applyRecord(record);
     focusSheet();
   };
@@ -3765,6 +3830,7 @@ function App() {
 
   const resetForm = () => {
     setSelectedRecordId(null);
+    setRecordQuickFilter("all");
     setForm(emptyForm);
     setDraftForm(null);
     setDraftSavedAt(null);
@@ -3784,6 +3850,7 @@ function App() {
     }
 
     setSelectedRecordId(null);
+    setRecordQuickFilter("all");
     setForm({ ...emptyForm, ...draftForm, id: null });
     setSelectedFile(null);
     setAvisoHtml("");
@@ -4220,6 +4287,13 @@ function App() {
 
   const saveRecord = async (event) => {
     event.preventDefault();
+    const blockingIssues = recordValidationIssues.filter((issue) => issue.field !== "foto_path");
+    if (blockingIssues.length) {
+      setActiveSection(blockingIssues[0].section);
+      showAlert(blockingIssues[0].text);
+      return;
+    }
+
     setSaving(true);
 
     const isEdit = Boolean(form.id);
@@ -5658,10 +5732,32 @@ function App() {
 
           {loading ? <p className="helper-text">Cargando...</p> : null}
           {emptyRecordsMessage ? <p className="helper-text">{emptyRecordsMessage}</p> : null}
+          <div className="record-filter-strip">
+            {recordQuickFilterOptions.map((option) => {
+              const count =
+                option.key === "today"
+                  ? recordsUpdatedToday
+                  : option.key === "no_photo"
+                    ? pendingPhotoRecords
+                    : safeRecords.length;
+
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`record-filter-chip ${recordQuickFilter === option.key ? "is-active" : ""}`}
+                  onClick={() => setRecordQuickFilter(option.key)}
+                >
+                  <span>{option.label}</span>
+                  <strong>{count}</strong>
+                </button>
+              );
+            })}
+          </div>
 
         <div className="record-list-head">
           <span>Exp.</span>
-          <span>Fichas activas</span>
+          <span>{recordQuickFilter === "all" ? "Fichas activas" : recordQuickFilter === "today" ? "Movimiento de hoy" : "Pendientes de foto"}</span>
           <span>Vista</span>
         </div>
 
@@ -5941,6 +6037,35 @@ function App() {
                 </div>
               </section>
             ) : null}
+
+            {recordValidationIssues.length ? (
+              <div className="record-validation-card no-print">
+                <div className="record-validation-head">
+                  <strong>Revision previa</strong>
+                  <span>{recordValidationIssues.length} puntos por revisar</span>
+                </div>
+                <div className="record-validation-list">
+                  {recordValidationIssues.map((issue) => (
+                    <button
+                      key={`${issue.field}-${issue.text}`}
+                      type="button"
+                      className={`record-validation-item ${issue.field === "foto_path" ? "is-soft" : ""}`}
+                      onClick={() => setActiveSection(issue.section)}
+                    >
+                      <Icon name={issue.field === "foto_path" ? "activity" : "records"} />
+                      <span>{issue.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="record-validation-card no-print is-ready">
+                <div className="record-validation-head">
+                  <strong>Ficha lista para guardar</strong>
+                  <span>Las validaciones principales estan completas.</span>
+                </div>
+              </div>
+            )}
 
             <div className="action-row">
               <button type="submit" disabled={saving}>

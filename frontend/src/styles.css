@@ -1729,6 +1729,36 @@ button:disabled {
     linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 250, 255, 0.97) 100%);
 }
 
+.record-filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.6rem 0 0.8rem;
+}
+
+.record-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 36px;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: rgba(255, 255, 255, 0.86);
+  color: #2e587e;
+}
+
+.record-filter-chip strong {
+  color: #0d4d86;
+  font-size: 0.78rem;
+}
+
+.record-filter-chip.is-active {
+  background: linear-gradient(135deg, rgba(21, 118, 209, 0.14) 0%, rgba(37, 199, 240, 0.12) 100%);
+  border-color: rgba(21, 118, 209, 0.24);
+  box-shadow: 0 10px 20px rgba(21, 118, 209, 0.08);
+}
+
 .panel-header,
 .action-row {
   display: flex;
@@ -1951,6 +1981,68 @@ button:disabled {
 .sheet-draft-status small {
   color: #648099;
   font-size: 0.78rem;
+}
+
+.record-validation-card {
+  display: grid;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: 22px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 248, 255, 0.92) 100%);
+}
+
+.record-validation-card.is-ready {
+  border-color: rgba(22, 112, 75, 0.16);
+  background: linear-gradient(180deg, rgba(250, 255, 252, 0.98) 0%, rgba(239, 251, 245, 0.94) 100%);
+}
+
+.record-validation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.record-validation-head strong {
+  color: #123b5d;
+}
+
+.record-validation-head span {
+  color: #648099;
+  font-size: 0.84rem;
+}
+
+.record-validation-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.record-validation-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 16px;
+  border: 1px solid rgba(198, 104, 104, 0.14);
+  background: rgba(255, 245, 245, 0.88);
+  color: #8f3c3c;
+  text-align: left;
+}
+
+.record-validation-item.is-soft {
+  border-color: rgba(21, 118, 209, 0.12);
+  background: rgba(242, 248, 255, 0.9);
+  color: #28557b;
+}
+
+.record-validation-item .app-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .record-badge {
@@ -5201,6 +5293,20 @@ textarea {
 
   .lookup-recent-chip {
     min-width: 0;
+  }
+
+  .record-filter-strip {
+    gap: 0.35rem;
+  }
+
+  .record-filter-chip {
+    flex: 1 1 calc(50% - 0.35rem);
+    justify-content: space-between;
+  }
+
+  .record-validation-card {
+    padding: 0.85rem;
+    border-radius: 18px;
   }
 }
 
