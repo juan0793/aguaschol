@@ -132,6 +132,11 @@ const sectionDefinitions = [
   { key: "aviso", label: "Aviso y Foto", mobileLabel: "Aviso" }
 ];
 
+const saveIntentOptions = {
+  stay: "stay",
+  new: "new"
+};
+
 const hasDraftContent = (candidate) =>
   Object.entries(emptyForm).some(([key, defaultValue]) => {
     if (["id", "foto_path"].includes(key)) return false;
@@ -598,6 +603,10 @@ const iconPaths = {
     "M14 7V5.5A2.5 2.5 0 0 0 11.5 3h-5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h5a2.5 2.5 0 0 0 2.5-2.5V17M10 12h10m0 0-3-3m3 3-3 3",
   search:
     "M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14m9 3-4.2-4.2",
+  arrowLeft:
+    "M15 18l-6-6 6-6M9 12h10",
+  arrowRight:
+    "M9 18l6-6-6-6M5 12h10",
   map:
     "M12 21s7-4.4 7-10a7 7 0 1 0-14 0c0 5.6 7 10 7 10m0-7.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5",
   water:
@@ -1407,6 +1416,7 @@ function App() {
   const [emptyRecordsMessage, setEmptyRecordsMessage] = useState("Cargando registros...");
   const [alert, setAlert] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveIntent, setSaveIntent] = useState(saveIntentOptions.stay);
   const [loading, setLoading] = useState(true);
   const [loadingRecordHistory, setLoadingRecordHistory] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -2319,6 +2329,39 @@ function App() {
     return items.slice(0, 3);
   }, [alertRecords.length, dashboardJourneys, onlineUsers.length, padronMeta?.total_records, pendingPhotoRecords]);
   const dashboardLookupItems = useMemo(() => lookupHistory.slice(0, 5), [lookupHistory]);
+  const currentSectionIndex = useMemo(
+    () => Math.max(0, sectionDefinitions.findIndex((section) => section.key === activeSection)),
+    [activeSection]
+  );
+  const previousSection = currentSectionIndex > 0 ? sectionDefinitions[currentSectionIndex - 1] : null;
+  const nextSection =
+    currentSectionIndex < sectionDefinitions.length - 1 ? sectionDefinitions[currentSectionIndex + 1] : null;
+  const dashboardSignalCards = useMemo(
+    () => [
+      {
+        title: "Plazo critico",
+        value: alertRecords.length,
+        helper: alertRecords.length ? "Fichas que requieren seguimiento hoy." : "Sin fichas criticas por plazo.",
+        tone: alertRecords.length ? "is-warning" : "is-calm",
+        icon: alertRecords.length ? "warning" : "success"
+      },
+      {
+        title: "Sin fotografia",
+        value: pendingPhotoRecords,
+        helper: pendingPhotoRecords ? "Pendientes de evidencia visual." : "Todas las visibles tienen foto.",
+        tone: pendingPhotoRecords ? "is-warning" : "is-calm",
+        icon: pendingPhotoRecords ? "activity" : "success"
+      },
+      {
+        title: "Consultas de hoy",
+        value: recentLookupCountToday,
+        helper: lookupHistory.length ? "Busqueda rapida reutilizable desde el tablero." : "Aun no hay consultas en este equipo.",
+        tone: recentLookupCountToday ? "is-info" : "is-calm",
+        icon: "search"
+      }
+    ],
+    [alertRecords.length, lookupHistory.length, pendingPhotoRecords, recentLookupCountToday]
+  );
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
@@ -4146,6 +4189,16 @@ function App() {
     setActiveSection("abonado");
   };
 
+  const moveRecordSection = (direction) => {
+    const nextIndex = currentSectionIndex + direction;
+    if (nextIndex < 0 || nextIndex >= sectionDefinitions.length) {
+      return;
+    }
+
+    setActiveSection(sectionDefinitions[nextIndex].key);
+    focusSheet();
+  };
+
   const resetForm = () => {
     setSelectedRecordId(null);
     setRecordQuickFilter("all");
@@ -4619,9 +4672,11 @@ function App() {
 
   const saveRecord = async (event) => {
     event.preventDefault();
+    const nextSaveIntent = event?.nativeEvent?.submitter?.dataset?.intent || saveIntent;
     const blockingIssues = recordValidationIssues.filter((issue) => issue.field !== "foto_path");
     if (blockingIssues.length) {
       setActiveSection(blockingIssues[0].section);
+      setSaveIntent(saveIntentOptions.stay);
       showAlert(blockingIssues[0].text);
       return;
     }
@@ -4663,7 +4718,13 @@ function App() {
         }
       }
 
-      applyRecord(updated);
+      if (!isEdit && nextSaveIntent === saveIntentOptions.new) {
+        showAlert(`Ficha ${updated.clave_catastral} guardada. Lista para registrar otra.`);
+        resetForm();
+      } else {
+        applyRecord(updated);
+      }
+
       setDraftForm(null);
       setDraftSaveState("idle");
       setDraftSavedAt(null);
@@ -4674,6 +4735,7 @@ function App() {
     } catch (error) {
       showAlert(error.message);
     } finally {
+      setSaveIntent(saveIntentOptions.stay);
       setSaving(false);
     }
   };
@@ -5873,6 +5935,19 @@ function App() {
             ))}
           </div>
 
+          <section className="dashboard-signal-grid">
+            {dashboardSignalCards.map((card) => (
+              <article key={card.title} className={`dashboard-signal-card ${card.tone}`}>
+                <span className="dashboard-signal-icon"><Icon name={card.icon} /></span>
+                <div>
+                  <strong>{card.title}</strong>
+                  <h3>{card.value}</h3>
+                  <p>{card.helper}</p>
+                </div>
+              </article>
+            ))}
+          </section>
+
           <section className="preview-panel dashboard-panel">
             <div className="dashboard-panel-head">
               <div>
@@ -6319,6 +6394,22 @@ function App() {
                   </button>
                 ))}
               </div>
+              <div className="section-flow-bar no-print">
+                <button type="button" className="button-secondary" onClick={() => moveRecordSection(-1)} disabled={!previousSection}>
+                  <Icon name="arrowLeft" />
+                  {previousSection ? previousSection.mobileLabel : "Inicio"}
+                </button>
+                <div className="section-flow-hint">
+                  <strong>{sectionDefinitions[currentSectionIndex]?.label}</strong>
+                  <small>
+                    {nextSection ? `Sigue: ${nextSection.label}` : "Ultimo paso, revisa y guarda"}
+                  </small>
+                </div>
+                <button type="button" className="button-secondary" onClick={() => moveRecordSection(1)} disabled={!nextSection}>
+                  {nextSection ? nextSection.mobileLabel : "Listo"}
+                  <Icon name="arrowRight" />
+                </button>
+              </div>
             </div>
 
             {activeSection === "abonado" ? (
@@ -6394,6 +6485,7 @@ function App() {
                     <input
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
                     />
                   </label>
@@ -6471,9 +6563,25 @@ function App() {
             )}
 
             <div className="action-row">
-              <button type="submit" disabled={saving}>
+              <button
+                type="submit"
+                data-intent={saveIntentOptions.stay}
+                disabled={saving}
+                onClick={() => setSaveIntent(saveIntentOptions.stay)}
+              >
                 {saving ? "Guardando..." : form.id ? "Actualizar ficha" : "Guardar ficha"}
               </button>
+              {!form.id ? (
+                <button
+                  type="submit"
+                  data-intent={saveIntentOptions.new}
+                  className="button-secondary"
+                  disabled={saving}
+                  onClick={() => setSaveIntent(saveIntentOptions.new)}
+                >
+                  {saving ? "Guardando..." : "Guardar y nueva"}
+                </button>
+              ) : null}
               {form.id ? (
                 <button type="button" className="button-danger" onClick={handleArchiveRecord}>
                   Archivar ficha
