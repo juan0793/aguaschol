@@ -1864,6 +1864,99 @@ function App() {
   );
   const dashboardActivity = useMemo(() => safeAuditLogs.slice(0, 5), [safeAuditLogs]);
   const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
+  const dashboardFocusCards = useMemo(
+    () => [
+      {
+        title: "Operacion del dia",
+        value: `${safeRecords.length} fichas visibles`,
+        detail: draftForm
+          ? "Tienes un borrador operativo listo para retomarse."
+          : "El modulo de fichas esta listo para captura y seguimiento.",
+        icon: "records",
+        actionLabel: "Abrir fichas",
+        actionView: "records"
+      },
+      {
+        title: "Campo y geolocalizacion",
+        value: `${safeMapPoints.length} puntos`,
+        detail: dashboardJourneys[0]
+          ? `Ultima jornada: ${formatMapDiaryLabel(dashboardJourneys[0].key)} con ${dashboardJourneys[0].total} puntos.`
+          : "Todavia no hay jornadas cargadas en mapa de campo.",
+        icon: "map",
+        actionLabel: "Ir a mapa",
+        actionView: "map"
+      },
+      {
+        title: "Control administrativo",
+        value: `${padronMeta?.total_records ?? 0} claves`,
+        detail: padronMeta?.file_name
+          ? `Padron activo: ${padronMeta.file_name}`
+          : "Conviene validar el padron maestro antes de consultas masivas.",
+        icon: "refresh",
+        actionLabel: "Ver padron",
+        actionView: "padron"
+      }
+    ],
+    [dashboardJourneys, draftForm, padronMeta?.file_name, padronMeta?.total_records, safeMapPoints.length, safeRecords.length]
+  );
+  const dashboardQuickActions = useMemo(
+    () => [
+      { key: "lookup", label: "Buscar clave", helper: "Consulta rapida de padron", icon: "search" },
+      { key: "mapReports", label: "Reportes campo", helper: "Revision institucional del levantamiento", icon: "map" },
+      { key: "requests", label: "Peticiones", helper: "Listados especiales desde el padron", icon: "dashboard" },
+      { key: "users", label: "Usuarios", helper: "Accesos, sesiones y roles", icon: "users" }
+    ],
+    []
+  );
+  const dashboardPriorityItems = useMemo(() => {
+    const items = [];
+
+    if (!padronMeta?.total_records) {
+      items.push({
+        tone: "is-warning",
+        title: "Padron pendiente",
+        detail: "Actualiza o valida el padron maestro para consultas y peticiones confiables.",
+        icon: "refresh",
+        actionView: "padron",
+        actionLabel: "Revisar padron"
+      });
+    }
+
+    if (onlineUsers.length >= 4) {
+      items.push({
+        tone: "is-live",
+        title: "Operacion intensiva",
+        detail: `${onlineUsers.length} usuarios conectados al mismo tiempo. Conviene vigilar actividad y jornadas de campo.`,
+        icon: "users",
+        actionView: "logs",
+        actionLabel: "Ver actividad"
+      });
+    }
+
+    if (dashboardJourneys[0]) {
+      items.push({
+        tone: "is-info",
+        title: "Jornada activa",
+        detail: `${formatMapDiaryLabel(dashboardJourneys[0].key)} registra ${dashboardJourneys[0].total} puntos listos para revisar.`,
+        icon: "map",
+        actionView: "mapReports",
+        actionLabel: "Abrir reportes"
+      });
+    }
+
+    if (!items.length) {
+      items.push({
+        tone: "is-calm",
+        title: "Sistema estable",
+        detail: "El tablero esta listo para arrancar captura, consulta o control administrativo.",
+        icon: "success",
+        actionView: "records",
+        actionLabel: "Ir a fichas"
+      });
+    }
+
+    return items.slice(0, 3);
+  }, [dashboardJourneys, onlineUsers.length, padronMeta?.total_records]);
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
@@ -4781,9 +4874,15 @@ function App() {
             isAdmin ? (
               <div className="admin-console">
                 <div className="admin-console-head">
-                  <div className="session-chip admin-session-chip">
-                    <Icon name="auth" />
-                    <span>Administrador: {session?.user?.full_name || session?.user?.username || "--"}</span>
+                  <div className="admin-identity-card">
+                    <div className="session-chip admin-session-chip">
+                      <Icon name="auth" />
+                      <span>Administrador: {session?.user?.full_name || session?.user?.username || "--"}</span>
+                    </div>
+                    <div className="admin-identity-copy">
+                      <strong>Centro de control operativo</strong>
+                      <p>Accesos directos, prioridades del dia y lectura ejecutiva del sistema.</p>
+                    </div>
                   </div>
                   <div className="admin-online-cluster">
                     <span className="admin-online-count">
@@ -4843,6 +4942,20 @@ function App() {
                       </div>
                     </aside>
                   ) : null}
+                </div>
+                <div className="admin-priority-strip">
+                  {dashboardPriorityItems.map((item) => (
+                    <article key={item.title} className={`admin-priority-card ${item.tone}`}>
+                      <span className="admin-priority-icon"><Icon name={item.icon} /></span>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <p>{item.detail}</p>
+                      </div>
+                      <button type="button" className="button-secondary" onClick={() => setWorkspaceView(item.actionView)}>
+                        {item.actionLabel}
+                      </button>
+                    </article>
+                  ))}
                 </div>
               </div>
             ) : (
@@ -5185,6 +5298,59 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
+          <section className="dashboard-spotlight-grid">
+            <article className="preview-panel dashboard-spotlight-panel">
+              <div className="dashboard-panel-head dashboard-spotlight-head">
+                <div>
+                  <p className="sheet-kicker">Vision ejecutiva</p>
+                  <h2><Icon name="dashboard" className="title-icon" />Tablero de mando</h2>
+                  <p className="workspace-title">
+                    Una vista rapida para decidir a donde entrar, que revisar y donde hace falta atencion inmediata.
+                  </p>
+                </div>
+                <span className="panel-pill">Computadora primero</span>
+              </div>
+              <div className="dashboard-focus-grid">
+                {dashboardFocusCards.map((card) => (
+                  <article key={card.title} className="dashboard-focus-card">
+                    <span className="dashboard-focus-icon"><Icon name={card.icon} /></span>
+                    <strong>{card.title}</strong>
+                    <h3>{card.value}</h3>
+                    <p>{card.detail}</p>
+                    <button type="button" className="button-secondary" onClick={() => setWorkspaceView(card.actionView)}>
+                      {card.actionLabel}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </article>
+
+            <article className="preview-panel dashboard-command-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Acciones rapidas</p>
+                  <h2><Icon name="activity" className="title-icon" />Que quieres hacer ahora</h2>
+                </div>
+              </div>
+              <div className="dashboard-command-list">
+                {dashboardQuickActions.map((action) => (
+                  <button
+                    key={action.key}
+                    type="button"
+                    className="dashboard-command-card"
+                    onClick={() => setWorkspaceView(action.key)}
+                  >
+                    <span className="dashboard-command-icon"><Icon name={action.icon} /></span>
+                    <span className="dashboard-command-copy">
+                      <strong>{action.label}</strong>
+                      <small>{action.helper}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </article>
+          </section>
+
           <div className="dashboard-metric-grid">
             {dashboardMetrics.map((metric) => (
               <article key={metric.label} className="dashboard-metric-card">
