@@ -1724,7 +1724,8 @@ button:disabled {
   position: sticky;
   top: 1rem;
   max-height: calc(100vh - 2rem);
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 250, 255, 0.97) 100%);
 }
@@ -1820,8 +1821,8 @@ button:disabled {
   display: grid;
   gap: 0.45rem;
   margin-top: 0.55rem;
-  max-height: calc(100vh - 11.9rem);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   padding-right: 0.1rem;
 }
 
