@@ -2362,6 +2362,100 @@ function App() {
     ],
     [alertRecords.length, lookupHistory.length, pendingPhotoRecords, recentLookupCountToday]
   );
+  const dashboardExecutiveCards = useMemo(() => {
+    const now = Date.now();
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const todayRecords = safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey).length;
+    const weekRecords = safeRecords.filter((record) => {
+      const stamp = Date.parse(record.updated_at || record.created_at || "");
+      return Number.isFinite(stamp) && stamp >= weekAgo;
+    }).length;
+    const weekMapPoints = safeMapPoints.filter((point) => {
+      const stamp = Date.parse(point.created_at || point.updated_at || "");
+      return Number.isFinite(stamp) && stamp >= weekAgo;
+    }).length;
+    const weekLookups = lookupHistory.filter((item) => {
+      const stamp = Date.parse(item.searched_at || "");
+      return Number.isFinite(stamp) && stamp >= weekAgo;
+    }).length;
+
+    return [
+      {
+        title: "Fichas",
+        today: todayRecords,
+        week: weekRecords,
+        helper: weekRecords ? `${todayRecords} hoy frente a ${weekRecords} movimientos de la semana.` : "Todavia no hay movimiento semanal.",
+        icon: "records",
+        tone: todayRecords ? "is-info" : "is-calm"
+      },
+      {
+        title: "Campo",
+        today: mapPointsToday,
+        week: weekMapPoints,
+        helper: weekMapPoints ? `${mapPointsToday} puntos hoy y ${weekMapPoints} en los ultimos 7 dias.` : "Sin levantamientos en la ultima semana.",
+        icon: "map",
+        tone: mapPointsToday ? "is-info" : "is-calm"
+      },
+      {
+        title: "Consultas",
+        today: recentLookupCountToday,
+        week: weekLookups,
+        helper: weekLookups ? `${recentLookupCountToday} consultas hoy y ${weekLookups} en la semana.` : "No hay consultas recientes registradas.",
+        icon: "search",
+        tone: recentLookupCountToday ? "is-warning" : "is-calm"
+      }
+    ];
+  }, [lookupHistory, mapPointsToday, recentLookupCountToday, safeMapPoints, safeRecords, todayDateKey]);
+  const dashboardTechnicianSummary = useMemo(() => {
+    const grouped = safeRecords.reduce((acc, record) => {
+      const owner = String(record.levantamiento_datos || record.analista_datos || "Sin asignar").trim() || "Sin asignar";
+      if (!acc[owner]) {
+        acc[owner] = {
+          name: owner,
+          total: 0,
+          withPhoto: 0,
+          alert: 0
+        };
+      }
+      acc[owner].total += 1;
+      if (record.foto_path) {
+        acc[owner].withPhoto += 1;
+      }
+      if (recordDeadlineMetaById[record.id]?.status && recordDeadlineMetaById[record.id].status !== "on_track") {
+        acc[owner].alert += 1;
+      }
+      return acc;
+    }, {});
+
+    return Object.values(grouped)
+      .sort((left, right) => right.total - left.total || right.alert - left.alert || left.name.localeCompare(right.name))
+      .slice(0, 5);
+  }, [recordDeadlineMetaById, safeRecords]);
+  const dashboardZoneSummary = useMemo(() => {
+    const grouped = safeRecords.reduce((acc, record) => {
+      const zone = String(record.barrio_colonia || "Sin zona").trim() || "Sin zona";
+      if (!acc[zone]) {
+        acc[zone] = {
+          name: zone,
+          total: 0,
+          pendingPhoto: 0,
+          alert: 0
+        };
+      }
+      acc[zone].total += 1;
+      if (!record.foto_path) {
+        acc[zone].pendingPhoto += 1;
+      }
+      if (recordDeadlineMetaById[record.id]?.status && recordDeadlineMetaById[record.id].status !== "on_track") {
+        acc[zone].alert += 1;
+      }
+      return acc;
+    }, {});
+
+    return Object.values(grouped)
+      .sort((left, right) => right.total - left.total || right.alert - left.alert || left.name.localeCompare(right.name))
+      .slice(0, 5);
+  }, [recordDeadlineMetaById, safeRecords]);
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
@@ -5946,6 +6040,100 @@ function App() {
                 </div>
               </article>
             ))}
+          </section>
+
+          <section className="dashboard-dual-grid">
+            <article className="preview-panel dashboard-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Comparativo</p>
+                  <h2><Icon name="dashboard" className="title-icon" />Hoy contra semana</h2>
+                </div>
+              </div>
+              <div className="dashboard-comparison-list">
+                {dashboardExecutiveCards.map((card) => (
+                  <article key={card.title} className={`dashboard-comparison-card ${card.tone}`}>
+                    <div className="dashboard-comparison-head">
+                      <span className="dashboard-comparison-icon"><Icon name={card.icon} /></span>
+                      <div>
+                        <strong>{card.title}</strong>
+                        <p>{card.helper}</p>
+                      </div>
+                    </div>
+                    <div className="dashboard-comparison-metrics">
+                      <div>
+                        <small>Hoy</small>
+                        <span>{card.today}</span>
+                      </div>
+                      <div>
+                        <small>7 dias</small>
+                        <span>{card.week}</span>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </article>
+
+            <article className="preview-panel dashboard-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Carga operativa</p>
+                  <h2><Icon name="users" className="title-icon" />Equipo y zonas clave</h2>
+                </div>
+              </div>
+              <div className="dashboard-summary-stack">
+                <section className="dashboard-summary-block">
+                  <div className="dashboard-summary-title">
+                    <strong>Tecnicos con mas fichas</strong>
+                    <span>{dashboardTechnicianSummary.length} visibles</span>
+                  </div>
+                  <div className="dashboard-summary-list">
+                    {dashboardTechnicianSummary.length ? (
+                      dashboardTechnicianSummary.map((item) => (
+                        <article key={item.name} className="dashboard-summary-item">
+                          <div>
+                            <strong>{item.name}</strong>
+                            <p>{item.withPhoto}/{item.total} con foto · {item.alert} en alerta</p>
+                          </div>
+                          <span className="dashboard-summary-badge">{item.total}</span>
+                        </article>
+                      ))
+                    ) : (
+                      <div className="empty-state">
+                        <h3>Sin responsables visibles</h3>
+                        <p>Cuando existan fichas activas se resumiran aqui.</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section className="dashboard-summary-block">
+                  <div className="dashboard-summary-title">
+                    <strong>Barrios con mas movimiento</strong>
+                    <span>{dashboardZoneSummary.length} zonas</span>
+                  </div>
+                  <div className="dashboard-summary-list">
+                    {dashboardZoneSummary.length ? (
+                      dashboardZoneSummary.map((item) => (
+                        <article key={item.name} className="dashboard-summary-item">
+                          <div>
+                            <strong>{item.name}</strong>
+                            <p>{item.pendingPhoto} sin foto · {item.alert} en alerta</p>
+                          </div>
+                          <span className="dashboard-summary-badge">{item.total}</span>
+                        </article>
+                      ))
+                    ) : (
+                      <div className="empty-state">
+                        <h3>Sin zonas activas</h3>
+                        <p>Los barrios con mayor actividad apareceran aqui.</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </div>
+            </article>
           </section>
 
           <section className="preview-panel dashboard-panel">
