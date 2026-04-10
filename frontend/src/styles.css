@@ -3422,6 +3422,13 @@ textarea {
     padding: 0.9rem;
   }
 
+  .layout > .sidebar,
+  .admin-layout > .sidebar {
+    max-height: min(72vh, 860px);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
   .record-list {
     gap: 0.6rem;
     margin-top: 0.6rem;
@@ -5365,6 +5372,11 @@ textarea {
 
   .record-filter-panel {
     grid-template-columns: 1fr;
+  }
+
+  .layout > .sidebar,
+  .admin-layout > .sidebar {
+    max-height: min(70vh, 760px);
   }
 
   .record-validation-card {
