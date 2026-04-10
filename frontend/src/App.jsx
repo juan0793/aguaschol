@@ -116,6 +116,15 @@ const recordQuickFilterOptions = [
   { key: "alert", label: "Alerta" }
 ];
 
+const recordStatusFilterOptions = [
+  { key: "all", label: "Todos los estados" },
+  { key: "overdue", label: "Vencidas" },
+  { key: "due", label: "Vence hoy" },
+  { key: "warning", label: "Por vencer" },
+  { key: "on_track", label: "En plazo" },
+  { key: "no_photo", label: "Sin foto" }
+];
+
 const sectionDefinitions = [
   { key: "abonado", label: "Abonado", mobileLabel: "Datos" },
   { key: "inmueble", label: "Inmueble", mobileLabel: "Inmueble" },
@@ -1406,6 +1415,13 @@ function App() {
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
   const [recordQuickFilter, setRecordQuickFilter] = useState("all");
+  const [recordFilters, setRecordFilters] = useState({
+    barrio: "",
+    responsible: "",
+    date_from: "",
+    date_to: "",
+    status: "all"
+  });
   const [selectedRecordId, setSelectedRecordId] = useState(null);
   const [draftSavedAt, setDraftSavedAt] = useState(
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
@@ -1802,21 +1818,90 @@ function App() {
       }),
     [recordDeadlineMetaById, safeRecords]
   );
+  const availableRecordBarrios = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          safeRecords
+            .map((record) => String(record.barrio_colonia || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((left, right) => left.localeCompare(right, "es")),
+    [safeRecords]
+  );
+  const availableRecordResponsibles = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          safeRecords
+            .flatMap((record) => [record.levantamiento_datos, record.analista_datos])
+            .map((value) => String(value || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((left, right) => left.localeCompare(right, "es")),
+    [safeRecords]
+  );
+  const advancedFilteredRecords = useMemo(() => {
+    return safeRecords.filter((record) => {
+      if (recordFilters.barrio) {
+        const barrio = String(record.barrio_colonia || "").trim();
+        if (barrio !== recordFilters.barrio) {
+          return false;
+        }
+      }
+
+      if (recordFilters.responsible) {
+        const responsiblePool = [record.levantamiento_datos, record.analista_datos]
+          .map((value) => String(value || "").trim())
+          .filter(Boolean);
+        if (!responsiblePool.includes(recordFilters.responsible)) {
+          return false;
+        }
+      }
+
+      const recordDateKey = getMapDiaryDateKey(getRecordGroupDate(record, recordView));
+      if (recordFilters.date_from && (!recordDateKey || recordDateKey < recordFilters.date_from)) {
+        return false;
+      }
+
+      if (recordFilters.date_to && (!recordDateKey || recordDateKey > recordFilters.date_to)) {
+        return false;
+      }
+
+      if (recordFilters.status === "no_photo") {
+        return Boolean(String(record.foto_path || "").trim()) === false;
+      }
+
+      if (recordFilters.status !== "all") {
+        const meta = recordDeadlineMetaById[record.id];
+        if (!meta || meta.statusKey !== recordFilters.status) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [recordDeadlineMetaById, recordFilters, recordView, safeRecords]);
   const filteredRecords = useMemo(() => {
     if (recordQuickFilter === "today") {
-      return safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey);
+      return advancedFilteredRecords.filter(
+        (record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey
+      );
     }
 
     if (recordQuickFilter === "no_photo") {
-      return safeRecords.filter((record) => !String(record.foto_path || "").trim());
+      return advancedFilteredRecords.filter((record) => !String(record.foto_path || "").trim());
     }
 
     if (recordQuickFilter === "alert") {
-      return alertRecords;
+      return advancedFilteredRecords.filter((record) => {
+        const meta = recordDeadlineMetaById[record.id];
+        return meta && ["warning", "due", "overdue"].includes(meta.statusKey);
+      });
     }
 
-    return safeRecords;
-  }, [alertRecords, recordQuickFilter, safeRecords, todayDateKey]);
+    return advancedFilteredRecords;
+  }, [advancedFilteredRecords, recordDeadlineMetaById, recordQuickFilter, todayDateKey]);
   const visibleRecordGroups = useMemo(() => {
     const visibleLimit = draftForm ? 9 : 10;
     const limitedRecords = filteredRecords.slice(0, Math.max(visibleLimit, 0));
@@ -3009,6 +3094,22 @@ function App() {
     }
   };
 
+  const handleRecordFilterChange = (event) => {
+    const { name, value } = event.target;
+    setRecordFilters((current) => ({ ...current, [name]: value }));
+  };
+
+  const clearRecordFilters = () => {
+    setRecordFilters({
+      barrio: "",
+      responsible: "",
+      date_from: "",
+      date_to: "",
+      status: "all"
+    });
+    setRecordQuickFilter("all");
+  };
+
   const handleLookupSearch = async (event) => {
     if (event) {
       event.preventDefault();
@@ -4017,6 +4118,13 @@ function App() {
   const handleSelectRecord = (record) => {
     setSelectedRecordId(record.id ?? null);
     setRecordQuickFilter("all");
+    setRecordFilters({
+      barrio: "",
+      responsible: "",
+      date_from: "",
+      date_to: "",
+      status: "all"
+    });
     applyRecord(record);
     focusSheet();
   };
@@ -4041,6 +4149,13 @@ function App() {
   const resetForm = () => {
     setSelectedRecordId(null);
     setRecordQuickFilter("all");
+    setRecordFilters({
+      barrio: "",
+      responsible: "",
+      date_from: "",
+      date_to: "",
+      status: "all"
+    });
     setForm(emptyForm);
     setDraftForm(null);
     setDraftSavedAt(null);
@@ -4061,6 +4176,13 @@ function App() {
 
     setSelectedRecordId(null);
     setRecordQuickFilter("all");
+    setRecordFilters({
+      barrio: "",
+      responsible: "",
+      date_from: "",
+      date_to: "",
+      status: "all"
+    });
     setForm({ ...emptyForm, ...draftForm, id: null });
     setSelectedFile(null);
     setAvisoHtml("");
@@ -5965,6 +6087,52 @@ function App() {
                 </button>
               );
             })}
+          </div>
+          <div className="record-filter-panel">
+            <label className="record-filter-field">
+              <span>Barrio o colonia</span>
+              <select name="barrio" value={recordFilters.barrio} onChange={handleRecordFilterChange}>
+                <option value="">Todos</option>
+                {availableRecordBarrios.map((barrio) => (
+                  <option key={barrio} value={barrio}>
+                    {barrio}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="record-filter-field">
+              <span>Responsable</span>
+              <select name="responsible" value={recordFilters.responsible} onChange={handleRecordFilterChange}>
+                <option value="">Todos</option>
+                {availableRecordResponsibles.map((responsible) => (
+                  <option key={responsible} value={responsible}>
+                    {responsible}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="record-filter-field">
+              <span>Desde</span>
+              <input type="date" name="date_from" value={recordFilters.date_from} onChange={handleRecordFilterChange} />
+            </label>
+            <label className="record-filter-field">
+              <span>Hasta</span>
+              <input type="date" name="date_to" value={recordFilters.date_to} onChange={handleRecordFilterChange} />
+            </label>
+            <label className="record-filter-field">
+              <span>Estado operativo</span>
+              <select name="status" value={recordFilters.status} onChange={handleRecordFilterChange}>
+                {recordStatusFilterOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="button-secondary record-filter-clear" onClick={clearRecordFilters}>
+              <Icon name="refresh" />
+              Limpiar filtros
+            </button>
           </div>
 
         <div className="record-list-head">
