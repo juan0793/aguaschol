@@ -1,0 +1,561 @@
+export const pause = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+export const printDocument = async (title, bodyMarkup, options = {}) => {
+  const {
+    pageSize = "Letter portrait",
+    pageMargin = "10mm",
+    windowFeatures = "width=980,height=1200",
+    bodyClassName = ""
+  } = options;
+  const printWindow = window.open("", "_blank", windowFeatures);
+
+  if (!printWindow) {
+    window.alert("No fue posible abrir la ventana de impresion.");
+    return;
+  }
+
+  printWindow.document.write(`
+    <html lang="es">
+      <head>
+        <title>${title}</title>
+        <style>
+          @page {
+            size: ${pageSize};
+            margin: ${pageMargin};
+          }
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            color: #111;
+            line-height: 1.2;
+            font-size: 11px;
+          }
+          h1, h2, h3, p { margin: 0 0 6px; }
+          .print-header { text-align: center; margin-bottom: 8px; }
+          .print-logo {
+            width: 62px;
+            height: 62px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto 6px;
+          }
+          .print-title { text-transform: uppercase; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+          .print-key {
+            display: inline-block;
+            border: 1px solid #666;
+            padding: 4px 10px;
+            margin-top: 4px;
+            font-weight: 700;
+          }
+          .print-section {
+            border: 1px solid #777;
+            padding: 7px;
+            margin-bottom: 7px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .print-section h3 {
+            font-size: 11px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+          }
+          .print-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+          }
+          .print-field {
+            border-bottom: 1px solid #bbb;
+            padding-bottom: 3px;
+            min-height: 24px;
+          }
+          .print-field strong {
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+          }
+          .print-photo {
+            margin-top: 8px;
+            width: 100%;
+            max-height: 190px;
+            object-fit: contain;
+            object-position: center;
+            border: 1px solid #999;
+            border-radius: 8px;
+            background: #fff;
+          }
+          .print-roles {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-top: 28px;
+            text-align: center;
+          }
+          .print-signature-line {
+            border-top: 1px solid #444;
+            padding-top: 14px;
+            min-height: 72px;
+          }
+          .print-signature-line strong {
+            font-size: 10px;
+            display: block;
+            margin-bottom: 10px;
+          }
+          .print-ficha {
+            max-width: 100%;
+            padding-left: 4mm;
+          }
+          .print-ficha p {
+            margin-bottom: 3px;
+          }
+          .print-ficha .print-header {
+            margin-bottom: 6px;
+          }
+          .print-ficha .print-logo {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 4px;
+          }
+          .print-ficha .print-title {
+            font-size: 12px;
+            margin-bottom: 2px;
+          }
+          .print-ficha .print-key {
+            padding: 3px 8px;
+            margin-top: 2px;
+            font-size: 10px;
+          }
+          .print-ficha .print-section {
+            padding: 5px;
+            margin-bottom: 5px;
+          }
+          .print-ficha .print-layout {
+            display: grid;
+            gap: 6px;
+          }
+          .print-ficha .print-top-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.95fr);
+            gap: 8px;
+            align-items: start;
+          }
+          .print-ficha .print-main-column,
+          .print-ficha .print-side-column {
+            display: grid;
+            gap: 5px;
+          }
+          .print-ficha .print-section h3 {
+            font-size: 10px;
+            margin-bottom: 4px;
+          }
+          .print-ficha .print-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px 8px;
+          }
+          .print-ficha .print-field {
+            min-height: 18px;
+            padding-bottom: 2px;
+            font-size: 10px;
+          }
+          .print-ficha .print-field strong {
+            font-size: 8px;
+            margin-bottom: 1px;
+          }
+          .print-ficha .print-photo {
+            margin-top: 0;
+            height: 205px;
+            max-height: 205px;
+          }
+          .print-ficha .print-photo-panel {
+            display: grid;
+            gap: 5px;
+          }
+          .print-ficha .print-photo-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0;
+          }
+          .print-ficha .print-roles {
+            gap: 12px;
+            margin-top: 6px;
+          }
+          .print-ficha .print-signature-line {
+            min-height: 74px;
+            padding-top: 14px;
+          }
+          .print-ficha .print-signature-line strong {
+            margin-bottom: 10px;
+            line-height: 1.25;
+          }
+          .aviso {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 12px 6px;
+          }
+          .aviso-header, .aviso-title, .aviso-signature, .aviso-copy {
+            text-align: center;
+          }
+          .aviso-header p, .aviso-title, .aviso-copy {
+            margin-bottom: 12px;
+          }
+          .aviso-date, .aviso-saludo {
+            text-align: left;
+            margin-bottom: 14px;
+          }
+          .aviso-body, .aviso-list li {
+            text-align: justify;
+            line-height: 1.45;
+          }
+          .aviso-list {
+            margin: 6px 0 16px 22px;
+          }
+          .aviso-signature {
+            margin-top: 34px;
+          }
+          .aviso-signature p {
+            margin-bottom: 8px;
+          }
+          .field-report-body {
+            background: #f7fbff;
+            color: #16324a;
+          }
+          .field-report-shell {
+            display: grid;
+            gap: 10px;
+          }
+          .field-report-header {
+            border: 1px solid #c7dcef;
+            background: linear-gradient(180deg, #ffffff, #eef6fc);
+            border-radius: 14px;
+            padding: 10px 12px;
+          }
+          .field-report-brand {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+          }
+          .field-report-kicker,
+          .field-report-zone-kicker {
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 9px;
+            font-weight: 700;
+            color: #315b7d;
+          }
+          .field-report-header h1 {
+            font-size: 18px;
+            margin-bottom: 4px;
+          }
+          .field-report-meta {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+          .field-report-meta span,
+          .field-report-total-chip {
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            border-radius: 999px;
+            padding: 4px 8px;
+          }
+          .field-report-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+          }
+          .field-report-cover {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+            gap: 12px;
+            border: 1px solid #c7dcef;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff, #eef6fc);
+            padding: 12px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-report-cover-copy h2 {
+            font-size: 16px;
+            margin-bottom: 5px;
+          }
+          .field-report-cover-copy p {
+            margin-bottom: 8px;
+          }
+          .field-report-cover-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin: 10px 0;
+          }
+          .field-report-cover-metrics div {
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 7px 8px;
+          }
+          .field-report-cover-metrics strong {
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #315b7d;
+            margin-bottom: 3px;
+          }
+          .field-report-cover-metrics span {
+            display: block;
+            font-size: 14px;
+            font-weight: 700;
+            color: #16324a;
+          }
+          .field-report-cover-map {
+            display: grid;
+            align-items: stretch;
+          }
+          .field-report-map-image,
+          .field-report-map-fallback {
+            width: 100%;
+            min-height: 220px;
+            height: 100%;
+            border: 1px solid #d2e4f3;
+            border-radius: 14px;
+            background: #edf3f9;
+          }
+          .field-report-map-image {
+            object-fit: cover;
+          }
+          .field-report-map-fallback {
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 12px;
+            font-size: 10px;
+            color: #45607a;
+          }
+          .field-report-staff {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+          }
+          .field-report-staff div {
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 7px 9px;
+          }
+          .field-report-staff strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #315b7d;
+          }
+          .field-report-staff span {
+            display: block;
+            font-size: 10px;
+          }
+          .field-report-total-chip strong {
+            margin-right: 6px;
+          }
+          .field-report-zone {
+            border: 1px solid #c7dcef;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 10px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-report-zone-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+            align-items: flex-start;
+          }
+          .field-report-zone-head h3 {
+            font-size: 13px;
+            margin-bottom: 2px;
+          }
+          .field-report-zone-meta {
+            display: grid;
+            gap: 4px;
+            text-align: right;
+            font-size: 10px;
+          }
+          .field-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+          .field-report-table th,
+          .field-report-table td {
+            border: 1px solid #d8e7f4;
+            padding: 5px 6px;
+            text-align: left;
+            vertical-align: top;
+            word-break: break-word;
+          }
+          .field-report-table th {
+            background: #edf5fc;
+            font-size: 9px;
+            text-transform: uppercase;
+          }
+          .field-report-table td {
+            font-size: 9.5px;
+          }
+          .field-report-empty {
+            border: 1px dashed #c7dcef;
+            border-radius: 14px;
+            padding: 16px;
+            background: #fff;
+          }
+          .field-report-page {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            text-align: right;
+            padding: 0 8mm 2mm;
+            font-size: 10px;
+            color: #45607a;
+          }
+          .field-report-page::after {
+            content: "Pagina " counter(page);
+          }
+          .request-report-shell {
+            display: grid;
+            gap: 10px;
+          }
+          .request-report-header {
+            border: 1px solid #cfe1f1;
+            border-radius: 12px;
+            padding: 10px;
+            background: linear-gradient(180deg, #f8fcff 0%, #eef6fd 100%);
+          }
+          .request-report-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .request-report-brand h1 {
+            margin: 0 0 4px;
+            font-size: 16px;
+          }
+          .request-report-brand p {
+            margin: 0;
+            color: #4a657d;
+          }
+          .request-report-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+          }
+          .request-report-summary div {
+            border: 1px solid #d6e5f2;
+            border-radius: 10px;
+            padding: 8px;
+            background: rgba(255,255,255,0.85);
+          }
+          .request-report-summary strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #5a748b;
+          }
+          .request-report-summary span {
+            font-size: 12px;
+            font-weight: 700;
+            color: #123b5d;
+          }
+          .request-report-keywords {
+            margin-top: 8px;
+            color: #30506c;
+          }
+          .request-report-zone {
+            border: 1px solid #d5e4f1;
+            border-radius: 12px;
+            padding: 8px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .request-report-zone-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+          }
+          .request-report-zone-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: flex-end;
+          }
+          .request-report-zone-meta span {
+            border-radius: 999px;
+            padding: 4px 8px;
+            background: #edf6ff;
+            border: 1px solid #d4e4f1;
+            color: #1f4e79;
+            font-weight: 700;
+          }
+          .request-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+          .request-report-table th,
+          .request-report-table td {
+            border: 1px solid #dbe5ee;
+            padding: 6px;
+            vertical-align: top;
+            word-break: break-word;
+          }
+          .request-report-table th {
+            background: #edf6ff;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #33597a;
+          }
+          .request-report-empty {
+            border: 1px dashed #c5d7e6;
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            color: #557089;
+          }
+          ul { margin-top: 0; }
+          @media print {
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body class="${bodyClassName}">${bodyMarkup}<div class="field-report-page"></div></body>
+    </html>
+      `);
+  printWindow.document.close();
+
+  const images = Array.from(printWindow.document.images);
+  await Promise.all(
+    images.map(
+      (image) =>
+        new Promise((resolve) => {
+          if (image.complete) {
+            resolve();
+            return;
+          }
+
+          image.onload = () => resolve();
+          image.onerror = () => resolve();
+        })
+    )
+  );
+
+  printWindow.focus();
+  printWindow.print();
+};
