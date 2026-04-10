@@ -1663,6 +1663,7 @@ function App() {
       JSON.stringify(comparableFormShape(form)) !== JSON.stringify(baseline) || Boolean(selectedFile)
     );
   }, [draftForm, form, safeRecords, selectedFile]);
+  const todayDateKey = getMapDiaryDateKey(new Date());
   const filteredRecords = useMemo(() => {
     if (recordQuickFilter === "today") {
       return safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey);
@@ -1904,7 +1905,6 @@ function App() {
     () => visibleMapPoints.filter((point) => point.point_type === "caja_registro").length,
     [visibleMapPoints]
   );
-  const todayDateKey = getMapDiaryDateKey(new Date());
   const recordsUpdatedToday = useMemo(
     () =>
       safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey)
