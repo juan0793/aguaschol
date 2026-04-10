@@ -9,6 +9,8 @@ const AUTH_STORAGE_KEY = "aguaschol-auth";
 const DRAFT_STORAGE_KEY = "aguaschol-draft";
 const DRAFT_SAVED_AT_STORAGE_KEY = "aguaschol-draft-saved-at";
 const LOOKUP_HISTORY_STORAGE_KEY = "aguaschol-lookup-history";
+const RECORD_ALERT_NOTIFICATION_STORAGE_KEY = "aguaschol-record-alert-notifications";
+const NOTIFICATION_REQUEST_STORAGE_KEY = "aguaschol-notification-requested";
 const MAX_LOOKUP_HISTORY_ITEMS = 8;
 const MAP_POINT_TYPES = [
   { value: "caja_registro", label: "Caja de registro" },
@@ -110,7 +112,8 @@ const fieldGroups = [
 const recordQuickFilterOptions = [
   { key: "all", label: "Todo" },
   { key: "today", label: "Hoy" },
-  { key: "no_photo", label: "Sin foto" }
+  { key: "no_photo", label: "Sin foto" },
+  { key: "alert", label: "Alerta" }
 ];
 
 const sectionDefinitions = [
@@ -280,6 +283,67 @@ const loadStoredLookupHistory = () => {
   }
 };
 
+const loadStoredRecordNotifications = () => {
+  const saved = window.localStorage.getItem(RECORD_ALERT_NOTIFICATION_STORAGE_KEY);
+  if (!saved) return {};
+
+  try {
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const normalizeAlertDate = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? new Date(value) : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(12, 0, 0, 0);
+  return date;
+};
+
+const isBusinessDay = (date) => {
+  const day = date.getDay();
+  return day !== 0 && day !== 6;
+};
+
+const addBusinessDays = (value, days) => {
+  const base = normalizeAlertDate(value);
+  if (!base) return null;
+  const next = new Date(base);
+  let added = 0;
+
+  while (added < days) {
+    next.setDate(next.getDate() + 1);
+    if (isBusinessDay(next)) {
+      added += 1;
+    }
+  }
+
+  return next;
+};
+
+const countBusinessDaysBetween = (startValue, endValue) => {
+  const start = normalizeAlertDate(startValue);
+  const end = normalizeAlertDate(endValue);
+  if (!start || !end) return 0;
+  if (start.getTime() === end.getTime()) return 0;
+
+  const direction = start < end ? 1 : -1;
+  const cursor = new Date(start);
+  let count = 0;
+
+  while ((direction === 1 && cursor < end) || (direction === -1 && cursor > end)) {
+    cursor.setDate(cursor.getDate() + direction);
+    if (isBusinessDay(cursor)) {
+      count += direction;
+    }
+  }
+
+  return count;
+};
+
 const getLookupTotalMeta = (value) => {
   const numeric = Number(value ?? 0);
   if (!Number.isFinite(numeric)) {
@@ -426,6 +490,62 @@ const getRecordValidationIssues = (form = {}, hasExistingPhoto = false, selected
   return issues;
 };
 
+const getRecordDeadlineMeta = (record = {}, referenceDate = new Date()) => {
+  if (!record || record.archived_at) return null;
+
+  const sourceDate = record.created_at || record.fecha_aviso || record.updated_at;
+  const createdDate = normalizeAlertDate(sourceDate);
+  if (!createdDate) return null;
+
+  const deadlineDate = addBusinessDays(createdDate, 7);
+  const today = normalizeAlertDate(referenceDate);
+  if (!deadlineDate || !today) return null;
+
+  const delta = countBusinessDaysBetween(today, deadlineDate);
+
+  if (delta < 0) {
+    return {
+      tone: "is-overdue",
+      label: "Vencida",
+      helper: `${Math.abs(delta)} dias habiles vencidos`,
+      deadlineLabel: formatSpanishDate(deadlineDate),
+      icon: "activity",
+      statusKey: "overdue"
+    };
+  }
+
+  if (delta === 0) {
+    return {
+      tone: "is-due",
+      label: "Vence hoy",
+      helper: "Ultimo dia habil",
+      deadlineLabel: formatSpanishDate(deadlineDate),
+      icon: "warning",
+      statusKey: "due"
+    };
+  }
+
+  if (delta <= 2) {
+    return {
+      tone: "is-warning",
+      label: "En alerta",
+      helper: `${delta} dias habiles restantes`,
+      deadlineLabel: formatSpanishDate(deadlineDate),
+      icon: "warning",
+      statusKey: "warning"
+    };
+  }
+
+  return {
+    tone: "is-on-track",
+    label: "En plazo",
+    helper: `${delta} dias habiles restantes`,
+    deadlineLabel: formatSpanishDate(deadlineDate),
+    icon: "success",
+    statusKey: "on_track"
+  };
+};
+
 const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
 const buildExternalMapUrl = (latitude, longitude) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
@@ -489,6 +609,8 @@ const iconPaths = {
     "M12 7v5l3 2M12 22a10 10 0 1 1 10-10A10 10 0 0 1 12 22",
   activity:
     "M4 13h3l2-5 3 10 2-5h4",
+  warning:
+    "M12 4 21 20H3L12 4m0 5v4m0 4h.01",
   success:
     "M20 6 9 17l-5-5",
   userCreated:
@@ -1288,6 +1410,7 @@ function App() {
   const [draftSavedAt, setDraftSavedAt] = useState(
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
   );
+  const [notifiedRecordAlerts, setNotifiedRecordAlerts] = useState(() => loadStoredRecordNotifications());
   const [workspaceView, setWorkspaceView] = useState(() =>
     session?.user?.role === "admin" ? "dashboard" : "records"
   );
@@ -1664,6 +1787,21 @@ function App() {
     );
   }, [draftForm, form, safeRecords, selectedFile]);
   const todayDateKey = getMapDiaryDateKey(new Date());
+  const recordDeadlineMetaById = useMemo(
+    () =>
+      Object.fromEntries(
+        safeRecords.map((record) => [record.id, getRecordDeadlineMeta(record)]).filter(([, meta]) => Boolean(meta))
+      ),
+    [safeRecords]
+  );
+  const alertRecords = useMemo(
+    () =>
+      safeRecords.filter((record) => {
+        const meta = recordDeadlineMetaById[record.id];
+        return meta && ["warning", "due", "overdue"].includes(meta.statusKey);
+      }),
+    [recordDeadlineMetaById, safeRecords]
+  );
   const filteredRecords = useMemo(() => {
     if (recordQuickFilter === "today") {
       return safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey);
@@ -1673,8 +1811,12 @@ function App() {
       return safeRecords.filter((record) => !String(record.foto_path || "").trim());
     }
 
+    if (recordQuickFilter === "alert") {
+      return alertRecords;
+    }
+
     return safeRecords;
-  }, [recordQuickFilter, safeRecords, todayDateKey]);
+  }, [alertRecords, recordQuickFilter, safeRecords, todayDateKey]);
   const visibleRecordGroups = useMemo(() => {
     const visibleLimit = draftForm ? 9 : 10;
     const limitedRecords = filteredRecords.slice(0, Math.max(visibleLimit, 0));
@@ -1697,6 +1839,10 @@ function App() {
   const recordValidationIssues = useMemo(
     () => getRecordValidationIssues(form, Boolean(form.foto_path), selectedFile),
     [form, selectedFile]
+  );
+  const selectedRecordDeadlineMeta = useMemo(
+    () => (form.id ? recordDeadlineMetaById[form.id] ?? null : null),
+    [form.id, recordDeadlineMetaById]
   );
   const mapReportData = useMemo(() => {
     const points = [...visibleMapPoints].sort((left, right) => {
@@ -2030,6 +2176,17 @@ function App() {
       });
     }
 
+    if (alertRecords.length) {
+      items.push({
+        tone: "is-warning",
+        title: "Fichas con plazo critico",
+        detail: `${alertRecords.length} fichas estan en alerta o vencidas por regla de 7 dias habiles.`,
+        icon: "warning",
+        actionView: "records",
+        actionLabel: "Ver alertas"
+      });
+    }
+
     if (pendingPhotoRecords >= 3) {
       items.push({
         tone: "is-warning",
@@ -2075,7 +2232,7 @@ function App() {
     }
 
     return items.slice(0, 3);
-  }, [dashboardJourneys, onlineUsers.length, padronMeta?.total_records, pendingPhotoRecords]);
+  }, [alertRecords.length, dashboardJourneys, onlineUsers.length, padronMeta?.total_records, pendingPhotoRecords]);
   const dashboardLookupItems = useMemo(() => lookupHistory.slice(0, 5), [lookupHistory]);
 
   useEffect(() => {
@@ -2133,6 +2290,7 @@ function App() {
     setDraftForm(null);
     setDraftSaveState("idle");
     setDraftSavedAt(null);
+    setNotifiedRecordAlerts(loadStoredRecordNotifications());
     setPadronMeta(null);
     setPadronImportSummary(null);
     setPadronFile(null);
@@ -2249,6 +2407,58 @@ function App() {
       loadRecords(search, recordView);
     }
   }, [isAuthenticated, recordView, workspaceView]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !alertRecords.length || !["records", "dashboard"].includes(workspaceView)) {
+      return;
+    }
+
+    if (!("Notification" in window)) {
+      return;
+    }
+
+    const shouldRequestPermission =
+      Notification.permission === "default" &&
+      !window.localStorage.getItem(NOTIFICATION_REQUEST_STORAGE_KEY);
+
+    if (shouldRequestPermission) {
+      window.localStorage.setItem(NOTIFICATION_REQUEST_STORAGE_KEY, "1");
+      Notification.requestPermission().catch(() => {});
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      return;
+    }
+
+    const nextNotified = { ...notifiedRecordAlerts };
+    let changed = false;
+
+    alertRecords.slice(0, 4).forEach((record) => {
+      const meta = recordDeadlineMetaById[record.id];
+      if (!meta) return;
+
+      const key = `${record.id}:${meta.statusKey}`;
+      if (nextNotified[key]) return;
+
+      try {
+        new Notification(`Ficha ${meta.label.toLowerCase()}`, {
+          body: `${record.clave_catastral} · ${record.barrio_colonia || "Sin ubicacion"} · ${meta.helper}`,
+          tag: `record-alert-${record.id}-${meta.statusKey}`
+        });
+      } catch {
+        return;
+      }
+
+      nextNotified[key] = new Date().toISOString();
+      changed = true;
+    });
+
+    if (changed) {
+      window.localStorage.setItem(RECORD_ALERT_NOTIFICATION_STORAGE_KEY, JSON.stringify(nextNotified));
+      setNotifiedRecordAlerts(nextNotified);
+    }
+  }, [alertRecords, isAuthenticated, notifiedRecordAlerts, recordDeadlineMetaById, workspaceView]);
 
   useEffect(() => {
     if (!isAuthenticated || workspaceView !== "records") {
@@ -5739,6 +5949,8 @@ function App() {
                   ? recordsUpdatedToday
                   : option.key === "no_photo"
                     ? pendingPhotoRecords
+                    : option.key === "alert"
+                      ? alertRecords.length
                     : safeRecords.length;
 
               return (
@@ -5757,7 +5969,15 @@ function App() {
 
         <div className="record-list-head">
           <span>Exp.</span>
-          <span>{recordQuickFilter === "all" ? "Fichas activas" : recordQuickFilter === "today" ? "Movimiento de hoy" : "Pendientes de foto"}</span>
+          <span>
+            {recordQuickFilter === "all"
+              ? "Fichas activas"
+              : recordQuickFilter === "today"
+                ? "Movimiento de hoy"
+                : recordQuickFilter === "no_photo"
+                  ? "Pendientes de foto"
+                  : "Plazo en alerta"}
+          </span>
           <span>Vista</span>
         </div>
 
@@ -5801,6 +6021,7 @@ function App() {
               <div className="record-month-heading">{group.label}</div>
               {group.items.map((record, index) => {
                 const globalIndex = safeRecords.findIndex((item) => item.id === record.id) + 1;
+                const deadlineMeta = recordDeadlineMetaById[record.id] ?? null;
 
                 return (
                   <button
@@ -5817,7 +6038,14 @@ function App() {
                             <strong>{record.clave_catastral}</strong>
                             <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
                           </div>
-                          <span className="record-badge">{recordView === "archived" ? "Log" : "Ficha"}</span>
+                          <div className="record-status-stack">
+                            <span className="record-badge">{recordView === "archived" ? "Log" : "Ficha"}</span>
+                            {deadlineMeta ? (
+                              <span className={`record-badge deadline-badge ${deadlineMeta.tone}`}>
+                                {deadlineMeta.label}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                         <div className="record-ledger">
                           <div className="record-ledger-row">
@@ -5840,7 +6068,9 @@ function App() {
                         <small>
                           {recordView === "archived"
                             ? `Archivada${record.archived_reason ? `: ${record.archived_reason}` : ""}`
-                            : record.comentarios || "Sin comentario"}
+                            : deadlineMeta
+                              ? `${deadlineMeta.helper} · Limite ${deadlineMeta.deadlineLabel}`
+                              : record.comentarios || "Sin comentario"}
                         </small>
                         <div className="record-quick-actions">
                           <button type="button" className="record-quick-chip" onClick={(event) => handleQuickEdit(record, event)}>
@@ -5878,6 +6108,11 @@ function App() {
                 <span className={`record-quick-chip ${draftSaveState === "saving" ? "" : "muted"}`}>
                   {draftSaveState === "saving" ? "Guardando borrador..." : draftForm ? "Borrador activo" : "Sin borrador"}
                 </span>
+                {selectedRecordDeadlineMeta ? (
+                  <span className={`record-badge deadline-badge ${selectedRecordDeadlineMeta.tone}`}>
+                    {selectedRecordDeadlineMeta.label} · {selectedRecordDeadlineMeta.helper}
+                  </span>
+                ) : null}
                 {draftSavedAt ? <small>Ultimo autosave {formatDateTime(draftSavedAt)}</small> : null}
               </div>
 

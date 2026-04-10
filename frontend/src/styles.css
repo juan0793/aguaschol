@@ -1873,6 +1873,13 @@ button:disabled {
   gap: 0.55rem;
 }
 
+.record-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.28rem;
+}
+
 .record-card strong {
   font-size: 0.98rem;
   line-height: 1.2;
@@ -2060,6 +2067,22 @@ button:disabled {
 .record-badge.is-online {
   background: rgba(22, 112, 75, 0.12);
   color: #16704b;
+}
+
+.deadline-badge.is-overdue {
+  background: rgba(201, 76, 76, 0.14);
+  color: #9a3030;
+}
+
+.deadline-badge.is-due,
+.deadline-badge.is-warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #9a5a06;
+}
+
+.deadline-badge.is-on-track {
+  background: rgba(19, 131, 95, 0.12);
+  color: #176a4f;
 }
 
 .draft-card {
