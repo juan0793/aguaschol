@@ -72,6 +72,30 @@ import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
 import { pause, printDocument } from "./utils/printDocument";
 
+const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
+const DEFAULT_DASHBOARD_WIDGET_ORDER = [
+  "spotlight",
+  "metrics",
+  "signals",
+  "executive",
+  "activity",
+  "lookup",
+  "journeys",
+  "online"
+];
+
+const normalizeDashboardWidgetPrefs = (value) => {
+  const orderSource = Array.isArray(value?.order) ? value.order : [];
+  const hiddenSource = Array.isArray(value?.hidden) ? value.hidden : [];
+  const order = [
+    ...orderSource.filter((item, index) => DEFAULT_DASHBOARD_WIDGET_ORDER.includes(item) && orderSource.indexOf(item) === index),
+    ...DEFAULT_DASHBOARD_WIDGET_ORDER.filter((item) => !orderSource.includes(item))
+  ];
+  const hidden = hiddenSource.filter((item, index) => DEFAULT_DASHBOARD_WIDGET_ORDER.includes(item) && hiddenSource.indexOf(item) === index);
+
+  return { order, hidden };
+};
+
 function App() {
   const sheetRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
@@ -139,6 +163,18 @@ function App() {
   const [workspaceView, setWorkspaceView] = useState(() =>
     session?.user?.role === "admin" ? "dashboard" : "records"
   );
+  const [dashboardWidgetPrefs, setDashboardWidgetPrefs] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(DASHBOARD_WIDGET_STORAGE_KEY);
+      if (!saved) {
+        return normalizeDashboardWidgetPrefs({});
+      }
+
+      return normalizeDashboardWidgetPrefs(JSON.parse(saved));
+    } catch {
+      return normalizeDashboardWidgetPrefs({});
+    }
+  });
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
   const [lookupSearchMode, setLookupSearchMode] = useState("clave");
   const [lookupQuery, setLookupQuery] = useState("");
@@ -1155,12 +1191,41 @@ function App() {
       .sort((left, right) => right.total - left.total || right.alert - left.alert || left.name.localeCompare(right.name))
       .slice(0, 5);
   }, [recordDeadlineMetaById, safeRecords]);
+  const moveDashboardWidget = (key, direction) => {
+    setDashboardWidgetPrefs((current) => {
+      const currentIndex = current.order.indexOf(key);
+      const nextIndex = currentIndex + direction;
+      if (currentIndex === -1 || nextIndex < 0 || nextIndex >= current.order.length) {
+        return current;
+      }
+
+      const nextOrder = [...current.order];
+      const [item] = nextOrder.splice(currentIndex, 1);
+      nextOrder.splice(nextIndex, 0, item);
+      return { ...current, order: nextOrder };
+    });
+  };
+  const toggleDashboardWidgetVisibility = (key) => {
+    setDashboardWidgetPrefs((current) => ({
+      ...current,
+      hidden: current.hidden.includes(key)
+        ? current.hidden.filter((item) => item !== key)
+        : [...current.hidden, key]
+    }));
+  };
+  const resetDashboardWidgets = () => {
+    setDashboardWidgetPrefs(normalizeDashboardWidgetPrefs({}));
+  };
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
       setMapDiaryDateKey(activeMapDiaryDateKey);
     }
   }, [activeMapDiaryDateKey, mapDiaryDateKey]);
+
+  useEffect(() => {
+    window.localStorage.setItem(DASHBOARD_WIDGET_STORAGE_KEY, JSON.stringify(dashboardWidgetPrefs));
+  }, [dashboardWidgetPrefs]);
 
   useEffect(() => {
     setSelectedMapPointId((current) => (visibleMapPoints.some((point) => point.id === current) ? current : null));
@@ -4053,6 +4118,393 @@ function App() {
     );
   }
 
+  const dashboardWidgetItems = [
+    {
+      key: "spotlight",
+      label: "Vision y acciones",
+      helper: "Entrada principal del tablero",
+      className: "is-wide",
+      content: (
+        <section className="dashboard-spotlight-grid">
+          <article className="preview-panel dashboard-spotlight-panel">
+            <div className="dashboard-panel-head dashboard-spotlight-head">
+              <div>
+                <p className="sheet-kicker">Vision ejecutiva</p>
+                <h2><Icon name="dashboard" className="title-icon" />Tablero de mando</h2>
+                <p className="workspace-title">
+                  Una vista rapida para decidir a donde entrar, que revisar y donde hace falta atencion inmediata.
+                </p>
+              </div>
+              <span className="panel-pill">Computadora primero</span>
+            </div>
+            <div className="dashboard-focus-grid">
+              {dashboardFocusCards.map((card) => (
+                <article key={card.title} className="dashboard-focus-card">
+                  <span className="dashboard-focus-icon"><Icon name={card.icon} /></span>
+                  <strong>{card.title}</strong>
+                  <h3>{card.value}</h3>
+                  <p>{card.detail}</p>
+                  <button type="button" className="button-secondary" onClick={() => setWorkspaceView(card.actionView)}>
+                    {card.actionLabel}
+                  </button>
+                </article>
+              ))}
+            </div>
+          </article>
+
+          <article className="preview-panel dashboard-command-panel">
+            <div className="dashboard-panel-head">
+              <div>
+                <p className="sheet-kicker">Acciones rapidas</p>
+                <h2><Icon name="activity" className="title-icon" />Que quieres hacer ahora</h2>
+              </div>
+            </div>
+            <div className="dashboard-command-list">
+              {dashboardQuickActions.map((action) => (
+                <button
+                  key={action.key}
+                  type="button"
+                  className="dashboard-command-card"
+                  onClick={() => setWorkspaceView(action.key)}
+                >
+                  <span className="dashboard-command-icon"><Icon name={action.icon} /></span>
+                  <span className="dashboard-command-copy">
+                    <strong>{action.label}</strong>
+                    <small>{action.helper}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </article>
+        </section>
+      )
+    },
+    {
+      key: "metrics",
+      label: "Metricas base",
+      helper: "Volumen operativo rapido",
+      className: "is-wide",
+      content: (
+        <div className="dashboard-metric-grid">
+          {dashboardMetrics.map((metric) => (
+            <article key={metric.label} className="dashboard-metric-card">
+              <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
+              <strong>{metric.value}</strong>
+              <span>{metric.label}</span>
+              <small>{metric.helper}</small>
+            </article>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: "signals",
+      label: "Senales operativas",
+      helper: "Alertas y semaforos",
+      className: "is-wide",
+      content: (
+        <section className="dashboard-signal-grid">
+          {dashboardSignalCards.map((card) => (
+            <article key={card.title} className={`dashboard-signal-card ${card.tone}`}>
+              <span className="dashboard-signal-icon"><Icon name={card.icon} /></span>
+              <div>
+                <strong>{card.title}</strong>
+                <h3>{card.value}</h3>
+                <p>{card.helper}</p>
+              </div>
+            </article>
+          ))}
+        </section>
+      )
+    },
+    {
+      key: "executive",
+      label: "Resumen ejecutivo",
+      helper: "Comparativos y carga",
+      className: "is-wide",
+      content: (
+        <section className="dashboard-dual-grid">
+          <article className="preview-panel dashboard-panel">
+            <div className="dashboard-panel-head">
+              <div>
+                <p className="sheet-kicker">Comparativo</p>
+                <h2><Icon name="dashboard" className="title-icon" />Hoy contra semana</h2>
+              </div>
+            </div>
+            <div className="dashboard-comparison-list">
+              {dashboardExecutiveCards.map((card) => (
+                <article key={card.title} className={`dashboard-comparison-card ${card.tone}`}>
+                  <div className="dashboard-comparison-head">
+                    <span className="dashboard-comparison-icon"><Icon name={card.icon} /></span>
+                    <div>
+                      <strong>{card.title}</strong>
+                      <p>{card.helper}</p>
+                    </div>
+                  </div>
+                  <div className="dashboard-comparison-metrics">
+                    <div>
+                      <small>Hoy</small>
+                      <span>{card.today}</span>
+                    </div>
+                    <div>
+                      <small>7 dias</small>
+                      <span>{card.week}</span>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </article>
+
+          <article className="preview-panel dashboard-panel">
+            <div className="dashboard-panel-head">
+              <div>
+                <p className="sheet-kicker">Carga operativa</p>
+                <h2><Icon name="users" className="title-icon" />Equipo y zonas clave</h2>
+              </div>
+            </div>
+            <div className="dashboard-summary-stack">
+              <section className="dashboard-summary-block">
+                <div className="dashboard-summary-title">
+                  <strong>Tecnicos con mas fichas</strong>
+                  <span>{dashboardTechnicianSummary.length} visibles</span>
+                </div>
+                <div className="dashboard-summary-list">
+                  {dashboardTechnicianSummary.length ? (
+                    dashboardTechnicianSummary.map((item) => (
+                      <article key={item.name} className="dashboard-summary-item">
+                        <div>
+                          <strong>{item.name}</strong>
+                          <p>{item.withPhoto}/{item.total} con foto · {item.alert} en alerta</p>
+                        </div>
+                        <span className="dashboard-summary-badge">{item.total}</span>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <h3>Sin responsables visibles</h3>
+                      <p>Cuando existan fichas activas se resumiran aqui.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="dashboard-summary-block">
+                <div className="dashboard-summary-title">
+                  <strong>Barrios con mas movimiento</strong>
+                  <span>{dashboardZoneSummary.length} zonas</span>
+                </div>
+                <div className="dashboard-summary-list">
+                  {dashboardZoneSummary.length ? (
+                    dashboardZoneSummary.map((item) => (
+                      <article key={item.name} className="dashboard-summary-item">
+                        <div>
+                          <strong>{item.name}</strong>
+                          <p>{item.pendingPhoto} sin foto · {item.alert} en alerta</p>
+                        </div>
+                        <span className="dashboard-summary-badge">{item.total}</span>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <h3>Sin zonas activas</h3>
+                      <p>Los barrios con mayor actividad apareceran aqui.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+          </article>
+        </section>
+      )
+    },
+    {
+      key: "activity",
+      label: "Actividad reciente",
+      helper: "Bitacora viva",
+      className: "is-half",
+      content: (
+        <section className="preview-panel dashboard-panel">
+          <div className="dashboard-panel-head">
+            <div>
+              <p className="sheet-kicker">Actividad reciente</p>
+              <h2><Icon name="activity" className="title-icon" />Pulso operativo</h2>
+            </div>
+            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
+              <Icon name="logs" />
+              Bitacora completa
+            </button>
+          </div>
+          <div className="dashboard-activity-list">
+            {dashboardActivity.length ? (
+              dashboardActivity.map((log) => (
+                <article key={log.id} className="dashboard-activity-item">
+                  <span className="dashboard-activity-icon">
+                    <Icon name={actionIconName(log.action)} />
+                  </span>
+                  <div>
+                    <strong>{log.summary || actionLabel(log.action)}</strong>
+                    <p>{log.actor_name || log.actor_email || "Sistema"} · {formatDateTime(log.created_at)}</p>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>Sin actividad reciente</h3>
+                <p>Cuando el equipo opere fichas, mapa o usuarios, veras el resumen aqui.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )
+    },
+    {
+      key: "lookup",
+      label: "Busquedas recientes",
+      helper: "Consultas reutilizables",
+      className: "is-half",
+      content: (
+        <section className="preview-panel dashboard-panel">
+          <div className="dashboard-panel-head">
+            <div>
+              <p className="sheet-kicker">Consulta operativa</p>
+              <h2><Icon name="search" className="title-icon" />Busquedas recientes</h2>
+            </div>
+            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("lookup")}>
+              <Icon name="search" />
+              Abrir consulta
+            </button>
+          </div>
+          <div className="dashboard-activity-list">
+            {dashboardLookupItems.length ? (
+              dashboardLookupItems.map((item) => (
+                <button
+                  key={`${item.mode}-${item.normalized_query}-${item.searched_at}`}
+                  type="button"
+                  className="dashboard-activity-item dashboard-lookup-item"
+                  onClick={() => {
+                    setLookupSearchMode(item.mode);
+                    setLookupQuery(String(item.normalized_query || item.query || ""));
+                    setLookupResult(null);
+                    setLookupFeedback("");
+                    if (item.mode === "clave") {
+                      const firstPart = String(item.normalized_query || item.query || "").split("-")[0] || "";
+                      setLookupPrefixMode(firstPart.length === 3 ? "three" : "auto");
+                    } else {
+                      setLookupPrefixMode("auto");
+                    }
+                    setWorkspaceView("lookup");
+                  }}
+                >
+                  <span className="dashboard-activity-icon">
+                    <Icon name={item.mode === "clave" ? "records" : item.mode === "nombre" ? "users" : "search"} />
+                  </span>
+                  <div>
+                    <strong>{item.normalized_query || item.query}</strong>
+                    <p>
+                      {item.mode === "clave" ? "Clave" : item.mode === "nombre" ? "Nombre" : "Abonado"} ·{" "}
+                      {item.exists ? `${item.total_matches} coincidencias` : "Sin registro"} · {formatDateTime(item.searched_at)}
+                    </p>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>Sin consultas guardadas</h3>
+                <p>Las ultimas busquedas de clave, nombre o abonado apareceran aqui para repetirlas rapido.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )
+    },
+    {
+      key: "journeys",
+      label: "Jornadas de campo",
+      helper: "Resumen geografico",
+      className: "is-half",
+      content: (
+        <article className="preview-panel dashboard-panel">
+          <div className="dashboard-panel-head">
+            <div>
+              <p className="sheet-kicker">Campo</p>
+              <h2><Icon name="map" className="title-icon" />Jornadas recientes</h2>
+            </div>
+            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("mapReports")}>
+              <Icon name="records" />
+              Reportes campo
+            </button>
+          </div>
+          <div className="dashboard-journey-list">
+            {dashboardJourneys.length ? (
+              dashboardJourneys.map((journey) => (
+                <button
+                  key={journey.key}
+                  type="button"
+                  className="dashboard-journey-card"
+                  onClick={() => {
+                    setMapDiaryDateKey(journey.key);
+                    setWorkspaceView("map");
+                  }}
+                >
+                  <strong>{formatMapDiaryLabel(journey.key)}</strong>
+                  <span>{journey.total} puntos levantados</span>
+                </button>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>Sin jornadas de campo</h3>
+                <p>Los levantamientos del mapa apareceran aqui por fecha.</p>
+              </div>
+            )}
+          </div>
+        </article>
+      )
+    },
+    {
+      key: "online",
+      label: "Usuarios en linea",
+      helper: "Operacion activa",
+      className: "is-half",
+      content: (
+        <article className="preview-panel dashboard-panel">
+          <div className="dashboard-panel-head">
+            <div>
+              <p className="sheet-kicker">Equipo activo</p>
+              <h2><Icon name="users" className="title-icon" />Usuarios en linea</h2>
+            </div>
+            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("users")}>
+              <Icon name="users" />
+              Gestionar accesos
+            </button>
+          </div>
+          <div className="dashboard-online-list">
+            {onlineUsers.length ? (
+              onlineUsers.map((user) => (
+                <article key={user.id} className="dashboard-online-card">
+                  <div>
+                    <strong>{user.full_name || user.username}</strong>
+                    <p>{roleLabel(user.role)} · {user.active_sessions || 0} sesiones</p>
+                  </div>
+                  <span className="record-badge is-online">En linea</span>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>Sin usuarios conectados</h3>
+                <p>Cuando alguien tenga sesion activa, lo veras reflejado aqui.</p>
+              </div>
+            )}
+          </div>
+        </article>
+      )
+    }
+  ];
+  const visibleDashboardWidgetItems = dashboardWidgetPrefs.order
+    .map((key) => dashboardWidgetItems.find((item) => item.key === key))
+    .filter(Boolean)
+    .filter((item) => !dashboardWidgetPrefs.hidden.includes(item.key));
+
   return (
     <div className="page-shell">
       {authFx ? (
@@ -4664,6 +5116,78 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
+          <section className="preview-panel dashboard-widget-toolbar">
+            <div className="dashboard-widget-toolbar-head">
+              <div>
+                <p className="sheet-kicker">Diseno del tablero</p>
+                <h2><Icon name="dashboard" className="title-icon" />Widgets personalizables</h2>
+                <p className="workspace-title">
+                  Reordena, oculta o restaura bloques del dashboard para que cada administrador vea primero lo que mas usa.
+                </p>
+              </div>
+              <button type="button" className="button-secondary" onClick={resetDashboardWidgets}>
+                <Icon name="refresh" />
+                Restaurar tablero
+              </button>
+            </div>
+            <div className="dashboard-widget-chip-row">
+              {dashboardWidgetItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`dashboard-widget-chip ${dashboardWidgetPrefs.hidden.includes(item.key) ? "is-hidden" : "is-visible"}`}
+                  onClick={() => toggleDashboardWidgetVisibility(item.key)}
+                >
+                  <strong>{item.label}</strong>
+                  <small>{dashboardWidgetPrefs.hidden.includes(item.key) ? "Mostrar" : "Visible"}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="dashboard-widget-grid">
+            {visibleDashboardWidgetItems.map((item, index) => (
+              <article key={item.key} className={`dashboard-widget-shell ${item.className || ""}`}>
+                <div className="dashboard-widget-shell-head">
+                  <div>
+                    <strong>{item.label}</strong>
+                    <span>{item.helper}</span>
+                  </div>
+                  <div className="dashboard-widget-shell-actions">
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => moveDashboardWidget(item.key, -1)}
+                      disabled={index === 0}
+                    >
+                      <Icon name="arrowLeft" />
+                      Subir
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => moveDashboardWidget(item.key, 1)}
+                      disabled={index === visibleDashboardWidgetItems.length - 1}
+                    >
+                      Bajar
+                      <Icon name="arrowRight" />
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => toggleDashboardWidgetVisibility(item.key)}
+                    >
+                      <Icon name="more" />
+                      Ocultar
+                    </button>
+                  </div>
+                </div>
+                {item.content}
+              </article>
+            ))}
+          </section>
+          {false ? (
+            <>
           <section className="dashboard-spotlight-grid">
             <article className="preview-panel dashboard-spotlight-panel">
               <div className="dashboard-panel-head dashboard-spotlight-head">
@@ -4989,6 +5513,8 @@ function App() {
               </div>
             </article>
           </section>
+            </>
+          ) : null}
         </section>
       </main>
       ) : workspaceView === "records" ? (
