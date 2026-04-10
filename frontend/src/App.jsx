@@ -7,6 +7,9 @@ const API_URL = (rawApiBase ? (rawApiBase.endsWith("/api") ? rawApiBase : `${raw
 const FILES_URL = (import.meta.env.VITE_FILES_URL?.trim() || rawApiBase).replace(/\/$/, "");
 const AUTH_STORAGE_KEY = "aguaschol-auth";
 const DRAFT_STORAGE_KEY = "aguaschol-draft";
+const DRAFT_SAVED_AT_STORAGE_KEY = "aguaschol-draft-saved-at";
+const LOOKUP_HISTORY_STORAGE_KEY = "aguaschol-lookup-history";
+const MAX_LOOKUP_HISTORY_ITEMS = 8;
 const MAP_POINT_TYPES = [
   { value: "caja_registro", label: "Caja de registro" },
   { value: "descarga", label: "Descarga" },
@@ -257,6 +260,18 @@ const formatLookupAmount = (value) => {
   const numeric = Number(value ?? 0);
   if (!Number.isFinite(numeric)) return "--";
   return formatCurrency(numeric);
+};
+
+const loadStoredLookupHistory = () => {
+  const saved = window.localStorage.getItem(LOOKUP_HISTORY_STORAGE_KEY);
+  if (!saved) return [];
+
+  try {
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 };
 
 const getLookupTotalMeta = (value) => {
@@ -1208,6 +1223,7 @@ function App() {
       return null;
     }
   });
+  const [draftSaveState, setDraftSaveState] = useState(() => (draftForm ? "saved" : "idle"));
   const [search, setSearch] = useState("");
   const [emptyRecordsMessage, setEmptyRecordsMessage] = useState("Cargando registros...");
   const [alert, setAlert] = useState(null);
@@ -1220,7 +1236,9 @@ function App() {
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
   const [selectedRecordId, setSelectedRecordId] = useState(null);
-  const [draftSavedAt, setDraftSavedAt] = useState(null);
+  const [draftSavedAt, setDraftSavedAt] = useState(
+    () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
+  );
   const [workspaceView, setWorkspaceView] = useState(() =>
     session?.user?.role === "admin" ? "dashboard" : "records"
   );
@@ -1231,6 +1249,7 @@ function App() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState(null);
   const [lookupFeedback, setLookupFeedback] = useState("");
+  const [lookupHistory, setLookupHistory] = useState(() => loadStoredLookupHistory());
   const [padronRequestTemplates, setPadronRequestTemplates] = useState([]);
   const [padronRequestForm, setPadronRequestForm] = useState(defaultPadronRequestForm);
   const [padronRequestResult, setPadronRequestResult] = useState(null);
@@ -1821,6 +1840,25 @@ function App() {
     () => visibleMapPoints.filter((point) => point.point_type === "caja_registro").length,
     [visibleMapPoints]
   );
+  const todayDateKey = getMapDiaryDateKey(new Date());
+  const recordsUpdatedToday = useMemo(
+    () =>
+      safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey)
+        .length,
+    [safeRecords, todayDateKey]
+  );
+  const mapPointsToday = useMemo(
+    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point.created_at) === todayDateKey).length,
+    [safeMapPoints, todayDateKey]
+  );
+  const pendingPhotoRecords = useMemo(
+    () => safeRecords.filter((record) => !String(record.foto_path || "").trim()).length,
+    [safeRecords]
+  );
+  const recentLookupCountToday = useMemo(
+    () => lookupHistory.filter((item) => getMapDiaryDateKey(item.searched_at) === todayDateKey).length,
+    [lookupHistory, todayDateKey]
+  );
   const mapReportPagination = useMemo(() => {
     const pageSize = 5;
     const totalPages = Math.max(1, Math.ceil(mapReportData.zones.length / pageSize));
@@ -1836,31 +1874,35 @@ function App() {
   const dashboardMetrics = useMemo(
     () => [
       {
-        label: "Fichas activas",
-        value: safeRecords.length,
-        helper: emptyRecordsMessage || "Registros visibles y listos para gestion",
+        label: "Movimiento de hoy",
+        value: recordsUpdatedToday,
+        helper: `${safeRecords.length} fichas activas en operacion`,
         icon: "records"
       },
       {
-        label: "Usuarios conectados",
-        value: onlineUsers.length,
-        helper: `${safeUsers.length} usuarios registrados en el sistema`,
-        icon: "users"
+        label: "Borrador de campo",
+        value: draftForm ? "Listo" : "Vacio",
+        helper: draftForm
+          ? `Ultimo guardado ${draftSavedAt ? formatDateTime(draftSavedAt) : "hace un momento"}`
+          : "Sin captura pendiente en este equipo",
+        icon: draftForm ? "success" : "history"
       },
       {
-        label: "Puntos de campo",
-        value: safeMapPoints.length,
-        helper: `${mapDiaryGroups.length} jornadas con bitacora disponible`,
+        label: "Campo hoy",
+        value: mapPointsToday,
+        helper: `${mapDiaryGroups.length} jornadas guardadas en bitacora`,
         icon: "map"
       },
       {
-        label: "Padron maestro",
-        value: padronMeta?.total_records ?? 0,
-        helper: padronMeta?.file_name || "Sin archivo consultado aun",
-        icon: "refresh"
+        label: "Consultas rapidas",
+        value: recentLookupCountToday,
+        helper: lookupHistory.length
+          ? `${lookupHistory.length} consultas recientes listas para repetir`
+          : "Aun no hay busquedas guardadas",
+        icon: "search"
       }
     ],
-    [emptyRecordsMessage, mapDiaryGroups.length, onlineUsers.length, padronMeta?.file_name, padronMeta?.total_records, safeMapPoints.length, safeRecords.length, safeUsers.length]
+    [draftForm, draftSavedAt, lookupHistory.length, mapDiaryGroups.length, mapPointsToday, recentLookupCountToday, recordsUpdatedToday, safeRecords.length]
   );
   const dashboardActivity = useMemo(() => safeAuditLogs.slice(0, 5), [safeAuditLogs]);
   const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
@@ -1868,17 +1910,19 @@ function App() {
     () => [
       {
         title: "Operacion del dia",
-        value: `${safeRecords.length} fichas visibles`,
+        value: `${recordsUpdatedToday} movimientos hoy`,
         detail: draftForm
           ? "Tienes un borrador operativo listo para retomarse."
-          : "El modulo de fichas esta listo para captura y seguimiento.",
+          : pendingPhotoRecords
+            ? `${pendingPhotoRecords} fichas siguen sin fotografia asociada.`
+            : "El modulo de fichas esta listo para captura y seguimiento.",
         icon: "records",
         actionLabel: "Abrir fichas",
         actionView: "records"
       },
       {
         title: "Campo y geolocalizacion",
-        value: `${safeMapPoints.length} puntos`,
+        value: `${mapPointsToday} puntos hoy`,
         detail: dashboardJourneys[0]
           ? `Ultima jornada: ${formatMapDiaryLabel(dashboardJourneys[0].key)} con ${dashboardJourneys[0].total} puntos.`
           : "Todavia no hay jornadas cargadas en mapa de campo.",
@@ -1887,17 +1931,17 @@ function App() {
         actionView: "map"
       },
       {
-        title: "Control administrativo",
-        value: `${padronMeta?.total_records ?? 0} claves`,
+        title: "Consulta y padron",
+        value: `${lookupHistory.length} consultas`,
         detail: padronMeta?.file_name
           ? `Padron activo: ${padronMeta.file_name}`
           : "Conviene validar el padron maestro antes de consultas masivas.",
-        icon: "refresh",
-        actionLabel: "Ver padron",
-        actionView: "padron"
+        icon: "search",
+        actionLabel: "Buscar clave",
+        actionView: "lookup"
       }
     ],
-    [dashboardJourneys, draftForm, padronMeta?.file_name, padronMeta?.total_records, safeMapPoints.length, safeRecords.length]
+    [dashboardJourneys, draftForm, lookupHistory.length, mapPointsToday, padronMeta?.file_name, pendingPhotoRecords, recordsUpdatedToday]
   );
   const dashboardQuickActions = useMemo(
     () => [
@@ -1919,6 +1963,17 @@ function App() {
         icon: "refresh",
         actionView: "padron",
         actionLabel: "Revisar padron"
+      });
+    }
+
+    if (pendingPhotoRecords >= 3) {
+      items.push({
+        tone: "is-warning",
+        title: "Fichas sin foto",
+        detail: `${pendingPhotoRecords} fichas visibles aun no tienen evidencia fotografica asociada.`,
+        icon: "records",
+        actionView: "records",
+        actionLabel: "Completar fichas"
       });
     }
 
@@ -1956,7 +2011,8 @@ function App() {
     }
 
     return items.slice(0, 3);
-  }, [dashboardJourneys, onlineUsers.length, padronMeta?.total_records]);
+  }, [dashboardJourneys, onlineUsers.length, padronMeta?.total_records, pendingPhotoRecords]);
+  const dashboardLookupItems = useMemo(() => lookupHistory.slice(0, 5), [lookupHistory]);
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
@@ -1982,6 +2038,8 @@ function App() {
 
   const clearSession = () => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+    window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
     setSession(null);
     setShowPasswordModal(false);
     setPasswordFeedback("");
@@ -2007,6 +2065,10 @@ function App() {
     setMapStatus("Sincronizado");
     setMapDraft(emptyMapDraft);
     setMapFocusRequest(null);
+    setLookupHistory(loadStoredLookupHistory());
+    setDraftForm(null);
+    setDraftSaveState("idle");
+    setDraftSavedAt(null);
     setPadronMeta(null);
     setPadronImportSummary(null);
     setPadronFile(null);
@@ -2567,14 +2629,28 @@ function App() {
   }, [isAuthenticated, lookupQuery, lookupSearchMode, workspaceView]);
 
   useEffect(() => {
-    if (form.id || !hasDraftContent(form)) {
-      return;
+    if (form.id) {
+      setDraftSaveState("idle");
+      return undefined;
     }
 
-    const nextDraft = { ...emptyForm, ...form, id: null };
-    setDraftForm(nextDraft);
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
-    setDraftSavedAt(new Date().toISOString());
+    if (!hasDraftContent(form)) {
+      setDraftSaveState("idle");
+      return undefined;
+    }
+
+    setDraftSaveState("saving");
+    const timer = window.setTimeout(() => {
+      const nextDraft = { ...emptyForm, ...form, id: null };
+      const savedAt = new Date().toISOString();
+      setDraftForm(nextDraft);
+      window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+      window.localStorage.setItem(DRAFT_SAVED_AT_STORAGE_KEY, savedAt);
+      setDraftSavedAt(savedAt);
+      setDraftSaveState("saved");
+    }, 420);
+
+    return () => window.clearTimeout(timer);
   }, [form]);
 
   const handleChange = (event) => {
@@ -2704,6 +2780,28 @@ function App() {
       }
 
       setLookupResult(data);
+      const historyEntry = {
+        mode: lookupSearchMode,
+        query: normalizedLookupQuery,
+        normalized_query: data.normalized_query || normalizedLookupQuery,
+        total_matches: data.total_matches ?? 0,
+        exists: Boolean(data.exists),
+        searched_at: new Date().toISOString()
+      };
+      setLookupHistory((current) => {
+        const nextHistory = [
+          historyEntry,
+          ...current.filter(
+            (item) =>
+              !(
+                item.mode === historyEntry.mode &&
+                String(item.normalized_query || item.query) === String(historyEntry.normalized_query)
+              )
+          )
+        ].slice(0, MAX_LOOKUP_HISTORY_ITEMS);
+        window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
+        return nextHistory;
+      });
     } catch (error) {
       setLookupResult(null);
       setLookupFeedback(error.message || "No fue posible consultar la clave.");
@@ -3668,9 +3766,14 @@ function App() {
   const resetForm = () => {
     setSelectedRecordId(null);
     setForm(emptyForm);
+    setDraftForm(null);
+    setDraftSavedAt(null);
     setSelectedFile(null);
     setAvisoHtml("");
     setActiveSection("abonado");
+    setDraftSaveState("idle");
+    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+    window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
     focusSheet();
   };
 
@@ -4156,8 +4259,10 @@ function App() {
 
       applyRecord(updated);
       setDraftForm(null);
+      setDraftSaveState("idle");
       setDraftSavedAt(null);
       window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
       setEmptyRecordsMessage("");
       loadRecords(search);
     } catch (error) {
@@ -5395,6 +5500,59 @@ function App() {
             </div>
           </section>
 
+          <section className="preview-panel dashboard-panel">
+            <div className="dashboard-panel-head">
+              <div>
+                <p className="sheet-kicker">Consulta operativa</p>
+                <h2><Icon name="search" className="title-icon" />Busquedas recientes</h2>
+              </div>
+              <button type="button" className="button-secondary" onClick={() => setWorkspaceView("lookup")}>
+                <Icon name="search" />
+                Abrir consulta
+              </button>
+            </div>
+            <div className="dashboard-activity-list">
+              {dashboardLookupItems.length ? (
+                dashboardLookupItems.map((item) => (
+                  <button
+                    key={`${item.mode}-${item.normalized_query}-${item.searched_at}`}
+                    type="button"
+                    className="dashboard-activity-item dashboard-lookup-item"
+                    onClick={() => {
+                      setLookupSearchMode(item.mode);
+                      setLookupQuery(String(item.normalized_query || item.query || ""));
+                      setLookupResult(null);
+                      setLookupFeedback("");
+                      if (item.mode === "clave") {
+                        const firstPart = String(item.normalized_query || item.query || "").split("-")[0] || "";
+                        setLookupPrefixMode(firstPart.length === 3 ? "three" : "auto");
+                      } else {
+                        setLookupPrefixMode("auto");
+                      }
+                      setWorkspaceView("lookup");
+                    }}
+                  >
+                    <span className="dashboard-activity-icon">
+                      <Icon name={item.mode === "clave" ? "records" : item.mode === "nombre" ? "users" : "search"} />
+                    </span>
+                    <div>
+                      <strong>{item.normalized_query || item.query}</strong>
+                      <p>
+                        {item.mode === "clave" ? "Clave" : item.mode === "nombre" ? "Nombre" : "Abonado"} ·{" "}
+                        {item.exists ? `${item.total_matches} coincidencias` : "Sin registro"} · {formatDateTime(item.searched_at)}
+                      </p>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="empty-state">
+                  <h3>Sin consultas guardadas</h3>
+                  <p>Las ultimas busquedas de clave, nombre o abonado apareceran aqui para repetirlas rapido.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
           <section className="dashboard-dual-grid">
             <article className="preview-panel dashboard-panel">
               <div className="dashboard-panel-head">
@@ -5619,6 +5777,12 @@ function App() {
                   <p>Barrio El Centro Antiguo Local de Cooperativa Guadalupe.</p>
                   <p>Tel: 2782-5075 Fax: 2780-3985</p>
                 </div>
+              </div>
+              <div className="sheet-draft-status no-print">
+                <span className={`record-quick-chip ${draftSaveState === "saving" ? "" : "muted"}`}>
+                  {draftSaveState === "saving" ? "Guardando borrador..." : draftForm ? "Borrador activo" : "Sin borrador"}
+                </span>
+                {draftSavedAt ? <small>Ultimo autosave {formatDateTime(draftSavedAt)}</small> : null}
               </div>
 
               <div className="clave-box">
@@ -6122,6 +6286,38 @@ function App() {
                     )}
                   </div>
                 </div>
+                {lookupHistory.length ? (
+                  <div className="lookup-recent-strip">
+                    <div className="lookup-recent-head">
+                      <strong>Recientes en este equipo</strong>
+                      <small>Repite una consulta sin volver a escribir</small>
+                    </div>
+                    <div className="lookup-recent-list">
+                      {lookupHistory.slice(0, 6).map((item) => (
+                        <button
+                          key={`${item.mode}-${item.normalized_query}-${item.searched_at}`}
+                          type="button"
+                          className="lookup-recent-chip"
+                          onClick={() => {
+                            setLookupSearchMode(item.mode);
+                            setLookupQuery(String(item.normalized_query || item.query || ""));
+                            setLookupResult(null);
+                            setLookupFeedback("");
+                            if (item.mode === "clave") {
+                              const firstPart = String(item.normalized_query || item.query || "").split("-")[0] || "";
+                              setLookupPrefixMode(firstPart.length === 3 ? "three" : "auto");
+                            } else {
+                              setLookupPrefixMode("auto");
+                            }
+                          }}
+                        >
+                          <span>{item.normalized_query || item.query}</span>
+                          <small>{item.mode === "clave" ? "Clave" : item.mode === "nombre" ? "Nombre" : "Abonado"}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 {lookupFeedback ? <p className="lookup-feedback">{lookupFeedback}</p> : null}
                 <div className="search-actions lookup-actions">
                   <button type="submit" disabled={lookupLoading}>

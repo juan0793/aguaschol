@@ -1668,6 +1668,20 @@ button:disabled {
   color: var(--muted);
 }
 
+.dashboard-lookup-item {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(242, 248, 255, 0.9) 100%);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.dashboard-lookup-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(20, 76, 128, 0.08);
+}
+
 .dashboard-dual-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1924,6 +1938,19 @@ button:disabled {
   background: rgba(37, 199, 240, 0.08);
   color: #23647f;
   cursor: default;
+}
+
+.sheet-draft-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  min-width: 210px;
+}
+
+.sheet-draft-status small {
+  color: #648099;
+  font-size: 0.78rem;
 }
 
 .record-badge {
@@ -3626,6 +3653,59 @@ textarea {
   font-size: 0.9rem;
 }
 
+.lookup-recent-strip {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(239, 247, 255, 0.86) 100%);
+}
+
+.lookup-recent-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.lookup-recent-head strong {
+  color: #163d61;
+}
+
+.lookup-recent-head small {
+  color: #648099;
+}
+
+.lookup-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lookup-recent-chip {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 140px;
+  padding: 0.7rem 0.8rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: rgba(255, 255, 255, 0.88);
+  color: #18486f;
+  text-align: left;
+}
+
+.lookup-recent-chip span {
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+
+.lookup-recent-chip small {
+  color: #6c879f;
+  font-size: 0.73rem;
+}
+
 .lookup-results {
   display: grid;
 }
@@ -5097,6 +5177,11 @@ textarea {
     font-size: 0.92rem;
   }
 
+  .sheet-draft-status {
+    min-width: 0;
+    align-items: flex-start;
+  }
+
   .lookup-form {
     padding-left: 46px;
   }
@@ -5107,6 +5192,15 @@ textarea {
 
   .lookup-service-grid {
     grid-template-columns: 1fr;
+  }
+
+  .lookup-recent-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lookup-recent-chip {
+    min-width: 0;
   }
 }
 
