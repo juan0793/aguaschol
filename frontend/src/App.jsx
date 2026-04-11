@@ -1298,6 +1298,23 @@ function App() {
     });
   };
 
+  const persistLookupHistory = (nextHistory) => {
+    window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
+    setLookupHistory(nextHistory);
+  };
+
+  const handleRemoveLookupHistoryItem = (historyItem) => {
+    const nextHistory = lookupHistory.filter(
+      (item) =>
+        !(
+          item.mode === historyItem.mode &&
+          String(item.normalized_query || item.query || "") === String(historyItem.normalized_query || historyItem.query || "") &&
+          item.searched_at === historyItem.searched_at
+        )
+    );
+    persistLookupHistory(nextHistory);
+  };
+
   const selectedPhotoUrl = useMemo(() => {
     if (!form.foto_path) return "";
     const version = form.updated_at || Date.now();
@@ -6343,26 +6360,39 @@ function App() {
                     </div>
                     <div className="lookup-recent-list">
                       {lookupHistory.slice(0, 6).map((item) => (
-                        <button
+                        <div
                           key={`${item.mode}-${item.normalized_query}-${item.searched_at}`}
-                          type="button"
-                          className="lookup-recent-chip"
-                          onClick={() => {
-                            setLookupSearchMode(item.mode);
-                            setLookupQuery(String(item.normalized_query || item.query || ""));
-                            setLookupResult(null);
-                            setLookupFeedback("");
-                            if (item.mode === "clave") {
-                              const firstPart = String(item.normalized_query || item.query || "").split("-")[0] || "";
-                              setLookupPrefixMode(firstPart.length === 3 ? "three" : "auto");
-                            } else {
-                              setLookupPrefixMode("auto");
-                            }
-                          }}
+                          className="lookup-recent-item"
                         >
-                          <span>{item.normalized_query || item.query}</span>
-                          <small>{item.mode === "clave" ? "Clave" : item.mode === "nombre" ? "Nombre" : "Abonado"}</small>
-                        </button>
+                          <button
+                            type="button"
+                            className="lookup-recent-chip"
+                            onClick={() => {
+                              setLookupSearchMode(item.mode);
+                              setLookupQuery(String(item.normalized_query || item.query || ""));
+                              setLookupResult(null);
+                              setLookupFeedback("");
+                              if (item.mode === "clave") {
+                                const firstPart = String(item.normalized_query || item.query || "").split("-")[0] || "";
+                                setLookupPrefixMode(firstPart.length === 3 ? "three" : "auto");
+                              } else {
+                                setLookupPrefixMode("auto");
+                              }
+                            }}
+                          >
+                            <span>{item.normalized_query || item.query}</span>
+                            <small>{item.mode === "clave" ? "Clave" : item.mode === "nombre" ? "Nombre" : "Abonado"}</small>
+                          </button>
+                          <button
+                            type="button"
+                            className="lookup-recent-remove"
+                            onClick={() => handleRemoveLookupHistoryItem(item)}
+                            aria-label={`Eliminar busqueda temporal ${item.normalized_query || item.query}`}
+                            title="Eliminar busqueda temporal"
+                          >
+                            <Icon name="waste" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>

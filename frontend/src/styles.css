@@ -4342,17 +4342,49 @@ textarea {
   gap: 0.5rem;
 }
 
+.lookup-recent-item {
+  position: relative;
+  min-width: 140px;
+}
+
 .lookup-recent-chip {
   display: grid;
   gap: 0.1rem;
-  min-width: 140px;
+  min-width: 100%;
   padding: 0.76rem 0.86rem;
+  padding-right: 2.9rem;
   border-radius: 18px;
   border: 1px solid rgba(21, 118, 209, 0.12);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 248, 255, 0.9));
   color: #18486f;
   text-align: left;
   box-shadow: 0 10px 20px rgba(13, 77, 134, 0.04);
+}
+
+.lookup-recent-remove {
+  position: absolute;
+  top: 0.52rem;
+  right: 0.52rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #6b8094;
+  box-shadow: 0 8px 18px rgba(13, 77, 134, 0.08);
+}
+
+.lookup-recent-remove:hover {
+  color: #b04343;
+  border-color: rgba(176, 67, 67, 0.24);
+}
+
+.lookup-recent-remove .app-icon {
+  width: 0.95rem;
+  height: 0.95rem;
 }
 
 .lookup-recent-chip span {
