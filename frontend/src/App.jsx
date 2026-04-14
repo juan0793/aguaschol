@@ -211,6 +211,7 @@ function App() {
   const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
   const [uploadingPadron, setUploadingPadron] = useState(false);
+  const [reprocessingPadron, setReprocessingPadron] = useState(false);
   const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -3298,6 +3299,35 @@ function App() {
       showAlert(error.message || "No se pudo actualizar el padron maestro.");
     } finally {
       setUploadingPadron(false);
+    }
+  };
+
+  const handleReprocessPadron = async () => {
+    setReprocessingPadron(true);
+
+    try {
+      const response = await apiFetch("/claves/reprocess", {
+        method: "POST"
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo reprocesar el padron maestro.");
+      }
+
+      setPadronMeta(data.meta ?? null);
+      setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
+      showAlert(`Padron maestro reprocesado con ${data.meta?.total_records ?? 0} claves.`);
+    } catch (error) {
+      showAlert(error.message || "No se pudo reprocesar el padron maestro.");
+    } finally {
+      setReprocessingPadron(false);
     }
   };
 
@@ -6586,6 +6616,7 @@ function App() {
                 <div className="document-block">
                   <h4>Archivo activo</h4>
                   <p><strong>Archivo:</strong> {padronMeta?.file_name || "Sin registro"}</p>
+                  <p><strong>Fuente guardada:</strong> {padronMeta?.source_file_available ? (padronMeta?.source_file_name || "Disponible") : "No disponible"}</p>
                   <p><strong>Hoja:</strong> {padronMeta?.sheet_name || "--"}</p>
                   <p><strong>Ultima actualizacion:</strong> {formatDateTime(padronMeta?.updated_at)}</p>
                   <p><strong>Estado actual:</strong> {loadingPadronMeta ? "Consultando..." : "Sincronizado"}</p>
@@ -6626,6 +6657,15 @@ function App() {
                 <button type="submit" disabled={uploadingPadron}>
                   <Icon name="refresh" />
                   {uploadingPadron ? "Actualizando..." : "Actualizar padron maestro"}
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={handleReprocessPadron}
+                  disabled={reprocessingPadron || uploadingPadron || !padronMeta?.source_file_available}
+                >
+                  <Icon name="refresh" />
+                  {reprocessingPadron ? "Reprocesando..." : "Reprocesar ultimo Excel"}
                 </button>
                 <button type="button" className="button-secondary" onClick={handleDownloadPadron}>
                   <Icon name="records" />

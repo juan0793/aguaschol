@@ -3,6 +3,7 @@ import {
   downloadPadron,
   getPadronMeta,
   getPadronRequestMeta,
+  reprocessPadron,
   runPadronRequest,
   searchClave,
   uploadPadron
@@ -16,6 +17,7 @@ router.get("/meta", requireAdmin, getPadronMeta);
 router.get("/requests/meta", requireAdmin, getPadronRequestMeta);
 router.post("/requests/run", requireAdmin, runPadronRequest);
 router.get("/download", requireAdmin, downloadPadron);
+router.post("/reprocess", requireAdmin, reprocessPadron);
 router.get("/search", searchClave);
 router.get("/search/:clave", searchClave);
 router.post("/upload", requireAdmin, padronUpload.single("padron"), uploadPadron);

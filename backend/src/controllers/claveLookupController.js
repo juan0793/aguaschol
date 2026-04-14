@@ -3,6 +3,7 @@ import {
   generatePadronRequestReport,
   getClaveLookupMeta,
   getPadronRequestTemplates,
+  reprocessClavePadron,
   searchClaveCatastral,
   uploadClavePadron
 } from "../services/claveLookupService.js";
@@ -60,6 +61,17 @@ export const uploadPadron = async (req, res, next) => {
         actorUserId: req.authUser?.id
       }
     );
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const reprocessPadron = async (req, res, next) => {
+  try {
+    const result = await reprocessClavePadron({
+      actorUserId: req.authUser?.id
+    });
     return res.json(result);
   } catch (error) {
     return next(error);

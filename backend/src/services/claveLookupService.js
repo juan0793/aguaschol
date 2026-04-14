@@ -6,6 +6,7 @@ import { createAuditLog } from "./auditService.js";
 
 const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
 const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
+const maestroSourcePath = path.resolve(env.dbRoot, "backend", "data", "maestro-source-upload.bin");
 
 const sortByClave = (items) =>
   [...items].sort((a, b) => a.clave_catastral.localeCompare(b.clave_catastral, "es"));
@@ -96,6 +97,11 @@ const writeJsonFile = (filePath, data) => {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
 };
 
+const writeBinaryFile = (filePath, buffer) => {
+  ensureDataDir();
+  fs.writeFileSync(filePath, buffer);
+};
+
 const summarizePadronChanges = (currentRows = [], nextRows = []) => {
   const currentMap = new Map(currentRows.map((item) => [item.clave_catastral, item]));
   const nextMap = new Map(nextRows.map((item) => [item.clave_catastral, item]));
@@ -173,7 +179,14 @@ const normalizeMasterRows = (rows = []) =>
           const inquilino = String(item?.inquilino ?? item?.nombre ?? "").trim();
           const nombre = String(item?.nombre ?? "").trim();
           const abonado = String(item?.abonado ?? "").trim();
-          const barrioColonia = String(item?.des_coloni ?? item?.barrio_colonia ?? "").trim();
+          const barrioColonia = String(
+            item?.des_coloni ??
+              item?.barrio_colonia ??
+              item?.direccion ??
+              item?.domicilio ??
+              item?.ubicacion ??
+              ""
+          ).trim();
           return {
             clave_catastral: clave,
             clave_base: buildBaseKey(clave),
@@ -232,7 +245,15 @@ const parseWorkbookRows = (buffer) => {
   const abonadoKey = detectColumnKey(columns, ["abonado", "abonada", "cuenta", "numero_abonado"]);
   const inquilinoKey = detectColumnKey(columns, ["inquilino", "nombre", "propietario", "abonado"]);
   const nombreKey = detectColumnKey(columns, ["nombre", "propietario", "titular", "razon_social"]);
-  const desColoniKey = detectColumnKey(columns, ["des_coloni", "barrio_colonia", "colonia", "barrio"]);
+  const desColoniKey = detectColumnKey(columns, [
+    "des_coloni",
+    "barrio_colonia",
+    "colonia",
+    "barrio",
+    "direccion",
+    "domicilio",
+    "ubicacion"
+  ]);
   const aguaKey = detectColumnKey(columns, ["agua"]);
   const alcaKey = detectColumnKey(columns, ["alca", "alcantarillado"]);
   const barrKey = detectColumnKey(columns, ["barr", "barrido"]);
@@ -431,9 +452,11 @@ export const getClaveLookupMeta = async () => ({
   ok: true,
   meta: {
     file_name: masterMeta.file_name || "",
+    source_file_name: masterMeta.source_file_name || masterMeta.file_name || "",
     sheet_name: masterMeta.sheet_name || "",
     total_records: Number(masterMeta.total_records) || masterRecords.length,
     updated_at: masterMeta.updated_at || null,
+    source_file_available: fs.existsSync(maestroSourcePath),
     last_import_summary: masterMeta.last_import_summary ?? {
       added: 0,
       removed: 0,
@@ -463,10 +486,12 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
   }
 
   const importSummary = summarizePadronChanges(masterRecords, rows);
+  writeBinaryFile(maestroSourcePath, buffer);
   writeJsonFile(maestroPath, rows);
 
   masterMeta = {
     file_name: originalName || "padron-maestro.xlsx",
+    source_file_name: originalName || "padron-maestro.xlsx",
     sheet_name: sheetName,
     total_records: rows.length,
     updated_at: new Date().toISOString(),
@@ -502,6 +527,23 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
     meta: masterMeta,
     import_summary: masterMeta.last_import_summary
   };
+};
+
+export const reprocessClavePadron = async (options = {}) => {
+  if (!fs.existsSync(maestroSourcePath)) {
+    const error = new Error("No hay un Excel fuente guardado para reprocesar el padron.");
+    error.status = 404;
+    throw error;
+  }
+
+  const buffer = fs.readFileSync(maestroSourcePath);
+  return uploadClavePadron(
+    {
+      buffer,
+      originalName: masterMeta.source_file_name || masterMeta.file_name || "padron-maestro.xlsx"
+    },
+    options
+  );
 };
 
 export const searchClaveCatastral = async (value, options = {}) => {
