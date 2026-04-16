@@ -84,6 +84,11 @@ function TransportMap({
   const markerRef = useRef(null);
   const previousVehiclePointRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const drawEnabledRef = useRef(drawEnabled);
+  const editableRef = useRef(editable);
+  const onMapAddPointRef = useRef(onMapAddPoint);
+  const lastFocusKeyRef = useRef(null);
+  const lastVehiclePointKeyRef = useRef(null);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const [mapReady, setMapReady] = useState(false);
 
@@ -95,6 +100,12 @@ function TransportMap({
     () => (trackedPath ?? []).filter((point) => isFiniteCoordinate(point.latitude) && isFiniteCoordinate(point.longitude)),
     [trackedPath]
   );
+
+  useEffect(() => {
+    drawEnabledRef.current = drawEnabled;
+    editableRef.current = editable;
+    onMapAddPointRef.current = onMapAddPoint;
+  }, [drawEnabled, editable, onMapAddPoint]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -245,8 +256,8 @@ function TransportMap({
     });
 
     map.on("click", (event) => {
-      if (!editable || !drawEnabled) return;
-      onMapAddPoint?.({
+      if (!editableRef.current || !drawEnabledRef.current) return;
+      onMapAddPointRef.current?.({
         latitude: Number(event.lngLat.lat.toFixed(7)),
         longitude: Number(event.lngLat.lng.toFixed(7))
       });
@@ -277,7 +288,7 @@ function TransportMap({
       markerRef.current = null;
       setMapReady(false);
     };
-  }, [drawEnabled, editable, onMapAddPoint]);
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -288,6 +299,34 @@ function TransportMap({
     map.getSource(PLANNED_SOURCE_ID)?.setData(toLineFeature(safePlannedPath));
     map.getSource(TRACKED_SOURCE_ID)?.setData(toLineFeature(safeTrackedPath));
     map.getSource(POINTS_SOURCE_ID)?.setData(toFeatureCollection(safePlannedPath));
+  }, [mapReady, safePlannedPath, safeTrackedPath]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) {
+      return;
+    }
+
+    if (map.getLayer("transport-planned-route")) {
+      map.setPaintProperty(
+        "transport-planned-route",
+        "line-dasharray",
+        editable ? [1.4, 1] : [1, 0]
+      );
+    }
+  }, [editable, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) {
+      return;
+    }
+
+    if (lastFocusKeyRef.current === focusKey) {
+      return;
+    }
+
+    lastFocusKeyRef.current = focusKey;
 
     const latestFeaturePoint =
       latestPosition && isFiniteCoordinate(latestPosition.latitude) && isFiniteCoordinate(latestPosition.longitude)
@@ -302,11 +341,20 @@ function TransportMap({
 
     if (!bounds.isEmpty()) {
       map.fitBounds(bounds, {
-        padding: { top: 70, right: 40, bottom: 70, left: 40 },
-        duration: 0,
+        padding: { top: 78, right: 48, bottom: 82, left: 48 },
+        duration: 650,
         maxZoom: latestPosition ? LIVE_TRACK_ZOOM : 17.6
       });
+      return;
     }
+
+    map.easeTo({
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM,
+      pitch: 28,
+      bearing: -8,
+      duration: 500
+    });
   }, [focusKey, latestPosition, mapReady, safePlannedPath, safeTrackedPath]);
 
   useEffect(() => {
@@ -331,6 +379,7 @@ function TransportMap({
       : previousVehiclePointRef.current;
     const heading = computeHeading(previousTrackedPoint, currentPoint);
     const isOnRoute = latestPosition ? Boolean(latestPosition.is_on_route) : true;
+    const currentPointKey = `${currentPoint.latitude}:${currentPoint.longitude}:${heading}:${isOnRoute ? 1 : 0}`;
 
     if (!markerRef.current) {
       const markerElement = buildVehicleElement({ isOnRoute, heading });
@@ -341,17 +390,33 @@ function TransportMap({
         .setLngLat(toCoordinate(currentPoint))
         .addTo(map);
       previousVehiclePointRef.current = currentPoint;
+      lastVehiclePointKeyRef.current = currentPointKey;
       return;
     }
 
     paintVehicleElement(markerRef.current.getElement(), { isOnRoute, heading });
 
+    if (lastVehiclePointKeyRef.current === currentPointKey) {
+      return;
+    }
+
+    lastVehiclePointKeyRef.current = currentPointKey;
+
     const startPoint = previousVehiclePointRef.current ?? currentPoint;
     const startedAt = performance.now();
-    const duration = latestPosition ? 1200 : 0;
+    const duration = latestPosition ? 900 : 0;
 
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    if (latestPosition && !editable) {
+      map.easeTo({
+        center: toCoordinate(currentPoint),
+        zoom: Math.max(map.getZoom(), LIVE_TRACK_ZOOM),
+        duration: 900,
+        easing: (progress) => 1 - ((1 - progress) ** 3)
+      });
     }
 
     const animate = (now) => {
@@ -363,14 +428,6 @@ function TransportMap({
         Number(startPoint.latitude) + ((Number(currentPoint.latitude) - Number(startPoint.latitude)) * eased);
 
       markerRef.current?.setLngLat([nextLongitude, nextLatitude]);
-
-      if (latestPosition && !editable) {
-        map.easeTo({
-          center: [nextLongitude, nextLatitude],
-          zoom: Math.max(map.getZoom(), LIVE_TRACK_ZOOM),
-          duration: 0
-        });
-      }
 
       if (progress < 1) {
         animationFrameRef.current = requestAnimationFrame(animate);

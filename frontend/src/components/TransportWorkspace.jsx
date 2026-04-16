@@ -64,6 +64,13 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
     () => routes.find((route) => Number(route.id) === Number(selectedRouteId)) ?? null,
     [routes, selectedRouteId]
   );
+  const plannedPathForMap = useMemo(() => {
+    if (isAdmin) {
+      return routeForm.route_path ?? [];
+    }
+
+    return selectedRoute?.route_path ?? [];
+  }, [isAdmin, routeForm.route_path, selectedRoute]);
   const canTrackRoute = !isAdmin && Boolean(selectedRoute);
   const latestPosition = selectedRoute?.latest_position ?? null;
 
@@ -652,10 +659,10 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
             <TransportMap
               drawEnabled={drawEnabled}
               editable={isAdmin}
-              focusKey={`${selectedRoute?.id ?? "new"}:${selectedRoute?.tracked_path?.length ?? 0}:${routeForm.route_path.length}`}
+              focusKey={isAdmin ? `admin:${selectedRoute?.id ?? routeForm.id ?? "new"}` : `transport:${selectedRoute?.id ?? "none"}`}
               latestPosition={selectedRoute?.latest_position ?? null}
               onMapAddPoint={handleAddRoutePoint}
-              plannedPath={isAdmin && !selectedRoute ? routeForm.route_path : routeForm.id ? routeForm.route_path : selectedRoute?.route_path ?? routeForm.route_path}
+              plannedPath={plannedPathForMap}
               trackedPath={selectedRoute?.tracked_path ?? []}
             />
           </article>
