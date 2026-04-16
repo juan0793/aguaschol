@@ -49,6 +49,65 @@ const computeHeading = (fromPoint, toPoint) => {
   return (Math.atan2(deltaLongitude, deltaLatitude) * 180) / Math.PI;
 };
 
+const projectPointToSegment = (point, start, end) => {
+  const pointLongitude = Number(point.longitude);
+  const pointLatitude = Number(point.latitude);
+  const startLongitude = Number(start.longitude);
+  const startLatitude = Number(start.latitude);
+  const endLongitude = Number(end.longitude);
+  const endLatitude = Number(end.latitude);
+  const segmentLongitude = endLongitude - startLongitude;
+  const segmentLatitude = endLatitude - startLatitude;
+  const segmentLengthSquared = (segmentLongitude ** 2) + (segmentLatitude ** 2);
+
+  if (segmentLengthSquared === 0) {
+    return {
+      longitude: startLongitude,
+      latitude: startLatitude,
+      distanceSquared: ((pointLongitude - startLongitude) ** 2) + ((pointLatitude - startLatitude) ** 2)
+    };
+  }
+
+  const projection = (
+    ((pointLongitude - startLongitude) * segmentLongitude) +
+    ((pointLatitude - startLatitude) * segmentLatitude)
+  ) / segmentLengthSquared;
+  const clampedProjection = Math.max(0, Math.min(1, projection));
+  const longitude = startLongitude + (segmentLongitude * clampedProjection);
+  const latitude = startLatitude + (segmentLatitude * clampedProjection);
+
+  return {
+    longitude,
+    latitude,
+    distanceSquared: ((pointLongitude - longitude) ** 2) + ((pointLatitude - latitude) ** 2)
+  };
+};
+
+const snapPointToRoute = (point, routePoints = []) => {
+  if (!point || routePoints.length < 2) {
+    return point;
+  }
+
+  let closestPoint = null;
+
+  for (let index = 0; index < routePoints.length - 1; index += 1) {
+    const candidate = projectPointToSegment(point, routePoints[index], routePoints[index + 1]);
+    if (!closestPoint || candidate.distanceSquared < closestPoint.distanceSquared) {
+      closestPoint = candidate;
+    }
+  }
+
+  if (!closestPoint) {
+    return point;
+  }
+
+  return {
+    ...point,
+    latitude: Number(closestPoint.latitude.toFixed(7)),
+    longitude: Number(closestPoint.longitude.toFixed(7))
+  };
+};
+
 const buildVehicleElement = ({ isOnRoute = true, heading = 0 } = {}) => {
   const wrapper = document.createElement("div");
   wrapper.className = "transport-vehicle-shell";
@@ -99,6 +158,10 @@ function TransportMap({
   const safeTrackedPath = useMemo(
     () => (trackedPath ?? []).filter((point) => isFiniteCoordinate(point.latitude) && isFiniteCoordinate(point.longitude)),
     [trackedPath]
+  );
+  const displayTrackedPath = useMemo(
+    () => safeTrackedPath.map((point) => (point.is_on_route ? snapPointToRoute(point, safePlannedPath) : point)),
+    [safePlannedPath, safeTrackedPath]
   );
 
   useEffect(() => {
@@ -297,9 +360,9 @@ function TransportMap({
     }
 
     map.getSource(PLANNED_SOURCE_ID)?.setData(toLineFeature(safePlannedPath));
-    map.getSource(TRACKED_SOURCE_ID)?.setData(toLineFeature(safeTrackedPath));
+    map.getSource(TRACKED_SOURCE_ID)?.setData(toLineFeature(displayTrackedPath));
     map.getSource(POINTS_SOURCE_ID)?.setData(toFeatureCollection(safePlannedPath));
-  }, [mapReady, safePlannedPath, safeTrackedPath]);
+  }, [displayTrackedPath, mapReady, safePlannedPath]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -330,11 +393,18 @@ function TransportMap({
 
     const latestFeaturePoint =
       latestPosition && isFiniteCoordinate(latestPosition.latitude) && isFiniteCoordinate(latestPosition.longitude)
-        ? { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) }
+        ? (
+          latestPosition.is_on_route
+            ? snapPointToRoute(
+              { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) },
+              safePlannedPath
+            )
+            : { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) }
+        )
         : safePlannedPath[0] ?? null;
 
     const bounds = new maplibregl.LngLatBounds();
-    [...safePlannedPath, ...safeTrackedPath].forEach((point) => bounds.extend(toCoordinate(point)));
+    [...safePlannedPath, ...displayTrackedPath].forEach((point) => bounds.extend(toCoordinate(point)));
     if (latestFeaturePoint) {
       bounds.extend(toCoordinate(latestFeaturePoint));
     }
@@ -355,7 +425,7 @@ function TransportMap({
       bearing: -8,
       duration: 500
     });
-  }, [focusKey, latestPosition, mapReady, safePlannedPath, safeTrackedPath]);
+  }, [displayTrackedPath, focusKey, latestPosition, mapReady, safePlannedPath]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -365,7 +435,14 @@ function TransportMap({
 
     const currentPoint =
       latestPosition && isFiniteCoordinate(latestPosition.latitude) && isFiniteCoordinate(latestPosition.longitude)
-        ? { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) }
+        ? (
+          latestPosition.is_on_route
+            ? snapPointToRoute(
+              { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) },
+              safePlannedPath
+            )
+            : { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) }
+        )
         : safePlannedPath[0] ?? null;
 
     if (!currentPoint) {
@@ -374,8 +451,8 @@ function TransportMap({
       return;
     }
 
-    const previousTrackedPoint = safeTrackedPath.length >= 2
-      ? safeTrackedPath[safeTrackedPath.length - 2]
+    const previousTrackedPoint = displayTrackedPath.length >= 2
+      ? displayTrackedPath[displayTrackedPath.length - 2]
       : previousVehiclePointRef.current;
     const heading = computeHeading(previousTrackedPoint, currentPoint);
     const isOnRoute = latestPosition ? Boolean(latestPosition.is_on_route) : true;
@@ -438,7 +515,7 @@ function TransportMap({
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-  }, [editable, latestPosition, mapReady, safePlannedPath, safeTrackedPath]);
+  }, [displayTrackedPath, editable, latestPosition, mapReady, safePlannedPath]);
 
   return (
     <div className="transport-map-shell">
