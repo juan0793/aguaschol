@@ -1,6 +1,7 @@
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
+import { broadcastTransportEvent } from "./transportRealtimeService.js";
 
 const memoryRoutes = [];
 const memoryPositions = [];
@@ -359,6 +360,12 @@ const ensureAssignedTransportUser = async (assignedUserId) => {
   return assignedUserId;
 };
 
+const buildRouteSnapshot = async (routeId) => {
+  const route = sanitizeRouteRow(await getRouteOrFail(routeId));
+  const positions = await loadPositionsForRouteIds([Number(routeId)]);
+  return attachPositionsToRoutes([route], positions)[0] ?? route;
+};
+
 export const listTransportRoutes = async (authUser) => {
   if (env.useMemoryDb) {
     const routes = getMemoryRoutesForUser(authUser).map((route) => sanitizeRouteRow(route));
@@ -411,7 +418,9 @@ export const createTransportRoute = async (payload, authUser) => {
       updated_at: new Date().toISOString()
     };
     memoryRoutes.unshift(route);
-    return sanitizeRouteRow(route);
+    const snapshot = await buildRouteSnapshot(route.id);
+    broadcastTransportEvent({ type: "transport.route_created", route: snapshot });
+    return snapshot;
   }
 
   const pool = getPool();
@@ -448,7 +457,9 @@ export const createTransportRoute = async (payload, authUser) => {
     }
   });
 
-  return route;
+  const snapshot = await buildRouteSnapshot(route.id);
+  broadcastTransportEvent({ type: "transport.route_created", route: snapshot });
+  return snapshot;
 };
 
 export const updateTransportRoute = async (routeId, payload, authUser) => {
@@ -464,7 +475,9 @@ export const updateTransportRoute = async (routeId, payload, authUser) => {
       route_path_json: JSON.stringify(data.route_path),
       updated_at: new Date().toISOString()
     };
-    return sanitizeRouteRow(memoryRoutes[index]);
+    const snapshot = await buildRouteSnapshot(routeId);
+    broadcastTransportEvent({ type: "transport.route_updated", route: snapshot });
+    return snapshot;
   }
 
   const pool = getPool();
@@ -512,7 +525,9 @@ export const updateTransportRoute = async (routeId, payload, authUser) => {
     }
   });
 
-  return updated;
+  const snapshot = await buildRouteSnapshot(updated.id);
+  broadcastTransportEvent({ type: "transport.route_updated", route: snapshot });
+  return snapshot;
 };
 
 export const startTransportRoute = async (routeId, authUser) => {
@@ -532,7 +547,9 @@ export const startTransportRoute = async (routeId, authUser) => {
       completed_at: null,
       updated_at: new Date().toISOString()
     };
-    return sanitizeRouteRow(memoryRoutes[index]);
+    const snapshot = await buildRouteSnapshot(routeId);
+    broadcastTransportEvent({ type: "transport.route_started", route: snapshot });
+    return snapshot;
   }
 
   const pool = getPool();
@@ -563,7 +580,9 @@ export const startTransportRoute = async (routeId, authUser) => {
     }
   });
 
-  return updated;
+  const snapshot = await buildRouteSnapshot(updated.id);
+  broadcastTransportEvent({ type: "transport.route_started", route: snapshot });
+  return snapshot;
 };
 
 export const completeTransportRoute = async (routeId, authUser) => {
@@ -578,7 +597,9 @@ export const completeTransportRoute = async (routeId, authUser) => {
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    return sanitizeRouteRow(memoryRoutes[index]);
+    const snapshot = await buildRouteSnapshot(routeId);
+    broadcastTransportEvent({ type: "transport.route_completed", route: snapshot });
+    return snapshot;
   }
 
   const pool = getPool();
@@ -604,7 +625,9 @@ export const completeTransportRoute = async (routeId, authUser) => {
     summary: `Ruta ${updated.name} completada`
   });
 
-  return updated;
+  const snapshot = await buildRouteSnapshot(updated.id);
+  broadcastTransportEvent({ type: "transport.route_completed", route: snapshot });
+  return snapshot;
 };
 
 export const addTransportRoutePosition = async (routeId, payload, authUser) => {
@@ -633,7 +656,14 @@ export const addTransportRoutePosition = async (routeId, payload, authUser) => {
       memoryRoutes[routeIndex].updated_at = new Date().toISOString();
     }
 
-    return sanitizePosition(position);
+    const routeSnapshot = await buildRouteSnapshot(routeId);
+    const sanitizedPosition = sanitizePosition(position);
+    broadcastTransportEvent({
+      type: sanitizedPosition.is_on_route ? "transport.position_logged" : "transport.route_alert",
+      route: routeSnapshot,
+      position: sanitizedPosition
+    });
+    return sanitizedPosition;
   }
 
   const pool = getPool();
@@ -698,5 +728,11 @@ export const addTransportRoutePosition = async (routeId, payload, authUser) => {
     }
   });
 
+  const routeSnapshot = await buildRouteSnapshot(routeId);
+  broadcastTransportEvent({
+    type: position.is_on_route ? "transport.position_logged" : "transport.route_alert",
+    route: routeSnapshot,
+    position
+  });
   return position;
 };

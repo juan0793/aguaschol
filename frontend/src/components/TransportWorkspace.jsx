@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../config/api";
+import { API_URL, WS_URL } from "../config/api";
 import { Icon } from "./Icon";
 import TransportMap from "./TransportMap";
 
@@ -51,8 +51,10 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
   const [trackingMessage, setTrackingMessage] = useState("Sin seguimiento activo.");
   const [savingPosition, setSavingPosition] = useState(false);
   const [lastSentAt, setLastSentAt] = useState(null);
+  const [socketState, setSocketState] = useState("Desconectado");
   const watchIdRef = useRef(null);
   const lastSentMsRef = useRef(0);
+  const socketRef = useRef(null);
 
   const transportUsers = useMemo(
     () => users.filter((user) => user.role === "transport"),
@@ -153,7 +155,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
       }
     };
 
-    const intervalId = window.setInterval(refresh, 8000);
+    const intervalId = window.setInterval(refresh, 20000);
     document.addEventListener("visibilitychange", refresh);
     window.addEventListener("focus", refresh);
 
@@ -163,6 +165,67 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
       window.removeEventListener("focus", refresh);
     };
   }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive || !session?.token || !WS_URL) {
+      return undefined;
+    }
+
+    const socket = new WebSocket(`${WS_URL}/ws/transport?token=${encodeURIComponent(session.token)}`);
+    socketRef.current = socket;
+    setSocketState("Conectando...");
+
+    socket.addEventListener("open", () => {
+      setSocketState("Tiempo real activo");
+    });
+
+    socket.addEventListener("message", (event) => {
+      let payload = null;
+
+      try {
+        payload = JSON.parse(event.data);
+      } catch {
+        payload = null;
+      }
+
+      if (!payload?.type) {
+        return;
+      }
+
+      if (payload.type === "transport.connected") {
+        setSocketState("Tiempo real activo");
+        return;
+      }
+
+      if (payload.type === "transport.route_alert") {
+        setTrackingMessage("Alerta en vivo: el vehiculo se esta saliendo de la calle autorizada.");
+      }
+
+      if (payload.type.startsWith("transport.")) {
+        void loadRoutes({ silent: true });
+      }
+    });
+
+    socket.addEventListener("close", () => {
+      setSocketState("Tiempo real desconectado");
+    });
+
+    socket.addEventListener("error", () => {
+      setSocketState("Tiempo real con falla");
+    });
+
+    const pingId = window.setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "transport.ping", ts: Date.now() }));
+      }
+    }, 20000);
+
+    return () => {
+      window.clearInterval(pingId);
+      socket.close();
+      socketRef.current = null;
+    };
+  }, [isActive, session?.token]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -418,6 +481,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
         </div>
         <div className="transport-header-badges">
           <span className="panel-pill">{routes.length} rutas</span>
+          <span className="panel-pill">{socketState}</span>
           <span className={`panel-pill ${selectedRoute?.is_off_route ? "is-danger" : ""}`}>
             {selectedRoute ? statusLabel(selectedRoute.status) : "Sin seleccion"}
           </span>
@@ -571,6 +635,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
               </div>
               <p className="helper-text">{trackingMessage}</p>
               <p className="helper-text">Ultimo envio: {formatDateTime(lastSentAt)}</p>
+              <p className="helper-text">Canal en vivo: {socketState}</p>
             </article>
           )}
 

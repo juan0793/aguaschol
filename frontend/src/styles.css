@@ -6072,6 +6072,110 @@ textarea {
   border-radius: 22px;
 }
 
+.transport-map-canvas.leaflet-container {
+  background:
+    radial-gradient(circle at top right, rgba(31, 93, 169, 0.12), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(30, 179, 86, 0.12), transparent 30%),
+    linear-gradient(180deg, #eef4fb, #dde8f4);
+}
+
+.transport-map-canvas.leaflet-container .leaflet-tile {
+  filter: saturate(1.08) contrast(1.04) brightness(1.03);
+}
+
+.transport-vehicle-shell {
+  background: transparent;
+  border: none;
+}
+
+.transport-vehicle {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+}
+
+.transport-vehicle-pulse {
+  position: absolute;
+  inset: 9px;
+  border-radius: 999px;
+  background: rgba(30, 179, 86, 0.18);
+  animation: transportPulse 1.5s ease-out infinite;
+}
+
+.transport-vehicle.is-off-route .transport-vehicle-pulse {
+  background: rgba(203, 63, 63, 0.2);
+}
+
+.transport-vehicle-body {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 9px 12px 10px 10px;
+  border: 2px solid #fff;
+  background: linear-gradient(135deg, #1eb356, #0d8940);
+  box-shadow: 0 10px 20px rgba(7, 41, 18, 0.24);
+  transform: rotate(var(--vehicle-rotation, 0deg));
+  transform-origin: center;
+}
+
+.transport-vehicle.is-off-route .transport-vehicle-body {
+  background: linear-gradient(135deg, #d84b4b, #a92727);
+}
+
+.transport-vehicle-body::before,
+.transport-vehicle-body::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #243747;
+  border: 2px solid #fff;
+}
+
+.transport-vehicle-body::before {
+  left: 4px;
+}
+
+.transport-vehicle-body::after {
+  right: 4px;
+}
+
+.transport-vehicle-cabin {
+  position: absolute;
+  top: -7px;
+  right: 4px;
+  width: 11px;
+  height: 10px;
+  border-radius: 6px 6px 2px 2px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.transport-vehicle-mark {
+  position: absolute;
+  left: 5px;
+  top: 7px;
+  width: 14px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+@keyframes transportPulse {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.65;
+  }
+
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
 .transport-map-chip {
   position: absolute;
   top: 1rem;
