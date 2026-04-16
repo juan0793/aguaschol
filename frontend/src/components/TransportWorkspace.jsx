@@ -12,6 +12,7 @@ const emptyRouteForm = {
   route_path: []
 };
 const SIMULATION_INTERVAL_MS = 1800;
+const SIMULATION_STEP_DISTANCE_METERS = 12;
 
 const toNumber = (value) => Number(value ?? 0);
 
@@ -20,6 +21,50 @@ const offsetPoint = (point, latitudeOffset, longitudeOffset) => ({
   longitude: Number((toNumber(point.longitude) + longitudeOffset).toFixed(7)),
   accuracy: 4
 });
+
+const estimateDistanceMeters = (fromPoint, toPoint) => {
+  const latitudeDeltaMeters = (toNumber(toPoint.latitude) - toNumber(fromPoint.latitude)) * 111320;
+  const averageLatitudeRadians = ((toNumber(fromPoint.latitude) + toNumber(toPoint.latitude)) / 2) * (Math.PI / 180);
+  const longitudeDeltaMeters =
+    (toNumber(toPoint.longitude) - toNumber(fromPoint.longitude)) * 111320 * Math.cos(averageLatitudeRadians);
+
+  return Math.hypot(latitudeDeltaMeters, longitudeDeltaMeters);
+};
+
+const interpolatePoint = (fromPoint, toPoint, progress) => ({
+  latitude: Number((toNumber(fromPoint.latitude) + ((toNumber(toPoint.latitude) - toNumber(fromPoint.latitude)) * progress)).toFixed(7)),
+  longitude: Number((toNumber(fromPoint.longitude) + ((toNumber(toPoint.longitude) - toNumber(fromPoint.longitude)) * progress)).toFixed(7)),
+  accuracy: 4
+});
+
+const expandSimulationPath = (points = []) => {
+  if (points.length <= 1) {
+    return points;
+  }
+
+  const expanded = [];
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const currentPoint = points[index];
+    const nextPoint = points[index + 1];
+    const segmentDistance = estimateDistanceMeters(currentPoint, nextPoint);
+    const totalSteps = Math.max(1, Math.ceil(segmentDistance / SIMULATION_STEP_DISTANCE_METERS));
+
+    if (index === 0) {
+      expanded.push({
+        latitude: Number(toNumber(currentPoint.latitude).toFixed(7)),
+        longitude: Number(toNumber(currentPoint.longitude).toFixed(7)),
+        accuracy: 4
+      });
+    }
+
+    for (let step = 1; step <= totalSteps; step += 1) {
+      expanded.push(interpolatePoint(currentPoint, nextPoint, step / totalSteps));
+    }
+  }
+
+  return expanded;
+};
 
 const formatDateTime = (value) => {
   if (!value) return "--";
@@ -546,11 +591,12 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
         accuracy: 4
       };
     });
+    const simulationPath = expandSimulationPath(basePath);
 
     let pointIndex = 0;
 
     const dispatchNextPoint = async () => {
-      const point = basePath[pointIndex];
+      const point = simulationPath[pointIndex];
       if (!point) {
         stopSimulation("Simulacion completada. Revisa el recorrido pintado en verde.");
         return;
@@ -559,7 +605,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
       await sendPosition(point);
       pointIndex += 1;
 
-      if (pointIndex < basePath.length) {
+      if (pointIndex < simulationPath.length) {
         simulationTimerRef.current = window.setTimeout(dispatchNextPoint, SIMULATION_INTERVAL_MS);
         return;
       }
