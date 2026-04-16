@@ -11,6 +11,15 @@ const emptyRouteForm = {
   allowed_deviation_meters: 35,
   route_path: []
 };
+const SIMULATION_INTERVAL_MS = 1800;
+
+const toNumber = (value) => Number(value ?? 0);
+
+const offsetPoint = (point, latitudeOffset, longitudeOffset) => ({
+  latitude: Number((toNumber(point.latitude) + latitudeOffset).toFixed(7)),
+  longitude: Number((toNumber(point.longitude) + longitudeOffset).toFixed(7)),
+  accuracy: 4
+});
 
 const formatDateTime = (value) => {
   if (!value) return "--";
@@ -52,9 +61,11 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
   const [savingPosition, setSavingPosition] = useState(false);
   const [lastSentAt, setLastSentAt] = useState(null);
   const [socketState, setSocketState] = useState("Desconectado");
+  const [simulationMode, setSimulationMode] = useState(null);
   const watchIdRef = useRef(null);
   const lastSentMsRef = useRef(0);
   const socketRef = useRef(null);
+  const simulationTimerRef = useRef(null);
 
   const transportUsers = useMemo(
     () => users.filter((user) => user.role === "transport"),
@@ -257,7 +268,19 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
       navigator.geolocation?.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
+    if (simulationTimerRef.current != null) {
+      window.clearTimeout(simulationTimerRef.current);
+      simulationTimerRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    setSimulationMode(null);
+    if (simulationTimerRef.current != null) {
+      window.clearTimeout(simulationTimerRef.current);
+      simulationTimerRef.current = null;
+    }
+  }, [selectedRouteId]);
 
   const handleNewRoute = () => {
     setSelectedRouteId(null);
@@ -474,6 +497,83 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
     );
   };
 
+  const stopSimulation = (message = "Simulacion detenida.") => {
+    if (simulationTimerRef.current != null) {
+      window.clearTimeout(simulationTimerRef.current);
+      simulationTimerRef.current = null;
+    }
+    setSimulationMode(null);
+    setTrackingMessage(message);
+  };
+
+  const runSimulation = async (mode) => {
+    if (!selectedRoute?.route_path?.length) {
+      showAlert?.("La ruta debe tener puntos trazados para poder simular el recorrido.");
+      return;
+    }
+
+    if (watchIdRef.current != null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+
+    const started = await callRouteAction(selectedRoute.id, "start", "Simulacion de transporte iniciada.");
+    if (!started) {
+      return;
+    }
+
+    setTrackingActive(false);
+    setSimulationMode(mode);
+    setTrackingMessage(
+      mode === "off-route"
+        ? "Simulacion activa: enviando puntos con desvio para probar la alerta."
+        : "Simulacion activa: enviando puntos sobre la calle autorizada."
+    );
+
+    const basePath = selectedRoute.route_path.map((point, index) => {
+      if (mode !== "off-route") {
+        return {
+          latitude: toNumber(point.latitude),
+          longitude: toNumber(point.longitude),
+          accuracy: 4
+        };
+      }
+
+      const shouldDrift = index >= Math.max(1, Math.floor(selectedRoute.route_path.length / 2));
+      return shouldDrift ? offsetPoint(point, 0.00032, 0.00028) : {
+        latitude: toNumber(point.latitude),
+        longitude: toNumber(point.longitude),
+        accuracy: 4
+      };
+    });
+
+    let pointIndex = 0;
+
+    const dispatchNextPoint = async () => {
+      const point = basePath[pointIndex];
+      if (!point) {
+        stopSimulation("Simulacion completada. Revisa el recorrido pintado en verde.");
+        return;
+      }
+
+      await sendPosition(point);
+      pointIndex += 1;
+
+      if (pointIndex < basePath.length) {
+        simulationTimerRef.current = window.setTimeout(dispatchNextPoint, SIMULATION_INTERVAL_MS);
+        return;
+      }
+
+      stopSimulation("Simulacion completada. Revisa el recorrido pintado en verde.");
+    };
+
+    if (simulationTimerRef.current != null) {
+      window.clearTimeout(simulationTimerRef.current);
+    }
+
+    simulationTimerRef.current = window.setTimeout(dispatchNextPoint, 250);
+  };
+
   return (
     <section className="transport-workspace">
       <div className="transport-header">
@@ -639,10 +739,40 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
                   <Icon name="success" />
                   Cerrar recorrido
                 </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => runSimulation("on-route")}
+                  disabled={!selectedRoute || simulationMode != null || savingPosition}
+                >
+                  <Icon name="map" />
+                  Simular ruta
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => runSimulation("off-route")}
+                  disabled={!selectedRoute || simulationMode != null || savingPosition}
+                >
+                  <Icon name="warning" />
+                  Simular desvio
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => stopSimulation("Simulacion detenida manualmente.")}
+                  disabled={simulationMode == null}
+                >
+                  <Icon name="refresh" />
+                  Detener simulacion
+                </button>
               </div>
               <p className="helper-text">{trackingMessage}</p>
               <p className="helper-text">Ultimo envio: {formatDateTime(lastSentAt)}</p>
               <p className="helper-text">Canal en vivo: {socketState}</p>
+              <p className="helper-text">
+                Pruebas desde oficina: usa "Simular ruta" para mover el vehiculo sobre la calle y "Simular desvio" para forzar alerta.
+              </p>
             </article>
           )}
 
