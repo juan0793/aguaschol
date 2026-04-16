@@ -1,50 +1,76 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
-const DEFAULT_CENTER = [13.3017, -87.1889];
+const DEFAULT_CENTER = [-87.1889, 13.3017];
 const DEFAULT_ZOOM = 16;
-const LIVE_TRACK_ZOOM = 18.2;
-const MAX_NATIVE_ZOOM = 19;
-const MAX_INTERACTION_ZOOM = 21;
-const TILE_CACHE_BUSTER = "transport-live-20260416";
+const LIVE_TRACK_ZOOM = 18.3;
+const TRANSPORT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+
+const PLANNED_SOURCE_ID = "transport-planned-route";
+const TRACKED_SOURCE_ID = "transport-tracked-route";
+const POINTS_SOURCE_ID = "transport-route-points";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
 
-const toLatLng = (point) => [Number(point.latitude), Number(point.longitude)];
+const toCoordinate = (point) => [Number(point.longitude), Number(point.latitude)];
+
+const toFeatureCollection = (points = []) => ({
+  type: "FeatureCollection",
+  features: points.map((point, index) => ({
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: toCoordinate(point)
+    },
+    properties: {
+      index,
+      is_terminal: index === points.length - 1
+    }
+  }))
+});
+
+const toLineFeature = (points = []) => ({
+  type: "Feature",
+  geometry: {
+    type: "LineString",
+    coordinates: points.map(toCoordinate)
+  },
+  properties: {}
+});
 
 const computeHeading = (fromPoint, toPoint) => {
-  if (!fromPoint || !toPoint) {
-    return 0;
-  }
+  if (!fromPoint || !toPoint) return 0;
 
   const deltaLongitude = Number(toPoint.longitude) - Number(fromPoint.longitude);
   const deltaLatitude = Number(toPoint.latitude) - Number(fromPoint.latitude);
-  if (!deltaLongitude && !deltaLatitude) {
-    return 0;
-  }
+  if (!deltaLongitude && !deltaLatitude) return 0;
 
   return (Math.atan2(deltaLongitude, deltaLatitude) * 180) / Math.PI;
 };
 
-const buildVehicleIcon = (heading = 0, isOnRoute = true) =>
-  L.divIcon({
-    className: "transport-vehicle-shell",
-    html: `
-      <div class="transport-vehicle ${isOnRoute ? "is-on-route" : "is-off-route"}" style="--vehicle-rotation:${heading}deg">
-        <span class="transport-vehicle-pulse"></span>
-        <span class="transport-vehicle-body">
-          <span class="transport-vehicle-cabin"></span>
-          <span class="transport-vehicle-mark"></span>
-        </span>
-      </div>
-    `,
-    iconSize: [54, 54],
-    iconAnchor: [27, 27]
-  });
+const buildVehicleElement = ({ isOnRoute = true, heading = 0 } = {}) => {
+  const wrapper = document.createElement("div");
+  wrapper.className = "transport-vehicle-shell";
+  wrapper.innerHTML = `
+    <div class="transport-vehicle ${isOnRoute ? "is-on-route" : "is-off-route"}" style="--vehicle-rotation:${heading}deg">
+      <span class="transport-vehicle-pulse"></span>
+      <span class="transport-vehicle-body">
+        <span class="transport-vehicle-cabin"></span>
+        <span class="transport-vehicle-mark"></span>
+      </span>
+    </div>
+  `;
+  return wrapper;
+};
+
+const paintVehicleElement = (element, { isOnRoute = true, heading = 0 } = {}) => {
+  if (!element) return;
+  element.className = "transport-vehicle-shell";
+  element.innerHTML = buildVehicleElement({ isOnRoute, heading }).innerHTML;
+};
 
 function TransportMap({
-  apiUrl,
   drawEnabled,
   editable,
   focusKey,
@@ -55,16 +81,19 @@ function TransportMap({
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const routeLayerRef = useRef(null);
-  const trackedLayerRef = useRef(null);
-  const draftPointLayerRef = useRef(null);
-  const vehicleMarkerRef = useRef(null);
+  const markerRef = useRef(null);
   const previousVehiclePointRef = useRef(null);
   const animationFrameRef = useRef(null);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
-  const tileTemplate = useMemo(
-    () => `${apiUrl}/map-tiles/{z}/{x}/{y}.png?v=${encodeURIComponent(TILE_CACHE_BUSTER)}`,
-    [apiUrl]
+  const [mapReady, setMapReady] = useState(false);
+
+  const safePlannedPath = useMemo(
+    () => (plannedPath ?? []).filter((point) => isFiniteCoordinate(point.latitude) && isFiniteCoordinate(point.longitude)),
+    [plannedPath]
+  );
+  const safeTrackedPath = useMemo(
+    () => (trackedPath ?? []).filter((point) => isFiniteCoordinate(point.latitude) && isFiniteCoordinate(point.longitude)),
+    [trackedPath]
   );
 
   useEffect(() => {
@@ -72,37 +101,154 @@ function TransportMap({
       return undefined;
     }
 
-    const map = L.map(containerRef.current, {
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: TRANSPORT_STYLE_URL,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
-      maxZoom: MAX_INTERACTION_ZOOM,
-      zoomSnap: 0.25,
-      zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 90,
-      zoomControl: true,
-      preferCanvas: true,
-      fadeAnimation: true,
-      zoomAnimation: true,
-      markerZoomAnimation: true
+      maxZoom: 20.5,
+      pitch: 28,
+      bearing: -8,
+      attributionControl: true
     });
 
-    setZoomLevel(map.getZoom());
-    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
-    L.tileLayer(tileTemplate, {
-      attribution: "OpenStreetMap contributors",
-      maxNativeZoom: MAX_NATIVE_ZOOM,
-      maxZoom: MAX_INTERACTION_ZOOM,
-      keepBuffer: 4,
-      updateWhenIdle: true,
-      className: "transport-base-tile"
-    }).addTo(map);
+    map.on("load", () => {
+      map.addSource(PLANNED_SOURCE_ID, {
+        type: "geojson",
+        data: toLineFeature([])
+      });
+      map.addSource(TRACKED_SOURCE_ID, {
+        type: "geojson",
+        data: toLineFeature([])
+      });
+      map.addSource(POINTS_SOURCE_ID, {
+        type: "geojson",
+        data: toFeatureCollection([])
+      });
+
+      map.addLayer({
+        id: "transport-planned-route-outline",
+        type: "line",
+        source: PLANNED_SOURCE_ID,
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            13, 10,
+            16, 16,
+            19, 22
+          ],
+          "line-opacity": 0.95
+        },
+        layout: {
+          "line-cap": "round",
+          "line-join": "round"
+        }
+      });
+
+      map.addLayer({
+        id: "transport-planned-route",
+        type: "line",
+        source: PLANNED_SOURCE_ID,
+        paint: {
+          "line-color": "#1d5fd0",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            13, 6,
+            16, 10,
+            19, 14
+          ],
+          "line-dasharray": editable ? [1.4, 1] : [1, 0],
+          "line-opacity": 0.96
+        },
+        layout: {
+          "line-cap": "round",
+          "line-join": "round"
+        }
+      });
+
+      map.addLayer({
+        id: "transport-tracked-route-glow",
+        type: "line",
+        source: TRACKED_SOURCE_ID,
+        paint: {
+          "line-color": "rgba(30,179,86,0.26)",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            13, 12,
+            16, 18,
+            19, 24
+          ],
+          "line-opacity": 1
+        },
+        layout: {
+          "line-cap": "round",
+          "line-join": "round"
+        }
+      });
+
+      map.addLayer({
+        id: "transport-tracked-route",
+        type: "line",
+        source: TRACKED_SOURCE_ID,
+        paint: {
+          "line-color": "#19b655",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            13, 5,
+            16, 9,
+            19, 12
+          ],
+          "line-opacity": 0.98
+        },
+        layout: {
+          "line-cap": "round",
+          "line-join": "round"
+        }
+      });
+
+      map.addLayer({
+        id: "transport-route-points",
+        type: "circle",
+        source: POINTS_SOURCE_ID,
+        paint: {
+          "circle-radius": [
+            "case",
+            ["boolean", ["get", "is_terminal"], false],
+            7,
+            5
+          ],
+          "circle-color": [
+            "case",
+            ["boolean", ["get", "is_terminal"], false],
+            "#f28c28",
+            "#1d5fd0"
+          ],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff"
+        }
+      });
+
+      setMapReady(true);
+      setZoomLevel(map.getZoom());
+    });
 
     map.on("click", (event) => {
       if (!editable || !drawEnabled) return;
       onMapAddPoint?.({
-        latitude: Number(event.latlng.lat.toFixed(7)),
-        longitude: Number(event.latlng.lng.toFixed(7))
+        latitude: Number(event.lngLat.lat.toFixed(7)),
+        longitude: Number(event.lngLat.lng.toFixed(7))
       });
     });
 
@@ -110,164 +256,120 @@ function TransportMap({
       setZoomLevel(map.getZoom());
     });
 
-    routeLayerRef.current = L.layerGroup().addTo(map);
-    trackedLayerRef.current = L.layerGroup().addTo(map);
-    draftPointLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
     const resizeObserver = new ResizeObserver(() => {
       window.requestAnimationFrame(() => {
-        map.invalidateSize(false);
+        map.resize();
       });
     });
 
     resizeObserver.observe(containerRef.current);
-    window.setTimeout(() => map.invalidateSize(false), 120);
 
     return () => {
       resizeObserver.disconnect();
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      routeLayerRef.current?.clearLayers();
-      trackedLayerRef.current?.clearLayers();
-      draftPointLayerRef.current?.clearLayers();
-      vehicleMarkerRef.current?.remove();
+      markerRef.current?.remove();
       map.remove();
       mapRef.current = null;
-      routeLayerRef.current = null;
-      trackedLayerRef.current = null;
-      draftPointLayerRef.current = null;
-      vehicleMarkerRef.current = null;
+      markerRef.current = null;
+      setMapReady(false);
     };
-  }, [drawEnabled, editable, onMapAddPoint, tileTemplate]);
+  }, [drawEnabled, editable, onMapAddPoint]);
 
   useEffect(() => {
     const map = mapRef.current;
-    const routeLayer = routeLayerRef.current;
-    const trackedLayer = trackedLayerRef.current;
-    const draftLayer = draftPointLayerRef.current;
-    if (!map || !routeLayer || !trackedLayer || !draftLayer) {
+    if (!map || !mapReady) {
       return;
     }
 
-    routeLayer.clearLayers();
-    trackedLayer.clearLayers();
-    draftLayer.clearLayers();
+    map.getSource(PLANNED_SOURCE_ID)?.setData(toLineFeature(safePlannedPath));
+    map.getSource(TRACKED_SOURCE_ID)?.setData(toLineFeature(safeTrackedPath));
+    map.getSource(POINTS_SOURCE_ID)?.setData(toFeatureCollection(safePlannedPath));
 
-    const plannedLatLngs = (plannedPath ?? [])
-      .filter((point) => isFiniteCoordinate(point.latitude) && isFiniteCoordinate(point.longitude))
-      .map(toLatLng);
-    const trackedLatLngs = (trackedPath ?? [])
-      .filter((point) => isFiniteCoordinate(point.latitude) && isFiniteCoordinate(point.longitude))
-      .map(toLatLng);
+    const latestFeaturePoint =
+      latestPosition && isFiniteCoordinate(latestPosition.latitude) && isFiniteCoordinate(latestPosition.longitude)
+        ? { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) }
+        : safePlannedPath[0] ?? null;
 
-    if (plannedLatLngs.length) {
-      L.polyline(plannedLatLngs, {
-        color: "#ffffff",
-        weight: 18,
-        opacity: 0.94,
-        lineCap: "round",
-        lineJoin: "round"
-      }).addTo(routeLayer);
+    const bounds = new maplibregl.LngLatBounds();
+    [...safePlannedPath, ...safeTrackedPath].forEach((point) => bounds.extend(toCoordinate(point)));
+    if (latestFeaturePoint) {
+      bounds.extend(toCoordinate(latestFeaturePoint));
+    }
 
-      L.polyline(plannedLatLngs, {
-        color: "#1f5da9",
-        weight: 10,
-        opacity: 0.96,
-        lineCap: "round",
-        lineJoin: "round",
-        dashArray: editable ? "14 10" : null
-      }).addTo(routeLayer);
-
-      plannedLatLngs.forEach((latLng, index) => {
-        L.circleMarker(latLng, {
-          radius: index === 0 || index === plannedLatLngs.length - 1 ? 8 : 5,
-          color: "#ffffff",
-          weight: 2,
-          fillColor: index === plannedLatLngs.length - 1 ? "#f28c28" : "#1f5da9",
-          fillOpacity: 1
-        }).addTo(draftLayer);
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, {
+        padding: { top: 70, right: 40, bottom: 70, left: 40 },
+        duration: 0,
+        maxZoom: latestPosition ? LIVE_TRACK_ZOOM : 17.6
       });
     }
-
-    if (trackedLatLngs.length) {
-      L.polyline(trackedLatLngs, {
-        color: "rgba(34,165,82,0.28)",
-        weight: 18,
-        opacity: 1,
-        lineCap: "round",
-        lineJoin: "round"
-      }).addTo(trackedLayer);
-
-      L.polyline(trackedLatLngs, {
-        color: "#1eb356",
-        weight: 9,
-        opacity: 0.98,
-        lineCap: "round",
-        lineJoin: "round"
-      }).addTo(trackedLayer);
-    }
-
-    const allLatLngs = [...plannedLatLngs, ...trackedLatLngs];
-    if (!latestPosition && allLatLngs.length) {
-      const bounds = L.latLngBounds(allLatLngs);
-      map.fitBounds(bounds.pad(0.16), { animate: false, maxZoom: 17.5 });
-    }
-  }, [editable, focusKey, latestPosition, plannedPath, trackedPath]);
+  }, [focusKey, latestPosition, mapReady, safePlannedPath, safeTrackedPath]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !latestPosition || !isFiniteCoordinate(latestPosition.latitude) || !isFiniteCoordinate(latestPosition.longitude)) {
+    if (!map || !mapReady) {
       return;
     }
 
-    const currentPoint = {
-      latitude: Number(latestPosition.latitude),
-      longitude: Number(latestPosition.longitude)
-    };
-    const trackedPoints = (trackedPath ?? []).filter(
-      (point) => isFiniteCoordinate(point.latitude) && isFiniteCoordinate(point.longitude)
-    );
-    const previousTrackedPoint = trackedPoints.length >= 2 ? trackedPoints[trackedPoints.length - 2] : previousVehiclePointRef.current;
+    const currentPoint =
+      latestPosition && isFiniteCoordinate(latestPosition.latitude) && isFiniteCoordinate(latestPosition.longitude)
+        ? { latitude: Number(latestPosition.latitude), longitude: Number(latestPosition.longitude) }
+        : safePlannedPath[0] ?? null;
+
+    if (!currentPoint) {
+      markerRef.current?.remove();
+      markerRef.current = null;
+      return;
+    }
+
+    const previousTrackedPoint = safeTrackedPath.length >= 2
+      ? safeTrackedPath[safeTrackedPath.length - 2]
+      : previousVehiclePointRef.current;
     const heading = computeHeading(previousTrackedPoint, currentPoint);
+    const isOnRoute = latestPosition ? Boolean(latestPosition.is_on_route) : true;
 
-    if (!vehicleMarkerRef.current) {
-      vehicleMarkerRef.current = L.marker(toLatLng(currentPoint), {
-        icon: buildVehicleIcon(heading, Boolean(latestPosition.is_on_route)),
-        zIndexOffset: 2000
-      }).addTo(map);
+    if (!markerRef.current) {
+      const markerElement = buildVehicleElement({ isOnRoute, heading });
+      markerRef.current = new maplibregl.Marker({
+        element: markerElement,
+        anchor: "center"
+      })
+        .setLngLat(toCoordinate(currentPoint))
+        .addTo(map);
       previousVehiclePointRef.current = currentPoint;
-      map.setView(toLatLng(currentPoint), Math.max(map.getZoom(), LIVE_TRACK_ZOOM), { animate: false });
       return;
     }
+
+    paintVehicleElement(markerRef.current.getElement(), { isOnRoute, heading });
 
     const startPoint = previousVehiclePointRef.current ?? currentPoint;
-    const startLat = Number(startPoint.latitude);
-    const startLng = Number(startPoint.longitude);
-    const targetLat = Number(currentPoint.latitude);
-    const targetLng = Number(currentPoint.longitude);
     const startedAt = performance.now();
-    const duration = 1400;
-
-    vehicleMarkerRef.current.setIcon(buildVehicleIcon(heading, Boolean(latestPosition.is_on_route)));
+    const duration = latestPosition ? 1200 : 0;
 
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
 
     const animate = (now) => {
-      const progress = Math.min(1, (now - startedAt) / duration);
+      const progress = duration === 0 ? 1 : Math.min(1, (now - startedAt) / duration);
       const eased = 1 - ((1 - progress) ** 3);
-      const nextLat = startLat + ((targetLat - startLat) * eased);
-      const nextLng = startLng + ((targetLng - startLng) * eased);
+      const nextLongitude =
+        Number(startPoint.longitude) + ((Number(currentPoint.longitude) - Number(startPoint.longitude)) * eased);
+      const nextLatitude =
+        Number(startPoint.latitude) + ((Number(currentPoint.latitude) - Number(startPoint.latitude)) * eased);
 
-      vehicleMarkerRef.current?.setLatLng([nextLat, nextLng]);
-      if (!editable) {
-        map.panTo([nextLat, nextLng], { animate: false });
-        if (map.getZoom() < LIVE_TRACK_ZOOM) {
-          map.setZoom(LIVE_TRACK_ZOOM, { animate: false });
-        }
+      markerRef.current?.setLngLat([nextLongitude, nextLatitude]);
+
+      if (latestPosition && !editable) {
+        map.easeTo({
+          center: [nextLongitude, nextLatitude],
+          zoom: Math.max(map.getZoom(), LIVE_TRACK_ZOOM),
+          duration: 0
+        });
       }
 
       if (progress < 1) {
@@ -279,14 +381,18 @@ function TransportMap({
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-  }, [editable, latestPosition, trackedPath]);
+  }, [editable, latestPosition, mapReady, safePlannedPath, safeTrackedPath]);
 
   return (
     <div className="transport-map-shell">
-      <div ref={containerRef} className="map-canvas transport-map-canvas" />
+      <div ref={containerRef} className="transport-map-canvas transport-maplibre-canvas" />
       <div className="transport-map-chip">
         <strong>Zoom {zoomLevel.toFixed(2)}</strong>
-        <span>{drawEnabled ? "Haz clic para trazar la calle autorizada." : "La ruta va ancha en azul, el recorrido real en verde y el vehiculo se anima en vivo."}</span>
+        <span>
+          {drawEnabled
+            ? "Haz clic para trazar la calle autorizada."
+            : "Calles vectoriales, ruta autorizada ancha en azul y vehiculo visible aunque todavia no tenga reporte en vivo."}
+        </span>
       </div>
     </div>
   );

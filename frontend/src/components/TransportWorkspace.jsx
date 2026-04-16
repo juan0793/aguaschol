@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL, WS_URL } from "../config/api";
+import { WS_URL } from "../config/api";
 import { Icon } from "./Icon";
 import TransportMap from "./TransportMap";
 
@@ -650,7 +650,6 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
               </span>
             </div>
             <TransportMap
-              apiUrl={API_URL}
               drawEnabled={drawEnabled}
               editable={isAdmin}
               focusKey={`${selectedRoute?.id ?? "new"}:${selectedRoute?.tracked_path?.length ?? 0}:${routeForm.route_path.length}`}
