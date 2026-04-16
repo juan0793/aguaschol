@@ -79,7 +79,7 @@ export const createUser = async ({ full_name, email, role = "operator" }, actorU
   const pool = getPool();
   const cleanName = full_name?.trim();
   const cleanEmail = email?.trim().toLowerCase();
-  const cleanRole = role === "admin" ? "admin" : "operator";
+  const cleanRole = ["admin", "transport"].includes(role) ? role : "operator";
 
   if (!cleanName || !cleanEmail) {
     const error = new Error("Nombre completo y correo son obligatorios.");

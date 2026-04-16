@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   full_name VARCHAR(180) NOT NULL,
   email VARCHAR(180) NOT NULL UNIQUE,
   username VARCHAR(120) NOT NULL UNIQUE,
-  role ENUM('admin', 'operator') NOT NULL DEFAULT 'operator',
+  role ENUM('admin', 'operator', 'transport') NOT NULL DEFAULT 'operator',
   password_hash VARCHAR(255) NOT NULL,
   force_password_change TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -86,6 +86,49 @@ CREATE TABLE IF NOT EXISTS map_points (
     ON DELETE SET NULL,
   KEY idx_map_points_created_at (created_at),
   KEY idx_map_points_creator (created_by)
+);
+
+CREATE TABLE IF NOT EXISTS transport_routes (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(180) NOT NULL,
+  description TEXT NOT NULL,
+  status ENUM('draft', 'active', 'completed') NOT NULL DEFAULT 'draft',
+  assigned_user_id INT UNSIGNED NULL,
+  route_path_json LONGTEXT NOT NULL,
+  allowed_deviation_meters DECIMAL(8,2) NOT NULL DEFAULT 35.00,
+  started_at TIMESTAMP NULL DEFAULT NULL,
+  completed_at TIMESTAMP NULL DEFAULT NULL,
+  created_by INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_transport_routes_assigned_user
+    FOREIGN KEY (assigned_user_id) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_transport_routes_created_by
+    FOREIGN KEY (created_by) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  KEY idx_transport_routes_status (status),
+  KEY idx_transport_routes_assigned_user (assigned_user_id)
+);
+
+CREATE TABLE IF NOT EXISTS transport_route_positions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  route_id INT UNSIGNED NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  accuracy_meters DECIMAL(8,2) NULL DEFAULT NULL,
+  deviation_meters DECIMAL(8,2) NULL DEFAULT NULL,
+  is_on_route TINYINT(1) NOT NULL DEFAULT 1,
+  captured_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by INT UNSIGNED NULL,
+  CONSTRAINT fk_transport_route_positions_route
+    FOREIGN KEY (route_id) REFERENCES transport_routes(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_transport_route_positions_user
+    FOREIGN KEY (created_by) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  KEY idx_transport_route_positions_route (route_id, captured_at),
+  KEY idx_transport_route_positions_user (created_by)
 );
 
 INSERT INTO inmuebles_clandestinos (

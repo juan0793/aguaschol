@@ -117,6 +117,15 @@ const ensureColumn = async (connection, { tableName, columnName, definition }) =
   );
 };
 
+const ensureRoleEnum = async (connection) => {
+  await connection.query(
+    `
+      ALTER TABLE ${escapeIdentifier("app_users")}
+      MODIFY COLUMN ${escapeIdentifier("role")} ENUM('admin', 'operator', 'transport') NOT NULL DEFAULT 'operator'
+    `
+  );
+};
+
 const findLocalMariaDbBin = async () => {
   try {
     const entries = await fs.readdir(path.resolve(env.dbWorkspaceDir, "mariadb"), {
@@ -240,6 +249,7 @@ const ensureSchema = async () => {
 
     const schemaSql = await fs.readFile(schemaPath, "utf8");
     await admin.query(schemaSql);
+    await ensureRoleEnum(admin);
     await ensureColumn(admin, {
       tableName: "app_users",
       columnName: "full_name",
@@ -333,6 +343,26 @@ const ensureSchema = async () => {
     await ensureIndex(admin, {
       tableName: "map_points",
       indexName: "idx_map_points_creator",
+      columns: ["created_by"]
+    });
+    await ensureIndex(admin, {
+      tableName: "transport_routes",
+      indexName: "idx_transport_routes_status",
+      columns: ["status"]
+    });
+    await ensureIndex(admin, {
+      tableName: "transport_routes",
+      indexName: "idx_transport_routes_assigned_user",
+      columns: ["assigned_user_id"]
+    });
+    await ensureIndex(admin, {
+      tableName: "transport_route_positions",
+      indexName: "idx_transport_route_positions_route",
+      columns: ["route_id", "captured_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "transport_route_positions",
+      indexName: "idx_transport_route_positions_user",
       columns: ["created_by"]
     });
   } finally {

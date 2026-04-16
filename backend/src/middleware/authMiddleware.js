@@ -25,3 +25,11 @@ export const requireAdmin = (req, res, next) => {
 
   return next();
 };
+
+export const requireRoles = (...roles) => (req, res, next) => {
+  if (!roles.includes(req.authUser?.role)) {
+    return res.status(403).json({ message: "No tienes permisos para realizar esta accion." });
+  }
+
+  return next();
+};

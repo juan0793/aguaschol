@@ -64,7 +64,14 @@ export const buildPhotoUrl = (photoPath = "", version = "") => {
   return `${FILES_URL}${photoPath}${versionSuffix}`;
 };
 
-export const roleLabel = (role) => (role === "admin" ? "Administrador" : "Operador");
+export const roleLabel = (role) =>
+  (
+    {
+      admin: "Administrador",
+      transport: "Transporte",
+      operator: "Operador"
+    }[role] ?? "Operador"
+  );
 
 export const actionLabel = (action) =>
   (
@@ -76,6 +83,12 @@ export const actionLabel = (action) =>
       "padron.updated": "Padron actualizado",
       "map_point.created": "Punto de campo creado",
       "map_point.deleted": "Punto de campo eliminado",
+      "transport.route_created": "Ruta de transporte creada",
+      "transport.route_updated": "Ruta de transporte actualizada",
+      "transport.route_started": "Recorrido iniciado",
+      "transport.route_completed": "Recorrido completado",
+      "transport.position_logged": "Posicion registrada",
+      "transport.route_alert": "Desvio detectado",
       "inmueble.created": "Ficha creada",
       "inmueble.updated": "Ficha actualizada",
       "inmueble.archived": "Ficha archivada",

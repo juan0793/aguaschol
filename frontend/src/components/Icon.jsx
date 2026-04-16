@@ -21,6 +21,8 @@ const iconPaths = {
     "M9 18l6-6-6-6M5 12h10",
   map:
     "M12 21s7-4.4 7-10a7 7 0 1 0-14 0c0 5.6 7 10 7 10m0-7.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5",
+  transport:
+    "M4 8h11l2.2 2.2V16h-1.7a2.8 2.8 0 0 1-5.5 0H9.5a2.8 2.8 0 0 1-5.5 0H3V9a1 1 0 0 1 1-1m2.8 8.2a1.2 1.2 0 1 0-2.4 0 1.2 1.2 0 0 0 2.4 0m9.5 0a1.2 1.2 0 1 0-2.4 0 1.2 1.2 0 0 0 2.4 0",
   water:
     "M12 3.5c2.6 3 4.8 5.7 4.8 8.5A4.8 4.8 0 1 1 7.2 12c0-2.8 2.2-5.5 4.8-8.5",
   sewer:
@@ -69,6 +71,12 @@ export const actionIconName = (action) =>
       "padron.updated": "refresh",
       "map_point.created": "map",
       "map_point.deleted": "archive",
+      "transport.route_created": "transport",
+      "transport.route_updated": "transport",
+      "transport.route_started": "transport",
+      "transport.route_completed": "success",
+      "transport.position_logged": "map",
+      "transport.route_alert": "warning",
       "inmueble.created": "plus",
       "inmueble.updated": "records",
       "inmueble.archived": "archive",

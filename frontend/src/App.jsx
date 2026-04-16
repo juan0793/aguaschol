@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import FieldMap from "./components/FieldMap";
 import { Icon, actionIconName } from "./components/Icon";
+import TransportWorkspace from "./components/TransportWorkspace";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
 import {
@@ -96,6 +97,9 @@ const normalizeDashboardWidgetPrefs = (value) => {
   return { order, hidden };
 };
 
+const getWorkspaceViewByRole = (role) =>
+  role === "admin" ? "dashboard" : role === "transport" ? "transport" : "records";
+
 function App() {
   const sheetRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
@@ -160,9 +164,7 @@ function App() {
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
   );
   const [notifiedRecordAlerts, setNotifiedRecordAlerts] = useState(() => loadStoredRecordNotifications());
-  const [workspaceView, setWorkspaceView] = useState(() =>
-    session?.user?.role === "admin" ? "dashboard" : "records"
-  );
+  const [workspaceView, setWorkspaceView] = useState(() => getWorkspaceViewByRole(session?.user?.role));
   const [dashboardWidgetPrefs, setDashboardWidgetPrefs] = useState(() => {
     try {
       const saved = window.localStorage.getItem(DASHBOARD_WIDGET_STORAGE_KEY);
@@ -254,6 +256,7 @@ function App() {
         : "Ej. 16523";
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
+  const isTransport = session?.user?.role === "transport";
   const mustChangePassword = Boolean(session?.user?.force_password_change);
   const passwordModalVisible = isAuthenticated && (mustChangePassword || showPasswordModal);
   const safeRecords = Array.isArray(records) ? records : [];
@@ -350,6 +353,14 @@ function App() {
             title: "Reportes de levantamiento",
             lead: "Centro de reportes compacto para imprimir coordenadas, totales y zonas del trabajo levantado en campo.",
             kicker: "Reporte institucional"
+          },
+          transport: {
+            panelClass: "hero-panel-records",
+            cardClass: "search-card-records",
+            toplineLabel: "Monitoreo de transporte",
+            title: "Seguimiento del vehiculo recolector",
+            lead: "Traza la calle autorizada, ve el recorrido en verde y detecta a tiempo si el vehiculo se sale de la ruta.",
+            kicker: "Ruta supervisada"
           },
           requests: {
             panelClass: "hero-panel-users",
@@ -484,6 +495,26 @@ function App() {
       ];
     }
 
+    if (workspaceView === "transport") {
+      return [
+        {
+          icon: "transport",
+          label: "Modulo",
+          value: isAdmin ? "Control" : "Conductor"
+        },
+        {
+          icon: "map",
+          label: "Ruta",
+          value: isTransport ? "Asignada" : "Monitoreo"
+        },
+        {
+          icon: "activity",
+          label: "Estado",
+          value: "Tiempo real"
+        }
+      ];
+    }
+
     if (workspaceView === "requests") {
       return [
         {
@@ -537,6 +568,8 @@ function App() {
     padronRequestResult,
     loadingPadronRequest,
     uploadingPadron,
+    isAdmin,
+    isTransport,
     workspaceView
   ]);
   const isDirty = useMemo(() => {
@@ -751,6 +784,7 @@ function App() {
             { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
+            { key: "transport", section: "operacion", label: "Transporte", icon: "transport", meta: "Ruta y monitoreo", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
             { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
@@ -800,12 +834,15 @@ function App() {
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Tiempo real" },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
             { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
             { key: "padron", label: "Padron", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
           ]
+        : isTransport
+          ? [{ key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Ruta asignada" }]
         : [
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
@@ -819,10 +856,14 @@ function App() {
       safeAuditLogs.length,
       safeRecords.length,
       safeUsers.length,
-      visibleMapPoints.length
+      visibleMapPoints.length,
+      isTransport
     ]
   );
-  const mobilePrimaryModuleKeys = useMemo(() => ["records", "lookup", "map"], []);
+  const mobilePrimaryModuleKeys = useMemo(
+    () => (isTransport ? ["transport"] : ["records", "lookup", "map", "transport"]),
+    [isTransport]
+  );
   const primaryModuleNavigationItems = useMemo(
     () => moduleNavigationItems.filter((item) => mobilePrimaryModuleKeys.includes(item.key)),
     [mobilePrimaryModuleKeys, moduleNavigationItems]
@@ -1835,10 +1876,15 @@ function App() {
   }, [mapReportData.zones.length]);
 
   useEffect(() => {
-    if (isAuthenticated && !isAdmin && !["records", "lookup", "map"].includes(workspaceView)) {
+    if (isAuthenticated && isTransport && workspaceView !== "transport") {
+      setWorkspaceView("transport");
+      return;
+    }
+
+    if (isAuthenticated && !isAdmin && !isTransport && !["records", "lookup", "map"].includes(workspaceView)) {
       setWorkspaceView("records");
     }
-  }, [isAuthenticated, isAdmin, workspaceView]);
+  }, [isAuthenticated, isAdmin, isTransport, workspaceView]);
 
   useEffect(() => {
     setShowMobileModuleMenu(false);
@@ -3173,7 +3219,7 @@ function App() {
         new_password: "",
         confirm_password: ""
       });
-      setWorkspaceView("records");
+      setWorkspaceView(getWorkspaceViewByRole(data?.user?.role));
       setAlert(null);
     } catch (error) {
       showAlert(error.message);
@@ -5564,6 +5610,19 @@ function App() {
           ) : null}
         </section>
       </main>
+      ) : workspaceView === "transport" ? (
+      <main className="layout transport-layout-page">
+        <section className="preview-panel transport-preview-panel">
+          <TransportWorkspace
+            apiFetch={apiFetch}
+            clearSession={clearSession}
+            isActive={workspaceView === "transport" && isAuthenticated}
+            isAdmin={isAdmin}
+            session={session}
+            showAlert={showAlert}
+          />
+        </section>
+      </main>
       ) : workspaceView === "records" ? (
       <main className="layout">
         <aside className="sidebar no-print">
@@ -7603,6 +7662,7 @@ function App() {
                         <span>Perfil</span>
                         <select name="role" value={userForm.role} onChange={handleUserFormChange}>
                           <option value="operator">Operador</option>
+                          <option value="transport">Transporte</option>
                           <option value="admin">Administrador</option>
                         </select>
                       </label>
