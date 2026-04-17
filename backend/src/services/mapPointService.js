@@ -5,6 +5,7 @@ import XLSX from "xlsx";
 
 const memoryPoints = [];
 const DEFAULT_MARKER_COLOR = "#1576d1";
+const HONDURAS_TIME_ZONE = "America/Tegucigalpa";
 const normalizeMarkerColor = (value) => {
   const candidate = String(value ?? "").trim();
   return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : DEFAULT_MARKER_COLOR;
@@ -13,6 +14,21 @@ const buildMapsUrl = (latitude, longitude) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
 const formatExactPoint = (latitude, longitude) =>
   `${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`;
+const getLocalDiaryDateKey = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: HONDURAS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  return formatter.format(date);
+};
 const formatReportDate = (value) => {
   if (!value) return "--";
   const date = new Date(value);
@@ -21,6 +37,7 @@ const formatReportDate = (value) => {
   }
 
   return new Intl.DateTimeFormat("es-HN", {
+    timeZone: HONDURAS_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -73,7 +90,7 @@ export const listMapPoints = async ({ date = "" } = {}) => {
   const diaryDate = normalizeDiaryDate(date);
   if (env.useMemoryDb) {
     return [...memoryPoints]
-      .filter((point) => !diaryDate || String(point.created_at).startsWith(diaryDate))
+      .filter((point) => !diaryDate || point.diary_date === diaryDate || getLocalDiaryDateKey(point.created_at) === diaryDate)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
@@ -85,13 +102,12 @@ export const listMapPoints = async ({ date = "" } = {}) => {
         app_users.full_name AS created_by_name
       FROM map_points
       LEFT JOIN app_users ON app_users.id = map_points.created_by
-      ${diaryDate ? "WHERE DATE(map_points.created_at) = ?" : ""}
       ORDER BY map_points.created_at DESC
       LIMIT 500
     `,
-    diaryDate ? [diaryDate] : []
+    []
   );
-  return rows;
+  return rows.filter((point) => !diaryDate || point.diary_date === diaryDate || getLocalDiaryDateKey(point.created_at) === diaryDate);
 };
 
 const getSortedMapPoints = async (options = {}) =>
@@ -322,6 +338,7 @@ export const createMapPoint = async (payload, authUser) => {
       ...data,
       created_by: authUser?.id ?? null,
       created_by_name: authUser?.full_name ?? authUser?.username ?? "",
+      diary_date: getLocalDiaryDateKey(new Date()),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -333,9 +350,9 @@ export const createMapPoint = async (payload, authUser) => {
   const [result] = await pool.query(
     `
       INSERT INTO map_points (
-        point_type, latitude, longitude, accuracy_meters, description, reference_note, marker_color, is_terminal_point, created_by
+        point_type, latitude, longitude, accuracy_meters, description, reference_note, marker_color, is_terminal_point, created_by, diary_date
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.point_type,
@@ -346,7 +363,8 @@ export const createMapPoint = async (payload, authUser) => {
       data.reference_note,
       data.marker_color,
       data.is_terminal_point ? 1 : 0,
-      authUser?.id ?? null
+      authUser?.id ?? null,
+      getLocalDiaryDateKey(new Date())
     ]
   );
 

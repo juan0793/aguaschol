@@ -290,6 +290,18 @@ const ensureSchema = async () => {
       columnName: "is_terminal_point",
       definition: "TINYINT(1) NOT NULL DEFAULT 0"
     });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "diary_date",
+      definition: "DATE NULL DEFAULT NULL"
+    });
+    await admin.query(
+      `
+        UPDATE map_points
+        SET diary_date = DATE(created_at)
+        WHERE diary_date IS NULL
+      `
+    );
     await admin.query(
       `
         UPDATE audit_logs
@@ -344,6 +356,11 @@ const ensureSchema = async () => {
       tableName: "map_points",
       indexName: "idx_map_points_creator",
       columns: ["created_by"]
+    });
+    await ensureIndex(admin, {
+      tableName: "map_points",
+      indexName: "idx_map_points_diary_date",
+      columns: ["diary_date"]
     });
     await ensureIndex(admin, {
       tableName: "transport_routes",

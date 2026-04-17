@@ -265,7 +265,7 @@ function App() {
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
   const mapDiaryGroups = useMemo(() => {
     const groups = safeMapPoints.reduce((accumulator, point) => {
-      const key = getMapDiaryDateKey(point.created_at);
+      const key = getMapDiaryDateKey(point);
       if (!key) return accumulator;
       const current = accumulator.get(key) ?? { key, total: 0 };
       current.total += 1;
@@ -283,7 +283,7 @@ function App() {
     [mapDiaryDateKey, mapDiaryGroups]
   );
   const visibleMapPoints = useMemo(
-    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point.created_at) === activeMapDiaryDateKey),
+    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === activeMapDiaryDateKey),
     [activeMapDiaryDateKey, safeMapPoints]
   );
   const selectedMapPoint = visibleMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
@@ -353,6 +353,14 @@ function App() {
             title: "Reportes de levantamiento",
             lead: "Centro de reportes compacto para imprimir coordenadas, totales y zonas del trabajo levantado en campo.",
             kicker: "Reporte institucional"
+          },
+          mapAnalytics: {
+            panelClass: "hero-panel-logs",
+            cardClass: "search-card-users",
+            toplineLabel: "Analitica de campo",
+            title: "Estadisticas del levantamiento",
+            lead: "Graficos y lectura estadistica del trabajo de campo, separados del reporte institucional para no interferir con impresion.",
+            kicker: "Lectura ejecutiva"
           },
           transport: {
             panelClass: "hero-panel-records",
@@ -491,6 +499,26 @@ function App() {
           icon: "activity",
           label: "Estado",
           value: loadingMapPoints ? "Actualizando" : "Listo para imprimir"
+        }
+      ];
+    }
+
+    if (workspaceView === "mapAnalytics") {
+      return [
+        {
+          icon: "map",
+          label: "Puntos en jornada",
+          value: String(mapReportData.totalPoints)
+        },
+        {
+          icon: "records",
+          label: "Zonas",
+          value: String(mapReportData.totalZones)
+        },
+        {
+          icon: "activity",
+          label: "Analitica",
+          value: loadingMapPoints ? "Actualizando" : "Lista"
         }
       ];
     }
@@ -786,6 +814,7 @@ function App() {
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
             { key: "transport", section: "operacion", label: "Transporte", icon: "transport", meta: "Ruta y monitoreo", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
+            { key: "mapAnalytics", section: "control", label: "Estadisticas campo", icon: "dashboard", meta: `${mapReportData.totalPoints} puntos`, tone: "is-report" },
             { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
             { key: "padron", section: "control", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
@@ -795,6 +824,7 @@ function App() {
     [
       isAdmin,
       padronRequestResult?.summary?.total_registros,
+      mapReportData.totalPoints,
       mapReportData.totalZones,
       padronMeta?.total_records,
       safeAuditLogs.length,
@@ -836,6 +866,7 @@ function App() {
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Tiempo real" },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
+            { key: "mapAnalytics", label: "Estadisticas campo", icon: "dashboard", group: "control", helper: `${mapReportData.totalPoints} puntos` },
             { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
             { key: "padron", label: "Padron", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
@@ -851,6 +882,7 @@ function App() {
     [
       isAdmin,
       padronRequestResult?.summary?.total_registros,
+      mapReportData.totalPoints,
       mapReportData.totalZones,
       padronMeta?.total_records,
       safeAuditLogs.length,
@@ -930,7 +962,7 @@ function App() {
     [safeRecords, todayDateKey]
   );
   const mapPointsToday = useMemo(
-    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point.created_at) === todayDateKey).length,
+    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === todayDateKey).length,
     [safeMapPoints, todayDateKey]
   );
   const pendingPhotoRecords = useMemo(
@@ -953,6 +985,61 @@ function App() {
       zones: mapReportData.zones.slice(start, start + pageSize)
     };
   }, [mapReportData.zones, mapReportPage]);
+  const mapAnalyticsData = useMemo(() => {
+    const journeySeries = [...mapDiaryGroups]
+      .slice(0, 10)
+      .reverse()
+      .map((group) => ({
+        ...group,
+        label: formatMapDiaryLabel(group.key)
+      }));
+    const typeSeries = Object.entries(mapReportData.totalsByType)
+      .map(([label, total]) => ({ label, total }))
+      .sort((left, right) => right.total - left.total);
+    const zoneSeries = [...mapReportData.zones]
+      .sort((left, right) => right.total - left.total)
+      .slice(0, 8)
+      .map((zone) => ({
+        label: zone.zone,
+        total: zone.total,
+        accuracy: zone.averageAccuracy
+      }));
+    const accuracyBuckets = visibleMapPoints.reduce(
+      (accumulator, point) => {
+        const accuracy = Number(point.accuracy_meters);
+        if (!Number.isFinite(accuracy)) {
+          accumulator[3].total += 1;
+          return accumulator;
+        }
+        if (accuracy <= 5) {
+          accumulator[0].total += 1;
+          return accumulator;
+        }
+        if (accuracy <= 15) {
+          accumulator[1].total += 1;
+          return accumulator;
+        }
+        accumulator[2].total += 1;
+        return accumulator;
+      },
+      [
+        { label: "0 a 5 m", total: 0, tone: "is-good" },
+        { label: "6 a 15 m", total: 0, tone: "is-mid" },
+        { label: "Mas de 15 m", total: 0, tone: "is-warn" },
+        { label: "Sin dato", total: 0, tone: "is-empty" }
+      ]
+    );
+
+    return {
+      journeySeries,
+      typeSeries,
+      zoneSeries,
+      accuracyBuckets,
+      maxJourneyTotal: Math.max(1, ...journeySeries.map((item) => item.total)),
+      maxTypeTotal: Math.max(1, ...typeSeries.map((item) => item.total)),
+      maxZoneTotal: Math.max(1, ...zoneSeries.map((item) => item.total))
+    };
+  }, [mapDiaryGroups, mapReportData.totalsByType, mapReportData.zones, visibleMapPoints]);
   const dashboardMetrics = useMemo(
     () => [
       {
@@ -1029,6 +1116,7 @@ function App() {
     () => [
       { key: "lookup", label: "Buscar clave", helper: "Consulta rapida de padron", icon: "search" },
       { key: "mapReports", label: "Reportes campo", helper: "Revision institucional del levantamiento", icon: "map" },
+      { key: "mapAnalytics", label: "Estadisticas campo", helper: "Graficos y lectura ejecutiva", icon: "dashboard" },
       { key: "requests", label: "Peticiones", helper: "Listados especiales desde el padron", icon: "dashboard" },
       { key: "users", label: "Usuarios", helper: "Accesos, sesiones y roles", icon: "users" }
     ],
@@ -1855,13 +1943,13 @@ function App() {
   }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
-    if (isAuthenticated && ["map", "mapReports"].includes(workspaceView)) {
-      loadMapPoints();
-    }
+    if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
+        loadMapPoints();
+      }
   }, [isAuthenticated, workspaceView]);
 
   useEffect(() => {
-    if (workspaceView === "mapReports" && isAdmin) {
+    if (["mapReports", "mapAnalytics"].includes(workspaceView) && isAdmin) {
       loadMapPointContexts(visibleMapPoints);
     }
   }, [isAdmin, visibleMapPoints, workspaceView]);
@@ -6965,7 +7053,7 @@ function App() {
           </section>
         </main>
       ) : (
-        <main className={`admin-layout ${["logs", "mapReports", "requests"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
+        <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (
           <aside className="sidebar no-print">
             {workspaceView === "users" ? (
@@ -7038,7 +7126,7 @@ function App() {
           </aside>
           ) : null}
 
-          <section className={`admin-content ${["logs", "mapReports", "requests"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
+          <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
             {workspaceView === "mapReports" ? (
               <section className="preview-panel log-panel-full">
                 <div className="log-shell">
@@ -7424,6 +7512,191 @@ function App() {
                           <p>Cuando los tecnicos registren puntos en mapa de campo, este centro administrativo podra consolidarlos.</p>
                         </div>
                       )}
+                    </div>
+                  </article>
+                </div>
+              </section>
+            ) : workspaceView === "mapAnalytics" ? (
+              <section className="preview-panel log-panel-full">
+                <div className="log-shell">
+                  <div className="log-hero">
+                    <div className="admin-section-head">
+                      <div>
+                        <p className="sheet-kicker">Analitica de campo</p>
+                        <h2><Icon name="dashboard" className="title-icon" />Estadisticas del levantamiento</h2>
+                        <p className="workspace-title">
+                          Vista separada del reporte institucional para revisar tendencias, distribucion por zonas y calidad de captura.
+                        </p>
+                      </div>
+                      <span className="panel-pill">{formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                    </div>
+                    <div className="map-diary-strip map-diary-strip-report">
+                      <div className="map-diary-strip-head">
+                        <strong>Jornadas de bitacora</strong>
+                        <span>{formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                      </div>
+                      <div className="map-diary-tabs">
+                        {mapDiaryGroups.length ? (
+                          mapDiaryGroups.map((group) => (
+                            <button
+                              key={group.key}
+                              type="button"
+                              className={`map-diary-tab ${activeMapDiaryDateKey === group.key ? "is-active" : ""}`}
+                              onClick={() => setMapDiaryDateKey(group.key)}
+                            >
+                              <strong>{formatMapDiaryLabel(group.key)}</strong>
+                              <span>{group.total} puntos</span>
+                            </button>
+                          ))
+                        ) : (
+                          <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="log-summary-strip map-report-summary-strip">
+                      <div className="log-summary-card">
+                        <span>Total general</span>
+                        <strong>{mapReportData.totalPoints}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Zonas detectadas</span>
+                        <strong>{mapReportData.totalZones}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Tipos distintos</span>
+                        <strong>{mapAnalyticsData.typeSeries.length}</strong>
+                      </div>
+                      <div className="log-summary-card">
+                        <span>Contexto cercano</span>
+                        <strong>{loadingMapContexts ? "Buscando" : "Listo"}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <article className="document-sheet log-sheet map-analytics-sheet">
+                    <div className="map-report-office-head">
+                      <div className="map-report-brand">
+                        <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
+                        <div>
+                          <p className="sheet-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                          <h3>Centro estadistico de campo</h3>
+                          <p className="helper-text">Graficos operativos y metricas de la jornada seleccionada, aparte del formato imprimible.</p>
+                        </div>
+                      </div>
+                      <button type="button" className="button-secondary" onClick={() => setWorkspaceView("mapReports")}>
+                        <Icon name="records" />
+                        Ir al reporte institucional
+                      </button>
+                    </div>
+                    <div className="map-analytics-grid">
+                      <section className="document-block map-analytics-card">
+                        <div className="lookup-card-head map-card-head">
+                          <div>
+                            <p className="sheet-kicker">Tendencia</p>
+                            <h3>Jornadas recientes</h3>
+                          </div>
+                        </div>
+                        <div className="map-analytics-bar-list">
+                          {mapAnalyticsData.journeySeries.length ? (
+                            mapAnalyticsData.journeySeries.map((item) => (
+                              <div key={item.key} className="map-analytics-bar-row">
+                                <div className="map-analytics-bar-copy">
+                                  <strong>{item.label}</strong>
+                                  <span>{item.total} puntos</span>
+                                </div>
+                                <div className="map-analytics-bar-track">
+                                  <div
+                                    className="map-analytics-bar-fill is-journey"
+                                    style={{ width: `${(item.total / mapAnalyticsData.maxJourneyTotal) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="empty-state">
+                              <h3>Sin jornadas</h3>
+                              <p>Cuando haya levantamientos, aqui veras la tendencia por dia.</p>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                      <section className="document-block map-analytics-card">
+                        <div className="lookup-card-head map-card-head">
+                          <div>
+                            <p className="sheet-kicker">Distribucion</p>
+                            <h3>Tipos de punto</h3>
+                          </div>
+                        </div>
+                        <div className="map-analytics-bar-list">
+                          {mapAnalyticsData.typeSeries.length ? (
+                            mapAnalyticsData.typeSeries.map((item) => (
+                              <div key={item.label} className="map-analytics-bar-row">
+                                <div className="map-analytics-bar-copy">
+                                  <strong>{item.label}</strong>
+                                  <span>{item.total}</span>
+                                </div>
+                                <div className="map-analytics-bar-track">
+                                  <div
+                                    className="map-analytics-bar-fill is-type"
+                                    style={{ width: `${(item.total / mapAnalyticsData.maxTypeTotal) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="empty-state">
+                              <h3>Sin tipos</h3>
+                              <p>Aun no hay puntos en la jornada seleccionada.</p>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                      <section className="document-block map-analytics-card">
+                        <div className="lookup-card-head map-card-head">
+                          <div>
+                            <p className="sheet-kicker">Zonas</p>
+                            <h3>Mayor concentracion</h3>
+                          </div>
+                        </div>
+                        <div className="map-analytics-bar-list">
+                          {mapAnalyticsData.zoneSeries.length ? (
+                            mapAnalyticsData.zoneSeries.map((item) => (
+                              <div key={item.label} className="map-analytics-bar-row">
+                                <div className="map-analytics-bar-copy">
+                                  <strong>{item.label}</strong>
+                                  <span>{item.total} puntos · prec. {item.accuracy ?? "--"} m</span>
+                                </div>
+                                <div className="map-analytics-bar-track">
+                                  <div
+                                    className="map-analytics-bar-fill is-zone"
+                                    style={{ width: `${(item.total / mapAnalyticsData.maxZoneTotal) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="empty-state">
+                              <h3>Sin zonas</h3>
+                              <p>No hay zonas consolidadas todavia para esta jornada.</p>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                      <section className="document-block map-analytics-card">
+                        <div className="lookup-card-head map-card-head">
+                          <div>
+                            <p className="sheet-kicker">Calidad</p>
+                            <h3>Precision del levantamiento</h3>
+                          </div>
+                        </div>
+                        <div className="map-analytics-bucket-grid">
+                          {mapAnalyticsData.accuracyBuckets.map((bucket) => (
+                            <div key={bucket.label} className={`map-analytics-bucket ${bucket.tone}`}>
+                              <span>{bucket.label}</span>
+                              <strong>{bucket.total}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
                     </div>
                   </article>
                 </div>
