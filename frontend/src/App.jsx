@@ -737,72 +737,82 @@ function App() {
     [form.id, recordDeadlineMetaById]
   );
   const mapReportData = useMemo(() => {
-    const points = [...visibleMapPoints].sort((left, right) => {
-      const leftContext = mapPointContexts[getMapPointContextKey(left)] ?? null;
-      const rightContext = mapPointContexts[getMapPointContextKey(right)] ?? null;
-      const leftZone = leftContext?.zone || deriveMapPointZone(left);
-      const rightZone = rightContext?.zone || deriveMapPointZone(right);
-      const zoneDiff = leftZone.localeCompare(rightZone, "es");
-      if (zoneDiff !== 0) return zoneDiff;
-      return new Date(right.created_at) - new Date(left.created_at);
-    });
-
-    const zoneMap = new Map();
-    const totalsByType = points.reduce((totals, point) => {
-      const typeLabel = getMapPointTypeLabel(point.point_type);
-      totals[typeLabel] = (totals[typeLabel] ?? 0) + 1;
-      return totals;
-    }, {});
-
-    points.forEach((point) => {
-      const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-      const zone = context?.zone || deriveMapPointZone(point);
-      const current = zoneMap.get(zone) ?? {
-        zone,
-        total: 0,
-        items: [],
-        accuracyValues: [],
-        pointTypes: new Set(),
-        nearbyReferences: new Set(),
-        locationHints: new Set()
-      };
-
-      current.total += 1;
-      current.items.push({
-        ...point,
-        suggested_zone: context?.zone || "",
-        suggested_reference: context?.reference || "",
-        suggested_display_name: context?.display_name || ""
+    try {
+      const points = [...visibleMapPoints].sort((left, right) => {
+        const leftContext = mapPointContexts[getMapPointContextKey(left)] ?? null;
+        const rightContext = mapPointContexts[getMapPointContextKey(right)] ?? null;
+        const leftZone = String(leftContext?.zone || deriveMapPointZone(left) || "Zona no especificada");
+        const rightZone = String(rightContext?.zone || deriveMapPointZone(right) || "Zona no especificada");
+        const zoneDiff = leftZone.localeCompare(rightZone, "es");
+        if (zoneDiff !== 0) return zoneDiff;
+        return new Date(right.created_at) - new Date(left.created_at);
       });
-      current.pointTypes.add(getMapPointTypeLabel(point.point_type));
-      if (context?.reference) {
-        current.nearbyReferences.add(context.reference);
-      }
-      if (context?.display_name) {
-        current.locationHints.add(context.display_name);
-      }
-      if (Number.isFinite(Number(point.accuracy_meters))) {
-        current.accuracyValues.push(Number(point.accuracy_meters));
-      }
-      zoneMap.set(zone, current);
-    });
 
-    const zones = Array.from(zoneMap.values()).map((zone) => ({
-      ...zone,
-      averageAccuracy: zone.accuracyValues.length
-        ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
-        : null,
-      pointTypesLabel: Array.from(zone.pointTypes).join(", "),
-      nearbyReferencesLabel: Array.from(zone.nearbyReferences).slice(0, 3).join(" | "),
-      primaryLocationLabel: Array.from(zone.locationHints)[0] || ""
-    }));
+      const zoneMap = new Map();
+      const totalsByType = points.reduce((totals, point) => {
+        const typeLabel = getMapPointTypeLabel(point.point_type);
+        totals[typeLabel] = (totals[typeLabel] ?? 0) + 1;
+        return totals;
+      }, {});
 
-    return {
-      totalPoints: points.length,
-      totalZones: zones.length,
-      totalsByType,
-      zones
-    };
+      points.forEach((point) => {
+        const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
+        const zone = String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+        const current = zoneMap.get(zone) ?? {
+          zone,
+          total: 0,
+          items: [],
+          accuracyValues: [],
+          pointTypes: new Set(),
+          nearbyReferences: new Set(),
+          locationHints: new Set()
+        };
+
+        current.total += 1;
+        current.items.push({
+          ...point,
+          suggested_zone: context?.zone || "",
+          suggested_reference: context?.reference || "",
+          suggested_display_name: context?.display_name || ""
+        });
+        current.pointTypes.add(getMapPointTypeLabel(point.point_type));
+        if (context?.reference) {
+          current.nearbyReferences.add(context.reference);
+        }
+        if (context?.display_name) {
+          current.locationHints.add(context.display_name);
+        }
+        if (Number.isFinite(Number(point.accuracy_meters))) {
+          current.accuracyValues.push(Number(point.accuracy_meters));
+        }
+        zoneMap.set(zone, current);
+      });
+
+      const zones = Array.from(zoneMap.values()).map((zone) => ({
+        ...zone,
+        averageAccuracy: zone.accuracyValues.length
+          ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
+          : null,
+        pointTypesLabel: Array.from(zone.pointTypes).join(", "),
+        nearbyReferencesLabel: Array.from(zone.nearbyReferences).slice(0, 3).join(" | "),
+        primaryLocationLabel: Array.from(zone.locationHints)[0] || ""
+      }));
+
+      return {
+        totalPoints: points.length,
+        totalZones: zones.length,
+        totalsByType,
+        zones
+      };
+    } catch (error) {
+      console.error("mapReportData failed", error);
+      return {
+        totalPoints: Array.isArray(visibleMapPoints) ? visibleMapPoints.length : 0,
+        totalZones: 0,
+        totalsByType: {},
+        zones: []
+      };
+    }
   }, [mapPointContexts, visibleMapPoints]);
   const adminWorkspaceItems = useMemo(
     () =>
@@ -5250,6 +5260,38 @@ function App() {
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
                   Imprimir reporte
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contrasena
+                </button>
+              </div>
+            </div>
+          ) : workspaceView === "mapAnalytics" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                Panel separado para revisar tendencias, zonas y precision del levantamiento sin interferir con el reporte institucional.
+              </p>
+              <div className="map-diary-summary">
+                <span className="panel-pill">Bitacora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                <span className="helper-text">{mapReportData.totalPoints} puntos en la jornada y {mapReportData.totalZones} zonas consolidadas.</span>
+              </div>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
+                  <Icon name="refresh" />
+                  {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
+                </button>
+                <button type="button" className="button-secondary" onClick={() => loadMapPointContexts(visibleMapPoints)} disabled={loadingMapContexts}>
+                  <Icon name="map" />
+                  {loadingMapContexts ? "Ubicando zonas..." : "Actualizar zonas"}
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("mapReports")}>
+                  <Icon name="records" />
+                  Ir al reporte
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
