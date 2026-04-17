@@ -29,8 +29,22 @@ export const formatDateTime = (value) => {
 
 export const getMapDiaryDateKey = (value) => {
   if (!value) return "";
-  if (typeof value === "object" && typeof value.diary_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.diary_date)) {
-    return value.diary_date;
+  if (typeof value === "object" && value !== null) {
+    if (typeof value.diary_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.diary_date)) {
+      return value.diary_date;
+    }
+    if (value.diary_date instanceof Date) {
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: HONDURAS_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+      return formatter.format(value.diary_date);
+    }
+    if (value.created_at) {
+      return getMapDiaryDateKey(value.created_at);
+    }
   }
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
     return value.trim();
