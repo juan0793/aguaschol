@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import FieldMap from "./components/FieldMap";
+import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import TransportWorkspace from "./components/TransportWorkspace";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
@@ -7559,6 +7560,17 @@ function App() {
                 </div>
               </section>
             ) : workspaceView === "mapAnalytics" ? (
+              <FieldAnalyticsPanel
+                activeDateLabel={formatMapDiaryLabel(activeMapDiaryDateKey)}
+                loadingMapContexts={loadingMapContexts}
+                loadingMapPoints={loadingMapPoints}
+                mapAnalyticsData={mapAnalyticsData}
+                mapReportData={mapReportData}
+                onBackToReport={() => setWorkspaceView("mapReports")}
+                onRefreshPoints={() => loadMapPoints()}
+                onRefreshZones={() => loadMapPointContexts(visibleMapPoints)}
+              />
+            ) : workspaceView === "mapAnalyticsLegacyDisabled" ? (
               <section className="preview-panel log-panel-full">
                 <div className="log-shell">
                   <div className="log-hero">
