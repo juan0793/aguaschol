@@ -99,7 +99,7 @@ const normalizeDashboardWidgetPrefs = (value) => {
 };
 
 const getWorkspaceViewByRole = (role) =>
-  role === "admin" ? "requests" : role === "transport" ? "transport" : "records";
+  role === "admin" ? "dashboard" : role === "transport" ? "transport" : "records";
 
 function App() {
   const sheetRef = useRef(null);
@@ -819,19 +819,29 @@ function App() {
     () =>
       isAdmin
         ? [
-            {
-              key: "requests",
-              section: "control",
-              label: "Peticiones",
-              icon: "dashboard",
-              meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`,
-              tone: "is-report"
-            }
+            { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
+            { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
+            { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
+            { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
+            { key: "transport", section: "operacion", label: "Transporte", icon: "transport", meta: "Ruta y monitoreo", tone: "is-map" },
+            { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
+            { key: "mapAnalytics", section: "control", label: "Estadisticas campo", icon: "dashboard", meta: `${mapReportData.totalPoints} puntos`, tone: "is-report" },
+            { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
+            { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
+            { key: "padron", section: "control", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
+            { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
           ]
         : [],
     [
       isAdmin,
-      padronRequestResult?.summary?.total_registros
+      padronRequestResult?.summary?.total_registros,
+      mapReportData.totalPoints,
+      mapReportData.totalZones,
+      padronMeta?.total_records,
+      safeAuditLogs.length,
+      safeMapPoints.length,
+      safeRecords.length,
+      safeUsers.length
     ]
   );
   const adminWorkspaceSections = useMemo(() => {
@@ -862,13 +872,16 @@ function App() {
     () =>
       (isAdmin
         ? [
-            {
-              key: "requests",
-              label: "Peticiones",
-              icon: "dashboard",
-              group: "control",
-              helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas`
-            }
+            { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
+            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
+            { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Tiempo real" },
+            { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
+            { key: "mapAnalytics", label: "Estadisticas campo", icon: "dashboard", group: "control", helper: `${mapReportData.totalPoints} puntos` },
+            { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
+            { key: "padron", label: "Padron", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
+            { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
+            { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
           ]
         : isTransport
           ? [{ key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Ruta asignada" }]
@@ -880,14 +893,19 @@ function App() {
     [
       isAdmin,
       padronRequestResult?.summary?.total_registros,
+      mapReportData.totalPoints,
+      mapReportData.totalZones,
+      padronMeta?.total_records,
+      safeAuditLogs.length,
       safeRecords.length,
+      safeUsers.length,
       visibleMapPoints.length,
       isTransport
     ]
   );
   const mobilePrimaryModuleKeys = useMemo(
-    () => (isAdmin ? ["requests"] : isTransport ? ["transport"] : ["records", "lookup", "map", "transport"]),
-    [isAdmin, isTransport]
+    () => (isTransport ? ["transport"] : ["records", "lookup", "map", "transport"]),
+    [isTransport]
   );
   const primaryModuleNavigationItems = useMemo(
     () => moduleNavigationItems.filter((item) => mobilePrimaryModuleKeys.includes(item.key)),
@@ -1957,11 +1975,6 @@ function App() {
   }, [mapReportData.zones.length]);
 
   useEffect(() => {
-    if (isAuthenticated && isAdmin && workspaceView !== "requests") {
-      setWorkspaceView("requests");
-      return;
-    }
-
     if (isAuthenticated && isTransport && workspaceView !== "transport") {
       setWorkspaceView("transport");
       return;
@@ -4862,7 +4875,7 @@ function App() {
           </div>
         </div>
 
-        <div className={`search-card ${headerMeta.cardClass}`}>
+        <div className={`search-card ${headerMeta.cardClass} ${workspaceView === "requests" ? "is-hidden" : ""}`}>
           <div className="search-card-head">
             <label htmlFor="search">{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</label>
             <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>

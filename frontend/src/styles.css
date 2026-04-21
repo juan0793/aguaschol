@@ -5600,6 +5600,10 @@ textarea {
   gap: 1rem;
 }
 
+.search-card.is-hidden {
+  display: none;
+}
+
 .request-helper-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
