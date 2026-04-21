@@ -99,7 +99,7 @@ const normalizeDashboardWidgetPrefs = (value) => {
 };
 
 const getWorkspaceViewByRole = (role) =>
-  role === "admin" ? "dashboard" : role === "transport" ? "transport" : "records";
+  role === "admin" ? "requests" : role === "transport" ? "transport" : "records";
 
 function App() {
   const sheetRef = useRef(null);
@@ -819,29 +819,19 @@ function App() {
     () =>
       isAdmin
         ? [
-            { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
-            { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
-            { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
-            { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
-            { key: "transport", section: "operacion", label: "Transporte", icon: "transport", meta: "Ruta y monitoreo", tone: "is-map" },
-            { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
-            { key: "mapAnalytics", section: "control", label: "Estadisticas campo", icon: "dashboard", meta: `${mapReportData.totalPoints} puntos`, tone: "is-report" },
-            { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
-            { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
-            { key: "padron", section: "control", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
-            { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
+            {
+              key: "requests",
+              section: "control",
+              label: "Peticiones",
+              icon: "dashboard",
+              meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`,
+              tone: "is-report"
+            }
           ]
         : [],
     [
       isAdmin,
-      padronRequestResult?.summary?.total_registros,
-      mapReportData.totalPoints,
-      mapReportData.totalZones,
-      padronMeta?.total_records,
-      safeAuditLogs.length,
-      safeMapPoints.length,
-      safeRecords.length,
-      safeUsers.length
+      padronRequestResult?.summary?.total_registros
     ]
   );
   const adminWorkspaceSections = useMemo(() => {
@@ -872,16 +862,13 @@ function App() {
     () =>
       (isAdmin
         ? [
-            { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
-            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
-            { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
-            { key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Tiempo real" },
-            { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
-            { key: "mapAnalytics", label: "Estadisticas campo", icon: "dashboard", group: "control", helper: `${mapReportData.totalPoints} puntos` },
-            { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
-            { key: "padron", label: "Padron", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
-            { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
-            { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
+            {
+              key: "requests",
+              label: "Peticiones",
+              icon: "dashboard",
+              group: "control",
+              helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas`
+            }
           ]
         : isTransport
           ? [{ key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Ruta asignada" }]
@@ -893,19 +880,14 @@ function App() {
     [
       isAdmin,
       padronRequestResult?.summary?.total_registros,
-      mapReportData.totalPoints,
-      mapReportData.totalZones,
-      padronMeta?.total_records,
-      safeAuditLogs.length,
       safeRecords.length,
-      safeUsers.length,
       visibleMapPoints.length,
       isTransport
     ]
   );
   const mobilePrimaryModuleKeys = useMemo(
-    () => (isTransport ? ["transport"] : ["records", "lookup", "map", "transport"]),
-    [isTransport]
+    () => (isAdmin ? ["requests"] : isTransport ? ["transport"] : ["records", "lookup", "map", "transport"]),
+    [isAdmin, isTransport]
   );
   const primaryModuleNavigationItems = useMemo(
     () => moduleNavigationItems.filter((item) => mobilePrimaryModuleKeys.includes(item.key)),
@@ -1975,6 +1957,11 @@ function App() {
   }, [mapReportData.zones.length]);
 
   useEffect(() => {
+    if (isAuthenticated && isAdmin && workspaceView !== "requests") {
+      setWorkspaceView("requests");
+      return;
+    }
+
     if (isAuthenticated && isTransport && workspaceView !== "transport") {
       setWorkspaceView("transport");
       return;
@@ -7762,9 +7749,9 @@ function App() {
                     <div className="admin-section-head">
                       <div>
                         <p className="sheet-kicker">Peticiones al padron</p>
-                        <h2><Icon name="dashboard" className="title-icon" />Centro de solicitudes administrativas</h2>
+                        <h2><Icon name="dashboard" className="title-icon" />Menu de peticiones</h2>
                         <p className="workspace-title">
-                          Genera listados institucionales desde el padron maestro con estructura clara, agrupacion por barrio y salida lista para impresion o PDF.
+                          Prepara reportes desde el padron maestro con una sola vista de trabajo: eliges la plantilla, ajustas criterios y generas el listado listo para imprimir o exportar.
                         </p>
                       </div>
                       <span className="panel-pill">{padronRequestResult?.summary?.total_registros ?? 0} filas</span>
@@ -7787,6 +7774,22 @@ function App() {
                         <strong>{loadingPadronRequest ? "Generando" : loadingPadronRequestMeta ? "Cargando" : "Listo"}</strong>
                       </div>
                     </div>
+                    <div className="request-helper-strip">
+                      <div className="request-helper-card">
+                        <span className="sheet-kicker">Flujo rapido</span>
+                        <strong>1. Plantilla  2. Ajuste  3. Generar</strong>
+                        <p>Todo el trabajo queda concentrado aqui para que el operador no tenga que navegar a otros modulos.</p>
+                      </div>
+                      <div className="request-helper-card">
+                        <span className="sheet-kicker">Ejemplos utiles</span>
+                        <div className="request-example-list">
+                          <span className="request-example-chip">apart, apto, aptos</span>
+                          <span className="request-example-chip">barrio:centro</span>
+                          <span className="request-example-chip">abonado:12345</span>
+                          <span className="request-example-chip">-hotel</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <article className="document-sheet log-sheet request-sheet">
                     <div className="map-report-office-head request-office-head">
@@ -7794,8 +7797,8 @@ function App() {
                         <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
                         <div>
                           <p className="sheet-kicker">Aguas de Choluteca, S.A. de C.V.</p>
-                          <h3>Centro de peticiones al padron</h3>
-                          <p className="helper-text">Listados administrados por solicitud, con formato de oficina y detalle agrupado.</p>
+                          <h3>Constructor de peticiones</h3>
+                          <p className="helper-text">Diseñado para abrir, configurar y entregar solicitudes desde un unico espacio.</p>
                         </div>
                       </div>
                       <div className="request-download-row">
@@ -7867,7 +7870,10 @@ function App() {
                           />
                         </label>
                         <p className="helper-text">
-                          Usa comas para separar criterios. Esta primera plantilla viene pensada para salud, pero puedes reutilizarla para futuras peticiones.
+                          Usa comas para separar criterios. La plantilla base esta orientada a apartamentos, pero puedes ajustarla para cualquier otra peticion.
+                        </p>
+                        <p className="helper-text">
+                          Tambien puedes usar filtros avanzados como <strong>barrio:centro</strong>, <strong>clave:001-02</strong>, <strong>abonado:12345</strong> o excluir con <strong>-hotel</strong>.
                         </p>
                         <p className="helper-text">
                           La columna <strong>Tarifa</strong> se toma del valor base registrado en el padron maestro.
@@ -7883,7 +7889,7 @@ function App() {
                       <article className="document-block request-preview-card">
                         <div className="admin-section-head">
                           <div>
-                            <p className="sheet-kicker">Resumen ejecutivo</p>
+                            <p className="sheet-kicker">Vista previa</p>
                             <h3>{padronRequestResult?.request?.title || "Sin peticion generada"}</h3>
                           </div>
                           <span className="panel-pill">{padronRequestResult?.summary?.total_barrios ?? 0} barrios</span>
@@ -7901,6 +7907,30 @@ function App() {
                             <span>Total con interes</span>
                             <strong>{formatCurrency(padronRequestResult?.summary?.total_con_interes ?? 0)}</strong>
                           </div>
+                        </div>
+                        <div className="request-criteria-panel">
+                          <div className="request-criteria-group">
+                            <span>Criterios incluidos</span>
+                            <div className="request-example-list">
+                              {(padronRequestResult?.request?.criteria?.include || padronRequestResult?.request?.keywords || []).length ? (
+                                (padronRequestResult?.request?.criteria?.include || padronRequestResult?.request?.keywords || []).map((item) => (
+                                  <span key={`include-${item}`} className="request-example-chip is-include">{item}</span>
+                                ))
+                              ) : (
+                                <span className="request-example-chip is-empty">Sin criterios todavia</span>
+                              )}
+                            </div>
+                          </div>
+                          {(padronRequestResult?.request?.criteria?.exclude || []).length ? (
+                            <div className="request-criteria-group">
+                              <span>Criterios excluidos</span>
+                              <div className="request-example-list">
+                                {padronRequestResult.request.criteria.exclude.map((item) => (
+                                  <span key={`exclude-${item}`} className="request-example-chip is-exclude">{item}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                         <p className="helper-text request-keyword-line">
                           Palabras clave activas: {(padronRequestResult?.request?.keywords || []).join(", ") || "--"}

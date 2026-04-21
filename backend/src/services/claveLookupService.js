@@ -201,6 +201,8 @@ const normalizeMasterRows = (rows = []) =>
             desechos_peligrosos: normalizeServiceFlag(item?.desechos_peligrosos ?? item?.bomb),
             search_name: normalizeLookupText(`${inquilino} ${nombre}`),
             search_abonado: normalizeLookupText(abonado),
+            search_barrio: normalizeLookupText(barrioColonia),
+            search_target: normalizeLookupText(`${inquilino} ${nombre} ${abonado} ${clave} ${barrioColonia}`),
             valor,
             intereses,
             total: Number((valor + intereses).toFixed(2))
@@ -311,6 +313,13 @@ let masterMeta = readJsonFile(maestroMetaPath, {
 
 const PADRON_REQUEST_TEMPLATES = [
   {
+    id: "apartamentos",
+    label: "Apartamentos",
+    description: "Apartamentos y unidades habitacionales agrupadas por barrio para control administrativo.",
+    title: "Reporte general de apartamentos",
+    keywords: ["apart", "apartamento", "apartamentos", "apto", "aptos"]
+  },
+  {
     id: "salud",
     label: "Salud",
     description: "Clinicas, hospitales, odontologia y laboratorios agrupados por barrio.",
@@ -378,24 +387,111 @@ const PADRON_REQUEST_TEMPLATES = [
 ];
 
 const buildRequestSearchTarget = (item = {}) =>
-  normalizeLookupText([item.inquilino, item.nombre].filter(Boolean).join(" "));
+  normalizeLookupText([item.inquilino, item.nombre, item.barrio_colonia, item.abonado, item.clave_catastral].filter(Boolean).join(" "));
 
-const normalizeRequestKeywords = (keywords = []) =>
-  [...new Set(
-    (Array.isArray(keywords) ? keywords : [])
-      .map((keyword) => normalizeLookupText(keyword))
-      .filter((keyword) => keyword.length >= 2)
-  )];
+const REQUEST_FIELD_ALIASES = {
+  any: "any",
+  texto: "any",
+  general: "any",
+  nombre: "name",
+  inquilino: "name",
+  titular: "name",
+  abonado: "abonado",
+  cuenta: "abonado",
+  clave: "clave",
+  catastral: "clave",
+  barrio: "barrio",
+  colonia: "barrio",
+  ubicacion: "barrio"
+};
+
+const stripWrappedQuotes = (value = "") => {
+  const trimmed = String(value ?? "").trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+};
+
+const parseRequestKeyword = (keyword = "") => {
+  const raw = String(keyword ?? "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  const isExclude = raw.startsWith("-");
+  const unsignedRaw = (isExclude ? raw.slice(1) : raw).trim();
+  if (!unsignedRaw) {
+    return null;
+  }
+
+  const fieldMatch = unsignedRaw.match(/^([a-zA-Z_áéíóúñÁÉÍÓÚÑ]+)\s*:\s*(.+)$/);
+  const rawField = fieldMatch?.[1] ? normalizeLookupText(fieldMatch[1]) : "any";
+  const field = REQUEST_FIELD_ALIASES[rawField] || "any";
+  const rawTerm = fieldMatch?.[2] ?? unsignedRaw;
+  const term = normalizeLookupText(stripWrappedQuotes(rawTerm));
+
+  if (term.length < 2) {
+    return null;
+  }
+
+  return {
+    raw,
+    mode: isExclude ? "exclude" : "include",
+    field,
+    term
+  };
+};
+
+const normalizeRequestKeywords = (keywords = []) => {
+  const uniqueMap = new Map();
+
+  (Array.isArray(keywords) ? keywords : []).forEach((keyword) => {
+    const parsed = parseRequestKeyword(keyword);
+    if (!parsed) {
+      return;
+    }
+
+    const dedupeKey = `${parsed.mode}:${parsed.field}:${parsed.term}`;
+    if (!uniqueMap.has(dedupeKey)) {
+      uniqueMap.set(dedupeKey, parsed);
+    }
+  });
+
+  return Array.from(uniqueMap.values());
+};
+
+const matchRequestCriterion = (item, criterion) => {
+  const fields = {
+    any: item.search_target || buildRequestSearchTarget(item),
+    name: item.search_name || normalizeLookupText([item.inquilino, item.nombre].filter(Boolean).join(" ")),
+    abonado: item.search_abonado || normalizeLookupText(item.abonado),
+    clave: normalizeLookupText(item.clave_catastral),
+    barrio: item.search_barrio || normalizeLookupText(item.barrio_colonia)
+  };
+
+  const target = fields[criterion.field] || fields.any;
+  return target.includes(criterion.term);
+};
 
 const buildPadronRequestRows = (keywords = []) => {
-  const normalizedKeywords = normalizeRequestKeywords(keywords);
+  const criteria = normalizeRequestKeywords(keywords);
+  const includeCriteria = criteria.filter((criterion) => criterion.mode === "include");
+  const excludeCriteria = criteria.filter((criterion) => criterion.mode === "exclude");
 
   const rows = sortByClave(
     masterRecords
       .map((item) => {
-        const searchTarget = item.search_target || buildRequestSearchTarget(item);
-        const matchedKeywords = normalizedKeywords.filter((keyword) => searchTarget.includes(keyword));
-        if (!matchedKeywords.length) {
+        const matchedIncludeCriteria = includeCriteria.filter((criterion) => matchRequestCriterion(item, criterion));
+        if (!matchedIncludeCriteria.length) {
+          return null;
+        }
+
+        const matchedExcludeCriteria = excludeCriteria.filter((criterion) => matchRequestCriterion(item, criterion));
+        if (matchedExcludeCriteria.length) {
           return null;
         }
 
@@ -407,7 +503,8 @@ const buildPadronRequestRows = (keywords = []) => {
           tarifa: Number(item.valor ?? 0),
           intereses: Number(item.intereses ?? 0),
           total: Number(item.total ?? 0),
-          matched_keywords: matchedKeywords
+          matched_keywords: matchedIncludeCriteria.map((criterion) => criterion.raw),
+          excluded_by: matchedExcludeCriteria.map((criterion) => criterion.raw)
         };
       })
       .filter(Boolean)
@@ -600,10 +697,13 @@ export const searchClaveCatastral = async (value, options = {}) => {
 export const generatePadronRequestReport = async (payload = {}) => {
   const presetId = String(payload.preset_id ?? "").trim();
   const template = PADRON_REQUEST_TEMPLATES.find((item) => item.id === presetId) ?? null;
-  const customKeywords = normalizeRequestKeywords(payload.keywords ?? []);
-  const keywords = customKeywords.length ? customKeywords : template?.keywords ?? [];
+  const providedKeywords = Array.isArray(payload.keywords) ? payload.keywords : [];
+  const customKeywords = normalizeRequestKeywords(providedKeywords);
+  const templateKeywords = template?.keywords ?? [];
+  const keywords = customKeywords.length ? customKeywords.map((item) => item.raw) : templateKeywords;
+  const parsedCriteria = normalizeRequestKeywords(keywords);
 
-  if (!keywords.length) {
+  if (!parsedCriteria.some((criterion) => criterion.mode === "include")) {
     const error = new Error("Debes indicar al menos una palabra clave para generar la peticion.");
     error.status = 400;
     throw error;
@@ -620,7 +720,11 @@ export const generatePadronRequestReport = async (payload = {}) => {
       description:
         String(payload.description ?? template?.description ?? "").trim() ||
         "Consulta administrativa filtrada desde el padron maestro.",
-      keywords
+      keywords,
+      criteria: {
+        include: parsedCriteria.filter((criterion) => criterion.mode === "include").map((criterion) => criterion.raw),
+        exclude: parsedCriteria.filter((criterion) => criterion.mode === "exclude").map((criterion) => criterion.raw)
+      }
     },
     summary,
     rows

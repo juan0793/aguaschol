@@ -42,11 +42,11 @@ export const defaultMapReportStaff = {
 };
 
 export const defaultPadronRequestForm = {
-  preset_id: "salud",
-  title: "Listado institucional de establecimientos de salud",
+  preset_id: "apartamentos",
+  title: "Reporte general de apartamentos",
   description:
-    "Clinicas, hospitales, odontologia y laboratorios agrupados por barrio para control administrativo.",
-  keywords: "clinica, hospital, odont, dental, laborat, policlinica, salud, medic"
+    "Apartamentos y unidades habitacionales identificadas en el padron maestro, agrupadas por barrio para control administrativo.",
+  keywords: "apart, apartamento, apartamentos, apto, aptos"
 };
 
 export const emptyForm = {
