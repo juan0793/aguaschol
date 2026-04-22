@@ -3236,6 +3236,9 @@ function App() {
 
   const handlePrintLookupMatchReport = async (match) => {
     const totalMeta = getLookupTotalMeta(match?.total);
+    const valor = Number(match?.valor ?? 0);
+    const intereses = Number(match?.intereses ?? 0);
+    const total = Number(match?.total ?? 0);
     const services = [
       { label: "Agua", value: match?.agua, icon: "water" },
       { label: "Alcantarillado", value: match?.alcantarillado, icon: "sewer" },
@@ -3284,9 +3287,13 @@ function App() {
           <section class="lookup-report-section">
             <h2>Detalle de saldo</h2>
             <div class="lookup-report-balance-grid">
-              <div><strong>Sin interes</strong><span>${formatLookupAmount(match?.valor)}</span></div>
-              <div><strong>Interes</strong><span>${formatLookupAmount(match?.intereses)}</span></div>
+              <div><strong>Sin interes</strong><span>${formatLookupAmount(valor)}</span></div>
+              <div><strong>Interes</strong><span>${formatLookupAmount(intereses)}</span></div>
               <div class="is-total"><strong>Total</strong><span>${escapeHtml(totalMeta.text)}</span></div>
+            </div>
+            <div class="lookup-report-formula">
+              <strong>Sumatoria</strong>
+              <span>${formatLookupAmount(valor)} + ${formatLookupAmount(intereses)} = ${formatLookupAmount(total)}</span>
             </div>
           </section>
 

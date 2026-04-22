@@ -529,6 +529,129 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             text-align: center;
             color: #557089;
           }
+          .lookup-report-body {
+            background: #f7fbff;
+            color: #16324a;
+          }
+          .lookup-report-shell {
+            display: grid;
+            gap: 12px;
+          }
+          .lookup-report-header {
+            border: 1px solid #d1e2f0;
+            border-radius: 14px;
+            padding: 12px;
+            background: linear-gradient(180deg, #f8fcff 0%, #eef6fd 100%);
+          }
+          .lookup-report-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+          .lookup-report-brand h1 {
+            margin: 0 0 4px;
+            font-size: 17px;
+          }
+          .lookup-report-brand p {
+            margin: 0;
+            color: #4a657d;
+          }
+          .lookup-report-key {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            font-weight: 700;
+            color: #123b5d;
+          }
+          .lookup-report-section {
+            border: 1px solid #d5e4f1;
+            border-radius: 14px;
+            padding: 10px;
+            background: #ffffff;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .lookup-report-section h2 {
+            margin: 0 0 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #315b7d;
+            letter-spacing: 0.06em;
+          }
+          .lookup-report-grid,
+          .lookup-report-balance-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+          }
+          .lookup-report-grid div,
+          .lookup-report-balance-grid div {
+            border: 1px solid #d8e7f4;
+            border-radius: 12px;
+            padding: 8px 9px;
+            background: #f8fbff;
+          }
+          .lookup-report-grid strong,
+          .lookup-report-balance-grid strong,
+          .lookup-report-service strong,
+          .lookup-report-formula strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #5a748b;
+          }
+          .lookup-report-grid span,
+          .lookup-report-balance-grid span,
+          .lookup-report-service span,
+          .lookup-report-formula span {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #123b5d;
+          }
+          .lookup-report-balance-grid .is-total {
+            background: #edf6ff;
+            border-color: #c8ddf0;
+          }
+          .lookup-report-balance-grid .is-total span {
+            color: #9b202d;
+          }
+          .lookup-report-formula {
+            margin-top: 8px;
+            border: 1px solid #d8e7f4;
+            border-radius: 12px;
+            padding: 8px 9px;
+            background: #f5f9fd;
+          }
+          .lookup-report-service-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+          }
+          .lookup-report-service {
+            border: 1px solid #d8e7f4;
+            border-radius: 12px;
+            padding: 8px 9px;
+            background: #f8fbff;
+          }
+          .lookup-report-service.is-yes {
+            background: #edf8f3;
+            border-color: #cbe9d8;
+          }
+          .lookup-report-service.is-no {
+            background: #f4f7fb;
+            border-color: #d8e3ed;
+          }
+          .lookup-report-service.is-unknown {
+            background: #fff9e9;
+            border-color: #f0dfaa;
+          }
           ul { margin-top: 0; }
           @media print {
             body { margin: 0; }
