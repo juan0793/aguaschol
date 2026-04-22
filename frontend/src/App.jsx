@@ -3193,35 +3193,19 @@ function App() {
     focusSheet();
   };
 
-  const buildLookupRecordDraft = (match) => ({
-    ...emptyForm,
-    clave_catastral: match?.clave_catastral || "",
-    abonado: match?.abonado || "",
-    inquilino: match?.inquilino || "",
-    nombre_catastral: match?.nombre || match?.inquilino || "",
-    barrio_colonia: match?.barrio_colonia || "",
-    comentarios: "Generado desde consulta de padron",
-    conexion_agua: getLookupServiceMeta(match?.agua).label,
-    conexion_alcantarillado: getLookupServiceMeta(match?.alcantarillado).label,
-    recoleccion_desechos: getLookupServiceMeta(match?.recoleccion).label,
-    accion_inspeccion: `Consulta rapida desde padron maestro para la clave ${match?.clave_catastral || "--"}.`,
-    uso_suelo: "Pendiente de verificar",
-    actividad: match?.inquilino || "Pendiente de clasificar"
-  });
-
-  const openLookupMatchAsReport = async (match, options = {}) => {
-    const { print = false } = options;
-
+  const openLookupMatchInRecord = async (match) => {
     try {
-      let nextRecord = null;
       const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(match.clave_catastral)}`);
 
-      if (response.ok) {
-        nextRecord = await response.json();
-      } else if (response.status !== 404) {
+      if (!response.ok) {
         if (response.status === 401) {
           clearSession();
           showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        if (response.status === 404) {
+          showAlert("No existe ficha guardada para esa clave. El reporte del padron si puede generarse desde este modulo.");
           return;
         }
 
@@ -3229,10 +3213,9 @@ function App() {
         throw new Error(data.message || "No fue posible abrir la ficha para esta clave.");
       }
 
-      const resolvedRecord = nextRecord ? normalizeRecord(nextRecord) : buildLookupRecordDraft(match);
-
+      const nextRecord = normalizeRecord(await response.json());
       setWorkspaceView("records");
-      setSelectedRecordId(resolvedRecord.id ?? null);
+      setSelectedRecordId(nextRecord.id ?? null);
       setRecordQuickFilter("all");
       setRecordFilters({
         barrio: "",
@@ -3244,18 +3227,85 @@ function App() {
       setSelectedFile(null);
       setAvisoHtml("");
       setActiveSection("abonado");
-      applyRecord(resolvedRecord);
-
-      if (print) {
-        await pause(120);
-        await handlePrintFicha(resolvedRecord);
-        showAlert(`Reporte generado para la clave ${resolvedRecord.clave_catastral || match.clave_catastral}.`);
-      } else {
-        showAlert(`Ficha cargada para la clave ${resolvedRecord.clave_catastral || match.clave_catastral}.`);
-      }
+      applyRecord(nextRecord);
+      showAlert(`Ficha cargada para la clave ${nextRecord.clave_catastral}.`);
     } catch (error) {
-      showAlert(error.message || "No fue posible generar el reporte para esa clave.");
+      showAlert(error.message || "No fue posible abrir la ficha para esa clave.");
     }
+  };
+
+  const handlePrintLookupMatchReport = async (match) => {
+    const totalMeta = getLookupTotalMeta(match?.total);
+    const services = [
+      { label: "Agua", value: match?.agua, icon: "water" },
+      { label: "Alcantarillado", value: match?.alcantarillado, icon: "sewer" },
+      { label: "Barrido", value: match?.barrido, icon: "broom" },
+      { label: "Recoleccion", value: match?.recoleccion, icon: "refresh" },
+      { label: "Desechos peligrosos", value: match?.desechos_peligrosos, icon: "waste" }
+    ];
+
+    const serviceMarkup = services
+      .map((service) => {
+        const serviceMeta = getLookupServiceMeta(service.value);
+        return `
+          <div class="lookup-report-service ${serviceMeta.tone}">
+            <strong>${escapeHtml(service.label)}</strong>
+            <span>${escapeHtml(serviceMeta.label)}</span>
+          </div>
+        `;
+      })
+      .join("");
+
+    await printDocument(
+      `Reporte ${match?.clave_catastral || "consulta-padron"}`,
+      `
+        <div class="lookup-report-shell">
+          <header class="lookup-report-header">
+            <div class="lookup-report-brand">
+              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+              <div>
+                <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                <h1>Reporte de consulta por clave</h1>
+                <p>Resumen financiero y de servicios consultado desde el padron maestro.</p>
+              </div>
+            </div>
+            <div class="lookup-report-key">Clave catastral: ${escapeHtml(match?.clave_catastral || "--")}</div>
+          </header>
+
+          <section class="lookup-report-section">
+            <div class="lookup-report-grid">
+              <div><strong>Nombre</strong><span>${escapeHtml(match?.inquilino || "Sin nombre asociado")}</span></div>
+              <div><strong>Abonado</strong><span>${escapeHtml(match?.abonado || "--")}</span></div>
+              <div><strong>Zona</strong><span>${escapeHtml(match?.barrio_colonia || "--")}</span></div>
+              <div><strong>Estado</strong><span>${escapeHtml(totalMeta.helper)}</span></div>
+            </div>
+          </section>
+
+          <section class="lookup-report-section">
+            <h2>Detalle de saldo</h2>
+            <div class="lookup-report-balance-grid">
+              <div><strong>Sin interes</strong><span>${formatLookupAmount(match?.valor)}</span></div>
+              <div><strong>Interes</strong><span>${formatLookupAmount(match?.intereses)}</span></div>
+              <div class="is-total"><strong>Total</strong><span>${escapeHtml(totalMeta.text)}</span></div>
+            </div>
+          </section>
+
+          <section class="lookup-report-section">
+            <h2>Servicios registrados</h2>
+            <div class="lookup-report-service-grid">
+              ${serviceMarkup}
+            </div>
+          </section>
+        </div>
+      `,
+      {
+        bodyClassName: "lookup-report-body",
+        pageSize: "Letter portrait",
+        pageMargin: "10mm"
+      }
+    );
+
+    showAlert(`Reporte de saldo y servicios generado para la clave ${match?.clave_catastral || "--"}.`);
   };
 
   const handleCopyClave = async (record, event) => {
@@ -6837,14 +6887,14 @@ function App() {
                                 })}
                               </div>
                               <div className="lookup-match-actions">
-                                <button type="button" onClick={() => openLookupMatchAsReport(match, { print: true })}>
+                                <button type="button" onClick={() => handlePrintLookupMatchReport(match)}>
                                   <Icon name="records" />
                                   Generar reporte
                                 </button>
                                 <button
                                   type="button"
                                   className="button-secondary"
-                                  onClick={() => openLookupMatchAsReport(match)}
+                                  onClick={() => openLookupMatchInRecord(match)}
                                 >
                                   <Icon name="search" />
                                   Abrir ficha

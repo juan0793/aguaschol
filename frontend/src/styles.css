@@ -4627,6 +4627,105 @@ textarea {
   gap: 0.45rem;
 }
 
+.lookup-report-shell {
+  color: #163a58;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.lookup-report-header {
+  display: grid;
+  gap: 0.8rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 2px solid rgba(21, 118, 209, 0.12);
+}
+
+.lookup-report-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.lookup-report-brand h1 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.lookup-report-brand p,
+.lookup-report-key {
+  margin: 0;
+  color: #4f6f8d;
+}
+
+.lookup-report-key {
+  font-weight: 700;
+}
+
+.lookup-report-section {
+  margin-top: 1rem;
+}
+
+.lookup-report-section h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+  color: #123b5d;
+}
+
+.lookup-report-grid,
+.lookup-report-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.lookup-report-grid div,
+.lookup-report-balance-grid div {
+  padding: 0.75rem 0.85rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(245, 249, 255, 0.9);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.lookup-report-grid strong,
+.lookup-report-balance-grid strong,
+.lookup-report-service strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #51708b;
+}
+
+.lookup-report-balance-grid .is-total {
+  background: rgba(237, 246, 255, 1);
+  border-color: rgba(21, 118, 209, 0.18);
+}
+
+.lookup-report-balance-grid .is-total span {
+  color: #9b202d;
+  font-weight: 800;
+}
+
+.lookup-report-service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.lookup-report-service {
+  padding: 0.8rem 0.9rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(245, 249, 255, 0.9);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.lookup-report-service span {
+  color: #153f61;
+  font-weight: 700;
+}
+
 .lookup-service-pill {
   display: grid;
   gap: 0.12rem;
