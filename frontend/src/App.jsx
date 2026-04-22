@@ -3193,6 +3193,71 @@ function App() {
     focusSheet();
   };
 
+  const buildLookupRecordDraft = (match) => ({
+    ...emptyForm,
+    clave_catastral: match?.clave_catastral || "",
+    abonado: match?.abonado || "",
+    inquilino: match?.inquilino || "",
+    nombre_catastral: match?.nombre || match?.inquilino || "",
+    barrio_colonia: match?.barrio_colonia || "",
+    comentarios: "Generado desde consulta de padron",
+    conexion_agua: getLookupServiceMeta(match?.agua).label,
+    conexion_alcantarillado: getLookupServiceMeta(match?.alcantarillado).label,
+    recoleccion_desechos: getLookupServiceMeta(match?.recoleccion).label,
+    accion_inspeccion: `Consulta rapida desde padron maestro para la clave ${match?.clave_catastral || "--"}.`,
+    uso_suelo: "Pendiente de verificar",
+    actividad: match?.inquilino || "Pendiente de clasificar"
+  });
+
+  const openLookupMatchAsReport = async (match, options = {}) => {
+    const { print = false } = options;
+
+    try {
+      let nextRecord = null;
+      const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(match.clave_catastral)}`);
+
+      if (response.ok) {
+        nextRecord = await response.json();
+      } else if (response.status !== 404) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "No fue posible abrir la ficha para esta clave.");
+      }
+
+      const resolvedRecord = nextRecord ? normalizeRecord(nextRecord) : buildLookupRecordDraft(match);
+
+      setWorkspaceView("records");
+      setSelectedRecordId(resolvedRecord.id ?? null);
+      setRecordQuickFilter("all");
+      setRecordFilters({
+        barrio: "",
+        responsible: "",
+        date_from: "",
+        date_to: "",
+        status: "all"
+      });
+      setSelectedFile(null);
+      setAvisoHtml("");
+      setActiveSection("abonado");
+      applyRecord(resolvedRecord);
+
+      if (print) {
+        await pause(120);
+        await handlePrintFicha(resolvedRecord);
+        showAlert(`Reporte generado para la clave ${resolvedRecord.clave_catastral || match.clave_catastral}.`);
+      } else {
+        showAlert(`Ficha cargada para la clave ${resolvedRecord.clave_catastral || match.clave_catastral}.`);
+      }
+    } catch (error) {
+      showAlert(error.message || "No fue posible generar el reporte para esa clave.");
+    }
+  };
+
   const handleCopyClave = async (record, event) => {
     event.stopPropagation();
 
@@ -4088,14 +4153,15 @@ function App() {
     }
   };
 
-  const handlePrintFicha = async () => {
+  const handlePrintFicha = async (recordOverride = null) => {
+    const targetRecord = recordOverride ? { ...emptyForm, ...normalizeRecord(recordOverride) } : form;
     let photoMarkup = "";
 
     try {
-      if (selectedFile) {
+      if (!recordOverride && selectedFile) {
         const dataUrl = await fileToDataUrl(selectedFile);
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
-      } else if (selectedPhotoUrl) {
+      } else if (!recordOverride && selectedPhotoUrl) {
         const dataUrl = await urlToDataUrl(selectedPhotoUrl);
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       }
@@ -4104,7 +4170,7 @@ function App() {
     }
 
     await printDocument(
-      `Ficha ${form.clave_catastral || "inmueble"}`,
+      `Ficha ${targetRecord.clave_catastral || "inmueble"}`,
       `
         <div class="print-header">
           <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
@@ -4112,7 +4178,7 @@ function App() {
           <p>Barrio El Centro Antiguo Local de Cooperativa Guadalupe.</p>
           <p>Tel: 2782-5075 Fax: 2780-3985</p>
           <h2 class="print-title">Ficha Tecnica de Informacion Catastral</h2>
-          <div class="print-key">CLAVE CATASTRAL: ${form.clave_catastral || "--"}</div>
+          <div class="print-key">CLAVE CATASTRAL: ${targetRecord.clave_catastral || "--"}</div>
         </div>
         <div class="print-layout">
           <div class="print-top-layout">
@@ -4120,35 +4186,35 @@ function App() {
               <section class="print-section">
                 <h3>Informacion del abonado</h3>
                 <div class="print-grid">
-                  <div class="print-field"><strong>Abonado</strong>${form.abonado || "--"}</div>
-                  <div class="print-field"><strong>Catastral</strong>${form.nombre_catastral || "--"}</div>
-                  <div class="print-field"><strong>Inquilino</strong>${form.inquilino || "--"}</div>
-                  <div class="print-field"><strong>Barrio/Colonia</strong>${form.barrio_colonia || "--"}</div>
-                  <div class="print-field"><strong>Identidad</strong>${form.identidad || "--"}</div>
-                  <div class="print-field"><strong>Telefono</strong>${form.telefono || "--"}</div>
+                  <div class="print-field"><strong>Abonado</strong>${targetRecord.abonado || "--"}</div>
+                  <div class="print-field"><strong>Catastral</strong>${targetRecord.nombre_catastral || "--"}</div>
+                  <div class="print-field"><strong>Inquilino</strong>${targetRecord.inquilino || "--"}</div>
+                  <div class="print-field"><strong>Barrio/Colonia</strong>${targetRecord.barrio_colonia || "--"}</div>
+                  <div class="print-field"><strong>Identidad</strong>${targetRecord.identidad || "--"}</div>
+                  <div class="print-field"><strong>Telefono</strong>${targetRecord.telefono || "--"}</div>
                 </div>
               </section>
               <section class="print-section">
                 <h3>Identificacion del inmueble</h3>
-                <p>${form.accion_inspeccion || "--"}</p>
+                <p>${targetRecord.accion_inspeccion || "--"}</p>
               </section>
               <section class="print-section">
                 <h3>Datos del inmueble</h3>
                 <div class="print-grid">
-                  <div class="print-field"><strong>Situacion</strong>${form.situacion_inmueble || "--"}</div>
-                  <div class="print-field"><strong>Tendencia</strong>${form.tendencia_inmueble || "--"}</div>
-                  <div class="print-field"><strong>Uso del suelo</strong>${form.uso_suelo || "--"}</div>
-                  <div class="print-field"><strong>Actividad</strong>${form.actividad || "--"}</div>
-                  <div class="print-field"><strong>Codigo del sector</strong>${form.codigo_sector || "--"}</div>
-                  <div class="print-field"><strong>Comentarios</strong>${form.comentarios || "--"}</div>
+                  <div class="print-field"><strong>Situacion</strong>${targetRecord.situacion_inmueble || "--"}</div>
+                  <div class="print-field"><strong>Tendencia</strong>${targetRecord.tendencia_inmueble || "--"}</div>
+                  <div class="print-field"><strong>Uso del suelo</strong>${targetRecord.uso_suelo || "--"}</div>
+                  <div class="print-field"><strong>Actividad</strong>${targetRecord.actividad || "--"}</div>
+                  <div class="print-field"><strong>Codigo del sector</strong>${targetRecord.codigo_sector || "--"}</div>
+                  <div class="print-field"><strong>Comentarios</strong>${targetRecord.comentarios || "--"}</div>
                 </div>
               </section>
               <section class="print-section">
                 <h3>Datos de los servicios</h3>
                 <div class="print-grid">
-                  <div class="print-field"><strong>Agua potable</strong>${form.conexion_agua || "--"}</div>
-                  <div class="print-field"><strong>Alcantarillado</strong>${form.conexion_alcantarillado || "--"}</div>
-                  <div class="print-field"><strong>Desechos</strong>${form.recoleccion_desechos || "--"}</div>
+                  <div class="print-field"><strong>Agua potable</strong>${targetRecord.conexion_agua || "--"}</div>
+                  <div class="print-field"><strong>Alcantarillado</strong>${targetRecord.conexion_alcantarillado || "--"}</div>
+                  <div class="print-field"><strong>Desechos</strong>${targetRecord.recoleccion_desechos || "--"}</div>
                 </div>
               </section>
             </div>
@@ -4165,11 +4231,11 @@ function App() {
             <h3>Firmas</h3>
             <div class="print-roles">
               <div class="print-signature-line">
-                <strong>${form.levantamiento_datos || "--"}</strong><br />
+                <strong>${targetRecord.levantamiento_datos || "--"}</strong><br />
                 LEVANTAMIENTO DE DATOS
               </div>
               <div class="print-signature-line">
-                <strong>${form.analista_datos || "--"}</strong><br />
+                <strong>${targetRecord.analista_datos || "--"}</strong><br />
                 ANALISTA DE DATOS
               </div>
             </div>
@@ -6769,6 +6835,20 @@ function App() {
                                     </div>
                                   );
                                 })}
+                              </div>
+                              <div className="lookup-match-actions">
+                                <button type="button" onClick={() => openLookupMatchAsReport(match, { print: true })}>
+                                  <Icon name="records" />
+                                  Generar reporte
+                                </button>
+                                <button
+                                  type="button"
+                                  className="button-secondary"
+                                  onClick={() => openLookupMatchAsReport(match)}
+                                >
+                                  <Icon name="search" />
+                                  Abrir ficha
+                                </button>
                               </div>
                             </article>
                           );

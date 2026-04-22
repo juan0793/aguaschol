@@ -4614,6 +4614,19 @@ textarea {
   gap: 0.55rem;
 }
 
+.lookup-match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.lookup-match-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .lookup-service-pill {
   display: grid;
   gap: 0.12rem;
@@ -5964,6 +5977,15 @@ textarea {
 
   .lookup-service-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .lookup-match-actions {
+    flex-direction: column;
+  }
+
+  .lookup-match-actions button {
+    width: 100%;
+    justify-content: center;
   }
 
   .lookup-actions {
