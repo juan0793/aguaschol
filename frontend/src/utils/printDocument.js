@@ -133,6 +133,30 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
           .print-ficha .print-header {
             margin-bottom: 6px;
           }
+          .print-ficha .print-ficha-compact-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
+            gap: 8px;
+            align-items: center;
+            border: 1px solid #2b5d85;
+            background: #eef6fd;
+            padding: 7px 8px;
+            margin-bottom: 6px;
+          }
+          .print-ficha .print-ficha-brand {
+            display: grid;
+            grid-template-columns: 50px minmax(0, 1fr);
+            gap: 8px;
+            align-items: center;
+          }
+          .print-ficha .print-ficha-brand p,
+          .print-ficha .print-ficha-brand span {
+            margin: 0;
+          }
+          .print-ficha .print-ficha-brand span {
+            color: #36556f;
+            font-size: 9px;
+          }
           .print-ficha .print-logo {
             width: 48px;
             height: 48px;
@@ -150,9 +174,35 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
           .print-ficha .print-key-grid {
             margin-top: 3px;
           }
+          .print-ficha .print-clandestine-band {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            border: 1px solid #c8d5df;
+            background: #f7fbff;
+            padding: 6px 8px;
+            margin-bottom: 6px;
+          }
+          .print-ficha .print-clandestine-band.is-clandestine {
+            border-color: #9b202d;
+            background: #fff1f2;
+          }
+          .print-ficha .print-clandestine-band strong,
+          .print-ficha .print-clandestine-band span {
+            display: block;
+          }
+          .print-ficha .print-clandestine-band strong {
+            font-size: 11px;
+            text-transform: uppercase;
+          }
+          .print-ficha .print-clandestine-band span {
+            font-size: 9px;
+            color: #4b647a;
+          }
           .print-ficha .print-section {
             padding: 5px;
             margin-bottom: 5px;
+            border-color: #9aaab6;
           }
           .print-ficha .print-layout {
             display: grid;

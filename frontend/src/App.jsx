@@ -4372,6 +4372,7 @@ function App() {
     const targetRecord = recordOverride ? { ...emptyForm, ...normalizeRecord(recordOverride) } : form;
     let photoMarkup = "";
     let alcaldiaFichaMatch = null;
+    let alcaldiaSearchMode = "";
 
     try {
       if (!recordOverride && selectedFile) {
@@ -4385,82 +4386,140 @@ function App() {
       showAlert("La ficha se imprimira sin foto porque no fue posible cargarla a tiempo.");
     }
 
+    const fetchAlcaldiaMatches = async (query, field = "clave") => {
+      if (!String(query ?? "").trim()) return [];
+      const response = await apiFetch(
+        `/claves/alcaldia/search?field=${encodeURIComponent(field)}&clave=${encodeURIComponent(query)}`
+      );
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data.matches) ? data.matches : [];
+    };
+
     if (targetRecord.clave_catastral) {
       try {
-        const response = await apiFetch(`/claves/alcaldia/search?clave=${encodeURIComponent(targetRecord.clave_catastral)}`);
-        const data = await response.json();
-        alcaldiaFichaMatch = Array.isArray(data.matches) ? data.matches[0] ?? null : null;
+        const matches = await fetchAlcaldiaMatches(targetRecord.clave_catastral, "clave");
+        alcaldiaFichaMatch = matches[0] ?? null;
+        alcaldiaSearchMode = alcaldiaFichaMatch ? "clave" : "";
       } catch {
         alcaldiaFichaMatch = null;
       }
     }
 
+    if (!alcaldiaFichaMatch) {
+      const textCandidates = [
+        targetRecord.nombre_catastral,
+        targetRecord.inquilino,
+        targetRecord.identidad,
+        targetRecord.barrio_colonia
+      ]
+        .map((value) => String(value ?? "").trim())
+        .filter((value) => value.length >= 3 && value !== "--");
+
+      for (const candidate of textCandidates) {
+        try {
+          const matches = await fetchAlcaldiaMatches(candidate, "texto");
+          alcaldiaFichaMatch =
+            matches.find((item) => !item.exists_in_aguas) ??
+            matches.find((item) =>
+              normalizeRecord({ nombre_catastral: item.nombre }).nombre_catastral
+                ?.toLowerCase()
+                .includes(candidate.toLowerCase())
+            ) ??
+            matches[0] ??
+            null;
+          if (alcaldiaFichaMatch) {
+            alcaldiaSearchMode = "nombre/barrio";
+            break;
+          }
+        } catch {
+          alcaldiaFichaMatch = null;
+        }
+      }
+    }
+
+    const fichaClaveAguas = targetRecord.clave_catastral || alcaldiaFichaMatch?.clave_aguas_formato || "--";
+    const fichaClaveAlcaldia = alcaldiaFichaMatch?.clave_catastral || "--";
+    const fichaNombre = alcaldiaFichaMatch?.nombre || targetRecord.nombre_catastral || targetRecord.inquilino || "--";
+    const fichaBarrio = alcaldiaFichaMatch?.caserio || targetRecord.barrio_colonia || alcaldiaFichaMatch?.direccion || "--";
+    const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_colonia || "--";
     const alcaldiaStatus = alcaldiaFichaMatch
       ? alcaldiaFichaMatch.exists_in_aguas
         ? "Aparece en ambos padrones"
-        : "Aparece en Alcaldia, no en Aguas"
-      : "Sin coincidencia cargada en Alcaldia";
+        : "Clandestino: aparece en Alcaldia y no en Aguas"
+      : "Sin coincidencia en Alcaldia";
 
     await printDocument(
-      `Ficha ${targetRecord.clave_catastral || "inmueble"}`,
+      `Ficha ${fichaClaveAlcaldia !== "--" ? fichaClaveAlcaldia : fichaClaveAguas}`,
       `
-        <div class="print-header">
-          <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
-          <p>Aguas de Choluteca, S.A. de C.V.</p>
-          <p>Barrio El Centro Antiguo Local de Cooperativa Guadalupe.</p>
-          <p>Tel: 2782-5075 Fax: 2780-3985</p>
-          <h2 class="print-title">Ficha Tecnica de Informacion Catastral</h2>
+        <div class="print-ficha-compact-header">
+          <div class="print-ficha-brand">
+            <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+            <div>
+              <p>Aguas de Choluteca, S.A. de C.V.</p>
+              <h2 class="print-title">Ficha Tecnica Catastral</h2>
+              <span>Barrio El Centro Antiguo Local de Cooperativa Guadalupe · Tel: 2782-5075</span>
+            </div>
+          </div>
           <div class="print-key-grid">
-            <div class="print-key"><strong>Clave Aguas de Choluteca</strong><span>${targetRecord.clave_catastral || "--"}</span></div>
-            <div class="print-key"><strong>Clave Alcaldia</strong><span>${alcaldiaFichaMatch?.clave_catastral || "--"}</span></div>
+            <div class="print-key"><strong>Clave Aguas de Choluteca</strong><span>${escapeHtml(fichaClaveAguas)}</span></div>
+            <div class="print-key"><strong>Clave Alcaldia</strong><span>${escapeHtml(fichaClaveAlcaldia)}</span></div>
           </div>
         </div>
+        <section class="print-clandestine-band ${alcaldiaFichaMatch && !alcaldiaFichaMatch.exists_in_aguas ? "is-clandestine" : ""}">
+          <div>
+            <strong>${escapeHtml(alcaldiaStatus)}</strong>
+            <span>Busqueda por ${escapeHtml(alcaldiaSearchMode || "clave/nombre")}</span>
+          </div>
+          <div>
+            <strong>${escapeHtml(fichaNombre)}</strong>
+            <span>${escapeHtml(fichaBarrio)}</span>
+          </div>
+        </section>
         <div class="print-layout">
           <div class="print-top-layout">
             <div class="print-main-column">
               <section class="print-section">
                 <h3>Cruce de padrones</h3>
                 <div class="print-grid">
-                  <div class="print-field"><strong>Estado</strong>${alcaldiaStatus}</div>
-                  <div class="print-field"><strong>Nombre Alcaldia</strong>${alcaldiaFichaMatch?.nombre || "--"}</div>
-                  <div class="print-field"><strong>Identificador Alcaldia</strong>${alcaldiaFichaMatch?.identificador || "--"}</div>
-                  <div class="print-field"><strong>Direccion Alcaldia</strong>${alcaldiaFichaMatch?.direccion || "--"}</div>
-                  <div class="print-field"><strong>Caserio Alcaldia</strong>${alcaldiaFichaMatch?.caserio || "--"}</div>
-                  <div class="print-field"><strong>Clave equivalente Aguas</strong>${alcaldiaFichaMatch?.clave_aguas_formato || targetRecord.clave_catastral || "--"}</div>
+                  <div class="print-field"><strong>Nombre Alcaldia</strong>${escapeHtml(fichaNombre)}</div>
+                  <div class="print-field"><strong>Barrio/Caserio</strong>${escapeHtml(fichaBarrio)}</div>
+                  <div class="print-field"><strong>Direccion Alcaldia</strong>${escapeHtml(fichaDireccion)}</div>
+                  <div class="print-field"><strong>Identificador Alcaldia</strong>${escapeHtml(alcaldiaFichaMatch?.identificador || "--")}</div>
                 </div>
               </section>
               <section class="print-section">
                 <h3>Informacion del abonado</h3>
                 <div class="print-grid">
-                  <div class="print-field"><strong>Abonado</strong>${targetRecord.abonado || "--"}</div>
-                  <div class="print-field"><strong>Catastral</strong>${targetRecord.nombre_catastral || "--"}</div>
-                  <div class="print-field"><strong>Inquilino</strong>${targetRecord.inquilino || "--"}</div>
-                  <div class="print-field"><strong>Barrio/Colonia</strong>${targetRecord.barrio_colonia || "--"}</div>
-                  <div class="print-field"><strong>Identidad</strong>${targetRecord.identidad || "--"}</div>
-                  <div class="print-field"><strong>Telefono</strong>${targetRecord.telefono || "--"}</div>
+                  <div class="print-field"><strong>Abonado</strong>${escapeHtml(targetRecord.abonado || "--")}</div>
+                  <div class="print-field"><strong>Catastral/Ficha</strong>${escapeHtml(targetRecord.nombre_catastral || fichaNombre)}</div>
+                  <div class="print-field"><strong>Inquilino</strong>${escapeHtml(targetRecord.inquilino || "--")}</div>
+                  <div class="print-field"><strong>Barrio/Colonia</strong>${escapeHtml(fichaBarrio)}</div>
+                  <div class="print-field"><strong>Identidad</strong>${escapeHtml(targetRecord.identidad || alcaldiaFichaMatch?.identificador || "--")}</div>
+                  <div class="print-field"><strong>Telefono</strong>${escapeHtml(targetRecord.telefono || "--")}</div>
                 </div>
               </section>
               <section class="print-section">
                 <h3>Identificacion del inmueble</h3>
-                <p>${targetRecord.accion_inspeccion || "--"}</p>
+                <p>${escapeHtml(targetRecord.accion_inspeccion || "--")}</p>
               </section>
               <section class="print-section">
                 <h3>Datos del inmueble</h3>
                 <div class="print-grid">
-                  <div class="print-field"><strong>Situacion</strong>${targetRecord.situacion_inmueble || "--"}</div>
-                  <div class="print-field"><strong>Tendencia</strong>${targetRecord.tendencia_inmueble || "--"}</div>
-                  <div class="print-field"><strong>Uso del suelo</strong>${targetRecord.uso_suelo || "--"}</div>
-                  <div class="print-field"><strong>Actividad</strong>${targetRecord.actividad || "--"}</div>
-                  <div class="print-field"><strong>Codigo del sector</strong>${targetRecord.codigo_sector || "--"}</div>
-                  <div class="print-field"><strong>Comentarios</strong>${targetRecord.comentarios || "--"}</div>
+                  <div class="print-field"><strong>Situacion</strong>${escapeHtml(targetRecord.situacion_inmueble || "--")}</div>
+                  <div class="print-field"><strong>Tendencia</strong>${escapeHtml(targetRecord.tendencia_inmueble || "--")}</div>
+                  <div class="print-field"><strong>Uso del suelo</strong>${escapeHtml(targetRecord.uso_suelo || alcaldiaFichaMatch?.naturaleza || "--")}</div>
+                  <div class="print-field"><strong>Actividad</strong>${escapeHtml(targetRecord.actividad || "--")}</div>
+                  <div class="print-field"><strong>Codigo del sector</strong>${escapeHtml(targetRecord.codigo_sector || alcaldiaFichaMatch?.codigo_caserio || "--")}</div>
+                  <div class="print-field"><strong>Comentarios</strong>${escapeHtml(targetRecord.comentarios || (alcaldiaFichaMatch && !alcaldiaFichaMatch.exists_in_aguas ? "Clandestino" : "--"))}</div>
                 </div>
               </section>
               <section class="print-section">
                 <h3>Datos de los servicios</h3>
                 <div class="print-grid">
-                  <div class="print-field"><strong>Agua potable</strong>${targetRecord.conexion_agua || "--"}</div>
-                  <div class="print-field"><strong>Alcantarillado</strong>${targetRecord.conexion_alcantarillado || "--"}</div>
-                  <div class="print-field"><strong>Desechos</strong>${targetRecord.recoleccion_desechos || "--"}</div>
+                  <div class="print-field"><strong>Agua potable</strong>${escapeHtml(targetRecord.conexion_agua || "--")}</div>
+                  <div class="print-field"><strong>Alcantarillado</strong>${escapeHtml(targetRecord.conexion_alcantarillado || "--")}</div>
+                  <div class="print-field"><strong>Desechos</strong>${escapeHtml(targetRecord.recoleccion_desechos || "--")}</div>
                 </div>
               </section>
             </div>

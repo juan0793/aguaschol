@@ -911,13 +911,21 @@ export const uploadAlcaldiaPadron = async ({ buffer, originalName = "" }, option
   };
 };
 
-export const searchAlcaldiaClaveCatastral = async (value) => {
+export const searchAlcaldiaClaveCatastral = async (value, options = {}) => {
+  const field = ["clave", "texto"].includes(options.field) ? options.field : "clave";
   const rawQuery = String(value ?? "").trim();
   const alcaldiaQuery = normalizeAlcaldiaKey(rawQuery);
   const aguasQuery = tryNormalizeAguasKey(rawQuery);
   const queryBase = aguasQuery ? buildBaseKey(aguasQuery) : "";
+  const textQuery = normalizeLookupText(rawQuery);
 
-  if (!alcaldiaQuery && !aguasQuery) {
+  if (field === "texto" && textQuery.length < 3) {
+    const error = new Error("Ingresa al menos 3 caracteres para buscar por nombre o barrio en alcaldia.");
+    error.status = 400;
+    throw error;
+  }
+
+  if (field === "clave" && !alcaldiaQuery && !aguasQuery) {
     const error = new Error("Ingresa una clave catastral para buscar en el padron de alcaldia.");
     error.status = 400;
     throw error;
@@ -926,6 +934,10 @@ export const searchAlcaldiaClaveCatastral = async (value) => {
   const aguasIndex = buildAguasIndex();
   const matches = alcaldiaRecords
     .filter((item) => {
+      if (field === "texto") {
+        return item.search_target?.includes(textQuery);
+      }
+
       if (alcaldiaQuery && item.clave_catastral === alcaldiaQuery) return true;
       if (aguasQuery && item.clave_aguas_formato === aguasQuery) return true;
       if (queryBase && item.clave_base === queryBase) return true;
@@ -936,7 +948,8 @@ export const searchAlcaldiaClaveCatastral = async (value) => {
   return {
     ok: true,
     query: value,
-    normalized_query: alcaldiaQuery || aguasQuery,
+    normalized_query: field === "texto" ? textQuery : alcaldiaQuery || aguasQuery,
+    field,
     total_matches: matches.length,
     exists: matches.length > 0,
     matches

@@ -103,7 +103,9 @@ export const uploadAlcaldia = async (req, res, next) => {
 
 export const searchAlcaldia = async (req, res, next) => {
   try {
-    const result = await searchAlcaldiaClaveCatastral(req.query.clave ?? req.params.clave ?? "");
+    const result = await searchAlcaldiaClaveCatastral(req.query.clave ?? req.params.clave ?? req.query.q ?? "", {
+      field: req.query.field ?? "clave"
+    });
     res.json(result);
   } catch (error) {
     next(error);
