@@ -73,6 +73,57 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+app.get("/", (_req, res) => {
+  if (env.frontendUrl) {
+    res.redirect(302, env.frontendUrl);
+    return;
+  }
+
+  res.type("html").send(`
+    <!doctype html>
+    <html lang="es">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Aguas de Choluteca API</title>
+        <style>
+          body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: Arial, sans-serif;
+            background: #f3f8fd;
+            color: #14344f;
+          }
+          main {
+            width: min(620px, calc(100% - 32px));
+            padding: 28px;
+            border: 1px solid rgba(21, 118, 209, 0.18);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 18px 42px rgba(16, 55, 91, 0.08);
+          }
+          h1 { margin: 0 0 10px; font-size: 24px; }
+          p { line-height: 1.5; }
+          code {
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: #edf5fc;
+          }
+        </style>
+      </head>
+      <body>
+        <main>
+          <h1>Backend de Aguas de Choluteca activo</h1>
+          <p>Este dominio corresponde al servicio API. Para abrir la aplicacion web, configura la variable <code>FRONTEND_URL</code> del backend con el dominio del servicio frontend en Railway.</p>
+          <p>Estado tecnico: <a href="/api/health">/api/health</a></p>
+        </main>
+      </body>
+    </html>
+  `);
+});
+
 app.get("/api/map-tiles/:z/:x/:y.png", getMapTileHandler);
 
 app.use("/api/auth", authRoutes);
