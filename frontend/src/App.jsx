@@ -152,7 +152,7 @@ function App() {
   const [loadingAviso, setLoadingAviso] = useState(false);
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
-  const [recordQuickFilter, setRecordQuickFilter] = useState("all");
+  const [recordQuickFilter, setRecordQuickFilter] = useState("clandestino");
   const [recordPage, setRecordPage] = useState(1);
   const [recordFilters, setRecordFilters] = useState({
     barrio: "",
@@ -704,6 +704,14 @@ function App() {
     });
   }, [recordDeadlineMetaById, recordFilters, recordView, safeRecords]);
   const filteredRecords = useMemo(() => {
+    if (recordQuickFilter === "clandestino") {
+      return advancedFilteredRecords.filter((record) => (record.estado_padron || "clandestino") !== "varios_padrones");
+    }
+
+    if (recordQuickFilter === "varios_padrones") {
+      return advancedFilteredRecords.filter((record) => record.estado_padron === "varios_padrones");
+    }
+
     if (recordQuickFilter === "today") {
       return advancedFilteredRecords.filter(
         (record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey
@@ -2651,6 +2659,75 @@ function App() {
     setMapDraft({ ...emptyMapDraft });
   };
 
+  const findAlcaldiaMatchForForm = async (candidateForm = form) => {
+    const keyQuery = String(candidateForm.clave_catastral || "").trim();
+    const textQueries = [
+      candidateForm.nombre_catastral,
+      candidateForm.inquilino,
+      candidateForm.identidad,
+      candidateForm.barrio_colonia
+    ]
+      .map((value) => String(value || "").trim())
+      .filter((value) => value.length >= 3);
+
+    const tryQuery = async (query, field) => {
+      const response = await apiFetch(`/claves/alcaldia/search?field=${field}&clave=${encodeURIComponent(query)}`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      const matches = Array.isArray(data.matches) ? data.matches : [];
+      return matches[0] ?? null;
+    };
+
+    if (keyQuery) {
+      const match = await tryQuery(keyQuery, "clave");
+      if (match) return match;
+    }
+
+    for (const query of textQueries) {
+      const match = await tryQuery(query, "texto");
+      if (match) return match;
+    }
+
+    return null;
+  };
+
+  const applyAlcaldiaMatchToForm = (match) => {
+    if (!match) return null;
+
+    const nextState = match.exists_in_aguas ? "varios_padrones" : "clandestino";
+    const nextPatch = {
+      estado_padron: nextState,
+      clave_alcaldia: match.clave_catastral || "",
+      nombre_alcaldia: match.nombre || "",
+      barrio_alcaldia: match.caserio || match.direccion || "",
+      nombre_catastral: match.nombre || form.nombre_catastral,
+      barrio_colonia: form.barrio_colonia || match.caserio || match.direccion || "",
+      identidad: form.identidad || match.identificador || "",
+      comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : form.comentarios || "Clandestino"
+    };
+    setForm((current) => ({ ...current, ...nextPatch }));
+    return nextPatch;
+  };
+
+  const handleValidateFormPadron = async () => {
+    try {
+      const match = await findAlcaldiaMatchForForm(form);
+      if (!match) {
+        showAlert("No se encontro coincidencia en el padron de Alcaldia.");
+        return;
+      }
+
+      applyAlcaldiaMatchToForm(match);
+      showAlert(
+        match.exists_in_aguas
+          ? "Esta ficha aparece en Alcaldia y Aguas. Quedo marcada en varios padrones."
+          : "Esta ficha aparece en Alcaldia y no en Aguas. Quedo marcada como clandestina."
+      );
+    } catch (error) {
+      showAlert(error.message || "No fue posible validar contra Alcaldia.");
+    }
+  };
+
   const resetReportMapDraft = () => {
     setEditingReportMapPointId(null);
     setSelectedReportMapPointId(null);
@@ -3301,7 +3378,6 @@ function App() {
 
   const handleSelectRecord = (record) => {
     setSelectedRecordId(record.id ?? null);
-    setRecordQuickFilter("all");
     setRecordFilters({
       barrio: "",
       responsible: "",
@@ -4026,12 +4102,34 @@ function App() {
     const method = isEdit ? "PUT" : "POST";
 
     try {
+      let payload = form;
+      try {
+        const match = await findAlcaldiaMatchForForm(form);
+        if (match) {
+          const nextState = match.exists_in_aguas ? "varios_padrones" : "clandestino";
+          payload = {
+            ...form,
+            estado_padron: nextState,
+            clave_alcaldia: match.clave_catastral || "",
+            nombre_alcaldia: match.nombre || form.nombre_alcaldia || "",
+            barrio_alcaldia: match.caserio || match.direccion || form.barrio_alcaldia || "",
+            nombre_catastral: match.nombre || form.nombre_catastral,
+            barrio_colonia: form.barrio_colonia || match.caserio || match.direccion || "",
+            identidad: form.identidad || match.identificador || "",
+            comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : form.comentarios || "Clandestino"
+          };
+          setForm(payload);
+        }
+      } catch {
+        payload = form;
+      }
+
       const response = await apiFetch(url.replace(API_URL, ""), {
         method,
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(form)
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -4449,16 +4547,18 @@ function App() {
     }
 
     const fichaClaveAguas = recordClaveCatastral || alcaldiaFichaMatch?.clave_aguas_formato || "--";
-    const fichaClaveAlcaldia = alcaldiaFichaMatch?.clave_catastral || "--";
-    const fichaNombre = alcaldiaFichaMatch?.nombre || targetRecord.nombre_catastral || targetRecord.inquilino || "--";
-    const fichaBarrio = targetRecord.barrio_colonia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
-    const alcaldiaBarrio = alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
-    const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_colonia || "--";
+    const fichaClaveAlcaldia = targetRecord.clave_alcaldia || alcaldiaFichaMatch?.clave_catastral || "--";
+    const fichaNombre = targetRecord.nombre_alcaldia || alcaldiaFichaMatch?.nombre || targetRecord.nombre_catastral || targetRecord.inquilino || "--";
+    const fichaBarrio = targetRecord.barrio_colonia || targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
+    const alcaldiaBarrio = targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
+    const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_alcaldia || targetRecord.barrio_colonia || "--";
     const alcaldiaStatus = alcaldiaFichaMatch
       ? alcaldiaFichaMatch.exists_in_aguas
         ? "Aparece en ambos padrones"
         : "Clandestino: aparece en Alcaldia y no en Aguas"
-      : "Sin coincidencia en Alcaldia";
+      : targetRecord.estado_padron === "varios_padrones"
+        ? "Aparece en varios padrones"
+        : "Sin coincidencia en Alcaldia";
 
     await printDocument(
       `Ficha ${fichaClaveAlcaldia !== "--" ? fichaClaveAlcaldia : fichaClaveAguas}`,
@@ -6177,6 +6277,10 @@ function App() {
               const count =
                 option.key === "today"
                   ? recordsUpdatedToday
+                  : option.key === "clandestino"
+                    ? safeRecords.filter((record) => (record.estado_padron || "clandestino") !== "varios_padrones").length
+                  : option.key === "varios_padrones"
+                    ? safeRecords.filter((record) => record.estado_padron === "varios_padrones").length
                   : option.key === "no_photo"
                     ? pendingPhotoRecords
                     : option.key === "alert"
@@ -6248,6 +6352,10 @@ function App() {
           <span>
             {recordQuickFilter === "all"
               ? "Fichas activas"
+              : recordQuickFilter === "clandestino"
+                ? "Clandestinas"
+              : recordQuickFilter === "varios_padrones"
+                ? "En varios padrones"
               : recordQuickFilter === "today"
                 ? "Movimiento de hoy"
                 : recordQuickFilter === "no_photo"
@@ -6315,7 +6423,13 @@ function App() {
                             <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
                           </div>
                           <div className="record-status-stack">
-                            <span className="record-badge">{recordView === "archived" ? "Log" : "Ficha"}</span>
+                            <span className="record-badge">
+                              {recordView === "archived"
+                                ? "Log"
+                                : record.estado_padron === "varios_padrones"
+                                  ? "Varios padrones"
+                                  : "Clandestina"}
+                            </span>
                             {deadlineMeta ? (
                               <span className={`record-badge deadline-badge ${deadlineMeta.tone}`}>
                                 {deadlineMeta.label}
@@ -6478,6 +6592,42 @@ function App() {
             {activeSection === "abonado" ? (
               <section className="sheet-section">
                 <h3>Informacion del abonado</h3>
+                <div className="padron-status-panel no-print">
+                  <div>
+                    <span className="sheet-kicker">Estado de padrones</span>
+                    <strong>{form.estado_padron === "varios_padrones" ? "En varios padrones" : "Clandestina"}</strong>
+                    <p>
+                      {form.estado_padron === "varios_padrones"
+                        ? "Esta ficha aparece en Alcaldia y Aguas. Queda separada del listado de clandestinas."
+                        : "Esta ficha no ha sido validada en varios padrones o no aparece en Aguas."}
+                    </p>
+                  </div>
+                  <label>
+                    <span>Clasificacion</span>
+                    <select name="estado_padron" value={form.estado_padron || "clandestino"} onChange={handleChange}>
+                      <option value="clandestino">Clandestina</option>
+                      <option value="varios_padrones">En varios padrones</option>
+                    </select>
+                  </label>
+                  <button type="button" className="button-secondary" onClick={handleValidateFormPadron}>
+                    <Icon name="search" />
+                    Validar padrones
+                  </button>
+                </div>
+                <div className="form-grid padron-cross-grid">
+                  <label>
+                    <span>Clave Alcaldia</span>
+                    <input name="clave_alcaldia" value={form.clave_alcaldia || ""} onChange={handleChange} />
+                  </label>
+                  <label>
+                    <span>Nombre Alcaldia</span>
+                    <input name="nombre_alcaldia" value={form.nombre_alcaldia || ""} onChange={handleChange} />
+                  </label>
+                  <label>
+                    <span>Barrio Alcaldia</span>
+                    <input name="barrio_alcaldia" value={form.barrio_alcaldia || ""} onChange={handleChange} />
+                  </label>
+                </div>
                 {fieldGroups.slice(0, 2).map((group, index) => (
                   <div className="form-grid" key={index}>
                     {group.map((field) => (
@@ -6689,6 +6839,19 @@ function App() {
                 <h3>FICHA TECNICA DE INFORMACION CATASTRAL</h3>
                 <div className="document-key">Clave Catastral: {form.clave_catastral || "--"}</div>
               </header>
+
+              <section className="document-block">
+                <h4>Estado de padrones</h4>
+                <div className="document-grid">
+                  <div>
+                    <strong>Clasificacion</strong>
+                    <span>{form.estado_padron === "varios_padrones" ? "En varios padrones" : "Clandestina"}</span>
+                  </div>
+                  <div><strong>Clave Alcaldia</strong><span>{form.clave_alcaldia || "--"}</span></div>
+                  <div><strong>Nombre Alcaldia</strong><span>{form.nombre_alcaldia || "--"}</span></div>
+                  <div><strong>Barrio Alcaldia</strong><span>{form.barrio_alcaldia || "--"}</span></div>
+                </div>
+              </section>
 
               <section className="document-block">
                 <h4>Informacion del abonado</h4>
@@ -7208,7 +7371,11 @@ function App() {
                                         nombre_catastral: match.nombre || current.nombre_catastral,
                                         barrio_colonia: match.caserio || match.direccion || current.barrio_colonia,
                                         identidad: match.identificador || current.identidad,
-                                        comentarios: match.exists_in_aguas ? current.comentarios : "Clandestino"
+                                        comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : "Clandestino",
+                                        estado_padron: match.exists_in_aguas ? "varios_padrones" : "clandestino",
+                                        clave_alcaldia: match.clave_catastral || "",
+                                        nombre_alcaldia: match.nombre || "",
+                                        barrio_alcaldia: match.caserio || match.direccion || ""
                                       }));
                                       setWorkspaceView("records");
                                     }}

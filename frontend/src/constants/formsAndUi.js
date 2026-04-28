@@ -65,6 +65,10 @@ export const emptyForm = {
   actividad: "Vivienda",
   codigo_sector: "",
   comentarios: "Clandestino",
+  estado_padron: "clandestino",
+  clave_alcaldia: "",
+  nombre_alcaldia: "",
+  barrio_alcaldia: "",
   conexion_agua: "Si",
   conexion_alcantarillado: "Si",
   recoleccion_desechos: "Si",
@@ -105,6 +109,8 @@ export const fieldGroups = [
 ];
 
 export const recordQuickFilterOptions = [
+  { key: "clandestino", label: "Clandestinas" },
+  { key: "varios_padrones", label: "Varios padrones" },
   { key: "all", label: "Todo" },
   { key: "today", label: "Hoy" },
   { key: "no_photo", label: "Sin foto" },

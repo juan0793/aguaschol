@@ -23,6 +23,10 @@ const memoryRecords = [
     actividad: "Vivienda",
     codigo_sector: "",
     comentarios: "Clandestino",
+    estado_padron: "clandestino",
+    clave_alcaldia: "",
+    nombre_alcaldia: "",
+    barrio_alcaldia: "",
     conexion_agua: "Si",
     conexion_alcantarillado: "Si",
     recoleccion_desechos: "Si",
@@ -52,6 +56,10 @@ const mapPayload = (payload) => ({
   actividad: payload.actividad?.trim() ?? "",
   codigo_sector: payload.codigo_sector?.trim() ?? "",
   comentarios: payload.comentarios?.trim() ?? "",
+  estado_padron: payload.estado_padron === "varios_padrones" ? "varios_padrones" : "clandestino",
+  clave_alcaldia: payload.clave_alcaldia?.trim() ?? "",
+  nombre_alcaldia: payload.nombre_alcaldia?.trim() ?? "",
+  barrio_alcaldia: payload.barrio_alcaldia?.trim() ?? "",
   conexion_agua: payload.conexion_agua?.trim() ?? "No",
   conexion_alcantarillado: payload.conexion_alcantarillado?.trim() ?? "No",
   recoleccion_desechos: payload.recoleccion_desechos?.trim() ?? "No",
@@ -180,10 +188,11 @@ export const createInmueble = async (payload, options = {}) => {
       INSERT INTO inmuebles_clandestinos (
         clave_catastral, abonado, nombre_catastral, inquilino, barrio_colonia,
         identidad, telefono, accion_inspeccion, situacion_inmueble, tendencia_inmueble,
-        uso_suelo, actividad, codigo_sector, comentarios, conexion_agua,
+        uso_suelo, actividad, codigo_sector, comentarios, estado_padron,
+        clave_alcaldia, nombre_alcaldia, barrio_alcaldia, conexion_agua,
         conexion_alcantarillado, recoleccion_desechos, fecha_aviso, firmante_aviso,
         cargo_firmante, levantamiento_datos, analista_datos
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.clave_catastral,
@@ -200,6 +209,10 @@ export const createInmueble = async (payload, options = {}) => {
       data.actividad,
       data.codigo_sector,
       data.comentarios,
+      data.estado_padron,
+      data.clave_alcaldia,
+      data.nombre_alcaldia,
+      data.barrio_alcaldia,
       data.conexion_agua,
       data.conexion_alcantarillado,
       data.recoleccion_desechos,
@@ -259,7 +272,8 @@ export const updateInmueble = async (id, payload, options = {}) => {
       SET clave_catastral = ?, abonado = ?, nombre_catastral = ?, inquilino = ?,
           barrio_colonia = ?, identidad = ?, telefono = ?, accion_inspeccion = ?,
           situacion_inmueble = ?, tendencia_inmueble = ?, uso_suelo = ?,
-          actividad = ?, codigo_sector = ?, comentarios = ?, conexion_agua = ?,
+          actividad = ?, codigo_sector = ?, comentarios = ?, estado_padron = ?,
+          clave_alcaldia = ?, nombre_alcaldia = ?, barrio_alcaldia = ?, conexion_agua = ?,
           conexion_alcantarillado = ?, recoleccion_desechos = ?, fecha_aviso = ?,
           firmante_aviso = ?, cargo_firmante = ?, levantamiento_datos = ?, analista_datos = ?
       WHERE id = ?
@@ -279,6 +293,10 @@ export const updateInmueble = async (id, payload, options = {}) => {
       data.actividad,
       data.codigo_sector,
       data.comentarios,
+      data.estado_padron,
+      data.clave_alcaldia,
+      data.nombre_alcaldia,
+      data.barrio_alcaldia,
       data.conexion_agua,
       data.conexion_alcantarillado,
       data.recoleccion_desechos,

@@ -283,6 +283,26 @@ const ensureSchema = async () => {
       definition: "VARCHAR(255) NOT NULL DEFAULT ''"
     });
     await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "estado_padron",
+      definition: "VARCHAR(40) NOT NULL DEFAULT 'clandestino'"
+    });
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "clave_alcaldia",
+      definition: "VARCHAR(40) NOT NULL DEFAULT ''"
+    });
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "nombre_alcaldia",
+      definition: "VARCHAR(180) NOT NULL DEFAULT ''"
+    });
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "barrio_alcaldia",
+      definition: "VARCHAR(180) NOT NULL DEFAULT ''"
+    });
+    await ensureColumn(admin, {
       tableName: "audit_logs",
       columnName: "actor_name_snapshot",
       definition: "VARCHAR(180) NOT NULL DEFAULT ''"
@@ -358,6 +378,11 @@ const ensureSchema = async () => {
       tableName: "inmuebles_clandestinos",
       indexName: "idx_inmuebles_archived_at",
       columns: ["archived_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "inmuebles_clandestinos",
+      indexName: "idx_inmuebles_estado_padron",
+      columns: ["estado_padron"]
     });
     await ensureIndex(admin, {
       tableName: "map_points",
