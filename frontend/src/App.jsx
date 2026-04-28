@@ -87,6 +87,24 @@ const DEFAULT_DASHBOARD_WIDGET_ORDER = [
 ];
 const RECORDS_PAGE_SIZE = 10;
 
+const getPadronStatusLabel = (status) => {
+  if (status === "varios_padrones") return "Varios padrones";
+  if (status === "reportada") return "Reportada";
+  return "Clandestina";
+};
+
+const getPadronStatusDescription = (status) => {
+  if (status === "varios_padrones") {
+    return "Esta ficha aparece en Alcaldia y Aguas. Queda separada del listado de clandestinas.";
+  }
+
+  if (status === "reportada") {
+    return "Esta ficha ya fue procesada y se guarda en reportadas para limpiar el listado operativo.";
+  }
+
+  return "Esta ficha no ha sido validada en varios padrones o no aparece en Aguas.";
+};
+
 const normalizeDashboardWidgetPrefs = (value) => {
   const orderSource = Array.isArray(value?.order) ? value.order : [];
   const hiddenSource = Array.isArray(value?.hidden) ? value.hidden : [];
@@ -705,7 +723,11 @@ function App() {
   }, [recordDeadlineMetaById, recordFilters, recordView, safeRecords]);
   const filteredRecords = useMemo(() => {
     if (recordQuickFilter === "clandestino") {
-      return advancedFilteredRecords.filter((record) => (record.estado_padron || "clandestino") !== "varios_padrones");
+      return advancedFilteredRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino");
+    }
+
+    if (recordQuickFilter === "reportada") {
+      return advancedFilteredRecords.filter((record) => record.estado_padron === "reportada");
     }
 
     if (recordQuickFilter === "varios_padrones") {
@@ -4039,6 +4061,46 @@ function App() {
     }
   };
 
+  const handleMarkRecordReported = async (record = form, event = null) => {
+    event?.stopPropagation();
+    if (!record?.id) {
+      showAlert("Primero selecciona o guarda una ficha para marcarla como reportada.");
+      return;
+    }
+
+    const payload = {
+      ...emptyForm,
+      ...normalizeRecord(record),
+      estado_padron: "reportada",
+      comentarios: record.comentarios || "Clandestino procesado"
+    };
+
+    try {
+      const response = await apiFetch(`/inmuebles/${record.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo marcar la ficha como reportada.");
+      }
+
+      const normalized = normalizeRecord(data);
+      setRecords((current) => current.map((item) => (item.id === normalized.id ? normalized : item)));
+      if (form.id === normalized.id) {
+        applyRecord(normalized);
+      }
+      showAlert(`Ficha ${normalized.clave_catastral} marcada como reportada.`);
+      loadRecords(search, recordView, { silent: true });
+    } catch (error) {
+      showAlert(error.message || "No se pudo marcar la ficha como reportada.");
+    }
+  };
+
   const handleRestoreRecord = async (recordId) => {
     try {
       const response = await apiFetch(`/inmuebles/${recordId}/restore`, {
@@ -4104,7 +4166,7 @@ function App() {
     try {
       let payload = form;
       try {
-        const match = await findAlcaldiaMatchForForm(form);
+        const match = form.estado_padron === "reportada" ? null : await findAlcaldiaMatchForForm(form);
         if (match) {
           const nextState = match.exists_in_aguas ? "varios_padrones" : "clandestino";
           payload = {
@@ -4552,14 +4614,18 @@ function App() {
     const fichaBarrio = targetRecord.barrio_colonia || targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
     const alcaldiaBarrio = targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
     const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_alcaldia || targetRecord.barrio_colonia || "--";
-    const estadoPadronLabel = targetRecord.estado_padron === "varios_padrones" || alcaldiaFichaMatch?.exists_in_aguas
-      ? "En varios padrones"
-      : "Clandestina";
+    const estadoPadronLabel = targetRecord.estado_padron === "reportada"
+      ? "Reportada"
+      : targetRecord.estado_padron === "varios_padrones" || alcaldiaFichaMatch?.exists_in_aguas
+        ? "En varios padrones"
+        : "Clandestina";
     const estadoPadronClass = estadoPadronLabel === "Clandestina" ? "is-clandestine" : "is-matched";
     const alcaldiaStatus = alcaldiaFichaMatch
       ? alcaldiaFichaMatch.exists_in_aguas
         ? "Aparece en ambos padrones"
         : "Clandestino: aparece en Alcaldia y no en Aguas"
+      : targetRecord.estado_padron === "reportada"
+        ? "Clandestino procesada y enviada a reportadas"
       : targetRecord.estado_padron === "varios_padrones"
         ? "Aparece en varios padrones"
         : "Sin coincidencia en Alcaldia";
@@ -6283,7 +6349,9 @@ function App() {
                 option.key === "today"
                   ? recordsUpdatedToday
                   : option.key === "clandestino"
-                    ? safeRecords.filter((record) => (record.estado_padron || "clandestino") !== "varios_padrones").length
+                    ? safeRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length
+                  : option.key === "reportada"
+                    ? safeRecords.filter((record) => record.estado_padron === "reportada").length
                   : option.key === "varios_padrones"
                     ? safeRecords.filter((record) => record.estado_padron === "varios_padrones").length
                   : option.key === "no_photo"
@@ -6359,6 +6427,8 @@ function App() {
               ? "Fichas activas"
               : recordQuickFilter === "clandestino"
                 ? "Clandestinas"
+              : recordQuickFilter === "reportada"
+                ? "Reportadas"
               : recordQuickFilter === "varios_padrones"
                 ? "En varios padrones"
               : recordQuickFilter === "today"
@@ -6428,12 +6498,8 @@ function App() {
                             <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
                           </div>
                           <div className="record-status-stack">
-                            <span className="record-badge">
-                              {recordView === "archived"
-                                ? "Log"
-                                : record.estado_padron === "varios_padrones"
-                                  ? "Varios padrones"
-                                  : "Clandestina"}
+                            <span className={`record-badge ${record.estado_padron === "reportada" ? "is-reported" : ""}`}>
+                              {recordView === "archived" ? "Log" : getPadronStatusLabel(record.estado_padron)}
                             </span>
                             {deadlineMeta ? (
                               <span className={`record-badge deadline-badge ${deadlineMeta.tone}`}>
@@ -6474,6 +6540,15 @@ function App() {
                           <button type="button" className="record-quick-chip" onClick={(event) => handleCopyClave(record, event)}>
                             Copiar clave
                           </button>
+                          {recordView !== "archived" && record.estado_padron !== "reportada" ? (
+                            <button
+                              type="button"
+                              className="record-quick-chip is-success"
+                              onClick={(event) => handleMarkRecordReported(record, event)}
+                            >
+                              Clandestino procesada
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -6600,20 +6675,26 @@ function App() {
                 <div className="padron-status-panel no-print">
                   <div>
                     <span className="sheet-kicker">Estado de padrones</span>
-                    <strong>{form.estado_padron === "varios_padrones" ? "En varios padrones" : "Clandestina"}</strong>
-                    <p>
-                      {form.estado_padron === "varios_padrones"
-                        ? "Esta ficha aparece en Alcaldia y Aguas. Queda separada del listado de clandestinas."
-                        : "Esta ficha no ha sido validada en varios padrones o no aparece en Aguas."}
-                    </p>
+                    <strong>{getPadronStatusLabel(form.estado_padron)}</strong>
+                    <p>{getPadronStatusDescription(form.estado_padron)}</p>
                   </div>
                   <label>
                     <span>Clasificacion</span>
                     <select name="estado_padron" value={form.estado_padron || "clandestino"} onChange={handleChange}>
                       <option value="clandestino">Clandestina</option>
+                      <option value="reportada">Reportada</option>
                       <option value="varios_padrones">En varios padrones</option>
                     </select>
                   </label>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => handleMarkRecordReported(form)}
+                    disabled={!form.id || form.estado_padron === "reportada"}
+                  >
+                    <Icon name="success" />
+                    Clandestino procesada
+                  </button>
                   <button type="button" className="button-secondary" onClick={handleValidateFormPadron}>
                     <Icon name="search" />
                     Validar padrones
@@ -6850,7 +6931,7 @@ function App() {
                 <div className="document-grid">
                   <div>
                     <strong>Clasificacion</strong>
-                    <span>{form.estado_padron === "varios_padrones" ? "En varios padrones" : "Clandestina"}</span>
+                    <span>{getPadronStatusLabel(form.estado_padron)}</span>
                   </div>
                   <div><strong>Clave Alcaldia</strong><span>{form.clave_alcaldia || "--"}</span></div>
                   <div><strong>Nombre Alcaldia</strong><span>{form.nombre_alcaldia || "--"}</span></div>

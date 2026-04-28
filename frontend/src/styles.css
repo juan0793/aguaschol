@@ -2453,6 +2453,12 @@ button:disabled {
   cursor: default;
 }
 
+.record-quick-chip.is-success {
+  border-color: rgba(22, 112, 75, 0.18);
+  background: linear-gradient(180deg, rgba(240, 251, 245, 0.98), rgba(224, 246, 236, 0.94));
+  color: #16704b;
+}
+
 .sheet-draft-status {
   display: flex;
   flex-direction: column;
@@ -2541,6 +2547,11 @@ button:disabled {
 }
 
 .record-badge.is-online {
+  background: rgba(22, 112, 75, 0.12);
+  color: #16704b;
+}
+
+.record-badge.is-reported {
   background: rgba(22, 112, 75, 0.12);
   color: #16704b;
 }
@@ -4208,7 +4219,7 @@ textarea {
 
 .padron-status-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.35fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.28fr) repeat(2, auto);
   gap: 0.8rem;
   align-items: end;
   padding: 0.9rem 1rem;

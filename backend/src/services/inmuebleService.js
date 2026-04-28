@@ -41,6 +41,8 @@ const memoryRecords = [
   }
 ];
 
+const padronStatuses = new Set(["clandestino", "varios_padrones", "reportada"]);
+
 const mapPayload = (payload) => ({
   clave_catastral: normalizeKey(payload.clave_catastral),
   abonado: payload.abonado?.trim() ?? "",
@@ -56,7 +58,7 @@ const mapPayload = (payload) => ({
   actividad: payload.actividad?.trim() ?? "",
   codigo_sector: payload.codigo_sector?.trim() ?? "",
   comentarios: payload.comentarios?.trim() ?? "",
-  estado_padron: payload.estado_padron === "varios_padrones" ? "varios_padrones" : "clandestino",
+  estado_padron: padronStatuses.has(payload.estado_padron) ? payload.estado_padron : "clandestino",
   clave_alcaldia: payload.clave_alcaldia?.trim() ?? "",
   nombre_alcaldia: payload.nombre_alcaldia?.trim() ?? "",
   barrio_alcaldia: payload.barrio_alcaldia?.trim() ?? "",

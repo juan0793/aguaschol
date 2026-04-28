@@ -110,6 +110,7 @@ export const fieldGroups = [
 
 export const recordQuickFilterOptions = [
   { key: "clandestino", label: "Clandestinas" },
+  { key: "reportada", label: "Reportadas" },
   { key: "varios_padrones", label: "Varios padrones" },
   { key: "all", label: "Todo" },
   { key: "today", label: "Hoy" },

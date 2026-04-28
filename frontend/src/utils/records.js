@@ -57,6 +57,7 @@ export const getRecordValidationIssues = (form = {}, hasExistingPhoto = false, s
 
 export const getRecordDeadlineMeta = (record = {}, referenceDate = new Date()) => {
   if (!record || record.archived_at) return null;
+  if (record.estado_padron === "reportada") return null;
 
   const sourceDate = record.created_at || record.fecha_aviso || record.updated_at;
   const createdDate = normalizeAlertDate(sourceDate);
