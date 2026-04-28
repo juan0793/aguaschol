@@ -15,7 +15,7 @@ router.get("/", listMapPointsHandler);
 router.get("/export", exportMapPointsHandler);
 router.post("/context", requireAdmin, mapPointContextsHandler);
 router.post("/", createMapPointHandler);
-router.put("/:id", requireAdmin, updateMapPointHandler);
+router.put("/:id", updateMapPointHandler);
 router.delete("/:id", requireAdmin, deleteMapPointHandler);
 
 export default router;

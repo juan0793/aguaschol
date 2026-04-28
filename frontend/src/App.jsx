@@ -208,6 +208,7 @@ function App() {
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
+  const [editingMapPointId, setEditingMapPointId] = useState(null);
   const [mapStatus, setMapStatus] = useState("Sincronizado");
   const [mapDraft, setMapDraft] = useState(emptyMapDraft);
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
@@ -2580,6 +2581,7 @@ function App() {
   };
 
   const resetMapDraft = () => {
+    setEditingMapPointId(null);
     setMapDraft({ ...emptyMapDraft });
   };
 
@@ -2603,8 +2605,10 @@ function App() {
     setSavingMapPoint(true);
 
     try {
-      const response = await apiFetch("/map-points", {
-        method: "POST",
+      const isEditing = Boolean(editingMapPointId);
+      const editingPoint = safeMapPoints.find((point) => point.id === editingMapPointId) ?? null;
+      const response = await apiFetch(isEditing ? `/map-points/${editingMapPointId}` : "/map-points", {
+        method: isEditing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json"
         },
@@ -2614,7 +2618,9 @@ function App() {
           accuracy_meters: Number(mapDraft.accuracy_meters) || null,
           point_type: mapDraft.point_type,
           description: mapDraft.description,
-          reference: mapDraft.reference
+          reference: mapDraft.reference,
+          marker_color: editingPoint?.marker_color || "#1576d1",
+          is_terminal_point: Boolean(editingPoint?.is_terminal_point)
         })
       });
       const data = await response.json();
@@ -2629,17 +2635,20 @@ function App() {
         throw new Error(data.message || "No fue posible guardar el punto.");
       }
 
-      setMapPoints((current) => [data, ...current]);
+      setMapPoints((current) =>
+        isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
+      );
       setMapDiaryDateKey(getMapDiaryDateKey(data.created_at) || getMapDiaryDateKey(new Date()));
       setSelectedMapPointId(data.id);
-      setMapStatus("Punto guardado");
+      setEditingMapPointId(null);
+      setMapStatus(isEditing ? "Punto actualizado" : "Punto guardado");
       setMapFocusRequest({
         latitude: Number(data.latitude),
         longitude: Number(data.longitude),
         zoom: 19,
         key: Date.now()
       });
-      showAlert("Punto de campo guardado correctamente.");
+      showAlert(isEditing ? "Punto de campo actualizado." : "Punto de campo guardado correctamente.");
       resetMapDraft();
     } catch (error) {
       showAlert(error.message || "No fue posible guardar el punto.");
@@ -2836,6 +2845,30 @@ function App() {
       latitude: Number(point.latitude),
       longitude: Number(point.longitude),
       zoom: 18.5,
+      key: Date.now()
+    });
+  };
+
+  const handleEditMapPoint = (pointId, event) => {
+    event?.stopPropagation();
+    const point = visibleMapPoints.find((item) => item.id === pointId) ?? safeMapPoints.find((item) => item.id === pointId);
+    if (!point) return;
+
+    setSelectedMapPointId(point.id);
+    setEditingMapPointId(point.id);
+    setMapDraft({
+      latitude: formatCoordinate(point.latitude),
+      longitude: formatCoordinate(point.longitude),
+      accuracy_meters: point.accuracy_meters ?? "",
+      point_type: point.point_type || "caja_registro",
+      description: point.description || "",
+      reference: point.reference_note || ""
+    });
+    setMapStatus("Edicion activa");
+    setMapFocusRequest({
+      latitude: Number(point.latitude),
+      longitude: Number(point.longitude),
+      zoom: 19,
       key: Date.now()
     });
   };
@@ -7081,7 +7114,11 @@ function App() {
                   <Icon name={mapStatus === "GPS listo" ? "success" : mapStatus === "Sin conexion" ? "activity" : "map"} />
                   {mapStatus}
                 </span>
-                <span className="helper-text">Toca el mapa para fijar coordenadas o usa tu ubicacion actual.</span>
+                <div className="map-workflow-steps" aria-label="Flujo de captura">
+                  <span>1. Ubica</span>
+                  <span>2. Describe</span>
+                  <span>3. Guarda</span>
+                </div>
               </div>
               <div className="map-diary-strip">
                 <div className="map-diary-strip-head">
@@ -7120,15 +7157,20 @@ function App() {
             </article>
 
             <aside className="map-side-panel">
-              <form className="map-form-card" onSubmit={handleSaveMapPoint}>
+              <form className={`map-form-card ${editingMapPointId ? "is-editing" : ""}`} onSubmit={handleSaveMapPoint}>
                 <div className="lookup-card-head map-card-head">
                   <div>
-                    <p className="sheet-kicker">Nuevo punto</p>
-                    <h3>Registrar ubicacion</h3>
+                    <p className="sheet-kicker">{editingMapPointId ? "Edicion activa" : "Nuevo punto"}</p>
+                    <h3>{editingMapPointId ? "Actualizar ubicacion" : "Registrar ubicacion"}</h3>
+                    <p className="helper-text">
+                      {editingMapPointId
+                        ? "Ajusta coordenadas o descripcion y guarda los cambios."
+                        : "Usa GPS o toca el mapa; luego completa los datos tecnicos."}
+                    </p>
                   </div>
                   <button type="button" className="button-secondary" onClick={resetMapDraft}>
                     <Icon name="refresh" />
-                    Limpiar
+                    {editingMapPointId ? "Cancelar" : "Limpiar"}
                   </button>
                 </div>
 
@@ -7186,8 +7228,8 @@ function App() {
                     {locatingUser ? "Ubicando..." : "Usar mi ubicacion"}
                   </button>
                   <button type="submit" disabled={savingMapPoint}>
-                    <Icon name="plus" />
-                    {savingMapPoint ? "Guardando..." : "Guardar punto"}
+                    <Icon name={editingMapPointId ? "records" : "plus"} />
+                    {savingMapPoint ? "Guardando..." : editingMapPointId ? "Actualizar punto" : "Guardar punto"}
                   </button>
                 </div>
               </form>
@@ -7210,6 +7252,10 @@ function App() {
                     <span>{selectedMapPoint.accuracy_meters ? `±${selectedMapPoint.accuracy_meters} m` : "Sin precision"}</span>
                   </div>
                   <div className="map-point-actions">
+                    <button type="button" className="button-secondary" onClick={(event) => handleEditMapPoint(selectedMapPoint.id, event)}>
+                      <Icon name="records" />
+                      Editar
+                    </button>
                     <button type="button" className="button-secondary" onClick={(event) => handleOpenPointInMaps(selectedMapPoint, event)}>
                       <Icon name="map" />
                       Ver en Maps
@@ -7263,6 +7309,9 @@ function App() {
                           </button>
                           <button type="button" className="record-quick-chip" onClick={(event) => handleCopyCoordinates(point, event)}>
                             Copiar coords
+                          </button>
+                          <button type="button" className="record-quick-chip" onClick={(event) => handleEditMapPoint(point.id, event)}>
+                            Editar
                           </button>
                         {isAdmin ? (
                           <button type="button" className="record-quick-chip" onClick={() => handleDeleteMapPoint(point.id)}>
@@ -7703,6 +7752,7 @@ function App() {
                                     <th>Referencia cercana</th>
                                     <th>Referencia</th>
                                     <th>Fecha</th>
+                                    <th>Acciones</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -7730,6 +7780,18 @@ function App() {
                                       <td>{point.suggested_reference || "--"}</td>
                                       <td>{point.reference_note || point.description || "--"}</td>
                                       <td>{formatDateTime(point.created_at)}</td>
+                                      <td>
+                                        <button
+                                          type="button"
+                                          className="record-quick-chip"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleEditReportMapPoint(point.id);
+                                          }}
+                                        >
+                                          Editar
+                                        </button>
+                                      </td>
                                     </tr>
                                   ))}
                                 </tbody>
