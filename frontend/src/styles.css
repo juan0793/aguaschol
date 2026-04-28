@@ -2254,6 +2254,42 @@ button:disabled {
   box-shadow: 0 10px 18px rgba(13, 77, 134, 0.05);
 }
 
+.record-pagination {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 14px;
+  background: rgba(21, 118, 209, 0.05);
+  border: 1px solid rgba(21, 118, 209, 0.1);
+}
+
+.record-pagination-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.record-pagination-copy strong {
+  color: #10375b;
+  font-size: 0.9rem;
+}
+
+.record-pagination-copy span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.record-pagination-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.record-pagination-actions button {
+  justify-content: center;
+  min-height: 40px;
+}
+
 .record-card {
   position: relative;
   overflow: hidden;
