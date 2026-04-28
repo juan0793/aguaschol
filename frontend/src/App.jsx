@@ -4052,10 +4052,12 @@ function App() {
         throw new Error(data.message || "No se pudo archivar la ficha.");
       }
 
+      const archivedRecord = normalizeRecord(data);
+      setRecords((current) => current.filter((record) => record.id !== archivedRecord.id));
       resetForm();
-      setRecordView("archived");
-      showAlert(`Ficha ${data.clave_catastral} archivada.`);
-      loadRecords(search, "archived");
+      setRecordView("active");
+      showAlert(`Ficha ${archivedRecord.clave_catastral} archivada.`);
+      loadRecords(search, "active", { silent: true });
     } catch (error) {
       showAlert(error.message);
     }
@@ -6888,7 +6890,7 @@ function App() {
                   {saving ? "Guardando..." : "Guardar y nueva"}
                 </button>
               ) : null}
-              {form.id ? (
+              {recordView !== "archived" && form.id ? (
                 <button type="button" className="button-danger" onClick={handleArchiveRecord}>
                   Archivar ficha
                 </button>

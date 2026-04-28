@@ -402,10 +402,14 @@ export const archiveInmueble = async (id, payload = {}, options = {}) => {
 
   if (env.useMemoryDb) {
     const record = memoryRecords.find((item) => item.id === Number(id));
-    if (!record || record.archived_at) {
+    if (!record) {
       const error = new Error("Inmueble no encontrado.");
       error.status = 404;
       throw error;
+    }
+
+    if (record.archived_at) {
+      return record;
     }
 
     record.archived_at = new Date().toISOString();
@@ -423,6 +427,17 @@ export const archiveInmueble = async (id, payload = {}, options = {}) => {
   }
 
   const pool = getPool();
+  const existingRecord = await getById(id);
+  if (!existingRecord) {
+    const error = new Error("Inmueble no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  if (existingRecord.archived_at) {
+    return existingRecord;
+  }
+
   const [result] = await pool.query(
     `
       UPDATE inmuebles_clandestinos
@@ -433,6 +448,11 @@ export const archiveInmueble = async (id, payload = {}, options = {}) => {
   );
 
   if (result.affectedRows === 0) {
+    const currentRecord = await getById(id);
+    if (currentRecord?.archived_at) {
+      return currentRecord;
+    }
+
     const error = new Error("Inmueble no encontrado.");
     error.status = 404;
     throw error;
