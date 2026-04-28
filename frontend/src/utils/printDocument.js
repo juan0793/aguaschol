@@ -125,7 +125,9 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
           }
           .print-ficha {
             max-width: 100%;
-            padding-left: 4mm;
+            padding-left: 0;
+            color: #142b3d;
+            font-size: 9.5px;
           }
           .print-ficha p {
             margin-bottom: 3px;
@@ -135,18 +137,20 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
           }
           .print-ficha .print-ficha-compact-header {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
-            gap: 8px;
+            grid-template-columns: minmax(0, 1fr) minmax(330px, 0.76fr);
+            gap: 7px;
             align-items: center;
-            border: 1px solid #2b5d85;
-            background: #eef6fd;
-            padding: 7px 8px;
+            border: 1px solid #a9c3d7;
+            border-left: 6px solid #0d4d86;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #f8fcff 0%, #eef6fb 100%);
+            padding: 6px 8px;
             margin-bottom: 6px;
           }
           .print-ficha .print-ficha-brand {
             display: grid;
-            grid-template-columns: 50px minmax(0, 1fr);
-            gap: 8px;
+            grid-template-columns: 46px minmax(0, 1fr);
+            gap: 7px;
             align-items: center;
           }
           .print-ficha .print-ficha-brand p,
@@ -158,41 +162,51 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             font-size: 9px;
           }
           .print-ficha .print-logo {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 4px;
+            width: 44px;
+            height: 44px;
+            margin-bottom: 0;
           }
           .print-ficha .print-title {
-            font-size: 12px;
+            font-size: 12.5px;
             margin-bottom: 2px;
+            color: #0d3f6a;
           }
           .print-ficha .print-key {
-            padding: 3px 8px;
-            margin-top: 2px;
-            font-size: 10px;
+            padding: 4px 7px;
+            margin-top: 0;
+            font-size: 9.5px;
+            border: 1px solid #b8ccda;
+            border-radius: 6px;
+            background: #fff;
           }
           .print-ficha .print-key-grid {
             margin-top: 3px;
+            gap: 5px;
           }
           .print-ficha .print-clandestine-band {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            gap: 7px;
             border: 1px solid #c8d5df;
+            border-radius: 7px;
             background: #f7fbff;
-            padding: 6px 8px;
+            padding: 5px 7px;
             margin-bottom: 6px;
           }
           .print-ficha .print-clandestine-band.is-clandestine {
             border-color: #9b202d;
             background: #fff1f2;
           }
+          .print-ficha .print-clandestine-band.is-matched {
+            border-color: #9bc9ad;
+            background: #f0fbf5;
+          }
           .print-ficha .print-clandestine-band strong,
           .print-ficha .print-clandestine-band span {
             display: block;
           }
           .print-ficha .print-clandestine-band strong {
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
           }
           .print-ficha .print-clandestine-band span {
@@ -200,9 +214,11 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             color: #4b647a;
           }
           .print-ficha .print-section {
-            padding: 5px;
+            padding: 5px 6px;
             margin-bottom: 5px;
-            border-color: #9aaab6;
+            border-color: #bacbd8;
+            border-radius: 7px;
+            background: #fff;
           }
           .print-ficha .print-layout {
             display: grid;
@@ -210,8 +226,8 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
           }
           .print-ficha .print-top-layout {
             display: grid;
-            grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.95fr);
-            gap: 8px;
+            grid-template-columns: minmax(0, 1.7fr) minmax(220px, 0.55fr);
+            gap: 6px;
             align-items: start;
           }
           .print-ficha .print-main-column,
@@ -220,12 +236,78 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             gap: 5px;
           }
           .print-ficha .print-section h3 {
-            font-size: 10px;
+            font-size: 8px;
             margin-bottom: 4px;
+            color: #0d4d86;
+            letter-spacing: 0.06em;
+            border-bottom: 1px solid #d8e6f0;
+            padding-bottom: 2px;
+          }
+          .print-ficha .print-section-feature {
+            background: #f8fbff;
           }
           .print-ficha .print-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 4px 8px;
+          }
+          .print-ficha .print-summary-grid,
+          .print-ficha .print-data-grid,
+          .print-ficha .print-service-row {
+            display: grid;
+            gap: 4px;
+          }
+          .print-ficha .print-summary-grid,
+          .print-ficha .print-data-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .print-ficha .print-data-grid.is-four {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+          .print-ficha .print-service-row {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 5px;
+          }
+          .print-ficha .print-summary-grid div,
+          .print-ficha .print-data-grid div,
+          .print-ficha .print-service-row div,
+          .print-ficha .print-note {
+            border: 1px solid #d5e2ec;
+            border-radius: 6px;
+            background: #fff;
+          }
+          .print-ficha .print-summary-grid div,
+          .print-ficha .print-data-grid div,
+          .print-ficha .print-service-row div {
+            min-height: 24px;
+            padding: 4px 5px;
+          }
+          .print-ficha .print-summary-grid strong,
+          .print-ficha .print-data-grid strong,
+          .print-ficha .print-service-row strong {
+            display: block;
+            margin-bottom: 2px;
+            color: #506a80;
+            font-size: 7px;
+            line-height: 1.1;
+            text-transform: uppercase;
+          }
+          .print-ficha .print-summary-grid span,
+          .print-ficha .print-data-grid span,
+          .print-ficha .print-service-row span {
+            display: block;
+            color: #142f45;
+            font-size: 9.5px;
+            font-weight: 700;
+            line-height: 1.2;
+          }
+          .print-ficha .print-data-grid .is-wide {
+            grid-column: span 3;
+          }
+          .print-ficha .print-note {
+            min-height: 30px;
+            margin: 0;
+            padding: 5px 6px;
+            line-height: 1.25;
           }
           .print-ficha .print-field {
             min-height: 18px;
@@ -238,8 +320,9 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
           }
           .print-ficha .print-photo {
             margin-top: 0;
-            height: 205px;
-            max-height: 205px;
+            height: 170px;
+            max-height: 170px;
+            border-radius: 6px;
           }
           .print-ficha .print-photo-panel {
             display: grid;
@@ -252,15 +335,15 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             margin-bottom: 0;
           }
           .print-ficha .print-roles {
-            gap: 12px;
-            margin-top: 6px;
+            gap: 14px;
+            margin-top: 4px;
           }
           .print-ficha .print-signature-line {
-            min-height: 74px;
-            padding-top: 14px;
+            min-height: 52px;
+            padding-top: 10px;
           }
           .print-ficha .print-signature-line strong {
-            margin-bottom: 10px;
+            margin-bottom: 7px;
             line-height: 1.25;
           }
           .aviso {

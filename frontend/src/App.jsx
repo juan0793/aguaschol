@@ -4552,6 +4552,10 @@ function App() {
     const fichaBarrio = targetRecord.barrio_colonia || targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
     const alcaldiaBarrio = targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
     const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_alcaldia || targetRecord.barrio_colonia || "--";
+    const estadoPadronLabel = targetRecord.estado_padron === "varios_padrones" || alcaldiaFichaMatch?.exists_in_aguas
+      ? "En varios padrones"
+      : "Clandestina";
+    const estadoPadronClass = estadoPadronLabel === "Clandestina" ? "is-clandestine" : "is-matched";
     const alcaldiaStatus = alcaldiaFichaMatch
       ? alcaldiaFichaMatch.exists_in_aguas
         ? "Aparece en ambos padrones"
@@ -4577,10 +4581,10 @@ function App() {
             <div class="print-key"><strong>Clave Alcaldia</strong><span>${escapeHtml(fichaClaveAlcaldia)}</span></div>
           </div>
         </div>
-        <section class="print-clandestine-band ${alcaldiaFichaMatch && !alcaldiaFichaMatch.exists_in_aguas ? "is-clandestine" : ""}">
+        <section class="print-clandestine-band ${estadoPadronClass}">
           <div>
-            <strong>${escapeHtml(alcaldiaStatus)}</strong>
-            <span>Busqueda por ${escapeHtml(alcaldiaSearchMode || "clave/nombre")}</span>
+            <strong>${escapeHtml(estadoPadronLabel)}</strong>
+            <span>${escapeHtml(alcaldiaStatus)} - Busqueda por ${escapeHtml(alcaldiaSearchMode || "clave/nombre")}</span>
           </div>
           <div>
             <strong>${escapeHtml(fichaNombre)}</strong>
@@ -4590,48 +4594,49 @@ function App() {
         <div class="print-layout">
           <div class="print-top-layout">
             <div class="print-main-column">
-              <section class="print-section">
-                <h3>Cruce de padrones</h3>
-                <div class="print-grid">
-                  <div class="print-field"><strong>Nombre Alcaldia</strong>${escapeHtml(fichaNombre)}</div>
-                  <div class="print-field"><strong>Barrio ficha</strong>${escapeHtml(fichaBarrio)}</div>
-                  <div class="print-field"><strong>Barrio Alcaldia</strong>${escapeHtml(alcaldiaBarrio)}</div>
-                  <div class="print-field"><strong>Direccion Alcaldia</strong>${escapeHtml(fichaDireccion)}</div>
-                  <div class="print-field"><strong>Identificador Alcaldia</strong>${escapeHtml(alcaldiaFichaMatch?.identificador || "--")}</div>
+              <section class="print-section print-section-feature">
+                <h3>Resumen de padrones</h3>
+                <div class="print-summary-grid">
+                  <div><strong>Nombre Alcaldia</strong><span>${escapeHtml(fichaNombre)}</span></div>
+                  <div><strong>Barrio ficha</strong><span>${escapeHtml(fichaBarrio)}</span></div>
+                  <div><strong>Barrio Alcaldia</strong><span>${escapeHtml(alcaldiaBarrio)}</span></div>
+                  <div><strong>Direccion</strong><span>${escapeHtml(fichaDireccion)}</span></div>
+                  <div><strong>Identificador</strong><span>${escapeHtml(alcaldiaFichaMatch?.identificador || targetRecord.identidad || "--")}</span></div>
+                  <div><strong>Estado</strong><span>${escapeHtml(estadoPadronLabel)}</span></div>
                 </div>
               </section>
               <section class="print-section">
-                <h3>Informacion del abonado</h3>
-                <div class="print-grid">
-                  <div class="print-field"><strong>Abonado</strong>${escapeHtml(targetRecord.abonado || "--")}</div>
-                  <div class="print-field"><strong>Catastral/Ficha</strong>${escapeHtml(targetRecord.nombre_catastral || fichaNombre)}</div>
-                  <div class="print-field"><strong>Inquilino</strong>${escapeHtml(targetRecord.inquilino || "--")}</div>
-                  <div class="print-field"><strong>Barrio/Colonia</strong>${escapeHtml(fichaBarrio)}</div>
-                  <div class="print-field"><strong>Identidad</strong>${escapeHtml(targetRecord.identidad || alcaldiaFichaMatch?.identificador || "--")}</div>
-                  <div class="print-field"><strong>Telefono</strong>${escapeHtml(targetRecord.telefono || "--")}</div>
+                <h3>Datos principales</h3>
+                <div class="print-data-grid">
+                  <div><strong>Abonado</strong><span>${escapeHtml(targetRecord.abonado || "--")}</span></div>
+                  <div><strong>Catastral/Ficha</strong><span>${escapeHtml(targetRecord.nombre_catastral || fichaNombre)}</span></div>
+                  <div><strong>Inquilino</strong><span>${escapeHtml(targetRecord.inquilino || "--")}</span></div>
+                  <div><strong>Identidad</strong><span>${escapeHtml(targetRecord.identidad || alcaldiaFichaMatch?.identificador || "--")}</span></div>
+                  <div><strong>Telefono</strong><span>${escapeHtml(targetRecord.telefono || "--")}</span></div>
+                  <div><strong>Sector</strong><span>${escapeHtml(targetRecord.codigo_sector || alcaldiaFichaMatch?.codigo_caserio || "--")}</span></div>
                 </div>
               </section>
               <section class="print-section">
                 <h3>Identificacion del inmueble</h3>
-                <p>${escapeHtml(targetRecord.accion_inspeccion || "--")}</p>
+                <p class="print-note">${escapeHtml(targetRecord.accion_inspeccion || "--")}</p>
               </section>
               <section class="print-section">
                 <h3>Datos del inmueble</h3>
-                <div class="print-grid">
-                  <div class="print-field"><strong>Situacion</strong>${escapeHtml(targetRecord.situacion_inmueble || "--")}</div>
-                  <div class="print-field"><strong>Tendencia</strong>${escapeHtml(targetRecord.tendencia_inmueble || "--")}</div>
-                  <div class="print-field"><strong>Uso del suelo</strong>${escapeHtml(targetRecord.uso_suelo || alcaldiaFichaMatch?.naturaleza || "--")}</div>
-                  <div class="print-field"><strong>Actividad</strong>${escapeHtml(targetRecord.actividad || "--")}</div>
-                  <div class="print-field"><strong>Codigo del sector</strong>${escapeHtml(targetRecord.codigo_sector || alcaldiaFichaMatch?.codigo_caserio || "--")}</div>
-                  <div class="print-field"><strong>Comentarios</strong>${escapeHtml(targetRecord.comentarios || (alcaldiaFichaMatch && !alcaldiaFichaMatch.exists_in_aguas ? "Clandestino" : "--"))}</div>
+                <div class="print-data-grid is-four">
+                  <div><strong>Situacion</strong><span>${escapeHtml(targetRecord.situacion_inmueble || "--")}</span></div>
+                  <div><strong>Tendencia</strong><span>${escapeHtml(targetRecord.tendencia_inmueble || "--")}</span></div>
+                  <div><strong>Uso del suelo</strong><span>${escapeHtml(targetRecord.uso_suelo || alcaldiaFichaMatch?.naturaleza || "--")}</span></div>
+                  <div><strong>Actividad</strong><span>${escapeHtml(targetRecord.actividad || "--")}</span></div>
+                  <div><strong>Codigo sector</strong><span>${escapeHtml(targetRecord.codigo_sector || alcaldiaFichaMatch?.codigo_caserio || "--")}</span></div>
+                  <div class="is-wide"><strong>Comentarios</strong><span>${escapeHtml(targetRecord.comentarios || (alcaldiaFichaMatch && !alcaldiaFichaMatch.exists_in_aguas ? "Clandestino" : "--"))}</span></div>
                 </div>
               </section>
               <section class="print-section">
                 <h3>Datos de los servicios</h3>
-                <div class="print-grid">
-                  <div class="print-field"><strong>Agua potable</strong>${escapeHtml(targetRecord.conexion_agua || "--")}</div>
-                  <div class="print-field"><strong>Alcantarillado</strong>${escapeHtml(targetRecord.conexion_alcantarillado || "--")}</div>
-                  <div class="print-field"><strong>Desechos</strong>${escapeHtml(targetRecord.recoleccion_desechos || "--")}</div>
+                <div class="print-service-row">
+                  <div><strong>Agua potable</strong><span>${escapeHtml(targetRecord.conexion_agua || "--")}</span></div>
+                  <div><strong>Alcantarillado</strong><span>${escapeHtml(targetRecord.conexion_alcantarillado || "--")}</span></div>
+                  <div><strong>Desechos</strong><span>${escapeHtml(targetRecord.recoleccion_desechos || "--")}</span></div>
                 </div>
               </section>
             </div>
@@ -4645,7 +4650,7 @@ function App() {
             </div>
           </div>
           <section class="print-section">
-            <h3>Firmas</h3>
+            <h3>Responsables</h3>
             <div class="print-roles">
               <div class="print-signature-line">
                 <strong>${targetRecord.levantamiento_datos || "--"}</strong><br />
