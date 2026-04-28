@@ -6673,32 +6673,39 @@ function App() {
               <section className="sheet-section">
                 <h3>Informacion del abonado</h3>
                 <div className="padron-status-panel no-print">
-                  <div>
+                  <div className="padron-status-copy">
                     <span className="sheet-kicker">Estado de padrones</span>
-                    <strong>{getPadronStatusLabel(form.estado_padron)}</strong>
+                    <div className="padron-status-heading">
+                      <strong>{getPadronStatusLabel(form.estado_padron)}</strong>
+                      <span className={`record-badge ${form.estado_padron === "reportada" ? "is-reported" : ""}`}>
+                        {form.estado_padron === "reportada" ? "Procesada" : "En revision"}
+                      </span>
+                    </div>
                     <p>{getPadronStatusDescription(form.estado_padron)}</p>
                   </div>
-                  <label>
-                    <span>Clasificacion</span>
-                    <select name="estado_padron" value={form.estado_padron || "clandestino"} onChange={handleChange}>
-                      <option value="clandestino">Clandestina</option>
-                      <option value="reportada">Reportada</option>
-                      <option value="varios_padrones">En varios padrones</option>
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => handleMarkRecordReported(form)}
-                    disabled={!form.id || form.estado_padron === "reportada"}
-                  >
-                    <Icon name="success" />
-                    Clandestino procesada
-                  </button>
-                  <button type="button" className="button-secondary" onClick={handleValidateFormPadron}>
-                    <Icon name="search" />
-                    Validar padrones
-                  </button>
+                  <div className="padron-status-actions">
+                    <label>
+                      <span>Clasificacion</span>
+                      <select name="estado_padron" value={form.estado_padron || "clandestino"} onChange={handleChange}>
+                        <option value="clandestino">Clandestina</option>
+                        <option value="reportada">Reportada</option>
+                        <option value="varios_padrones">En varios padrones</option>
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => handleMarkRecordReported(form)}
+                      disabled={!form.id || form.estado_padron === "reportada"}
+                    >
+                      <Icon name="success" />
+                      Clandestino procesada
+                    </button>
+                    <button type="button" className="button-secondary" onClick={handleValidateFormPadron}>
+                      <Icon name="search" />
+                      Validar padrones
+                    </button>
+                  </div>
                 </div>
                 <div className="form-grid padron-cross-grid">
                   <label>
