@@ -99,8 +99,7 @@ const normalizeDashboardWidgetPrefs = (value) => {
   return { order, hidden };
 };
 
-const getWorkspaceViewByRole = (role) =>
-  role === "admin" ? "dashboard" : role === "transport" ? "transport" : "records";
+const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : "records");
 
 function App() {
   const sheetRef = useRef(null);
@@ -219,6 +218,13 @@ function App() {
   const [uploadingPadron, setUploadingPadron] = useState(false);
   const [reprocessingPadron, setReprocessingPadron] = useState(false);
   const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
+  const [alcaldiaMeta, setAlcaldiaMeta] = useState(null);
+  const [alcaldiaImportSummary, setAlcaldiaImportSummary] = useState(null);
+  const [alcaldiaFile, setAlcaldiaFile] = useState(null);
+  const [uploadingAlcaldia, setUploadingAlcaldia] = useState(false);
+  const [loadingAlcaldiaMeta, setLoadingAlcaldiaMeta] = useState(false);
+  const [loadingAlcaldiaComparison, setLoadingAlcaldiaComparison] = useState(false);
+  const [alcaldiaComparison, setAlcaldiaComparison] = useState(null);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -837,7 +843,6 @@ function App() {
             { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
-            { key: "transport", section: "operacion", label: "Transporte", icon: "transport", meta: "Ruta y monitoreo", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
             { key: "mapAnalytics", section: "control", label: "Estadisticas campo", icon: "dashboard", meta: `${mapReportData.totalPoints} puntos`, tone: "is-report" },
             { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
@@ -889,7 +894,6 @@ function App() {
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
-            { key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Tiempo real" },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
             { key: "mapAnalytics", label: "Estadisticas campo", icon: "dashboard", group: "control", helper: `${mapReportData.totalPoints} puntos` },
             { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
@@ -897,8 +901,6 @@ function App() {
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
           ]
-        : isTransport
-          ? [{ key: "transport", label: "Transporte", icon: "transport", group: "operacion", helper: "Ruta asignada" }]
         : [
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
@@ -914,12 +916,11 @@ function App() {
       safeRecords.length,
       safeUsers.length,
       visibleMapPoints.length,
-      isTransport
     ]
   );
   const mobilePrimaryModuleKeys = useMemo(
-    () => (isTransport ? ["transport"] : ["records", "lookup", "map", "transport"]),
-    [isTransport]
+    () => ["records", "lookup", "map"],
+    []
   );
   const primaryModuleNavigationItems = useMemo(
     () => moduleNavigationItems.filter((item) => mobilePrimaryModuleKeys.includes(item.key)),
@@ -1721,6 +1722,66 @@ function App() {
     }
   };
 
+  const loadAlcaldiaMeta = async ({ silent = false } = {}) => {
+    if (!isAuthenticated || !isAdmin) return;
+    if (!silent) {
+      setLoadingAlcaldiaMeta(true);
+    }
+
+    try {
+      const response = await apiFetch("/claves/alcaldia/meta");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar el padron de alcaldia.");
+      }
+
+      setAlcaldiaMeta(data.meta ?? null);
+      setAlcaldiaImportSummary(data.meta?.last_import_summary ?? null);
+    } catch (error) {
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar el padron de alcaldia.");
+      }
+    } finally {
+      if (!silent) {
+        setLoadingAlcaldiaMeta(false);
+      }
+    }
+  };
+
+  const loadAlcaldiaComparison = async () => {
+    if (!isAuthenticated || !isAdmin) return;
+    setLoadingAlcaldiaComparison(true);
+
+    try {
+      const response = await apiFetch("/claves/alcaldia/compare");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible comparar los padrones.");
+      }
+
+      setAlcaldiaComparison(data);
+      showAlert(`Comparacion lista: ${data.summary?.candidate_clandestine ?? 0} claves de alcaldia no aparecen en Aguas.`);
+    } catch (error) {
+      showAlert(error.message || "No fue posible comparar los padrones.");
+    } finally {
+      setLoadingAlcaldiaComparison(false);
+    }
+  };
+
   const loadPadronRequestMeta = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !isAdmin) return;
     if (!silent) {
@@ -1928,6 +1989,7 @@ function App() {
 
     if (workspaceView === "padron") {
       loadPadronMeta();
+      loadAlcaldiaMeta();
     }
 
     if (workspaceView === "requests") {
@@ -1972,6 +2034,7 @@ function App() {
     loadMapPoints({ silent: true });
     loadUsers({ silent: true });
     loadPadronMeta({ silent: true });
+    loadAlcaldiaMeta({ silent: true });
     loadAuditLogs({ silent: true });
   }, [isAuthenticated, isAdmin, workspaceView]);
 
@@ -1997,15 +2060,10 @@ function App() {
   }, [mapReportData.zones.length]);
 
   useEffect(() => {
-    if (isAuthenticated && isTransport && workspaceView !== "transport") {
-      setWorkspaceView("transport");
-      return;
-    }
-
-    if (isAuthenticated && !isAdmin && !isTransport && !["records", "lookup", "map"].includes(workspaceView)) {
+    if (isAuthenticated && !isAdmin && !["records", "lookup", "map"].includes(workspaceView)) {
       setWorkspaceView("records");
     }
-  }, [isAuthenticated, isAdmin, isTransport, workspaceView]);
+  }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
     setShowMobileModuleMenu(false);
@@ -3454,6 +3512,10 @@ function App() {
     setPadronFile(event.target.files?.[0] ?? null);
   };
 
+  const handleAlcaldiaFileChange = (event) => {
+    setAlcaldiaFile(event.target.files?.[0] ?? null);
+  };
+
   const handleAuditFilterChange = (event) => {
     const { name, value } = event.target;
     setAuditFilters((current) => ({ ...current, [name]: value }));
@@ -3620,6 +3682,48 @@ function App() {
       showAlert(error.message || "No se pudo actualizar el padron maestro.");
     } finally {
       setUploadingPadron(false);
+    }
+  };
+
+  const handleUploadAlcaldia = async (event) => {
+    event.preventDefault();
+
+    if (!alcaldiaFile) {
+      showAlert("Selecciona un archivo Excel del padron de alcaldia.");
+      return;
+    }
+
+    setUploadingAlcaldia(true);
+
+    try {
+      const payload = new FormData();
+      payload.append("padron", alcaldiaFile);
+
+      const response = await apiFetch("/claves/alcaldia/upload", {
+        method: "POST",
+        body: payload
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo actualizar el padron de alcaldia.");
+      }
+
+      setAlcaldiaMeta(data.meta ?? null);
+      setAlcaldiaImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
+      setAlcaldiaFile(null);
+      setAlcaldiaComparison(null);
+      showAlert(`Padron de alcaldia actualizado con ${data.meta?.total_records ?? 0} claves.`);
+    } catch (error) {
+      showAlert(error.message || "No se pudo actualizar el padron de alcaldia.");
+    } finally {
+      setUploadingAlcaldia(false);
     }
   };
 
@@ -4267,6 +4371,7 @@ function App() {
   const handlePrintFicha = async (recordOverride = null) => {
     const targetRecord = recordOverride ? { ...emptyForm, ...normalizeRecord(recordOverride) } : form;
     let photoMarkup = "";
+    let alcaldiaFichaMatch = null;
 
     try {
       if (!recordOverride && selectedFile) {
@@ -4280,6 +4385,22 @@ function App() {
       showAlert("La ficha se imprimira sin foto porque no fue posible cargarla a tiempo.");
     }
 
+    if (targetRecord.clave_catastral) {
+      try {
+        const response = await apiFetch(`/claves/alcaldia/search?clave=${encodeURIComponent(targetRecord.clave_catastral)}`);
+        const data = await response.json();
+        alcaldiaFichaMatch = Array.isArray(data.matches) ? data.matches[0] ?? null : null;
+      } catch {
+        alcaldiaFichaMatch = null;
+      }
+    }
+
+    const alcaldiaStatus = alcaldiaFichaMatch
+      ? alcaldiaFichaMatch.exists_in_aguas
+        ? "Aparece en ambos padrones"
+        : "Aparece en Alcaldia, no en Aguas"
+      : "Sin coincidencia cargada en Alcaldia";
+
     await printDocument(
       `Ficha ${targetRecord.clave_catastral || "inmueble"}`,
       `
@@ -4289,11 +4410,25 @@ function App() {
           <p>Barrio El Centro Antiguo Local de Cooperativa Guadalupe.</p>
           <p>Tel: 2782-5075 Fax: 2780-3985</p>
           <h2 class="print-title">Ficha Tecnica de Informacion Catastral</h2>
-          <div class="print-key">CLAVE CATASTRAL: ${targetRecord.clave_catastral || "--"}</div>
+          <div class="print-key-grid">
+            <div class="print-key"><strong>Clave Aguas de Choluteca</strong><span>${targetRecord.clave_catastral || "--"}</span></div>
+            <div class="print-key"><strong>Clave Alcaldia</strong><span>${alcaldiaFichaMatch?.clave_catastral || "--"}</span></div>
+          </div>
         </div>
         <div class="print-layout">
           <div class="print-top-layout">
             <div class="print-main-column">
+              <section class="print-section">
+                <h3>Cruce de padrones</h3>
+                <div class="print-grid">
+                  <div class="print-field"><strong>Estado</strong>${alcaldiaStatus}</div>
+                  <div class="print-field"><strong>Nombre Alcaldia</strong>${alcaldiaFichaMatch?.nombre || "--"}</div>
+                  <div class="print-field"><strong>Identificador Alcaldia</strong>${alcaldiaFichaMatch?.identificador || "--"}</div>
+                  <div class="print-field"><strong>Direccion Alcaldia</strong>${alcaldiaFichaMatch?.direccion || "--"}</div>
+                  <div class="print-field"><strong>Caserio Alcaldia</strong>${alcaldiaFichaMatch?.caserio || "--"}</div>
+                  <div class="print-field"><strong>Clave equivalente Aguas</strong>${alcaldiaFichaMatch?.clave_aguas_formato || targetRecord.clave_catastral || "--"}</div>
+                </div>
+              </section>
               <section class="print-section">
                 <h3>Informacion del abonado</h3>
                 <div class="print-grid">
@@ -7018,7 +7153,7 @@ function App() {
               <div className="lookup-card-head">
                 <div>
                   <p className="sheet-kicker">Padron maestro</p>
-                  <h2><Icon name="refresh" className="title-icon" />Actualizar padron de consulta</h2>
+                  <h2><Icon name="refresh" className="title-icon" />Padron Aguas de Choluteca</h2>
                 </div>
                 <span className="panel-pill">{padronMeta?.total_records ?? 0} claves</span>
               </div>
@@ -7096,6 +7231,109 @@ function App() {
                 </button>
               </div>
             </form>
+
+            <div className="padron-dual-grid">
+              <form className="lookup-card" onSubmit={handleUploadAlcaldia}>
+                <div className="lookup-card-head">
+                  <div>
+                    <p className="sheet-kicker">Padron de contraste</p>
+                    <h2><Icon name="records" className="title-icon" />Padron Alcaldia</h2>
+                    <p className="lookup-card-description">
+                      Este archivo se compara contra Aguas de Choluteca para detectar claves catastrales que no aparecen en el padron maestro.
+                    </p>
+                  </div>
+                  <span className="panel-pill">{alcaldiaMeta?.total_records ?? 0} claves</span>
+                </div>
+                <div className="admin-result-grid padron-admin-grid">
+                  <div className="document-block">
+                    <h4>Archivo activo</h4>
+                    <p><strong>Archivo:</strong> {alcaldiaMeta?.file_name || "Sin registro"}</p>
+                    <p><strong>Fuente guardada:</strong> {alcaldiaMeta?.source_file_available ? (alcaldiaMeta?.source_file_name || "Disponible") : "No disponible"}</p>
+                    <p><strong>Hoja:</strong> {alcaldiaMeta?.sheet_name || "--"}</p>
+                    <p><strong>Ultima actualizacion:</strong> {formatDateTime(alcaldiaMeta?.updated_at)}</p>
+                    <p><strong>Estado actual:</strong> {loadingAlcaldiaMeta ? "Consultando..." : "Sincronizado"}</p>
+                    <div className="padron-summary-strip">
+                      <div className="log-summary-card"><span>Nuevas</span><strong>{alcaldiaImportSummary?.added ?? 0}</strong></div>
+                      <div className="log-summary-card"><span>Removidas</span><strong>{alcaldiaImportSummary?.removed ?? 0}</strong></div>
+                      <div className="log-summary-card"><span>Cambiadas</span><strong>{alcaldiaImportSummary?.changed ?? 0}</strong></div>
+                    </div>
+                  </div>
+                  <div className="document-block">
+                    <h4>Nuevo archivo Alcaldia</h4>
+                    <label className="file-input">
+                      <span>Seleccionar Excel Alcaldia</span>
+                      <input
+                        type="file"
+                        accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        onChange={handleAlcaldiaFileChange}
+                      />
+                    </label>
+                    <p className="helper-text">Se usa CLAVE CATASTRAL y se conserva nombre, direccion, caserio e identificador.</p>
+                    {alcaldiaFile ? <p><strong>Archivo listo:</strong> {alcaldiaFile.name}</p> : null}
+                  </div>
+                </div>
+                <div className="search-actions lookup-actions">
+                  <button type="submit" disabled={uploadingAlcaldia}>
+                    <Icon name="refresh" />
+                    {uploadingAlcaldia ? "Actualizando..." : "Actualizar padron Alcaldia"}
+                  </button>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => {
+                      setAlcaldiaFile(null);
+                      loadAlcaldiaMeta();
+                    }}
+                    disabled={loadingAlcaldiaMeta}
+                  >
+                    <Icon name="records" />
+                    {loadingAlcaldiaMeta ? "Consultando..." : "Ver estado Alcaldia"}
+                  </button>
+                </div>
+              </form>
+
+              <article className="lookup-card padron-compare-card">
+                <div className="lookup-card-head">
+                  <div>
+                    <p className="sheet-kicker">Deteccion de clandestinos</p>
+                    <h2><Icon name="search" className="title-icon" />Comparar Alcaldia contra Aguas</h2>
+                    <p className="lookup-card-description">
+                      Si una clave del padron de Alcaldia no aparece en Aguas de Choluteca, queda marcada como candidata clandestina.
+                    </p>
+                  </div>
+                  <button type="button" onClick={loadAlcaldiaComparison} disabled={loadingAlcaldiaComparison}>
+                    <Icon name="search" />
+                    {loadingAlcaldiaComparison ? "Comparando..." : "Comparar padrones"}
+                  </button>
+                </div>
+                <div className="padron-comparison-strip">
+                  <div className="log-summary-card"><span>Aguas</span><strong>{padronMeta?.total_records ?? 0}</strong></div>
+                  <div className="log-summary-card"><span>Alcaldia</span><strong>{alcaldiaMeta?.total_records ?? 0}</strong></div>
+                  <div className="log-summary-card"><span>Coincidencia exacta</span><strong>{alcaldiaComparison?.summary?.exact_matches ?? "--"}</strong></div>
+                  <div className="log-summary-card"><span>Candidatas</span><strong>{alcaldiaComparison?.summary?.candidate_clandestine ?? "--"}</strong></div>
+                </div>
+                <div className="padron-candidate-list">
+                  {alcaldiaComparison?.summary ? (
+                    (alcaldiaComparison.candidates || []).length ? (
+                      (alcaldiaComparison.candidates || []).slice(0, 20).map((item) => (
+                        <article key={item.clave_catastral} className="padron-candidate-card">
+                          <div>
+                            <strong>{item.clave_catastral}</strong>
+                            <span>{item.nombre || "Sin nombre registrado"}</span>
+                          </div>
+                          <p>{item.direccion || item.caserio || "Sin direccion registrada"}</p>
+                          <small>No aparece en Aguas de Choluteca</small>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="helper-text">No hay candidatas clandestinas con los padrones actuales.</p>
+                    )
+                  ) : (
+                    <p className="helper-text">Carga ambos padrones y ejecuta la comparacion para ver las claves de Alcaldia que no aparecen en Aguas.</p>
+                  )}
+                </div>
+              </article>
+            </div>
           </section>
         </main>
       ) : workspaceView === "map" ? (
@@ -7490,6 +7728,29 @@ function App() {
                         <Icon name="records" />
                         Descargar PDF institucional
                       </button>
+                    </div>
+                    <div className="map-report-step-grid">
+                      <article>
+                        <span>1</span>
+                        <div>
+                          <strong>Selecciona jornada</strong>
+                          <p>Los reportes quedan agrupados por fecha para no sobrescribir trabajos anteriores.</p>
+                        </div>
+                      </article>
+                      <article>
+                        <span>2</span>
+                        <div>
+                          <strong>Edita puntos</strong>
+                          <p>Haz doble click en el mapa o usa la tabla para corregir coordenadas, tipo, color y pin final.</p>
+                        </div>
+                      </article>
+                      <article>
+                        <span>3</span>
+                        <div>
+                          <strong>Imprime o descarga</strong>
+                          <p>El formato sale consolidado por zonas, con paginado y datos del personal de campo.</p>
+                        </div>
+                      </article>
                     </div>
                     <div className="map-report-staff-grid">
                       <label className="map-report-staff-card">

@@ -1,0 +1,14 @@
+{
+  "file_name": "Padron alcaldia.xlsx",
+  "source_file_name": "Padron alcaldia.xlsx",
+  "sheet_name": "Hoja1",
+  "total_records": 47533,
+  "updated_at": "2026-04-28T17:46:01.641Z",
+  "last_import_summary": {
+    "added": 47478,
+    "removed": 0,
+    "changed": 0,
+    "discarded_missing_clave": 0,
+    "source_rows": 47533
+  }
+}

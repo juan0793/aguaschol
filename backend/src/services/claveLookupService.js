@@ -7,6 +7,9 @@ import { createAuditLog } from "./auditService.js";
 const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
 const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
 const maestroSourcePath = path.resolve(env.dbRoot, "backend", "data", "maestro-source-upload.bin");
+const alcaldiaPath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-claves.json");
+const alcaldiaMetaPath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-meta.json");
+const alcaldiaSourcePath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-source-upload.bin");
 
 const sortByClave = (items) =>
   [...items].sort((a, b) => a.clave_catastral.localeCompare(b.clave_catastral, "es"));
@@ -139,6 +142,39 @@ const summarizePadronChanges = (currentRows = [], nextRows = []) => {
   };
 };
 
+const summarizeRowsByKey = (currentRows = [], nextRows = [], key = "clave_catastral") => {
+  const currentMap = new Map(currentRows.map((item) => [item[key], item]));
+  const nextMap = new Map(nextRows.map((item) => [item[key], item]));
+
+  let added = 0;
+  let removed = 0;
+  let changed = 0;
+
+  nextMap.forEach((nextItem, rowKey) => {
+    const currentItem = currentMap.get(rowKey);
+    if (!currentItem) {
+      added += 1;
+      return;
+    }
+
+    if (JSON.stringify(currentItem) !== JSON.stringify(nextItem)) {
+      changed += 1;
+    }
+  });
+
+  currentMap.forEach((_currentItem, rowKey) => {
+    if (!nextMap.has(rowKey)) {
+      removed += 1;
+    }
+  });
+
+  return {
+    added,
+    removed,
+    changed
+  };
+};
+
 const parseNumericValue = (value) => {
   if (value == null || value === "") return 0;
   if (typeof value === "number") {
@@ -167,6 +203,22 @@ const normalizeLookupText = (value = "") =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ");
+
+const normalizeAlcaldiaKey = (value = "") =>
+  String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const tryNormalizeAguasKey = (value = "") => {
+  try {
+    return normalizeLookupKey(value);
+  } catch {
+    return "";
+  }
+};
 
 const normalizeMasterRows = (rows = []) =>
   sortByClave(
@@ -298,6 +350,100 @@ const parseWorkbookRows = (buffer) => {
   };
 };
 
+const normalizeAlcaldiaRows = (rows = []) =>
+  [...rows]
+    .map((item) => {
+      const claveOriginal = normalizeAlcaldiaKey(item?.clave_catastral ?? item?.clave ?? "");
+      if (!claveOriginal) {
+        return null;
+      }
+
+      const claveAguas = tryNormalizeAguasKey(claveOriginal);
+      const nombre = String(item?.nombre ?? item?.propietario ?? "").trim();
+      const direccion = String(item?.direccion ?? item?.ubicacion ?? "").trim();
+      const caserio = String(item?.caserio ?? item?.descripcion_caserio ?? item?.barrio_colonia ?? "").trim();
+      const identificador = String(item?.identificador ?? item?.identidad ?? "").trim();
+      const naturaleza = String(item?.naturaleza ?? "").trim();
+
+      return {
+        clave_catastral: claveOriginal,
+        clave_aguas_formato: claveAguas,
+        clave_base: claveAguas ? buildBaseKey(claveAguas) : "",
+        nombre,
+        identificador,
+        naturaleza,
+        habita_propietario: String(item?.habita_propietario ?? "").trim(),
+        direccion,
+        codigo_caserio: String(item?.codigo_caserio ?? "").trim(),
+        caserio,
+        avaluo_terreno: parseNumericValue(item?.avaluo_terreno),
+        avaluo_edificacion: parseNumericValue(item?.avaluo_edificacion),
+        ultimo_periodo_pagado: String(item?.ultimo_periodo_pagado ?? "").trim(),
+        search_target: normalizeLookupText(`${claveOriginal} ${claveAguas} ${nombre} ${identificador} ${direccion} ${caserio}`)
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.clave_catastral.localeCompare(b.clave_catastral, "es"));
+
+const parseAlcaldiaWorkbookRows = (buffer) => {
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+  const firstSheetName = workbook.SheetNames[0];
+
+  if (!firstSheetName) {
+    const error = new Error("El archivo no contiene hojas para procesar.");
+    error.status = 400;
+    throw error;
+  }
+
+  const worksheet = workbook.Sheets[firstSheetName];
+  const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+  const columns = rows.length ? Object.keys(rows[0]) : [];
+  const claveKey = detectColumnKey(columns, ["clave_catastral", "clave", "catastral"]);
+  const identificadorKey = detectColumnKey(columns, ["identificador", "identidad", "dni", "rtn"]);
+  const nombreKey = detectColumnKey(columns, ["nombre", "propietario", "contribuyente"]);
+  const naturalezaKey = detectColumnKey(columns, ["naturaleza"]);
+  const habitaKey = detectColumnKey(columns, ["habitapropietario", "habita_propietario"]);
+  const direccionKey = detectColumnKey(columns, ["direccion", "ubicacion", "domicilio"]);
+  const codigoCaserioKey = detectColumnKey(columns, ["codigo_caserio", "cod_caserio"]);
+  const caserioKey = detectColumnKey(columns, ["descripcion_caserio", "caserio", "barrio", "colonia"]);
+  const terrenoKey = detectColumnKey(columns, ["avaluo_terreno", "avaluo_terr"]);
+  const edificacionKey = detectColumnKey(columns, ["avaluo_edificacion", "avaluo_edif"]);
+  const periodoKey = detectColumnKey(columns, ["ultimo_periodo_pagado", "periodo_pagado"]);
+
+  if (!claveKey) {
+    const error = new Error("No se encontro una columna de clave catastral en el Excel de alcaldia.");
+    error.status = 400;
+    throw error;
+  }
+
+  const rowsWithClave = rows.filter((row) => String(row[claveKey] ?? "").trim());
+  const discardedMissingClave = rows.length - rowsWithClave.length;
+  const normalizedRows = normalizeAlcaldiaRows(
+    rowsWithClave.map((row) => ({
+      clave_catastral: row[claveKey],
+      identificador: identificadorKey ? row[identificadorKey] : "",
+      nombre: nombreKey ? row[nombreKey] : "",
+      naturaleza: naturalezaKey ? row[naturalezaKey] : "",
+      habita_propietario: habitaKey ? row[habitaKey] : "",
+      direccion: direccionKey ? row[direccionKey] : "",
+      codigo_caserio: codigoCaserioKey ? row[codigoCaserioKey] : "",
+      caserio: caserioKey ? row[caserioKey] : "",
+      avaluo_terreno: terrenoKey ? row[terrenoKey] : 0,
+      avaluo_edificacion: edificacionKey ? row[edificacionKey] : 0,
+      ultimo_periodo_pagado: periodoKey ? row[periodoKey] : ""
+    }))
+  );
+
+  return {
+    sheetName: firstSheetName,
+    rows: normalizedRows,
+    stats: {
+      source_rows: rows.length,
+      discarded_missing_clave: discardedMissingClave
+    }
+  };
+};
+
 let masterRecords = normalizeMasterRows(readJsonFile(maestroPath, []));
 let masterMeta = readJsonFile(maestroMetaPath, {
   file_name: fs.existsSync(maestroPath) ? path.basename(maestroPath) : "",
@@ -310,6 +456,69 @@ let masterMeta = readJsonFile(maestroMetaPath, {
     changed: 0
   }
 });
+let alcaldiaRecords = normalizeAlcaldiaRows(readJsonFile(alcaldiaPath, []));
+let alcaldiaMeta = readJsonFile(alcaldiaMetaPath, {
+  file_name: fs.existsSync(alcaldiaPath) ? path.basename(alcaldiaPath) : "",
+  sheet_name: "",
+  total_records: alcaldiaRecords.length,
+  updated_at: fs.existsSync(alcaldiaPath) ? fs.statSync(alcaldiaPath).mtime.toISOString() : null,
+  last_import_summary: {
+    added: 0,
+    removed: 0,
+    changed: 0
+  }
+});
+
+const buildAguasIndex = () => {
+  const exact = new Map();
+  const base = new Map();
+
+  masterRecords.forEach((item) => {
+    const exactRows = exact.get(item.clave_catastral) ?? [];
+    exactRows.push(item);
+    exact.set(item.clave_catastral, exactRows);
+
+    if (item.clave_base) {
+      const baseRows = base.get(item.clave_base) ?? [];
+      baseRows.push(item);
+      base.set(item.clave_base, baseRows);
+    }
+  });
+
+  return { exact, base };
+};
+
+const getAguasMatchesForAlcaldia = (alcaldiaItem = {}, aguasIndex = buildAguasIndex()) => {
+  const exactMatches = alcaldiaItem.clave_aguas_formato
+    ? aguasIndex.exact.get(alcaldiaItem.clave_aguas_formato) ?? []
+    : [];
+
+  if (exactMatches.length) {
+    return {
+      match_type: "exacta",
+      matches: sortByClave(exactMatches)
+    };
+  }
+
+  const baseMatches = alcaldiaItem.clave_base
+    ? aguasIndex.base.get(alcaldiaItem.clave_base) ?? []
+    : [];
+
+  return {
+    match_type: baseMatches.length ? "base" : "sin_coincidencia",
+    matches: sortByClave(baseMatches)
+  };
+};
+
+const decorateAlcaldiaRecord = (item = {}, aguasIndex = buildAguasIndex()) => {
+  const aguas = getAguasMatchesForAlcaldia(item, aguasIndex);
+  return {
+    ...item,
+    exists_in_aguas: aguas.matches.length > 0,
+    match_type: aguas.match_type,
+    aguas_matches: aguas.matches
+  };
+};
 
 const PADRON_REQUEST_TEMPLATES = [
   {
@@ -562,6 +771,23 @@ export const getClaveLookupMeta = async () => ({
   }
 });
 
+export const getAlcaldiaLookupMeta = async () => ({
+  ok: true,
+  meta: {
+    file_name: alcaldiaMeta.file_name || "",
+    source_file_name: alcaldiaMeta.source_file_name || alcaldiaMeta.file_name || "",
+    sheet_name: alcaldiaMeta.sheet_name || "",
+    total_records: Number(alcaldiaMeta.total_records) || alcaldiaRecords.length,
+    updated_at: alcaldiaMeta.updated_at || null,
+    source_file_available: fs.existsSync(alcaldiaSourcePath),
+    last_import_summary: alcaldiaMeta.last_import_summary ?? {
+      added: 0,
+      removed: 0,
+      changed: 0
+    }
+  }
+});
+
 export const getPadronRequestTemplates = async () => ({
   ok: true,
   templates: PADRON_REQUEST_TEMPLATES
@@ -623,6 +849,120 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
     ok: true,
     meta: masterMeta,
     import_summary: masterMeta.last_import_summary
+  };
+};
+
+export const uploadAlcaldiaPadron = async ({ buffer, originalName = "" }, options = {}) => {
+  if (!buffer || !buffer.length) {
+    const error = new Error("Debes seleccionar un archivo de padron de alcaldia.");
+    error.status = 400;
+    throw error;
+  }
+
+  const { sheetName, rows, stats } = parseAlcaldiaWorkbookRows(buffer);
+
+  if (!rows.length) {
+    const error = new Error("El archivo de alcaldia no contiene claves catastrales validas.");
+    error.status = 400;
+    throw error;
+  }
+
+  const importSummary = summarizeRowsByKey(alcaldiaRecords, rows);
+  writeBinaryFile(alcaldiaSourcePath, buffer);
+  writeJsonFile(alcaldiaPath, rows);
+
+  alcaldiaMeta = {
+    file_name: originalName || "padron-alcaldia.xlsx",
+    source_file_name: originalName || "padron-alcaldia.xlsx",
+    sheet_name: sheetName,
+    total_records: rows.length,
+    updated_at: new Date().toISOString(),
+    last_import_summary: {
+      ...importSummary,
+      discarded_missing_clave: stats?.discarded_missing_clave ?? 0,
+      source_rows: stats?.source_rows ?? rows.length
+    }
+  };
+  writeJsonFile(alcaldiaMetaPath, alcaldiaMeta);
+  alcaldiaRecords = rows;
+
+  try {
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "padron_alcaldia.updated",
+      entityType: "padron",
+      entityId: "alcaldia",
+      summary: `Padron de alcaldia actualizado con ${rows.length} claves`,
+      details: {
+        file_name: alcaldiaMeta.file_name,
+        sheet_name: alcaldiaMeta.sheet_name,
+        total_records: alcaldiaMeta.total_records,
+        import_summary: alcaldiaMeta.last_import_summary
+      }
+    });
+  } catch {
+    // The padrón should still be updated even if audit logging is temporarily unavailable.
+  }
+
+  return {
+    ok: true,
+    meta: alcaldiaMeta,
+    import_summary: alcaldiaMeta.last_import_summary
+  };
+};
+
+export const searchAlcaldiaClaveCatastral = async (value) => {
+  const rawQuery = String(value ?? "").trim();
+  const alcaldiaQuery = normalizeAlcaldiaKey(rawQuery);
+  const aguasQuery = tryNormalizeAguasKey(rawQuery);
+  const queryBase = aguasQuery ? buildBaseKey(aguasQuery) : "";
+
+  if (!alcaldiaQuery && !aguasQuery) {
+    const error = new Error("Ingresa una clave catastral para buscar en el padron de alcaldia.");
+    error.status = 400;
+    throw error;
+  }
+
+  const aguasIndex = buildAguasIndex();
+  const matches = alcaldiaRecords
+    .filter((item) => {
+      if (alcaldiaQuery && item.clave_catastral === alcaldiaQuery) return true;
+      if (aguasQuery && item.clave_aguas_formato === aguasQuery) return true;
+      if (queryBase && item.clave_base === queryBase) return true;
+      return false;
+    })
+    .map((item) => decorateAlcaldiaRecord(item, aguasIndex));
+
+  return {
+    ok: true,
+    query: value,
+    normalized_query: alcaldiaQuery || aguasQuery,
+    total_matches: matches.length,
+    exists: matches.length > 0,
+    matches
+  };
+};
+
+export const compareAlcaldiaWithAguas = async () => {
+  const aguasIndex = buildAguasIndex();
+  const comparedRows = alcaldiaRecords.map((item) => decorateAlcaldiaRecord(item, aguasIndex));
+  const exactMatches = comparedRows.filter((item) => item.match_type === "exacta");
+  const baseMatches = comparedRows.filter((item) => item.match_type === "base");
+  const candidates = comparedRows.filter((item) => item.match_type === "sin_coincidencia");
+
+  return {
+    ok: true,
+    summary: {
+      alcaldia_records: alcaldiaRecords.length,
+      aguas_records: masterRecords.length,
+      exact_matches: exactMatches.length,
+      base_matches: baseMatches.length,
+      candidate_clandestine: candidates.length,
+      compared_at: new Date().toISOString()
+    },
+    candidates,
+    matched_by_base: baseMatches,
+    matched_exact: exactMatches
   };
 };
 

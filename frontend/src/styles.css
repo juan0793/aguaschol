@@ -4156,6 +4156,56 @@ textarea {
   color: #52728d;
 }
 
+.padron-dual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.padron-control-card,
+.padron-compare-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.padron-comparison-strip,
+.padron-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.padron-candidate-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.padron-candidate-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(220, 66, 66, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 245, 245, 0.94));
+}
+
+.padron-candidate-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: baseline;
+}
+
+.padron-candidate-card strong {
+  color: #9b202d;
+}
+
+.padron-candidate-card span,
+.padron-candidate-card p,
+.padron-candidate-card small {
+  color: #52728d;
+}
+
 .lookup-info-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5377,6 +5427,47 @@ textarea {
   justify-content: flex-end;
 }
 
+.map-report-step-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.map-report-step-grid article {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 247, 255, 0.96));
+}
+
+.map-report-step-grid article > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e7f3ff;
+  color: #0d4d86;
+  font-weight: 900;
+}
+
+.map-report-step-grid strong {
+  display: block;
+  color: #123b5d;
+  margin-bottom: 0.2rem;
+}
+
+.map-report-step-grid p {
+  margin: 0;
+  color: #648099;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
 .map-report-staff-card {
   display: grid;
   gap: 0.45rem;
@@ -6014,6 +6105,13 @@ textarea {
   }
 
   .map-report-staff-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .map-report-step-grid,
+  .padron-dual-grid,
+  .padron-comparison-strip,
+  .padron-summary-strip {
     grid-template-columns: 1fr;
   }
 

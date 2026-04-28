@@ -1,10 +1,14 @@
 import {
+  compareAlcaldiaWithAguas,
   exportClavePadronWorkbook,
+  getAlcaldiaLookupMeta,
   generatePadronRequestReport,
   getClaveLookupMeta,
   getPadronRequestTemplates,
   reprocessClavePadron,
+  searchAlcaldiaClaveCatastral,
   searchClaveCatastral,
+  uploadAlcaldiaPadron,
   uploadClavePadron
 } from "../services/claveLookupService.js";
 
@@ -22,6 +26,15 @@ export const searchClave = async (req, res, next) => {
 export const getPadronMeta = async (_req, res, next) => {
   try {
     const result = await getClaveLookupMeta();
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAlcaldiaMeta = async (_req, res, next) => {
+  try {
+    const result = await getAlcaldiaLookupMeta();
     res.json(result);
   } catch (error) {
     next(error);
@@ -64,6 +77,45 @@ export const uploadPadron = async (req, res, next) => {
     return res.json(result);
   } catch (error) {
     return next(error);
+  }
+};
+
+export const uploadAlcaldia = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Debes seleccionar un archivo Excel del padron de alcaldia." });
+    }
+
+    const result = await uploadAlcaldiaPadron(
+      {
+        buffer: req.file.buffer,
+        originalName: req.file.originalname
+      },
+      {
+        actorUserId: req.authUser?.id
+      }
+    );
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const searchAlcaldia = async (req, res, next) => {
+  try {
+    const result = await searchAlcaldiaClaveCatastral(req.query.clave ?? req.params.clave ?? "");
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const compareAlcaldia = async (_req, res, next) => {
+  try {
+    const result = await compareAlcaldiaWithAguas();
+    res.json(result);
+  } catch (error) {
+    next(error);
   }
 };
 

@@ -47,6 +47,27 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             margin-top: 4px;
             font-weight: 700;
           }
+          .print-key-grid {
+            display: inline-grid;
+            grid-template-columns: repeat(2, minmax(170px, 1fr));
+            gap: 6px;
+            margin-top: 4px;
+          }
+          .print-key-grid .print-key {
+            display: grid;
+            gap: 2px;
+            margin-top: 0;
+            text-align: left;
+          }
+          .print-key-grid .print-key strong {
+            display: block;
+            font-size: 8px;
+            text-transform: uppercase;
+          }
+          .print-key-grid .print-key span {
+            display: block;
+            font-size: 11px;
+          }
           .print-section {
             border: 1px solid #777;
             padding: 7px;
@@ -125,6 +146,9 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             padding: 3px 8px;
             margin-top: 2px;
             font-size: 10px;
+          }
+          .print-ficha .print-key-grid {
+            margin-top: 3px;
           }
           .print-ficha .print-section {
             padding: 5px;
