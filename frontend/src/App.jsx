@@ -4610,8 +4610,12 @@ function App() {
       }
     }
 
-    const fichaClaveAguas = recordClaveCatastral || alcaldiaFichaMatch?.clave_aguas_formato || "--";
-    const fichaClaveAlcaldia = targetRecord.clave_alcaldia || alcaldiaFichaMatch?.clave_catastral || "--";
+    const aguasMatchKey = alcaldiaFichaMatch?.aguas_matches?.[0]?.clave_catastral || "";
+    const hasAguasPadronMatch = Boolean(alcaldiaFichaMatch?.exists_in_aguas || targetRecord.estado_padron === "varios_padrones");
+    const fichaClaveAguas = hasAguasPadronMatch
+      ? aguasMatchKey || recordClaveCatastral || alcaldiaFichaMatch?.clave_aguas_formato || "--"
+      : "No registrada en Aguas";
+    const fichaClaveAlcaldia = targetRecord.clave_alcaldia || alcaldiaFichaMatch?.clave_catastral || (!hasAguasPadronMatch ? recordClaveCatastral : "--");
     const fichaNombre = targetRecord.nombre_alcaldia || alcaldiaFichaMatch?.nombre || targetRecord.nombre_catastral || targetRecord.inquilino || "--";
     const fichaBarrio = targetRecord.barrio_colonia || targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
     const alcaldiaBarrio = targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
@@ -7454,7 +7458,7 @@ function App() {
                                   </div>
                                   <div className="lookup-match-field">
                                     <span className="lookup-match-label">Clave equivalente Aguas</span>
-                                    <span>{match.clave_aguas_formato || "--"}</span>
+                                    <span>{match.exists_in_aguas ? match.clave_aguas_formato || "--" : "No registrada en Aguas"}</span>
                                   </div>
                                   <div className="lookup-match-field">
                                     <span className="lookup-match-label">Coincidencia</span>
@@ -7474,7 +7478,10 @@ function App() {
                                     onClick={() => {
                                       setForm((current) => ({
                                         ...current,
-                                        clave_catastral: current.clave_catastral || match.clave_aguas_formato || match.clave_catastral || "",
+                                        clave_catastral:
+                                          current.clave_catastral ||
+                                          (match.exists_in_aguas ? match.clave_aguas_formato : match.clave_catastral) ||
+                                          "",
                                         nombre_catastral: match.nombre || current.nombre_catastral,
                                         barrio_colonia: match.caserio || match.direccion || current.barrio_colonia,
                                         identidad: match.identificador || current.identidad,
