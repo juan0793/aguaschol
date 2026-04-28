@@ -95,6 +95,15 @@ export const listMapPoints = async ({ date = "" } = {}) => {
   }
 
   const pool = getPool();
+  const params = [];
+  const whereClause = diaryDate
+    ? "WHERE COALESCE(map_points.diary_date, DATE(map_points.created_at)) = ?"
+    : "";
+
+  if (diaryDate) {
+    params.push(diaryDate);
+  }
+
   const [rows] = await pool.query(
     `
       SELECT
@@ -102,12 +111,12 @@ export const listMapPoints = async ({ date = "" } = {}) => {
         app_users.full_name AS created_by_name
       FROM map_points
       LEFT JOIN app_users ON app_users.id = map_points.created_by
+      ${whereClause}
       ORDER BY map_points.created_at DESC
-      LIMIT 500
     `,
-    []
+    params
   );
-  return rows.filter((point) => !diaryDate || point.diary_date === diaryDate || getLocalDiaryDateKey(point.created_at) === diaryDate);
+  return rows;
 };
 
 const getSortedMapPoints = async (options = {}) =>

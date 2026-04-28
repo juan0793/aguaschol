@@ -85,6 +85,7 @@ const DEFAULT_DASHBOARD_WIDGET_ORDER = [
   "journeys",
   "online"
 ];
+const RECORDS_PAGE_SIZE = 10;
 
 const normalizeDashboardWidgetPrefs = (value) => {
   const orderSource = Array.isArray(value?.order) ? value.order : [];
@@ -153,6 +154,7 @@ function App() {
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
   const [recordQuickFilter, setRecordQuickFilter] = useState("all");
+  const [recordPage, setRecordPage] = useState(1);
   const [recordFilters, setRecordFilters] = useState({
     barrio: "",
     responsible: "",
@@ -710,12 +712,23 @@ function App() {
 
     return advancedFilteredRecords;
   }, [advancedFilteredRecords, recordDeadlineMetaById, recordQuickFilter, todayDateKey]);
+  const recordPagination = useMemo(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredRecords.length / RECORDS_PAGE_SIZE));
+    const currentPage = Math.min(recordPage, totalPages);
+    const start = (currentPage - 1) * RECORDS_PAGE_SIZE;
+
+    return {
+      currentPage,
+      totalPages,
+      start,
+      end: Math.min(start + RECORDS_PAGE_SIZE, filteredRecords.length),
+      records: filteredRecords.slice(start, start + RECORDS_PAGE_SIZE)
+    };
+  }, [filteredRecords, recordPage]);
   const visibleRecordGroups = useMemo(() => {
-    const visibleLimit = draftForm ? 9 : 10;
-    const limitedRecords = filteredRecords.slice(0, Math.max(visibleLimit, 0));
     const groups = [];
 
-    limitedRecords.forEach((record) => {
+    recordPagination.records.forEach((record) => {
       const label = formatMonthGroup(getRecordGroupDate(record, recordView));
       const currentGroup = groups[groups.length - 1];
 
@@ -728,7 +741,7 @@ function App() {
     });
 
     return groups;
-  }, [draftForm, filteredRecords, recordView]);
+  }, [recordPagination.records, recordView]);
   const recordValidationIssues = useMemo(
     () => getRecordValidationIssues(form, Boolean(form.foto_path), selectedFile),
     [form, selectedFile]
@@ -1367,6 +1380,14 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(DASHBOARD_WIDGET_STORAGE_KEY, JSON.stringify(dashboardWidgetPrefs));
   }, [dashboardWidgetPrefs]);
+
+  useEffect(() => {
+    setRecordPage(1);
+  }, [search, recordView, recordQuickFilter, recordFilters]);
+
+  useEffect(() => {
+    setRecordPage((current) => Math.min(current, recordPagination.totalPages));
+  }, [recordPagination.totalPages]);
 
   useEffect(() => {
     setSelectedMapPointId((current) => (visibleMapPoints.some((point) => point.id === current) ? current : null));
@@ -2771,7 +2792,7 @@ function App() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `reporte-detallado-puntos-campo-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.download = `reporte-detallado-puntos-campo-${activeMapDiaryDateKey || new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -6103,6 +6124,36 @@ function App() {
               })}
             </section>
           ))}
+        </div>
+        <div className="record-pagination">
+          <div className="record-pagination-copy">
+            <strong>Pagina {recordPagination.currentPage} de {recordPagination.totalPages}</strong>
+            <span>
+              {filteredRecords.length
+                ? `Mostrando ${recordPagination.start + 1}-${recordPagination.end} de ${filteredRecords.length} fichas`
+                : "No hay fichas con los filtros actuales"}
+            </span>
+          </div>
+          <div className="record-pagination-actions">
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => setRecordPage((current) => Math.max(1, current - 1))}
+              disabled={recordPagination.currentPage === 1}
+            >
+              <Icon name="arrowLeft" />
+              Anterior
+            </button>
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => setRecordPage((current) => Math.min(recordPagination.totalPages, current + 1))}
+              disabled={recordPagination.currentPage === recordPagination.totalPages}
+            >
+              Siguiente
+              <Icon name="arrowRight" />
+            </button>
+          </div>
         </div>
         </aside>
 

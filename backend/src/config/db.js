@@ -90,9 +90,15 @@ const ensureIndex = async (connection, { tableName, indexName, columns, unique =
   const safeColumns = columns.map((column) => escapeIdentifier(column)).join(", ");
   const uniqueKeyword = unique ? "UNIQUE " : "";
 
-  await connection.query(
-    `CREATE ${uniqueKeyword}INDEX ${escapeIdentifier(indexName)} ON ${escapeIdentifier(tableName)} (${safeColumns})`
-  );
+  try {
+    await connection.query(
+      `CREATE ${uniqueKeyword}INDEX ${escapeIdentifier(indexName)} ON ${escapeIdentifier(tableName)} (${safeColumns})`
+    );
+  } catch (error) {
+    if (error?.code !== "ER_DUP_KEYNAME") {
+      throw error;
+    }
+  }
 };
 
 const ensureColumn = async (connection, { tableName, columnName, definition }) => {
@@ -112,9 +118,15 @@ const ensureColumn = async (connection, { tableName, columnName, definition }) =
     return;
   }
 
-  await connection.query(
-    `ALTER TABLE ${escapeIdentifier(tableName)} ADD COLUMN ${escapeIdentifier(columnName)} ${definition}`
-  );
+  try {
+    await connection.query(
+      `ALTER TABLE ${escapeIdentifier(tableName)} ADD COLUMN ${escapeIdentifier(columnName)} ${definition}`
+    );
+  } catch (error) {
+    if (error?.code !== "ER_DUP_FIELDNAME") {
+      throw error;
+    }
+  }
 };
 
 const ensureRoleEnum = async (connection) => {

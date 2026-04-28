@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS map_points (
   reference_note VARCHAR(255) NOT NULL DEFAULT '',
   marker_color VARCHAR(20) NOT NULL DEFAULT '#1576d1',
   is_terminal_point TINYINT(1) NOT NULL DEFAULT 0,
+  diary_date DATE NULL DEFAULT NULL,
   created_by INT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -85,6 +86,7 @@ CREATE TABLE IF NOT EXISTS map_points (
     FOREIGN KEY (created_by) REFERENCES app_users(id)
     ON DELETE SET NULL,
   KEY idx_map_points_created_at (created_at),
+  KEY idx_map_points_diary_date (diary_date),
   KEY idx_map_points_creator (created_by)
 );
 
