@@ -6674,13 +6674,25 @@ function App() {
             {activeSection === "abonado" ? (
               <section className="sheet-section">
                 <h3>Informacion del abonado</h3>
-                <div className="padron-status-panel no-print">
+                <div className={`padron-status-panel no-print is-${form.estado_padron || "clandestino"}`}>
                   <div className="padron-status-copy">
                     <span className="sheet-kicker">Estado de padrones</span>
                     <div className="padron-status-heading">
                       <strong>{getPadronStatusLabel(form.estado_padron)}</strong>
-                      <span className={`record-badge ${form.estado_padron === "reportada" ? "is-reported" : ""}`}>
-                        {form.estado_padron === "reportada" ? "Procesada" : "En revision"}
+                      <span
+                        className={`record-badge ${
+                          form.estado_padron === "reportada"
+                            ? "is-reported"
+                            : form.estado_padron === "clandestino"
+                              ? "is-danger"
+                              : ""
+                        }`}
+                      >
+                        {form.estado_padron === "reportada"
+                          ? "Procesada"
+                          : form.estado_padron === "clandestino"
+                            ? "Validada clandestina"
+                            : "En revision"}
                       </span>
                     </div>
                     <p>{getPadronStatusDescription(form.estado_padron)}</p>
