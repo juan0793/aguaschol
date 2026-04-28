@@ -46,7 +46,7 @@ export const isLookupQueryReady = (value = "", mode = "clave") => {
   const trimmed = String(value ?? "").trim();
   if (!trimmed) return false;
   if (mode === "clave") return isLookupKeyComplete(trimmed);
-  if (mode === "nombre") return trimmed.length >= 3;
+  if (mode === "nombre" || mode === "alcaldia") return trimmed.length >= 3;
   return trimmed.replace(/\D/g, "").length >= 3;
 };
 
@@ -57,6 +57,10 @@ export const getLookupValidationMessage = (mode = "clave") => {
 
   if (mode === "abonado") {
     return "El numero de abonado debe tener al menos 3 digitos.";
+  }
+
+  if (mode === "alcaldia") {
+    return "Escribe al menos 3 caracteres para buscar en el padron de alcaldia.";
   }
 
   return "La clave debe tener formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.";

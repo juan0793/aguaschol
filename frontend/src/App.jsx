@@ -255,7 +255,9 @@ function App() {
       ? "Clave catastral"
       : lookupSearchMode === "nombre"
         ? "Nombre o inquilino"
-        : "Numero de abonado";
+        : lookupSearchMode === "alcaldia"
+          ? "Clave, nombre o barrio de Alcaldia"
+          : "Numero de abonado";
   const lookupInputPlaceholder =
     lookupSearchMode === "clave"
       ? lookupPrefixMode === "three"
@@ -263,6 +265,8 @@ function App() {
         : "00-00-00, 000-00-00 o clave completa"
       : lookupSearchMode === "nombre"
         ? "Ej. Juan Aguilera Estrada"
+        : lookupSearchMode === "alcaldia"
+          ? "Ej. 01-01-01, Suyapa o Sandra"
         : "Ej. 16523";
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
@@ -2264,11 +2268,13 @@ function App() {
     if (!normalizedLookupQuery) {
       setLookupResult(null);
       setLookupFeedback(
-        lookupSearchMode === "clave"
-          ? "Ingresa una clave catastral para consultar."
-          : lookupSearchMode === "nombre"
-            ? "Ingresa un nombre para consultar."
-            : "Ingresa un numero de abonado para consultar."
+          lookupSearchMode === "clave"
+            ? "Ingresa una clave catastral para consultar."
+            : lookupSearchMode === "nombre"
+              ? "Ingresa un nombre para consultar."
+              : lookupSearchMode === "alcaldia"
+                ? "Ingresa una clave, nombre o barrio para consultar en Alcaldia."
+                : "Ingresa un numero de abonado para consultar."
       );
       return;
     }
@@ -2283,9 +2289,11 @@ function App() {
     setLookupFeedback("");
 
     try {
-      const response = await apiFetch(
-        `/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}&field=${encodeURIComponent(lookupSearchMode)}`
-      );
+      const lookupUrl =
+        lookupSearchMode === "alcaldia"
+          ? `/claves/alcaldia/search?field=texto&clave=${encodeURIComponent(normalizedLookupQuery)}`
+          : `/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}&field=${encodeURIComponent(lookupSearchMode)}`;
+      const response = await apiFetch(lookupUrl);
       const data = await response.json();
 
       if (!response.ok) {
@@ -4373,6 +4381,8 @@ function App() {
     let photoMarkup = "";
     let alcaldiaFichaMatch = null;
     let alcaldiaSearchMode = "";
+    const visibleClaveInput = document.querySelector('input[name="clave_catastral"]')?.value?.trim() || "";
+    const recordClaveCatastral = String(targetRecord.clave_catastral || visibleClaveInput || "").trim();
 
     try {
       if (!recordOverride && selectedFile) {
@@ -4396,9 +4406,9 @@ function App() {
       return Array.isArray(data.matches) ? data.matches : [];
     };
 
-    if (targetRecord.clave_catastral) {
+    if (recordClaveCatastral) {
       try {
-        const matches = await fetchAlcaldiaMatches(targetRecord.clave_catastral, "clave");
+        const matches = await fetchAlcaldiaMatches(recordClaveCatastral, "clave");
         alcaldiaFichaMatch = matches[0] ?? null;
         alcaldiaSearchMode = alcaldiaFichaMatch ? "clave" : "";
       } catch {
@@ -4438,10 +4448,11 @@ function App() {
       }
     }
 
-    const fichaClaveAguas = targetRecord.clave_catastral || alcaldiaFichaMatch?.clave_aguas_formato || "--";
+    const fichaClaveAguas = recordClaveCatastral || alcaldiaFichaMatch?.clave_aguas_formato || "--";
     const fichaClaveAlcaldia = alcaldiaFichaMatch?.clave_catastral || "--";
     const fichaNombre = alcaldiaFichaMatch?.nombre || targetRecord.nombre_catastral || targetRecord.inquilino || "--";
-    const fichaBarrio = alcaldiaFichaMatch?.caserio || targetRecord.barrio_colonia || alcaldiaFichaMatch?.direccion || "--";
+    const fichaBarrio = targetRecord.barrio_colonia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
+    const alcaldiaBarrio = alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
     const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_colonia || "--";
     const alcaldiaStatus = alcaldiaFichaMatch
       ? alcaldiaFichaMatch.exists_in_aguas
@@ -4483,7 +4494,8 @@ function App() {
                 <h3>Cruce de padrones</h3>
                 <div class="print-grid">
                   <div class="print-field"><strong>Nombre Alcaldia</strong>${escapeHtml(fichaNombre)}</div>
-                  <div class="print-field"><strong>Barrio/Caserio</strong>${escapeHtml(fichaBarrio)}</div>
+                  <div class="print-field"><strong>Barrio ficha</strong>${escapeHtml(fichaBarrio)}</div>
+                  <div class="print-field"><strong>Barrio Alcaldia</strong>${escapeHtml(alcaldiaBarrio)}</div>
                   <div class="print-field"><strong>Direccion Alcaldia</strong>${escapeHtml(fichaDireccion)}</div>
                   <div class="print-field"><strong>Identificador Alcaldia</strong>${escapeHtml(alcaldiaFichaMatch?.identificador || "--")}</div>
                 </div>
@@ -6902,7 +6914,9 @@ function App() {
                       ? "Base de 3 bloques: trae todas las coincidencias. Se acepta primer bloque de 2 o 3 digitos."
                       : lookupSearchMode === "nombre"
                         ? "Busca por inquilino, propietario o nombre asociado dentro del padron maestro."
-                        : "Puedes escribir una parte del numero de abonado para encontrar coincidencias rapido."}
+                        : lookupSearchMode === "alcaldia"
+                          ? "Busca en el padron de Alcaldia por clave catastral, nombre, identidad o barrio/caserio."
+                          : "Puedes escribir una parte del numero de abonado para encontrar coincidencias rapido."}
                   </span>
                   <div className="lookup-example-chips">
                     {lookupSearchMode === "clave" ? (
@@ -6961,6 +6975,18 @@ function App() {
                           Aguilera
                         </button>
                       </>
+                    ) : lookupSearchMode === "alcaldia" ? (
+                      <>
+                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("01-01-01")}>
+                          01-01-01
+                        </button>
+                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("Barrio Suyapa")}>
+                          Barrio Suyapa
+                        </button>
+                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("Sandra")}>
+                          Sandra
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("16523")}>
@@ -7002,7 +7028,15 @@ function App() {
                             }}
                           >
                             <span>{item.normalized_query || item.query}</span>
-                            <small>{item.mode === "clave" ? "Clave" : item.mode === "nombre" ? "Nombre" : "Abonado"}</small>
+                            <small>
+                              {item.mode === "clave"
+                                ? "Clave"
+                                : item.mode === "nombre"
+                                  ? "Nombre"
+                                  : item.mode === "alcaldia"
+                                    ? "Alcaldia"
+                                    : "Abonado"}
+                            </small>
                           </button>
                           <button
                             type="button"
@@ -7022,13 +7056,15 @@ function App() {
                 <div className="search-actions lookup-actions">
                   <button type="submit" disabled={lookupLoading}>
                     <Icon name="search" />
-                    {lookupLoading
-                      ? "Consultando..."
-                      : lookupSearchMode === "clave"
-                        ? "Consultar clave"
-                        : lookupSearchMode === "nombre"
-                          ? "Buscar nombre"
-                          : "Buscar abonado"}
+                      {lookupLoading
+                        ? "Consultando..."
+                        : lookupSearchMode === "clave"
+                          ? "Consultar clave"
+                          : lookupSearchMode === "nombre"
+                            ? "Buscar nombre"
+                            : lookupSearchMode === "alcaldia"
+                              ? "Buscar en Alcaldia"
+                              : "Buscar abonado"}
                   </button>
                   <button
                     type="button"
@@ -7052,7 +7088,9 @@ function App() {
                   <div className="lookup-result-head">
                     <div>
                       <p className="eyebrow">
-                        {lookupResult.field === "clave"
+                        {lookupResult.field === "texto"
+                          ? "Busqueda Alcaldia"
+                          : lookupResult.field === "clave"
                           ? lookupResult.mode === "base"
                             ? "Busqueda por base"
                             : "Busqueda exacta"
@@ -7063,13 +7101,21 @@ function App() {
                       <h3>{lookupResult.normalized_query}</h3>
                     </div>
                     <span className={`lookup-status-pill ${lookupResult.exists ? "is-found" : "is-missing"}`}>
-                      {lookupResult.exists ? "Si registrada" : "Sin registro"}
+                      {lookupResult.field === "texto"
+                        ? lookupResult.exists
+                          ? "Existe en Alcaldia"
+                          : "Sin registro Alcaldia"
+                        : lookupResult.exists
+                          ? "Si registrada"
+                          : "Sin registro"}
                     </span>
                   </div>
 
                   <p className="lookup-result-message">
                     {lookupResult.exists
-                      ? lookupResult.field === "clave"
+                      ? lookupResult.field === "texto"
+                        ? `Se encontraron ${lookupResult.total_matches} coincidencias en el padron de Alcaldia.`
+                        : lookupResult.field === "clave"
                         ? lookupResult.mode === "base"
                           ? `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa clave base.`
                           : "La clave consultada si existe en el sistema maestro."
@@ -7093,7 +7139,9 @@ function App() {
                                 : "Exacta"
                               : lookupResult.field === "nombre"
                                 ? "Nombre"
-                                : "Abonado"}
+                                : lookupResult.field === "texto"
+                                  ? "Alcaldia"
+                                  : "Abonado"}
                           </strong>
                         </div>
                         <div className="lookup-summary-card">
@@ -7104,6 +7152,75 @@ function App() {
                       <div className="lookup-match-list">
                       {lookupResult.matches.map((match) => (
                         (() => {
+                          if (lookupResult.field === "texto") {
+                            return (
+                              <article key={`${match.clave_catastral}-${match.identificador}-${match.nombre}`} className="lookup-match-card">
+                                <div className="lookup-match-top">
+                                  <div className="lookup-match-headline">
+                                    <strong>{match.clave_catastral}</strong>
+                                    <span className="lookup-abonado-pill">Alcaldia</span>
+                                  </div>
+                                  <span className={`lookup-match-status ${match.exists_in_aguas ? "is-ok" : "is-danger"}`}>
+                                    <Icon name={match.exists_in_aguas ? "success" : "activity"} />
+                                    {match.exists_in_aguas ? "Tambien aparece en Aguas" : "Clandestino: no aparece en Aguas"}
+                                  </span>
+                                </div>
+                                <div className="lookup-match-grid">
+                                  <div className="lookup-match-field">
+                                    <span className="lookup-match-label">Nombre Alcaldia</span>
+                                    <span>{match.nombre || "Sin nombre registrado"}</span>
+                                  </div>
+                                  <div className="lookup-match-field">
+                                    <span className="lookup-match-label">Barrio/Caserio</span>
+                                    <span>{match.caserio || match.direccion || "--"}</span>
+                                  </div>
+                                  <div className="lookup-match-field">
+                                    <span className="lookup-match-label">Direccion</span>
+                                    <span>{match.direccion || "--"}</span>
+                                  </div>
+                                  <div className="lookup-match-field">
+                                    <span className="lookup-match-label">Identificador</span>
+                                    <span>{match.identificador || "--"}</span>
+                                  </div>
+                                  <div className="lookup-match-field">
+                                    <span className="lookup-match-label">Clave equivalente Aguas</span>
+                                    <span>{match.clave_aguas_formato || "--"}</span>
+                                  </div>
+                                  <div className="lookup-match-field">
+                                    <span className="lookup-match-label">Coincidencia</span>
+                                    <strong className={match.exists_in_aguas ? "lookup-match-total is-good" : "lookup-match-total is-danger"}>
+                                      {match.match_type === "exacta"
+                                        ? "Exacta"
+                                        : match.match_type === "base"
+                                          ? "Por base"
+                                          : "No aparece en Aguas"}
+                                    </strong>
+                                  </div>
+                                </div>
+                                <div className="lookup-match-actions">
+                                  <button
+                                    type="button"
+                                    className="button-secondary"
+                                    onClick={() => {
+                                      setForm((current) => ({
+                                        ...current,
+                                        clave_catastral: current.clave_catastral || match.clave_aguas_formato || match.clave_catastral || "",
+                                        nombre_catastral: match.nombre || current.nombre_catastral,
+                                        barrio_colonia: match.caserio || match.direccion || current.barrio_colonia,
+                                        identidad: match.identificador || current.identidad,
+                                        comentarios: match.exists_in_aguas ? current.comentarios : "Clandestino"
+                                      }));
+                                      setWorkspaceView("records");
+                                    }}
+                                  >
+                                    <Icon name="records" />
+                                    Pasar a ficha
+                                  </button>
+                                </div>
+                              </article>
+                            );
+                          }
+
                           const totalMeta = getLookupTotalMeta(match.total);
                           return (
                             <article key={`${match.clave_catastral}-${match.inquilino}-${match.nombre}`} className="lookup-match-card">

@@ -150,5 +150,11 @@ export const LOOKUP_SEARCH_MODES = [
     label: "Abonado",
     helper: "Busca por numero de abonado",
     inputMode: "numeric"
+  },
+  {
+    value: "alcaldia",
+    label: "Alcaldia",
+    helper: "Clave, nombre o barrio del padron municipal",
+    inputMode: "text"
   }
 ];

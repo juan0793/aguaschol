@@ -4694,6 +4694,26 @@ textarea {
   border-color: rgba(22, 112, 75, 0.14);
 }
 
+.lookup-match-status.is-ok,
+.lookup-match-total.is-good {
+  color: #16704b;
+}
+
+.lookup-match-status.is-ok {
+  background: rgba(22, 112, 75, 0.08);
+  border-color: rgba(22, 112, 75, 0.14);
+}
+
+.lookup-match-status.is-danger,
+.lookup-match-total.is-danger {
+  color: #9b202d;
+}
+
+.lookup-match-status.is-danger {
+  background: rgba(155, 32, 45, 0.08);
+  border-color: rgba(155, 32, 45, 0.14);
+}
+
 .lookup-service-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
