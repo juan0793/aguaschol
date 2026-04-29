@@ -370,15 +370,15 @@ function App() {
             cardClass: "search-card-dashboard",
             toplineLabel: "Centro administrativo",
             title: "Tablero de control",
-            lead: "Resumen ejecutivo con operaciones, actividad reciente y accesos rápidos para gestionar toda la plataforma.",
+            lead: "Resumen operativo con actividad reciente y accesos rápidos para gestionar toda la plataforma.",
             kicker: "Visión general"
           },
           executiveReport: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-users",
-            toplineLabel: "Resumen ejecutivo",
-            title: "Reporte general de la aplicación",
-            lead: "Informe consolidado desde el primer día de trabajo: fichas, geolocalización, mapeo, reportes, padrones, avisos y trazabilidad.",
+            toplineLabel: "Operaciones realizadas",
+            title: "Resumen de Operaciones realizadas",
+            lead: "Informe consolidado desde el primer día de trabajo: fichas, geolocalización, mapeo, reportes, padrones, avisos, funciones desarrolladas, ahorro de tiempo y trazabilidad.",
             kicker: "Memoria operativa"
           },
           padron: {
@@ -928,7 +928,7 @@ function App() {
       isAdmin
         ? [
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
-            { key: "executiveReport", section: "vision", label: "Resumen ejecutivo", icon: "records", meta: "PDF general", tone: "is-report" },
+            { key: "executiveReport", section: "vision", label: "Operaciones realizadas", icon: "records", meta: "PDF general", tone: "is-report" },
             { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
@@ -981,7 +981,7 @@ function App() {
       (isAdmin
         ? [
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
-            { key: "executiveReport", label: "Resumen ejecutivo", icon: "records", group: "control", helper: "Informe general PDF" },
+            { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
@@ -995,7 +995,7 @@ function App() {
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Mapa", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
-            { key: "executiveReport", label: "Resumen ejecutivo", icon: "records", group: "control", helper: "Informe general PDF" }
+            { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" }
           ]),
     [
       isAdmin,
@@ -1616,6 +1616,24 @@ function App() {
         .map(([label, total]) => ({ label, total }))
         .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label))
         .slice(0, 10),
+      applicationFunctions: [
+        ["Registro de fichas", "Crear, editar, buscar y clasificar inmuebles por clave catastral, barrio, abonado y estado operativo."],
+        ["Validación de padrones", "Comparar información entre padrón maestro, Alcaldía y registros de Aguas para detectar coincidencias o posibles clandestinos."],
+        ["Evidencia fotográfica", "Adjuntar fotografía por ficha y dejar respaldo visual del levantamiento realizado en campo."],
+        ["Geolocalización GPS", "Capturar puntos técnicos, zonas, precisión, jornadas y referencias para sustentar el recorrido territorial."],
+        ["Mapa de campo", "Visualizar puntos levantados, agruparlos por zona y generar reportes de coordenadas para supervisión."],
+        ["Avisos y fichas imprimibles", "Generar ficha técnica, aviso formal e impresión rápida por lote con selección de copias."],
+        ["Reportes PDF", "Descargar reportes de campo, solicitudes de padrón y resumen consolidado para presentación institucional."],
+        ["Bitácora y usuarios", "Registrar sesiones, cambios, operaciones, restauraciones y actividad por usuario para trazabilidad."]
+      ],
+      timeSavingsRows: [
+        ["Búsqueda de clave y validación", "10 a 15 minutos manuales", "1 a 2 minutos en la aplicación", "Reduce revisión en Excel, cruces manuales y errores de digitación."],
+        ["Elaboración de ficha", "15 a 20 minutos manuales", "4 a 6 minutos en la aplicación", "Centraliza datos, estado, fotografía y formato imprimible."],
+        ["Generación de aviso", "8 a 12 minutos manuales", "1 a 2 minutos en la aplicación", "El aviso se genera desde la ficha sin volver a redactar la información."],
+        ["Reporte de campo por zona", "1 a 2 horas manuales", "5 a 10 minutos en la aplicación", "Agrupa GPS, zonas, totales y jornadas automáticamente."],
+        ["Consolidado para supervisión", "Medio día de revisión manual", "10 a 20 minutos en la aplicación", "Resume fichas, barrios, GPS, usuarios, bitácora y estadísticas."],
+        ["Impresión de varias fichas/avisos", "30 a 60 minutos manuales", "5 a 10 minutos con impresión rápida", "Permite seleccionar copias por ficha y aviso en un solo flujo."]
+      ],
       modules: [
         {
           title: "Fichas catastrales",
@@ -3354,7 +3372,7 @@ function App() {
     const portadaMarkup = `
       <section class="field-report-cover">
         <div class="field-report-cover-copy">
-          <span class="field-report-kicker">Resumen ejecutivo</span>
+          <span class="field-report-kicker">Resumen de operaciones</span>
           <h2>Levantamiento consolidado de puntos de campo</h2>
           <p>Vista institucional del trabajo levantado, lista para seguimiento y revision administrativa.</p>
           <div class="field-report-cover-metrics">
@@ -5233,7 +5251,7 @@ function App() {
           document.setPage(page);
           document.setFontSize(8);
           document.setTextColor(96, 116, 134);
-          document.text("Aguas de Choluteca - Resumen ejecutivo de la aplicación", marginX, pageHeight - 8);
+          document.text("Aguas de Choluteca - Resumen de Operaciones realizadas", marginX, pageHeight - 8);
           document.text(`Página ${page} de ${pageCount}`, pageWidth - marginX, pageHeight - 8, { align: "right" });
         }
       };
@@ -5306,7 +5324,7 @@ function App() {
       document.setFont("helvetica", "bold");
       document.setFontSize(22);
       document.setTextColor(18, 59, 93);
-      document.text("Resumen ejecutivo", marginX, 18);
+      document.text("Resumen de Operaciones realizadas", marginX, 18);
       document.setFontSize(11);
       document.setFont("helvetica", "normal");
       document.setTextColor(64, 92, 118);
@@ -5361,6 +5379,30 @@ function App() {
         styles: { fontSize: 8.2, cellPadding: 2.5, textColor: [23, 52, 78], valign: "top" },
         headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255] },
         columnStyles: { 0: { cellWidth: 38 }, 1: { cellWidth: 82 }, 2: { cellWidth: 62 } }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Funciones desarrolladas en la aplicación");
+      autoTable(document, {
+        startY: y,
+        head: [["Función", "Descripción operativa"]],
+        body: executiveReportData.applicationFunctions,
+        theme: "grid",
+        styles: { fontSize: 8.1, cellPadding: 2.4, textColor: [23, 52, 78], valign: "top" },
+        headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 44 }, 1: { cellWidth: 138 } }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Ahorro estimado de tiempo para técnicos");
+      autoTable(document, {
+        startY: y,
+        head: [["Proceso", "Antes", "Con la aplicación", "Beneficio"]],
+        body: executiveReportData.timeSavingsRows,
+        theme: "striped",
+        styles: { fontSize: 7.4, cellPadding: 2.1, textColor: [23, 52, 78], valign: "top" },
+        headStyles: { fillColor: [17, 116, 95], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 36 }, 2: { cellWidth: 39 }, 3: { cellWidth: 67 } }
       });
       y = (document.lastAutoTable?.finalY ?? y) + 9;
 
@@ -5563,7 +5605,7 @@ function App() {
       );
 
       addReportPage(
-        "Resumen ejecutivo de avance y defensa del trabajo",
+        "Resumen de operaciones, avance y defensa del trabajo",
         "Síntesis para presentar el valor operativo del sistema y del levantamiento realizado."
       );
       autoTable(document, {
@@ -5573,7 +5615,8 @@ function App() {
           ["Campo", `${safeMapPoints.length} puntos GPS distribuidos por zona, con ${mapDiaryGroups.length} jornadas registradas y lectura por tipo de punto.`],
           ["Fichas", `${safeRecords.length} fichas administradas, ${executiveReportData.photoCount} con fotografía y ${executiveReportData.printedReadyRecords} con datos base para aviso.`],
           ["Barrios", `${executiveReportData.recordZoneRows.length} barrios o colonias aparecen en el consolidado operativo.`],
-          ["Reportes", "Se cuenta con impresión de fichas, avisos, lote de impresiones, reportes de campo, reportes de padrón y resumen ejecutivo PDF."],
+          ["Reportes", "Se cuenta con impresión de fichas, avisos, lote de impresiones, reportes de campo, reportes de padrón y resumen de operaciones PDF."],
+          ["Ahorro técnico", "La aplicación reduce búsqueda, validación, redacción, impresión y consolidación de reportes que antes se hacían manualmente."],
           ["Control", `${safeAuditLogs.length} eventos en bitácora respaldan trazabilidad de cambios, usuarios y operaciones.`],
           ["Acreditación", EXECUTIVE_REPORT_CREDIT]
         ],
@@ -5597,7 +5640,7 @@ function App() {
           ["Reporte de campo", "Puntos agrupados por zona y detalles técnicos de levantamiento.", "Sirve para socializar rutas, zonas y avance por jornada."],
           ["Padrón maestro", "Búsqueda por clave, nombre o abonado y solicitudes por palabras clave.", "Soporta validación contra base administrativa."],
           ["Bitácora", "Eventos de usuarios, fichas, fotos, padrones y operaciones.", "Respalda trazabilidad y control interno."],
-          ["Resumen ejecutivo", "Indicadores, gráficos, barrios, zonas GPS, responsables y conclusiones.", "Resume el proyecto para supervisión y presentación institucional."]
+          ["Resumen de operaciones", "Indicadores, gráficos, barrios, zonas GPS, responsables, funciones, ahorro de tiempo y conclusiones.", "Resume el proyecto para supervisión y presentación institucional."]
         ],
         theme: "grid",
         styles: { fontSize: 8.1, cellPadding: 2.4, textColor: [23, 52, 78], valign: "top" },
@@ -5626,10 +5669,10 @@ function App() {
       });
 
       addFooter();
-      document.save(`resumen-ejecutivo-app-${new Date().toISOString().slice(0, 10)}.pdf`);
-      showAlert("Resumen ejecutivo descargado en PDF.");
+      document.save(`resumen-operaciones-realizadas-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Resumen de operaciones descargado en PDF.");
     } catch (error) {
-      showAlert(error.message || "No fue posible descargar el resumen ejecutivo.");
+      showAlert(error.message || "No fue posible descargar el resumen de operaciones.");
     }
   };
 
@@ -5859,7 +5902,7 @@ function App() {
     },
     {
       key: "executive",
-      label: "Resumen ejecutivo",
+      label: "Operaciones realizadas",
       helper: "Comparativos y carga",
       className: "is-wide",
       content: (
@@ -6652,7 +6695,7 @@ function App() {
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("executiveReport")}>
                   <Icon name="records" />
-                  Resumen ejecutivo
+                  Operaciones realizadas
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("map")}>
                   <Icon name="map" />
@@ -6668,7 +6711,7 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
                   <Icon name="records" />
-                  Resumen ejecutivo
+                  Operaciones realizadas
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
@@ -6679,7 +6722,7 @@ function App() {
           ) : workspaceView === "executiveReport" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Informe descargable para presentar el avance integral de la aplicación, con datos acumulados desde el primer registro disponible.
+                Informe descargable para presentar las operaciones realizadas, funciones desarrolladas, ahorro de tiempo técnico y datos acumulados desde el primer registro disponible.
               </p>
               <div className="dashboard-summary-chips">
                 <span className="panel-pill">Periodo: {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "Sin registros"} - {formatSpanishDate(executiveReportData.generatedAt)}</span>
@@ -6690,7 +6733,7 @@ function App() {
               <div className="search-actions">
                 <button type="button" onClick={handleDownloadExecutiveReportPdf}>
                   <Icon name="records" />
-                  Descargar PDF ejecutivo
+                  Descargar PDF de operaciones
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("dashboard")}>
                   <Icon name="dashboard" />
@@ -6720,7 +6763,7 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
                   <Icon name="records" />
-                  Resumen ejecutivo
+                  Operaciones realizadas
                 </button>
                 <button
                   type="button"
@@ -6777,7 +6820,7 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
                   <Icon name="records" />
-                  Resumen ejecutivo
+                  Operaciones realizadas
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
@@ -7332,10 +7375,11 @@ function App() {
         <section className="executive-hero-panel">
           <div>
             <p className="sheet-kicker">Memoria operativa integral</p>
-            <h2><Icon name="dashboard" className="title-icon" />Resumen ejecutivo del desarrollo y la operación</h2>
+            <h2><Icon name="dashboard" className="title-icon" />Resumen de Operaciones realizadas</h2>
             <p>
               Consolidado de todo lo trabajado en la aplicación: captura de fichas, validación de padrones,
-              avisos, impresión, geolocalización, mapeo, reportes PDF, usuarios y trazabilidad.
+              avisos, impresión, geolocalización, mapeo, reportes PDF, usuarios, funciones desarrolladas,
+              ahorro de tiempo para técnicos y trazabilidad.
             </p>
             <p className="executive-supervisor">{EXECUTIVE_REPORT_CREDIT}</p>
           </div>
@@ -7378,6 +7422,40 @@ function App() {
                   <p>{item.detail}</p>
                   <span>{item.evidence}</span>
                 </article>
+              ))}
+            </div>
+          </article>
+
+          <article className="executive-card is-wide">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Funciones de la aplicación</p>
+                <h3>Herramientas desarrolladas para campo y oficina</h3>
+              </div>
+            </div>
+            <div className="executive-module-list">
+              {executiveReportData.applicationFunctions.slice(0, 6).map((item) => (
+                <article key={item[0]} className="executive-module-item">
+                  <strong>{item[0]}</strong>
+                  <p>{item[1]}</p>
+                </article>
+              ))}
+            </div>
+          </article>
+
+          <article className="executive-card is-wide">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Ahorro operativo</p>
+                <h3>Tiempo que se ahorran los técnicos</h3>
+              </div>
+            </div>
+            <div className="executive-table-list">
+              {executiveReportData.timeSavingsRows.slice(0, 6).map((item) => (
+                <div key={item[0]}>
+                  <span>{item[0]}</span>
+                  <strong>{item[1]} → {item[2]}</strong>
+                </div>
               ))}
             </div>
           </article>
