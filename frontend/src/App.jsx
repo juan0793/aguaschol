@@ -1470,6 +1470,74 @@ function App() {
       acc[zone] = (acc[zone] ?? 0) + 1;
       return acc;
     }, {});
+    const gpsZoneDetails = safeMapPoints.reduce((acc, point) => {
+      const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
+      const zone = String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+      const typeLabel = getMapPointTypeLabel(point.point_type);
+      if (!acc[zone]) {
+        acc[zone] = {
+          label: zone,
+          total: 0,
+          types: {},
+          accuracyValues: [],
+          firstDate: "",
+          lastDate: ""
+        };
+      }
+      acc[zone].total += 1;
+      acc[zone].types[typeLabel] = (acc[zone].types[typeLabel] ?? 0) + 1;
+      if (Number.isFinite(Number(point.accuracy_meters))) {
+        acc[zone].accuracyValues.push(Number(point.accuracy_meters));
+      }
+      const dateKey = getMapDiaryDateKey(point);
+      if (dateKey) {
+        acc[zone].firstDate = !acc[zone].firstDate || dateKey < acc[zone].firstDate ? dateKey : acc[zone].firstDate;
+        acc[zone].lastDate = !acc[zone].lastDate || dateKey > acc[zone].lastDate ? dateKey : acc[zone].lastDate;
+      }
+      return acc;
+    }, {});
+    const recordZoneTotals = safeRecords.reduce((acc, record) => {
+      const zone = String(record.barrio_colonia || "Sin barrio").trim() || "Sin barrio";
+      if (!acc[zone]) {
+        acc[zone] = {
+          label: zone,
+          total: 0,
+          clandestino: 0,
+          reportada: 0,
+          varios_padrones: 0,
+          withPhoto: 0,
+          alert: 0
+        };
+      }
+      const status = record.estado_padron || "clandestino";
+      acc[zone].total += 1;
+      acc[zone][status] = (acc[zone][status] ?? 0) + 1;
+      if (String(record.foto_path || "").trim()) {
+        acc[zone].withPhoto += 1;
+      }
+      if (recordDeadlineMetaById[record.id]) {
+        acc[zone].alert += 1;
+      }
+      return acc;
+    }, {});
+    const monthlyTotals = [...safeRecords, ...safeMapPoints].reduce((acc, item) => {
+      const dateKey = getMapDiaryDateKey(item.updated_at || item.created_at || item.fecha_aviso);
+      if (!dateKey) return acc;
+      const monthKey = dateKey.slice(0, 7);
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          label: formatMonthGroup(`${monthKey}-01`),
+          records: 0,
+          points: 0
+        };
+      }
+      if ("clave_catastral" in item) {
+        acc[monthKey].records += 1;
+      } else {
+        acc[monthKey].points += 1;
+      }
+      return acc;
+    }, {});
     const auditTotals = safeAuditLogs.reduce((acc, log) => {
       const key = actionLabel(log.action);
       acc[key] = (acc[key] ?? 0) + 1;
@@ -1515,6 +1583,28 @@ function App() {
       archivedEvents,
       fieldJourneyRows,
       fieldResponsibleRows,
+      statusRows: [
+        { label: "Clandestinas", total: statusTotals.clandestino || 0 },
+        { label: "Reportadas", total: statusTotals.reportada || 0 },
+        { label: "Varios padrones", total: statusTotals.varios_padrones || 0 }
+      ],
+      recordZoneRows: Object.values(recordZoneTotals)
+        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label)),
+      monthlyRows: Object.entries(monthlyTotals)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([, value]) => value),
+      gpsZoneDetailRows: Object.values(gpsZoneDetails)
+        .map((zone) => ({
+          ...zone,
+          averageAccuracy: zone.accuracyValues.length
+            ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
+            : null,
+          typeLabel: Object.entries(zone.types)
+            .sort((left, right) => right[1] - left[1])
+            .map(([label, total]) => `${label}: ${total}`)
+            .join(", ")
+        }))
+        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label)),
       mapTypeRows: Object.entries(mapTypeTotals)
         .map(([label, total]) => ({ label, total }))
         .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label)),
@@ -1567,6 +1657,7 @@ function App() {
     onlineUsers.length,
     padronMeta?.total_records,
     padronRequestResult?.summary?.total_registros,
+    recordDeadlineMetaById,
     safeAuditLogs,
     safeMapPoints,
     safeRecords,
@@ -5160,6 +5251,55 @@ function App() {
         document.text(title, marginX, y);
         y += 7;
       };
+      const addReportPage = (title, subtitle = "") => {
+        document.addPage();
+        y = 16;
+        document.setFont("helvetica", "bold");
+        document.setFontSize(15);
+        document.setTextColor(18, 59, 93);
+        document.text(title, marginX, y);
+        y += 7;
+        if (subtitle) {
+          document.setFont("helvetica", "normal");
+          document.setFontSize(9);
+          document.setTextColor(84, 113, 139);
+          document.text(document.splitTextToSize(subtitle, pageWidth - marginX * 2), marginX, y);
+          y += 12;
+        }
+      };
+      const drawBarChart = (title, rows, options = {}) => {
+        const chartRows = rows.slice(0, options.limit ?? 10);
+        const chartHeight = options.height ?? 72;
+        const chartWidth = pageWidth - marginX * 2;
+        const labelWidth = options.labelWidth ?? 54;
+        const barWidth = chartWidth - labelWidth - 20;
+        const rowHeight = chartHeight / Math.max(chartRows.length, 1);
+        const maxValue = Math.max(...chartRows.map((item) => Number(item.total || item.value || 0)), 1);
+
+        ensureSpace(chartHeight + 18);
+        document.setFont("helvetica", "bold");
+        document.setFontSize(11);
+        document.setTextColor(18, 59, 93);
+        document.text(title, marginX, y);
+        y += 7;
+
+        chartRows.forEach((item, index) => {
+          const rawValue = Number(item.total || item.value || 0);
+          const barLength = Math.max(2, (rawValue / maxValue) * barWidth);
+          const rowY = y + index * rowHeight;
+          document.setFont("helvetica", "normal");
+          document.setFontSize(7.2);
+          document.setTextColor(64, 92, 118);
+          document.text(String(item.label || item.name || "--").slice(0, 28), marginX, rowY + 4);
+          document.setFillColor(...(options.color || [21, 118, 209]));
+          document.roundedRect(marginX + labelWidth, rowY, barLength, Math.max(3, rowHeight - 2), 1.4, 1.4, "F");
+          document.setFont("helvetica", "bold");
+          document.setTextColor(18, 59, 93);
+          document.text(String(rawValue), marginX + labelWidth + barLength + 3, rowY + 4);
+        });
+
+        y += chartHeight + 8;
+      };
 
       document.setFillColor(237, 246, 255);
       document.rect(0, 0, pageWidth, 42, "F");
@@ -5301,6 +5441,188 @@ function App() {
         theme: "grid",
         styles: { fontSize: 8.4, cellPadding: 2.4, textColor: [23, 52, 78] },
         headStyles: { fillColor: [95, 63, 177], textColor: [255, 255, 255] }
+      });
+
+      addReportPage(
+        "Analisis estadistico de fichas por barrio",
+        "Distribucion territorial de las fichas registradas, con lectura por estado operativo, evidencia fotografica y alertas."
+      );
+      drawBarChart("Barrios con mayor cantidad de fichas", executiveReportData.recordZoneRows, {
+        limit: 12,
+        height: 88,
+        color: [18, 59, 93],
+        labelWidth: 64
+      });
+      autoTable(document, {
+        startY: y,
+        head: [["Barrio / colonia", "Total", "Clandestinas", "Reportadas", "Varios padrones", "Con foto", "Alertas"]],
+        body: executiveReportData.recordZoneRows.length
+          ? executiveReportData.recordZoneRows.slice(0, 18).map((item) => [
+              item.label,
+              item.total,
+              item.clandestino || 0,
+              item.reportada || 0,
+              item.varios_padrones || 0,
+              item.withPhoto,
+              item.alert
+            ])
+          : [["Sin barrios registrados", 0, 0, 0, 0, 0, 0]],
+        theme: "striped",
+        styles: { fontSize: 7.3, cellPadding: 2.1, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [18, 59, 93], textColor: [255, 255, 255] }
+      });
+
+      addReportPage(
+        "Analisis GPS distribuido por zona",
+        "Resumen de puntos levantados en campo, tipos de punto, precision promedio disponible y primera/ultima jornada detectada por zona."
+      );
+      drawBarChart("Zonas con mayor levantamiento GPS", executiveReportData.gpsZoneDetailRows, {
+        limit: 12,
+        height: 84,
+        color: [17, 116, 95],
+        labelWidth: 64
+      });
+      autoTable(document, {
+        startY: y,
+        head: [["Zona", "Puntos", "Tipos registrados", "Precision prom.", "Primera jornada", "Ultima jornada"]],
+        body: executiveReportData.gpsZoneDetailRows.length
+          ? executiveReportData.gpsZoneDetailRows.slice(0, 14).map((item) => [
+              item.label,
+              item.total,
+              item.typeLabel || "--",
+              item.averageAccuracy === null ? "--" : `${item.averageAccuracy} m`,
+              item.firstDate ? formatSpanishDate(item.firstDate) : "--",
+              item.lastDate ? formatSpanishDate(item.lastDate) : "--"
+            ])
+          : [["Sin zonas GPS registradas", 0, "--", "--", "--", "--"]],
+        theme: "grid",
+        styles: { fontSize: 7.1, cellPadding: 2, textColor: [23, 52, 78], valign: "top" },
+        headStyles: { fillColor: [17, 116, 95], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 17 }, 2: { cellWidth: 55 } }
+      });
+
+      addReportPage(
+        "Graficos estadisticos generales",
+        "Lectura visual de estados de fichas, evidencia fotografica, puntos GPS por tipo y actividad acumulada."
+      );
+      drawBarChart("Estados de fichas", executiveReportData.statusRows, {
+        limit: 6,
+        height: 44,
+        color: [21, 118, 209],
+        labelWidth: 58
+      });
+      drawBarChart("Puntos GPS por tipo", executiveReportData.mapTypeRows, {
+        limit: 8,
+        height: 58,
+        color: [17, 116, 95],
+        labelWidth: 64
+      });
+      drawBarChart(
+        "Evidencia fotografica",
+        [
+          { label: "Con fotografia", total: executiveReportData.photoCount },
+          { label: "Sin fotografia", total: executiveReportData.pendingPhotoCount }
+        ],
+        {
+          limit: 2,
+          height: 28,
+          color: [13, 77, 134],
+          labelWidth: 58
+        }
+      );
+
+      addReportPage(
+        "Evolucion mensual de trabajo",
+        "Comparativo acumulado por mes entre fichas registradas o actualizadas y puntos geolocalizados en campo."
+      );
+      autoTable(document, {
+        startY: y,
+        head: [["Mes", "Fichas", "Puntos GPS", "Lectura"]],
+        body: executiveReportData.monthlyRows.length
+          ? executiveReportData.monthlyRows.map((item) => [
+              item.label,
+              item.records,
+              item.points,
+              item.records || item.points ? "Mes con movimiento operativo registrado." : "Sin movimiento."
+            ])
+          : [["Sin meses registrados", 0, 0, "Sin informacion acumulada."]],
+        theme: "striped",
+        styles: { fontSize: 8, cellPadding: 2.4, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255] }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 8;
+      drawBarChart(
+        "Fichas por mes",
+        executiveReportData.monthlyRows.map((item) => ({ label: item.label, total: item.records })),
+        { limit: 12, height: 64, color: [18, 59, 93], labelWidth: 58 }
+      );
+      drawBarChart(
+        "Puntos GPS por mes",
+        executiveReportData.monthlyRows.map((item) => ({ label: item.label, total: item.points })),
+        { limit: 12, height: 64, color: [17, 116, 95], labelWidth: 58 }
+      );
+
+      addReportPage(
+        "Resumen ejecutivo de avance y defensa del trabajo",
+        "Sintesis para presentar el valor operativo del sistema y del levantamiento realizado."
+      );
+      autoTable(document, {
+        startY: y,
+        head: [["Eje", "Resultado defendible"]],
+        body: [
+          ["Campo", `${safeMapPoints.length} puntos GPS distribuidos por zona, con ${mapDiaryGroups.length} jornadas registradas y lectura por tipo de punto.`],
+          ["Fichas", `${safeRecords.length} fichas administradas, ${executiveReportData.photoCount} con fotografia y ${executiveReportData.printedReadyRecords} con datos base para aviso.`],
+          ["Barrios", `${executiveReportData.recordZoneRows.length} barrios o colonias aparecen en el consolidado operativo.`],
+          ["Reportes", "Se cuenta con impresion de fichas, avisos, lote de impresiones, reportes de campo, reportes de padron y resumen ejecutivo PDF."],
+          ["Control", `${safeAuditLogs.length} eventos en bitacora respaldan trazabilidad de cambios, usuarios y operaciones.`],
+          ["Acreditacion", EXECUTIVE_REPORT_CREDIT]
+        ],
+        theme: "grid",
+        styles: { fontSize: 8.3, cellPadding: 2.6, textColor: [23, 52, 78], valign: "top" },
+        headStyles: { fillColor: [95, 63, 177], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 148 } }
+      });
+
+      addReportPage(
+        "Matriz de informacion generada",
+        "Inventario de salidas y evidencias producidas por la aplicacion para sustentar el trabajo operativo."
+      );
+      autoTable(document, {
+        startY: y,
+        head: [["Producto", "Contenido", "Uso para defensa del trabajo"]],
+        body: [
+          ["Ficha tecnica", "Datos catastrales, servicios, fotografia, responsables, estado de padron y datos de aviso.", "Demuestra levantamiento individual y seguimiento del inmueble."],
+          ["Aviso", "Documento formal para regularizacion del inmueble clandestino.", "Permite evidenciar comunicacion administrativa al abonado."],
+          ["Mapa de campo", "Puntos GPS, precision, tipo de punto, referencia y jornada.", "Acredita presencia y registro en sitio."],
+          ["Reporte de campo", "Puntos agrupados por zona y detalles tecnicos de levantamiento.", "Sirve para socializar rutas, zonas y avance por jornada."],
+          ["Padron maestro", "Busqueda por clave, nombre o abonado y solicitudes por palabras clave.", "Soporta validacion contra base administrativa."],
+          ["Bitacora", "Eventos de usuarios, fichas, fotos, padrones y operaciones.", "Respalda trazabilidad y control interno."],
+          ["Resumen ejecutivo", "Indicadores, graficos, barrios, zonas GPS, responsables y conclusiones.", "Resume el proyecto para supervision y presentacion institucional."]
+        ],
+        theme: "grid",
+        styles: { fontSize: 8.1, cellPadding: 2.4, textColor: [23, 52, 78], valign: "top" },
+        headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 72 }, 2: { cellWidth: 74 } }
+      });
+
+      addReportPage(
+        "Conclusiones ejecutivas",
+        "Cierre del informe con la lectura administrativa del trabajo de campo y del sistema implementado."
+      );
+      autoTable(document, {
+        startY: y,
+        head: [["Conclusion", "Detalle"]],
+        body: [
+          ["Digitalizacion del proceso", "El flujo manual de fichas, avisos, busqueda, fotografia e impresion queda centralizado en una aplicacion web con actualizacion sin recargar."],
+          ["Evidencia territorial", "El modulo GPS permite demostrar zonas cubiertas, puntos tecnicos levantados y jornadas de campo registradas."],
+          ["Control institucional", "La integracion de padrones, reportes PDF y bitacora permite sustentar decisiones con datos y trazabilidad."],
+          ["Operacion defendible", "El informe consolida fichas por barrio, puntos por zona, responsables, estados, fotografias, eventos y resultados acumulados."],
+          ["Siguiente etapa", "El sistema queda preparado para ampliar filtros, exportaciones, autenticacion mas granular, mejoras de rendimiento y analitica historica adicional."]
+        ],
+        theme: "striped",
+        styles: { fontSize: 8.5, cellPadding: 2.8, textColor: [23, 52, 78], valign: "top" },
+        headStyles: { fillColor: [18, 59, 93], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 44 }, 1: { cellWidth: 138 } }
       });
 
       addFooter();
