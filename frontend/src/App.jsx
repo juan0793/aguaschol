@@ -95,7 +95,7 @@ const getPadronStatusLabel = (status) => {
 
 const getPadronStatusDescription = (status) => {
   if (status === "varios_padrones") {
-    return "Esta ficha aparece en Alcaldia y Aguas. Queda separada del listado de clandestinas.";
+    return "Esta ficha aparece en Alcaldía y Aguas. Queda separada del listado de clandestinas.";
   }
 
   if (status === "reportada") {
@@ -117,7 +117,7 @@ const formatPercent = (value, total) => {
 };
 
 const EXECUTIVE_REPORT_CREDIT =
-  "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramon Ordonez Bonilla, con seguimiento directo del trabajo realizado en campo.";
+  "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramón Ordóñez Bonilla, con seguimiento directo del trabajo realizado en campo.";
 
 const normalizeDashboardWidgetPrefs = (value) => {
   const orderSource = Array.isArray(value?.order) ? value.order : [];
@@ -293,7 +293,7 @@ function App() {
       : lookupSearchMode === "nombre"
         ? "Nombre o inquilino"
         : lookupSearchMode === "alcaldia"
-          ? "Clave, nombre o barrio de Alcaldia"
+          ? "Clave, nombre o barrio de Alcaldía"
           : "Numero de abonado";
   const lookupInputPlaceholder =
     lookupSearchMode === "clave"
@@ -354,15 +354,15 @@ function App() {
             cardClass: "search-card-records",
             toplineLabel: "Panel operativo",
             title: "Registro de inmuebles clandestinos",
-            lead: "Gestion centralizada de fichas, avisos y seguimiento operativo del sistema.",
-            kicker: "Operacion segura"
+            lead: "Gestión centralizada de fichas, avisos y seguimiento operativo del sistema.",
+            kicker: "Operación segura"
           },
           users: {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
-            toplineLabel: "Administracion de accesos",
-            title: "Gestion de usuarios",
-            lead: "Creacion de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
+            toplineLabel: "Administración de accesos",
+            title: "Gestión de usuarios",
+            lead: "Creación de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
             kicker: "Control de acceso"
           },
           dashboard: {
@@ -370,45 +370,45 @@ function App() {
             cardClass: "search-card-dashboard",
             toplineLabel: "Centro administrativo",
             title: "Tablero de control",
-            lead: "Resumen ejecutivo con operaciones, actividad reciente y accesos rapidos para gestionar toda la plataforma.",
-            kicker: "Vision general"
+            lead: "Resumen ejecutivo con operaciones, actividad reciente y accesos rápidos para gestionar toda la plataforma.",
+            kicker: "Visión general"
           },
           executiveReport: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-users",
             toplineLabel: "Resumen ejecutivo",
-            title: "Reporte general de la aplicacion",
-            lead: "Informe consolidado desde el primer dia de trabajo: fichas, geolocalizacion, mapeo, reportes, padrones, avisos y trazabilidad.",
+            title: "Reporte general de la aplicación",
+            lead: "Informe consolidado desde el primer día de trabajo: fichas, geolocalización, mapeo, reportes, padrones, avisos y trazabilidad.",
             kicker: "Memoria operativa"
           },
           padron: {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
-            toplineLabel: "Administracion de padron",
-            title: "Padron maestro",
-            lead: "Carga y reemplazo del archivo maestro usado por la consulta rapida de claves.",
-            kicker: "Actualizacion central"
+            toplineLabel: "Administración de padrón",
+            title: "Padrón maestro",
+            lead: "Carga y reemplazo del archivo maestro usado por la consulta rápida de claves.",
+            kicker: "Actualización central"
           },
           lookup: {
             panelClass: "hero-panel-records",
             cardClass: "search-card-records",
-            toplineLabel: "Consulta rapida",
+            toplineLabel: "Consulta rápida",
             title: "Buscar clave catastral",
-            lead: "Consulta apartada del modulo de fichas para validar si una clave ya existe en el padron maestro.",
+            lead: "Consulta apartada del módulo de fichas para validar si una clave ya existe en el padrón maestro.",
             kicker: "Uso en campo"
           },
           map: {
             panelClass: "hero-panel-records",
             cardClass: "search-card-records",
-            toplineLabel: "Geolocalizacion operativa",
+            toplineLabel: "Geolocalización operativa",
             title: "Mapa de campo",
-            lead: "Modulo independiente para ubicar y registrar puntos tecnicos de cajas y descargas en terreno.",
+            lead: "Módulo independiente para ubicar y registrar puntos técnicos de cajas y descargas en terreno.",
             kicker: "Trabajo en sitio"
           },
           mapReports: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-users",
-            toplineLabel: "Administracion de campo",
+            toplineLabel: "Administración de campo",
             title: "Reportes de levantamiento",
             lead: "Centro de reportes compacto para imprimir coordenadas, totales y zonas del trabajo levantado en campo.",
             kicker: "Reporte institucional"
@@ -416,33 +416,33 @@ function App() {
           mapAnalytics: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-users",
-            toplineLabel: "Analitica de campo",
-            title: "Estadisticas del levantamiento",
-            lead: "Graficos y lectura estadistica del trabajo de campo, separados del reporte institucional para no interferir con impresion.",
+            toplineLabel: "Analítica de campo",
+            title: "Estadísticas del levantamiento",
+            lead: "Gráficos y lectura estadística del trabajo de campo, separados del reporte institucional para no interferir con impresión.",
             kicker: "Lectura ejecutiva"
           },
           transport: {
             panelClass: "hero-panel-records",
             cardClass: "search-card-records",
             toplineLabel: "Monitoreo de transporte",
-            title: "Seguimiento del vehiculo recolector",
-            lead: "Traza la calle autorizada, ve el recorrido en verde y detecta a tiempo si el vehiculo se sale de la ruta.",
+            title: "Seguimiento del vehículo recolector",
+            lead: "Traza la calle autorizada, ve el recorrido en verde y detecta a tiempo si el vehículo se sale de la ruta.",
             kicker: "Ruta supervisada"
           },
           requests: {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
             toplineLabel: "Peticiones institucionales",
-            title: "Solicitudes al padron maestro",
-            lead: "Generacion de listados administrativos filtrados desde el padron, listos para impresion y PDF.",
-            kicker: "Analisis ejecutivo"
+            title: "Solicitudes al padrón maestro",
+            lead: "Generación de listados administrativos filtrados desde el padrón, listos para impresión y PDF.",
+            kicker: "Análisis ejecutivo"
           },
           logs: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-logs",
-            toplineLabel: "Bitacora profesional",
+            toplineLabel: "Bitácora profesional",
             title: "Historial de actividad",
-            lead: "Seguimiento continuo de movimientos relevantes con una lectura mas limpia y trazable.",
+            lead: "Seguimiento continuo de movimientos relevantes con una lectura más limpia y trazable.",
             kicker: "Trazabilidad"
           }
         }[workspaceView] ?? {
@@ -450,8 +450,8 @@ function App() {
           cardClass: "search-card-records",
           toplineLabel: "Panel operativo",
           title: "Registro de inmuebles clandestinos",
-          lead: "Gestion centralizada de fichas, avisos y seguimiento operativo del sistema.",
-          kicker: "Operacion segura"
+          lead: "Gestión centralizada de fichas, avisos y seguimiento operativo del sistema.",
+          kicker: "Operación segura"
         }
       ),
     [workspaceView]
@@ -466,7 +466,7 @@ function App() {
         },
         {
           icon: "users",
-          label: "Usuarios en linea",
+          label: "Usuarios en línea",
           value: String(onlineUsers.length)
         },
         {
@@ -496,7 +496,7 @@ function App() {
         },
         {
           icon: "refresh",
-          label: "Padron",
+          label: "Padrón",
           value: String(padronMeta?.total_records ?? 0)
         }
       ];
@@ -555,12 +555,12 @@ function App() {
         },
         {
           icon: locatingUser ? "refresh" : "activity",
-          label: "Geolocalizacion",
+          label: "Geolocalización",
           value: locatingUser ? "Buscando" : mapStatus
         },
         {
           icon: selectedMapPoint ? "success" : "map",
-          label: "Seleccion",
+          label: "Selección",
           value: selectedMapPoint ? getMapPointTypeLabel(selectedMapPoint.point_type) : "Sin punto"
         }
       ];
@@ -601,7 +601,7 @@ function App() {
         },
         {
           icon: "activity",
-          label: "Analitica",
+          label: "Analítica",
           value: loadingMapPoints ? "Actualizando" : "Lista"
         }
       ];
@@ -611,7 +611,7 @@ function App() {
       return [
         {
           icon: "transport",
-          label: "Modulo",
+          label: "Módulo",
           value: isAdmin ? "Control" : "Conductor"
         },
         {
@@ -656,7 +656,7 @@ function App() {
       {
         icon: form.id ? "activity" : "plus",
         label: "Modo",
-        value: form.id ? "Edicion" : "Nueva ficha"
+        value: form.id ? "Edición" : "Nueva ficha"
       },
       {
         icon: draftForm ? "success" : "refresh",
@@ -930,13 +930,13 @@ function App() {
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
             { key: "executiveReport", section: "vision", label: "Resumen ejecutivo", icon: "records", meta: "PDF general", tone: "is-report" },
             { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
-            { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
+            { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
-            { key: "mapAnalytics", section: "control", label: "Estadisticas campo", icon: "dashboard", meta: `${mapReportData.totalPoints} puntos`, tone: "is-report" },
+            { key: "mapAnalytics", section: "control", label: "Estadísticas campo", icon: "dashboard", meta: `${mapReportData.totalPoints} puntos`, tone: "is-report" },
             { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
-            { key: "padron", section: "control", label: "Padron", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
+            { key: "padron", section: "control", label: "Padrón", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
             { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
           ]
         : [],
@@ -955,16 +955,16 @@ function App() {
   const adminWorkspaceSections = useMemo(() => {
     const sectionMeta = {
       vision: {
-        title: "Vision",
-        detail: "Lectura rapida del sistema y acceso al tablero."
+        title: "Visión",
+        detail: "Lectura rápida del sistema y acceso al tablero."
       },
       operacion: {
-        title: "Operacion",
+        title: "Operación",
         detail: "Trabajo diario de fichas, consulta y levantamiento."
       },
       control: {
         title: "Control",
-        detail: "Supervision, reportes, usuarios y padron maestro."
+        detail: "Supervisión, reportes, usuarios y padrón maestro."
       }
     };
 
@@ -982,18 +982,18 @@ function App() {
         ? [
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "executiveReport", label: "Resumen ejecutivo", icon: "records", group: "control", helper: "Informe general PDF" },
-            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
+            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
-            { key: "mapAnalytics", label: "Estadisticas campo", icon: "dashboard", group: "control", helper: `${mapReportData.totalPoints} puntos` },
+            { key: "mapAnalytics", label: "Estadísticas campo", icon: "dashboard", group: "control", helper: `${mapReportData.totalPoints} puntos` },
             { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
-            { key: "padron", label: "Padron", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
+            { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
           ]
         : [
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
-            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
+            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Mapa", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "executiveReport", label: "Resumen ejecutivo", icon: "records", group: "control", helper: "Informe general PDF" }
           ]),
@@ -1033,8 +1033,8 @@ function App() {
     if (!padronMeta?.total_records) {
       return {
         icon: "refresh",
-        title: "Padron pendiente",
-        detail: "Conviene validar o actualizar el padron maestro antes de abrir consultas masivas."
+        title: "Padrón pendiente",
+        detail: "Conviene validar o actualizar el padrón maestro antes de abrir consultas masivas."
       };
     }
 
@@ -1042,15 +1042,15 @@ function App() {
       return {
         icon: "users",
         title: "Equipo conectado",
-        detail: `Hay ${onlineUsers.length} usuarios en linea; el tablero te ayuda a monitorear campo, fichas y actividad sin cambiar de modulo.`
+        detail: `Hay ${onlineUsers.length} usuarios en línea; el tablero te ayuda a monitorear campo, fichas y actividad sin cambiar de módulo.`
       };
     }
 
     if (mapDiaryGroups.length > 1) {
       return {
         icon: "map",
-        title: "Bitacora activa",
-        detail: `Ya hay ${mapDiaryGroups.length} jornadas registradas; puedes entrar a Reportes campo para revisar la del dia con mejor contexto.`
+        title: "Bitácora activa",
+        detail: `Ya hay ${mapDiaryGroups.length} jornadas registradas; puedes entrar a Reportes campo para revisar la del día con mejor contexto.`
       };
     }
 
@@ -1065,7 +1065,7 @@ function App() {
     return {
       icon: "dashboard",
       title: "Centro de control listo",
-      detail: "Empieza por Tablero para una vista ejecutiva o entra directo al modulo que necesites."
+      detail: "Empieza por Tablero para una vista ejecutiva o entra directo al módulo que necesites."
     };
   }, [isAdmin, mapDiaryGroups.length, onlineUsers.length, padronMeta?.total_records, safeAuditLogs.length]);
   const totalCajaRegistro = useMemo(
@@ -1142,7 +1142,7 @@ function App() {
       [
         { label: "0 a 5 m", total: 0, tone: "is-good" },
         { label: "6 a 15 m", total: 0, tone: "is-mid" },
-        { label: "Mas de 15 m", total: 0, tone: "is-warn" },
+        { label: "Más de 15 m", total: 0, tone: "is-warn" },
         { label: "Sin dato", total: 0, tone: "is-empty" }
       ]
     );
@@ -1162,29 +1162,29 @@ function App() {
       {
         label: "Movimiento de hoy",
         value: recordsUpdatedToday,
-        helper: `${safeRecords.length} fichas activas en operacion`,
+        helper: `${safeRecords.length} fichas activas en operación`,
         icon: "records"
       },
       {
         label: "Borrador de campo",
-        value: draftForm ? "Listo" : "Vacio",
+        value: draftForm ? "Listo" : "Vacío",
         helper: draftForm
-          ? `Ultimo guardado ${draftSavedAt ? formatDateTime(draftSavedAt) : "hace un momento"}`
+          ? `Último guardado ${draftSavedAt ? formatDateTime(draftSavedAt) : "hace un momento"}`
           : "Sin captura pendiente en este equipo",
         icon: draftForm ? "success" : "history"
       },
       {
         label: "Campo hoy",
         value: mapPointsToday,
-        helper: `${mapDiaryGroups.length} jornadas guardadas en bitacora`,
+        helper: `${mapDiaryGroups.length} jornadas guardadas en bitácora`,
         icon: "map"
       },
       {
-        label: "Consultas rapidas",
+        label: "Consultas rápidas",
         value: recentLookupCountToday,
         helper: lookupHistory.length
           ? `${lookupHistory.length} consultas recientes listas para repetir`
-          : "Aun no hay busquedas guardadas",
+          : "Aún no hay búsquedas guardadas",
         icon: "search"
       }
     ],
@@ -1195,33 +1195,33 @@ function App() {
   const dashboardFocusCards = useMemo(
     () => [
       {
-        title: "Operacion del dia",
+        title: "Operación del día",
         value: `${recordsUpdatedToday} movimientos hoy`,
         detail: draftForm
           ? "Tienes un borrador operativo listo para retomarse."
           : pendingPhotoRecords
-            ? `${pendingPhotoRecords} fichas siguen sin fotografia asociada.`
-            : "El modulo de fichas esta listo para captura y seguimiento.",
+            ? `${pendingPhotoRecords} fichas siguen sin fotografía asociada.`
+            : "El módulo de fichas está listo para captura y seguimiento.",
         icon: "records",
         actionLabel: "Abrir fichas",
         actionView: "records"
       },
       {
-        title: "Campo y geolocalizacion",
+        title: "Campo y geolocalización",
         value: `${mapPointsToday} puntos hoy`,
         detail: dashboardJourneys[0]
-          ? `Ultima jornada: ${formatMapDiaryLabel(dashboardJourneys[0].key)} con ${dashboardJourneys[0].total} puntos.`
-          : "Todavia no hay jornadas cargadas en mapa de campo.",
+          ? `Última jornada: ${formatMapDiaryLabel(dashboardJourneys[0].key)} con ${dashboardJourneys[0].total} puntos.`
+          : "Todavía no hay jornadas cargadas en mapa de campo.",
         icon: "map",
         actionLabel: "Ir a mapa",
         actionView: "map"
       },
       {
-        title: "Consulta y padron",
+        title: "Consulta y padrón",
         value: `${lookupHistory.length} consultas`,
         detail: padronMeta?.file_name
-          ? `Padron activo: ${padronMeta.file_name}`
-          : "Conviene validar el padron maestro antes de consultas masivas.",
+          ? `Padrón activo: ${padronMeta.file_name}`
+          : "Conviene validar el padrón maestro antes de consultas masivas.",
         icon: "search",
         actionLabel: "Buscar clave",
         actionView: "lookup"
@@ -1231,10 +1231,10 @@ function App() {
   );
   const dashboardQuickActions = useMemo(
     () => [
-      { key: "lookup", label: "Buscar clave", helper: "Consulta rapida de padron", icon: "search" },
-      { key: "mapReports", label: "Reportes campo", helper: "Revision institucional del levantamiento", icon: "map" },
-      { key: "mapAnalytics", label: "Estadisticas campo", helper: "Graficos y lectura ejecutiva", icon: "dashboard" },
-      { key: "requests", label: "Peticiones", helper: "Listados especiales desde el padron", icon: "dashboard" },
+      { key: "lookup", label: "Buscar clave", helper: "Consulta rápida de padrón", icon: "search" },
+      { key: "mapReports", label: "Reportes campo", helper: "Revisión institucional del levantamiento", icon: "map" },
+      { key: "mapAnalytics", label: "Estadísticas campo", helper: "Gráficos y lectura ejecutiva", icon: "dashboard" },
+      { key: "requests", label: "Peticiones", helper: "Listados especiales desde el padrón", icon: "dashboard" },
       { key: "users", label: "Usuarios", helper: "Accesos, sesiones y roles", icon: "users" }
     ],
     []
@@ -1245,19 +1245,19 @@ function App() {
     if (!padronMeta?.total_records) {
       items.push({
         tone: "is-warning",
-        title: "Padron pendiente",
-        detail: "Actualiza o valida el padron maestro para consultas y peticiones confiables.",
+        title: "Padrón pendiente",
+        detail: "Actualiza o valida el padrón maestro para consultas y peticiones confiables.",
         icon: "refresh",
         actionView: "padron",
-        actionLabel: "Revisar padron"
+        actionLabel: "Revisar padrón"
       });
     }
 
     if (alertRecords.length) {
       items.push({
         tone: "is-warning",
-        title: "Fichas con plazo critico",
-        detail: `${alertRecords.length} fichas estan en alerta o vencidas por regla de 7 dias habiles.`,
+        title: "Fichas con plazo crítico",
+        detail: `${alertRecords.length} fichas están en alerta o vencidas por regla de 7 días hábiles.`,
         icon: "warning",
         actionView: "records",
         actionLabel: "Ver alertas"
@@ -1268,7 +1268,7 @@ function App() {
       items.push({
         tone: "is-warning",
         title: "Fichas sin foto",
-        detail: `${pendingPhotoRecords} fichas visibles aun no tienen evidencia fotografica asociada.`,
+        detail: `${pendingPhotoRecords} fichas visibles aún no tienen evidencia fotográfica asociada.`,
         icon: "records",
         actionView: "records",
         actionLabel: "Completar fichas"
@@ -1278,7 +1278,7 @@ function App() {
     if (onlineUsers.length >= 4) {
       items.push({
         tone: "is-live",
-        title: "Operacion intensiva",
+        title: "Operación intensiva",
         detail: `${onlineUsers.length} usuarios conectados al mismo tiempo. Conviene vigilar actividad y jornadas de campo.`,
         icon: "users",
         actionView: "logs",
@@ -1301,7 +1301,7 @@ function App() {
       items.push({
         tone: "is-calm",
         title: "Sistema estable",
-        detail: "El tablero esta listo para arrancar captura, consulta o control administrativo.",
+        detail: "El tablero está listo para arrancar captura, consulta o control administrativo.",
         icon: "success",
         actionView: "records",
         actionLabel: "Ir a fichas"
@@ -1321,14 +1321,14 @@ function App() {
   const dashboardSignalCards = useMemo(
     () => [
       {
-        title: "Plazo critico",
+        title: "Plazo crítico",
         value: alertRecords.length,
-        helper: alertRecords.length ? "Fichas que requieren seguimiento hoy." : "Sin fichas criticas por plazo.",
+        helper: alertRecords.length ? "Fichas que requieren seguimiento hoy." : "Sin fichas críticas por plazo.",
         tone: alertRecords.length ? "is-warning" : "is-calm",
         icon: alertRecords.length ? "warning" : "success"
       },
       {
-        title: "Sin fotografia",
+        title: "Sin fotografía",
         value: pendingPhotoRecords,
         helper: pendingPhotoRecords ? "Pendientes de evidencia visual." : "Todas las visibles tienen foto.",
         tone: pendingPhotoRecords ? "is-warning" : "is-calm",
@@ -1337,7 +1337,7 @@ function App() {
       {
         title: "Consultas de hoy",
         value: recentLookupCountToday,
-        helper: lookupHistory.length ? "Busqueda rapida reutilizable desde el tablero." : "Aun no hay consultas en este equipo.",
+        helper: lookupHistory.length ? "Búsqueda rápida reutilizable desde el tablero." : "Aún no hay consultas en este equipo.",
         tone: recentLookupCountToday ? "is-info" : "is-calm",
         icon: "search"
       }
@@ -1366,7 +1366,7 @@ function App() {
         title: "Fichas",
         today: todayRecords,
         week: weekRecords,
-        helper: weekRecords ? `${todayRecords} hoy frente a ${weekRecords} movimientos de la semana.` : "Todavia no hay movimiento semanal.",
+        helper: weekRecords ? `${todayRecords} hoy frente a ${weekRecords} movimientos de la semana.` : "Todavía no hay movimiento semanal.",
         icon: "records",
         tone: todayRecords ? "is-info" : "is-calm"
       },
@@ -1374,7 +1374,7 @@ function App() {
         title: "Campo",
         today: mapPointsToday,
         week: weekMapPoints,
-        helper: weekMapPoints ? `${mapPointsToday} puntos hoy y ${weekMapPoints} en los ultimos 7 dias.` : "Sin levantamientos en la ultima semana.",
+        helper: weekMapPoints ? `${mapPointsToday} puntos hoy y ${weekMapPoints} en los últimos 7 días.` : "Sin levantamientos en la última semana.",
         icon: "map",
         tone: mapPointsToday ? "is-info" : "is-calm"
       },
@@ -1619,32 +1619,32 @@ function App() {
       modules: [
         {
           title: "Fichas catastrales",
-          detail: "Registro, edicion, busqueda por clave catastral, clasificacion por padron, fotografia, ficha visual, aviso y procesamiento a reportadas.",
-          evidence: `${safeRecords.length} fichas activas visibles, ${statusTotals.reportada || 0} reportadas y ${photoCount} con evidencia fotografica.`
+          detail: "Registro, edición, búsqueda por clave catastral, clasificación por padrón, fotografía, ficha visual, aviso y procesamiento a reportadas.",
+          evidence: `${safeRecords.length} fichas activas visibles, ${statusTotals.reportada || 0} reportadas y ${photoCount} con evidencia fotográfica.`
         },
         {
           title: "Trabajo realizado en campo",
-          detail: "Captura GPS en sitio, levantamiento de fichas, evidencia fotografica, jornadas por fecha, zonas cubiertas y puntos tecnicos ubicados en mapa.",
-          evidence: `${safeMapPoints.length} puntos geolocalizados, ${mapDiaryGroups.length} jornadas y ${photoCount} fichas con fotografia.`
+          detail: "Captura GPS en sitio, levantamiento de fichas, evidencia fotográfica, jornadas por fecha, zonas cubiertas y puntos técnicos ubicados en mapa.",
+          evidence: `${safeMapPoints.length} puntos geolocalizados, ${mapDiaryGroups.length} jornadas y ${photoCount} fichas con fotografía.`
         },
         {
           title: "Reportes institucionales",
-          detail: "Reporte de levantamiento por zonas, estadisticas de campo, descarga PDF, impresion, reporte de solicitudes al padron y consulta por clave.",
-          evidence: `${mapReportData.totalZones} zonas en la jornada activa y ${padronRequestResult?.summary?.total_registros ?? 0} registros en la ultima peticion.`
+          detail: "Reporte de levantamiento por zonas, estadísticas de campo, descarga PDF, impresión, reporte de solicitudes al padrón y consulta por clave.",
+          evidence: `${mapReportData.totalZones} zonas en la jornada activa y ${padronRequestResult?.summary?.total_registros ?? 0} registros en la última petición.`
         },
         {
-          title: "Padrones y validacion",
-          detail: "Carga de padron maestro, carga de padron de Alcaldia, comparacion contra Aguas y deteccion de inmuebles clandestinos o repetidos en varios padrones.",
-          evidence: `${padronMeta?.total_records ?? 0} claves en padron maestro y ${alcaldiaMeta?.total_records ?? 0} registros de Alcaldia.`
+          title: "Padrones y validación",
+          detail: "Carga de padrón maestro, carga de padrón de Alcaldía, comparación contra Aguas y detección de inmuebles clandestinos o repetidos en varios padrones.",
+          evidence: `${padronMeta?.total_records ?? 0} claves en padrón maestro y ${alcaldiaMeta?.total_records ?? 0} registros de Alcaldía.`
         },
         {
-          title: "Operacion y trazabilidad",
-          detail: "Usuarios, roles, sesiones, bitacora de eventos, auditoria de cambios, restauracion y archivo administrativo.",
-          evidence: `${safeUsers.length} usuarios registrados, ${onlineUsers.length} en linea y ${safeAuditLogs.length} eventos auditados.`
+          title: "Operación y trazabilidad",
+          detail: "Usuarios, roles, sesiones, bitácora de eventos, auditoría de cambios, restauración y archivo administrativo.",
+          evidence: `${safeUsers.length} usuarios registrados, ${onlineUsers.length} en línea y ${safeAuditLogs.length} eventos auditados.`
         },
         {
-          title: "Impresion y avisos",
-          detail: "Ficha imprimible con formato institucional, aviso editable, impresion individual y lote rapido con seleccion de copias por ficha o aviso.",
+          title: "Impresión y avisos",
+          detail: "Ficha imprimible con formato institucional, aviso editable, impresión individual y lote rápido con selección de copias por ficha o aviso.",
           evidence: `${printedReadyRecords} fichas cuentan con datos base para generar aviso.`
         }
       ]
@@ -2039,14 +2039,14 @@ function App() {
           return;
         }
 
-        throw new Error(data.message || "No fue posible cargar la informacion del padron.");
+        throw new Error(data.message || "No fue posible cargar la información del padrón.");
       }
 
       setPadronMeta(data.meta ?? null);
       setPadronImportSummary(data.meta?.last_import_summary ?? null);
     } catch (error) {
       if (!silent) {
-        showAlert(error.message || "No fue posible cargar la informacion del padron.");
+        showAlert(error.message || "No fue posible cargar la información del padrón.");
       }
     } finally {
       if (!silent) {
@@ -2068,18 +2068,18 @@ function App() {
       if (!response.ok) {
         if (response.status === 401) {
           clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
+          showAlert("La sesión venció. Ingresa nuevamente.");
           return;
         }
 
-        throw new Error(data.message || "No fue posible cargar el padron de alcaldia.");
+        throw new Error(data.message || "No fue posible cargar el padrón de alcaldía.");
       }
 
       setAlcaldiaMeta(data.meta ?? null);
       setAlcaldiaImportSummary(data.meta?.last_import_summary ?? null);
     } catch (error) {
       if (!silent) {
-        showAlert(error.message || "No fue posible cargar el padron de alcaldia.");
+        showAlert(error.message || "No fue posible cargar el padrón de alcaldía.");
       }
     } finally {
       if (!silent) {
@@ -2099,7 +2099,7 @@ function App() {
       if (!response.ok) {
         if (response.status === 401) {
           clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
+          showAlert("La sesión venció. Ingresa nuevamente.");
           return;
         }
 
@@ -3995,11 +3995,11 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "No fue posible iniciar sesion.");
+        throw new Error(data.message || "No fue posible iniciar sesión.");
       }
 
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
-      setAuthFx({ mode: "login", text: "Abriendo sesion..." });
+      setAuthFx({ mode: "login", text: "Abriendo sesión..." });
       await pause(550);
       setSession(data);
       setShowPasswordModal(Boolean(data?.user?.force_password_change));
@@ -4021,7 +4021,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      setAuthFx({ mode: "logout", text: "Cerrando sesion..." });
+      setAuthFx({ mode: "logout", text: "Cerrando sesión..." });
       await apiFetch("/auth/logout", { method: "POST" });
     } catch {
       // The local session should still be removed even if the request fails.
@@ -4037,17 +4037,17 @@ function App() {
     setPasswordFeedback("");
 
     if (!passwordForm.current_password.trim()) {
-      setPasswordFeedback("Ingresa la contrasena actual.");
+      setPasswordFeedback("Ingresa la contraseña actual.");
       return;
     }
 
     if (passwordForm.new_password.trim().length < 8) {
-      setPasswordFeedback("La nueva contrasena debe tener al menos 8 caracteres.");
+      setPasswordFeedback("La nueva contraseña debe tener al menos 8 caracteres.");
       return;
     }
 
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      setPasswordFeedback("La confirmacion de la nueva contrasena no coincide.");
+      setPasswordFeedback("La confirmación de la nueva contraseña no coincide.");
       return;
     }
 
@@ -4070,7 +4070,7 @@ function App() {
           return;
         }
 
-        throw new Error(data.message || "No se pudo actualizar la contrasena.");
+        throw new Error(data.message || "No se pudo actualizar la contraseña.");
       }
 
       const nextSession = {
@@ -4087,11 +4087,11 @@ function App() {
         new_password: "",
         confirm_password: ""
       });
-      showAlert("Contrasena actualizada correctamente.");
+      showAlert("Contraseña actualizada correctamente.");
       loadAuditLogs();
     } catch (error) {
-      setPasswordFeedback(error.message || "No se pudo actualizar la contrasena.");
-      showAlert(error.message || "No se pudo actualizar la contrasena.");
+      setPasswordFeedback(error.message || "No se pudo actualizar la contraseña.");
+      showAlert(error.message || "No se pudo actualizar la contraseña.");
     } finally {
       setChangingPassword(false);
     }
@@ -5233,8 +5233,8 @@ function App() {
           document.setPage(page);
           document.setFontSize(8);
           document.setTextColor(96, 116, 134);
-          document.text("Aguas de Choluteca - Resumen ejecutivo de la aplicacion", marginX, pageHeight - 8);
-          document.text(`Pagina ${page} de ${pageCount}`, pageWidth - marginX, pageHeight - 8, { align: "right" });
+          document.text("Aguas de Choluteca - Resumen ejecutivo de la aplicación", marginX, pageHeight - 8);
+          document.text(`Página ${page} de ${pageCount}`, pageWidth - marginX, pageHeight - 8, { align: "right" });
         }
       };
       const ensureSpace = (needed = 24) => {
@@ -5310,7 +5310,7 @@ function App() {
       document.setFontSize(11);
       document.setFont("helvetica", "normal");
       document.setTextColor(64, 92, 118);
-      document.text("Aplicacion de inmuebles clandestinos, geolocalizacion, mapeo, reportes y trazabilidad", marginX, 26);
+      document.text("Aplicación de inmuebles clandestinos, geolocalización, mapeo, reportes y trazabilidad", marginX, 26);
       const creditLines = document.splitTextToSize(EXECUTIVE_REPORT_CREDIT, pageWidth - marginX * 2);
       document.text(creditLines, marginX, 34);
       document.text(`Generado: ${formatSpanishDate(executiveReportData.generatedAt)}`, marginX, 34 + creditLines.length * 5);
@@ -5318,9 +5318,9 @@ function App() {
 
       autoTable(document, {
         startY: y,
-        head: [["Periodo", "Primera actividad", "Ultima actividad", "Acreditacion del trabajo"]],
+        head: [["Periodo", "Primera actividad", "Última actividad", "Acreditación del trabajo"]],
         body: [[
-          "Desde el primer dia registrado",
+          "Desde el primer día registrado",
           executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "Sin registros",
           executiveReportData.lastDate ? formatSpanishDate(executiveReportData.lastDate) : "Sin registros",
           EXECUTIVE_REPORT_CREDIT
@@ -5336,14 +5336,14 @@ function App() {
         startY: y,
         head: [["Indicador", "Total", "Lectura ejecutiva"]],
         body: [
-          ["Fichas activas", safeRecords.length, "Registros operativos visibles en el modulo de fichas."],
+          ["Fichas activas", safeRecords.length, "Registros operativos visibles en el módulo de fichas."],
           ["Clandestinas", executiveReportData.statusTotals.clandestino || 0, "Pendientes de cierre o procesamiento."],
           ["Reportadas", executiveReportData.statusTotals.reportada || 0, "Procesadas y retiradas del flujo activo."],
-          ["Varios padrones", executiveReportData.statusTotals.varios_padrones || 0, "Coincidencias entre Alcaldia y Aguas."],
-          ["Puntos geolocalizados", safeMapPoints.length, "Levantamientos GPS y puntos tecnicos de campo."],
-          ["Jornadas de campo", mapDiaryGroups.length, "Dias con bitacora de mapeo."],
+          ["Varios padrones", executiveReportData.statusTotals.varios_padrones || 0, "Coincidencias entre Alcaldía y Aguas."],
+          ["Puntos geolocalizados", safeMapPoints.length, "Levantamientos GPS y puntos técnicos de campo."],
+          ["Jornadas de campo", mapDiaryGroups.length, "Días con bitácora de mapeo."],
           ["Eventos auditados", safeAuditLogs.length, "Historial de accesos, cambios y operaciones."],
-          ["Usuarios", safeUsers.length, "Cuentas registradas para operacion y administracion."]
+          ["Usuarios", safeUsers.length, "Cuentas registradas para operación y administración."]
         ],
         theme: "striped",
         styles: { fontSize: 8.5, cellPadding: 2.6, textColor: [23, 52, 78] },
@@ -5352,10 +5352,10 @@ function App() {
       });
       y = (document.lastAutoTable?.finalY ?? y) + 9;
 
-      sectionTitle("Trabajo realizado por modulo");
+      sectionTitle("Trabajo realizado por módulo");
       autoTable(document, {
         startY: y,
-        head: [["Modulo", "Alcance construido", "Evidencia actual"]],
+        head: [["Módulo", "Alcance construido", "Evidencia actual"]],
         body: executiveReportData.modules.map((item) => [item.title, item.detail, item.evidence]),
         theme: "grid",
         styles: { fontSize: 8.2, cellPadding: 2.5, textColor: [23, 52, 78], valign: "top" },
@@ -5379,7 +5379,7 @@ function App() {
 
       autoTable(document, {
         startY: y,
-        head: [["Responsable / tecnico", "Fichas", "Con foto", "En alerta"]],
+        head: [["Responsable / técnico", "Fichas", "Con foto", "En alerta"]],
         body: executiveReportData.fieldResponsibleRows.length
           ? executiveReportData.fieldResponsibleRows.map((item) => [item.name, item.records, item.withPhoto, item.alert])
           : [["Sin responsable asignado", 0, 0, 0]],
@@ -5394,11 +5394,11 @@ function App() {
         startY: y,
         head: [["Concepto", "Cantidad", "Porcentaje"]],
         body: [
-          ["Con fotografia", executiveReportData.photoCount, formatPercent(executiveReportData.photoCount, safeRecords.length)],
-          ["Sin fotografia", executiveReportData.pendingPhotoCount, formatPercent(executiveReportData.pendingPhotoCount, safeRecords.length)],
+          ["Con fotografía", executiveReportData.photoCount, formatPercent(executiveReportData.photoCount, safeRecords.length)],
+          ["Sin fotografía", executiveReportData.pendingPhotoCount, formatPercent(executiveReportData.pendingPhotoCount, safeRecords.length)],
           ["Listas para aviso", executiveReportData.printedReadyRecords, formatPercent(executiveReportData.printedReadyRecords, safeRecords.length)],
-          ["Con plazo critico", alertRecords.length, formatPercent(alertRecords.length, safeRecords.length)],
-          ["Archivadas segun bitacora", executiveReportData.archivedEvents, "Evento historico"]
+          ["Con plazo crítico", alertRecords.length, formatPercent(alertRecords.length, safeRecords.length)],
+          ["Archivadas según bitácora", executiveReportData.archivedEvents, "Evento histórico"]
         ],
         theme: "striped",
         styles: { fontSize: 8.6, cellPadding: 2.5, textColor: [23, 52, 78] },
@@ -5406,7 +5406,7 @@ function App() {
       });
       y = (document.lastAutoTable?.finalY ?? y) + 9;
 
-      sectionTitle("Geolocalizacion y mapeo");
+      sectionTitle("Geolocalización y mapeo");
       autoTable(document, {
         startY: y,
         head: [["Tipo de punto", "Total"]],
@@ -5444,8 +5444,8 @@ function App() {
       });
 
       addReportPage(
-        "Analisis estadistico de fichas por barrio",
-        "Distribucion territorial de las fichas registradas, con lectura por estado operativo, evidencia fotografica y alertas."
+        "Análisis estadístico de fichas por barrio",
+        "Distribución territorial de las fichas registradas, con lectura por estado operativo, evidencia fotográfica y alertas."
       );
       drawBarChart("Barrios con mayor cantidad de fichas", executiveReportData.recordZoneRows, {
         limit: 12,
@@ -5473,8 +5473,8 @@ function App() {
       });
 
       addReportPage(
-        "Analisis GPS distribuido por zona",
-        "Resumen de puntos levantados en campo, tipos de punto, precision promedio disponible y primera/ultima jornada detectada por zona."
+        "Análisis GPS distribuido por zona",
+        "Resumen de puntos levantados en campo, tipos de punto, precisión promedio disponible y primera/última jornada detectada por zona."
       );
       drawBarChart("Zonas con mayor levantamiento GPS", executiveReportData.gpsZoneDetailRows, {
         limit: 12,
@@ -5484,7 +5484,7 @@ function App() {
       });
       autoTable(document, {
         startY: y,
-        head: [["Zona", "Puntos", "Tipos registrados", "Precision prom.", "Primera jornada", "Ultima jornada"]],
+        head: [["Zona", "Puntos", "Tipos registrados", "Precisión prom.", "Primera jornada", "Última jornada"]],
         body: executiveReportData.gpsZoneDetailRows.length
           ? executiveReportData.gpsZoneDetailRows.slice(0, 14).map((item) => [
               item.label,
@@ -5502,8 +5502,8 @@ function App() {
       });
 
       addReportPage(
-        "Graficos estadisticos generales",
-        "Lectura visual de estados de fichas, evidencia fotografica, puntos GPS por tipo y actividad acumulada."
+        "Gráficos estadísticos generales",
+        "Lectura visual de estados de fichas, evidencia fotográfica, puntos GPS por tipo y actividad acumulada."
       );
       drawBarChart("Estados de fichas", executiveReportData.statusRows, {
         limit: 6,
@@ -5518,10 +5518,10 @@ function App() {
         labelWidth: 64
       });
       drawBarChart(
-        "Evidencia fotografica",
+        "Evidencia fotográfica",
         [
-          { label: "Con fotografia", total: executiveReportData.photoCount },
-          { label: "Sin fotografia", total: executiveReportData.pendingPhotoCount }
+          { label: "Con fotografía", total: executiveReportData.photoCount },
+          { label: "Sin fotografía", total: executiveReportData.pendingPhotoCount }
         ],
         {
           limit: 2,
@@ -5532,7 +5532,7 @@ function App() {
       );
 
       addReportPage(
-        "Evolucion mensual de trabajo",
+        "Evolución mensual de trabajo",
         "Comparativo acumulado por mes entre fichas registradas o actualizadas y puntos geolocalizados en campo."
       );
       autoTable(document, {
@@ -5545,7 +5545,7 @@ function App() {
               item.points,
               item.records || item.points ? "Mes con movimiento operativo registrado." : "Sin movimiento."
             ])
-          : [["Sin meses registrados", 0, 0, "Sin informacion acumulada."]],
+          : [["Sin meses registrados", 0, 0, "Sin información acumulada."]],
         theme: "striped",
         styles: { fontSize: 8, cellPadding: 2.4, textColor: [23, 52, 78] },
         headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255] }
@@ -5564,18 +5564,18 @@ function App() {
 
       addReportPage(
         "Resumen ejecutivo de avance y defensa del trabajo",
-        "Sintesis para presentar el valor operativo del sistema y del levantamiento realizado."
+        "Síntesis para presentar el valor operativo del sistema y del levantamiento realizado."
       );
       autoTable(document, {
         startY: y,
         head: [["Eje", "Resultado defendible"]],
         body: [
           ["Campo", `${safeMapPoints.length} puntos GPS distribuidos por zona, con ${mapDiaryGroups.length} jornadas registradas y lectura por tipo de punto.`],
-          ["Fichas", `${safeRecords.length} fichas administradas, ${executiveReportData.photoCount} con fotografia y ${executiveReportData.printedReadyRecords} con datos base para aviso.`],
+          ["Fichas", `${safeRecords.length} fichas administradas, ${executiveReportData.photoCount} con fotografía y ${executiveReportData.printedReadyRecords} con datos base para aviso.`],
           ["Barrios", `${executiveReportData.recordZoneRows.length} barrios o colonias aparecen en el consolidado operativo.`],
-          ["Reportes", "Se cuenta con impresion de fichas, avisos, lote de impresiones, reportes de campo, reportes de padron y resumen ejecutivo PDF."],
-          ["Control", `${safeAuditLogs.length} eventos en bitacora respaldan trazabilidad de cambios, usuarios y operaciones.`],
-          ["Acreditacion", EXECUTIVE_REPORT_CREDIT]
+          ["Reportes", "Se cuenta con impresión de fichas, avisos, lote de impresiones, reportes de campo, reportes de padrón y resumen ejecutivo PDF."],
+          ["Control", `${safeAuditLogs.length} eventos en bitácora respaldan trazabilidad de cambios, usuarios y operaciones.`],
+          ["Acreditación", EXECUTIVE_REPORT_CREDIT]
         ],
         theme: "grid",
         styles: { fontSize: 8.3, cellPadding: 2.6, textColor: [23, 52, 78], valign: "top" },
@@ -5584,20 +5584,20 @@ function App() {
       });
 
       addReportPage(
-        "Matriz de informacion generada",
-        "Inventario de salidas y evidencias producidas por la aplicacion para sustentar el trabajo operativo."
+        "Matriz de información generada",
+        "Inventario de salidas y evidencias producidas por la aplicación para sustentar el trabajo operativo."
       );
       autoTable(document, {
         startY: y,
         head: [["Producto", "Contenido", "Uso para defensa del trabajo"]],
         body: [
-          ["Ficha tecnica", "Datos catastrales, servicios, fotografia, responsables, estado de padron y datos de aviso.", "Demuestra levantamiento individual y seguimiento del inmueble."],
-          ["Aviso", "Documento formal para regularizacion del inmueble clandestino.", "Permite evidenciar comunicacion administrativa al abonado."],
-          ["Mapa de campo", "Puntos GPS, precision, tipo de punto, referencia y jornada.", "Acredita presencia y registro en sitio."],
-          ["Reporte de campo", "Puntos agrupados por zona y detalles tecnicos de levantamiento.", "Sirve para socializar rutas, zonas y avance por jornada."],
-          ["Padron maestro", "Busqueda por clave, nombre o abonado y solicitudes por palabras clave.", "Soporta validacion contra base administrativa."],
-          ["Bitacora", "Eventos de usuarios, fichas, fotos, padrones y operaciones.", "Respalda trazabilidad y control interno."],
-          ["Resumen ejecutivo", "Indicadores, graficos, barrios, zonas GPS, responsables y conclusiones.", "Resume el proyecto para supervision y presentacion institucional."]
+          ["Ficha técnica", "Datos catastrales, servicios, fotografía, responsables, estado de padrón y datos de aviso.", "Demuestra levantamiento individual y seguimiento del inmueble."],
+          ["Aviso", "Documento formal para regularización del inmueble clandestino.", "Permite evidenciar comunicación administrativa al abonado."],
+          ["Mapa de campo", "Puntos GPS, precisión, tipo de punto, referencia y jornada.", "Acredita presencia y registro en sitio."],
+          ["Reporte de campo", "Puntos agrupados por zona y detalles técnicos de levantamiento.", "Sirve para socializar rutas, zonas y avance por jornada."],
+          ["Padrón maestro", "Búsqueda por clave, nombre o abonado y solicitudes por palabras clave.", "Soporta validación contra base administrativa."],
+          ["Bitácora", "Eventos de usuarios, fichas, fotos, padrones y operaciones.", "Respalda trazabilidad y control interno."],
+          ["Resumen ejecutivo", "Indicadores, gráficos, barrios, zonas GPS, responsables y conclusiones.", "Resume el proyecto para supervisión y presentación institucional."]
         ],
         theme: "grid",
         styles: { fontSize: 8.1, cellPadding: 2.4, textColor: [23, 52, 78], valign: "top" },
@@ -5611,13 +5611,13 @@ function App() {
       );
       autoTable(document, {
         startY: y,
-        head: [["Conclusion", "Detalle"]],
+        head: [["Conclusión", "Detalle"]],
         body: [
-          ["Digitalizacion del proceso", "El flujo manual de fichas, avisos, busqueda, fotografia e impresion queda centralizado en una aplicacion web con actualizacion sin recargar."],
-          ["Evidencia territorial", "El modulo GPS permite demostrar zonas cubiertas, puntos tecnicos levantados y jornadas de campo registradas."],
-          ["Control institucional", "La integracion de padrones, reportes PDF y bitacora permite sustentar decisiones con datos y trazabilidad."],
-          ["Operacion defendible", "El informe consolida fichas por barrio, puntos por zona, responsables, estados, fotografias, eventos y resultados acumulados."],
-          ["Siguiente etapa", "El sistema queda preparado para ampliar filtros, exportaciones, autenticacion mas granular, mejoras de rendimiento y analitica historica adicional."]
+          ["Digitalización del proceso", "El flujo manual de fichas, avisos, búsqueda, fotografía e impresión queda centralizado en una aplicación web con actualización sin recargar."],
+          ["Evidencia territorial", "El módulo GPS permite demostrar zonas cubiertas, puntos técnicos levantados y jornadas de campo registradas."],
+          ["Control institucional", "La integración de padrones, reportes PDF y bitácora permite sustentar decisiones con datos y trazabilidad."],
+          ["Operación defendible", "El informe consolida fichas por barrio, puntos por zona, responsables, estados, fotografías, eventos y resultados acumulados."],
+          ["Siguiente etapa", "El sistema queda preparado para ampliar filtros, exportaciones, autenticación más granular, mejoras de rendimiento y analítica histórica adicional."]
         ],
         theme: "striped",
         styles: { fontSize: 8.5, cellPadding: 2.8, textColor: [23, 52, 78], valign: "top" },
@@ -6157,7 +6157,7 @@ function App() {
       ) : null}
       {alert ? (
         <div className="app-alert no-print" role="alert">
-          <strong>Atencion</strong>
+          <strong>Atención</strong>
           <span>{alert.text}</span>
         </div>
       ) : null}
@@ -6165,18 +6165,18 @@ function App() {
         <div className={`password-modal-backdrop ${mustChangePassword ? "is-forced" : ""}`}>
           <div className="password-modal-card">
             <div className="password-modal-head">
-              <p className="eyebrow">{mustChangePassword ? "Accion requerida" : "Seguridad de acceso"}</p>
-              <h2>{mustChangePassword ? "Cambia tu contrasena temporal" : "Cambiar contrasena"}</h2>
+              <p className="eyebrow">{mustChangePassword ? "Acción requerida" : "Seguridad de acceso"}</p>
+              <h2>{mustChangePassword ? "Cambia tu contraseña temporal" : "Cambiar contraseña"}</h2>
               <p className="lead">
                 {mustChangePassword
-                  ? "Antes de continuar, define una nueva contrasena personal para proteger tu cuenta."
-                  : "Actualiza tu contrasena cuando lo necesites."}
+                  ? "Antes de continuar, define una nueva contraseña personal para proteger tu cuenta."
+                  : "Actualiza tu contraseña cuando lo necesites."}
               </p>
             </div>
             <form className="password-form" onSubmit={handleChangePassword}>
               {passwordFeedback ? <p className="password-feedback">{passwordFeedback}</p> : null}
               <label>
-                <span>Contrasena actual</span>
+                <span>Contraseña actual</span>
                 <input
                   name="current_password"
                   type="password"
@@ -6186,7 +6186,7 @@ function App() {
                 />
               </label>
               <label>
-                <span>Nueva contrasena</span>
+                <span>Nueva contraseña</span>
                 <input
                   name="new_password"
                   type="password"
@@ -6197,7 +6197,7 @@ function App() {
                 />
               </label>
               <label>
-                <span>Confirmar nueva contrasena</span>
+                <span>Confirmar nueva contraseña</span>
                 <input
                   name="confirm_password"
                   type="password"
@@ -6209,7 +6209,7 @@ function App() {
               <div className="password-form-actions">
                 <button type="submit" disabled={changingPassword}>
                   <Icon name="auth" />
-                  {changingPassword ? "Actualizando..." : "Guardar nueva contrasena"}
+                  {changingPassword ? "Actualizando..." : "Guardar nueva contraseña"}
                 </button>
                 {!mustChangePassword ? (
                   <button
@@ -6541,7 +6541,7 @@ function App() {
                     <span className="module-badge">
                       <Icon name={currentModuleNavigation?.icon || "records"} />
                       {currentModuleNavigation?.group === "operacion"
-                        ? "Operacion"
+                        ? "Operación"
                         : currentModuleNavigation?.group === "control"
                           ? "Control"
                           : "Administracion"}
@@ -6638,12 +6638,12 @@ function App() {
           {workspaceView === "dashboard" ? (
             <div className="workspace-summary dashboard-summary">
               <p className="workspace-title">
-                Centro ejecutivo para arrancar el dia con una lectura clara de fichas, campo, usuarios y actividad reciente.
+                Centro ejecutivo para arrancar el día con una lectura clara de fichas, campo, usuarios y actividad reciente.
               </p>
               <div className="dashboard-summary-chips">
-                <span className="panel-pill">Admin en linea: {onlineUsers.length}</span>
+                <span className="panel-pill">Admin en línea: {onlineUsers.length}</span>
                 <span className="panel-pill">Jornada activa: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-                <span className="panel-pill">Bitacora: {mapDiaryGroups.length} dias</span>
+                <span className="panel-pill">Bitácora: {mapDiaryGroups.length} días</span>
               </div>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("records")}>
@@ -6672,14 +6672,14 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
               </div>
             </div>
           ) : workspaceView === "executiveReport" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Informe descargable para presentar el avance integral de la aplicacion, con datos acumulados desde el primer registro disponible.
+                Informe descargable para presentar el avance integral de la aplicación, con datos acumulados desde el primer registro disponible.
               </p>
               <div className="dashboard-summary-chips">
                 <span className="panel-pill">Periodo: {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "Sin registros"} - {formatSpanishDate(executiveReportData.generatedAt)}</span>
@@ -6698,7 +6698,7 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
               </div>
             </div>
@@ -6739,33 +6739,33 @@ function App() {
           ) : workspaceView === "lookup" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Consulta el padron maestro sin entrar al modulo de fichas. Acepta clave base `00-00-00` o `000-00-00`,
+                Consulta el padrón maestro sin entrar al módulo de fichas. Acepta clave base `00-00-00` o `000-00-00`,
                 y clave completa `00-00-00-00` o `000-00-00-00`.
               </p>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
-                  Cambiar contrasena
+                  Cambiar contraseña
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
               </div>
             </div>
           ) : workspaceView === "map" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Modulo independiente para geolocalizar puntos tecnicos en campo y dejar registro de cajas de aguas negras.
+                Módulo independiente para geolocalizar puntos técnicos en campo y dejar registro de cajas de aguas negras.
               </p>
               <div className="map-diary-summary">
-                <span className="panel-pill">Bitacora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
                 <span className="helper-text">{visibleMapPoints.length} puntos de {mapDiaryGroups.length} jornadas registradas.</span>
               </div>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
                   <Icon name="map" />
-                  {locatingUser ? "Ubicando..." : "Mi ubicacion"}
+                  {locatingUser ? "Ubicando..." : "Mi ubicación"}
                 </button>
                 <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
                   <Icon name="refresh" />
@@ -6781,18 +6781,18 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
-                  Cambiar contrasena
+                  Cambiar contraseña
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
               </div>
             </div>
           ) : workspaceView === "padron" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Sube un nuevo Excel maestro para reemplazar el padron usado por <strong>Buscar clave</strong>.
+                Sube un nuevo Excel maestro para reemplazar el padrón usado por <strong>Buscar clave</strong>.
               </p>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={loadPadronMeta}>
@@ -6801,21 +6801,21 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
-                  Cambiar contrasena
+                  Cambiar contraseña
                 </button>
               </div>
             </div>
           ) : workspaceView === "mapReports" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Reporte administrativo compacto de puntos levantados en campo, agrupados por zona y listo para impresion institucional.
+                Reporte administrativo compacto de puntos levantados en campo, agrupados por zona y listo para impresión institucional.
               </p>
               <div className="map-diary-summary">
-                <span className="panel-pill">Bitacora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
                 <span className="helper-text">{visibleMapPoints.length} puntos y {mapReportData.totalZones} zonas en la jornada seleccionada.</span>
               </div>
               <div className="search-actions">
@@ -6838,7 +6838,7 @@ function App() {
                   disabled={mapReportPagination.currentPage === 1}
                 >
                   <Icon name="records" />
-                  Ir a pagina 1
+                  Ir a página 1
                 </button>
                 <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
                   <Icon name="records" />
@@ -6850,21 +6850,21 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
-                  Cambiar contrasena
+                  Cambiar contraseña
                 </button>
               </div>
             </div>
           ) : workspaceView === "mapAnalytics" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
-                Panel separado para revisar tendencias, zonas y precision del levantamiento sin interferir con el reporte institucional.
+                Panel separado para revisar tendencias, zonas y precisión del levantamiento sin interferir con el reporte institucional.
               </p>
               <div className="map-diary-summary">
-                <span className="panel-pill">Bitacora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
+                <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
                 <span className="helper-text">{mapReportData.totalPoints} puntos en la jornada y {mapReportData.totalZones} zonas consolidadas.</span>
               </div>
               <div className="search-actions">
@@ -6882,11 +6882,11 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
-                  Cambiar contrasena
+                  Cambiar contraseña
                 </button>
               </div>
             </div>
@@ -6894,8 +6894,8 @@ function App() {
             <div className="workspace-summary">
               <p className="workspace-title">
                 {workspaceView === "users"
-                  ? "Alta de usuarios con envio por correo y perfiles de acceso."
-                  : "Bitacora operativa con eventos de acceso, cambios y archivado."}
+                  ? "Alta de usuarios con envío por correo y perfiles de acceso."
+                  : "Bitácora operativa con eventos de acceso, cambios y archivado."}
               </p>
               <div className="search-actions">
                 {workspaceView === "users" ? (
@@ -6911,11 +6911,11 @@ function App() {
                 )}
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
-                  Cerrar sesion
+                  Cerrar sesión
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
-                  Cambiar contrasena
+                  Cambiar contraseña
                 </button>
               </div>
             </div>
@@ -6929,10 +6929,10 @@ function App() {
           <section className="preview-panel dashboard-widget-toolbar">
             <div className="dashboard-widget-toolbar-head">
               <div>
-                <p className="sheet-kicker">Diseno del tablero</p>
+                <p className="sheet-kicker">Diseño del tablero</p>
                 <h2><Icon name="dashboard" className="title-icon" />Widgets personalizables</h2>
                 <p className="workspace-title">
-                  Reordena, oculta o restaura bloques del dashboard para que cada administrador vea primero lo que mas usa.
+                  Reordena, oculta o restaura bloques del dashboard para que cada administrador vea primero lo que más usa.
                 </p>
               </div>
               <button type="button" className="button-secondary" onClick={resetDashboardWidgets}>
@@ -7332,10 +7332,10 @@ function App() {
         <section className="executive-hero-panel">
           <div>
             <p className="sheet-kicker">Memoria operativa integral</p>
-            <h2><Icon name="dashboard" className="title-icon" />Resumen ejecutivo del desarrollo y la operacion</h2>
+            <h2><Icon name="dashboard" className="title-icon" />Resumen ejecutivo del desarrollo y la operación</h2>
             <p>
-              Consolidado de todo lo trabajado en la aplicacion: captura de fichas, validacion de padrones,
-              avisos, impresion, geolocalizacion, mapeo, reportes PDF, usuarios y trazabilidad.
+              Consolidado de todo lo trabajado en la aplicación: captura de fichas, validación de padrones,
+              avisos, impresión, geolocalización, mapeo, reportes PDF, usuarios y trazabilidad.
             </p>
             <p className="executive-supervisor">{EXECUTIVE_REPORT_CREDIT}</p>
           </div>
@@ -7349,7 +7349,7 @@ function App() {
           {[
             { label: "Fichas registradas", value: safeRecords.length, helper: `${executiveReportData.statusTotals.reportada || 0} reportadas` },
             { label: "Puntos GPS", value: safeMapPoints.length, helper: `${mapDiaryGroups.length} jornadas de campo` },
-            { label: "Padron maestro", value: padronMeta?.total_records ?? 0, helper: `${alcaldiaMeta?.total_records ?? 0} registros Alcaldia` },
+            { label: "Padrón maestro", value: padronMeta?.total_records ?? 0, helper: `${alcaldiaMeta?.total_records ?? 0} registros Alcaldía` },
             { label: "Eventos auditados", value: safeAuditLogs.length, helper: `${safeUsers.length} usuarios registrados` }
           ].map((item) => (
             <article key={item.label} className="executive-kpi-card">
@@ -7365,7 +7365,7 @@ function App() {
             <div className="executive-card-head">
               <div>
                 <p className="sheet-kicker">Alcance construido</p>
-                <h3>Modulos y capacidades entregadas</h3>
+                <h3>Módulos y capacidades entregadas</h3>
               </div>
               <span className="panel-pill">
                 Desde {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "sin registros"}
@@ -7393,9 +7393,9 @@ function App() {
               <div><span>Clandestinas</span><strong>{executiveReportData.statusTotals.clandestino || 0}</strong></div>
               <div><span>Reportadas</span><strong>{executiveReportData.statusTotals.reportada || 0}</strong></div>
               <div><span>Varios padrones</span><strong>{executiveReportData.statusTotals.varios_padrones || 0}</strong></div>
-              <div><span>Con fotografia</span><strong>{executiveReportData.photoCount}</strong></div>
+              <div><span>Con fotografía</span><strong>{executiveReportData.photoCount}</strong></div>
               <div><span>Listas para aviso</span><strong>{executiveReportData.printedReadyRecords}</strong></div>
-              <div><span>Plazo critico</span><strong>{alertRecords.length}</strong></div>
+              <div><span>Plazo crítico</span><strong>{alertRecords.length}</strong></div>
             </div>
           </article>
 
@@ -7420,7 +7420,7 @@ function App() {
             <div className="executive-card-head">
               <div>
                 <p className="sheet-kicker">Responsables</p>
-                <h3>Levantamiento por tecnico</h3>
+                <h3>Levantamiento por técnico</h3>
               </div>
             </div>
             <div className="executive-table-list">
@@ -7436,7 +7436,7 @@ function App() {
           <article className="executive-card">
             <div className="executive-card-head">
               <div>
-                <p className="sheet-kicker">Geolocalizacion</p>
+                <p className="sheet-kicker">Geolocalización</p>
                 <h3>Puntos por tipo</h3>
               </div>
             </div>
@@ -7464,7 +7464,7 @@ function App() {
           <article className="executive-card">
             <div className="executive-card-head">
               <div>
-                <p className="sheet-kicker">Bitacora</p>
+                <p className="sheet-kicker">Bitácora</p>
                 <h3>Eventos principales</h3>
               </div>
             </div>
@@ -7648,7 +7648,7 @@ function App() {
                       <span className="record-ledger-value">Edicion local</span>
                     </div>
                   </div>
-                  <small>{draftForm.comentarios || "Datos aun no guardados"}</small>
+                  <small>{draftForm.comentarios || "Datos aún no guardados"}</small>
                   <div className="record-quick-actions">
                     <span className="record-quick-chip muted">Autosave activo</span>
                   </div>
