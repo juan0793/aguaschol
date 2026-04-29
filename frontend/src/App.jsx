@@ -187,6 +187,7 @@ function App() {
   const [recordQuickFilter, setRecordQuickFilter] = useState("clandestino");
   const [recordPage, setRecordPage] = useState(1);
   const [recordFilters, setRecordFilters] = useState({
+    clave: "",
     barrio: "",
     responsible: "",
     date_from: "",
@@ -736,6 +737,16 @@ function App() {
   );
   const advancedFilteredRecords = useMemo(() => {
     return safeRecords.filter((record) => {
+      const claveFilter = String(recordFilters.clave || "").trim().toLowerCase();
+      if (claveFilter) {
+        const normalizedClave = String(record.clave_catastral || "").toLowerCase();
+        const compactClave = normalizedClave.replace(/[^a-z0-9]/g, "");
+        const compactFilter = claveFilter.replace(/[^a-z0-9]/g, "");
+        if (!normalizedClave.includes(claveFilter) && (!compactFilter || !compactClave.includes(compactFilter))) {
+          return false;
+        }
+      }
+
       if (recordFilters.barrio) {
         const barrio = String(record.barrio_colonia || "").trim();
         if (barrio !== recordFilters.barrio) {
@@ -1840,6 +1851,10 @@ function App() {
       avisos: entries.reduce((total, item) => total + item.aviso, 0)
     };
   }, [batchPrintCopies, safeRecords]);
+  const printBatchRecords = useMemo(
+    () => filteredRecords.filter((record) => recordView === "archived" || record.estado_padron !== "reportada"),
+    [filteredRecords, recordView]
+  );
 
   useEffect(() => {
     return () => {
@@ -2597,6 +2612,7 @@ function App() {
 
   const clearRecordFilters = () => {
     setRecordFilters({
+      clave: "",
       barrio: "",
       responsible: "",
       date_from: "",
@@ -3719,6 +3735,7 @@ function App() {
   const handleSelectRecord = (record) => {
     setSelectedRecordId(record.id ?? null);
     setRecordFilters({
+      clave: record.clave_catastral || "",
       barrio: "",
       responsible: "",
       date_from: "",
@@ -3754,6 +3771,7 @@ function App() {
       setSelectedRecordId(nextRecord.id ?? null);
       setRecordQuickFilter("all");
       setRecordFilters({
+        clave: nextRecord.clave_catastral || "",
         barrio: "",
         responsible: "",
         date_from: "",
@@ -3896,6 +3914,19 @@ function App() {
     setBatchPrintCopies({});
   };
 
+  const selectVisibleBatchPrintCopies = (documentType) => {
+    setBatchPrintCopies((current) => {
+      const nextCopies = { ...current };
+      printBatchRecords.forEach((record) => {
+        nextCopies[record.id] = {
+          ficha: documentType === "ficha" ? 1 : clampPrintCopies(nextCopies[record.id]?.ficha ?? 0),
+          aviso: documentType === "aviso" ? 1 : clampPrintCopies(nextCopies[record.id]?.aviso ?? 0)
+        };
+      });
+      return nextCopies;
+    });
+  };
+
   const handleCopyClave = async (record, event) => {
     event.stopPropagation();
 
@@ -3928,6 +3959,7 @@ function App() {
     setLastProcessedRecord(null);
     setRecordQuickFilter("all");
     setRecordFilters({
+      clave: "",
       barrio: "",
       responsible: "",
       date_from: "",
@@ -3956,6 +3988,7 @@ function App() {
     setLastProcessedRecord(null);
     setRecordQuickFilter("all");
     setRecordFilters({
+      clave: "",
       barrio: "",
       responsible: "",
       date_from: "",
@@ -6315,22 +6348,29 @@ function App() {
         <div className="password-modal-backdrop">
           <div className="password-modal-card print-batch-modal">
             <div className="password-modal-head">
-              <p className="eyebrow">Impresion rapida</p>
-              <h2>Seleccionar fichas y copias</h2>
+              <p className="eyebrow">Impresión rápida</p>
+              <h2>Seleccionar fichas, avisos y copias</h2>
               <p className="lead">
-                Elige cuantas fichas o avisos quieres imprimir por cada registro cargado.
+                Se muestran las fichas según los filtros activos. Puedes buscar por clave y seleccionar cuántas impresiones de ficha o aviso necesitas.
               </p>
             </div>
             <div className="print-batch-summary">
               <span className="record-badge">{batchPrintSelection.fichas} fichas</span>
               <span className="record-badge">{batchPrintSelection.avisos} avisos</span>
+              <span className="record-badge">{printBatchRecords.length} visibles</span>
+              <button type="button" className="record-quick-chip muted" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
+                1 ficha visible
+              </button>
+              <button type="button" className="record-quick-chip muted" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
+                1 aviso visible
+              </button>
               <button type="button" className="record-quick-chip muted" onClick={clearBatchPrintCopies}>
-                Limpiar seleccion
+                Limpiar selección
               </button>
             </div>
             <div className="print-batch-grid">
-              {safeRecords.length ? (
-                safeRecords.map((record) => {
+              {printBatchRecords.length ? (
+                printBatchRecords.map((record) => {
                   const copies = batchPrintCopies[record.id] || {};
                   const fichaCopies = clampPrintCopies(copies.ficha ?? 0);
                   const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
@@ -6345,7 +6385,7 @@ function App() {
                       </div>
                       <div className="print-batch-card-main">
                         <strong>{record.clave_catastral}</strong>
-                        <span>{record.barrio_colonia || "Sin ubicacion"}</span>
+                        <span>{record.barrio_colonia || "Sin ubicación"}</span>
                         <small>{record.inquilino || record.abonado || record.nombre_catastral || "Sin nombre"}</small>
                       </div>
                       <div className="print-copy-group">
@@ -6382,7 +6422,7 @@ function App() {
               ) : (
                 <div className="empty-state">
                   <h3>No hay fichas visibles</h3>
-                  <p>Ajusta los filtros o carga el listado para preparar impresiones.</p>
+                  <p>Ajusta el filtro por clave, barrio o estado para preparar impresiones.</p>
                 </div>
               )}
             </div>
@@ -7633,6 +7673,16 @@ function App() {
             })}
           </div>
           <div className="record-filter-panel">
+            <label className="record-filter-field is-wide">
+              <span>Buscar por clave</span>
+              <input
+                type="search"
+                name="clave"
+                value={recordFilters.clave}
+                onChange={handleRecordFilterChange}
+                placeholder="Ej. 183-02-02"
+              />
+            </label>
             <label className="record-filter-field">
               <span>Barrio o colonia</span>
               <select name="barrio" value={recordFilters.barrio} onChange={handleRecordFilterChange}>
@@ -8212,7 +8262,7 @@ function App() {
             <div className="preview-actions no-print">
               <button type="button" className="button-secondary" onClick={openPrintBatchModal}>
                 <Icon name="records" />
-                Impresion rapida
+                Imprimir ficha / aviso
               </button>
               <button type="button" className="button-secondary" onClick={handlePrintFicha}>
                 Imprimir ficha

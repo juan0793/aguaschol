@@ -2334,6 +2334,10 @@ button:disabled {
   gap: 0.28rem;
 }
 
+.record-filter-field.is-wide {
+  grid-column: 1 / -1;
+}
+
 .record-filter-field span {
   color: #57728b;
   font-size: 0.72rem;
