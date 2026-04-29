@@ -105,6 +105,20 @@ const getPadronStatusDescription = (status) => {
   return "Esta ficha no ha sido validada en varios padrones o no aparece en Aguas.";
 };
 
+const clampPrintCopies = (value) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(5, Math.max(0, parsed));
+};
+
+const formatPercent = (value, total) => {
+  if (!total) return "0%";
+  return `${Math.round((Number(value || 0) / Number(total)) * 100)}%`;
+};
+
+const EXECUTIVE_REPORT_CREDIT =
+  "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramon Ordonez Bonilla, con seguimiento directo del trabajo realizado en campo.";
+
 const normalizeDashboardWidgetPrefs = (value) => {
   const orderSource = Array.isArray(value?.order) ? value.order : [];
   const hiddenSource = Array.isArray(value?.hidden) ? value.hidden : [];
@@ -180,6 +194,11 @@ function App() {
     status: "all"
   });
   const [selectedRecordId, setSelectedRecordId] = useState(null);
+  const [processingRecordId, setProcessingRecordId] = useState(null);
+  const [lastProcessedRecord, setLastProcessedRecord] = useState(null);
+  const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
+  const [batchPrintCopies, setBatchPrintCopies] = useState({});
+  const [batchPrinting, setBatchPrinting] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState(
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
   );
@@ -354,6 +373,14 @@ function App() {
             lead: "Resumen ejecutivo con operaciones, actividad reciente y accesos rapidos para gestionar toda la plataforma.",
             kicker: "Vision general"
           },
+          executiveReport: {
+            panelClass: "hero-panel-logs",
+            cardClass: "search-card-users",
+            toplineLabel: "Resumen ejecutivo",
+            title: "Reporte general de la aplicacion",
+            lead: "Informe consolidado desde el primer dia de trabajo: fichas, geolocalizacion, mapeo, reportes, padrones, avisos y trazabilidad.",
+            kicker: "Memoria operativa"
+          },
           padron: {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
@@ -446,6 +473,31 @@ function App() {
           icon: "map",
           label: "Jornadas de campo",
           value: String(mapDiaryGroups.length)
+        }
+      ];
+    }
+
+    if (workspaceView === "executiveReport") {
+      return [
+        {
+          icon: "records",
+          label: "Fichas",
+          value: String(safeRecords.length)
+        },
+        {
+          icon: "map",
+          label: "Puntos GPS",
+          value: String(safeMapPoints.length)
+        },
+        {
+          icon: "logs",
+          label: "Eventos",
+          value: String(safeAuditLogs.length)
+        },
+        {
+          icon: "refresh",
+          label: "Padron",
+          value: String(padronMeta?.total_records ?? 0)
         }
       ];
     }
@@ -624,6 +676,8 @@ function App() {
     loadingMapPoints,
     visibleMapPoints.length,
     safeRecords.length,
+    safeMapPoints.length,
+    safeAuditLogs.length,
     selectedMapPoint,
     padronRequestResult,
     loadingPadronRequest,
@@ -874,6 +928,7 @@ function App() {
       isAdmin
         ? [
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
+            { key: "executiveReport", section: "vision", label: "Resumen ejecutivo", icon: "records", meta: "PDF general", tone: "is-report" },
             { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rapida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
@@ -926,6 +981,7 @@ function App() {
       (isAdmin
         ? [
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
+            { key: "executiveReport", label: "Resumen ejecutivo", icon: "records", group: "control", helper: "Informe general PDF" },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
@@ -938,7 +994,8 @@ function App() {
         : [
             { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rapida" },
-            { key: "map", label: "Mapa", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` }
+            { key: "map", label: "Mapa", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "executiveReport", label: "Resumen ejecutivo", icon: "records", group: "control", helper: "Informe general PDF" }
           ]),
     [
       isAdmin,
@@ -1381,6 +1438,141 @@ function App() {
       .sort((left, right) => right.total - left.total || right.alert - left.alert || left.name.localeCompare(right.name))
       .slice(0, 5);
   }, [recordDeadlineMetaById, safeRecords]);
+  const executiveReportData = useMemo(() => {
+    const allDates = [
+      ...safeRecords.flatMap((record) => [record.created_at, record.updated_at, record.fecha_aviso]),
+      ...safeMapPoints.flatMap((point) => [point.created_at, point.updated_at]),
+      ...safeAuditLogs.map((log) => log.created_at)
+    ]
+      .map((value) => {
+        const stamp = Date.parse(value || "");
+        return Number.isFinite(stamp) ? stamp : null;
+      })
+      .filter(Boolean);
+    const firstDate = allDates.length ? new Date(Math.min(...allDates)) : null;
+    const lastDate = allDates.length ? new Date(Math.max(...allDates)) : new Date();
+    const statusTotals = safeRecords.reduce(
+      (acc, record) => {
+        const status = record.estado_padron || "clandestino";
+        acc[status] = (acc[status] ?? 0) + 1;
+        return acc;
+      },
+      { clandestino: 0, reportada: 0, varios_padrones: 0 }
+    );
+    const mapTypeTotals = safeMapPoints.reduce((acc, point) => {
+      const label = getMapPointTypeLabel(point.point_type);
+      acc[label] = (acc[label] ?? 0) + 1;
+      return acc;
+    }, {});
+    const mapZoneTotals = safeMapPoints.reduce((acc, point) => {
+      const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
+      const zone = String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+      acc[zone] = (acc[zone] ?? 0) + 1;
+      return acc;
+    }, {});
+    const auditTotals = safeAuditLogs.reduce((acc, log) => {
+      const key = actionLabel(log.action);
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    const photoCount = safeRecords.filter((record) => String(record.foto_path || "").trim()).length;
+    const archivedEvents = safeAuditLogs.filter((log) => log.action === "inmueble.archived").length;
+    const printedReadyRecords = safeRecords.filter((record) => record.fecha_aviso && record.levantamiento_datos && record.analista_datos).length;
+    const fieldJourneyRows = mapDiaryGroups.map((journey) => {
+      const dayPoints = safeMapPoints.filter((point) => getMapDiaryDateKey(point) === journey.key);
+      const dayRecords = safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === journey.key);
+      const dayZones = new Set(
+        dayPoints.map((point) => {
+          const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
+          return String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+        })
+      );
+
+      return {
+        key: journey.key,
+        label: formatMapDiaryLabel(journey.key),
+        points: dayPoints.length,
+        records: dayRecords.length,
+        photos: dayRecords.filter((record) => String(record.foto_path || "").trim()).length,
+        zones: dayZones.size
+      };
+    });
+    const fieldResponsibleRows = dashboardTechnicianSummary.map((item) => ({
+      name: item.name,
+      records: item.total,
+      withPhoto: item.withPhoto,
+      alert: item.alert
+    }));
+
+    return {
+      generatedAt: new Date(),
+      firstDate,
+      lastDate,
+      statusTotals,
+      photoCount,
+      pendingPhotoCount: Math.max(0, safeRecords.length - photoCount),
+      printedReadyRecords,
+      archivedEvents,
+      fieldJourneyRows,
+      fieldResponsibleRows,
+      mapTypeRows: Object.entries(mapTypeTotals)
+        .map(([label, total]) => ({ label, total }))
+        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label)),
+      mapZoneRows: Object.entries(mapZoneTotals)
+        .map(([label, total]) => ({ label, total }))
+        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label))
+        .slice(0, 8),
+      auditRows: Object.entries(auditTotals)
+        .map(([label, total]) => ({ label, total }))
+        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label))
+        .slice(0, 10),
+      modules: [
+        {
+          title: "Fichas catastrales",
+          detail: "Registro, edicion, busqueda por clave catastral, clasificacion por padron, fotografia, ficha visual, aviso y procesamiento a reportadas.",
+          evidence: `${safeRecords.length} fichas activas visibles, ${statusTotals.reportada || 0} reportadas y ${photoCount} con evidencia fotografica.`
+        },
+        {
+          title: "Trabajo realizado en campo",
+          detail: "Captura GPS en sitio, levantamiento de fichas, evidencia fotografica, jornadas por fecha, zonas cubiertas y puntos tecnicos ubicados en mapa.",
+          evidence: `${safeMapPoints.length} puntos geolocalizados, ${mapDiaryGroups.length} jornadas y ${photoCount} fichas con fotografia.`
+        },
+        {
+          title: "Reportes institucionales",
+          detail: "Reporte de levantamiento por zonas, estadisticas de campo, descarga PDF, impresion, reporte de solicitudes al padron y consulta por clave.",
+          evidence: `${mapReportData.totalZones} zonas en la jornada activa y ${padronRequestResult?.summary?.total_registros ?? 0} registros en la ultima peticion.`
+        },
+        {
+          title: "Padrones y validacion",
+          detail: "Carga de padron maestro, carga de padron de Alcaldia, comparacion contra Aguas y deteccion de inmuebles clandestinos o repetidos en varios padrones.",
+          evidence: `${padronMeta?.total_records ?? 0} claves en padron maestro y ${alcaldiaMeta?.total_records ?? 0} registros de Alcaldia.`
+        },
+        {
+          title: "Operacion y trazabilidad",
+          detail: "Usuarios, roles, sesiones, bitacora de eventos, auditoria de cambios, restauracion y archivo administrativo.",
+          evidence: `${safeUsers.length} usuarios registrados, ${onlineUsers.length} en linea y ${safeAuditLogs.length} eventos auditados.`
+        },
+        {
+          title: "Impresion y avisos",
+          detail: "Ficha imprimible con formato institucional, aviso editable, impresion individual y lote rapido con seleccion de copias por ficha o aviso.",
+          evidence: `${printedReadyRecords} fichas cuentan con datos base para generar aviso.`
+        }
+      ]
+    };
+  }, [
+    alcaldiaMeta?.total_records,
+    mapDiaryGroups.length,
+    mapPointContexts,
+    mapReportData.totalZones,
+    onlineUsers.length,
+    padronMeta?.total_records,
+    padronRequestResult?.summary?.total_registros,
+    safeAuditLogs,
+    safeMapPoints,
+    safeRecords,
+    dashboardTechnicianSummary,
+    safeUsers.length
+  ]);
   const moveDashboardWidget = (key, direction) => {
     setDashboardWidgetPrefs((current) => {
       const currentIndex = current.order.indexOf(key);
@@ -1523,6 +1715,22 @@ function App() {
     if (!selectedFile) return "";
     return URL.createObjectURL(selectedFile);
   }, [selectedFile]);
+  const batchPrintSelection = useMemo(() => {
+    const entries = Object.entries(batchPrintCopies)
+      .map(([recordId, copies]) => {
+        const ficha = clampPrintCopies(copies?.ficha ?? 0);
+        const aviso = clampPrintCopies(copies?.aviso ?? 0);
+        const record = safeRecords.find((item) => String(item.id) === String(recordId));
+        return record && (ficha || aviso) ? { record, ficha, aviso } : null;
+      })
+      .filter(Boolean);
+
+    return {
+      entries,
+      fichas: entries.reduce((total, item) => total + item.ficha, 0),
+      avisos: entries.reduce((total, item) => total + item.aviso, 0)
+    };
+  }, [batchPrintCopies, safeRecords]);
 
   useEffect(() => {
     return () => {
@@ -2199,6 +2407,7 @@ function App() {
     setForm({ ...emptyForm, ...normalizeRecord(record) });
     setSelectedFile(null);
     setAvisoHtml("");
+    setLastProcessedRecord(null);
   };
 
   const handleSearch = async (event) => {
@@ -3533,6 +3742,51 @@ function App() {
     showAlert(`Reporte de saldo y servicios generado para la clave ${match?.clave_catastral || "--"}.`);
   };
 
+  const openPrintBatchModal = () => {
+    const currentRecordVisible = form.id && safeRecords.some((record) => record.id === form.id);
+    setBatchPrintCopies(
+      currentRecordVisible
+        ? {
+            [form.id]: {
+              ficha: 1,
+              aviso: 0
+            }
+          }
+        : {}
+    );
+    setShowPrintBatchModal(true);
+  };
+
+  const updateBatchPrintCopies = (recordId, documentType, value) => {
+    const nextValue = clampPrintCopies(value);
+    setBatchPrintCopies((current) => ({
+      ...current,
+      [recordId]: {
+        ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
+        aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
+        [documentType]: nextValue
+      }
+    }));
+  };
+
+  const adjustBatchPrintCopies = (recordId, documentType, delta) => {
+    setBatchPrintCopies((current) => {
+      const currentValue = clampPrintCopies(current[recordId]?.[documentType] ?? 0);
+      return {
+        ...current,
+        [recordId]: {
+          ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
+          aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
+          [documentType]: clampPrintCopies(currentValue + delta)
+        }
+      };
+    });
+  };
+
+  const clearBatchPrintCopies = () => {
+    setBatchPrintCopies({});
+  };
+
   const handleCopyClave = async (record, event) => {
     event.stopPropagation();
 
@@ -3562,6 +3816,7 @@ function App() {
 
   const resetForm = () => {
     setSelectedRecordId(null);
+    setLastProcessedRecord(null);
     setRecordQuickFilter("all");
     setRecordFilters({
       barrio: "",
@@ -3589,6 +3844,7 @@ function App() {
     }
 
     setSelectedRecordId(null);
+    setLastProcessedRecord(null);
     setRecordQuickFilter("all");
     setRecordFilters({
       barrio: "",
@@ -4070,12 +4326,18 @@ function App() {
       return;
     }
 
+    if (processingRecordId) {
+      return;
+    }
+
     const payload = {
       ...emptyForm,
       ...normalizeRecord(record),
       estado_padron: "reportada",
       comentarios: record.comentarios || "Clandestino procesado"
     };
+
+    setProcessingRecordId(record.id);
 
     try {
       const response = await apiFetch(`/inmuebles/${record.id}`, {
@@ -4094,12 +4356,25 @@ function App() {
       const normalized = normalizeRecord(data);
       setRecords((current) => current.map((item) => (item.id === normalized.id ? normalized : item)));
       if (form.id === normalized.id) {
-        applyRecord(normalized);
+        setSelectedRecordId(null);
+        setForm(emptyForm);
+        setSelectedFile(null);
+        setAvisoHtml("");
+        setActiveSection("abonado");
       }
-      showAlert(`Ficha ${normalized.clave_catastral} marcada como reportada.`);
+      setLastProcessedRecord({
+        id: normalized.id,
+        clave_catastral: normalized.clave_catastral,
+        barrio_colonia: normalized.barrio_colonia,
+        processed_at: new Date().toISOString()
+      });
+      setRecordQuickFilter((current) => (current === "reportada" ? current : "clandestino"));
+      showAlert(`Ficha ${normalized.clave_catastral} procesada y retirada del formulario activo.`);
       loadRecords(search, recordView, { silent: true });
     } catch (error) {
       showAlert(error.message || "No se pudo marcar la ficha como reportada.");
+    } finally {
+      setProcessingRecordId(null);
     }
   };
 
@@ -4538,7 +4813,7 @@ function App() {
     }
   };
 
-  const handlePrintFicha = async (recordOverride = null) => {
+  const buildFichaPrintDocument = async (recordOverride = null) => {
     const targetRecord = recordOverride ? { ...emptyForm, ...normalizeRecord(recordOverride) } : form;
     let photoMarkup = "";
     let alcaldiaFichaMatch = null;
@@ -4552,6 +4827,9 @@ function App() {
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       } else if (!recordOverride && selectedPhotoUrl) {
         const dataUrl = await urlToDataUrl(selectedPhotoUrl);
+        photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
+      } else if (recordOverride?.foto_path) {
+        const dataUrl = await urlToDataUrl(buildPhotoUrl(recordOverride.foto_path, recordOverride.updated_at || Date.now()));
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       }
     } catch (_error) {
@@ -4636,9 +4914,9 @@ function App() {
         ? "Aparece en varios padrones"
         : "Sin coincidencia en Alcaldia";
 
-    await printDocument(
-      `Ficha ${fichaClaveAlcaldia !== "--" ? fichaClaveAlcaldia : fichaClaveAguas}`,
-      `
+    return {
+      title: `Ficha ${fichaClaveAlcaldia !== "--" ? fichaClaveAlcaldia : fichaClaveAguas}`,
+      body: `
         <div class="print-ficha-compact-header">
           <div class="print-ficha-brand">
             <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
@@ -4736,13 +5014,301 @@ function App() {
           </section>
         </div>
       `,
-      {
+      options: {
         bodyClassName: "print-ficha",
         pageSize: "Letter landscape",
         pageMargin: "8mm 8mm 8mm 12mm",
         windowFeatures: "width=1400,height=900"
       }
-    );
+    };
+  };
+
+  const handlePrintFicha = async (recordOverride = null) => {
+    const document = await buildFichaPrintDocument(recordOverride);
+    await printDocument(document.title, document.body, document.options);
+  };
+
+  const buildAvisoPrintMarkup = (record = form) => {
+    const targetRecord = { ...emptyForm, ...normalizeRecord(record) };
+    const fecha = targetRecord.fecha_aviso ? formatSpanishDate(targetRecord.fecha_aviso) : "__________";
+    const barrio = targetRecord.barrio_colonia || "__________";
+    const clave = targetRecord.clave_catastral || "__________";
+    const firmante = targetRecord.firmante_aviso || "Jefatura de Comercializacion";
+    const cargo = targetRecord.cargo_firmante || "Aguas de Choluteca";
+
+    return `
+      <div class="print-header"><img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" /></div>
+      <section class="aviso">
+        <div class="aviso-header">
+          <p><strong>AGUAS DE CHOLUTECA</strong></p>
+          <p>Departamento de Comercializacion</p>
+        </div>
+        <h2 class="aviso-title">AVISO IMPORTANTE AL ABONADO</h2>
+        <p class="aviso-date">Fecha: Choluteca, ${escapeHtml(fecha)}</p>
+        <p class="aviso-saludo">Estimado(a) Senor(a):</p>
+        <p class="aviso-body">
+          Por medio de la presente, se le informa que, como resultado del reciente levantamiento de informacion realizado por la Unidad Tecnica de Catastro, se ha identificado que el inmueble ubicado en ${escapeHtml(barrio)}, con Clave Catastral ${escapeHtml(clave)}, no se encuentra registrado en la base de datos de la empresa, pese a contar con servicios activos.
+        </p>
+        <p class="aviso-body">
+          Con el proposito de regularizar su situacion, evitar circunstancias legales y establecer un acuerdo acorde al caso, se le solicita presentarse al Departamento de Comercializacion de Aguas de Choluteca, en un plazo maximo de siete (7) dias calendario a partir de la recepcion del presente aviso, debiendo presentar la siguiente documentacion:
+        </p>
+        <ul class="aviso-list">
+          <li>Copia de Escritura publica del Inmueble.</li>
+          <li>Copia de Constancia Catastral vigente.</li>
+          <li>Copia de Documento Nacional de Identificacion (DNI).</li>
+          <li>Constancia de solvencia municipal.</li>
+        </ul>
+        <p class="aviso-body">
+          En caso de no presentarse dentro del plazo indicado, la empresa procedera conforme a los lineamientos administrativos establecidos por la ley que implican recargos y multas.
+        </p>
+        <p class="aviso-body">Sin otro particular, agradecemos su pronta colaboracion.</p>
+        <p class="aviso-body">Atentamente,</p>
+        <div class="aviso-signature">
+          <p><strong>${escapeHtml(firmante)}</strong></p>
+          <p>${escapeHtml(cargo)}</p>
+          <p>Aguas de Choluteca</p>
+        </div>
+        <p class="aviso-copy">C.c. Archivo</p>
+      </section>
+    `;
+  };
+
+  const handlePrintBatch = async () => {
+    if (!batchPrintSelection.fichas && !batchPrintSelection.avisos) {
+      showAlert("Selecciona al menos una ficha o aviso para imprimir.");
+      return;
+    }
+
+    setBatchPrinting(true);
+
+    try {
+      const fichaPages = [];
+      for (const item of batchPrintSelection.entries) {
+        for (let copy = 0; copy < item.ficha; copy += 1) {
+          const fichaDocument = await buildFichaPrintDocument(item.record);
+          fichaPages.push(`<section class="print-batch-page">${fichaDocument.body}</section>`);
+        }
+      }
+
+      if (fichaPages.length) {
+        await printDocument(`Lote de fichas (${fichaPages.length})`, fichaPages.join(""), {
+          bodyClassName: "print-ficha",
+          pageSize: "Letter landscape",
+          pageMargin: "8mm 8mm 8mm 12mm",
+          windowFeatures: "width=1400,height=900"
+        });
+      }
+
+      const avisoPages = [];
+      for (const item of batchPrintSelection.entries) {
+        for (let copy = 0; copy < item.aviso; copy += 1) {
+          avisoPages.push(`<section class="print-batch-page">${buildAvisoPrintMarkup(item.record)}</section>`);
+        }
+      }
+
+      if (avisoPages.length) {
+        await printDocument(`Lote de avisos (${avisoPages.length})`, avisoPages.join(""), {
+          pageSize: "Letter portrait",
+          pageMargin: "10mm",
+          windowFeatures: "width=980,height=1200"
+        });
+      }
+
+      setShowPrintBatchModal(false);
+      showAlert(`Lote preparado: ${batchPrintSelection.fichas} fichas y ${batchPrintSelection.avisos} avisos.`);
+    } catch (error) {
+      showAlert(error.message || "No fue posible preparar el lote de impresion.");
+    } finally {
+      setBatchPrinting(false);
+    }
+  };
+
+  const handleDownloadExecutiveReportPdf = async () => {
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "letter"
+      });
+      const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
+      const marginX = 14;
+      let y = 16;
+      const addFooter = () => {
+        const pageCount = document.internal.getNumberOfPages();
+        for (let page = 1; page <= pageCount; page += 1) {
+          document.setPage(page);
+          document.setFontSize(8);
+          document.setTextColor(96, 116, 134);
+          document.text("Aguas de Choluteca - Resumen ejecutivo de la aplicacion", marginX, pageHeight - 8);
+          document.text(`Pagina ${page} de ${pageCount}`, pageWidth - marginX, pageHeight - 8, { align: "right" });
+        }
+      };
+      const ensureSpace = (needed = 24) => {
+        if (y + needed > pageHeight - 18) {
+          document.addPage();
+          y = 16;
+        }
+      };
+      const sectionTitle = (title) => {
+        ensureSpace(14);
+        document.setFont("helvetica", "bold");
+        document.setFontSize(13);
+        document.setTextColor(18, 59, 93);
+        document.text(title, marginX, y);
+        y += 7;
+      };
+
+      document.setFillColor(237, 246, 255);
+      document.rect(0, 0, pageWidth, 42, "F");
+      document.setFont("helvetica", "bold");
+      document.setFontSize(22);
+      document.setTextColor(18, 59, 93);
+      document.text("Resumen ejecutivo", marginX, 18);
+      document.setFontSize(11);
+      document.setFont("helvetica", "normal");
+      document.setTextColor(64, 92, 118);
+      document.text("Aplicacion de inmuebles clandestinos, geolocalizacion, mapeo, reportes y trazabilidad", marginX, 26);
+      const creditLines = document.splitTextToSize(EXECUTIVE_REPORT_CREDIT, pageWidth - marginX * 2);
+      document.text(creditLines, marginX, 34);
+      document.text(`Generado: ${formatSpanishDate(executiveReportData.generatedAt)}`, marginX, 34 + creditLines.length * 5);
+      y = 52 + Math.max(0, creditLines.length - 1) * 5;
+
+      autoTable(document, {
+        startY: y,
+        head: [["Periodo", "Primera actividad", "Ultima actividad", "Acreditacion del trabajo"]],
+        body: [[
+          "Desde el primer dia registrado",
+          executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "Sin registros",
+          executiveReportData.lastDate ? formatSpanishDate(executiveReportData.lastDate) : "Sin registros",
+          EXECUTIVE_REPORT_CREDIT
+        ]],
+        theme: "grid",
+        styles: { fontSize: 9, cellPadding: 3, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255] }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Indicadores principales");
+      autoTable(document, {
+        startY: y,
+        head: [["Indicador", "Total", "Lectura ejecutiva"]],
+        body: [
+          ["Fichas activas", safeRecords.length, "Registros operativos visibles en el modulo de fichas."],
+          ["Clandestinas", executiveReportData.statusTotals.clandestino || 0, "Pendientes de cierre o procesamiento."],
+          ["Reportadas", executiveReportData.statusTotals.reportada || 0, "Procesadas y retiradas del flujo activo."],
+          ["Varios padrones", executiveReportData.statusTotals.varios_padrones || 0, "Coincidencias entre Alcaldia y Aguas."],
+          ["Puntos geolocalizados", safeMapPoints.length, "Levantamientos GPS y puntos tecnicos de campo."],
+          ["Jornadas de campo", mapDiaryGroups.length, "Dias con bitacora de mapeo."],
+          ["Eventos auditados", safeAuditLogs.length, "Historial de accesos, cambios y operaciones."],
+          ["Usuarios", safeUsers.length, "Cuentas registradas para operacion y administracion."]
+        ],
+        theme: "striped",
+        styles: { fontSize: 8.5, cellPadding: 2.6, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [18, 59, 93], textColor: [255, 255, 255] },
+        columnStyles: { 1: { halign: "center", cellWidth: 24 } }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Trabajo realizado por modulo");
+      autoTable(document, {
+        startY: y,
+        head: [["Modulo", "Alcance construido", "Evidencia actual"]],
+        body: executiveReportData.modules.map((item) => [item.title, item.detail, item.evidence]),
+        theme: "grid",
+        styles: { fontSize: 8.2, cellPadding: 2.5, textColor: [23, 52, 78], valign: "top" },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255] },
+        columnStyles: { 0: { cellWidth: 38 }, 1: { cellWidth: 82 }, 2: { cellWidth: 62 } }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Trabajo realizado en campo");
+      autoTable(document, {
+        startY: y,
+        head: [["Jornada", "Puntos GPS", "Zonas", "Fichas trabajadas", "Con foto"]],
+        body: executiveReportData.fieldJourneyRows.length
+          ? executiveReportData.fieldJourneyRows.map((item) => [item.label, item.points, item.zones, item.records, item.photos])
+          : [["Sin jornadas registradas", 0, 0, 0, 0]],
+        theme: "striped",
+        styles: { fontSize: 8.4, cellPadding: 2.4, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [17, 116, 95], textColor: [255, 255, 255] }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 8;
+
+      autoTable(document, {
+        startY: y,
+        head: [["Responsable / tecnico", "Fichas", "Con foto", "En alerta"]],
+        body: executiveReportData.fieldResponsibleRows.length
+          ? executiveReportData.fieldResponsibleRows.map((item) => [item.name, item.records, item.withPhoto, item.alert])
+          : [["Sin responsable asignado", 0, 0, 0]],
+        theme: "grid",
+        styles: { fontSize: 8.4, cellPadding: 2.4, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255] }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Detalle de fichas");
+      autoTable(document, {
+        startY: y,
+        head: [["Concepto", "Cantidad", "Porcentaje"]],
+        body: [
+          ["Con fotografia", executiveReportData.photoCount, formatPercent(executiveReportData.photoCount, safeRecords.length)],
+          ["Sin fotografia", executiveReportData.pendingPhotoCount, formatPercent(executiveReportData.pendingPhotoCount, safeRecords.length)],
+          ["Listas para aviso", executiveReportData.printedReadyRecords, formatPercent(executiveReportData.printedReadyRecords, safeRecords.length)],
+          ["Con plazo critico", alertRecords.length, formatPercent(alertRecords.length, safeRecords.length)],
+          ["Archivadas segun bitacora", executiveReportData.archivedEvents, "Evento historico"]
+        ],
+        theme: "striped",
+        styles: { fontSize: 8.6, cellPadding: 2.5, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [22, 112, 75], textColor: [255, 255, 255] }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Geolocalizacion y mapeo");
+      autoTable(document, {
+        startY: y,
+        head: [["Tipo de punto", "Total"]],
+        body: executiveReportData.mapTypeRows.length
+          ? executiveReportData.mapTypeRows.map((item) => [item.label, item.total])
+          : [["Sin puntos registrados", 0]],
+        theme: "grid",
+        styles: { fontSize: 8.6, cellPadding: 2.5, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [17, 116, 95], textColor: [255, 255, 255] }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 8;
+
+      autoTable(document, {
+        startY: y,
+        head: [["Zonas principales", "Puntos"]],
+        body: executiveReportData.mapZoneRows.length
+          ? executiveReportData.mapZoneRows.map((item) => [item.label, item.total])
+          : [["Sin zonas registradas", 0]],
+        theme: "striped",
+        styles: { fontSize: 8.4, cellPadding: 2.4, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255] }
+      });
+      y = (document.lastAutoTable?.finalY ?? y) + 9;
+
+      sectionTitle("Trazabilidad y control");
+      autoTable(document, {
+        startY: y,
+        head: [["Evento", "Total"]],
+        body: executiveReportData.auditRows.length
+          ? executiveReportData.auditRows.map((item) => [item.label, item.total])
+          : [["Sin eventos registrados", 0]],
+        theme: "grid",
+        styles: { fontSize: 8.4, cellPadding: 2.4, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [95, 63, 177], textColor: [255, 255, 255] }
+      });
+
+      addFooter();
+      document.save(`resumen-ejecutivo-app-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Resumen ejecutivo descargado en PDF.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar el resumen ejecutivo.");
+    }
   };
 
   const handlePrintAviso = async () => {
@@ -5380,6 +5946,102 @@ function App() {
           </div>
         </div>
       ) : null}
+      {showPrintBatchModal ? (
+        <div className="password-modal-backdrop">
+          <div className="password-modal-card print-batch-modal">
+            <div className="password-modal-head">
+              <p className="eyebrow">Impresion rapida</p>
+              <h2>Seleccionar fichas y copias</h2>
+              <p className="lead">
+                Elige cuantas fichas o avisos quieres imprimir por cada registro cargado.
+              </p>
+            </div>
+            <div className="print-batch-summary">
+              <span className="record-badge">{batchPrintSelection.fichas} fichas</span>
+              <span className="record-badge">{batchPrintSelection.avisos} avisos</span>
+              <button type="button" className="record-quick-chip muted" onClick={clearBatchPrintCopies}>
+                Limpiar seleccion
+              </button>
+            </div>
+            <div className="print-batch-grid">
+              {safeRecords.length ? (
+                safeRecords.map((record) => {
+                  const copies = batchPrintCopies[record.id] || {};
+                  const fichaCopies = clampPrintCopies(copies.ficha ?? 0);
+                  const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
+
+                  return (
+                    <article
+                      key={`print-${record.id}`}
+                      className={`print-batch-card ${fichaCopies || avisoCopies ? "is-selected" : ""}`}
+                    >
+                      <div className="print-batch-card-icon">
+                        <Icon name={record.estado_padron === "reportada" ? "success" : "records"} />
+                      </div>
+                      <div className="print-batch-card-main">
+                        <strong>{record.clave_catastral}</strong>
+                        <span>{record.barrio_colonia || "Sin ubicacion"}</span>
+                        <small>{record.inquilino || record.abonado || record.nombre_catastral || "Sin nombre"}</small>
+                      </div>
+                      <div className="print-copy-group">
+                        <span>Ficha</span>
+                        <div className="print-copy-stepper">
+                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "ficha", -1)}>-</button>
+                          <input
+                            type="number"
+                            min="0"
+                            max="5"
+                            value={fichaCopies}
+                            onChange={(event) => updateBatchPrintCopies(record.id, "ficha", event.target.value)}
+                          />
+                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "ficha", 1)}>+</button>
+                        </div>
+                      </div>
+                      <div className="print-copy-group">
+                        <span>Aviso</span>
+                        <div className="print-copy-stepper">
+                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "aviso", -1)}>-</button>
+                          <input
+                            type="number"
+                            min="0"
+                            max="5"
+                            value={avisoCopies}
+                            onChange={(event) => updateBatchPrintCopies(record.id, "aviso", event.target.value)}
+                          />
+                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "aviso", 1)}>+</button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="empty-state">
+                  <h3>No hay fichas visibles</h3>
+                  <p>Ajusta los filtros o carga el listado para preparar impresiones.</p>
+                </div>
+              )}
+            </div>
+            <div className="password-form-actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setShowPrintBatchModal(false)}
+                disabled={batchPrinting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintBatch}
+                disabled={batchPrinting || (!batchPrintSelection.fichas && !batchPrintSelection.avisos)}
+              >
+                <Icon name="records" />
+                {batchPrinting ? "Preparando..." : "Imprimir seleccion"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <header className={`hero no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""}`}>
         <div className={`hero-panel ${headerMeta.panelClass} ${workspaceView !== "dashboard" ? "module-hero-panel" : ""}`}>
           <div className="hero-topline">
@@ -5666,6 +6328,10 @@ function App() {
                   <Icon name="records" />
                   Abrir fichas
                 </button>
+                <button type="button" onClick={() => setWorkspaceView("executiveReport")}>
+                  <Icon name="records" />
+                  Resumen ejecutivo
+                </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("map")}>
                   <Icon name="map" />
                   Ir a campo
@@ -5677,6 +6343,36 @@ function App() {
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
                   <Icon name="logs" />
                   Revisar actividad
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
+                  <Icon name="records" />
+                  Resumen ejecutivo
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+              </div>
+            </div>
+          ) : workspaceView === "executiveReport" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                Informe descargable para presentar el avance integral de la aplicacion, con datos acumulados desde el primer registro disponible.
+              </p>
+              <div className="dashboard-summary-chips">
+                <span className="panel-pill">Periodo: {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "Sin registros"} - {formatSpanishDate(executiveReportData.generatedAt)}</span>
+                <span className="panel-pill">{safeRecords.length} fichas</span>
+                <span className="panel-pill">{safeMapPoints.length} puntos GPS</span>
+                <span className="panel-pill">{safeAuditLogs.length} eventos</span>
+              </div>
+              <div className="search-actions">
+                <button type="button" onClick={handleDownloadExecutiveReportPdf}>
+                  <Icon name="records" />
+                  Descargar PDF ejecutivo
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("dashboard")}>
+                  <Icon name="dashboard" />
+                  Volver al tablero
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
@@ -5699,6 +6395,10 @@ function App() {
                 <button type="button" className="button-secondary" onClick={() => loadRecords(search)}>
                   <Icon name="refresh" />
                   Refrescar listado
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
+                  <Icon name="records" />
+                  Resumen ejecutivo
                 </button>
                 <button
                   type="button"
@@ -5752,6 +6452,10 @@ function App() {
                 <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
                   <Icon name="records" />
                   Descargar reporte detallado
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
+                  <Icon name="records" />
+                  Resumen ejecutivo
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
                   <Icon name="auth" />
@@ -6301,6 +7005,155 @@ function App() {
           ) : null}
         </section>
       </main>
+      ) : workspaceView === "executiveReport" ? (
+      <main className="executive-report-layout">
+        <section className="executive-hero-panel">
+          <div>
+            <p className="sheet-kicker">Memoria operativa integral</p>
+            <h2><Icon name="dashboard" className="title-icon" />Resumen ejecutivo del desarrollo y la operacion</h2>
+            <p>
+              Consolidado de todo lo trabajado en la aplicacion: captura de fichas, validacion de padrones,
+              avisos, impresion, geolocalizacion, mapeo, reportes PDF, usuarios y trazabilidad.
+            </p>
+            <p className="executive-supervisor">{EXECUTIVE_REPORT_CREDIT}</p>
+          </div>
+          <button type="button" onClick={handleDownloadExecutiveReportPdf}>
+            <Icon name="records" />
+            Descargar PDF
+          </button>
+        </section>
+
+        <section className="executive-kpi-grid">
+          {[
+            { label: "Fichas registradas", value: safeRecords.length, helper: `${executiveReportData.statusTotals.reportada || 0} reportadas` },
+            { label: "Puntos GPS", value: safeMapPoints.length, helper: `${mapDiaryGroups.length} jornadas de campo` },
+            { label: "Padron maestro", value: padronMeta?.total_records ?? 0, helper: `${alcaldiaMeta?.total_records ?? 0} registros Alcaldia` },
+            { label: "Eventos auditados", value: safeAuditLogs.length, helper: `${safeUsers.length} usuarios registrados` }
+          ].map((item) => (
+            <article key={item.label} className="executive-kpi-card">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.helper}</small>
+            </article>
+          ))}
+        </section>
+
+        <section className="executive-section-grid">
+          <article className="executive-card is-wide">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Alcance construido</p>
+                <h3>Modulos y capacidades entregadas</h3>
+              </div>
+              <span className="panel-pill">
+                Desde {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "sin registros"}
+              </span>
+            </div>
+            <div className="executive-module-list">
+              {executiveReportData.modules.map((item) => (
+                <article key={item.title} className="executive-module-item">
+                  <strong>{item.title}</strong>
+                  <p>{item.detail}</p>
+                  <span>{item.evidence}</span>
+                </article>
+              ))}
+            </div>
+          </article>
+
+          <article className="executive-card">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Fichas</p>
+                <h3>Estado operativo</h3>
+              </div>
+            </div>
+            <div className="executive-stat-list">
+              <div><span>Clandestinas</span><strong>{executiveReportData.statusTotals.clandestino || 0}</strong></div>
+              <div><span>Reportadas</span><strong>{executiveReportData.statusTotals.reportada || 0}</strong></div>
+              <div><span>Varios padrones</span><strong>{executiveReportData.statusTotals.varios_padrones || 0}</strong></div>
+              <div><span>Con fotografia</span><strong>{executiveReportData.photoCount}</strong></div>
+              <div><span>Listas para aviso</span><strong>{executiveReportData.printedReadyRecords}</strong></div>
+              <div><span>Plazo critico</span><strong>{alertRecords.length}</strong></div>
+            </div>
+          </article>
+
+          <article className="executive-card">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Campo</p>
+                <h3>Jornadas realizadas</h3>
+              </div>
+            </div>
+            <div className="executive-table-list">
+              {(executiveReportData.fieldJourneyRows.length ? executiveReportData.fieldJourneyRows : [{ label: "Sin jornadas", points: 0, zones: 0, records: 0 }]).slice(0, 8).map((item) => (
+                <div key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.points} pts · {item.zones} zonas · {item.records} fichas</strong>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="executive-card">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Responsables</p>
+                <h3>Levantamiento por tecnico</h3>
+              </div>
+            </div>
+            <div className="executive-table-list">
+              {(executiveReportData.fieldResponsibleRows.length ? executiveReportData.fieldResponsibleRows : [{ name: "Sin responsable", records: 0, withPhoto: 0 }]).map((item) => (
+                <div key={item.name}>
+                  <span>{item.name}</span>
+                  <strong>{item.records} fichas · {item.withPhoto} fotos</strong>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="executive-card">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Geolocalizacion</p>
+                <h3>Puntos por tipo</h3>
+              </div>
+            </div>
+            <div className="executive-table-list">
+              {(executiveReportData.mapTypeRows.length ? executiveReportData.mapTypeRows : [{ label: "Sin puntos", total: 0 }]).map((item) => (
+                <div key={item.label}><span>{item.label}</span><strong>{item.total}</strong></div>
+              ))}
+            </div>
+          </article>
+
+          <article className="executive-card">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Mapeo</p>
+                <h3>Zonas principales</h3>
+              </div>
+            </div>
+            <div className="executive-table-list">
+              {(executiveReportData.mapZoneRows.length ? executiveReportData.mapZoneRows : [{ label: "Sin zonas", total: 0 }]).map((item) => (
+                <div key={item.label}><span>{item.label}</span><strong>{item.total}</strong></div>
+              ))}
+            </div>
+          </article>
+
+          <article className="executive-card">
+            <div className="executive-card-head">
+              <div>
+                <p className="sheet-kicker">Bitacora</p>
+                <h3>Eventos principales</h3>
+              </div>
+            </div>
+            <div className="executive-table-list">
+              {(executiveReportData.auditRows.length ? executiveReportData.auditRows : [{ label: "Sin eventos", total: 0 }]).slice(0, 6).map((item) => (
+                <div key={item.label}><span>{item.label}</span><strong>{item.total}</strong></div>
+              ))}
+            </div>
+          </article>
+        </section>
+      </main>
       ) : workspaceView === "transport" ? (
       <main className="layout transport-layout-page">
         <section className="preview-panel transport-preview-panel">
@@ -6550,9 +7403,10 @@ function App() {
                             <button
                               type="button"
                               className="record-quick-chip is-success"
+                              disabled={Boolean(processingRecordId)}
                               onClick={(event) => handleMarkRecordReported(record, event)}
                             >
-                              Clandestino procesada
+                              {processingRecordId === record.id ? "Procesando..." : "Clandestino procesada"}
                             </button>
                           ) : null}
                         </div>
@@ -6597,6 +7451,33 @@ function App() {
         </aside>
 
         <section className="content">
+          {lastProcessedRecord ? (
+            <div className="processed-record-notice no-print" role="status">
+              <div>
+                <span className="sheet-kicker">Ficha procesada</span>
+                <strong>{lastProcessedRecord.clave_catastral}</strong>
+                <p>
+                  Se marco como reportada y se retiro del formulario activo para evitar impresiones repetidas.
+                </p>
+              </div>
+              <div className="processed-record-actions">
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => {
+                    setRecordQuickFilter("reportada");
+                    setLastProcessedRecord(null);
+                  }}
+                >
+                  Ver reportadas
+                </button>
+                <button type="button" onClick={() => setLastProcessedRecord(null)}>
+                  Continuar
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <form ref={sheetRef} className={`sheet no-print ${selectedRecordId ? "sheet-selected" : ""}`} onSubmit={saveRecord}>
             {selectedRecordId ? (
               <div className="sheet-selection-flag">Ficha seleccionada</div>
@@ -6714,10 +7595,10 @@ function App() {
                       type="button"
                       className="button-secondary"
                       onClick={() => handleMarkRecordReported(form)}
-                      disabled={!form.id || form.estado_padron === "reportada"}
+                      disabled={!form.id || form.estado_padron === "reportada" || Boolean(processingRecordId)}
                     >
                       <Icon name="success" />
-                      Clandestino procesada
+                      {processingRecordId === form.id ? "Procesando..." : "Clandestino procesada"}
                     </button>
                     <button type="button" className="button-secondary" onClick={handleValidateFormPadron}>
                       <Icon name="search" />
@@ -6929,6 +7810,10 @@ function App() {
 
           <section className="preview-panel">
             <div className="preview-actions no-print">
+              <button type="button" className="button-secondary" onClick={openPrintBatchModal}>
+                <Icon name="records" />
+                Impresion rapida
+              </button>
               <button type="button" className="button-secondary" onClick={handlePrintFicha}>
                 Imprimir ficha
               </button>

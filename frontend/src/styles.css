@@ -1655,6 +1655,172 @@ button:disabled {
   gap: 1rem;
 }
 
+.executive-report-layout {
+  width: min(1320px, calc(100% - 2rem));
+  margin: 0 auto 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.executive-hero-panel,
+.executive-card,
+.executive-kpi-card {
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.94));
+  box-shadow: var(--shadow-soft);
+}
+
+.executive-hero-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  border-radius: 24px;
+  padding: 1.25rem;
+}
+
+.executive-hero-panel h2,
+.executive-card h3 {
+  margin: 0;
+  color: #123b5d;
+}
+
+.executive-hero-panel p {
+  max-width: 860px;
+  margin: 0.35rem 0 0;
+  color: #526f88;
+}
+
+.executive-hero-panel .executive-supervisor {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.65rem;
+  border: 1px solid rgba(18, 59, 93, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.42rem 0.7rem;
+  color: #123b5d;
+  font-weight: 800;
+}
+
+.executive-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.executive-kpi-card {
+  display: grid;
+  gap: 0.25rem;
+  border-radius: 18px;
+  padding: 1rem;
+}
+
+.executive-kpi-card span {
+  color: #5b7891;
+  font-weight: 800;
+}
+
+.executive-kpi-card strong {
+  color: #123b5d;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.executive-kpi-card small {
+  color: var(--muted);
+}
+
+.executive-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.executive-card {
+  border-radius: 22px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.executive-card.is-wide {
+  grid-column: 1 / -1;
+}
+
+.executive-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.executive-module-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.executive-module-item {
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.executive-module-item strong {
+  color: #123b5d;
+}
+
+.executive-module-item p,
+.executive-module-item span {
+  margin: 0;
+  color: #58748c;
+}
+
+.executive-module-item span {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.executive-stat-list,
+.executive-table-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.executive-stat-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.executive-stat-list div,
+.executive-table-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.65rem 0.75rem;
+}
+
+.executive-stat-list span,
+.executive-table-list span {
+  min-width: 0;
+  color: #58748c;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.executive-stat-list strong,
+.executive-table-list strong {
+  color: #123b5d;
+  font-size: 1.1rem;
+}
+
 .dashboard-widget-toolbar {
   display: grid;
   gap: 0.85rem;
@@ -2207,6 +2373,142 @@ button:disabled {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.processed-record-notice {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(22, 112, 75, 0.22);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(240, 251, 245, 0.98), rgba(224, 246, 236, 0.94));
+  color: #12343b;
+  box-shadow: 0 16px 36px rgba(22, 112, 75, 0.08);
+}
+
+.processed-record-notice strong {
+  display: block;
+  margin: 0.15rem 0 0.25rem;
+  font-size: 1.15rem;
+  color: #16704b;
+}
+
+.processed-record-notice p {
+  margin: 0;
+  color: #3e5f54;
+}
+
+.processed-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.print-batch-modal {
+  width: min(980px, calc(100vw - 1.5rem));
+  max-height: min(86vh, 820px);
+  overflow: hidden;
+}
+
+.print-batch-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.print-batch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 0.7rem;
+  max-height: 48vh;
+  overflow: auto;
+  padding: 0.1rem 0.2rem 0.2rem 0;
+}
+
+.print-batch-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 0.75rem;
+}
+
+.print-batch-card.is-selected {
+  border-color: rgba(22, 112, 75, 0.28);
+  background: linear-gradient(180deg, rgba(240, 251, 245, 0.98), rgba(255, 255, 255, 0.96));
+}
+
+.print-batch-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(21, 118, 209, 0.1);
+  color: var(--brand-blue);
+}
+
+.print-batch-card-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.print-batch-card-main strong,
+.print-batch-card-main span,
+.print-batch-card-main small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.print-batch-card-main span,
+.print-batch-card-main small {
+  color: var(--muted);
+}
+
+.print-copy-group {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.print-copy-group > span {
+  font-weight: 800;
+  color: var(--brand-blue-deep);
+}
+
+.print-copy-stepper {
+  display: grid;
+  grid-template-columns: 34px 54px 34px;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.print-copy-stepper button,
+.print-copy-stepper input {
+  min-height: 34px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.print-copy-stepper button {
+  padding: 0;
+}
+
+.print-copy-stepper input {
+  border: 1px solid var(--border);
+  font-weight: 800;
 }
 
 .record-list {
@@ -3596,6 +3898,10 @@ textarea {
   .dashboard-focus-grid,
   .dashboard-metric-grid,
   .dashboard-dual-grid,
+  .executive-kpi-grid,
+  .executive-section-grid,
+  .executive-module-list,
+  .executive-stat-list,
   .admin-console-shell,
   .admin-priority-strip,
   .admin-layout,
@@ -3768,6 +4074,9 @@ textarea {
 
   .search-actions,
   .workspace-nav,
+  .processed-record-notice,
+  .processed-record-actions,
+  .executive-hero-panel,
   .preview-actions,
   .action-row,
   .password-form-actions,
@@ -3779,6 +4088,7 @@ textarea {
 
   .search-actions button,
   .workspace-nav button,
+  .processed-record-actions button,
   .dashboard-panel-head .button-secondary,
   .preview-actions button,
   .action-row button,

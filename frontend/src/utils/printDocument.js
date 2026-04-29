@@ -75,6 +75,14 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             break-inside: avoid;
             page-break-inside: avoid;
           }
+          .print-batch-page {
+            break-after: page;
+            page-break-after: always;
+          }
+          .print-batch-page:last-child {
+            break-after: auto;
+            page-break-after: auto;
+          }
           .print-section h3 {
             font-size: 11px;
             margin-bottom: 5px;
