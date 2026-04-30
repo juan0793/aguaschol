@@ -4686,6 +4686,13 @@ textarea {
   color: var(--muted);
 }
 
+.empty-state-icon {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 0.7rem;
+  color: #1576d1;
+}
+
 .helper-text {
   color: var(--muted);
   font-size: 0.85rem;
@@ -6791,6 +6798,10 @@ textarea {
   display: grid;
   gap: 0.9rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 247, 255, 0.92));
+}
+
+.map-analytics-empty {
+  grid-column: 1 / -1;
 }
 
 .map-analytics-bar-list {

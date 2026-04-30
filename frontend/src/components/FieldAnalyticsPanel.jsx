@@ -1,5 +1,25 @@
 import { Icon } from "./Icon";
 
+const DEFAULT_ACCURACY_BUCKETS = [
+  { label: "0 a 5 m", total: 0, tone: "is-good" },
+  { label: "6 a 15 m", total: 0, tone: "is-mid" },
+  { label: "Mas de 15 m", total: 0, tone: "is-warn" },
+  { label: "Sin dato", total: 0, tone: "is-empty" }
+];
+
+const toNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const toPositiveMax = (value) => Math.max(1, toNumber(value) || 1);
+
+const getBarWidth = (value, max) => {
+  const nextMax = toPositiveMax(max);
+  const percentage = (toNumber(value) / nextMax) * 100;
+  return `${Math.min(100, Math.max(0, percentage))}%`;
+};
+
 function FieldAnalyticsPanel({
   activeDateLabel,
   loadingMapContexts,
@@ -11,6 +31,24 @@ function FieldAnalyticsPanel({
   onRefreshZones
 }) {
   const isLoading = loadingMapContexts || loadingMapPoints;
+  const reportData = {
+    totalPoints: toNumber(mapReportData?.totalPoints),
+    totalZones: toNumber(mapReportData?.totalZones),
+    totalsByType: mapReportData?.totalsByType && typeof mapReportData.totalsByType === "object" ? mapReportData.totalsByType : {},
+    zones: Array.isArray(mapReportData?.zones) ? mapReportData.zones : []
+  };
+  const analyticsData = {
+    journeySeries: Array.isArray(mapAnalyticsData?.journeySeries) ? mapAnalyticsData.journeySeries : [],
+    typeSeries: Array.isArray(mapAnalyticsData?.typeSeries) ? mapAnalyticsData.typeSeries : [],
+    zoneSeries: Array.isArray(mapAnalyticsData?.zoneSeries) ? mapAnalyticsData.zoneSeries : [],
+    accuracyBuckets: Array.isArray(mapAnalyticsData?.accuracyBuckets)
+      ? mapAnalyticsData.accuracyBuckets
+      : DEFAULT_ACCURACY_BUCKETS,
+    maxJourneyTotal: toPositiveMax(mapAnalyticsData?.maxJourneyTotal),
+    maxTypeTotal: toPositiveMax(mapAnalyticsData?.maxTypeTotal),
+    maxZoneTotal: toPositiveMax(mapAnalyticsData?.maxZoneTotal)
+  };
+  const hasFieldData = reportData.totalPoints > 0 || analyticsData.journeySeries.length > 0;
 
   return (
     <section className="preview-panel log-panel-full">
@@ -29,15 +67,15 @@ function FieldAnalyticsPanel({
           <div className="log-summary-strip map-report-summary-strip">
             <div className="log-summary-card">
               <span>Total general</span>
-              <strong>{mapReportData.totalPoints}</strong>
+              <strong>{reportData.totalPoints}</strong>
             </div>
             <div className="log-summary-card">
               <span>Zonas detectadas</span>
-              <strong>{mapReportData.totalZones}</strong>
+              <strong>{reportData.totalZones}</strong>
             </div>
             <div className="log-summary-card">
               <span>Tipos distintos</span>
-              <strong>{mapAnalyticsData.typeSeries.length}</strong>
+              <strong>{analyticsData.typeSeries.length}</strong>
             </div>
             <div className="log-summary-card">
               <span>Contexto cercano</span>
@@ -82,6 +120,15 @@ function FieldAnalyticsPanel({
                 </div>
               </section>
             ) : null}
+            {!isLoading && !hasFieldData ? (
+              <section className="document-block map-analytics-card map-analytics-empty">
+                <div className="empty-state">
+                  <Icon name="dashboard" className="empty-state-icon" />
+                  <h3>Sin estadisticas para mostrar</h3>
+                  <p>No hay puntos de campo cargados para la jornada seleccionada. Puedes refrescar los puntos o revisar otra bitacora desde Mapa de campo.</p>
+                </div>
+              </section>
+            ) : null}
             <section className="document-block map-analytics-card">
               <div className="lookup-card-head map-card-head">
                 <div>
@@ -90,8 +137,8 @@ function FieldAnalyticsPanel({
                 </div>
               </div>
               <div className="map-analytics-bar-list">
-                {mapAnalyticsData.journeySeries.length ? (
-                  mapAnalyticsData.journeySeries.map((item) => (
+                {analyticsData.journeySeries.length ? (
+                  analyticsData.journeySeries.map((item) => (
                     <div key={item.key} className="map-analytics-bar-row">
                       <div className="map-analytics-bar-copy">
                         <strong>{item.label}</strong>
@@ -100,7 +147,7 @@ function FieldAnalyticsPanel({
                       <div className="map-analytics-bar-track">
                         <div
                           className="map-analytics-bar-fill is-journey"
-                          style={{ width: `${(item.total / mapAnalyticsData.maxJourneyTotal) * 100}%` }}
+                          style={{ width: getBarWidth(item.total, analyticsData.maxJourneyTotal) }}
                         />
                       </div>
                     </div>
@@ -122,8 +169,8 @@ function FieldAnalyticsPanel({
                 </div>
               </div>
               <div className="map-analytics-bar-list">
-                {mapAnalyticsData.typeSeries.length ? (
-                  mapAnalyticsData.typeSeries.map((item) => (
+                {analyticsData.typeSeries.length ? (
+                  analyticsData.typeSeries.map((item) => (
                     <div key={item.label} className="map-analytics-bar-row">
                       <div className="map-analytics-bar-copy">
                         <strong>{item.label}</strong>
@@ -132,7 +179,7 @@ function FieldAnalyticsPanel({
                       <div className="map-analytics-bar-track">
                         <div
                           className="map-analytics-bar-fill is-type"
-                          style={{ width: `${(item.total / mapAnalyticsData.maxTypeTotal) * 100}%` }}
+                          style={{ width: getBarWidth(item.total, analyticsData.maxTypeTotal) }}
                         />
                       </div>
                     </div>
@@ -154,8 +201,8 @@ function FieldAnalyticsPanel({
                 </div>
               </div>
               <div className="map-analytics-bar-list">
-                {mapAnalyticsData.zoneSeries.length ? (
-                  mapAnalyticsData.zoneSeries.map((item) => (
+                {analyticsData.zoneSeries.length ? (
+                  analyticsData.zoneSeries.map((item) => (
                     <div key={item.label} className="map-analytics-bar-row">
                       <div className="map-analytics-bar-copy">
                         <strong>{item.label}</strong>
@@ -164,7 +211,7 @@ function FieldAnalyticsPanel({
                       <div className="map-analytics-bar-track">
                         <div
                           className="map-analytics-bar-fill is-zone"
-                          style={{ width: `${(item.total / mapAnalyticsData.maxZoneTotal) * 100}%` }}
+                          style={{ width: getBarWidth(item.total, analyticsData.maxZoneTotal) }}
                         />
                       </div>
                     </div>
@@ -186,10 +233,10 @@ function FieldAnalyticsPanel({
                 </div>
               </div>
               <div className="map-analytics-bucket-grid">
-                {mapAnalyticsData.accuracyBuckets.map((bucket) => (
+                {analyticsData.accuracyBuckets.map((bucket) => (
                   <div key={bucket.label} className={`map-analytics-bucket ${bucket.tone}`}>
                     <span>{bucket.label}</span>
-                    <strong>{bucket.total}</strong>
+                    <strong>{toNumber(bucket.total)}</strong>
                   </div>
                 ))}
               </div>
