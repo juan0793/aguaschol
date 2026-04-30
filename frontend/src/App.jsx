@@ -7705,7 +7705,7 @@ function App() {
         </section>
       </main>
       ) : workspaceView === "records" ? (
-      <main className="layout">
+      <main className="layout records-view">
         <aside className="sidebar no-print">
           <div className="panel-header">
             <h2>Registros</h2>
