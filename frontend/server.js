@@ -8,6 +8,7 @@ const distDir = path.resolve(rootDir, "dist");
 const port = Number(process.env.PORT ?? 3000);
 const host = "0.0.0.0";
 
+// Servidor estatico usado por Railway para publicar el frontend compilado.
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
