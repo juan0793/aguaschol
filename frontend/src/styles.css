@@ -1196,6 +1196,517 @@ button:disabled {
   backdrop-filter: blur(14px);
 }
 
+/* Administrative application shell */
+.page-shell {
+  width: 100%;
+  margin: 0;
+  padding: 0 1rem 1.5rem 16.5rem;
+}
+
+.app-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 28;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.55rem;
+  width: 100%;
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0 0;
+  background: rgba(245, 249, 253, 0.96);
+  border-bottom: 1px solid rgba(20, 101, 217, 0.09);
+  backdrop-filter: blur(18px);
+}
+
+.app-topbar {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: auto minmax(250px, 1fr) minmax(280px, auto) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid rgba(20, 101, 217, 0.1);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(11, 63, 115, 0.07);
+}
+
+.app-menu-button {
+  display: none;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.app-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.app-topbar-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.app-topbar-brand div {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.app-topbar-brand strong {
+  color: #123b5d;
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+
+.app-topbar-brand span {
+  color: #587189;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-topbar-kpis {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.app-topbar-kpi {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-height: 30px;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 101, 217, 0.1);
+  background: #f5f9fd;
+  color: #244b6c;
+  white-space: nowrap;
+}
+
+.app-topbar-kpi small {
+  color: #647e94;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.app-topbar-kpi strong {
+  color: #123b5d;
+  font-size: 0.82rem;
+}
+
+.app-topbar-session {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.app-save-state,
+.app-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 30px;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #eef7f2;
+  color: #16745f;
+  border: 1px solid rgba(22, 116, 95, 0.12);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.app-save-state.is-live {
+  background: #fff4f4;
+  color: #9b202d;
+  border-color: rgba(193, 39, 45, 0.16);
+}
+
+.app-user-chip {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #f4f8fc;
+  color: #294c68;
+  border-color: rgba(20, 101, 217, 0.1);
+}
+
+.app-logout-button {
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+}
+
+.app-chrome > .search-card {
+  padding: 0.58rem 0.75rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(11, 63, 115, 0.05);
+  background: #fff;
+}
+
+.app-chrome > .search-card:hover {
+  transform: none;
+  box-shadow: 0 8px 18px rgba(11, 63, 115, 0.07);
+}
+
+.app-chrome .search-card-head,
+.app-chrome .module-nav-wrap,
+.app-chrome .admin-console-head,
+.app-chrome .admin-console-shell,
+.app-chrome .admin-priority-strip,
+.app-chrome .workspace-nav {
+  display: none;
+}
+
+.app-chrome .workspace-summary {
+  gap: 0.45rem;
+}
+
+.app-chrome .workspace-title {
+  margin: 0;
+  color: #506b82;
+  font-size: 0.84rem;
+}
+
+.app-chrome .dashboard-summary-chips,
+.app-chrome .map-diary-summary {
+  gap: 0.4rem;
+}
+
+.app-chrome .search-actions {
+  gap: 0.4rem;
+}
+
+.app-chrome .search-actions button,
+.app-chrome .search-row button,
+.app-chrome .button-secondary {
+  min-height: 34px;
+  padding: 0.36rem 0.62rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+.app-chrome .search-row {
+  margin-bottom: 0.45rem;
+}
+
+.app-chrome .search-row input {
+  min-height: 36px;
+}
+
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 24;
+  width: 15rem;
+  padding: 0.85rem 0.65rem;
+  border-right: 1px solid rgba(20, 101, 217, 0.1);
+  background: #ffffff;
+  box-shadow: 8px 0 24px rgba(11, 63, 115, 0.06);
+  overflow-y: auto;
+}
+
+.app-sidebar-section {
+  display: grid;
+  gap: 0.28rem;
+  padding-top: 0.15rem;
+}
+
+.app-sidebar-label {
+  padding: 0.25rem 0.55rem 0.45rem;
+  color: #6a8296;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.app-sidebar-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #244b6c;
+  text-align: left;
+  box-shadow: none;
+}
+
+.app-sidebar-item:hover {
+  background: #f4f8fc;
+  color: #123b5d;
+  transform: none;
+}
+
+.app-sidebar-item.is-active {
+  background: #eaf4ff;
+  border-color: rgba(21, 118, 209, 0.14);
+  color: #0d4d86;
+  box-shadow: inset 3px 0 0 #1576d1;
+}
+
+.app-sidebar-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.app-sidebar-item small {
+  max-width: 4.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #6c8398;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.app-sidebar-backdrop,
+.app-bottom-nav {
+  display: none;
+}
+
+.page-shell > main {
+  width: min(100%, 1220px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.preview-panel,
+.sheet,
+.search-card,
+.sidebar {
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(11, 63, 115, 0.06);
+}
+
+.preview-panel,
+.sheet {
+  padding: 1rem;
+}
+
+.lead {
+  font-size: 0.92rem;
+}
+
+@media (max-width: 1180px) {
+  .page-shell {
+    padding-left: 14rem;
+  }
+
+  .app-sidebar {
+    width: 12.75rem;
+  }
+
+  .app-topbar {
+    grid-template-columns: auto minmax(220px, 1fr) minmax(190px, auto) auto;
+  }
+
+  .app-topbar-kpis {
+    max-width: 34vw;
+  }
+
+  .app-user-chip {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-shell {
+    padding: 0 0.65rem 5.4rem;
+  }
+
+  .app-chrome {
+    gap: 0.45rem;
+    margin-bottom: 0.55rem;
+    padding-top: 0.45rem;
+  }
+
+  .app-topbar {
+    min-height: 54px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    padding: 0.38rem 0.55rem;
+    border-radius: 10px;
+  }
+
+  .app-menu-button {
+    display: inline-grid;
+  }
+
+  .app-topbar-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .app-topbar-brand strong {
+    font-size: 0.9rem;
+  }
+
+  .app-topbar-brand span {
+    max-width: 46vw;
+    font-size: 0.74rem;
+  }
+
+  .app-topbar-kpis {
+    grid-column: 1 / -1;
+    order: 4;
+    max-width: 100%;
+    padding-bottom: 0.05rem;
+  }
+
+  .app-topbar-session {
+    justify-content: flex-end;
+  }
+
+  .app-user-chip,
+  .app-logout-button {
+    display: none;
+  }
+
+  .app-save-state {
+    min-height: 28px;
+    padding: 0.22rem 0.48rem;
+    font-size: 0.7rem;
+  }
+
+  .app-chrome > .search-card {
+    padding: 0.5rem;
+    border-radius: 10px;
+  }
+
+  .app-chrome .workspace-title {
+    display: none;
+  }
+
+  .app-chrome .dashboard-summary-chips,
+  .app-chrome .map-diary-summary {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.05rem;
+  }
+
+  .app-chrome .search-actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.05rem;
+  }
+
+  .app-chrome .search-actions button,
+  .app-chrome .search-row button,
+  .app-chrome .button-secondary {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 0.32rem 0.52rem;
+    font-size: 0.76rem;
+  }
+
+  .app-sidebar {
+    top: 0;
+    width: min(82vw, 20rem);
+    transform: translateX(-105%);
+    transition: transform 180ms ease;
+    z-index: 42;
+    padding-top: 0.8rem;
+  }
+
+  .app-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .app-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 38;
+    border: 0;
+    background: rgba(17, 42, 65, 0.32);
+  }
+
+  .app-bottom-nav {
+    position: fixed;
+    right: 0.65rem;
+    bottom: 0.65rem;
+    left: 0.65rem;
+    z-index: 34;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.25rem;
+    padding: 0.35rem;
+    border: 1px solid rgba(20, 101, 217, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 14px 28px rgba(11, 63, 115, 0.16);
+    backdrop-filter: blur(14px);
+  }
+
+  .app-bottom-nav button {
+    display: grid;
+    place-items: center;
+    gap: 0.15rem;
+    min-height: 46px;
+    padding: 0.25rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #46647e;
+    box-shadow: none;
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  .app-bottom-nav button.is-active {
+    background: #eaf4ff;
+    border-color: rgba(21, 118, 209, 0.14);
+    color: #0d4d86;
+  }
+
+  .app-bottom-nav .app-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .page-shell > main {
+    width: 100%;
+  }
+
+  .preview-panel,
+  .sheet,
+  .search-card,
+  .sidebar {
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(11, 63, 115, 0.05);
+  }
+
+  .preview-panel,
+  .sheet {
+    padding: 0.75rem;
+  }
+}
+
 .module-toolbar-card {
   padding-top: 0.1rem;
 }
@@ -7218,6 +7729,60 @@ textarea {
 
   .transport-map-canvas {
     min-height: 360px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-shell {
+    width: 100%;
+    padding: 0 0.65rem 5.4rem;
+  }
+
+  .app-chrome {
+    display: grid;
+    gap: 0.45rem;
+    padding-top: 0.45rem;
+  }
+
+  .app-chrome > .search-card {
+    padding: 0.5rem;
+    border-radius: 10px;
+  }
+
+  .app-chrome .search-card-head,
+  .app-chrome .module-nav-wrap,
+  .app-chrome .admin-console-head,
+  .app-chrome .admin-console-shell,
+  .app-chrome .admin-priority-strip,
+  .app-chrome .workspace-nav,
+  .app-chrome .workspace-title {
+    display: none;
+  }
+
+  .app-chrome .search-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.4rem;
+  }
+
+  .app-chrome .search-actions button,
+  .app-chrome .search-row button,
+  .app-chrome .button-secondary {
+    width: auto;
+    min-height: 32px;
+    padding: 0.32rem 0.52rem;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    order: initial;
+  }
+
+  .app-bottom-nav {
+    display: grid;
   }
 }
 

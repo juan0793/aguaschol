@@ -6447,58 +6447,55 @@ function App() {
           </div>
         </div>
       ) : null}
-      <header className={`hero no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""}`}>
-        <div className={`hero-panel ${headerMeta.panelClass} ${workspaceView !== "dashboard" ? "module-hero-panel" : ""}`}>
-          <div className="hero-topline">
-            <span className="hero-topline-item">
-              <Icon name="records" />
-              {headerMeta.toplineLabel}
+      <header className={`hero app-chrome no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""}`}>
+        <div className="app-topbar">
+          <button
+            type="button"
+            className="app-menu-button"
+            onClick={() => setShowMobileModuleMenu((current) => !current)}
+            aria-label="Abrir menu"
+          >
+            <Icon name="more" />
+          </button>
+          <div className="app-topbar-brand">
+            <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="app-topbar-logo" />
+            <div>
+              <strong>Aguas de Choluteca</strong>
+              <span>{headerMeta.title}</span>
+            </div>
+          </div>
+          <div className="app-topbar-kpis">
+            {headerStats.map((stat) => (
+              <span className="app-topbar-kpi" key={stat.label}>
+                <small>{stat.label}</small>
+                <strong>{stat.value}</strong>
+              </span>
+            ))}
+          </div>
+          <div className="app-topbar-session">
+            <span className={`app-save-state ${isDirty ? "is-live" : ""}`}>
+              {["lookup", "padron"].includes(workspaceView)
+                ? workspaceView === "padron"
+                  ? uploadingPadron
+                    ? "Actualizando padron"
+                    : "Padron disponible"
+                  : lookupResult
+                    ? lookupResult.exists
+                      ? "Coincidencia encontrada"
+                      : "Sin coincidencias"
+                    : "Listo para consultar"
+                : isDirty
+                  ? "Cambios sin guardar"
+                  : "Todo guardado"}
             </span>
-            <span className="hero-topline-item">
+            <span className="app-user-chip">
               <Icon name="users" />
               {session?.user?.full_name || session?.user?.username || "Sesion activa"}
             </span>
-          </div>
-          <div className="hero-brand">
-            <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="hero-logo" />
-            <div>
-              <p className="eyebrow">Aguas de Choluteca</p>
-              <h1>{headerMeta.title}</h1>
-              <p className="lead">{headerMeta.lead}</p>
-              <div className="hero-status-row">
-                {["lookup", "padron"].includes(workspaceView) ? (
-                  <span className={`hero-status-pill ${lookupResult?.exists ? "is-live" : ""}`}>
-                    {workspaceView === "padron"
-                      ? uploadingPadron
-                        ? "Actualizando padron"
-                        : "Padron disponible"
-                      : lookupResult
-                        ? lookupResult.exists
-                          ? "Coincidencia encontrada"
-                          : "Sin coincidencias"
-                        : "Listo para consultar"}
-                  </span>
-                ) : (
-                  <span className={`hero-status-pill ${isDirty ? "is-live" : ""}`}>
-                    {isDirty ? "Cambios sin guardar" : "Todo guardado"}
-                  </span>
-                )}
-                {!["lookup", "padron"].includes(workspaceView) && draftSavedAt ? (
-                  <span className="hero-status-pill subtle">
-                    Borrador: {formatDateTime(draftSavedAt)}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-          <div className={`hero-strip ${workspaceView !== "dashboard" ? "hero-strip-module" : ""}`}>
-            {headerStats.map((stat) => (
-              <div className="hero-stat" key={stat.label}>
-                <span className="hero-stat-icon"><Icon name={stat.icon} /></span>
-                <span>{stat.label}</span>
-                <strong>{stat.value}</strong>
-              </div>
-            ))}
+            <button type="button" className="button-secondary app-logout-button" onClick={handleLogout}>
+              <Icon name="logout" />
+              Salir
+            </button>
           </div>
         </div>
 
@@ -7005,6 +7002,69 @@ function App() {
           )}
         </div>
       </header>
+      <aside className={`app-sidebar no-print ${showMobileModuleMenu ? "is-open" : ""}`}>
+        <div className="app-sidebar-section">
+          <span className="app-sidebar-label">Modulo</span>
+          {isAdmin ? (
+            <button
+              type="button"
+              className={`app-sidebar-item ${workspaceView === "dashboard" ? "is-active" : ""}`}
+              onClick={() => {
+                setWorkspaceView("dashboard");
+                setShowMobileModuleMenu(false);
+              }}
+            >
+              <Icon name="dashboard" />
+              <span>Tablero</span>
+              <small>Control</small>
+            </button>
+          ) : null}
+          {moduleNavigationItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`app-sidebar-item ${workspaceView === item.key ? "is-active" : ""}`}
+              onClick={() => {
+                setWorkspaceView(item.key);
+                setShowMobileModuleMenu(false);
+              }}
+            >
+              <Icon name={item.icon} />
+              <span>{item.label}</span>
+              <small>{item.helper}</small>
+            </button>
+          ))}
+        </div>
+      </aside>
+      {showMobileModuleMenu ? (
+        <button
+          type="button"
+          className="app-sidebar-backdrop no-print"
+          aria-label="Cerrar menu"
+          onClick={() => setShowMobileModuleMenu(false)}
+        />
+      ) : null}
+      <nav className="app-bottom-nav no-print" aria-label="Navegacion principal movil">
+        {primaryModuleNavigationItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={workspaceView === item.key ? "is-active" : ""}
+            onClick={() => setWorkspaceView(item.key)}
+          >
+            <Icon name={item.icon} />
+            <span>{item.key === "lookup" ? "Buscar" : item.label}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          className={showMobileModuleMenu ? "is-active" : ""}
+          onClick={() => setShowMobileModuleMenu((current) => !current)}
+        >
+          <Icon name="more" />
+          <span>Mas</span>
+        </button>
+      </nav>
 
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
