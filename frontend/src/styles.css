@@ -556,6 +556,41 @@ button:disabled {
   box-shadow: none;
 }
 
+a,
+input,
+select,
+textarea,
+.record-filter-chip,
+.app-sidebar-item,
+.tab {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.record-filter-chip:focus-visible,
+.app-sidebar-item:focus-visible,
+.tab:focus-visible {
+  outline: 3px solid rgba(37, 199, 240, 0.44);
+  outline-offset: 2px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(21, 118, 209, 0.42);
+  box-shadow: 0 0 0 3px rgba(21, 118, 209, 0.1);
+}
+
 .button-secondary {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 246, 255, 0.92) 100%);
   color: var(--brand-blue-deep);
@@ -1114,6 +1149,28 @@ button.is-loading::before {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes dropdownReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -2994,6 +3051,7 @@ button.is-loading::before {
   grid-template-columns: repeat(5, minmax(130px, 1fr));
   background: #f8fbff;
   box-shadow: none;
+  animation: dropdownReveal 180ms ease-out;
 }
 
 .record-filter-field {
@@ -3067,6 +3125,7 @@ button.is-loading::before {
   border-radius: 12px;
   border: 1px dashed rgba(21, 118, 209, 0.18);
   background: #f7fbff;
+  animation: dropdownReveal 180ms ease-out;
 }
 
 .photo-workspace {

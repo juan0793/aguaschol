@@ -1788,6 +1788,17 @@ function App() {
   }, [dashboardWidgetPrefs]);
 
   useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key !== "Escape") return;
+      setShowMobileModuleMenu(false);
+      setShowRecordAdvancedFilters(false);
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, []);
+
+  useEffect(() => {
     setRecordPage(1);
   }, [search, recordView, recordQuickFilter, recordFilters]);
 
