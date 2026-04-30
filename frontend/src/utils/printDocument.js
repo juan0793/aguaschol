@@ -4,18 +4,33 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   const {
     pageSize = "Letter portrait",
     pageMargin = "10mm",
-    windowFeatures = "width=980,height=1200",
     bodyClassName = "",
     showPageFooter = false
   } = options;
-  const printWindow = window.open("", "_blank", windowFeatures);
+  const printFrame = window.document.createElement("iframe");
+  printFrame.title = title;
+  printFrame.setAttribute("aria-hidden", "true");
+  printFrame.style.position = "fixed";
+  printFrame.style.right = "0";
+  printFrame.style.bottom = "0";
+  printFrame.style.width = "0";
+  printFrame.style.height = "0";
+  printFrame.style.border = "0";
+  printFrame.style.opacity = "0";
+  printFrame.style.pointerEvents = "none";
+  window.document.body.appendChild(printFrame);
 
-  if (!printWindow) {
-    window.alert("No fue posible abrir la ventana de impresion.");
+  const printWindow = printFrame.contentWindow;
+  const printDocumentRef = printFrame.contentDocument || printWindow?.document;
+
+  if (!printWindow || !printDocumentRef) {
+    printFrame.remove();
+    window.alert("No fue posible preparar la impresion.");
     return;
   }
 
-  printWindow.document.write(`
+  printDocumentRef.open();
+  printDocumentRef.write(`
     <html lang="es">
       <head>
         <title>${title}</title>
@@ -851,9 +866,9 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
       <body class="${bodyClassName}">${bodyMarkup}${showPageFooter ? '<div class="field-report-page"></div>' : ""}</body>
     </html>
       `);
-  printWindow.document.close();
+  printDocumentRef.close();
 
-  const images = Array.from(printWindow.document.images);
+  const images = Array.from(printDocumentRef.images);
   await Promise.all(
     images.map(
       (image) =>
@@ -869,8 +884,10 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
     )
   );
 
-  await printWindow.document.fonts?.ready;
+  await printDocumentRef.fonts?.ready;
   await pause(250);
   printWindow.focus();
   printWindow.print();
+  printWindow.onafterprint = () => printFrame.remove();
+  window.setTimeout(() => printFrame.remove(), 5000);
 };

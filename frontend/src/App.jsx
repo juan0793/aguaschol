@@ -6438,7 +6438,7 @@ function App() {
                 Se muestran las fichas según los filtros activos. Puedes buscar por clave y seleccionar cuántas impresiones de ficha o aviso necesitas.
               </p>
               <p className="helper-text">
-                La ventana se cerrará al imprimir. Si seleccionas fichas y avisos juntos, el navegador pedirá confirmar cada tipo de documento por separado.
+                Al imprimir se cerrará esta selección y aparecerá solo el cuadro de impresión del navegador. Si eliges fichas y avisos juntos, se confirmará cada tipo de documento por separado.
               </p>
             </div>
             <div className="print-batch-summary">
