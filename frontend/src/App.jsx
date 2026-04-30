@@ -5771,14 +5771,14 @@ function App() {
   };
 
   const handlePrintAviso = async () => {
-    if (!avisoHtml) {
-      showAlert("Genera el aviso antes de imprimir.");
-      return;
-    }
-
     await printDocument(
       `Aviso ${form.clave_catastral || "inmueble"}`,
-      `<div class="print-header"><img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" /></div>${avisoHtml}`
+      buildAvisoPrintMarkup(form),
+      {
+        pageSize: "Letter portrait",
+        pageMargin: "10mm",
+        windowFeatures: "width=980,height=1200"
+      }
     );
   };
 
