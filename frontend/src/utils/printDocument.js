@@ -355,32 +355,56 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
             line-height: 1.25;
           }
           .aviso {
-            max-width: 720px;
+            max-width: 184mm;
             margin: 0 auto;
-            padding: 12px 6px;
+            padding: 6mm 4mm 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12.4px;
+            line-height: 1.55;
+            color: #101827;
           }
           .aviso-header, .aviso-title, .aviso-signature, .aviso-copy {
             text-align: center;
           }
           .aviso-header p, .aviso-title, .aviso-copy {
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+          }
+          .aviso-header p {
+            font-size: 12px;
+            line-height: 1.35;
+          }
+          .aviso-header strong {
+            font-size: 15px;
+            letter-spacing: 0.02em;
+          }
+          .aviso-title {
+            margin-top: 10px;
+            margin-bottom: 18px;
+            font-size: 22px;
+            line-height: 1.18;
+            letter-spacing: 0;
           }
           .aviso-date, .aviso-saludo {
             text-align: left;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
           }
           .aviso-body, .aviso-list li {
             text-align: justify;
-            line-height: 1.45;
+            line-height: 1.58;
+            font-size: 12.4px;
           }
           .aviso-list {
-            margin: 6px 0 16px 22px;
+            margin: 10px 0 20px 34px;
+            padding-left: 12px;
+          }
+          .aviso-list li {
+            margin-bottom: 8px;
           }
           .aviso-signature {
-            margin-top: 34px;
+            margin-top: 48px;
           }
           .aviso-signature p {
-            margin-bottom: 8px;
+            margin-bottom: 9px;
           }
           .field-report-body {
             background: #f7fbff;

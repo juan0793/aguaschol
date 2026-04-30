@@ -4840,36 +4840,58 @@ function App() {
                   object-fit: contain;
                 }
                 .aviso {
-                  max-width: 720px;
+                  max-width: 184mm;
                   margin: 0 auto;
+                  padding: 6mm 4mm 0;
+                  font-family: Arial, Helvetica, sans-serif;
+                  font-size: 12.4px;
+                  line-height: 1.55;
+                  color: #101827;
                 }
                 .aviso-header, .aviso-title, .aviso-signature, .aviso-copy {
                   text-align: center;
                 }
                 .aviso-header p, .aviso-title, .aviso-copy {
-                  margin: 0 0 12px;
+                  margin: 0 0 10px;
+                }
+                .aviso-header p {
+                  font-size: 12px;
+                  line-height: 1.35;
+                }
+                .aviso-header strong {
+                  font-size: 15px;
+                  letter-spacing: 0.02em;
+                }
+                .aviso-title {
+                  margin-top: 10px;
+                  margin-bottom: 18px;
+                  font-size: 22px;
+                  line-height: 1.18;
+                  letter-spacing: 0;
                 }
                 .aviso-date, .aviso-saludo {
                   margin: 0 0 16px;
                 }
                 .aviso-body {
                   text-align: justify;
-                  line-height: 1.65;
+                  line-height: 1.58;
+                  font-size: 12.4px;
                   margin: 0 0 16px;
                 }
                 .aviso-list {
-                  margin: 0 0 18px 24px;
-                  padding: 0;
+                  margin: 10px 0 20px 34px;
+                  padding-left: 12px;
                 }
                 .aviso-list li {
                   margin-bottom: 8px;
-                  line-height: 1.55;
+                  line-height: 1.58;
+                  font-size: 12.4px;
                 }
                 .aviso-signature {
-                  margin-top: 34px;
+                  margin-top: 48px;
                 }
                 .aviso-signature p {
-                  margin: 0 0 8px;
+                  margin: 0 0 9px;
                 }
                 @media print {
                   @page {
