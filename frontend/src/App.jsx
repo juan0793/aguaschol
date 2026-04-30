@@ -6406,7 +6406,7 @@ function App() {
         </div>
       ) : null}
       {showPrintBatchModal ? (
-        <div className="password-modal-backdrop">
+        <div className="password-modal-backdrop print-batch-backdrop">
           <div className="password-modal-card print-batch-modal">
             <div className="password-modal-head">
               <p className="eyebrow">Impresión rápida</p>
@@ -6454,10 +6454,13 @@ function App() {
                         <div className="print-copy-stepper">
                           <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "ficha", -1)}>-</button>
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-5]"
+                            aria-label={`Copias de ficha para ${record.clave_catastral}`}
                             min="0"
                             max="5"
-                            value={fichaCopies}
+                            value={String(fichaCopies)}
                             onChange={(event) => updateBatchPrintCopies(record.id, "ficha", event.target.value)}
                           />
                           <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "ficha", 1)}>+</button>
@@ -6468,10 +6471,13 @@ function App() {
                         <div className="print-copy-stepper">
                           <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "aviso", -1)}>-</button>
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-5]"
+                            aria-label={`Copias de aviso para ${record.clave_catastral}`}
                             min="0"
                             max="5"
-                            value={avisoCopies}
+                            value={String(avisoCopies)}
                             onChange={(event) => updateBatchPrintCopies(record.id, "aviso", event.target.value)}
                           />
                           <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "aviso", 1)}>+</button>

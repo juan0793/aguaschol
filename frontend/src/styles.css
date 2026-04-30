@@ -3211,10 +3211,19 @@ button.is-loading::before {
   justify-content: flex-end;
 }
 
+.print-batch-backdrop {
+  place-items: start;
+  justify-content: start;
+  align-items: start;
+  background: rgba(246, 250, 255, 0.18);
+  pointer-events: none;
+}
+
 .print-batch-modal {
-  width: min(980px, calc(100vw - 1.5rem));
-  max-height: min(86vh, 820px);
+  width: min(620px, calc(100vw - 1.5rem));
+  max-height: calc(100vh - 1.5rem);
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .print-batch-summary {
@@ -3227,9 +3236,9 @@ button.is-loading::before {
 
 .print-batch-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.7rem;
-  max-height: 48vh;
+  max-height: min(44vh, 430px);
   overflow: auto;
   padding: 0.1rem 0.2rem 0.2rem 0;
 }
@@ -3312,6 +3321,13 @@ button.is-loading::before {
 .print-copy-stepper input {
   border: 1px solid var(--border);
   font-weight: 800;
+  appearance: textfield;
+}
+
+.print-copy-stepper input::-webkit-outer-spin-button,
+.print-copy-stepper input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 .record-list {
