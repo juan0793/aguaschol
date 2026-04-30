@@ -6290,7 +6290,7 @@ function App() {
         </div>
       ) : null}
       {alert ? (
-        <div className="app-alert no-print" role="alert">
+        <div className="app-alert app-toast no-print" role="alert">
           <strong>Atención</strong>
           <span>{alert.text}</span>
         </div>
@@ -7726,7 +7726,13 @@ function App() {
             </div>
           </div>
 
-          {loading ? <p className="helper-text">Cargando registros...</p> : null}
+          {loading ? (
+            <div className="list-skeleton" aria-label="Cargando registros">
+              <span className="skeleton-line is-short" />
+              <span className="skeleton-line" />
+              <span className="skeleton-line" />
+            </div>
+          ) : null}
           {emptyRecordsMessage ? <p className="helper-text">{emptyRecordsMessage}</p> : null}
 
         <div className="record-list-head">
@@ -7750,6 +7756,20 @@ function App() {
         </div>
 
         <div className="record-list">
+          {loading ? (
+            <div className="record-skeleton-stack" aria-label="Cargando fichas">
+              {[0, 1, 2, 3].map((item) => (
+                <div className="record-skeleton-card" key={item}>
+                  <span className="skeleton-dot" />
+                  <div>
+                    <span className="skeleton-line is-short" />
+                    <span className="skeleton-line" />
+                    <span className="skeleton-line is-tiny" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {draftForm ? (
             <button
               type="button"
@@ -8356,6 +8376,7 @@ function App() {
                 type="submit"
                 data-intent={saveIntentOptions.stay}
                 disabled={saving}
+                className={saving ? "is-loading" : ""}
                 onClick={() => setSaveIntent(saveIntentOptions.stay)}
               >
                 {saving ? "Guardando..." : form.id ? "Actualizar ficha" : "Guardar ficha"}
@@ -8364,7 +8385,7 @@ function App() {
                 <button
                   type="submit"
                   data-intent={saveIntentOptions.new}
-                  className="button-secondary"
+                  className={`button-secondary ${saving ? "is-loading" : ""}`}
                   disabled={saving}
                   onClick={() => setSaveIntent(saveIntentOptions.new)}
                 >
@@ -8401,7 +8422,7 @@ function App() {
               <button type="button" className="button-secondary" onClick={handlePrintFicha}>
                 Imprimir ficha
               </button>
-              <button type="button" onClick={generateAviso} disabled={loadingAviso}>
+              <button type="button" className={loadingAviso ? "is-loading" : ""} onClick={generateAviso} disabled={loadingAviso}>
                 {loadingAviso ? "Generando aviso..." : "Generar aviso"}
               </button>
               <button type="button" className="button-secondary" onClick={handlePrintAviso}>
@@ -8513,7 +8534,11 @@ function App() {
                 {form.id ? <span className="panel-pill">#{form.id}</span> : null}
               </div>
               {loadingRecordHistory ? (
-                <p className="helper-text">Cargando historial de la ficha...</p>
+                <div className="preview-skeleton" aria-label="Cargando historial de la ficha">
+                  <span className="skeleton-line is-short" />
+                  <span className="skeleton-line" />
+                  <span className="skeleton-line" />
+                </div>
               ) : form.id ? (
                 recordHistory.length ? (
                   <div className="record-history-list">

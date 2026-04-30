@@ -10,6 +10,8 @@ function FieldAnalyticsPanel({
   onRefreshPoints,
   onRefreshZones
 }) {
+  const isLoading = loadingMapContexts || loadingMapPoints;
+
   return (
     <section className="preview-panel log-panel-full">
       <div className="log-shell">
@@ -70,6 +72,16 @@ function FieldAnalyticsPanel({
           </div>
 
           <div className="map-analytics-grid">
+            {isLoading ? (
+              <section className="document-block map-analytics-card map-analytics-loading">
+                <div className="map-skeleton" aria-label="Cargando estadisticas de campo">
+                  <span className="skeleton-line is-short" />
+                  <span className="skeleton-line" />
+                  <span className="skeleton-line" />
+                  <span className="skeleton-line is-tiny" />
+                </div>
+              </section>
+            ) : null}
             <section className="document-block map-analytics-card">
               <div className="lookup-card-head map-card-head">
                 <div>
