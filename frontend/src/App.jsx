@@ -3600,7 +3600,8 @@ function App() {
       {
         pageSize: "Letter landscape",
         pageMargin: "8mm",
-        bodyClassName: "field-report-body"
+        bodyClassName: "field-report-body",
+        showPageFooter: true
       }
     );
   };
@@ -5305,6 +5306,7 @@ function App() {
     }
 
     setBatchPrinting(true);
+    setShowPrintBatchModal(false);
 
     try {
       const fichaPages = [];
@@ -5339,7 +5341,6 @@ function App() {
         });
       }
 
-      setShowPrintBatchModal(false);
       showAlert(`Lote preparado: ${batchPrintSelection.fichas} fichas y ${batchPrintSelection.avisos} avisos.`);
     } catch (error) {
       showAlert(error.message || "No fue posible preparar el lote de impresion.");
@@ -6436,6 +6437,9 @@ function App() {
               <p className="lead">
                 Se muestran las fichas según los filtros activos. Puedes buscar por clave y seleccionar cuántas impresiones de ficha o aviso necesitas.
               </p>
+              <p className="helper-text">
+                La ventana se cerrará al imprimir. Si seleccionas fichas y avisos juntos, el navegador pedirá confirmar cada tipo de documento por separado.
+              </p>
             </div>
             <div className="print-batch-summary">
               <span className="record-badge">{batchPrintSelection.fichas} fichas</span>
@@ -6530,7 +6534,9 @@ function App() {
                 disabled={batchPrinting || (!batchPrintSelection.fichas && !batchPrintSelection.avisos)}
               >
                 <Icon name="records" />
-                {batchPrinting ? "Preparando..." : "Imprimir seleccion"}
+                {batchPrinting
+                  ? "Preparando..."
+                  : `Imprimir ${batchPrintSelection.fichas} fichas / ${batchPrintSelection.avisos} avisos`}
               </button>
             </div>
           </div>

@@ -5,7 +5,8 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
     pageSize = "Letter portrait",
     pageMargin = "10mm",
     windowFeatures = "width=980,height=1200",
-    bodyClassName = ""
+    bodyClassName = "",
+    showPageFooter = false
   } = options;
   const printWindow = window.open("", "_blank", windowFeatures);
 
@@ -847,7 +848,7 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
           }
         </style>
       </head>
-      <body class="${bodyClassName}">${bodyMarkup}<div class="field-report-page"></div></body>
+      <body class="${bodyClassName}">${bodyMarkup}${showPageFooter ? '<div class="field-report-page"></div>' : ""}</body>
     </html>
       `);
   printWindow.document.close();
@@ -868,6 +869,8 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
     )
   );
 
+  await printWindow.document.fonts?.ready;
+  await pause(250);
   printWindow.focus();
   printWindow.print();
 };
