@@ -2925,7 +2925,7 @@ button.is-loading::before {
 }
 
 .records-view {
-  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 330px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -2945,6 +2945,7 @@ button.is-loading::before {
   min-width: 0;
   width: 100%;
   overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .records-view .processed-record-notice,
@@ -2970,7 +2971,8 @@ button.is-loading::before {
   position: sticky;
   top: 1rem;
   max-height: calc(100vh - 2rem);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   background:
     radial-gradient(circle at top right, rgba(118, 200, 255, 0.12), transparent 22%),
@@ -3399,9 +3401,11 @@ button.is-loading::before {
   position: relative;
   overflow: hidden;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   text-align: left;
   border-radius: 12px;
-  padding: 0.68rem 0.62rem 0.7rem 0.72rem;
+  padding: 0.72rem 0.7rem 0.74rem 0.78rem;
   background: #fff;
   color: var(--brand-blue-deep);
   display: grid;
@@ -3417,7 +3421,7 @@ button.is-loading::before {
 }
 
 .record-card:hover {
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: 0 10px 22px rgba(11, 63, 115, 0.08);
   border-color: rgba(21, 118, 209, 0.18);
   transform: translateY(-1px);
 }
@@ -3426,9 +3430,9 @@ button.is-loading::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 6px;
-  background: linear-gradient(180deg, #1576d1 0%, #25c7f0 56%, #7fe0ef 100%);
-  opacity: 0.9;
+  width: 4px;
+  background: #d7e7f6;
+  opacity: 1;
 }
 
 .record-card-shell {
@@ -3447,7 +3451,7 @@ button.is-loading::before {
 
 .record-card-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: flex-start;
   gap: 0.45rem;
 }
@@ -3456,10 +3460,10 @@ button.is-loading::before {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-start;
   gap: 0.28rem;
-  max-width: 108px;
+  max-width: 100%;
 }
 
 .record-card strong {
@@ -3478,8 +3482,8 @@ button.is-loading::before {
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(21, 118, 209, 0.12) 0%, rgba(202, 229, 249, 0.18) 100%);
+  border-radius: 999px;
+  background: #eef6ff;
   color: var(--brand-blue-deep);
   border: 1px solid rgba(21, 118, 209, 0.12);
   font-size: 0.75rem;
@@ -3509,36 +3513,38 @@ button.is-loading::before {
 .record-location {
   color: var(--muted);
   font-size: 0.8rem;
-  white-space: normal;
 }
 
 .record-ledger {
   display: grid;
-  gap: 0.3rem;
-  padding: 0.46rem 0.52rem;
-  border-radius: 10px;
-  background: #f6f9fd;
-  border: 1px solid rgba(21, 118, 209, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  gap: 0.22rem;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .record-ledger-row {
   display: grid;
-  gap: 0.12rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.28rem;
+  align-items: baseline;
+  min-width: 0;
 }
 
 .record-ledger-label {
   color: #547188;
-  font-size: 0.58rem !important;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 0.7rem !important;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .record-ledger-value {
   color: #163651;
-  font-size: 0.84rem !important;
-  font-weight: 700;
+  font-size: 0.76rem !important;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -3546,27 +3552,29 @@ button.is-loading::before {
   color: var(--muted);
   font-size: 0.72rem;
   line-height: 1.35;
-  padding-top: 0.02rem;
+  padding-top: 0;
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .record-quick-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.3rem;
   margin-top: 0.05rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 0.08rem;
+  overflow: hidden;
+  padding-bottom: 0;
 }
 
 .record-quick-chip {
   flex: 0 0 auto;
-  min-height: 28px;
+  min-height: 26px;
   border: 1px solid rgba(21, 118, 209, 0.1);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 249, 255, 0.92));
   color: var(--brand-blue-deep);
   border-radius: 999px;
-  padding: 0.18rem 0.5rem;
+  padding: 0.16rem 0.48rem;
   font-size: 0.66rem;
   font-weight: 700;
   box-shadow: 0 6px 14px rgba(13, 77, 134, 0.04);
@@ -3585,7 +3593,7 @@ button.is-loading::before {
 }
 
 .record-badge {
-  max-width: 104px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3669,13 +3677,17 @@ button.is-loading::before {
 .record-badge {
   flex-shrink: 0;
   border-radius: 999px;
-  padding: 0.2rem 0.48rem;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
   background: rgba(21, 118, 209, 0.08);
   color: var(--brand-blue-deep);
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .record-badge.is-online {
@@ -3715,12 +3727,15 @@ button.is-loading::before {
 }
 
 .record-card.active {
-  background:
-    radial-gradient(circle at top right, rgba(123, 215, 255, 0.16), transparent 22%),
-    linear-gradient(160deg, #0f68ba 0%, #0d4d86 54%, #0b3e69 100%);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 20px 38px rgba(11, 39, 72, 0.28);
+  background: #eef7ff;
+  color: var(--brand-blue-deep);
+  border-color: rgba(21, 118, 209, 0.42);
+  box-shadow: 0 12px 26px rgba(13, 77, 134, 0.12);
+}
+
+.record-card.active::before {
+  background: var(--brand-blue);
+  width: 5px;
 }
 
 .record-card.active small,
@@ -3733,23 +3748,23 @@ button.is-loading::before {
 }
 
 .record-card.active .record-ledger {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: transparent;
+  border-color: transparent;
 }
 
 .record-card.active .record-badge {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(21, 118, 209, 0.14);
 }
 
 .record-card.active .record-number {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(21, 118, 209, 0.14);
+  border-color: rgba(21, 118, 209, 0.2);
 }
 
 .record-card.active .record-quick-chip {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(21, 118, 209, 0.16);
+  color: var(--brand-blue-deep);
 }
 
 .content {

@@ -3803,14 +3803,6 @@ function App() {
 
   const handleSelectRecord = (record) => {
     setSelectedRecordId(record.id ?? null);
-    setRecordFilters({
-      clave: record.clave_catastral || "",
-      barrio: "",
-      responsible: "",
-      date_from: "",
-      date_to: "",
-      status: "all"
-    });
     applyRecord(record);
     focusSheet();
   };
