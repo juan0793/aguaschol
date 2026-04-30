@@ -109,13 +109,13 @@ export const fieldGroups = [
 ];
 
 export const recordQuickFilterOptions = [
+  { key: "all", label: "Todas" },
   { key: "clandestino", label: "Clandestinas" },
   { key: "reportada", label: "Reportadas" },
-  { key: "varios_padrones", label: "Varios padrones" },
-  { key: "all", label: "Todo" },
-  { key: "today", label: "Hoy" },
   { key: "no_photo", label: "Sin foto" },
-  { key: "alert", label: "Alerta" }
+  { key: "alert", label: "Alertas" },
+  { key: "today", label: "Hoy" },
+  { key: "varios_padrones", label: "Varios padrones" }
 ];
 
 export const recordStatusFilterOptions = [
@@ -131,7 +131,8 @@ export const sectionDefinitions = [
   { key: "abonado", label: "Abonado", mobileLabel: "Datos" },
   { key: "inmueble", label: "Inmueble", mobileLabel: "Inmueble" },
   { key: "servicios", label: "Servicios", mobileLabel: "Servicios" },
-  { key: "aviso", label: "Aviso y Foto", mobileLabel: "Aviso" }
+  { key: "aviso", label: "Aviso", mobileLabel: "Aviso" },
+  { key: "foto", label: "Foto", mobileLabel: "Foto" }
 ];
 
 export const saveIntentOptions = {

@@ -186,6 +186,8 @@ function App() {
   const [recordView, setRecordView] = useState("active");
   const [recordQuickFilter, setRecordQuickFilter] = useState("clandestino");
   const [recordPage, setRecordPage] = useState(1);
+  const [showRecordAdvancedFilters, setShowRecordAdvancedFilters] = useState(false);
+  const [showRecordPreview, setShowRecordPreview] = useState(false);
   const [recordFilters, setRecordFilters] = useState({
     clave: "",
     barrio: "",
@@ -1036,6 +1038,62 @@ function App() {
     () => moduleNavigationItems.find((item) => item.key === workspaceView) ?? null,
     [moduleNavigationItems, workspaceView]
   );
+  const sidebarNavigationSections = useMemo(() => {
+    const labelByKey = {
+      executiveReport: "Operaciones",
+      mapReports: "Reportes",
+      mapAnalytics: "Estadisticas",
+      padron: "Padron"
+    };
+    const badgeByKey = {
+      records: safeRecords.length,
+      padron: padronMeta?.total_records ?? 0,
+      logs: safeAuditLogs.length,
+      users: safeUsers.length,
+      map: visibleMapPoints.length,
+      mapReports: mapReportData.totalZones,
+      mapAnalytics: mapReportData.totalPoints,
+      requests: padronRequestResult?.summary?.total_registros ?? 0
+    };
+    const normalizeItem = (item) => ({
+      ...item,
+      label: labelByKey[item.key] || item.label,
+      badge: badgeByKey[item.key] ?? null
+    });
+    const items = moduleNavigationItems.map(normalizeItem);
+    const dashboardItem = isAdmin
+      ? { key: "dashboard", label: "Tablero", icon: "dashboard", helper: "Control", badge: null }
+      : null;
+
+    return [
+      {
+        key: "principal",
+        title: "Principal",
+        items: [dashboardItem, ...items.filter((item) => ["records", "lookup"].includes(item.key))].filter(Boolean)
+      },
+      {
+        key: "campo",
+        title: "Campo",
+        items: items.filter((item) => ["map", "mapReports", "requests"].includes(item.key))
+      },
+      {
+        key: "gestion",
+        title: "Gestion",
+        items: items.filter((item) => ["executiveReport", "padron", "mapAnalytics", "logs", "users"].includes(item.key))
+      }
+    ].filter((section) => section.items.length);
+  }, [
+    isAdmin,
+    mapReportData.totalPoints,
+    mapReportData.totalZones,
+    moduleNavigationItems,
+    padronMeta?.total_records,
+    padronRequestResult?.summary?.total_registros,
+    safeAuditLogs.length,
+    safeRecords.length,
+    safeUsers.length,
+    visibleMapPoints.length
+  ]);
   const adminInsight = useMemo(() => {
     if (!isAdmin) {
       return null;
@@ -7003,38 +7061,28 @@ function App() {
         </div>
       </header>
       <aside className={`app-sidebar no-print ${showMobileModuleMenu ? "is-open" : ""}`}>
-        <div className="app-sidebar-section">
-          <span className="app-sidebar-label">Modulo</span>
-          {isAdmin ? (
-            <button
-              type="button"
-              className={`app-sidebar-item ${workspaceView === "dashboard" ? "is-active" : ""}`}
-              onClick={() => {
-                setWorkspaceView("dashboard");
-                setShowMobileModuleMenu(false);
-              }}
-            >
-              <Icon name="dashboard" />
-              <span>Tablero</span>
-              <small>Control</small>
-            </button>
-          ) : null}
-          {moduleNavigationItems.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`app-sidebar-item ${workspaceView === item.key ? "is-active" : ""}`}
-              onClick={() => {
-                setWorkspaceView(item.key);
-                setShowMobileModuleMenu(false);
-              }}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-              <small>{item.helper}</small>
-            </button>
-          ))}
-        </div>
+        {sidebarNavigationSections.map((section) => (
+          <div className="app-sidebar-section" key={section.key}>
+            <span className="app-sidebar-label">{section.title}</span>
+            {section.items.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`app-sidebar-item ${workspaceView === item.key ? "is-active" : ""}`}
+                onClick={() => {
+                  setWorkspaceView(item.key);
+                  setShowMobileModuleMenu(false);
+                }}
+              >
+                <Icon name={item.icon} />
+                <span>{item.label}</span>
+                {item.badge !== null && item.badge !== undefined ? (
+                  <small className="app-sidebar-badge">{item.badge}</small>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ))}
       </aside>
       {showMobileModuleMenu ? (
         <button
@@ -7044,28 +7092,6 @@ function App() {
           onClick={() => setShowMobileModuleMenu(false)}
         />
       ) : null}
-      <nav className="app-bottom-nav no-print" aria-label="Navegacion principal movil">
-        {primaryModuleNavigationItems.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            className={workspaceView === item.key ? "is-active" : ""}
-            onClick={() => setWorkspaceView(item.key)}
-          >
-            <Icon name={item.icon} />
-            <span>{item.key === "lookup" ? "Buscar" : item.label}</span>
-          </button>
-        ))}
-        <button
-          type="button"
-          className={showMobileModuleMenu ? "is-active" : ""}
-          onClick={() => setShowMobileModuleMenu((current) => !current)}
-        >
-          <Icon name="more" />
-          <span>Mas</span>
-        </button>
-      </nav>
-
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
@@ -7700,94 +7726,8 @@ function App() {
             </div>
           </div>
 
-          {loading ? <p className="helper-text">Cargando...</p> : null}
+          {loading ? <p className="helper-text">Cargando registros...</p> : null}
           {emptyRecordsMessage ? <p className="helper-text">{emptyRecordsMessage}</p> : null}
-          <div className="record-filter-strip">
-            {recordQuickFilterOptions.map((option) => {
-              const count =
-                option.key === "today"
-                  ? recordsUpdatedToday
-                  : option.key === "clandestino"
-                    ? safeRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length
-                  : option.key === "reportada"
-                    ? safeRecords.filter((record) => record.estado_padron === "reportada").length
-                  : option.key === "varios_padrones"
-                    ? safeRecords.filter((record) => record.estado_padron === "varios_padrones").length
-                  : option.key === "no_photo"
-                    ? pendingPhotoRecords
-                    : option.key === "alert"
-                      ? alertRecords.length
-                    : safeRecords.length;
-
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  className={`record-filter-chip ${recordQuickFilter === option.key ? "is-active" : ""}`}
-                  onClick={() => setRecordQuickFilter(option.key)}
-                >
-                  <span>{option.label}</span>
-                  <strong>{count}</strong>
-                </button>
-              );
-            })}
-          </div>
-          <div className="record-filter-panel">
-            <label className="record-filter-field is-wide">
-              <span>Buscar por clave</span>
-              <input
-                type="search"
-                name="clave"
-                value={recordFilters.clave}
-                onChange={handleRecordFilterChange}
-                placeholder="Ej. 183-02-02"
-              />
-            </label>
-            <label className="record-filter-field">
-              <span>Barrio o colonia</span>
-              <select name="barrio" value={recordFilters.barrio} onChange={handleRecordFilterChange}>
-                <option value="">Todos</option>
-                {availableRecordBarrios.map((barrio) => (
-                  <option key={barrio} value={barrio}>
-                    {barrio}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="record-filter-field">
-              <span>Responsable</span>
-              <select name="responsible" value={recordFilters.responsible} onChange={handleRecordFilterChange}>
-                <option value="">Todos</option>
-                {availableRecordResponsibles.map((responsible) => (
-                  <option key={responsible} value={responsible}>
-                    {responsible}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="record-filter-field">
-              <span>Desde</span>
-              <input type="date" name="date_from" value={recordFilters.date_from} onChange={handleRecordFilterChange} />
-            </label>
-            <label className="record-filter-field">
-              <span>Hasta</span>
-              <input type="date" name="date_to" value={recordFilters.date_to} onChange={handleRecordFilterChange} />
-            </label>
-            <label className="record-filter-field">
-              <span>Estado operativo</span>
-              <select name="status" value={recordFilters.status} onChange={handleRecordFilterChange}>
-                {recordStatusFilterOptions.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="button" className="button-secondary record-filter-clear" onClick={clearRecordFilters}>
-              <Icon name="refresh" />
-              Limpiar filtros
-            </button>
-          </div>
 
         <div className="record-list-head">
           <span>Exp.</span>
@@ -7961,6 +7901,134 @@ function App() {
         </aside>
 
         <section className="content">
+          <section className="records-workspace-header no-print">
+            <div className="records-title-row">
+              <div>
+                <p className="sheet-kicker">Gestion de fichas</p>
+                <h2><Icon name="records" className="title-icon" />Fichas registradas</h2>
+                <p className="workspace-title">
+                  Captura, busqueda, validacion e impresion desde una vista compacta de trabajo.
+                </p>
+              </div>
+              <div className="records-main-actions">
+                <button type="button" onClick={resetForm}>
+                  <Icon name="plus" />
+                  Nueva ficha
+                </button>
+                <button type="button" className="button-secondary" onClick={openPrintBatchModal}>
+                  <Icon name="records" />
+                  Imprimir
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setShowRecordPreview((current) => !current)}
+                >
+                  <Icon name="records" />
+                  {showRecordPreview ? "Ocultar vista" : "Vista previa"}
+                </button>
+              </div>
+            </div>
+            <div className="record-filter-strip records-filter-strip">
+              {recordQuickFilterOptions.map((option) => {
+                const count =
+                  option.key === "today"
+                    ? recordsUpdatedToday
+                    : option.key === "clandestino"
+                      ? safeRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length
+                    : option.key === "reportada"
+                      ? safeRecords.filter((record) => record.estado_padron === "reportada").length
+                    : option.key === "varios_padrones"
+                      ? safeRecords.filter((record) => record.estado_padron === "varios_padrones").length
+                    : option.key === "no_photo"
+                      ? pendingPhotoRecords
+                      : option.key === "alert"
+                        ? alertRecords.length
+                      : safeRecords.length;
+
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    className={`record-filter-chip ${recordQuickFilter === option.key ? "is-active" : ""}`}
+                    onClick={() => setRecordQuickFilter(option.key)}
+                  >
+                    <span>{option.label}</span>
+                    <strong>{count}</strong>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="records-filter-toolbar">
+              <label className="record-filter-field records-search-field">
+                <span>Buscar por clave</span>
+                <input
+                  type="search"
+                  name="clave"
+                  value={recordFilters.clave}
+                  onChange={handleRecordFilterChange}
+                  placeholder="Ej. 183-02-02"
+                />
+              </label>
+              <button
+                type="button"
+                className={`button-secondary ${showRecordAdvancedFilters ? "active-filter" : ""}`}
+                onClick={() => setShowRecordAdvancedFilters((current) => !current)}
+              >
+                <Icon name="more" />
+                Filtros avanzados
+              </button>
+              <button type="button" className="button-secondary record-filter-clear" onClick={clearRecordFilters}>
+                <Icon name="refresh" />
+                Limpiar
+              </button>
+            </div>
+            {showRecordAdvancedFilters ? (
+              <div className="record-filter-panel records-advanced-filters">
+                <label className="record-filter-field">
+                  <span>Barrio o colonia</span>
+                  <select name="barrio" value={recordFilters.barrio} onChange={handleRecordFilterChange}>
+                    <option value="">Todos</option>
+                    {availableRecordBarrios.map((barrio) => (
+                      <option key={barrio} value={barrio}>
+                        {barrio}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="record-filter-field">
+                  <span>Responsable</span>
+                  <select name="responsible" value={recordFilters.responsible} onChange={handleRecordFilterChange}>
+                    <option value="">Todos</option>
+                    {availableRecordResponsibles.map((responsible) => (
+                      <option key={responsible} value={responsible}>
+                        {responsible}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="record-filter-field">
+                  <span>Desde</span>
+                  <input type="date" name="date_from" value={recordFilters.date_from} onChange={handleRecordFilterChange} />
+                </label>
+                <label className="record-filter-field">
+                  <span>Hasta</span>
+                  <input type="date" name="date_to" value={recordFilters.date_to} onChange={handleRecordFilterChange} />
+                </label>
+                <label className="record-filter-field">
+                  <span>Estado operativo</span>
+                  <select name="status" value={recordFilters.status} onChange={handleRecordFilterChange}>
+                    {recordStatusFilterOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+          </section>
+
           {lastProcessedRecord ? (
             <div className="processed-record-notice no-print" role="status">
               <div>
@@ -8192,23 +8260,55 @@ function App() {
             ) : null}
 
             {activeSection === "aviso" ? (
-              <section className="sheet-section two-columns compact-columns">
-                <div>
-                  <h3>Fotografia del inmueble</h3>
-                  <label className="file-input">
-                    <span>Seleccionar foto</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-                    />
+              <section className="sheet-section">
+                <h3>Datos para aviso</h3>
+                <div className="form-grid">
+                  <label>
+                    <span>Fecha del aviso</span>
+                    <input type="date" name="fecha_aviso" value={form.fecha_aviso || ""} onChange={handleChange} />
                   </label>
-                  {selectedFile ? (
-                    <p className="helper-text">
-                      Archivo listo: {selectedFile.name}. Se optimizara automaticamente al guardar.
-                    </p>
-                  ) : null}
+                  <label>
+                    <span>Firmante</span>
+                    <input name="firmante_aviso" value={form.firmante_aviso} onChange={handleChange} />
+                  </label>
+                  <label>
+                    <span>Cargo</span>
+                    <input name="cargo_firmante" value={form.cargo_firmante} onChange={handleChange} />
+                  </label>
+                  <label>
+                    <span>Levantamiento de datos</span>
+                    <input name="levantamiento_datos" value={form.levantamiento_datos} onChange={handleChange} />
+                  </label>
+                  <label>
+                    <span>Analista de datos</span>
+                    <input name="analista_datos" value={form.analista_datos} onChange={handleChange} />
+                  </label>
+                </div>
+              </section>
+            ) : null}
+
+            {activeSection === "foto" ? (
+              <section className="sheet-section">
+                <h3>Fotografia del inmueble</h3>
+                <div className="photo-workspace">
+                  <div>
+                    <label className="file-input">
+                      <span>Seleccionar foto</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                    {selectedFile ? (
+                      <p className="helper-text">
+                        Archivo listo: {selectedFile.name}. Se optimizara automaticamente al guardar.
+                      </p>
+                    ) : (
+                      <p className="helper-text">Carga evidencia fotografica desde escritorio o camara movil.</p>
+                    )}
+                  </div>
                   {localSelectedPhotoUrl || selectedPhotoUrl ? (
                     <img
                       src={localSelectedPhotoUrl || selectedPhotoUrl}
@@ -8218,32 +8318,6 @@ function App() {
                   ) : (
                     <div className="photo-placeholder">Sin fotografia cargada</div>
                   )}
-                </div>
-
-                <div>
-                  <h3>Datos para aviso</h3>
-                  <div className="stack-fields">
-                    <label>
-                      <span>Fecha del aviso</span>
-                      <input type="date" name="fecha_aviso" value={form.fecha_aviso || ""} onChange={handleChange} />
-                    </label>
-                    <label>
-                      <span>Firmante</span>
-                      <input name="firmante_aviso" value={form.firmante_aviso} onChange={handleChange} />
-                    </label>
-                    <label>
-                      <span>Cargo</span>
-                      <input name="cargo_firmante" value={form.cargo_firmante} onChange={handleChange} />
-                    </label>
-                    <label>
-                      <span>Levantamiento de datos</span>
-                      <input name="levantamiento_datos" value={form.levantamiento_datos} onChange={handleChange} />
-                    </label>
-                    <label>
-                      <span>Analista de datos</span>
-                      <input name="analista_datos" value={form.analista_datos} onChange={handleChange} />
-                    </label>
-                  </div>
                 </div>
               </section>
             ) : null}
@@ -8318,7 +8392,7 @@ function App() {
             </div>
           </form>
 
-          <section className="preview-panel">
+          <section className={`preview-panel record-preview-panel ${showRecordPreview ? "is-open" : "is-collapsed"}`}>
             <div className="preview-actions no-print">
               <button type="button" className="button-secondary" onClick={openPrintBatchModal}>
                 <Icon name="records" />
@@ -8335,7 +8409,17 @@ function App() {
               </button>
             </div>
 
-            <h2>Ficha visual</h2>
+            <div className="record-preview-head no-print">
+              <div>
+                <p className="sheet-kicker">Vista previa</p>
+                <h2>Ficha visual</h2>
+              </div>
+              <button type="button" className="button-secondary" onClick={() => setShowRecordPreview((current) => !current)}>
+                {showRecordPreview ? "Contraer" : "Expandir"}
+              </button>
+            </div>
+            {showRecordPreview ? (
+            <>
             <article className="document-sheet">
               <header className="document-header">
                 <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="document-logo" />
@@ -8473,6 +8557,13 @@ function App() {
                 </div>
               )}
             </article>
+            </>
+            ) : (
+              <div className="empty-state record-preview-empty no-print">
+                <h3>Vista previa contraida</h3>
+                <p>Usa el boton Vista previa cuando necesites revisar la ficha visual o el historial.</p>
+              </div>
+            )}
           </section>
         </section>
       </main>
