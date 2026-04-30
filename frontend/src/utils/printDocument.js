@@ -11,10 +11,10 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   printFrame.title = title;
   printFrame.setAttribute("aria-hidden", "true");
   printFrame.style.position = "fixed";
-  printFrame.style.right = "0";
-  printFrame.style.bottom = "0";
-  printFrame.style.width = "0";
-  printFrame.style.height = "0";
+  printFrame.style.left = "-10000px";
+  printFrame.style.top = "0";
+  printFrame.style.width = "8.5in";
+  printFrame.style.height = "11in";
   printFrame.style.border = "0";
   printFrame.style.opacity = "0";
   printFrame.style.pointerEvents = "none";

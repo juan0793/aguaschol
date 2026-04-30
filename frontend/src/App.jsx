@@ -2605,43 +2605,19 @@ function App() {
 
   const handleSearch = async (event) => {
     event.preventDefault();
-    if (!search.trim()) {
+    const value = search.trim();
+    setRecordFilters((current) => ({ ...current, clave: value }));
+    setRecordPage(1);
+
+    if (!value) {
       loadRecords("", recordView);
-      return;
-    }
-
-    if (recordView === "archived") {
-      loadRecords(search, "archived");
-      return;
-    }
-
-    try {
-      const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(search)}`);
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        setRecords([]);
-        setEmptyRecordsMessage("No se encontraron coincidencias.");
-        showAlert("No se encontro esa clave catastral.");
-        return;
-      }
-
-      const data = await response.json();
-      setRecords([data]);
-      setEmptyRecordsMessage("");
-      applyRecord(data);
-    } catch (_error) {
-      showAlert("No fue posible completar la busqueda.");
     }
   };
 
   const handleSearchInputChange = (event) => {
     const value = event.target.value;
     setSearch(value);
+    setRecordFilters((current) => ({ ...current, clave: value }));
 
     if (!value.trim()) {
       loadRecords("", recordView);
@@ -2680,6 +2656,7 @@ function App() {
   };
 
   const clearRecordFilters = () => {
+    setSearch("");
     setRecordFilters({
       clave: "",
       barrio: "",
