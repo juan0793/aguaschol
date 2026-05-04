@@ -2462,15 +2462,30 @@ function App() {
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") {
-      return;
+      return undefined;
     }
 
-    loadRecords("", "active", { silent: true });
-    loadMapPoints({ silent: true });
-    loadUsers({ silent: true });
+    const refreshDashboard = () => {
+      if (document.visibilityState !== "visible") return;
+      loadRecords("", "active", { silent: true });
+      loadMapPoints({ silent: true });
+      loadUsers({ silent: true });
+      loadAuditLogs({ silent: true });
+    };
+
+    refreshDashboard();
     loadPadronMeta({ silent: true });
     loadAlcaldiaMeta({ silent: true });
-    loadAuditLogs({ silent: true });
+
+    const intervalId = window.setInterval(refreshDashboard, 15000);
+    document.addEventListener("visibilitychange", refreshDashboard);
+    window.addEventListener("focus", refreshDashboard);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshDashboard);
+      window.removeEventListener("focus", refreshDashboard);
+    };
   }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
@@ -7109,7 +7124,49 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
-          <section className="preview-panel dashboard-widget-toolbar">
+          <section className="dashboard-live-strip" aria-label="Pulso operativo del tablero">
+            <article className="dashboard-live-card is-primary">
+              <span className="dashboard-live-dot" />
+              <div>
+                <small>En vivo</small>
+                <strong>{onlineUsers.length} usuarios</strong>
+                <p>Actualiza actividad, fichas y campo cada 15 segundos.</p>
+              </div>
+            </article>
+            <article className="dashboard-live-card">
+              <span className="dashboard-live-icon"><Icon name="activity" /></span>
+              <div>
+                <small>Ultimo movimiento</small>
+                <strong>{dashboardActivity[0]?.summary || actionLabel(dashboardActivity[0]?.action) || "Sin eventos"}</strong>
+                <p>{dashboardActivity[0] ? formatDateTime(dashboardActivity[0].created_at) : "La bitacora aparecera aqui."}</p>
+              </div>
+            </article>
+            <article className="dashboard-live-card">
+              <span className="dashboard-live-icon"><Icon name="records" /></span>
+              <div>
+                <small>Fichas hoy</small>
+                <strong>{recordsUpdatedToday}</strong>
+                <p>{pendingPhotoRecords} sin fotografia y {alertRecords.length} en plazo critico.</p>
+              </div>
+            </article>
+            <article className="dashboard-live-card">
+              <span className="dashboard-live-icon"><Icon name="map" /></span>
+              <div>
+                <small>Campo</small>
+                <strong>{mapPointsToday} puntos</strong>
+                <p>{dashboardJourneys[0] ? `${formatMapDiaryLabel(dashboardJourneys[0].key)} activa` : "Sin jornada activa registrada."}</p>
+              </div>
+            </article>
+          </section>
+
+          <details className="preview-panel dashboard-widget-toolbar">
+            <summary className="dashboard-widget-summary">
+              <span>
+                <Icon name="dashboard" className="title-icon" />
+                Personalizar tablero
+              </span>
+              <small>{visibleDashboardWidgetItems.length} bloques visibles</small>
+            </summary>
             <div className="dashboard-widget-toolbar-head">
               <div>
                 <p className="sheet-kicker">Diseño del tablero</p>
@@ -7136,7 +7193,7 @@ function App() {
                 </button>
               ))}
             </div>
-          </section>
+          </details>
 
           <section className="dashboard-widget-grid">
             {visibleDashboardWidgetItems.map((item, index) => (
