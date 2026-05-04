@@ -11,6 +11,11 @@ const alcaldiaPath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-clave
 const alcaldiaMetaPath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-meta.json");
 const alcaldiaSourcePath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-source-upload.bin");
 
+const excelMimeTypeByExtension = {
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+};
+
 const sortByClave = (items) =>
   [...items].sort((a, b) => a.clave_catastral.localeCompare(b.clave_catastral, "es"));
 
@@ -23,6 +28,16 @@ const normalizeHeader = (value = "") =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+
+const sanitizeExcelText = (value = "") =>
+  String(value ?? "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .trim();
+
+const normalizeWorksheetName = (value = "padron") => {
+  const cleaned = sanitizeExcelText(value).replace(/[:\\/?*[\]]/g, " ").trim();
+  return (cleaned || "padron").slice(0, 31);
+};
 
 const formatLookupKeyFromDigits = (digits = "") => {
   const cleanedDigits = String(digits).replace(/\D/g, "");
@@ -1085,28 +1100,40 @@ export const generatePadronRequestReport = async (payload = {}) => {
 };
 
 export const exportClavePadronWorkbook = async () => {
+  const sourceFileName = sanitizeExcelText(masterMeta.source_file_name || masterMeta.file_name || "");
+  const sourceExtension = path.extname(sourceFileName).toLowerCase();
+
+  if (fs.existsSync(maestroSourcePath) && excelMimeTypeByExtension[sourceExtension]) {
+    return {
+      fileName: sourceFileName,
+      contentType: excelMimeTypeByExtension[sourceExtension],
+      buffer: fs.readFileSync(maestroSourcePath)
+    };
+  }
+
   const workbook = XLSX.utils.book_new();
   const rows = masterRecords.map((item) => ({
-    catastral: item.clave_catastral,
-    nombre: item.inquilino ?? "",
-    numero_abonado: item.abonado ?? "",
-    titular: item.nombre ?? "",
-    barrio_colonia: item.barrio_colonia ?? "",
-    agua: item.agua ?? "",
-    alcantarillado: item.alcantarillado ?? "",
-    barrido: item.barrido ?? "",
-    recoleccion: item.recoleccion ?? "",
-    desechos_peligrosos: item.desechos_peligrosos ?? "",
+    catastral: sanitizeExcelText(item.clave_catastral),
+    nombre: sanitizeExcelText(item.inquilino),
+    numero_abonado: sanitizeExcelText(item.abonado),
+    titular: sanitizeExcelText(item.nombre),
+    barrio_colonia: sanitizeExcelText(item.barrio_colonia),
+    agua: sanitizeExcelText(item.agua),
+    alcantarillado: sanitizeExcelText(item.alcantarillado),
+    barrido: sanitizeExcelText(item.barrido),
+    recoleccion: sanitizeExcelText(item.recoleccion),
+    desechos_peligrosos: sanitizeExcelText(item.desechos_peligrosos),
     valor: Number(item.valor ?? 0),
     intereses: Number(item.intereses ?? 0),
     total: Number(item.total ?? 0)
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, worksheet, masterMeta.sheet_name || "padron");
+  XLSX.utils.book_append_sheet(workbook, worksheet, normalizeWorksheetName(masterMeta.sheet_name));
 
   return {
     fileName: `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`,
-    buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
+    contentType: excelMimeTypeByExtension[".xlsx"],
+    buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx", bookSST: true })
   };
 };

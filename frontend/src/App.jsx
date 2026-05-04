@@ -4379,14 +4379,29 @@ function App() {
       }
 
       const blob = await response.blob();
+      const contentType = response.headers.get("Content-Type") || blob.type || "";
+      const isExcelResponse =
+        contentType.includes("spreadsheet") ||
+        contentType.includes("vnd.ms-excel") ||
+        contentType.includes("octet-stream");
+
+      if (!isExcelResponse) {
+        const message = await blob.text().catch(() => "");
+        throw new Error(
+          message.includes("<!doctype") || message.includes("<html")
+            ? "El servidor devolvio una pagina web en lugar del padron. Revisa la URL del API configurada."
+            : "El servidor no devolvio un archivo Excel valido."
+        );
+      }
+
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       const fallbackName = `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`;
       const contentDisposition = response.headers.get("Content-Disposition") || "";
-      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fileNameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i);
 
       link.href = downloadUrl;
-      link.download = fileNameMatch?.[1] || fallbackName;
+      link.download = decodeURIComponent(fileNameMatch?.[1] || fileNameMatch?.[2] || fallbackName);
       document.body.appendChild(link);
       link.click();
       link.remove();

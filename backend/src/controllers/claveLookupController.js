@@ -135,7 +135,7 @@ export const reprocessPadron = async (req, res, next) => {
 export const downloadPadron = async (_req, res, next) => {
   try {
     const exportResult = await exportClavePadronWorkbook();
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Type", exportResult.contentType || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${exportResult.fileName}"`);
     return res.send(exportResult.buffer);
   } catch (error) {
