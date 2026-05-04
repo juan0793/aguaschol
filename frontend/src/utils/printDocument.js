@@ -1,39 +1,23 @@
 export const pause = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-export const printDocument = async (title, bodyMarkup, options = {}) => {
+const escapeTitle = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+const buildPrintHtml = (title, bodyMarkup, options) => {
   const {
     pageSize = "Letter portrait",
     pageMargin = "10mm",
     bodyClassName = "",
     showPageFooter = false
   } = options;
-  const printFrame = window.document.createElement("iframe");
-  printFrame.title = title;
-  printFrame.setAttribute("aria-hidden", "true");
-  printFrame.style.position = "fixed";
-  printFrame.style.left = "-10000px";
-  printFrame.style.top = "0";
-  printFrame.style.width = "8.5in";
-  printFrame.style.height = "11in";
-  printFrame.style.border = "0";
-  printFrame.style.opacity = "0";
-  printFrame.style.pointerEvents = "none";
-  window.document.body.appendChild(printFrame);
 
-  const printWindow = printFrame.contentWindow;
-  const printDocumentRef = printFrame.contentDocument || printWindow?.document;
-
-  if (!printWindow || !printDocumentRef) {
-    printFrame.remove();
-    window.alert("No fue posible preparar la impresion.");
-    return;
-  }
-
-  printDocumentRef.open();
-  printDocumentRef.write(`
+  return `
     <html lang="es">
       <head>
-        <title>${title}</title>
+        <title>${escapeTitle(title)}</title>
         <style>
           @page {
             size: ${pageSize};
@@ -865,10 +849,11 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
       </head>
       <body class="${bodyClassName}">${bodyMarkup}${showPageFooter ? '<div class="field-report-page"></div>' : ""}</body>
     </html>
-      `);
-  printDocumentRef.close();
+  `;
+};
 
-  const images = Array.from(printDocumentRef.images);
+const waitForPrintDocument = async (documentRef) => {
+  const images = Array.from(documentRef.images);
   await Promise.all(
     images.map(
       (image) =>
@@ -884,10 +869,171 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
     )
   );
 
-  await printDocumentRef.fonts?.ready;
+  await documentRef.fonts?.ready;
   await pause(250);
-  printWindow.focus();
-  printWindow.print();
-  printWindow.onafterprint = () => printFrame.remove();
-  window.setTimeout(() => printFrame.remove(), 5000);
+};
+
+export const printDocument = async (title, bodyMarkup, options = {}) => {
+  const printHtml = buildPrintHtml(title, bodyMarkup, options);
+  const previousOverflow = window.document.body.style.overflow;
+  const previewModal = window.document.createElement("div");
+  previewModal.setAttribute("role", "dialog");
+  previewModal.setAttribute("aria-modal", "true");
+  previewModal.setAttribute("aria-label", `Vista previa de ${title}`);
+  previewModal.style.position = "fixed";
+  previewModal.style.inset = "0";
+  previewModal.style.zIndex = "9999";
+  previewModal.style.display = "grid";
+  previewModal.style.gridTemplateRows = "auto minmax(0, 1fr)";
+  previewModal.style.background = "rgba(8, 20, 34, 0.68)";
+  previewModal.style.backdropFilter = "blur(5px)";
+  previewModal.style.padding = "14px";
+
+  const toolbar = window.document.createElement("div");
+  toolbar.style.display = "flex";
+  toolbar.style.alignItems = "center";
+  toolbar.style.justifyContent = "space-between";
+  toolbar.style.gap = "12px";
+  toolbar.style.width = "min(1500px, 100%)";
+  toolbar.style.margin = "0 auto 10px";
+  toolbar.style.padding = "10px 12px";
+  toolbar.style.border = "1px solid rgba(205, 225, 241, 0.72)";
+  toolbar.style.borderRadius = "16px";
+  toolbar.style.background = "#ffffff";
+  toolbar.style.boxShadow = "0 18px 48px rgba(10, 30, 52, 0.28)";
+
+  const heading = window.document.createElement("div");
+  heading.style.minWidth = "0";
+  heading.innerHTML = `
+    <strong style="display:block;color:#123b5d;font-size:15px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Vista previa de impresión</strong>
+    <span style="display:block;color:#557089;font-size:12px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeTitle(title)} · Revisa la ficha antes de enviarla a la impresora.</span>
+  `;
+
+  const actions = window.document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.flexWrap = "wrap";
+  actions.style.justifyContent = "flex-end";
+  actions.style.gap = "8px";
+
+  const closeButton = window.document.createElement("button");
+  closeButton.type = "button";
+  closeButton.textContent = "Cerrar";
+  closeButton.style.minHeight = "38px";
+  closeButton.style.border = "1px solid #cbdce9";
+  closeButton.style.borderRadius = "10px";
+  closeButton.style.background = "#f7fbff";
+  closeButton.style.color = "#123b5d";
+  closeButton.style.fontWeight = "700";
+  closeButton.style.padding = "0 14px";
+  closeButton.style.cursor = "pointer";
+
+  const printButton = window.document.createElement("button");
+  printButton.type = "button";
+  printButton.textContent = "Imprimir ahora";
+  printButton.style.minHeight = "38px";
+  printButton.style.border = "1px solid #0d4d86";
+  printButton.style.borderRadius = "10px";
+  printButton.style.background = "#0d4d86";
+  printButton.style.color = "#ffffff";
+  printButton.style.fontWeight = "800";
+  printButton.style.padding = "0 16px";
+  printButton.style.cursor = "pointer";
+
+  actions.append(closeButton, printButton);
+  toolbar.append(heading, actions);
+
+  const frameShell = window.document.createElement("div");
+  frameShell.style.width = "min(1500px, 100%)";
+  frameShell.style.minHeight = "0";
+  frameShell.style.margin = "0 auto";
+  frameShell.style.border = "1px solid rgba(205, 225, 241, 0.62)";
+  frameShell.style.borderRadius = "18px";
+  frameShell.style.background = "#e8eef4";
+  frameShell.style.boxShadow = "0 24px 70px rgba(5, 18, 34, 0.32)";
+  frameShell.style.overflow = "hidden";
+
+  const printFrame = window.document.createElement("iframe");
+  printFrame.title = title;
+  printFrame.style.display = "block";
+  printFrame.style.width = "100%";
+  printFrame.style.height = "100%";
+  printFrame.style.minHeight = "calc(100vh - 108px)";
+  printFrame.style.border = "0";
+  printFrame.style.background = "#ffffff";
+
+  frameShell.appendChild(printFrame);
+  previewModal.append(toolbar, frameShell);
+  window.document.body.appendChild(previewModal);
+  window.document.body.style.overflow = "hidden";
+
+  const cleanup = () => {
+    window.document.body.style.overflow = previousOverflow;
+    window.removeEventListener("keydown", handleKeydown);
+    previewModal.remove();
+  };
+
+  const finish = () =>
+    new Promise((resolve) => {
+      closeButton.onclick = () => {
+        cleanup();
+        resolve();
+      };
+
+      const printWindow = printFrame.contentWindow;
+      const printDocumentRef = printFrame.contentDocument || printWindow?.document;
+
+      if (!printWindow || !printDocumentRef) {
+        cleanup();
+        window.alert("No fue posible preparar la impresion.");
+        resolve();
+        return;
+      }
+
+      printButton.onclick = async () => {
+        printButton.disabled = true;
+        printButton.textContent = "Preparando...";
+        await waitForPrintDocument(printDocumentRef);
+        printWindow.focus();
+        printWindow.print();
+        printButton.disabled = false;
+        printButton.textContent = "Imprimir ahora";
+      };
+
+      printWindow.onafterprint = () => {
+        cleanup();
+        resolve();
+      };
+    });
+
+  function handleKeydown(event) {
+    if (event.key === "Escape") {
+      closeButton.click();
+    }
+  }
+
+  window.addEventListener("keydown", handleKeydown);
+
+  const printWindow = printFrame.contentWindow;
+  const printDocumentRef = printFrame.contentDocument || printWindow?.document;
+
+  if (!printWindow || !printDocumentRef) {
+    cleanup();
+    window.alert("No fue posible preparar la impresion.");
+    return;
+  }
+
+  printDocumentRef.open();
+  printDocumentRef.write(printHtml);
+  printDocumentRef.close();
+
+  printButton.disabled = true;
+  printButton.textContent = "Cargando vista...";
+
+  await waitForPrintDocument(printDocumentRef);
+
+  printButton.disabled = false;
+  printButton.textContent = "Imprimir ahora";
+  printButton.focus();
+
+  return finish();
 };

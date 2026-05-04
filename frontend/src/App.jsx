@@ -6430,7 +6430,7 @@ function App() {
                 Se muestran las fichas según los filtros activos. Puedes buscar por clave y seleccionar cuántas impresiones de ficha o aviso necesitas.
               </p>
               <p className="helper-text">
-                Al imprimir se cerrará esta selección y aparecerá solo el cuadro de impresión del navegador. Si eliges fichas y avisos juntos, se confirmará cada tipo de documento por separado.
+                Al continuar se abrirá una vista previa grande para revisar el documento antes de enviar la impresión al navegador.
               </p>
             </div>
             <div className="print-batch-summary">
@@ -6528,7 +6528,7 @@ function App() {
                 <Icon name="records" />
                 {batchPrinting
                   ? "Preparando..."
-                  : `Imprimir ${batchPrintSelection.fichas} fichas / ${batchPrintSelection.avisos} avisos`}
+                  : `Vista previa: ${batchPrintSelection.fichas} fichas / ${batchPrintSelection.avisos} avisos`}
               </button>
             </div>
           </div>
