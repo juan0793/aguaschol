@@ -3800,6 +3800,34 @@ function App() {
     focusSheet();
   };
 
+  const startNewRecordFromLookup = (patch = {}, alertMessage = "Ficha nueva preparada desde la consulta.") => {
+    const nextForm = {
+      ...emptyForm,
+      ...patch,
+      id: null,
+      foto_path: ""
+    };
+
+    setSelectedRecordId(null);
+    setLastProcessedRecord(null);
+    setRecordQuickFilter("all");
+    setRecordFilters({
+      clave: nextForm.clave_catastral || "",
+      barrio: "",
+      responsible: "",
+      date_from: "",
+      date_to: "",
+      status: "all"
+    });
+    setForm(nextForm);
+    setSelectedFile(null);
+    setAvisoHtml("");
+    setActiveSection("abonado");
+    setWorkspaceView("records");
+    showAlert(alertMessage);
+    focusSheet();
+  };
+
   const openLookupMatchInRecord = async (match) => {
     try {
       const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(match.clave_catastral)}`);
@@ -8979,6 +9007,27 @@ function App() {
                       : "No existe registro en el sistema. Posible clandestino."}
                   </p>
 
+                  {!lookupResult.exists && lookupResult.field === "clave" ? (
+                    <div className="lookup-match-actions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          startNewRecordFromLookup(
+                            {
+                              clave_catastral: lookupResult.normalized_query || lookupQuery.trim(),
+                              estado_padron: "clandestino",
+                              comentarios: "Clandestino"
+                            },
+                            `Ficha nueva preparada para la clave ${lookupResult.normalized_query || lookupQuery.trim()}.`
+                          )
+                        }
+                      >
+                        <Icon name="records" />
+                        Crear ficha nueva
+                      </button>
+                    </div>
+                  ) : null}
+
                   {lookupResult.exists ? (
                     <>
                       <div className="lookup-summary-strip">
@@ -9057,24 +9106,24 @@ function App() {
                                   <button
                                     type="button"
                                     className="button-secondary"
-                                    onClick={() => {
-                                      setForm((current) => ({
-                                        ...current,
-                                        clave_catastral:
-                                          current.clave_catastral ||
-                                          (match.exists_in_aguas ? match.clave_aguas_formato : match.clave_catastral) ||
-                                          "",
-                                        nombre_catastral: match.nombre || current.nombre_catastral,
-                                        barrio_colonia: match.caserio || match.direccion || current.barrio_colonia,
-                                        identidad: match.identificador || current.identidad,
-                                        comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : "Clandestino",
-                                        estado_padron: match.exists_in_aguas ? "varios_padrones" : "clandestino",
-                                        clave_alcaldia: match.clave_catastral || "",
-                                        nombre_alcaldia: match.nombre || "",
-                                        barrio_alcaldia: match.caserio || match.direccion || ""
-                                      }));
-                                      setWorkspaceView("records");
-                                    }}
+                                    onClick={() =>
+                                      startNewRecordFromLookup(
+                                        {
+                                          clave_catastral:
+                                            (match.exists_in_aguas ? match.clave_aguas_formato : match.clave_catastral) ||
+                                            "",
+                                          nombre_catastral: match.nombre || "",
+                                          barrio_colonia: match.caserio || match.direccion || "",
+                                          identidad: match.identificador || "",
+                                          comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : "Clandestino",
+                                          estado_padron: match.exists_in_aguas ? "varios_padrones" : "clandestino",
+                                          clave_alcaldia: match.clave_catastral || "",
+                                          nombre_alcaldia: match.nombre || "",
+                                          barrio_alcaldia: match.caserio || match.direccion || ""
+                                        },
+                                        `Ficha nueva preparada desde Alcaldia para la clave ${match.clave_catastral || "--"}.`
+                                      )
+                                    }
                                   >
                                     <Icon name="records" />
                                     Pasar a ficha
