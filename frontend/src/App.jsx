@@ -8962,6 +8962,10 @@ function App() {
                     <Icon name="refresh" />
                     Limpiar
                   </button>
+                  <button type="button" className="button-secondary" onClick={handleDownloadPadron}>
+                    <Icon name="records" />
+                    Descargar padrón
+                  </button>
                 </div>
               </form>
             </div>

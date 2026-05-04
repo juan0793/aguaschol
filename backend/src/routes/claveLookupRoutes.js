@@ -12,7 +12,7 @@ import {
   uploadAlcaldia,
   uploadPadron
 } from "../controllers/claveLookupController.js";
-import { requireAdmin } from "../middleware/authMiddleware.js";
+import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
 import { padronUpload } from "../middleware/padronUpload.js";
 
 const router = Router();
@@ -25,7 +25,7 @@ router.get("/alcaldia/search/:clave", searchAlcaldia);
 router.post("/alcaldia/upload", requireAdmin, padronUpload.single("padron"), uploadAlcaldia);
 router.get("/requests/meta", requireAdmin, getPadronRequestMeta);
 router.post("/requests/run", requireAdmin, runPadronRequest);
-router.get("/download", requireAdmin, downloadPadron);
+router.get("/download", requireAuth, downloadPadron);
 router.post("/reprocess", requireAdmin, reprocessPadron);
 router.get("/search", searchClave);
 router.get("/search/:clave", searchClave);
