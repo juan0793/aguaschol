@@ -9148,7 +9148,7 @@ select:focus {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   border-radius: 10px;
@@ -9212,9 +9212,21 @@ select:focus {
     box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
   }
 
+  .records-view > .sidebar.shadcn-records-sidebar {
+    height: calc(100svh - 0.75rem);
+    max-height: calc(100svh - 0.75rem);
+    overflow: hidden;
+  }
+
+  .records-sidebar-controls .records-advanced-filters {
+    max-height: min(22svh, 220px);
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .record-list-scroll {
-    height: min(56svh, 540px);
-    min-height: 280px;
+    height: 100%;
+    min-height: 180px;
   }
 
   .records-filter-tabs {
