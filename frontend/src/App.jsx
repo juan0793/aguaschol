@@ -73,6 +73,20 @@ import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/
 import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
 import { pause, printDocument } from "./utils/printDocument";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
 const DEFAULT_DASHBOARD_WIDGET_ORDER = [
@@ -6463,33 +6477,33 @@ function App() {
           </div>
         </div>
       ) : null}
-      {showPrintBatchModal ? (
-        <div className="password-modal-backdrop print-batch-backdrop">
-          <div className="password-modal-card print-batch-modal">
-            <div className="password-modal-head">
-              <p className="eyebrow">Impresión rápida</p>
-              <h2>Seleccionar fichas, avisos y copias</h2>
-              <p className="lead">
-                Se muestran las fichas según los filtros activos. Puedes buscar por clave y seleccionar cuántas impresiones de ficha o aviso necesitas.
-              </p>
-              <p className="helper-text">
-                Al continuar se abrirá una vista previa grande para revisar el documento antes de enviar la impresión al navegador.
-              </p>
-            </div>
-            <div className="print-batch-summary">
-              <span className="record-badge">{batchPrintSelection.fichas} fichas</span>
-              <span className="record-badge">{batchPrintSelection.avisos} avisos</span>
-              <span className="record-badge">{printBatchRecords.length} visibles</span>
-              <button type="button" className="record-quick-chip muted" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
-                1 ficha visible
-              </button>
-              <button type="button" className="record-quick-chip muted" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
-                1 aviso visible
-              </button>
-              <button type="button" className="record-quick-chip muted" onClick={clearBatchPrintCopies}>
-                Limpiar selección
-              </button>
-            </div>
+      <Dialog open={showPrintBatchModal} onOpenChange={(open) => !batchPrinting && setShowPrintBatchModal(open)}>
+        <DialogContent className="print-batch-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-2xl">
+          <DialogHeader className="password-modal-head">
+            <p className="eyebrow">Impresion rapida</p>
+            <DialogTitle>Seleccionar fichas, avisos y copias</DialogTitle>
+            <DialogDescription className="lead">
+              Se muestran las fichas segun los filtros activos. Puedes buscar por clave y seleccionar cuantas impresiones de ficha o aviso necesitas.
+            </DialogDescription>
+            <p className="helper-text">
+              Al continuar se abrira una vista previa grande para revisar el documento antes de enviar la impresion al navegador.
+            </p>
+          </DialogHeader>
+          <div className="print-batch-summary">
+            <Badge variant="secondary">{batchPrintSelection.fichas} fichas</Badge>
+            <Badge variant="secondary">{batchPrintSelection.avisos} avisos</Badge>
+            <Badge variant="outline">{printBatchRecords.length} visibles</Badge>
+            <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
+              1 ficha visible
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
+              1 aviso visible
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={clearBatchPrintCopies}>
+              Limpiar seleccion
+            </Button>
+          </div>
+          <ScrollArea className="print-batch-scroll">
             <div className="print-batch-grid">
               {printBatchRecords.length ? (
                 printBatchRecords.map((record) => {
@@ -6507,14 +6521,14 @@ function App() {
                       </div>
                       <div className="print-batch-card-main">
                         <strong>{record.clave_catastral}</strong>
-                        <span>{record.barrio_colonia || "Sin ubicación"}</span>
+                        <span>{record.barrio_colonia || "Sin ubicacion"}</span>
                         <small>{record.inquilino || record.abonado || record.nombre_catastral || "Sin nombre"}</small>
                       </div>
                       <div className="print-copy-group">
                         <span>Ficha</span>
                         <div className="print-copy-stepper">
-                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "ficha", -1)}>-</button>
-                          <input
+                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", -1)}>-</Button>
+                          <Input
                             type="text"
                             inputMode="numeric"
                             pattern="[0-5]"
@@ -6524,14 +6538,14 @@ function App() {
                             value={String(fichaCopies)}
                             onChange={(event) => updateBatchPrintCopies(record.id, "ficha", event.target.value)}
                           />
-                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "ficha", 1)}>+</button>
+                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", 1)}>+</Button>
                         </div>
                       </div>
                       <div className="print-copy-group">
                         <span>Aviso</span>
                         <div className="print-copy-stepper">
-                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "aviso", -1)}>-</button>
-                          <input
+                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", -1)}>-</Button>
+                          <Input
                             type="text"
                             inputMode="numeric"
                             pattern="[0-5]"
@@ -6541,7 +6555,7 @@ function App() {
                             value={String(avisoCopies)}
                             onChange={(event) => updateBatchPrintCopies(record.id, "aviso", event.target.value)}
                           />
-                          <button type="button" onClick={() => adjustBatchPrintCopies(record.id, "aviso", 1)}>+</button>
+                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", 1)}>+</Button>
                         </div>
                       </div>
                     </article>
@@ -6554,29 +6568,29 @@ function App() {
                 </div>
               )}
             </div>
-            <div className="password-form-actions">
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={() => setShowPrintBatchModal(false)}
-                disabled={batchPrinting}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handlePrintBatch}
-                disabled={batchPrinting || (!batchPrintSelection.fichas && !batchPrintSelection.avisos)}
-              >
-                <Icon name="records" />
-                {batchPrinting
-                  ? "Preparando..."
-                  : `Vista previa: ${batchPrintSelection.fichas} fichas / ${batchPrintSelection.avisos} avisos`}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+          </ScrollArea>
+          <DialogFooter className="password-form-actions">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPrintBatchModal(false)}
+              disabled={batchPrinting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handlePrintBatch}
+              disabled={batchPrinting || (!batchPrintSelection.fichas && !batchPrintSelection.avisos)}
+            >
+              <Icon name="records" />
+              {batchPrinting
+                ? "Preparando..."
+                : `Vista previa: ${batchPrintSelection.fichas} fichas / ${batchPrintSelection.avisos} avisos`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <header className={`hero app-chrome no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""}`}>
         <div className="app-topbar">
           <button
@@ -7808,35 +7822,35 @@ function App() {
         </section>
       </main>
       ) : workspaceView === "records" ? (
-      <main className="layout records-view">
-        <aside className="sidebar no-print">
+      <main className="layout records-view shadcn-records-module">
+        <Card className="sidebar no-print shadcn-records-sidebar" size="sm">
           <div className="panel-header">
             <h2>Registros</h2>
             <div className="sidebar-actions">
-              <button
+              <Button
                 type="button"
-                className={recordView === "active" ? "button-secondary active-filter" : "button-secondary"}
+                variant={recordView === "active" ? "default" : "outline"}
                 onClick={() => setRecordView("active")}
               >
                 Activas
-              </button>
+              </Button>
               {isAdmin ? (
-                <button
+                <Button
                   type="button"
-                  className={recordView === "archived" ? "button-secondary active-filter" : "button-secondary"}
+                  variant={recordView === "archived" ? "default" : "outline"}
                   onClick={() => setRecordView("archived")}
                 >
                   Archivadas
-                </button>
+                </Button>
               ) : null}
               {draftForm ? (
-                <button type="button" className="button-secondary" onClick={restoreDraft}>
+                <Button type="button" variant="outline" onClick={restoreDraft}>
                   Borrador
-                </button>
+                </Button>
               ) : null}
-              <button type="button" className="button-secondary" onClick={resetForm}>
+              <Button type="button" variant="outline" onClick={resetForm}>
                 Nuevo
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -7869,6 +7883,7 @@ function App() {
           <span>Vista</span>
         </div>
 
+        <ScrollArea className="record-list-scroll">
         <div className="record-list">
           {loading ? (
             <div className="record-skeleton-stack" aria-label="Cargando fichas">
@@ -8002,6 +8017,7 @@ function App() {
             </section>
           ))}
         </div>
+        </ScrollArea>
         <div className="record-pagination">
           <div className="record-pagination-copy">
             <strong>Pagina {recordPagination.currentPage} de {recordPagination.totalPages}</strong>
@@ -8032,7 +8048,7 @@ function App() {
             </button>
           </div>
         </div>
-        </aside>
+        </Card>
 
         <section className="content">
           <section className="records-workspace-header no-print">
@@ -8045,25 +8061,26 @@ function App() {
                 </p>
               </div>
               <div className="records-main-actions">
-                <button type="button" onClick={resetForm}>
+                <Button type="button" onClick={resetForm}>
                   <Icon name="plus" />
                   Nueva ficha
-                </button>
-                <button type="button" className="button-secondary" onClick={openPrintBatchModal}>
+                </Button>
+                <Button type="button" variant="outline" onClick={openPrintBatchModal}>
                   <Icon name="records" />
                   Imprimir
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="button-secondary"
+                  variant="outline"
                   onClick={() => setShowRecordPreview((current) => !current)}
                 >
                   <Icon name="records" />
                   {showRecordPreview ? "Ocultar vista" : "Vista previa"}
-                </button>
+                </Button>
               </div>
             </div>
-            <div className="record-filter-strip records-filter-strip">
+            <Tabs value={recordQuickFilter} onValueChange={setRecordQuickFilter} className="record-filter-strip records-filter-strip">
+              <TabsList className="records-filter-tabs">
               {recordQuickFilterOptions.map((option) => {
                 const count =
                   option.key === "today"
@@ -8081,22 +8098,22 @@ function App() {
                       : safeRecords.length;
 
                 return (
-                  <button
+                  <TabsTrigger
                     key={option.key}
-                    type="button"
+                    value={option.key}
                     className={`record-filter-chip ${recordQuickFilter === option.key ? "is-active" : ""}`}
-                    onClick={() => setRecordQuickFilter(option.key)}
                   >
                     <span>{option.label}</span>
-                    <strong>{count}</strong>
-                  </button>
+                    <Badge variant={recordQuickFilter === option.key ? "secondary" : "outline"}>{count}</Badge>
+                  </TabsTrigger>
                 );
               })}
-            </div>
+              </TabsList>
+            </Tabs>
             <div className="records-filter-toolbar">
               <label className="record-filter-field records-search-field">
                 <span>Buscar por clave</span>
-                <input
+                <Input
                   type="search"
                   name="clave"
                   value={recordFilters.clave}
@@ -8104,18 +8121,18 @@ function App() {
                   placeholder="Ej. 183-02-02"
                 />
               </label>
-              <button
+              <Button
                 type="button"
-                className={`button-secondary ${showRecordAdvancedFilters ? "active-filter" : ""}`}
+                variant={showRecordAdvancedFilters ? "default" : "outline"}
                 onClick={() => setShowRecordAdvancedFilters((current) => !current)}
               >
                 <Icon name="more" />
                 Filtros avanzados
-              </button>
-              <button type="button" className="button-secondary record-filter-clear" onClick={clearRecordFilters}>
+              </Button>
+              <Button type="button" variant="outline" className="record-filter-clear" onClick={clearRecordFilters}>
                 <Icon name="refresh" />
                 Limpiar
-              </button>
+              </Button>
             </div>
             {showRecordAdvancedFilters ? (
               <div className="record-filter-panel records-advanced-filters">

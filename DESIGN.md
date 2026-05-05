@@ -15,9 +15,15 @@ Principios:
 
 Referencias de caracter:
 - Fichas y avisos: formato institucional, parecido a documento de oficina.
-- Tablero y listados: densidad tipo sistema administrativo moderno.
+- Tablero y listados: densidad tipo sistema administrativo moderno, cercano a shadcn admin dashboards.
 - Formularios: claridad de datos y flujo guiado, sin adornos innecesarios.
 - Mapas y reportes: enfoque tecnico, coordenadas y resumen visual confiable.
+
+## 1.1 Referencia shadcn admin
+
+El proyecto puede tomar de shadcn/ui la sobriedad de dashboard: cards blancas, bordes finos, radios de 8px a 12px, sidebar neutral, acciones compactas, estados discretos y tipografia clara.
+
+No asumir que shadcn debe instalarse por defecto. La app actual usa React + Vite + CSS puro; instalar shadcn completo implica agregar Tailwind, configurar aliases y posiblemente migrar a TypeScript. Para cambios visuales incrementales, preferir adaptar el estilo con CSS existente.
 
 ## 2. Paleta de color
 
