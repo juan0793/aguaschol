@@ -196,6 +196,8 @@ function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [avisoHtml, setAvisoHtml] = useState("");
   const [loadingAviso, setLoadingAviso] = useState(false);
+  const [aiLoadingAction, setAiLoadingAction] = useState("");
+  const [aiSuggestion, setAiSuggestion] = useState(null);
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
   const [recordQuickFilter, setRecordQuickFilter] = useState("clandestino");
@@ -5142,6 +5144,65 @@ function App() {
     }
   };
 
+  const requestRecordAiAssistance = async (action) => {
+    if (!form.clave_catastral && !form.barrio_colonia && !form.comentarios) {
+      showAlert("Completa algunos datos de la ficha antes de usar IA.");
+      return;
+    }
+
+    setAiLoadingAction(action);
+    setAiSuggestion(null);
+
+    try {
+      const response = await apiFetch("/ai/record-assist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action,
+          record: form
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible generar la asistencia con IA.");
+      }
+
+      if (action === "comment") {
+        setForm((current) => ({ ...current, comentarios: data.text }));
+        setActiveSection("inmueble");
+        showAlert("Comentario tecnico generado con IA.");
+        return;
+      }
+
+      setAiSuggestion(data);
+      showAlert(action === "notice" ? "Texto de aviso generado con IA." : "Resumen generado con IA.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible usar la API de IA.");
+    } finally {
+      setAiLoadingAction("");
+    }
+  };
+
+  const copyAiSuggestion = async () => {
+    if (!aiSuggestion?.text) return;
+
+    try {
+      await navigator.clipboard.writeText(aiSuggestion.text);
+      showAlert("Texto de IA copiado.");
+    } catch {
+      showAlert("No fue posible copiar el texto.");
+    }
+  };
+
   const buildFichaPrintDocument = async (recordOverride = null) => {
     const targetRecord = recordOverride ? { ...emptyForm, ...normalizeRecord(recordOverride) } : form;
     let photoMarkup = "";
@@ -8646,7 +8707,48 @@ function App() {
               <button type="button" className="button-secondary" onClick={handlePrintAviso}>
                 Imprimir aviso
               </button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => requestRecordAiAssistance("comment")}
+                disabled={Boolean(aiLoadingAction)}
+              >
+                {aiLoadingAction === "comment" ? "IA generando..." : "IA comentario"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => requestRecordAiAssistance("summary")}
+                disabled={Boolean(aiLoadingAction)}
+              >
+                {aiLoadingAction === "summary" ? "IA generando..." : "IA resumen"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => requestRecordAiAssistance("notice")}
+                disabled={Boolean(aiLoadingAction)}
+              >
+                {aiLoadingAction === "notice" ? "IA generando..." : "IA aviso"}
+              </Button>
             </div>
+            {aiSuggestion ? (
+              <div className="ai-assist-card no-print">
+                <div>
+                  <span className="sheet-kicker">Asistencia IA</span>
+                  <strong>{aiSuggestion.label || "Texto generado"}</strong>
+                </div>
+                <p>{aiSuggestion.text}</p>
+                <div className="ai-assist-actions">
+                  <Button type="button" variant="outline" size="sm" onClick={copyAiSuggestion}>
+                    Copiar
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setAiSuggestion(null)}>
+                    Cerrar
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
             <div className="record-preview-head no-print">
               <div>

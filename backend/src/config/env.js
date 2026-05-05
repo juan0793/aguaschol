@@ -72,7 +72,13 @@ export const env = {
   emailFrom: process.env.EMAIL_FROM ?? "",
   emailFromName: process.env.EMAIL_FROM_NAME ?? "Aguas de Choluteca",
   emailApiKey: process.env.EMAIL_API_KEY ?? "",
-  emailSandbox: String(process.env.EMAIL_SANDBOX ?? "true").toLowerCase() === "true"
+  emailSandbox: String(process.env.EMAIL_SANDBOX ?? "true").toLowerCase() === "true",
+  llmApiKey: process.env.LLM_API_KEY ?? "",
+  llmApiBaseUrl: process.env.LLM_API_BASE_URL ?? "https://openrouter.ai/api/v1",
+  llmModel: process.env.LLM_MODEL ?? "openai/gpt-oss-20b:free",
+  llmAppName: process.env.LLM_APP_NAME ?? "Aguas de Choluteca",
+  llmSiteUrl: process.env.LLM_SITE_URL ?? frontendUrls[0] ?? "",
+  llmTimeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 25000)
 };
 
 env.useCloudinary = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);

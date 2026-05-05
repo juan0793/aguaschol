@@ -8,6 +8,7 @@ import { getMapTileHandler } from "./controllers/mapTileController.js";
 import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
 import claveLookupRoutes from "./routes/claveLookupRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import aiRoutes from "./routes/aiRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import inmuebleRoutes from "./routes/inmuebleRoutes.js";
 import mapPointRoutes from "./routes/mapPointRoutes.js";
@@ -127,6 +128,7 @@ app.get("/", (_req, res) => {
 app.get("/api/map-tiles/:z/:x/:y.png", getMapTileHandler);
 
 app.use("/api/auth", authRoutes);
+app.use("/api/ai", requireAuth, aiRoutes);
 app.use("/api/claves", requireAuth, claveLookupRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
 app.use("/api/map-points", requireAuth, mapPointRoutes);

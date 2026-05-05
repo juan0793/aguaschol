@@ -74,6 +74,8 @@ Rutas principales:
 - `POST /api/inmuebles/:id/foto`
 - `GET /api/inmuebles/:id/aviso`
 - `POST /api/inmuebles/aviso-preview`
+- `GET /api/ai/status`
+- `POST /api/ai/record-assist`
 
 ## Modulo Buscar clave
 
@@ -144,6 +146,21 @@ Si necesitas volver al modo temporal en memoria:
 USE_MEMORY_DB=true
 ```
 
+### IA opcional para fichas
+
+El modulo de fichas puede usar una API compatible con OpenAI/OpenRouter para generar comentario tecnico, resumen ejecutivo y texto base de aviso. La clave queda solo en el backend.
+
+```env
+LLM_API_KEY=
+LLM_API_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=openai/gpt-oss-20b:free
+LLM_APP_NAME=Aguas de Choluteca
+LLM_SITE_URL=http://localhost:5173
+LLM_TIMEOUT_MS=25000
+```
+
+Si `LLM_API_KEY` queda vacia, la app sigue funcionando normal y solo muestra el aviso de configuracion cuando se intenta usar IA.
+
 ### 2. Backend
 
 ```bash
@@ -181,6 +198,12 @@ EMAIL_FROM=
 EMAIL_FROM_NAME=Aguas de Choluteca
 EMAIL_API_KEY=
 EMAIL_SANDBOX=true
+LLM_API_KEY=
+LLM_API_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=openai/gpt-oss-20b:free
+LLM_APP_NAME=Aguas de Choluteca
+LLM_SITE_URL=
+LLM_TIMEOUT_MS=25000
 ```
 
 Opciones de base de datos:

@@ -9162,6 +9162,40 @@ select:focus {
   padding-right: 0.45rem;
 }
 
+.ai-assist-card {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.8rem 0 1rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(21, 118, 209, 0.16);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.ai-assist-card > div:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.ai-assist-card strong {
+  color: var(--dashboard-heading);
+  font-size: 0.95rem;
+}
+
+.ai-assist-card p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ai-assist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .records-filter-tabs {
   width: 100%;
   max-width: 100%;
