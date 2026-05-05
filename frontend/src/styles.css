@@ -7742,7 +7742,15 @@ textarea {
   margin: 0 0 0.9rem;
 }
 
-.request-chart-controls button {
+.request-chart-type-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.request-chart-controls button,
+.request-chart-type-controls button {
   min-height: 34px;
   padding: 0.45rem 0.7rem;
   border-radius: 999px;
@@ -7752,7 +7760,14 @@ textarea {
   box-shadow: none;
 }
 
-.request-chart-controls button.active {
+.request-chart-type-controls button {
+  min-height: 30px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.76rem;
+}
+
+.request-chart-controls button.active,
+.request-chart-type-controls button.active {
   color: #ffffff;
   border-color: transparent;
   background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
@@ -7789,7 +7804,7 @@ textarea {
 
 .request-chart-list {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.7rem;
   max-height: 360px;
   overflow-y: auto;
   padding-right: 0.2rem;
@@ -7798,9 +7813,10 @@ textarea {
 
 .request-chart-row {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.45rem;
   width: 100%;
-  padding: 0.35rem;
+  min-height: auto;
+  padding: 0.6rem;
   border: 1px solid transparent;
   border-radius: 12px;
   color: inherit;
@@ -7808,6 +7824,7 @@ textarea {
   background: transparent;
   box-shadow: none;
   cursor: pointer;
+  line-height: 1.25;
 }
 
 .request-chart-row.is-selected {
@@ -7817,7 +7834,15 @@ textarea {
 
 .request-chart-copy {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.request-chart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
   min-width: 0;
 }
 
@@ -7826,11 +7851,22 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.request-chart-value {
+  flex: 0 0 auto;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  color: #075985;
+  background: #e8f3ff;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .request-chart-track {
   height: 9px;
   overflow: hidden;
   border-radius: 999px;
   background: #e8f1fb;
+  margin-top: 0.1rem;
 }
 
 .request-chart-track span {
@@ -7839,6 +7875,60 @@ textarea {
   min-width: 3%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--brand-blue), var(--brand-cyan));
+}
+
+.request-chart-list.is-lista {
+  gap: 0.45rem;
+}
+
+.request-chart-list.is-lista .request-chart-row {
+  border-color: rgba(21, 118, 209, 0.1);
+  background: rgba(248, 251, 255, 0.8);
+}
+
+.request-chart-table {
+  display: grid;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 12px;
+}
+
+.request-chart-table > div,
+.request-chart-table > button {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.85fr) minmax(170px, 1.2fr) minmax(70px, 0.35fr);
+  gap: 0.65rem;
+  align-items: center;
+  min-width: 520px;
+  padding: 0.62rem 0.7rem;
+  border: 0;
+  border-bottom: 1px solid rgba(21, 118, 209, 0.1);
+  color: #24425c;
+  text-align: left;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.request-chart-table > div {
+  color: #5c7690;
+  background: #f2f7fc;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.request-chart-table > button {
+  cursor: pointer;
+}
+
+.request-chart-table > button:last-child {
+  border-bottom: 0;
+}
+
+.request-chart-table strong {
+  justify-self: end;
+  color: #075985;
 }
 
 .request-barrio-detail {

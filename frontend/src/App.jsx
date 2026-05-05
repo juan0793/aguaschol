@@ -283,6 +283,7 @@ function App() {
   const [loadingAlcaldiaComparison, setLoadingAlcaldiaComparison] = useState(false);
   const [alcaldiaComparison, setAlcaldiaComparison] = useState(null);
   const [padronChartMode, setPadronChartMode] = useState("brecha");
+  const [padronChartType, setPadronChartType] = useState("barras");
   const [selectedPadronStatBarrio, setSelectedPadronStatBarrio] = useState("");
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -10609,29 +10610,76 @@ function App() {
                                 ? "Suma los servicios activos dentro de los usuarios encontrados en Aguas."
                                 : "Toca un barrio para ver su detalle de cobertura y servicios."}
                             </span>
-                          </div>
-                          <div className="request-chart-list">
-                            {padronStatisticsData.dynamicRows.length ? (
-                              padronStatisticsData.dynamicRows.map((item) => (
+                            <div className="request-chart-type-controls" role="group" aria-label="Tipo de visualizacion">
+                              {[
+                                ["barras", "Barras"],
+                                ["lista", "Lista"],
+                                ["tabla", "Tabla"]
+                              ].map(([type, label]) => (
                                 <button
-                                  key={String(padronChartMode) + "-" + String(item.barrio_colonia || item.field)}
+                                  key={type}
                                   type="button"
-                                  className={"request-chart-row " + (padronStatisticsData.selectedBarrio?.barrio_colonia === item.barrio_colonia ? "is-selected" : "")}
-                                  onClick={() => {
-                                    if (item.barrio_colonia && padronChartMode !== "servicios") {
-                                      setSelectedPadronStatBarrio(item.barrio_colonia);
-                                    }
-                                  }}
+                                  className={padronChartType === type ? "active" : ""}
+                                  onClick={() => setPadronChartType(type)}
                                 >
-                                  <div className="request-chart-copy">
-                                    <strong>{item.barrio_colonia}</strong>
-                                    <span>{item.detail}</span>
-                                  </div>
-                                  <div className="request-chart-track">
-                                    <span style={{ width: String((Number(item.value || 0) / padronStatisticsData.maxDynamicRows) * 100) + "%" }} />
-                                  </div>
+                                  {label}
                                 </button>
-                              ))
+                              ))}
+                            </div>
+                          </div>
+                          <div className={`request-chart-list is-${padronChartType}`}>
+                            {padronStatisticsData.dynamicRows.length ? (
+                              padronChartType === "tabla" ? (
+                                <div className="request-chart-table" role="table">
+                                  <div role="row">
+                                    <span>Barrio / servicio</span>
+                                    <span>Detalle</span>
+                                    <span>Valor</span>
+                                  </div>
+                                  {padronStatisticsData.dynamicRows.map((item) => (
+                                    <button
+                                      key={String(padronChartMode) + "-table-" + String(item.barrio_colonia || item.field)}
+                                      type="button"
+                                      role="row"
+                                      onClick={() => {
+                                        if (item.barrio_colonia && padronChartMode !== "servicios") {
+                                          setSelectedPadronStatBarrio(item.barrio_colonia);
+                                        }
+                                      }}
+                                    >
+                                      <span>{item.barrio_colonia}</span>
+                                      <span>{item.detail}</span>
+                                      <strong>{padronChartMode.includes("cobertura") ? `${item.value}%` : item.value}</strong>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                padronStatisticsData.dynamicRows.map((item) => (
+                                  <button
+                                    key={String(padronChartMode) + "-" + String(item.barrio_colonia || item.field)}
+                                    type="button"
+                                    className={"request-chart-row " + (padronStatisticsData.selectedBarrio?.barrio_colonia === item.barrio_colonia ? "is-selected" : "")}
+                                    onClick={() => {
+                                      if (item.barrio_colonia && padronChartMode !== "servicios") {
+                                        setSelectedPadronStatBarrio(item.barrio_colonia);
+                                      }
+                                    }}
+                                  >
+                                    <div className="request-chart-copy">
+                                      <div className="request-chart-heading">
+                                        <strong>{item.barrio_colonia}</strong>
+                                        <b className="request-chart-value">{padronChartMode.includes("cobertura") ? `${item.value}%` : item.value}</b>
+                                      </div>
+                                      <span>{item.detail}</span>
+                                    </div>
+                                    {padronChartType === "barras" ? (
+                                      <div className="request-chart-track">
+                                        <span style={{ width: String((Number(item.value || 0) / padronStatisticsData.maxDynamicRows) * 100) + "%" }} />
+                                      </div>
+                                    ) : null}
+                                  </button>
+                                ))
+                              )
                             ) : (
                               <p className="helper-text">Genera la comparacion para activar este grafico.</p>
                             )}
