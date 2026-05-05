@@ -8069,7 +8069,7 @@ function App() {
           <span>Vista</span>
         </div>
 
-        <ScrollArea className="record-list-scroll">
+        <div className="record-list-scroll" role="region" aria-label="Lista de fichas">
         <div className="record-list">
           {loading ? (
             <div className="record-skeleton-stack" aria-label="Cargando fichas">
@@ -8203,7 +8203,7 @@ function App() {
             </section>
           ))}
         </div>
-        </ScrollArea>
+        </div>
         <div className="record-pagination">
           <div className="record-pagination-copy">
             <strong>Pagina {recordPagination.currentPage} de {recordPagination.totalPages}</strong>

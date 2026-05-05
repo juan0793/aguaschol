@@ -9146,8 +9146,14 @@ select:focus {
   height: 100%;
   max-height: none;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   border-radius: 10px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .record-list-scroll .record-list {
@@ -9207,7 +9213,8 @@ select:focus {
   }
 
   .record-list-scroll {
-    height: min(56vh, 540px);
+    height: min(56svh, 540px);
+    min-height: 280px;
   }
 
   .records-filter-tabs {
