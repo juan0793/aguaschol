@@ -287,6 +287,8 @@ function App() {
   const [showPadronStatsModal, setShowPadronStatsModal] = useState(false);
   const [downloadingPadronStatsPdf, setDownloadingPadronStatsPdf] = useState(false);
   const [selectedPadronStatBarrio, setSelectedPadronStatBarrio] = useState("");
+  const [selectedPadronServiceField, setSelectedPadronServiceField] = useState("");
+  const [padronStatsBarrioFilter, setPadronStatsBarrioFilter] = useState("");
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -1259,11 +1261,16 @@ function App() {
       recoleccion: "Recoleccion",
       desechos_peligrosos: "Desechos peligrosos"
     };
+    const normalizedBarrioFilter = padronStatsBarrioFilter.trim().toLowerCase();
+    const matchesBarrioFilter = (item = {}) =>
+      !normalizedBarrioFilter || String(item.barrio_colonia || "").toLowerCase().includes(normalizedBarrioFilter);
     const clandestineByBarrio = barrioStats
       .filter((item) => Number(item.candidatas_clandestinas || 0) > 0)
+      .filter(matchesBarrioFilter)
       .slice(0, 10);
     const coverageHighByBarrio = [...barrioStats]
       .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.aguas_registradas || 0) > 0)
+      .filter(matchesBarrioFilter)
       .sort((left, right) =>
         Number(right.cobertura_aguas_pct || 0) - Number(left.cobertura_aguas_pct || 0) ||
         Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
@@ -1271,6 +1278,7 @@ function App() {
       .slice(0, 10);
     const lowCoverageByBarrio = [...barrioStats]
       .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.brecha_registros || 0) > 0)
+      .filter(matchesBarrioFilter)
       .sort((left, right) =>
         Number(left.cobertura_aguas_pct || 0) - Number(right.cobertura_aguas_pct || 0) ||
         Number(right.brecha_registros || 0) - Number(left.brecha_registros || 0)
@@ -1278,6 +1286,7 @@ function App() {
       .slice(0, 10);
     const serviceMajorityByBarrio = [...barrioStats]
       .filter((item) => Number(item.servicio_dominante_total || 0) > 0)
+      .filter(matchesBarrioFilter)
       .sort((left, right) =>
         Number(right.servicio_dominante_total || 0) - Number(left.servicio_dominante_total || 0) ||
         Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
@@ -1293,6 +1302,33 @@ function App() {
     )
       .map(([field, total]) => ({ field, label: serviceLabels[field] || field, total }))
       .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
+    const serviceBarrioRows = Object.fromEntries(
+      Object.entries(serviceLabels).map(([field, label]) => [
+        field,
+        [...barrioStats]
+          .filter(matchesBarrioFilter)
+          .map((item) => {
+            const total = Number(item.servicios?.[field] || 0);
+            const aguasRegistradas = Number(item.aguas_registradas || 0);
+            const pct = aguasRegistradas ? Number(((total / aguasRegistradas) * 100).toFixed(1)) : 0;
+            return {
+              ...item,
+              field,
+              service_label: label,
+              service_total: total,
+              value: pct,
+              detail: `${total} de ${aguasRegistradas} usuarios con ${label} - ${pct}% del barrio`
+            };
+          })
+          .filter((item) => Number(item.service_total || 0) > 0)
+          .sort((left, right) =>
+            Number(right.value || 0) - Number(left.value || 0) ||
+            Number(right.service_total || 0) - Number(left.service_total || 0) ||
+            left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
+          )
+          .slice(0, 20)
+      ])
+    );
     const requestBarriosTop = [...requestBarrios]
       .sort((left, right) => Number(right.total_registros || 0) - Number(left.total_registros || 0))
       .slice(0, 10);
@@ -1323,12 +1359,14 @@ function App() {
         value: Number(item.servicio_dominante_total || 0),
         detail: `${item.servicio_dominante}: ${item.servicio_dominante_total} usuarios`
       })),
-      servicios: serviceSplitTotals.map((item) => ({
-        ...item,
-        barrio_colonia: item.label,
-        value: Number(item.total || 0),
-        detail: `${item.total} usuarios registrados con este servicio`
-      }))
+      servicios: selectedPadronServiceField
+        ? (serviceBarrioRows[selectedPadronServiceField] || [])
+        : serviceSplitTotals.map((item) => ({
+            ...item,
+            barrio_colonia: item.label,
+            value: Number(item.total || 0),
+            detail: `${item.total} usuarios registrados con este servicio`
+          }))
     };
     const dynamicRows = dynamicRowsByMode[padronChartMode] || dynamicRowsByMode.brecha;
 
@@ -1340,15 +1378,27 @@ function App() {
       lowCoverageByBarrio,
       serviceMajorityByBarrio,
       serviceSplitTotals,
+      serviceBarrioRows,
+      selectedServiceLabel: selectedPadronServiceField ? serviceLabels[selectedPadronServiceField] : "",
       requestBarriosTop,
       selectedBarrio,
       dynamicRows,
-      maxDynamicRows: Math.max(1, ...dynamicRows.map((item) => Number(item.value || 0))),
+      maxDynamicRows:
+        padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField)
+          ? 100
+          : Math.max(1, ...dynamicRows.map((item) => Number(item.value || 0))),
       maxClandestine: Math.max(1, ...clandestineByBarrio.map((item) => Number(item.candidatas_clandestinas || 0))),
       maxLowCoverageGap: Math.max(1, ...lowCoverageByBarrio.map((item) => Number(item.brecha_registros || 0))),
       maxRequestRows: Math.max(1, ...requestBarriosTop.map((item) => Number(item.total_registros || 0)))
     };
-  }, [alcaldiaComparison, padronChartMode, padronRequestResult, selectedPadronStatBarrio]);
+  }, [
+    alcaldiaComparison,
+    padronChartMode,
+    padronRequestResult,
+    padronStatsBarrioFilter,
+    selectedPadronServiceField,
+    selectedPadronStatBarrio
+  ]);
   const dashboardMetrics = useMemo(
     () => [
       {
@@ -10776,7 +10826,10 @@ function App() {
                                                         key={mode}
                                                         type="button"
                                                         className={padronChartMode === mode ? "active" : ""}
-                                                        onClick={() => setPadronChartMode(mode)}
+                                                       onClick={() => {
+                                                         setPadronChartMode(mode);
+                                                         if (mode !== "servicios") setSelectedPadronServiceField("");
+                                                       }}
                                                       >
                                                         {label}
                                                       </button>
@@ -10784,24 +10837,28 @@ function App() {
                                                   </div>
                                                   <div className="request-chart-grid">
                                                     <section className="request-chart-card is-wide">
-                                                      <div>
-                                                        <strong>
-                                                          {padronChartMode === "cobertura_alta"
-                                                            ? "Barrios con mayor cobertura registrada"
-                                                            : padronChartMode === "cobertura_baja"
-                                                              ? "Barrios con menor cobertura en Aguas"
-                                                              : padronChartMode === "servicio_dominante"
-                                                                ? "Servicio mayoritario por barrio"
-                                                                : padronChartMode === "servicios"
-                                                                  ? "Usuarios divididos por servicio"
-                                                                  : "Barrios con mas claves de Alcaldia sin registro en Aguas"}
-                                                        </strong>
-                                                        <span>
-                                                          {padronChartMode === "servicios"
-                                                            ? "Suma los servicios activos dentro de los usuarios encontrados en Aguas."
-                                                            : "Toca un barrio para ver su detalle de cobertura y servicios."}
-                                                        </span>
-                                                        <div className="request-chart-type-controls" role="group" aria-label="Tipo de visualizacion">
+                                                     <div>
+                                                       <strong>
+                                                         {padronChartMode === "cobertura_alta"
+                                                           ? "Barrios con mayor cobertura registrada"
+                                                           : padronChartMode === "cobertura_baja"
+                                                             ? "Barrios con menor cobertura en Aguas"
+                                                             : padronChartMode === "servicio_dominante"
+                                                               ? "Servicio mayoritario por barrio"
+                                                               : padronChartMode === "servicios" && padronStatisticsData.selectedServiceLabel
+                                                                 ? `Barrios con ${padronStatisticsData.selectedServiceLabel}`
+                                                                 : padronChartMode === "servicios"
+                                                                   ? "Usuarios divididos por servicio"
+                                                                 : "Barrios con mas claves de Alcaldia sin registro en Aguas"}
+                                                       </strong>
+                                                       <span>
+                                                         {padronChartMode === "servicios" && padronStatisticsData.selectedServiceLabel
+                                                           ? `Porcentaje de usuarios con ${padronStatisticsData.selectedServiceLabel} dentro de cada barrio.`
+                                                           : padronChartMode === "servicios"
+                                                           ? "Suma los servicios activos dentro de los usuarios encontrados en Aguas."
+                                                           : "Toca un barrio para ver su detalle de cobertura y servicios."}
+                                                       </span>
+                                                       <div className="request-chart-type-controls" role="group" aria-label="Tipo de visualizacion">
                                                           {[
                                                             ["barras", "Barras"],
                                                             ["lista", "Lista"],
@@ -10815,10 +10872,26 @@ function App() {
                                                             >
                                                               {label}
                                                             </button>
-                                                          ))}
-                                                        </div>
-                                                      </div>
-                                                      <div className={`request-chart-list is-${padronChartType}`}>
+                                                           ))}
+                                                         </div>
+                                                         {padronChartMode === "servicios" && selectedPadronServiceField ? (
+                                                           <div className="request-chart-drilldown">
+                                                             <span>Servicio: {padronStatisticsData.selectedServiceLabel}</span>
+                                                             <button type="button" className="button-secondary" onClick={() => setSelectedPadronServiceField("")}>
+                                                               Ver todos los servicios
+                                                             </button>
+                                                           </div>
+                                                         ) : null}
+                                                         <label className="request-chart-filter">
+                                                           <span>Filtrar por barrio</span>
+                                                           <input
+                                                             value={padronStatsBarrioFilter}
+                                                             onChange={(event) => setPadronStatsBarrioFilter(event.target.value)}
+                                                             placeholder="Ej. Barrio La Libertad"
+                                                           />
+                                                         </label>
+                                                       </div>
+                                                       <div className={`request-chart-list is-${padronChartType}`}>
                                                         {padronStatisticsData.dynamicRows.length ? (
                                                           padronChartType === "tabla" ? (
                                                             <div className="request-chart-table" role="table">
@@ -10833,14 +10906,18 @@ function App() {
                                                                   type="button"
                                                                   role="row"
                                                                   onClick={() => {
-                                                                    if (item.barrio_colonia && padronChartMode !== "servicios") {
+                                                                    if (padronChartMode === "servicios" && !selectedPadronServiceField && item.field) {
+                                                                      setSelectedPadronServiceField(item.field);
+                                                                      return;
+                                                                    }
+                                                                    if (item.barrio_colonia && (padronChartMode !== "servicios" || selectedPadronServiceField)) {
                                                                       setSelectedPadronStatBarrio(item.barrio_colonia);
                                                                     }
                                                                   }}
                                                                 >
                                                                   <span>{item.barrio_colonia}</span>
                                                                   <span>{item.detail}</span>
-                                                                  <strong>{padronChartMode.includes("cobertura") ? `${item.value}%` : item.value}</strong>
+                                                                  <strong>{padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField) ? `${item.value}%` : item.value}</strong>
                                                                 </button>
                                                               ))}
                                                             </div>
@@ -10851,7 +10928,11 @@ function App() {
                                                                 type="button"
                                                                 className={"request-chart-row " + (padronStatisticsData.selectedBarrio?.barrio_colonia === item.barrio_colonia ? "is-selected" : "")}
                                                                 onClick={() => {
-                                                                  if (item.barrio_colonia && padronChartMode !== "servicios") {
+                                                                  if (padronChartMode === "servicios" && !selectedPadronServiceField && item.field) {
+                                                                    setSelectedPadronServiceField(item.field);
+                                                                    return;
+                                                                  }
+                                                                  if (item.barrio_colonia && (padronChartMode !== "servicios" || selectedPadronServiceField)) {
                                                                     setSelectedPadronStatBarrio(item.barrio_colonia);
                                                                   }
                                                                 }}
@@ -10859,7 +10940,7 @@ function App() {
                                                                 <div className="request-chart-copy">
                                                                   <div className="request-chart-heading">
                                                                     <strong>{item.barrio_colonia}</strong>
-                                                                    <b className="request-chart-value">{padronChartMode.includes("cobertura") ? `${item.value}%` : item.value}</b>
+                                                                    <b className="request-chart-value">{padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField) ? `${item.value}%` : item.value}</b>
                                                                   </div>
                                                                   <span>{item.detail}</span>
                                                                 </div>

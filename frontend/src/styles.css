@@ -7832,6 +7832,41 @@ textarea {
   margin-top: 0.35rem;
 }
 
+.request-chart-drilldown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-top: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid rgba(21, 118, 209, 0.14);
+  background: #f0f7ff;
+}
+
+.request-chart-drilldown span {
+  color: #0d4f86;
+  font-weight: 900;
+}
+
+.request-chart-filter {
+  display: grid;
+  gap: 0.28rem;
+  margin-top: 0.55rem;
+}
+
+.request-chart-filter span {
+  color: #5c7690;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.request-chart-filter input {
+  min-height: 40px;
+  border-radius: 12px;
+}
+
 .request-chart-controls button,
 .request-chart-type-controls button {
   min-height: 34px;
