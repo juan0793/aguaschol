@@ -7729,6 +7729,81 @@ textarea {
   margin: 0.9rem 0 1rem;
 }
 
+.request-stat-actions {
+  display: grid;
+  gap: 0.45rem;
+  align-items: start;
+}
+
+.request-stat-actions button {
+  width: fit-content;
+}
+
+.stats-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(8, 22, 38, 0.48);
+  backdrop-filter: blur(10px);
+}
+
+.stats-modal-card {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.8rem;
+  width: min(1180px, calc(100vw - 2rem));
+  max-height: min(860px, calc(100svh - 2rem));
+  overflow: hidden;
+  padding: 1rem;
+  border-radius: 22px;
+  border: 1px solid rgba(21, 118, 209, 0.16);
+  background: #f8fbff;
+  box-shadow: 0 28px 90px rgba(8, 22, 38, 0.28);
+}
+
+.stats-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.stats-modal-head > div {
+  min-width: 0;
+}
+
+.stats-modal-close {
+  flex: 0 0 auto;
+}
+
+.stats-modal-summary {
+  margin: 0;
+}
+
+.stats-modal-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 0.15rem 0.2rem 0.25rem 0;
+  scrollbar-width: thin;
+}
+
+.stats-modal-body .request-chart-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
+  align-items: start;
+}
+
+.stats-modal-body .request-chart-card.is-wide {
+  grid-column: auto;
+}
+
+.stats-modal-body .request-chart-list {
+  max-height: 58vh;
+}
+
 .request-chart-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -8093,6 +8168,36 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .stats-modal-backdrop {
+    padding: 0.55rem;
+    align-items: stretch;
+  }
+
+  .stats-modal-card {
+    width: 100%;
+    max-height: calc(100svh - 1.1rem);
+    padding: 0.75rem;
+    border-radius: 16px;
+  }
+
+  .stats-modal-head {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .stats-modal-close,
+  .request-stat-actions button {
+    width: 100%;
+  }
+
+  .stats-modal-body .request-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-modal-body .request-chart-list {
+    max-height: none;
+  }
+
   .request-chart-card.is-wide {
     grid-column: auto;
   }
@@ -8245,6 +8350,36 @@ textarea {
   .request-chart-grid,
   .request-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stats-modal-backdrop {
+    padding: 0.45rem;
+    align-items: stretch;
+  }
+
+  .stats-modal-card {
+    width: 100%;
+    max-height: calc(100svh - 0.9rem);
+    padding: 0.7rem;
+    border-radius: 14px;
+  }
+
+  .stats-modal-head {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .stats-modal-close,
+  .request-stat-actions button {
+    width: 100%;
+  }
+
+  .stats-modal-body .request-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-modal-body .request-chart-list {
+    max-height: none;
   }
 
   .request-chart-card.is-wide {
