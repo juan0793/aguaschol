@@ -7863,6 +7863,108 @@ function App() {
           ) : null}
           {emptyRecordsMessage ? <p className="helper-text">{emptyRecordsMessage}</p> : null}
 
+          <div className="records-sidebar-controls">
+            <label className="record-filter-field records-search-field">
+              <span>Buscar por clave</span>
+              <Input
+                type="search"
+                name="clave"
+                value={recordFilters.clave}
+                onChange={handleRecordFilterChange}
+                placeholder="Ej. 183-02-02"
+              />
+            </label>
+            <Tabs value={recordQuickFilter} onValueChange={setRecordQuickFilter} className="record-filter-strip records-filter-strip">
+              <TabsList className="records-filter-tabs">
+                {recordQuickFilterOptions.map((option) => {
+                  const count =
+                    option.key === "today"
+                      ? recordsUpdatedToday
+                      : option.key === "clandestino"
+                        ? safeRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length
+                      : option.key === "reportada"
+                        ? safeRecords.filter((record) => record.estado_padron === "reportada").length
+                      : option.key === "varios_padrones"
+                        ? safeRecords.filter((record) => record.estado_padron === "varios_padrones").length
+                      : option.key === "no_photo"
+                        ? pendingPhotoRecords
+                      : option.key === "alert"
+                        ? alertRecords.length
+                        : safeRecords.length;
+
+                  return (
+                    <TabsTrigger
+                      key={option.key}
+                      value={option.key}
+                      className={`record-filter-chip ${recordQuickFilter === option.key ? "is-active" : ""}`}
+                    >
+                      <span>{option.label}</span>
+                      <Badge variant={recordQuickFilter === option.key ? "secondary" : "outline"}>{count}</Badge>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </Tabs>
+            <div className="records-filter-toolbar">
+              <Button
+                type="button"
+                variant={showRecordAdvancedFilters ? "default" : "outline"}
+                onClick={() => setShowRecordAdvancedFilters((current) => !current)}
+              >
+                <Icon name="more" />
+                Filtros avanzados
+              </Button>
+              <Button type="button" variant="outline" className="record-filter-clear" onClick={clearRecordFilters}>
+                <Icon name="refresh" />
+                Limpiar
+              </Button>
+            </div>
+            {showRecordAdvancedFilters ? (
+              <div className="record-filter-panel records-advanced-filters">
+                <label className="record-filter-field">
+                  <span>Barrio o colonia</span>
+                  <select name="barrio" value={recordFilters.barrio} onChange={handleRecordFilterChange}>
+                    <option value="">Todos</option>
+                    {availableRecordBarrios.map((barrio) => (
+                      <option key={barrio} value={barrio}>
+                        {barrio}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="record-filter-field">
+                  <span>Responsable</span>
+                  <select name="responsible" value={recordFilters.responsible} onChange={handleRecordFilterChange}>
+                    <option value="">Todos</option>
+                    {availableRecordResponsibles.map((responsible) => (
+                      <option key={responsible} value={responsible}>
+                        {responsible}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="record-filter-field">
+                  <span>Desde</span>
+                  <input type="date" name="date_from" value={recordFilters.date_from} onChange={handleRecordFilterChange} />
+                </label>
+                <label className="record-filter-field">
+                  <span>Hasta</span>
+                  <input type="date" name="date_to" value={recordFilters.date_to} onChange={handleRecordFilterChange} />
+                </label>
+                <label className="record-filter-field">
+                  <span>Estado operativo</span>
+                  <select name="status" value={recordFilters.status} onChange={handleRecordFilterChange}>
+                    {recordStatusFilterOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+          </div>
+
         <div className="record-list-head">
           <span>Exp.</span>
           <span>
@@ -8079,105 +8181,6 @@ function App() {
                 </Button>
               </div>
             </div>
-            <Tabs value={recordQuickFilter} onValueChange={setRecordQuickFilter} className="record-filter-strip records-filter-strip">
-              <TabsList className="records-filter-tabs">
-              {recordQuickFilterOptions.map((option) => {
-                const count =
-                  option.key === "today"
-                    ? recordsUpdatedToday
-                    : option.key === "clandestino"
-                      ? safeRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length
-                    : option.key === "reportada"
-                      ? safeRecords.filter((record) => record.estado_padron === "reportada").length
-                    : option.key === "varios_padrones"
-                      ? safeRecords.filter((record) => record.estado_padron === "varios_padrones").length
-                    : option.key === "no_photo"
-                      ? pendingPhotoRecords
-                      : option.key === "alert"
-                        ? alertRecords.length
-                      : safeRecords.length;
-
-                return (
-                  <TabsTrigger
-                    key={option.key}
-                    value={option.key}
-                    className={`record-filter-chip ${recordQuickFilter === option.key ? "is-active" : ""}`}
-                  >
-                    <span>{option.label}</span>
-                    <Badge variant={recordQuickFilter === option.key ? "secondary" : "outline"}>{count}</Badge>
-                  </TabsTrigger>
-                );
-              })}
-              </TabsList>
-            </Tabs>
-            <div className="records-filter-toolbar">
-              <label className="record-filter-field records-search-field">
-                <span>Buscar por clave</span>
-                <Input
-                  type="search"
-                  name="clave"
-                  value={recordFilters.clave}
-                  onChange={handleRecordFilterChange}
-                  placeholder="Ej. 183-02-02"
-                />
-              </label>
-              <Button
-                type="button"
-                variant={showRecordAdvancedFilters ? "default" : "outline"}
-                onClick={() => setShowRecordAdvancedFilters((current) => !current)}
-              >
-                <Icon name="more" />
-                Filtros avanzados
-              </Button>
-              <Button type="button" variant="outline" className="record-filter-clear" onClick={clearRecordFilters}>
-                <Icon name="refresh" />
-                Limpiar
-              </Button>
-            </div>
-            {showRecordAdvancedFilters ? (
-              <div className="record-filter-panel records-advanced-filters">
-                <label className="record-filter-field">
-                  <span>Barrio o colonia</span>
-                  <select name="barrio" value={recordFilters.barrio} onChange={handleRecordFilterChange}>
-                    <option value="">Todos</option>
-                    {availableRecordBarrios.map((barrio) => (
-                      <option key={barrio} value={barrio}>
-                        {barrio}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="record-filter-field">
-                  <span>Responsable</span>
-                  <select name="responsible" value={recordFilters.responsible} onChange={handleRecordFilterChange}>
-                    <option value="">Todos</option>
-                    {availableRecordResponsibles.map((responsible) => (
-                      <option key={responsible} value={responsible}>
-                        {responsible}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="record-filter-field">
-                  <span>Desde</span>
-                  <input type="date" name="date_from" value={recordFilters.date_from} onChange={handleRecordFilterChange} />
-                </label>
-                <label className="record-filter-field">
-                  <span>Hasta</span>
-                  <input type="date" name="date_to" value={recordFilters.date_to} onChange={handleRecordFilterChange} />
-                </label>
-                <label className="record-filter-field">
-                  <span>Estado operativo</span>
-                  <select name="status" value={recordFilters.status} onChange={handleRecordFilterChange}>
-                    {recordStatusFilterOptions.map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            ) : null}
           </section>
 
           {lastProcessedRecord ? (

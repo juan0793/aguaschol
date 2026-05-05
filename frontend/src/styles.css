@@ -9073,11 +9073,40 @@ select:focus {
 
 .shadcn-records-sidebar {
   min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  max-height: calc(100vh - 2rem);
   overflow: hidden;
 }
 
+.records-sidebar-controls {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.records-sidebar-controls .records-filter-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.records-sidebar-controls .records-filter-toolbar button {
+  width: 100%;
+}
+
+.records-sidebar-controls .records-advanced-filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  max-height: min(34vh, 320px);
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
 .record-list-scroll {
-  max-height: clamp(360px, calc(100vh - 340px), 680px);
+  height: 100%;
+  max-height: none;
   min-height: 0;
   overflow: hidden;
   border-radius: 10px;
@@ -9092,6 +9121,7 @@ select:focus {
 .records-filter-tabs {
   width: 100%;
   max-width: 100%;
+  display: flex;
   justify-content: flex-start;
   gap: 0.35rem;
   overflow-x: auto;
@@ -9139,7 +9169,7 @@ select:focus {
   }
 
   .record-list-scroll {
-    max-height: min(56vh, 540px);
+    height: min(56vh, 540px);
   }
 
   .records-filter-tabs {
