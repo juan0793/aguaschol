@@ -282,6 +282,8 @@ function App() {
   const [loadingAlcaldiaMeta, setLoadingAlcaldiaMeta] = useState(false);
   const [loadingAlcaldiaComparison, setLoadingAlcaldiaComparison] = useState(false);
   const [alcaldiaComparison, setAlcaldiaComparison] = useState(null);
+  const [padronChartMode, setPadronChartMode] = useState("brecha");
+  const [selectedPadronStatBarrio, setSelectedPadronStatBarrio] = useState("");
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -1247,8 +1249,22 @@ function App() {
   const padronStatisticsData = useMemo(() => {
     const barrioStats = Array.isArray(alcaldiaComparison?.barrio_stats) ? alcaldiaComparison.barrio_stats : [];
     const requestBarrios = Array.isArray(padronRequestResult?.summary?.barrios) ? padronRequestResult.summary.barrios : [];
+    const serviceLabels = {
+      agua: "Agua potable",
+      alcantarillado: "Alcantarillado",
+      barrido: "Barrido",
+      recoleccion: "Recoleccion",
+      desechos_peligrosos: "Desechos peligrosos"
+    };
     const clandestineByBarrio = barrioStats
       .filter((item) => Number(item.candidatas_clandestinas || 0) > 0)
+      .slice(0, 10);
+    const coverageHighByBarrio = [...barrioStats]
+      .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.aguas_registradas || 0) > 0)
+      .sort((left, right) =>
+        Number(right.cobertura_aguas_pct || 0) - Number(left.cobertura_aguas_pct || 0) ||
+        Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
+      )
       .slice(0, 10);
     const lowCoverageByBarrio = [...barrioStats]
       .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.brecha_registros || 0) > 0)
@@ -1257,19 +1273,79 @@ function App() {
         Number(right.brecha_registros || 0) - Number(left.brecha_registros || 0)
       )
       .slice(0, 10);
+    const serviceMajorityByBarrio = [...barrioStats]
+      .filter((item) => Number(item.servicio_dominante_total || 0) > 0)
+      .sort((left, right) =>
+        Number(right.servicio_dominante_total || 0) - Number(left.servicio_dominante_total || 0) ||
+        Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
+      )
+      .slice(0, 10);
+    const serviceSplitTotals = Object.entries(
+      barrioStats.reduce((accumulator, item) => {
+        Object.keys(serviceLabels).forEach((field) => {
+          accumulator[field] = (accumulator[field] || 0) + Number(item.servicios?.[field] || 0);
+        });
+        return accumulator;
+      }, {})
+    )
+      .map(([field, total]) => ({ field, label: serviceLabels[field] || field, total }))
+      .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
     const requestBarriosTop = [...requestBarrios]
       .sort((left, right) => Number(right.total_registros || 0) - Number(left.total_registros || 0))
       .slice(0, 10);
+    const selectedBarrio =
+      barrioStats.find((item) => item.barrio_colonia === selectedPadronStatBarrio) ||
+      clandestineByBarrio[0] ||
+      lowCoverageByBarrio[0] ||
+      coverageHighByBarrio[0] ||
+      null;
+    const dynamicRowsByMode = {
+      brecha: clandestineByBarrio.map((item) => ({
+        ...item,
+        value: Number(item.candidatas_clandestinas || 0),
+        detail: `${item.candidatas_clandestinas} sin coincidencia de ${item.alcaldia_total} claves Alcaldia`
+      })),
+      cobertura_alta: coverageHighByBarrio.map((item) => ({
+        ...item,
+        value: Number(item.cobertura_aguas_pct || 0),
+        detail: `${item.cobertura_aguas_pct}% cobertura - ${item.aguas_registradas}/${item.alcaldia_total} registradas`
+      })),
+      cobertura_baja: lowCoverageByBarrio.map((item) => ({
+        ...item,
+        value: Number(item.brecha_registros || 0),
+        detail: `${item.cobertura_aguas_pct}% cobertura - brecha ${item.brecha_registros}`
+      })),
+      servicio_dominante: serviceMajorityByBarrio.map((item) => ({
+        ...item,
+        value: Number(item.servicio_dominante_total || 0),
+        detail: `${item.servicio_dominante}: ${item.servicio_dominante_total} usuarios`
+      })),
+      servicios: serviceSplitTotals.map((item) => ({
+        ...item,
+        barrio_colonia: item.label,
+        value: Number(item.total || 0),
+        detail: `${item.total} usuarios registrados con este servicio`
+      }))
+    };
+    const dynamicRows = dynamicRowsByMode[padronChartMode] || dynamicRowsByMode.brecha;
 
     return {
+      barrioStats,
+      serviceLabels,
       clandestineByBarrio,
+      coverageHighByBarrio,
       lowCoverageByBarrio,
+      serviceMajorityByBarrio,
+      serviceSplitTotals,
       requestBarriosTop,
+      selectedBarrio,
+      dynamicRows,
+      maxDynamicRows: Math.max(1, ...dynamicRows.map((item) => Number(item.value || 0))),
       maxClandestine: Math.max(1, ...clandestineByBarrio.map((item) => Number(item.candidatas_clandestinas || 0))),
       maxLowCoverageGap: Math.max(1, ...lowCoverageByBarrio.map((item) => Number(item.brecha_registros || 0))),
       maxRequestRows: Math.max(1, ...requestBarriosTop.map((item) => Number(item.total_registros || 0)))
     };
-  }, [alcaldiaComparison, padronRequestResult]);
+  }, [alcaldiaComparison, padronChartMode, padronRequestResult, selectedPadronStatBarrio]);
   const dashboardMetrics = useMemo(
     () => [
       {
@@ -10496,52 +10572,115 @@ function App() {
                           <strong>{(alcaldiaComparison?.summary?.exact_matches ?? 0) + (alcaldiaComparison?.summary?.base_matches ?? 0)}</strong>
                         </div>
                       </div>
+                      <div className="request-chart-controls" role="group" aria-label="Tipo de grafico estadistico">
+                        {[
+                          ["brecha", "Brecha por barrio"],
+                          ["cobertura_alta", "Mas cobertura"],
+                          ["cobertura_baja", "Menos cobertura"],
+                          ["servicio_dominante", "Servicio mayoritario"],
+                          ["servicios", "Dividir por servicios"]
+                        ].map(([mode, label]) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            className={padronChartMode === mode ? "active" : ""}
+                            onClick={() => setPadronChartMode(mode)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                       <div className="request-chart-grid">
-                        <section className="request-chart-card">
+                        <section className="request-chart-card is-wide">
                           <div>
-                            <strong>Barrios con mas claves de Alcaldia sin registro en Aguas</strong>
-                            <span>Ordenado por candidatas clandestinas.</span>
+                            <strong>
+                              {padronChartMode === "cobertura_alta"
+                                ? "Barrios con mayor cobertura registrada"
+                                : padronChartMode === "cobertura_baja"
+                                  ? "Barrios con menor cobertura en Aguas"
+                                  : padronChartMode === "servicio_dominante"
+                                    ? "Servicio mayoritario por barrio"
+                                    : padronChartMode === "servicios"
+                                      ? "Usuarios divididos por servicio"
+                                      : "Barrios con mas claves de Alcaldia sin registro en Aguas"}
+                            </strong>
+                            <span>
+                              {padronChartMode === "servicios"
+                                ? "Suma los servicios activos dentro de los usuarios encontrados en Aguas."
+                                : "Toca un barrio para ver su detalle de cobertura y servicios."}
+                            </span>
                           </div>
                           <div className="request-chart-list">
-                            {padronStatisticsData.clandestineByBarrio.length ? (
-                              padronStatisticsData.clandestineByBarrio.map((item) => (
-                                <div key={`missing-${item.barrio_colonia}`} className="request-chart-row">
+                            {padronStatisticsData.dynamicRows.length ? (
+                              padronStatisticsData.dynamicRows.map((item) => (
+                                <button
+                                  key={String(padronChartMode) + "-" + String(item.barrio_colonia || item.field)}
+                                  type="button"
+                                  className={"request-chart-row " + (padronStatisticsData.selectedBarrio?.barrio_colonia === item.barrio_colonia ? "is-selected" : "")}
+                                  onClick={() => {
+                                    if (item.barrio_colonia && padronChartMode !== "servicios") {
+                                      setSelectedPadronStatBarrio(item.barrio_colonia);
+                                    }
+                                  }}
+                                >
                                   <div className="request-chart-copy">
                                     <strong>{item.barrio_colonia}</strong>
-                                    <span>{item.candidatas_clandestinas} sin coincidencia de {item.alcaldia_total} claves Alcaldia</span>
+                                    <span>{item.detail}</span>
                                   </div>
                                   <div className="request-chart-track">
-                                    <span style={{ width: `${(Number(item.candidatas_clandestinas || 0) / padronStatisticsData.maxClandestine) * 100}%` }} />
+                                    <span style={{ width: String((Number(item.value || 0) / padronStatisticsData.maxDynamicRows) * 100) + "%" }} />
                                   </div>
-                                </div>
+                                </button>
                               ))
                             ) : (
-                              <p className="helper-text">Genera la comparacion para ver barrios candidatos.</p>
+                              <p className="helper-text">Genera la comparacion para activar este grafico.</p>
                             )}
                           </div>
                         </section>
                         <section className="request-chart-card">
                           <div>
-                            <strong>Barrios con menor cobertura en Aguas</strong>
-                            <span>Alcaldia tiene mas claves que usuarios registrados en Aguas.</span>
+                            <strong>Detalle del barrio</strong>
+                            <span>Lectura rapida de cobertura, brecha y servicio dominante.</span>
                           </div>
-                          <div className="request-chart-list">
-                            {padronStatisticsData.lowCoverageByBarrio.length ? (
-                              padronStatisticsData.lowCoverageByBarrio.map((item) => (
-                                <div key={`coverage-${item.barrio_colonia}`} className="request-chart-row">
-                                  <div className="request-chart-copy">
-                                    <strong>{item.barrio_colonia}</strong>
-                                    <span>{item.cobertura_aguas_pct}% cobertura · brecha {item.brecha_registros}</span>
-                                  </div>
-                                  <div className="request-chart-track">
-                                    <span style={{ width: `${(Number(item.brecha_registros || 0) / padronStatisticsData.maxLowCoverageGap) * 100}%` }} />
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="helper-text">No hay datos de brecha o falta comparar padrones.</p>
-                            )}
-                          </div>
+                          {padronStatisticsData.selectedBarrio ? (
+                            <div className="request-barrio-detail">
+                              <strong>{padronStatisticsData.selectedBarrio.barrio_colonia}</strong>
+                              <div className="request-barrio-detail-grid">
+                                <span>Claves Alcaldia <b>{padronStatisticsData.selectedBarrio.alcaldia_total}</b></span>
+                                <span>En Aguas <b>{padronStatisticsData.selectedBarrio.aguas_registradas}</b></span>
+                                <span>Cobertura <b>{padronStatisticsData.selectedBarrio.cobertura_aguas_pct}%</b></span>
+                                <span>Brecha <b>{padronStatisticsData.selectedBarrio.brecha_registros}</b></span>
+                              </div>
+                              <div className="request-service-dominant">
+                                <span>Servicio mayoritario</span>
+                                <strong>{padronStatisticsData.selectedBarrio.servicio_dominante || "Sin servicio dominante"}</strong>
+                              </div>
+                              <div className="request-service-list">
+                                {Object.entries(padronStatisticsData.serviceLabels).map(([field, label]) => {
+                                  const total = Number(padronStatisticsData.selectedBarrio.servicios?.[field] || 0);
+                                  const maxService = Math.max(
+                                    1,
+                                    ...Object.keys(padronStatisticsData.serviceLabels).map((serviceField) =>
+                                      Number(padronStatisticsData.selectedBarrio.servicios?.[serviceField] || 0)
+                                    )
+                                  );
+                                  return (
+                                    <div key={field} className="request-service-row">
+                                      <div>
+                                        <span>{label}</span>
+                                        <strong>{total}</strong>
+                                      </div>
+                                      <div className="request-chart-track">
+                                        <span style={{ width: String((total / maxService) * 100) + "%" }} />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="helper-text">Selecciona un barrio o genera la comparacion para ver el detalle.</p>
+                          )}
                         </section>
                         <section className="request-chart-card">
                           <div>
@@ -10551,13 +10690,13 @@ function App() {
                           <div className="request-chart-list">
                             {padronStatisticsData.requestBarriosTop.length ? (
                               padronStatisticsData.requestBarriosTop.map((item) => (
-                                <div key={`request-${item.barrio_colonia}`} className="request-chart-row">
+                                <div key={"request-" + item.barrio_colonia} className="request-chart-row">
                                   <div className="request-chart-copy">
                                     <strong>{item.barrio_colonia}</strong>
-                                    <span>{item.total_registros} registros · {formatCurrency(item.tarifa_total || 0)}</span>
+                                    <span>{item.total_registros} registros - {formatCurrency(item.tarifa_total || 0)}</span>
                                   </div>
                                   <div className="request-chart-track">
-                                    <span style={{ width: `${(Number(item.total_registros || 0) / padronStatisticsData.maxRequestRows) * 100}%` }} />
+                                    <span style={{ width: String((Number(item.total_registros || 0) / padronStatisticsData.maxRequestRows) * 100) + "%" }} />
                                   </div>
                                 </div>
                               ))

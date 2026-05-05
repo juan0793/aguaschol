@@ -977,6 +977,13 @@ export const compareAlcaldiaWithAguas = async () => {
   const exactMatches = comparedRows.filter((item) => item.match_type === "exacta");
   const baseMatches = comparedRows.filter((item) => item.match_type === "base");
   const candidates = comparedRows.filter((item) => item.match_type === "sin_coincidencia");
+  const serviceFields = [
+    ["agua", "Agua potable"],
+    ["alcantarillado", "Alcantarillado"],
+    ["barrido", "Barrido"],
+    ["recoleccion", "Recoleccion"],
+    ["desechos_peligrosos", "Desechos peligrosos"]
+  ];
   const barrioStatsMap = comparedRows.reduce((accumulator, item) => {
     const barrio = item.caserio || item.direccion || "Sin barrio";
     const current = accumulator.get(barrio) ?? {
@@ -986,7 +993,9 @@ export const compareAlcaldiaWithAguas = async () => {
       coincidencia_exacta: 0,
       coincidencia_base: 0,
       candidatas_clandestinas: 0,
-      claves_aguas: new Set()
+      claves_aguas: new Set(),
+      servicios: Object.fromEntries(serviceFields.map(([field]) => [field, 0])),
+      servicios_sin_duplicar: new Set()
     };
 
     current.alcaldia_total += 1;
@@ -994,8 +1003,13 @@ export const compareAlcaldiaWithAguas = async () => {
     if (item.match_type === "base") current.coincidencia_base += 1;
     if (item.match_type === "sin_coincidencia") current.candidatas_clandestinas += 1;
     (item.aguas_matches || []).forEach((match) => {
-      if (match.clave_catastral) {
-        current.claves_aguas.add(match.clave_catastral);
+      const matchKey = match.clave_catastral || match.clave_aguas_formato || match.abonado || "";
+      if (match.clave_catastral) current.claves_aguas.add(match.clave_catastral);
+      if (matchKey && !current.servicios_sin_duplicar.has(matchKey)) {
+        current.servicios_sin_duplicar.add(matchKey);
+        serviceFields.forEach(([field]) => {
+          if (match[field] === "S") current.servicios[field] += 1;
+        });
       }
     });
     current.aguas_registradas = current.claves_aguas.size;
@@ -1004,13 +1018,22 @@ export const compareAlcaldiaWithAguas = async () => {
     return accumulator;
   }, new Map());
   const barrioStats = Array.from(barrioStatsMap.values())
-    .map(({ claves_aguas, ...item }) => ({
-      ...item,
-      brecha_registros: Math.max(0, item.alcaldia_total - item.aguas_registradas),
-      cobertura_aguas_pct: item.alcaldia_total
-        ? Number(((item.aguas_registradas / item.alcaldia_total) * 100).toFixed(1))
-        : 0
-    }))
+    .map(({ claves_aguas, servicios_sin_duplicar, ...item }) => {
+      const servicioDominante = serviceFields
+        .map(([field, label]) => ({ field, label, total: Number(item.servicios?.[field] || 0) }))
+        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label, "es"))[0];
+
+      return {
+        ...item,
+        brecha_registros: Math.max(0, item.alcaldia_total - item.aguas_registradas),
+        cobertura_aguas_pct: item.alcaldia_total
+          ? Number(((item.aguas_registradas / item.alcaldia_total) * 100).toFixed(1))
+          : 0,
+        servicio_dominante: servicioDominante?.total ? servicioDominante.label : "Sin servicio dominante",
+        servicio_dominante_campo: servicioDominante?.total ? servicioDominante.field : "",
+        servicio_dominante_total: servicioDominante?.total || 0
+      };
+    })
     .sort((left, right) =>
       right.candidatas_clandestinas - left.candidatas_clandestinas ||
       right.brecha_registros - left.brecha_registros ||

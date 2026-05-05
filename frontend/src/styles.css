@@ -7735,6 +7735,29 @@ textarea {
   gap: 0.85rem;
 }
 
+.request-chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 0.9rem;
+}
+
+.request-chart-controls button {
+  min-height: 34px;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(21, 118, 209, 0.22);
+  color: #155f9f;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: none;
+}
+
+.request-chart-controls button.active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan));
+}
+
 .request-chart-card {
   display: grid;
   align-content: start;
@@ -7744,6 +7767,10 @@ textarea {
   border-radius: 14px;
   border: 1px solid rgba(21, 118, 209, 0.12);
   background: rgba(255, 255, 255, 0.78);
+}
+
+.request-chart-card.is-wide {
+  grid-column: span 2;
 }
 
 .request-chart-card > div:first-child {
@@ -7772,6 +7799,20 @@ textarea {
 .request-chart-row {
   display: grid;
   gap: 0.35rem;
+  width: 100%;
+  padding: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.request-chart-row.is-selected {
+  border-color: rgba(21, 118, 209, 0.24);
+  background: rgba(232, 243, 255, 0.82);
 }
 
 .request-chart-copy {
@@ -7798,6 +7839,68 @@ textarea {
   min-width: 3%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--brand-blue), var(--brand-cyan));
+}
+
+.request-barrio-detail {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.request-barrio-detail > strong {
+  color: #0d3a60;
+  font-size: 1rem;
+}
+
+.request-barrio-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.request-barrio-detail-grid span,
+.request-service-dominant {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.65rem;
+  border-radius: 12px;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  background: rgba(244, 249, 255, 0.9);
+  color: #607b92;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.request-barrio-detail-grid b,
+.request-service-dominant strong {
+  color: #123b5d;
+  font-size: 1rem;
+}
+
+.request-service-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.request-service-row {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.request-service-row > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.request-service-row span {
+  color: #5c7690;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.request-service-row strong {
+  color: #123b5d;
 }
 
 .request-summary-card {
@@ -7898,6 +8001,10 @@ textarea {
   .request-chart-grid,
   .request-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .request-chart-card.is-wide {
+    grid-column: auto;
   }
 
   .map-shell {
@@ -8048,6 +8155,10 @@ textarea {
   .request-chart-grid,
   .request-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .request-chart-card.is-wide {
+    grid-column: auto;
   }
 
   .request-download-row {
