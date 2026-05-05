@@ -484,14 +484,19 @@ function App() {
           value: String(safeRecords.length)
         },
         {
+          icon: "map",
+          label: "Puntos GPS",
+          value: String(safeMapPoints.length)
+        },
+        {
           icon: "users",
           label: "Usuarios en línea",
           value: String(onlineUsers.length)
         },
         {
-          icon: "map",
-          label: "Jornadas de campo",
-          value: String(mapDiaryGroups.length)
+          icon: "warning",
+          label: "Alertas",
+          value: String(alertRecords.length)
         }
       ];
     }
@@ -1316,11 +1321,12 @@ function App() {
   );
   const dashboardQuickActions = useMemo(
     () => [
+      { key: "records", label: "Nueva ficha", helper: "Crear registro clandestino", icon: "plus" },
       { key: "lookup", label: "Buscar clave", helper: "Consulta rápida de padrón", icon: "search" },
-      { key: "mapReports", label: "Reportes campo", helper: "Revisión institucional del levantamiento", icon: "map" },
-      { key: "mapAnalytics", label: "Estadísticas campo", helper: "Gráficos y lectura ejecutiva", icon: "dashboard" },
-      { key: "requests", label: "Peticiones", helper: "Listados especiales desde el padrón", icon: "dashboard" },
-      { key: "users", label: "Usuarios", helper: "Accesos, sesiones y roles", icon: "users" }
+      { key: "map", label: "Mapa de campo", helper: "Levantamiento GPS", icon: "map" },
+      { key: "executiveReport", label: "Reportes", helper: "Vista ejecutiva y estadísticas", icon: "dashboard" },
+      { key: "padron", label: "Padrón", helper: "Gestión del maestro", icon: "refresh" },
+      { key: "users", label: "Usuarios", helper: "Accesos y roles", icon: "users" }
     ],
     []
   );
@@ -7326,117 +7332,97 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
-          <section className="dashboard-live-strip" aria-label="Pulso operativo del tablero">
-            <article className="dashboard-live-card is-primary">
-              <span className="dashboard-live-dot" />
-              <div>
-                <small>En vivo</small>
-                <strong>{onlineUsers.length} usuarios</strong>
-                <p>Actualiza actividad, fichas y campo cada 15 segundos.</p>
+          <section className="dashboard-metrics-grid">
+            {headerStats.map((stat) => (
+              <article key={stat.label} className="dashboard-metric-card">
+                <span className="dashboard-metric-icon"><Icon name={stat.icon} /></span>
+                <strong>{stat.value}</strong>
+                <span>{stat.label}</span>
+              </article>
+            ))}
+          </section>
+
+          <section className="dashboard-content-grid">
+            <article className="preview-panel dashboard-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Actividad reciente</p>
+                  <h2><Icon name="activity" className="title-icon" />Pulso operativo</h2>
+                </div>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
+                  <Icon name="logs" />
+                  Bitácora completa
+                </button>
+              </div>
+              <div className="dashboard-activity-list">
+                {dashboardActivity.length ? (
+                  dashboardActivity.map((log) => (
+                    <article key={log.id} className="dashboard-activity-item">
+                      <span className="dashboard-activity-icon">
+                        <Icon name={actionIconName(log.action)} />
+                      </span>
+                      <div>
+                        <strong>{log.summary || actionLabel(log.action)}</strong>
+                        <p>{log.actor_name || log.actor_email || "Sistema"} · {formatDateTime(log.created_at)}</p>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <h3>Sin actividad reciente</h3>
+                    <p>Cuando el equipo opere fichas, mapa o usuarios, veras el resumen aqui.</p>
+                  </div>
+                )}
               </div>
             </article>
-            <article className="dashboard-live-card">
-              <span className="dashboard-live-icon"><Icon name="activity" /></span>
-              <div>
-                <small>Ultimo movimiento</small>
-                <strong>{dashboardActivity[0]?.summary || actionLabel(dashboardActivity[0]?.action) || "Sin eventos"}</strong>
-                <p>{dashboardActivity[0] ? formatDateTime(dashboardActivity[0].created_at) : "La bitacora aparecera aqui."}</p>
+
+            <article className="preview-panel dashboard-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Alertas y pendientes</p>
+                  <h2><Icon name="warning" className="title-icon" />Atención requerida</h2>
+                </div>
               </div>
-            </article>
-            <article className="dashboard-live-card">
-              <span className="dashboard-live-icon"><Icon name="records" /></span>
-              <div>
-                <small>Fichas hoy</small>
-                <strong>{recordsUpdatedToday}</strong>
-                <p>{pendingPhotoRecords} sin fotografia y {alertRecords.length} en plazo critico.</p>
-              </div>
-            </article>
-            <article className="dashboard-live-card">
-              <span className="dashboard-live-icon"><Icon name="map" /></span>
-              <div>
-                <small>Campo</small>
-                <strong>{mapPointsToday} puntos</strong>
-                <p>{dashboardJourneys[0] ? `${formatMapDiaryLabel(dashboardJourneys[0].key)} activa` : "Sin jornada activa registrada."}</p>
+              <div className="dashboard-alerts-list">
+                {alertRecords.length ? (
+                  alertRecords.slice(0, 5).map((record) => {
+                    const meta = recordDeadlineMetaById[record.id];
+                    return (
+                      <article key={record.id} className={`dashboard-alert-item ${meta?.statusKey || "warning"}`}>
+                        <span className="dashboard-alert-icon">
+                          <Icon name={meta?.statusKey === "overdue" ? "danger" : "warning"} />
+                        </span>
+                        <div>
+                          <strong>{record.clave_catastral || "Sin clave"}</strong>
+                          <p>{meta?.label || "Requiere atención"} · {formatDateTime(record.created_at)}</p>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="empty-state">
+                    <h3>Sin alertas pendientes</h3>
+                    <p>Todas las fichas están al día.</p>
+                  </div>
+                )}
               </div>
             </article>
           </section>
 
-          <details className="preview-panel dashboard-widget-toolbar">
-            <summary className="dashboard-widget-summary">
-              <span>
-                <Icon name="dashboard" className="title-icon" />
-                Personalizar tablero
-              </span>
-              <small>{visibleDashboardWidgetItems.length} bloques visibles</small>
-            </summary>
-            <div className="dashboard-widget-toolbar-head">
-              <div>
-                <p className="sheet-kicker">Diseño del tablero</p>
-                <h2><Icon name="dashboard" className="title-icon" />Widgets personalizables</h2>
-                <p className="workspace-title">
-                  Reordena, oculta o restaura bloques del dashboard para que cada administrador vea primero lo que más usa.
-                </p>
-              </div>
-              <button type="button" className="button-secondary" onClick={resetDashboardWidgets}>
-                <Icon name="refresh" />
-                Restaurar tablero
-              </button>
-            </div>
-            <div className="dashboard-widget-chip-row">
-              {dashboardWidgetItems.map((item) => (
+          <section className="dashboard-quick-actions">
+            <div className="dashboard-quick-grid">
+              {dashboardQuickActions.map((action) => (
                 <button
-                  key={item.key}
+                  key={action.key}
                   type="button"
-                  className={`dashboard-widget-chip ${dashboardWidgetPrefs.hidden.includes(item.key) ? "is-hidden" : "is-visible"}`}
-                  onClick={() => toggleDashboardWidgetVisibility(item.key)}
+                  className="dashboard-quick-card"
+                  onClick={() => setWorkspaceView(action.key)}
                 >
-                  <strong>{item.label}</strong>
-                  <small>{dashboardWidgetPrefs.hidden.includes(item.key) ? "Mostrar" : "Visible"}</small>
+                  <span className="dashboard-quick-icon"><Icon name={action.icon} /></span>
+                  <span className="dashboard-quick-label">{action.label}</span>
                 </button>
               ))}
             </div>
-          </details>
-
-          <section className="dashboard-widget-grid">
-            {visibleDashboardWidgetItems.map((item, index) => (
-              <article key={item.key} className={`dashboard-widget-shell ${item.className || ""}`}>
-                <div className="dashboard-widget-shell-head">
-                  <div>
-                    <strong>{item.label}</strong>
-                    <span>{item.helper}</span>
-                  </div>
-                  <div className="dashboard-widget-shell-actions">
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => moveDashboardWidget(item.key, -1)}
-                      disabled={index === 0}
-                    >
-                      <Icon name="arrowLeft" />
-                      Subir
-                    </button>
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => moveDashboardWidget(item.key, 1)}
-                      disabled={index === visibleDashboardWidgetItems.length - 1}
-                    >
-                      Bajar
-                      <Icon name="arrowRight" />
-                    </button>
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => toggleDashboardWidgetVisibility(item.key)}
-                    >
-                      <Icon name="more" />
-                      Ocultar
-                    </button>
-                  </div>
-                </div>
-                {item.content}
-              </article>
-            ))}
           </section>
           {false ? (
             <>
