@@ -85,7 +85,6 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
@@ -217,6 +216,8 @@ function App() {
   const [lastProcessedRecord, setLastProcessedRecord] = useState(null);
   const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
   const [batchPrintCopies, setBatchPrintCopies] = useState({});
+  const [printBatchSearch, setPrintBatchSearch] = useState("");
+  const [printBatchQuickFilter, setPrintBatchQuickFilter] = useState("all");
   const [batchPrinting, setBatchPrinting] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState(
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
@@ -1946,6 +1947,32 @@ function App() {
     () => filteredRecords.filter((record) => recordView === "archived" || record.estado_padron !== "reportada"),
     [filteredRecords, recordView]
   );
+  const filteredPrintBatchRecords = useMemo(() => {
+    const query = printBatchSearch.trim().toLowerCase();
+
+    return printBatchRecords.filter((record) => {
+      const copies = batchPrintCopies[record.id] || {};
+      const fichaCopies = clampPrintCopies(copies.ficha ?? 0);
+      const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
+      const matchesSearch =
+        !query ||
+        String(record.clave_catastral || "").toLowerCase().includes(query) ||
+        String(record.barrio_colonia || "").toLowerCase().includes(query);
+
+      if (!matchesSearch) return false;
+      if (printBatchQuickFilter === "clandestina") {
+        return (record.estado_padron || "clandestino") === "clandestino";
+      }
+      if (printBatchQuickFilter === "ficha_selected") {
+        return fichaCopies > 0;
+      }
+      if (printBatchQuickFilter === "aviso_selected") {
+        return avisoCopies > 0;
+      }
+
+      return true;
+    });
+  }, [batchPrintCopies, printBatchQuickFilter, printBatchRecords, printBatchSearch]);
 
   useEffect(() => {
     return () => {
@@ -4029,6 +4056,8 @@ function App() {
 
   const openPrintBatchModal = () => {
     const currentRecordVisible = form.id && safeRecords.some((record) => record.id === form.id);
+    setPrintBatchSearch("");
+    setPrintBatchQuickFilter("all");
     setBatchPrintCopies(
       currentRecordVisible
         ? {
@@ -4075,7 +4104,7 @@ function App() {
   const selectVisibleBatchPrintCopies = (documentType) => {
     setBatchPrintCopies((current) => {
       const nextCopies = { ...current };
-      printBatchRecords.forEach((record) => {
+      filteredPrintBatchRecords.forEach((record) => {
         nextCopies[record.id] = {
           ficha: documentType === "ficha" ? 1 : clampPrintCopies(nextCopies[record.id]?.ficha ?? 0),
           aviso: documentType === "aviso" ? 1 : clampPrintCopies(nextCopies[record.id]?.aviso ?? 0)
@@ -6599,7 +6628,7 @@ function App() {
         </div>
       ) : null}
       <Dialog open={showPrintBatchModal} onOpenChange={(open) => !batchPrinting && setShowPrintBatchModal(open)}>
-        <DialogContent className="print-batch-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-2xl">
+        <DialogContent className="print-batch-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-3xl">
           <DialogHeader className="password-modal-head">
             <p className="eyebrow">Impresion rapida</p>
             <DialogTitle>Seleccionar fichas, avisos y copias</DialogTitle>
@@ -6610,64 +6639,92 @@ function App() {
               Al continuar se abrira una vista previa grande para revisar el documento antes de enviar la impresion al navegador.
             </p>
           </DialogHeader>
-          <div className="print-batch-summary">
-            <Badge variant="secondary">{batchPrintSelection.fichas} fichas</Badge>
-            <Badge variant="secondary">{batchPrintSelection.avisos} avisos</Badge>
-            <Badge variant="outline">{printBatchRecords.length} visibles</Badge>
-            <Badge variant="outline">
-              {printBatchRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length} clandestinas
-            </Badge>
-            <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
-              1 ficha visible
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
-              1 aviso visible
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={clearBatchPrintCopies}>
-              Limpiar seleccion
-            </Button>
+          <div className="print-batch-toolbar">
+            <label className="print-batch-search">
+              <span>Buscar ficha</span>
+              <Input
+                type="search"
+                value={printBatchSearch}
+                onChange={(event) => setPrintBatchSearch(event.target.value)}
+                placeholder="Buscar por clave..."
+              />
+            </label>
+            <div className="print-batch-filters" aria-label="Filtros rapidos de impresion">
+              {[
+                { key: "all", label: "Todas" },
+                { key: "clandestina", label: "Clandestinas" },
+                { key: "ficha_selected", label: "Con ficha seleccionada" },
+                { key: "aviso_selected", label: "Con aviso seleccionado" }
+              ].map((filter) => (
+                <Button
+                  key={filter.key}
+                  type="button"
+                  variant={printBatchQuickFilter === filter.key ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPrintBatchQuickFilter(filter.key)}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
+            <div className="print-batch-summary" aria-label="Resumen de seleccion">
+              <Badge variant="secondary">{batchPrintSelection.fichas} fichas</Badge>
+              <Badge variant="secondary">{batchPrintSelection.avisos} avisos</Badge>
+              <Badge variant="outline">{filteredPrintBatchRecords.length} visibles</Badge>
+              <Badge variant="outline">
+                {filteredPrintBatchRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length} clandestinas
+              </Badge>
+            </div>
+            <div className="print-batch-actions">
+              <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
+                Seleccionar fichas visibles
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
+                Seleccionar avisos visibles
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={clearBatchPrintCopies}>
+                Limpiar seleccion
+              </Button>
+            </div>
           </div>
-          <ScrollArea className="print-batch-scroll">
+          <div className="print-batch-scroll">
             <div className="print-batch-grid">
-              {printBatchRecords.length ? (
-                printBatchRecords.map((record) => {
+              {filteredPrintBatchRecords.length ? (
+                filteredPrintBatchRecords.map((record) => {
                   const copies = batchPrintCopies[record.id] || {};
                   const fichaCopies = clampPrintCopies(copies.ficha ?? 0);
                   const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
                   const padronStatus = record.estado_padron || "clandestino";
                   const isClandestina = padronStatus === "clandestino";
+                  const isSelected = Boolean(fichaCopies || avisoCopies);
 
                   return (
                     <article
                       key={`print-${record.id}`}
-                      className={`print-batch-card ${fichaCopies || avisoCopies ? "is-selected" : ""}`}
+                      className={`print-batch-card ${isSelected ? "is-selected" : ""}`}
                     >
-                      <div className="print-batch-card-icon">
-                        <Icon name={record.estado_padron === "reportada" ? "success" : "records"} />
-                      </div>
                       <div className="print-batch-card-main">
-                        <strong>{record.clave_catastral}</strong>
+                        <div className="print-batch-card-title">
+                          <strong>{record.clave_catastral}</strong>
+                          {isSelected ? <Badge variant="outline" className="print-selected-badge">Seleccionada</Badge> : null}
+                        </div>
                         <span>{record.barrio_colonia || "Sin ubicacion"}</span>
-                        <small>{record.inquilino || record.abonado || record.nombre_catastral || "Sin nombre"}</small>
+                        <div className="print-batch-card-meta">
+                          <Badge
+                            variant={isClandestina ? "destructive" : padronStatus === "reportada" ? "secondary" : "outline"}
+                            className={`print-status-badge is-${padronStatus}`}
+                          >
+                            {getPadronStatusLabel(padronStatus)}
+                          </Badge>
+                        </div>
                       </div>
                       <div className="print-batch-status">
-                        <Badge
-                          variant={isClandestina ? "destructive" : padronStatus === "reportada" ? "secondary" : "outline"}
-                          className={`print-status-badge is-${padronStatus}`}
-                        >
-                          {getPadronStatusLabel(padronStatus)}
-                        </Badge>
-                        <span>
-                          {isClandestina
-                            ? "Puede imprimirse como ficha clandestina."
-                            : padronStatus === "varios_padrones"
-                              ? "Aparece en Alcaldia y Aguas; revisa antes de imprimir."
-                              : "Ya fue reportada o procesada."}
-                        </span>
+                        <span>{isClandestina ? "Ficha clandestina lista para impresion." : getPadronStatusDescription(padronStatus)}</span>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="print-validate-button"
                           onClick={() => handleValidatePrintRecord(record)}
                           disabled={processingRecordId === record.id}
                         >
@@ -6719,8 +6776,8 @@ function App() {
                 </div>
               )}
             </div>
-          </ScrollArea>
-          <DialogFooter className="password-form-actions">
+          </div>
+          <DialogFooter className="password-form-actions print-batch-footer">
             <Button
               type="button"
               variant="outline"
@@ -6733,6 +6790,7 @@ function App() {
               type="button"
               onClick={handlePrintBatch}
               disabled={batchPrinting || (!batchPrintSelection.fichas && !batchPrintSelection.avisos)}
+              className={batchPrintSelection.fichas || batchPrintSelection.avisos ? "print-preview-button is-ready" : "print-preview-button"}
             >
               <Icon name="records" />
               {batchPrinting
