@@ -7780,6 +7780,14 @@ textarea {
   flex: 0 0 auto;
 }
 
+.stats-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
 .stats-modal-summary {
   margin: 0;
 }
@@ -8185,9 +8193,15 @@ textarea {
     gap: 0.65rem;
   }
 
+  .stats-modal-actions,
+  .stats-modal-actions button,
   .stats-modal-close,
   .request-stat-actions button {
     width: 100%;
+  }
+
+  .stats-modal-actions {
+    display: grid;
   }
 
   .stats-modal-body .request-chart-grid {
@@ -8369,9 +8383,15 @@ textarea {
     gap: 0.6rem;
   }
 
+  .stats-modal-actions,
+  .stats-modal-actions button,
   .stats-modal-close,
   .request-stat-actions button {
     width: 100%;
+  }
+
+  .stats-modal-actions {
+    display: grid;
   }
 
   .stats-modal-body .request-chart-grid {

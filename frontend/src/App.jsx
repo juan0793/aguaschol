@@ -285,6 +285,7 @@ function App() {
   const [padronChartMode, setPadronChartMode] = useState("brecha");
   const [padronChartType, setPadronChartType] = useState("barras");
   const [showPadronStatsModal, setShowPadronStatsModal] = useState(false);
+  const [downloadingPadronStatsPdf, setDownloadingPadronStatsPdf] = useState(false);
   const [selectedPadronStatBarrio, setSelectedPadronStatBarrio] = useState("");
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -3173,6 +3174,138 @@ function App() {
       showAlert("Peticion descargada en PDF.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar la peticion en PDF.");
+    }
+  };
+
+  const handleDownloadPadronStatsPdf = async () => {
+    if (!alcaldiaComparison?.summary || !padronStatisticsData.dynamicRows.length) {
+      showAlert("Genera primero los graficos para guardar el reporte en PDF.");
+      return;
+    }
+
+    try {
+      setDownloadingPadronStatsPdf(true);
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "letter"
+      });
+      const pageWidth = document.internal.pageSize.getWidth();
+      const generatedAt = formatDateTime(new Date().toISOString());
+      const modeLabels = {
+        brecha: "Brecha por barrio",
+        cobertura_alta: "Barrios con mas cobertura",
+        cobertura_baja: "Barrios con menos cobertura",
+        servicio_dominante: "Servicio mayoritario por barrio",
+        servicios: "Division por servicios"
+      };
+      const summary = alcaldiaComparison.summary;
+      const addFooter = () => {
+        const pageHeight = document.internal.pageSize.getHeight();
+        const pageNumber = document.getCurrentPageInfo().pageNumber;
+        document.setFontSize(8);
+        document.setTextColor(95, 116, 138);
+        document.text(`Aguas de Choluteca - reporte estadistico - pag. ${pageNumber}`, 14, pageHeight - 8);
+      };
+
+      document.setFillColor(10, 65, 112);
+      document.rect(0, 0, pageWidth, 22, "F");
+      document.setTextColor(255, 255, 255);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(15);
+      document.text("Reporte estadistico de padrones", 14, 14);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9);
+      document.text(`Generado: ${generatedAt}`, pageWidth - 14, 14, { align: "right" });
+
+      document.setTextColor(22, 54, 82);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(11);
+      document.text(`Grafico activo: ${modeLabels[padronChartMode] || "Analisis por barrio"}`, 14, 32);
+
+      autoTable(document, {
+        startY: 38,
+        head: [["Aguas", "Alcaldia", "No aparecen en Aguas", "Coincidencias"]],
+        body: [[
+          summary.aguas_records ?? padronMeta?.total_records ?? 0,
+          summary.alcaldia_records ?? alcaldiaMeta?.total_records ?? 0,
+          summary.candidate_clandestine ?? 0,
+          Number(summary.exact_matches ?? 0) + Number(summary.base_matches ?? 0)
+        ]],
+        theme: "grid",
+        styles: { fontSize: 9, cellPadding: 3, halign: "center", textColor: [24, 55, 82] },
+        headStyles: { fillColor: [18, 93, 160], textColor: 255 },
+        margin: { left: 14, right: 14 }
+      });
+
+      autoTable(document, {
+        startY: (document.lastAutoTable?.finalY ?? 58) + 8,
+        head: [["Barrio / servicio", "Detalle", "Valor"]],
+        body: padronStatisticsData.dynamicRows.map((item) => [
+          item.barrio_colonia,
+          item.detail,
+          padronChartMode.includes("cobertura") ? `${item.value}%` : item.value
+        ]),
+        theme: "striped",
+        styles: { fontSize: 8.2, cellPadding: 2.4, textColor: [29, 57, 82], valign: "top" },
+        headStyles: { fillColor: [226, 240, 253], textColor: [11, 61, 104] },
+        columnStyles: {
+          0: { cellWidth: 72, fontStyle: "bold" },
+          1: { cellWidth: 145 },
+          2: { cellWidth: 34, halign: "right" }
+        },
+        margin: { left: 14, right: 14 },
+        didDrawPage: addFooter
+      });
+
+      if (padronStatisticsData.selectedBarrio) {
+        document.addPage("letter", "landscape");
+        const barrio = padronStatisticsData.selectedBarrio;
+        document.setTextColor(22, 54, 82);
+        document.setFont("helvetica", "bold");
+        document.setFontSize(13);
+        document.text(`Detalle del barrio: ${barrio.barrio_colonia}`, 14, 18);
+
+        autoTable(document, {
+          startY: 26,
+          head: [["Claves Alcaldia", "En Aguas", "Cobertura", "Brecha", "Servicio mayoritario"]],
+          body: [[
+            barrio.alcaldia_total ?? 0,
+            barrio.aguas_registradas ?? 0,
+            `${barrio.cobertura_aguas_pct ?? 0}%`,
+            barrio.brecha_registros ?? 0,
+            barrio.servicio_dominante || "Sin servicio dominante"
+          ]],
+          theme: "grid",
+          styles: { fontSize: 9, cellPadding: 3, halign: "center", textColor: [24, 55, 82] },
+          headStyles: { fillColor: [18, 93, 160], textColor: 255 },
+          margin: { left: 14, right: 14 }
+        });
+
+        autoTable(document, {
+          startY: (document.lastAutoTable?.finalY ?? 46) + 8,
+          head: [["Servicio", "Usuarios"]],
+          body: Object.entries(padronStatisticsData.serviceLabels).map(([field, label]) => [
+            label,
+            Number(barrio.servicios?.[field] || 0)
+          ]),
+          theme: "striped",
+          styles: { fontSize: 9, cellPadding: 3, textColor: [24, 55, 82] },
+          headStyles: { fillColor: [226, 240, 253], textColor: [11, 61, 104] },
+          margin: { left: 14, right: 14 },
+          didDrawPage: addFooter
+        });
+      }
+
+      addFooter();
+      document.save(`reporte-estadistico-padrones-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Reporte estadistico guardado en PDF.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible guardar el reporte estadistico en PDF.");
+    } finally {
+      setDownloadingPadronStatsPdf(false);
     }
   };
 
@@ -10598,9 +10731,19 @@ function App() {
                               <h3>Alcaldia vs Aguas de Choluteca</h3>
                               <p className="helper-text">Explora cobertura, brechas y servicios por barrio en una vista amplia.</p>
                             </div>
-                            <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronStatsModal(false)}>
-                              Cerrar
-                            </button>
+                            <div className="stats-modal-actions">
+                              <button
+                                type="button"
+                                onClick={handleDownloadPadronStatsPdf}
+                                disabled={downloadingPadronStatsPdf || !padronStatisticsData.dynamicRows.length}
+                              >
+                                <Icon name="records" />
+                                {downloadingPadronStatsPdf ? "Guardando..." : "Guardar PDF"}
+                              </button>
+                              <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronStatsModal(false)}>
+                                Cerrar
+                              </button>
+                            </div>
                           </div>
                           <div className="request-stat-summary stats-modal-summary">
                             <div className="request-summary-card">
