@@ -4071,6 +4071,21 @@ function App() {
     setShowPrintBatchModal(true);
   };
 
+  const openPrintBatchModalForRecords = (targetRecords = [], documentType = "ficha") => {
+    const selectedCopies = {};
+    targetRecords.forEach((record) => {
+      if (!record?.id) return;
+      selectedCopies[record.id] = {
+        ficha: documentType === "ficha" ? 1 : 0,
+        aviso: documentType === "aviso" ? 1 : 0
+      };
+    });
+    setPrintBatchSearch("");
+    setPrintBatchQuickFilter(documentType === "aviso" ? "aviso_selected" : "ficha_selected");
+    setBatchPrintCopies(selectedCopies);
+    setShowPrintBatchModal(true);
+  };
+
   const updateBatchPrintCopies = (recordId, documentType, value) => {
     const nextValue = clampPrintCopies(value);
     setBatchPrintCopies((current) => ({
@@ -7438,23 +7453,38 @@ function App() {
               <div className="dashboard-panel-head">
                 <div>
                   <p className="sheet-kicker">Alertas y pendientes</p>
-                  <h2><Icon name="warning" className="title-icon" />Atención requerida</h2>
+                  <h2><Icon name="warning" className="title-icon" />En alerta, listas para imprimir</h2>
                 </div>
+                {alertRecords.length ? (
+                  <button type="button" className="button-secondary" onClick={() => openPrintBatchModalForRecords(alertRecords, "ficha")}>
+                    <Icon name="records" />
+                    Imprimir alertas
+                  </button>
+                ) : null}
               </div>
               <div className="dashboard-alerts-list">
                 {alertRecords.length ? (
-                  alertRecords.slice(0, 5).map((record) => {
+                  alertRecords.map((record) => {
                     const meta = recordDeadlineMetaById[record.id];
                     return (
-                      <article key={record.id} className={`dashboard-alert-item ${meta?.statusKey || "warning"}`}>
+                      <button
+                        key={record.id}
+                        type="button"
+                        className={`dashboard-alert-item ${meta?.statusKey || "warning"}`}
+                        onClick={() => openPrintBatchModalForRecords([record], "ficha")}
+                      >
                         <span className="dashboard-alert-icon">
                           <Icon name={meta?.statusKey === "overdue" ? "danger" : "warning"} />
                         </span>
                         <div>
                           <strong>{record.clave_catastral || "Sin clave"}</strong>
-                          <p>{meta?.label || "Requiere atención"} · {formatDateTime(record.created_at)}</p>
+                          <p>{meta?.label || "Requiere atención"} · lista para imprimir ficha</p>
                         </div>
-                      </article>
+                        <span className="dashboard-alert-print">
+                          <Icon name="records" />
+                          Imprimir
+                        </span>
+                      </button>
                     );
                   })
                 ) : (
