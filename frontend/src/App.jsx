@@ -968,7 +968,6 @@ function App() {
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
-            { key: "mapAnalytics", section: "control", label: "Estadísticas campo", icon: "dashboard", meta: `${mapReportData.totalPoints} puntos`, tone: "is-report" },
             { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
             { key: "padron", section: "control", label: "Padrón", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
@@ -1020,8 +1019,7 @@ function App() {
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
-            { key: "mapAnalytics", label: "Estadísticas campo", icon: "dashboard", group: "control", helper: `${mapReportData.totalPoints} puntos` },
-            { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: `${padronRequestResult?.summary?.total_registros ?? 0} filas` },
+            { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
@@ -1064,7 +1062,6 @@ function App() {
     const labelByKey = {
       executiveReport: "Operaciones",
       mapReports: "Reportes",
-      mapAnalytics: "Estadisticas",
       padron: "Padron"
     };
     const badgeByKey = {
@@ -1074,7 +1071,6 @@ function App() {
       users: safeUsers.length,
       map: visibleMapPoints.length,
       mapReports: mapReportData.totalZones,
-      mapAnalytics: mapReportData.totalPoints,
       requests: padronRequestResult?.summary?.total_registros ?? 0
     };
     const normalizeItem = (item) => ({
@@ -1101,7 +1097,7 @@ function App() {
       {
         key: "gestion",
         title: "Gestion",
-        items: items.filter((item) => ["executiveReport", "padron", "mapAnalytics", "logs", "users"].includes(item.key))
+        items: items.filter((item) => ["executiveReport", "padron", "logs", "users"].includes(item.key))
       }
     ].filter((section) => section.items.length);
   }, [
@@ -1248,6 +1244,32 @@ function App() {
       maxZoneTotal: Math.max(1, ...zoneSeries.map((item) => item.total))
     };
   }, [mapDiaryGroups, mapReportData.totalsByType, mapReportData.zones, visibleMapPoints]);
+  const padronStatisticsData = useMemo(() => {
+    const barrioStats = Array.isArray(alcaldiaComparison?.barrio_stats) ? alcaldiaComparison.barrio_stats : [];
+    const requestBarrios = Array.isArray(padronRequestResult?.summary?.barrios) ? padronRequestResult.summary.barrios : [];
+    const clandestineByBarrio = barrioStats
+      .filter((item) => Number(item.candidatas_clandestinas || 0) > 0)
+      .slice(0, 10);
+    const lowCoverageByBarrio = [...barrioStats]
+      .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.brecha_registros || 0) > 0)
+      .sort((left, right) =>
+        Number(left.cobertura_aguas_pct || 0) - Number(right.cobertura_aguas_pct || 0) ||
+        Number(right.brecha_registros || 0) - Number(left.brecha_registros || 0)
+      )
+      .slice(0, 10);
+    const requestBarriosTop = [...requestBarrios]
+      .sort((left, right) => Number(right.total_registros || 0) - Number(left.total_registros || 0))
+      .slice(0, 10);
+
+    return {
+      clandestineByBarrio,
+      lowCoverageByBarrio,
+      requestBarriosTop,
+      maxClandestine: Math.max(1, ...clandestineByBarrio.map((item) => Number(item.candidatas_clandestinas || 0))),
+      maxLowCoverageGap: Math.max(1, ...lowCoverageByBarrio.map((item) => Number(item.brecha_registros || 0))),
+      maxRequestRows: Math.max(1, ...requestBarriosTop.map((item) => Number(item.total_registros || 0)))
+    };
+  }, [alcaldiaComparison, padronRequestResult]);
   const dashboardMetrics = useMemo(
     () => [
       {
@@ -2239,7 +2261,7 @@ function App() {
     }
   };
 
-  const loadAlcaldiaComparison = async () => {
+  const loadAlcaldiaComparison = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !isAdmin) return;
     setLoadingAlcaldiaComparison(true);
 
@@ -2258,9 +2280,13 @@ function App() {
       }
 
       setAlcaldiaComparison(data);
-      showAlert(`Comparacion lista: ${data.summary?.candidate_clandestine ?? 0} claves de alcaldia no aparecen en Aguas.`);
+      if (!silent) {
+        showAlert(`Comparacion lista: ${data.summary?.candidate_clandestine ?? 0} claves de alcaldia no aparecen en Aguas.`);
+      }
     } catch (error) {
-      showAlert(error.message || "No fue posible comparar los padrones.");
+      if (!silent) {
+        showAlert(error.message || "No fue posible comparar los padrones.");
+      }
     } finally {
       setLoadingAlcaldiaComparison(false);
     }
@@ -2478,6 +2504,11 @@ function App() {
 
     if (workspaceView === "requests") {
       loadPadronRequestMeta();
+      loadPadronMeta();
+      loadAlcaldiaMeta();
+      if (!alcaldiaComparison?.summary) {
+        loadAlcaldiaComparison({ silent: true });
+      }
     }
 
     if (workspaceView === "logs") {
@@ -10417,6 +10448,10 @@ function App() {
                           <Icon name="refresh" />
                           {loadingPadronRequest ? "Generando..." : "Generar peticion"}
                         </button>
+                        <button type="button" className="button-secondary" onClick={() => loadAlcaldiaComparison()} disabled={loadingAlcaldiaComparison}>
+                          <Icon name="dashboard" />
+                          {loadingAlcaldiaComparison ? "Graficando..." : "Generar graficos"}
+                        </button>
                         <button type="button" className="button-secondary" onClick={handlePrintPadronRequest}>
                           <Icon name="records" />
                           Imprimir
@@ -10427,6 +10462,112 @@ function App() {
                         </button>
                       </div>
                     </div>
+
+                    <section className="document-block request-statistics-panel">
+                      <div className="admin-section-head">
+                        <div>
+                          <p className="sheet-kicker">Graficos estadisticos</p>
+                          <h3>Alcaldia vs Aguas de Choluteca</h3>
+                          <p className="helper-text">
+                            Detecta barrios donde Alcaldia tiene claves catastrales, pero Aguas registra menos usuarios o no encuentra coincidencia.
+                          </p>
+                        </div>
+                        <span className="panel-pill">
+                          {alcaldiaComparison?.summary
+                            ? `${alcaldiaComparison.summary.candidate_clandestine ?? 0} candidatas`
+                            : "Sin comparar"}
+                        </span>
+                      </div>
+                      <div className="request-stat-summary">
+                        <div className="request-summary-card">
+                          <span>Aguas</span>
+                          <strong>{alcaldiaComparison?.summary?.aguas_records ?? padronMeta?.total_records ?? 0}</strong>
+                        </div>
+                        <div className="request-summary-card">
+                          <span>Alcaldia</span>
+                          <strong>{alcaldiaComparison?.summary?.alcaldia_records ?? alcaldiaMeta?.total_records ?? 0}</strong>
+                        </div>
+                        <div className="request-summary-card">
+                          <span>No aparecen en Aguas</span>
+                          <strong>{alcaldiaComparison?.summary?.candidate_clandestine ?? 0}</strong>
+                        </div>
+                        <div className="request-summary-card">
+                          <span>Coincidencias</span>
+                          <strong>{(alcaldiaComparison?.summary?.exact_matches ?? 0) + (alcaldiaComparison?.summary?.base_matches ?? 0)}</strong>
+                        </div>
+                      </div>
+                      <div className="request-chart-grid">
+                        <section className="request-chart-card">
+                          <div>
+                            <strong>Barrios con mas claves de Alcaldia sin registro en Aguas</strong>
+                            <span>Ordenado por candidatas clandestinas.</span>
+                          </div>
+                          <div className="request-chart-list">
+                            {padronStatisticsData.clandestineByBarrio.length ? (
+                              padronStatisticsData.clandestineByBarrio.map((item) => (
+                                <div key={`missing-${item.barrio_colonia}`} className="request-chart-row">
+                                  <div className="request-chart-copy">
+                                    <strong>{item.barrio_colonia}</strong>
+                                    <span>{item.candidatas_clandestinas} sin coincidencia de {item.alcaldia_total} claves Alcaldia</span>
+                                  </div>
+                                  <div className="request-chart-track">
+                                    <span style={{ width: `${(Number(item.candidatas_clandestinas || 0) / padronStatisticsData.maxClandestine) * 100}%` }} />
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="helper-text">Genera la comparacion para ver barrios candidatos.</p>
+                            )}
+                          </div>
+                        </section>
+                        <section className="request-chart-card">
+                          <div>
+                            <strong>Barrios con menor cobertura en Aguas</strong>
+                            <span>Alcaldia tiene mas claves que usuarios registrados en Aguas.</span>
+                          </div>
+                          <div className="request-chart-list">
+                            {padronStatisticsData.lowCoverageByBarrio.length ? (
+                              padronStatisticsData.lowCoverageByBarrio.map((item) => (
+                                <div key={`coverage-${item.barrio_colonia}`} className="request-chart-row">
+                                  <div className="request-chart-copy">
+                                    <strong>{item.barrio_colonia}</strong>
+                                    <span>{item.cobertura_aguas_pct}% cobertura · brecha {item.brecha_registros}</span>
+                                  </div>
+                                  <div className="request-chart-track">
+                                    <span style={{ width: `${(Number(item.brecha_registros || 0) / padronStatisticsData.maxLowCoverageGap) * 100}%` }} />
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="helper-text">No hay datos de brecha o falta comparar padrones.</p>
+                            )}
+                          </div>
+                        </section>
+                        <section className="request-chart-card">
+                          <div>
+                            <strong>Resultado de la peticion por barrio</strong>
+                            <span>Grafico del listado generado con la plantilla actual.</span>
+                          </div>
+                          <div className="request-chart-list">
+                            {padronStatisticsData.requestBarriosTop.length ? (
+                              padronStatisticsData.requestBarriosTop.map((item) => (
+                                <div key={`request-${item.barrio_colonia}`} className="request-chart-row">
+                                  <div className="request-chart-copy">
+                                    <strong>{item.barrio_colonia}</strong>
+                                    <span>{item.total_registros} registros · {formatCurrency(item.tarifa_total || 0)}</span>
+                                  </div>
+                                  <div className="request-chart-track">
+                                    <span style={{ width: `${(Number(item.total_registros || 0) / padronStatisticsData.maxRequestRows) * 100}%` }} />
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="helper-text">Genera una peticion para ver su grafico por barrio.</p>
+                            )}
+                          </div>
+                        </section>
+                      </div>
+                    </section>
 
                     <div className="request-editor-grid">
                       <form className="document-block request-editor-card" onSubmit={handleRunPadronRequest}>

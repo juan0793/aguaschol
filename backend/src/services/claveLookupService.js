@@ -977,6 +977,46 @@ export const compareAlcaldiaWithAguas = async () => {
   const exactMatches = comparedRows.filter((item) => item.match_type === "exacta");
   const baseMatches = comparedRows.filter((item) => item.match_type === "base");
   const candidates = comparedRows.filter((item) => item.match_type === "sin_coincidencia");
+  const barrioStatsMap = comparedRows.reduce((accumulator, item) => {
+    const barrio = item.caserio || item.direccion || "Sin barrio";
+    const current = accumulator.get(barrio) ?? {
+      barrio_colonia: barrio,
+      alcaldia_total: 0,
+      aguas_registradas: 0,
+      coincidencia_exacta: 0,
+      coincidencia_base: 0,
+      candidatas_clandestinas: 0,
+      claves_aguas: new Set()
+    };
+
+    current.alcaldia_total += 1;
+    if (item.match_type === "exacta") current.coincidencia_exacta += 1;
+    if (item.match_type === "base") current.coincidencia_base += 1;
+    if (item.match_type === "sin_coincidencia") current.candidatas_clandestinas += 1;
+    (item.aguas_matches || []).forEach((match) => {
+      if (match.clave_catastral) {
+        current.claves_aguas.add(match.clave_catastral);
+      }
+    });
+    current.aguas_registradas = current.claves_aguas.size;
+
+    accumulator.set(barrio, current);
+    return accumulator;
+  }, new Map());
+  const barrioStats = Array.from(barrioStatsMap.values())
+    .map(({ claves_aguas, ...item }) => ({
+      ...item,
+      brecha_registros: Math.max(0, item.alcaldia_total - item.aguas_registradas),
+      cobertura_aguas_pct: item.alcaldia_total
+        ? Number(((item.aguas_registradas / item.alcaldia_total) * 100).toFixed(1))
+        : 0
+    }))
+    .sort((left, right) =>
+      right.candidatas_clandestinas - left.candidatas_clandestinas ||
+      right.brecha_registros - left.brecha_registros ||
+      right.alcaldia_total - left.alcaldia_total ||
+      left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
+    );
 
   return {
     ok: true,
@@ -988,6 +1028,7 @@ export const compareAlcaldiaWithAguas = async () => {
       candidate_clandestine: candidates.length,
       compared_at: new Date().toISOString()
     },
+    barrio_stats: barrioStats,
     candidates,
     matched_by_base: baseMatches,
     matched_exact: exactMatches

@@ -7711,6 +7711,7 @@ textarea {
 
 .request-editor-card,
 .request-preview-card,
+.request-statistics-panel,
 .request-zone-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 247, 255, 0.88) 100%);
 }
@@ -7719,6 +7720,84 @@ textarea {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.request-stat-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.9rem 0 1rem;
+}
+
+.request-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.request-chart-card {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.request-chart-card > div:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.request-chart-card strong {
+  color: #123b5d;
+}
+
+.request-chart-card span {
+  color: #5c7690;
+  font-size: 0.8rem;
+}
+
+.request-chart-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  scrollbar-width: thin;
+}
+
+.request-chart-row {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.request-chart-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.request-chart-copy strong,
+.request-chart-copy span {
+  overflow-wrap: anywhere;
+}
+
+.request-chart-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8f1fb;
+}
+
+.request-chart-track span {
+  display: block;
+  height: 100%;
+  min-width: 3%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-cyan));
 }
 
 .request-summary-card {
@@ -7815,6 +7894,8 @@ textarea {
   }
 
   .request-helper-strip,
+  .request-stat-summary,
+  .request-chart-grid,
   .request-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -7963,6 +8044,8 @@ textarea {
   }
 
   .request-editor-grid,
+  .request-stat-summary,
+  .request-chart-grid,
   .request-summary-grid {
     grid-template-columns: 1fr;
   }
