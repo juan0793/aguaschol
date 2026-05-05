@@ -475,6 +475,21 @@ function App() {
       ),
     [workspaceView]
   );
+  const recordDeadlineMetaById = useMemo(
+    () =>
+      Object.fromEntries(
+        safeRecords.map((record) => [record.id, getRecordDeadlineMeta(record)]).filter(([, meta]) => Boolean(meta))
+      ),
+    [safeRecords]
+  );
+  const alertRecords = useMemo(
+    () =>
+      safeRecords.filter((record) => {
+        const meta = recordDeadlineMetaById[record.id];
+        return meta && ["warning", "due", "overdue"].includes(meta.statusKey);
+      }),
+    [recordDeadlineMetaById, safeRecords]
+  );
   const headerStats = useMemo(() => {
     if (workspaceView === "dashboard") {
       return [
@@ -720,21 +735,6 @@ function App() {
     );
   }, [draftForm, form, safeRecords, selectedFile]);
   const todayDateKey = getMapDiaryDateKey(new Date());
-  const recordDeadlineMetaById = useMemo(
-    () =>
-      Object.fromEntries(
-        safeRecords.map((record) => [record.id, getRecordDeadlineMeta(record)]).filter(([, meta]) => Boolean(meta))
-      ),
-    [safeRecords]
-  );
-  const alertRecords = useMemo(
-    () =>
-      safeRecords.filter((record) => {
-        const meta = recordDeadlineMetaById[record.id];
-        return meta && ["warning", "due", "overdue"].includes(meta.statusKey);
-      }),
-    [recordDeadlineMetaById, safeRecords]
-  );
   const availableRecordBarrios = useMemo(
     () =>
       Array.from(
