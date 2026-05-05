@@ -3452,6 +3452,44 @@ button.is-loading::before {
   color: var(--text-muted);
 }
 
+.print-batch-status {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid rgba(20, 101, 217, 0.1);
+}
+
+.print-batch-status > span {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.print-status-badge.is-clandestino {
+  background: rgba(155, 32, 45, 0.1);
+  border-color: rgba(155, 32, 45, 0.18);
+  color: #9b202d;
+}
+
+.print-status-badge.is-varios_padrones {
+  background: rgba(242, 182, 74, 0.14);
+  border-color: rgba(242, 182, 74, 0.24);
+  color: #8a5a08;
+}
+
+.print-status-badge.is-reportada {
+  background: rgba(22, 112, 75, 0.1);
+  border-color: rgba(22, 112, 75, 0.18);
+  color: #16704b;
+}
+
 .print-copy-group {
   grid-column: 1 / -1;
   display: flex;
@@ -9178,6 +9216,15 @@ select:focus {
 
   .shadcn-print-dialog {
     width: calc(100vw - 0.75rem);
+  }
+
+  .print-batch-status {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .print-batch-status button {
+    width: 100%;
   }
 }
 

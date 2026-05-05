@@ -3159,6 +3159,60 @@ function App() {
     }
   };
 
+  const handleValidatePrintRecord = async (record) => {
+    if (!record?.id) return;
+
+    setProcessingRecordId(record.id);
+    try {
+      const match = await findAlcaldiaMatchForForm(record);
+      if (!match) {
+        showAlert(`No se encontro coincidencia en Alcaldia para ${record.clave_catastral}.`);
+        return;
+      }
+
+      const nextState = match.exists_in_aguas ? "varios_padrones" : "clandestino";
+      const payload = {
+        ...record,
+        estado_padron: nextState,
+        clave_alcaldia: match.clave_catastral || "",
+        nombre_alcaldia: match.nombre || record.nombre_alcaldia || "",
+        barrio_alcaldia: match.caserio || match.direccion || record.barrio_alcaldia || "",
+        nombre_catastral: match.nombre || record.nombre_catastral,
+        barrio_colonia: record.barrio_colonia || match.caserio || match.direccion || "",
+        identidad: record.identidad || match.identificador || "",
+        comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : record.comentarios || "Clandestino"
+      };
+
+      const response = await apiFetch(`/inmuebles/${record.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "No fue posible actualizar la validacion.");
+      }
+
+      const normalized = normalizeRecord(data);
+      setRecords((current) => current.map((item) => (item.id === normalized.id ? normalized : item)));
+      if (form.id === normalized.id) {
+        setForm({ ...emptyForm, ...normalized });
+      }
+      showAlert(
+        match.exists_in_aguas
+          ? `Ficha ${normalized.clave_catastral} validada: aparece en varios padrones.`
+          : `Ficha ${normalized.clave_catastral} validada como clandestina.`
+      );
+    } catch (error) {
+      showAlert(error.message || "No fue posible validar la ficha desde impresion.");
+    } finally {
+      setProcessingRecordId(null);
+    }
+  };
+
   const resetReportMapDraft = () => {
     setEditingReportMapPointId(null);
     setSelectedReportMapPointId(null);
@@ -6493,6 +6547,9 @@ function App() {
             <Badge variant="secondary">{batchPrintSelection.fichas} fichas</Badge>
             <Badge variant="secondary">{batchPrintSelection.avisos} avisos</Badge>
             <Badge variant="outline">{printBatchRecords.length} visibles</Badge>
+            <Badge variant="outline">
+              {printBatchRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length} clandestinas
+            </Badge>
             <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
               1 ficha visible
             </Button>
@@ -6510,6 +6567,8 @@ function App() {
                   const copies = batchPrintCopies[record.id] || {};
                   const fichaCopies = clampPrintCopies(copies.ficha ?? 0);
                   const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
+                  const padronStatus = record.estado_padron || "clandestino";
+                  const isClandestina = padronStatus === "clandestino";
 
                   return (
                     <article
@@ -6523,6 +6582,31 @@ function App() {
                         <strong>{record.clave_catastral}</strong>
                         <span>{record.barrio_colonia || "Sin ubicacion"}</span>
                         <small>{record.inquilino || record.abonado || record.nombre_catastral || "Sin nombre"}</small>
+                      </div>
+                      <div className="print-batch-status">
+                        <Badge
+                          variant={isClandestina ? "destructive" : padronStatus === "reportada" ? "secondary" : "outline"}
+                          className={`print-status-badge is-${padronStatus}`}
+                        >
+                          {getPadronStatusLabel(padronStatus)}
+                        </Badge>
+                        <span>
+                          {isClandestina
+                            ? "Puede imprimirse como ficha clandestina."
+                            : padronStatus === "varios_padrones"
+                              ? "Aparece en Alcaldia y Aguas; revisa antes de imprimir."
+                              : "Ya fue reportada o procesada."}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleValidatePrintRecord(record)}
+                          disabled={processingRecordId === record.id}
+                        >
+                          <Icon name="search" />
+                          {processingRecordId === record.id ? "Validando..." : "Validar padrones"}
+                        </Button>
                       </div>
                       <div className="print-copy-group">
                         <span>Ficha</span>
