@@ -8557,12 +8557,36 @@ function App() {
             <>
             <article className="document-sheet">
               <header className="document-header">
-                <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="document-logo" />
-                <p>Aguas de Choluteca, S.A. de C.V.</p>
-                <p>Barrio El Centro Antiguo Local de Cooperativa Guadalupe.</p>
-                <p>Tel: 2782-5075 Fax: 2780-3985</p>
-                <h3>FICHA TECNICA DE INFORMACION CATASTRAL</h3>
-                <div className="document-key">Clave Catastral: {form.clave_catastral || "--"}</div>
+                <div className="document-brand-row">
+                  <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="document-logo" />
+                  <div>
+                    <p className="document-company">Aguas de Choluteca, S.A. de C.V.</p>
+                    <p>Barrio El Centro Antiguo Local de Cooperativa Guadalupe.</p>
+                    <p>Tel: 2782-5075 Fax: 2780-3985</p>
+                  </div>
+                </div>
+                <div className="document-title-box">
+                  <p>Departamento de Catastro</p>
+                  <h3>FICHA TECNICA DE INFORMACION CATASTRAL</h3>
+                </div>
+                <div className="document-meta-strip">
+                  <div>
+                    <strong>Clave Catastral</strong>
+                    <span>{form.clave_catastral || "--"}</span>
+                  </div>
+                  <div>
+                    <strong>Estado</strong>
+                    <span>{getPadronStatusLabel(form.estado_padron)}</span>
+                  </div>
+                  <div>
+                    <strong>Ficha</strong>
+                    <span>{form.id ? `#${form.id}` : "Nueva"}</span>
+                  </div>
+                  <div>
+                    <strong>Fecha aviso</strong>
+                    <span>{form.fecha_aviso || "--"}</span>
+                  </div>
+                </div>
               </header>
 
               <section className="document-block">
@@ -8580,7 +8604,7 @@ function App() {
 
               <section className="document-block">
                 <h4>Informacion del abonado</h4>
-                <div className="document-grid">
+                <div className="document-grid document-grid-wide">
                   <div><strong>Abonado</strong><span>{form.abonado || "--"}</span></div>
                   <div><strong>Catastral</strong><span>{form.nombre_catastral || "--"}</span></div>
                   <div><strong>Inquilino</strong><span>{form.inquilino || "--"}</span></div>
@@ -8590,7 +8614,7 @@ function App() {
                 </div>
               </section>
 
-              <section className="document-block">
+              <section className="document-block document-action-block">
                 <h4>Identificacion del inmueble</h4>
                 <p>{form.accion_inspeccion || "Sin detalle de inspeccion."}</p>
               </section>
@@ -8609,20 +8633,25 @@ function App() {
 
               <section className="document-block">
                 <h4>Datos de los servicios</h4>
-                <div className="document-grid">
-                  <div><strong>Agua potable</strong><span>{form.conexion_agua || "--"}</span></div>
-                  <div><strong>Alcantarillado</strong><span>{form.conexion_alcantarillado || "--"}</span></div>
-                  <div><strong>Desechos</strong><span>{form.recoleccion_desechos || "--"}</span></div>
-                </div>
-                {localSelectedPhotoUrl || selectedPhotoUrl ? (
-                  <div className="document-photo-wrap">
-                    <img
-                      src={localSelectedPhotoUrl || selectedPhotoUrl}
-                      alt="Fotografia del inmueble"
-                      className="document-photo"
-                    />
+                <div className="document-evidence-grid">
+                  <div className="document-grid">
+                    <div><strong>Agua potable</strong><span>{form.conexion_agua || "--"}</span></div>
+                    <div><strong>Alcantarillado</strong><span>{form.conexion_alcantarillado || "--"}</span></div>
+                    <div><strong>Desechos</strong><span>{form.recoleccion_desechos || "--"}</span></div>
                   </div>
-                ) : null}
+                  {localSelectedPhotoUrl || selectedPhotoUrl ? (
+                    <div className="document-photo-wrap">
+                      <img
+                        src={localSelectedPhotoUrl || selectedPhotoUrl}
+                        alt="Fotografia del inmueble"
+                        className="document-photo"
+                      />
+                      <span>Evidencia fotografica</span>
+                    </div>
+                  ) : (
+                    <div className="document-photo-empty">Sin fotografia adjunta</div>
+                  )}
+                </div>
               </section>
 
               <section className="document-block">
