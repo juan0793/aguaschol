@@ -7907,9 +7907,13 @@ textarea {
 }
 
 .request-chart-card.is-capturing {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
   width: 900px;
   max-width: 900px;
   background: #ffffff;
+  z-index: -1;
 }
 
 .request-chart-card.is-capturing .request-chart-list {
