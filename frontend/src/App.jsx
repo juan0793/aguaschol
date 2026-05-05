@@ -149,6 +149,7 @@ const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : "reco
 function App() {
   const sheetRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
+  const padronStatsChartRef = useRef(null);
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -3235,14 +3236,42 @@ function App() {
 
     try {
       setDownloadingPadronStatsPdf(true);
-      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const [{ jsPDF }, autoTableModule, html2canvasModule] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+        import("html2canvas")
+      ]);
       const autoTable = autoTableModule.default;
+      const html2canvas = html2canvasModule.default;
+      let chartImageData = "";
+      let chartImageSize = null;
+
+      if (padronStatsChartRef.current) {
+        const chartElement = padronStatsChartRef.current;
+        chartElement.classList.add("is-capturing");
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const canvas = await html2canvas(chartElement, {
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          scale: Math.min(window.devicePixelRatio || 1, 2),
+          width: chartElement.scrollWidth,
+          height: chartElement.scrollHeight,
+          windowWidth: chartElement.scrollWidth,
+          windowHeight: chartElement.scrollHeight
+        });
+        chartElement.classList.remove("is-capturing");
+        chartImageData = canvas.toDataURL("image/png");
+        chartImageSize = { width: canvas.width, height: canvas.height };
+      }
+
       const document = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: "letter"
       });
       const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
       const generatedAt = formatDateTime(new Date().toISOString());
       const modeLabels = {
         brecha: "Brecha por barrio",
@@ -3290,25 +3319,21 @@ function App() {
         margin: { left: 14, right: 14 }
       });
 
-      autoTable(document, {
-        startY: (document.lastAutoTable?.finalY ?? 58) + 8,
-        head: [["Barrio / servicio", "Detalle", "Valor"]],
-        body: padronStatisticsData.dynamicRows.map((item) => [
-          item.barrio_colonia,
-          item.detail,
-          padronChartMode.includes("cobertura") ? `${item.value}%` : item.value
-        ]),
-        theme: "striped",
-        styles: { fontSize: 8.2, cellPadding: 2.4, textColor: [29, 57, 82], valign: "top" },
-        headStyles: { fillColor: [226, 240, 253], textColor: [11, 61, 104] },
-        columnStyles: {
-          0: { cellWidth: 72, fontStyle: "bold" },
-          1: { cellWidth: 145 },
-          2: { cellWidth: 34, halign: "right" }
-        },
-        margin: { left: 14, right: 14 },
-        didDrawPage: addFooter
-      });
+      const chartY = (document.lastAutoTable?.finalY ?? 58) + 8;
+      if (chartImageData && chartImageSize) {
+        const maxImageWidth = pageWidth - 28;
+        const maxImageHeight = pageHeight - chartY - 18;
+        const naturalHeight = (chartImageSize.height * maxImageWidth) / chartImageSize.width;
+        const imageHeight = Math.min(maxImageHeight, naturalHeight);
+        const imageWidth = (chartImageSize.width * imageHeight) / chartImageSize.height;
+        const imageX = 14 + (maxImageWidth - imageWidth) / 2;
+        document.addImage(chartImageData, "PNG", imageX, chartY, imageWidth, imageHeight, undefined, "FAST");
+      } else {
+        document.setFont("helvetica", "normal");
+        document.setFontSize(10);
+        document.setTextColor(95, 116, 138);
+        document.text("No se pudo capturar el grafico visual del modal.", 14, chartY);
+      }
 
       if (padronStatisticsData.selectedBarrio) {
         document.addPage("letter", "landscape");
@@ -10836,7 +10861,7 @@ function App() {
                                                     ))}
                                                   </div>
                                                   <div className="request-chart-grid">
-                                                    <section className="request-chart-card is-wide">
+                                                    <section ref={padronStatsChartRef} className="request-chart-card is-wide">
                                                      <div>
                                                        <strong>
                                                          {padronChartMode === "cobertura_alta"

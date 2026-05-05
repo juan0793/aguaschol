@@ -7906,6 +7906,17 @@ textarea {
   grid-column: span 2;
 }
 
+.request-chart-card.is-capturing {
+  width: 900px;
+  max-width: 900px;
+  background: #ffffff;
+}
+
+.request-chart-card.is-capturing .request-chart-list {
+  max-height: none;
+  overflow: visible;
+}
+
 .request-chart-card > div:first-child {
   display: grid;
   gap: 0.15rem;
