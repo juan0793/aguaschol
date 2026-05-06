@@ -290,6 +290,9 @@ function App() {
   const [selectedPadronStatBarrio, setSelectedPadronStatBarrio] = useState("");
   const [selectedPadronServiceField, setSelectedPadronServiceField] = useState("");
   const [padronStatsBarrioFilter, setPadronStatsBarrioFilter] = useState("");
+  const [padronStatsSortMetric, setPadronStatsSortMetric] = useState("brecha_registros");
+  const [padronStatsSortDirection, setPadronStatsSortDirection] = useState("desc");
+  const [padronStatsLimit, setPadronStatsLimit] = useState(10);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
@@ -1265,10 +1268,29 @@ function App() {
     const normalizedBarrioFilter = padronStatsBarrioFilter.trim().toLowerCase();
     const matchesBarrioFilter = (item = {}) =>
       !normalizedBarrioFilter || String(item.barrio_colonia || "").toLowerCase().includes(normalizedBarrioFilter);
+    const limit = Number(padronStatsLimit || 10);
+    const metricLabels = {
+      brecha_registros: "Brecha",
+      cobertura_aguas_pct: "Cobertura",
+      candidatas_clandestinas: "Candidatas",
+      alcaldia_total: "Claves Alcaldia",
+      aguas_registradas: "Usuarios Aguas",
+      servicio_dominante_total: "Servicio dominante"
+    };
+    const sortBySelectedMetric = (items = []) =>
+      [...items].sort((left, right) => {
+        const direction = padronStatsSortDirection === "asc" ? 1 : -1;
+        const leftValue = Number(left?.[padronStatsSortMetric] || 0);
+        const rightValue = Number(right?.[padronStatsSortMetric] || 0);
+        return (
+          (leftValue - rightValue) * direction ||
+          String(left?.barrio_colonia || "").localeCompare(String(right?.barrio_colonia || ""), "es")
+        );
+      });
     const clandestineByBarrio = barrioStats
       .filter((item) => Number(item.candidatas_clandestinas || 0) > 0)
       .filter(matchesBarrioFilter)
-      .slice(0, 10);
+      .slice(0, limit);
     const coverageHighByBarrio = [...barrioStats]
       .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.aguas_registradas || 0) > 0)
       .filter(matchesBarrioFilter)
@@ -1276,7 +1298,7 @@ function App() {
         Number(right.cobertura_aguas_pct || 0) - Number(left.cobertura_aguas_pct || 0) ||
         Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
       )
-      .slice(0, 10);
+      .slice(0, limit);
     const lowCoverageByBarrio = [...barrioStats]
       .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.brecha_registros || 0) > 0)
       .filter(matchesBarrioFilter)
@@ -1284,7 +1306,7 @@ function App() {
         Number(left.cobertura_aguas_pct || 0) - Number(right.cobertura_aguas_pct || 0) ||
         Number(right.brecha_registros || 0) - Number(left.brecha_registros || 0)
       )
-      .slice(0, 10);
+      .slice(0, limit);
     const serviceMajorityByBarrio = [...barrioStats]
       .filter((item) => Number(item.servicio_dominante_total || 0) > 0)
       .filter(matchesBarrioFilter)
@@ -1292,7 +1314,10 @@ function App() {
         Number(right.servicio_dominante_total || 0) - Number(left.servicio_dominante_total || 0) ||
         Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
       )
-      .slice(0, 10);
+      .slice(0, limit);
+    const comparativeByBarrio = sortBySelectedMetric(
+      barrioStats.filter(matchesBarrioFilter).filter((item) => Number(item.alcaldia_total || 0) > 0)
+    ).slice(0, limit);
     const serviceSplitTotals = Object.entries(
       barrioStats.reduce((accumulator, item) => {
         Object.keys(serviceLabels).forEach((field) => {
@@ -1327,7 +1352,7 @@ function App() {
             Number(right.service_total || 0) - Number(left.service_total || 0) ||
             left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
           )
-          .slice(0, 20)
+          .slice(0, limit)
       ])
     );
     const requestBarriosTop = [...requestBarrios]
@@ -1360,6 +1385,11 @@ function App() {
         value: Number(item.servicio_dominante_total || 0),
         detail: `${item.servicio_dominante}: ${item.servicio_dominante_total} usuarios`
       })),
+      comparativa: comparativeByBarrio.map((item) => ({
+        ...item,
+        value: Number(item[padronStatsSortMetric] || 0),
+        detail: `Cobertura ${item.cobertura_aguas_pct}% - brecha ${item.brecha_registros} - Aguas ${item.aguas_registradas}/${item.alcaldia_total} - candidatas ${item.candidatas_clandestinas}`
+      })),
       servicios: selectedPadronServiceField
         ? (serviceBarrioRows[selectedPadronServiceField] || [])
         : serviceSplitTotals.map((item) => ({
@@ -1373,6 +1403,8 @@ function App() {
 
     return {
       barrioStats,
+      metricLabels,
+      comparativeByBarrio,
       serviceLabels,
       clandestineByBarrio,
       coverageHighByBarrio,
@@ -1397,6 +1429,9 @@ function App() {
     padronChartMode,
     padronRequestResult,
     padronStatsBarrioFilter,
+    padronStatsLimit,
+    padronStatsSortDirection,
+    padronStatsSortMetric,
     selectedPadronServiceField,
     selectedPadronStatBarrio
   ]);
@@ -3251,6 +3286,7 @@ function App() {
         cobertura_alta: "Barrios con mas cobertura",
         cobertura_baja: "Barrios con menos cobertura",
         servicio_dominante: "Servicio mayoritario por barrio",
+        comparativa: `Comparativa por ${padronStatisticsData.metricLabels?.[padronStatsSortMetric] || "metrica"}`,
         servicios: "Division por servicios"
       };
       const summary = alcaldiaComparison.summary;
@@ -10869,6 +10905,7 @@ function App() {
                                                       ["cobertura_alta", "Mas cobertura"],
                                                       ["cobertura_baja", "Menos cobertura"],
                                                       ["servicio_dominante", "Servicio mayoritario"],
+                                                      ["comparativa", "Comparativa"],
                                                       ["servicios", "Dividir por servicios"]
                                                     ].map(([mode, label]) => (
                                                       <button
@@ -10891,10 +10928,12 @@ function App() {
                                                          {padronChartMode === "cobertura_alta"
                                                            ? "Barrios con mayor cobertura registrada"
                                                            : padronChartMode === "cobertura_baja"
-                                                             ? "Barrios con menor cobertura en Aguas"
-                                                             : padronChartMode === "servicio_dominante"
-                                                               ? "Servicio mayoritario por barrio"
-                                                               : padronChartMode === "servicios" && padronStatisticsData.selectedServiceLabel
+                                                              ? "Barrios con menor cobertura en Aguas"
+                                                              : padronChartMode === "servicio_dominante"
+                                                                ? "Servicio mayoritario por barrio"
+                                                                : padronChartMode === "comparativa"
+                                                                  ? `Comparativa por ${padronStatisticsData.metricLabels?.[padronStatsSortMetric] || "metrica"}`
+                                                                : padronChartMode === "servicios" && padronStatisticsData.selectedServiceLabel
                                                                  ? `Barrios con ${padronStatisticsData.selectedServiceLabel}`
                                                                  : padronChartMode === "servicios"
                                                                    ? "Usuarios divididos por servicio"
@@ -10904,8 +10943,10 @@ function App() {
                                                          {padronChartMode === "servicios" && padronStatisticsData.selectedServiceLabel
                                                            ? `Porcentaje de usuarios con ${padronStatisticsData.selectedServiceLabel} dentro de cada barrio.`
                                                            : padronChartMode === "servicios"
-                                                           ? "Suma los servicios activos dentro de los usuarios encontrados en Aguas."
-                                                           : "Toca un barrio para ver su detalle de cobertura y servicios."}
+                                                            ? "Suma los servicios activos dentro de los usuarios encontrados en Aguas."
+                                                            : padronChartMode === "comparativa"
+                                                              ? "Ordena barrios por la metrica que necesitas para preparar reportes y comparativas."
+                                                            : "Toca un barrio para ver su detalle de cobertura y servicios."}
                                                        </span>
                                                        <div className="request-chart-type-controls" role="group" aria-label="Tipo de visualizacion">
                                                           {[
@@ -10922,8 +10963,37 @@ function App() {
                                                               {label}
                                                             </button>
                                                            ))}
-                                                         </div>
-                                                         {padronChartMode === "servicios" && selectedPadronServiceField ? (
+                                                          </div>
+                                                          <div className="request-chart-report-controls">
+                                                            <label>
+                                                              <span>Ordenar por</span>
+                                                              <select value={padronStatsSortMetric} onChange={(event) => setPadronStatsSortMetric(event.target.value)}>
+                                                                {Object.entries(padronStatisticsData.metricLabels || {}).map(([metric, label]) => (
+                                                                  <option key={metric} value={metric}>
+                                                                    {label}
+                                                                  </option>
+                                                                ))}
+                                                              </select>
+                                                            </label>
+                                                            <label>
+                                                              <span>Orden</span>
+                                                              <select value={padronStatsSortDirection} onChange={(event) => setPadronStatsSortDirection(event.target.value)}>
+                                                                <option value="desc">Mayor a menor</option>
+                                                                <option value="asc">Menor a mayor</option>
+                                                              </select>
+                                                            </label>
+                                                            <label>
+                                                              <span>Mostrar</span>
+                                                              <select value={padronStatsLimit} onChange={(event) => setPadronStatsLimit(Number(event.target.value))}>
+                                                                {[5, 10, 15, 20, 30].map((amount) => (
+                                                                  <option key={amount} value={amount}>
+                                                                    Top {amount}
+                                                                  </option>
+                                                                ))}
+                                                              </select>
+                                                            </label>
+                                                          </div>
+                                                          {padronChartMode === "servicios" && selectedPadronServiceField ? (
                                                            <div className="request-chart-drilldown">
                                                              <span>Servicio: {padronStatisticsData.selectedServiceLabel}</span>
                                                              <button type="button" className="button-secondary" onClick={() => setSelectedPadronServiceField("")}>

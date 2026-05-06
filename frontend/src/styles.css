@@ -7867,6 +7867,31 @@ textarea {
   border-radius: 12px;
 }
 
+.request-chart-report-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.request-chart-report-controls label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.request-chart-report-controls span {
+  color: #5c7690;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.request-chart-report-controls select {
+  width: 100%;
+  min-height: 38px;
+  border-radius: 11px;
+}
+
 .request-chart-controls button,
 .request-chart-type-controls button {
   min-height: 34px;
@@ -8262,6 +8287,10 @@ textarea {
     max-height: none;
   }
 
+  .request-chart-report-controls {
+    grid-template-columns: 1fr;
+  }
+
   .request-chart-card.is-wide {
     grid-column: auto;
   }
@@ -8450,6 +8479,10 @@ textarea {
 
   .stats-modal-body .request-chart-list {
     max-height: none;
+  }
+
+  .request-chart-report-controls {
+    grid-template-columns: 1fr;
   }
 
   .request-chart-card.is-wide {
