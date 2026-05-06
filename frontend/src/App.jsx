@@ -3236,35 +3236,8 @@ function App() {
 
     try {
       setDownloadingPadronStatsPdf(true);
-      const [{ jsPDF }, autoTableModule, html2canvasModule] = await Promise.all([
-        import("jspdf"),
-        import("jspdf-autotable"),
-        import("html2canvas")
-      ]);
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
-      const html2canvas = html2canvasModule.default;
-      let chartImageData = "";
-      let chartImageSize = null;
-
-      if (padronStatsChartRef.current) {
-        const chartElement = padronStatsChartRef.current;
-        chartElement.classList.add("is-capturing");
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-        const canvas = await html2canvas(chartElement, {
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-          scale: Math.min(window.devicePixelRatio || 1, 2),
-          width: chartElement.scrollWidth,
-          height: chartElement.scrollHeight,
-          windowWidth: chartElement.scrollWidth,
-          windowHeight: chartElement.scrollHeight
-        });
-        chartElement.classList.remove("is-capturing");
-        chartImageData = canvas.toDataURL("image/png");
-        chartImageSize = { width: canvas.width, height: canvas.height };
-      }
-
       const document = new jsPDF({
         orientation: "landscape",
         unit: "mm",
@@ -3287,6 +3260,71 @@ function App() {
         document.setFontSize(8);
         document.setTextColor(95, 116, 138);
         document.text(`Aguas de Choluteca - reporte estadistico - pag. ${pageNumber}`, 14, pageHeight - 8);
+      };
+      const chartRows = padronStatisticsData.dynamicRows.map((item) => ({
+        label: String(item.barrio_colonia || ""),
+        detail: String(item.detail || ""),
+        value: Number(item.value || 0),
+        formattedValue:
+          padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField)
+            ? `${Number(item.value || 0)}%`
+            : String(item.value ?? 0)
+      }));
+      const chartMaxValue =
+        padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField)
+          ? 100
+          : Math.max(1, ...chartRows.map((item) => item.value));
+      const drawChartRows = (startY) => {
+        const left = 14;
+        const right = pageWidth - 14;
+        const chartWidth = right - left;
+        const rowHeight = 16;
+        const barHeight = 4.2;
+        let y = startY;
+
+        document.setFont("helvetica", "bold");
+        document.setFontSize(12);
+        document.setTextColor(18, 59, 93);
+        document.text("Grafico", left, y);
+        y += 7;
+
+        chartRows.forEach((row, index) => {
+          if (y + rowHeight > pageHeight - 16) {
+            addFooter();
+            document.addPage("letter", "landscape");
+            y = 18;
+            document.setFont("helvetica", "bold");
+            document.setFontSize(12);
+            document.setTextColor(18, 59, 93);
+            document.text("Grafico (continuacion)", left, y);
+            y += 7;
+          }
+
+          const barWidth = Math.max(2, Math.min(chartWidth, (row.value / chartMaxValue) * chartWidth));
+          document.setFillColor(index % 2 === 0 ? 248 : 255, 251, 255);
+          document.roundedRect(left - 1, y - 5, chartWidth + 2, rowHeight, 2.6, 2.6, "F");
+          document.setFont("helvetica", "bold");
+          document.setFontSize(9.2);
+          document.setTextColor(18, 59, 93);
+          document.text(document.splitTextToSize(row.label, 120)[0], left, y);
+          document.setFont("helvetica", "bold");
+          document.setFontSize(8.8);
+          document.setTextColor(6, 92, 144);
+          document.text(row.formattedValue, right, y, { align: "right" });
+          document.setFont("helvetica", "normal");
+          document.setFontSize(7.5);
+          document.setTextColor(82, 112, 140);
+          document.text(document.splitTextToSize(row.detail, 190)[0], left, y + 4.3);
+          document.setFillColor(226, 240, 253);
+          document.roundedRect(left, y + 7.2, chartWidth, barHeight, 1.8, 1.8, "F");
+          document.setFillColor(22, 112, 217);
+          document.roundedRect(left, y + 7.2, barWidth, barHeight, 1.8, 1.8, "F");
+          document.setFillColor(38, 194, 213);
+          document.roundedRect(left + Math.max(0, barWidth - 8), y + 7.2, Math.min(8, barWidth), barHeight, 1.8, 1.8, "F");
+          y += rowHeight + 2;
+        });
+
+        return y;
       };
 
       document.setFillColor(10, 65, 112);
@@ -3319,21 +3357,7 @@ function App() {
         margin: { left: 14, right: 14 }
       });
 
-      const chartY = (document.lastAutoTable?.finalY ?? 58) + 8;
-      if (chartImageData && chartImageSize) {
-        const maxImageWidth = pageWidth - 28;
-        const maxImageHeight = pageHeight - chartY - 18;
-        const naturalHeight = (chartImageSize.height * maxImageWidth) / chartImageSize.width;
-        const imageHeight = Math.min(maxImageHeight, naturalHeight);
-        const imageWidth = (chartImageSize.width * imageHeight) / chartImageSize.height;
-        const imageX = 14 + (maxImageWidth - imageWidth) / 2;
-        document.addImage(chartImageData, "PNG", imageX, chartY, imageWidth, imageHeight, undefined, "FAST");
-      } else {
-        document.setFont("helvetica", "normal");
-        document.setFontSize(10);
-        document.setTextColor(95, 116, 138);
-        document.text("No se pudo capturar el grafico visual del modal.", 14, chartY);
-      }
+      drawChartRows((document.lastAutoTable?.finalY ?? 58) + 8);
 
       if (padronStatisticsData.selectedBarrio) {
         document.addPage("letter", "landscape");
