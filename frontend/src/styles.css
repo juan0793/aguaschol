@@ -9902,9 +9902,10 @@ select:focus {
   }
 
   .records-view > .sidebar.shadcn-records-sidebar {
-    height: calc(100svh - 0.75rem);
-    max-height: calc(100svh - 0.75rem);
-    overflow: hidden;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    position: static;
   }
 
   .records-sidebar-controls .records-advanced-filters {
@@ -9914,8 +9915,15 @@ select:focus {
   }
 
   .record-list-scroll {
-    height: 100%;
-    min-height: 180px;
+    height: auto;
+    max-height: min(58svh, 620px);
+    min-height: 220px;
+    overscroll-behavior-y: contain;
+    touch-action: auto;
+  }
+
+  .record-list-scroll .record-list {
+    padding-bottom: 1rem;
   }
 
   .records-filter-tabs {
