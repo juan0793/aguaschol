@@ -3570,7 +3570,8 @@ function App() {
     setMapDraft({ ...emptyMapDraft });
   };
 
-  const findAlcaldiaMatchForForm = async (candidateForm = form) => {
+  const findAlcaldiaMatchForForm = async (candidateForm = form, options = {}) => {
+    const { allowTextFallback = true } = options;
     const keyQuery = String(candidateForm.clave_catastral || "").trim();
     const textQueries = [
       candidateForm.nombre_catastral,
@@ -3594,12 +3595,35 @@ function App() {
       if (match) return match;
     }
 
-    for (const query of textQueries) {
-      const match = await tryQuery(query, "texto");
-      if (match) return match;
+    if (allowTextFallback) {
+      for (const query of textQueries) {
+        const match = await tryQuery(query, "texto");
+        if (match) return match;
+      }
     }
 
     return null;
+  };
+
+  const getAlcaldiaValidationComment = (match, record) => {
+    if (!match) return "No concuerda con clave de Alcaldia. Clandestino";
+    if (match.exists_in_aguas) return "Aparece en varios padrones";
+    return record?.comentarios || "Concuerda con Alcaldia y no aparece en Aguas. Clandestino";
+  };
+
+  const buildAlcaldiaValidationPayload = (record, match) => {
+    const nextState = match?.exists_in_aguas ? "varios_padrones" : "clandestino";
+    return {
+      ...record,
+      estado_padron: nextState,
+      clave_alcaldia: match?.clave_catastral || "",
+      nombre_alcaldia: match?.nombre || record.nombre_alcaldia || "",
+      barrio_alcaldia: match?.caserio || match?.direccion || record.barrio_alcaldia || "",
+      nombre_catastral: match?.nombre || record.nombre_catastral,
+      barrio_colonia: record.barrio_colonia || match?.caserio || match?.direccion || "",
+      identidad: record.identidad || match?.identificador || "",
+      comentarios: getAlcaldiaValidationComment(match, record)
+    };
   };
 
   const applyAlcaldiaMatchToForm = (match) => {
@@ -3622,9 +3646,10 @@ function App() {
 
   const handleValidateFormPadron = async () => {
     try {
-      const match = await findAlcaldiaMatchForForm(form);
+      const match = await findAlcaldiaMatchForForm(form, { allowTextFallback: false });
       if (!match) {
-        showAlert("No se encontro coincidencia en el padron de Alcaldia.");
+        setForm((current) => ({ ...current, ...buildAlcaldiaValidationPayload(current, null) }));
+        showAlert("No concuerda con la clave de Alcaldia. Quedo marcada como clandestina.");
         return;
       }
 
@@ -3644,24 +3669,8 @@ function App() {
 
     setProcessingRecordId(record.id);
     try {
-      const match = await findAlcaldiaMatchForForm(record);
-      if (!match) {
-        showAlert(`No se encontro coincidencia en Alcaldia para ${record.clave_catastral}.`);
-        return;
-      }
-
-      const nextState = match.exists_in_aguas ? "varios_padrones" : "clandestino";
-      const payload = {
-        ...record,
-        estado_padron: nextState,
-        clave_alcaldia: match.clave_catastral || "",
-        nombre_alcaldia: match.nombre || record.nombre_alcaldia || "",
-        barrio_alcaldia: match.caserio || match.direccion || record.barrio_alcaldia || "",
-        nombre_catastral: match.nombre || record.nombre_catastral,
-        barrio_colonia: record.barrio_colonia || match.caserio || match.direccion || "",
-        identidad: record.identidad || match.identificador || "",
-        comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : record.comentarios || "Clandestino"
-      };
+      const match = await findAlcaldiaMatchForForm(record, { allowTextFallback: false });
+      const payload = buildAlcaldiaValidationPayload(record, match);
 
       const response = await apiFetch(`/inmuebles/${record.id}`, {
         method: "PUT",
@@ -3682,7 +3691,9 @@ function App() {
         setForm({ ...emptyForm, ...normalized });
       }
       showAlert(
-        match.exists_in_aguas
+        !match
+          ? `Ficha ${normalized.clave_catastral} no concuerda con Alcaldia. Quedo clandestina.`
+          : match.exists_in_aguas
           ? `Ficha ${normalized.clave_catastral} validada: aparece en varios padrones.`
           : `Ficha ${normalized.clave_catastral} validada como clandestina.`
       );
