@@ -975,11 +975,11 @@ function App() {
         ? [
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
             { key: "executiveReport", section: "vision", label: "Operaciones realizadas", icon: "records", meta: "PDF general", tone: "is-report" },
-            { key: "records", section: "operacion", label: "Fichas", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
+            { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
-            { key: "map", section: "operacion", label: "Mapa de campo", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
-            { key: "mapReports", section: "control", label: "Reportes campo", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
-            { key: "requests", section: "control", label: "Peticiones", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
+            { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
+            { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
+            { key: "requests", section: "control", label: "Reportes", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
             { key: "padron", section: "control", label: "Padrón", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
             { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
@@ -1025,20 +1025,20 @@ function App() {
     () =>
       (isAdmin
         ? [
-            { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
+            { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
-            { key: "map", label: "Mapa de campo", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
-            { key: "mapReports", label: "Reportes campo", icon: "records", group: "control", helper: `${mapReportData.totalZones} zonas` },
-            { key: "requests", label: "Peticiones", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
+            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
+            { key: "requests", label: "Reportes", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
           ]
         : [
-            { key: "records", label: "Fichas", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
+            { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
-            { key: "map", label: "Mapa", icon: "map", group: "operacion", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" }
           ]),
     [
@@ -1102,13 +1102,13 @@ function App() {
       },
       {
         key: "campo",
-        title: "Campo",
-        items: items.filter((item) => ["map", "mapReports", "requests"].includes(item.key))
+        title: "Puntos GPS",
+        items: items.filter((item) => ["map", "mapReports"].includes(item.key))
       },
       {
         key: "gestion",
         title: "Gestion",
-        items: items.filter((item) => ["executiveReport", "padron", "logs", "users"].includes(item.key))
+        items: items.filter((item) => ["executiveReport", "requests", "padron", "logs", "users"].includes(item.key))
       }
     ].filter((section) => section.items.length);
   }, [
@@ -1184,6 +1184,63 @@ function App() {
     () => safeRecords.filter((record) => !String(record.foto_path || "").trim()).length,
     [safeRecords]
   );
+  const pendingWorkflowBuckets = useMemo(() => {
+    const isIncomplete = (record) =>
+      !String(record.clave_catastral || "").trim() ||
+      !String(record.barrio_colonia || "").trim() ||
+      !String(record.levantamiento_datos || "").trim() ||
+      !String(record.analista_datos || "").trim();
+    const hasNoticeData = (record) =>
+      Boolean(String(record.fecha_aviso || "").trim()) &&
+      Boolean(String(record.firmante_aviso || "").trim()) &&
+      Boolean(String(record.cargo_firmante || "").trim());
+
+    const activeRecords = safeRecords.filter((record) => recordView !== "archived" || record.archived_at);
+    return [
+      {
+        key: "incomplete",
+        title: "Fichas incompletas",
+        count: activeRecords.filter(isIncomplete).length,
+        filter: "all",
+        helper: "Completar datos base"
+      },
+      {
+        key: "no_photo",
+        title: "Sin evidencia",
+        count: activeRecords.filter((record) => !String(record.foto_path || "").trim()).length,
+        filter: "no_photo",
+        helper: "Agregar fotografia"
+      },
+      {
+        key: "no_notice",
+        title: "Sin aviso listo",
+        count: activeRecords.filter((record) => !hasNoticeData(record)).length,
+        filter: "all",
+        helper: "Preparar aviso"
+      },
+      {
+        key: "notice_pending",
+        title: "Aviso por entregar",
+        count: activeRecords.filter((record) => hasNoticeData(record) && record.estado_padron !== "reportada").length,
+        filter: "alert",
+        helper: "Imprimir o entregar"
+      },
+      {
+        key: "followup",
+        title: "En seguimiento",
+        count: alertRecords.length,
+        filter: "alert",
+        helper: "Revisar plazo"
+      },
+      {
+        key: "archived",
+        title: "Archivados",
+        count: safeRecords.filter((record) => record.archived_at).length,
+        filter: "all",
+        helper: "Consultar historial"
+      }
+    ];
+  }, [alertRecords.length, recordView, safeRecords]);
   const recentLookupCountToday = useMemo(
     () => lookupHistory.filter((item) => getMapDiaryDateKey(item.searched_at) === todayDateKey).length,
     [lookupHistory, todayDateKey]
@@ -6395,6 +6452,82 @@ function App() {
       }
     );
   };
+  const selectedRecordFlow = useMemo(() => {
+    const issues = recordValidationIssues || [];
+    const hasRequiredIssues = issues.some((issue) => issue.field !== "foto_path");
+    const hasPhotoIssue = issues.some((issue) => issue.field === "foto_path");
+
+    if (!form.id || hasRequiredIssues) {
+      return {
+        label: "Nuevo",
+        title: "Completar datos",
+        detail: "Primero deja lista la clave, ubicacion y responsables de la ficha.",
+        primary: "Completar datos",
+        action: () => setActiveSection("abonado"),
+        tone: "is-new"
+      };
+    }
+
+    if (hasPhotoIssue) {
+      return {
+        label: "Datos completos",
+        title: "Agregar evidencia",
+        detail: "La ficha ya tiene datos base. Conviene adjuntar fotografia antes de generar aviso.",
+        primary: "Agregar evidencia",
+        action: () => setActiveSection("foto"),
+        secondary: "Generar aviso",
+        secondaryAction: generateAviso,
+        tone: "is-ready"
+      };
+    }
+
+    if (!avisoHtml) {
+      return {
+        label: "Datos completos",
+        title: "Generar aviso",
+        detail: "La ficha esta lista para preparar el aviso e imprimirlo.",
+        primary: "Generar aviso",
+        action: generateAviso,
+        tone: "is-notice"
+      };
+    }
+
+    if (form.estado_padron !== "reportada") {
+      return {
+        label: "Aviso generado",
+        title: "Imprimir o marcar entregado",
+        detail: "Despues de imprimir, puedes marcar el caso como procesado para seguimiento.",
+        primary: "Imprimir aviso",
+        action: handlePrintAviso,
+        secondary: "Marcar entregado",
+        secondaryAction: () => handleMarkRecordReported(form),
+        tone: "is-delivery"
+      };
+    }
+
+    return {
+      label: "Aviso entregado",
+      title: "Dar seguimiento",
+      detail: "El caso quedo procesado. Puedes revisar historial, regularizar o archivar segun corresponda.",
+      primary: "Ver historial",
+      action: () => setShowRecordPreview(true),
+      secondary: "Archivar",
+      secondaryAction: handleArchiveRecord,
+      tone: "is-followup"
+    };
+  }, [avisoHtml, form, recordValidationIssues]);
+  useEffect(() => {
+    if (!showPadronStatsModal) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setShowPadronStatsModal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showPadronStatsModal]);
 
   if (!isAuthenticated) {
     return (
@@ -8426,7 +8559,7 @@ function App() {
                 <p className="sheet-kicker">Gestion de fichas</p>
                 <h2><Icon name="records" className="title-icon" />Fichas registradas</h2>
                 <p className="workspace-title">
-                  Captura, busqueda, validacion e impresion desde una vista compacta de trabajo.
+                  Flujo principal de clandestinos: validar clave, completar ficha, adjuntar evidencia, generar aviso y dar seguimiento.
                 </p>
               </div>
               <div className="records-main-actions">
@@ -8447,6 +8580,50 @@ function App() {
                   {showRecordPreview ? "Ocultar vista" : "Vista previa"}
                 </Button>
               </div>
+            </div>
+            <div className={`record-flow-panel ${selectedRecordFlow.tone}`}>
+              <div>
+                <span className="record-flow-label">{selectedRecordFlow.label}</span>
+                <strong>{selectedRecordFlow.title}</strong>
+                <p>{selectedRecordFlow.detail}</p>
+              </div>
+              <div className="record-flow-actions">
+                <Button type="button" onClick={selectedRecordFlow.action} disabled={loadingAviso}>
+                  {selectedRecordFlow.primary}
+                </Button>
+                {selectedRecordFlow.secondary ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={selectedRecordFlow.secondaryAction}
+                    disabled={loadingAviso || Boolean(processingRecordId)}
+                  >
+                    {selectedRecordFlow.secondary}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <div className="pending-tray" aria-label="Bandeja de pendientes">
+              {pendingWorkflowBuckets.map((bucket) => (
+                <button
+                  key={bucket.key}
+                  type="button"
+                  className="pending-card"
+                  onClick={() => {
+                    if (bucket.key === "archived" && isAdmin) {
+                      setRecordView("archived");
+                    } else {
+                      setRecordView("active");
+                    }
+                    setRecordQuickFilter(bucket.filter);
+                    setRecordPage(1);
+                  }}
+                >
+                  <span>{bucket.title}</span>
+                  <strong>{bucket.count}</strong>
+                  <small>{bucket.helper}</small>
+                </button>
+              ))}
             </div>
           </section>
 
@@ -9069,35 +9246,21 @@ function App() {
             <div className="lookup-card">
               <div className="lookup-card-head">
                 <div>
-                  <p className="sheet-kicker">Padron maestro</p>
+                  <p className="sheet-kicker">Entrada principal</p>
                   <h2><Icon name="search" className="title-icon" />Buscar clave</h2>
                   <p className="lookup-card-description">
-                    Consulta rapida para campo por clave, nombre o abonado, con lectura clara de saldo y servicios.
+                    Consulta una clave y decide el siguiente paso sin abrir toda la ficha desde el inicio.
                   </p>
                 </div>
-                <span className="panel-pill">Consulta separada</span>
+                <span className="panel-pill">Alcaldia vs Aguas</span>
               </div>
 
-              <div className="lookup-info-strip">
+              <div className="lookup-info-strip lookup-info-strip-compact">
                 <div className="lookup-info-chip">
                   <Icon name="search" />
                   <div>
-                    <strong>Consulta rapida</strong>
-                    <span>Resultados sin salir del flujo de campo</span>
-                  </div>
-                </div>
-                <div className="lookup-info-chip">
-                  <Icon name="activity" />
-                  <div>
-                    <strong>Lectura de saldo</strong>
-                    <span>Sin interes, interes y total con estado visual</span>
-                  </div>
-                </div>
-                <div className="lookup-info-chip">
-                  <Icon name="success" />
-                  <div>
-                    <strong>Servicios claros</strong>
-                    <span>Si y No traducidos para lectura inmediata</span>
+                    <strong>Flujo recomendado</strong>
+                    <span>Buscar clave, revisar estado y crear o actualizar ficha.</span>
                   </div>
                 </div>
               </div>
@@ -9382,6 +9545,24 @@ function App() {
                         : `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa consulta.`
                       : "No existe registro en el sistema. Posible clandestino."}
                   </p>
+                  <div className="lookup-decision-grid">
+                    <div className={lookupResult.field === "texto" && lookupResult.exists ? "is-found" : "is-muted"}>
+                      <span>Alcaldia</span>
+                      <strong>{lookupResult.field === "texto" && lookupResult.exists ? "Aparece" : "Sin validar"}</strong>
+                    </div>
+                    <div className={lookupResult.field !== "texto" && lookupResult.exists ? "is-found" : lookupResult.field === "texto" ? "is-muted" : "is-missing"}>
+                      <span>Aguas</span>
+                      <strong>{lookupResult.field !== "texto" && lookupResult.exists ? "Aparece" : lookupResult.field === "texto" ? "Comparar abajo" : "No aparece"}</strong>
+                    </div>
+                    <div className={!lookupResult.exists || (lookupResult.field === "texto" && lookupResult.matches?.some((match) => !match.exists_in_aguas)) ? "is-danger" : "is-found"}>
+                      <span>Resultado</span>
+                      <strong>
+                        {!lookupResult.exists || (lookupResult.field === "texto" && lookupResult.matches?.some((match) => !match.exists_in_aguas))
+                          ? "Posible clandestino"
+                          : "Registrado"}
+                      </strong>
+                    </div>
+                  </div>
 
                   {!lookupResult.exists && lookupResult.field === "clave" ? (
                     <div className="lookup-match-actions">
@@ -9554,40 +9735,62 @@ function App() {
                                   </strong>
                                 </div>
                               </div>
-                              <div className="lookup-service-grid">
-                                {[
-                                  { label: "Agua", value: match.agua, icon: "water" },
-                                  { label: "Alcantarillado", value: match.alcantarillado, icon: "sewer" },
-                                  { label: "Barrido", value: match.barrido, icon: "broom" },
-                                  { label: "Recoleccion", value: match.recoleccion, icon: "refresh" },
-                                  { label: "Desechos peligrosos", value: match.desechos_peligrosos, icon: "waste" }
-                                ].map((service) => {
-                                  const serviceMeta = getLookupServiceMeta(service.value);
-                                  return (
-                                    <div key={service.label} className={`lookup-service-pill ${serviceMeta.tone}`}>
-                                      <div className="lookup-service-pill-top">
-                                        <span className="lookup-service-icon">
-                                          <Icon name={service.icon} />
-                                        </span>
-                                        <span>{service.label}</span>
+                              <details className="lookup-detail-disclosure">
+                                <summary>Ver servicios y saldo</summary>
+                                <div className="lookup-service-grid">
+                                  {[
+                                    { label: "Agua", value: match.agua, icon: "water" },
+                                    { label: "Alcantarillado", value: match.alcantarillado, icon: "sewer" },
+                                    { label: "Barrido", value: match.barrido, icon: "broom" },
+                                    { label: "Recoleccion", value: match.recoleccion, icon: "refresh" },
+                                    { label: "Desechos peligrosos", value: match.desechos_peligrosos, icon: "waste" }
+                                  ].map((service) => {
+                                    const serviceMeta = getLookupServiceMeta(service.value);
+                                    return (
+                                      <div key={service.label} className={`lookup-service-pill ${serviceMeta.tone}`}>
+                                        <div className="lookup-service-pill-top">
+                                          <span className="lookup-service-icon">
+                                            <Icon name={service.icon} />
+                                          </span>
+                                          <span>{service.label}</span>
+                                        </div>
+                                        <strong>{serviceMeta.label}</strong>
                                       </div>
-                                      <strong>{serviceMeta.label}</strong>
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                                    );
+                                  })}
+                                </div>
+                              </details>
                               <div className="lookup-match-actions">
-                                <button type="button" onClick={() => handlePrintLookupMatchReport(match)}>
+                                <button
+                                  type="button"
+                                  className="button-secondary"
+                                  onClick={() =>
+                                    startNewRecordFromLookup(
+                                      {
+                                        clave_catastral: match.clave_catastral || "",
+                                        abonado: match.abonado || "",
+                                        inquilino: match.inquilino || "",
+                                        barrio_colonia: match.barrio_colonia || "",
+                                        comentarios: "Datos copiados desde padron Aguas",
+                                        estado_padron: "varios_padrones"
+                                      },
+                                      `Datos copiados al formulario para ${match.clave_catastral || "--"}.`
+                                    )
+                                  }
+                                >
+                                  <Icon name="copy" />
+                                  Copiar al formulario
+                                </button>
+                                <button type="button" className="button-secondary" onClick={() => handlePrintLookupMatchReport(match)}>
                                   <Icon name="records" />
                                   Generar reporte
                                 </button>
                                 <button
                                   type="button"
-                                  className="button-secondary"
                                   onClick={() => openLookupMatchInRecord(match)}
                                 >
                                   <Icon name="search" />
-                                  Abrir ficha
+                                  Actualizar ficha
                                 </button>
                               </div>
                             </article>
