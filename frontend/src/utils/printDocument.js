@@ -976,7 +976,7 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
     new Promise((resolve) => {
       closeButton.onclick = () => {
         cleanup();
-        resolve();
+        resolve({ printed: false });
       };
 
       const printWindow = printFrame.contentWindow;
@@ -985,7 +985,7 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
       if (!printWindow || !printDocumentRef) {
         cleanup();
         window.alert("No fue posible preparar la impresion.");
-        resolve();
+        resolve({ printed: false });
         return;
       }
 
@@ -1001,7 +1001,7 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
 
       printWindow.onafterprint = () => {
         cleanup();
-        resolve();
+        resolve({ printed: true });
       };
     });
 

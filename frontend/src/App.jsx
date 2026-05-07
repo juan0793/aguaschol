@@ -2279,7 +2279,7 @@ function App() {
         throw new Error(data.message || "No fue posible cargar los registros.");
       }
 
-      const list = Array.isArray(data) ? data : [];
+      const list = Array.isArray(data) ? data.map(normalizeRecord) : [];
       setRecords(list);
       setEmptyRecordsMessage(
         list.length ? "" : view === "archived" ? "No hay fichas archivadas." : "No hay registros para mostrar."
@@ -5947,6 +5947,71 @@ function App() {
     `;
   };
 
+  const markBatchFichaRecordsAsPrinted = async (entries) => {
+    const recordsToMove = entries
+      .filter((item) => item.ficha > 0 && item.record?.id)
+      .map((item) => item.record);
+
+    if (!recordsToMove.length) return 0;
+
+    const movedIds = new Set(recordsToMove.map((record) => record.id));
+    const optimisticRecords = recordsToMove.map((record) =>
+      normalizeRecord({
+        ...record,
+        estado_padron: "reportada",
+        comentarios: record.comentarios || "Ficha impresa desde impresion rapida"
+      })
+    );
+    const optimisticById = new Map(optimisticRecords.map((record) => [record.id, record]));
+
+    setRecords((current) =>
+      current.map((record) => (optimisticById.has(record.id) ? optimisticById.get(record.id) : record))
+    );
+    setBatchPrintCopies((current) => {
+      const nextCopies = { ...current };
+      movedIds.forEach((id) => {
+        delete nextCopies[id];
+      });
+      return nextCopies;
+    });
+
+    if (movedIds.has(form.id)) {
+      const updatedForm = optimisticById.get(form.id);
+      if (updatedForm) {
+        setForm({ ...emptyForm, ...updatedForm });
+      }
+    }
+
+    const updatedRecords = await Promise.all(
+      optimisticRecords.map(async (record) => {
+        const response = await apiFetch(`/inmuebles/${record.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ ...emptyForm, ...record })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || `No se pudo mover la ficha ${record.clave_catastral}.`);
+        }
+
+        return normalizeRecord(data);
+      })
+    );
+    const updatedById = new Map(updatedRecords.map((record) => [record.id, record]));
+
+    setRecords((current) =>
+      current.map((record) => (updatedById.has(record.id) ? updatedById.get(record.id) : record))
+    );
+    if (updatedById.has(form.id)) {
+      setForm({ ...emptyForm, ...updatedById.get(form.id) });
+    }
+
+    return updatedRecords.length;
+  };
+
   const handlePrintBatch = async () => {
     if (!batchPrintSelection.fichas && !batchPrintSelection.avisos) {
       showAlert("Selecciona al menos una ficha o aviso para imprimir.");
@@ -5957,6 +6022,7 @@ function App() {
     setShowPrintBatchModal(false);
 
     try {
+      let movedCount = 0;
       const fichaPages = [];
       for (const item of batchPrintSelection.entries) {
         for (let copy = 0; copy < item.ficha; copy += 1) {
@@ -5966,12 +6032,19 @@ function App() {
       }
 
       if (fichaPages.length) {
-        await printDocument(`Lote de fichas (${fichaPages.length})`, fichaPages.join(""), {
+        const printResult = await printDocument(`Lote de fichas (${fichaPages.length})`, fichaPages.join(""), {
           bodyClassName: "print-ficha",
           pageSize: "Letter landscape",
           pageMargin: "8mm 8mm 8mm 12mm",
           windowFeatures: "width=1400,height=900"
         });
+
+        if (!printResult?.printed) {
+          showAlert("Vista previa cerrada. Las fichas no se movieron a reportadas.");
+          return;
+        }
+
+        movedCount = await markBatchFichaRecordsAsPrinted(batchPrintSelection.entries);
       }
 
       const avisoPages = [];
@@ -5989,8 +6062,13 @@ function App() {
         });
       }
 
-      showAlert(`Lote preparado: ${batchPrintSelection.fichas} fichas y ${batchPrintSelection.avisos} avisos.`);
+      showAlert(
+        movedCount
+          ? `Lote impreso: ${batchPrintSelection.fichas} fichas y ${batchPrintSelection.avisos} avisos. ${movedCount} fichas pasaron a reportadas.`
+          : `Lote preparado: ${batchPrintSelection.fichas} fichas y ${batchPrintSelection.avisos} avisos.`
+      );
     } catch (error) {
+      loadRecords(search, recordView, { silent: true });
       showAlert(error.message || "No fue posible preparar el lote de impresion.");
     } finally {
       setBatchPrinting(false);
@@ -7161,7 +7239,7 @@ function App() {
               Se muestran las fichas segun los filtros activos. Puedes buscar por clave y seleccionar cuantas impresiones de ficha o aviso necesitas.
             </DialogDescription>
             <p className="helper-text">
-              Al continuar se abrira una vista previa grande para revisar el documento antes de enviar la impresion al navegador.
+              Al imprimir fichas, se moveran de inmediato a reportadas para evitar repetir el mismo trabajo en campo.
             </p>
           </DialogHeader>
           <div className="print-batch-toolbar">

@@ -3,7 +3,7 @@ import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { buildAvisoHtml } from "../utils/avisoTemplate.js";
 import { deleteStoredPhoto, saveUploadedPhoto } from "./fileStorageService.js";
-import { likeValue, normalizeKey } from "../utils/normalize.js";
+import { likeValue, normalizeDateField, normalizeKey } from "../utils/normalize.js";
 
 const memoryRecords = [
   {
@@ -65,7 +65,7 @@ const mapPayload = (payload) => ({
   conexion_agua: payload.conexion_agua?.trim() ?? "No",
   conexion_alcantarillado: payload.conexion_alcantarillado?.trim() ?? "No",
   recoleccion_desechos: payload.recoleccion_desechos?.trim() ?? "No",
-  fecha_aviso: payload.fecha_aviso || null,
+  fecha_aviso: normalizeDateField(payload.fecha_aviso),
   firmante_aviso: payload.firmante_aviso?.trim() ?? "",
   cargo_firmante: payload.cargo_firmante?.trim() ?? "",
   levantamiento_datos: payload.levantamiento_datos?.trim() ?? "",
