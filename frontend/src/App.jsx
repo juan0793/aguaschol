@@ -219,6 +219,7 @@ function App() {
   const [batchPrintCopies, setBatchPrintCopies] = useState({});
   const [printBatchSearch, setPrintBatchSearch] = useState("");
   const [printBatchQuickFilter, setPrintBatchQuickFilter] = useState("all");
+  const [printBatchStatusView, setPrintBatchStatusView] = useState("pending");
   const [batchPrinting, setBatchPrinting] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState(
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
@@ -2187,10 +2188,20 @@ function App() {
       avisos: entries.reduce((total, item) => total + item.aviso, 0)
     };
   }, [batchPrintCopies, safeRecords]);
-  const printBatchRecords = useMemo(
-    () => filteredRecords.filter((record) => recordView === "archived" || record.estado_padron !== "reportada"),
-    [filteredRecords, recordView]
+  const printBatchStatusCounts = useMemo(
+    () => ({
+      pending: filteredRecords.filter((record) => record.estado_padron !== "reportada").length,
+      printed: filteredRecords.filter((record) => record.estado_padron === "reportada").length
+    }),
+    [filteredRecords]
   );
+  const printBatchRecords = useMemo(() => {
+    if (recordView === "archived") return filteredRecords;
+    if (printBatchStatusView === "printed") {
+      return filteredRecords.filter((record) => record.estado_padron === "reportada");
+    }
+    return filteredRecords.filter((record) => record.estado_padron !== "reportada");
+  }, [filteredRecords, printBatchStatusView, recordView]);
   const filteredPrintBatchRecords = useMemo(() => {
     const query = printBatchSearch.trim().toLowerCase();
 
@@ -4492,6 +4503,7 @@ function App() {
     const currentRecordVisible = form.id && safeRecords.some((record) => record.id === form.id);
     setPrintBatchSearch("");
     setPrintBatchQuickFilter("all");
+    setPrintBatchStatusView("pending");
     setBatchPrintCopies(
       currentRecordVisible
         ? {
@@ -4516,6 +4528,7 @@ function App() {
     });
     setPrintBatchSearch("");
     setPrintBatchQuickFilter(documentType === "aviso" ? "aviso_selected" : "ficha_selected");
+    setPrintBatchStatusView("pending");
     setBatchPrintCopies(selectedCopies);
     setShowPrintBatchModal(true);
   };
@@ -6012,6 +6025,25 @@ function App() {
     return updatedRecords.length;
   };
 
+  const handleMoveSelectedFichasToPrinted = async () => {
+    if (!batchPrintSelection.entries.some((item) => item.ficha > 0)) {
+      showAlert("Selecciona al menos una ficha para moverla a reportadas.");
+      return;
+    }
+
+    setBatchPrinting(true);
+    try {
+      const movedCount = await markBatchFichaRecordsAsPrinted(batchPrintSelection.entries);
+      setPrintBatchStatusView("printed");
+      showAlert(`${movedCount} fichas pasaron a reportadas.`);
+    } catch (error) {
+      loadRecords(search, recordView, { silent: true });
+      showAlert(error.message || "No fue posible mover las fichas seleccionadas.");
+    } finally {
+      setBatchPrinting(false);
+    }
+  };
+
   const handlePrintBatch = async () => {
     if (!batchPrintSelection.fichas && !batchPrintSelection.avisos) {
       showAlert("Selecciona al menos una ficha o aviso para imprimir.");
@@ -6045,6 +6077,9 @@ function App() {
         }
 
         movedCount = await markBatchFichaRecordsAsPrinted(batchPrintSelection.entries);
+        if (movedCount) {
+          setPrintBatchStatusView("printed");
+        }
       }
 
       const avisoPages = [];
@@ -7236,13 +7271,29 @@ function App() {
             <p className="eyebrow">Impresion rapida</p>
             <DialogTitle>Seleccionar fichas, avisos y copias</DialogTitle>
             <DialogDescription className="lead">
-              Se muestran las fichas segun los filtros activos. Puedes buscar por clave y seleccionar cuantas impresiones de ficha o aviso necesitas.
+              Selecciona el lote, revisa pendientes o reportadas y evita repetir impresiones.
             </DialogDescription>
             <p className="helper-text">
-              Al imprimir fichas, se moveran de inmediato a reportadas para evitar repetir el mismo trabajo en campo.
+              La impresion del navegador siempre abre Windows. Para limpiar el lote sin imprimir, usa mover a reportadas.
             </p>
           </DialogHeader>
           <div className="print-batch-toolbar">
+            <div className="print-batch-filters" aria-label="Apartados de impresion">
+              {[
+                { key: "pending", label: `Pendientes (${printBatchStatusCounts.pending})` },
+                { key: "printed", label: `Reportadas (${printBatchStatusCounts.printed})` }
+              ].map((filter) => (
+                <Button
+                  key={filter.key}
+                  type="button"
+                  variant={printBatchStatusView === filter.key ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPrintBatchStatusView(filter.key)}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
             <label className="print-batch-search">
               <span>Buscar ficha</span>
               <Input
@@ -7288,6 +7339,15 @@ function App() {
               <Button type="button" variant="ghost" size="sm" onClick={clearBatchPrintCopies}>
                 Limpiar seleccion
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleMoveSelectedFichasToPrinted}
+                disabled={batchPrinting || !batchPrintSelection.fichas}
+              >
+                Mover fichas a reportadas
+              </Button>
             </div>
           </div>
           <div className="print-batch-scroll">
@@ -7322,7 +7382,7 @@ function App() {
                         </div>
                       </div>
                       <div className="print-batch-status">
-                        <span>{isClandestina ? "Ficha clandestina lista para impresion." : getPadronStatusDescription(padronStatus)}</span>
+                        <span>{isClandestina ? "Lista para imprimir." : getPadronStatusLabel(padronStatus)}</span>
                         <Button
                           type="button"
                           variant="outline"
