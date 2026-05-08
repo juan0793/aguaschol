@@ -7421,6 +7421,11 @@ textarea {
   justify-content: flex-end;
 }
 
+.map-report-output-row {
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .map-report-step-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

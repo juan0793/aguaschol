@@ -594,6 +594,28 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             text-align: right;
             font-size: 10px;
           }
+          .census-report-header {
+            border-color: #b9d7ec;
+          }
+          .census-report-map {
+            border: 1px solid #c7dcef;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 8px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .census-report-map .field-report-map-image {
+            max-height: 260px;
+          }
+          .census-report-zone-head {
+            border-bottom: 1px solid #d8e7f4;
+            padding-bottom: 6px;
+          }
+          .census-report-table th,
+          .census-report-table td {
+            font-size: 9px;
+          }
           .field-report-table {
             width: 100%;
             border-collapse: collapse;

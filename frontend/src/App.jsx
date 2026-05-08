@@ -4461,6 +4461,256 @@ function App() {
     }
   };
 
+  const handlePrintMapCensusReport = async () => {
+    const generatedAt = formatDateTime(new Date().toISOString());
+    const reportData = mapReportPrintData;
+    const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
+    const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
+    const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
+    const reportNotes = mapReportSettings.report_notes.trim();
+    const mapImageDataUrl = mapReportSettings.map_image_data_url || "";
+    const zonesMarkup = reportData.zones
+      .map(
+        (zone, index) => `
+          <section class="field-report-zone census-report-zone">
+            <div class="field-report-zone-head census-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">${escapeHtml(zone.displayKicker || `Zona ${index + 1}`)}</span>
+                <h3>${escapeHtml(zone.displayName || zone.zone)}</h3>
+                <p>Referencia 1: ${escapeHtml(zone.displayReference || "Sin referencia principal")}</p>
+                <p>Referencia 2: ${escapeHtml(zone.displayLocation || "Sin referencia secundaria")}</p>
+              </div>
+              <div class="field-report-zone-meta">
+                <span>Puntos: ${zone.total}</span>
+                <span>Fecha: ${formatDateTime(zone.items[0]?.created_at)}</span>
+              </div>
+            </div>
+            <table class="field-report-table census-report-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre / sector</th>
+                  <th>Tipo</th>
+                  <th>Referencia 1</th>
+                  <th>Referencia 2</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${zone.items
+                  .map(
+                    (point, pointIndex) => `
+                      <tr>
+                        <td>${pointIndex + 1}</td>
+                        <td>${escapeHtml(zone.displayName || point.report_zone_label || zone.zone || "--")}</td>
+                        <td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td>
+                        <td>${escapeHtml(point.suggested_reference || zone.displayReference || "--")}</td>
+                        <td>${escapeHtml(point.reference_note || point.description || zone.displayLocation || "--")}</td>
+                        <td>${escapeHtml(formatDateTime(point.created_at))}</td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </section>
+        `
+      )
+      .join("");
+
+    await printDocument(
+      `${reportTitle} - Censo sin coordenadas`,
+      `
+        <div class="field-report-shell census-report-shell">
+          <header class="field-report-header census-report-header">
+            <div class="field-report-brand">
+              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+              <div>
+                <p class="field-report-kicker">${escapeHtml(reportSubtitle)}</p>
+                <h1>${escapeHtml(reportTitle)}</h1>
+                <p>${escapeHtml(reportDescription)}</p>
+              </div>
+            </div>
+            <div class="field-report-meta">
+              <span>Tipo: Reporte de censo sin coordenadas</span>
+              <span>Generado: ${generatedAt}</span>
+              <span>Total de puntos: ${reportData.totalPoints}</span>
+              <span>Zonas / manzanas: ${reportData.totalZones}</span>
+            </div>
+            <div class="field-report-staff">
+              <div>
+                <strong>Tecnico de campo 1</strong>
+                <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
+              </div>
+              <div>
+                <strong>Tecnico de campo 2</strong>
+                <span>${escapeHtml(mapReportStaff.field_technician_secondary || "--")}</span>
+              </div>
+              <div>
+                <strong>Ingeniero de datos</strong>
+                <span>${escapeHtml(mapReportStaff.data_engineer || "--")}</span>
+              </div>
+            </div>
+          </header>
+          ${
+            mapImageDataUrl
+              ? `<section class="census-report-map"><img src="${mapImageDataUrl}" alt="Mapa del censo" class="field-report-map-image" /></section>`
+              : ""
+          }
+          <section class="field-report-summary">
+            <div class="field-report-total-chip"><strong>Total de puntos</strong><span>${reportData.totalPoints}</span></div>
+            <div class="field-report-total-chip"><strong>Zonas / manzanas</strong><span>${reportData.totalZones}</span></div>
+            <div class="field-report-total-chip"><strong>Cajas de registro</strong><span>${totalCajaRegistro}</span></div>
+          </section>
+          ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones del censo</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
+          ${zonesMarkup || '<p class="field-report-empty">No hay puntos guardados para generar el reporte.</p>'}
+        </div>
+      `,
+      {
+        pageSize: "Letter portrait",
+        pageMargin: "10mm",
+        bodyClassName: "field-report-body census-report-body",
+        showPageFooter: true
+      }
+    );
+  };
+
+  const handleDownloadMapCensusPdf = async () => {
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "letter",
+        compress: true
+      });
+      const reportData = mapReportPrintData;
+      const generatedAt = formatDateTime(new Date().toISOString());
+      const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
+      const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
+      const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
+      const reportNotes = mapReportSettings.report_notes.trim();
+      const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
+      const addPageFooter = () => {
+        const currentPage = document.getCurrentPageInfo().pageNumber;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(69, 96, 122);
+        document.text(`Pagina ${currentPage}`, pageWidth - 14, pageHeight - 8, { align: "right" });
+      };
+
+      try {
+        const logoDataUrl = await urlToDataUrl(logoAguasCholuteca);
+        document.addImage(logoDataUrl, "PNG", 14, 10, 18, 18);
+      } catch {
+        // Keep the report generation going even if the logo cannot be embedded.
+      }
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(15);
+      document.setTextColor(18, 59, 93);
+      document.text(reportTitle, 36, 15);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9);
+      document.setTextColor(64, 91, 117);
+      document.text(reportSubtitle, 36, 21);
+      document.text(document.splitTextToSize(reportDescription, 150), 36, 26);
+
+      document.setFillColor(237, 245, 252);
+      document.roundedRect(14, 38, 188, 22, 3, 3, "F");
+      document.setFontSize(8.8);
+      document.setTextColor(22, 50, 74);
+      document.text(`Tipo: Reporte de censo sin coordenadas`, 18, 45);
+      document.text(`Generado: ${generatedAt}`, 18, 51);
+      document.text(`Total de puntos: ${reportData.totalPoints}`, 102, 45);
+      document.text(`Zonas / manzanas: ${reportData.totalZones}`, 102, 51);
+      document.text(`Tecnicos: ${mapReportStaff.field_technicians || "--"} / ${mapReportStaff.field_technician_secondary || "--"}`, 18, 57);
+
+      let currentY = 66;
+      if (reportNotes) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(9);
+        document.setTextColor(16, 55, 91);
+        document.text("Observaciones del censo", 14, currentY);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(69, 96, 122);
+        const noteLines = document.splitTextToSize(reportNotes, 180);
+        document.text(noteLines, 14, currentY + 5);
+        currentY += Math.min(24, noteLines.length * 4 + 10);
+      }
+
+      addPageFooter();
+
+      for (let index = 0; index < reportData.zones.length; index += 1) {
+        const zone = reportData.zones[index];
+        if (currentY > 235) {
+          document.addPage("letter", "portrait");
+          addPageFooter();
+          currentY = 16;
+        }
+
+        document.setFillColor(237, 245, 252);
+        document.roundedRect(14, currentY, 188, 18, 3, 3, "F");
+        document.setFont("helvetica", "bold");
+        document.setFontSize(10.5);
+        document.setTextColor(16, 55, 91);
+        document.text(`${zone.displayKicker || `Zona ${index + 1}`}: ${zone.displayName || zone.zone}`, 18, currentY + 6);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.2);
+        document.text(`Referencia 1: ${zone.displayReference || "Sin referencia principal"}`, 18, currentY + 11);
+        document.text(`Referencia 2: ${zone.displayLocation || "Sin referencia secundaria"}`, 18, currentY + 15);
+
+        autoTable(document, {
+          startY: currentY + 22,
+          head: [["#", "Nombre / sector", "Tipo", "Referencia 1", "Referencia 2", "Fecha"]],
+          body: zone.items.map((point, pointIndex) => [
+            String(pointIndex + 1),
+            zone.displayName || point.report_zone_label || zone.zone || "--",
+            getMapPointTypeLabel(point.point_type),
+            point.suggested_reference || zone.displayReference || "--",
+            point.reference_note || point.description || zone.displayLocation || "--",
+            formatDateTime(point.created_at)
+          ]),
+          theme: "grid",
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2,
+            textColor: [28, 44, 62],
+            overflow: "linebreak"
+          },
+          headStyles: {
+            fillColor: [21, 118, 209],
+            textColor: [255, 255, 255],
+            fontStyle: "bold"
+          },
+          alternateRowStyles: {
+            fillColor: [248, 251, 255]
+          },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 8, halign: "center" },
+            1: { cellWidth: 34 },
+            2: { cellWidth: 24 },
+            3: { cellWidth: 42 },
+            4: { cellWidth: 54 },
+            5: { cellWidth: 26 }
+          }
+        });
+
+        currentY = (document.lastAutoTable?.finalY ?? currentY + 22) + 7;
+        addPageFooter();
+      }
+
+      document.save(`reporte-censo-sin-coordenadas-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Reporte de censo sin coordenadas descargado.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar el reporte de censo.");
+    }
+  };
+
   const handleOpenPointInMaps = (point, event) => {
     event?.stopPropagation();
     const url = buildExternalMapUrl(point.latitude, point.longitude);
@@ -8083,11 +8333,19 @@ function App() {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
                   <Icon name="records" />
-                  Descargar PDF
+                  PDF con coordenadas
                 </button>
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
-                  Imprimir reporte
+                  Imprimir con coordenadas
+                </button>
+                <button type="button" className="button-secondary" onClick={handleDownloadMapCensusPdf}>
+                  <Icon name="records" />
+                  PDF censo sin coordenadas
+                </button>
+                <button type="button" className="button-secondary" onClick={handlePrintMapCensusReport}>
+                  <Icon name="records" />
+                  Imprimir censo
                 </button>
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
@@ -10670,13 +10928,21 @@ function App() {
                       </div>
                       <button type="button" onClick={handlePrintMapFieldReport}>
                         <Icon name="records" />
-                        Imprimir formato de oficina
+                        Imprimir reporte con coordenadas
                       </button>
                     </div>
-                    <div className="map-report-download-row">
+                    <div className="map-report-download-row map-report-output-row">
                       <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
                         <Icon name="records" />
-                        Descargar PDF institucional
+                        PDF técnico con coordenadas
+                      </button>
+                      <button type="button" className="button-secondary" onClick={handlePrintMapCensusReport}>
+                        <Icon name="records" />
+                        Imprimir censo sin coordenadas
+                      </button>
+                      <button type="button" className="button-secondary" onClick={handleDownloadMapCensusPdf}>
+                        <Icon name="records" />
+                        PDF de censo sin coordenadas
                       </button>
                     </div>
                     <div className="map-report-step-grid">
