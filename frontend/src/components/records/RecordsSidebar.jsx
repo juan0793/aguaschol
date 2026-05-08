@@ -80,18 +80,25 @@ const RecordsSidebar = ({
       <div className="record-mobile-drawer">
         {loading ? <p className="helper-text">Cargando fichas...</p> : null}
         {filteredRecords.length ? (
-          filteredRecords.map((record) => (
-            <button
-              type="button"
-              key={record.id ?? record.clave_catastral}
-              className={`record-card ${form.id === record.id ? "active" : ""}`}
-              onClick={() => onSelectRecord(record)}
-            >
-              <strong>{record.clave_catastral || "Sin clave"}</strong>
-              <span>{record.inquilino || record.nombre_catastral || record.abonado || "Sin abonado"}</span>
-              <small>{record.barrio_colonia || "Sin barrio"} · {record.estado_padron || "clandestino"}</small>
-            </button>
-          ))
+          filteredRecords.map((record) => {
+            const isPrinted = record.estado_padron === "reportada";
+
+            return (
+              <button
+                type="button"
+                key={record.id ?? record.clave_catastral}
+                className={`record-card ${form.id === record.id ? "active" : ""} ${isPrinted ? "is-printed" : ""}`}
+                onClick={() => onSelectRecord(record)}
+              >
+                <div className="record-card-title-line">
+                  <strong>{record.clave_catastral || "Sin clave"}</strong>
+                  {isPrinted ? <span className="record-status-chip is-printed">Impresa</span> : null}
+                </div>
+                <span>{record.inquilino || record.nombre_catastral || record.abonado || "Sin abonado"}</span>
+                <small>{record.barrio_colonia || "Sin barrio"} - {isPrinted ? "impresa/reportada" : record.estado_padron || "clandestino"}</small>
+              </button>
+            );
+          })
         ) : (
           <p className="helper-text">No hay fichas con este filtro.</p>
         )}

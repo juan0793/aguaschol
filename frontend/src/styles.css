@@ -229,6 +229,14 @@ body::after {
   text-align: left;
 }
 
+.record-card-title-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .records-workspace-main {
   min-width: 0;
   padding: 1rem;
@@ -438,9 +446,10 @@ body::after {
 .record-status-chip.is-reportada,
 .record-status-chip.is-impresa,
 .record-status-chip.is-impreso,
+.record-status-chip.is-printed,
 .record-status-chip.is-entregado {
-  background: #e8f0ff;
-  color: #154ea3;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .record-status-chip.is-varios_padrones,
@@ -471,6 +480,33 @@ body::after {
   border: 1px solid #d4e2ee;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.record-card.is-printed,
+.record-document-bundle.is-printed,
+.record-document-card.is-printed,
+.record-document-card.is-impresa,
+.record-document-card.is-reimpresa,
+.record-document-card.is-entregado {
+  background: #f0fdf4;
+  border-color: #86efac;
+  box-shadow: inset 4px 0 0 #16a34a;
+}
+
+.record-card.is-printed::before {
+  background: #16a34a;
+}
+
+.record-card.is-printed strong,
+.record-card.is-printed small,
+.record-document-bundle.is-printed strong,
+.record-document-card.is-printed strong {
+  color: #14532d;
+}
+
+.record-card.is-printed:hover {
+  border-color: #4ade80;
+  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.12), inset 4px 0 0 #16a34a;
 }
 
 .record-document-summary {

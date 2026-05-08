@@ -67,7 +67,7 @@ const formatDate = (value) => {
 };
 
 const DocumentCard = ({ title, type, state, onGenerate, onPreview, onPrint, onDeliver }) => (
-  <article className="record-document-card">
+  <article className={`record-document-card is-${state.status} ${state.hasPrinted ? "is-printed" : ""}`}>
     <div className="record-document-card-head">
       <div>
         <span className="sheet-kicker">{title}</span>
@@ -177,10 +177,11 @@ const RecordPrintCenter = ({ records, form, currentUser, onGenerateAviso, onPrin
           const ficha = getDocumentState(logs, record, "ficha_informacion");
           const aviso = getDocumentState(logs, record, "aviso");
           return (
-            <article key={`documents-${record.id}`} className="record-document-bundle">
+            <article key={`documents-${record.id}`} className={`record-document-bundle ${record.estado_padron === "reportada" ? "is-printed" : ""}`}>
               <div className="record-document-summary">
                 <strong>{record.clave_catastral || "Sin clave"}</strong>
                 <span>{record.abonado || record.nombre_catastral || "Sin abonado"} · {record.barrio_colonia || "Sin barrio"}</span>
+                {record.estado_padron === "reportada" ? <span className="record-status-chip is-printed">Ficha impresa/reportada</span> : null}
               </div>
               <DocumentCard
                 title="Documento 1: Ficha de informacion"
