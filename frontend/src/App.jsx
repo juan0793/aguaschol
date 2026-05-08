@@ -10,11 +10,13 @@ import {
   DRAFT_STORAGE_KEY,
   DRAFT_SAVED_AT_STORAGE_KEY,
   LOOKUP_HISTORY_STORAGE_KEY,
+  MAP_REPORT_SETTINGS_STORAGE_KEY,
   RECORD_ALERT_NOTIFICATION_STORAGE_KEY,
   NOTIFICATION_REQUEST_STORAGE_KEY
 } from "./constants/storageKeys";
 import {
   defaultMapReportStaff,
+  defaultMapReportSettings,
   defaultPadronRequestForm,
   emptyForm,
   emptyMapDraft,
@@ -145,6 +147,7 @@ const normalizeDashboardWidgetPrefs = (value) => {
 };
 
 const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : "records");
+const getMapReportZoneOverrideKey = (zoneName) => String(zoneName || "Zona no especificada").trim() || "Zona no especificada";
 
 function App() {
   const sheetRef = useRef(null);
@@ -263,6 +266,23 @@ function App() {
   const [reportMapDraft, setReportMapDraft] = useState(emptyMapReportDraft);
   const [reportMapFocusRequest, setReportMapFocusRequest] = useState(null);
   const [mapReportStaff, setMapReportStaff] = useState(defaultMapReportStaff);
+  const [mapReportSettings, setMapReportSettings] = useState(() => {
+    const saved = window.localStorage.getItem(MAP_REPORT_SETTINGS_STORAGE_KEY);
+    if (!saved) return defaultMapReportSettings;
+
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        ...defaultMapReportSettings,
+        ...parsed,
+        zone_overrides: parsed?.zone_overrides && typeof parsed.zone_overrides === "object" ? parsed.zone_overrides : {},
+        map_image_data_url: "",
+        map_image_name: ""
+      };
+    } catch {
+      return defaultMapReportSettings;
+    }
+  });
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
@@ -970,6 +990,38 @@ function App() {
       };
     }
   }, [mapPointContexts, visibleMapPoints]);
+  const mapReportPrintData = useMemo(() => {
+    const manualBarrio = mapReportSettings.manual_barrio.trim();
+    const applyZoneOverrides = (data) => ({
+      ...data,
+      zones: data.zones.map((zone, index) => {
+        const overrideKey = getMapReportZoneOverrideKey(zone.zone);
+        const override = mapReportSettings.zone_overrides?.[overrideKey] ?? {};
+        const displayName = String(override.name || manualBarrio || zone.zone || "").trim() || zone.zone;
+        const displayKicker = String(override.kicker || `Zona ${index + 1}`).trim() || `Zona ${index + 1}`;
+        const displayReference =
+          String(override.reference || zone.nearbyReferencesLabel || "").trim() || zone.nearbyReferencesLabel;
+        const displayLocation =
+          String(override.location || mapReportSettings.manual_location || zone.primaryLocationLabel || "").trim() ||
+          zone.primaryLocationLabel;
+
+        return {
+          ...zone,
+          overrideKey,
+          displayKicker,
+          displayName,
+          displayReference,
+          displayLocation,
+          items: zone.items.map((point) => ({
+            ...point,
+            report_zone_label: displayName
+          }))
+        };
+      })
+    });
+
+    return applyZoneOverrides(mapReportData);
+  }, [mapReportData, mapReportSettings.manual_barrio, mapReportSettings.manual_location, mapReportSettings.zone_overrides]);
   const adminWorkspaceItems = useMemo(
     () =>
       isAdmin
@@ -1248,16 +1300,16 @@ function App() {
   );
   const mapReportPagination = useMemo(() => {
     const pageSize = 5;
-    const totalPages = Math.max(1, Math.ceil(mapReportData.zones.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(mapReportPrintData.zones.length / pageSize));
     const currentPage = Math.min(mapReportPage, totalPages);
     const start = (currentPage - 1) * pageSize;
     return {
       pageSize,
       totalPages,
       currentPage,
-      zones: mapReportData.zones.slice(start, start + pageSize)
+      zones: mapReportPrintData.zones.slice(start, start + pageSize)
     };
-  }, [mapReportData.zones, mapReportPage]);
+  }, [mapReportPrintData.zones, mapReportPage]);
   const mapAnalyticsData = useMemo(() => {
     const journeySeries = [...mapDiaryGroups]
       .slice(0, 10)
@@ -2056,6 +2108,11 @@ function App() {
   }, [dashboardWidgetPrefs]);
 
   useEffect(() => {
+    const { map_image_data_url, map_image_name, ...settingsToStore } = mapReportSettings;
+    window.localStorage.setItem(MAP_REPORT_SETTINGS_STORAGE_KEY, JSON.stringify(settingsToStore));
+  }, [mapReportSettings]);
+
+  useEffect(() => {
     const handleEscape = (event) => {
       if (event.key !== "Escape") return;
       setShowMobileModuleMenu(false);
@@ -2818,9 +2875,9 @@ function App() {
   }, [workspaceView]);
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(mapReportData.zones.length / 5));
+    const totalPages = Math.max(1, Math.ceil(mapReportPrintData.zones.length / 5));
     setMapReportPage((current) => Math.min(current, totalPages));
-  }, [mapReportData.zones.length]);
+  }, [mapReportPrintData.zones.length]);
 
   useEffect(() => {
     if (isAuthenticated && !isAdmin && !["records", "lookup", "map"].includes(workspaceView)) {
@@ -3792,6 +3849,60 @@ function App() {
     }));
   };
 
+  const handleMapReportSettingsChange = (event) => {
+    const { name, value } = event.target;
+    setMapReportSettings((current) => ({
+      ...current,
+      [name]: value
+    }));
+  };
+
+  const handleMapReportImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showAlert("Selecciona una imagen valida para el mapa.");
+      return;
+    }
+
+    try {
+      const optimizedMap = await optimizeImageForUpload(file);
+      const dataUrl = await fileToDataUrl(optimizedMap);
+      setMapReportSettings((current) => ({
+        ...current,
+        map_image_data_url: dataUrl,
+        map_image_name: optimizedMap.name
+      }));
+      showAlert("Mapa adjunto listo para el reporte.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible preparar el mapa.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const clearMapReportImage = () => {
+    setMapReportSettings((current) => ({
+      ...current,
+      map_image_data_url: "",
+      map_image_name: ""
+    }));
+  };
+
+  const handleMapReportZoneOverrideChange = (zoneKey, field, value) => {
+    setMapReportSettings((current) => ({
+      ...current,
+      zone_overrides: {
+        ...(current.zone_overrides || {}),
+        [zoneKey]: {
+          ...(current.zone_overrides?.[zoneKey] || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
+
   const captureReportMapImage = async () => {
     if (!reportMapCaptureRef.current) {
       return "";
@@ -3994,8 +4105,13 @@ function App() {
 
   const handlePrintMapFieldReport = async () => {
     const generatedAt = formatDateTime(new Date().toISOString());
-    const mapImageDataUrl = await captureReportMapImage();
-    const totalsMarkup = Object.entries(mapReportData.totalsByType)
+    const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
+    const reportData = mapReportPrintData;
+    const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
+    const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
+    const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
+    const reportNotes = mapReportSettings.report_notes.trim();
+    const totalsMarkup = Object.entries(reportData.totalsByType)
       .map(
         ([label, total]) => `
           <div class="field-report-total-chip">
@@ -4014,11 +4130,11 @@ function App() {
           <div class="field-report-cover-metrics">
             <div>
               <strong>Total de puntos</strong>
-              <span>${mapReportData.totalPoints}</span>
+              <span>${reportData.totalPoints}</span>
             </div>
             <div>
-              <strong>Total de zonas</strong>
-              <span>${mapReportData.totalZones}</span>
+              <strong>Total de barrios</strong>
+              <span>${reportData.totalZones}</span>
             </div>
             <div>
               <strong>Cajas de registro</strong>
@@ -4050,16 +4166,16 @@ function App() {
       </section>
     `;
 
-    const zonesMarkup = mapReportData.zones
+    const zonesMarkup = reportData.zones
       .map(
         (zone, index) => `
           <section class="field-report-zone">
             <div class="field-report-zone-head">
               <div>
-                <span class="field-report-zone-kicker">Zona ${index + 1}</span>
-                <h3>${zone.zone}</h3>
-                <p>Referencia sugerida: ${zone.nearbyReferencesLabel || "Sin contexto cercano"}</p>
-                <p>Ubicacion completa: ${zone.primaryLocationLabel || "Sin direccion ampliada"}</p>
+                <span class="field-report-zone-kicker">${escapeHtml(zone.displayKicker || `Zona ${index + 1}`)}</span>
+                <h3>${escapeHtml(zone.displayName || zone.zone)}</h3>
+                <p>Referencia sugerida: ${escapeHtml(zone.displayReference || "Sin contexto cercano")}</p>
+                <p>Ubicacion completa: ${escapeHtml(zone.displayLocation || "Sin direccion ampliada")}</p>
               </div>
               <div class="field-report-zone-meta">
                 <span>Total: ${zone.total}</span>
@@ -4076,7 +4192,7 @@ function App() {
                   <th>Latitud</th>
                   <th>Longitud</th>
                   <th>Precision</th>
-                  <th>Zona</th>
+                  <th>Barrio</th>
                   <th>Referencia cercana</th>
                   <th>Referencia</th>
                   <th>Fecha</th>
@@ -4093,7 +4209,7 @@ function App() {
                         <td>${formatCoordinate(point.latitude)}</td>
                         <td>${formatCoordinate(point.longitude)}</td>
                         <td>${point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
-                        <td>${point.suggested_zone || zone.zone}</td>
+                        <td>${escapeHtml(point.report_zone_label || point.suggested_zone || zone.zone)}</td>
                         <td>${point.suggested_reference || "--"}</td>
                         <td>${point.reference_note || point.description || "--"}</td>
                         <td>${formatDateTime(point.created_at)}</td>
@@ -4109,22 +4225,22 @@ function App() {
       .join("");
 
     await printDocument(
-      "Reporte de levantamiento de campo",
+      reportTitle,
       `
         <div class="field-report-shell">
           <header class="field-report-header">
             <div class="field-report-brand">
               <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
               <div>
-                <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
-                <h1>Reporte de levantamiento de campo</h1>
-                <p>Consolidado institucional de coordenadas, totales y zonas registradas por el equipo tecnico.</p>
+                <p class="field-report-kicker">${escapeHtml(reportSubtitle)}</p>
+                <h1>${escapeHtml(reportTitle)}</h1>
+                <p>${escapeHtml(reportDescription)}</p>
               </div>
             </div>
             <div class="field-report-meta">
               <span>Generado: ${generatedAt}</span>
-              <span>Total de puntos: ${mapReportData.totalPoints}</span>
-              <span>Total de zonas: ${mapReportData.totalZones}</span>
+              <span>Total de puntos: ${reportData.totalPoints}</span>
+              <span>Total de barrios: ${reportData.totalZones}</span>
             </div>
             <div class="field-report-staff">
               <div>
@@ -4145,6 +4261,7 @@ function App() {
           <section class="field-report-summary">
             ${totalsMarkup || '<div class="field-report-total-chip"><strong>Sin puntos</strong><span>0</span></div>'}
           </section>
+          ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones del censo</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
           ${zonesMarkup || '<p class="field-report-empty">No hay puntos guardados para generar el reporte.</p>'}
         </div>
       `,
@@ -4168,7 +4285,11 @@ function App() {
         compress: true
       });
       const generatedAt = formatDateTime(new Date().toISOString());
-      const mapImageDataUrl = await captureReportMapImage();
+      const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
+      const reportData = mapReportPrintData;
+      const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
+      const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
+      const reportNotes = mapReportSettings.report_notes.trim();
       const addPdfPageFooter = () => {
         const pageWidth = document.internal.pageSize.getWidth();
         const pageHeight = document.internal.pageSize.getHeight();
@@ -4188,25 +4309,26 @@ function App() {
 
       document.setFont("helvetica", "bold");
       document.setFontSize(16);
-      document.text("Reporte de levantamiento de campo", 38, 16);
+      document.text(reportTitle, 38, 16);
       document.setFontSize(9.5);
       document.setTextColor(64, 91, 117);
-      document.text("Aguas de Choluteca, S.A. de C.V.", 38, 22);
+      document.text(reportSubtitle, 38, 22);
 
       document.setTextColor(22, 50, 74);
       document.setFont("helvetica", "normal");
       document.text(`Generado: ${generatedAt}`, 14, 36);
-      document.text(`Total de puntos: ${mapReportData.totalPoints}`, 86, 36);
-      document.text(`Total de zonas: ${mapReportData.totalZones}`, 138, 36);
+      document.text(`Total de puntos: ${reportData.totalPoints}`, 86, 36);
+      document.text(`Total de barrios: ${reportData.totalZones}`, 138, 36);
       document.text(`Tecnico de campo 1: ${mapReportStaff.field_technicians || "--"}`, 14, 42);
       document.text(`Tecnico de campo 2: ${mapReportStaff.field_technician_secondary || "--"}`, 14, 48);
       document.text(`Ingeniero de datos: ${mapReportStaff.data_engineer || "--"}`, 138, 42);
       document.text(`Cajas de registro: ${totalCajaRegistro}`, 14, 54);
 
       if (mapImageDataUrl) {
+        const mapImageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
         document.setFillColor(237, 245, 252);
         document.roundedRect(154, 48, 104, 48, 3, 3, "F");
-        document.addImage(mapImageDataUrl, "PNG", 156, 50, 100, 44);
+        document.addImage(mapImageDataUrl, mapImageType, 156, 50, 100, 44);
       } else {
         document.setFillColor(237, 245, 252);
         document.roundedRect(154, 48, 104, 48, 3, 3, "F");
@@ -4219,8 +4341,8 @@ function App() {
       autoTable(document, {
         startY: 62,
         head: [["Resumen", "Cantidad"]],
-        body: Object.entries(mapReportData.totalsByType).length
-          ? Object.entries(mapReportData.totalsByType)
+        body: Object.entries(reportData.totalsByType).length
+          ? Object.entries(reportData.totalsByType)
           : [["Sin puntos", "0"]],
         theme: "grid",
         styles: {
@@ -4242,9 +4364,21 @@ function App() {
 
       addPdfPageFooter();
       let currentY = (document.lastAutoTable?.finalY ?? 58) + 6;
+      if (reportNotes) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(9);
+        document.setTextColor(16, 55, 91);
+        document.text("Observaciones del censo", 14, currentY);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(69, 96, 122);
+        const noteLines = document.splitTextToSize(reportNotes, 130);
+        document.text(noteLines, 14, currentY + 5);
+        currentY += Math.min(22, noteLines.length * 4 + 9);
+      }
 
-      for (let index = 0; index < mapReportData.zones.length; index += 1) {
-        const zone = mapReportData.zones[index];
+      for (let index = 0; index < reportData.zones.length; index += 1) {
+        const zone = reportData.zones[index];
 
         if (currentY > 175) {
           document.addPage("letter", "landscape");
@@ -4257,11 +4391,11 @@ function App() {
         document.setFont("helvetica", "bold");
         document.setFontSize(11.5);
         document.setTextColor(16, 55, 91);
-        document.text(`Zona ${index + 1}: ${zone.zone}`, 18, currentY + 6);
+        document.text(`${zone.displayKicker || `Zona ${index + 1}`}: ${zone.displayName || zone.zone}`, 18, currentY + 6);
         document.setFont("helvetica", "normal");
         document.setFontSize(8.5);
-        document.text(`Referencia sugerida: ${zone.nearbyReferencesLabel || "Sin contexto cercano"}`, 18, currentY + 11);
-        document.text(`Ubicacion completa: ${zone.primaryLocationLabel || "Sin direccion ampliada"}`, 128, currentY + 11);
+        document.text(`Referencia sugerida: ${zone.displayReference || "Sin contexto cercano"}`, 18, currentY + 11);
+        document.text(`Ubicacion completa: ${zone.displayLocation || "Sin direccion ampliada"}`, 128, currentY + 11);
 
         autoTable(document, {
           startY: currentY + 20,
@@ -7923,7 +8057,7 @@ function App() {
               </p>
               <div className="map-diary-summary">
                 <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-                <span className="helper-text">{visibleMapPoints.length} puntos y {mapReportData.totalZones} zonas en la jornada seleccionada.</span>
+                <span className="helper-text">{visibleMapPoints.length} puntos y {mapReportPrintData.totalZones} barrios en el reporte.</span>
               </div>
               <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
@@ -10473,7 +10607,7 @@ function App() {
                           Coordenadas, totales y zonas consolidadas para una lectura institucional mas compacta y lista para impresion.
                         </p>
                       </div>
-                      <span className="panel-pill">{mapReportData.totalPoints} puntos</span>
+                      <span className="panel-pill">{mapReportPrintData.totalPoints} puntos</span>
                     </div>
                     <div className="map-diary-strip map-diary-strip-report">
                       <div className="map-diary-strip-head">
@@ -10504,11 +10638,11 @@ function App() {
                     <div className="log-summary-strip map-report-summary-strip">
                       <div className="log-summary-card">
                         <span>Total general</span>
-                        <strong>{mapReportData.totalPoints}</strong>
+                        <strong>{mapReportPrintData.totalPoints}</strong>
                       </div>
                       <div className="log-summary-card">
-                        <span>Zonas detectadas</span>
-                        <strong>{mapReportData.totalZones}</strong>
+                        <span>Barrios del reporte</span>
+                        <strong>{mapReportPrintData.totalZones}</strong>
                       </div>
                       <div className="log-summary-card">
                         <span>Contexto cercano</span>
@@ -10529,9 +10663,9 @@ function App() {
                       <div className="map-report-brand">
                         <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
                         <div>
-                          <p className="sheet-kicker">Aguas de Choluteca, S.A. de C.V.</p>
-                          <h3>Centro de reportes de campo</h3>
-                          <p className="helper-text">Resumen imprimible por zona, con coordenadas y totales del levantamiento.</p>
+                          <p className="sheet-kicker">{mapReportSettings.subtitle || defaultMapReportSettings.subtitle}</p>
+                          <h3>{mapReportSettings.title || defaultMapReportSettings.title}</h3>
+                          <p className="helper-text">{mapReportSettings.description || defaultMapReportSettings.description}</p>
                         </div>
                       </div>
                       <button type="button" onClick={handlePrintMapFieldReport}>
@@ -10567,6 +10701,86 @@ function App() {
                           <p>El formato sale consolidado por zonas, con paginado y datos del personal de campo.</p>
                         </div>
                       </article>
+                    </div>
+                    <div className="map-report-settings-grid">
+                      <label className="map-report-staff-card map-report-wide-card">
+                        <span>Encabezado del reporte</span>
+                        <input
+                          name="title"
+                          value={mapReportSettings.title}
+                          onChange={handleMapReportSettingsChange}
+                          placeholder="Ej. Reporte de censo Barrio Cabanas"
+                        />
+                      </label>
+                      <label className="map-report-staff-card">
+                        <span>Institucion / subtitulo</span>
+                        <input
+                          name="subtitle"
+                          value={mapReportSettings.subtitle}
+                          onChange={handleMapReportSettingsChange}
+                          placeholder="Aguas de Choluteca, S.A. de C.V."
+                        />
+                      </label>
+                      <label className="map-report-staff-card">
+                        <span>Barrio manual</span>
+                        <input
+                          name="manual_barrio"
+                          value={mapReportSettings.manual_barrio}
+                          onChange={handleMapReportSettingsChange}
+                          placeholder="Ej. Barrio Cabanas"
+                        />
+                      </label>
+                      <label className="map-report-staff-card">
+                        <span>Ubicacion / sector</span>
+                        <input
+                          name="manual_location"
+                          value={mapReportSettings.manual_location}
+                          onChange={handleMapReportSettingsChange}
+                          placeholder="Ej. Calle Central, sector norte"
+                        />
+                      </label>
+                      <label className="map-report-staff-card map-report-wide-card">
+                        <span>Descripcion del encabezado</span>
+                        <input
+                          name="description"
+                          value={mapReportSettings.description}
+                          onChange={handleMapReportSettingsChange}
+                          placeholder="Resumen del censo o levantamiento"
+                        />
+                      </label>
+                      <label className="map-report-staff-card map-report-wide-card">
+                        <span>Observaciones del censo</span>
+                        <textarea
+                          name="report_notes"
+                          value={mapReportSettings.report_notes}
+                          onChange={handleMapReportSettingsChange}
+                          rows="3"
+                          placeholder="Notas operativas, alcance, calles cubiertas, pendientes o hallazgos."
+                        />
+                      </label>
+                      <div className="map-report-staff-card map-report-wide-card map-report-map-upload">
+                        <span>Mapa oficial del reporte</span>
+                        <div className="map-report-upload-row">
+                          <label className="button-secondary map-report-upload-button">
+                            <Icon name="records" />
+                            Adjuntar mapa
+                            <input type="file" accept="image/*" onChange={handleMapReportImageChange} />
+                          </label>
+                          {mapReportSettings.map_image_data_url ? (
+                            <button type="button" className="button-secondary" onClick={clearMapReportImage}>
+                              Quitar mapa
+                            </button>
+                          ) : null}
+                        </div>
+                        <p className="helper-text">
+                          {mapReportSettings.map_image_name
+                            ? `Mapa adjunto: ${mapReportSettings.map_image_name}`
+                            : "Puedes cargar una captura, croquis o mapa del sector; si no cargas uno, se usa la vista del mapa interactivo."}
+                        </p>
+                        {mapReportSettings.map_image_data_url ? (
+                          <img src={mapReportSettings.map_image_data_url} alt="Mapa adjunto del reporte" className="map-report-upload-preview" />
+                        ) : null}
+                      </div>
                     </div>
                     <div className="map-report-staff-grid">
                       <label className="map-report-staff-card">
@@ -10624,8 +10838,8 @@ function App() {
                       </div>
                     </div>
                     <div className="map-report-type-grid">
-                      {Object.entries(mapReportData.totalsByType).length ? (
-                        Object.entries(mapReportData.totalsByType).map(([label, total]) => (
+                      {Object.entries(mapReportPrintData.totalsByType).length ? (
+                        Object.entries(mapReportPrintData.totalsByType).map(([label, total]) => (
                           <div key={label} className="document-block map-report-type-card">
                             <h4>{label}</h4>
                             <strong>{total}</strong>
@@ -10801,13 +11015,13 @@ function App() {
                           <section key={zone.zone} className="document-block map-report-zone-card">
                             <div className="map-report-zone-top">
                               <div>
-                                <span className="sheet-kicker">Zona {(mapReportPagination.currentPage - 1) * mapReportPagination.pageSize + zoneIndex + 1}</span>
-                                <h4>{zone.zone}</h4>
+                                <span className="sheet-kicker">{zone.displayKicker || `Zona ${(mapReportPagination.currentPage - 1) * mapReportPagination.pageSize + zoneIndex + 1}`}</span>
+                                <h4>{zone.displayName || zone.zone}</h4>
                                 <p className="helper-text map-report-reference-line">
-                                  Referencia sugerida: {zone.nearbyReferencesLabel || "Sin contexto cercano"}
+                                  Referencia sugerida: {zone.displayReference || "Sin contexto cercano"}
                                 </p>
                                 <p className="helper-text map-report-location-line">
-                                  Ubicacion completa: {zone.primaryLocationLabel || "Sin direccion ampliada"}
+                                  Ubicacion completa: {zone.displayLocation || "Sin direccion ampliada"}
                                 </p>
                               </div>
                               <div className="map-report-zone-metrics">
@@ -10816,6 +11030,40 @@ function App() {
                               </div>
                             </div>
                             <p className="helper-text">Tipos: {zone.pointTypesLabel || "--"}</p>
+                            <div className="map-report-zone-edit-grid">
+                              <label>
+                                <span>Encabezado</span>
+                                <input
+                                  value={zone.displayKicker || ""}
+                                  onChange={(event) => handleMapReportZoneOverrideChange(zone.overrideKey, "kicker", event.target.value)}
+                                  placeholder="Ej. Zona 2"
+                                />
+                              </label>
+                              <label>
+                                <span>Barrio</span>
+                                <input
+                                  value={zone.displayName || ""}
+                                  onChange={(event) => handleMapReportZoneOverrideChange(zone.overrideKey, "name", event.target.value)}
+                                  placeholder="Ej. Barrio Gracias a Dios"
+                                />
+                              </label>
+                              <label>
+                                <span>Referencia sugerida</span>
+                                <input
+                                  value={zone.displayReference || ""}
+                                  onChange={(event) => handleMapReportZoneOverrideChange(zone.overrideKey, "reference", event.target.value)}
+                                  placeholder="Ej. 9a Avenida O | 8a Avenida"
+                                />
+                              </label>
+                              <label>
+                                <span>Ubicacion completa</span>
+                                <input
+                                  value={zone.displayLocation || ""}
+                                  onChange={(event) => handleMapReportZoneOverrideChange(zone.overrideKey, "location", event.target.value)}
+                                  placeholder="Direccion o sector del censo"
+                                />
+                              </label>
+                            </div>
                             <div className="map-report-table-wrap">
                               <table className="map-report-table">
                                 <thead>
@@ -10825,7 +11073,7 @@ function App() {
                                     <th>Latitud</th>
                                     <th>Longitud</th>
                                     <th>Precision</th>
-                                    <th>Zona</th>
+                                    <th>Barrio</th>
                                     <th>Referencia cercana</th>
                                     <th>Referencia</th>
                                     <th>Fecha</th>
@@ -10853,7 +11101,7 @@ function App() {
                                       <td>{formatCoordinate(point.latitude)}</td>
                                       <td>{formatCoordinate(point.longitude)}</td>
                                       <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
-                                      <td>{point.suggested_zone || zone.zone}</td>
+                                      <td>{point.report_zone_label || point.suggested_zone || zone.zone}</td>
                                       <td>{point.suggested_reference || "--"}</td>
                                       <td>{point.reference_note || point.description || "--"}</td>
                                       <td>{formatDateTime(point.created_at)}</td>

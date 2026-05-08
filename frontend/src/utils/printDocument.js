@@ -456,6 +456,26 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             flex-wrap: wrap;
             gap: 6px;
           }
+          .field-report-notes {
+            border: 1px solid #d2e4f3;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 8px 10px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-report-notes strong {
+            display: block;
+            color: #16324a;
+            margin-bottom: 3px;
+            font-size: 10px;
+            text-transform: uppercase;
+          }
+          .field-report-notes p {
+            margin: 0;
+            font-size: 10px;
+            color: #45607a;
+          }
           .field-report-cover {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
@@ -513,7 +533,7 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             background: #edf3f9;
           }
           .field-report-map-image {
-            object-fit: cover;
+            object-fit: contain;
           }
           .field-report-map-fallback {
             display: grid;

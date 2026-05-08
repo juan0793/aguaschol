@@ -41,6 +41,18 @@ export const defaultMapReportStaff = {
   data_engineer: "Ing. Juan Ordoñez Bonilla"
 };
 
+export const defaultMapReportSettings = {
+  title: "Reporte de levantamiento de campo",
+  subtitle: "Aguas de Choluteca, S.A. de C.V.",
+  description: "Consolidado institucional de coordenadas, totales y puntos registrados por el equipo tecnico.",
+  manual_barrio: "",
+  manual_location: "",
+  report_notes: "",
+  map_image_data_url: "",
+  map_image_name: "",
+  zone_overrides: {}
+};
+
 export const defaultPadronRequestForm = {
   preset_id: "apartamentos",
   title: "Reporte general de apartamentos",
