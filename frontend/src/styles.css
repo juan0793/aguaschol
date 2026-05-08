@@ -10829,3 +10829,102 @@ select:focus {
     @apply font-sans;
   }
 }
+
+/* Records focus mode final overrides: keep the legacy app chrome out of the focused workspace. */
+.page-shell.records-focus-mode {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: #eef4f8;
+  overflow-x: hidden;
+}
+
+.page-shell.records-focus-mode .app-sidebar,
+.page-shell.records-focus-mode .app-sidebar-backdrop,
+.page-shell.records-focus-mode .app-bottom-nav,
+.page-shell.records-focus-mode .app-chrome {
+  display: none !important;
+}
+
+.page-shell.records-focus-mode > main.records-focus-layout {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.page-shell.records-focus-mode .records-focus-toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+}
+
+.page-shell.records-focus-mode .records-focus-toolbar > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.page-shell.records-focus-mode .records-workspace {
+  width: 100%;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+}
+
+.page-shell.records-focus-mode .records-workspace-sidebar {
+  top: 0;
+  height: calc(100vh - 58px);
+}
+
+.page-shell.records-focus-mode .records-workspace-main {
+  width: 100%;
+  min-width: 0;
+}
+
+.page-shell.records-focus-mode .record-action-bar {
+  top: 0;
+  align-items: center;
+}
+
+.page-shell.records-focus-mode .record-action-bar-buttons {
+  justify-content: flex-end;
+}
+
+.page-shell.records-focus-mode .record-action-bar-buttons button {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.page-shell.records-focus-mode .record-editor-head {
+  align-items: start;
+}
+
+.page-shell.records-focus-mode .record-editor-head > div {
+  min-width: 140px;
+}
+
+@media (max-width: 1280px) {
+  .page-shell.records-focus-mode .records-workspace {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  }
+
+  .page-shell.records-focus-mode .records-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .page-shell.records-focus-mode .records-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page-shell.records-focus-mode .records-workspace-sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .page-shell.records-focus-mode .record-action-bar-buttons {
+    justify-content: flex-start;
+  }
+}
