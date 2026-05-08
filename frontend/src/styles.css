@@ -121,6 +121,410 @@ body::after {
   display: none;
 }
 
+.records-focus-mode .app-chrome {
+  display: none;
+}
+
+.records-focus-layout {
+  max-width: none;
+  padding: 0;
+}
+
+.records-focus-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f8fbff;
+  border-bottom: 1px solid #d9e5f1;
+}
+
+.records-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  min-height: calc(100vh - 56px);
+  background: #eef4f8;
+}
+
+.records-workspace-sidebar {
+  position: sticky;
+  top: 56px;
+  align-self: start;
+  height: calc(100vh - 56px);
+  overflow: auto;
+  padding: 1rem;
+  background: #ffffff;
+  border-right: 1px solid #d9e5f1;
+}
+
+.records-sidebar-top,
+.record-panel-head,
+.record-editor-head,
+.record-document-card-head,
+.record-document-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.records-sidebar-top h2,
+.record-editor-head h2,
+.record-panel-head h3,
+.record-print-center h3 {
+  margin: 0;
+}
+
+.records-workspace-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.85rem 0;
+}
+
+.records-workspace-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 34px;
+  border: 1px solid #cbdceb;
+  border-radius: 8px;
+  padding: 0.42rem 0.65rem;
+  background: #f8fbff;
+  color: #183b5a;
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.records-workspace-filters button.is-active {
+  background: #1465d9;
+  border-color: #1465d9;
+  color: #fff;
+}
+
+.records-workspace-filters span {
+  min-width: 1.45rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  text-align: center;
+}
+
+.record-mobile-drawer {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.record-mobile-drawer .record-card,
+.records-workspace-sidebar .draft-card {
+  width: 100%;
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+}
+
+.records-workspace-main {
+  min-width: 0;
+  padding: 1rem;
+}
+
+.record-action-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border: 1px solid #d4e2ee;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-xs);
+}
+
+.record-action-bar-copy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 220px;
+}
+
+.record-action-bar-copy > div,
+.record-action-bar-buttons,
+.record-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.records-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.records-workspace-editor,
+.records-workspace-panels,
+.record-print-center,
+.record-editor-shell,
+.record-comparison-panel,
+.record-admin-decision-panel {
+  min-width: 0;
+}
+
+.record-editor-shell,
+.record-comparison-panel,
+.record-admin-decision-panel,
+.record-print-center {
+  border: 1px solid #d4e2ee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-xs);
+}
+
+.record-editor-shell {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.record-editor-key {
+  min-width: min(320px, 100%);
+}
+
+.record-step-nav {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #f4f8fc;
+}
+
+.record-step-nav-tabs,
+.record-step-nav-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.record-step-nav-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  border: 1px solid #cbdceb;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  background: #fff;
+  color: #183b5a;
+  font: inherit;
+  cursor: pointer;
+}
+
+.record-step-nav-tabs button.is-active {
+  background: #0b3f73;
+  color: #fff;
+  border-color: #0b3f73;
+}
+
+.record-step-nav-tabs span {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: rgba(20, 101, 217, 0.12);
+}
+
+.record-step-nav-tabs button.is-active span {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.record-step-nav-flow {
+  justify-content: space-between;
+}
+
+.records-workspace-panels {
+  display: grid;
+  gap: 1rem;
+}
+
+.record-comparison-panel,
+.record-admin-decision-panel,
+.record-print-center {
+  padding: 1rem;
+}
+
+.record-comparison-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.record-comparison-grid article,
+.record-document-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #dbe6f0;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.record-comparison-details {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.8rem 0;
+}
+
+.record-comparison-details div,
+.record-document-meta {
+  display: grid;
+  gap: 0.12rem;
+  font-size: 0.88rem;
+}
+
+.record-comparison-details span,
+.record-document-meta span {
+  color: #597087;
+}
+
+.record-wide-button {
+  width: 100%;
+  justify-content: center;
+}
+
+.record-admin-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.8rem 0;
+}
+
+.record-status-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  background: #edf3f8;
+  color: #183b5a;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.record-status-chip.is-success,
+.record-status-chip.is-generada,
+.record-status-chip.is-generado {
+  background: #e5f7ef;
+  color: #0e6b45;
+}
+
+.record-status-chip.is-warning,
+.record-status-chip.is-pendiente_generar {
+  background: #fff4dd;
+  color: #8a5300;
+}
+
+.record-status-chip.is-reportada,
+.record-status-chip.is-impresa,
+.record-status-chip.is-impreso,
+.record-status-chip.is-entregado {
+  background: #e8f0ff;
+  color: #154ea3;
+}
+
+.record-status-chip.is-varios_padrones,
+.record-status-chip.is-reimpresa,
+.record-status-chip.is-reimpreso {
+  background: #f0eaff;
+  color: #5b35a6;
+}
+
+.record-status-chip.is-muted {
+  background: #edf1f5;
+  color: #607385;
+}
+
+.record-print-center {
+  margin-top: 1rem;
+}
+
+.record-print-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.record-document-bundle {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid #d4e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.record-document-summary {
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #e6eef5;
+}
+
+@media (max-width: 1100px) {
+  .records-workspace,
+  .records-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .records-workspace-sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #d9e5f1;
+  }
+}
+
+@media (max-width: 720px) {
+  .records-focus-toolbar,
+  .record-action-bar,
+  .record-editor-head,
+  .record-panel-head,
+  .record-document-card-head,
+  .record-document-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .records-workspace-main {
+    padding: 0.75rem;
+  }
+
+  .record-action-bar {
+    top: 0;
+  }
+
+  .record-admin-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .record-step-nav-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .record-step-nav-tabs button {
+    width: 100%;
+  }
+}
+
 .auth-fx {
   position: fixed;
   inset: 0;

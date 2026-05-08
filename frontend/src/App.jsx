@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FieldMap from "./components/FieldMap";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
+import RecordsWorkspace from "./components/records/RecordsWorkspace";
 import TransportWorkspace from "./components/TransportWorkspace";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
@@ -203,6 +204,7 @@ function App() {
   const [aiSuggestion, setAiSuggestion] = useState(null);
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
+  const [recordsFocusMode, setRecordsFocusMode] = useState(false);
   const [recordQuickFilter, setRecordQuickFilter] = useState("clandestino");
   const [recordPage, setRecordPage] = useState(1);
   const [showRecordAdvancedFilters, setShowRecordAdvancedFilters] = useState(false);
@@ -5579,6 +5581,102 @@ function App() {
     }
   };
 
+  const saveRecordFromWorkspace = () => {
+    saveRecord({
+      preventDefault: () => {},
+      nativeEvent: {
+        submitter: {
+          dataset: { intent: saveIntentOptions.stay }
+        }
+      }
+    });
+  };
+
+  const handleWorkspaceAdminDecision = async (decision, reason) => {
+    if (!form.id) {
+      showAlert("Primero selecciona o guarda una ficha.");
+      return;
+    }
+
+    if (!reason?.trim()) {
+      showAlert("El motivo es obligatorio para decisiones administrativas.");
+      return;
+    }
+
+    if (decision === "archivada") {
+      try {
+        const response = await apiFetch(`/inmuebles/${form.id}/archive`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ archived_reason: reason })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "No se pudo archivar la ficha.");
+        }
+        const archivedRecord = normalizeRecord(data);
+        setRecords((current) => current.filter((record) => record.id !== archivedRecord.id));
+        resetForm();
+        showAlert(`Ficha ${archivedRecord.clave_catastral} archivada con motivo administrativo.`);
+        loadRecords(search, "active", { silent: true });
+      } catch (error) {
+        showAlert(error.message || "No se pudo archivar la ficha.");
+      }
+      return;
+    }
+
+    if (decision === "reportada") {
+      await handleMarkRecordReported(
+        {
+          ...form,
+          comentarios: `${form.comentarios || ""}\nDecision admin: reportada. Motivo: ${reason}`.trim()
+        },
+        null
+      );
+      return;
+    }
+
+    const statusByDecision = {
+      confirmada_clandestina: "clandestino",
+      descartada: "clandestino",
+      varios_padrones: "varios_padrones",
+      requiere_correccion: form.estado_padron || "clandestino"
+    };
+    const nextComments = `${form.comentarios || ""}\nDecision admin: ${decision}. Motivo: ${reason}`.trim();
+    const payload = {
+      ...emptyForm,
+      ...normalizeRecord(form),
+      estado_padron: statusByDecision[decision] || form.estado_padron || "clandestino",
+      comentarios: nextComments
+    };
+
+    setProcessingRecordId(form.id);
+    try {
+      const response = await apiFetch(`/inmuebles/${form.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo registrar la decision administrativa.");
+      }
+      const normalized = normalizeRecord(data);
+      setForm({ ...emptyForm, ...normalized });
+      setRecords((current) => current.map((record) => (record.id === normalized.id ? normalized : record)));
+      showAlert("Decision administrativa registrada en comentarios e historial.");
+      loadRecords(search, recordView, { silent: true });
+    } catch (error) {
+      showAlert(error.message || "No se pudo registrar la decision administrativa.");
+    } finally {
+      setProcessingRecordId(null);
+    }
+  };
+
   const handleRestoreRecord = async (recordId) => {
     try {
       const response = await apiFetch(`/inmuebles/${recordId}/restore`, {
@@ -6949,10 +7047,11 @@ function App() {
     }
   };
 
-  const handlePrintAviso = async () => {
+  const handlePrintAviso = async (recordOverride = null) => {
+    const targetRecord = recordOverride ? { ...emptyForm, ...normalizeRecord(recordOverride) } : form;
     await printDocument(
-      `Aviso ${form.clave_catastral || "inmueble"}`,
-      buildAvisoPrintMarkup(form),
+      `Aviso ${targetRecord.clave_catastral || "inmueble"}`,
+      buildAvisoPrintMarkup(targetRecord),
       {
         pageSize: "Letter portrait",
         pageMargin: "10mm",
@@ -7538,7 +7637,7 @@ function App() {
     .filter((item) => !dashboardWidgetPrefs.hidden.includes(item.key));
 
   return (
-    <div className="page-shell">
+    <div className={`page-shell ${workspaceView === "records" && recordsFocusMode ? "records-focus-mode" : ""}`}>
       {authFx ? (
         <div className={`auth-fx auth-fx-${authFx.mode}`}>
           <div className="auth-fx-card">
@@ -8762,6 +8861,55 @@ function App() {
           />
         </section>
       </main>
+      ) : workspaceView === "records" && recordsFocusMode ? (
+      <main className="layout records-view records-focus-layout">
+        <div className="records-focus-toolbar no-print">
+          <div>
+            <span className="sheet-kicker">Vista alternativa</span>
+            <strong>Workspace de Fichas</strong>
+          </div>
+          <button type="button" className="button-secondary" onClick={() => setRecordsFocusMode(false)}>
+            Volver a vista actual
+          </button>
+        </div>
+        <RecordsWorkspace
+          records={safeRecords}
+          form={form}
+          draftForm={draftForm}
+          loading={loading}
+          saving={saving}
+          loadingAviso={loadingAviso}
+          selectedFile={selectedFile}
+          selectedPhotoUrl={selectedPhotoUrl}
+          localSelectedPhotoUrl={localSelectedPhotoUrl}
+          activeSection={activeSection}
+          validationIssues={recordValidationIssues}
+          isDirty={isDirty}
+          isAdmin={isAdmin}
+          currentUser={session?.user}
+          padronMeta={padronMeta}
+          alcaldiaMeta={alcaldiaMeta}
+          alcaldiaComparison={alcaldiaComparison}
+          loadingAlcaldiaComparison={loadingAlcaldiaComparison}
+          processingRecordId={processingRecordId}
+          onChange={handleChange}
+          onFileChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+          onSectionChange={setActiveSection}
+          onMoveSection={moveRecordSection}
+          onSubmit={saveRecord}
+          onSave={saveRecordFromWorkspace}
+          onNewRecord={resetForm}
+          onRestoreDraft={restoreDraft}
+          onSelectRecord={handleSelectRecord}
+          onGenerateAviso={generateAviso}
+          onPrintFicha={handlePrintFicha}
+          onPrintAviso={handlePrintAviso}
+          onValidatePadron={handleValidateFormPadron}
+          onComparePadrones={loadAlcaldiaComparison}
+          onAdminDecision={handleWorkspaceAdminDecision}
+          showAlert={showAlert}
+        />
+      </main>
       ) : workspaceView === "records" ? (
       <main className="layout records-view shadcn-records-module">
         <Card className="sidebar no-print shadcn-records-sidebar" size="sm">
@@ -9104,6 +9252,10 @@ function App() {
                 </p>
               </div>
               <div className="records-main-actions">
+                <Button type="button" variant="outline" onClick={() => setRecordsFocusMode(true)}>
+                  <Icon name="records" />
+                  Modo Fichas
+                </Button>
                 <Button type="button" onClick={resetForm}>
                   <Icon name="plus" />
                   Nueva ficha
