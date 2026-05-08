@@ -10848,6 +10848,7 @@ select:focus {
 }
 
 .page-shell.records-focus-mode > main.records-focus-layout {
+  display: block;
   width: 100%;
   max-width: none;
   margin: 0;
@@ -10867,9 +10868,15 @@ select:focus {
   gap: 0.15rem;
 }
 
+.page-shell.records-focus-mode .records-focus-toolbar strong,
+.page-shell.records-focus-mode .records-focus-toolbar span {
+  display: block;
+}
+
 .page-shell.records-focus-mode .records-workspace {
   width: 100%;
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  min-height: calc(100vh - 58px);
+  grid-template-columns: 360px minmax(0, 1fr);
 }
 
 .page-shell.records-focus-mode .records-workspace-sidebar {
@@ -10878,6 +10885,34 @@ select:focus {
 }
 
 .page-shell.records-focus-mode .records-workspace-main {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.page-shell.records-focus-mode .records-workspace-grid {
+  grid-template-columns: minmax(620px, 1fr) minmax(360px, 420px);
+  align-items: start;
+}
+
+.page-shell.records-focus-mode .records-workspace-editor,
+.page-shell.records-focus-mode .records-workspace-panels,
+.page-shell.records-focus-mode .record-editor-shell {
+  min-width: 0;
+}
+
+.page-shell.records-focus-mode .record-editor-shell .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.page-shell.records-focus-mode .record-editor-shell label span {
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.page-shell.records-focus-mode .record-editor-shell input,
+.page-shell.records-focus-mode .record-editor-shell textarea,
+.page-shell.records-focus-mode .record-editor-shell select {
   width: 100%;
   min-width: 0;
 }
