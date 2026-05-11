@@ -295,6 +295,10 @@ function App() {
   const [padronRequestResult, setPadronRequestResult] = useState(null);
   const [loadingPadronRequest, setLoadingPadronRequest] = useState(false);
   const [loadingPadronRequestMeta, setLoadingPadronRequestMeta] = useState(false);
+  const [padronServiceReport, setPadronServiceReport] = useState(null);
+  const [loadingPadronServiceReport, setLoadingPadronServiceReport] = useState(false);
+  const [showPadronServiceModal, setShowPadronServiceModal] = useState(false);
+  const [selectedAguasServiceField, setSelectedAguasServiceField] = useState("agua");
   const [mapPoints, setMapPoints] = useState([]);
   const [loadingMapPoints, setLoadingMapPoints] = useState(false);
   const [loadingMapContexts, setLoadingMapContexts] = useState(false);
@@ -1585,6 +1589,50 @@ function App() {
     selectedPadronServiceField,
     selectedPadronStatBarrio
   ]);
+  const aguasServiceReportData = useMemo(() => {
+    const services = Array.isArray(padronServiceReport?.summary?.services) ? padronServiceReport.summary.services : [];
+    const barrios = Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [];
+    const totalRecords = Number(padronServiceReport?.summary?.total_records || 0);
+    const selectedService = services.find((service) => service.field === selectedAguasServiceField) || services[0] || null;
+    const maxServiceTotal = Math.max(1, ...services.map((service) => Number(service.active || 0)));
+    const serviceRows = services.map((service) => ({
+      ...service,
+      detail: `${Number(service.active || 0)} con servicio activo, ${Number(service.inactive || 0)} sin servicio`
+    }));
+    const barrioRows = barrios
+      .map((barrio) => {
+        const service = (barrio.servicios || []).find((item) => item.field === selectedService?.field) || null;
+        return {
+          barrio_colonia: barrio.barrio_colonia,
+          total_registros: Number(barrio.total_registros || 0),
+          active: Number(service?.active || 0),
+          inactive: Number(service?.inactive || 0),
+          percentage: Number(service?.percentage || 0)
+        };
+      })
+      .filter((item) => item.total_registros > 0)
+      .sort((left, right) =>
+        right.active - left.active ||
+        right.total_registros - left.total_registros ||
+        left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
+      )
+      .slice(0, 12);
+    const maxBarrioServiceTotal = Math.max(1, ...barrioRows.map((item) => item.active));
+    const profiles = padronServiceReport?.summary?.profiles || {};
+
+    return {
+      services,
+      serviceRows,
+      barrios,
+      barrioRows,
+      selectedService,
+      totalRecords,
+      maxServiceTotal,
+      maxBarrioServiceTotal,
+      profiles,
+      hasData: totalRecords > 0
+    };
+  }, [padronServiceReport, selectedAguasServiceField]);
   const dashboardMetrics = useMemo(
     () => [
       {
@@ -2672,6 +2720,37 @@ function App() {
     }
   };
 
+  const loadPadronServiceReport = async ({ silent = false } = {}) => {
+    if (!isAuthenticated || !isAdmin) return;
+    setLoadingPadronServiceReport(true);
+
+    try {
+      const response = await apiFetch("/claves/services/report");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar el informe de servicios del padron.");
+      }
+
+      setPadronServiceReport(data);
+      if (!silent) {
+        showAlert(`Informe actualizado: ${data.summary?.total_records ?? 0} registros del padron maestro.`);
+      }
+    } catch (error) {
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar el informe de servicios del padron.");
+      }
+    } finally {
+      setLoadingPadronServiceReport(false);
+    }
+  };
+
   const loadMapPoints = async ({ silent = false } = {}) => {
     if (!isAuthenticated) return;
 
@@ -2841,6 +2920,7 @@ function App() {
       loadPadronRequestMeta();
       loadPadronMeta();
       loadAlcaldiaMeta();
+      loadPadronServiceReport({ silent: true });
       if (!alcaldiaComparison?.summary) {
         loadAlcaldiaComparison({ silent: true });
       }
@@ -2850,6 +2930,18 @@ function App() {
       loadAuditLogs();
     }
   }, [auditFilters, isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin || workspaceView !== "requests") {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      loadPadronServiceReport({ silent: true });
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
@@ -3431,6 +3523,127 @@ function App() {
     } catch (error) {
       showAlert(error.message || "No fue posible descargar la peticion en PDF.");
     }
+  };
+
+  const handlePrintAguasServiceReport = async () => {
+    if (!aguasServiceReportData.hasData) {
+      showAlert("Actualiza primero el informe del padron maestro.");
+      return;
+    }
+
+    const generatedAt = formatDateTime(padronServiceReport?.generated_at || new Date().toISOString());
+    const serviceRows = aguasServiceReportData.serviceRows
+      .map(
+        (service) => `
+          <tr>
+            <td>${escapeHtml(service.label)}</td>
+            <td>${Number(service.active || 0)}</td>
+            <td>${Number(service.inactive || 0)}</td>
+            <td>${Number(service.unknown || 0)}</td>
+            <td>${Number(service.percentage || 0)}%</td>
+          </tr>
+        `
+      )
+      .join("");
+    const barrioRows = aguasServiceReportData.barrios
+      .slice(0, 25)
+      .map((barrio) => {
+        const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
+        return `
+          <tr>
+            <td>${escapeHtml(barrio.barrio_colonia || "Sin barrio")}</td>
+            <td>${Number(barrio.total_registros || 0)}</td>
+            ${["agua", "alcantarillado", "barrido", "recoleccion", "desechos_peligrosos"]
+              .map((field) => `<td>${Number(services.find((service) => service.field === field)?.active || 0)}</td>`)
+              .join("")}
+          </tr>
+        `;
+      })
+      .join("");
+
+    await printDocument(
+      "Informe de servicios del padron maestro",
+      `
+        <div class="field-report-shell census-report-shell">
+          <header class="field-report-header census-report-header">
+            <div class="field-report-brand">
+              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+              <div>
+                <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                <h1>Informe de servicios del padron maestro</h1>
+                <p>Resumen actualizado desde el padron maestro activo de Aguas.</p>
+              </div>
+            </div>
+            <div class="field-report-meta">
+              <span>Generado: ${generatedAt}</span>
+              <span>Registros: ${aguasServiceReportData.totalRecords}</span>
+              <span>Barrios: ${padronServiceReport?.summary?.total_barrios ?? 0}</span>
+              <span>Fuente: ${escapeHtml(padronServiceReport?.source?.file_name || "Padron maestro")}</span>
+            </div>
+          </header>
+          <section class="field-report-summary">
+            ${aguasServiceReportData.serviceRows
+              .map(
+                (service) => `
+                  <div class="field-report-total-chip">
+                    <strong>${escapeHtml(service.label)}</strong>
+                    <span>${Number(service.active || 0)} (${Number(service.percentage || 0)}%)</span>
+                  </div>
+                `
+              )
+              .join("")}
+          </section>
+          <section class="field-report-zone census-report-zone">
+            <div class="field-report-zone-head census-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">Resumen general</span>
+                <h3>Servicios activos e inactivos</h3>
+              </div>
+            </div>
+            <table class="field-report-table census-report-table">
+              <thead>
+                <tr>
+                  <th>Servicio</th>
+                  <th>Activos</th>
+                  <th>Sin servicio</th>
+                  <th>Sin dato</th>
+                  <th>% activo</th>
+                </tr>
+              </thead>
+              <tbody>${serviceRows}</tbody>
+            </table>
+          </section>
+          <section class="field-report-zone census-report-zone">
+            <div class="field-report-zone-head census-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">Barrios principales</span>
+                <h3>Desglose por barrio</h3>
+              </div>
+            </div>
+            <table class="field-report-table census-report-table">
+              <thead>
+                <tr>
+                  <th>Barrio</th>
+                  <th>Total</th>
+                  <th>Agua</th>
+                  <th>Alcantarillado</th>
+                  <th>Barrido</th>
+                  <th>Recoleccion</th>
+                  <th>Desechos peligrosos</th>
+                </tr>
+              </thead>
+              <tbody>${barrioRows}</tbody>
+            </table>
+          </section>
+        </div>
+      `,
+      {
+        pageSize: "Letter portrait",
+        pageMargin: "10mm",
+        bodyClassName: "field-report-body census-report-body",
+        showPageFooter: true
+      }
+    );
   };
 
   const handleDownloadPadronStatsPdf = async () => {
@@ -5269,7 +5482,11 @@ function App() {
 
       setPadronMeta(data.meta ?? null);
       setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
+      setPadronServiceReport(null);
       setPadronFile(null);
+      if (workspaceView === "requests") {
+        loadPadronServiceReport({ silent: true });
+      }
       showAlert(`Padron maestro actualizado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
       showAlert(error.message || "No se pudo actualizar el padron maestro.");
@@ -5341,6 +5558,10 @@ function App() {
 
       setPadronMeta(data.meta ?? null);
       setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
+      setPadronServiceReport(null);
+      if (workspaceView === "requests") {
+        loadPadronServiceReport({ silent: true });
+      }
       showAlert(`Padron maestro reprocesado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
       showAlert(error.message || "No se pudo reprocesar el padron maestro.");
@@ -11869,6 +12090,200 @@ function App() {
                         </button>
                       </div>
                     </div>
+
+                    <section className="document-block request-statistics-panel">
+                      <div className="admin-section-head">
+                        <div>
+                          <p className="sheet-kicker">Informe del padron maestro</p>
+                          <h3>Servicios activos en Aguas</h3>
+                          <p className="helper-text">
+                            Se actualiza desde el padron maestro activo: agua potable, alcantarillado, barrido, recoleccion y desechos peligrosos.
+                          </p>
+                        </div>
+                        <span className="panel-pill">
+                          {loadingPadronServiceReport ? "Actualizando" : `${aguasServiceReportData.totalRecords} usuarios`}
+                        </span>
+                      </div>
+                      <div className="request-stat-summary">
+                        <div className="request-summary-card">
+                          <span>Total padron</span>
+                          <strong>{aguasServiceReportData.totalRecords}</strong>
+                        </div>
+                        <div className="request-summary-card">
+                          <span>Barrios</span>
+                          <strong>{padronServiceReport?.summary?.total_barrios ?? 0}</strong>
+                        </div>
+                        <div className="request-summary-card">
+                          <span>Todos servicios base</span>
+                          <strong>{aguasServiceReportData.profiles.all_core_services ?? 0}</strong>
+                        </div>
+                        <div className="request-summary-card">
+                          <span>Sin servicios base</span>
+                          <strong>{aguasServiceReportData.profiles.no_core_services ?? 0}</strong>
+                        </div>
+                      </div>
+                      <div className="request-chart-list aguas-service-preview">
+                        {aguasServiceReportData.serviceRows.length ? (
+                          aguasServiceReportData.serviceRows.map((service) => (
+                            <button
+                              key={service.field}
+                              type="button"
+                              className={`request-chart-row ${selectedAguasServiceField === service.field ? "is-selected" : ""}`}
+                              onClick={() => setSelectedAguasServiceField(service.field)}
+                            >
+                              <div className="request-chart-copy">
+                                <div className="request-chart-heading">
+                                  <strong>{service.label}</strong>
+                                  <b className="request-chart-value">{service.percentage}%</b>
+                                </div>
+                                <span>{service.detail}</span>
+                              </div>
+                              <div className="request-chart-track">
+                                <span style={{ width: `${(Number(service.active || 0) / aguasServiceReportData.maxServiceTotal) * 100}%` }} />
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="helper-text">No hay datos del padron maestro para calcular servicios.</p>
+                        )}
+                      </div>
+                      <div className="request-stat-actions">
+                        <button type="button" onClick={() => loadPadronServiceReport()} disabled={loadingPadronServiceReport}>
+                          <Icon name="refresh" />
+                          {loadingPadronServiceReport ? "Actualizando..." : "Actualizar informe"}
+                        </button>
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={() => setShowPadronServiceModal(true)}
+                          disabled={!aguasServiceReportData.hasData}
+                        >
+                          <Icon name="dashboard" />
+                          Ver grafico
+                        </button>
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={handlePrintAguasServiceReport}
+                          disabled={!aguasServiceReportData.hasData}
+                        >
+                          <Icon name="records" />
+                          Imprimir informe
+                        </button>
+                      </div>
+                    </section>
+
+                    {showPadronServiceModal ? (
+                      <div className="stats-modal-backdrop" role="presentation" onMouseDown={() => setShowPadronServiceModal(false)}>
+                        <section className="stats-modal-card" role="dialog" aria-modal="true" aria-label="Grafico de servicios del padron" onMouseDown={(event) => event.stopPropagation()}>
+                          <div className="stats-modal-head">
+                            <div>
+                              <p className="sheet-kicker">Grafico del padron maestro</p>
+                              <h3>Servicios activos por usuario</h3>
+                              <p className="helper-text">
+                                Fuente: {padronServiceReport?.source?.file_name || "Padron maestro"} - {formatDateTime(padronServiceReport?.source?.updated_at)}
+                              </p>
+                            </div>
+                            <div className="stats-modal-actions">
+                              <button type="button" onClick={handlePrintAguasServiceReport}>
+                                <Icon name="records" />
+                                Imprimir
+                              </button>
+                              <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronServiceModal(false)}>
+                                Cerrar
+                              </button>
+                            </div>
+                          </div>
+                          <div className="request-stat-summary stats-modal-summary">
+                            <div className="request-summary-card">
+                              <span>Usuarios</span>
+                              <strong>{aguasServiceReportData.totalRecords}</strong>
+                            </div>
+                            <div className="request-summary-card">
+                              <span>Con agua sin alcantarillado</span>
+                              <strong>{aguasServiceReportData.profiles.water_without_sewer ?? 0}</strong>
+                            </div>
+                            <div className="request-summary-card">
+                              <span>Alcantarillado sin agua</span>
+                              <strong>{aguasServiceReportData.profiles.sewer_without_water ?? 0}</strong>
+                            </div>
+                            <div className="request-summary-card">
+                              <span>Barrios</span>
+                              <strong>{padronServiceReport?.summary?.total_barrios ?? 0}</strong>
+                            </div>
+                          </div>
+                          <div className="stats-modal-body">
+                            <div className="request-chart-controls" role="group" aria-label="Servicio del padron maestro">
+                              {aguasServiceReportData.services.map((service) => (
+                                <button
+                                  key={service.field}
+                                  type="button"
+                                  className={selectedAguasServiceField === service.field ? "active" : ""}
+                                  onClick={() => setSelectedAguasServiceField(service.field)}
+                                >
+                                  {service.label}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="request-chart-grid">
+                              <section className="request-chart-card is-wide">
+                                <div>
+                                  <strong>Resumen general por servicio</strong>
+                                  <span>Cantidad de usuarios con cada servicio activo dentro del padron maestro.</span>
+                                </div>
+                                <div className="request-chart-list">
+                                  {aguasServiceReportData.serviceRows.map((service) => (
+                                    <button
+                                      key={`modal-service-${service.field}`}
+                                      type="button"
+                                      className={`request-chart-row ${selectedAguasServiceField === service.field ? "is-selected" : ""}`}
+                                      onClick={() => setSelectedAguasServiceField(service.field)}
+                                    >
+                                      <div className="request-chart-copy">
+                                        <div className="request-chart-heading">
+                                          <strong>{service.label}</strong>
+                                          <b className="request-chart-value">{service.active}</b>
+                                        </div>
+                                        <span>{service.percentage}% del padron - {service.inactive} sin servicio</span>
+                                      </div>
+                                      <div className="request-chart-track">
+                                        <span style={{ width: `${(Number(service.active || 0) / aguasServiceReportData.maxServiceTotal) * 100}%` }} />
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </section>
+                              <section className="request-chart-card">
+                                <div>
+                                  <strong>{aguasServiceReportData.selectedService?.label || "Servicio"} por barrio</strong>
+                                  <span>Barrios con mas usuarios activos para el servicio seleccionado.</span>
+                                </div>
+                                <div className="request-chart-list">
+                                  {aguasServiceReportData.barrioRows.length ? (
+                                    aguasServiceReportData.barrioRows.map((item) => (
+                                      <div key={`service-barrio-${item.barrio_colonia}`} className="request-chart-row">
+                                        <div className="request-chart-copy">
+                                          <div className="request-chart-heading">
+                                            <strong>{item.barrio_colonia}</strong>
+                                            <b className="request-chart-value">{item.active}</b>
+                                          </div>
+                                          <span>{item.percentage}% de {item.total_registros} usuarios</span>
+                                        </div>
+                                        <div className="request-chart-track">
+                                          <span style={{ width: `${(Number(item.active || 0) / aguasServiceReportData.maxBarrioServiceTotal) * 100}%` }} />
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="helper-text">No hay barrios para este servicio.</p>
+                                  )}
+                                </div>
+                              </section>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+                    ) : null}
 
                     <section className="document-block request-statistics-panel">
                       <div className="admin-section-head">

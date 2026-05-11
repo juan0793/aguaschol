@@ -1,6 +1,7 @@
 import {
   compareAlcaldiaWithAguas,
   exportClavePadronWorkbook,
+  getAguasServiceReport,
   getAlcaldiaLookupMeta,
   generatePadronRequestReport,
   getClaveLookupMeta,
@@ -44,6 +45,15 @@ export const getAlcaldiaMeta = async (_req, res, next) => {
 export const getPadronRequestMeta = async (_req, res, next) => {
   try {
     const result = await getPadronRequestTemplates();
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPadronServiceReport = async (_req, res, next) => {
+  try {
+    const result = await getAguasServiceReport();
     res.json(result);
   } catch (error) {
     next(error);

@@ -227,6 +227,16 @@ const normalizeAlcaldiaKey = (value = "") =>
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 
+const MASTER_SERVICE_FIELDS = [
+  ["agua", "Agua potable"],
+  ["alcantarillado", "Alcantarillado"],
+  ["barrido", "Barrido"],
+  ["recoleccion", "Recoleccion"],
+  ["desechos_peligrosos", "Desechos peligrosos"]
+];
+
+const isActiveServiceFlag = (value = "") => String(value ?? "").trim().toUpperCase() === "S";
+
 const tryNormalizeAguasKey = (value = "") => {
   try {
     return normalizeLookupKey(value);
@@ -807,6 +817,93 @@ export const getPadronRequestTemplates = async () => ({
   ok: true,
   templates: PADRON_REQUEST_TEMPLATES
 });
+
+export const getAguasServiceReport = async () => {
+  const emptyServiceTotals = () =>
+    Object.fromEntries(
+      MASTER_SERVICE_FIELDS.map(([field, label]) => [
+        field,
+        {
+          field,
+          label,
+          active: 0,
+          inactive: 0,
+          unknown: 0,
+          percentage: 0
+        }
+      ])
+    );
+  const serviceTotals = emptyServiceTotals();
+  const barriosMap = new Map();
+  const profiles = {
+    all_core_services: 0,
+    water_without_sewer: 0,
+    sewer_without_water: 0,
+    no_core_services: 0
+  };
+
+  masterRecords.forEach((record) => {
+    const barrio = String(record.barrio_colonia || "Sin barrio").trim() || "Sin barrio";
+    const barrioStats = barriosMap.get(barrio) ?? {
+      barrio_colonia: barrio,
+      total_registros: 0,
+      servicios: emptyServiceTotals()
+    };
+
+    barrioStats.total_registros += 1;
+
+    MASTER_SERVICE_FIELDS.forEach(([field]) => {
+      const value = String(record[field] ?? "").trim().toUpperCase();
+      const status = value === "S" ? "active" : value === "N" ? "inactive" : "unknown";
+      serviceTotals[field][status] += 1;
+      barrioStats.servicios[field][status] += 1;
+    });
+
+    const hasWater = isActiveServiceFlag(record.agua);
+    const hasSewer = isActiveServiceFlag(record.alcantarillado);
+    const hasSweep = isActiveServiceFlag(record.barrido);
+    const hasCollection = isActiveServiceFlag(record.recoleccion);
+
+    if (hasWater && hasSewer && hasSweep && hasCollection) profiles.all_core_services += 1;
+    if (hasWater && !hasSewer) profiles.water_without_sewer += 1;
+    if (!hasWater && hasSewer) profiles.sewer_without_water += 1;
+    if (!hasWater && !hasSewer && !hasSweep && !hasCollection) profiles.no_core_services += 1;
+
+    barriosMap.set(barrio, barrioStats);
+  });
+
+  const withPercentages = (serviceMap, total) =>
+    Object.values(serviceMap)
+      .map((service) => ({
+        ...service,
+        percentage: total ? Number(((Number(service.active || 0) / total) * 100).toFixed(1)) : 0
+      }))
+      .sort((left, right) => right.active - left.active || left.label.localeCompare(right.label, "es"));
+
+  const barrios = Array.from(barriosMap.values())
+    .map((barrio) => ({
+      ...barrio,
+      servicios: withPercentages(barrio.servicios, barrio.total_registros)
+    }))
+    .sort((left, right) => right.total_registros - left.total_registros || left.barrio_colonia.localeCompare(right.barrio_colonia, "es"));
+
+  return {
+    ok: true,
+    generated_at: new Date().toISOString(),
+    source: {
+      file_name: masterMeta.file_name || "",
+      sheet_name: masterMeta.sheet_name || "",
+      updated_at: masterMeta.updated_at || null
+    },
+    summary: {
+      total_records: masterRecords.length,
+      total_barrios: barrios.length,
+      profiles,
+      services: withPercentages(serviceTotals, masterRecords.length)
+    },
+    barrios
+  };
+};
 
 export const uploadClavePadron = async ({ buffer, originalName = "" }, options = {}) => {
   if (!buffer || !buffer.length) {
