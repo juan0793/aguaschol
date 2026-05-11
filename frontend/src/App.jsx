@@ -298,6 +298,7 @@ function App() {
   const [padronServiceReport, setPadronServiceReport] = useState(null);
   const [loadingPadronServiceReport, setLoadingPadronServiceReport] = useState(false);
   const [showPadronServiceModal, setShowPadronServiceModal] = useState(false);
+  const [showPadronRequestModal, setShowPadronRequestModal] = useState(false);
   const [selectedAguasServiceField, setSelectedAguasServiceField] = useState("agua");
   const [mapPoints, setMapPoints] = useState([]);
   const [loadingMapPoints, setLoadingMapPoints] = useState(false);
@@ -337,6 +338,7 @@ function App() {
   const [padronChartType, setPadronChartType] = useState("barras");
   const [showPadronStatsModal, setShowPadronStatsModal] = useState(false);
   const [downloadingPadronStatsPdf, setDownloadingPadronStatsPdf] = useState(false);
+  const [downloadingAguasServicePdf, setDownloadingAguasServicePdf] = useState(false);
   const [selectedPadronStatBarrio, setSelectedPadronStatBarrio] = useState("");
   const [selectedPadronServiceField, setSelectedPadronServiceField] = useState("");
   const [padronStatsBarrioFilter, setPadronStatsBarrioFilter] = useState("");
@@ -3642,6 +3644,99 @@ function App() {
         showPageFooter: true
       }
     );
+  };
+
+  const handleDownloadAguasServicePdf = async () => {
+    if (!aguasServiceReportData.hasData) {
+      showAlert("Actualiza primero el informe del padron maestro.");
+      return;
+    }
+
+    try {
+      setDownloadingAguasServicePdf(true);
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "letter"
+      });
+      const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
+      const generatedAt = formatDateTime(padronServiceReport?.generated_at || new Date().toISOString());
+      const addFooter = () => {
+        const pageNumber = document.getCurrentPageInfo().pageNumber;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        document.setTextColor(95, 116, 138);
+        document.text(`Aguas de Choluteca - informe de servicios - pag. ${pageNumber}`, 14, pageHeight - 8);
+      };
+
+      document.setFillColor(10, 65, 112);
+      document.rect(0, 0, pageWidth, 24, "F");
+      document.setTextColor(255, 255, 255);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(15);
+      document.text("Informe de servicios del padron maestro", 14, 14);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9);
+      document.text(`Generado: ${generatedAt}`, pageWidth - 14, 14, { align: "right" });
+
+      document.setTextColor(22, 54, 82);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9);
+      document.text(`Fuente: ${padronServiceReport?.source?.file_name || "Padron maestro"}`, 14, 32);
+      document.text(`Registros: ${aguasServiceReportData.totalRecords}`, 14, 38);
+      document.text(`Barrios: ${padronServiceReport?.summary?.total_barrios ?? 0}`, 70, 38);
+
+      autoTable(document, {
+        startY: 44,
+        head: [["Servicio", "Activos", "Sin servicio", "Sin dato", "% activo"]],
+        body: aguasServiceReportData.serviceRows.map((service) => [
+          service.label,
+          Number(service.active || 0),
+          Number(service.inactive || 0),
+          Number(service.unknown || 0),
+          `${Number(service.percentage || 0)}%`
+        ]),
+        theme: "grid",
+        styles: { fontSize: 8.8, cellPadding: 2.6, textColor: [24, 55, 82] },
+        headStyles: { fillColor: [18, 93, 160], textColor: 255 },
+        margin: { left: 14, right: 14 }
+      });
+
+      autoTable(document, {
+        startY: (document.lastAutoTable?.finalY ?? 78) + 8,
+        head: [["Barrio", "Total", "Agua", "Alcantarillado", "Barrido", "Recoleccion", "Desechos peligrosos"]],
+        body: aguasServiceReportData.barrios.map((barrio) => {
+          const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
+          const getActive = (field) => Number(services.find((service) => service.field === field)?.active || 0);
+          return [
+            barrio.barrio_colonia || "Sin barrio",
+            Number(barrio.total_registros || 0),
+            getActive("agua"),
+            getActive("alcantarillado"),
+            getActive("barrido"),
+            getActive("recoleccion"),
+            getActive("desechos_peligrosos")
+          ];
+        }),
+        theme: "striped",
+        styles: { fontSize: 7.2, cellPadding: 1.8, textColor: [23, 52, 78], overflow: "linebreak" },
+        headStyles: { fillColor: [21, 118, 209], textColor: 255 },
+        alternateRowStyles: { fillColor: [244, 248, 252] },
+        margin: { left: 14, right: 14 },
+        didDrawPage: addFooter
+      });
+
+      addFooter();
+      document.save(`informe-servicios-padron-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Informe de servicios descargado en PDF.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar el informe de servicios.");
+    } finally {
+      setDownloadingAguasServicePdf(false);
+    }
   };
 
   const handleDownloadPadronStatsPdf = async () => {
@@ -12070,26 +12165,52 @@ function App() {
                         </div>
                       </div>
                       <div className="request-download-row">
-                        <button type="button" onClick={handleRunPadronRequest} disabled={loadingPadronRequest}>
-                          <Icon name="refresh" />
-                          {loadingPadronRequest ? "Generando..." : "Generar peticion"}
-                        </button>
-                        <button type="button" className="button-secondary" onClick={() => loadAlcaldiaComparison()} disabled={loadingAlcaldiaComparison}>
-                          <Icon name="dashboard" />
-                          {loadingAlcaldiaComparison ? "Graficando..." : "Generar graficos"}
-                        </button>
-                        <button type="button" className="button-secondary" onClick={handlePrintPadronRequest}>
-                          <Icon name="records" />
-                          Imprimir
-                        </button>
-                        <button type="button" className="button-secondary" onClick={handleDownloadPadronRequestPdf}>
-                          <Icon name="records" />
-                          Descargar PDF
-                        </button>
+                        <span className="panel-pill">{padronRequestTemplates.length || 0} plantillas</span>
+                        <span className="panel-pill">{aguasServiceReportData.totalRecords} usuarios</span>
+                        <span className="panel-pill">{alcaldiaComparison?.summary ? "Graficos listos" : "Graficos pendientes"}</span>
                       </div>
                     </div>
 
-                    <section className="document-block request-statistics-panel">
+                    <div className="request-option-grid">
+                      <button
+                        type="button"
+                        className="request-option-card"
+                        onClick={() => setShowPadronRequestModal(true)}
+                      >
+                        <span className="sheet-kicker">Listado configurable</span>
+                        <strong>Constructor de peticiones</strong>
+                        <p>Arma reportes filtrados desde el padron maestro, con vista previa, impresion y PDF.</p>
+                        <b>{padronRequestResult?.summary?.total_registros ?? 0} filas preparadas</b>
+                      </button>
+                      <button
+                        type="button"
+                        className="request-option-card"
+                        onClick={() => {
+                          setShowPadronServiceModal(true);
+                          if (!padronServiceReport?.summary) loadPadronServiceReport({ silent: true });
+                        }}
+                      >
+                        <span className="sheet-kicker">Padron maestro</span>
+                        <strong>Informe de servicios</strong>
+                        <p>Desglose actualizado de agua, alcantarillado, barrido, recoleccion y desechos por barrio.</p>
+                        <b>{aguasServiceReportData.totalRecords} usuarios</b>
+                      </button>
+                      <button
+                        type="button"
+                        className="request-option-card"
+                        onClick={() => {
+                          setShowPadronStatsModal(true);
+                          if (!alcaldiaComparison?.summary) loadAlcaldiaComparison({ silent: true });
+                        }}
+                      >
+                        <span className="sheet-kicker">Comparativo</span>
+                        <strong>Alcaldia vs Aguas</strong>
+                        <p>Graficos de brechas, cobertura, candidatas clandestinas y servicios por barrio.</p>
+                        <b>{alcaldiaComparison?.summary?.candidate_clandestine ?? 0} candidatas</b>
+                      </button>
+                    </div>
+
+                    {false ? <section className="document-block request-statistics-panel">
                       <div className="admin-section-head">
                         <div>
                           <p className="sheet-kicker">Informe del padron maestro</p>
@@ -12169,7 +12290,7 @@ function App() {
                           Imprimir informe
                         </button>
                       </div>
-                    </section>
+                    </section> : null}
 
                     {showPadronServiceModal ? (
                       <div className="stats-modal-backdrop" role="presentation" onMouseDown={() => setShowPadronServiceModal(false)}>
@@ -12183,6 +12304,10 @@ function App() {
                               </p>
                             </div>
                             <div className="stats-modal-actions">
+                              <button type="button" onClick={handleDownloadAguasServicePdf} disabled={downloadingAguasServicePdf}>
+                                <Icon name="records" />
+                                {downloadingAguasServicePdf ? "Guardando..." : "Guardar PDF"}
+                              </button>
                               <button type="button" onClick={handlePrintAguasServiceReport}>
                                 <Icon name="records" />
                                 Imprimir
@@ -12283,7 +12408,7 @@ function App() {
                       </div>
                     ) : null}
 
-                    <section className="document-block request-statistics-panel">
+                    {false ? <section className="document-block request-statistics-panel">
                       <div className="admin-section-head">
                         <div>
                           <p className="sheet-kicker">Graficos estadisticos</p>
@@ -12329,7 +12454,7 @@ function App() {
                         </button>
                         <span className="helper-text">Abre una ventana amplia para cambiar modo, tipo de grafico y revisar cada barrio sin que se monten datos.</span>
                       </div>
-                    </section>
+                    </section> : null}
 
                     {showPadronStatsModal ? (
                       <div className="stats-modal-backdrop" role="presentation" onMouseDown={() => setShowPadronStatsModal(false)}>
@@ -12624,6 +12749,34 @@ function App() {
                       </div>
                     ) : null}
 
+                    {showPadronRequestModal ? (
+                      <div className="stats-modal-backdrop" role="presentation" onMouseDown={() => setShowPadronRequestModal(false)}>
+                        <section className="stats-modal-card" role="dialog" aria-modal="true" aria-label="Constructor de peticiones" onMouseDown={(event) => event.stopPropagation()}>
+                          <div className="stats-modal-head">
+                            <div>
+                              <p className="sheet-kicker">Listado configurable</p>
+                              <h3>Constructor de peticiones</h3>
+                              <p className="helper-text">Configura, genera, imprime y descarga listados desde el padron maestro.</p>
+                            </div>
+                            <div className="stats-modal-actions">
+                              <button type="button" onClick={handleRunPadronRequest} disabled={loadingPadronRequest}>
+                                <Icon name="refresh" />
+                                {loadingPadronRequest ? "Generando..." : "Generar"}
+                              </button>
+                              <button type="button" className="button-secondary" onClick={handlePrintPadronRequest}>
+                                <Icon name="records" />
+                                Imprimir
+                              </button>
+                              <button type="button" className="button-secondary" onClick={handleDownloadPadronRequestPdf}>
+                                <Icon name="records" />
+                                PDF
+                              </button>
+                              <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronRequestModal(false)}>
+                                Cerrar
+                              </button>
+                            </div>
+                          </div>
+                          <div className="stats-modal-body">
                     <div className="request-editor-grid">
                       <form className="document-block request-editor-card" onSubmit={handleRunPadronRequest}>
                         <div className="admin-section-head">
@@ -12798,6 +12951,10 @@ function App() {
                         </div>
                       )}
                     </div>
+                          </div>
+                        </section>
+                      </div>
+                    ) : null}
                   </article>
                 </div>
               </section>
