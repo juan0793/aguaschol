@@ -149,6 +149,45 @@ const normalizeDashboardWidgetPrefs = (value) => {
 
 const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : "records");
 const getMapReportZoneOverrideKey = (zoneName) => String(zoneName || "Zona no especificada").trim() || "Zona no especificada";
+const normalizeMapReportSettings = (value) => ({
+  ...defaultMapReportSettings,
+  ...(value && typeof value === "object" ? value : {}),
+  zone_overrides: value?.zone_overrides && typeof value.zone_overrides === "object" ? value.zone_overrides : {},
+  map_image_data_url: typeof value?.map_image_data_url === "string" ? value.map_image_data_url : "",
+  map_image_name: typeof value?.map_image_name === "string" ? value.map_image_name : ""
+});
+
+const stripTransientMapReportSettings = (settings) => {
+  const { map_image_data_url, map_image_name, ...settingsToStore } = normalizeMapReportSettings(settings);
+  return settingsToStore;
+};
+
+const loadMapReportSettingsByDate = () => {
+  const saved = window.localStorage.getItem(MAP_REPORT_SETTINGS_STORAGE_KEY);
+  if (!saved) return {};
+
+  try {
+    const parsed = JSON.parse(saved);
+    if (parsed?.by_date && typeof parsed.by_date === "object") {
+      return Object.fromEntries(
+        Object.entries(parsed.by_date).map(([dateKey, settings]) => [
+          dateKey,
+          normalizeMapReportSettings(settings)
+        ])
+      );
+    }
+
+    if (parsed && typeof parsed === "object") {
+      return {
+        [getMapDiaryDateKey(new Date())]: normalizeMapReportSettings(parsed)
+      };
+    }
+  } catch {
+    window.localStorage.removeItem(MAP_REPORT_SETTINGS_STORAGE_KEY);
+  }
+
+  return {};
+};
 
 function App() {
   const sheetRef = useRef(null);
@@ -268,23 +307,7 @@ function App() {
   const [reportMapDraft, setReportMapDraft] = useState(emptyMapReportDraft);
   const [reportMapFocusRequest, setReportMapFocusRequest] = useState(null);
   const [mapReportStaff, setMapReportStaff] = useState(defaultMapReportStaff);
-  const [mapReportSettings, setMapReportSettings] = useState(() => {
-    const saved = window.localStorage.getItem(MAP_REPORT_SETTINGS_STORAGE_KEY);
-    if (!saved) return defaultMapReportSettings;
-
-    try {
-      const parsed = JSON.parse(saved);
-      return {
-        ...defaultMapReportSettings,
-        ...parsed,
-        zone_overrides: parsed?.zone_overrides && typeof parsed.zone_overrides === "object" ? parsed.zone_overrides : {},
-        map_image_data_url: "",
-        map_image_name: ""
-      };
-    } catch {
-      return defaultMapReportSettings;
-    }
-  });
+  const [mapReportSettingsByDate, setMapReportSettingsByDate] = useState(() => loadMapReportSettingsByDate());
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
@@ -387,6 +410,21 @@ function App() {
         : mapDiaryGroups[0]?.key ?? getMapDiaryDateKey(new Date()),
     [mapDiaryDateKey, mapDiaryGroups]
   );
+  const mapReportSettings = useMemo(
+    () => normalizeMapReportSettings(mapReportSettingsByDate[activeMapDiaryDateKey]),
+    [activeMapDiaryDateKey, mapReportSettingsByDate]
+  );
+  const setMapReportSettings = (updater) => {
+    setMapReportSettingsByDate((current) => {
+      const currentSettings = normalizeMapReportSettings(current[activeMapDiaryDateKey]);
+      const nextSettings = typeof updater === "function" ? updater(currentSettings) : updater;
+
+      return {
+        ...current,
+        [activeMapDiaryDateKey]: normalizeMapReportSettings(nextSettings)
+      };
+    });
+  };
   const visibleMapPoints = useMemo(
     () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === activeMapDiaryDateKey),
     [activeMapDiaryDateKey, safeMapPoints]
@@ -2110,9 +2148,14 @@ function App() {
   }, [dashboardWidgetPrefs]);
 
   useEffect(() => {
-    const { map_image_data_url, map_image_name, ...settingsToStore } = mapReportSettings;
-    window.localStorage.setItem(MAP_REPORT_SETTINGS_STORAGE_KEY, JSON.stringify(settingsToStore));
-  }, [mapReportSettings]);
+    const byDate = Object.fromEntries(
+      Object.entries(mapReportSettingsByDate).map(([dateKey, settings]) => [
+        dateKey,
+        stripTransientMapReportSettings(settings)
+      ])
+    );
+    window.localStorage.setItem(MAP_REPORT_SETTINGS_STORAGE_KEY, JSON.stringify({ by_date: byDate }));
+  }, [mapReportSettingsByDate]);
 
   useEffect(() => {
     const handleEscape = (event) => {
