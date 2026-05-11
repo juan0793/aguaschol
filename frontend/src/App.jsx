@@ -1615,8 +1615,7 @@ function App() {
         right.active - left.active ||
         right.total_registros - left.total_registros ||
         left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
-      )
-      .slice(0, 12);
+      );
     const maxBarrioServiceTotal = Math.max(1, ...barrioRows.map((item) => item.active));
     const profiles = padronServiceReport?.summary?.profiles || {};
 
@@ -3546,7 +3545,6 @@ function App() {
       )
       .join("");
     const barrioRows = aguasServiceReportData.barrios
-      .slice(0, 25)
       .map((barrio) => {
         const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
         return `
