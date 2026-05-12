@@ -8211,7 +8211,11 @@ function App() {
     .filter((item) => !dashboardWidgetPrefs.hidden.includes(item.key));
 
   return (
-    <div className={`page-shell ${workspaceView === "records" && recordsFocusMode ? "records-focus-mode" : ""}`}>
+    <div
+      className={`page-shell ${workspaceView === "records" && recordsFocusMode ? "records-focus-mode" : ""} ${
+        workspaceView === "map" ? "map-workspace-mode" : ""
+      }`}
+    >
       {authFx ? (
         <div className={`auth-fx auth-fx-${authFx.mode}`}>
           <div className="auth-fx-card">
