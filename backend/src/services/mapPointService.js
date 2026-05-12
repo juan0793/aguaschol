@@ -57,6 +57,10 @@ const setSheetHyperlink = (worksheet, address, url, label = "Abrir punto") => {
     l: { Target: url, Tooltip: url }
   };
 };
+const MAP_POINT_SELECT_FIELDS = `
+  map_points.*,
+  DATE_FORMAT(map_points.diary_date, '%Y-%m-%d') AS diary_date
+`;
 
 const normalizePayload = (payload = {}) => ({
   point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
@@ -107,7 +111,7 @@ export const listMapPoints = async ({ date = "" } = {}) => {
   const [rows] = await pool.query(
     `
       SELECT
-        map_points.*,
+        ${MAP_POINT_SELECT_FIELDS},
         app_users.full_name AS created_by_name
       FROM map_points
       LEFT JOIN app_users ON app_users.id = map_points.created_by
@@ -137,10 +141,10 @@ export const listMapPointDiaryGroups = async () => {
   const [rows] = await pool.query(
     `
       SELECT
-        COALESCE(map_points.diary_date, DATE(map_points.created_at)) AS \`key\`,
+        DATE_FORMAT(COALESCE(map_points.diary_date, DATE(map_points.created_at)), '%Y-%m-%d') AS \`key\`,
         COUNT(*) AS total
       FROM map_points
-      GROUP BY COALESCE(map_points.diary_date, DATE(map_points.created_at))
+      GROUP BY DATE_FORMAT(COALESCE(map_points.diary_date, DATE(map_points.created_at)), '%Y-%m-%d')
       ORDER BY \`key\` DESC
     `
   );
@@ -411,7 +415,7 @@ export const createMapPoint = async (payload, authUser) => {
   const [rows] = await pool.query(
     `
       SELECT
-        map_points.*,
+        ${MAP_POINT_SELECT_FIELDS},
         app_users.full_name AS created_by_name
       FROM map_points
       LEFT JOIN app_users ON app_users.id = map_points.created_by
@@ -467,7 +471,7 @@ export const updateMapPoint = async (id, payload, authUser) => {
   const [rows] = await pool.query(
     `
       SELECT
-        map_points.*,
+        ${MAP_POINT_SELECT_FIELDS},
         app_users.full_name AS created_by_name
       FROM map_points
       LEFT JOIN app_users ON app_users.id = map_points.created_by
@@ -514,7 +518,7 @@ export const updateMapPoint = async (id, payload, authUser) => {
   const [updatedRows] = await pool.query(
     `
       SELECT
-        map_points.*,
+        ${MAP_POINT_SELECT_FIELDS},
         app_users.full_name AS created_by_name
       FROM map_points
       LEFT JOIN app_users ON app_users.id = map_points.created_by
@@ -568,7 +572,7 @@ export const deleteMapPoint = async (id, authUser) => {
   }
 
   const pool = getPool();
-  const [rows] = await pool.query("SELECT * FROM map_points WHERE id = ? LIMIT 1", [id]);
+  const [rows] = await pool.query(`SELECT ${MAP_POINT_SELECT_FIELDS} FROM map_points WHERE id = ? LIMIT 1`, [id]);
   const point = rows[0];
 
   if (!point) {

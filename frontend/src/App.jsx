@@ -139,6 +139,8 @@ const formatPercent = (value, total) => {
 const EXECUTIVE_REPORT_CREDIT =
   "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramón Ordóñez Bonilla, con seguimiento directo del trabajo realizado en campo.";
 
+const getTodayMapDiaryKey = () => getMapDiaryDateKey(new Date());
+
 const normalizeDashboardWidgetPrefs = (value) => {
   const orderSource = Array.isArray(value?.order) ? value.order : [];
   const hiddenSource = Array.isArray(value?.hidden) ? value.hidden : [];
@@ -407,14 +409,18 @@ function App() {
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
   const mapDiaryGroups = useMemo(() => {
+    const todayKey = getTodayMapDiaryKey();
     if (safeMapDiaryGroupsSummary.length) {
-      return safeMapDiaryGroupsSummary
+      const groups = safeMapDiaryGroupsSummary
         .filter((group) => group?.key)
         .map((group) => ({
           key: group.key,
           total: Number(group.total || 0)
         }))
         .sort((left, right) => right.key.localeCompare(left.key));
+      return groups.some((group) => group.key === todayKey)
+        ? groups
+        : [{ key: todayKey, total: 0 }, ...groups].sort((left, right) => right.key.localeCompare(left.key));
     }
 
     const groups = safeMapPoints.reduce((accumulator, point) => {
@@ -425,6 +431,10 @@ function App() {
       accumulator.set(key, current);
       return accumulator;
     }, new Map());
+
+    if (!groups.has(todayKey)) {
+      groups.set(todayKey, { key: todayKey, total: 0 });
+    }
 
     return Array.from(groups.values()).sort((left, right) => right.key.localeCompare(left.key));
   }, [safeMapDiaryGroupsSummary, safeMapPoints]);
@@ -4253,7 +4263,20 @@ function App() {
       setMapPoints((current) =>
         isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
       );
-      setMapDiaryDateKey(getMapDiaryDateKey(data.created_at) || getMapDiaryDateKey(new Date()));
+      const savedDateKey = getMapDiaryDateKey(data.diary_date || data.created_at) || getTodayMapDiaryKey();
+      setMapDiaryGroupsSummary((current) => {
+        const groups = Array.isArray(current) ? current : [];
+        const existing = groups.find((group) => group.key === savedDateKey);
+        if (existing) {
+          return groups.map((group) =>
+            group.key === savedDateKey
+              ? { ...group, total: isEditing ? Number(group.total || 0) : Number(group.total || 0) + 1 }
+              : group
+          );
+        }
+        return [{ key: savedDateKey, total: 1 }, ...groups].sort((left, right) => right.key.localeCompare(left.key));
+      });
+      setMapDiaryDateKey(savedDateKey);
       setSelectedMapPointId(data.id);
       setEditingMapPointId(null);
       setMapStatus(isEditing ? "Punto actualizado" : "Punto guardado");
