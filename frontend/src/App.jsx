@@ -140,14 +140,6 @@ const EXECUTIVE_REPORT_CREDIT =
   "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramón Ordóñez Bonilla, con seguimiento directo del trabajo realizado en campo.";
 
 const getTodayMapDiaryKey = () => getMapDiaryDateKey(new Date());
-const mergeMapPointsById = (...sources) => {
-  const merged = new Map();
-  sources.flat().forEach((point) => {
-    if (point?.id == null) return;
-    merged.set(point.id, point);
-  });
-  return Array.from(merged.values()).sort((left, right) => new Date(right.created_at) - new Date(left.created_at));
-};
 
 const normalizeDashboardWidgetPrefs = (value) => {
   const orderSource = Array.isArray(value?.order) ? value.order : [];
@@ -447,11 +439,16 @@ function App() {
     return Array.from(groups.values()).sort((left, right) => right.key.localeCompare(left.key));
   }, [safeMapDiaryGroupsSummary, safeMapPoints]);
   const activeMapDiaryDateKey = useMemo(
-    () =>
-      mapDiaryGroups.some((group) => group.key === mapDiaryDateKey)
+    () => {
+      if (workspaceView === "map") {
+        return getTodayMapDiaryKey();
+      }
+
+      return mapDiaryGroups.some((group) => group.key === mapDiaryDateKey)
         ? mapDiaryDateKey
-        : mapDiaryGroups[0]?.key ?? getMapDiaryDateKey(new Date()),
-    [mapDiaryDateKey, mapDiaryGroups]
+        : mapDiaryGroups[0]?.key ?? getTodayMapDiaryKey();
+    },
+    [mapDiaryDateKey, mapDiaryGroups, workspaceView]
   );
   const mapReportSettings = useMemo(
     () => normalizeMapReportSettings(mapReportSettingsByDate[activeMapDiaryDateKey]),
@@ -468,15 +465,10 @@ function App() {
       };
     });
   };
-  const visibleMapPoints = useMemo(() => {
-    const todayKey = getTodayMapDiaryKey();
-    return safeMapPoints.filter((point) => {
-      const pointDateKey = getMapDiaryDateKey(point);
-      if (pointDateKey === activeMapDiaryDateKey) return true;
-      if (activeMapDiaryDateKey === todayKey && pointDateKey === getMapDiaryDateKey(point.created_at)) return true;
-      return false;
-    });
-  }, [activeMapDiaryDateKey, safeMapPoints]);
+  const visibleMapPoints = useMemo(
+    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === activeMapDiaryDateKey),
+    [activeMapDiaryDateKey, safeMapPoints]
+  );
   const mapPointsForCanvas = useMemo(
     () => (isCompactMapView ? visibleMapPoints.slice(0, MOBILE_MAP_POINT_LIMIT) : visibleMapPoints),
     [isCompactMapView, visibleMapPoints]
@@ -2877,12 +2869,9 @@ function App() {
       }
 
       const nextPoints = Array.isArray(data) ? data : [];
-      setMapPoints((current) => {
-        const mergedPoints = date ? mergeMapPointsById(current, nextPoints) : nextPoints;
-        setSelectedMapPointId((selectedId) => (mergedPoints.some((point) => point.id === selectedId) ? selectedId : null));
-        setSelectedReportMapPointId((selectedId) => (mergedPoints.some((point) => point.id === selectedId) ? selectedId : null));
-        return mergedPoints;
-      });
+      setMapPoints(nextPoints);
+      setSelectedMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
+      setSelectedReportMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
       setMapStatus("Sincronizado");
       setReportMapStatus("Sincronizado");
     } catch (error) {
@@ -3112,9 +3101,6 @@ function App() {
     if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
         loadMapDiaryGroups({ silent: true });
         loadMapPoints({ date: workspaceView === "map" ? activeMapDiaryDateKey : "" });
-        if (workspaceView === "map") {
-          loadMapPoints({ silent: true });
-        }
       }
   }, [activeMapDiaryDateKey, isAuthenticated, workspaceView]);
 
@@ -3152,7 +3138,6 @@ function App() {
       if (document.visibilityState === "visible") {
         loadMapDiaryGroups({ silent: true });
         loadMapPoints({ silent: true, date: activeMapDiaryDateKey });
-        loadMapPoints({ silent: true });
       }
     };
 
