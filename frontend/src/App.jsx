@@ -90,7 +90,6 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const FieldMap = lazy(() => import("./components/FieldMap"));
-const MapPage = lazy(() => import("./components/map/MapPage"));
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
 const MAP_POINT_LIST_INITIAL_LIMIT = 30;
@@ -130,12 +129,6 @@ const clampPrintCopies = (value) => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return 0;
   return Math.min(5, Math.max(0, parsed));
-};
-
-const extractClaveFromText = (value = "") => {
-  const match = String(value)
-    .match(/\b(?:[a-z]{1,2}-)?\d{2,3}-\d{2,3}-\d{2,3}(?:-\d{2,3})?\b/i);
-  return match?.[0] ?? "";
 };
 
 const formatPercent = (value, total) => {
@@ -335,9 +328,6 @@ function App() {
   const [mapStatus, setMapStatus] = useState("Sincronizado");
   const [mapDraft, setMapDraft] = useState(emptyMapDraft);
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
-  const [mapSearchQuery, setMapSearchQuery] = useState("");
-  const [mapPointTypeFilter, setMapPointTypeFilter] = useState("");
-  const [mapViewportBounds, setMapViewportBounds] = useState(null);
   const [mapDiaryDateKey, setMapDiaryDateKey] = useState(() => getMapDiaryDateKey(new Date()));
   const [padronMeta, setPadronMeta] = useState(null);
   const [padronImportSummary, setPadronImportSummary] = useState(null);
@@ -474,28 +464,6 @@ function App() {
   );
   const hiddenMapPointCount = Math.max(0, visibleMapPoints.length - listedMapPoints.length);
   const hiddenCanvasPointCount = Math.max(0, visibleMapPoints.length - mapPointsForCanvas.length);
-  const recordMetaByMapPointId = useMemo(() => {
-    const recordsByClave = new Map(
-      safeRecords
-        .filter((record) => record.clave_catastral)
-        .map((record) => [String(record.clave_catastral).toLowerCase(), record])
-    );
-
-    return Object.fromEntries(
-      visibleMapPoints.map((point) => {
-        const clave = extractClaveFromText(`${point.reference_note || ""} ${point.description || ""}`);
-        const record = clave ? recordsByClave.get(clave.toLowerCase()) : null;
-        return [
-          point.id,
-          {
-            clave: record?.clave_catastral || clave,
-            name: record?.nombre_catastral || record?.inquilino || point.reference_note || point.description || "",
-            status: record?.estado_padron || ""
-          }
-        ];
-      })
-    );
-  }, [safeRecords, visibleMapPoints]);
   const selectedMapPoint = visibleMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
   const selectedReportMapPoint = visibleMapPoints.find((point) => point.id === selectedReportMapPointId) ?? null;
   const selectedUser =
@@ -2854,7 +2822,7 @@ function App() {
     }
   };
 
-  const loadMapPoints = async ({ silent = false, date = "", bounds = null, search = "", pointType = "" } = {}) => {
+  const loadMapPoints = async ({ silent = false, date = "" } = {}) => {
     if (!isAuthenticated) return;
 
     if (!silent) {
@@ -2867,18 +2835,7 @@ function App() {
     mapPointsRequestRef.current = { id: requestId, controller };
 
     try {
-      const params = new URLSearchParams();
-      if (date) params.set("date", date);
-      if (search) params.set("search", search);
-      if (pointType) params.set("point_type", pointType);
-      params.set("limit", bounds ? "300" : "180");
-      if (bounds) {
-        params.set("north", String(bounds.north));
-        params.set("south", String(bounds.south));
-        params.set("east", String(bounds.east));
-        params.set("west", String(bounds.west));
-      }
-      const query = params.toString() ? `?${params.toString()}` : "";
+      const query = date ? `?date=${encodeURIComponent(date)}` : "";
       const response = await apiFetch(`/map-points${query}`, { signal: controller.signal });
       const data = await response.json();
 
@@ -3128,14 +3085,9 @@ function App() {
   useEffect(() => {
     if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
         loadMapDiaryGroups({ silent: true });
-        loadMapPoints({
-          date: workspaceView === "map" ? activeMapDiaryDateKey : "",
-          bounds: workspaceView === "map" ? mapViewportBounds : null,
-          search: workspaceView === "map" ? mapSearchQuery : "",
-          pointType: workspaceView === "map" ? mapPointTypeFilter : ""
-        });
+        loadMapPoints({ date: workspaceView === "map" ? activeMapDiaryDateKey : "" });
       }
-  }, [activeMapDiaryDateKey, isAuthenticated, mapPointTypeFilter, mapSearchQuery, mapViewportBounds, workspaceView]);
+  }, [activeMapDiaryDateKey, isAuthenticated, workspaceView]);
 
   useEffect(() => {
     if (["mapReports", "mapAnalytics"].includes(workspaceView) && isAdmin) {
@@ -3170,13 +3122,7 @@ function App() {
     const refreshMapPoints = () => {
       if (document.visibilityState === "visible") {
         loadMapDiaryGroups({ silent: true });
-        loadMapPoints({
-          silent: true,
-          date: activeMapDiaryDateKey,
-          bounds: mapViewportBounds,
-          search: mapSearchQuery,
-          pointType: mapPointTypeFilter
-        });
+        loadMapPoints({ silent: true, date: activeMapDiaryDateKey });
       }
     };
 
@@ -3190,7 +3136,7 @@ function App() {
       document.removeEventListener("visibilitychange", refreshMapPoints);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [activeMapDiaryDateKey, isAuthenticated, isCompactMapView, mapPointTypeFilter, mapSearchQuery, mapViewportBounds, workspaceView]);
+  }, [activeMapDiaryDateKey, isAuthenticated, isCompactMapView, workspaceView]);
 
   useEffect(() => {
     if (!isAdmin && recordView === "archived") {
@@ -5304,80 +5250,6 @@ function App() {
       showAlert(`Ficha cargada para la clave ${nextRecord.clave_catastral}.`);
     } catch (error) {
       showAlert(error.message || "No fue posible abrir la ficha para esa clave.");
-    }
-  };
-
-  const findClaveForMapPoint = (point = {}) =>
-    extractClaveFromText(`${point.reference_note || ""} ${point.description || ""}`);
-
-  const openRecordFromMapPoint = async (point) => {
-    const clave = findClaveForMapPoint(point);
-    if (!clave) {
-      showAlert("Este punto no tiene una clave catastral en la referencia. Agrega la clave para abrir la ficha desde el mapa.");
-      return null;
-    }
-
-    const localRecord = safeRecords.find((record) => String(record.clave_catastral).toLowerCase() === clave.toLowerCase());
-    if (localRecord) {
-      setWorkspaceView("records");
-      setSelectedRecordId(localRecord.id ?? null);
-      setRecordQuickFilter("all");
-      setRecordFilters({
-        clave: localRecord.clave_catastral || "",
-        barrio: "",
-        responsible: "",
-        date_from: "",
-        date_to: "",
-        status: "all"
-      });
-      setSelectedFile(null);
-      setAvisoHtml("");
-      setActiveSection("abonado");
-      applyRecord(localRecord);
-      focusSheet();
-      return localRecord;
-    }
-
-    await openLookupMatchInRecord({ clave_catastral: clave });
-    return null;
-  };
-
-  const handleOpenMapPointRecord = async (point) => {
-    await openRecordFromMapPoint(point);
-  };
-
-  const handleCreateMapPointNotice = async (point) => {
-    const clave = findClaveForMapPoint(point);
-    if (!clave) {
-      showAlert("Para crear aviso desde el mapa, escribe la clave catastral en la referencia del punto.");
-      return;
-    }
-
-    try {
-      const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(clave)}`);
-      if (!response.ok) {
-        showAlert("No encontre una ficha guardada para esa clave. Abre o crea la ficha primero.");
-        return;
-      }
-
-      const record = normalizeRecord(await response.json());
-      setWorkspaceView("records");
-      setSelectedRecordId(record.id ?? null);
-      setRecordQuickFilter("all");
-      setRecordFilters({
-        clave: record.clave_catastral || "",
-        barrio: "",
-        responsible: "",
-        date_from: "",
-        date_to: "",
-        status: "all"
-      });
-      applyRecord(record);
-      setActiveSection("aviso");
-      showAlert("Ficha cargada. Usa Generar aviso para revisar e imprimir.");
-      focusSheet();
-    } catch (error) {
-      showAlert(error.message || "No fue posible preparar el aviso desde el mapa.");
     }
   };
 
@@ -11271,40 +11143,6 @@ function App() {
           </section>
         </main>
       ) : workspaceView === "map" ? (
-        <>
-          <Suspense fallback={<main className="field-map-page no-print"><div className="map-canvas-loading">Cargando mapa...</div></main>}>
-            <MapPage
-              activeDateLabel={formatMapDiaryLabel(activeMapDiaryDateKey)}
-              editingPointId={editingMapPointId}
-              isAdmin={isAdmin}
-              loading={loadingMapPoints}
-              locating={locatingUser}
-              mapDraft={mapDraft}
-              mapFocusRequest={mapFocusRequest}
-              mapStatus={mapStatus}
-              points={mapPointsForCanvas}
-              recordMetaByPointId={recordMetaByMapPointId}
-              saving={savingMapPoint}
-              search={mapSearchQuery}
-              selectedPoint={selectedMapPoint}
-              selectedPointId={selectedMapPointId}
-              typeFilter={mapPointTypeFilter}
-              onBoundsChange={setMapViewportBounds}
-              onCenterDefault={() => setMapFocusRequest({ latitude: 13.3017, longitude: -87.1889, zoom: 15, key: Date.now() })}
-              onCreateNotice={handleCreateMapPointNotice}
-              onDeletePoint={handleDeleteMapPoint}
-              onDraftChange={setMapDraft}
-              onEditPoint={handleEditMapPoint}
-              onLocate={handleLocateUser}
-              onOpenRecord={handleOpenMapPointRecord}
-              onResetDraft={resetMapDraft}
-              onSavePoint={handleSaveMapPoint}
-              onSearchChange={setMapSearchQuery}
-              onSelectPoint={handleSelectMapPoint}
-              onTypeFilterChange={setMapPointTypeFilter}
-            />
-          </Suspense>
-          {false ? (
         <main className="map-layout no-print">
           <section className="map-shell">
             <article className="map-stage-card">
@@ -11555,8 +11393,6 @@ function App() {
             </aside>
           </section>
         </main>
-          ) : null}
-        </>
       ) : (
         <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (

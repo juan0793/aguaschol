@@ -10,18 +10,7 @@ import { fetchMapPointContexts } from "../services/mapPointContextService.js";
 
 export const listMapPointsHandler = async (req, res, next) => {
   try {
-    const points = await listMapPoints({
-      date: req.query?.date,
-      search: req.query?.search,
-      pointType: req.query?.point_type,
-      limit: req.query?.limit,
-      bounds: {
-        north: req.query?.north,
-        south: req.query?.south,
-        east: req.query?.east,
-        west: req.query?.west
-      }
-    });
+    const points = await listMapPoints({ date: req.query?.date });
     res.json(points);
   } catch (error) {
     next(error);

@@ -50,33 +50,6 @@ const normalizeDiaryDate = (value) => {
   const candidate = String(value ?? "").trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(candidate) ? candidate : "";
 };
-const normalizeSearch = (value) => String(value ?? "").trim().slice(0, 120);
-const normalizePointTypeFilter = (value) => String(value ?? "").trim().slice(0, 60);
-const normalizeLimit = (value) => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return 250;
-  return Math.min(500, Math.max(25, parsed));
-};
-const normalizeBounds = ({ north, south, east, west } = {}) => {
-  const values = {
-    north: Number(north),
-    south: Number(south),
-    east: Number(east),
-    west: Number(west)
-  };
-
-  if (!Object.values(values).every(Number.isFinite)) return null;
-  if (Math.abs(values.north) > 90 || Math.abs(values.south) > 90 || Math.abs(values.east) > 180 || Math.abs(values.west) > 180) {
-    return null;
-  }
-
-  return {
-    north: Math.max(values.north, values.south),
-    south: Math.min(values.north, values.south),
-    east: Math.max(values.east, values.west),
-    west: Math.min(values.east, values.west)
-  };
-};
 const setSheetHyperlink = (worksheet, address, url, label = "Abrir punto") => {
   worksheet[address] = {
     t: "s",
@@ -113,58 +86,23 @@ const validateCoordinates = ({ latitude, longitude }) => {
   }
 };
 
-export const listMapPoints = async ({ date = "", bounds = null, search = "", pointType = "", limit = "" } = {}) => {
+export const listMapPoints = async ({ date = "" } = {}) => {
   const diaryDate = normalizeDiaryDate(date);
-  const normalizedBounds = normalizeBounds(bounds);
-  const normalizedSearch = normalizeSearch(search);
-  const normalizedPointType = normalizePointTypeFilter(pointType);
-  const normalizedLimit = normalizeLimit(limit);
-
   if (env.useMemoryDb) {
     return [...memoryPoints]
       .filter((point) => !diaryDate || point.diary_date === diaryDate || getLocalDiaryDateKey(point.created_at) === diaryDate)
-      .filter((point) => !normalizedBounds || (
-        Number(point.latitude) >= normalizedBounds.south &&
-        Number(point.latitude) <= normalizedBounds.north &&
-        Number(point.longitude) >= normalizedBounds.west &&
-        Number(point.longitude) <= normalizedBounds.east
-      ))
-      .filter((point) => !normalizedPointType || point.point_type === normalizedPointType)
-      .filter((point) => {
-        if (!normalizedSearch) return true;
-        const haystack = `${point.reference_note || ""} ${point.description || ""} ${point.point_type || ""}`.toLowerCase();
-        return haystack.includes(normalizedSearch.toLowerCase());
-      })
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, normalizedLimit);
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
   const pool = getPool();
   const params = [];
-  const whereParts = [];
+  const whereClause = diaryDate
+    ? "WHERE COALESCE(map_points.diary_date, DATE(map_points.created_at)) = ?"
+    : "";
 
   if (diaryDate) {
-    whereParts.push("COALESCE(map_points.diary_date, DATE(map_points.created_at)) = ?");
     params.push(diaryDate);
   }
-  if (normalizedBounds) {
-    whereParts.push("map_points.latitude BETWEEN ? AND ?");
-    params.push(normalizedBounds.south, normalizedBounds.north);
-    whereParts.push("map_points.longitude BETWEEN ? AND ?");
-    params.push(normalizedBounds.west, normalizedBounds.east);
-  }
-  if (normalizedPointType) {
-    whereParts.push("map_points.point_type = ?");
-    params.push(normalizedPointType);
-  }
-  if (normalizedSearch) {
-    whereParts.push("(map_points.reference_note LIKE ? OR map_points.description LIKE ? OR map_points.point_type LIKE ?)");
-    const like = `%${normalizedSearch}%`;
-    params.push(like, like, like);
-  }
-  params.push(normalizedLimit);
-
-  const whereClause = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
 
   const [rows] = await pool.query(
     `
@@ -175,7 +113,6 @@ export const listMapPoints = async ({ date = "", bounds = null, search = "", poi
       LEFT JOIN app_users ON app_users.id = map_points.created_by
       ${whereClause}
       ORDER BY map_points.created_at DESC
-      LIMIT ?
     `,
     params
   );
