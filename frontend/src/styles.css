@@ -7751,6 +7751,20 @@ textarea {
   padding-right: 0.15rem;
 }
 
+.map-mobile-limit-note {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #f8fbff;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+}
+
+.map-load-more-button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
 .map-point-card {
   display: grid;
   gap: 0.55rem;

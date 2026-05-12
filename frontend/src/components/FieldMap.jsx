@@ -7,6 +7,7 @@ const DEFAULT_ZOOM = 14;
 const MAX_NATIVE_ZOOM = 19;
 const MAX_INTERACTION_ZOOM = 21;
 const TILE_CACHE_BUSTER = "osm-20260407";
+const MOBILE_MEDIA_QUERY = "(max-width: 768px), (pointer: coarse)";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
 
@@ -28,11 +29,23 @@ function FieldMap({
   const pointLayerRef = useRef(null);
   const draftMarkerRef = useRef(null);
   const accuracyCircleRef = useRef(null);
+  const statusTimerRef = useRef(null);
+  const [isMobileMap, setIsMobileMap] = useState(() => window.matchMedia?.(MOBILE_MEDIA_QUERY).matches ?? false);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const tileTemplate = useMemo(
     () => `${apiUrl}/map-tiles/{z}/{x}/{y}.png?v=${encodeURIComponent(TILE_CACHE_BUSTER)}`,
     [apiUrl]
   );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia?.(MOBILE_MEDIA_QUERY);
+    if (!mediaQuery) return undefined;
+
+    const handleChange = () => setIsMobileMap(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener?.("change", handleChange);
+    return () => mediaQuery.removeEventListener?.("change", handleChange);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -43,12 +56,13 @@ function FieldMap({
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       maxZoom: MAX_INTERACTION_ZOOM,
-      zoomSnap: 0.25,
-      zoomDelta: 0.5,
+      zoomSnap: isMobileMap ? 0.5 : 0.25,
+      zoomDelta: isMobileMap ? 0.75 : 0.5,
       wheelPxPerZoomLevel: 90,
       zoomControl: true,
       preferCanvas: true,
       doubleClickZoom: false,
+      tapTolerance: isMobileMap ? 24 : 15,
       fadeAnimation: false,
       zoomAnimation: false,
       markerZoomAnimation: false,
@@ -61,15 +75,25 @@ function FieldMap({
       attribution: "OpenStreetMap contributors",
       maxNativeZoom: MAX_NATIVE_ZOOM,
       maxZoom: MAX_INTERACTION_ZOOM,
-      keepBuffer: 4,
-      updateWhenIdle: true
+      keepBuffer: isMobileMap ? 1 : 3,
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      updateInterval: isMobileMap ? 360 : 220
     });
 
     tileLayer.on("loading", () => {
-      onStatusChange((current) => (current === "Sin conexion" ? current : "Cargando mapa"));
+      if (statusTimerRef.current) return;
+      statusTimerRef.current = window.setTimeout(() => {
+        statusTimerRef.current = null;
+        onStatusChange((current) => (current === "Sin conexion" ? current : "Cargando mapa"));
+      }, 180);
     });
 
     tileLayer.on("load", () => {
+      if (statusTimerRef.current) {
+        window.clearTimeout(statusTimerRef.current);
+        statusTimerRef.current = null;
+      }
       onStatusChange((current) => (current === "GPS listo" ? current : "Sincronizado"));
     });
 
@@ -112,6 +136,9 @@ function FieldMap({
 
     return () => {
       resizeObserver.disconnect();
+      if (statusTimerRef.current) {
+        window.clearTimeout(statusTimerRef.current);
+      }
       draftMarkerRef.current?.remove();
       accuracyCircleRef.current?.remove();
       pointLayerRef.current?.clearLayers();
@@ -123,8 +150,9 @@ function FieldMap({
       pointLayerRef.current = null;
       draftMarkerRef.current = null;
       accuracyCircleRef.current = null;
+      statusTimerRef.current = null;
     };
-  }, [onDraftChange, onStatusChange, tileTemplate]);
+  }, [isMobileMap, onDraftChange, onStatusChange, tileTemplate]);
 
   useEffect(() => {
     if (!isActive || !mapRef.current) {

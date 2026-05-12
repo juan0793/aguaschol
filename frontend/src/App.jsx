@@ -91,6 +91,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
+const MAP_POINT_LIST_INITIAL_LIMIT = 30;
+const MAP_POINT_LIST_STEP = 30;
+const MOBILE_MAP_POINT_LIMIT = 180;
 const DEFAULT_DASHBOARD_WIDGET_ORDER = [
   "spotlight",
   "metrics",
@@ -193,6 +196,7 @@ function App() {
   const sheetRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
   const padronStatsChartRef = useRef(null);
+  const mapPointsRequestRef = useRef({ id: 0, controller: null });
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -301,6 +305,8 @@ function App() {
   const [showPadronRequestModal, setShowPadronRequestModal] = useState(false);
   const [selectedAguasServiceField, setSelectedAguasServiceField] = useState("agua");
   const [mapPoints, setMapPoints] = useState([]);
+  const [mapPointListLimit, setMapPointListLimit] = useState(MAP_POINT_LIST_INITIAL_LIMIT);
+  const [isCompactMapView, setIsCompactMapView] = useState(false);
   const [loadingMapPoints, setLoadingMapPoints] = useState(false);
   const [loadingMapContexts, setLoadingMapContexts] = useState(false);
   const [mapPointContexts, setMapPointContexts] = useState({});
@@ -435,6 +441,16 @@ function App() {
     () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === activeMapDiaryDateKey),
     [activeMapDiaryDateKey, safeMapPoints]
   );
+  const mapPointsForCanvas = useMemo(
+    () => (isCompactMapView ? visibleMapPoints.slice(0, MOBILE_MAP_POINT_LIMIT) : visibleMapPoints),
+    [isCompactMapView, visibleMapPoints]
+  );
+  const listedMapPoints = useMemo(
+    () => visibleMapPoints.slice(0, mapPointListLimit),
+    [mapPointListLimit, visibleMapPoints]
+  );
+  const hiddenMapPointCount = Math.max(0, visibleMapPoints.length - listedMapPoints.length);
+  const hiddenCanvasPointCount = Math.max(0, visibleMapPoints.length - mapPointsForCanvas.length);
   const selectedMapPoint = visibleMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
   const selectedReportMapPoint = visibleMapPoints.find((point) => point.id === selectedReportMapPointId) ?? null;
   const selectedUser =
@@ -2193,6 +2209,16 @@ function App() {
   }, [activeMapDiaryDateKey, mapDiaryDateKey]);
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia?.("(max-width: 768px), (pointer: coarse)");
+    if (!mediaQuery) return undefined;
+
+    const handleChange = () => setIsCompactMapView(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener?.("change", handleChange);
+    return () => mediaQuery.removeEventListener?.("change", handleChange);
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(DASHBOARD_WIDGET_STORAGE_KEY, JSON.stringify(dashboardWidgetPrefs));
   }, [dashboardWidgetPrefs]);
 
@@ -2217,6 +2243,10 @@ function App() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, []);
 
+  useEffect(() => () => {
+    mapPointsRequestRef.current.controller?.abort();
+  }, []);
+
   useEffect(() => {
     setRecordPage(1);
   }, [search, recordView, recordQuickFilter, recordFilters]);
@@ -2234,6 +2264,7 @@ function App() {
 
   useEffect(() => {
     setMapReportPage(1);
+    setMapPointListLimit(MAP_POINT_LIST_INITIAL_LIMIT);
   }, [activeMapDiaryDateKey]);
 
   const showAlert = (text) => {
@@ -2759,9 +2790,18 @@ function App() {
       setLoadingMapPoints(true);
     }
 
+    mapPointsRequestRef.current.controller?.abort();
+    const controller = new AbortController();
+    const requestId = mapPointsRequestRef.current.id + 1;
+    mapPointsRequestRef.current = { id: requestId, controller };
+
     try {
-      const response = await apiFetch("/map-points");
+      const response = await apiFetch("/map-points", { signal: controller.signal });
       const data = await response.json();
+
+      if (mapPointsRequestRef.current.id !== requestId) {
+        return;
+      }
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -2780,11 +2820,17 @@ function App() {
       setMapStatus("Sincronizado");
       setReportMapStatus("Sincronizado");
     } catch (error) {
+      if (error.name === "AbortError") {
+        return;
+      }
       if (!silent) {
         showAlert(error.message || "No fue posible cargar los puntos del mapa.");
       }
       setMapStatus("Sin conexion");
     } finally {
+      if (mapPointsRequestRef.current.id === requestId) {
+        mapPointsRequestRef.current.controller = null;
+      }
       if (!silent) {
         setLoadingMapPoints(false);
       }
@@ -3039,7 +3085,7 @@ function App() {
     };
 
     const handleWindowFocus = () => refreshMapPoints();
-    const intervalId = window.setInterval(refreshMapPoints, 12000);
+    const intervalId = window.setInterval(refreshMapPoints, isCompactMapView ? 30000 : 12000);
     document.addEventListener("visibilitychange", refreshMapPoints);
     window.addEventListener("focus", handleWindowFocus);
 
@@ -3048,7 +3094,7 @@ function App() {
       document.removeEventListener("visibilitychange", refreshMapPoints);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [isAuthenticated, workspaceView]);
+  }, [isAuthenticated, isCompactMapView, workspaceView]);
 
   useEffect(() => {
     if (!isAdmin && recordView === "archived") {
@@ -11103,12 +11149,17 @@ function App() {
                 isActive={workspaceView === "map"}
                 mapDraft={mapDraft}
                 mapFocusRequest={mapFocusRequest}
-                mapPoints={visibleMapPoints}
+                mapPoints={mapPointsForCanvas}
                 onDraftChange={setMapDraft}
                 onSelectPoint={handleSelectMapPoint}
                 onStatusChange={setMapStatus}
                 selectedMapPointId={selectedMapPointId}
               />
+              {hiddenCanvasPointCount ? (
+                <p className="helper-text map-mobile-limit-note">
+                  En movil se muestran los {mapPointsForCanvas.length} puntos mas recientes en el mapa para mantenerlo fluido. La bitacora conserva {visibleMapPoints.length} puntos.
+                </p>
+              ) : null}
             </article>
 
             <aside className="map-side-panel">
@@ -11240,8 +11291,8 @@ function App() {
                 <p className="helper-text">Mostrando la jornada del {formatMapDiaryLabel(activeMapDiaryDateKey)}.</p>
                 {loadingMapPoints ? <p className="helper-text">Cargando puntos...</p> : null}
                 <div className="map-point-list">
-                  {visibleMapPoints.length ? (
-                    visibleMapPoints.map((point) => (
+                  {listedMapPoints.length ? (
+                    listedMapPoints.map((point) => (
                       <article
                         key={point.id}
                         className={`map-point-card ${selectedMapPointId === point.id ? "is-active" : ""}`}
@@ -11283,6 +11334,16 @@ function App() {
                     </div>
                   )}
                 </div>
+                {hiddenMapPointCount ? (
+                  <button
+                    type="button"
+                    className="button-secondary map-load-more-button"
+                    onClick={() => setMapPointListLimit((current) => current + MAP_POINT_LIST_STEP)}
+                  >
+                    <Icon name="plus" />
+                    Ver {Math.min(MAP_POINT_LIST_STEP, hiddenMapPointCount)} puntos mas
+                  </button>
+                ) : null}
               </article>
             </aside>
           </section>
