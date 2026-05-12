@@ -7540,6 +7540,14 @@ textarea {
   cursor: crosshair;
 }
 
+.map-canvas-loading {
+  display: grid;
+  place-items: center;
+  color: #335f83;
+  font-weight: 700;
+  cursor: progress;
+}
+
 .map-precision-overlay {
   position: absolute;
   inset: 0;

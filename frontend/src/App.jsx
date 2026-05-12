@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import FieldMap from "./components/FieldMap";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import RecordsWorkspace from "./components/records/RecordsWorkspace";
@@ -89,6 +88,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const FieldMap = lazy(() => import("./components/FieldMap"));
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
 const MAP_POINT_LIST_INITIAL_LIMIT = 30;
@@ -305,6 +306,7 @@ function App() {
   const [showPadronRequestModal, setShowPadronRequestModal] = useState(false);
   const [selectedAguasServiceField, setSelectedAguasServiceField] = useState("agua");
   const [mapPoints, setMapPoints] = useState([]);
+  const [mapDiaryGroupsSummary, setMapDiaryGroupsSummary] = useState([]);
   const [mapPointListLimit, setMapPointListLimit] = useState(MAP_POINT_LIST_INITIAL_LIMIT);
   const [isCompactMapView, setIsCompactMapView] = useState(false);
   const [loadingMapPoints, setLoadingMapPoints] = useState(false);
@@ -401,9 +403,20 @@ function App() {
   const passwordModalVisible = isAuthenticated && (mustChangePassword || showPasswordModal);
   const safeRecords = Array.isArray(records) ? records : [];
   const safeMapPoints = Array.isArray(mapPoints) ? mapPoints : [];
+  const safeMapDiaryGroupsSummary = Array.isArray(mapDiaryGroupsSummary) ? mapDiaryGroupsSummary : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
   const mapDiaryGroups = useMemo(() => {
+    if (safeMapDiaryGroupsSummary.length) {
+      return safeMapDiaryGroupsSummary
+        .filter((group) => group?.key)
+        .map((group) => ({
+          key: group.key,
+          total: Number(group.total || 0)
+        }))
+        .sort((left, right) => right.key.localeCompare(left.key));
+    }
+
     const groups = safeMapPoints.reduce((accumulator, point) => {
       const key = getMapDiaryDateKey(point);
       if (!key) return accumulator;
@@ -414,7 +427,7 @@ function App() {
     }, new Map());
 
     return Array.from(groups.values()).sort((left, right) => right.key.localeCompare(left.key));
-  }, [safeMapPoints]);
+  }, [safeMapDiaryGroupsSummary, safeMapPoints]);
   const activeMapDiaryDateKey = useMemo(
     () =>
       mapDiaryGroups.some((group) => group.key === mapDiaryDateKey)
@@ -2297,6 +2310,7 @@ function App() {
     setPadronRequestForm(defaultPadronRequestForm);
     setPadronRequestTemplates([]);
     setMapPoints([]);
+    setMapDiaryGroupsSummary([]);
     setSelectedMapPointId(null);
     setMapStatus("Sincronizado");
     setMapDraft(emptyMapDraft);
@@ -2783,7 +2797,32 @@ function App() {
     }
   };
 
-  const loadMapPoints = async ({ silent = false } = {}) => {
+  const loadMapDiaryGroups = async ({ silent = false } = {}) => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await apiFetch("/map-points/diary-groups");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar las jornadas del mapa.");
+      }
+
+      setMapDiaryGroupsSummary(Array.isArray(data.groups) ? data.groups : []);
+    } catch (error) {
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar las jornadas del mapa.");
+      }
+    }
+  };
+
+  const loadMapPoints = async ({ silent = false, date = "" } = {}) => {
     if (!isAuthenticated) return;
 
     if (!silent) {
@@ -2796,7 +2835,8 @@ function App() {
     mapPointsRequestRef.current = { id: requestId, controller };
 
     try {
-      const response = await apiFetch("/map-points", { signal: controller.signal });
+      const query = date ? `?date=${encodeURIComponent(date)}` : "";
+      const response = await apiFetch(`/map-points${query}`, { signal: controller.signal });
       const data = await response.json();
 
       if (mapPointsRequestRef.current.id !== requestId) {
@@ -3044,9 +3084,10 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
-        loadMapPoints();
+        loadMapDiaryGroups({ silent: true });
+        loadMapPoints({ date: workspaceView === "map" ? activeMapDiaryDateKey : "" });
       }
-  }, [isAuthenticated, workspaceView]);
+  }, [activeMapDiaryDateKey, isAuthenticated, workspaceView]);
 
   useEffect(() => {
     if (["mapReports", "mapAnalytics"].includes(workspaceView) && isAdmin) {
@@ -3080,7 +3121,8 @@ function App() {
 
     const refreshMapPoints = () => {
       if (document.visibilityState === "visible") {
-        loadMapPoints({ silent: true });
+        loadMapDiaryGroups({ silent: true });
+        loadMapPoints({ silent: true, date: activeMapDiaryDateKey });
       }
     };
 
@@ -3094,7 +3136,7 @@ function App() {
       document.removeEventListener("visibilitychange", refreshMapPoints);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [isAuthenticated, isCompactMapView, workspaceView]);
+  }, [activeMapDiaryDateKey, isAuthenticated, isCompactMapView, workspaceView]);
 
   useEffect(() => {
     if (!isAdmin && recordView === "archived") {
@@ -4215,6 +4257,7 @@ function App() {
       setSelectedMapPointId(data.id);
       setEditingMapPointId(null);
       setMapStatus(isEditing ? "Punto actualizado" : "Punto guardado");
+      loadMapDiaryGroups({ silent: true });
       setMapFocusRequest({
         latitude: Number(data.latitude),
         longitude: Number(data.longitude),
@@ -11144,17 +11187,19 @@ function App() {
                   )}
                 </div>
               </div>
-              <FieldMap
-                apiUrl={API_URL}
-                isActive={workspaceView === "map"}
-                mapDraft={mapDraft}
-                mapFocusRequest={mapFocusRequest}
-                mapPoints={mapPointsForCanvas}
-                onDraftChange={setMapDraft}
-                onSelectPoint={handleSelectMapPoint}
-                onStatusChange={setMapStatus}
-                selectedMapPointId={selectedMapPointId}
-              />
+              <Suspense fallback={<div className="map-canvas map-canvas-loading">Cargando mapa...</div>}>
+                <FieldMap
+                  apiUrl={API_URL}
+                  isActive={workspaceView === "map"}
+                  mapDraft={mapDraft}
+                  mapFocusRequest={mapFocusRequest}
+                  mapPoints={mapPointsForCanvas}
+                  onDraftChange={setMapDraft}
+                  onSelectPoint={handleSelectMapPoint}
+                  onStatusChange={setMapStatus}
+                  selectedMapPointId={selectedMapPointId}
+                />
+              </Suspense>
               {hiddenCanvasPointCount ? (
                 <p className="helper-text map-mobile-limit-note">
                   En movil se muestran los {mapPointsForCanvas.length} puntos mas recientes en el mapa para mantenerlo fluido. La bitacora conserva {visibleMapPoints.length} puntos.
@@ -11701,18 +11746,20 @@ function App() {
                           <span className="panel-pill">{reportMapStatus}</span>
                         </div>
                         <div ref={reportMapCaptureRef} className="map-report-capture-shell">
-                          <FieldMap
-                            apiUrl={API_URL}
-                            isActive={workspaceView === "mapReports"}
-                            mapDraft={reportMapDraft}
-                            mapFocusRequest={reportMapFocusRequest}
-                            mapPoints={visibleMapPoints}
-                            onDraftChange={setReportMapDraft}
-                            onEditPoint={handleEditReportMapPoint}
-                            onSelectPoint={handleSelectReportMapPoint}
-                            onStatusChange={setReportMapStatus}
-                            selectedMapPointId={selectedReportMapPointId}
-                          />
+                          <Suspense fallback={<div className="map-canvas map-canvas-loading">Cargando mapa...</div>}>
+                            <FieldMap
+                              apiUrl={API_URL}
+                              isActive={workspaceView === "mapReports"}
+                              mapDraft={reportMapDraft}
+                              mapFocusRequest={reportMapFocusRequest}
+                              mapPoints={visibleMapPoints}
+                              onDraftChange={setReportMapDraft}
+                              onEditPoint={handleEditReportMapPoint}
+                              onSelectPoint={handleSelectReportMapPoint}
+                              onStatusChange={setReportMapStatus}
+                              selectedMapPointId={selectedReportMapPointId}
+                            />
+                          </Suspense>
                         </div>
                         <div className="map-report-legend">
                           {MAP_MARKER_COLORS.map((option) => (

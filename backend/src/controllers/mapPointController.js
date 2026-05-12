@@ -2,6 +2,7 @@ import {
   createMapPoint,
   deleteMapPoint,
   exportMapPointsWorkbook,
+  listMapPointDiaryGroups,
   listMapPoints,
   updateMapPoint
 } from "../services/mapPointService.js";
@@ -11,6 +12,15 @@ export const listMapPointsHandler = async (req, res, next) => {
   try {
     const points = await listMapPoints({ date: req.query?.date });
     res.json(points);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listMapPointDiaryGroupsHandler = async (req, res, next) => {
+  try {
+    const groups = await listMapPointDiaryGroups();
+    res.json({ groups });
   } catch (error) {
     next(error);
   }

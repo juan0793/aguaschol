@@ -119,6 +119,37 @@ export const listMapPoints = async ({ date = "" } = {}) => {
   return rows;
 };
 
+export const listMapPointDiaryGroups = async () => {
+  if (env.useMemoryDb) {
+    return Array.from(
+      memoryPoints.reduce((groups, point) => {
+        const key = point.diary_date || getLocalDiaryDateKey(point.created_at);
+        if (!key) return groups;
+        groups.set(key, (groups.get(key) || 0) + 1);
+        return groups;
+      }, new Map()).entries()
+    )
+      .map(([key, total]) => ({ key, total }))
+      .sort((left, right) => right.key.localeCompare(left.key));
+  }
+
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `
+      SELECT
+        COALESCE(map_points.diary_date, DATE(map_points.created_at)) AS \`key\`,
+        COUNT(*) AS total
+      FROM map_points
+      GROUP BY COALESCE(map_points.diary_date, DATE(map_points.created_at))
+      ORDER BY \`key\` DESC
+    `
+  );
+  return rows.map((row) => ({
+    key: row.key instanceof Date ? getLocalDiaryDateKey(row.key) : String(row.key || ""),
+    total: Number(row.total || 0)
+  }));
+};
+
 const getSortedMapPoints = async (options = {}) =>
   (await listMapPoints(options)).sort((left, right) => {
     const latitudeDiff = Number(left.latitude) - Number(right.latitude);
