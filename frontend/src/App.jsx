@@ -8901,23 +8901,15 @@ function App() {
                   <Icon name="records" />
                   Abrir fichas
                 </button>
-                <button type="button" onClick={() => setWorkspaceView("executiveReport")}>
-                  <Icon name="records" />
-                  Operaciones realizadas
-                </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("map")}>
                   <Icon name="map" />
                   Ir a campo
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("users")}>
-                  <Icon name="users" />
-                  Ver usuarios
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
                   <Icon name="logs" />
                   Revisar actividad
                 </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
+                <button type="button" onClick={() => setWorkspaceView("executiveReport")}>
                   <Icon name="records" />
                   Operaciones realizadas
                 </button>
@@ -9216,12 +9208,73 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
+          <section className="dashboard-topline">
+            <article className="dashboard-priority-panel">
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Prioridad operativa</p>
+                  <h2><Icon name="warning" className="title-icon" />Pendientes para atender</h2>
+                </div>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => {
+                    setRecordQuickFilter("alert");
+                    setWorkspaceView("records");
+                  }}
+                >
+                  <Icon name="records" />
+                  Ver fichas
+                </button>
+              </div>
+              <div className="dashboard-priority-list">
+                {dashboardPriorityItems.map((item) => (
+                  <button
+                    key={`${item.title}-${item.actionView}`}
+                    type="button"
+                    className={`dashboard-priority-card ${item.tone}`}
+                    onClick={() => setWorkspaceView(item.actionView)}
+                  >
+                    <span className="dashboard-priority-icon"><Icon name={item.icon} /></span>
+                    <span>
+                      <strong>{item.title}</strong>
+                      <small>{item.detail}</small>
+                    </span>
+                    <em>{item.actionLabel}</em>
+                  </button>
+                ))}
+              </div>
+            </article>
+
+            <article className="dashboard-start-panel">
+              <p className="sheet-kicker">Accesos clave</p>
+              <div className="dashboard-start-actions">
+                {dashboardQuickActions.slice(0, 4).map((action) => (
+                  <button
+                    key={action.key}
+                    type="button"
+                    className="dashboard-start-action"
+                    onClick={() => setWorkspaceView(action.key)}
+                  >
+                    <span><Icon name={action.icon} /></span>
+                    <strong>{action.label}</strong>
+                    <small>{action.helper}</small>
+                  </button>
+                ))}
+              </div>
+            </article>
+          </section>
+
           <section className="dashboard-metrics-grid">
-            {headerStats.map((stat) => (
-              <article key={stat.label} className="dashboard-metric-card">
-                <span className="dashboard-metric-icon"><Icon name={stat.icon} /></span>
-                <strong>{stat.value}</strong>
-                <span>{stat.label}</span>
+            {dashboardMetrics.map((metric) => (
+              <article key={metric.label} className="dashboard-metric-card">
+                <div className="dashboard-metric-head">
+                  <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
+                  <span className="dashboard-metric-trend">Hoy</span>
+                </div>
+                <strong>{metric.value}</strong>
+                <span>{metric.label}</span>
+                <small>{metric.helper}</small>
               </article>
             ))}
           </section>
@@ -9237,6 +9290,10 @@ function App() {
                   <Icon name="logs" />
                   Bitácora completa
                 </button>
+              </div>
+              <div className="dashboard-panel-meta">
+                <span>{safeAuditLogs.length} eventos registrados</span>
+                <span>Mas reciente primero</span>
               </div>
               <div className="dashboard-activity-list">
                 {dashboardActivity.length ? (
@@ -9273,6 +9330,20 @@ function App() {
                   </button>
                 ) : null}
               </div>
+              <div className="dashboard-alert-summary">
+                <div>
+                  <span>Total</span>
+                  <strong>{alertRecords.length}</strong>
+                </div>
+                <div>
+                  <span>Vencidas</span>
+                  <strong>{alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length}</strong>
+                </div>
+                <div>
+                  <span>Sin foto</span>
+                  <strong>{pendingPhotoRecords}</strong>
+                </div>
+              </div>
               <div className="dashboard-alerts-list">
                 {alertRecords.length ? (
                   alertRecords.map((record) => {
@@ -9282,7 +9353,10 @@ function App() {
                         key={record.id}
                         type="button"
                         className={`dashboard-alert-item ${meta?.statusKey || "warning"}`}
-                        onClick={() => openPrintBatchModalForRecords([record], "ficha")}
+                        onClick={() => {
+                          handleSelectRecord(record);
+                          setWorkspaceView("records");
+                        }}
                       >
                         <span className="dashboard-alert-icon">
                           <Icon name={meta?.statusKey === "overdue" ? "danger" : "warning"} />
@@ -9293,7 +9367,7 @@ function App() {
                         </div>
                         <span className="dashboard-alert-print">
                           <Icon name="records" />
-                          Imprimir
+                          Abrir ficha
                         </span>
                       </button>
                     );
@@ -9306,22 +9380,6 @@ function App() {
                 )}
               </div>
             </article>
-          </section>
-
-          <section className="dashboard-quick-actions">
-            <div className="dashboard-quick-grid">
-              {dashboardQuickActions.map((action) => (
-                <button
-                  key={action.key}
-                  type="button"
-                  className="dashboard-quick-card"
-                  onClick={() => setWorkspaceView(action.key)}
-                >
-                  <span className="dashboard-quick-icon"><Icon name={action.icon} /></span>
-                  <span className="dashboard-quick-label">{action.label}</span>
-                </button>
-              ))}
-            </div>
           </section>
         </section>
       </main>
