@@ -3763,6 +3763,23 @@ function App() {
       const pageWidth = document.internal.pageSize.getWidth();
       const pageHeight = document.internal.pageSize.getHeight();
       const generatedAt = formatDateTime(padronServiceReport?.generated_at || new Date().toISOString());
+      const formatPdfInteger = (value) =>
+        new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(value || 0));
+      const formatPdfPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
+      const totalBarrios = Number(padronServiceReport?.summary?.total_barrios || 0);
+      const sourceName = padronServiceReport?.source?.file_name || "Padron maestro";
+      const sourceUpdated = padronServiceReport?.source?.updated_at
+        ? formatDateTime(padronServiceReport.source.updated_at)
+        : "Sin fecha de fuente";
+      const profiles = aguasServiceReportData.profiles || {};
+      const allCoreServices = Number(profiles.all_core_services || 0);
+      const noCoreServices = Number(profiles.no_core_services || 0);
+      const waterWithoutSewer = Number(profiles.water_without_sewer || 0);
+      const sewerWithoutWater = Number(profiles.sewer_without_water || 0);
+      const topService = aguasServiceReportData.serviceRows[0] || null;
+      const weakestService = [...aguasServiceReportData.serviceRows].sort(
+        (left, right) => Number(left.percentage || 0) - Number(right.percentage || 0)
+      )[0] || null;
       const addFooter = () => {
         const pageNumber = document.getCurrentPageInfo().pageNumber;
         document.setFont("helvetica", "normal");
@@ -3784,19 +3801,66 @@ function App() {
       document.setTextColor(22, 54, 82);
       document.setFont("helvetica", "normal");
       document.setFontSize(9);
-      document.text(`Fuente: ${padronServiceReport?.source?.file_name || "Padron maestro"}`, 14, 32);
-      document.text(`Registros: ${aguasServiceReportData.totalRecords}`, 14, 38);
-      document.text(`Barrios: ${padronServiceReport?.summary?.total_barrios ?? 0}`, 70, 38);
+      document.text(`Fuente: ${sourceName}`, 14, 32);
+      document.text(`Actualizacion fuente: ${sourceUpdated}`, 14, 38);
+      document.text(`Registros: ${formatPdfInteger(aguasServiceReportData.totalRecords)}`, 150, 32);
+      document.text(`Barrios: ${formatPdfInteger(totalBarrios)}`, 150, 38);
+
+      const summaryCards = [
+        ["Total padron", formatPdfInteger(aguasServiceReportData.totalRecords), "Usuarios registrados en el padron maestro activo."],
+        ["Barrios", formatPdfInteger(totalBarrios), "Sectores con registros agrupados para el desglose posterior."],
+        ["Todos servicios base", formatPdfInteger(allCoreServices), "Agua, alcantarillado, barrido y recoleccion activos."],
+        ["Sin servicios base", formatPdfInteger(noCoreServices), "Sin agua, alcantarillado, barrido ni recoleccion activos."]
+      ];
+
+      summaryCards.forEach((card, index) => {
+        const cardWidth = (pageWidth - 34) / 4;
+        const x = 14 + index * (cardWidth + 2);
+        document.setDrawColor(196, 220, 242);
+        document.setFillColor(244, 249, 253);
+        document.roundedRect(x, 46, cardWidth, 25, 2.6, 2.6, "FD");
+        document.setFont("helvetica", "normal");
+        document.setFontSize(7.5);
+        document.setTextColor(74, 96, 120);
+        document.text(card[0], x + 3, 53);
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.setTextColor(10, 65, 112);
+        document.text(card[1], x + 3, 61);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(6.8);
+        document.setTextColor(74, 96, 120);
+        document.text(document.splitTextToSize(card[2], cardWidth - 6), x + 3, 67);
+      });
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(10);
+      document.setTextColor(10, 65, 112);
+      document.text("Lectura general", 14, 82);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(8.5);
+      document.setTextColor(22, 54, 82);
+      const insights = [
+        topService
+          ? `Servicio con mayor cobertura: ${topService.label} con ${formatPdfInteger(topService.active)} activos (${formatPdfPercent(topService.percentage)}).`
+          : "No hay servicios calculados para el padron.",
+        weakestService
+          ? `Servicio con menor cobertura: ${weakestService.label} con ${formatPdfInteger(weakestService.active)} activos (${formatPdfPercent(weakestService.percentage)}).`
+          : "",
+        `Casos con agua sin alcantarillado: ${formatPdfInteger(waterWithoutSewer)}. Casos con alcantarillado sin agua: ${formatPdfInteger(sewerWithoutWater)}.`,
+        `El desglose por barrio inicia en la pagina siguiente para mantener esta hoja como resumen de totales.`
+      ].filter(Boolean);
+      insights.forEach((line, index) => document.text(`- ${line}`, 16, 89 + index * 5));
 
       autoTable(document, {
-        startY: 44,
+        startY: 112,
         head: [["Servicio", "Activos", "Sin servicio", "Sin dato", "% activo"]],
         body: aguasServiceReportData.serviceRows.map((service) => [
           service.label,
-          Number(service.active || 0),
-          Number(service.inactive || 0),
-          Number(service.unknown || 0),
-          `${Number(service.percentage || 0)}%`
+          formatPdfInteger(service.active),
+          formatPdfInteger(service.inactive),
+          formatPdfInteger(service.unknown),
+          formatPdfPercent(service.percentage)
         ]),
         theme: "grid",
         styles: { fontSize: 8.8, cellPadding: 2.6, textColor: [24, 55, 82] },
@@ -3805,19 +3869,50 @@ function App() {
       });
 
       autoTable(document, {
-        startY: (document.lastAutoTable?.finalY ?? 78) + 8,
+        startY: (document.lastAutoTable?.finalY ?? 145) + 8,
+        head: [["Perfil operativo", "Registros", "% del padron"]],
+        body: [
+          ["Todos los servicios base", formatPdfInteger(allCoreServices), formatPdfPercent((allCoreServices / aguasServiceReportData.totalRecords) * 100)],
+          ["Sin servicios base", formatPdfInteger(noCoreServices), formatPdfPercent((noCoreServices / aguasServiceReportData.totalRecords) * 100)],
+          ["Agua sin alcantarillado", formatPdfInteger(waterWithoutSewer), formatPdfPercent((waterWithoutSewer / aguasServiceReportData.totalRecords) * 100)],
+          ["Alcantarillado sin agua", formatPdfInteger(sewerWithoutWater), formatPdfPercent((sewerWithoutWater / aguasServiceReportData.totalRecords) * 100)]
+        ],
+        theme: "striped",
+        styles: { fontSize: 8.5, cellPadding: 2.4, textColor: [23, 52, 78] },
+        headStyles: { fillColor: [10, 65, 112], textColor: 255 },
+        alternateRowStyles: { fillColor: [244, 248, 252] },
+        margin: { left: 14, right: 14 }
+      });
+
+      addFooter();
+      document.addPage("letter", "landscape");
+      document.setTextColor(10, 65, 112);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(14);
+      document.text("Desglose de servicios por barrio", 14, 16);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(8.5);
+      document.setTextColor(74, 96, 120);
+      document.text(
+        `Registros: ${formatPdfInteger(aguasServiceReportData.totalRecords)} | Barrios: ${formatPdfInteger(totalBarrios)} | Fuente: ${sourceName}`,
+        14,
+        23
+      );
+
+      autoTable(document, {
+        startY: 30,
         head: [["Barrio", "Total", "Agua", "Alcantarillado", "Barrido", "Recoleccion", "Desechos peligrosos"]],
         body: aguasServiceReportData.barrios.map((barrio) => {
           const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
           const getActive = (field) => Number(services.find((service) => service.field === field)?.active || 0);
           return [
             barrio.barrio_colonia || "Sin barrio",
-            Number(barrio.total_registros || 0),
-            getActive("agua"),
-            getActive("alcantarillado"),
-            getActive("barrido"),
-            getActive("recoleccion"),
-            getActive("desechos_peligrosos")
+            formatPdfInteger(barrio.total_registros),
+            formatPdfInteger(getActive("agua")),
+            formatPdfInteger(getActive("alcantarillado")),
+            formatPdfInteger(getActive("barrido")),
+            formatPdfInteger(getActive("recoleccion")),
+            formatPdfInteger(getActive("desechos_peligrosos"))
           ];
         }),
         theme: "striped",
@@ -3828,7 +3923,6 @@ function App() {
         didDrawPage: addFooter
       });
 
-      addFooter();
       document.save(`informe-servicios-padron-${new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Informe de servicios descargado en PDF.");
     } catch (error) {
