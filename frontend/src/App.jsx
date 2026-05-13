@@ -3810,6 +3810,8 @@ function App() {
           Number(barrio.total_registros || 0) > 0 &&
           coreServiceFields.every((field) => getBarrioServiceActive(barrio, field) === 0)
       ).length;
+      const barriosCoberturaParcial = Math.max(0, totalBarrios - barriosConTodosServicios - barriosSinServicios);
+      const totalGeneralBarriosEvaluados = barriosConTodosServicios + barriosCoberturaParcial + barriosSinServicios;
       const addFooter = () => {
         const pageNumber = document.getCurrentPageInfo().pageNumber;
         document.setFont("helvetica", "normal");
@@ -3870,6 +3872,11 @@ function App() {
           "Agua, alcantarillado, barrido y recoleccion con actividad en el barrio."
         ],
         [
+          "Barrios con cobertura parcial",
+          formatPdfInteger(barriosCoberturaParcial),
+          "Tienen al menos un servicio base activo, pero no todos."
+        ],
+        [
           "Barrios sin servicios",
           formatPdfInteger(barriosSinServicios),
           "Sin actividad registrada en agua, alcantarillado, barrido ni recoleccion."
@@ -3877,8 +3884,8 @@ function App() {
       ];
 
       greenCards.forEach((card, index) => {
-        const cardWidth = (pageWidth - 34) / 2;
-        const x = 14 + index * (cardWidth + 6);
+        const cardWidth = (pageWidth - 34) / 3;
+        const x = 14 + index * (cardWidth + 3);
         document.setDrawColor(39, 145, 88);
         document.setFillColor(232, 248, 239);
         document.roundedRect(x, 76, cardWidth, 24, 3, 3, "FD");
@@ -3891,24 +3898,23 @@ function App() {
         document.text(card[1], x + 4, 91);
         document.setFont("helvetica", "normal");
         document.setFontSize(7);
-        document.text(document.splitTextToSize(card[2], cardWidth - 48), x + 28, 89);
+        document.text(document.splitTextToSize(card[2], cardWidth - 38), x + 26, 89);
       });
 
-      const totalCoberturaBarrios = barriosConTodosServicios + barriosSinServicios;
       document.setDrawColor(27, 128, 78);
       document.setFillColor(218, 245, 230);
       document.roundedRect(14, 103, pageWidth - 28, 13, 3, 3, "FD");
       document.setFont("helvetica", "bold");
       document.setFontSize(9);
       document.setTextColor(25, 102, 64);
-      document.text("Total cobertura territorial", 18, 111);
+      document.text("Total general de barrios evaluados", 18, 111);
       document.setFontSize(13);
-      document.text(formatPdfInteger(totalCoberturaBarrios), pageWidth - 18, 111, { align: "right" });
+      document.text(formatPdfInteger(totalGeneralBarriosEvaluados), pageWidth - 18, 111, { align: "right" });
       document.setFont("helvetica", "normal");
       document.setFontSize(7.5);
       document.text(
-        `Suma de barrios con todos los servicios y barrios sin servicios: ${formatPdfInteger(barriosConTodosServicios)} + ${formatPdfInteger(barriosSinServicios)}`,
-        78,
+        `${formatPdfInteger(barriosConTodosServicios)} con todos + ${formatPdfInteger(barriosCoberturaParcial)} parciales + ${formatPdfInteger(barriosSinServicios)} sin servicios = ${formatPdfInteger(totalGeneralBarriosEvaluados)}`,
+        82,
         111
       );
 
@@ -3927,7 +3933,8 @@ function App() {
           ? `Servicio con menor cobertura: ${weakestService.label} con ${formatPdfInteger(weakestService.active)} activos (${formatPdfPercent(weakestService.percentage)}).`
           : "",
         `Total de barrios de la ciudad de Choluteca en el padron: ${formatPdfInteger(totalBarrios)}.`,
-        `Barrios con todos los servicios base: ${formatPdfInteger(barriosConTodosServicios)}. Barrios sin servicios base: ${formatPdfInteger(barriosSinServicios)}.`,
+        `Clasificacion territorial: ${formatPdfInteger(barriosConTodosServicios)} con todos los servicios, ${formatPdfInteger(barriosCoberturaParcial)} con cobertura parcial y ${formatPdfInteger(barriosSinServicios)} sin servicios.`,
+        `Total general de barrios evaluados: ${formatPdfInteger(totalGeneralBarriosEvaluados)}.`,
         `Total general de incidencias de barrios sin servicio: ${formatPdfInteger(totalGeneralBarriosSinServicio)}.`,
         `Casos con agua sin alcantarillado: ${formatPdfInteger(waterWithoutSewer)}. Casos con alcantarillado sin agua: ${formatPdfInteger(sewerWithoutWater)}.`,
         `El desglose por barrio inicia en la pagina siguiente para mantener esta hoja como resumen de totales.`
