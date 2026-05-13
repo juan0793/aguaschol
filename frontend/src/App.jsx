@@ -440,15 +440,11 @@ function App() {
   }, [safeMapDiaryGroupsSummary, safeMapPoints]);
   const activeMapDiaryDateKey = useMemo(
     () => {
-      if (workspaceView === "map") {
-        return getTodayMapDiaryKey();
-      }
-
       return mapDiaryGroups.some((group) => group.key === mapDiaryDateKey)
         ? mapDiaryDateKey
         : mapDiaryGroups[0]?.key ?? getTodayMapDiaryKey();
     },
-    [mapDiaryDateKey, mapDiaryGroups, workspaceView]
+    [mapDiaryDateKey, mapDiaryGroups]
   );
   const mapReportSettings = useMemo(
     () => normalizeMapReportSettings(mapReportSettingsByDate[activeMapDiaryDateKey]),
