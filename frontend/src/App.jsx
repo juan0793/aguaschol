@@ -3894,10 +3894,28 @@ function App() {
         document.text(document.splitTextToSize(card[2], cardWidth - 48), x + 28, 89);
       });
 
+      const totalCoberturaBarrios = barriosConTodosServicios + barriosSinServicios;
+      document.setDrawColor(27, 128, 78);
+      document.setFillColor(218, 245, 230);
+      document.roundedRect(14, 103, pageWidth - 28, 13, 3, 3, "FD");
+      document.setFont("helvetica", "bold");
+      document.setFontSize(9);
+      document.setTextColor(25, 102, 64);
+      document.text("Total cobertura territorial", 18, 111);
+      document.setFontSize(13);
+      document.text(formatPdfInteger(totalCoberturaBarrios), pageWidth - 18, 111, { align: "right" });
+      document.setFont("helvetica", "normal");
+      document.setFontSize(7.5);
+      document.text(
+        `Suma de barrios con todos los servicios y barrios sin servicios: ${formatPdfInteger(barriosConTodosServicios)} + ${formatPdfInteger(barriosSinServicios)}`,
+        78,
+        111
+      );
+
       document.setFont("helvetica", "bold");
       document.setFontSize(10);
       document.setTextColor(10, 65, 112);
-      document.text("Lectura general", 14, 109);
+      document.text("Lectura general", 14, 125);
       document.setFont("helvetica", "normal");
       document.setFontSize(8.5);
       document.setTextColor(22, 54, 82);
@@ -3914,10 +3932,10 @@ function App() {
         `Casos con agua sin alcantarillado: ${formatPdfInteger(waterWithoutSewer)}. Casos con alcantarillado sin agua: ${formatPdfInteger(sewerWithoutWater)}.`,
         `El desglose por barrio inicia en la pagina siguiente para mantener esta hoja como resumen de totales.`
       ].filter(Boolean);
-      insights.forEach((line, index) => document.text(`- ${line}`, 16, 116 + index * 5));
+      insights.forEach((line, index) => document.text(`- ${line}`, 16, 132 + index * 5));
 
       autoTable(document, {
-        startY: 148,
+        startY: 164,
         head: [["Servicio", "Barrios sin servicio", "Barrios con servicio", "% barrios con servicio", "Usuarios activos"]],
         body: serviceCoverageRows.map((service) => [
           service.label,
