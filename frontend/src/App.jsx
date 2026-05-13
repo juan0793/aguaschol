@@ -3780,6 +3780,25 @@ function App() {
       const weakestService = [...aguasServiceReportData.serviceRows].sort(
         (left, right) => Number(left.percentage || 0) - Number(right.percentage || 0)
       )[0] || null;
+      const getBarrioServiceActive = (barrio, field) => {
+        const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
+        return Number(services.find((service) => service.field === field)?.active || 0);
+      };
+      const serviceCoverageRows = aguasServiceReportData.serviceRows.map((service) => {
+        const barriosSinServicio = aguasServiceReportData.barrios.filter(
+          (barrio) => Number(barrio.total_registros || 0) > 0 && getBarrioServiceActive(barrio, service.field) === 0
+        ).length;
+        return {
+          ...service,
+          barriosSinServicio,
+          barriosConServicio: Math.max(0, totalBarrios - barriosSinServicio),
+          barrioCoverage: totalBarrios ? ((totalBarrios - barriosSinServicio) / totalBarrios) * 100 : 0
+        };
+      });
+      const totalGeneralBarriosSinServicio = serviceCoverageRows.reduce(
+        (total, service) => total + Number(service.barriosSinServicio || 0),
+        0
+      );
       const addFooter = () => {
         const pageNumber = document.getCurrentPageInfo().pageNumber;
         document.setFont("helvetica", "normal");
@@ -3807,10 +3826,10 @@ function App() {
       document.text(`Barrios: ${formatPdfInteger(totalBarrios)}`, 150, 38);
 
       const summaryCards = [
-        ["Total padron", formatPdfInteger(aguasServiceReportData.totalRecords), "Usuarios registrados en el padron maestro activo."],
-        ["Barrios", formatPdfInteger(totalBarrios), "Sectores con registros agrupados para el desglose posterior."],
-        ["Todos servicios base", formatPdfInteger(allCoreServices), "Agua, alcantarillado, barrido y recoleccion activos."],
-        ["Sin servicios base", formatPdfInteger(noCoreServices), "Sin agua, alcantarillado, barrido ni recoleccion activos."]
+        ["Total barrios Choluteca", formatPdfInteger(totalBarrios), "Barrios o sectores registrados en el padron maestro."],
+        ["Total padron", formatPdfInteger(aguasServiceReportData.totalRecords), "Usuarios registrados en el padron activo."],
+        ["Sin servicios base", formatPdfInteger(noCoreServices), "Usuarios sin agua, alcantarillado, barrido ni recoleccion activos."],
+        ["Total general", formatPdfInteger(totalGeneralBarriosSinServicio), "Suma de incidencias de barrios sin servicio por categoria."]
       ];
 
       summaryCards.forEach((card, index) => {
@@ -3847,20 +3866,22 @@ function App() {
         weakestService
           ? `Servicio con menor cobertura: ${weakestService.label} con ${formatPdfInteger(weakestService.active)} activos (${formatPdfPercent(weakestService.percentage)}).`
           : "",
+        `Total de barrios de la ciudad de Choluteca en el padron: ${formatPdfInteger(totalBarrios)}.`,
+        `Total general de incidencias de barrios sin servicio: ${formatPdfInteger(totalGeneralBarriosSinServicio)}.`,
         `Casos con agua sin alcantarillado: ${formatPdfInteger(waterWithoutSewer)}. Casos con alcantarillado sin agua: ${formatPdfInteger(sewerWithoutWater)}.`,
         `El desglose por barrio inicia en la pagina siguiente para mantener esta hoja como resumen de totales.`
       ].filter(Boolean);
       insights.forEach((line, index) => document.text(`- ${line}`, 16, 89 + index * 5));
 
       autoTable(document, {
-        startY: 112,
-        head: [["Servicio", "Activos", "Sin servicio", "Sin dato", "% activo"]],
-        body: aguasServiceReportData.serviceRows.map((service) => [
+        startY: 118,
+        head: [["Servicio", "Barrios sin servicio", "Barrios con servicio", "% barrios con servicio", "Usuarios activos"]],
+        body: serviceCoverageRows.map((service) => [
           service.label,
+          formatPdfInteger(service.barriosSinServicio),
+          formatPdfInteger(service.barriosConServicio),
+          formatPdfPercent(service.barrioCoverage),
           formatPdfInteger(service.active),
-          formatPdfInteger(service.inactive),
-          formatPdfInteger(service.unknown),
-          formatPdfPercent(service.percentage)
         ]),
         theme: "grid",
         styles: { fontSize: 8.8, cellPadding: 2.6, textColor: [24, 55, 82] },
