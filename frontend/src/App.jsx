@@ -251,7 +251,7 @@ function App() {
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
   const [recordsFocusMode, setRecordsFocusMode] = useState(false);
-  const [recordQuickFilter, setRecordQuickFilter] = useState("clandestino");
+  const [recordQuickFilter, setRecordQuickFilter] = useState("all");
   const [recordPage, setRecordPage] = useState(1);
   const [showRecordAdvancedFilters, setShowRecordAdvancedFilters] = useState(false);
   const [showRecordPreview, setShowRecordPreview] = useState(false);
@@ -6266,6 +6266,9 @@ function App() {
         showAlert(`Ficha ${updated.clave_catastral} guardada. Lista para registrar otra.`);
         resetForm();
       } else {
+        if (!isEdit) {
+          setRecordQuickFilter("all");
+        }
         applyRecord(updated);
       }
 
