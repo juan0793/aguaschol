@@ -10801,6 +10801,102 @@ select:focus {
   gap: 1rem;
 }
 
+.dashboard-live-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #dbe7f3;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.dashboard-live-header > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+}
+
+.dashboard-live-header strong {
+  color: #102a43;
+  font-size: 1rem;
+}
+
+.dashboard-live-header small,
+.dashboard-refresh-status {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.dashboard-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0.22rem 0.62rem;
+  background: #ecfdf5;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.dashboard-live-pill span {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  animation: dashboardPulse 1.45s ease-out infinite;
+}
+
+.dashboard-refresh-skeleton,
+.dashboard-feed-skeleton {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 150px;
+}
+
+.dashboard-feed-skeleton {
+  margin-bottom: 0.65rem;
+}
+
+.dashboard-refresh-skeleton span,
+.dashboard-feed-skeleton span,
+.dashboard-metric-card.is-refreshing small::after {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #eef3f8 0%, #dfeaf4 48%, #eef3f8 100%);
+  background-size: 220% 100%;
+  animation: dashboardShimmer 1.2s linear infinite;
+}
+
+.dashboard-refresh-skeleton span:first-child {
+  width: 130px;
+}
+
+.dashboard-refresh-skeleton span:last-child {
+  width: 92px;
+}
+
+.dashboard-feed-skeleton span:nth-child(1) {
+  width: 92%;
+}
+
+.dashboard-feed-skeleton span:nth-child(2) {
+  width: 76%;
+}
+
+.dashboard-feed-skeleton span:nth-child(3) {
+  width: 84%;
+}
+
 .dashboard-topline {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
@@ -10978,7 +11074,19 @@ select:focus {
 }
 
 .dashboard-metric-card small {
+  position: relative;
   min-height: 2.5em;
+}
+
+.dashboard-metric-card.is-refreshing small::after {
+  content: "";
+  width: min(92px, 70%);
+  margin-top: 0.32rem;
+}
+
+.dashboard-metric-value {
+  animation: dashboardMetricPop 360ms ease;
+  transform-origin: left center;
 }
 
 .dashboard-content-grid {
@@ -11058,6 +11166,33 @@ select:focus {
   white-space: nowrap;
 }
 
+.dashboard-feed-item {
+  opacity: 0;
+  animation: dashboardFeedIn 360ms ease forwards;
+  animation-delay: var(--feed-delay, 0ms);
+}
+
+.dashboard-feed-item.is-warning .dashboard-activity-icon {
+  background: #fff4dd;
+  color: #9a5a06;
+}
+
+.dashboard-feed-item.is-map .dashboard-activity-icon {
+  background: #e6f7ff;
+  color: #075985;
+}
+
+.dashboard-feed-item.is-record .dashboard-activity-icon,
+.dashboard-feed-item.is-ready .dashboard-activity-icon {
+  background: #eef6ff;
+  color: #0b4f8a;
+}
+
+.dashboard-feed-item.is-ready small {
+  background: #ecfdf5;
+  color: #166534;
+}
+
 .dashboard-alerts-list {
   max-height: min(56vh, 500px);
 }
@@ -11085,6 +11220,54 @@ select:focus {
   overflow-wrap: anywhere;
 }
 
+@keyframes dashboardPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.48);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes dashboardMetricPop {
+  0% {
+    opacity: 0.72;
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dashboardFeedIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dashboardShimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
 @media (max-width: 900px) {
   .dashboard-topline,
   .dashboard-content-grid {
@@ -11099,6 +11282,16 @@ select:focus {
 @media (max-width: 768px) {
   .dashboard-layout {
     width: min(100%, calc(100% - 0.75rem));
+  }
+
+  .dashboard-live-header,
+  .dashboard-live-header > div:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-refresh-skeleton {
+    width: 100%;
   }
 
   .dashboard-priority-card {

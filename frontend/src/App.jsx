@@ -136,6 +136,28 @@ const formatPercent = (value, total) => {
   return `${Math.round((Number(value || 0) / Number(total)) * 100)}%`;
 };
 
+const formatRelativeTime = (value, now = Date.now()) => {
+  const date = value ? new Date(value) : null;
+  const timestamp = date?.getTime();
+  if (!Number.isFinite(timestamp)) return "hace un momento";
+
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+  if (seconds < 10) return "hace unos segundos";
+  if (seconds < 60) return `hace ${seconds} segundos`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes === 1) return "hace 1 minuto";
+  if (minutes < 60) return `hace ${minutes} minutos`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours === 1) return "hace 1 hora";
+  if (hours < 24) return `hace ${hours} horas`;
+
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "hace 1 dia";
+  return `hace ${days} dias`;
+};
+
 const EXECUTIVE_REPORT_CREDIT =
   "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramón Ordóñez Bonilla, con seguimiento directo del trabajo realizado en campo.";
 
@@ -289,6 +311,9 @@ function App() {
       return normalizeDashboardWidgetPrefs({});
     }
   });
+  const [dashboardNow, setDashboardNow] = useState(() => Date.now());
+  const [dashboardLastUpdatedAt, setDashboardLastUpdatedAt] = useState(() => Date.now());
+  const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
   const [lookupSearchMode, setLookupSearchMode] = useState("clave");
   const [lookupQuery, setLookupQuery] = useState("");
@@ -1707,7 +1732,119 @@ function App() {
     ],
     [draftForm, draftSavedAt, lookupHistory.length, mapDiaryGroups.length, mapPointsToday, recentLookupCountToday, recordsUpdatedToday, safeRecords.length]
   );
+  const dashboardLiveMetrics = useMemo(
+    () => [
+      {
+        key: "records",
+        label: "Fichas activas",
+        value: safeRecords.length,
+        helper: `${recordsUpdatedToday} movimientos hoy`,
+        icon: "records"
+      },
+      {
+        key: "gps",
+        label: "Puntos GPS",
+        value: safeMapPoints.length,
+        helper: `${mapPointsToday} puntos registrados hoy`,
+        icon: "map"
+      },
+      {
+        key: "online",
+        label: "Usuarios en linea",
+        value: onlineUsers.length,
+        helper: `${safeUsers.length} usuarios registrados`,
+        icon: "users"
+      },
+      {
+        key: "alerts",
+        label: "Alertas",
+        value: alertRecords.length,
+        helper: alertRecords.length ? "Pendientes con plazo critico" : "Sin alertas pendientes",
+        icon: alertRecords.length ? "warning" : "success"
+      }
+    ],
+    [
+      alertRecords.length,
+      mapPointsToday,
+      onlineUsers.length,
+      recordsUpdatedToday,
+      safeMapPoints.length,
+      safeRecords.length,
+      safeUsers.length
+    ]
+  );
   const dashboardActivity = useMemo(() => safeAuditLogs.slice(0, 5), [safeAuditLogs]);
+  const dashboardLiveFeed = useMemo(() => {
+    const feed = [];
+    const pushFeedItem = (item) => {
+      const createdAt = item.createdAt || item.updatedAt;
+      if (!createdAt) return;
+      feed.push({
+        ...item,
+        createdAt,
+        timestamp: new Date(createdAt).getTime() || 0
+      });
+    };
+
+    safeAuditLogs.slice(0, 12).forEach((log) => {
+      const actionTitle = {
+        "auth.login": "Usuario inicio sesion",
+        "map_point.created": "Nuevo punto GPS registrado",
+        "inmueble.created": "Ficha creada",
+        "inmueble.updated": "Ficha actualizada",
+        "inmueble.photo_attached": "Ficha lista para imprimir",
+        "transport.route_alert": "Alerta generada"
+      }[log.action] || actionLabel(log.action);
+
+      pushFeedItem({
+        key: `audit-${log.id}`,
+        title: actionTitle,
+        detail: log.summary || log.actor_name || log.actor_email || "Movimiento registrado",
+        icon: actionIconName(log.action),
+        tone: log.action?.includes("alert") ? "is-warning" : "is-info",
+        createdAt: log.created_at
+      });
+    });
+
+    safeMapPoints.slice(0, 6).forEach((point) => {
+      pushFeedItem({
+        key: `point-${point.id}`,
+        title: "Nuevo punto GPS registrado",
+        detail: `${getMapPointTypeLabel(point.point_type)} - ${deriveMapPointZone(point) || "Zona pendiente"}`,
+        icon: "map",
+        tone: "is-map",
+        createdAt: point.created_at || point.updated_at
+      });
+    });
+
+    safeRecords.slice(0, 8).forEach((record) => {
+      pushFeedItem({
+        key: `record-${record.id}`,
+        title: "Ficha creada",
+        detail: `${record.clave_catastral || "Sin clave"} - ${record.barrio_colonia || "Sin barrio"}`,
+        icon: "records",
+        tone: "is-record",
+        createdAt: record.created_at
+      });
+    });
+
+    alertRecords.slice(0, 6).forEach((record) => {
+      const meta = recordDeadlineMetaById[record.id];
+      pushFeedItem({
+        key: `alert-${record.id}-${meta?.statusKey || "warning"}`,
+        title: meta?.statusKey === "overdue" ? "Alerta generada" : "Ficha lista para imprimir",
+        detail: `${record.clave_catastral || "Sin clave"} - ${meta?.label || "Requiere atencion"}`,
+        icon: meta?.statusKey === "overdue" ? "warning" : "records",
+        tone: meta?.statusKey === "overdue" ? "is-warning" : "is-ready",
+        createdAt: record.updated_at || record.created_at
+      });
+    });
+
+    return feed
+      .filter((item) => Number.isFinite(item.timestamp))
+      .sort((left, right) => right.timestamp - left.timestamp)
+      .slice(0, 8);
+  }, [alertRecords, recordDeadlineMetaById, safeAuditLogs, safeMapPoints, safeRecords]);
   const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
   const dashboardFocusCards = useMemo(
     () => [
@@ -2455,6 +2592,14 @@ function App() {
   }, [alert]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      setDashboardNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       setShowPasswordModal(false);
       return;
@@ -3070,12 +3215,20 @@ function App() {
       return undefined;
     }
 
-    const refreshDashboard = () => {
+    const refreshDashboard = async () => {
       if (document.visibilityState !== "visible") return;
-      loadRecords("", "active", { silent: true });
-      loadMapPoints({ silent: true });
-      loadUsers({ silent: true });
-      loadAuditLogs({ silent: true });
+      setDashboardRefreshing(true);
+      try {
+        await Promise.all([
+          loadRecords("", "active", { silent: true }),
+          loadMapPoints({ silent: true }),
+          loadUsers({ silent: true }),
+          loadAuditLogs({ silent: true })
+        ]);
+        setDashboardLastUpdatedAt(Date.now());
+      } finally {
+        setDashboardRefreshing(false);
+      }
     };
 
     refreshDashboard();
@@ -9208,6 +9361,22 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
+          <section className="dashboard-live-header">
+            <div>
+              <span className="dashboard-live-pill"><span />En vivo</span>
+              <strong>Tablero de mando</strong>
+              <small>Actualizado {formatRelativeTime(dashboardLastUpdatedAt, dashboardNow)}</small>
+            </div>
+            {dashboardRefreshing ? (
+              <div className="dashboard-refresh-skeleton" aria-label="Actualizando tablero">
+                <span />
+                <span />
+              </div>
+            ) : (
+              <span className="dashboard-refresh-status">Sincronizado</span>
+            )}
+          </section>
+
           <section className="dashboard-topline">
             <article className="dashboard-priority-panel">
               <div className="dashboard-panel-head">
@@ -9266,13 +9435,13 @@ function App() {
           </section>
 
           <section className="dashboard-metrics-grid">
-            {dashboardMetrics.map((metric) => (
-              <article key={metric.label} className="dashboard-metric-card">
+            {dashboardLiveMetrics.map((metric) => (
+              <article key={metric.key} className={`dashboard-metric-card ${dashboardRefreshing ? "is-refreshing" : ""}`}>
                 <div className="dashboard-metric-head">
                   <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
-                  <span className="dashboard-metric-trend">Hoy</span>
+                  <span className="dashboard-metric-trend">{dashboardRefreshing ? "Actualizando" : "En vivo"}</span>
                 </div>
-                <strong>{metric.value}</strong>
+                <strong key={`${metric.key}-${metric.value}`} className="dashboard-metric-value">{metric.value}</strong>
                 <span>{metric.label}</span>
                 <small>{metric.helper}</small>
               </article>
@@ -9293,19 +9462,31 @@ function App() {
               </div>
               <div className="dashboard-panel-meta">
                 <span>{safeAuditLogs.length} eventos registrados</span>
-                <span>Mas reciente primero</span>
+                <span>{dashboardRefreshing ? "Actualizando feed" : "Mas reciente primero"}</span>
               </div>
-              <div className="dashboard-activity-list">
-                {dashboardActivity.length ? (
-                  dashboardActivity.map((log) => (
-                    <article key={log.id} className="dashboard-activity-item">
+              {dashboardRefreshing ? (
+                <div className="dashboard-feed-skeleton" aria-label="Cargando actividad">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ) : null}
+              <div className="dashboard-activity-list dashboard-live-feed">
+                {dashboardLiveFeed.length ? (
+                  dashboardLiveFeed.map((item, index) => (
+                    <article
+                      key={item.key}
+                      className={`dashboard-activity-item dashboard-feed-item ${item.tone}`}
+                      style={{ "--feed-delay": `${Math.min(index, 5) * 45}ms` }}
+                    >
                       <span className="dashboard-activity-icon">
-                        <Icon name={actionIconName(log.action)} />
+                        <Icon name={item.icon} />
                       </span>
                       <div>
-                        <strong>{log.summary || actionLabel(log.action)}</strong>
-                        <p>{log.actor_name || log.actor_email || "Sistema"} · {formatDateTime(log.created_at)}</p>
+                        <strong>{item.title}</strong>
+                        <p>{item.detail}</p>
                       </div>
+                      <small>{formatRelativeTime(item.createdAt, dashboardNow)}</small>
                     </article>
                   ))
                 ) : (
