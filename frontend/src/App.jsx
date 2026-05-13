@@ -3799,6 +3799,17 @@ function App() {
         (total, service) => total + Number(service.barriosSinServicio || 0),
         0
       );
+      const coreServiceFields = ["agua", "alcantarillado", "barrido", "recoleccion"];
+      const barriosConTodosServicios = aguasServiceReportData.barrios.filter(
+        (barrio) =>
+          Number(barrio.total_registros || 0) > 0 &&
+          coreServiceFields.every((field) => getBarrioServiceActive(barrio, field) > 0)
+      ).length;
+      const barriosSinServicios = aguasServiceReportData.barrios.filter(
+        (barrio) =>
+          Number(barrio.total_registros || 0) > 0 &&
+          coreServiceFields.every((field) => getBarrioServiceActive(barrio, field) === 0)
+      ).length;
       const addFooter = () => {
         const pageNumber = document.getCurrentPageInfo().pageNumber;
         document.setFont("helvetica", "normal");
@@ -3852,10 +3863,41 @@ function App() {
         document.text(document.splitTextToSize(card[2], cardWidth - 6), x + 3, 67);
       });
 
+      const greenCards = [
+        [
+          "Barrios con todos los servicios",
+          formatPdfInteger(barriosConTodosServicios),
+          "Agua, alcantarillado, barrido y recoleccion con actividad en el barrio."
+        ],
+        [
+          "Barrios sin servicios",
+          formatPdfInteger(barriosSinServicios),
+          "Sin actividad registrada en agua, alcantarillado, barrido ni recoleccion."
+        ]
+      ];
+
+      greenCards.forEach((card, index) => {
+        const cardWidth = (pageWidth - 34) / 2;
+        const x = 14 + index * (cardWidth + 6);
+        document.setDrawColor(39, 145, 88);
+        document.setFillColor(232, 248, 239);
+        document.roundedRect(x, 76, cardWidth, 24, 3, 3, "FD");
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        document.setTextColor(31, 108, 67);
+        document.text(card[0], x + 4, 83);
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.text(card[1], x + 4, 91);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(7);
+        document.text(document.splitTextToSize(card[2], cardWidth - 48), x + 28, 89);
+      });
+
       document.setFont("helvetica", "bold");
       document.setFontSize(10);
       document.setTextColor(10, 65, 112);
-      document.text("Lectura general", 14, 82);
+      document.text("Lectura general", 14, 109);
       document.setFont("helvetica", "normal");
       document.setFontSize(8.5);
       document.setTextColor(22, 54, 82);
@@ -3867,14 +3909,15 @@ function App() {
           ? `Servicio con menor cobertura: ${weakestService.label} con ${formatPdfInteger(weakestService.active)} activos (${formatPdfPercent(weakestService.percentage)}).`
           : "",
         `Total de barrios de la ciudad de Choluteca en el padron: ${formatPdfInteger(totalBarrios)}.`,
+        `Barrios con todos los servicios base: ${formatPdfInteger(barriosConTodosServicios)}. Barrios sin servicios base: ${formatPdfInteger(barriosSinServicios)}.`,
         `Total general de incidencias de barrios sin servicio: ${formatPdfInteger(totalGeneralBarriosSinServicio)}.`,
         `Casos con agua sin alcantarillado: ${formatPdfInteger(waterWithoutSewer)}. Casos con alcantarillado sin agua: ${formatPdfInteger(sewerWithoutWater)}.`,
         `El desglose por barrio inicia en la pagina siguiente para mantener esta hoja como resumen de totales.`
       ].filter(Boolean);
-      insights.forEach((line, index) => document.text(`- ${line}`, 16, 89 + index * 5));
+      insights.forEach((line, index) => document.text(`- ${line}`, 16, 116 + index * 5));
 
       autoTable(document, {
-        startY: 118,
+        startY: 148,
         head: [["Servicio", "Barrios sin servicio", "Barrios con servicio", "% barrios con servicio", "Usuarios activos"]],
         body: serviceCoverageRows.map((service) => [
           service.label,
