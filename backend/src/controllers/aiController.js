@@ -1,9 +1,7 @@
-import { generateRecordAssistance, isLlmConfigured } from "../services/llmService.js";
+import { generateRecordAssistance, getLlmStatus } from "../services/llmService.js";
 
 export const getAiStatus = (_req, res) => {
-  res.json({
-    configured: isLlmConfigured()
-  });
+  res.json(getLlmStatus());
 };
 
 export const assistRecord = async (req, res, next) => {

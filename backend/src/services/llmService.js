@@ -15,6 +15,16 @@ const ACTIONS = {
     label: "texto de aviso",
     instruction:
       "Redacta dos parrafos formales para un aviso al abonado sobre regularizacion de inmueble posiblemente clandestino. Mantén tono institucional, sin inventar leyes ni montos."
+  },
+  quality: {
+    label: "revision de ficha",
+    instruction:
+      "Revisa la calidad de la ficha antes de imprimir o notificar. Devuelve una lista breve de campos faltantes, inconsistencias y acciones concretas de correccion. Maximo 90 palabras."
+  },
+  followup: {
+    label: "plan de seguimiento",
+    instruction:
+      "Propone un plan operativo breve para dar seguimiento a esta ficha. Incluye prioridad, siguiente accion de campo/oficina y evidencia a confirmar. Maximo 80 palabras."
   }
 };
 
@@ -44,7 +54,48 @@ const extractContent = (payload) => {
   return String(content).trim();
 };
 
-export const isLlmConfigured = () => Boolean(env.llmApiKey && env.llmApiBaseUrl && env.llmModel);
+const resolveLlmConfig = () => {
+  if (env.llmProvider === "cerebras" || env.cerebrasApiKey) {
+    return {
+      provider: "cerebras",
+      apiKey: env.cerebrasApiKey || env.llmApiKey,
+      baseUrl: env.cerebrasApiBaseUrl,
+      model: env.cerebrasModel
+    };
+  }
+
+  return {
+    provider: env.llmProvider || "openrouter",
+    apiKey: env.llmApiKey,
+    baseUrl: env.llmApiBaseUrl,
+    model: env.llmModel
+  };
+};
+
+const buildProviderHeaders = (config) => {
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${config.apiKey}`
+  };
+
+  if (config.provider !== "cerebras") {
+    headers["HTTP-Referer"] = env.llmSiteUrl || env.frontendUrl || "http://localhost";
+    headers["X-Title"] = env.llmAppName;
+  }
+
+  return headers;
+};
+
+export const getLlmStatus = () => {
+  const config = resolveLlmConfig();
+  return {
+    configured: Boolean(config.apiKey && config.baseUrl && config.model),
+    provider: config.provider,
+    model: config.model
+  };
+};
+
+export const isLlmConfigured = () => getLlmStatus().configured;
 
 export const generateRecordAssistance = async ({ action, record }) => {
   const config = ACTIONS[action];
@@ -55,28 +106,24 @@ export const generateRecordAssistance = async ({ action, record }) => {
   }
 
   if (!isLlmConfigured()) {
-    const error = new Error("La API de IA no esta configurada. Agrega LLM_API_KEY en el backend.");
+    const error = new Error("La API de IA no esta configurada. Agrega CEREBRAS_API_KEY o LLM_API_KEY en el backend.");
     error.status = 503;
     throw error;
   }
 
+  const llmConfig = resolveLlmConfig();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), env.llmTimeoutMs);
 
   try {
-    const response = await fetch(`${env.llmApiBaseUrl.replace(/\/+$/, "")}/chat/completions`, {
+    const response = await fetch(`${llmConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
       method: "POST",
       signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${env.llmApiKey}`,
-        "HTTP-Referer": env.llmSiteUrl || env.frontendUrl || "http://localhost",
-        "X-Title": env.llmAppName
-      },
+      headers: buildProviderHeaders(llmConfig),
       body: JSON.stringify({
-        model: env.llmModel,
+        model: llmConfig.model,
         temperature: 0.25,
-        max_tokens: action === "notice" ? 380 : 220,
+        max_tokens: action === "notice" ? 380 : action === "quality" || action === "followup" ? 260 : 220,
         messages: [
           {
             role: "system",
@@ -108,7 +155,8 @@ export const generateRecordAssistance = async ({ action, record }) => {
     return {
       action,
       label: config.label,
-      model: env.llmModel,
+      provider: llmConfig.provider,
+      model: llmConfig.model,
       text
     };
   } catch (error) {

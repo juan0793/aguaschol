@@ -6647,7 +6647,12 @@ function App() {
       }
 
       setAiSuggestion(data);
-      showAlert(action === "notice" ? "Texto de aviso generado con IA." : "Resumen generado con IA.");
+      const aiMessages = {
+        notice: "Texto de aviso generado con IA.",
+        quality: "Revision de ficha generada con IA.",
+        followup: "Plan de seguimiento generado con IA."
+      };
+      showAlert(aiMessages[action] || "Resumen generado con IA.");
     } catch (error) {
       showAlert(error.message || "No fue posible usar la API de IA.");
     } finally {
@@ -10195,6 +10200,22 @@ function App() {
                 disabled={Boolean(aiLoadingAction)}
               >
                 {aiLoadingAction === "notice" ? "IA generando..." : "IA aviso"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => requestRecordAiAssistance("quality")}
+                disabled={Boolean(aiLoadingAction)}
+              >
+                {aiLoadingAction === "quality" ? "IA revisando..." : "IA revisar"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => requestRecordAiAssistance("followup")}
+                disabled={Boolean(aiLoadingAction)}
+              >
+                {aiLoadingAction === "followup" ? "IA preparando..." : "IA seguimiento"}
               </Button>
             </div>
             {aiSuggestion ? (

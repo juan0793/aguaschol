@@ -148,9 +148,13 @@ USE_MEMORY_DB=true
 
 ### IA opcional para fichas
 
-El modulo de fichas puede usar una API compatible con OpenAI/OpenRouter para generar comentario tecnico, resumen ejecutivo y texto base de aviso. La clave queda solo en el backend.
+El modulo de fichas puede usar Cerebras u otra API compatible con OpenAI para generar comentario tecnico, resumen ejecutivo, texto base de aviso, revision de calidad de ficha y plan de seguimiento. La clave queda solo en el backend.
 
 ```env
+LLM_PROVIDER=cerebras
+CEREBRAS_API_KEY=
+CEREBRAS_API_BASE_URL=https://api.cerebras.ai/v1
+CEREBRAS_MODEL=gpt-oss-120b
 LLM_API_KEY=
 LLM_API_BASE_URL=https://openrouter.ai/api/v1
 LLM_MODEL=openai/gpt-oss-20b:free
@@ -159,7 +163,7 @@ LLM_SITE_URL=http://localhost:5173
 LLM_TIMEOUT_MS=25000
 ```
 
-Si `LLM_API_KEY` queda vacia, la app sigue funcionando normal y solo muestra el aviso de configuracion cuando se intenta usar IA.
+Si `CEREBRAS_API_KEY` y `LLM_API_KEY` quedan vacias, la app sigue funcionando normal y solo muestra el aviso de configuracion cuando se intenta usar IA. Para volver a OpenRouter, usa `LLM_PROVIDER=openrouter` y configura `LLM_API_KEY`.
 
 ### 2. Backend
 
@@ -198,6 +202,10 @@ EMAIL_FROM=
 EMAIL_FROM_NAME=Aguas de Choluteca
 EMAIL_API_KEY=
 EMAIL_SANDBOX=true
+LLM_PROVIDER=cerebras
+CEREBRAS_API_KEY=
+CEREBRAS_API_BASE_URL=https://api.cerebras.ai/v1
+CEREBRAS_MODEL=gpt-oss-120b
 LLM_API_KEY=
 LLM_API_BASE_URL=https://openrouter.ai/api/v1
 LLM_MODEL=openai/gpt-oss-20b:free
