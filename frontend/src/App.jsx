@@ -2134,8 +2134,11 @@ function App() {
         record,
         statusKey: meta?.statusKey || "warning",
         status: isOverdue ? "Vencida" : isDue ? "Vence hoy" : "Atencion",
-        detail: meta?.label || "Requiere seguimiento por plazo operativo.",
-        actionLabel: isOverdue || isDue ? "Imprimir" : "Ver ficha"
+        detail: isOverdue
+          ? "Plazo operativo de 7 dias habiles superado."
+          : isDue
+            ? "Requiere revision durante la jornada de hoy."
+            : "Requiere seguimiento por plazo operativo."
       };
     });
 
@@ -9819,16 +9822,11 @@ function App() {
               </div>
               <div className="dashboard-alerts-list">
                 {filteredDashboardAlertRecords.length ? (
-                  filteredDashboardAlertRecords.map(({ record, statusKey, detail, status, actionLabel }) => {
+                  filteredDashboardAlertRecords.map(({ record, statusKey, detail, status }) => {
                     return (
-                      <button
+                      <article
                         key={`${record.id}-${statusKey}`}
-                        type="button"
                         className={`dashboard-alert-item ${statusKey || "warning"}`}
-                        onClick={() => {
-                          handleSelectRecord(record);
-                          setWorkspaceView("records");
-                        }}
                       >
                         <span className="dashboard-alert-icon">
                           <Icon name={statusKey === "no-photo" ? "records" : "warning"} />
@@ -9838,8 +9836,26 @@ function App() {
                           <p>{detail}</p>
                           <span>{status}</span>
                         </div>
-                        <span className="dashboard-alert-print">{actionLabel}</span>
-                      </button>
+                        <div className="dashboard-alert-actions">
+                          <button
+                            type="button"
+                            className="dashboard-alert-action"
+                            onClick={() => {
+                              handleSelectRecord(record);
+                              setWorkspaceView("records");
+                            }}
+                          >
+                            Ver ficha
+                          </button>
+                          <button
+                            type="button"
+                            className="dashboard-alert-action is-print"
+                            onClick={() => openPrintBatchModalForRecords([record], "ficha")}
+                          >
+                            Imprimir
+                          </button>
+                        </div>
+                      </article>
                     );
                   })
                 ) : (
