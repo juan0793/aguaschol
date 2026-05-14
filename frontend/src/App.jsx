@@ -158,6 +158,52 @@ const formatRelativeTime = (value, now = Date.now()) => {
   return `hace ${days} dias`;
 };
 
+const formatDashboardSyncDate = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (!Number.isFinite(date.getTime())) return "sin sincronizacion";
+
+  return new Intl.DateTimeFormat("es-HN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+};
+
+const getRecordPhotoPath = (record) =>
+  record?.foto_path || record?.foto_url || record?.fotografia || record?.photo_path || "";
+
+const humanizeDashboardActivity = (log) => {
+  const actor = log?.actor_name || log?.actor_email || "Sistema";
+  const summary = String(log?.summary || "").trim();
+  const entityId = log?.entity_id ? String(log.entity_id) : "";
+
+  if (log?.action === "map_point.created") {
+    return `${actor} agrego un punto de campo al mapa`;
+  }
+  if (log?.action === "inmueble.created") {
+    return `${actor} creo la ficha ${entityId || summary.replace(/^Ficha\s+/i, "") || "reciente"}`;
+  }
+  if (log?.action === "inmueble.updated") {
+    return `${actor} actualizo la ficha ${entityId || summary.replace(/^Ficha\s+/i, "") || "reciente"}`;
+  }
+  if (log?.action === "inmueble.photo_attached") {
+    return `${actor} adjunto fotografia a ${entityId || "una ficha"}`;
+  }
+  if (log?.action === "auth.login") {
+    return `${actor} inicio sesion en el sistema`;
+  }
+  if (log?.action === "auth.logout") {
+    return `${actor} cerro sesion`;
+  }
+  if (log?.action === "transport.route_alert") {
+    return summary || `Se genero una alerta operativa`;
+  }
+
+  return summary || `${actor} registro actividad operativa`;
+};
+
 const EXECUTIVE_REPORT_CREDIT =
   "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramón Ordóñez Bonilla, con seguimiento directo del trabajo realizado en campo.";
 
@@ -314,6 +360,8 @@ function App() {
   const [dashboardNow, setDashboardNow] = useState(() => Date.now());
   const [dashboardLastUpdatedAt, setDashboardLastUpdatedAt] = useState(() => Date.now());
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
+  const [dashboardConnectionStatus, setDashboardConnectionStatus] = useState("synced");
+  const [dashboardAlertFilter, setDashboardAlertFilter] = useState("all");
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
   const [lookupSearchMode, setLookupSearchMode] = useState("clave");
   const [lookupQuery, setLookupQuery] = useState("");
@@ -1739,36 +1787,70 @@ function App() {
         label: "Fichas activas",
         value: safeRecords.length,
         helper: `${recordsUpdatedToday} movimientos hoy`,
-        icon: "records"
+        icon: "records",
+        badge: "En vivo",
+        detail: `Registros actualmente en operacion`,
+        trend: recordsUpdatedToday ? `+${recordsUpdatedToday} hoy` : "Sin cambios hoy",
+        progressLabel: `${safeRecords.length} visibles`,
+        progress: safeRecords.length ? Math.min(100, Math.max(12, Math.round((safeRecords.length / Math.max(safeRecords.length, padronMeta?.total_records || safeRecords.length)) * 100))) : 0,
+        tone: "is-info",
+        sparkline: [36, 44, 42, 52, 48, 58, 64]
       },
       {
         key: "gps",
         label: "Puntos GPS",
         value: safeMapPoints.length,
         helper: `${mapPointsToday} puntos registrados hoy`,
-        icon: "map"
+        icon: "map",
+        badge: "Hoy",
+        detail: "Levantamiento de campo acumulado",
+        trend: mapPointsToday ? `Ultimo movimiento ${formatRelativeTime(safeMapPoints[0]?.created_at || safeMapPoints[0]?.updated_at, dashboardNow)}` : "Sin puntos hoy",
+        progressLabel: `${mapPointsToday} puntos de la jornada`,
+        progress: Math.min(100, Math.max(mapPointsToday ? 14 : 0, Math.round((mapPointsToday / Math.max(1, mapPointsToday, 50)) * 100))),
+        tone: "is-map",
+        sparkline: [18, 28, 34, 36, 48, 55, 62]
       },
       {
         key: "online",
         label: "Usuarios en linea",
         value: onlineUsers.length,
         helper: `${safeUsers.length} usuarios registrados`,
-        icon: "users"
+        icon: "users",
+        badge: onlineUsers.length ? "En vivo" : "Normal",
+        detail: "Actividad simultanea del equipo",
+        trend: onlineUsers.length ? "Jornada activa" : "Sin sesiones activas",
+        progressLabel: `${onlineUsers.length}/${Math.max(safeUsers.length, 1)} usuarios`,
+        progress: Math.min(100, Math.round((onlineUsers.length / Math.max(safeUsers.length, 1)) * 100)),
+        tone: "is-live",
+        sparkline: [20, 24, 30, 28, 35, 38, 42]
       },
       {
         key: "alerts",
         label: "Alertas",
         value: alertRecords.length,
         helper: alertRecords.length ? "Pendientes con plazo critico" : "Sin alertas pendientes",
-        icon: alertRecords.length ? "warning" : "success"
+        icon: alertRecords.length ? "warning" : "success",
+        badge: alertRecords.length ? "Critico" : "Normal",
+        detail: "Fichas vencidas o proximas",
+        trend: `${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length} vencidas / ${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "due").length} vencen hoy`,
+        progressLabel: "Vencidas y por vencer",
+        progress: alertRecords.length
+          ? Math.round((alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length / alertRecords.length) * 100)
+          : 0,
+        tone: alertRecords.length ? "is-critical" : "is-calm",
+        sparkline: alertRecords.length ? [70, 68, 64, 66, 62, 59, 54] : [10, 10, 8, 8, 7, 7, 6]
       }
     ],
     [
       alertRecords.length,
+      dashboardNow,
       mapPointsToday,
       onlineUsers.length,
+      padronMeta?.total_records,
+      recordDeadlineMetaById,
       recordsUpdatedToday,
       safeMapPoints.length,
+      safeMapPoints,
       safeRecords.length,
       safeUsers.length
     ]
@@ -1799,7 +1881,8 @@ function App() {
       pushFeedItem({
         key: `audit-${log.id}`,
         title: actionTitle,
-        detail: log.summary || log.actor_name || log.actor_email || "Movimiento registrado",
+        detail: humanizeDashboardActivity(log),
+        user: log.actor_name || log.actor_email || "Sistema",
         icon: actionIconName(log.action),
         tone: log.action?.includes("alert") ? "is-warning" : "is-info",
         createdAt: log.created_at
@@ -1809,8 +1892,9 @@ function App() {
     safeMapPoints.slice(0, 6).forEach((point) => {
       pushFeedItem({
         key: `point-${point.id}`,
-        title: "Nuevo punto GPS registrado",
-        detail: `${getMapPointTypeLabel(point.point_type)} - ${deriveMapPointZone(point) || "Zona pendiente"}`,
+        title: "GPS registrado",
+        detail: `Se agrego ${getMapPointTypeLabel(point.point_type).toLowerCase()} en ${deriveMapPointZone(point) || "zona pendiente"}`,
+        user: point.created_by_name || point.created_by || "Equipo de campo",
         icon: "map",
         tone: "is-map",
         createdAt: point.created_at || point.updated_at
@@ -1821,7 +1905,8 @@ function App() {
       pushFeedItem({
         key: `record-${record.id}`,
         title: "Ficha creada",
-        detail: `${record.clave_catastral || "Sin clave"} - ${record.barrio_colonia || "Sin barrio"}`,
+        detail: `${record.clave_catastral || "Sin clave"} en ${record.barrio_colonia || "ubicacion pendiente"}`,
+        user: record.levantamiento_datos || "Equipo operativo",
         icon: "records",
         tone: "is-record",
         createdAt: record.created_at
@@ -1833,7 +1918,8 @@ function App() {
       pushFeedItem({
         key: `alert-${record.id}-${meta?.statusKey || "warning"}`,
         title: meta?.statusKey === "overdue" ? "Alerta generada" : "Ficha lista para imprimir",
-        detail: `${record.clave_catastral || "Sin clave"} - ${meta?.label || "Requiere atencion"}`,
+        detail: `La ficha ${record.clave_catastral || "sin clave"} ${meta?.statusKey === "overdue" ? "vencio su plazo" : "requiere seguimiento"}`,
+        user: record.analista_datos || "Sistema",
         icon: meta?.statusKey === "overdue" ? "warning" : "records",
         tone: meta?.statusKey === "overdue" ? "is-warning" : "is-ready",
         createdAt: record.updated_at || record.created_at
@@ -1889,8 +1975,8 @@ function App() {
       { key: "lookup", label: "Buscar clave", helper: "Consulta rápida de padrón", icon: "search" },
       { key: "map", label: "Mapa de campo", helper: "Levantamiento GPS", icon: "map" },
       { key: "executiveReport", label: "Reportes", helper: "Vista ejecutiva y estadísticas", icon: "dashboard" },
-      { key: "padron", label: "Padrón", helper: "Gestión del maestro", icon: "refresh" },
-      { key: "users", label: "Usuarios", helper: "Accesos y roles", icon: "users" }
+      { key: "printAlerts", label: "Imprimir alertas", helper: "Lote de fichas criticas", icon: "records" },
+      { key: "logs", label: "Bitácora", helper: "Actividad del sistema", icon: "logs" }
     ],
     []
   );
@@ -1904,7 +1990,9 @@ function App() {
         detail: "Actualiza o valida el padrón maestro para consultas y peticiones confiables.",
         icon: "refresh",
         actionView: "padron",
-        actionLabel: "Revisar padrón"
+        actionLabel: "Revisar padrón",
+        level: "Atención",
+        badge: "Pendiente"
       });
     }
 
@@ -1915,7 +2003,9 @@ function App() {
         detail: `${alertRecords.length} fichas están en alerta o vencidas por regla de 7 días hábiles.`,
         icon: "warning",
         actionView: "records",
-        actionLabel: "Ver alertas"
+        actionLabel: "Ver alertas",
+        level: "Crítico",
+        badge: "Crítico"
       });
     }
 
@@ -1926,7 +2016,9 @@ function App() {
         detail: `${pendingPhotoRecords} fichas visibles aún no tienen evidencia fotográfica asociada.`,
         icon: "records",
         actionView: "records",
-        actionLabel: "Completar fichas"
+        actionLabel: "Completar fichas",
+        level: "Atención",
+        badge: "Pendiente"
       });
     }
 
@@ -1937,7 +2029,9 @@ function App() {
         detail: `${onlineUsers.length} usuarios conectados al mismo tiempo. Conviene vigilar actividad y jornadas de campo.`,
         icon: "users",
         actionView: "logs",
-        actionLabel: "Ver actividad"
+        actionLabel: "Ver actividad",
+        level: "Informativo",
+        badge: "En vivo"
       });
     }
 
@@ -1948,7 +2042,9 @@ function App() {
         detail: `${formatMapDiaryLabel(dashboardJourneys[0].key)} registra ${dashboardJourneys[0].total} puntos listos para revisar.`,
         icon: "map",
         actionView: "mapReports",
-        actionLabel: "Abrir reportes"
+        actionLabel: "Abrir reportes",
+        level: "Informativo",
+        badge: "En vivo"
       });
     }
 
@@ -1959,12 +2055,66 @@ function App() {
         detail: "El tablero está listo para arrancar captura, consulta o control administrativo.",
         icon: "success",
         actionView: "records",
-        actionLabel: "Ir a fichas"
+        actionLabel: "Ir a fichas",
+        level: "Informativo",
+        badge: "Normal"
       });
     }
 
     return items.slice(0, 3);
   }, [alertRecords.length, dashboardJourneys, onlineUsers.length, padronMeta?.total_records, pendingPhotoRecords]);
+  const dashboardAlertRecords = useMemo(() => {
+    const recordsWithoutPhoto = safeRecords
+      .filter((record) => !getRecordPhotoPath(record))
+      .map((record) => ({
+        record,
+        statusKey: "no-photo",
+        status: "Sin foto",
+        detail: "Pendiente de evidencia fotografica para cerrar la ficha.",
+        actionLabel: "Ver ficha"
+      }));
+    const deadlineAlerts = alertRecords.map((record) => {
+      const meta = recordDeadlineMetaById[record.id];
+      const isOverdue = meta?.statusKey === "overdue";
+      const isDue = meta?.statusKey === "due";
+      return {
+        record,
+        statusKey: meta?.statusKey || "warning",
+        status: isOverdue ? "Vencida" : isDue ? "Vence hoy" : "Atencion",
+        detail: meta?.label || "Requiere seguimiento por plazo operativo.",
+        actionLabel: isOverdue || isDue ? "Imprimir" : "Ver ficha"
+      };
+    });
+
+    return [...deadlineAlerts, ...recordsWithoutPhoto]
+      .filter((item, index, list) => list.findIndex((other) => other.record.id === item.record.id && other.statusKey === item.statusKey) === index)
+      .slice(0, 24);
+  }, [alertRecords, recordDeadlineMetaById, safeRecords]);
+  const dashboardAlertCounts = useMemo(() => {
+    const overdue = dashboardAlertRecords.filter((item) => item.statusKey === "overdue").length;
+    const due = dashboardAlertRecords.filter((item) => item.statusKey === "due").length;
+    const noPhoto = dashboardAlertRecords.filter((item) => item.statusKey === "no-photo").length;
+    const printable = dashboardAlertRecords.filter((item) => ["overdue", "due", "warning"].includes(item.statusKey)).length;
+
+    return {
+      all: dashboardAlertRecords.length,
+      critical: overdue,
+      today: due,
+      noPhoto,
+      printable
+    };
+  }, [dashboardAlertRecords]);
+  const filteredDashboardAlertRecords = useMemo(
+    () =>
+      dashboardAlertRecords.filter((item) => {
+        if (dashboardAlertFilter === "critical") return item.statusKey === "overdue";
+        if (dashboardAlertFilter === "today") return item.statusKey === "due";
+        if (dashboardAlertFilter === "no-photo") return item.statusKey === "no-photo";
+        if (dashboardAlertFilter === "printable") return ["overdue", "due", "warning"].includes(item.statusKey);
+        return true;
+      }),
+    [dashboardAlertFilter, dashboardAlertRecords]
+  );
   const dashboardLookupItems = useMemo(() => lookupHistory.slice(0, 5), [lookupHistory]);
   const currentSectionIndex = useMemo(
     () => Math.max(0, sectionDefinitions.findIndex((section) => section.key === activeSection)),
@@ -3218,6 +3368,7 @@ function App() {
     const refreshDashboard = async () => {
       if (document.visibilityState !== "visible") return;
       setDashboardRefreshing(true);
+      setDashboardConnectionStatus("updating");
       try {
         await Promise.all([
           loadRecords("", "active", { silent: true }),
@@ -3226,6 +3377,9 @@ function App() {
           loadAuditLogs({ silent: true })
         ]);
         setDashboardLastUpdatedAt(Date.now());
+        setDashboardConnectionStatus("synced");
+      } catch {
+        setDashboardConnectionStatus("retrying");
       } finally {
         setDashboardRefreshing(false);
       }
@@ -9363,18 +9517,22 @@ function App() {
         <section className="dashboard-main">
           <section className="dashboard-live-header">
             <div>
-              <span className="dashboard-live-pill"><span />En vivo</span>
+              <span className={`dashboard-live-pill ${dashboardConnectionStatus === "retrying" ? "is-retrying" : dashboardConnectionStatus === "updating" ? "is-updating" : ""}`}>
+                <span />
+                {dashboardConnectionStatus === "retrying" ? "Reintentando" : dashboardConnectionStatus === "updating" ? "Actualizando" : "En vivo"}
+              </span>
               <strong>Tablero de mando</strong>
+              <small>Ultima sincronizacion: {formatDashboardSyncDate(dashboardLastUpdatedAt)}</small>
               <small>Actualizado {formatRelativeTime(dashboardLastUpdatedAt, dashboardNow)}</small>
             </div>
-            {dashboardRefreshing ? (
-              <div className="dashboard-refresh-skeleton" aria-label="Actualizando tablero">
-                <span />
-                <span />
-              </div>
-            ) : (
-              <span className="dashboard-refresh-status">Sincronizado</span>
-            )}
+            <span className={`dashboard-refresh-status is-${dashboardConnectionStatus}`}>
+              {dashboardRefreshing ? <i className="dashboard-spinner" /> : null}
+              {dashboardConnectionStatus === "retrying"
+                ? "Estado: Sin conexion"
+                : dashboardConnectionStatus === "updating"
+                  ? "Estado: Actualizando..."
+                  : "Estado: Sincronizado"}
+            </span>
           </section>
 
           <section className="dashboard-topline">
@@ -9383,6 +9541,7 @@ function App() {
                 <div>
                   <p className="sheet-kicker">Prioridad operativa</p>
                   <h2><Icon name="warning" className="title-icon" />Pendientes para atender</h2>
+                  <p className="dashboard-panel-summary">{dashboardPriorityItems.length} asuntos requieren atencion inmediata</p>
                 </div>
                 <button
                   type="button"
@@ -9406,28 +9565,47 @@ function App() {
                   >
                     <span className="dashboard-priority-icon"><Icon name={item.icon} /></span>
                     <span>
+                      <small className="dashboard-priority-level">{item.level || "Informativo"}</small>
                       <strong>{item.title}</strong>
                       <small>{item.detail}</small>
                     </span>
-                    <em>{item.actionLabel}</em>
+                    <span className="dashboard-priority-actions">
+                      <b>{item.badge || "Ver"}</b>
+                      <em>{item.actionLabel}</em>
+                    </span>
                   </button>
                 ))}
               </div>
             </article>
 
             <article className="dashboard-start-panel">
-              <p className="sheet-kicker">Accesos clave</p>
+              <div className="dashboard-panel-head">
+                <div>
+                  <p className="sheet-kicker">Accesos clave</p>
+                  <h2><Icon name="activity" className="title-icon" />Acciones frecuentes</h2>
+                  <p className="dashboard-panel-summary">Acciones frecuentes del operador</p>
+                </div>
+              </div>
               <div className="dashboard-start-actions">
-                {dashboardQuickActions.slice(0, 4).map((action) => (
+                {dashboardQuickActions.map((action) => (
                   <button
                     key={action.key}
                     type="button"
                     className="dashboard-start-action"
-                    onClick={() => setWorkspaceView(action.key)}
+                    onClick={() => {
+                      if (action.key === "printAlerts") {
+                        openPrintBatchModalForRecords(alertRecords, "ficha");
+                        return;
+                      }
+                      setWorkspaceView(action.key);
+                    }}
                   >
                     <span><Icon name={action.icon} /></span>
-                    <strong>{action.label}</strong>
-                    <small>{action.helper}</small>
+                    <span className="dashboard-start-copy">
+                      <strong>{action.label}</strong>
+                      <small>{action.helper}</small>
+                    </span>
+                    <Icon name="arrowRight" className="dashboard-start-arrow" />
                   </button>
                 ))}
               </div>
@@ -9439,11 +9617,22 @@ function App() {
               <article key={metric.key} className={`dashboard-metric-card ${dashboardRefreshing ? "is-refreshing" : ""}`}>
                 <div className="dashboard-metric-head">
                   <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
-                  <span className="dashboard-metric-trend">{dashboardRefreshing ? "Actualizando" : "En vivo"}</span>
+                  <span className="dashboard-metric-trend">{dashboardRefreshing ? "Actualizando" : metric.badge}</span>
                 </div>
                 <strong key={`${metric.key}-${metric.value}`} className="dashboard-metric-value">{metric.value}</strong>
                 <span>{metric.label}</span>
-                <small>{metric.helper}</small>
+                <small>{metric.detail || metric.helper}</small>
+                <div className="dashboard-mini-progress" aria-label={metric.progressLabel}>
+                  <span style={{ width: `${Math.max(0, Math.min(100, metric.progress || 0))}%` }} />
+                </div>
+                <div className="dashboard-metric-foot">
+                  <em>{metric.trend}</em>
+                  <svg viewBox="0 0 84 28" role="img" aria-label="Tendencia miniatura">
+                    <polyline
+                      points={(metric.sparkline || []).map((value, index, list) => `${(index / Math.max(list.length - 1, 1)) * 84},${28 - (Math.max(0, Math.min(100, value)) / 100) * 24}`).join(" ")}
+                    />
+                  </svg>
+                </div>
               </article>
             ))}
           </section>
@@ -9454,6 +9643,7 @@ function App() {
                 <div>
                   <p className="sheet-kicker">Actividad reciente</p>
                   <h2><Icon name="activity" className="title-icon" />Pulso operativo</h2>
+                  <p className="dashboard-panel-summary">Eventos recientes traducidos a seguimiento humano</p>
                 </div>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
                   <Icon name="logs" />
@@ -9485,6 +9675,7 @@ function App() {
                       <div>
                         <strong>{item.title}</strong>
                         <p>{item.detail}</p>
+                        <span>{item.user || "Sistema"}</span>
                       </div>
                       <small>{formatRelativeTime(item.createdAt, dashboardNow)}</small>
                     </article>
@@ -9503,6 +9694,7 @@ function App() {
                 <div>
                   <p className="sheet-kicker">Alertas y pendientes</p>
                   <h2><Icon name="warning" className="title-icon" />En alerta, listas para imprimir</h2>
+                  <p className="dashboard-panel-summary">Vencidas, sin foto y preparadas para impresion</p>
                 </div>
                 {alertRecords.length ? (
                   <button type="button" className="button-secondary" onClick={() => openPrintBatchModalForRecords(alertRecords, "ficha")}>
@@ -9514,42 +9706,58 @@ function App() {
               <div className="dashboard-alert-summary">
                 <div>
                   <span>Total</span>
-                  <strong>{alertRecords.length}</strong>
+                  <strong>{dashboardAlertCounts.all}</strong>
                 </div>
                 <div>
                   <span>Vencidas</span>
-                  <strong>{alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length}</strong>
+                  <strong>{dashboardAlertCounts.critical}</strong>
                 </div>
                 <div>
                   <span>Sin foto</span>
-                  <strong>{pendingPhotoRecords}</strong>
+                  <strong>{dashboardAlertCounts.noPhoto}</strong>
                 </div>
               </div>
+              <div className="dashboard-alert-filters" aria-label="Filtros de alertas operativas">
+                {[
+                  { key: "all", label: "Todas", count: dashboardAlertCounts.all },
+                  { key: "critical", label: "Criticas", count: dashboardAlertCounts.critical },
+                  { key: "today", label: "Hoy", count: dashboardAlertCounts.today },
+                  { key: "no-photo", label: "Sin foto", count: dashboardAlertCounts.noPhoto },
+                  { key: "printable", label: "Para imprimir", count: dashboardAlertCounts.printable }
+                ].map((filter) => (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    className={dashboardAlertFilter === filter.key ? "is-active" : ""}
+                    onClick={() => setDashboardAlertFilter(filter.key)}
+                  >
+                    {filter.label}
+                    <span>{filter.count}</span>
+                  </button>
+                ))}
+              </div>
               <div className="dashboard-alerts-list">
-                {alertRecords.length ? (
-                  alertRecords.map((record) => {
-                    const meta = recordDeadlineMetaById[record.id];
+                {filteredDashboardAlertRecords.length ? (
+                  filteredDashboardAlertRecords.map(({ record, statusKey, detail, status, actionLabel }) => {
                     return (
                       <button
-                        key={record.id}
+                        key={`${record.id}-${statusKey}`}
                         type="button"
-                        className={`dashboard-alert-item ${meta?.statusKey || "warning"}`}
+                        className={`dashboard-alert-item ${statusKey || "warning"}`}
                         onClick={() => {
                           handleSelectRecord(record);
                           setWorkspaceView("records");
                         }}
                       >
                         <span className="dashboard-alert-icon">
-                          <Icon name={meta?.statusKey === "overdue" ? "danger" : "warning"} />
+                          <Icon name={statusKey === "no-photo" ? "records" : "warning"} />
                         </span>
                         <div>
                           <strong>{record.clave_catastral || "Sin clave"}</strong>
-                          <p>{meta?.label || "Requiere atención"} · lista para imprimir ficha</p>
+                          <p>{detail}</p>
+                          <span>{status}</span>
                         </div>
-                        <span className="dashboard-alert-print">
-                          <Icon name="records" />
-                          Abrir ficha
-                        </span>
+                        <span className="dashboard-alert-print">{actionLabel}</span>
                       </button>
                     );
                   })
