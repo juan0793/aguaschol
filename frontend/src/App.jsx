@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import RecordsWorkspace from "./components/records/RecordsWorkspace";
@@ -156,6 +156,35 @@ const formatRelativeTime = (value, now = Date.now()) => {
   const days = Math.floor(hours / 24);
   if (days === 1) return "hace 1 dia";
   return `hace ${days} dias`;
+};
+
+const formatCompactRelativeTime = (value, now = Date.now()) => {
+  const date = value ? new Date(value) : null;
+  const timestamp = date?.getTime();
+  if (!Number.isFinite(timestamp)) return "hace segundos";
+
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+  if (seconds < 60) return "hace segundos";
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+
+  const days = Math.floor(hours / 24);
+  return `hace ${days} d`;
+};
+
+const formatDashboardSyncRelativeTime = (value, now = Date.now()) => {
+  const date = value ? new Date(value) : null;
+  const timestamp = date?.getTime();
+  if (!Number.isFinite(timestamp)) return "hace segundos";
+
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+  if (seconds < 60) return `hace ${seconds || 1} segundos`;
+
+  return formatRelativeTime(value, now);
 };
 
 const formatDashboardSyncDate = (value) => {
@@ -362,6 +391,8 @@ function App() {
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [dashboardConnectionStatus, setDashboardConnectionStatus] = useState("synced");
   const [dashboardAlertFilter, setDashboardAlertFilter] = useState("all");
+  const [changedDashboardMetricKeys, setChangedDashboardMetricKeys] = useState([]);
+  const dashboardMetricValuesRef = useRef({});
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
   const [lookupSearchMode, setLookupSearchMode] = useState("clave");
   const [lookupQuery, setLookupQuery] = useState("");
@@ -1791,6 +1822,7 @@ function App() {
         badge: "En vivo",
         detail: `Registros actualmente en operacion`,
         trend: recordsUpdatedToday ? `+${recordsUpdatedToday} hoy` : "Sin cambios hoy",
+        micro: `${recordsUpdatedToday} creadas o actualizadas hoy`,
         progressLabel: `${safeRecords.length} visibles`,
         progress: safeRecords.length ? Math.min(100, Math.max(12, Math.round((safeRecords.length / Math.max(safeRecords.length, padronMeta?.total_records || safeRecords.length)) * 100))) : 0,
         tone: "is-info",
@@ -1805,6 +1837,7 @@ function App() {
         badge: "Hoy",
         detail: "Levantamiento de campo acumulado",
         trend: mapPointsToday ? `Ultimo movimiento ${formatRelativeTime(safeMapPoints[0]?.created_at || safeMapPoints[0]?.updated_at, dashboardNow)}` : "Sin puntos hoy",
+        micro: `${mapPointsToday} puntos registrados hoy`,
         progressLabel: `${mapPointsToday} puntos de la jornada`,
         progress: Math.min(100, Math.max(mapPointsToday ? 14 : 0, Math.round((mapPointsToday / Math.max(1, mapPointsToday, 50)) * 100))),
         tone: "is-map",
@@ -1819,6 +1852,7 @@ function App() {
         badge: onlineUsers.length ? "En vivo" : "Normal",
         detail: "Actividad simultanea del equipo",
         trend: onlineUsers.length ? "Jornada activa" : "Sin sesiones activas",
+        micro: `${onlineUsers.length} conectados ahora`,
         progressLabel: `${onlineUsers.length}/${Math.max(safeUsers.length, 1)} usuarios`,
         progress: Math.min(100, Math.round((onlineUsers.length / Math.max(safeUsers.length, 1)) * 100)),
         tone: "is-live",
@@ -1833,6 +1867,7 @@ function App() {
         badge: alertRecords.length ? "Critico" : "Normal",
         detail: "Fichas vencidas o proximas",
         trend: `${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length} vencidas / ${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "due").length} vencen hoy`,
+        micro: `${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length} vencidas o criticas`,
         progressLabel: "Vencidas y por vencer",
         progress: alertRecords.length
           ? Math.round((alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length / alertRecords.length) * 100)
@@ -1856,6 +1891,24 @@ function App() {
     ]
   );
   const dashboardActivity = useMemo(() => safeAuditLogs.slice(0, 5), [safeAuditLogs]);
+  useEffect(() => {
+    const previousValues = dashboardMetricValuesRef.current;
+    const nextValues = Object.fromEntries(dashboardLiveMetrics.map((metric) => [metric.key, metric.value]));
+    const changedKeys = dashboardLiveMetrics
+      .filter((metric) => Object.prototype.hasOwnProperty.call(previousValues, metric.key) && previousValues[metric.key] !== metric.value)
+      .map((metric) => metric.key);
+
+    dashboardMetricValuesRef.current = nextValues;
+    if (!changedKeys.length) return undefined;
+
+    setChangedDashboardMetricKeys(changedKeys);
+    const timeoutId = window.setTimeout(() => {
+      setChangedDashboardMetricKeys((current) => current.filter((key) => !changedKeys.includes(key)));
+    }, 900);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [dashboardLiveMetrics]);
+
   const dashboardLiveFeed = useMemo(() => {
     const feed = [];
     const pushFeedItem = (item) => {
@@ -3264,6 +3317,31 @@ function App() {
     }
   };
 
+  const refreshDashboard = useCallback(
+    async ({ force = false } = {}) => {
+      if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") return;
+      if (!force && document.visibilityState !== "visible") return;
+
+      setDashboardRefreshing(true);
+      setDashboardConnectionStatus("updating");
+      try {
+        await Promise.all([
+          loadRecords("", "active", { silent: true }),
+          loadMapPoints({ silent: true }),
+          loadUsers({ silent: true }),
+          loadAuditLogs({ silent: true })
+        ]);
+        setDashboardLastUpdatedAt(Date.now());
+        setDashboardConnectionStatus("synced");
+      } catch {
+        setDashboardConnectionStatus("retrying");
+      } finally {
+        setDashboardRefreshing(false);
+      }
+    },
+    [isAuthenticated, isAdmin, workspaceView]
+  );
+
   const loadRecordHistory = async (recordId) => {
     if (!isAuthenticated || !recordId) {
       setRecordHistory([]);
@@ -3365,26 +3443,6 @@ function App() {
       return undefined;
     }
 
-    const refreshDashboard = async () => {
-      if (document.visibilityState !== "visible") return;
-      setDashboardRefreshing(true);
-      setDashboardConnectionStatus("updating");
-      try {
-        await Promise.all([
-          loadRecords("", "active", { silent: true }),
-          loadMapPoints({ silent: true }),
-          loadUsers({ silent: true }),
-          loadAuditLogs({ silent: true })
-        ]);
-        setDashboardLastUpdatedAt(Date.now());
-        setDashboardConnectionStatus("synced");
-      } catch {
-        setDashboardConnectionStatus("retrying");
-      } finally {
-        setDashboardRefreshing(false);
-      }
-    };
-
     refreshDashboard();
     loadPadronMeta({ silent: true });
     loadAlcaldiaMeta({ silent: true });
@@ -3398,7 +3456,7 @@ function App() {
       document.removeEventListener("visibilitychange", refreshDashboard);
       window.removeEventListener("focus", refreshDashboard);
     };
-  }, [isAuthenticated, isAdmin, workspaceView]);
+  }, [isAuthenticated, isAdmin, refreshDashboard, workspaceView]);
 
   useEffect(() => {
     if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
@@ -9515,24 +9573,38 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
-          <section className="dashboard-live-header">
+          <section className={`dashboard-live-header is-${dashboardConnectionStatus}`}>
             <div>
-              <span className={`dashboard-live-pill ${dashboardConnectionStatus === "retrying" ? "is-retrying" : dashboardConnectionStatus === "updating" ? "is-updating" : ""}`}>
-                <span />
-                {dashboardConnectionStatus === "retrying" ? "Reintentando" : dashboardConnectionStatus === "updating" ? "Actualizando" : "En vivo"}
-              </span>
+              <span className="dashboard-live-pill"><span />En vivo</span>
               <strong>Tablero de mando</strong>
               <small>Ultima sincronizacion: {formatDashboardSyncDate(dashboardLastUpdatedAt)}</small>
-              <small>Actualizado {formatRelativeTime(dashboardLastUpdatedAt, dashboardNow)}</small>
+              <small>
+                {dashboardConnectionStatus === "retrying"
+                  ? "Reintentando conexion..."
+                  : dashboardRefreshing
+                    ? "Actualizando datos..."
+                    : `Sincronizado · ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`}
+              </small>
             </div>
-            <span className={`dashboard-refresh-status is-${dashboardConnectionStatus}`}>
-              {dashboardRefreshing ? <i className="dashboard-spinner" /> : null}
-              {dashboardConnectionStatus === "retrying"
-                ? "Estado: Sin conexion"
-                : dashboardConnectionStatus === "updating"
-                  ? "Estado: Actualizando..."
-                  : "Estado: Sincronizado"}
-            </span>
+            <div className="dashboard-live-actions">
+              <span className={`dashboard-refresh-status is-${dashboardConnectionStatus}`}>
+                {dashboardRefreshing ? <i className="dashboard-spinner" /> : null}
+                {dashboardConnectionStatus === "retrying"
+                  ? "Reintentando conexion..."
+                  : dashboardRefreshing
+                    ? "Actualizando datos..."
+                    : `Sincronizado · ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`}
+              </span>
+              <button
+                type="button"
+                className="button-secondary dashboard-refresh-button"
+                onClick={() => refreshDashboard({ force: true })}
+                disabled={dashboardRefreshing}
+              >
+                <Icon name="refresh" />
+                Actualizar ahora
+              </button>
+            </div>
           </section>
 
           <section className="dashboard-topline">
@@ -9614,14 +9686,23 @@ function App() {
 
           <section className="dashboard-metrics-grid">
             {dashboardLiveMetrics.map((metric) => (
-              <article key={metric.key} className={`dashboard-metric-card ${dashboardRefreshing ? "is-refreshing" : ""}`}>
+              <article
+                key={metric.key}
+                className={`dashboard-metric-card ${dashboardRefreshing ? "is-refreshing" : ""} ${changedDashboardMetricKeys.includes(metric.key) ? "is-changed" : ""}`}
+              >
                 <div className="dashboard-metric-head">
                   <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
                   <span className="dashboard-metric-trend">{dashboardRefreshing ? "Actualizando" : metric.badge}</span>
                 </div>
-                <strong key={`${metric.key}-${metric.value}`} className="dashboard-metric-value">{metric.value}</strong>
+                <strong
+                  key={`${metric.key}-${metric.value}`}
+                  className={`dashboard-metric-value ${changedDashboardMetricKeys.includes(metric.key) ? "is-changed" : ""}`}
+                >
+                  {metric.value}
+                </strong>
                 <span>{metric.label}</span>
                 <small>{metric.detail || metric.helper}</small>
+                <span className="dashboard-metric-micro">{metric.micro}</span>
                 <div className="dashboard-mini-progress" aria-label={metric.progressLabel}>
                   <span style={{ width: `${Math.max(0, Math.min(100, metric.progress || 0))}%` }} />
                 </div>
@@ -9666,7 +9747,7 @@ function App() {
                   dashboardLiveFeed.map((item, index) => (
                     <article
                       key={item.key}
-                      className={`dashboard-activity-item dashboard-feed-item ${item.tone}`}
+                      className={`dashboard-activity-item dashboard-feed-item ${item.tone} ${index === 0 ? "is-new" : ""}`}
                       style={{ "--feed-delay": `${Math.min(index, 5) * 45}ms` }}
                     >
                       <span className="dashboard-activity-icon">
@@ -9677,7 +9758,7 @@ function App() {
                         <p>{item.detail}</p>
                         <span>{item.user || "Sistema"}</span>
                       </div>
-                      <small>{formatRelativeTime(item.createdAt, dashboardNow)}</small>
+                      <small>{formatCompactRelativeTime(item.createdAt, dashboardNow)}</small>
                     </article>
                   ))
                 ) : (
