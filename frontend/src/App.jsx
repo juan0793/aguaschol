@@ -204,6 +204,15 @@ const formatDashboardSyncDate = (value) => {
 const getRecordPhotoPath = (record) =>
   record?.foto_path || record?.foto_url || record?.fotografia || record?.photo_path || "";
 
+const getRecordDisplayName = (record) =>
+  record?.abonado || record?.nombre_catastral || record?.inquilino || record?.nombre_alcaldia || "--";
+
+const getRecordAguasPresenceLabel = (record) => {
+  if (record?.estado_padron === "varios_padrones") return "Si aparece en Aguas";
+  if (["clandestino", "reportada"].includes(record?.estado_padron || "clandestino")) return "No aparece en Aguas";
+  return "Pendiente de validar";
+};
+
 const humanizeDashboardActivity = (log) => {
   const actor = log?.actor_name || log?.actor_email || "Sistema";
   const summary = String(log?.summary || "").trim();
@@ -365,6 +374,8 @@ function App() {
   const [processingRecordId, setProcessingRecordId] = useState(null);
   const [lastProcessedRecord, setLastProcessedRecord] = useState(null);
   const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
+  const [showDashboardAlertsModal, setShowDashboardAlertsModal] = useState(false);
+  const [showPrintComparisonModal, setShowPrintComparisonModal] = useState(false);
   const [batchPrintCopies, setBatchPrintCopies] = useState({});
   const [printBatchSearch, setPrintBatchSearch] = useState("");
   const [printBatchQuickFilter, setPrintBatchQuickFilter] = useState("all");
@@ -2162,6 +2173,13 @@ function App() {
       printable
     };
   }, [dashboardAlertRecords]);
+  const overdueComparisonRecords = useMemo(
+    () =>
+      dashboardAlertRecords
+        .filter((item) => item.statusKey === "overdue")
+        .map((item) => item.record),
+    [dashboardAlertRecords]
+  );
   const filteredDashboardAlertRecords = useMemo(
     () =>
       dashboardAlertRecords.filter((item) => {
@@ -7635,6 +7653,62 @@ function App() {
     }
   };
 
+  const handlePrintAguasComparisonList = async (recordsToPrint = overdueComparisonRecords) => {
+    const rows = recordsToPrint.filter(Boolean);
+    if (!rows.length) {
+      showAlert("No hay fichas vencidas para comparar e imprimir.");
+      return;
+    }
+
+    const generatedAt = formatDashboardSyncDate(Date.now());
+    await printDocument(
+      `Comparacion Aguas - fichas vencidas (${rows.length})`,
+      `
+        <section class="comparison-print-sheet">
+          <header class="comparison-print-head">
+            <div>
+              <span>Lista de fichas vencidas</span>
+              <h1>Comparacion contra Aguas</h1>
+              <p>Generado: ${escapeHtml(generatedAt)}</p>
+            </div>
+            <strong>${rows.length} fichas</strong>
+          </header>
+          <table class="comparison-print-table">
+            <thead>
+              <tr>
+                <th>Clave catastral</th>
+                <th>Nombre</th>
+                <th>Barrio</th>
+                <th>Aguas</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map(
+                  (record) => `
+                    <tr>
+                      <td>${escapeHtml(record.clave_catastral || "--")}</td>
+                      <td>${escapeHtml(getRecordDisplayName(record))}</td>
+                      <td>${escapeHtml(record.barrio_colonia || record.barrio_alcaldia || "--")}</td>
+                      <td>${escapeHtml(getRecordAguasPresenceLabel(record))}</td>
+                    </tr>
+                  `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </section>
+      `,
+      {
+        bodyClassName: "comparison-print-body",
+        pageSize: "Letter portrait",
+        pageMargin: "10mm",
+        windowFeatures: "width=980,height=1200"
+      }
+    );
+    showAlert("Lista comparativa preparada para impresion.");
+  };
+
   const handleDownloadExecutiveReportPdf = async () => {
     try {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
@@ -8869,6 +8943,14 @@ function App() {
                 type="button"
                 variant="outline"
                 size="sm"
+                onClick={() => setShowPrintComparisonModal(true)}
+              >
+                Comparar todas las fichas
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={handleMoveSelectedFichasToPrinted}
                 disabled={batchPrinting || !batchPrintSelection.fichas}
               >
@@ -8985,6 +9067,194 @@ function App() {
               {batchPrinting
                 ? "Preparando..."
                 : `Vista previa: ${batchPrintSelection.fichas} fichas / ${batchPrintSelection.avisos} avisos`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showPrintComparisonModal} onOpenChange={setShowPrintComparisonModal}>
+        <DialogContent className="print-comparison-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-3xl">
+          <DialogHeader className="password-modal-head">
+            <p className="eyebrow">Menu aparte</p>
+            <DialogTitle>Comparar fichas vencidas contra Aguas</DialogTitle>
+            <DialogDescription className="lead">
+              Imprime una lista simple: clave catastral, nombre, barrio y si aparece en Aguas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="comparison-modal-summary">
+            <div>
+              <span>Fichas vencidas</span>
+              <strong>{overdueComparisonRecords.length}</strong>
+            </div>
+            <div>
+              <span>No aparecen en Aguas</span>
+              <strong>{overdueComparisonRecords.filter((record) => getRecordAguasPresenceLabel(record) === "No aparece en Aguas").length}</strong>
+            </div>
+            <div>
+              <span>Aparecen en Aguas</span>
+              <strong>{overdueComparisonRecords.filter((record) => getRecordAguasPresenceLabel(record) === "Si aparece en Aguas").length}</strong>
+            </div>
+          </div>
+          <div className="comparison-modal-scroll">
+            {overdueComparisonRecords.length ? (
+              <table className="comparison-modal-table">
+                <thead>
+                  <tr>
+                    <th>Clave catastral</th>
+                    <th>Nombre</th>
+                    <th>Barrio</th>
+                    <th>Aguas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overdueComparisonRecords.map((record) => (
+                    <tr key={`comparison-${record.id}`}>
+                      <td>{record.clave_catastral || "--"}</td>
+                      <td>{getRecordDisplayName(record)}</td>
+                      <td>{record.barrio_colonia || record.barrio_alcaldia || "--"}</td>
+                      <td>
+                        <Badge variant={getRecordAguasPresenceLabel(record) === "Si aparece en Aguas" ? "secondary" : "destructive"}>
+                          {getRecordAguasPresenceLabel(record)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="empty-state">
+                <h3>Sin fichas vencidas</h3>
+                <p>No hay registros vencidos para comparar en este momento.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="password-form-actions print-batch-footer">
+            <Button type="button" variant="outline" onClick={() => setShowPrintComparisonModal(false)}>
+              Cerrar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handlePrintAguasComparisonList(overdueComparisonRecords)}
+              disabled={!overdueComparisonRecords.length}
+            >
+              <Icon name="records" />
+              Imprimir lista comparativa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showDashboardAlertsModal} onOpenChange={setShowDashboardAlertsModal}>
+        <DialogContent className="dashboard-alert-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-3xl">
+          <DialogHeader className="password-modal-head">
+            <p className="eyebrow">Alertas vencidas</p>
+            <DialogTitle>Lista de fichas en alerta</DialogTitle>
+            <DialogDescription className="lead">
+              Menu aparte para revisar fichas vencidas, abrir una ficha individual, imprimir o generar la comparacion contra Aguas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="dashboard-alert-summary">
+            <div>
+              <span>Total</span>
+              <strong>{dashboardAlertCounts.all}</strong>
+            </div>
+            <div>
+              <span>Vencidas</span>
+              <strong>{dashboardAlertCounts.critical}</strong>
+            </div>
+            <div>
+              <span>Sin foto</span>
+              <strong>{dashboardAlertCounts.noPhoto}</strong>
+            </div>
+          </div>
+          <div className="dashboard-alert-filters" aria-label="Filtros de alertas operativas">
+            {[
+              { key: "all", label: "Todas", count: dashboardAlertCounts.all },
+              { key: "critical", label: "Criticas", count: dashboardAlertCounts.critical },
+              { key: "today", label: "Hoy", count: dashboardAlertCounts.today },
+              { key: "no-photo", label: "Sin foto", count: dashboardAlertCounts.noPhoto },
+              { key: "printable", label: "Para imprimir", count: dashboardAlertCounts.printable }
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                className={dashboardAlertFilter === filter.key ? "is-active" : ""}
+                onClick={() => setDashboardAlertFilter(filter.key)}
+              >
+                {filter.label}
+                <span>{filter.count}</span>
+              </button>
+            ))}
+          </div>
+          <div className="dashboard-alerts-list dashboard-alert-modal-list">
+            {filteredDashboardAlertRecords.length ? (
+              filteredDashboardAlertRecords.map(({ record, statusKey, detail, status }) => (
+                <article
+                  key={`modal-${record.id}-${statusKey}`}
+                  className={`dashboard-alert-item ${statusKey || "warning"}`}
+                >
+                  <span className="dashboard-alert-icon">
+                    <Icon name={statusKey === "no-photo" ? "records" : "warning"} />
+                  </span>
+                  <div>
+                    <strong>{record.clave_catastral || "Sin clave"}</strong>
+                    <p>{detail}</p>
+                    <span>{status}</span>
+                  </div>
+                  <div className="dashboard-alert-actions">
+                    <button
+                      type="button"
+                      className="dashboard-alert-action"
+                      onClick={() => {
+                        handleSelectRecord(record);
+                        setShowDashboardAlertsModal(false);
+                        setWorkspaceView("records");
+                      }}
+                    >
+                      Ver ficha
+                    </button>
+                    <button
+                      type="button"
+                      className="dashboard-alert-action is-print"
+                      onClick={() => {
+                        setShowDashboardAlertsModal(false);
+                        openPrintBatchModalForRecords([record], "ficha");
+                      }}
+                    >
+                      Imprimir
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>Sin alertas pendientes</h3>
+                <p>Todas las fichas estan al dia.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="password-form-actions print-batch-footer">
+            <Button type="button" variant="outline" onClick={() => setShowDashboardAlertsModal(false)}>
+              Cerrar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowDashboardAlertsModal(false);
+                setShowPrintComparisonModal(true);
+              }}
+            >
+              Comparar vencidas
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowDashboardAlertsModal(false);
+                openPrintBatchModalForRecords(overdueComparisonRecords, "ficha");
+              }}
+              disabled={!overdueComparisonRecords.length}
+            >
+              <Icon name="records" />
+              Imprimir vencidas
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -9805,6 +10075,23 @@ function App() {
                 <div>
                   <span>Sin foto</span>
                   <strong>{dashboardAlertCounts.noPhoto}</strong>
+                </div>
+              </div>
+              <div className="dashboard-alert-modal-cta">
+                <span className="dashboard-alert-icon">
+                  <Icon name="warning" />
+                </span>
+                <div>
+                  <strong>{dashboardAlertCounts.critical ? `${dashboardAlertCounts.critical} fichas vencidas` : "Sin vencidas pendientes"}</strong>
+                  <p>Abre la lista en un menu aparte para revisar, imprimir o comparar contra Aguas sin cargar el tablero.</p>
+                </div>
+                <div className="dashboard-alert-actions">
+                  <button type="button" className="dashboard-alert-action" onClick={() => setShowDashboardAlertsModal(true)}>
+                    Ver lista
+                  </button>
+                  <button type="button" className="dashboard-alert-action is-print" onClick={() => setShowPrintComparisonModal(true)}>
+                    Comparar
+                  </button>
                 </div>
               </div>
               <div className="dashboard-alert-filters" aria-label="Filtros de alertas operativas">
