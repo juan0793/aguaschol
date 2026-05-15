@@ -386,6 +386,7 @@ function App() {
   const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
   const [showDashboardAlertsModal, setShowDashboardAlertsModal] = useState(false);
   const [showPrintComparisonModal, setShowPrintComparisonModal] = useState(false);
+  const [printingComparison, setPrintingComparison] = useState(false);
   const [printComparisonHeader, setPrintComparisonHeader] = useState({
     kicker: "Lista de fichas vencidas",
     title: "Comparacion contra Aguas",
@@ -7693,32 +7694,37 @@ function App() {
       return;
     }
 
-    let comparisonByClave = alcaldiaComparisonByClave;
-    if (!alcaldiaComparison?.summary) {
-      const comparisonData = await loadAlcaldiaComparison({ silent: true });
-      const comparisonRows = [
-        ...(comparisonData?.candidates || []),
-        ...(comparisonData?.matched_by_base || []),
-        ...(comparisonData?.matched_exact || [])
-      ];
-      comparisonByClave = comparisonRows.reduce((map, row) => {
-        [row.clave_catastral, row.clave_aguas_formato].forEach((key) => {
-          const cleanKey = String(key || "").trim();
-          if (cleanKey && !map.has(cleanKey)) {
-            map.set(cleanKey, row);
-          }
-        });
-        return map;
-      }, new Map());
-    }
+    setPrintingComparison(true);
+    try {
+      let comparisonByClave = alcaldiaComparisonByClave;
+      if (!alcaldiaComparison?.summary) {
+        const comparisonData = await loadAlcaldiaComparison({ silent: true }).catch(() => null);
+        const comparisonRows = [
+          ...(comparisonData?.candidates || []),
+          ...(comparisonData?.matched_by_base || []),
+          ...(comparisonData?.matched_exact || [])
+        ];
+        if (comparisonRows.length) {
+          comparisonByClave = comparisonRows.reduce((map, row) => {
+            [row.clave_catastral, row.clave_aguas_formato].forEach((key) => {
+              const cleanKey = String(key || "").trim();
+              if (cleanKey && !map.has(cleanKey)) {
+                map.set(cleanKey, row);
+              }
+            });
+            return map;
+          }, new Map());
+        }
+      }
 
-    const generatedAt = formatDashboardSyncDate(Date.now());
-    const headerKicker = String(printComparisonHeader.kicker || "").trim() || "Lista de fichas vencidas";
-    const headerTitle = String(printComparisonHeader.title || "").trim() || "Comparacion contra Aguas";
-    const headerNote = String(printComparisonHeader.note || "").trim();
-    await printDocument(
-      `${headerTitle} (${rows.length})`,
-      `
+      const generatedAt = formatDashboardSyncDate(Date.now());
+      const headerKicker = String(printComparisonHeader.kicker || "").trim() || "Lista de fichas vencidas";
+      const headerTitle = String(printComparisonHeader.title || "").trim() || "Comparacion contra Aguas";
+      const headerNote = String(printComparisonHeader.note || "").trim();
+      setShowPrintComparisonModal(false);
+      await printDocument(
+        `${headerTitle} (${rows.length})`,
+        `
         <style>
           .comparison-print-body {
             margin: 0;
@@ -7848,8 +7854,13 @@ function App() {
         pageMargin: "10mm",
         windowFeatures: "width=980,height=1200"
       }
-    );
-    showAlert("Lista comparativa preparada para impresion.");
+      );
+      showAlert("Lista comparativa preparada para impresion.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible preparar la lista comparativa.");
+    } finally {
+      setPrintingComparison(false);
+    }
   };
 
   const handleDownloadExecutiveReportPdf = async () => {
@@ -9315,10 +9326,10 @@ function App() {
             <Button
               type="button"
               onClick={() => handlePrintAguasComparisonList(overdueComparisonRecords)}
-              disabled={!overdueComparisonRecords.length}
+              disabled={printingComparison || !overdueComparisonRecords.length}
             >
               <Icon name="records" />
-              Imprimir lista comparativa
+              {printingComparison ? "Preparando..." : "Imprimir lista comparativa"}
             </Button>
           </DialogFooter>
         </DialogContent>
