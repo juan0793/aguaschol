@@ -10556,13 +10556,36 @@ function App() {
                   <strong>{dashboardAlertCounts.noPhoto}</strong>
                 </div>
               </div>
-              <div className="dashboard-alert-modal-cta">
+              <div
+                className={`dashboard-alert-modal-cta ${
+                  dashboardAlertCounts.critical
+                    ? "is-danger"
+                    : dashboardAlertCounts.noPhoto
+                      ? "is-warning"
+                      : "is-clear"
+                }`}
+              >
                 <span className="dashboard-alert-icon">
-                  <Icon name="warning" />
+                  <Icon name={dashboardAlertCounts.critical ? "warning" : dashboardAlertCounts.noPhoto ? "records" : "success"} />
                 </span>
                 <div>
-                  <strong>{dashboardAlertCounts.critical ? `${dashboardAlertCounts.critical} fichas vencidas` : "Sin vencidas pendientes"}</strong>
-                  <p>Abre la lista en un menu aparte para revisar, imprimir o comparar contra Aguas sin cargar el tablero.</p>
+                  <div className="dashboard-alert-cta-title">
+                    <strong>{dashboardAlertCounts.critical ? `${dashboardAlertCounts.critical} fichas vencidas` : "Sin vencidas pendientes"}</strong>
+                    <span>
+                      {dashboardAlertCounts.critical
+                        ? "Atencion"
+                        : dashboardAlertCounts.noPhoto
+                          ? "Revision"
+                          : "Limpio"}
+                    </span>
+                  </div>
+                  <p>
+                    {dashboardAlertCounts.critical
+                      ? "Revisa las fichas vencidas, imprime o compara contra Aguas para retirarlas del tablero."
+                      : dashboardAlertCounts.noPhoto
+                        ? `${dashboardAlertCounts.noPhoto} fichas necesitan foto. Puedes revisar la lista sin marcar alerta vencida.`
+                        : "No hay vencidas pendientes. El tablero queda limpio para la siguiente revision."}
+                  </p>
                 </div>
                 <div className="dashboard-alert-actions">
                   <button type="button" className="dashboard-alert-action" onClick={() => setShowDashboardAlertsModal(true)}>
