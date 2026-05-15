@@ -2809,6 +2809,20 @@ function App() {
       total: entries.length
     };
   }, [batchPrintCopies, safeRecords]);
+  const manualPrintedSelection = useMemo(() => {
+    const entries = Object.entries(batchPrintCopies)
+      .map(([recordId, copies]) => {
+        if (!copies?.printed) return null;
+        const record = safeRecords.find((item) => String(item.id) === String(recordId));
+        return record?.estado_padron !== "reportada" ? record : null;
+      })
+      .filter(Boolean);
+
+    return {
+      entries,
+      total: entries.length
+    };
+  }, [batchPrintCopies, safeRecords]);
   const printBatchStatusCounts = useMemo(
     () => ({
       pending: filteredRecords.filter((record) => record.estado_padron !== "reportada").length,
@@ -6025,6 +6039,7 @@ function App() {
         ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
         aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
         save: Boolean(current[recordId]?.save),
+        printed: Boolean(current[recordId]?.printed),
         [documentType]: nextValue
       }
     }));
@@ -6039,6 +6054,7 @@ function App() {
           ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
           aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
           save: Boolean(current[recordId]?.save),
+          printed: Boolean(current[recordId]?.printed),
           [documentType]: clampPrintCopies(currentValue + delta)
         }
       };
@@ -6056,7 +6072,8 @@ function App() {
         nextCopies[record.id] = {
           ficha: documentType === "ficha" ? 1 : clampPrintCopies(nextCopies[record.id]?.ficha ?? 0),
           aviso: documentType === "aviso" ? 1 : clampPrintCopies(nextCopies[record.id]?.aviso ?? 0),
-          save: Boolean(nextCopies[record.id]?.save)
+          save: Boolean(nextCopies[record.id]?.save),
+          printed: Boolean(nextCopies[record.id]?.printed)
         };
       });
       return nextCopies;
@@ -6069,7 +6086,20 @@ function App() {
       [recordId]: {
         ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
         aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
-        save: !current[recordId]?.save
+        save: !current[recordId]?.save,
+        printed: Boolean(current[recordId]?.printed)
+      }
+    }));
+  };
+
+  const togglePendingPrintedSelection = (recordId) => {
+    setBatchPrintCopies((current) => ({
+      ...current,
+      [recordId]: {
+        ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
+        aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
+        save: Boolean(current[recordId]?.save),
+        printed: !current[recordId]?.printed
       }
     }));
   };
@@ -6083,7 +6113,25 @@ function App() {
           nextCopies[record.id] = {
             ficha: clampPrintCopies(nextCopies[record.id]?.ficha ?? 0),
             aviso: clampPrintCopies(nextCopies[record.id]?.aviso ?? 0),
-            save: true
+            save: true,
+            printed: Boolean(nextCopies[record.id]?.printed)
+          };
+        });
+      return nextCopies;
+    });
+  };
+
+  const selectVisiblePendingAsPrinted = () => {
+    setBatchPrintCopies((current) => {
+      const nextCopies = { ...current };
+      filteredPrintBatchRecords
+        .filter((record) => record.estado_padron !== "reportada")
+        .forEach((record) => {
+          nextCopies[record.id] = {
+            ficha: clampPrintCopies(nextCopies[record.id]?.ficha ?? 0),
+            aviso: clampPrintCopies(nextCopies[record.id]?.aviso ?? 0),
+            save: Boolean(nextCopies[record.id]?.save),
+            printed: true
           };
         });
       return nextCopies;
@@ -7655,16 +7703,24 @@ function App() {
   };
 
   const handleMoveSelectedFichasToPrinted = async () => {
-    if (!batchPrintSelection.entries.some((item) => item.ficha > 0)) {
-      showAlert("Selecciona al menos una ficha para moverla a reportadas.");
+    const manualEntries = manualPrintedSelection.entries.map((record) => ({ record, ficha: 1, aviso: 0 }));
+    const entriesToMove = [
+      ...batchPrintSelection.entries.filter((item) => item.ficha > 0),
+      ...manualEntries.filter(
+        (manualItem) => !batchPrintSelection.entries.some((item) => item.record.id === manualItem.record.id && item.ficha > 0)
+      )
+    ];
+
+    if (!entriesToMove.length) {
+      showAlert("Selecciona fichas o marca las que ya fueron impresas.");
       return;
     }
 
     setBatchPrinting(true);
     try {
-      const movedCount = await markBatchFichaRecordsAsPrinted(batchPrintSelection.entries);
+      const movedCount = await markBatchFichaRecordsAsPrinted(entriesToMove);
       setPrintBatchStatusView("printed");
-      showAlert(`${movedCount} fichas pasaron a reportadas.`);
+      showAlert(`${movedCount} fichas pasaron a impresas.`);
     } catch (error) {
       loadRecords(search, recordView, { silent: true });
       showAlert(error.message || "No fue posible mover las fichas seleccionadas.");
@@ -9216,6 +9272,8 @@ function App() {
               </Badge>
               {printBatchStatusView === "printed" ? (
                 <Badge variant="outline">{printedSaveSelection.total} para guardar</Badge>
+              ) : manualPrintedSelection.total ? (
+                <Badge variant="outline">{manualPrintedSelection.total} ya impresas</Badge>
               ) : null}
             </div>
             <div className="print-batch-actions">
@@ -9242,6 +9300,9 @@ function App() {
                   <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
                     Seleccionar avisos visibles
                   </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={selectVisiblePendingAsPrinted}>
+                    Marcar visibles ya impresas
+                  </Button>
                 </>
               )}
               <Button type="button" variant="ghost" size="sm" onClick={clearBatchPrintCopies}>
@@ -9260,7 +9321,7 @@ function App() {
                 variant="outline"
                 size="sm"
                 onClick={handleMoveSelectedFichasToPrinted}
-                disabled={batchPrinting || !batchPrintSelection.fichas || printBatchStatusView === "printed"}
+                disabled={batchPrinting || printBatchStatusView === "printed" || (!batchPrintSelection.fichas && !manualPrintedSelection.total)}
               >
                 Marcar como impresas
               </Button>
@@ -9278,6 +9339,7 @@ function App() {
                   const isPrinted = padronStatus === "reportada";
                   const isSelected = Boolean(fichaCopies || avisoCopies);
                   const isMarkedForSave = Boolean(copies.save);
+                  const isMarkedPrinted = Boolean(copies.printed);
 
                   return (
                     <article
@@ -9313,7 +9375,14 @@ function App() {
                           </label>
                         ) : (
                           <>
-                            <span>{isClandestina ? "Lista para imprimir." : getPadronStatusLabel(padronStatus)}</span>
+                            <label className="print-save-check">
+                              <input
+                                type="checkbox"
+                                checked={isMarkedPrinted}
+                                onChange={() => togglePendingPrintedSelection(record.id)}
+                              />
+                              <span>Ya fue impresa</span>
+                            </label>
                             <Button
                               type="button"
                               variant="outline"
