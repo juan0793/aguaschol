@@ -7,6 +7,7 @@ import {
   getByClaveHandler,
   getHistory,
   list,
+  markPrinted,
   previewAviso,
   restore,
   update,
@@ -24,6 +25,7 @@ router.get("/:id/aviso", getAviso);
 router.post("/aviso-preview", previewAviso);
 router.post("/", create);
 router.put("/:id", update);
+router.post("/:id/mark-printed", markPrinted);
 router.post("/:id/archive", archive);
 router.post("/:id/restore", requireAdmin, restore);
 router.delete("/:id", requireAdmin, deleteArchived);

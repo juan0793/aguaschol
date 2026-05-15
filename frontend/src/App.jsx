@@ -110,7 +110,7 @@ const RECORDS_PAGE_SIZE = 10;
 
 const getPadronStatusLabel = (status) => {
   if (status === "varios_padrones") return "Varios padrones";
-  if (status === "reportada") return "Reportada";
+  if (status === "reportada") return "Impresa";
   return "Clandestina";
 };
 
@@ -120,7 +120,7 @@ const getPadronStatusDescription = (status) => {
   }
 
   if (status === "reportada") {
-    return "Esta ficha ya fue procesada y se guarda en reportadas para limpiar el listado operativo.";
+    return "Esta ficha ya fue impresa y se retira del tablero operativo para limpiar alertas.";
   }
 
   return "Esta ficha no ha sido validada en varios padrones o no aparece en Aguas.";
@@ -225,6 +225,8 @@ const getRecordAguasPresenceLabel = (record) => {
 
 const getRecordFichaDateLabel = (record) =>
   formatSpanishDate(record?.created_at || record?.fecha_ficha || record?.fecha_registro || record?.fecha_aviso || record?.updated_at);
+
+const getRecordPrintedDateLabel = (record) => formatDateTime(record?.printed_at);
 
 const humanizeDashboardActivity = (log) => {
   const actor = log?.actor_name || log?.actor_email || "Sistema";
@@ -1509,7 +1511,7 @@ function App() {
       },
       {
         key: "archived",
-        title: "Archivados",
+        title: "Guardadas",
         count: safeRecords.filter((record) => record.archived_at).length,
         filter: "all",
         helper: "Consultar historial"
@@ -2793,6 +2795,20 @@ function App() {
       avisos: entries.reduce((total, item) => total + item.aviso, 0)
     };
   }, [batchPrintCopies, safeRecords]);
+  const printedSaveSelection = useMemo(() => {
+    const entries = Object.entries(batchPrintCopies)
+      .map(([recordId, copies]) => {
+        if (!copies?.save) return null;
+        const record = safeRecords.find((item) => String(item.id) === String(recordId));
+        return record?.estado_padron === "reportada" ? record : null;
+      })
+      .filter(Boolean);
+
+    return {
+      entries,
+      total: entries.length
+    };
+  }, [batchPrintCopies, safeRecords]);
   const printBatchStatusCounts = useMemo(
     () => ({
       pending: filteredRecords.filter((record) => record.estado_padron !== "reportada").length,
@@ -2906,7 +2922,7 @@ function App() {
       const list = Array.isArray(data) ? data.map(normalizeRecord) : [];
       setRecords(list);
       setEmptyRecordsMessage(
-        list.length ? "" : view === "archived" ? "No hay fichas archivadas." : "No hay registros para mostrar."
+        list.length ? "" : view === "archived" ? "No hay fichas guardadas." : "No hay registros para mostrar."
       );
     } catch (_error) {
       if (!silent) {
@@ -6008,6 +6024,7 @@ function App() {
       [recordId]: {
         ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
         aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
+        save: Boolean(current[recordId]?.save),
         [documentType]: nextValue
       }
     }));
@@ -6021,6 +6038,7 @@ function App() {
         [recordId]: {
           ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
           aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
+          save: Boolean(current[recordId]?.save),
           [documentType]: clampPrintCopies(currentValue + delta)
         }
       };
@@ -6037,9 +6055,37 @@ function App() {
       filteredPrintBatchRecords.forEach((record) => {
         nextCopies[record.id] = {
           ficha: documentType === "ficha" ? 1 : clampPrintCopies(nextCopies[record.id]?.ficha ?? 0),
-          aviso: documentType === "aviso" ? 1 : clampPrintCopies(nextCopies[record.id]?.aviso ?? 0)
+          aviso: documentType === "aviso" ? 1 : clampPrintCopies(nextCopies[record.id]?.aviso ?? 0),
+          save: Boolean(nextCopies[record.id]?.save)
         };
       });
+      return nextCopies;
+    });
+  };
+
+  const togglePrintedSaveSelection = (recordId) => {
+    setBatchPrintCopies((current) => ({
+      ...current,
+      [recordId]: {
+        ficha: clampPrintCopies(current[recordId]?.ficha ?? 0),
+        aviso: clampPrintCopies(current[recordId]?.aviso ?? 0),
+        save: !current[recordId]?.save
+      }
+    }));
+  };
+
+  const selectVisiblePrintedForSave = () => {
+    setBatchPrintCopies((current) => {
+      const nextCopies = { ...current };
+      filteredPrintBatchRecords
+        .filter((record) => record.estado_padron === "reportada")
+        .forEach((record) => {
+          nextCopies[record.id] = {
+            ficha: clampPrintCopies(nextCopies[record.id]?.ficha ?? 0),
+            aviso: clampPrintCopies(nextCopies[record.id]?.aviso ?? 0),
+            save: true
+          };
+        });
       return nextCopies;
     });
   };
@@ -7492,7 +7538,13 @@ function App() {
 
   const handlePrintFicha = async (recordOverride = null) => {
     const document = await buildFichaPrintDocument(recordOverride);
-    await printDocument(document.title, document.body, document.options);
+    const printResult = await printDocument(document.title, document.body, document.options);
+    const targetRecord = recordOverride || form;
+    if (printResult?.printed && targetRecord?.id) {
+      await markBatchFichaRecordsAsPrinted([{ record: targetRecord, ficha: 1, aviso: 0 }]);
+      setPrintBatchStatusView("printed");
+      showAlert(`Ficha ${targetRecord.clave_catastral || ""} impresa y retirada de alertas.`);
+    }
   };
 
   const buildAvisoPrintMarkup = (record = form) => {
@@ -7552,6 +7604,7 @@ function App() {
       normalizeRecord({
         ...record,
         estado_padron: "reportada",
+        printed_at: record.printed_at || new Date().toISOString(),
         comentarios: record.comentarios || "Ficha impresa desde impresion rapida"
       })
     );
@@ -7577,12 +7630,8 @@ function App() {
 
     const updatedRecords = await Promise.all(
       optimisticRecords.map(async (record) => {
-        const response = await apiFetch(`/inmuebles/${record.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ ...emptyForm, ...record })
+        const response = await apiFetch(`/inmuebles/${record.id}/mark-printed`, {
+          method: "POST"
         });
         const data = await response.json();
 
@@ -7619,6 +7668,56 @@ function App() {
     } catch (error) {
       loadRecords(search, recordView, { silent: true });
       showAlert(error.message || "No fue posible mover las fichas seleccionadas.");
+    } finally {
+      setBatchPrinting(false);
+    }
+  };
+
+  const handleSaveSelectedPrintedRecords = async () => {
+    if (!printedSaveSelection.total) {
+      showAlert("Marca al menos una ficha impresa para enviarla a guardadas.");
+      return;
+    }
+
+    setBatchPrinting(true);
+    try {
+      const selectedRecords = printedSaveSelection.entries;
+      await Promise.all(
+        selectedRecords.map(async (record) => {
+          const response = await apiFetch(`/inmuebles/${record.id}/archive`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ archived_reason: "Ficha impresa enviada a guardadas" })
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || `No se pudo guardar la ficha ${record.clave_catastral}.`);
+          }
+
+          return normalizeRecord(data);
+        })
+      );
+
+      const savedIds = new Set(selectedRecords.map((record) => record.id));
+      setRecords((current) => current.filter((record) => !savedIds.has(record.id)));
+      setBatchPrintCopies((current) => {
+        const nextCopies = { ...current };
+        savedIds.forEach((id) => {
+          delete nextCopies[id];
+        });
+        return nextCopies;
+      });
+      if (savedIds.has(form.id)) {
+        setForm(emptyForm);
+        setSelectedRecordId(null);
+      }
+      showAlert(`${selectedRecords.length} fichas impresas pasaron a guardadas.`);
+    } catch (error) {
+      loadRecords(search, recordView, { silent: true });
+      showAlert(error.message || "No fue posible enviar las fichas impresas a guardadas.");
     } finally {
       setBatchPrinting(false);
     }
@@ -7725,7 +7824,7 @@ function App() {
       const headerTitle = String(printComparisonHeader.title || "").trim() || "Comparacion contra Aguas";
       const headerNote = String(printComparisonHeader.note || "").trim();
       setShowPrintComparisonModal(false);
-      await printDocument(
+      const printResult = await printDocument(
         `${headerTitle} (${rows.length})`,
         `
         <style>
@@ -7873,7 +7972,17 @@ function App() {
         windowFeatures: "width=980,height=1200"
       }
       );
-      showAlert("Lista comparativa preparada para impresion.");
+      if (!printResult?.printed) {
+        showAlert("Vista previa cerrada. La lista comparativa no se marco como impresa.");
+        return;
+      }
+
+      const movedCount = await markBatchFichaRecordsAsPrinted(rows.map((record) => ({ record, ficha: 1, aviso: 0 })));
+      showAlert(
+        movedCount
+          ? `Lista comparativa impresa. ${movedCount} fichas salieron de alertas y pasaron a impresas.`
+          : "Lista comparativa impresa."
+      );
     } catch (error) {
       showAlert(error.message || "No fue posible preparar la lista comparativa.");
     } finally {
@@ -9043,24 +9152,29 @@ function App() {
             <p className="eyebrow">Impresion rapida</p>
             <DialogTitle>Seleccionar fichas, avisos y copias</DialogTitle>
             <DialogDescription className="lead">
-              Selecciona el lote, revisa pendientes o reportadas y evita repetir impresiones.
+              Selecciona el lote, revisa pendientes o impresas y evita repetir impresiones.
             </DialogDescription>
             <p className="helper-text">
-              La impresion del navegador siempre abre Windows. Para limpiar el lote sin imprimir, usa mover a reportadas.
+              Al imprimir, las fichas pasan a impresas y salen de alertas. Desde impresas puedes marcarlas y enviarlas a guardadas.
             </p>
           </DialogHeader>
           <div className="print-batch-toolbar">
             <div className="print-batch-filters" aria-label="Apartados de impresion">
               {[
                 { key: "pending", label: `Pendientes (${printBatchStatusCounts.pending})` },
-                { key: "printed", label: `Reportadas (${printBatchStatusCounts.printed})` }
+                { key: "printed", label: `Impresas (${printBatchStatusCounts.printed})` }
               ].map((filter) => (
                 <Button
                   key={filter.key}
                   type="button"
                   variant={printBatchStatusView === filter.key ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setPrintBatchStatusView(filter.key)}
+                  onClick={() => {
+                    setPrintBatchStatusView(filter.key);
+                    if (filter.key === "printed" && printBatchQuickFilter === "clandestina") {
+                      setPrintBatchQuickFilter("all");
+                    }
+                  }}
                 >
                   {filter.label}
                 </Button>
@@ -9100,14 +9214,36 @@ function App() {
               <Badge variant="outline">
                 {filteredPrintBatchRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length} clandestinas
               </Badge>
+              {printBatchStatusView === "printed" ? (
+                <Badge variant="outline">{printedSaveSelection.total} para guardar</Badge>
+              ) : null}
             </div>
             <div className="print-batch-actions">
-              <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
-                Seleccionar fichas visibles
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
-                Seleccionar avisos visibles
-              </Button>
+              {printBatchStatusView === "printed" ? (
+                <>
+                  <Button type="button" variant="outline" size="sm" onClick={selectVisiblePrintedForSave}>
+                    Marcar visibles
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveSelectedPrintedRecords}
+                    disabled={batchPrinting || !printedSaveSelection.total}
+                  >
+                    Enviar a guardadas
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
+                    Seleccionar fichas visibles
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
+                    Seleccionar avisos visibles
+                  </Button>
+                </>
+              )}
               <Button type="button" variant="ghost" size="sm" onClick={clearBatchPrintCopies}>
                 Limpiar seleccion
               </Button>
@@ -9124,9 +9260,9 @@ function App() {
                 variant="outline"
                 size="sm"
                 onClick={handleMoveSelectedFichasToPrinted}
-                disabled={batchPrinting || !batchPrintSelection.fichas}
+                disabled={batchPrinting || !batchPrintSelection.fichas || printBatchStatusView === "printed"}
               >
-                Mover fichas a reportadas
+                Marcar como impresas
               </Button>
             </div>
           </div>
@@ -9139,7 +9275,9 @@ function App() {
                   const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
                   const padronStatus = record.estado_padron || "clandestino";
                   const isClandestina = padronStatus === "clandestino";
+                  const isPrinted = padronStatus === "reportada";
                   const isSelected = Boolean(fichaCopies || avisoCopies);
+                  const isMarkedForSave = Boolean(copies.save);
 
                   return (
                     <article
@@ -9159,56 +9297,75 @@ function App() {
                           >
                             {getPadronStatusLabel(padronStatus)}
                           </Badge>
+                          <small>Creada: {getRecordFichaDateLabel(record)}</small>
+                          {isPrinted ? <small>Impresa: {getRecordPrintedDateLabel(record)}</small> : null}
                         </div>
                       </div>
                       <div className="print-batch-status">
-                        <span>{isClandestina ? "Lista para imprimir." : getPadronStatusLabel(padronStatus)}</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="print-validate-button"
-                          onClick={() => handleValidatePrintRecord(record)}
-                          disabled={processingRecordId === record.id}
-                        >
-                          <Icon name="search" />
-                          {processingRecordId === record.id ? "Validando..." : "Validar padrones"}
-                        </Button>
+                        {isPrinted ? (
+                          <label className="print-save-check">
+                            <input
+                              type="checkbox"
+                              checked={isMarkedForSave}
+                              onChange={() => togglePrintedSaveSelection(record.id)}
+                            />
+                            <span>Enviar a guardadas</span>
+                          </label>
+                        ) : (
+                          <>
+                            <span>{isClandestina ? "Lista para imprimir." : getPadronStatusLabel(padronStatus)}</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="print-validate-button"
+                              onClick={() => handleValidatePrintRecord(record)}
+                              disabled={processingRecordId === record.id}
+                            >
+                              <Icon name="search" />
+                              {processingRecordId === record.id ? "Validando..." : "Validar padrones"}
+                            </Button>
+                          </>
+                        )}
                       </div>
-                      <div className="print-copy-group">
-                        <span>Ficha</span>
-                        <div className="print-copy-stepper">
-                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", -1)}>-</Button>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-5]"
-                            aria-label={`Copias de ficha para ${record.clave_catastral}`}
-                            min="0"
-                            max="5"
-                            value={String(fichaCopies)}
-                            onChange={(event) => updateBatchPrintCopies(record.id, "ficha", event.target.value)}
-                          />
-                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", 1)}>+</Button>
-                        </div>
-                      </div>
-                      <div className="print-copy-group">
-                        <span>Aviso</span>
-                        <div className="print-copy-stepper">
-                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", -1)}>-</Button>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-5]"
-                            aria-label={`Copias de aviso para ${record.clave_catastral}`}
-                            min="0"
-                            max="5"
-                            value={String(avisoCopies)}
-                            onChange={(event) => updateBatchPrintCopies(record.id, "aviso", event.target.value)}
-                          />
-                          <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", 1)}>+</Button>
-                        </div>
-                      </div>
+                      {!isPrinted ? (
+                        <>
+                          <div className="print-copy-group">
+                            <span>Ficha</span>
+                            <div className="print-copy-stepper">
+                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", -1)}>-</Button>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-5]"
+                                aria-label={`Copias de ficha para ${record.clave_catastral}`}
+                                min="0"
+                                max="5"
+                                value={String(fichaCopies)}
+                                onChange={(event) => updateBatchPrintCopies(record.id, "ficha", event.target.value)}
+                              />
+                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", 1)}>+</Button>
+                            </div>
+                          </div>
+                          <div className="print-copy-group">
+                            <span>Aviso</span>
+                            <div className="print-copy-stepper">
+                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", -1)}>-</Button>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-5]"
+                                aria-label={`Copias de aviso para ${record.clave_catastral}`}
+                                min="0"
+                                max="5"
+                                value={String(avisoCopies)}
+                                onChange={(event) => updateBatchPrintCopies(record.id, "aviso", event.target.value)}
+                              />
+                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", 1)}>+</Button>
+                            </div>
+                          </div>
+                        </>
+                      ) : null}
                     </article>
                   );
                 })
@@ -10643,7 +10800,7 @@ function App() {
                   variant={recordView === "archived" ? "default" : "outline"}
                   onClick={() => setRecordView("archived")}
                 >
-                  Archivadas
+                  Guardadas
                 </Button>
               ) : null}
               {draftForm ? (
@@ -10880,7 +11037,7 @@ function App() {
                           </div>
                           <div className="record-ledger-row">
                             <span className="record-ledger-label">
-                              {recordView === "archived" ? "Archivo" : "Ultimo mov."}
+                              {recordView === "archived" ? "Guardada" : "Ultimo mov."}
                             </span>
                             <span className="record-ledger-value">
                               {recordView === "archived"
@@ -10891,7 +11048,7 @@ function App() {
                         </div>
                         <small>
                           {recordView === "archived"
-                            ? `Archivada${record.archived_reason ? `: ${record.archived_reason}` : ""}`
+                            ? `Guardada${record.archived_reason ? `: ${record.archived_reason}` : ""}`
                             : deadlineMeta
                               ? `${deadlineMeta.helper} · Limite ${deadlineMeta.deadlineLabel}`
                               : record.comentarios || "Sin comentario"}

@@ -3911,6 +3911,13 @@ button.is-loading::before {
   overflow-wrap: anywhere;
 }
 
+.print-batch-card-meta small {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .print-selected-badge {
   border-color: rgba(20, 101, 217, 0.24);
   background: #eef6ff;
@@ -3938,6 +3945,21 @@ button.is-loading::before {
   font-size: 0.72rem;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.print-save-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--brand-blue-deep);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.print-save-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--brand-blue);
 }
 
 .print-validate-button {

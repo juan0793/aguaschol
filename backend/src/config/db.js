@@ -289,6 +289,11 @@ const ensureSchema = async () => {
     });
     await ensureColumn(admin, {
       tableName: "inmuebles_clandestinos",
+      columnName: "printed_at",
+      definition: "TIMESTAMP NULL DEFAULT NULL"
+    });
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
       columnName: "clave_alcaldia",
       definition: "VARCHAR(40) NOT NULL DEFAULT ''"
     });

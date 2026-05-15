@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   cargo_firmante VARCHAR(180) NOT NULL DEFAULT '',
   levantamiento_datos VARCHAR(180) NOT NULL DEFAULT '',
   analista_datos VARCHAR(180) NOT NULL DEFAULT '',
+  printed_at TIMESTAMP NULL DEFAULT NULL,
   archived_at TIMESTAMP NULL DEFAULT NULL,
   archived_reason VARCHAR(255) NOT NULL DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

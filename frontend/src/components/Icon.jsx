@@ -79,6 +79,7 @@ export const actionIconName = (action) =>
       "transport.route_alert": "warning",
       "inmueble.created": "plus",
       "inmueble.updated": "records",
+      "inmueble.printed": "records",
       "inmueble.archived": "archive",
       "inmueble.deleted": "logout",
       "inmueble.restored": "refresh",

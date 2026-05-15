@@ -91,6 +91,7 @@ export const actionLabel = (action) =>
       "transport.route_alert": "Desvio detectado",
       "inmueble.created": "Ficha creada",
       "inmueble.updated": "Ficha actualizada",
+      "inmueble.printed": "Ficha impresa",
       "inmueble.archived": "Ficha archivada",
       "inmueble.deleted": "Ficha eliminada",
       "inmueble.restored": "Ficha restaurada",

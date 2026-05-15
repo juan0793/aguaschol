@@ -9,6 +9,7 @@ export const normalizeDateField = (value) => {
 export const normalizeRecord = (record) => ({
   ...record,
   fecha_aviso: normalizeDateField(record?.fecha_aviso),
+  printed_at: record?.printed_at ?? null,
   archived_at: record?.archived_at ?? null,
   archived_reason: record?.archived_reason ?? ""
 });

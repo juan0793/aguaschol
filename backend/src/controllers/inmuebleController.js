@@ -7,6 +7,7 @@ import {
   deleteArchivedInmueble,
   getByClave,
   listInmuebles,
+  markInmueblePrinted,
   restoreInmueble,
   updateInmueble
 } from "../services/inmuebleService.js";
@@ -63,6 +64,15 @@ export const update = async (req, res, next) => {
 export const archive = async (req, res, next) => {
   try {
     const inmueble = await archiveInmueble(req.params.id, req.body, { actorUserId: req.authUser?.id });
+    res.json(inmueble);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markPrinted = async (req, res, next) => {
+  try {
+    const inmueble = await markInmueblePrinted(req.params.id, { actorUserId: req.authUser?.id });
     res.json(inmueble);
   } catch (error) {
     next(error);

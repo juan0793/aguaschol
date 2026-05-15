@@ -36,6 +36,7 @@ const memoryRecords = [
     cargo_firmante: "Jefe de Facturacion",
     levantamiento_datos: "LUIS FERNANDO HERRERA SOLIZ",
     analista_datos: "Ing. Juan Ordoñez Bonilla",
+    printed_at: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }
@@ -168,6 +169,7 @@ export const createInmueble = async (payload, options = {}) => {
       id: memoryRecords.length + 1,
       ...data,
       foto_path: "",
+      printed_at: null,
       archived_at: null,
       archived_reason: "",
       created_at: new Date().toISOString(),
@@ -254,6 +256,7 @@ export const updateInmueble = async (id, payload, options = {}) => {
       ...data,
       archived_at: memoryRecords[index].archived_at ?? null,
       archived_reason: memoryRecords[index].archived_reason ?? "",
+      printed_at: memoryRecords[index].printed_at ?? null,
       updated_at: new Date().toISOString()
     };
 
@@ -324,6 +327,71 @@ export const updateInmueble = async (id, payload, options = {}) => {
     entityType: "inmueble",
     entityId: record.id,
     summary: `Ficha ${record.clave_catastral} actualizada`
+  });
+  return record;
+};
+
+export const markInmueblePrinted = async (id, options = {}) => {
+  const now = new Date().toISOString();
+
+  if (env.useMemoryDb) {
+    const index = memoryRecords.findIndex((item) => item.id === Number(id) && !item.archived_at);
+    if (index === -1) {
+      const error = new Error("Inmueble no encontrado.");
+      error.status = 404;
+      throw error;
+    }
+
+    memoryRecords[index] = {
+      ...memoryRecords[index],
+      estado_padron: "reportada",
+      printed_at: memoryRecords[index].printed_at || now,
+      comentarios: memoryRecords[index].comentarios || "Ficha impresa y retirada del tablero operativo",
+      updated_at: now
+    };
+
+    await createAuditLog({
+      actorUserId: options.actorUserId ?? null,
+      action: "inmueble.printed",
+      entityType: "inmueble",
+      entityId: memoryRecords[index].id,
+      summary: `Ficha ${memoryRecords[index].clave_catastral} impresa`
+    });
+    return memoryRecords[index];
+  }
+
+  const existingRecord = await getById(id, { includeArchived: false });
+  if (!existingRecord) {
+    const error = new Error("Inmueble no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  const pool = getPool();
+  const [result] = await pool.query(
+    `
+      UPDATE inmuebles_clandestinos
+      SET estado_padron = 'reportada',
+          printed_at = COALESCE(printed_at, CURRENT_TIMESTAMP),
+          comentarios = IF(TRIM(comentarios) = '', 'Ficha impresa y retirada del tablero operativo', comentarios)
+      WHERE id = ? AND archived_at IS NULL
+    `,
+    [id]
+  );
+
+  if (result.affectedRows === 0) {
+    const error = new Error("Inmueble no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  const record = await getById(id);
+  await createAuditLog({
+    actorUserId: options.actorUserId ?? null,
+    action: "inmueble.printed",
+    entityType: "inmueble",
+    entityId: record.id,
+    summary: `Ficha ${record.clave_catastral} impresa`
   });
   return record;
 };
