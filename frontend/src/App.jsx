@@ -92,6 +92,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const FieldMap = lazy(() => import("./components/FieldMap"));
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
+const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
 const MAP_POINT_LIST_INITIAL_LIMIT = 30;
 const MAP_POINT_LIST_STEP = 30;
 const MOBILE_MAP_POINT_LIMIT = 180;
@@ -389,6 +390,7 @@ function App() {
   const [dashboardNow, setDashboardNow] = useState(() => Date.now());
   const [dashboardLastUpdatedAt, setDashboardLastUpdatedAt] = useState(() => Date.now());
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
+  const [dashboardSyncCycleKey, setDashboardSyncCycleKey] = useState(0);
   const [dashboardConnectionStatus, setDashboardConnectionStatus] = useState("synced");
   const [dashboardAlertFilter, setDashboardAlertFilter] = useState("all");
   const [changedDashboardMetricKeys, setChangedDashboardMetricKeys] = useState([]);
@@ -3325,6 +3327,7 @@ function App() {
       if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") return;
       if (!force && document.visibilityState !== "visible") return;
 
+      setDashboardSyncCycleKey((current) => current + 1);
       setDashboardRefreshing(true);
       setDashboardConnectionStatus("updating");
       try {
@@ -3450,7 +3453,7 @@ function App() {
     loadPadronMeta({ silent: true });
     loadAlcaldiaMeta({ silent: true });
 
-    const intervalId = window.setInterval(refreshDashboard, 15000);
+    const intervalId = window.setInterval(refreshDashboard, DASHBOARD_REFRESH_INTERVAL_MS);
     document.addEventListener("visibilitychange", refreshDashboard);
     window.addEventListener("focus", refreshDashboard);
 
@@ -9585,7 +9588,7 @@ function App() {
                 {dashboardConnectionStatus === "retrying"
                   ? "Reintentando conexion..."
                   : dashboardRefreshing
-                    ? "Actualizando datos..."
+                    ? "Sincronizando..."
                     : `Sincronizado · ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`}
               </small>
             </div>
@@ -9595,7 +9598,7 @@ function App() {
                 {dashboardConnectionStatus === "retrying"
                   ? "Reintentando conexion..."
                   : dashboardRefreshing
-                    ? "Actualizando datos..."
+                    ? "Sincronizando..."
                     : `Sincronizado · ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`}
               </span>
               <button
@@ -9604,9 +9607,12 @@ function App() {
                 onClick={() => refreshDashboard({ force: true })}
                 disabled={dashboardRefreshing}
               >
-                <Icon name="refresh" />
+                <Icon name="refresh" className={`dashboard-refresh-icon ${dashboardRefreshing ? "is-spinning" : ""}`} />
                 Actualizar ahora
               </button>
+            </div>
+            <div className="sync-progress" aria-hidden="true">
+              <span key={dashboardSyncCycleKey} className="sync-progress-bar" />
             </div>
           </section>
 

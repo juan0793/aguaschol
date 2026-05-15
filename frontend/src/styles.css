@@ -12978,6 +12978,8 @@ body {
 
 .dashboard-live-header {
   padding: 0.72rem 0.9rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .dashboard-live-pill {
@@ -13004,6 +13006,30 @@ button,
   background: linear-gradient(195deg, #49a3f1 0%, var(--material-primary) 100%);
   color: #fff;
   box-shadow: 0 4px 12px rgba(25, 118, 210, 0.28);
+}
+
+.dashboard-refresh-icon.is-spinning {
+  animation: dashboardRefreshSpin 820ms linear infinite;
+}
+
+.sync-progress {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 0;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px 999px 0 0;
+  background: #dbeafe;
+}
+
+.sync-progress-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--material-primary), #38bdf8);
+  animation: syncProgress 10s linear infinite;
 }
 
 .button-secondary,
@@ -13295,6 +13321,12 @@ button,
   .dashboard-start-actions {
     gap: 0.65rem;
   }
+
+  .sync-progress {
+    left: 12px;
+    right: 12px;
+    height: 3px;
+  }
 }
 
 @media (max-width: 540px) {
@@ -13308,5 +13340,21 @@ button,
 
   .dashboard-alert-action {
     min-height: 30px;
+  }
+}
+
+@keyframes syncProgress {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dashboardRefreshSpin {
+  to {
+    transform: rotate(360deg);
   }
 }
