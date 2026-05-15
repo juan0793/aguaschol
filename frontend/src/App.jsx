@@ -223,6 +223,9 @@ const getRecordAguasPresenceLabel = (record) => {
   return "Pendiente de validar";
 };
 
+const getRecordFichaDateLabel = (record) =>
+  formatSpanishDate(record?.created_at || record?.fecha_ficha || record?.fecha_registro || record?.fecha_aviso || record?.updated_at);
+
 const humanizeDashboardActivity = (log) => {
   const actor = log?.actor_name || log?.actor_email || "Sistema";
   const summary = String(log?.summary || "").trim();
@@ -7809,6 +7812,17 @@ function App() {
             color: #166534;
             font-weight: 700;
           }
+          .comparison-print-status {
+            display: inline-block;
+            border-radius: 999px;
+            background: #fee2e2;
+            color: #b91c1c;
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1;
+            padding: 4px 7px;
+            white-space: nowrap;
+          }
         </style>
         <section class="comparison-print-sheet">
           <header class="comparison-print-head">
@@ -7825,6 +7839,8 @@ function App() {
                 <th>Clave catastral</th>
                 <th>Nombre</th>
                 <th>Barrio</th>
+                <th>Fecha ficha</th>
+                <th>Estado</th>
                 <th>Aguas</th>
               </tr>
             </thead>
@@ -7839,6 +7855,8 @@ function App() {
                       <td>${escapeHtml(record.clave_catastral || "--")}</td>
                       <td>${escapeHtml(getRecordDisplayName(record, alcaldiaMatch))}</td>
                       <td>${escapeHtml(record.barrio_colonia || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--")}</td>
+                      <td>${escapeHtml(getRecordFichaDateLabel(record))}</td>
+                      <td><span class="comparison-print-status">Vencida</span></td>
                       <td class="${aguasClass}">${escapeHtml(aguasLabel)}</td>
                     </tr>
                   `;
@@ -9231,7 +9249,7 @@ function App() {
             <p className="eyebrow">Menu aparte</p>
             <DialogTitle>Comparar fichas vencidas contra Aguas</DialogTitle>
             <DialogDescription className="lead">
-              Imprime una lista simple: clave catastral, nombre, barrio y si aparece en Aguas.
+              Imprime una lista simple: clave catastral, nombre, barrio, fecha de ficha, estado y si aparece en Aguas.
             </DialogDescription>
           </DialogHeader>
           <div className="comparison-modal-summary">
@@ -9289,6 +9307,8 @@ function App() {
                     <th>Clave catastral</th>
                     <th>Nombre</th>
                     <th>Barrio</th>
+                    <th>Fecha ficha</th>
+                    <th>Estado</th>
                     <th>Aguas</th>
                   </tr>
                 </thead>
@@ -9301,6 +9321,10 @@ function App() {
                           <td>{record.clave_catastral || "--"}</td>
                           <td>{getRecordDisplayName(record, alcaldiaMatch)}</td>
                           <td>{record.barrio_colonia || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--"}</td>
+                          <td>{getRecordFichaDateLabel(record)}</td>
+                          <td>
+                            <span className="comparison-status-badge">Vencida</span>
+                          </td>
                           <td>
                             <Badge variant={getRecordAguasPresenceLabel(record) === "Si aparece en Aguas" ? "secondary" : "destructive"}>
                               {getRecordAguasPresenceLabel(record)}

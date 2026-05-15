@@ -13395,6 +13395,19 @@ button,
   letter-spacing: 0.05em;
 }
 
+.comparison-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.32rem 0.5rem;
+  white-space: nowrap;
+}
+
 .comparison-print-body {
   margin: 0;
   color: #111827;
@@ -13553,7 +13566,7 @@ button,
   }
 
   .comparison-modal-table {
-    min-width: 620px;
+    min-width: 820px;
   }
 
   .dashboard-alert-action {
