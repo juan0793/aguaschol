@@ -7729,6 +7729,27 @@ function App() {
     }
   };
 
+  const handleMarkSelectedAlertsAsPrinted = async () => {
+    const entriesToMove = manualPrintedSelection.entries.map((record) => ({ record, ficha: 1, aviso: 0 }));
+    if (!entriesToMove.length) {
+      showAlert("Marca al menos una ficha como ya impresa.");
+      return;
+    }
+
+    setBatchPrinting(true);
+    try {
+      const movedCount = await markBatchFichaRecordsAsPrinted(entriesToMove);
+      setShowDashboardAlertsModal(false);
+      setPrintBatchStatusView("printed");
+      showAlert(`${movedCount} fichas pasaron a impresas sin reimprimir.`);
+    } catch (error) {
+      loadRecords(search, recordView, { silent: true });
+      showAlert(error.message || "No fue posible marcar las fichas como impresas.");
+    } finally {
+      setBatchPrinting(false);
+    }
+  };
+
   const handleSaveSelectedPrintedRecords = async () => {
     if (!printedSaveSelection.total) {
       showAlert("Marca al menos una ficha impresa para enviarla a guardadas.");
@@ -9642,6 +9663,14 @@ function App() {
                     <span>{status}</span>
                   </div>
                   <div className="dashboard-alert-actions">
+                    <label className="print-save-check dashboard-alert-check">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(batchPrintCopies[record.id]?.printed)}
+                        onChange={() => togglePendingPrintedSelection(record.id)}
+                      />
+                      <span>Ya impresa</span>
+                    </label>
                     <button
                       type="button"
                       className="dashboard-alert-action"
@@ -9676,6 +9705,14 @@ function App() {
           <DialogFooter className="password-form-actions print-batch-footer">
             <Button type="button" variant="outline" onClick={() => setShowDashboardAlertsModal(false)}>
               Cerrar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleMarkSelectedAlertsAsPrinted}
+              disabled={batchPrinting || !manualPrintedSelection.total}
+            >
+              {batchPrinting ? "Marcando..." : `Marcar impresas${manualPrintedSelection.total ? ` (${manualPrintedSelection.total})` : ""}`}
             </Button>
             <Button
               type="button"

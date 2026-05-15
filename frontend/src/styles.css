@@ -3962,6 +3962,11 @@ button.is-loading::before {
   accent-color: var(--brand-blue);
 }
 
+.dashboard-alert-check {
+  flex: 1 1 100%;
+  justify-content: flex-end;
+}
+
 .print-validate-button {
   border-color: rgba(20, 101, 217, 0.28);
   color: var(--brand-blue);
