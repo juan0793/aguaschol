@@ -204,8 +204,14 @@ const formatDashboardSyncDate = (value) => {
 const getRecordPhotoPath = (record) =>
   record?.foto_path || record?.foto_url || record?.fotografia || record?.photo_path || "";
 
-const getRecordDisplayName = (record) =>
-  record?.abonado || record?.nombre_catastral || record?.inquilino || record?.nombre_alcaldia || "--";
+const getRecordDisplayName = (record) => {
+  const doesNotAppearInAguas = ["clandestino", "reportada"].includes(record?.estado_padron || "clandestino");
+  const candidates = doesNotAppearInAguas
+    ? [record?.nombre_alcaldia, record?.abonado, record?.nombre_catastral, record?.inquilino]
+    : [record?.abonado, record?.nombre_catastral, record?.inquilino, record?.nombre_alcaldia];
+  const name = candidates.find((value) => String(value || "").trim());
+  return name || "--";
+};
 
 const getRecordAguasPresenceLabel = (record) => {
   if (record?.estado_padron === "varios_padrones") return "Si aparece en Aguas";
