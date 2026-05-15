@@ -386,6 +386,11 @@ function App() {
   const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
   const [showDashboardAlertsModal, setShowDashboardAlertsModal] = useState(false);
   const [showPrintComparisonModal, setShowPrintComparisonModal] = useState(false);
+  const [printComparisonHeader, setPrintComparisonHeader] = useState({
+    kicker: "Lista de fichas vencidas",
+    title: "Comparacion contra Aguas",
+    note: "Claves vencidas comparadas con el padron de Aguas de Choluteca"
+  });
   const [batchPrintCopies, setBatchPrintCopies] = useState({});
   const [printBatchSearch, setPrintBatchSearch] = useState("");
   const [printBatchQuickFilter, setPrintBatchQuickFilter] = useState("all");
@@ -7708,8 +7713,11 @@ function App() {
     }
 
     const generatedAt = formatDashboardSyncDate(Date.now());
+    const headerKicker = String(printComparisonHeader.kicker || "").trim() || "Lista de fichas vencidas";
+    const headerTitle = String(printComparisonHeader.title || "").trim() || "Comparacion contra Aguas";
+    const headerNote = String(printComparisonHeader.note || "").trim();
     await printDocument(
-      `Comparacion Aguas - fichas vencidas (${rows.length})`,
+      `${headerTitle} (${rows.length})`,
       `
         <style>
           .comparison-print-body {
@@ -7799,9 +7807,9 @@ function App() {
         <section class="comparison-print-sheet">
           <header class="comparison-print-head">
             <div>
-              <span>Lista de fichas vencidas</span>
-              <h1>Comparacion contra Aguas</h1>
-              <p>Generado: ${escapeHtml(generatedAt)}</p>
+              <span>${escapeHtml(headerKicker)}</span>
+              <h1>${escapeHtml(headerTitle)}</h1>
+              <p>${escapeHtml(headerNote ? `${headerNote} | Generado: ${generatedAt}` : `Generado: ${generatedAt}`)}</p>
             </div>
             <strong class="comparison-print-count">${rows.length} fichas</strong>
           </header>
@@ -9229,6 +9237,39 @@ function App() {
               <strong>{overdueComparisonRecords.filter((record) => getRecordAguasPresenceLabel(record) === "Si aparece en Aguas").length}</strong>
             </div>
           </div>
+          <section className="comparison-header-editor">
+            <div className="comparison-header-editor-head">
+              <strong>Encabezado de impresion</strong>
+              <span>Edita solo el titulo del reporte, no cambia datos ni padrones.</span>
+            </div>
+            <label>
+              <span>Etiqueta superior</span>
+              <Input
+                value={printComparisonHeader.kicker}
+                onChange={(event) =>
+                  setPrintComparisonHeader((current) => ({ ...current, kicker: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Titulo principal</span>
+              <Input
+                value={printComparisonHeader.title}
+                onChange={(event) =>
+                  setPrintComparisonHeader((current) => ({ ...current, title: event.target.value }))
+                }
+              />
+            </label>
+            <label className="is-wide">
+              <span>Nota del encabezado</span>
+              <Input
+                value={printComparisonHeader.note}
+                onChange={(event) =>
+                  setPrintComparisonHeader((current) => ({ ...current, note: event.target.value }))
+                }
+              />
+            </label>
+          </section>
           <div className="comparison-modal-scroll">
             {overdueComparisonRecords.length ? (
               <table className="comparison-modal-table">
