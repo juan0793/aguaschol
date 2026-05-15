@@ -204,12 +204,16 @@ const formatDashboardSyncDate = (value) => {
 const getRecordPhotoPath = (record) =>
   record?.foto_path || record?.foto_url || record?.fotografia || record?.photo_path || "";
 
-const getRecordDisplayName = (record) => {
+const getRecordDisplayName = (record, alcaldiaMatch = null) => {
   const doesNotAppearInAguas = ["clandestino", "reportada"].includes(record?.estado_padron || "clandestino");
+  const recordKey = String(record?.clave_catastral || "").trim();
   const candidates = doesNotAppearInAguas
-    ? [record?.nombre_alcaldia, record?.abonado, record?.nombre_catastral, record?.inquilino]
-    : [record?.abonado, record?.nombre_catastral, record?.inquilino, record?.nombre_alcaldia];
-  const name = candidates.find((value) => String(value || "").trim());
+    ? [alcaldiaMatch?.nombre, record?.nombre_alcaldia, record?.abonado, record?.nombre_catastral, record?.inquilino]
+    : [record?.abonado, record?.nombre_catastral, record?.inquilino, alcaldiaMatch?.nombre, record?.nombre_alcaldia];
+  const name = candidates.find((value) => {
+    const cleanValue = String(value || "").trim();
+    return cleanValue && cleanValue !== recordKey;
+  });
   return name || "--";
 };
 
@@ -2186,6 +2190,22 @@ function App() {
         .map((item) => item.record),
     [dashboardAlertRecords]
   );
+  const alcaldiaComparisonByClave = useMemo(() => {
+    const rows = [
+      ...(alcaldiaComparison?.candidates || []),
+      ...(alcaldiaComparison?.matched_by_base || []),
+      ...(alcaldiaComparison?.matched_exact || [])
+    ];
+    return rows.reduce((map, row) => {
+      [row.clave_catastral, row.clave_aguas_formato].forEach((key) => {
+        const cleanKey = String(key || "").trim();
+        if (cleanKey && !map.has(cleanKey)) {
+          map.set(cleanKey, row);
+        }
+      });
+      return map;
+    }, new Map());
+  }, [alcaldiaComparison]);
   const filteredDashboardAlertRecords = useMemo(
     () =>
       dashboardAlertRecords.filter((item) => {
@@ -3100,10 +3120,12 @@ function App() {
       if (!silent) {
         showAlert(`Comparacion lista: ${data.summary?.candidate_clandestine ?? 0} claves de alcaldia no aparecen en Aguas.`);
       }
+      return data;
     } catch (error) {
       if (!silent) {
         showAlert(error.message || "No fue posible comparar los padrones.");
       }
+      return null;
     } finally {
       setLoadingAlcaldiaComparison(false);
     }
@@ -7666,10 +7688,114 @@ function App() {
       return;
     }
 
+    let comparisonByClave = alcaldiaComparisonByClave;
+    if (!alcaldiaComparison?.summary) {
+      const comparisonData = await loadAlcaldiaComparison({ silent: true });
+      const comparisonRows = [
+        ...(comparisonData?.candidates || []),
+        ...(comparisonData?.matched_by_base || []),
+        ...(comparisonData?.matched_exact || [])
+      ];
+      comparisonByClave = comparisonRows.reduce((map, row) => {
+        [row.clave_catastral, row.clave_aguas_formato].forEach((key) => {
+          const cleanKey = String(key || "").trim();
+          if (cleanKey && !map.has(cleanKey)) {
+            map.set(cleanKey, row);
+          }
+        });
+        return map;
+      }, new Map());
+    }
+
     const generatedAt = formatDashboardSyncDate(Date.now());
     await printDocument(
       `Comparacion Aguas - fichas vencidas (${rows.length})`,
       `
+        <style>
+          .comparison-print-body {
+            margin: 0;
+            color: #111827;
+            font-family: Arial, sans-serif;
+            background: #fff;
+          }
+          .comparison-print-sheet {
+            display: grid;
+            gap: 9px;
+            padding: 2px;
+          }
+          .comparison-print-head {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: start;
+            border: 1px solid #bfdbfe;
+            border-left: 6px solid #1d4ed8;
+            border-radius: 10px;
+            background: #eff6ff;
+            padding: 10px 12px;
+          }
+          .comparison-print-head span {
+            display: block;
+            color: #1d4ed8;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+          .comparison-print-head h1 {
+            margin: 2px 0 3px;
+            color: #0f172a;
+            font-size: 18px;
+            line-height: 1.1;
+          }
+          .comparison-print-head p {
+            margin: 0;
+            color: #475569;
+            font-size: 10px;
+          }
+          .comparison-print-count {
+            align-self: center;
+            border-radius: 999px;
+            background: #1d4ed8;
+            color: #fff;
+            padding: 5px 9px;
+            font-size: 11px;
+            white-space: nowrap;
+          }
+          .comparison-print-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+          .comparison-print-table th,
+          .comparison-print-table td {
+            border: 1px solid #cbd5e1;
+            padding: 5px 6px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 10px;
+            line-height: 1.25;
+            word-break: break-word;
+          }
+          .comparison-print-table th {
+            background: #dbeafe;
+            color: #1e3a8a;
+            font-size: 8px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+          }
+          .comparison-print-table tr:nth-child(even) td {
+            background: #f8fafc;
+          }
+          .comparison-print-table .is-missing {
+            color: #b91c1c;
+            font-weight: 700;
+          }
+          .comparison-print-table .is-found {
+            color: #166534;
+            font-weight: 700;
+          }
+        </style>
         <section class="comparison-print-sheet">
           <header class="comparison-print-head">
             <div>
@@ -7677,7 +7803,7 @@ function App() {
               <h1>Comparacion contra Aguas</h1>
               <p>Generado: ${escapeHtml(generatedAt)}</p>
             </div>
-            <strong>${rows.length} fichas</strong>
+            <strong class="comparison-print-count">${rows.length} fichas</strong>
           </header>
           <table class="comparison-print-table">
             <thead>
@@ -7690,16 +7816,19 @@ function App() {
             </thead>
             <tbody>
               ${rows
-                .map(
-                  (record) => `
+                .map((record) => {
+                  const alcaldiaMatch = comparisonByClave.get(String(record.clave_catastral || "").trim()) || null;
+                  const aguasLabel = getRecordAguasPresenceLabel(record);
+                  const aguasClass = aguasLabel === "Si aparece en Aguas" ? "is-found" : "is-missing";
+                  return `
                     <tr>
                       <td>${escapeHtml(record.clave_catastral || "--")}</td>
-                      <td>${escapeHtml(getRecordDisplayName(record))}</td>
-                      <td>${escapeHtml(record.barrio_colonia || record.barrio_alcaldia || "--")}</td>
-                      <td>${escapeHtml(getRecordAguasPresenceLabel(record))}</td>
+                      <td>${escapeHtml(getRecordDisplayName(record, alcaldiaMatch))}</td>
+                      <td>${escapeHtml(record.barrio_colonia || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--")}</td>
+                      <td class="${aguasClass}">${escapeHtml(aguasLabel)}</td>
                     </tr>
-                  `
-                )
+                  `;
+                })
                 .join("")}
             </tbody>
           </table>
@@ -9113,16 +9242,21 @@ function App() {
                 </thead>
                 <tbody>
                   {overdueComparisonRecords.map((record) => (
-                    <tr key={`comparison-${record.id}`}>
-                      <td>{record.clave_catastral || "--"}</td>
-                      <td>{getRecordDisplayName(record)}</td>
-                      <td>{record.barrio_colonia || record.barrio_alcaldia || "--"}</td>
-                      <td>
-                        <Badge variant={getRecordAguasPresenceLabel(record) === "Si aparece en Aguas" ? "secondary" : "destructive"}>
-                          {getRecordAguasPresenceLabel(record)}
-                        </Badge>
-                      </td>
-                    </tr>
+                    (() => {
+                      const alcaldiaMatch = alcaldiaComparisonByClave.get(String(record.clave_catastral || "").trim()) || null;
+                      return (
+                        <tr key={`comparison-${record.id}`}>
+                          <td>{record.clave_catastral || "--"}</td>
+                          <td>{getRecordDisplayName(record, alcaldiaMatch)}</td>
+                          <td>{record.barrio_colonia || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--"}</td>
+                          <td>
+                            <Badge variant={getRecordAguasPresenceLabel(record) === "Si aparece en Aguas" ? "secondary" : "destructive"}>
+                              {getRecordAguasPresenceLabel(record)}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })()
                   ))}
                 </tbody>
               </table>
