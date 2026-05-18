@@ -15,6 +15,8 @@ import {
   NOTIFICATION_REQUEST_STORAGE_KEY
 } from "./constants/storageKeys";
 import {
+  COMMERCIAL_MAP_POINT_COLOR,
+  COMMERCIAL_MAP_POINT_TYPE,
   defaultMapReportStaff,
   defaultMapReportSettings,
   defaultPadronRequestForm,
@@ -4872,6 +4874,10 @@ function App() {
     try {
       const isEditing = Boolean(editingMapPointId);
       const editingPoint = safeMapPoints.find((point) => point.id === editingMapPointId) ?? null;
+      const markerColor =
+        mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE
+          ? COMMERCIAL_MAP_POINT_COLOR
+          : editingPoint?.marker_color || "#1576d1";
       const response = await apiFetch(isEditing ? `/map-points/${editingMapPointId}` : "/map-points", {
         method: isEditing ? "PUT" : "POST",
         headers: {
@@ -4884,7 +4890,7 @@ function App() {
           point_type: mapDraft.point_type,
           description: mapDraft.description,
           reference: mapDraft.reference,
-          marker_color: editingPoint?.marker_color || "#1576d1",
+          marker_color: markerColor,
           is_terminal_point: Boolean(editingPoint?.is_terminal_point)
         })
       });
@@ -4940,7 +4946,10 @@ function App() {
     const { name, value, type, checked } = event.target;
     setReportMapDraft((current) => ({
       ...current,
-      [name]: type === "checkbox" ? checked : value
+      [name]: type === "checkbox" ? checked : value,
+      ...(name === "point_type" && value === COMMERCIAL_MAP_POINT_TYPE
+        ? { marker_color: COMMERCIAL_MAP_POINT_COLOR }
+        : {})
     }));
   };
 
@@ -5195,7 +5204,8 @@ function App() {
       accuracy_meters: point.accuracy_meters ?? "",
       point_type: point.point_type || "caja_registro",
       description: point.description || "",
-      reference: point.reference_note || ""
+      reference: point.reference_note || "",
+      marker_color: point.marker_color || "#1576d1"
     });
     setMapStatus("Edicion activa");
     setMapFocusRequest({
@@ -12821,6 +12831,9 @@ function App() {
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
+                    {mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE ? (
+                      <small className="helper-text">Este punto se guardara y mostrara en rojo.</small>
+                    ) : null}
                   </label>
                 </div>
 
@@ -12860,7 +12873,13 @@ function App() {
                   <div className="lookup-card-head map-card-head">
                     <div>
                       <p className="sheet-kicker">Punto seleccionado</p>
-                      <h3>{getMapPointTypeLabel(selectedMapPoint.point_type)}</h3>
+                      <h3 className="map-point-title-with-dot">
+                        <span
+                          className={`map-report-point-dot ${selectedMapPoint.is_terminal_point ? "is-pin" : ""}`}
+                          style={{ "--point-color": selectedMapPoint.marker_color || "#1576d1" }}
+                        />
+                        {getMapPointTypeLabel(selectedMapPoint.point_type)}
+                      </h3>
                     </div>
                     <span className="panel-pill">#{selectedMapPoint.id}</span>
                   </div>
@@ -12914,7 +12933,13 @@ function App() {
                       >
                         <button type="button" className="map-point-main" onClick={() => handleSelectMapPoint(point.id)}>
                           <div className="map-point-top">
-                            <strong>{getMapPointTypeLabel(point.point_type)}</strong>
+                            <strong className="map-point-title-with-dot">
+                              <span
+                                className={`map-report-point-dot ${point.is_terminal_point ? "is-pin" : ""}`}
+                                style={{ "--point-color": point.marker_color || "#1576d1" }}
+                              />
+                              {getMapPointTypeLabel(point.point_type)}
+                            </strong>
                             <span className="map-point-meta">{formatDateTime(point.created_at)}</span>
                           </div>
                           <p>{point.reference_note || point.description || "Sin referencia adicional."}</p>

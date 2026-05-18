@@ -8,8 +8,12 @@ const MAX_NATIVE_ZOOM = 19;
 const MAX_INTERACTION_ZOOM = 21;
 const TILE_CACHE_BUSTER = "osm-20260407";
 const MOBILE_MEDIA_QUERY = "(max-width: 768px), (pointer: coarse)";
+const COMMERCIAL_MAP_POINT_TYPE = "negocio_local_comercial";
+const COMMERCIAL_MAP_POINT_COLOR = "#ef4444";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
+const getDraftMarkerColor = (draft = {}) =>
+  draft.point_type === COMMERCIAL_MAP_POINT_TYPE ? COMMERCIAL_MAP_POINT_COLOR : "#f8b043";
 
 function FieldMap({
   apiUrl,
@@ -234,11 +238,14 @@ function FieldMap({
         radius: 9,
         color: "#ffffff",
         weight: 2,
-        fillColor: "#f8b043",
+        fillColor: getDraftMarkerColor(mapDraft),
         fillOpacity: 0.95
       }).addTo(mapRef.current);
     } else {
       draftMarkerRef.current.setLatLng([latitude, longitude]);
+      draftMarkerRef.current.setStyle({
+        fillColor: getDraftMarkerColor(mapDraft)
+      });
     }
 
     if (Number.isFinite(accuracyMeters) && accuracyMeters > 0) {
@@ -258,7 +265,7 @@ function FieldMap({
       accuracyCircleRef.current?.remove();
       accuracyCircleRef.current = null;
     }
-  }, [mapDraft.accuracy_meters, mapDraft.latitude, mapDraft.longitude]);
+  }, [mapDraft.accuracy_meters, mapDraft.latitude, mapDraft.longitude, mapDraft.point_type]);
 
   useEffect(() => {
     if (!mapRef.current || !mapFocusRequest) {

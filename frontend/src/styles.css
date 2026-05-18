@@ -7842,6 +7842,12 @@ textarea {
   margin: 0;
 }
 
+.map-point-title-with-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .map-point-main p,
 .map-point-meta,
 .map-point-coords {
