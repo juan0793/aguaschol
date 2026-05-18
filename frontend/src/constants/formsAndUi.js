@@ -4,12 +4,16 @@ export const MAP_POINT_TYPES = [
   { value: "caja_registro", label: "Caja de registro" },
   { value: "descarga", label: "Descarga" },
   { value: "pozo", label: "Pozo de visita" },
+  { value: "negocio_local_comercial", label: "Negocio / local comercial" },
   { value: "punto_observado", label: "Punto observado" }
 ];
 
+export const COMMERCIAL_MAP_POINT_TYPE = "negocio_local_comercial";
+export const COMMERCIAL_MAP_POINT_COLOR = "#ef4444";
+
 export const MAP_MARKER_COLORS = [
   { value: "#1576d1", label: "Azul operativo" },
-  { value: "#ef4444", label: "Rojo critico" },
+  { value: COMMERCIAL_MAP_POINT_COLOR, label: "Rojo negocio / local" },
   { value: "#f59e0b", label: "Amarillo alerta" },
   { value: "#10b981", label: "Verde validado" },
   { value: "#7c3aed", label: "Morado referencia" }
