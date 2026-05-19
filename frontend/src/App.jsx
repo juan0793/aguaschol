@@ -109,6 +109,16 @@ const DEFAULT_DASHBOARD_WIDGET_ORDER = [
   "online"
 ];
 const RECORDS_PAGE_SIZE = 10;
+const REPORT_POINT_DANGER_RGB = [220, 38, 38];
+const REPORT_POINT_DANGER_FILL_RGB = [254, 242, 242];
+const REPORT_POINT_DANGER_BORDER_RGB = [248, 113, 113];
+
+const isRedReportPoint = (point = {}) =>
+  point.point_type === COMMERCIAL_MAP_POINT_TYPE ||
+  String(point.marker_color || "").trim().toLowerCase() === COMMERCIAL_MAP_POINT_COLOR;
+
+const getReportPointRowClassName = (point = {}, baseClassName = "") =>
+  [baseClassName, isRedReportPoint(point) ? "is-red-report-point" : ""].filter(Boolean).join(" ");
 
 const getPadronStatusLabel = (status) => {
   if (status === "varios_padrones") return "Varios padrones";
@@ -5315,10 +5325,13 @@ function App() {
                 ${zone.items
                   .map(
                     (point, pointIndex) => `
-                      <tr>
+                      <tr class="${getReportPointRowClassName(point)}">
                         <td>${pointIndex + 1}</td>
                         <td>${getMapPointTypeLabel(point.point_type)}</td>
-                        <td>${point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1"}</td>
+                        <td>
+                          <span class="field-report-color-chip" style="--point-color: ${escapeHtml(point.marker_color || "#1576d1")}"></span>
+                          ${point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1"}
+                        </td>
                         <td>${formatCoordinate(point.latitude)}</td>
                         <td>${formatCoordinate(point.longitude)}</td>
                         <td>${point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
@@ -5523,17 +5536,21 @@ function App() {
             "Referencia",
             "Fecha"
           ]],
-          body: zone.items.map((point, pointIndex) => [
-            String(pointIndex + 1),
-            getMapPointTypeLabel(point.point_type),
-            point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1",
-            formatCoordinate(point.latitude),
-            formatCoordinate(point.longitude),
-            point.accuracy_meters ? `${point.accuracy_meters} m` : "--",
-            point.suggested_reference || "--",
-            point.reference_note || point.description || "--",
-            formatDateTime(point.created_at)
-          ]),
+          body: zone.items.map((point, pointIndex) => {
+            const row = [
+              String(pointIndex + 1),
+              getMapPointTypeLabel(point.point_type),
+              point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1",
+              formatCoordinate(point.latitude),
+              formatCoordinate(point.longitude),
+              point.accuracy_meters ? `${point.accuracy_meters} m` : "--",
+              point.suggested_reference || "--",
+              point.reference_note || point.description || "--",
+              formatDateTime(point.created_at)
+            ];
+            row.rawPoint = point;
+            return row;
+          }),
           theme: "grid",
           styles: {
             fontSize: 7.6,
@@ -5548,6 +5565,15 @@ function App() {
           },
           alternateRowStyles: {
             fillColor: [248, 251, 255]
+          },
+          didParseCell: (data) => {
+            if (data.section !== "body" || !isRedReportPoint(data.row.raw?.rawPoint)) return;
+            data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
+            data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
+            data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
+            if (data.column.index === 1 || data.column.index === 2) {
+              data.cell.styles.fontStyle = "bold";
+            }
           },
           margin: { left: 14, right: 14 },
           columnStyles: {
@@ -5613,7 +5639,7 @@ function App() {
                 ${zone.items
                   .map(
                     (point, pointIndex) => `
-                      <tr>
+                      <tr class="${getReportPointRowClassName(point)}">
                         <td>${pointIndex + 1}</td>
                         <td>${escapeHtml(zone.displayName || point.report_zone_label || zone.zone || "--")}</td>
                         <td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td>
@@ -5779,14 +5805,18 @@ function App() {
         autoTable(document, {
           startY: currentY + 22,
           head: [["#", "Nombre / sector", "Tipo", "Referencia 1", "Referencia 2", "Fecha"]],
-          body: zone.items.map((point, pointIndex) => [
-            String(pointIndex + 1),
-            zone.displayName || point.report_zone_label || zone.zone || "--",
-            getMapPointTypeLabel(point.point_type),
-            point.suggested_reference || zone.displayReference || "--",
-            point.reference_note || point.description || zone.displayLocation || "--",
-            formatDateTime(point.created_at)
-          ]),
+          body: zone.items.map((point, pointIndex) => {
+            const row = [
+              String(pointIndex + 1),
+              zone.displayName || point.report_zone_label || zone.zone || "--",
+              getMapPointTypeLabel(point.point_type),
+              point.suggested_reference || zone.displayReference || "--",
+              point.reference_note || point.description || zone.displayLocation || "--",
+              formatDateTime(point.created_at)
+            ];
+            row.rawPoint = point;
+            return row;
+          }),
           theme: "grid",
           styles: {
             fontSize: 7.5,
@@ -5801,6 +5831,15 @@ function App() {
           },
           alternateRowStyles: {
             fillColor: [248, 251, 255]
+          },
+          didParseCell: (data) => {
+            if (data.section !== "body" || !isRedReportPoint(data.row.raw?.rawPoint)) return;
+            data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
+            data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
+            data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
+            if (data.column.index === 1 || data.column.index === 2) {
+              data.cell.styles.fontStyle = "bold";
+            }
           },
           margin: { left: 14, right: 14 },
           columnStyles: {
@@ -13562,7 +13601,10 @@ function App() {
                                   {zone.items.map((point, pointIndex) => (
                                     <tr
                                       key={point.id}
-                                      className={selectedReportMapPointId === point.id ? "is-selected" : ""}
+                                      className={getReportPointRowClassName(
+                                        point,
+                                        selectedReportMapPointId === point.id ? "is-selected" : ""
+                                      )}
                                       onClick={() => handleSelectReportMapPoint(point.id)}
                                       onDoubleClick={() => handleEditReportMapPoint(point.id)}
                                     >

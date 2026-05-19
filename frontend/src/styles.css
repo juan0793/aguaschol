@@ -8423,8 +8423,26 @@ textarea {
   background: rgba(237, 245, 252, 0.72);
 }
 
+.map-report-table tbody tr.is-red-report-point {
+  background: #fef2f2;
+}
+
+.map-report-table tbody tr.is-red-report-point td {
+  border-bottom-color: rgba(220, 38, 38, 0.18);
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.map-report-table tbody tr.is-red-report-point:hover {
+  background: #fee2e2;
+}
+
 .map-report-table tbody tr.is-selected {
   background: rgba(212, 235, 255, 0.78);
+}
+
+.map-report-table tbody tr.is-selected.is-red-report-point {
+  background: #fecaca;
 }
 
 .request-sheet {

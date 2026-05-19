@@ -637,6 +637,23 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           .field-report-table td {
             font-size: 9.5px;
           }
+          .field-report-table tr.is-red-report-point td {
+            background: #fef2f2;
+            border-color: #fca5a5;
+            color: #b91c1c;
+            font-weight: 700;
+          }
+          .field-report-color-chip {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 4px;
+            border-radius: 999px;
+            background: var(--point-color, #1576d1);
+            border: 1px solid #ffffff;
+            box-shadow: 0 0 0 1px rgba(22, 50, 74, 0.14);
+            vertical-align: middle;
+          }
           .field-report-empty {
             border: 1px dashed #c7dcef;
             border-radius: 14px;
