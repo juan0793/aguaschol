@@ -109,6 +109,7 @@ const DEFAULT_DASHBOARD_WIDGET_ORDER = [
   "online"
 ];
 const RECORDS_PAGE_SIZE = 10;
+const MAP_DIARY_PRIMARY_LIMIT = 4;
 const REPORT_POINT_DANGER_RGB = [220, 38, 38];
 const REPORT_POINT_DANGER_FILL_RGB = [254, 242, 242];
 const REPORT_POINT_DANGER_BORDER_RGB = [248, 113, 113];
@@ -465,6 +466,10 @@ function App() {
   const [loadingMapContexts, setLoadingMapContexts] = useState(false);
   const [mapPointContexts, setMapPointContexts] = useState({});
   const [mapReportPage, setMapReportPage] = useState(1);
+  const [showMapDiaryArchiveModal, setShowMapDiaryArchiveModal] = useState(false);
+  const [selectedArchiveMapDiaryKey, setSelectedArchiveMapDiaryKey] = useState("");
+  const [archiveMapDiaryPoints, setArchiveMapDiaryPoints] = useState([]);
+  const [loadingArchiveMapDiaryPoints, setLoadingArchiveMapDiaryPoints] = useState(false);
   const [savingReportMapPoint, setSavingReportMapPoint] = useState(false);
   const [editingReportMapPointId, setEditingReportMapPointId] = useState(null);
   const [selectedReportMapPointId, setSelectedReportMapPointId] = useState(null);
@@ -595,6 +600,23 @@ function App() {
         : mapDiaryGroups[0]?.key ?? getTodayMapDiaryKey();
     },
     [mapDiaryDateKey, mapDiaryGroups]
+  );
+  const primaryMapDiaryGroups = useMemo(() => {
+    const recentGroups = mapDiaryGroups.slice(0, MAP_DIARY_PRIMARY_LIMIT);
+    if (recentGroups.some((group) => group.key === activeMapDiaryDateKey)) {
+      return recentGroups;
+    }
+
+    const activeGroup = mapDiaryGroups.find((group) => group.key === activeMapDiaryDateKey);
+    return activeGroup ? [activeGroup, ...recentGroups.slice(0, MAP_DIARY_PRIMARY_LIMIT - 1)] : recentGroups;
+  }, [activeMapDiaryDateKey, mapDiaryGroups]);
+  const archivedMapDiaryGroups = useMemo(() => {
+    const visibleKeys = new Set(primaryMapDiaryGroups.map((group) => group.key));
+    return mapDiaryGroups.filter((group) => !visibleKeys.has(group.key));
+  }, [mapDiaryGroups, primaryMapDiaryGroups]);
+  const selectedArchiveMapDiaryGroup = useMemo(
+    () => archivedMapDiaryGroups.find((group) => group.key === selectedArchiveMapDiaryKey) ?? archivedMapDiaryGroups[0] ?? null,
+    [archivedMapDiaryGroups, selectedArchiveMapDiaryKey]
   );
   const mapReportSettings = useMemo(
     () => normalizeMapReportSettings(mapReportSettingsByDate[activeMapDiaryDateKey]),
@@ -3336,6 +3358,48 @@ function App() {
         setLoadingMapPoints(false);
       }
     }
+  };
+
+  const loadArchivedMapDiaryPoints = async (dateKey) => {
+    if (!isAuthenticated || !dateKey) return;
+
+    setLoadingArchiveMapDiaryPoints(true);
+    try {
+      const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar la jornada seleccionada.");
+      }
+
+      setArchiveMapDiaryPoints(Array.isArray(data) ? data : []);
+      setSelectedArchiveMapDiaryKey(dateKey);
+    } catch (error) {
+      showAlert(error.message || "No fue posible cargar la jornada seleccionada.");
+    } finally {
+      setLoadingArchiveMapDiaryPoints(false);
+    }
+  };
+
+  const openMapDiaryArchiveModal = () => {
+    if (!archivedMapDiaryGroups.length) return;
+    const nextKey = selectedArchiveMapDiaryGroup?.key || archivedMapDiaryGroups[0].key;
+    setShowMapDiaryArchiveModal(true);
+    loadArchivedMapDiaryPoints(nextKey);
+  };
+
+  const handleUseArchivedMapDiary = () => {
+    const nextKey = selectedArchiveMapDiaryGroup?.key || selectedArchiveMapDiaryKey;
+    if (!nextKey) return;
+    setMapDiaryDateKey(nextKey);
+    setMapReportPage(1);
+    setShowMapDiaryArchiveModal(false);
   };
 
   const loadMapPointContexts = async (points = safeMapPoints) => {
@@ -9272,6 +9336,99 @@ function App() {
           </div>
         </div>
       ) : null}
+      <Dialog open={showMapDiaryArchiveModal} onOpenChange={setShowMapDiaryArchiveModal}>
+        <DialogContent className="map-diary-archive-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-5xl">
+          <DialogHeader className="password-modal-head">
+            <p className="eyebrow">Bitacora historica</p>
+            <DialogTitle>Jornadas anteriores adjuntas</DialogTitle>
+            <DialogDescription className="lead">
+              Dias trabajados ordenados del mas reciente al mas antiguo, separados para mantener limpio el tablero principal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="map-diary-archive-layout">
+            <aside className="map-diary-archive-list" aria-label="Jornadas anteriores">
+              {archivedMapDiaryGroups.length ? (
+                archivedMapDiaryGroups.map((group) => (
+                  <button
+                    key={group.key}
+                    type="button"
+                    className={`map-diary-archive-item ${selectedArchiveMapDiaryGroup?.key === group.key ? "is-active" : ""}`}
+                    onClick={() => loadArchivedMapDiaryPoints(group.key)}
+                  >
+                    <strong>{formatMapDiaryLabel(group.key)}</strong>
+                    <span>{group.total} puntos guardados</span>
+                  </button>
+                ))
+              ) : (
+                <p className="helper-text">No hay jornadas anteriores adjuntas.</p>
+              )}
+            </aside>
+            <section className="map-diary-archive-detail">
+              <div className="map-diary-archive-detail-head">
+                <div>
+                  <span className="sheet-kicker">Jornada seleccionada</span>
+                  <h3>{selectedArchiveMapDiaryGroup ? formatMapDiaryLabel(selectedArchiveMapDiaryGroup.key) : "Sin jornada"}</h3>
+                  <p className="helper-text">
+                    {selectedArchiveMapDiaryGroup
+                      ? `${selectedArchiveMapDiaryGroup.total} puntos guardados en esta fecha.`
+                      : "Selecciona una jornada para ver sus datos."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={handleUseArchivedMapDiary}
+                  disabled={!selectedArchiveMapDiaryGroup}
+                >
+                  <Icon name="map" />
+                  Abrir jornada
+                </button>
+              </div>
+              <div className="map-diary-archive-table-wrap">
+                <table className="map-diary-archive-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Tipo</th>
+                      <th>Referencia</th>
+                      <th>Coordenadas</th>
+                      <th>Precision</th>
+                      <th>Hora</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingArchiveMapDiaryPoints ? (
+                      <tr>
+                        <td colSpan="6">Cargando datos guardados...</td>
+                      </tr>
+                    ) : archiveMapDiaryPoints.length ? (
+                      archiveMapDiaryPoints.map((point, index) => (
+                        <tr key={point.id || `${point.latitude}-${point.longitude}-${index}`}>
+                          <td>{index + 1}</td>
+                          <td>{getMapPointTypeLabel(point.point_type)}</td>
+                          <td>{point.reference_note || point.description || "--"}</td>
+                          <td>{formatCoordinate(point.latitude)}, {formatCoordinate(point.longitude)}</td>
+                          <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
+                          <td>{formatDateTime(point.created_at)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6">Selecciona una jornada para ver los datos guardados.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+          <DialogFooter className="password-form-actions print-batch-footer">
+            <button type="button" className="button-secondary" onClick={() => setShowMapDiaryArchiveModal(false)}>
+              Cerrar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={showPrintBatchModal} onOpenChange={(open) => !batchPrinting && setShowPrintBatchModal(open)}>
         <DialogContent className="print-batch-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-3xl">
           <DialogHeader className="password-modal-head">
@@ -12790,7 +12947,7 @@ function App() {
                 </div>
                 <div className="map-diary-tabs">
                   {mapDiaryGroups.length ? (
-                    mapDiaryGroups.map((group) => (
+                    primaryMapDiaryGroups.map((group) => (
                       <button
                         key={group.key}
                         type="button"
@@ -12804,6 +12961,12 @@ function App() {
                   ) : (
                     <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
                   )}
+                  {archivedMapDiaryGroups.length ? (
+                    <button type="button" className="map-diary-archive-card" onClick={openMapDiaryArchiveModal}>
+                      <strong>Jornadas anteriores</strong>
+                      <span>{archivedMapDiaryGroups.length} dias adjuntos</span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
               <Suspense fallback={<div className="map-canvas map-canvas-loading">Cargando mapa...</div>}>
@@ -13123,7 +13286,7 @@ function App() {
                       </div>
                       <div className="map-diary-tabs">
                         {mapDiaryGroups.length ? (
-                          mapDiaryGroups.map((group) => (
+                          primaryMapDiaryGroups.map((group) => (
                             <button
                               key={group.key}
                               type="button"
@@ -13140,6 +13303,12 @@ function App() {
                         ) : (
                           <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
                         )}
+                        {archivedMapDiaryGroups.length ? (
+                          <button type="button" className="map-diary-archive-card" onClick={openMapDiaryArchiveModal}>
+                            <strong>Jornadas anteriores</strong>
+                            <span>{archivedMapDiaryGroups.length} dias adjuntos</span>
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                     <div className="log-summary-strip map-report-summary-strip">
