@@ -3,6 +3,7 @@ import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import RecordsWorkspace from "./components/records/RecordsWorkspace";
 import TransportWorkspace from "./components/TransportWorkspace";
+import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
 import {
@@ -13193,75 +13194,16 @@ function App() {
       ) : (
         <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (
-          <aside className="sidebar no-print">
-            {workspaceView === "users" ? (
-              <>
-                <div className="panel-header">
-                  <h2>Usuarios</h2>
-                  <span className="panel-pill">{safeUsers.length}</span>
-                </div>
-                {loadingUsers ? <p className="helper-text">Cargando usuarios...</p> : null}
-                <div className="record-list">
-                  {safeUsers.map((user) => (
-                    <article
-                      key={user.id}
-                      className={`record-card info-card ${selectedUser?.id === user.id ? "is-selected" : ""}`}
-                      onClick={() => setSelectedUserId(user.id)}
-                    >
-                      <div className="record-card-top user-card-top">
-                        <strong className="user-name">{user.full_name}</strong>
-                        <div className="user-badge-stack">
-                          <span className={`record-badge ${user.is_online ? "is-online" : ""}`}>
-                            {user.is_online ? "En linea" : roleLabel(user.role)}
-                          </span>
-                          <span className="record-badge">{roleLabel(user.role)}</span>
-                        </div>
-                      </div>
-                      <span className="user-email">{user.email}</span>
-                      <small className="user-meta">
-                        Usuario: {user.username} - Ultimo acceso: {formatDateTime(user.last_login_at)}
-                      </small>
-                      <div className="user-card-actions">
-                        <span className="record-badge">{user.active_sessions || 0} sesiones</span>
-                        {session?.user?.id !== user.id ? (
-                          <button
-                            type="button"
-                            className="button-danger"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setPendingDeleteUser(user);
-                            }}
-                          >
-                            Eliminar
-                          </button>
-                        ) : null}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="panel-header">
-                  <h2>Actividad reciente</h2>
-                  <span className="panel-pill">{safeAuditLogs.length}</span>
-                </div>
-                {loadingLogs ? <p className="helper-text">Cargando historial...</p> : null}
-                <div className="record-list">
-                  {safeAuditLogs.map((log) => (
-                    <article key={log.id} className="record-card info-card">
-                      <div className="record-card-top">
-                        <strong>{actionLabel(log.action)}</strong>
-                        <span className="record-badge">{log.entity_type}</span>
-                      </div>
-                      <span>{log.summary || "Movimiento registrado"}</span>
-                      <small>{formatDateTime(log.created_at)}</small>
-                    </article>
-                  ))}
-                </div>
-              </>
-            )}
-          </aside>
+            <UsersSidebar
+              loadingUsers={loadingUsers}
+              safeUsers={safeUsers}
+              selectedUser={selectedUser}
+              session={session}
+              setPendingDeleteUser={setPendingDeleteUser}
+              setSelectedUserId={setSelectedUserId}
+              formatDateTime={formatDateTime}
+              roleLabel={roleLabel}
+            />
           ) : null}
 
           <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
@@ -14873,132 +14815,19 @@ function App() {
                 </div>
               </section>
             ) : workspaceView === "users" ? (
-              <>
-                <form className="sheet no-print" onSubmit={handleCreateUser}>
-                  <div className="admin-section-head">
-                    <div>
-                      <p className="sheet-kicker">Administracion de usuarios</p>
-                      <h2><Icon name="users" className="title-icon" />Crear nuevo acceso</h2>
-                    </div>
-                    <span className="panel-pill">Correo transaccional</span>
-                  </div>
-                  <section className="sheet-section">
-                    <h3>Datos del usuario</h3>
-                    <div className="form-grid">
-                      <label>
-                        <span>Nombre completo</span>
-                        <input name="full_name" value={userForm.full_name} onChange={handleUserFormChange} required />
-                      </label>
-                      <label>
-                        <span>Correo electronico</span>
-                        <input name="email" type="email" value={userForm.email} onChange={handleUserFormChange} required />
-                      </label>
-                      <label>
-                        <span>Perfil</span>
-                        <select name="role" value={userForm.role} onChange={handleUserFormChange}>
-                          <option value="operator">Operador</option>
-                          <option value="transport">Transporte</option>
-                          <option value="admin">Administrador</option>
-                        </select>
-                      </label>
-                    </div>
-                  </section>
-                  <div className="action-row">
-                    <button type="submit" disabled={creatingUser}>
-                      <Icon name="plus" />
-                      {creatingUser ? "Creando..." : "Crear usuario"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() =>
-                        setUserForm({
-                          full_name: "",
-                          email: "",
-                          role: "operator"
-                        })
-                      }
-                    >
-                      <Icon name="refresh" />
-                      Limpiar
-                    </button>
-                  </div>
-                </form>
-
-                <section className="preview-panel">
-                  <div className="admin-section-head">
-                    <div>
-                      <p className="sheet-kicker">Detalle del usuario</p>
-                      <h2><Icon name="success" className="title-icon" />Informacion del acceso</h2>
-                    </div>
-                    {selectedUser ? <span className="panel-pill">{selectedUser.username}</span> : null}
-                  </div>
-                  <article className="document-sheet">
-                    {selectedUser ? (
-                      <div className="admin-result-grid">
-                        <div className="document-block">
-                          <h4>Datos generales</h4>
-                          <p className="user-detail-line"><strong>Nombre:</strong> <span className="user-name">{selectedUser.full_name}</span></p>
-                          <p className="user-detail-line"><strong>Correo:</strong> <span className="user-email">{selectedUser.email}</span></p>
-                          <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{selectedUser.username}</span></p>
-                          <p><strong>Perfil:</strong> {roleLabel(selectedUser.role)}</p>
-                          <p><strong>Ultimo acceso:</strong> {formatDateTime(selectedUser.last_login_at)}</p>
-                          <p><strong>Estado en linea:</strong> {selectedUser.is_online ? "Conectado" : "Sin conexion activa"}</p>
-                          <p><strong>Sesiones activas:</strong> {selectedUser.active_sessions || 0}</p>
-                        </div>
-                        <div className="document-block">
-                          <h4>Estado y entrega</h4>
-                          <div className="user-card-actions user-detail-actions">
-                            {session?.user?.id !== selectedUser.id ? (
-                              <button
-                                type="button"
-                                className="button-secondary"
-                                onClick={() => handleResetUserPassword(selectedUser)}
-                              >
-                                <Icon name="refresh" />
-                                Regenerar contrasena temporal
-                              </button>
-                            ) : null}
-                          </div>
-                          {latestUserResult?.user?.id === selectedUser.id ? (
-                            <>
-                              <p>
-                                <strong>Estado de correo:</strong>{" "}
-                                {latestUserResult.delivery?.sent
-                                  ? latestUserResult.delivery?.sandbox
-                                    ? "Enviado en sandbox"
-                                    : "Enviado"
-                                  : "Pendiente o manual"}
-                              </p>
-                              <p>
-                                <strong>Detalle:</strong>{" "}
-                                {latestUserResult.delivery?.reason || "La notificacion fue procesada correctamente."}
-                              </p>
-                              {latestUserResult.temp_password ? (
-                                <p><strong>Contrasena temporal:</strong> {latestUserResult.temp_password}</p>
-                              ) : null}
-                            </>
-                          ) : (
-                            <>
-                              <p><strong>Estado:</strong> Usuario registrado en el sistema.</p>
-                              <p><strong>Creado:</strong> {formatDateTime(selectedUser.created_at)}</p>
-                              <p><strong>Actualizado:</strong> {formatDateTime(selectedUser.updated_at)}</p>
-                              <p><strong>Cambio de contrasena:</strong> {selectedUser.force_password_change ? "Pendiente" : "Completado"}</p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="empty-state">
-                        <h3>Sin usuario seleccionado</h3>
-                        <p>
-                          Selecciona un usuario del listado para ver su informacion detallada y administrar su acceso.
-                        </p>
-                      </div>
-                    )}
-                  </article>
-                </section>
-              </>
+              <UsersContent
+                creatingUser={creatingUser}
+                handleCreateUser={handleCreateUser}
+                handleResetUserPassword={handleResetUserPassword}
+                handleUserFormChange={handleUserFormChange}
+                latestUserResult={latestUserResult}
+                selectedUser={selectedUser}
+                session={session}
+                setUserForm={setUserForm}
+                userForm={userForm}
+                formatDateTime={formatDateTime}
+                roleLabel={roleLabel}
+              />
             ) : (
               <section className="preview-panel log-panel-full">
                 <div className="log-shell">
