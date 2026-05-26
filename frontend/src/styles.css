@@ -5601,6 +5601,9 @@ textarea {
 
 .log-panel-full {
   padding: 1.25rem 1.4rem;
+}
+
+.log-terminal-view {
   position: relative;
   overflow: hidden;
   border: 0;
@@ -5612,7 +5615,7 @@ textarea {
   color: #d7e7f7;
 }
 
-.log-panel-full::before {
+.log-terminal-view::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -5624,7 +5627,7 @@ textarea {
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.78), transparent 82%);
 }
 
-.log-panel-full::after {
+.log-terminal-view::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -5661,7 +5664,7 @@ textarea {
     linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 249, 255, 0.96) 100%);
 }
 
-.log-panel-full .log-hero {
+.log-terminal-view .log-hero {
   border: 1px solid rgba(125, 211, 252, 0.18);
   background:
     radial-gradient(circle at 84% 16%, rgba(14, 165, 233, 0.22), transparent 28%),
@@ -5670,13 +5673,13 @@ textarea {
   backdrop-filter: blur(18px);
 }
 
-.log-panel-full .admin-section-head h2,
-.log-panel-full .workspace-title,
-.log-panel-full .sheet-kicker {
+.log-terminal-view .admin-section-head h2,
+.log-terminal-view .workspace-title,
+.log-terminal-view .sheet-kicker {
   color: #dbeafe;
 }
 
-.log-panel-full .sheet-kicker {
+.log-terminal-view .sheet-kicker {
   color: #67e8f9;
 }
 
@@ -5782,24 +5785,24 @@ textarea {
   border: 1px solid rgba(21, 118, 209, 0.1);
 }
 
-.log-panel-full .log-filters {
+.log-terminal-view .log-filters {
   border-color: rgba(125, 211, 252, 0.14);
   background: rgba(2, 6, 23, 0.42);
   backdrop-filter: blur(14px);
 }
 
-.log-panel-full .log-filters label span {
+.log-terminal-view .log-filters label span {
   color: #93c5fd;
 }
 
-.log-panel-full .log-filters input,
-.log-panel-full .log-filters select {
+.log-terminal-view .log-filters input,
+.log-terminal-view .log-filters select {
   border-color: rgba(125, 211, 252, 0.22);
   background: rgba(15, 23, 42, 0.72);
   color: #e0f2fe;
 }
 
-.log-panel-full .log-filters input::placeholder {
+.log-terminal-view .log-filters input::placeholder {
   color: rgba(191, 219, 254, 0.56);
 }
 
@@ -5822,17 +5825,17 @@ textarea {
   border: 1px solid rgba(21, 118, 209, 0.1);
 }
 
-.log-panel-full .log-summary-card {
+.log-terminal-view .log-summary-card {
   border-color: rgba(125, 211, 252, 0.14);
   background: rgba(15, 23, 42, 0.55);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.log-panel-full .log-summary-card span {
+.log-terminal-view .log-summary-card span {
   color: #7dd3fc;
 }
 
-.log-panel-full .log-summary-card strong {
+.log-terminal-view .log-summary-card strong {
   color: #f8fafc;
 }
 
@@ -5860,7 +5863,7 @@ textarea {
   gap: 0.7rem;
 }
 
-.log-panel-full .log-sheet-minimal {
+.log-terminal-view .log-sheet-minimal {
   display: grid;
   grid-template-columns: minmax(210px, 0.26fr) minmax(0, 1fr);
   align-items: start;
@@ -5920,7 +5923,7 @@ textarea {
   gap: 0.82rem;
 }
 
-.log-panel-full .log-row {
+.log-terminal-view .log-row {
   opacity: 0;
   animation: dashboardFeedIn 360ms ease forwards;
   animation-delay: var(--log-delay, 0ms);
@@ -5929,13 +5932,13 @@ textarea {
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.log-panel-full .log-row:hover {
+.log-terminal-view .log-row:hover {
   transform: translateY(-2px);
   border-color: rgba(103, 232, 249, 0.4);
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(103, 232, 249, 0.08);
 }
 
-.log-panel-full .log-row::before {
+.log-terminal-view .log-row::before {
   background: linear-gradient(180deg, rgba(103, 232, 249, 0.44), rgba(103, 232, 249, 0));
 }
 
@@ -5967,7 +5970,7 @@ textarea {
   border: 1px solid rgba(21, 118, 209, 0.14);
 }
 
-.log-panel-full .log-pin {
+.log-terminal-view .log-pin {
   background: rgba(8, 47, 73, 0.9);
   color: #67e8f9;
   border-color: rgba(125, 211, 252, 0.35);
@@ -5994,17 +5997,17 @@ textarea {
   color: #15334d;
 }
 
-.log-panel-full .log-meta strong {
+.log-terminal-view .log-meta strong {
   color: #f8fafc;
   font-family: Consolas, "SFMono-Regular", Menlo, monospace;
 }
 
-.log-panel-full .log-topline small {
+.log-terminal-view .log-topline small {
   color: #93c5fd;
   font-family: Consolas, "SFMono-Regular", Menlo, monospace;
 }
 
-.log-panel-full .record-badge {
+.log-terminal-view .record-badge {
   border-color: rgba(103, 232, 249, 0.2);
   background: rgba(8, 47, 73, 0.78);
   color: #7dd3fc;
@@ -6035,7 +6038,7 @@ textarea {
   border: 1px solid rgba(21, 118, 209, 0.08);
 }
 
-.log-panel-full .log-chip {
+.log-terminal-view .log-chip {
   border-color: rgba(125, 211, 252, 0.14);
   background: rgba(14, 165, 233, 0.1);
   color: #bfdbfe;
@@ -6056,7 +6059,7 @@ textarea {
   line-height: 1.45;
 }
 
-.log-panel-full .log-detail pre {
+.log-terminal-view .log-detail pre {
   border-color: rgba(125, 211, 252, 0.13);
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.76), rgba(15, 23, 42, 0.82));
   color: #a7f3d0;
@@ -6064,7 +6067,7 @@ textarea {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
-.log-panel-full .log-detail p {
+.log-terminal-view .log-detail p {
   color: #93c5fd;
 }
 
@@ -14609,7 +14612,7 @@ button,
 }
 
 /* Hacker-style activity history skin. Kept scoped to the logs panel so it feels separate from the institutional app shell. */
-.log-panel-full {
+.log-terminal-view {
   background:
     radial-gradient(circle at 10% 12%, rgba(34, 211, 238, 0.18), transparent 28%),
     radial-gradient(circle at 92% 18%, rgba(59, 130, 246, 0.2), transparent 32%),
@@ -14617,15 +14620,15 @@ button,
     linear-gradient(135deg, #06111f 0%, #0b1726 48%, #101827 100%) !important;
 }
 
-.log-panel-full .log-hero,
-.log-panel-full .log-sheet-minimal {
+.log-terminal-view .log-hero,
+.log-terminal-view .log-sheet-minimal {
   border: 1px solid rgba(125, 211, 252, 0.16);
   background: linear-gradient(145deg, rgba(8, 20, 35, 0.86), rgba(8, 27, 45, 0.72));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(18px);
 }
 
-.log-panel-full .log-sheet-minimal {
+.log-terminal-view .log-sheet-minimal {
   display: grid;
   grid-template-columns: minmax(210px, 0.26fr) minmax(0, 1fr);
   align-items: start;
@@ -14634,31 +14637,193 @@ button,
   border-radius: 24px;
 }
 
-.log-panel-full .log-row {
+.log-terminal-view .log-row {
   border-color: rgba(125, 211, 252, 0.15);
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(8, 20, 35, 0.76)) !important;
   color: #dbeafe;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.log-panel-full .log-row:hover {
+.log-terminal-view .log-row:hover {
   border-color: rgba(103, 232, 249, 0.4);
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(103, 232, 249, 0.08);
 }
 
-.log-panel-full .log-summary-strip {
+.log-terminal-view .log-summary-strip {
   background: transparent;
 }
 
-.log-panel-full .button-secondary {
+.log-terminal-view .button-secondary {
   border-color: rgba(125, 211, 252, 0.18);
   background: rgba(15, 23, 42, 0.66);
   color: #dbeafe;
 }
 
-.log-panel-full .button-secondary:hover:not(:disabled) {
+.log-terminal-view .button-secondary:hover:not(:disabled) {
   border-color: rgba(103, 232, 249, 0.42);
   background: rgba(14, 165, 233, 0.16);
+}
+
+.hero-logs-terminal {
+  position: relative;
+  color: #dbeafe;
+}
+
+.hero-logs-terminal .app-topbar,
+.hero-logs-terminal > .search-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background:
+    radial-gradient(circle at 8% 18%, rgba(34, 211, 238, 0.16), transparent 28%),
+    radial-gradient(circle at 88% 0%, rgba(59, 130, 246, 0.18), transparent 32%),
+    linear-gradient(135deg, rgba(2, 6, 23, 0.96), rgba(7, 25, 43, 0.94)) !important;
+  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.hero-logs-terminal .app-topbar::before,
+.hero-logs-terminal > .search-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(125, 211, 252, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.05) 1px, transparent 1px);
+  background-size: 38px 38px;
+}
+
+.hero-logs-terminal .app-topbar-brand strong,
+.hero-logs-terminal .app-topbar-brand span,
+.hero-logs-terminal .search-card-head label,
+.hero-logs-terminal .search-card-kicker {
+  color: #dbeafe;
+}
+
+.hero-logs-terminal .app-topbar-logo {
+  filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.35));
+}
+
+.hero-logs-terminal .app-topbar-kpi,
+.hero-logs-terminal .app-save-state,
+.hero-logs-terminal .app-user-chip,
+.hero-logs-terminal .app-logout-button {
+  border-color: rgba(125, 211, 252, 0.16);
+  background: rgba(15, 23, 42, 0.62);
+  color: #dbeafe;
+}
+
+.log-module-command {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.95rem;
+  border: 1px solid rgba(125, 211, 252, 0.15);
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.44);
+  backdrop-filter: blur(12px);
+}
+
+.log-module-command::after {
+  content: "";
+  position: absolute;
+  right: 2rem;
+  top: 50%;
+  width: 150px;
+  height: 150px;
+  opacity: 0.08;
+  transform: translateY(-50%);
+  background:
+    radial-gradient(circle at 50% 36%, transparent 0 18px, #67e8f9 19px 28px, transparent 29px),
+    radial-gradient(circle at 36% 42%, #67e8f9 0 8px, transparent 9px),
+    radial-gradient(circle at 64% 42%, #67e8f9 0 8px, transparent 9px),
+    linear-gradient(135deg, transparent 0 36%, #67e8f9 37% 42%, transparent 43%),
+    linear-gradient(225deg, transparent 0 36%, #67e8f9 37% 42%, transparent 43%);
+  clip-path: polygon(50% 0, 86% 24%, 80% 78%, 50% 100%, 20% 78%, 14% 24%);
+}
+
+.log-module-command-art {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.2), rgba(15, 23, 42, 0.7));
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.2), 0 0 28px rgba(14, 165, 233, 0.16);
+}
+
+.log-module-command-art span {
+  width: 38px;
+  height: 46px;
+  background: #67e8f9;
+  clip-path: polygon(50% 0, 92% 100%, 65% 78%, 50% 46%, 35% 78%, 8% 100%);
+  filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.5));
+}
+
+.log-module-command strong {
+  display: block;
+  color: #f8fafc;
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 1.05rem;
+}
+
+.log-module-command p {
+  max-width: 760px;
+  margin: 0.25rem 0 0;
+  color: #93c5fd;
+  line-height: 1.4;
+}
+
+.log-module-command-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.log-module-command-stats span {
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.7);
+  color: #67e8f9;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.32rem 0.58rem;
+  text-transform: uppercase;
+}
+
+.log-terminal-view .log-filters {
+  max-height: 42vh;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 232, 249, 0.45) transparent;
+}
+
+.log-terminal-view .log-stream-list {
+  max-height: min(68vh, 760px);
+  overflow: auto;
+  padding-right: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 232, 249, 0.45) transparent;
+}
+
+.log-terminal-view .log-filters::-webkit-scrollbar,
+.log-terminal-view .log-stream-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.log-terminal-view .log-filters::-webkit-scrollbar-track,
+.log-terminal-view .log-stream-list::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.35);
+  border-radius: 999px;
+}
+
+.log-terminal-view .log-filters::-webkit-scrollbar-thumb,
+.log-terminal-view .log-stream-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(103, 232, 249, 0.45);
 }
 
 @media (max-width: 1180px) {
@@ -14672,7 +14837,7 @@ button,
 }
 
 @media (max-width: 920px) {
-  .log-panel-full .log-sheet-minimal {
+  .log-terminal-view .log-sheet-minimal {
     grid-template-columns: 1fr;
   }
 
@@ -14730,13 +14895,21 @@ button,
     height: 3px;
   }
 
-  .log-panel-full {
+  .log-terminal-view {
     padding: 0.75rem;
   }
 
   .log-terminal-bar,
   .log-hero-status {
     width: 100%;
+  }
+
+  .log-module-command {
+    grid-template-columns: 1fr;
+  }
+
+  .log-module-command-stats {
+    justify-content: flex-start;
   }
 
   .log-ops-panel {

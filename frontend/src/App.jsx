@@ -9976,7 +9976,7 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <header className={`hero app-chrome no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""}`}>
+      <header className={`hero app-chrome no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""} ${workspaceView === "logs" ? "hero-logs-terminal" : ""}`}>
         <div className="app-topbar">
           <button
             type="button"
@@ -10033,7 +10033,22 @@ function App() {
             <label htmlFor="search">{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</label>
             <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>
           </div>
-          {workspaceView === "dashboard" ? (
+          {workspaceView === "logs" ? (
+            <div className="log-module-command">
+              <div className="log-module-command-art" aria-hidden="true">
+                <span />
+              </div>
+              <div>
+                <span className="sheet-kicker">audit@aguaschol</span>
+                <strong>~/historial --watch --workstream</strong>
+                <p>Encabezado aislado para monitorear informacion de trabajo, eventos y trazabilidad sin mezclarlo visualmente con las fichas.</p>
+              </div>
+              <div className="log-module-command-stats">
+                <span>{safeAuditLogs.length} logs</span>
+                <span>{loadingLogs ? "sync" : "online"}</span>
+              </div>
+            </div>
+          ) : workspaceView === "dashboard" ? (
             isAdmin ? (
               <div className="admin-console">
                 <div className="admin-console-head">
@@ -14918,7 +14933,7 @@ function App() {
                 roleLabel={roleLabel}
               />
             ) : (
-              <section className="preview-panel log-panel-full">
+              <section className="preview-panel log-panel-full log-terminal-view">
                 <div className="log-shell">
                   <div className="log-hero">
                     <div className="admin-section-head">
