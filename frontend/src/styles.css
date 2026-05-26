@@ -13517,6 +13517,13 @@ button,
   overflow: hidden;
   border-radius: 999px 999px 0 0;
   background: #dbeafe;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.dashboard-live-header.is-updating .sync-progress,
+.dashboard-live-header.is-retrying .sync-progress {
+  opacity: 1;
 }
 
 .sync-progress-bar {
@@ -13527,8 +13534,8 @@ button,
   background: linear-gradient(90deg, var(--material-primary), #38bdf8);
   animation: syncProgress 18s linear infinite;
   animation-play-state: paused;
-  opacity: 0.38;
-  transform: scaleX(1);
+  opacity: 0;
+  transform: scaleX(0);
 }
 
 .dashboard-live-header.is-updating .sync-progress-bar,

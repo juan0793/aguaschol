@@ -10598,9 +10598,11 @@ function App() {
                 Actualizar ahora
               </button>
             </div>
-            <div className="sync-progress" aria-hidden="true">
-              <span key={dashboardSyncCycleKey} className="sync-progress-bar" />
-            </div>
+            {dashboardRefreshing || dashboardConnectionStatus === "retrying" ? (
+              <div className="sync-progress" aria-hidden="true">
+                <span key={dashboardSyncCycleKey} className="sync-progress-bar" />
+              </div>
+            ) : null}
           </section>
 
           <section className="dashboard-topline">
