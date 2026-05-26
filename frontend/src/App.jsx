@@ -14923,13 +14923,24 @@ function App() {
                   <div className="log-hero">
                     <div className="admin-section-head">
                       <div>
-                        <p className="sheet-kicker">Bitacora profesional</p>
+                        <p className="sheet-kicker">Terminal de auditoria</p>
                         <h2><Icon name="history" className="title-icon" />Historial de actividad</h2>
                         <p className="workspace-title">
-                          Un seguimiento continuo de accesos, altas y movimientos relevantes del sistema.
+                          Consola viva para seguir accesos, fichas, padrones y movimientos del trabajo operativo.
                         </p>
                       </div>
-                      <span className="panel-pill">{safeAuditLogs.length} eventos</span>
+                      <div className="log-hero-status">
+                        <span className="log-live-dot" />
+                        <strong>{safeAuditLogs.length}</strong>
+                        <small>eventos indexados</small>
+                      </div>
+                    </div>
+                    <div className="log-terminal-bar" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                      <strong>aguaschol://audit-stream</strong>
+                      <small>{loadingLogs ? "stream:syncing" : "stream:online"}</small>
                     </div>
                     <form className="log-filters" onSubmit={(event) => event.preventDefault()}>
                       <label>
@@ -14998,46 +15009,66 @@ function App() {
                     </form>
                     <div className="log-summary-strip">
                       <div className="log-summary-card">
-                        <span>Vista</span>
-                        <strong>Centralizada</strong>
+                        <span>Stream</span>
+                        <strong>{loadingLogs ? "Sincronizando" : "Online"}</strong>
                       </div>
                       <div className="log-summary-card">
-                        <span>Orden</span>
-                        <strong>Mas reciente primero</strong>
+                        <span>Paquetes</span>
+                        <strong>{safeAuditLogs.length}</strong>
                       </div>
                       <div className="log-summary-card">
-                        <span>Control</span>
+                        <span>Integridad</span>
                         <strong>Trazabilidad activa</strong>
                       </div>
                     </div>
                   </div>
                   <article className="document-sheet log-sheet log-sheet-minimal">
+                    <aside className="log-ops-panel">
+                      <div className="log-ops-card is-live">
+                        <span>Estado</span>
+                        <strong>{loadingLogs ? "Leyendo logs" : "Canal estable"}</strong>
+                        <small>{formatDateTime(new Date().toISOString())}</small>
+                      </div>
+                      <div className="log-ops-card">
+                        <span>Actor filtro</span>
+                        <strong>{auditFilters.actor || "Todos"}</strong>
+                        <small>Usuarios y sistema</small>
+                      </div>
+                      <div className="log-ops-card">
+                        <span>Entidad</span>
+                        <strong>{auditFilters.entity_type || "Global"}</strong>
+                        <small>Trabajo operativo</small>
+                      </div>
+                    </aside>
                     {safeAuditLogs.length ? (
-                      safeAuditLogs.map((log) => (
-                        <div key={log.id} className="log-row">
-                          <div className="log-pin">
-                            <Icon name={actionIconName(log.action)} />
-                          </div>
-                          <div className="log-meta">
-                            <div className="log-topline">
-                              <span className="record-badge">{actionLabel(log.action)}</span>
-                              <small>{formatDateTime(log.created_at)}</small>
+                      <div className="log-stream-list">
+                        {safeAuditLogs.map((log, index) => (
+                          <div key={log.id} className="log-row" style={{ "--log-delay": `${Math.min(index, 10) * 35}ms` }}>
+                            <div className="log-pin">
+                              <Icon name={actionIconName(log.action)} />
                             </div>
-                            <strong>{log.summary || "Movimiento registrado"}</strong>
-                          </div>
-                          <div className="log-detail">
-                            <div className="log-chips">
-                              <span className="log-chip">Actor: {log.actor_name || log.actor_email || "Sistema"}</span>
-                              <span className="log-chip">Entidad: {log.entity_type} #{log.entity_id || "--"}</span>
+                            <div className="log-meta">
+                              <div className="log-topline">
+                                <span className="record-badge">{actionLabel(log.action)}</span>
+                                <small>{formatDateTime(log.created_at)}</small>
+                              </div>
+                              <strong>{log.summary || "Movimiento registrado"}</strong>
                             </div>
-                            {log.details_json ? (
-                              <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
-                            ) : (
-                              <p>Sin detalle adicional.</p>
-                            )}
+                            <div className="log-detail">
+                              <div className="log-chips">
+                                <span className="log-chip">Actor: {log.actor_name || log.actor_email || "Sistema"}</span>
+                                <span className="log-chip">Entidad: {log.entity_type} #{log.entity_id || "--"}</span>
+                                <span className="log-chip">Evento: {log.action || "audit.event"}</span>
+                              </div>
+                              {log.details_json ? (
+                                <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
+                              ) : (
+                                <p>Sin detalle adicional.</p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     ) : (
                       <div className="empty-state">
                         <h3>Sin eventos registrados</h3>
