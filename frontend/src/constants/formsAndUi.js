@@ -40,8 +40,9 @@ export const emptyMapReportDraft = {
 };
 
 export const defaultMapReportStaff = {
-  field_technicians: "LUIS FERNANDO HERRERA SOLIZ",
+  field_technicians: "Luis Fernando Herrera Soliz",
   field_technician_secondary: "Oscar Ivan Alvarez",
+  field_technician_names: ["Luis Fernando Herrera Soliz", "Oscar Ivan Alvarez"],
   data_engineer: "Ing. Juan Ordoñez Bonilla"
 };
 

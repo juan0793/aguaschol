@@ -8339,6 +8339,27 @@ textarea {
   resize: vertical;
 }
 
+.map-report-technician-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.map-report-staff-icon-button {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+.map-report-add-staff-button {
+  min-height: 100%;
+  justify-content: center;
+  align-self: stretch;
+  border-style: dashed;
+}
+
 .map-report-map-upload {
   align-content: start;
 }

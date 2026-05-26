@@ -291,6 +291,48 @@ const normalizeDashboardWidgetPrefs = (value) => {
 
 const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : "records");
 const getMapReportZoneOverrideKey = (zoneName) => String(zoneName || "Zona no especificada").trim() || "Zona no especificada";
+const getMapReportTechnicians = (staff) => {
+  const names = Array.isArray(staff?.field_technician_names)
+    ? staff.field_technician_names
+    : [staff?.field_technicians, staff?.field_technician_secondary];
+  const normalizedNames = names.map((name) => String(name ?? "").trim());
+  return normalizedNames.length ? normalizedNames : [""];
+};
+const normalizeMapReportStaff = (staff) => {
+  const technicians = getMapReportTechnicians(staff);
+  return {
+    ...defaultMapReportStaff,
+    ...(staff && typeof staff === "object" ? staff : {}),
+    field_technician_names: technicians.length ? technicians : [""],
+    field_technicians: technicians[0] ?? "",
+    field_technician_secondary: technicians[1] ?? ""
+  };
+};
+const buildMapReportStaffMarkup = (staff) => {
+  const normalizedStaff = normalizeMapReportStaff(staff);
+  return `
+    <div class="field-report-staff">
+      ${normalizedStaff.field_technician_names
+        .map(
+          (name, index) => `
+            <div>
+              <strong>Tecnico de campo ${index + 1}</strong>
+              <span>${escapeHtml(name || "--")}</span>
+            </div>
+          `
+        )
+        .join("")}
+      <div>
+        <strong>Ingeniero de datos</strong>
+        <span>${escapeHtml(normalizedStaff.data_engineer || "--")}</span>
+      </div>
+    </div>
+  `;
+};
+const getMapReportTechniciansLabel = (staff) => {
+  const names = getMapReportTechnicians(staff).filter(Boolean);
+  return names.length ? names.join(" / ") : "--";
+};
 const normalizeMapReportSettings = (value) => ({
   ...defaultMapReportSettings,
   ...(value && typeof value === "object" ? value : {}),
@@ -477,7 +519,7 @@ function App() {
   const [reportMapStatus, setReportMapStatus] = useState("Sincronizado");
   const [reportMapDraft, setReportMapDraft] = useState(emptyMapReportDraft);
   const [reportMapFocusRequest, setReportMapFocusRequest] = useState(null);
-  const [mapReportStaff, setMapReportStaff] = useState(defaultMapReportStaff);
+  const [mapReportStaff, setMapReportStaff] = useState(() => normalizeMapReportStaff(defaultMapReportStaff));
   const [mapReportSettingsByDate, setMapReportSettingsByDate] = useState(() => loadMapReportSettingsByDate());
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [locatingUser, setLocatingUser] = useState(false);
@@ -5030,10 +5072,39 @@ function App() {
 
   const handleMapReportStaffChange = (event) => {
     const { name, value } = event.target;
-    setMapReportStaff((current) => ({
+    setMapReportStaff((current) => normalizeMapReportStaff({
       ...current,
       [name]: value
     }));
+  };
+
+  const handleMapReportTechnicianChange = (index, value) => {
+    setMapReportStaff((current) => {
+      const technicians = getMapReportTechnicians(current);
+      technicians[index] = value;
+      return normalizeMapReportStaff({
+        ...current,
+        field_technician_names: technicians
+      });
+    });
+  };
+
+  const addMapReportTechnician = () => {
+    setMapReportStaff((current) => normalizeMapReportStaff({
+      ...current,
+      field_technician_names: [...getMapReportTechnicians(current), ""]
+    }));
+  };
+
+  const removeMapReportTechnician = (index) => {
+    setMapReportStaff((current) => {
+      const technicians = getMapReportTechnicians(current);
+      if (technicians.length <= 1) return normalizeMapReportStaff(current);
+      return normalizeMapReportStaff({
+        ...current,
+        field_technician_names: technicians.filter((_, itemIndex) => itemIndex !== index)
+      });
+    });
   };
 
   const handleMapReportSettingsChange = (event) => {
@@ -5329,20 +5400,7 @@ function App() {
               <span>${totalCajaRegistro}</span>
             </div>
           </div>
-          <div class="field-report-staff">
-            <div>
-              <strong>Tecnico de campo 1</strong>
-              <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
-            </div>
-            <div>
-              <strong>Tecnico de campo 2</strong>
-              <span>${escapeHtml(mapReportStaff.field_technician_secondary || "--")}</span>
-            </div>
-            <div>
-              <strong>Ingeniero de datos</strong>
-              <span>${escapeHtml(mapReportStaff.data_engineer || "--")}</span>
-            </div>
-          </div>
+          ${buildMapReportStaffMarkup(mapReportStaff)}
         </div>
         <div class="field-report-cover-map">
           ${
@@ -5433,20 +5491,7 @@ function App() {
               <span>Total de puntos: ${reportData.totalPoints}</span>
               <span>Total de barrios: ${reportData.totalZones}</span>
             </div>
-            <div class="field-report-staff">
-              <div>
-                <strong>Tecnico de campo 1</strong>
-                <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
-              </div>
-              <div>
-                <strong>Tecnico de campo 2</strong>
-                <span>${escapeHtml(mapReportStaff.field_technician_secondary || "--")}</span>
-              </div>
-              <div>
-                <strong>Ingeniero de datos</strong>
-                <span>${escapeHtml(mapReportStaff.data_engineer || "--")}</span>
-              </div>
-            </div>
+            ${buildMapReportStaffMarkup(mapReportStaff)}
           </header>
           ${portadaMarkup}
           <section class="field-report-summary">
@@ -5510,10 +5555,9 @@ function App() {
       document.text(`Generado: ${generatedAt}`, 14, 36);
       document.text(`Total de puntos: ${reportData.totalPoints}`, 86, 36);
       document.text(`Total de barrios: ${reportData.totalZones}`, 138, 36);
-      document.text(`Tecnico de campo 1: ${mapReportStaff.field_technicians || "--"}`, 14, 42);
-      document.text(`Tecnico de campo 2: ${mapReportStaff.field_technician_secondary || "--"}`, 14, 48);
+      document.text(document.splitTextToSize(`Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}`, 116), 14, 42);
       document.text(`Ingeniero de datos: ${mapReportStaff.data_engineer || "--"}`, 138, 42);
-      document.text(`Cajas de registro: ${totalCajaRegistro}`, 14, 54);
+      document.text(`Cajas de registro: ${totalCajaRegistro}`, 14, 56);
 
       if (mapImageDataUrl) {
         const mapImageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
@@ -5741,20 +5785,7 @@ function App() {
               <span>Total de puntos: ${reportData.totalPoints}</span>
               <span>Zonas / manzanas: ${reportData.totalZones}</span>
             </div>
-            <div class="field-report-staff">
-              <div>
-                <strong>Tecnico de campo 1</strong>
-                <span>${escapeHtml(mapReportStaff.field_technicians || "--")}</span>
-              </div>
-              <div>
-                <strong>Tecnico de campo 2</strong>
-                <span>${escapeHtml(mapReportStaff.field_technician_secondary || "--")}</span>
-              </div>
-              <div>
-                <strong>Ingeniero de datos</strong>
-                <span>${escapeHtml(mapReportStaff.data_engineer || "--")}</span>
-              </div>
-            </div>
+            ${buildMapReportStaffMarkup(mapReportStaff)}
           </header>
           ${
             mapImageDataUrl
@@ -5830,7 +5861,7 @@ function App() {
       document.text(`Generado: ${generatedAt}`, 18, 51);
       document.text(`Total de puntos: ${reportData.totalPoints}`, 102, 45);
       document.text(`Zonas / manzanas: ${reportData.totalZones}`, 102, 51);
-      document.text(`Tecnicos: ${mapReportStaff.field_technicians || "--"} / ${mapReportStaff.field_technician_secondary || "--"}`, 18, 57);
+      document.text(document.splitTextToSize(`Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}`, 178), 18, 57);
 
       let currentY = 66;
       if (reportNotes) {
@@ -13409,24 +13440,37 @@ function App() {
                       </div>
                     </div>
                     <div className="map-report-staff-grid">
-                      <label className="map-report-staff-card">
-                        <span>Tecnico de campo 1</span>
-                        <input
-                          name="field_technicians"
-                          value={mapReportStaff.field_technicians}
-                          onChange={handleMapReportStaffChange}
-                          placeholder="Nombres del personal de campo"
-                        />
-                      </label>
-                      <label className="map-report-staff-card">
-                        <span>Tecnico de campo 2</span>
-                        <input
-                          name="field_technician_secondary"
-                          value={mapReportStaff.field_technician_secondary}
-                          onChange={handleMapReportStaffChange}
-                          placeholder="Segundo tecnico de campo"
-                        />
-                      </label>
+                      {getMapReportTechnicians(mapReportStaff).map((technician, index) => (
+                        <label className="map-report-staff-card map-report-technician-card" key={`technician-${index}`}>
+                          <span>Tecnico de campo {index + 1}</span>
+                          <div className="map-report-technician-row">
+                            <input
+                              value={technician}
+                              onChange={(event) => handleMapReportTechnicianChange(index, event.target.value)}
+                              placeholder={index === 0 ? "Nombres del personal de campo" : "Tecnico de campo"}
+                            />
+                            {getMapReportTechnicians(mapReportStaff).length > 1 ? (
+                              <button
+                                type="button"
+                                className="button-secondary map-report-staff-icon-button"
+                                onClick={() => removeMapReportTechnician(index)}
+                                aria-label={`Quitar tecnico de campo ${index + 1}`}
+                                title={`Quitar tecnico de campo ${index + 1}`}
+                              >
+                                <Icon name="archive" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </label>
+                      ))}
+                      <button
+                        type="button"
+                        className="button-secondary map-report-add-staff-button"
+                        onClick={addMapReportTechnician}
+                      >
+                        <Icon name="plus" />
+                        Agregar tecnico
+                      </button>
                       <label className="map-report-staff-card">
                         <span>Ingeniero de datos</span>
                         <input
