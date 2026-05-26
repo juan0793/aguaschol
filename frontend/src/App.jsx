@@ -10659,7 +10659,7 @@ function App() {
                   <button
                     key={action.key}
                     type="button"
-                    className="dashboard-start-action"
+                    className={`dashboard-start-action is-${action.key}`}
                     onClick={() => {
                       if (action.key === "printAlerts") {
                         openPrintBatchModalForRecords(alertRecords, "ficha");
@@ -10713,6 +10713,49 @@ function App() {
               </article>
             ))}
           </section>
+
+          <article className={`preview-panel dashboard-panel dashboard-live-activity-card ${dashboardRefreshing ? "is-loading" : ""}`}>
+            <div className="dashboard-panel-head">
+              <div>
+                <p className="sheet-kicker">Actividad en vivo</p>
+                <h2><Icon name="activity" className="title-icon" />Ultimos movimientos</h2>
+                <p className="dashboard-panel-summary">Lectura rapida de lo que acaba de moverse en fichas, GPS y usuarios</p>
+              </div>
+              <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
+                <Icon name="logs" />
+                Ver historial
+              </button>
+            </div>
+            {dashboardRefreshing ? (
+              <div className="dashboard-live-activity-skeleton" aria-label="Actualizando ultimos movimientos">
+                <span />
+                <span />
+                <span />
+              </div>
+            ) : null}
+            <div className="dashboard-live-activity-strip">
+              {dashboardLiveFeed.slice(0, 4).map((item, index) => (
+                <button
+                  key={`live-${item.key}`}
+                  type="button"
+                  className={`dashboard-live-activity-item ${item.tone} ${index === 0 ? "is-current" : ""}`}
+                  onClick={() => setWorkspaceView(item.tone === "is-map" ? "mapReports" : item.tone === "is-warning" ? "records" : "logs")}
+                >
+                  <span className="dashboard-live-activity-icon"><Icon name={item.icon} /></span>
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.user || "Sistema"} - {formatCompactRelativeTime(item.createdAt, dashboardNow)}</small>
+                  </span>
+                </button>
+              ))}
+              {!dashboardLiveFeed.length ? (
+                <div className="dashboard-live-activity-empty">
+                  <strong>Sin movimientos recientes</strong>
+                  <small>El pulso aparece cuando se registren fichas, GPS o actividad de usuarios.</small>
+                </div>
+              ) : null}
+            </div>
+          </article>
 
           <section className="dashboard-content-grid">
             <article className="preview-panel dashboard-panel">
