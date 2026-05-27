@@ -820,6 +820,42 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             background: #fff1f2;
             color: #a21d2a;
           }
+          .field-debt-signature {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 220px;
+            gap: 14px;
+            align-items: end;
+            border: 1px solid #d2e4f3;
+            border-radius: 10px;
+            background: #ffffff;
+            padding: 12px 14px 10px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-debt-signature strong,
+          .field-debt-signature span {
+            display: block;
+          }
+          .field-debt-signature strong {
+            color: #0d3f6a;
+            font-size: 11px;
+            margin-bottom: 3px;
+          }
+          .field-debt-signature span {
+            color: #315b7d;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          .field-debt-stamp-space {
+            border-top: 1px solid #7897b2;
+            padding-top: 6px;
+            min-height: 34px;
+            color: #45607a;
+            font-size: 9px;
+            text-align: center;
+            text-transform: uppercase;
+          }
           .field-report-color-chip {
             display: inline-block;
             width: 8px;

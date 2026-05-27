@@ -5404,6 +5404,15 @@ function App() {
             <tbody>${rowsMarkup || '<tr><td colspan="9">No se extrajeron claves de la jornada.</td></tr>'}</tbody>
           </table>
         </section>
+        <section class="field-debt-signature">
+          <div>
+            <strong>Ing. Juan Ordóñez Bonilla</strong>
+            <span>Departamento de Catastro</span>
+          </div>
+          <div class="field-debt-stamp-space">
+            Firma y sello
+          </div>
+        </section>
       </div>
     `;
   };
@@ -5484,6 +5493,22 @@ function App() {
           7: { cellWidth: 24, halign: "right" }
         }
       });
+
+      const pageHeight = document.internal.pageSize.getHeight();
+      const signatureY = Math.min((document.lastAutoTable?.finalY ?? 42) + 14, pageHeight - 32);
+      document.setDrawColor(180, 205, 224);
+      document.setFillColor(248, 252, 255);
+      document.roundedRect(14, signatureY, 250, 22, 3, 3, "FD");
+      document.setFont("helvetica", "bold");
+      document.setFontSize(9.5);
+      document.setTextColor(18, 59, 93);
+      document.text("Ing. Juan Ordóñez Bonilla", 20, signatureY + 8);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(8.5);
+      document.text("Departamento de Catastro", 20, signatureY + 14);
+      document.setDrawColor(120, 151, 178);
+      document.line(178, signatureY + 14, 246, signatureY + 14);
+      document.text("Firma y sello", 212, signatureY + 19, { align: "center" });
 
       document.save(`verificacion-deuda-gps-${fieldDebtReport.dateKey || new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("PDF de verificacion de deuda descargado.");
