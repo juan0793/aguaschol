@@ -722,9 +722,21 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           }
           .field-debt-results-section {
             padding: 7px;
+            break-inside: auto;
+            page-break-inside: auto;
           }
           .field-debt-results-section .field-report-zone-head {
             margin-bottom: 5px;
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+          .field-debt-results-section .field-report-table {
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          .field-debt-results-section tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
           }
           .field-debt-print-table {
             table-layout: fixed;
