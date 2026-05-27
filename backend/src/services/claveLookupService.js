@@ -494,6 +494,45 @@ let alcaldiaMeta = readJsonFile(alcaldiaMetaPath, {
   }
 });
 
+// Funciones para recargar datos desde disco (soluciona problema de caché en múltiples procesos)
+const reloadMasterRecords = () => {
+  try {
+    masterRecords = normalizeMasterRows(readJsonFile(maestroPath, []));
+    masterMeta = readJsonFile(maestroMetaPath, {
+      file_name: fs.existsSync(maestroPath) ? path.basename(maestroPath) : "",
+      sheet_name: "",
+      total_records: masterRecords.length,
+      updated_at: fs.existsSync(maestroPath) ? fs.statSync(maestroPath).mtime.toISOString() : null,
+      last_import_summary: {
+        added: 0,
+        removed: 0,
+        changed: 0
+      }
+    });
+  } catch (error) {
+    console.error("Error recargando maestro records:", error);
+  }
+};
+
+const reloadAlcaldiaRecords = () => {
+  try {
+    alcaldiaRecords = normalizeAlcaldiaRows(readJsonFile(alcaldiaPath, []));
+    alcaldiaMeta = readJsonFile(alcaldiaMetaPath, {
+      file_name: fs.existsSync(alcaldiaPath) ? path.basename(alcaldiaPath) : "",
+      sheet_name: "",
+      total_records: alcaldiaRecords.length,
+      updated_at: fs.existsSync(alcaldiaPath) ? fs.statSync(alcaldiaPath).mtime.toISOString() : null,
+      last_import_summary: {
+        added: 0,
+        removed: 0,
+        changed: 0
+      }
+    });
+  } catch (error) {
+    console.error("Error recargando alcaldia records:", error);
+  }
+};
+
 const buildAguasIndex = () => {
   const exact = new Map();
   const base = new Map();
@@ -779,39 +818,49 @@ const buildPadronRequestSummary = (rows = []) => {
   };
 };
 
-export const getClaveLookupMeta = async () => ({
-  ok: true,
-  meta: {
-    file_name: masterMeta.file_name || "",
-    source_file_name: masterMeta.source_file_name || masterMeta.file_name || "",
-    sheet_name: masterMeta.sheet_name || "",
-    total_records: Number(masterMeta.total_records) || masterRecords.length,
-    updated_at: masterMeta.updated_at || null,
-    source_file_available: fs.existsSync(maestroSourcePath),
-    last_import_summary: masterMeta.last_import_summary ?? {
-      added: 0,
-      removed: 0,
-      changed: 0
+export const getClaveLookupMeta = async () => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadMasterRecords();
+  
+  return {
+    ok: true,
+    meta: {
+      file_name: masterMeta.file_name || "",
+      source_file_name: masterMeta.source_file_name || masterMeta.file_name || "",
+      sheet_name: masterMeta.sheet_name || "",
+      total_records: Number(masterMeta.total_records) || masterRecords.length,
+      updated_at: masterMeta.updated_at || null,
+      source_file_available: fs.existsSync(maestroSourcePath),
+      last_import_summary: masterMeta.last_import_summary ?? {
+        added: 0,
+        removed: 0,
+        changed: 0
+      }
     }
-  }
-});
+  };
+};
 
-export const getAlcaldiaLookupMeta = async () => ({
-  ok: true,
-  meta: {
-    file_name: alcaldiaMeta.file_name || "",
-    source_file_name: alcaldiaMeta.source_file_name || alcaldiaMeta.file_name || "",
-    sheet_name: alcaldiaMeta.sheet_name || "",
-    total_records: Number(alcaldiaMeta.total_records) || alcaldiaRecords.length,
-    updated_at: alcaldiaMeta.updated_at || null,
-    source_file_available: fs.existsSync(alcaldiaSourcePath),
-    last_import_summary: alcaldiaMeta.last_import_summary ?? {
-      added: 0,
-      removed: 0,
-      changed: 0
+export const getAlcaldiaLookupMeta = async () => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadAlcaldiaRecords();
+  
+  return {
+    ok: true,
+    meta: {
+      file_name: alcaldiaMeta.file_name || "",
+      source_file_name: alcaldiaMeta.source_file_name || alcaldiaMeta.file_name || "",
+      sheet_name: alcaldiaMeta.sheet_name || "",
+      total_records: Number(alcaldiaMeta.total_records) || alcaldiaRecords.length,
+      updated_at: alcaldiaMeta.updated_at || null,
+      source_file_available: fs.existsSync(alcaldiaSourcePath),
+      last_import_summary: alcaldiaMeta.last_import_summary ?? {
+        added: 0,
+        removed: 0,
+        changed: 0
+      }
     }
-  }
-});
+  };
+};
 
 export const getPadronRequestTemplates = async () => ({
   ok: true,
@@ -819,6 +868,9 @@ export const getPadronRequestTemplates = async () => ({
 });
 
 export const getAguasServiceReport = async () => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadMasterRecords();
+  
   const emptyServiceTotals = () =>
     Object.fromEntries(
       MASTER_SERVICE_FIELDS.map(([field, label]) => [
@@ -1024,6 +1076,10 @@ export const uploadAlcaldiaPadron = async ({ buffer, originalName = "" }, option
 };
 
 export const searchAlcaldiaClaveCatastral = async (value, options = {}) => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadMasterRecords();
+  reloadAlcaldiaRecords();
+  
   const field = ["clave", "texto"].includes(options.field) ? options.field : "clave";
   const rawQuery = String(value ?? "").trim();
   const alcaldiaQuery = normalizeAlcaldiaKey(rawQuery);
@@ -1069,6 +1125,10 @@ export const searchAlcaldiaClaveCatastral = async (value, options = {}) => {
 };
 
 export const compareAlcaldiaWithAguas = async () => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadMasterRecords();
+  reloadAlcaldiaRecords();
+  
   const aguasIndex = buildAguasIndex();
   const comparedRows = alcaldiaRecords.map((item) => decorateAlcaldiaRecord(item, aguasIndex));
   const exactMatches = comparedRows.filter((item) => item.match_type === "exacta");
@@ -1173,6 +1233,9 @@ export const reprocessClavePadron = async (options = {}) => {
 };
 
 export const searchClaveCatastral = async (value, options = {}) => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadMasterRecords();
+  
   const field = ["clave", "nombre", "abonado"].includes(options.field) ? options.field : "clave";
   let normalized = String(value ?? "").trim();
   let mode = "contains";
@@ -1224,6 +1287,9 @@ export const searchClaveCatastral = async (value, options = {}) => {
 };
 
 export const generatePadronRequestReport = async (payload = {}) => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadMasterRecords();
+  
   const presetId = String(payload.preset_id ?? "").trim();
   const template = PADRON_REQUEST_TEMPLATES.find((item) => item.id === presetId) ?? null;
   const providedKeywords = Array.isArray(payload.keywords) ? payload.keywords : [];
@@ -1261,6 +1327,9 @@ export const generatePadronRequestReport = async (payload = {}) => {
 };
 
 export const exportClavePadronWorkbook = async () => {
+  // Recargar datos desde disco para evitar caché en múltiples procesos
+  reloadMasterRecords();
+  
   const sourceFileName = sanitizeExcelText(masterMeta.source_file_name || masterMeta.file_name || "");
   const sourceExtension = path.extname(sourceFileName).toLowerCase();
 
