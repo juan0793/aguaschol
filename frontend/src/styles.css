@@ -15312,7 +15312,7 @@ button,
 
 .field-debt-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1180px;
   border-collapse: collapse;
 }
 
@@ -15387,6 +15387,11 @@ button,
   color: #8a3d00;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.field-debt-table-money.is-total {
+  color: #a14400;
+  font-size: 0.92rem;
 }
 
 .field-debt-point-list {

@@ -9761,6 +9761,8 @@ function App() {
                         <th>Nombre</th>
                         <th>Barrio</th>
                         <th>Servicios</th>
+                        <th>Total sin interés</th>
+                        <th>Intereses</th>
                         <th>Total</th>
                       </tr>
                     </thead>
@@ -9774,6 +9776,8 @@ function App() {
                                 <td>{fieldDebtReport?.keyCounts?.[result.key] || 0}</td>
                                 <td>--</td>
                                 <td>{result.error || "No aparece en el padrón"}</td>
+                                <td>--</td>
+                                <td>--</td>
                                 <td>--</td>
                                 <td>--</td>
                                 <td>--</td>
@@ -9799,13 +9803,15 @@ function App() {
                                   </span>
                                 ))}
                               </td>
-                              <td className="field-debt-table-money">{formatCurrency(Number(match.total || 0))}</td>
+                              <td className="field-debt-table-money">{formatCurrency(Number(match.valor || 0))}</td>
+                              <td className="field-debt-table-money">{formatCurrency(Number(match.intereses || 0))}</td>
+                              <td className="field-debt-table-money is-total">{formatCurrency(Number(match.total || 0))}</td>
                             </tr>
                           ));
                         })
                       ) : (
                         <tr>
-                          <td colSpan="7">No se detectaron claves con formato 00-00-00 en esta jornada.</td>
+                          <td colSpan="9">No se detectaron claves con formato 00-00-00 en esta jornada.</td>
                         </tr>
                       )}
                     </tbody>
