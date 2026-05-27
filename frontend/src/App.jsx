@@ -5315,7 +5315,6 @@ function App() {
 
   const buildFieldDebtPrintMarkup = (mapImageDataUrl = "") => {
     const results = fieldDebtReport?.results ?? [];
-    const pointRows = fieldDebtReport?.pointRows ?? [];
     const rowsMarkup = results
       .map((result) => {
         const matches = result.matches?.length ? result.matches : [null];
@@ -5334,17 +5333,6 @@ function App() {
           `)
           .join("");
       })
-      .join("");
-    const pointRowsMarkup = pointRows
-      .map((row) => `
-        <tr>
-          <td>${row.index + 1}</td>
-          <td>${escapeHtml(row.keys.join(", "))}</td>
-          <td>${escapeHtml(row.requestedServices.join(", ") || "--")}</td>
-          <td>${escapeHtml(row.sourceText || "--")}</td>
-          <td>${formatCoordinate(row.point.latitude)}, ${formatCoordinate(row.point.longitude)}</td>
-        </tr>
-      `)
       .join("");
 
     return `
@@ -5404,26 +5392,6 @@ function App() {
               </tr>
             </thead>
             <tbody>${rowsMarkup || '<tr><td colspan="8">No se extrajeron claves de la jornada.</td></tr>'}</tbody>
-          </table>
-        </section>
-        <section class="field-report-zone">
-          <div class="field-report-zone-head">
-            <div>
-              <span class="field-report-zone-kicker">Referencia de campo</span>
-              <h3>Puntos donde se encontro una clave manual</h3>
-            </div>
-          </div>
-          <table class="field-report-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Claves</th>
-                <th>Servicios solicitados</th>
-                <th>Referencia escrita</th>
-                <th>Coordenadas</th>
-              </tr>
-            </thead>
-            <tbody>${pointRowsMarkup || '<tr><td colspan="5">Sin referencias con claves catastrales.</td></tr>'}</tbody>
           </table>
         </section>
       </div>
@@ -9810,23 +9778,9 @@ function App() {
                   </table>
                 </div>
 
-                <div className="field-debt-point-list">
-                  <h3>Puntos que contienen claves manuales</h3>
-                  {fieldDebtReport.pointRows.length ? (
-                    fieldDebtReport.pointRows.map((row) => (
-                      <article key={`${row.point.id || row.index}-${row.keys.join("-")}`} className="field-debt-point-card">
-                        <div>
-                          <strong>{row.keys.join(", ")}</strong>
-                          <span>{formatCoordinate(row.point.latitude)}, {formatCoordinate(row.point.longitude)}</span>
-                        </div>
-                        <p>{row.sourceText || "--"}</p>
-                        <small>Servicios escritos: {row.requestedServices.join(", ") || "--"}</small>
-                      </article>
-                    ))
-                  ) : (
-                    <p className="helper-text">No hay referencias con claves catastrales en la jornada seleccionada.</p>
-                  )}
-                </div>
+                <p className="helper-text">
+                  Se revisaron {fieldDebtSummary.totalPoints} puntos con clave manual. El detalle final se resume arriba para evitar duplicar la referencia de campo.
+                </p>
               </>
             ) : (
               <div className="empty-state">
