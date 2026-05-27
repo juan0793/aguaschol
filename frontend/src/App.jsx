@@ -10942,6 +10942,10 @@ function App() {
                   <Icon name="records" />
                   PDF con coordenadas
                 </button>
+                <button type="button" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
+                  <Icon name="search" />
+                  {loadingFieldDebtReport ? "Verificando..." : "Verificar deuda"}
+                </button>
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
                   Imprimir con coordenadas
