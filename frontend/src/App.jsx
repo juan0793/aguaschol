@@ -5254,12 +5254,19 @@ function App() {
   const buildFieldDebtReport = async () => {
     const pointRows = buildFieldDebtPointRows(visibleMapPoints);
     const keys = Array.from(new Set(pointRows.flatMap((row) => row.keys)));
+    const keyCounts = pointRows.reduce((accumulator, row) => {
+      row.keys.forEach((key) => {
+        accumulator[key] = (accumulator[key] || 0) + 1;
+      });
+      return accumulator;
+    }, {});
 
     if (!keys.length) {
       return {
         generatedAt: new Date().toISOString(),
         dateKey: activeMapDiaryDateKey,
         pointRows,
+        keyCounts,
         keys,
         results: []
       };
@@ -5298,6 +5305,7 @@ function App() {
       generatedAt: new Date().toISOString(),
       dateKey: activeMapDiaryDateKey,
       pointRows,
+      keyCounts,
       keys,
       results
     };
@@ -5331,6 +5339,7 @@ function App() {
           .map((match, matchIndex) => `
             <tr class="${result.exists ? "" : "is-red-report-point"}">
               <td class="field-debt-key-cell">${matchIndex === 0 ? escapeHtml(result.key) : ""}</td>
+              <td class="field-debt-account-cell">${matchIndex === 0 ? Number(fieldDebtReport?.keyCounts?.[result.key] || 0) : ""}</td>
               <td class="field-debt-account-cell">${match ? escapeHtml(match.abonado || "--") : "--"}</td>
               <td>${match ? escapeHtml(match.inquilino || match.nombre || "--") : result.error ? escapeHtml(result.error) : "No aparece en el padrón"}</td>
               <td>${match ? escapeHtml(match.barrio_colonia || "--") : "--"}</td>
@@ -5357,7 +5366,7 @@ function App() {
           </div>
           <div class="field-report-meta">
             <span>Generado: ${formatDateTime(fieldDebtReport?.generatedAt || new Date().toISOString())}</span>
-            <span>Claves: ${fieldDebtSummary.totalKeys}</span>
+            <span>Claves únicas: ${fieldDebtSummary.totalKeys}</span>
             <span>Encontradas: ${fieldDebtSummary.foundKeys}</span>
             <span class="field-debt-meta-money">Deuda total: ${formatCurrency(fieldDebtSummary.totalDebt)} lempiras</span>
           </div>
@@ -5382,6 +5391,7 @@ function App() {
             <thead>
               <tr>
                 <th>Clave</th>
+                <th>Reportes</th>
                 <th>Abonado</th>
                 <th>Nombre</th>
                 <th>Barrio</th>
@@ -5391,7 +5401,7 @@ function App() {
                 <th>Servicios</th>
               </tr>
             </thead>
-            <tbody>${rowsMarkup || '<tr><td colspan="8">No se extrajeron claves de la jornada.</td></tr>'}</tbody>
+            <tbody>${rowsMarkup || '<tr><td colspan="9">No se extrajeron claves de la jornada.</td></tr>'}</tbody>
           </table>
         </section>
       </div>
@@ -5434,16 +5444,17 @@ function App() {
       document.setFont("helvetica", "normal");
       document.setFontSize(9);
       document.text(`Jornada: ${formatMapDiaryLabel(fieldDebtReport.dateKey)} | Generado: ${formatDateTime(fieldDebtReport.generatedAt)}`, 14, 21);
-      document.text(`Claves: ${fieldDebtSummary.totalKeys} | Encontradas: ${fieldDebtSummary.foundKeys} | Sin coincidencia: ${fieldDebtSummary.missingKeys}`, 14, 28);
+      document.text(`Claves únicas: ${fieldDebtSummary.totalKeys} | Encontradas: ${fieldDebtSummary.foundKeys} | Sin coincidencia: ${fieldDebtSummary.missingKeys}`, 14, 28);
       document.text(`Deuda total: ${formatCurrency(fieldDebtSummary.totalDebt)} lempiras | Puntos con clave: ${fieldDebtSummary.totalPoints}`, 14, 35);
 
       const body = (fieldDebtReport.results || []).flatMap((result) => {
         if (!result.matches?.length) {
-          return [[result.key, "--", result.error || "No aparece", "--", "--", "--", "--"]];
+          return [[result.key, String(fieldDebtReport?.keyCounts?.[result.key] || 0), "--", result.error || "No aparece", "--", "--", "--", "--"]];
         }
 
         return result.matches.map((match) => [
           result.key,
+          String(fieldDebtReport?.keyCounts?.[result.key] || 0),
           match.abonado || "--",
           match.inquilino || match.nombre || "--",
           match.barrio_colonia || "--",
@@ -5455,8 +5466,8 @@ function App() {
 
       autoTable(document, {
         startY: 42,
-        head: [["Clave", "Abonado", "Nombre", "Barrio", "Valor", "Intereses", "Total"]],
-        body: body.length ? body : [["Sin claves", "--", "--", "--", "--", "--", "--"]],
+        head: [["Clave", "Reportes", "Abonado", "Nombre", "Barrio", "Valor", "Intereses", "Total"]],
+        body: body.length ? body : [["Sin claves", "--", "--", "--", "--", "--", "--", "--"]],
         theme: "grid",
         styles: { fontSize: 7.8, cellPadding: 2, overflow: "linebreak" },
         headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
@@ -5464,12 +5475,13 @@ function App() {
         margin: { left: 14, right: 14 },
         columnStyles: {
           0: { cellWidth: 24 },
-          1: { cellWidth: 24 },
-          2: { cellWidth: 58 },
-          3: { cellWidth: 45 },
-          4: { cellWidth: 24, halign: "right" },
+          1: { cellWidth: 17, halign: "center" },
+          2: { cellWidth: 24 },
+          3: { cellWidth: 54 },
+          4: { cellWidth: 42 },
           5: { cellWidth: 24, halign: "right" },
-          6: { cellWidth: 24, halign: "right" }
+          6: { cellWidth: 24, halign: "right" },
+          7: { cellWidth: 24, halign: "right" }
         }
       });
 
@@ -9688,7 +9700,7 @@ function App() {
               <>
                 <div className="field-debt-summary-grid">
                   <div className="log-summary-card">
-                    <span>Claves extraídas</span>
+                    <span>Claves únicas</span>
                     <strong>{fieldDebtSummary.totalKeys}</strong>
                   </div>
                   <div className="log-summary-card">
@@ -9719,6 +9731,7 @@ function App() {
                     <thead>
                       <tr>
                         <th>Clave detectada</th>
+                        <th>Reportes</th>
                         <th>Abonado</th>
                         <th>Nombre</th>
                         <th>Barrio</th>
@@ -9733,6 +9746,7 @@ function App() {
                             return (
                               <tr key={`${result.key}-missing`} className="is-missing">
                                 <td>{result.key}</td>
+                                <td>{fieldDebtReport?.keyCounts?.[result.key] || 0}</td>
                                 <td>--</td>
                                 <td>{result.error || "No aparece en el padrón"}</td>
                                 <td>--</td>
@@ -9745,6 +9759,7 @@ function App() {
                           return result.matches.map((match, matchIndex) => (
                             <tr key={`${result.key}-${match.abonado || match.clave_catastral || matchIndex}`}>
                               <td>{matchIndex === 0 ? result.key : ""}</td>
+                              <td>{matchIndex === 0 ? fieldDebtReport?.keyCounts?.[result.key] || 0 : ""}</td>
                               <td>{match.abonado || "--"}</td>
                               <td>{match.inquilino || match.nombre || "--"}</td>
                               <td>{match.barrio_colonia || "--"}</td>
@@ -9765,7 +9780,7 @@ function App() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan="6">No se detectaron claves con formato 00-00-00 en esta jornada.</td>
+                          <td colSpan="7">No se detectaron claves con formato 00-00-00 en esta jornada.</td>
                         </tr>
                       )}
                     </tbody>

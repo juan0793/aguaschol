@@ -753,28 +753,33 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           }
           .field-debt-print-table th:nth-child(2),
           .field-debt-print-table td:nth-child(2) {
-            width: 40px;
+            width: 34px;
+            text-align: center;
           }
           .field-debt-print-table th:nth-child(3),
           .field-debt-print-table td:nth-child(3) {
-            width: 116px;
+            width: 40px;
           }
           .field-debt-print-table th:nth-child(4),
           .field-debt-print-table td:nth-child(4) {
-            width: 76px;
+            width: 112px;
           }
           .field-debt-print-table th:nth-child(5),
-          .field-debt-print-table td:nth-child(5),
+          .field-debt-print-table td:nth-child(5) {
+            width: 72px;
+          }
           .field-debt-print-table th:nth-child(6),
           .field-debt-print-table td:nth-child(6),
           .field-debt-print-table th:nth-child(7),
-          .field-debt-print-table td:nth-child(7) {
-            width: 64px;
-            text-align: right;
-          }
+          .field-debt-print-table td:nth-child(7),
           .field-debt-print-table th:nth-child(8),
           .field-debt-print-table td:nth-child(8) {
-            width: 152px;
+            width: 58px;
+            text-align: right;
+          }
+          .field-debt-print-table th:nth-child(9),
+          .field-debt-print-table td:nth-child(9) {
+            width: 142px;
           }
           .field-debt-key-cell,
           .field-debt-account-cell {
