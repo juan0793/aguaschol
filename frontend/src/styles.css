@@ -14987,3 +14987,145 @@ button,
     transform: translateX(72%);
   }
 }
+
+.field-debt-modal-body {
+  display: grid;
+  gap: 14px;
+  max-height: min(70vh, 720px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.field-debt-summary-grid,
+.field-debt-service-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.field-debt-service-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.field-debt-service-card {
+  border: 1px solid #d7e7f4;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 10px 12px;
+}
+
+.field-debt-service-card span,
+.field-debt-point-card small {
+  color: #526d84;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.field-debt-service-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #0a3558;
+  font-size: 1.35rem;
+}
+
+.field-debt-table-wrap {
+  overflow: auto;
+  border: 1px solid #d7e7f4;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.field-debt-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.field-debt-table th,
+.field-debt-table td {
+  border-bottom: 1px solid #e4eef7;
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.field-debt-table th {
+  background: #edf6ff;
+  color: #315b7d;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.field-debt-table tr.is-missing td {
+  background: #fff1f2;
+  color: #9b202d;
+  font-weight: 700;
+}
+
+.field-debt-service-pill {
+  display: inline-flex;
+  margin: 0 4px 4px 0;
+  border: 1px solid #d7e7f4;
+  border-radius: 999px;
+  background: #f6f9fc;
+  padding: 3px 7px;
+  color: #526d84;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.field-debt-service-pill.is-on {
+  border-color: #bde6ce;
+  background: #edf8f3;
+  color: #12653f;
+}
+
+.field-debt-point-list {
+  display: grid;
+  gap: 8px;
+}
+
+.field-debt-point-list h3 {
+  margin: 0;
+  color: #0a3558;
+  font-size: 1rem;
+}
+
+.field-debt-point-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.32fr) minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid #d7e7f4;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.field-debt-point-card strong,
+.field-debt-point-card span,
+.field-debt-point-card p {
+  display: block;
+}
+
+.field-debt-point-card strong {
+  color: #0a3558;
+}
+
+.field-debt-point-card span {
+  color: #526d84;
+  font-size: 0.8rem;
+}
+
+.field-debt-point-card p {
+  margin: 0;
+  color: #254760;
+}
+
+@media (max-width: 900px) {
+  .field-debt-summary-grid,
+  .field-debt-service-grid,
+  .field-debt-point-card {
+    grid-template-columns: 1fr;
+  }
+}

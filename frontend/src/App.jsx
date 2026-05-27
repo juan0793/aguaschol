@@ -333,6 +333,45 @@ const getMapReportTechniciansLabel = (staff) => {
   const names = getMapReportTechnicians(staff).filter(Boolean);
   return names.length ? names.join(" / ") : "--";
 };
+const FIELD_DEBT_SERVICE_DEFINITIONS = [
+  { field: "agua", label: "Agua potable", aliases: ["agua", "potable"] },
+  { field: "alcantarillado", label: "Alcantarillado", aliases: ["alcantarillado", "alca"] },
+  { field: "barrido", label: "Barrido", aliases: ["barrido", "barr"] },
+  { field: "recoleccion", label: "Recoleccion", aliases: ["recoleccion", "tren", "basura"] },
+  { field: "desechos_peligrosos", label: "Desechos peligrosos", aliases: ["desechos", "peligrosos", "bomb"] }
+];
+const extractFieldDebtKeys = (value = "") =>
+  Array.from(new Set(String(value ?? "").match(/\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/g) ?? []));
+const getFieldDebtRequestedServices = (value = "") => {
+  const normalized = String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) =>
+    service.aliases.some((alias) => normalized.includes(alias))
+  ).map((service) => service.label);
+};
+const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
+  const value = String(match?.[serviceField] ?? "").trim().toUpperCase();
+  if (value === "S") return "Si";
+  if (value === "N") return "No";
+  return "--";
+};
+const buildFieldDebtPointRows = (points = []) =>
+  points
+    .map((point, index) => {
+      const sourceText = [point.reference_note, point.description].filter(Boolean).join(" ");
+      const keys = extractFieldDebtKeys(sourceText);
+      return {
+        point,
+        index,
+        sourceText,
+        keys,
+        requestedServices: getFieldDebtRequestedServices(sourceText)
+      };
+    })
+    .filter((row) => row.keys.length);
 const normalizeMapReportSettings = (value) => ({
   ...defaultMapReportSettings,
   ...(value && typeof value === "object" ? value : {}),
@@ -509,6 +548,9 @@ function App() {
   const [loadingMapContexts, setLoadingMapContexts] = useState(false);
   const [mapPointContexts, setMapPointContexts] = useState({});
   const [mapReportPage, setMapReportPage] = useState(1);
+  const [showFieldDebtModal, setShowFieldDebtModal] = useState(false);
+  const [loadingFieldDebtReport, setLoadingFieldDebtReport] = useState(false);
+  const [fieldDebtReport, setFieldDebtReport] = useState(null);
   const [showMapDiaryArchiveModal, setShowMapDiaryArchiveModal] = useState(false);
   const [selectedArchiveMapDiaryKey, setSelectedArchiveMapDiaryKey] = useState("");
   const [archiveMapDiaryPoints, setArchiveMapDiaryPoints] = useState([]);
@@ -1524,6 +1566,26 @@ function App() {
     () => visibleMapPoints.filter((point) => point.point_type === "caja_registro").length,
     [visibleMapPoints]
   );
+  const fieldDebtSummary = useMemo(() => {
+    const matches = Array.isArray(fieldDebtReport?.results)
+      ? fieldDebtReport.results.flatMap((item) => item.matches || [])
+      : [];
+    const uniqueAccounts = new Set(matches.map((match) => match.clave_catastral || match.abonado).filter(Boolean));
+    const services = FIELD_DEBT_SERVICE_DEFINITIONS.reduce((accumulator, service) => {
+      accumulator[service.field] = matches.filter((match) => String(match[service.field] || "").toUpperCase() === "S").length;
+      return accumulator;
+    }, {});
+
+    return {
+      totalKeys: fieldDebtReport?.keys?.length ?? 0,
+      totalPoints: fieldDebtReport?.pointRows?.length ?? 0,
+      foundKeys: fieldDebtReport?.results?.filter((item) => item.exists)?.length ?? 0,
+      missingKeys: fieldDebtReport?.results?.filter((item) => !item.exists)?.length ?? 0,
+      accounts: uniqueAccounts.size,
+      totalDebt: Number(matches.reduce((sum, match) => sum + Number(match.total ?? 0), 0).toFixed(2)),
+      services
+    };
+  }, [fieldDebtReport]);
   const recordsUpdatedToday = useMemo(
     () =>
       safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey)
@@ -5177,6 +5239,283 @@ function App() {
       return canvas.toDataURL("image/png");
     } catch {
       return "";
+    }
+  };
+
+  const buildFieldDebtReport = async () => {
+    const pointRows = buildFieldDebtPointRows(visibleMapPoints);
+    const keys = Array.from(new Set(pointRows.flatMap((row) => row.keys)));
+
+    if (!keys.length) {
+      return {
+        generatedAt: new Date().toISOString(),
+        dateKey: activeMapDiaryDateKey,
+        pointRows,
+        keys,
+        results: []
+      };
+    }
+
+    const results = await Promise.all(
+      keys.map(async (key) => {
+        try {
+          const response = await apiFetch(`/claves/search?clave=${encodeURIComponent(key)}&field=clave`);
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || "No fue posible consultar la clave.");
+          }
+
+          return {
+            key,
+            exists: Boolean(data.exists),
+            total_matches: Number(data.total_matches || 0),
+            matches: Array.isArray(data.matches) ? data.matches : [],
+            error: ""
+          };
+        } catch (error) {
+          return {
+            key,
+            exists: false,
+            total_matches: 0,
+            matches: [],
+            error: error.message || "No fue posible consultar la clave."
+          };
+        }
+      })
+    );
+
+    return {
+      generatedAt: new Date().toISOString(),
+      dateKey: activeMapDiaryDateKey,
+      pointRows,
+      keys,
+      results
+    };
+  };
+
+  const handleVerifyFieldDebt = async () => {
+    setLoadingFieldDebtReport(true);
+    setShowFieldDebtModal(true);
+
+    try {
+      const report = await buildFieldDebtReport();
+      setFieldDebtReport(report);
+      showAlert(
+        report.keys.length
+          ? `Verificacion lista: ${report.keys.length} claves extraidas de la jornada.`
+          : "No encontre claves con formato 00-00-00 en las referencias de esta jornada."
+      );
+    } catch (error) {
+      showAlert(error.message || "No fue posible verificar la deuda de la jornada.");
+    } finally {
+      setLoadingFieldDebtReport(false);
+    }
+  };
+
+  const buildFieldDebtPrintMarkup = (mapImageDataUrl = "") => {
+    const results = fieldDebtReport?.results ?? [];
+    const pointRows = fieldDebtReport?.pointRows ?? [];
+    const rowsMarkup = results
+      .map((result) => {
+        const matches = result.matches?.length ? result.matches : [null];
+        return matches
+          .map((match, matchIndex) => `
+            <tr class="${result.exists ? "" : "is-red-report-point"}">
+              <td>${matchIndex === 0 ? escapeHtml(result.key) : ""}</td>
+              <td>${match ? escapeHtml(match.abonado || "--") : "--"}</td>
+              <td>${match ? escapeHtml(match.inquilino || match.nombre || "--") : result.error ? escapeHtml(result.error) : "No aparece en el padron"}</td>
+              <td>${match ? escapeHtml(match.barrio_colonia || "--") : "--"}</td>
+              <td>${match ? escapeHtml(formatCurrency(Number(match.valor || 0))) : "--"}</td>
+              <td>${match ? escapeHtml(formatCurrency(Number(match.intereses || 0))) : "--"}</td>
+              <td>${match ? escapeHtml(formatCurrency(Number(match.total || 0))) : "--"}</td>
+              <td>${match ? FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => `${service.label}: ${getFieldDebtServiceStatus(match, service.field)}`).join(" | ") : "--"}</td>
+            </tr>
+          `)
+          .join("");
+      })
+      .join("");
+    const pointRowsMarkup = pointRows
+      .map((row) => `
+        <tr>
+          <td>${row.index + 1}</td>
+          <td>${escapeHtml(row.keys.join(", "))}</td>
+          <td>${escapeHtml(row.requestedServices.join(", ") || "--")}</td>
+          <td>${escapeHtml(row.sourceText || "--")}</td>
+          <td>${formatCoordinate(row.point.latitude)}, ${formatCoordinate(row.point.longitude)}</td>
+        </tr>
+      `)
+      .join("");
+
+    return `
+      <div class="field-report-shell field-debt-print-shell">
+        <header class="field-report-header">
+          <div class="field-report-brand">
+            <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+            <div>
+              <p class="field-report-kicker">Verificacion de deuda por reporte GPS</p>
+              <h1>Jornada ${escapeHtml(formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey))}</h1>
+              <p>Claves extraidas de referencias escritas por el equipo tecnico en campo.</p>
+            </div>
+          </div>
+          <div class="field-report-meta">
+            <span>Generado: ${formatDateTime(fieldDebtReport?.generatedAt || new Date().toISOString())}</span>
+            <span>Claves: ${fieldDebtSummary.totalKeys}</span>
+            <span>Encontradas: ${fieldDebtSummary.foundKeys}</span>
+            <span>Total deuda: ${formatCurrency(fieldDebtSummary.totalDebt)}</span>
+          </div>
+        </header>
+        <section class="field-report-cover">
+          <div class="field-report-cover-copy">
+            <span class="field-report-kicker">Resumen compacto</span>
+            <h2>Totales de padron y servicios</h2>
+            <div class="field-report-cover-metrics">
+              <div><strong>Puntos con clave</strong><span>${fieldDebtSummary.totalPoints}</span></div>
+              <div><strong>Cuentas encontradas</strong><span>${fieldDebtSummary.accounts}</span></div>
+              <div><strong>Deuda total</strong><span>${formatCurrency(fieldDebtSummary.totalDebt)}</span></div>
+            </div>
+          </div>
+          <div class="field-report-cover-map">
+            ${
+              mapImageDataUrl
+                ? `<img src="${mapImageDataUrl}" alt="Mapa adjunto de la jornada" class="field-report-map-image" />`
+                : `<div class="field-report-map-fallback">Mapa adjunto no disponible en esta vista.</div>`
+            }
+          </div>
+        </section>
+        <section class="field-report-zone">
+          <div class="field-report-zone-head">
+            <div>
+              <span class="field-report-zone-kicker">Consulta al padron</span>
+              <h3>Resultado por clave extraida</h3>
+            </div>
+          </div>
+          <table class="field-report-table">
+            <thead>
+              <tr>
+                <th>Clave</th>
+                <th>Abonado</th>
+                <th>Nombre</th>
+                <th>Barrio</th>
+                <th>Valor</th>
+                <th>Intereses</th>
+                <th>Total</th>
+                <th>Servicios</th>
+              </tr>
+            </thead>
+            <tbody>${rowsMarkup || '<tr><td colspan="8">No se extrajeron claves de la jornada.</td></tr>'}</tbody>
+          </table>
+        </section>
+        <section class="field-report-zone">
+          <div class="field-report-zone-head">
+            <div>
+              <span class="field-report-zone-kicker">Referencia de campo</span>
+              <h3>Puntos donde se encontro una clave manual</h3>
+            </div>
+          </div>
+          <table class="field-report-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Claves</th>
+                <th>Servicios solicitados</th>
+                <th>Referencia escrita</th>
+                <th>Coordenadas</th>
+              </tr>
+            </thead>
+            <tbody>${pointRowsMarkup || '<tr><td colspan="5">Sin referencias con claves catastrales.</td></tr>'}</tbody>
+          </table>
+        </section>
+      </div>
+    `;
+  };
+
+  const handlePrintFieldDebtReport = async () => {
+    if (!fieldDebtReport) {
+      showAlert("Primero ejecuta la verificacion de deuda.");
+      return;
+    }
+
+    const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
+    await printDocument(
+      "Verificacion de deuda GPS",
+      buildFieldDebtPrintMarkup(mapImageDataUrl),
+      {
+        pageSize: "Letter landscape",
+        pageMargin: "8mm",
+        bodyClassName: "field-report-body",
+        showPageFooter: true
+      }
+    );
+  };
+
+  const handleDownloadFieldDebtPdf = async () => {
+    if (!fieldDebtReport) {
+      showAlert("Primero ejecuta la verificacion de deuda.");
+      return;
+    }
+
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
+      const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(15);
+      document.setTextColor(18, 59, 93);
+      document.text("Verificacion de deuda GPS", 14, 15);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9);
+      document.text(`Jornada: ${formatMapDiaryLabel(fieldDebtReport.dateKey)} | Generado: ${formatDateTime(fieldDebtReport.generatedAt)}`, 14, 21);
+      document.text(`Claves: ${fieldDebtSummary.totalKeys} | Encontradas: ${fieldDebtSummary.foundKeys} | Sin coincidencia: ${fieldDebtSummary.missingKeys}`, 14, 28);
+      document.text(`Total deuda: ${formatCurrency(fieldDebtSummary.totalDebt)} | Puntos con clave: ${fieldDebtSummary.totalPoints}`, 14, 35);
+
+      if (mapImageDataUrl) {
+        const imageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+        document.addImage(mapImageDataUrl, imageType, 178, 10, 82, 42);
+      }
+
+      const body = (fieldDebtReport.results || []).flatMap((result) => {
+        if (!result.matches?.length) {
+          return [[result.key, "--", result.error || "No aparece", "--", "--", "--", "--"]];
+        }
+
+        return result.matches.map((match) => [
+          result.key,
+          match.abonado || "--",
+          match.inquilino || match.nombre || "--",
+          match.barrio_colonia || "--",
+          formatCurrency(Number(match.valor || 0)),
+          formatCurrency(Number(match.intereses || 0)),
+          formatCurrency(Number(match.total || 0))
+        ]);
+      });
+
+      autoTable(document, {
+        startY: 58,
+        head: [["Clave", "Abonado", "Nombre", "Barrio", "Valor", "Intereses", "Total"]],
+        body: body.length ? body : [["Sin claves", "--", "--", "--", "--", "--", "--"]],
+        theme: "grid",
+        styles: { fontSize: 7.8, cellPadding: 2, overflow: "linebreak" },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 251, 255] },
+        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 24 },
+          1: { cellWidth: 24 },
+          2: { cellWidth: 58 },
+          3: { cellWidth: 45 },
+          4: { cellWidth: 24, halign: "right" },
+          5: { cellWidth: 24, halign: "right" },
+          6: { cellWidth: 24, halign: "right" }
+        }
+      });
+
+      document.save(`verificacion-deuda-gps-${fieldDebtReport.dateKey || new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("PDF de verificacion de deuda descargado.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar el PDF de deuda.");
     }
   };
 
@@ -9368,6 +9707,149 @@ function App() {
           </div>
         </div>
       ) : null}
+      <Dialog open={showFieldDebtModal} onOpenChange={setShowFieldDebtModal}>
+        <DialogContent className="field-debt-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-6xl">
+          <DialogHeader className="password-modal-head">
+            <p className="eyebrow">Verificacion administrativa</p>
+            <DialogTitle>Deuda de claves reportadas por GPS</DialogTitle>
+            <DialogDescription className="lead">
+              Claves detectadas en las referencias de la jornada {formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey)}, cruzadas contra el padron maestro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="field-debt-modal-body">
+            {loadingFieldDebtReport ? (
+              <div className="empty-state">
+                <Icon name="refresh" className="empty-state-icon" />
+                <h3>Verificando deuda</h3>
+                <p>Estoy extrayendo claves de las referencias y consultando el padron cargado.</p>
+              </div>
+            ) : fieldDebtReport ? (
+              <>
+                <div className="field-debt-summary-grid">
+                  <div className="log-summary-card">
+                    <span>Claves extraidas</span>
+                    <strong>{fieldDebtSummary.totalKeys}</strong>
+                  </div>
+                  <div className="log-summary-card">
+                    <span>Encontradas</span>
+                    <strong>{fieldDebtSummary.foundKeys}</strong>
+                  </div>
+                  <div className="log-summary-card">
+                    <span>Sin coincidencia</span>
+                    <strong>{fieldDebtSummary.missingKeys}</strong>
+                  </div>
+                  <div className="log-summary-card">
+                    <span>Deuda total</span>
+                    <strong>{formatCurrency(fieldDebtSummary.totalDebt)}</strong>
+                  </div>
+                </div>
+
+                <div className="field-debt-service-grid">
+                  {FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => (
+                    <div key={service.field} className="field-debt-service-card">
+                      <span>{service.label}</span>
+                      <strong>{fieldDebtSummary.services[service.field] || 0}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="field-debt-table-wrap">
+                  <table className="field-debt-table">
+                    <thead>
+                      <tr>
+                        <th>Clave detectada</th>
+                        <th>Abonado</th>
+                        <th>Nombre</th>
+                        <th>Barrio</th>
+                        <th>Servicios</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fieldDebtReport.results.length ? (
+                        fieldDebtReport.results.flatMap((result) => {
+                          if (!result.matches?.length) {
+                            return (
+                              <tr key={`${result.key}-missing`} className="is-missing">
+                                <td>{result.key}</td>
+                                <td>--</td>
+                                <td>{result.error || "No aparece en el padron"}</td>
+                                <td>--</td>
+                                <td>--</td>
+                                <td>--</td>
+                              </tr>
+                            );
+                          }
+
+                          return result.matches.map((match, matchIndex) => (
+                            <tr key={`${result.key}-${match.abonado || match.clave_catastral || matchIndex}`}>
+                              <td>{matchIndex === 0 ? result.key : ""}</td>
+                              <td>{match.abonado || "--"}</td>
+                              <td>{match.inquilino || match.nombre || "--"}</td>
+                              <td>{match.barrio_colonia || "--"}</td>
+                              <td>
+                                {FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => (
+                                  <span
+                                    key={service.field}
+                                    className={`field-debt-service-pill ${getFieldDebtServiceStatus(match, service.field) === "Si" ? "is-on" : ""}`}
+                                  >
+                                    {service.label}: {getFieldDebtServiceStatus(match, service.field)}
+                                  </span>
+                                ))}
+                              </td>
+                              <td>{formatCurrency(Number(match.total || 0))}</td>
+                            </tr>
+                          ));
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan="6">No se detectaron claves con formato 00-00-00 en esta jornada.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="field-debt-point-list">
+                  <h3>Puntos que contienen claves manuales</h3>
+                  {fieldDebtReport.pointRows.length ? (
+                    fieldDebtReport.pointRows.map((row) => (
+                      <article key={`${row.point.id || row.index}-${row.keys.join("-")}`} className="field-debt-point-card">
+                        <div>
+                          <strong>{row.keys.join(", ")}</strong>
+                          <span>{formatCoordinate(row.point.latitude)}, {formatCoordinate(row.point.longitude)}</span>
+                        </div>
+                        <p>{row.sourceText || "--"}</p>
+                        <small>Servicios escritos: {row.requestedServices.join(", ") || "--"}</small>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="helper-text">No hay referencias con claves catastrales en la jornada seleccionada.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="empty-state">
+                <h3>Sin verificacion</h3>
+                <p>Ejecuta la verificacion desde Reportes GPS para revisar las claves de la jornada.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="password-form-actions print-batch-footer">
+            <button type="button" className="button-secondary" onClick={() => setShowFieldDebtModal(false)}>
+              Cerrar
+            </button>
+            <button type="button" className="button-secondary" onClick={handlePrintFieldDebtReport} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+              <Icon name="records" />
+              Imprimir
+            </button>
+            <button type="button" onClick={handleDownloadFieldDebtPdf} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+              <Icon name="records" />
+              Generar PDF
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={showMapDiaryArchiveModal} onOpenChange={setShowMapDiaryArchiveModal}>
         <DialogContent className="map-diary-archive-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-5xl">
           <DialogHeader className="password-modal-head">
@@ -13383,6 +13865,10 @@ function App() {
                       </button>
                     </div>
                     <div className="map-report-download-row map-report-output-row">
+                      <button type="button" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
+                        <Icon name="search" />
+                        {loadingFieldDebtReport ? "Verificando..." : "Verificar deuda"}
+                      </button>
                       <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
                         <Icon name="records" />
                         PDF técnico con coordenadas
