@@ -9839,12 +9839,12 @@ function App() {
         </DialogContent>
       </Dialog>
       <Dialog open={showMapDiaryArchiveModal} onOpenChange={setShowMapDiaryArchiveModal}>
-        <DialogContent className="map-diary-archive-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-5xl">
+        <DialogContent className="map-diary-archive-modal shadcn-print-dialog max-h-[calc(100vh-1rem)] overflow-hidden sm:max-w-none">
           <DialogHeader className="password-modal-head">
-            <p className="eyebrow">Bitacora historica</p>
+            <p className="eyebrow">Bitácora histórica</p>
             <DialogTitle>Jornadas anteriores adjuntas</DialogTitle>
             <DialogDescription className="lead">
-              Dias trabajados ordenados del mas reciente al mas antiguo, separados para mantener limpio el tablero principal.
+              Días trabajados ordenados del más reciente al más antiguo, separados para mantener limpio el tablero principal.
             </DialogDescription>
           </DialogHeader>
           <div className="map-diary-archive-layout">
