@@ -334,11 +334,11 @@ const getMapReportTechniciansLabel = (staff) => {
   return names.length ? names.join(" / ") : "--";
 };
 const FIELD_DEBT_SERVICE_DEFINITIONS = [
-  { field: "agua", label: "Agua potable", aliases: ["agua", "potable"] },
-  { field: "alcantarillado", label: "Alcantarillado", aliases: ["alcantarillado", "alca"] },
-  { field: "barrido", label: "Barrido", aliases: ["barrido", "barr"] },
-  { field: "recoleccion", label: "Recoleccion", aliases: ["recoleccion", "tren", "basura"] },
-  { field: "desechos_peligrosos", label: "Desechos peligrosos", aliases: ["desechos", "peligrosos", "bomb"] }
+  { field: "agua", label: "Agua potable", shortLabel: "Agua", aliases: ["agua", "potable"] },
+  { field: "alcantarillado", label: "Alcantarillado", shortLabel: "Alcant.", aliases: ["alcantarillado", "alca"] },
+  { field: "barrido", label: "Barrido", shortLabel: "Barrido", aliases: ["barrido", "barr"] },
+  { field: "recoleccion", label: "Recolección", shortLabel: "Recolec.", aliases: ["recoleccion", "tren", "basura"] },
+  { field: "desechos_peligrosos", label: "Desechos peligrosos", shortLabel: "Desechos", aliases: ["desechos", "peligrosos", "bomb"] }
 ];
 const extractFieldDebtKeys = (value = "") =>
   Array.from(new Set(String(value ?? "").match(/\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/g) ?? []));
@@ -354,10 +354,19 @@ const getFieldDebtRequestedServices = (value = "") => {
 };
 const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
   const value = String(match?.[serviceField] ?? "").trim().toUpperCase();
-  if (value === "S") return "Si";
+  if (value === "S") return "Sí";
   if (value === "N") return "No";
   return "--";
 };
+const buildFieldDebtServicesMarkup = (match = {}) =>
+  FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => {
+    const isActive = getFieldDebtServiceStatus(match, service.field) === "Sí";
+    return `
+      <span class="field-debt-service-mark ${isActive ? "is-on" : "is-off"}">
+        <b>${isActive ? "✓" : "×"}</b>${escapeHtml(service.shortLabel)}
+      </span>
+    `;
+  }).join("");
 const buildFieldDebtPointRows = (points = []) =>
   points
     .map((point, index) => {
@@ -5303,8 +5312,8 @@ function App() {
       setFieldDebtReport(report);
       showAlert(
         report.keys.length
-          ? `Verificacion lista: ${report.keys.length} claves extraidas de la jornada.`
-          : "No encontre claves con formato 00-00-00 en las referencias de esta jornada."
+          ? `Verificación lista: ${report.keys.length} claves extraídas de la jornada.`
+          : "No encontré claves con formato 00-00-00 en las referencias de esta jornada."
       );
     } catch (error) {
       showAlert(error.message || "No fue posible verificar la deuda de la jornada.");
@@ -5313,7 +5322,7 @@ function App() {
     }
   };
 
-  const buildFieldDebtPrintMarkup = (mapImageDataUrl = "") => {
+  const buildFieldDebtPrintMarkup = () => {
     const results = fieldDebtReport?.results ?? [];
     const rowsMarkup = results
       .map((result) => {
@@ -5321,14 +5330,14 @@ function App() {
         return matches
           .map((match, matchIndex) => `
             <tr class="${result.exists ? "" : "is-red-report-point"}">
-              <td>${matchIndex === 0 ? escapeHtml(result.key) : ""}</td>
-              <td>${match ? escapeHtml(match.abonado || "--") : "--"}</td>
-              <td>${match ? escapeHtml(match.inquilino || match.nombre || "--") : result.error ? escapeHtml(result.error) : "No aparece en el padron"}</td>
+              <td class="field-debt-key-cell">${matchIndex === 0 ? escapeHtml(result.key) : ""}</td>
+              <td class="field-debt-account-cell">${match ? escapeHtml(match.abonado || "--") : "--"}</td>
+              <td>${match ? escapeHtml(match.inquilino || match.nombre || "--") : result.error ? escapeHtml(result.error) : "No aparece en el padrón"}</td>
               <td>${match ? escapeHtml(match.barrio_colonia || "--") : "--"}</td>
-              <td>${match ? escapeHtml(formatCurrency(Number(match.valor || 0))) : "--"}</td>
-              <td>${match ? escapeHtml(formatCurrency(Number(match.intereses || 0))) : "--"}</td>
-              <td>${match ? escapeHtml(formatCurrency(Number(match.total || 0))) : "--"}</td>
-              <td>${match ? FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => `${service.label}: ${getFieldDebtServiceStatus(match, service.field)}`).join(" | ") : "--"}</td>
+              <td class="field-debt-money-cell">${match ? escapeHtml(formatCurrency(Number(match.valor || 0))) : "--"}</td>
+              <td class="field-debt-money-cell">${match ? escapeHtml(formatCurrency(Number(match.intereses || 0))) : "--"}</td>
+              <td class="field-debt-money-cell is-total">${match ? escapeHtml(formatCurrency(Number(match.total || 0))) : "--"}</td>
+              <td class="field-debt-services-cell">${match ? buildFieldDebtServicesMarkup(match) : "--"}</td>
             </tr>
           `)
           .join("");
@@ -5341,44 +5350,35 @@ function App() {
           <div class="field-report-brand">
             <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
             <div>
-              <p class="field-report-kicker">Verificacion de deuda por reporte GPS</p>
+              <p class="field-report-kicker">Verificación de deuda por reporte GPS</p>
               <h1>Jornada ${escapeHtml(formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey))}</h1>
-              <p>Claves extraidas de referencias escritas por el equipo tecnico en campo.</p>
+              <p>Claves extraídas de referencias escritas por el equipo técnico en campo.</p>
             </div>
           </div>
           <div class="field-report-meta">
             <span>Generado: ${formatDateTime(fieldDebtReport?.generatedAt || new Date().toISOString())}</span>
             <span>Claves: ${fieldDebtSummary.totalKeys}</span>
             <span>Encontradas: ${fieldDebtSummary.foundKeys}</span>
-            <span>Total deuda: ${formatCurrency(fieldDebtSummary.totalDebt)}</span>
+            <span class="field-debt-meta-money">Deuda total: ${formatCurrency(fieldDebtSummary.totalDebt)} lempiras</span>
           </div>
         </header>
-        <section class="field-report-cover">
-          <div class="field-report-cover-copy">
-            <span class="field-report-kicker">Resumen compacto</span>
-            <h2>Totales de padron y servicios</h2>
-            <div class="field-report-cover-metrics">
-              <div><strong>Puntos con clave</strong><span>${fieldDebtSummary.totalPoints}</span></div>
-              <div><strong>Cuentas encontradas</strong><span>${fieldDebtSummary.accounts}</span></div>
-              <div><strong>Deuda total</strong><span>${formatCurrency(fieldDebtSummary.totalDebt)}</span></div>
-            </div>
-          </div>
-          <div class="field-report-cover-map">
-            ${
-              mapImageDataUrl
-                ? `<img src="${mapImageDataUrl}" alt="Mapa adjunto de la jornada" class="field-report-map-image" />`
-                : `<div class="field-report-map-fallback">Mapa adjunto no disponible en esta vista.</div>`
-            }
+        <section class="field-debt-summary-panel">
+          <span class="field-report-kicker">Resumen compacto</span>
+          <h2>Totales de zona censada</h2>
+          <div class="field-debt-metrics">
+            <div><strong>Puntos con clave</strong><span>${fieldDebtSummary.totalPoints}</span></div>
+            <div><strong>Cuentas encontradas</strong><span>${fieldDebtSummary.accounts}</span></div>
+            <div class="is-money"><strong>Deuda total</strong><span>${formatCurrency(fieldDebtSummary.totalDebt)} lempiras</span></div>
           </div>
         </section>
-        <section class="field-report-zone">
+        <section class="field-report-zone field-debt-results-section">
           <div class="field-report-zone-head">
             <div>
-              <span class="field-report-zone-kicker">Consulta al padron</span>
-              <h3>Resultado por clave extraida</h3>
+              <span class="field-report-zone-kicker">Consulta al padrón</span>
+              <h3>Resultado por clave extraída</h3>
             </div>
           </div>
-          <table class="field-report-table">
+          <table class="field-report-table field-debt-print-table">
             <thead>
               <tr>
                 <th>Clave</th>
@@ -5400,14 +5400,13 @@ function App() {
 
   const handlePrintFieldDebtReport = async () => {
     if (!fieldDebtReport) {
-      showAlert("Primero ejecuta la verificacion de deuda.");
+      showAlert("Primero ejecuta la verificación de deuda.");
       return;
     }
 
-    const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
     await printDocument(
-      "Verificacion de deuda GPS",
-      buildFieldDebtPrintMarkup(mapImageDataUrl),
+      "Verificación de deuda GPS",
+      buildFieldDebtPrintMarkup(),
       {
         pageSize: "Letter landscape",
         pageMargin: "8mm",
@@ -5419,7 +5418,7 @@ function App() {
 
   const handleDownloadFieldDebtPdf = async () => {
     if (!fieldDebtReport) {
-      showAlert("Primero ejecuta la verificacion de deuda.");
+      showAlert("Primero ejecuta la verificación de deuda.");
       return;
     }
 
@@ -5427,22 +5426,16 @@ function App() {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
       const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
-      const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
 
       document.setFont("helvetica", "bold");
       document.setFontSize(15);
       document.setTextColor(18, 59, 93);
-      document.text("Verificacion de deuda GPS", 14, 15);
+      document.text("Verificación de deuda GPS", 14, 15);
       document.setFont("helvetica", "normal");
       document.setFontSize(9);
       document.text(`Jornada: ${formatMapDiaryLabel(fieldDebtReport.dateKey)} | Generado: ${formatDateTime(fieldDebtReport.generatedAt)}`, 14, 21);
       document.text(`Claves: ${fieldDebtSummary.totalKeys} | Encontradas: ${fieldDebtSummary.foundKeys} | Sin coincidencia: ${fieldDebtSummary.missingKeys}`, 14, 28);
-      document.text(`Total deuda: ${formatCurrency(fieldDebtSummary.totalDebt)} | Puntos con clave: ${fieldDebtSummary.totalPoints}`, 14, 35);
-
-      if (mapImageDataUrl) {
-        const imageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-        document.addImage(mapImageDataUrl, imageType, 178, 10, 82, 42);
-      }
+      document.text(`Deuda total: ${formatCurrency(fieldDebtSummary.totalDebt)} lempiras | Puntos con clave: ${fieldDebtSummary.totalPoints}`, 14, 35);
 
       const body = (fieldDebtReport.results || []).flatMap((result) => {
         if (!result.matches?.length) {
@@ -5461,7 +5454,7 @@ function App() {
       });
 
       autoTable(document, {
-        startY: 58,
+        startY: 42,
         head: [["Clave", "Abonado", "Nombre", "Barrio", "Valor", "Intereses", "Total"]],
         body: body.length ? body : [["Sin claves", "--", "--", "--", "--", "--", "--"]],
         theme: "grid",
@@ -9678,10 +9671,10 @@ function App() {
       <Dialog open={showFieldDebtModal} onOpenChange={setShowFieldDebtModal}>
         <DialogContent className="field-debt-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-6xl">
           <DialogHeader className="password-modal-head">
-            <p className="eyebrow">Verificacion administrativa</p>
+            <p className="eyebrow">Verificación administrativa</p>
             <DialogTitle>Deuda de claves reportadas por GPS</DialogTitle>
             <DialogDescription className="lead">
-              Claves detectadas en las referencias de la jornada {formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey)}, cruzadas contra el padron maestro.
+              Claves detectadas en las referencias de la jornada {formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey)}, cruzadas contra el padrón maestro.
             </DialogDescription>
           </DialogHeader>
           <div className="field-debt-modal-body">
@@ -9695,7 +9688,7 @@ function App() {
               <>
                 <div className="field-debt-summary-grid">
                   <div className="log-summary-card">
-                    <span>Claves extraidas</span>
+                    <span>Claves extraídas</span>
                     <strong>{fieldDebtSummary.totalKeys}</strong>
                   </div>
                   <div className="log-summary-card">
@@ -9708,7 +9701,7 @@ function App() {
                   </div>
                   <div className="log-summary-card">
                     <span>Deuda total</span>
-                    <strong>{formatCurrency(fieldDebtSummary.totalDebt)}</strong>
+                    <strong>{formatCurrency(fieldDebtSummary.totalDebt)} lempiras</strong>
                   </div>
                 </div>
 
@@ -9741,7 +9734,7 @@ function App() {
                               <tr key={`${result.key}-missing`} className="is-missing">
                                 <td>{result.key}</td>
                                 <td>--</td>
-                                <td>{result.error || "No aparece en el padron"}</td>
+                                <td>{result.error || "No aparece en el padrón"}</td>
                                 <td>--</td>
                                 <td>--</td>
                                 <td>--</td>
@@ -9759,13 +9752,14 @@ function App() {
                                 {FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => (
                                   <span
                                     key={service.field}
-                                    className={`field-debt-service-pill ${getFieldDebtServiceStatus(match, service.field) === "Si" ? "is-on" : ""}`}
+                                    className={`field-debt-service-pill ${getFieldDebtServiceStatus(match, service.field) === "Sí" ? "is-on" : "is-off"}`}
                                   >
-                                    {service.label}: {getFieldDebtServiceStatus(match, service.field)}
+                                    <b>{getFieldDebtServiceStatus(match, service.field) === "Sí" ? "✓" : "×"}</b>
+                                    {service.shortLabel}
                                   </span>
                                 ))}
                               </td>
-                              <td>{formatCurrency(Number(match.total || 0))}</td>
+                              <td className="field-debt-table-money">{formatCurrency(Number(match.total || 0))}</td>
                             </tr>
                           ));
                         })
@@ -9784,8 +9778,8 @@ function App() {
               </>
             ) : (
               <div className="empty-state">
-                <h3>Sin verificacion</h3>
-                <p>Ejecuta la verificacion desde Reportes GPS para revisar las claves de la jornada.</p>
+                <h3>Sin verificación</h3>
+                <p>Ejecuta la verificación desde Reportes GPS para revisar las claves de la jornada.</p>
               </div>
             )}
           </div>

@@ -15045,7 +15045,7 @@ button,
 .field-debt-table th,
 .field-debt-table td {
   border-bottom: 1px solid #e4eef7;
-  padding: 9px 10px;
+  padding: 7px 8px;
   text-align: left;
   vertical-align: top;
 }
@@ -15065,20 +15065,54 @@ button,
 
 .field-debt-service-pill {
   display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin: 0 4px 4px 0;
   border: 1px solid #d7e7f4;
   border-radius: 999px;
   background: #f6f9fc;
-  padding: 3px 7px;
+  padding: 3px 7px 3px 5px;
   color: #526d84;
   font-size: 0.74rem;
   font-weight: 700;
+}
+
+.field-debt-service-pill b {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1;
 }
 
 .field-debt-service-pill.is-on {
   border-color: #bde6ce;
   background: #edf8f3;
   color: #12653f;
+}
+
+.field-debt-service-pill.is-on b {
+  background: #16a34a;
+  color: #fff;
+}
+
+.field-debt-service-pill.is-off {
+  border-color: #f4b4b4;
+  background: #fff1f2;
+  color: #a21d2a;
+}
+
+.field-debt-service-pill.is-off b {
+  background: #dc2626;
+  color: #fff;
+}
+
+.field-debt-table-money {
+  color: #8a3d00;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .field-debt-point-list {

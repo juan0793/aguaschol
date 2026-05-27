@@ -643,6 +643,166 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             color: #b91c1c;
             font-weight: 700;
           }
+          .field-debt-print-shell {
+            gap: 6px;
+          }
+          .field-debt-print-shell .field-report-header {
+            padding: 7px 9px;
+            border-left: 5px solid #0d4d86;
+          }
+          .field-debt-print-shell .field-report-brand {
+            grid-template-columns: 54px minmax(0, 1fr);
+          }
+          .field-debt-print-shell .print-logo {
+            width: 46px;
+            height: 46px;
+          }
+          .field-debt-print-shell .field-report-header h1 {
+            font-size: 16px;
+          }
+          .field-debt-print-shell .field-report-meta {
+            gap: 5px;
+            margin-top: 6px;
+          }
+          .field-debt-print-shell .field-report-meta span {
+            padding: 3px 7px;
+            font-size: 9.5px;
+          }
+          .field-debt-meta-money {
+            border-color: #f4c36b !important;
+            background: #fff7df !important;
+            color: #7a3f00 !important;
+            font-weight: 800;
+          }
+          .field-debt-summary-panel {
+            border: 1px solid #b9d8ef;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ffffff 0%, #eef7ff 100%);
+            padding: 7px 9px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-debt-summary-panel h2 {
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #0d3f6a;
+          }
+          .field-debt-metrics {
+            display: grid;
+            grid-template-columns: 0.85fr 0.9fr 1.3fr;
+            gap: 7px;
+          }
+          .field-debt-metrics div {
+            border: 1px solid #d2e4f3;
+            border-radius: 9px;
+            background: #ffffff;
+            padding: 6px 8px;
+          }
+          .field-debt-metrics strong {
+            display: block;
+            color: #315b7d;
+            font-size: 8px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+          }
+          .field-debt-metrics span {
+            display: block;
+            color: #102f49;
+            font-size: 13px;
+            font-weight: 800;
+          }
+          .field-debt-metrics .is-money {
+            border-color: #f4c36b;
+            background: #fff8e7;
+          }
+          .field-debt-metrics .is-money span,
+          .field-debt-money-cell.is-total {
+            color: #8a3d00;
+            font-weight: 900;
+          }
+          .field-debt-results-section {
+            padding: 7px;
+          }
+          .field-debt-results-section .field-report-zone-head {
+            margin-bottom: 5px;
+          }
+          .field-debt-print-table {
+            table-layout: fixed;
+          }
+          .field-debt-print-table th,
+          .field-debt-print-table td {
+            padding: 3.5px 5px;
+            font-size: 8.2px;
+            line-height: 1.2;
+          }
+          .field-debt-print-table th:nth-child(1),
+          .field-debt-print-table td:nth-child(1) {
+            width: 44px;
+          }
+          .field-debt-print-table th:nth-child(2),
+          .field-debt-print-table td:nth-child(2) {
+            width: 40px;
+          }
+          .field-debt-print-table th:nth-child(3),
+          .field-debt-print-table td:nth-child(3) {
+            width: 116px;
+          }
+          .field-debt-print-table th:nth-child(4),
+          .field-debt-print-table td:nth-child(4) {
+            width: 76px;
+          }
+          .field-debt-print-table th:nth-child(5),
+          .field-debt-print-table td:nth-child(5),
+          .field-debt-print-table th:nth-child(6),
+          .field-debt-print-table td:nth-child(6),
+          .field-debt-print-table th:nth-child(7),
+          .field-debt-print-table td:nth-child(7) {
+            width: 64px;
+            text-align: right;
+          }
+          .field-debt-print-table th:nth-child(8),
+          .field-debt-print-table td:nth-child(8) {
+            width: 152px;
+          }
+          .field-debt-key-cell,
+          .field-debt-account-cell {
+            font-weight: 800;
+            color: #0d3f6a;
+            white-space: nowrap;
+          }
+          .field-debt-money-cell {
+            white-space: nowrap;
+            font-weight: 700;
+          }
+          .field-debt-services-cell {
+            line-height: 1.35;
+          }
+          .field-debt-service-mark {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            margin: 0 2px 2px 0;
+            border-radius: 999px;
+            border: 1px solid #d8e7f4;
+            padding: 1px 4px;
+            font-size: 7.4px;
+            font-weight: 800;
+            background: #f7fbff;
+          }
+          .field-debt-service-mark b {
+            font-size: 8px;
+            line-height: 1;
+          }
+          .field-debt-service-mark.is-on {
+            border-color: #a7e1bf;
+            background: #ecfdf3;
+            color: #0a6b3a;
+          }
+          .field-debt-service-mark.is-off {
+            border-color: #f4b4b4;
+            background: #fff1f2;
+            color: #a21d2a;
+          }
           .field-report-color-chip {
             display: inline-block;
             width: 8px;
