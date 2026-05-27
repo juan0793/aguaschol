@@ -848,13 +848,22 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             letter-spacing: 0.05em;
           }
           .field-debt-stamp-space {
-            border-top: 1px solid #7897b2;
-            padding-top: 8px;
-            min-height: 58px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 7px;
+            border-top: 0;
+            min-height: 76px;
             color: #45607a;
             font-size: 9px;
             text-align: center;
             text-transform: uppercase;
+          }
+          .field-debt-stamp-space::before {
+            content: "";
+            display: block;
+            width: 100%;
+            border-top: 1px solid #7897b2;
           }
           .field-report-color-chip {
             display: inline-block;

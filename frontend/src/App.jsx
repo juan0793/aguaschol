@@ -5495,10 +5495,10 @@ function App() {
       });
 
       const pageHeight = document.internal.pageSize.getHeight();
-      const signatureY = Math.min((document.lastAutoTable?.finalY ?? 42) + 14, pageHeight - 46);
+      const signatureY = Math.min((document.lastAutoTable?.finalY ?? 42) + 14, pageHeight - 54);
       document.setDrawColor(180, 205, 224);
       document.setFillColor(248, 252, 255);
-      document.roundedRect(14, signatureY, 250, 36, 3, 3, "FD");
+      document.roundedRect(14, signatureY, 250, 44, 3, 3, "FD");
       document.setFont("helvetica", "bold");
       document.setFontSize(9.5);
       document.setTextColor(18, 59, 93);
@@ -5507,8 +5507,8 @@ function App() {
       document.setFontSize(8.5);
       document.text("Departamento de Catastro", 20, signatureY + 14);
       document.setDrawColor(120, 151, 178);
-      document.line(174, signatureY + 23, 250, signatureY + 23);
-      document.text("Firma", 212, signatureY + 30, { align: "center" });
+      document.line(174, signatureY + 31, 250, signatureY + 31);
+      document.text("Firma", 212, signatureY + 38, { align: "center" });
 
       document.save(`verificacion-deuda-gps-${fieldDebtReport.dateKey || new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("PDF de verificacion de deuda descargado.");
