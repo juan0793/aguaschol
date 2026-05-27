@@ -7973,6 +7973,104 @@ textarea {
   margin-bottom: 0.75rem;
 }
 
+.map-report-toolbar {
+  gap: 0.85rem;
+  padding: 0.95rem;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  box-shadow: 0 14px 32px rgba(15, 55, 94, 0.08);
+}
+
+.map-report-toolbar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(123, 165, 205, 0.22);
+}
+
+.map-report-toolbar-head > div {
+  min-width: 0;
+}
+
+.map-report-toolbar-head .workspace-title {
+  max-width: 980px;
+}
+
+.map-report-toolbar-head .map-diary-summary {
+  margin: 0.42rem 0 0;
+}
+
+.map-report-toolbar-head > button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding-inline: 1rem;
+}
+
+.map-report-action-groups {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.95fr) minmax(380px, 1.35fr) minmax(210px, 0.7fr);
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.map-report-action-group {
+  display: grid;
+  align-content: start;
+  gap: 0.48rem;
+  padding: 0.68rem;
+  border: 1px solid rgba(123, 165, 205, 0.22);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.map-report-action-group > span {
+  color: #526f88;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.map-report-action-group .search-actions {
+  gap: 0.42rem;
+  margin: 0;
+}
+
+.map-report-action-group.is-session {
+  background: #fbfdff;
+}
+
+@media (max-width: 1180px) {
+  .map-report-action-groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .map-report-toolbar {
+    padding: 0.8rem;
+  }
+
+  .map-report-toolbar-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .map-report-toolbar-head > button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .map-report-action-group .search-actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+}
+
 .map-diary-strip {
   display: grid;
   gap: 0.7rem;

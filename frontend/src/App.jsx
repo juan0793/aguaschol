@@ -10896,7 +10896,9 @@ function App() {
               </div>
             </div>
           ) : workspaceView === "mapReports" ? (
-            <div className="workspace-summary">
+            <div className="workspace-summary map-report-toolbar">
+              <div className="map-report-toolbar-head">
+                <div>
               <p className="workspace-title">
                 Reporte administrativo compacto de puntos levantados en campo, agrupados por zona y listo para impresión institucional.
               </p>
@@ -10904,7 +10906,16 @@ function App() {
                 <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
                 <span className="helper-text">{visibleMapPoints.length} puntos y {mapReportPrintData.totalZones} barrios en el reporte.</span>
               </div>
-              <div className="search-actions">
+              </div>
+                <button type="button" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
+                  <Icon name="search" />
+                  {loadingFieldDebtReport ? "Verificando..." : "Verificar deuda"}
+                </button>
+              </div>
+              <div className="map-report-action-groups">
+                <div className="map-report-action-group">
+                  <span>Preparar reporte</span>
+                  <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
                   <Icon name="refresh" />
                   {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
@@ -10926,13 +10937,14 @@ function App() {
                   <Icon name="records" />
                   Ir a página 1
                 </button>
+                  </div>
+                </div>
+                <div className="map-report-action-group">
+                  <span>Salida institucional</span>
+                  <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
                   <Icon name="records" />
                   PDF con coordenadas
-                </button>
-                <button type="button" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
-                  <Icon name="search" />
-                  {loadingFieldDebtReport ? "Verificando..." : "Verificar deuda"}
                 </button>
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
@@ -10946,6 +10958,11 @@ function App() {
                   <Icon name="records" />
                   Imprimir censo
                 </button>
+                  </div>
+                </div>
+                <div className="map-report-action-group is-session">
+                  <span>Cuenta</span>
+                  <div className="search-actions">
                 <button type="button" className="button-secondary" onClick={handleLogout}>
                   <Icon name="logout" />
                   Cerrar sesión
@@ -10954,6 +10971,8 @@ function App() {
                   <Icon name="auth" />
                   Cambiar contraseña
                 </button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : workspaceView === "mapAnalytics" ? (
