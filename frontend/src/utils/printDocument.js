@@ -822,13 +822,13 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           }
           .field-debt-signature {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 220px;
-            gap: 14px;
+            grid-template-columns: minmax(0, 1fr) 260px;
+            gap: 18px;
             align-items: end;
             border: 1px solid #d2e4f3;
             border-radius: 10px;
             background: #ffffff;
-            padding: 12px 14px 10px;
+            padding: 16px 18px 14px;
             break-inside: avoid;
             page-break-inside: avoid;
           }
@@ -849,8 +849,8 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           }
           .field-debt-stamp-space {
             border-top: 1px solid #7897b2;
-            padding-top: 6px;
-            min-height: 34px;
+            padding-top: 8px;
+            min-height: 58px;
             color: #45607a;
             font-size: 9px;
             text-align: center;
