@@ -15,6 +15,11 @@ import {
 
 export const searchClave = async (req, res, next) => {
   try {
+    // Evitar caché HTTP en el navegador para asegurar datos frescos
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    
     const result = await searchClaveCatastral(req.query.clave ?? req.params.clave ?? "", {
       field: req.query.field ?? "clave"
     });
@@ -113,6 +118,11 @@ export const uploadAlcaldia = async (req, res, next) => {
 
 export const searchAlcaldia = async (req, res, next) => {
   try {
+    // Evitar caché HTTP en el navegador para asegurar datos frescos
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    
     const result = await searchAlcaldiaClaveCatastral(req.query.clave ?? req.params.clave ?? req.query.q ?? "", {
       field: req.query.field ?? "clave"
     });

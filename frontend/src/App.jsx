@@ -2905,6 +2905,16 @@ function App() {
     setLookupHistory(nextHistory);
   };
 
+  const clearPadronDerivedState = () => {
+    setLookupResult(null);
+    setLookupFeedback("");
+    setPadronRequestResult(null);
+    setPadronServiceReport(null);
+    setAlcaldiaComparison(null);
+    setFieldDebtReport(null);
+    setShowFieldDebtModal(false);
+  };
+
   const handleRemoveLookupHistoryItem = (historyItem) => {
     const nextHistory = lookupHistory.filter(
       (item) =>
@@ -6356,6 +6366,25 @@ function App() {
     focusSheet();
   };
 
+  const padronFlagToRecordValue = (value = "") => {
+    const normalized = String(value ?? "").trim().toUpperCase();
+    if (normalized === "S") return "Si";
+    if (normalized === "N") return "No";
+    return "";
+  };
+
+  const buildRecordPatchFromAguasMatch = (match = {}) => ({
+    clave_catastral: match.clave_catastral || "",
+    abonado: match.abonado || "",
+    nombre_catastral: match.nombre || "",
+    inquilino: match.inquilino || "",
+    barrio_colonia: match.barrio_colonia || "",
+    conexion_agua: padronFlagToRecordValue(match.agua),
+    conexion_alcantarillado: padronFlagToRecordValue(match.alcantarillado),
+    recoleccion_desechos: padronFlagToRecordValue(match.recoleccion),
+    estado_padron: "varios_padrones"
+  });
+
   const openLookupMatchInRecord = async (match) => {
     try {
       const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(match.clave_catastral)}`);
@@ -6377,6 +6406,13 @@ function App() {
       }
 
       const nextRecord = normalizeRecord(await response.json());
+      const nextForm = {
+        ...nextRecord,
+        ...buildRecordPatchFromAguasMatch(match),
+        id: nextRecord.id,
+        foto_path: nextRecord.foto_path || "",
+        comentarios: nextRecord.comentarios || "Datos actualizados desde padron Aguas"
+      };
       setWorkspaceView("records");
       setSelectedRecordId(nextRecord.id ?? null);
       setRecordQuickFilter("all");
@@ -6391,8 +6427,8 @@ function App() {
       setSelectedFile(null);
       setAvisoHtml("");
       setActiveSection("abonado");
-      applyRecord(nextRecord);
-      showAlert(`Ficha cargada para la clave ${nextRecord.clave_catastral}.`);
+      applyRecord(nextForm);
+      showAlert(`Ficha cargada con datos actualizados del padron para ${nextForm.clave_catastral}. Guarda la ficha para conservarlos.`);
     } catch (error) {
       showAlert(error.message || "No fue posible abrir la ficha para esa clave.");
     }
@@ -6873,7 +6909,7 @@ function App() {
 
       setPadronMeta(data.meta ?? null);
       setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
-      setPadronServiceReport(null);
+      clearPadronDerivedState();
       setPadronFile(null);
       if (workspaceView === "requests") {
         loadPadronServiceReport({ silent: true });
@@ -6919,7 +6955,7 @@ function App() {
       setAlcaldiaMeta(data.meta ?? null);
       setAlcaldiaImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
       setAlcaldiaFile(null);
-      setAlcaldiaComparison(null);
+      clearPadronDerivedState();
       showAlert(`Padron de alcaldia actualizado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
       showAlert(error.message || "No se pudo actualizar el padron de alcaldia.");
@@ -6949,7 +6985,7 @@ function App() {
 
       setPadronMeta(data.meta ?? null);
       setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
-      setPadronServiceReport(null);
+      clearPadronDerivedState();
       if (workspaceView === "requests") {
         loadPadronServiceReport({ silent: true });
       }
@@ -13274,10 +13310,7 @@ function App() {
                                   onClick={() =>
                                     startNewRecordFromLookup(
                                       {
-                                        clave_catastral: match.clave_catastral || "",
-                                        abonado: match.abonado || "",
-                                        inquilino: match.inquilino || "",
-                                        barrio_colonia: match.barrio_colonia || "",
+                                        ...buildRecordPatchFromAguasMatch(match),
                                         comentarios: "Datos copiados desde padron Aguas",
                                         estado_padron: "varios_padrones"
                                       },

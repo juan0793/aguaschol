@@ -972,6 +972,7 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
     throw error;
   }
 
+  reloadMasterRecords();
   const importSummary = summarizePadronChanges(masterRecords, rows);
   writeBinaryFile(maestroSourcePath, buffer);
   writeJsonFile(maestroPath, rows);
@@ -1031,6 +1032,7 @@ export const uploadAlcaldiaPadron = async ({ buffer, originalName = "" }, option
     throw error;
   }
 
+  reloadAlcaldiaRecords();
   const importSummary = summarizeRowsByKey(alcaldiaRecords, rows);
   writeBinaryFile(alcaldiaSourcePath, buffer);
   writeJsonFile(alcaldiaPath, rows);
