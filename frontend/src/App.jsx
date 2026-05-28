@@ -2925,6 +2925,17 @@ function App() {
     setAlcaldiaComparison(null);
     setFieldDebtReport(null);
     setShowFieldDebtModal(false);
+    setShowPadronServiceModal(false);
+    setShowPadronRequestModal(false);
+    setShowPadronStatsModal(false);
+    setSelectedAguasServiceField("agua");
+    setSelectedPadronStatBarrio("");
+    setSelectedPadronServiceField("");
+    setPadronStatsBarrioFilter("");
+    setPadronStatsSortMetric("brecha_registros");
+    setPadronStatsSortDirection("desc");
+    setPadronChartMode("brecha");
+    setPadronChartType("barras");
   };
 
   const clearClientPadronCaches = () => {
@@ -2953,6 +2964,7 @@ function App() {
   };
 
   const runPadronSyncSteps = async (request, successMessage) => {
+    let progressTimer = null;
     updatePadronSyncState({
       status: "running",
       progress: 8,
@@ -2961,21 +2973,37 @@ function App() {
     });
     clearClientPadronCaches();
     updatePadronSyncState({ progress: 24, message: "Cache local y resultados anteriores borrados" });
+    progressTimer = window.setInterval(() => {
+      setPadronSyncState((current) => {
+        if (current.status !== "running" || current.progress >= 68) return current;
+        return {
+          ...current,
+          progress: Math.min(68, current.progress + 4),
+          message: current.progress >= 48 ? "Verificando Excel completo contra el sistema" : "Reemplazando data de padron en todos los modulos"
+        };
+      });
+    }, 420);
 
-    const response = await request();
-    const data = await response.json();
+    try {
+      const response = await request();
+      const data = await response.json();
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        clearSession();
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+        }
+        throw new Error(data.message || "No se pudo sincronizar el padron maestro.");
       }
-      throw new Error(data.message || "No se pudo sincronizar el padron maestro.");
-    }
 
-    updatePadronSyncState({ progress: 72, message: "Data del padron reemplazada en el sistema" });
-    applyPadronSyncResult(data);
-    showAlert(successMessage(data));
-    return data;
+      updatePadronSyncState({ progress: 72, message: "Data del padron reemplazada en el sistema" });
+      applyPadronSyncResult(data);
+      setDashboardLastUpdatedAt(Date.now());
+      setDashboardSyncCycleKey((current) => current + 1);
+      showAlert(successMessage(data));
+      return data;
+    } finally {
+      if (progressTimer) window.clearInterval(progressTimer);
+    }
   };
 
   const handleRemoveLookupHistoryItem = (historyItem) => {
@@ -13402,13 +13430,84 @@ function App() {
       ) : workspaceView === "padron" ? (
         <main className="lookup-layout">
           <section className="lookup-shell no-print">
-            <form className="lookup-card" onSubmit={handleUploadPadron}>
-              <div className="lookup-card-head">
+            {padronSyncState.status === "running" ? (
+              <div className="padron-system-overlay" role="status" aria-live="polite">
                 <div>
-                  <p className="sheet-kicker">Padron maestro</p>
-                  <h2><Icon name="refresh" className="title-icon" />Padron Aguas de Choluteca</h2>
+                  <span className="padron-system-spinner"><Icon name="refresh" /></span>
+                  <p className="sheet-kicker">Sincronizando sistema</p>
+                  <h2>Actualizando padrón maestro</h2>
+                  <strong>{padronSyncState.progress}%</strong>
+                  <div className="padron-system-progress"><span style={{ width: `${padronSyncState.progress}%` }} /></div>
+                  <p>{padronSyncState.message}</p>
+                  <div className="padron-system-modules">
+                    <span>Buscar clave</span>
+                    <span>Verificar deuda</span>
+                    <span>Reportes</span>
+                    <span>Comparativas</span>
+                  </div>
                 </div>
-                <span className="panel-pill">{padronMeta?.total_records ?? 0} claves</span>
+              </div>
+            ) : null}
+
+            <form className="lookup-card padron-master-console" onSubmit={handleUploadPadron}>
+              <div className="padron-console-hero">
+                <div className="padron-console-copy">
+                  <p className="sheet-kicker">Padron maestro</p>
+                  <h2><Icon name="refresh" className="title-icon" />Aguas de Choluteca</h2>
+                  <p>Reemplaza la data activa, limpia consultas viejas y verifica que el Excel completo sea el que usan todos los módulos.</p>
+                </div>
+                <div className="padron-console-meter">
+                  <strong>{padronSyncState.verification?.verified_percent ?? (padronMeta?.total_records ? 100 : 0)}%</strong>
+                  <span>consistencia del padrón</span>
+                  <small>{padronMeta?.total_records ?? 0} claves activas</small>
+                </div>
+              </div>
+
+              <div className="padron-console-grid">
+                <section className="padron-file-panel">
+                  <div>
+                    <span>Archivo activo</span>
+                    <strong>{padronMeta?.file_name || "Sin registro"}</strong>
+                    <small>{padronMeta?.source_file_available ? `Fuente guardada: ${padronMeta?.source_file_name || "Disponible"}` : "Fuente guardada: no disponible"}</small>
+                  </div>
+                  <div className="padron-file-meta">
+                    <span>Hoja <b>{padronMeta?.sheet_name || "--"}</b></span>
+                    <span>Actualización <b>{formatDateTime(padronMeta?.updated_at)}</b></span>
+                    <span>Estado <b>{loadingPadronMeta ? "Consultando" : "Sincronizado"}</b></span>
+                  </div>
+                </section>
+
+                <section className="padron-upload-panel">
+                  <label className="padron-upload-drop">
+                    <Icon name="records" />
+                    <span>Seleccionar Excel maestro</span>
+                    <strong>{padronFile ? padronFile.name : "Ningún archivo seleccionado"}</strong>
+                    <input
+                      type="file"
+                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      onChange={handlePadronFileChange}
+                    />
+                  </label>
+                  <p className="helper-text">Al actualizar se limpian caches de búsqueda, deuda GPS, reportes y comparativas.</p>
+                </section>
+              </div>
+
+              <div className="padron-impact-grid">
+                {[
+                  ["Nuevas", padronImportSummary?.added ?? 0],
+                  ["Removidas", padronImportSummary?.removed ?? 0],
+                  ["Cambiadas", padronImportSummary?.changed ?? 0],
+                  ["Verificadas", padronSyncState.verification?.verified_records ?? padronMeta?.total_records ?? 0]
+                ].map(([label, value]) => {
+                  const base = padronImportSummary?.source_rows ?? padronSyncState.verification?.normalized_source_rows ?? padronMeta?.total_records ?? 0;
+                  return (
+                    <div key={label} className="padron-impact-tile">
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                      <small>{formatPercent(value, base)}</small>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="admin-result-grid padron-admin-grid">
@@ -13469,7 +13568,7 @@ function App() {
                             ? "No uses busqueda ni verificacion hasta que llegue a 100%."
                             : padronSyncState.status === "error"
                               ? "Revisa el archivo y vuelve a sincronizar."
-                              : "Buscar clave y Verificar deuda ya consultan esta version."}
+                              : "Buscar clave, Verificar deuda, reportes y comparativas ya consultan esta version."}
                         </small>
                       </div>
                     </div>

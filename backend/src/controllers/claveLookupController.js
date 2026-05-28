@@ -59,6 +59,7 @@ export const getPadronMeta = async (_req, res, next) => {
 
 export const getAlcaldiaMeta = async (_req, res, next) => {
   try {
+    noStore(res);
     const result = await getAlcaldiaLookupMeta();
     res.json(result);
   } catch (error) {
@@ -68,6 +69,7 @@ export const getAlcaldiaMeta = async (_req, res, next) => {
 
 export const getPadronRequestMeta = async (_req, res, next) => {
   try {
+    noStore(res);
     const result = await getPadronRequestTemplates();
     res.json(result);
   } catch (error) {
@@ -87,6 +89,7 @@ export const getPadronServiceReport = async (_req, res, next) => {
 
 export const runPadronRequest = async (req, res, next) => {
   try {
+    noStore(res);
     const result = await generatePadronRequestReport(req.body ?? {});
     res.json(result);
   } catch (error) {
@@ -152,6 +155,7 @@ export const searchAlcaldia = async (req, res, next) => {
 
 export const compareAlcaldia = async (_req, res, next) => {
   try {
+    noStore(res);
     const result = await compareAlcaldiaWithAguas();
     res.json(result);
   } catch (error) {
