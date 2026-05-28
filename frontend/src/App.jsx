@@ -9709,17 +9709,18 @@ function App() {
         <DialogContent className="field-debt-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-6xl">
           <DialogHeader className="password-modal-head">
             <p className="eyebrow">Verificación administrativa</p>
-            <DialogTitle>Deuda de claves reportadas por GPS</DialogTitle>
+            <DialogTitle>Verificación</DialogTitle>
             <DialogDescription className="lead">
               Claves detectadas en las referencias de la jornada {formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey)}, cruzadas contra el padrón maestro.
             </DialogDescription>
           </DialogHeader>
           <div className="field-debt-modal-body">
             {loadingFieldDebtReport ? (
-              <div className="empty-state">
-                <Icon name="refresh" className="empty-state-icon" />
-                <h3>Verificando deuda</h3>
+              <div className="empty-state field-debt-loading-state">
+                <Icon name="refresh" className="empty-state-icon field-debt-loading-icon" />
+                <h3>Verificación en proceso</h3>
                 <p>Estoy extrayendo claves de las referencias y consultando el padron cargado.</p>
+                <span className="field-debt-loading-bar" aria-hidden="true" />
               </div>
             ) : fieldDebtReport ? (
               <>
