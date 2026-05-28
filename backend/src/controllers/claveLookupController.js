@@ -10,7 +10,8 @@ import {
   searchAlcaldiaClaveCatastral,
   searchClaveCatastral,
   uploadAlcaldiaPadron,
-  uploadClavePadron
+  uploadClavePadron,
+  verifyClavePadronIntegrity
 } from "../services/claveLookupService.js";
 
 const noStore = (res) => {
@@ -19,12 +20,8 @@ const noStore = (res) => {
   res.setHeader("Expires", "0");
 };
 
-const getVerificationAbonado = (req) => String(req.query.verify_abonado ?? req.body?.verify_abonado ?? "11276").replace(/\D/g, "");
-
-const attachPadronVerification = async (result, verifyAbonado = "11276") => {
-  const verification = verifyAbonado
-    ? await searchClaveCatastral(verifyAbonado, { field: "abonado" })
-    : null;
+const attachPadronVerification = async (result) => {
+  const verification = await verifyClavePadronIntegrity();
 
   return {
     ...result,
@@ -32,14 +29,7 @@ const attachPadronVerification = async (result, verifyAbonado = "11276") => {
       cleared: true,
       refreshed_at: new Date().toISOString()
     },
-    verification: verification
-      ? {
-          abonado: verifyAbonado,
-          exists: verification.exists,
-          total_matches: verification.total_matches,
-          match: verification.matches?.[0] ?? null
-        }
-      : null
+    verification
   };
 };
 
@@ -119,7 +109,7 @@ export const uploadPadron = async (req, res, next) => {
         actorUserId: req.authUser?.id
       }
     );
-    return res.json(await attachPadronVerification(result, getVerificationAbonado(req)));
+    return res.json(await attachPadronVerification(result));
   } catch (error) {
     return next(error);
   }
@@ -175,7 +165,7 @@ export const reprocessPadron = async (req, res, next) => {
     const result = await reprocessClavePadron({
       actorUserId: req.authUser?.id
     });
-    return res.json(await attachPadronVerification(result, getVerificationAbonado(req)));
+    return res.json(await attachPadronVerification(result));
   } catch (error) {
     return next(error);
   }
@@ -187,7 +177,7 @@ export const syncPadron = async (req, res, next) => {
     const result = await reprocessClavePadron({
       actorUserId: req.authUser?.id
     });
-    return res.json(await attachPadronVerification(result, getVerificationAbonado(req)));
+    return res.json(await attachPadronVerification(result));
   } catch (error) {
     return next(error);
   }

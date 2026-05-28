@@ -143,7 +143,7 @@ const getPadronStatusDescription = (status) => {
 const PADRON_SYNC_STEPS = [
   { label: "Cache borrado", progress: 24 },
   { label: "Datos reemplazados", progress: 72 },
-  { label: "Abonado verificado", progress: 100 }
+  { label: "Excel completo verificado", progress: 100 }
 ];
 
 const clampPrintCopies = (value) => {
@@ -6959,11 +6959,11 @@ function App() {
 
       await runPadronSyncSteps(
         () =>
-          apiFetch(`/claves/upload?verify_abonado=11276&_padron=${Date.now()}`, {
+          apiFetch(`/claves/upload?_padron=${Date.now()}`, {
             method: "POST",
             body: payload
           }),
-        (data) => `Padron maestro actualizado con ${data.meta?.total_records ?? 0} claves. Abonado 11276 verificado.`
+        (data) => `Padron maestro actualizado con ${data.meta?.total_records ?? 0} claves. Excel verificado al ${data.verification?.verified_percent ?? 0}%.`
       );
       setPadronFile(null);
     } catch (error) {
@@ -7026,10 +7026,10 @@ function App() {
     try {
       await runPadronSyncSteps(
         () =>
-          apiFetch(`/claves/sync?verify_abonado=11276&_padron=${Date.now()}`, {
+          apiFetch(`/claves/sync?_padron=${Date.now()}`, {
             method: "POST"
           }),
-        (data) => `Padron maestro sincronizado con ${data.meta?.total_records ?? 0} claves. Cache anterior eliminado.`
+        (data) => `Padron maestro sincronizado con ${data.meta?.total_records ?? 0} claves. Verificacion global ${data.verification?.verified_percent ?? 0}%.`
       );
     } catch (error) {
       updatePadronSyncState({
@@ -13485,12 +13485,12 @@ function App() {
                       </span>
                     ))}
                   </div>
-                  {padronSyncState.verification?.match ? (
+                  {padronSyncState.verification ? (
                     <div className="padron-sync-verification">
-                      <span>Prueba abonado {padronSyncState.verification.abonado}</span>
-                      <strong>{formatCurrency(padronSyncState.verification.match.total || 0)}</strong>
+                      <span>{padronSyncState.verification.verified_records || 0} de {padronSyncState.verification.normalized_source_rows || 0} registros</span>
+                      <strong>{padronSyncState.verification.verified_percent || 0}%</strong>
                       <small>
-                        {padronSyncState.verification.match.inquilino || "Sin nombre"} - {padronSyncState.verification.match.clave_catastral || "--"}
+                        Faltantes: {padronSyncState.verification.missing_records || 0} - Extras: {padronSyncState.verification.extra_records || 0}
                       </small>
                     </div>
                   ) : null}

@@ -375,6 +375,41 @@ const parseWorkbookRows = (buffer) => {
   };
 };
 
+const padronRowFingerprint = (row = {}) =>
+  JSON.stringify({
+    clave_catastral: row.clave_catastral || "",
+    clave_base: row.clave_base || "",
+    inquilino: row.inquilino || "",
+    nombre: row.nombre || "",
+    abonado: row.abonado || "",
+    barrio_colonia: row.barrio_colonia || "",
+    agua: row.agua || "",
+    alcantarillado: row.alcantarillado || "",
+    barrido: row.barrido || "",
+    recoleccion: row.recoleccion || "",
+    desechos_peligrosos: row.desechos_peligrosos || "",
+    valor: Number(row.valor || 0),
+    intereses: Number(row.intereses || 0),
+    total: Number(row.total || 0)
+  });
+
+const countVerifiedRows = (sourceRows = [], activeRows = []) => {
+  const activeCounts = new Map();
+
+  activeRows.forEach((row) => {
+    const fingerprint = padronRowFingerprint(row);
+    activeCounts.set(fingerprint, (activeCounts.get(fingerprint) || 0) + 1);
+  });
+
+  return sourceRows.reduce((total, row) => {
+    const fingerprint = padronRowFingerprint(row);
+    const count = activeCounts.get(fingerprint) || 0;
+    if (!count) return total;
+    activeCounts.set(fingerprint, count - 1);
+    return total + 1;
+  }, 0);
+};
+
 const normalizeAlcaldiaRows = (rows = []) =>
   [...rows]
     .map((item) => {
@@ -837,6 +872,50 @@ export const getClaveLookupMeta = async () => {
         changed: 0
       }
     }
+  };
+};
+
+export const verifyClavePadronIntegrity = async () => {
+  reloadMasterRecords();
+
+  if (!fs.existsSync(maestroSourcePath)) {
+    return {
+      ok: false,
+      source_file_available: false,
+      source_file_name: masterMeta.source_file_name || masterMeta.file_name || "",
+      source_rows: 0,
+      normalized_source_rows: 0,
+      active_records: masterRecords.length,
+      verified_records: 0,
+      missing_records: 0,
+      extra_records: masterRecords.length,
+      discarded_missing_clave: 0,
+      verified_percent: 0,
+      checked_at: new Date().toISOString()
+    };
+  }
+
+  const buffer = fs.readFileSync(maestroSourcePath);
+  const parsed = parseWorkbookRows(buffer);
+  const sourceRows = parsed.rows;
+  const activeRows = normalizeMasterRows(readJsonFile(maestroPath, []));
+  const verifiedRecords = countVerifiedRows(sourceRows, activeRows);
+  const normalizedSourceRows = sourceRows.length;
+
+  return {
+    ok: verifiedRecords === normalizedSourceRows && activeRows.length === normalizedSourceRows,
+    source_file_available: true,
+    source_file_name: masterMeta.source_file_name || masterMeta.file_name || "",
+    sheet_name: parsed.sheetName,
+    source_rows: parsed.stats?.source_rows ?? normalizedSourceRows,
+    normalized_source_rows: normalizedSourceRows,
+    active_records: activeRows.length,
+    verified_records: verifiedRecords,
+    missing_records: Math.max(0, normalizedSourceRows - verifiedRecords),
+    extra_records: Math.max(0, activeRows.length - verifiedRecords),
+    discarded_missing_clave: parsed.stats?.discarded_missing_clave ?? 0,
+    verified_percent: normalizedSourceRows ? Number(((verifiedRecords / normalizedSourceRows) * 100).toFixed(2)) : 0,
+    checked_at: new Date().toISOString()
   };
 };
 
