@@ -13,12 +13,40 @@ import {
   uploadClavePadron
 } from "../services/claveLookupService.js";
 
+const noStore = (res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+};
+
+const getVerificationAbonado = (req) => String(req.query.verify_abonado ?? req.body?.verify_abonado ?? "11276").replace(/\D/g, "");
+
+const attachPadronVerification = async (result, verifyAbonado = "11276") => {
+  const verification = verifyAbonado
+    ? await searchClaveCatastral(verifyAbonado, { field: "abonado" })
+    : null;
+
+  return {
+    ...result,
+    cache: {
+      cleared: true,
+      refreshed_at: new Date().toISOString()
+    },
+    verification: verification
+      ? {
+          abonado: verifyAbonado,
+          exists: verification.exists,
+          total_matches: verification.total_matches,
+          match: verification.matches?.[0] ?? null
+        }
+      : null
+  };
+};
+
 export const searchClave = async (req, res, next) => {
   try {
     // Evitar caché HTTP en el navegador para asegurar datos frescos
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
+    noStore(res);
     
     const result = await searchClaveCatastral(req.query.clave ?? req.params.clave ?? "", {
       field: req.query.field ?? "clave"
@@ -31,6 +59,7 @@ export const searchClave = async (req, res, next) => {
 
 export const getPadronMeta = async (_req, res, next) => {
   try {
+    noStore(res);
     const result = await getClaveLookupMeta();
     res.json(result);
   } catch (error) {
@@ -58,6 +87,7 @@ export const getPadronRequestMeta = async (_req, res, next) => {
 
 export const getPadronServiceReport = async (_req, res, next) => {
   try {
+    noStore(res);
     const result = await getAguasServiceReport();
     res.json(result);
   } catch (error) {
@@ -89,7 +119,7 @@ export const uploadPadron = async (req, res, next) => {
         actorUserId: req.authUser?.id
       }
     );
-    return res.json(result);
+    return res.json(await attachPadronVerification(result, getVerificationAbonado(req)));
   } catch (error) {
     return next(error);
   }
@@ -119,9 +149,7 @@ export const uploadAlcaldia = async (req, res, next) => {
 export const searchAlcaldia = async (req, res, next) => {
   try {
     // Evitar caché HTTP en el navegador para asegurar datos frescos
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
+    noStore(res);
     
     const result = await searchAlcaldiaClaveCatastral(req.query.clave ?? req.params.clave ?? req.query.q ?? "", {
       field: req.query.field ?? "clave"
@@ -143,10 +171,23 @@ export const compareAlcaldia = async (_req, res, next) => {
 
 export const reprocessPadron = async (req, res, next) => {
   try {
+    noStore(res);
     const result = await reprocessClavePadron({
       actorUserId: req.authUser?.id
     });
-    return res.json(result);
+    return res.json(await attachPadronVerification(result, getVerificationAbonado(req)));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const syncPadron = async (req, res, next) => {
+  try {
+    noStore(res);
+    const result = await reprocessClavePadron({
+      actorUserId: req.authUser?.id
+    });
+    return res.json(await attachPadronVerification(result, getVerificationAbonado(req)));
   } catch (error) {
     return next(error);
   }

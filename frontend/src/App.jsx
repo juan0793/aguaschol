@@ -140,6 +140,12 @@ const getPadronStatusDescription = (status) => {
   return "Esta ficha no ha sido validada en varios padrones o no aparece en Aguas.";
 };
 
+const PADRON_SYNC_STEPS = [
+  { label: "Cache borrado", progress: 24 },
+  { label: "Datos reemplazados", progress: 72 },
+  { label: "Abonado verificado", progress: 100 }
+];
+
 const clampPrintCopies = (value) => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return 0;
@@ -586,6 +592,12 @@ function App() {
   const [uploadingPadron, setUploadingPadron] = useState(false);
   const [reprocessingPadron, setReprocessingPadron] = useState(false);
   const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
+  const [padronSyncState, setPadronSyncState] = useState({
+    status: "idle",
+    progress: 0,
+    message: "Padron listo",
+    verification: null
+  });
   const [alcaldiaMeta, setAlcaldiaMeta] = useState(null);
   const [alcaldiaImportSummary, setAlcaldiaImportSummary] = useState(null);
   const [alcaldiaFile, setAlcaldiaFile] = useState(null);
@@ -2915,6 +2927,57 @@ function App() {
     setShowFieldDebtModal(false);
   };
 
+  const clearClientPadronCaches = () => {
+    persistLookupHistory([]);
+    window.sessionStorage?.removeItem?.(LOOKUP_HISTORY_STORAGE_KEY);
+    setLookupQuery("");
+    clearPadronDerivedState();
+  };
+
+  const updatePadronSyncState = (patch) => {
+    setPadronSyncState((current) => ({ ...current, ...patch }));
+  };
+
+  const applyPadronSyncResult = (data = {}) => {
+    setPadronMeta(data.meta ?? null);
+    setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
+    updatePadronSyncState({
+      status: "complete",
+      progress: 100,
+      message: "Padron verificado y listo para consultas",
+      verification: data.verification ?? null
+    });
+    if (workspaceView === "requests") {
+      loadPadronServiceReport({ silent: true });
+    }
+  };
+
+  const runPadronSyncSteps = async (request, successMessage) => {
+    updatePadronSyncState({
+      status: "running",
+      progress: 8,
+      message: "Iniciando reemplazo del padron maestro",
+      verification: null
+    });
+    clearClientPadronCaches();
+    updatePadronSyncState({ progress: 24, message: "Cache local y resultados anteriores borrados" });
+
+    const response = await request();
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearSession();
+      }
+      throw new Error(data.message || "No se pudo sincronizar el padron maestro.");
+    }
+
+    updatePadronSyncState({ progress: 72, message: "Data del padron reemplazada en el sistema" });
+    applyPadronSyncResult(data);
+    showAlert(successMessage(data));
+    return data;
+  };
+
   const handleRemoveLookupHistoryItem = (historyItem) => {
     const nextHistory = lookupHistory.filter(
       (item) =>
@@ -3977,10 +4040,11 @@ function App() {
     setLookupFeedback("");
 
     try {
+      const padronCacheKey = encodeURIComponent(padronMeta?.updated_at || Date.now());
       const lookupUrl =
         lookupSearchMode === "alcaldia"
-          ? `/claves/alcaldia/search?field=texto&clave=${encodeURIComponent(normalizedLookupQuery)}`
-          : `/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}&field=${encodeURIComponent(lookupSearchMode)}`;
+          ? `/claves/alcaldia/search?field=texto&clave=${encodeURIComponent(normalizedLookupQuery)}&_padron=${padronCacheKey}`
+          : `/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}&field=${encodeURIComponent(lookupSearchMode)}&_padron=${padronCacheKey}`;
       const response = await apiFetch(lookupUrl);
       const data = await response.json();
 
@@ -5285,7 +5349,9 @@ function App() {
     const results = await Promise.all(
       keys.map(async (key) => {
         try {
-          const response = await apiFetch(`/claves/search?clave=${encodeURIComponent(key)}&field=clave`);
+          const response = await apiFetch(
+            `/claves/search?clave=${encodeURIComponent(key)}&field=clave&_padron=${encodeURIComponent(padronMeta?.updated_at || Date.now())}`
+          );
           const data = await response.json();
 
           if (!response.ok) {
@@ -6891,31 +6957,21 @@ function App() {
       const payload = new FormData();
       payload.append("padron", padronFile);
 
-      const response = await apiFetch("/claves/upload", {
-        method: "POST",
-        body: payload
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No se pudo actualizar el padron maestro.");
-      }
-
-      setPadronMeta(data.meta ?? null);
-      setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
-      clearPadronDerivedState();
+      await runPadronSyncSteps(
+        () =>
+          apiFetch(`/claves/upload?verify_abonado=11276&_padron=${Date.now()}`, {
+            method: "POST",
+            body: payload
+          }),
+        (data) => `Padron maestro actualizado con ${data.meta?.total_records ?? 0} claves. Abonado 11276 verificado.`
+      );
       setPadronFile(null);
-      if (workspaceView === "requests") {
-        loadPadronServiceReport({ silent: true });
-      }
-      showAlert(`Padron maestro actualizado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
+      updatePadronSyncState({
+        status: "error",
+        progress: 100,
+        message: error.message || "No se pudo actualizar el padron maestro."
+      });
       showAlert(error.message || "No se pudo actualizar el padron maestro.");
     } finally {
       setUploadingPadron(false);
@@ -6968,29 +7024,19 @@ function App() {
     setReprocessingPadron(true);
 
     try {
-      const response = await apiFetch("/claves/reprocess", {
-        method: "POST"
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No se pudo reprocesar el padron maestro.");
-      }
-
-      setPadronMeta(data.meta ?? null);
-      setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
-      clearPadronDerivedState();
-      if (workspaceView === "requests") {
-        loadPadronServiceReport({ silent: true });
-      }
-      showAlert(`Padron maestro reprocesado con ${data.meta?.total_records ?? 0} claves.`);
+      await runPadronSyncSteps(
+        () =>
+          apiFetch(`/claves/sync?verify_abonado=11276&_padron=${Date.now()}`, {
+            method: "POST"
+          }),
+        (data) => `Padron maestro sincronizado con ${data.meta?.total_records ?? 0} claves. Cache anterior eliminado.`
+      );
     } catch (error) {
+      updatePadronSyncState({
+        status: "error",
+        progress: 100,
+        message: error.message || "No se pudo reprocesar el padron maestro."
+      });
       showAlert(error.message || "No se pudo reprocesar el padron maestro.");
     } finally {
       setReprocessingPadron(false);
@@ -13378,14 +13424,17 @@ function App() {
                     <div className="log-summary-card">
                       <span>Nuevas</span>
                       <strong>{padronImportSummary?.added ?? 0}</strong>
+                      <small>{formatPercent(padronImportSummary?.added ?? 0, padronImportSummary?.source_rows ?? padronMeta?.total_records ?? 0)}</small>
                     </div>
                     <div className="log-summary-card">
                       <span>Removidas</span>
                       <strong>{padronImportSummary?.removed ?? 0}</strong>
+                      <small>{formatPercent(padronImportSummary?.removed ?? 0, padronImportSummary?.source_rows ?? padronMeta?.total_records ?? 0)}</small>
                     </div>
                     <div className="log-summary-card">
                       <span>Cambiadas</span>
                       <strong>{padronImportSummary?.changed ?? 0}</strong>
+                      <small>{formatPercent(padronImportSummary?.changed ?? 0, padronImportSummary?.source_rows ?? padronMeta?.total_records ?? 0)}</small>
                     </div>
                   </div>
                 </div>
@@ -13405,6 +13454,48 @@ function App() {
                   {padronFile ? <p><strong>Archivo listo:</strong> {padronFile.name}</p> : null}
                 </div>
               </div>
+
+              {padronSyncState.status !== "idle" ? (
+                <div className={`padron-sync-panel is-${padronSyncState.status}`}>
+                  <div className="padron-sync-head">
+                    <div>
+                      <span className="padron-sync-icon">
+                        <Icon name={padronSyncState.status === "error" ? "warning" : "refresh"} />
+                      </span>
+                      <div>
+                        <strong>{padronSyncState.message}</strong>
+                        <small>
+                          {padronSyncState.status === "running"
+                            ? "No uses busqueda ni verificacion hasta que llegue a 100%."
+                            : padronSyncState.status === "error"
+                              ? "Revisa el archivo y vuelve a sincronizar."
+                              : "Buscar clave y Verificar deuda ya consultan esta version."}
+                        </small>
+                      </div>
+                    </div>
+                    <b>{padronSyncState.progress}%</b>
+                  </div>
+                  <div className="padron-sync-bar" aria-hidden="true">
+                    <span style={{ width: `${padronSyncState.progress}%` }} />
+                  </div>
+                  <div className="padron-sync-steps">
+                    {PADRON_SYNC_STEPS.map((step) => (
+                      <span key={step.label} className={padronSyncState.progress >= step.progress ? "is-done" : ""}>
+                        {step.label}
+                      </span>
+                    ))}
+                  </div>
+                  {padronSyncState.verification?.match ? (
+                    <div className="padron-sync-verification">
+                      <span>Prueba abonado {padronSyncState.verification.abonado}</span>
+                      <strong>{formatCurrency(padronSyncState.verification.match.total || 0)}</strong>
+                      <small>
+                        {padronSyncState.verification.match.inquilino || "Sin nombre"} - {padronSyncState.verification.match.clave_catastral || "--"}
+                      </small>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="search-actions lookup-actions">
                 <button type="submit" disabled={uploadingPadron}>

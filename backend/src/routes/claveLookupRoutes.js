@@ -10,6 +10,7 @@ import {
   runPadronRequest,
   searchAlcaldia,
   searchClave,
+  syncPadron,
   uploadAlcaldia,
   uploadPadron
 } from "../controllers/claveLookupController.js";
@@ -29,6 +30,7 @@ router.post("/requests/run", requireAdmin, runPadronRequest);
 router.get("/services/report", requireAdmin, getPadronServiceReport);
 router.get("/download", requireAuth, downloadPadron);
 router.post("/reprocess", requireAdmin, reprocessPadron);
+router.post("/sync", requireAdmin, syncPadron);
 router.get("/search", searchClave);
 router.get("/search/:clave", searchClave);
 router.post("/upload", requireAdmin, padronUpload.single("padron"), uploadPadron);
