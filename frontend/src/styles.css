@@ -5551,6 +5551,204 @@ textarea {
   border-radius: 10px;
 }
 
+.users-toolbar-actions {
+  gap: 0.45rem;
+}
+
+.users-toolbar-actions .button-secondary,
+.users-hero-actions .button-secondary,
+.users-card-footer .button-secondary,
+.users-action-row button,
+.user-card-actions .button-danger,
+.user-detail-actions .button-secondary {
+  min-height: 36px;
+  padding: 0.48rem 0.72rem;
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.users-sidebar-panel {
+  padding: 0.65rem;
+}
+
+.users-sidebar-head {
+  margin-bottom: 0.55rem;
+}
+
+.users-sidebar-head h2 {
+  font-size: 1rem;
+}
+
+.users-sidebar-head .panel-pill {
+  min-width: 2.45rem;
+  padding: 0.36rem 0.55rem;
+}
+
+.users-list {
+  gap: 0.45rem;
+}
+
+.user-list-card {
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 8px;
+}
+
+.user-card-top {
+  gap: 0.45rem;
+}
+
+.user-badge-stack {
+  gap: 0.24rem;
+}
+
+.user-badge-stack .record-badge,
+.user-list-card .record-badge,
+.users-selected-profile .record-badge {
+  padding: 0.23rem 0.42rem;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.user-name {
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.user-email,
+.user-meta,
+.user-meta-inline {
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.user-card-actions {
+  gap: 0.38rem;
+  margin-top: 0.35rem;
+}
+
+.users-workspace-shell {
+  gap: 0.75rem;
+}
+
+.users-hero-strip {
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.72rem 0.85rem;
+  border-radius: 8px;
+}
+
+.users-hero-strip h2 {
+  font-size: 1.05rem;
+}
+
+.users-hero-strip .workspace-title {
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.users-hero-actions {
+  gap: 0.45rem;
+}
+
+.users-workspace-grid {
+  grid-template-columns: minmax(290px, 0.82fr) minmax(280px, 0.7fr);
+  gap: 0.8rem;
+}
+
+.users-form-card,
+.users-detail-card {
+  border-radius: 8px;
+}
+
+.users-form-card {
+  padding: 0.82rem;
+}
+
+.users-form-section {
+  padding: 0.72rem;
+  border-radius: 8px;
+}
+
+.users-form-section h3 {
+  font-size: 0.82rem;
+}
+
+.users-form-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(108px, 0.64fr);
+  gap: 0.58rem;
+}
+
+.users-form-grid label {
+  gap: 0.28rem;
+}
+
+.users-form-grid label span {
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.users-form-grid input,
+.users-form-grid select {
+  min-height: 36px;
+  padding: 0.48rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.users-action-row {
+  margin-top: 0.7rem;
+  gap: 0.55rem;
+}
+
+.users-summary-sheet {
+  padding: 0.72rem;
+}
+
+.users-selected-profile {
+  align-items: center;
+  gap: 0.6rem;
+  padding-bottom: 0.62rem;
+}
+
+.users-selected-profile strong {
+  font-size: 0.95rem;
+}
+
+.users-selected-profile p {
+  margin-top: 0.12rem;
+}
+
+.users-status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  box-shadow: 0 0 0 3px rgba(152, 162, 179, 0.14);
+}
+
+.users-status-dot.is-online {
+  box-shadow: 0 0 0 3px rgba(22, 112, 75, 0.14);
+}
+
+.users-summary-grid {
+  gap: 0.48rem 0.68rem;
+  padding-top: 0.62rem;
+  font-size: 0.86rem;
+}
+
+.users-summary-grid strong {
+  display: block;
+  margin-bottom: 0.12rem;
+}
+
+.users-card-footer {
+  margin-top: 0.68rem;
+}
+
+.users-detail-modal {
+  border-radius: 10px;
+  padding: 1rem;
+}
+
 @media (max-width: 1180px) {
   .users-workspace-grid,
   .users-form-grid,

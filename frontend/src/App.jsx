@@ -11131,7 +11131,7 @@ function App() {
                   ? "Alta de usuarios con envío por correo y perfiles de acceso."
                   : "Bitácora operativa con eventos de acceso, cambios y archivado."}
               </p>
-              <div className="search-actions">
+              <div className={`search-actions ${workspaceView === "users" ? "users-toolbar-actions" : ""}`}>
                 {workspaceView === "users" ? (
                   <button type="button" className="button-secondary" onClick={loadUsers}>
                     <Icon name="refresh" />

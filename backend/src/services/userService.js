@@ -19,9 +19,17 @@ const sanitizeUser = (user) => ({
   updated_at: user.updated_at
 });
 
+const USERNAME_BASE_MAX_LENGTH = 8;
+const USERNAME_MAX_LENGTH = 10;
+
 const makeUsername = async (email) => {
   const pool = getPool();
-  const base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g, "") || "usuario";
+  const base =
+    email
+      .split("@")[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, USERNAME_BASE_MAX_LENGTH) || "usuario";
   let candidate = base;
   let suffix = 1;
 
@@ -32,7 +40,8 @@ const makeUsername = async (email) => {
     }
 
     suffix += 1;
-    candidate = `${base}${suffix}`;
+    const suffixText = String(suffix);
+    candidate = `${base.slice(0, USERNAME_MAX_LENGTH - suffixText.length)}${suffixText}`;
   }
 };
 
