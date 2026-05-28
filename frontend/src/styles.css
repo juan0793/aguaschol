@@ -16589,3 +16589,82 @@ button,
     box-shadow: var(--ops-shadow-hover);
   }
 }
+
+/* Sidebar repair after the light operational pass. */
+.app-sidebar {
+  border: 1px solid rgba(216, 229, 239, 0.98);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 252, 255, 0.96) 100%);
+  box-shadow: 0 14px 36px rgba(13, 38, 61, 0.1);
+}
+
+.app-sidebar-section {
+  border-bottom-color: rgba(216, 229, 239, 0.8);
+}
+
+.app-sidebar-label {
+  color: #6b7f92;
+  letter-spacing: 0.08em;
+}
+
+.app-sidebar-item {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #28455f;
+  box-shadow: none;
+}
+
+.app-sidebar-item::before {
+  background: var(--ops-accent);
+  left: 0;
+}
+
+.app-sidebar-item svg {
+  color: #8aa0b4;
+}
+
+.app-sidebar-item span {
+  color: inherit;
+}
+
+.app-sidebar-item:hover {
+  background: #f2f7fc;
+  border-color: rgba(190, 215, 243, 0.78);
+  color: #123d63;
+  box-shadow: none;
+  transform: translateX(2px);
+}
+
+.app-sidebar-item:hover svg {
+  color: var(--ops-accent);
+}
+
+.app-sidebar-item.is-active {
+  background: #eaf3ff;
+  border-color: #bdd7f3;
+  color: #0d4fad;
+  box-shadow: inset 3px 0 0 var(--ops-accent);
+}
+
+.app-sidebar-item.is-active::before {
+  opacity: 0;
+}
+
+.app-sidebar-item.is-active svg {
+  color: var(--ops-accent);
+}
+
+.app-sidebar-badge {
+  border: 1px solid #bfdbf7;
+  background: #eef6ff;
+  color: #1d5fa8 !important;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.app-sidebar-item:hover .app-sidebar-badge,
+.app-sidebar-item.is-active .app-sidebar-badge {
+  background: #ffffff;
+  border-color: #9fc6ee;
+  color: #0d4fad !important;
+}
