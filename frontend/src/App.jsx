@@ -11251,11 +11251,12 @@ function App() {
                 </button>
               </div>
               <div className="dashboard-priority-list">
-                {dashboardPriorityItems.map((item) => (
+                {dashboardPriorityItems.map((item, index) => (
                   <button
                     key={`${item.title}-${item.actionView}`}
                     type="button"
                     className={`dashboard-priority-card ${item.tone}`}
+                    style={{ "--dash-enter-delay": `${Math.min(index, 5) * 45}ms` }}
                     onClick={() => setWorkspaceView(item.actionView)}
                   >
                     <span className="dashboard-priority-icon"><Icon name={item.icon} /></span>
@@ -11282,11 +11283,12 @@ function App() {
                 </div>
               </div>
               <div className="dashboard-start-actions">
-                {dashboardQuickActions.map((action) => (
+                {dashboardQuickActions.map((action, index) => (
                   <button
                     key={action.key}
                     type="button"
                     className={`dashboard-start-action is-${action.key}`}
+                    style={{ "--dash-enter-delay": `${Math.min(index + 2, 7) * 45}ms` }}
                     onClick={() => {
                       if (action.key === "printAlerts") {
                         openPrintBatchModalForRecords(alertRecords, "ficha");
@@ -11308,10 +11310,11 @@ function App() {
           </section>
 
           <section className="dashboard-metrics-grid">
-            {dashboardLiveMetrics.map((metric) => (
+            {dashboardLiveMetrics.map((metric, index) => (
               <article
                 key={metric.key}
                 className={`dashboard-metric-card ${dashboardRefreshing ? "is-refreshing" : ""} ${changedDashboardMetricKeys.includes(metric.key) ? "is-changed" : ""}`}
+                style={{ "--dash-enter-delay": `${Math.min(index + 1, 6) * 38}ms` }}
               >
                 <div className="dashboard-metric-head">
                   <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
@@ -11366,6 +11369,7 @@ function App() {
                   key={`live-${item.key}`}
                   type="button"
                   className={`dashboard-live-activity-item ${item.tone} ${index === 0 ? "is-current" : ""}`}
+                  style={{ "--dash-enter-delay": `${Math.min(index, 4) * 42}ms` }}
                   onClick={() => setWorkspaceView(item.tone === "is-map" ? "mapReports" : item.tone === "is-warning" ? "records" : "logs")}
                 >
                   <span className="dashboard-live-activity-icon"><Icon name={item.icon} /></span>
