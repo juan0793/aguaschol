@@ -100,6 +100,9 @@ const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
 const MAP_POINT_LIST_INITIAL_LIMIT = 30;
 const MAP_POINT_LIST_STEP = 30;
 const MOBILE_MAP_POINT_LIMIT = 180;
+const MAP_AUTO_REFRESH_MS = 45000;
+const MOBILE_MAP_AUTO_REFRESH_MS = 90000;
+const FIELD_VALIDATION_AUTO_REFRESH_MS = 120000;
 const DEFAULT_DASHBOARD_WIDGET_ORDER = [
   "spotlight",
   "metrics",
@@ -3996,7 +3999,13 @@ function App() {
     };
 
     const handleWindowFocus = () => refreshMapPoints();
-    const intervalId = window.setInterval(refreshMapPoints, isCompactMapView ? 30000 : 12000);
+    const refreshInterval =
+      workspaceView === "fieldValidation"
+        ? FIELD_VALIDATION_AUTO_REFRESH_MS
+        : isCompactMapView
+          ? MOBILE_MAP_AUTO_REFRESH_MS
+          : MAP_AUTO_REFRESH_MS;
+    const intervalId = window.setInterval(refreshMapPoints, refreshInterval);
     document.addEventListener("visibilitychange", refreshMapPoints);
     window.addEventListener("focus", handleWindowFocus);
 

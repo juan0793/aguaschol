@@ -12,20 +12,35 @@ const validationStatusMeta = {
   corrected: { label: "Corregido", className: "is-corrected" }
 };
 
+const validationStatusFilters = [
+  { value: "all", label: "Todos" },
+  { value: "pending", label: "Pendientes" },
+  { value: "needs_correction", label: "Correccion" },
+  { value: "corrected", label: "Corregidos" },
+  { value: "approved", label: "Aprobados" }
+];
+
+const normalizeSearchText = (value = "") =>
+  String(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
 const buildDraftFromPoint = (value = {}) => {
   const point = value || {};
   return {
-  point_type: point.point_type || "caja_registro",
-  latitude: point.latitude ?? "",
-  longitude: point.longitude ?? "",
-  accuracy_meters: point.accuracy_meters ?? "",
-  reference: point.reference_note || "",
-  description: point.description || "",
-  marker_color: point.marker_color || "#1576d1",
-  is_terminal_point: Boolean(point.is_terminal_point),
-  validation_status: point.validation_status || "pending",
-  validation_notes: point.validation_notes || "",
-  correction_notes: point.correction_notes || ""
+    point_type: point.point_type || "caja_registro",
+    latitude: point.latitude ?? "",
+    longitude: point.longitude ?? "",
+    accuracy_meters: point.accuracy_meters ?? "",
+    reference: point.reference_note || "",
+    description: point.description || "",
+    marker_color: point.marker_color || "#1576d1",
+    is_terminal_point: Boolean(point.is_terminal_point),
+    validation_status: point.validation_status || "pending",
+    validation_notes: point.validation_notes || "",
+    correction_notes: point.correction_notes || ""
   };
 };
 
@@ -49,13 +64,10 @@ const FieldValidationWorkspace = ({
   );
   const [draft, setDraft] = useState(() => buildDraftFromPoint(selectedPoint));
   const [mapStatus, setMapStatus] = useState("Revision");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
-    if (!selectedPoint) {
-      setDraft(buildDraftFromPoint({}));
-      return;
-    }
-
     setDraft(buildDraftFromPoint(selectedPoint));
   }, [selectedPoint]);
 
@@ -71,6 +83,32 @@ const FieldValidationWorkspace = ({
         { total: 0, pending: 0, approved: 0, needs_correction: 0, corrected: 0 }
       ),
     [mapPoints]
+  );
+  const completionPercent = counts.total ? Math.round(((counts.approved + counts.corrected) / counts.total) * 100) : 0;
+  const filteredPoints = useMemo(() => {
+    const search = normalizeSearchText(query);
+
+    return mapPoints.filter((point) => {
+      const status = point.validation_status || "pending";
+      if (statusFilter !== "all" && status !== statusFilter) return false;
+      if (!search) return true;
+
+      const haystack = normalizeSearchText(
+        [
+          getMapPointTypeLabel(point.point_type),
+          point.reference_note,
+          point.description,
+          point.created_by_name,
+          point.latitude,
+          point.longitude
+        ].join(" ")
+      );
+      return haystack.includes(search);
+    });
+  }, [mapPoints, query, statusFilter]);
+  const nextPendingPoint = useMemo(
+    () => filteredPoints.find((point) => ["pending", "needs_correction"].includes(point.validation_status || "pending")) ?? filteredPoints[0] ?? null,
+    [filteredPoints]
   );
 
   const handleDraftChange = (event) => {
@@ -106,20 +144,103 @@ const FieldValidationWorkspace = ({
     <main className="field-validation-layout no-print">
       <section className="field-validation-hero">
         <div>
-          <p className="sheet-kicker">Validacion de campo</p>
+          <p className="sheet-kicker">Validacion campo</p>
           <h2><Icon name="success" className="title-icon" />Revision de puntos GPS</h2>
           <p className="helper-text">
             Revisa coordenadas capturadas por tecnicos, corrige datos y deja trazabilidad antes de aprobarlos.
           </p>
         </div>
+        <div className="field-validation-guide" aria-label="Flujo de validacion">
+          <span><strong>1</strong>Ubica</span>
+          <span><strong>2</strong>Corrige</span>
+          <span><strong>3</strong>Aprueba</span>
+        </div>
+      </section>
+
+      <section className="field-validation-command">
+        <div className="field-validation-progress">
+          <div>
+            <span className="sheet-kicker">Avance de jornada</span>
+            <strong>{completionPercent}% validado</strong>
+          </div>
+          <div className="field-validation-progress-bar" aria-hidden="true">
+            <span style={{ width: `${completionPercent}%` }} />
+          </div>
+        </div>
         <div className="field-validation-metrics">
-          <span><strong>{counts.pending}</strong>Pendientes</span>
-          <span><strong>{counts.needs_correction}</strong>Correccion</span>
-          <span><strong>{counts.approved}</strong>Aprobados</span>
+          <button type="button" className={statusFilter === "pending" ? "is-active" : ""} onClick={() => setStatusFilter("pending")}>
+            <strong>{counts.pending}</strong>Pendientes
+          </button>
+          <button type="button" className={statusFilter === "needs_correction" ? "is-active" : ""} onClick={() => setStatusFilter("needs_correction")}>
+            <strong>{counts.needs_correction}</strong>Correccion
+          </button>
+          <button type="button" className={statusFilter === "approved" ? "is-active" : ""} onClick={() => setStatusFilter("approved")}>
+            <strong>{counts.approved}</strong>Aprobados
+          </button>
         </div>
       </section>
 
       <section className="field-validation-grid">
+        <aside className="field-validation-queue">
+          <div className="field-validation-toolbar">
+            <div>
+              <p className="sheet-kicker">Cola de revision</p>
+              <h3>{filteredPoints.length} puntos</h3>
+            </div>
+            <button type="button" className="button-secondary" onClick={onRefresh} disabled={loading}>
+              <Icon name="refresh" />
+              {loading ? "Cargando..." : "Actualizar"}
+            </button>
+          </div>
+
+          <label className="field-validation-search">
+            <span>Buscar punto</span>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tipo, tecnico, clave o coordenada" />
+          </label>
+
+          <div className="field-validation-filter-row">
+            {validationStatusFilters.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                className={statusFilter === filter.value ? "is-active" : ""}
+                onClick={() => setStatusFilter(filter.value)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="field-validation-queue-list">
+            {filteredPoints.length ? (
+              filteredPoints.map((point, index) => {
+                const meta = validationStatusMeta[point.validation_status || "pending"] ?? validationStatusMeta.pending;
+                return (
+                  <article
+                    key={point.id}
+                    className={`field-validation-queue-card ${selectedPoint?.id === point.id ? "is-active" : ""}`}
+                  >
+                    <button type="button" onClick={() => setSelectedPointId(point.id)}>
+                      <span className="field-validation-card-index">{index + 1}</span>
+                      <span>
+                        <strong>{getMapPointTypeLabel(point.point_type)}</strong>
+                        <small>{point.reference_note || point.description || "Sin referencia adicional."}</small>
+                        <em>{point.created_by_name || "Tecnico sin nombre"} · {formatDateTime(point.created_at)}</em>
+                      </span>
+                      <span className={`validation-status-chip ${meta.className}`}>{meta.label}</span>
+                    </button>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="empty-state field-validation-empty">
+                <h3>Sin coincidencias</h3>
+                <p>Ajusta el filtro o busca otra referencia.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+
         <article className="map-stage-card field-validation-map-card">
           <div className="lookup-card-head map-card-head">
             <div>
@@ -127,10 +248,10 @@ const FieldValidationWorkspace = ({
               <h3>{activeDateLabel}</h3>
             </div>
             <div className="map-list-head-actions">
-              <span className="panel-pill">{counts.total} puntos</span>
-              <button type="button" className="button-secondary" onClick={onRefresh} disabled={loading}>
-                <Icon name="refresh" />
-                {loading ? "Cargando..." : "Actualizar"}
+              <span className="panel-pill">{filteredPoints.length} visibles</span>
+              <button type="button" className="button-secondary" onClick={() => nextPendingPoint && setSelectedPointId(nextPendingPoint.id)} disabled={!nextPendingPoint}>
+                <Icon name="arrowRight" />
+                Siguiente
               </button>
             </div>
           </div>
@@ -138,7 +259,7 @@ const FieldValidationWorkspace = ({
             apiUrl={apiUrl}
             isActive={isActive}
             mapDraft={draft}
-            mapPoints={mapPoints}
+            mapPoints={filteredPoints}
             onDraftChange={handleDraftFromMap}
             onSelectPoint={(pointId) => {
               setSelectedPointId(pointId);
@@ -147,7 +268,10 @@ const FieldValidationWorkspace = ({
             onStatusChange={setMapStatus}
             selectedMapPointId={selectedPoint?.id}
           />
-          <p className="helper-text">Estado del mapa: {mapStatus}. Toca el mapa para ajustar la ubicacion del punto seleccionado.</p>
+          <div className="field-validation-map-hint">
+            <Icon name="map" />
+            <span>Estado del mapa: {mapStatus}. Toca el mapa para ajustar la ubicacion del punto seleccionado.</span>
+          </div>
         </article>
 
         <aside className="field-validation-panel">
@@ -165,6 +289,15 @@ const FieldValidationWorkspace = ({
                   </h3>
                 </div>
                 <span className={`validation-status-chip ${selectedMeta.className}`}>{selectedMeta.label}</span>
+              </div>
+
+              <div className="field-validation-selected-summary">
+                <p>{selectedPoint.reference_note || selectedPoint.description || "Sin referencia capturada."}</p>
+                <div>
+                  <span>{formatCoordinate(selectedPoint.latitude)}</span>
+                  <span>{formatCoordinate(selectedPoint.longitude)}</span>
+                  <span>{selectedPoint.accuracy_meters ? `${selectedPoint.accuracy_meters} m` : "Sin precision"}</span>
+                </div>
               </div>
 
               <div className="map-coordinates-grid">
@@ -217,19 +350,19 @@ const FieldValidationWorkspace = ({
               </label>
 
               <div className="field-validation-actions">
-                <button type="button" className="button-secondary" onClick={() => window.open(buildExternalMapUrl(selectedPoint.latitude, selectedPoint.longitude), "_blank", "noopener,noreferrer")}>
+                <button type="button" className="button-secondary field-validation-icon-action" onClick={() => window.open(buildExternalMapUrl(selectedPoint.latitude, selectedPoint.longitude), "_blank", "noopener,noreferrer")}>
                   <Icon name="map" />
                   Maps
                 </button>
-                <button type="button" className="button-secondary" onClick={(event) => onCopyCoordinates(selectedPoint, event)}>
+                <button type="button" className="button-secondary field-validation-icon-action" onClick={(event) => onCopyCoordinates(selectedPoint, event)}>
                   <Icon name="copy" />
                   Copiar
                 </button>
-                <button type="button" className="button-secondary" onClick={() => handleQuickStatus("needs_correction")} disabled={savingPointId === selectedPoint.id}>
+                <button type="button" className="button-secondary field-validation-warning-action" onClick={() => handleQuickStatus("needs_correction")} disabled={savingPointId === selectedPoint.id}>
                   <Icon name="warning" />
                   Corregir
                 </button>
-                <button type="button" className="button-secondary" onClick={() => handleQuickStatus("approved")} disabled={savingPointId === selectedPoint.id}>
+                <button type="button" className="button-secondary field-validation-success-action" onClick={() => handleQuickStatus("approved")} disabled={savingPointId === selectedPoint.id}>
                   <Icon name="success" />
                   Aprobar
                 </button>
@@ -246,32 +379,6 @@ const FieldValidationWorkspace = ({
             </article>
           )}
         </aside>
-      </section>
-
-      <section className="field-validation-list">
-        {mapPoints.map((point) => {
-          const meta = validationStatusMeta[point.validation_status || "pending"] ?? validationStatusMeta.pending;
-          return (
-            <article
-              key={point.id}
-              className={`map-point-card field-validation-card ${selectedPoint?.id === point.id ? "is-active" : ""}`}
-            >
-              <button type="button" className="map-point-main" onClick={() => setSelectedPointId(point.id)}>
-                <div className="map-point-top">
-                  <strong>{getMapPointTypeLabel(point.point_type)}</strong>
-                  <span className={`validation-status-chip ${meta.className}`}>{meta.label}</span>
-                </div>
-                <p>{point.reference_note || point.description || "Sin referencia adicional."}</p>
-                <div className="map-point-coords">
-                  <span>{formatCoordinate(point.latitude)}</span>
-                  <span>{formatCoordinate(point.longitude)}</span>
-                  <span>{point.accuracy_meters ? `${point.accuracy_meters} m` : "Sin precision"}</span>
-                </div>
-                <small>{point.created_by_name || "Tecnico sin nombre"} · {formatDateTime(point.created_at)}</small>
-              </button>
-            </article>
-          );
-        })}
       </section>
     </main>
   );
