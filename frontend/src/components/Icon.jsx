@@ -70,6 +70,7 @@ export const actionIconName = (action) =>
       "user.created": "userCreated",
       "padron.updated": "refresh",
       "map_point.created": "map",
+      "map_point.validated": "success",
       "map_point.deleted": "archive",
       "transport.route_created": "transport",
       "transport.route_updated": "transport",

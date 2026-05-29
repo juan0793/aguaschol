@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   full_name VARCHAR(180) NOT NULL,
   email VARCHAR(180) NOT NULL UNIQUE,
   username VARCHAR(120) NOT NULL UNIQUE,
-  role ENUM('admin', 'operator', 'transport') NOT NULL DEFAULT 'operator',
+  role ENUM('admin', 'operator', 'transport', 'validadora_campo') NOT NULL DEFAULT 'operator',
   password_hash VARCHAR(255) NOT NULL,
   force_password_change TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -84,15 +84,45 @@ CREATE TABLE IF NOT EXISTS map_points (
   marker_color VARCHAR(20) NOT NULL DEFAULT '#1576d1',
   is_terminal_point TINYINT(1) NOT NULL DEFAULT 0,
   diary_date DATE NULL DEFAULT NULL,
+  validation_status ENUM('pending', 'approved', 'needs_correction', 'corrected') NOT NULL DEFAULT 'pending',
+  validated_by INT UNSIGNED NULL,
+  validated_at TIMESTAMP NULL DEFAULT NULL,
+  validation_notes TEXT NULL,
+  correction_notes TEXT NULL,
   created_by INT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_map_points_creator
     FOREIGN KEY (created_by) REFERENCES app_users(id)
     ON DELETE SET NULL,
+  CONSTRAINT fk_map_points_validator
+    FOREIGN KEY (validated_by) REFERENCES app_users(id)
+    ON DELETE SET NULL,
   KEY idx_map_points_created_at (created_at),
   KEY idx_map_points_diary_date (diary_date),
-  KEY idx_map_points_creator (created_by)
+  KEY idx_map_points_creator (created_by),
+  KEY idx_map_points_validation_status (validation_status),
+  KEY idx_map_points_validated_by (validated_by)
+);
+
+CREATE TABLE IF NOT EXISTS map_point_validation_logs (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  map_point_id INT UNSIGNED NOT NULL,
+  validator_user_id INT UNSIGNED NULL,
+  previous_status VARCHAR(40) NOT NULL DEFAULT '',
+  next_status VARCHAR(40) NOT NULL DEFAULT '',
+  previous_payload_json LONGTEXT NULL,
+  next_payload_json LONGTEXT NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_map_point_validation_logs_point
+    FOREIGN KEY (map_point_id) REFERENCES map_points(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_map_point_validation_logs_validator
+    FOREIGN KEY (validator_user_id) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  KEY idx_map_point_validation_logs_point (map_point_id, created_at),
+  KEY idx_map_point_validation_logs_validator (validator_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS transport_routes (

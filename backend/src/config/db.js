@@ -133,7 +133,7 @@ const ensureRoleEnum = async (connection) => {
   await connection.query(
     `
       ALTER TABLE ${escapeIdentifier("app_users")}
-      MODIFY COLUMN ${escapeIdentifier("role")} ENUM('admin', 'operator', 'transport') NOT NULL DEFAULT 'operator'
+      MODIFY COLUMN ${escapeIdentifier("role")} ENUM('admin', 'operator', 'transport', 'validadora_campo') NOT NULL DEFAULT 'operator'
     `
   );
 };
@@ -332,6 +332,52 @@ const ensureSchema = async () => {
       columnName: "diary_date",
       definition: "DATE NULL DEFAULT NULL"
     });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "validation_status",
+      definition: "ENUM('pending', 'approved', 'needs_correction', 'corrected') NOT NULL DEFAULT 'pending'"
+    });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "validated_by",
+      definition: "INT UNSIGNED NULL"
+    });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "validated_at",
+      definition: "TIMESTAMP NULL DEFAULT NULL"
+    });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "validation_notes",
+      definition: "TEXT NULL"
+    });
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "correction_notes",
+      definition: "TEXT NULL"
+    });
+    await admin.query(
+      `
+        CREATE TABLE IF NOT EXISTS map_point_validation_logs (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          map_point_id INT UNSIGNED NOT NULL,
+          validator_user_id INT UNSIGNED NULL,
+          previous_status VARCHAR(40) NOT NULL DEFAULT '',
+          next_status VARCHAR(40) NOT NULL DEFAULT '',
+          previous_payload_json LONGTEXT NULL,
+          next_payload_json LONGTEXT NULL,
+          notes TEXT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT fk_map_point_validation_logs_point
+            FOREIGN KEY (map_point_id) REFERENCES map_points(id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_map_point_validation_logs_validator
+            FOREIGN KEY (validator_user_id) REFERENCES app_users(id)
+            ON DELETE SET NULL
+        )
+      `
+    );
     await admin.query(
       `
         UPDATE map_points
@@ -403,6 +449,26 @@ const ensureSchema = async () => {
       tableName: "map_points",
       indexName: "idx_map_points_diary_date",
       columns: ["diary_date"]
+    });
+    await ensureIndex(admin, {
+      tableName: "map_points",
+      indexName: "idx_map_points_validation_status",
+      columns: ["validation_status"]
+    });
+    await ensureIndex(admin, {
+      tableName: "map_points",
+      indexName: "idx_map_points_validated_by",
+      columns: ["validated_by"]
+    });
+    await ensureIndex(admin, {
+      tableName: "map_point_validation_logs",
+      indexName: "idx_map_point_validation_logs_point",
+      columns: ["map_point_id", "created_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "map_point_validation_logs",
+      indexName: "idx_map_point_validation_logs_validator",
+      columns: ["validator_user_id"]
     });
     await ensureIndex(admin, {
       tableName: "transport_routes",

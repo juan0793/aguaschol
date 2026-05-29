@@ -488,6 +488,9 @@ export const updateMapPoint = async (id, payload, authUser) => {
     throw error;
   }
 
+  const nextValidationStatus =
+    current.validation_status === "needs_correction" ? "corrected" : current.validation_status || "pending";
+
   await pool.query(
     `
       UPDATE map_points
@@ -499,7 +502,8 @@ export const updateMapPoint = async (id, payload, authUser) => {
         description = ?,
         reference_note = ?,
         marker_color = ?,
-        is_terminal_point = ?
+        is_terminal_point = ?,
+        validation_status = ?
       WHERE id = ?
     `,
     [
@@ -511,6 +515,7 @@ export const updateMapPoint = async (id, payload, authUser) => {
       data.reference_note,
       data.marker_color,
       data.is_terminal_point ? 1 : 0,
+      nextValidationStatus,
       id
     ]
   );

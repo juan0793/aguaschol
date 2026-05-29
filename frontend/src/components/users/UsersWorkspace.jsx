@@ -140,6 +140,7 @@ export function UsersContent({
                   <span>Perfil</span>
                   <select name="role" value={userForm.role} onChange={handleUserFormChange}>
                     <option value="operator">Operador</option>
+                    <option value="validadora_campo">Validadora de campo</option>
                     <option value="transport">Transporte</option>
                     <option value="admin">Administrador</option>
                   </select>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
+import FieldValidationWorkspace from "./components/FieldValidationWorkspace";
 import { Icon, actionIconName } from "./components/Icon";
 import RecordsWorkspace from "./components/records/RecordsWorkspace";
 import TransportWorkspace from "./components/TransportWorkspace";
@@ -352,7 +353,7 @@ const normalizeDashboardWidgetPrefs = (value) => {
   return { order, hidden };
 };
 
-const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : "records");
+const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : role === "validadora_campo" ? "fieldValidation" : "records");
 const getMapReportZoneOverrideKey = (zoneName) => String(zoneName || "Zona no especificada").trim() || "Zona no especificada";
 const getMapReportTechnicians = (staff) => {
   const names = Array.isArray(staff?.field_technician_names)
@@ -636,6 +637,7 @@ function App() {
   const [mapReportStaff, setMapReportStaff] = useState(() => normalizeMapReportStaff(defaultMapReportStaff));
   const [mapReportSettingsByDate, setMapReportSettingsByDate] = useState(() => loadMapReportSettingsByDate());
   const [savingMapPoint, setSavingMapPoint] = useState(false);
+  const [savingFieldValidationPointId, setSavingFieldValidationPointId] = useState(null);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
   const [editingMapPointId, setEditingMapPointId] = useState(null);
@@ -720,6 +722,7 @@ function App() {
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
   const isTransport = session?.user?.role === "transport";
+  const isFieldValidator = session?.user?.role === "validadora_campo";
   const mustChangePassword = Boolean(session?.user?.force_password_change);
   const passwordModalVisible = isAuthenticated && (mustChangePassword || showPasswordModal);
   const safeRecords = Array.isArray(records) ? records : [];
@@ -878,6 +881,14 @@ function App() {
             title: "Mapa de campo",
             lead: "Módulo independiente para ubicar y registrar puntos técnicos de cajas y descargas en terreno.",
             kicker: "Trabajo en sitio"
+          },
+          fieldValidation: {
+            panelClass: "hero-panel-records",
+            cardClass: "search-card-records",
+            toplineLabel: "Control de calidad GPS",
+            title: "Validacion de campo",
+            lead: "Revisa, corrige y aprueba puntos capturados por tecnicos antes de cerrar la jornada.",
+            kicker: "Revision tecnica"
           },
           mapReports: {
             panelClass: "hero-panel-logs",
@@ -1077,6 +1088,26 @@ function App() {
           icon: "activity",
           label: "Estado",
           value: loadingMapPoints ? "Actualizando" : "Listo para imprimir"
+        }
+      ];
+    }
+
+    if (workspaceView === "fieldValidation") {
+      return [
+        {
+          icon: "map",
+          label: "Puntos",
+          value: String(visibleMapPoints.length)
+        },
+        {
+          icon: "warning",
+          label: "Pendientes",
+          value: String(visibleMapPoints.filter((point) => (point.validation_status || "pending") === "pending").length)
+        },
+        {
+          icon: "success",
+          label: "Aprobados",
+          value: String(visibleMapPoints.filter((point) => point.validation_status === "approved").length)
         }
       ];
     }
@@ -1453,6 +1484,7 @@ function App() {
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
+            { key: "fieldValidation", section: "control", label: "Validacion campo", icon: "success", meta: "Revision GPS", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
             { key: "requests", section: "control", label: "Reportes", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
@@ -1462,6 +1494,7 @@ function App() {
         : [],
     [
       isAdmin,
+      isFieldValidator,
       padronRequestResult?.summary?.total_registros,
       mapReportData.totalPoints,
       mapReportData.totalZones,
@@ -1504,6 +1537,7 @@ function App() {
             { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" },
             { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
             { key: "requests", label: "Reportes", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
@@ -1514,10 +1548,14 @@ function App() {
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
+            ...(isFieldValidator
+              ? [{ key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" }]
+              : []),
             { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" }
           ]),
     [
       isAdmin,
+      isFieldValidator,
       padronRequestResult?.summary?.total_registros,
       mapReportData.totalPoints,
       mapReportData.totalZones,
@@ -1578,7 +1616,7 @@ function App() {
       {
         key: "campo",
         title: "Puntos GPS",
-        items: items.filter((item) => ["map", "mapReports"].includes(item.key))
+        items: items.filter((item) => ["map", "fieldValidation", "mapReports"].includes(item.key))
       },
       {
         key: "gestion",
@@ -3910,9 +3948,9 @@ function App() {
   }, [isAuthenticated, isAdmin, refreshDashboard, workspaceView]);
 
   useEffect(() => {
-    if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
+    if (isAuthenticated && ["map", "fieldValidation", "mapReports", "mapAnalytics"].includes(workspaceView)) {
         loadMapDiaryGroups({ silent: true });
-        loadMapPoints({ date: workspaceView === "map" ? activeMapDiaryDateKey : "" });
+        loadMapPoints({ date: ["map", "fieldValidation"].includes(workspaceView) ? activeMapDiaryDateKey : "" });
       }
   }, [activeMapDiaryDateKey, isAuthenticated, workspaceView]);
 
@@ -3932,17 +3970,20 @@ function App() {
   }, [mapReportPrintData.zones.length]);
 
   useEffect(() => {
-    if (isAuthenticated && !isAdmin && !["records", "lookup", "map"].includes(workspaceView)) {
+    const allowedViews = isFieldValidator
+      ? ["records", "lookup", "map", "fieldValidation"]
+      : ["records", "lookup", "map"];
+    if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
       setWorkspaceView("records");
     }
-  }, [isAuthenticated, isAdmin, workspaceView]);
+  }, [isAuthenticated, isAdmin, isFieldValidator, workspaceView]);
 
   useEffect(() => {
     setShowMobileModuleMenu(false);
   }, [workspaceView]);
 
   useEffect(() => {
-    if (!isAuthenticated || workspaceView !== "map") {
+    if (!isAuthenticated || !["map", "fieldValidation"].includes(workspaceView)) {
       return undefined;
     }
 
@@ -5323,6 +5364,62 @@ function App() {
       showAlert(error.message || "No fue posible guardar el punto.");
     } finally {
       setSavingMapPoint(false);
+    }
+  };
+
+  const handleSaveFieldValidation = async (pointId, payload = {}) => {
+    if (!pointId) return null;
+    const latitude = Number(payload.latitude);
+    const longitude = Number(payload.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      showAlert("Define latitud y longitud validas antes de guardar la revision.");
+      return null;
+    }
+
+    setSavingFieldValidationPointId(pointId);
+
+    try {
+      const response = await apiFetch(`/field-validation/${pointId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          point_type: payload.point_type,
+          latitude,
+          longitude,
+          accuracy_meters: Number(payload.accuracy_meters) || null,
+          description: payload.description,
+          reference: payload.reference,
+          marker_color: payload.marker_color || "#1576d1",
+          is_terminal_point: Boolean(payload.is_terminal_point),
+          validation_status: payload.validation_status,
+          validation_notes: payload.validation_notes,
+          correction_notes: payload.correction_notes
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return null;
+        }
+
+        throw new Error(data.message || "No fue posible guardar la validacion.");
+      }
+
+      setMapPoints((current) => current.map((point) => (point.id === data.id ? data : point)));
+      setSelectedMapPointId(data.id);
+      showAlert("Revision de campo guardada.");
+      return data;
+    } catch (error) {
+      showAlert(error.message || "No fue posible guardar la validacion.");
+      return null;
+    } finally {
+      setSavingFieldValidationPointId(null);
     }
   };
 
@@ -14163,6 +14260,24 @@ function App() {
             </aside>
           </section>
         </main>
+      ) : workspaceView === "fieldValidation" ? (
+        <FieldValidationWorkspace
+          apiUrl={API_URL}
+          activeDateLabel={`Jornada ${formatMapDiaryLabel(activeMapDiaryDateKey)}`}
+          isActive={workspaceView === "fieldValidation" && isAuthenticated}
+          loading={loadingMapPoints}
+          mapPoints={visibleMapPoints}
+          onCopyCoordinates={handleCopyCoordinates}
+          onRefresh={() => {
+            loadMapDiaryGroups({ silent: true });
+            loadMapPoints({ date: activeMapDiaryDateKey });
+          }}
+          onSaveValidation={handleSaveFieldValidation}
+          onSelectPoint={handleSelectMapPoint}
+          savingPointId={savingFieldValidationPointId}
+          selectedPointId={selectedMapPointId}
+          setSelectedPointId={setSelectedMapPointId}
+        />
       ) : (
         <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (

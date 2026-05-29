@@ -69,6 +69,7 @@ export const roleLabel = (role) =>
     {
       admin: "Administrador",
       transport: "Transporte",
+      validadora_campo: "Validadora de campo",
       operator: "Operador"
     }[role] ?? "Operador"
   );
@@ -82,6 +83,7 @@ export const actionLabel = (action) =>
       "user.created": "Usuario creado",
       "padron.updated": "Padron actualizado",
       "map_point.created": "Punto de campo creado",
+      "map_point.validated": "Punto de campo validado",
       "map_point.deleted": "Punto de campo eliminado",
       "transport.route_created": "Ruta de transporte creada",
       "transport.route_updated": "Ruta de transporte actualizada",

@@ -16940,3 +16940,130 @@ button,
     flex: initial !important;
   }
 }
+.field-validation-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.field-validation-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid rgba(21, 118, 209, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #eef7ff 100%);
+  box-shadow: 0 18px 38px rgba(16, 55, 91, 0.08);
+}
+
+.field-validation-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  gap: 10px;
+}
+
+.field-validation-metrics span {
+  display: grid;
+  gap: 2px;
+  min-width: 92px;
+  padding: 12px;
+  border: 1px solid rgba(21, 118, 209, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #55708a;
+  font-size: 0.82rem;
+}
+
+.field-validation-metrics strong {
+  color: #14344f;
+  font-size: 1.35rem;
+}
+
+.field-validation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.field-validation-map-card,
+.field-validation-panel {
+  min-width: 0;
+}
+
+.field-validation-form {
+  position: sticky;
+  top: 12px;
+}
+
+.validation-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #e8f2fd;
+  color: #16456f;
+  font-weight: 800;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.validation-status-chip.is-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.validation-status-chip.is-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.validation-status-chip.is-corrected {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.field-validation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.field-validation-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.field-validation-card .map-point-main {
+  text-align: left;
+}
+
+@media (max-width: 920px) {
+  .field-validation-hero,
+  .field-validation-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .field-validation-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .field-validation-form {
+    position: static;
+  }
+}
+
+@media (max-width: 620px) {
+  .field-validation-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .field-validation-actions button {
+    flex: 1 1 140px;
+  }
+}
