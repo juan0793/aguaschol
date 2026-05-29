@@ -9058,6 +9058,26 @@ textarea {
   border-color: rgba(155, 32, 45, 0.14);
 }
 
+.map-location-help {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.68rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.26);
+  background: #fffbeb;
+  color: #7c4a03;
+  font-size: 0.88rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.map-location-help .app-icon {
+  flex: 0 0 auto;
+  margin-top: 0.08rem;
+}
+
 .map-canvas-shell {
   position: relative;
 }
@@ -16858,4 +16878,65 @@ button,
   background: #ffffff;
   border-color: #9fc6ee;
   color: #0d4fad !important;
+}
+
+/* Final mobile dashboard repair: keep executive actions and KPI cards readable on iPhone widths. */
+@media (max-width: 560px) {
+  .app-chrome .search-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    overflow-x: visible !important;
+    gap: 0.45rem;
+  }
+
+  .app-chrome .search-actions button,
+  .app-chrome .search-actions .button-secondary {
+    width: 100%;
+    min-width: 0 !important;
+    justify-content: center;
+    white-space: normal !important;
+  }
+
+  .dashboard-metrics-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.7rem;
+    overflow: visible !important;
+  }
+
+  .dashboard-metric-card {
+    width: 100%;
+    min-width: 0 !important;
+    min-height: 154px;
+    padding: 0.9rem;
+  }
+
+  .dashboard-metric-card strong {
+    font-size: clamp(2rem, 13vw, 2.85rem);
+  }
+
+  .dashboard-metric-card span:not(.dashboard-metric-icon):not(.dashboard-metric-trend):not(.dashboard-metric-micro) {
+    white-space: normal !important;
+  }
+
+  .dashboard-metric-foot {
+    align-items: center;
+  }
+
+  .dashboard-metric-foot svg {
+    flex-basis: 70px;
+    width: 70px;
+  }
+
+  .dashboard-start-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    overflow-x: visible !important;
+  }
+
+  .dashboard-start-action {
+    width: 100%;
+    min-width: 0 !important;
+    flex: initial !important;
+  }
 }

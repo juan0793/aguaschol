@@ -114,13 +114,70 @@ const MAP_DIARY_PRIMARY_LIMIT = 4;
 const REPORT_POINT_DANGER_RGB = [220, 38, 38];
 const REPORT_POINT_DANGER_FILL_RGB = [254, 242, 242];
 const REPORT_POINT_DANGER_BORDER_RGB = [248, 113, 113];
+const GEOLOCATION_OPTIONS = {
+  enableHighAccuracy: true,
+  timeout: 18000,
+  maximumAge: 0
+};
+const GEOLOCATION_FALLBACK_OPTIONS = {
+  enableHighAccuracy: false,
+  timeout: 22000,
+  maximumAge: 60000
+};
+const IOS_GPS_HELP =
+  "En iPhone la ubicacion solo funciona si abres el sistema con HTTPS y das permiso en Safari. Mientras tanto puedes tocar el mapa o escribir latitud y longitud para guardar el punto.";
 
 const isRedReportPoint = (point = {}) =>
   point.point_type === COMMERCIAL_MAP_POINT_TYPE ||
   String(point.marker_color || "").trim().toLowerCase() === COMMERCIAL_MAP_POINT_COLOR;
 
+const getCurrentPosition = (options) =>
+  new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+
+const isLocalSecureHost = () => {
+  if (typeof window === "undefined") return false;
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+};
+
+const getGeolocationUnavailableMessage = () => {
+  if (typeof window !== "undefined" && !window.isSecureContext && !isLocalSecureHost()) {
+    return IOS_GPS_HELP;
+  }
+
+  return "Este dispositivo no soporta geolocalizacion. Puedes tocar el mapa o escribir las coordenadas manualmente.";
+};
+
+const getGeolocationErrorMessage = (error) => {
+  if (typeof window !== "undefined" && !window.isSecureContext && !isLocalSecureHost()) {
+    return IOS_GPS_HELP;
+  }
+
+  if (error?.code === error?.PERMISSION_DENIED || error?.code === 1) {
+    return "El navegador bloqueo la ubicacion. En iPhone revisa Ajustes > Safari > Ubicacion y permite el acceso; tambien puedes tocar el mapa para marcar el punto.";
+  }
+
+  if (error?.code === error?.TIMEOUT || error?.code === 3) {
+    return "El GPS tardo demasiado en responder. Intenta al aire libre, toca el mapa o escribe latitud y longitud para registrar el punto.";
+  }
+
+  return "No fue posible obtener la ubicacion actual. Puedes tocar el mapa o escribir las coordenadas manualmente.";
+};
+
 const getReportPointRowClassName = (point = {}, baseClassName = "") =>
   [baseClassName, isRedReportPoint(point) ? "is-red-report-point" : ""].filter(Boolean).join(" ");
+
+const readJsonResponse = async (response, fallbackMessage = "La API no devolvio una respuesta JSON valida.") => {
+  const text = await response.text();
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(fallbackMessage);
+  }
+};
 
 const getPadronStatusLabel = (status) => {
   if (status === "varios_padrones") return "Varios padrones";
@@ -585,6 +642,7 @@ function App() {
   const [mapStatus, setMapStatus] = useState("Sincronizado");
   const [mapDraft, setMapDraft] = useState(emptyMapDraft);
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
+  const [mapLocationHelp, setMapLocationHelp] = useState("");
   const [mapDiaryDateKey, setMapDiaryDateKey] = useState(() => getMapDiaryDateKey(new Date()));
   const [padronMeta, setPadronMeta] = useState(null);
   const [padronImportSummary, setPadronImportSummary] = useState(null);
@@ -2986,9 +3044,15 @@ function App() {
 
     try {
       const response = await request();
-      const data = await response.json();
+      const data = await readJsonResponse(
+        response,
+        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+      );
 
       if (!response.ok) {
+        if (response.status >= 500 && !data.message) {
+          throw new Error("No se pudo conectar correctamente con la API local. Revisa que el backend este corriendo en http://127.0.0.1:4000.");
+        }
         if (response.status === 401) {
           clearSession();
         }
@@ -3640,8 +3704,13 @@ function App() {
             longitude: point.longitude
           }))
         })
+      }).catch(() => {
+        throw new Error("No se pudo conectar con la API local. Revisa que el backend este corriendo en http://127.0.0.1:4000.");
       });
-      const data = await response.json();
+      const data = await readJsonResponse(
+        response,
+        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+      );
 
       if (!response.ok) {
         throw new Error(data.message || "No fue posible consultar las zonas del levantamiento.");
@@ -4952,21 +5021,51 @@ function App() {
 
   const handleMapDraftChange = (event) => {
     const { name, value } = event.target;
+    if (["latitude", "longitude"].includes(name) && value) {
+      setMapLocationHelp("");
+    }
     setMapDraft((current) => ({ ...current, [name]: value }));
   };
 
-  const handleLocateUser = () => {
+  const handleMapDraftFromMap = useCallback((updater) => {
+    setMapLocationHelp("");
+    setMapStatus("Punto marcado");
+    setMapDraft(updater);
+  }, []);
+
+  const handleLocateUser = async () => {
     if (!navigator.geolocation) {
-      showAlert("Este dispositivo no soporta geolocalizacion.");
+      const message = getGeolocationUnavailableMessage();
+      setMapLocationHelp(message);
+      showAlert(message);
       setMapStatus("Sin GPS");
+      return;
+    }
+
+    if (typeof window !== "undefined" && !window.isSecureContext && !isLocalSecureHost()) {
+      const message = getGeolocationUnavailableMessage();
+      setMapLocationHelp(message);
+      showAlert(message);
+      setMapStatus("HTTPS requerido");
       return;
     }
 
     setLocatingUser(true);
     setMapStatus("Buscando");
+    setMapLocationHelp("Solicitando permiso de ubicacion. En iPhone confirma el permiso de Safari si aparece.");
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    try {
+      let position;
+      try {
+        position = await getCurrentPosition(GEOLOCATION_OPTIONS);
+      } catch (error) {
+        if (error?.code !== error?.TIMEOUT && error?.code !== 3) {
+          throw error;
+        }
+        setMapLocationHelp("El GPS tardo en responder; intentando lectura compatible para iPhone...");
+        position = await getCurrentPosition(GEOLOCATION_FALLBACK_OPTIONS);
+      }
+
         const nextDraft = {
           latitude: Number(position.coords.latitude).toFixed(6),
           longitude: Number(position.coords.longitude).toFixed(6),
@@ -4978,33 +5077,26 @@ function App() {
 
         setMapDraft(nextDraft);
         setMapStatus("GPS listo");
-        setLocatingUser(false);
+        setMapLocationHelp("");
         setMapFocusRequest({
           latitude: Number(nextDraft.latitude),
           longitude: Number(nextDraft.longitude),
           zoom: 18.5,
           key: Date.now()
         });
-      },
-      (error) => {
-        setLocatingUser(false);
-        setMapStatus("Sin permiso");
-        showAlert(
-          error.code === error.PERMISSION_DENIED
-            ? "El navegador bloqueo la ubicacion. Habilita el permiso para usar el mapa."
-            : "No fue posible obtener la ubicacion actual."
-        );
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0
-      }
-    );
+    } catch (error) {
+      const message = getGeolocationErrorMessage(error);
+      setMapStatus(error?.code === 1 ? "Sin permiso" : "GPS pendiente");
+      setMapLocationHelp(message);
+      showAlert(message);
+    } finally {
+      setLocatingUser(false);
+    }
   };
 
   const resetMapDraft = () => {
     setEditingMapPointId(null);
+    setMapLocationHelp("");
     setMapDraft({ ...emptyMapDraft });
   };
 
@@ -5155,7 +5247,9 @@ function App() {
     const longitude = Number(mapDraft.longitude);
 
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      showAlert("Define la ubicacion del punto usando GPS o tocando el mapa.");
+      const message = "Define la ubicacion del punto usando GPS, tocando el mapa o escribiendo latitud y longitud.";
+      setMapLocationHelp(message);
+      showAlert(message);
       return;
     }
 
@@ -5785,6 +5879,7 @@ function App() {
 
     setSelectedMapPointId(point.id);
     setEditingMapPointId(point.id);
+    setMapLocationHelp("");
     setMapDraft({
       latitude: formatCoordinate(point.latitude),
       longitude: formatCoordinate(point.longitude),
@@ -6865,8 +6960,13 @@ function App() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(loginForm)
+      }).catch(() => {
+        throw new Error("No se pudo conectar con la API local. Revisa que el backend este corriendo en http://127.0.0.1:4000.");
       });
-      const data = await response.json();
+      const data = await readJsonResponse(
+        response,
+        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+      );
 
       if (!response.ok) {
         throw new Error(data.message || "No fue posible iniciar sesión.");
@@ -13785,7 +13885,7 @@ function App() {
                 <span className="panel-pill">{visibleMapPoints.length} puntos</span>
               </div>
               <div className="map-toolbar">
-                <span className={`map-status-chip ${mapStatus === "Sin conexion" ? "is-offline" : ""}`}>
+                <span className={`map-status-chip ${["Sin conexion", "Sin GPS", "Sin permiso", "HTTPS requerido"].includes(mapStatus) ? "is-offline" : ""}`}>
                   <Icon name={mapStatus === "GPS listo" ? "success" : mapStatus === "Sin conexion" ? "activity" : "map"} />
                   {mapStatus}
                 </span>
@@ -13795,6 +13895,12 @@ function App() {
                   <span>3. Guarda</span>
                 </div>
               </div>
+              {mapLocationHelp ? (
+                <p className="map-location-help">
+                  <Icon name="warning" />
+                  {mapLocationHelp}
+                </p>
+              ) : null}
               <div className="map-diary-strip">
                 <div className="map-diary-strip-head">
                   <strong>Bitacora por dia</strong>
@@ -13831,7 +13937,7 @@ function App() {
                   mapDraft={mapDraft}
                   mapFocusRequest={mapFocusRequest}
                   mapPoints={mapPointsForCanvas}
-                  onDraftChange={setMapDraft}
+                  onDraftChange={handleMapDraftFromMap}
                   onSelectPoint={handleSelectMapPoint}
                   onStatusChange={setMapStatus}
                   selectedMapPointId={selectedMapPointId}
@@ -13865,11 +13971,23 @@ function App() {
                 <div className="map-coordinates-grid">
                   <label>
                     <span>Latitud</span>
-                    <input name="latitude" value={mapDraft.latitude} onChange={handleMapDraftChange} placeholder="13.301700" />
+                    <input
+                      name="latitude"
+                      value={mapDraft.latitude}
+                      onChange={handleMapDraftChange}
+                      inputMode="decimal"
+                      placeholder="13.301700"
+                    />
                   </label>
                   <label>
                     <span>Longitud</span>
-                    <input name="longitude" value={mapDraft.longitude} onChange={handleMapDraftChange} placeholder="-87.188900" />
+                    <input
+                      name="longitude"
+                      value={mapDraft.longitude}
+                      onChange={handleMapDraftChange}
+                      inputMode="decimal"
+                      placeholder="-87.188900"
+                    />
                   </label>
                   <label>
                     <span>Precision (m)</span>
