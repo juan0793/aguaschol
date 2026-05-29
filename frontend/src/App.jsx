@@ -11230,6 +11230,42 @@ function App() {
             ) : null}
           </section>
 
+          <section className={`dashboard-online-rail ${onlineUsers.length ? "has-users" : "is-empty"}`} aria-label="Usuarios en linea">
+            <div className="dashboard-online-rail-head">
+              <span className="dashboard-online-rail-kicker">
+                <span className="dashboard-online-rail-dot" />
+                Equipo en vivo
+              </span>
+              <strong>{onlineUsers.length} usuarios en linea</strong>
+            </div>
+            {onlineUsers.length ? (
+              <div className="dashboard-online-rail-window">
+                <div
+                  className="dashboard-online-rail-track"
+                  style={{ "--rail-duration": `${Math.max(18, onlineUsers.length * 7)}s` }}
+                >
+                  {[...onlineUsers, ...onlineUsers].map((user, index) => (
+                    <article key={`${user.id}-${index}`} className="dashboard-online-rail-card">
+                      <span className="dashboard-online-avatar">
+                        {(user.full_name || user.username || "U").trim().charAt(0).toUpperCase()}
+                      </span>
+                      <span className="dashboard-online-rail-copy">
+                        <strong>{user.full_name || user.username}</strong>
+                        <small>{roleLabel(user.role)} · {user.active_sessions || 0} sesiones</small>
+                      </span>
+                      <span className="dashboard-online-rail-status">Activo</span>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="dashboard-online-rail-empty">
+                <Icon name="users" />
+                <span>Sin usuarios conectados ahora</span>
+              </div>
+            )}
+          </section>
+
           <section className="dashboard-topline">
             <article className="dashboard-priority-panel">
               <div className="dashboard-panel-head">

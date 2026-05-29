@@ -14701,6 +14701,164 @@ button,
   opacity: 1;
 }
 
+.dashboard-online-rail {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  min-height: 54px;
+  padding: 0.42rem 0.72rem;
+  border: 1px solid rgba(191, 210, 229, 0.9);
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(232, 245, 233, 0.84), rgba(255, 255, 255, 0.92) 32%, rgba(232, 244, 255, 0.78)),
+    #fff;
+  box-shadow: 0 10px 24px rgba(15, 39, 66, 0.06);
+  overflow: hidden;
+}
+
+.dashboard-online-rail-head {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 180px;
+  color: var(--dashboard-heading);
+}
+
+.dashboard-online-rail-head strong {
+  font-size: 0.95rem;
+  line-height: 1.15;
+}
+
+.dashboard-online-rail-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: #166534;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-online-rail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.48);
+  animation: dashboardPulse 1.45s ease-out infinite;
+}
+
+.dashboard-online-rail-window {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
+}
+
+.dashboard-online-rail-window::before,
+.dashboard-online-rail-window::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 42px;
+  pointer-events: none;
+}
+
+.dashboard-online-rail-window::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.92), transparent);
+}
+
+.dashboard-online-rail-window::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(255, 255, 255, 0.92), transparent);
+}
+
+.dashboard-online-rail-track {
+  display: flex;
+  width: max-content;
+  gap: 0.55rem;
+  animation: dashboardOnlineRail var(--rail-duration, 24s) linear infinite;
+}
+
+.dashboard-online-rail:hover .dashboard-online-rail-track {
+  animation-play-state: paused;
+}
+
+.dashboard-online-rail-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.62rem;
+  min-width: 230px;
+  max-width: 270px;
+  min-height: 42px;
+  padding: 0.45rem 0.58rem;
+  border: 1px solid rgba(187, 222, 251, 0.9);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 18px rgba(15, 39, 66, 0.07);
+}
+
+.dashboard-online-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #e3f2fd, #e8f5e9);
+  color: var(--material-primary-dark);
+  font-weight: 950;
+}
+
+.dashboard-online-rail-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.04rem;
+}
+
+.dashboard-online-rail-copy strong,
+.dashboard-online-rail-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-online-rail-copy strong {
+  color: var(--dashboard-heading);
+  font-size: 0.86rem;
+  line-height: 1.15;
+}
+
+.dashboard-online-rail-copy small {
+  color: var(--dashboard-muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.dashboard-online-rail-status {
+  margin-left: auto;
+  padding: 0.18rem 0.48rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.dashboard-online-rail-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 42px;
+  color: var(--dashboard-muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .button-secondary,
 .app-chrome .search-actions .button-secondary,
 .dashboard-alert-action {
@@ -15758,6 +15916,27 @@ button,
     height: 3px;
   }
 
+  .dashboard-online-rail {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    padding: 0.65rem;
+  }
+
+  .dashboard-online-rail-head {
+    min-width: 0;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .dashboard-online-rail-kicker {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-online-rail-card {
+    min-width: 215px;
+  }
+
   .log-terminal-view {
     padding: 0.75rem;
   }
@@ -15828,6 +16007,16 @@ button,
 
   to {
     transform: scaleX(1);
+  }
+}
+
+@keyframes dashboardOnlineRail {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
   }
 }
 
@@ -16307,6 +16496,7 @@ button,
   .dashboard-start-action,
   .dashboard-metric-card,
   .dashboard-live-activity-item,
+  .dashboard-online-rail-track,
   .dashboard-metric-value.is-changed,
   .dashboard-feed-item {
     animation: none !important;
