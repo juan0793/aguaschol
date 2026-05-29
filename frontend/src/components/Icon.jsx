@@ -68,6 +68,7 @@ export const actionIconName = (action) =>
       "auth.logout": "logout",
       "auth.password_changed": "success",
       "user.created": "userCreated",
+      "user.role_updated": "users",
       "padron.updated": "refresh",
       "map_point.created": "map",
       "map_point.validated": "success",

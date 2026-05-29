@@ -682,6 +682,7 @@ function App() {
   const [pendingDeleteRecord, setPendingDeleteRecord] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
+  const [savingUserRoleId, setSavingUserRoleId] = useState(null);
   const [userForm, setUserForm] = useState({
     full_name: "",
     email: "",
@@ -7447,6 +7448,52 @@ function App() {
       loadAuditLogs();
     } catch (error) {
       showAlert(error.message || "No se pudo regenerar la contrasena temporal.");
+    }
+  };
+
+  const handleUpdateUserRole = async (user, role) => {
+    if (!user?.id || !role || user.role === role) return;
+
+    setSavingUserRoleId(user.id);
+
+    try {
+      const response = await apiFetch(`/users/${user.id}/role`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ role })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No se pudo cambiar el perfil del usuario.");
+      }
+
+      setUsers((current) => current.map((item) => (item.id === data.id ? { ...item, ...data } : item)));
+      if (latestUserResult?.user?.id === data.id) {
+        setLatestUserResult((current) => ({
+          ...current,
+          user: {
+            ...current.user,
+            ...data
+          }
+        }));
+      }
+      setSelectedUserId(data.id);
+      showAlert(`Perfil de ${data.username} actualizado a ${roleLabel(data.role)}.`);
+      loadUsers({ silent: true });
+      loadAuditLogs();
+    } catch (error) {
+      showAlert(error.message || "No se pudo cambiar el perfil del usuario.");
+    } finally {
+      setSavingUserRoleId(null);
     }
   };
 
@@ -15923,8 +15970,10 @@ function App() {
                 creatingUser={creatingUser}
                 handleCreateUser={handleCreateUser}
                 handleResetUserPassword={handleResetUserPassword}
+                handleUpdateUserRole={handleUpdateUserRole}
                 handleUserFormChange={handleUserFormChange}
                 latestUserResult={latestUserResult}
+                savingUserRoleId={savingUserRoleId}
                 selectedUser={selectedUser}
                 session={session}
                 setUserForm={setUserForm}

@@ -5741,6 +5741,47 @@ textarea {
   margin-bottom: 0.2rem;
 }
 
+.users-role-editor {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(21, 118, 209, 0.16);
+  border-radius: 8px;
+  background: #f6fbff;
+}
+
+.users-role-editor label,
+.users-role-editor-compact {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.users-role-editor span {
+  color: #486581;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.users-role-editor select {
+  min-height: 42px;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid rgba(21, 118, 209, 0.22);
+  border-radius: 8px;
+  background: #fff;
+  color: #183b5a;
+  font: inherit;
+  font-weight: 700;
+}
+
+.users-role-editor small {
+  color: #5d7186;
+}
+
+.users-role-editor-compact {
+  margin: 0.75rem 0;
+}
+
 .users-card-footer {
   margin-top: 1rem;
 }

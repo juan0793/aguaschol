@@ -19,8 +19,14 @@ const sanitizeUser = (user) => ({
   updated_at: user.updated_at
 });
 
+const USER_ROLES = new Set(["admin", "operator", "transport", "validadora_campo"]);
 const USERNAME_BASE_MAX_LENGTH = 8;
 const USERNAME_MAX_LENGTH = 10;
+
+const normalizeRole = (role) => {
+  const cleanRole = String(role ?? "operator").trim();
+  return USER_ROLES.has(cleanRole) ? cleanRole : "operator";
+};
 
 const makeUsername = async (email) => {
   const pool = getPool();
@@ -88,7 +94,7 @@ export const createUser = async ({ full_name, email, role = "operator" }, actorU
   const pool = getPool();
   const cleanName = full_name?.trim();
   const cleanEmail = email?.trim().toLowerCase();
-  const cleanRole = ["admin", "transport", "validadora_campo"].includes(role) ? role : "operator";
+  const cleanRole = normalizeRole(role);
 
   if (!cleanName || !cleanEmail) {
     const error = new Error("Nombre completo y correo son obligatorios.");
@@ -152,6 +158,106 @@ export const createUser = async ({ full_name, email, role = "operator" }, actorU
     delivery: emailResult,
     temp_password: emailResult.sent ? null : password
   };
+};
+
+export const updateUserRole = async (userId, role, actorUser) => {
+  const pool = getPool();
+  const targetId = Number(userId);
+  const cleanRole = normalizeRole(role);
+
+  if (!Number.isInteger(targetId) || targetId <= 0) {
+    const error = new Error("Usuario invalido.");
+    error.status = 400;
+    throw error;
+  }
+
+  if (actorUser?.id === targetId) {
+    const error = new Error("No puedes cambiar el perfil de tu propio usuario activo.");
+    error.status = 400;
+    throw error;
+  }
+
+  const [rows] = await pool.query(
+    `
+      SELECT id, full_name, email, username, role, force_password_change, is_active, last_login_at, created_at, updated_at
+      FROM app_users
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [targetId]
+  );
+
+  const user = rows[0];
+  if (!user) {
+    const error = new Error("Usuario no encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  if (user.role === cleanRole) {
+    return sanitizeUser(user);
+  }
+
+  await pool.query(
+    `
+      UPDATE app_users
+      SET role = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    [cleanRole, targetId]
+  );
+
+  const [updatedRows] = await pool.query(
+    `
+      SELECT
+        app_users.id,
+        app_users.full_name,
+        app_users.email,
+        app_users.username,
+        app_users.role,
+        app_users.force_password_change,
+        app_users.is_active,
+        app_users.last_login_at,
+        app_users.created_at,
+        app_users.updated_at,
+        COUNT(auth_sessions.id) AS active_sessions,
+        MAX(auth_sessions.expires_at) AS latest_session_expires_at
+      FROM app_users
+      LEFT JOIN auth_sessions
+        ON auth_sessions.user_id = app_users.id
+       AND auth_sessions.expires_at > NOW()
+      WHERE app_users.id = ?
+      GROUP BY
+        app_users.id,
+        app_users.full_name,
+        app_users.email,
+        app_users.username,
+        app_users.role,
+        app_users.force_password_change,
+        app_users.is_active,
+        app_users.last_login_at,
+        app_users.created_at,
+        app_users.updated_at
+      LIMIT 1
+    `,
+    [targetId]
+  );
+
+  const updatedUser = sanitizeUser(updatedRows[0]);
+
+  await createAuditLog({
+    actorUserId: actorUser?.id ?? null,
+    action: "user.role_updated",
+    entityType: "user",
+    entityId: targetId,
+    summary: `Perfil de ${user.username} actualizado`,
+    details: {
+      previous_role: user.role,
+      next_role: updatedUser.role
+    }
+  });
+
+  return updatedUser;
 };
 
 export const deleteUser = async (userId, actorUser) => {

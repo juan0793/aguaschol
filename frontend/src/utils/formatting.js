@@ -81,6 +81,7 @@ export const actionLabel = (action) =>
       "auth.logout": "Cierre de sesion",
       "auth.password_changed": "Contrasena actualizada",
       "user.created": "Usuario creado",
+      "user.role_updated": "Perfil actualizado",
       "padron.updated": "Padron actualizado",
       "map_point.created": "Punto de campo creado",
       "map_point.validated": "Punto de campo validado",

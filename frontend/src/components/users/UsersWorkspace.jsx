@@ -83,8 +83,10 @@ export function UsersContent({
   creatingUser,
   handleCreateUser,
   handleResetUserPassword,
+  handleUpdateUserRole,
   handleUserFormChange,
   latestUserResult,
+  savingUserRoleId,
   selectedUser,
   session,
   setUserForm,
@@ -194,6 +196,28 @@ export function UsersContent({
                     <p><strong>Estado en linea:</strong> {selectedUser.is_online ? "Conectado" : "Sin conexion activa"}</p>
                     <p><strong>Sesiones activas:</strong> {selectedUser.active_sessions || 0}</p>
                   </div>
+                  <div className="users-role-editor no-print">
+                    <label>
+                      <span>Cambiar perfil</span>
+                      <select
+                        value={selectedUser.role}
+                        onChange={(event) => handleUpdateUserRole(selectedUser, event.target.value)}
+                        disabled={session?.user?.id === selectedUser.id || savingUserRoleId === selectedUser.id}
+                      >
+                        <option value="operator">Operador</option>
+                        <option value="validadora_campo">Validadora de campo</option>
+                        <option value="transport">Transporte</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                    </label>
+                    <small>
+                      {session?.user?.id === selectedUser.id
+                        ? "Tu propio perfil no se cambia desde esta sesion."
+                        : savingUserRoleId === selectedUser.id
+                          ? "Guardando perfil..."
+                          : "El cambio aplica incluso si el usuario esta en linea."}
+                    </small>
+                  </div>
                   <div className="users-card-footer">
                     <button type="button" className="button-secondary" onClick={() => setDetailOpen(true)}>
                       <Icon name="records" />
@@ -228,6 +252,19 @@ export function UsersContent({
                 <p className="user-detail-line"><strong>Correo:</strong> <span className="user-email">{selectedUser.email}</span></p>
                 <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{selectedUser.username}</span></p>
                 <p><strong>Perfil:</strong> {roleLabel(selectedUser.role)}</p>
+                <label className="users-role-editor users-role-editor-compact">
+                  <span>Cambiar perfil</span>
+                  <select
+                    value={selectedUser.role}
+                    onChange={(event) => handleUpdateUserRole(selectedUser, event.target.value)}
+                    disabled={session?.user?.id === selectedUser.id || savingUserRoleId === selectedUser.id}
+                  >
+                    <option value="operator">Operador</option>
+                    <option value="validadora_campo">Validadora de campo</option>
+                    <option value="transport">Transporte</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </label>
                 <p><strong>Ultimo acceso:</strong> {formatDateTime(selectedUser.last_login_at)}</p>
                 <p><strong>Estado en linea:</strong> {selectedUser.is_online ? "Conectado" : "Sin conexion activa"}</p>
                 <p><strong>Sesiones activas:</strong> {selectedUser.active_sessions || 0}</p>

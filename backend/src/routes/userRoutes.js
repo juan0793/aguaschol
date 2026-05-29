@@ -5,13 +5,15 @@ import {
   exportAuditLogsHandler,
   listAuditLogsHandler,
   listUsersHandler,
-  resetUserPasswordHandler
+  resetUserPasswordHandler,
+  updateUserRoleHandler
 } from "../controllers/userController.js";
 
 const router = Router();
 
 router.get("/", listUsersHandler);
 router.post("/", createUserHandler);
+router.patch("/:id/role", updateUserRoleHandler);
 router.post("/:id/reset-password", resetUserPasswordHandler);
 router.delete("/:id", deleteUserHandler);
 router.get("/audit-logs", listAuditLogsHandler);
