@@ -42,7 +42,7 @@ export const verifyPassword = async (password, storedHash = "") => {
   );
 };
 
-export const generatePassword = (length = 12) => {
+export const generatePassword = (length = 8) => {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%";
   return Array.from(crypto.randomBytes(length), (byte) => alphabet[byte % alphabet.length]).join("");
 };
