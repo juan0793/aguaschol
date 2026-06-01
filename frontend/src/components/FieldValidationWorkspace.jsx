@@ -21,8 +21,8 @@ const validationStatusFilters = [
 ];
 
 const validationProcessSteps = [
-  { key: "received", label: "Recibidas", helper: "Puntos capturados", className: "is-received" },
-  { key: "validating", label: "Validando", helper: "Pendientes y correcciones", className: "is-validating" },
+  { key: "received", label: "Recibidas", helper: "Capturadas", className: "is-received" },
+  { key: "validating", label: "Validando", helper: "En revision", className: "is-validating" },
   { key: "validated", label: "Validadas", helper: "Aprobadas", className: "is-validated" }
 ];
 
