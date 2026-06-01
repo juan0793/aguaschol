@@ -425,11 +425,10 @@ const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
   if (value === "N") return "No";
   return "--";
 };
-const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*Datos del padron \(clave [^)]+\):[\s\S]*?(?=\n{2,}|$)/i;
+const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*(?:Datos del padron(?: \(clave [^)]+\))?:\n?)?(?:Abonado:.*\n)?(?:Nombre:.*\n)?(?:Barrio\/colonia:.*\n)?(?:Direccion:.*\n)?Servicios:.*(?=\n{2,}|$)/i;
 const stripMapDescriptionPadronBlock = (value = "") =>
   String(value ?? "").replace(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN, "").trimEnd();
 const buildMapDescriptionPadronBlock = (match = {}) => {
-  const key = match.clave_catastral || match.clave_aguas_formato || match.abonado || "--";
   const identityLines = [
     match.abonado ? `Abonado: ${match.abonado}` : "",
     match.inquilino || match.nombre ? `Nombre: ${match.inquilino || match.nombre}` : "",
@@ -441,7 +440,6 @@ const buildMapDescriptionPadronBlock = (match = {}) => {
   ).join(" | ");
 
   return [
-    `Datos del padron (clave ${key}):`,
     ...identityLines,
     `Servicios: ${serviceLine}`
   ].join("\n");
@@ -5119,8 +5117,8 @@ function App() {
     }
 
     const currentBlock = description.match(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN)?.[0] || "";
-    if (currentBlock.includes(`clave ${key}`)) {
-      setMapDescriptionLookupStatus("Datos del padron anexados.");
+    if (currentBlock) {
+      setMapDescriptionLookupStatus("Informacion del padron anexada.");
       return undefined;
     }
     setMapDescriptionLookupStatus(`Consultando padron para ${key}...`);
