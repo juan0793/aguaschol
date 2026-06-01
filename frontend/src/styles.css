@@ -17767,7 +17767,7 @@ button,
 
 .field-validation-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.72fr) minmax(420px, 1.08fr) minmax(330px, 0.82fr);
+  grid-template-columns: minmax(280px, 0.55fr) minmax(520px, 1.45fr);
   gap: 14px;
   align-items: start;
 }
@@ -17915,10 +17915,22 @@ button,
 }
 
 .field-validation-form {
-  position: sticky;
-  top: 12px;
-  max-height: calc(100vh - 24px);
-  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.55fr) minmax(0, 1.45fr);
+  gap: 12px;
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
+
+.field-validation-panel {
+  grid-column: 1 / -1;
+}
+
+.field-validation-form > .lookup-card-head,
+.field-validation-form > .field-validation-advanced,
+.field-validation-form > .field-validation-actions {
+  grid-column: 1 / -1;
 }
 
 .field-validation-selected-summary {
@@ -17956,6 +17968,13 @@ button,
   gap: 8px;
 }
 
+.field-validation-review-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 0.8fr) minmax(280px, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
 .field-validation-review-steps div {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -17991,7 +18010,7 @@ button,
 
 .field-validation-decision {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -18028,6 +18047,17 @@ button,
 .field-validation-decision button.is-approved {
   color: #166534;
   background: #e9f9ef;
+}
+
+.field-validation-note-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field-validation-note-field textarea {
+  min-height: 100%;
+  resize: vertical;
 }
 
 .field-validation-advanced {
@@ -18138,7 +18168,9 @@ button,
 @media (max-width: 920px) {
   .field-validation-hero,
   .field-validation-command,
-  .field-validation-grid {
+  .field-validation-grid,
+  .field-validation-form,
+  .field-validation-review-strip {
     grid-template-columns: 1fr;
   }
 

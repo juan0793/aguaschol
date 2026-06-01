@@ -358,65 +358,67 @@ const FieldValidationWorkspace = ({
                 </div>
               </div>
 
-              <div className="field-validation-review-steps">
-                <div>
-                  <span>1</span>
-                  <strong>Confirma el punto en el mapa</strong>
-                  <small>Si no coincide, toca el mapa o usa el boton movil para fijarlo.</small>
+              <div className="field-validation-review-strip">
+                <div className="field-validation-review-steps">
+                  <div>
+                    <span>1</span>
+                    <strong>Confirma el punto</strong>
+                    <small>Usa el mapa si no coincide.</small>
+                  </div>
+                  <div>
+                    <span>2</span>
+                    <strong>Elige la decision</strong>
+                    <small>Se guarda al tocar.</small>
+                  </div>
+                  <div>
+                    <span>3</span>
+                    <strong>Nota opcional</strong>
+                    <small>Solo si ayuda al seguimiento.</small>
+                  </div>
                 </div>
-                <div>
-                  <span>2</span>
-                  <strong>Elige la decision</strong>
-                  <small>Al tocar una opcion se guarda de inmediato.</small>
-                </div>
-                <div>
-                  <span>3</span>
-                  <strong>Agrega nota si hace falta</strong>
-                  <small>Usa guardar solo para notas o ajustes avanzados.</small>
-                </div>
-              </div>
 
-              <div className="field-validation-decision" role="group" aria-label="Decision de validacion">
-                <button
-                  type="button"
-                  className={draft.validation_status === "pending" ? "is-active is-pending" : "is-pending"}
-                  onClick={() => handleDecisionSave("pending")}
-                  disabled={savingPointId === selectedPoint.id}
-                >
-                  {savingPointId === selectedPoint.id && draft.validation_status === "pending" ? "Guardando..." : "Pendiente"}
-                </button>
-                <button
-                  type="button"
-                  className={draft.validation_status === "needs_correction" ? "is-active is-warning" : "is-warning"}
-                  onClick={() => handleDecisionSave("needs_correction")}
-                  disabled={savingPointId === selectedPoint.id}
-                >
-                  {savingPointId === selectedPoint.id && draft.validation_status === "needs_correction" ? "Guardando..." : "Corregir"}
-                </button>
-                <button
-                  type="button"
-                  className={draft.validation_status === "approved" ? "is-active is-approved" : "is-approved"}
-                  onClick={() => handleDecisionSave("approved")}
-                  disabled={savingPointId === selectedPoint.id}
-                >
-                  {savingPointId === selectedPoint.id && draft.validation_status === "approved" ? "Guardando..." : "Aprobar"}
-                </button>
-              </div>
+                <div className="field-validation-decision" role="group" aria-label="Decision de validacion">
+                  <button
+                    type="button"
+                    className={draft.validation_status === "pending" ? "is-active is-pending" : "is-pending"}
+                    onClick={() => handleDecisionSave("pending")}
+                    disabled={savingPointId === selectedPoint.id}
+                  >
+                    {savingPointId === selectedPoint.id && draft.validation_status === "pending" ? "Guardando..." : "Pendiente"}
+                  </button>
+                  <button
+                    type="button"
+                    className={draft.validation_status === "needs_correction" ? "is-active is-warning" : "is-warning"}
+                    onClick={() => handleDecisionSave("needs_correction")}
+                    disabled={savingPointId === selectedPoint.id}
+                  >
+                    {savingPointId === selectedPoint.id && draft.validation_status === "needs_correction" ? "Guardando..." : "Corregir"}
+                  </button>
+                  <button
+                    type="button"
+                    className={draft.validation_status === "approved" ? "is-active is-approved" : "is-approved"}
+                    onClick={() => handleDecisionSave("approved")}
+                    disabled={savingPointId === selectedPoint.id}
+                  >
+                    {savingPointId === selectedPoint.id && draft.validation_status === "approved" ? "Guardando..." : "Aprobar"}
+                  </button>
+                </div>
 
-              <label>
-                <span>{draft.validation_status === "needs_correction" ? "Nota para correccion" : "Nota de validacion"}</span>
-                <textarea
-                  name={draft.validation_status === "needs_correction" ? "correction_notes" : "validation_notes"}
-                  value={draft.validation_status === "needs_correction" ? draft.correction_notes : draft.validation_notes}
-                  onChange={handleDraftChange}
-                  rows="3"
-                  placeholder={
-                    draft.validation_status === "needs_correction"
-                      ? "Explica que debe corregir el tecnico."
-                      : "Agrega una observacion breve para esta revision."
-                  }
-                />
-              </label>
+                <label className="field-validation-note-field">
+                  <span>{draft.validation_status === "needs_correction" ? "Nota para correccion" : "Nota de validacion"}</span>
+                  <textarea
+                    name={draft.validation_status === "needs_correction" ? "correction_notes" : "validation_notes"}
+                    value={draft.validation_status === "needs_correction" ? draft.correction_notes : draft.validation_notes}
+                    onChange={handleDraftChange}
+                    rows="3"
+                    placeholder={
+                      draft.validation_status === "needs_correction"
+                        ? "Explica que debe corregir el tecnico."
+                        : "Agrega una observacion breve para esta revision."
+                    }
+                  />
+                </label>
+              </div>
 
               <details className="field-validation-advanced">
                 <summary>Ajustes avanzados del punto</summary>
