@@ -7688,37 +7688,47 @@ textarea {
 
 .lookup-chat-shell {
   display: grid;
-  gap: 0.85rem;
-  border: 1px solid rgba(21, 118, 209, 0.14);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 247, 255, 0.94));
-  box-shadow: 0 14px 30px rgba(13, 77, 134, 0.07);
-  padding: 0.9rem;
+  gap: 1rem;
+  min-height: 360px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(22, 101, 217, 0.2), transparent 28%),
+    linear-gradient(180deg, #060b12, #0d1420 68%, #111a28);
+  box-shadow: 0 22px 48px rgba(6, 20, 36, 0.22);
+  padding: clamp(1.15rem, 4vw, 2.4rem);
+  color: #f8fbff;
 }
 
-.lookup-chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(21, 118, 209, 0.1);
-}
-
-.lookup-chat-header div {
+.lookup-chat-hero {
   display: grid;
-  gap: 0.1rem;
+  justify-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  padding-top: clamp(0.75rem, 4vw, 2.5rem);
 }
 
-.lookup-chat-header span {
-  color: #5d7890;
-  font-size: 0.74rem;
-  font-weight: 800;
+.lookup-chat-kicker {
+  color: #8eb5df;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
-.lookup-chat-header strong {
-  color: #123b5d;
-  font-size: 1rem;
+.lookup-chat-hero h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  line-height: 1.14;
+}
+
+.lookup-chat-hero p {
+  margin: 0;
+  max-width: 620px;
+  color: #afbdd0;
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 .lookup-chat-messages {
@@ -7863,11 +7873,43 @@ textarea {
   font-weight: 850;
 }
 
+.lookup-chat-live {
+  display: grid;
+  gap: 0.2rem;
+  width: min(100%, 860px);
+  margin: 0 auto;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(142, 181, 223, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d9e7f8;
+}
+
+.lookup-chat-live strong {
+  color: #ffffff;
+  font-size: 0.82rem;
+}
+
+.lookup-chat-live span {
+  color: #afbdd0;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.lookup-chat-live.is-ready {
+  border-color: rgba(68, 201, 138, 0.28);
+  background: rgba(24, 128, 83, 0.16);
+}
+
 .lookup-chat-actions,
 .lookup-chat-suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+.lookup-chat-suggestions {
+  justify-content: center;
 }
 
 .lookup-chat-actions button,
@@ -7883,32 +7925,79 @@ textarea {
   font-weight: 800;
 }
 
+.lookup-chat-suggestion-button {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.035);
+  color: #f7fbff;
+}
+
 .lookup-chat-input-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: min(100%, 860px);
+  min-height: 64px;
+  margin: 0 auto;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: #20242c;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 28px rgba(0, 0, 0, 0.18);
+}
+
+.lookup-chat-plus {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #e7edf7;
+}
+
+.lookup-chat-plus:disabled {
+  opacity: 0.55;
+}
+
+.lookup-chat-mode {
+  flex: 0 0 auto;
+  color: #d7dfed;
+  font-size: 0.84rem;
+  white-space: nowrap;
 }
 
 .lookup-chat-input {
   width: 100%;
-  min-height: 46px;
-  border: 1px solid rgba(21, 118, 209, 0.18);
-  border-radius: 999px;
+  min-width: 0;
+  min-height: 48px;
+  border: 0;
   padding: 0 1rem;
-  background: #fff;
-  color: #123b5d;
+  background: transparent;
+  color: #ffffff;
   font: inherit;
+  font-size: 1rem;
+}
+
+.lookup-chat-input::placeholder {
+  color: #aab2c0;
+}
+
+.lookup-chat-input:focus {
+  outline: none;
 }
 
 .lookup-chat-send {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  flex: 0 0 auto;
+  width: 46px;
   min-height: 46px;
-  padding: 0 1rem;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: #1465d9;
   color: #fff;
   font: inherit;
@@ -8240,6 +8329,31 @@ textarea {
     display: grid;
   }
 
+  .lookup-chat-shell {
+    min-height: 330px;
+    border-radius: 18px;
+    padding: 1rem;
+  }
+
+  .lookup-chat-hero {
+    padding-top: 0.35rem;
+  }
+
+  .lookup-chat-input-row {
+    gap: 0.35rem;
+    min-height: 56px;
+    padding: 0.35rem;
+  }
+
+  .lookup-chat-plus {
+    width: 38px;
+    height: 38px;
+  }
+
+  .lookup-chat-mode {
+    display: none;
+  }
+
   .lookup-chat-bubble {
     max-width: 94%;
   }
@@ -8249,7 +8363,8 @@ textarea {
   }
 
   .lookup-chat-send {
-    width: 100%;
+    width: 42px;
+    min-height: 42px;
   }
 
   .lookup-form,

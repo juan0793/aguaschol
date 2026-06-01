@@ -7,14 +7,6 @@ import {
   parseLookupChatMessage
 } from "../utils/lookupChat";
 
-const initialMessage = {
-  id: "welcome",
-  role: "assistant",
-  text:
-    "Hola. Podes consultarme por clave catastral, numero de abonado o nombre. Tambien puedo ayudarte a verificar si una clave aparece en Catastro/Alcaldia pero no en Aguas de Choluteca.",
-  tone: "success"
-};
-
 const suggestions = [
   "buscar clave 10-10-10-10",
   "abonado 16523",
@@ -24,8 +16,22 @@ const suggestions = [
 
 const buildId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+const modeLabel = {
+  clave: "clave catastral",
+  abonado: "numero de abonado",
+  nombre: "nombre"
+};
+
+const intentLabel = {
+  balance: "saldo y servicios",
+  services: "servicios disponibles",
+  municipal_check: "comparacion con Alcaldia",
+  missing_in_aguas: "Alcaldia vs Aguas",
+  general: "consulta general"
+};
+
 function LookupChatPanel({ apiFetch, padronMeta }) {
-  const [messages, setMessages] = useState([initialMessage]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesRef = useRef(null);
@@ -38,6 +44,26 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
   }, [messages, loading]);
 
   const padronCacheKey = useMemo(() => encodeURIComponent(padronMeta?.updated_at || Date.now()), [padronMeta?.updated_at]);
+  const liveMeta = useMemo(() => parseLookupChatMessage(input), [input]);
+  const livePreview = useMemo(() => {
+    const text = input.trim();
+    if (!text) return null;
+    if (!liveMeta.mode || !liveMeta.query) {
+      return {
+        tone: "thinking",
+        title: "Interpretando en tiempo real",
+        text: "Todavia necesito detectar si buscas por clave, abonado o nombre."
+      };
+    }
+    const ready = isLookupQueryReady(liveMeta.query, liveMeta.mode);
+    return {
+      tone: ready ? "ready" : "thinking",
+      title: ready ? "Listo para consultar" : "Falta un poco mas de dato",
+      text: `Entiendo: buscar por ${modeLabel[liveMeta.mode] || liveMeta.mode} "${liveMeta.query}" para ${
+        intentLabel[liveMeta.intent] || "consulta general"
+      }.`
+    };
+  }, [input, liveMeta]);
 
   const runLookup = async (queryMeta) => {
     const field = queryMeta.mode === "nombre" ? "nombre" : queryMeta.mode === "abonado" ? "abonado" : "clave";
@@ -149,51 +175,35 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
   return (
     <section className="lookup-chat">
       <div className="lookup-chat-shell">
-        <div className="lookup-chat-header">
-          <div>
-            <span>Asistente de verificacion</span>
-            <strong>Consulta por clave, abonado o nombre</strong>
-          </div>
-          <span className="lookup-chat-status-badge">Reglas + padron</span>
+        <div className="lookup-chat-hero">
+          <span className="lookup-chat-kicker">Consulta inteligente sin IA</span>
+          <h3>Que deseas verificar hoy?</h3>
+          <p>Escribe una clave, abonado, nombre o una pregunta sobre Aguas y Alcaldia.</p>
         </div>
 
-        <div ref={messagesRef} className="lookup-chat-messages" aria-live="polite">
-          {messages.map((message) => (
-            <article key={message.id} className={`lookup-chat-message is-${message.role}`}>
-              <div className={`lookup-chat-bubble ${message.tone ? `is-${message.tone}` : ""}`}>
-                {message.title ? <strong className="lookup-chat-message-title">{message.title}</strong> : null}
-                <p>{message.text}</p>
-                {message.tone === "loading" ? <span className="lookup-chat-loading">Consultando...</span> : null}
-                {message.cards?.length ? (
-                  <div className="lookup-chat-result-list">
-                    {message.cards.map((card, index) => (
-                      <div key={`${card.status}-${index}`} className={`lookup-chat-result-card is-${card.tone || "neutral"}`}>
-                        <span className="lookup-chat-status-badge">{card.status}</span>
-                        <div className="lookup-chat-result-grid">
-                          {card.fields.map((field) => (
-                            <div key={`${field.label}-${field.value}`}>
-                              <span>{field.label}</span>
-                              <strong>{field.value || "--"}</strong>
-                            </div>
-                          ))}
-                        </div>
-                        {message.actions?.length ? (
-                          <div className="lookup-chat-actions">
-                            {message.actions.map((action) => (
-                              <button key={action} type="button" onClick={() => handleAction(action, card)}>
-                                {action}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </article>
-          ))}
-        </div>
+        <form className="lookup-chat-input-row" onSubmit={handleSubmit}>
+          <button type="button" className="lookup-chat-plus" aria-label="Nueva consulta" onClick={() => setInput("")} disabled={loading}>
+            <Icon name="plus" />
+          </button>
+          <input
+            className="lookup-chat-input"
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Pregunta lo que quieras del padron"
+            disabled={loading}
+          />
+          <span className="lookup-chat-mode">Reglas + padron</span>
+          <button type="submit" className="lookup-chat-send" disabled={loading || !input.trim()} aria-label="Consultar">
+            <Icon name="search" />
+          </button>
+        </form>
+
+        {livePreview ? (
+          <div className={`lookup-chat-live is-${livePreview.tone}`} aria-live="polite">
+            <strong>{livePreview.title}</strong>
+            <span>{livePreview.text}</span>
+          </div>
+        ) : null}
 
         <div className="lookup-chat-suggestions">
           {suggestions.map((suggestion) => (
@@ -209,19 +219,45 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
           ))}
         </div>
 
-        <form className="lookup-chat-input-row" onSubmit={handleSubmit}>
-          <input
-            className="lookup-chat-input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Escribe: buscame la clave 10-10-10-10"
-            disabled={loading}
-          />
-          <button type="submit" className="lookup-chat-send" disabled={loading || !input.trim()}>
-            <Icon name="search" />
-            Enviar
-          </button>
-        </form>
+        {messages.length ? (
+          <div ref={messagesRef} className="lookup-chat-messages" aria-live="polite">
+            {messages.map((message) => (
+              <article key={message.id} className={`lookup-chat-message is-${message.role}`}>
+                <div className={`lookup-chat-bubble ${message.tone ? `is-${message.tone}` : ""}`}>
+                  {message.title ? <strong className="lookup-chat-message-title">{message.title}</strong> : null}
+                  <p>{message.text}</p>
+                  {message.tone === "loading" ? <span className="lookup-chat-loading">Consultando...</span> : null}
+                  {message.cards?.length ? (
+                    <div className="lookup-chat-result-list">
+                      {message.cards.map((card, index) => (
+                        <div key={`${card.status}-${index}`} className={`lookup-chat-result-card is-${card.tone || "neutral"}`}>
+                          <span className="lookup-chat-status-badge">{card.status}</span>
+                          <div className="lookup-chat-result-grid">
+                            {card.fields.map((field) => (
+                              <div key={`${field.label}-${field.value}`}>
+                                <span>{field.label}</span>
+                                <strong>{field.value || "--"}</strong>
+                              </div>
+                            ))}
+                          </div>
+                          {message.actions?.length ? (
+                            <div className="lookup-chat-actions">
+                              {message.actions.map((action) => (
+                                <button key={action} type="button" onClick={() => handleAction(action, card)}>
+                                  {action}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   );
