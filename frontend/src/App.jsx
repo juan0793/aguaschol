@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import FieldValidationWorkspace from "./components/FieldValidationWorkspace";
 import { Icon, actionIconName } from "./components/Icon";
+import LookupChatPanel from "./components/LookupChatPanel";
 import RecordsWorkspace from "./components/records/RecordsWorkspace";
 import TransportWorkspace from "./components/TransportWorkspace";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
@@ -13396,37 +13397,7 @@ function App() {
                 <span className="panel-pill">Alcaldia vs Aguas</span>
               </div>
 
-              <div className={`lookup-chatbox ${lookupAssistant.tone}`} aria-live="polite">
-                <div className="lookup-chat-avatar">
-                  <Icon name={lookupAssistant.tone === "is-danger" || lookupAssistant.tone === "is-warning" ? "warning" : "search"} />
-                </div>
-                <div className="lookup-chat-content">
-                  <div className="lookup-chat-head">
-                    <strong>{lookupAssistant.title}</strong>
-                    <span>{lookupSearchMode === "alcaldia" ? "Alcaldia vs Aguas" : "Padron Aguas"}</span>
-                  </div>
-                  <div className="lookup-chat-messages">
-                    {lookupAssistant.messages.map((message) => (
-                      <p key={message}>{message}</p>
-                    ))}
-                  </div>
-                  {lookupAssistant.details?.length ? (
-                    <div className="lookup-chat-details">
-                      {lookupAssistant.details.map((detail) => (
-                        <div key={detail.label}>
-                          <span>{detail.label}</span>
-                          <strong>{detail.value}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="lookup-chat-chips">
-                    {lookupAssistant.chips.map((chip) => (
-                      <span key={chip}>{chip}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <LookupChatPanel apiFetch={apiFetch} padronMeta={padronMeta} />
 
               <form className="lookup-form" onSubmit={handleLookupSearch}>
                 <div className="lookup-mode-switch" role="tablist" aria-label="Tipo de busqueda">
