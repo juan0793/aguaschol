@@ -425,6 +425,39 @@ const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
   if (value === "N") return "No";
   return "--";
 };
+const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*Datos del padron \(clave [^)]+\):[\s\S]*?(?=\n{2,}|$)/i;
+const stripMapDescriptionPadronBlock = (value = "") =>
+  String(value ?? "").replace(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN, "").trimEnd();
+const formatMapDescriptionMoney = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? formatCurrency(numeric) : "";
+};
+const buildMapDescriptionPadronBlock = (match = {}) => {
+  const key = match.clave_catastral || match.clave_aguas_formato || match.abonado || "--";
+  const identityLines = [
+    match.abonado ? `Abonado: ${match.abonado}` : "",
+    match.inquilino || match.nombre ? `Nombre: ${match.inquilino || match.nombre}` : "",
+    match.barrio_colonia ? `Barrio/colonia: ${match.barrio_colonia}` : "",
+    match.direccion ? `Direccion: ${match.direccion}` : ""
+  ].filter(Boolean);
+  const serviceLine = FIELD_DEBT_SERVICE_DEFINITIONS.map(
+    (service) => `${service.shortLabel}: ${getFieldDebtServiceStatus(match, service.field)}`
+  ).join(" | ");
+  const balanceLines = [
+    formatMapDescriptionMoney(match.valor) ? `Valor: ${formatMapDescriptionMoney(match.valor)}` : "",
+    formatMapDescriptionMoney(match.intereses) ? `Intereses: ${formatMapDescriptionMoney(match.intereses)}` : "",
+    formatMapDescriptionMoney(match.saldo) ? `Saldo: ${formatMapDescriptionMoney(match.saldo)}` : "",
+    formatMapDescriptionMoney(match.mora) ? `Mora: ${formatMapDescriptionMoney(match.mora)}` : "",
+    formatMapDescriptionMoney(match.total) ? `Total: ${formatMapDescriptionMoney(match.total)}` : ""
+  ].filter(Boolean);
+
+  return [
+    `Datos del padron (clave ${key}):`,
+    ...identityLines,
+    `Servicios: ${serviceLine}`,
+    ...balanceLines
+  ].join("\n");
+};
 const buildFieldDebtServicesMarkup = (match = {}) =>
   FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => {
     const isActive = getFieldDebtServiceStatus(match, service.field) === "Sí";
@@ -646,8 +679,10 @@ function App() {
   const [editingMapPointId, setEditingMapPointId] = useState(null);
   const [mapStatus, setMapStatus] = useState("Sincronizado");
   const [mapDraft, setMapDraft] = useState(emptyMapDraft);
+  const [mapDescriptionLookupStatus, setMapDescriptionLookupStatus] = useState("");
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
   const [mapLocationHelp, setMapLocationHelp] = useState("");
+  const mapDescriptionLookupCacheRef = useRef(new Map());
   const [mapDiaryDateKey, setMapDiaryDateKey] = useState(() => getMapDiaryDateKey(new Date()));
   const [padronMeta, setPadronMeta] = useState(null);
   const [padronImportSummary, setPadronImportSummary] = useState(null);
@@ -5083,6 +5118,74 @@ function App() {
     setMapStatus("Punto marcado");
     setMapDraft(updater);
   }, []);
+
+  useEffect(() => {
+    const description = String(mapDraft.description || "");
+    const descriptionWithoutPadron = stripMapDescriptionPadronBlock(description);
+    const keys = extractFieldDebtKeys(descriptionWithoutPadron);
+    const key = keys[keys.length - 1] || "";
+
+    if (!key) {
+      setMapDescriptionLookupStatus("");
+      return undefined;
+    }
+
+    const currentBlock = description.match(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN)?.[0] || "";
+    if (currentBlock.includes(`clave ${key}`)) {
+      setMapDescriptionLookupStatus("Datos del padron anexados.");
+      return undefined;
+    }
+    setMapDescriptionLookupStatus(`Consultando padron para ${key}...`);
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        let data = mapDescriptionLookupCacheRef.current.get(key);
+        if (!data) {
+          const response = await apiFetch(
+            `/claves/search?clave=${encodeURIComponent(key)}&field=clave&_padron=${encodeURIComponent(
+              padronMeta?.updated_at || ""
+            )}`
+          );
+          data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.message || "No fue posible consultar el padron.");
+          }
+          mapDescriptionLookupCacheRef.current.set(key, data);
+        }
+
+        if (cancelled) return;
+        const match = Array.isArray(data.matches) ? data.matches[0] : null;
+        if (!match) {
+          setMapDescriptionLookupStatus(`La clave ${key} no aparece en el padron.`);
+          return;
+        }
+
+        setMapDraft((current) => {
+          const currentDescription = String(current.description || "");
+          const cleanDescription = stripMapDescriptionPadronBlock(currentDescription);
+          if (!extractFieldDebtKeys(cleanDescription).includes(key)) {
+            return current;
+          }
+          const nextBlock = buildMapDescriptionPadronBlock(match);
+          return {
+            ...current,
+            description: [cleanDescription, nextBlock].filter(Boolean).join("\n\n")
+          };
+        });
+        setMapDescriptionLookupStatus("Datos del padron anexados automaticamente.");
+      } catch (error) {
+        if (!cancelled) {
+          setMapDescriptionLookupStatus(error.message || "No fue posible consultar el padron.");
+        }
+      }
+    }, 650);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [mapDraft.description, padronMeta?.updated_at]);
 
   const handleLocateUser = async () => {
     if (!navigator.geolocation) {
@@ -14183,6 +14286,9 @@ function App() {
                     rows="4"
                     placeholder="Detalle de la caja, descarga o punto observado."
                   />
+                  {mapDescriptionLookupStatus ? (
+                    <small className="helper-text">{mapDescriptionLookupStatus}</small>
+                  ) : null}
                 </label>
                 <div className="map-form-actions">
                   <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
