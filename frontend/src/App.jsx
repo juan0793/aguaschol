@@ -428,10 +428,6 @@ const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
 const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*Datos del padron \(clave [^)]+\):[\s\S]*?(?=\n{2,}|$)/i;
 const stripMapDescriptionPadronBlock = (value = "") =>
   String(value ?? "").replace(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN, "").trimEnd();
-const formatMapDescriptionMoney = (value) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? formatCurrency(numeric) : "";
-};
 const buildMapDescriptionPadronBlock = (match = {}) => {
   const key = match.clave_catastral || match.clave_aguas_formato || match.abonado || "--";
   const identityLines = [
@@ -443,19 +439,11 @@ const buildMapDescriptionPadronBlock = (match = {}) => {
   const serviceLine = FIELD_DEBT_SERVICE_DEFINITIONS.map(
     (service) => `${service.shortLabel}: ${getFieldDebtServiceStatus(match, service.field)}`
   ).join(" | ");
-  const balanceLines = [
-    formatMapDescriptionMoney(match.valor) ? `Valor: ${formatMapDescriptionMoney(match.valor)}` : "",
-    formatMapDescriptionMoney(match.intereses) ? `Intereses: ${formatMapDescriptionMoney(match.intereses)}` : "",
-    formatMapDescriptionMoney(match.saldo) ? `Saldo: ${formatMapDescriptionMoney(match.saldo)}` : "",
-    formatMapDescriptionMoney(match.mora) ? `Mora: ${formatMapDescriptionMoney(match.mora)}` : "",
-    formatMapDescriptionMoney(match.total) ? `Total: ${formatMapDescriptionMoney(match.total)}` : ""
-  ].filter(Boolean);
 
   return [
     `Datos del padron (clave ${key}):`,
     ...identityLines,
-    `Servicios: ${serviceLine}`,
-    ...balanceLines
+    `Servicios: ${serviceLine}`
   ].join("\n");
 };
 const buildFieldDebtServicesMarkup = (match = {}) =>
