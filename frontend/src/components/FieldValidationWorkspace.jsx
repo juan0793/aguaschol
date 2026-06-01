@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import FieldMap from "./FieldMap";
 import { Icon } from "./Icon";
 import { MAP_POINT_TYPES } from "../constants/formsAndUi";
@@ -18,6 +18,12 @@ const validationStatusFilters = [
   { value: "needs_correction", label: "Correccion" },
   { value: "corrected", label: "Corregidos" },
   { value: "approved", label: "Aprobados" }
+];
+
+const validationProcessSteps = [
+  { key: "received", label: "Recibidas", helper: "Puntos capturados", className: "is-received" },
+  { key: "validating", label: "Validando", helper: "Pendientes y correcciones", className: "is-validating" },
+  { key: "validated", label: "Validadas", helper: "Aprobadas", className: "is-validated" }
 ];
 
 const normalizeSearchText = (value = "") =>
@@ -85,6 +91,24 @@ const FieldValidationWorkspace = ({
     [mapPoints]
   );
   const completionPercent = counts.total ? Math.round(((counts.approved + counts.corrected) / counts.total) * 100) : 0;
+  const processCounts = useMemo(
+    () => ({
+      received: counts.total,
+      validating: counts.pending + counts.needs_correction + counts.corrected,
+      validated: counts.approved
+    }),
+    [counts.approved, counts.corrected, counts.needs_correction, counts.pending, counts.total]
+  );
+  const mapDraft = useMemo(
+    () => ({
+      point_type: draft.point_type,
+      latitude: draft.latitude,
+      longitude: draft.longitude,
+      accuracy_meters: draft.accuracy_meters,
+      marker_color: draft.marker_color
+    }),
+    [draft.accuracy_meters, draft.latitude, draft.longitude, draft.marker_color, draft.point_type]
+  );
   const filteredPoints = useMemo(() => {
     const search = normalizeSearchText(query);
 
@@ -119,23 +143,23 @@ const FieldValidationWorkspace = ({
     }));
   };
 
-  const handleDraftFromMap = (updater) => {
+  const handleDraftFromMap = useCallback((updater) => {
     setMapStatus("Ubicacion ajustada");
     setDraft(updater);
-  };
+  }, []);
+
+  const handleMapSelectPoint = useCallback(
+    (pointId) => {
+      setSelectedPointId(pointId);
+      onSelectPoint?.(pointId);
+    },
+    [onSelectPoint, setSelectedPointId]
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!selectedPoint) return;
     await onSaveValidation(selectedPoint.id, draft);
-  };
-
-  const handleQuickStatus = async (status) => {
-    if (!selectedPoint) return;
-    await onSaveValidation(selectedPoint.id, {
-      ...draft,
-      validation_status: status
-    });
   };
 
   const selectedMeta = validationStatusMeta[selectedPoint?.validation_status || "pending"] ?? validationStatusMeta.pending;
@@ -158,6 +182,33 @@ const FieldValidationWorkspace = ({
       </section>
 
       <section className="field-validation-command">
+        <div className="field-validation-process" aria-label="Proceso de validacion">
+          {validationProcessSteps.map((step, index) => (
+            <button
+              key={step.key}
+              type="button"
+              className={`${step.className} ${
+                step.key === "received" && statusFilter === "all"
+                  ? "is-active"
+                  : step.key === "validating" && ["pending", "needs_correction", "corrected"].includes(statusFilter)
+                    ? "is-active"
+                    : step.key === "validated" && statusFilter === "approved"
+                      ? "is-active"
+                      : ""
+              }`}
+              onClick={() => {
+                if (step.key === "received") setStatusFilter("all");
+                if (step.key === "validating") setStatusFilter("pending");
+                if (step.key === "validated") setStatusFilter("approved");
+              }}
+            >
+              <span>{index + 1}</span>
+              <strong>{step.label}</strong>
+              <small>{step.helper}</small>
+              <b>{processCounts[step.key]}</b>
+            </button>
+          ))}
+        </div>
         <div className="field-validation-progress">
           <div>
             <span className="sheet-kicker">Avance de jornada</span>
@@ -258,13 +309,10 @@ const FieldValidationWorkspace = ({
           <FieldMap
             apiUrl={apiUrl}
             isActive={isActive}
-            mapDraft={draft}
+            mapDraft={mapDraft}
             mapPoints={filteredPoints}
             onDraftChange={handleDraftFromMap}
-            onSelectPoint={(pointId) => {
-              setSelectedPointId(pointId);
-              onSelectPoint?.(pointId);
-            }}
+            onSelectPoint={handleMapSelectPoint}
             onStatusChange={setMapStatus}
             selectedMapPointId={selectedPoint?.id}
           />
@@ -300,54 +348,96 @@ const FieldValidationWorkspace = ({
                 </div>
               </div>
 
-              <div className="map-coordinates-grid">
-                <label>
-                  <span>Latitud</span>
-                  <input name="latitude" value={draft.latitude} onChange={handleDraftChange} inputMode="decimal" />
-                </label>
-                <label>
-                  <span>Longitud</span>
-                  <input name="longitude" value={draft.longitude} onChange={handleDraftChange} inputMode="decimal" />
-                </label>
-                <label>
-                  <span>Precision (m)</span>
-                  <input name="accuracy_meters" value={draft.accuracy_meters} onChange={handleDraftChange} inputMode="decimal" />
-                </label>
-                <label>
-                  <span>Tipo</span>
-                  <select name="point_type" value={draft.point_type} onChange={handleDraftChange}>
-                    {MAP_POINT_TYPES.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
+              <div className="field-validation-review-steps">
+                <div>
+                  <span>1</span>
+                  <strong>Confirma el punto en el mapa</strong>
+                  <small>Si no coincide, toca el mapa o usa el boton movil para fijarlo.</small>
+                </div>
+                <div>
+                  <span>2</span>
+                  <strong>Elige la decision</strong>
+                  <small>Aprobar, dejar pendiente o pedir correccion.</small>
+                </div>
+                <div>
+                  <span>3</span>
+                  <strong>Guarda la revision</strong>
+                  <small>Agrega nota solo cuando ayude al seguimiento.</small>
+                </div>
+              </div>
+
+              <div className="field-validation-decision" role="group" aria-label="Decision de validacion">
+                <button
+                  type="button"
+                  className={draft.validation_status === "pending" ? "is-active is-pending" : "is-pending"}
+                  onClick={() => setDraft((current) => ({ ...current, validation_status: "pending" }))}
+                >
+                  Pendiente
+                </button>
+                <button
+                  type="button"
+                  className={draft.validation_status === "needs_correction" ? "is-active is-warning" : "is-warning"}
+                  onClick={() => setDraft((current) => ({ ...current, validation_status: "needs_correction" }))}
+                >
+                  Corregir
+                </button>
+                <button
+                  type="button"
+                  className={draft.validation_status === "approved" ? "is-active is-approved" : "is-approved"}
+                  onClick={() => setDraft((current) => ({ ...current, validation_status: "approved" }))}
+                >
+                  Aprobar
+                </button>
               </div>
 
               <label>
-                <span>Referencia corregida</span>
-                <input name="reference" value={draft.reference} onChange={handleDraftChange} />
-              </label>
-              <label>
-                <span>Descripcion tecnica</span>
-                <textarea name="description" value={draft.description} onChange={handleDraftChange} rows="3" />
-              </label>
-              <label>
-                <span>Estado de validacion</span>
-                <select name="validation_status" value={draft.validation_status} onChange={handleDraftChange}>
-                  <option value="pending">Pendiente</option>
-                  <option value="approved">Aprobado</option>
-                  <option value="needs_correction">Requiere correccion</option>
-                  <option value="corrected">Corregido</option>
-                </select>
-              </label>
-              <label>
                 <span>Nota de validacion</span>
-                <textarea name="validation_notes" value={draft.validation_notes} onChange={handleDraftChange} rows="3" />
+                <textarea
+                  name={draft.validation_status === "needs_correction" ? "correction_notes" : "validation_notes"}
+                  value={draft.validation_status === "needs_correction" ? draft.correction_notes : draft.validation_notes}
+                  onChange={handleDraftChange}
+                  rows="3"
+                  placeholder={
+                    draft.validation_status === "needs_correction"
+                      ? "Explica que debe corregir el tecnico."
+                      : "Agrega una observacion breve para esta revision."
+                  }
+                />
               </label>
-              <label>
-                <span>Nota para correccion</span>
-                <textarea name="correction_notes" value={draft.correction_notes} onChange={handleDraftChange} rows="3" />
-              </label>
+
+              <details className="field-validation-advanced">
+                <summary>Ajustes avanzados del punto</summary>
+                <div className="map-coordinates-grid">
+                  <label>
+                    <span>Latitud</span>
+                    <input name="latitude" value={draft.latitude} onChange={handleDraftChange} inputMode="decimal" />
+                  </label>
+                  <label>
+                    <span>Longitud</span>
+                    <input name="longitude" value={draft.longitude} onChange={handleDraftChange} inputMode="decimal" />
+                  </label>
+                  <label>
+                    <span>Precision (m)</span>
+                    <input name="accuracy_meters" value={draft.accuracy_meters} onChange={handleDraftChange} inputMode="decimal" />
+                  </label>
+                  <label>
+                    <span>Tipo</span>
+                    <select name="point_type" value={draft.point_type} onChange={handleDraftChange}>
+                      {MAP_POINT_TYPES.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  <span>Referencia corregida</span>
+                  <input name="reference" value={draft.reference} onChange={handleDraftChange} />
+                </label>
+                <label>
+                  <span>Descripcion tecnica</span>
+                  <textarea name="description" value={draft.description} onChange={handleDraftChange} rows="3" />
+                </label>
+              </details>
 
               <div className="field-validation-actions">
                 <button type="button" className="button-secondary field-validation-icon-action" onClick={() => window.open(buildExternalMapUrl(selectedPoint.latitude, selectedPoint.longitude), "_blank", "noopener,noreferrer")}>
@@ -357,14 +447,6 @@ const FieldValidationWorkspace = ({
                 <button type="button" className="button-secondary field-validation-icon-action" onClick={(event) => onCopyCoordinates(selectedPoint, event)}>
                   <Icon name="copy" />
                   Copiar
-                </button>
-                <button type="button" className="button-secondary field-validation-warning-action" onClick={() => handleQuickStatus("needs_correction")} disabled={savingPointId === selectedPoint.id}>
-                  <Icon name="warning" />
-                  Corregir
-                </button>
-                <button type="button" className="button-secondary field-validation-success-action" onClick={() => handleQuickStatus("approved")} disabled={savingPointId === selectedPoint.id}>
-                  <Icon name="success" />
-                  Aprobar
                 </button>
                 <button type="submit" disabled={savingPointId === selectedPoint.id}>
                   <Icon name="records" />
