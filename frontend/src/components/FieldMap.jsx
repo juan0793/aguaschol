@@ -34,6 +34,8 @@ function FieldMap({
   const draftMarkerRef = useRef(null);
   const accuracyCircleRef = useRef(null);
   const statusTimerRef = useRef(null);
+  const pointerDownRef = useRef(null);
+  const pointerMovedRef = useRef(false);
   const [isMobileMap, setIsMobileMap] = useState(() => window.matchMedia?.(MOBILE_MEDIA_QUERY).matches ?? false);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const tileTemplate = useMemo(
@@ -66,7 +68,7 @@ function FieldMap({
       zoomControl: true,
       preferCanvas: true,
       doubleClickZoom: false,
-      tapTolerance: isMobileMap ? 24 : 15,
+      tapTolerance: isMobileMap ? 10 : 15,
       fadeAnimation: false,
       zoomAnimation: false,
       markerZoomAnimation: false,
@@ -106,14 +108,24 @@ function FieldMap({
     });
 
     tileLayer.addTo(map);
-    map.on("click", (event) => {
+    const updateDraftFromLatLng = (latlng) => {
       onDraftChange((current) => ({
         ...current,
-        latitude: Number(event.latlng.lat).toFixed(6),
-        longitude: Number(event.latlng.lng).toFixed(6),
+        latitude: Number(latlng.lat).toFixed(6),
+        longitude: Number(latlng.lng).toFixed(6),
         accuracy_meters: current.accuracy_meters || ""
       }));
+    };
 
+    map.on("movestart", () => {
+      pointerMovedRef.current = true;
+    });
+    map.on("click", (event) => {
+      if (isMobileMap && pointerMovedRef.current) {
+        pointerMovedRef.current = false;
+        return;
+      }
+      updateDraftFromLatLng(event.latlng);
       const precisionZoom = Math.max(map.getZoom(), 19.25);
       if (map.getZoom() < precisionZoom) {
         map.setView(event.latlng, precisionZoom, { animate: false });
@@ -121,6 +133,31 @@ function FieldMap({
         map.panTo(event.latlng, { animate: true, duration: 0.3, easeLinearity: 0.25 });
       }
     });
+    const handlePointerDown = (event) => {
+      if (!isMobileMap) return;
+      pointerDownRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        time: Date.now()
+      };
+      pointerMovedRef.current = false;
+    };
+    const handlePointerUp = (event) => {
+      if (!isMobileMap || !pointerDownRef.current) return;
+      const start = pointerDownRef.current;
+      pointerDownRef.current = null;
+      const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+      const elapsed = Date.now() - start.time;
+      if (distance > 10 || elapsed > 700) {
+        return;
+      }
+
+      const latlng = map.mouseEventToLatLng(event);
+      updateDraftFromLatLng(latlng);
+      map.panTo(latlng, { animate: false });
+    };
+    L.DomEvent.on(containerRef.current, "pointerdown", handlePointerDown);
+    L.DomEvent.on(containerRef.current, "pointerup", handlePointerUp);
     map.on("zoomend", () => {
       setZoomLevel(map.getZoom());
     });
@@ -142,6 +179,10 @@ function FieldMap({
       resizeObserver.disconnect();
       if (statusTimerRef.current) {
         window.clearTimeout(statusTimerRef.current);
+      }
+      if (containerRef.current) {
+        L.DomEvent.off(containerRef.current, "pointerdown", handlePointerDown);
+        L.DomEvent.off(containerRef.current, "pointerup", handlePointerUp);
       }
       draftMarkerRef.current?.remove();
       accuracyCircleRef.current?.remove();
@@ -298,6 +339,19 @@ function FieldMap({
     }, 260);
   }, [mapFocusRequest]);
 
+  const handleSetDraftToMapCenter = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const center = map.getCenter();
+    onDraftChange((current) => ({
+      ...current,
+      latitude: Number(center.lat).toFixed(6),
+      longitude: Number(center.lng).toFixed(6),
+      accuracy_meters: current.accuracy_meters || ""
+    }));
+    onStatusChange("Punto fijado");
+  };
+
   return (
     <div className="map-canvas-shell">
       <div ref={containerRef} className="map-canvas" />
@@ -308,6 +362,11 @@ function FieldMap({
         <strong>Zoom {zoomLevel.toFixed(2)}</strong>
         <span>{zoomLevel >= 19 ? "Modo precision activo" : "Acerca un poco mas para afinar la casa"}</span>
       </div>
+      {isMobileMap ? (
+        <button type="button" className="map-center-pin-button" onClick={handleSetDraftToMapCenter}>
+          Fijar punto aqui
+        </button>
+      ) : null}
     </div>
   );
 }

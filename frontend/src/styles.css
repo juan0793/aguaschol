@@ -17429,3 +17429,77 @@ button,
     justify-self: start;
   }
 }
+
+/* Mobile field fixes: avoid dashboard header overlap and make map pinning precise under touch. */
+.map-center-pin-button {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 402;
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: #1465d9;
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(20, 101, 217, 0.28);
+  font: inherit;
+  font-weight: 850;
+}
+
+@media (max-width: 768px) {
+  .app-chrome {
+    position: static;
+    z-index: auto;
+  }
+
+  .app-chrome > .search-card {
+    margin-bottom: 0.2rem;
+  }
+
+  .map-canvas-shell {
+    touch-action: none;
+  }
+
+  .map-canvas {
+    min-height: min(68vh, 520px);
+    border-radius: 14px;
+  }
+
+  .map-precision-chip {
+    top: 0.65rem;
+    left: 0.65rem;
+    max-width: calc(100% - 1.3rem);
+    padding: 0.45rem 0.6rem;
+    border-radius: 12px;
+  }
+
+  .map-precision-chip span {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-chrome .dashboard-summary-chips {
+    display: none;
+  }
+
+  .app-chrome .search-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.45rem;
+  }
+
+  .app-chrome .search-actions button,
+  .app-chrome .search-actions .button-secondary {
+    min-height: 42px;
+    padding: 0.42rem 0.5rem;
+    font-size: 0.88rem;
+    line-height: 1.15;
+  }
+
+  .app-chrome .search-actions button:nth-child(4),
+  .app-chrome .search-actions button:nth-child(5) {
+    grid-column: span 2;
+  }
+}
