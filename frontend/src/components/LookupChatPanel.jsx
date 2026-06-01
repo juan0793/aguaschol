@@ -176,9 +176,9 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
     <section className="lookup-chat">
       <div className="lookup-chat-shell">
         <div className="lookup-chat-hero">
-          <span className="lookup-chat-kicker">Consulta inteligente sin IA</span>
-          <h3>Que deseas verificar hoy?</h3>
-          <p>Escribe una clave, abonado, nombre o una pregunta sobre Aguas y Alcaldia.</p>
+          <span className="lookup-chat-kicker">Consultar clave</span>
+          <h3>Que clave deseas consultar?</h3>
+          <p>Escribe una clave, abonado, nombre o una comparacion entre Aguas y Alcaldia.</p>
         </div>
 
         <form className="lookup-chat-input-row" onSubmit={handleSubmit}>
@@ -189,7 +189,7 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
             className="lookup-chat-input"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Pregunta lo que quieras del padron"
+            placeholder="Escribe una clave, abonado o nombre"
             disabled={loading}
           />
           <span className="lookup-chat-mode">Reglas + padron</span>

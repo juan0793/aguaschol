@@ -611,6 +611,7 @@ function App() {
   const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
   const [showDashboardAlertsModal, setShowDashboardAlertsModal] = useState(false);
   const [showPrintComparisonModal, setShowPrintComparisonModal] = useState(false);
+  const [showLookupClassicModal, setShowLookupClassicModal] = useState(false);
   const [printingComparison, setPrintingComparison] = useState(false);
   const [printComparisonHeader, setPrintComparisonHeader] = useState({
     kicker: "Lista de fichas vencidas",
@@ -13399,22 +13400,39 @@ function App() {
 
               <LookupChatPanel apiFetch={apiFetch} padronMeta={padronMeta} />
 
-              <form className="lookup-form" onSubmit={handleLookupSearch}>
-                <div className="lookup-mode-switch" role="tablist" aria-label="Tipo de busqueda">
-                  {LOOKUP_SEARCH_MODES.map((mode) => (
-                    <button
-                      key={mode.value}
-                      type="button"
-                      role="tab"
-                      aria-selected={lookupSearchMode === mode.value}
-                      className={lookupSearchMode === mode.value ? "is-active" : ""}
-                      onClick={() => handleLookupSearchModeChange(mode.value)}
-                    >
-                      <span>{mode.label}</span>
-                      <small>{mode.helper}</small>
-                    </button>
-                  ))}
-                </div>
+              <div className="lookup-classic-launch">
+                <button type="button" className="button-secondary" onClick={() => setShowLookupClassicModal(true)}>
+                  <Icon name="records" />
+                  Abrir busqueda clasica
+                </button>
+              </div>
+
+              <Dialog open={showLookupClassicModal} onOpenChange={setShowLookupClassicModal}>
+                <DialogContent className="lookup-classic-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-4xl">
+                  <DialogHeader className="password-modal-head">
+                    <p className="eyebrow">Modulo anterior</p>
+                    <DialogTitle>Busqueda clasica del padron</DialogTitle>
+                    <DialogDescription>
+                      Consulta manual por clave, nombre, abonado o Alcaldia cuando necesites el flujo anterior.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="lookup-classic-modal-body">
+                    <form className="lookup-form is-modal" onSubmit={handleLookupSearch}>
+                      <div className="lookup-mode-switch" role="tablist" aria-label="Tipo de busqueda">
+                        {LOOKUP_SEARCH_MODES.map((mode) => (
+                          <button
+                            key={mode.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={lookupSearchMode === mode.value}
+                            className={lookupSearchMode === mode.value ? "is-active" : ""}
+                            onClick={() => handleLookupSearchModeChange(mode.value)}
+                          >
+                            <span>{mode.label}</span>
+                            <small>{mode.helper}</small>
+                          </button>
+                        ))}
+                      </div>
 
                 <label className="lookup-field">
                   <span>{lookupInputLabel}</span>
@@ -13636,7 +13654,15 @@ function App() {
                     Descargar padrón
                   </button>
                 </div>
-              </form>
+                    </form>
+                  </div>
+                  <DialogFooter className="password-form-actions print-batch-footer">
+                    <button type="button" className="button-secondary" onClick={() => setShowLookupClassicModal(false)}>
+                      Cerrar
+                    </button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="lookup-results">
