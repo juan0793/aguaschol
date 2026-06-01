@@ -7543,6 +7543,114 @@ textarea {
   font-size: 0.76rem;
 }
 
+.lookup-chatbox {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(21, 118, 209, 0.14);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 247, 255, 0.94));
+  box-shadow: 0 12px 24px rgba(13, 77, 134, 0.06);
+}
+
+.lookup-chatbox.is-success {
+  border-color: rgba(22, 112, 75, 0.2);
+  background: linear-gradient(180deg, #ffffff, #eefaf4);
+}
+
+.lookup-chatbox.is-warning {
+  border-color: rgba(154, 90, 6, 0.24);
+  background: linear-gradient(180deg, #ffffff, #fff8e8);
+}
+
+.lookup-chatbox.is-danger {
+  border-color: rgba(155, 32, 45, 0.22);
+  background: linear-gradient(180deg, #ffffff, #fff1f3);
+}
+
+.lookup-chatbox.is-ready,
+.lookup-chatbox.is-thinking {
+  border-color: rgba(21, 118, 209, 0.24);
+}
+
+.lookup-chat-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e8f2ff;
+  color: #0d4d86;
+}
+
+.lookup-chatbox.is-success .lookup-chat-avatar {
+  background: #dcfce7;
+  color: #16704b;
+}
+
+.lookup-chatbox.is-warning .lookup-chat-avatar {
+  background: #fef3c7;
+  color: #9a5a06;
+}
+
+.lookup-chatbox.is-danger .lookup-chat-avatar {
+  background: #ffe4e8;
+  color: #9b202d;
+}
+
+.lookup-chat-content {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.lookup-chat-head,
+.lookup-chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lookup-chat-head {
+  justify-content: space-between;
+}
+
+.lookup-chat-head strong {
+  color: #123b5d;
+  font-size: 0.98rem;
+}
+
+.lookup-chat-head span,
+.lookup-chat-chips span {
+  min-height: 24px;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #52728d;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.lookup-chat-messages {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.lookup-chat-messages p {
+  margin: 0;
+  color: #345670;
+  font-size: 0.9rem;
+  line-height: 1.42;
+}
+
+.lookup-chat-chips span {
+  background: rgba(21, 118, 209, 0.09);
+  color: #164c80;
+}
+
 .lookup-form {
   display: grid;
   gap: 1rem;

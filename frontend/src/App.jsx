@@ -444,6 +444,9 @@ const buildMapDescriptionPadronBlock = (match = {}) => {
     `Servicios: ${serviceLine}`
   ].join("\n");
 };
+const getActiveServiceShortLabels = (match = {}) =>
+  FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) => String(match?.[service.field] || "").trim().toUpperCase() === "S")
+    .map((service) => service.shortLabel);
 const buildFieldDebtServicesMarkup = (match = {}) =>
   FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => {
     const isActive = getFieldDebtServiceStatus(match, service.field) === "Sí";
@@ -744,6 +747,118 @@ function App() {
         : lookupSearchMode === "alcaldia"
           ? "Ej. 01-01-01, Suyapa o Sandra"
         : "Ej. 16523";
+  const lookupAssistant = useMemo(() => {
+    const query = lookupQuery.trim();
+    const modeLabel =
+      lookupSearchMode === "clave"
+        ? "clave catastral"
+        : lookupSearchMode === "nombre"
+          ? "nombre"
+          : lookupSearchMode === "alcaldia"
+            ? "registro de Alcaldia"
+            : "abonado";
+
+    if (lookupLoading) {
+      return {
+        tone: "is-thinking",
+        title: "Consultando informacion",
+        messages: [`Estoy buscando ${query || `por ${modeLabel}`} en el padron disponible.`],
+        chips: ["Revisando coincidencias", "Preparando retroalimentacion"]
+      };
+    }
+
+    if (lookupFeedback) {
+      return {
+        tone: "is-warning",
+        title: "Ajusta la busqueda",
+        messages: [lookupFeedback],
+        chips: ["Formato pendiente", "No se consulto aun"]
+      };
+    }
+
+    if (lookupResult) {
+      if (!lookupResult.exists) {
+        return {
+          tone: "is-danger",
+          title: "Posible clandestino",
+          messages: [
+            lookupResult.field === "clave"
+              ? "No aparece en Aguas con la clave consultada. Conviene crear ficha nueva si el punto fue verificado en campo."
+              : "No encontre coincidencias con esa busqueda. Prueba una clave exacta, nombre alterno o numero de abonado si lo tienes."
+          ],
+          chips: lookupResult.field === "clave" ? ["No registrado", "Crear ficha"] : ["Sin coincidencias", "Revisar datos"]
+        };
+      }
+
+      if (lookupResult.field === "texto") {
+        const missingInAguas = (lookupResult.matches || []).filter((match) => !match.exists_in_aguas).length;
+        return {
+          tone: missingInAguas ? "is-warning" : "is-success",
+          title: missingInAguas ? "Atencion: revisar candidatas" : "Coincidencia municipal encontrada",
+          messages: [
+            missingInAguas
+              ? `${missingInAguas} coincidencia(s) de Alcaldia no aparecen en Aguas. Revisa la lista y prepara ficha si corresponde.`
+              : `Hay ${lookupResult.total_matches} coincidencia(s) en Alcaldia y no se detecta brecha inmediata en la lista visible.`
+          ],
+          chips: missingInAguas ? ["Alcaldia si", "Aguas pendiente"] : ["Alcaldia encontrada", "Comparar detalle"]
+        };
+      }
+
+      const firstMatch = lookupResult.matches?.[0] || {};
+      const services = getActiveServiceShortLabels(firstMatch);
+      return {
+        tone: "is-success",
+        title: lookupResult.field === "clave" ? "Clave registrada en Aguas" : "Coincidencias encontradas",
+        messages: [
+          lookupResult.field === "clave" && lookupResult.mode === "base"
+            ? `Esta base tiene ${lookupResult.total_matches} coincidencia(s). Abre el detalle para elegir la cuenta exacta.`
+            : `Encontré ${lookupResult.total_matches} coincidencia(s) en el padrón de Aguas.`,
+          services.length
+            ? `Servicios activos detectados: ${services.join(", ")}.`
+            : "No se ven servicios activos en la primera coincidencia."
+        ],
+        chips: [
+          firstMatch.abonado ? `Abonado ${firstMatch.abonado}` : "Registrado",
+          services.length ? `${services.length} servicio(s)` : "Sin servicios activos"
+        ]
+      };
+    }
+
+    if (!query) {
+      return {
+        tone: "is-idle",
+        title: "Asistente de busqueda",
+        messages: [
+          lookupSearchMode === "clave"
+            ? "Escribe una clave completa para validar si aparece en Aguas, o una base de tres bloques para ver cuentas relacionadas."
+            : lookupSearchMode === "alcaldia"
+              ? "Busca en Alcaldia para comparar si existe brecha con Aguas."
+              : `Escribe un ${modeLabel} para ubicar coincidencias en el padron.`
+        ],
+        chips: ["Esperando datos", "Te indico el siguiente paso"]
+      };
+    }
+
+    if (!isLookupQueryReady(query, lookupSearchMode)) {
+      return {
+        tone: "is-warning",
+        title: "Voy leyendo la entrada",
+        messages: [
+          lookupSearchMode === "clave"
+            ? "La clave todavia no tiene formato completo. Usa 00-00-00, 000-00-00 o agrega el cuarto bloque si buscas una cuenta exacta."
+            : getLookupValidationMessage(lookupSearchMode)
+        ],
+        chips: ["Entrada incompleta", "Sigue escribiendo"]
+      };
+    }
+
+    return {
+      tone: "is-ready",
+      title: "Lista para consultar",
+      messages: [`La busqueda por ${modeLabel} ya tiene formato suficiente. Presiona consultar para revisar estado y recomendacion.`],
+      chips: ["Formato correcto", "Consultar ahora"]
+    };
+  }, [lookupFeedback, lookupLoading, lookupQuery, lookupResult, lookupSearchMode]);
   const isAuthenticated = Boolean(session?.token);
   const isAdmin = session?.user?.role === "admin";
   const isTransport = session?.user?.role === "transport";
@@ -13254,12 +13369,24 @@ function App() {
                 <span className="panel-pill">Alcaldia vs Aguas</span>
               </div>
 
-              <div className="lookup-info-strip lookup-info-strip-compact">
-                <div className="lookup-info-chip">
-                  <Icon name="search" />
-                  <div>
-                    <strong>Flujo recomendado</strong>
-                    <span>Buscar clave, revisar estado y crear o actualizar ficha.</span>
+              <div className={`lookup-chatbox ${lookupAssistant.tone}`} aria-live="polite">
+                <div className="lookup-chat-avatar">
+                  <Icon name={lookupAssistant.tone === "is-danger" || lookupAssistant.tone === "is-warning" ? "warning" : "search"} />
+                </div>
+                <div className="lookup-chat-content">
+                  <div className="lookup-chat-head">
+                    <strong>{lookupAssistant.title}</strong>
+                    <span>{lookupSearchMode === "alcaldia" ? "Alcaldia vs Aguas" : "Padron Aguas"}</span>
+                  </div>
+                  <div className="lookup-chat-messages">
+                    {lookupAssistant.messages.map((message) => (
+                      <p key={message}>{message}</p>
+                    ))}
+                  </div>
+                  <div className="lookup-chat-chips">
+                    {lookupAssistant.chips.map((chip) => (
+                      <span key={chip}>{chip}</span>
+                    ))}
                   </div>
                 </div>
               </div>
