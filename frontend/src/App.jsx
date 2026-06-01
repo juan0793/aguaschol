@@ -447,6 +447,32 @@ const buildMapDescriptionPadronBlock = (match = {}) => {
 const getActiveServiceShortLabels = (match = {}) =>
   FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) => String(match?.[service.field] || "").trim().toUpperCase() === "S")
     .map((service) => service.shortLabel);
+const formatLookupAssistantMoney = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? formatCurrency(numeric) : "";
+};
+const buildLookupAssistantDetails = (match = {}) => {
+  const detailRows = [
+    ["Clave", match.clave_catastral || match.clave_aguas_formato],
+    ["Abonado", match.abonado],
+    ["Nombre", match.inquilino || match.nombre],
+    ["Titular", match.nombre && match.nombre !== match.inquilino ? match.nombre : ""],
+    ["Barrio/colonia", match.barrio_colonia || match.caserio],
+    ["Direccion", match.direccion],
+    ["Agua potable", getFieldDebtServiceStatus(match, "agua")],
+    ["Alcantarillado", getFieldDebtServiceStatus(match, "alcantarillado")],
+    ["Barrido", getFieldDebtServiceStatus(match, "barrido")],
+    ["Recoleccion", getFieldDebtServiceStatus(match, "recoleccion")],
+    ["Desechos peligrosos", getFieldDebtServiceStatus(match, "desechos_peligrosos")],
+    ["Valor", formatLookupAssistantMoney(match.valor)],
+    ["Intereses", formatLookupAssistantMoney(match.intereses)],
+    ["Total", formatLookupAssistantMoney(match.total)]
+  ];
+
+  return detailRows
+    .filter(([, value]) => String(value ?? "").trim() && String(value ?? "").trim() !== "--")
+    .map(([label, value]) => ({ label, value }));
+};
 const buildFieldDebtServicesMarkup = (match = {}) =>
   FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => {
     const isActive = getFieldDebtServiceStatus(match, service.field) === "Sí";
@@ -812,7 +838,7 @@ function App() {
         messages: [
           lookupResult.field === "clave" && lookupResult.mode === "base"
             ? `Esta base tiene ${lookupResult.total_matches} coincidencia(s). Abre el detalle para elegir la cuenta exacta.`
-            : `Encontré ${lookupResult.total_matches} coincidencia(s) en el padrón de Aguas.`,
+            : `Buenos dias. Su clave ${firstMatch.clave_catastral || lookupResult.normalized_query} aparece en el padron de Aguas. Estos son los datos del abonado que encontre:`,
           services.length
             ? `Servicios activos detectados: ${services.join(", ")}.`
             : "No se ven servicios activos en la primera coincidencia."
@@ -820,7 +846,8 @@ function App() {
         chips: [
           firstMatch.abonado ? `Abonado ${firstMatch.abonado}` : "Registrado",
           services.length ? `${services.length} servicio(s)` : "Sin servicios activos"
-        ]
+        ],
+        details: buildLookupAssistantDetails(firstMatch)
       };
     }
 
@@ -13383,6 +13410,16 @@ function App() {
                       <p key={message}>{message}</p>
                     ))}
                   </div>
+                  {lookupAssistant.details?.length ? (
+                    <div className="lookup-chat-details">
+                      {lookupAssistant.details.map((detail) => (
+                        <div key={detail.label}>
+                          <span>{detail.label}</span>
+                          <strong>{detail.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="lookup-chat-chips">
                     {lookupAssistant.chips.map((chip) => (
                       <span key={chip}>{chip}</span>
