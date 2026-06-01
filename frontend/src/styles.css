@@ -18006,6 +18006,11 @@ button,
   cursor: pointer;
 }
 
+.field-validation-decision button:disabled {
+  cursor: progress;
+  opacity: 0.78;
+}
+
 .field-validation-decision button.is-active {
   box-shadow: inset 0 0 0 2px currentColor;
 }

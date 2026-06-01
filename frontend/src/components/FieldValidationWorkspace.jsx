@@ -162,6 +162,16 @@ const FieldValidationWorkspace = ({
     await onSaveValidation(selectedPoint.id, draft);
   };
 
+  const handleDecisionSave = async (status) => {
+    if (!selectedPoint || savingPointId === selectedPoint.id) return;
+    const nextDraft = {
+      ...draft,
+      validation_status: status
+    };
+    setDraft(nextDraft);
+    await onSaveValidation(selectedPoint.id, nextDraft);
+  };
+
   const selectedMeta = validationStatusMeta[selectedPoint?.validation_status || "pending"] ?? validationStatusMeta.pending;
 
   return (
@@ -357,12 +367,12 @@ const FieldValidationWorkspace = ({
                 <div>
                   <span>2</span>
                   <strong>Elige la decision</strong>
-                  <small>Aprobar, dejar pendiente o pedir correccion.</small>
+                  <small>Al tocar una opcion se guarda de inmediato.</small>
                 </div>
                 <div>
                   <span>3</span>
-                  <strong>Guarda la revision</strong>
-                  <small>Agrega nota solo cuando ayude al seguimiento.</small>
+                  <strong>Agrega nota si hace falta</strong>
+                  <small>Usa guardar solo para notas o ajustes avanzados.</small>
                 </div>
               </div>
 
@@ -370,28 +380,31 @@ const FieldValidationWorkspace = ({
                 <button
                   type="button"
                   className={draft.validation_status === "pending" ? "is-active is-pending" : "is-pending"}
-                  onClick={() => setDraft((current) => ({ ...current, validation_status: "pending" }))}
+                  onClick={() => handleDecisionSave("pending")}
+                  disabled={savingPointId === selectedPoint.id}
                 >
-                  Pendiente
+                  {savingPointId === selectedPoint.id && draft.validation_status === "pending" ? "Guardando..." : "Pendiente"}
                 </button>
                 <button
                   type="button"
                   className={draft.validation_status === "needs_correction" ? "is-active is-warning" : "is-warning"}
-                  onClick={() => setDraft((current) => ({ ...current, validation_status: "needs_correction" }))}
+                  onClick={() => handleDecisionSave("needs_correction")}
+                  disabled={savingPointId === selectedPoint.id}
                 >
-                  Corregir
+                  {savingPointId === selectedPoint.id && draft.validation_status === "needs_correction" ? "Guardando..." : "Corregir"}
                 </button>
                 <button
                   type="button"
                   className={draft.validation_status === "approved" ? "is-active is-approved" : "is-approved"}
-                  onClick={() => setDraft((current) => ({ ...current, validation_status: "approved" }))}
+                  onClick={() => handleDecisionSave("approved")}
+                  disabled={savingPointId === selectedPoint.id}
                 >
-                  Aprobar
+                  {savingPointId === selectedPoint.id && draft.validation_status === "approved" ? "Guardando..." : "Aprobar"}
                 </button>
               </div>
 
               <label>
-                <span>Nota de validacion</span>
+                <span>{draft.validation_status === "needs_correction" ? "Nota para correccion" : "Nota de validacion"}</span>
                 <textarea
                   name={draft.validation_status === "needs_correction" ? "correction_notes" : "validation_notes"}
                   value={draft.validation_status === "needs_correction" ? draft.correction_notes : draft.validation_notes}
