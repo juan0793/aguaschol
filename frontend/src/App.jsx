@@ -401,6 +401,19 @@ const getMapReportTechniciansLabel = (staff) => {
   const names = getMapReportTechnicians(staff).filter(Boolean);
   return names.length ? names.join(" / ") : "--";
 };
+const getMapReportTopZones = (reportData = {}, limit = 8) =>
+  [...(reportData.zones || [])]
+    .sort((left, right) => (right.total || 0) - (left.total || 0))
+    .slice(0, limit);
+const buildMapReportBriefRows = (reportData = {}) =>
+  (reportData.zones || []).map((zone, index) => [
+    String(index + 1),
+    zone.displayName || zone.zone || "--",
+    String(zone.total || 0),
+    zone.pointTypesLabel || "--",
+    zone.displayReference || "Sin referencia",
+    zone.displayLocation || "Sin ubicacion"
+  ]);
 const FIELD_DEBT_SERVICE_DEFINITIONS = [
   { field: "agua", label: "Agua potable", shortLabel: "Agua", aliases: ["agua", "potable"] },
   { field: "alcantarillado", label: "Alcantarillado", shortLabel: "Alcant.", aliases: ["alcantarillado", "alca"] },
@@ -6835,6 +6848,266 @@ function App() {
     }
   };
 
+  const handlePrintMapBriefReport = async () => {
+    const generatedAt = formatDateTime(new Date().toISOString());
+    const reportData = mapReportPrintData;
+    const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
+    const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
+    const reportNotes = mapReportSettings.report_notes.trim();
+    const totalsMarkup = Object.entries(reportData.totalsByType)
+      .map(
+        ([label, total]) => `
+          <div class="field-report-total-chip">
+            <strong>${escapeHtml(label)}</strong>
+            <span>${total}</span>
+          </div>
+        `
+      )
+      .join("");
+    const topZonesMarkup = getMapReportTopZones(reportData, 6)
+      .map(
+        (zone) => `
+          <div>
+            <strong>${escapeHtml(zone.displayName || zone.zone || "--")}</strong>
+            <span>${zone.total || 0} puntos</span>
+          </div>
+        `
+      )
+      .join("");
+    const rowsMarkup = buildMapReportBriefRows(reportData)
+      .map(
+        ([index, name, total, types, reference, location]) => `
+          <tr>
+            <td>${escapeHtml(index)}</td>
+            <td>${escapeHtml(name)}</td>
+            <td>${escapeHtml(total)}</td>
+            <td>${escapeHtml(types)}</td>
+            <td>${escapeHtml(reference)}</td>
+            <td>${escapeHtml(location)}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    await printDocument(
+      `${reportTitle} - Resumen ligero`,
+      `
+        <div class="field-report-shell map-brief-report-shell">
+          <header class="field-report-header map-brief-report-header">
+            <div class="field-report-brand">
+              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+              <div>
+                <p class="field-report-kicker">${escapeHtml(reportSubtitle)}</p>
+                <h1>${escapeHtml(reportTitle)}</h1>
+                <p>Resumen ligero de jornada GPS para lectura rapida, archivo PDF e impresion.</p>
+              </div>
+            </div>
+            <div class="field-report-meta">
+              <span>Generado: ${generatedAt}</span>
+              <span>Jornada: ${escapeHtml(formatMapDiaryLabel(activeMapDiaryDateKey))}</span>
+              <span>Tecnicos: ${escapeHtml(getMapReportTechniciansLabel(mapReportStaff))}</span>
+            </div>
+          </header>
+          <section class="map-brief-report-metrics">
+            <div><strong>Total general</strong><span>${reportData.totalPoints}</span></div>
+            <div><strong>Barrios / zonas</strong><span>${reportData.totalZones}</span></div>
+            <div><strong>Cajas de registro</strong><span>${totalCajaRegistro}</span></div>
+          </section>
+          <section class="field-report-summary map-brief-report-types">
+            ${totalsMarkup || '<div class="field-report-total-chip"><strong>Sin puntos</strong><span>0</span></div>'}
+          </section>
+          ${
+            topZonesMarkup
+              ? `<section class="map-brief-report-top"><h2>Barrios principales</h2><div>${topZonesMarkup}</div></section>`
+              : ""
+          }
+          ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
+          <section class="field-report-zone map-brief-report-table-section">
+            <div class="field-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">Listado resumido</span>
+                <h3>Consolidado por barrio</h3>
+              </div>
+              <div class="field-report-zone-meta">
+                <span>${reportData.totalZones} barrios</span>
+              </div>
+            </div>
+            <table class="field-report-table map-brief-report-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Barrio / zona</th>
+                  <th>Puntos</th>
+                  <th>Tipos</th>
+                  <th>Referencia</th>
+                  <th>Ubicacion</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsMarkup || '<tr><td colspan="6">No hay puntos guardados para generar el resumen.</td></tr>'}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      `,
+      {
+        pageSize: "Letter portrait",
+        pageMargin: "9mm",
+        bodyClassName: "field-report-body map-brief-report-body",
+        showPageFooter: true
+      }
+    );
+  };
+
+  const handleDownloadMapBriefPdf = async () => {
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "letter",
+        compress: true
+      });
+      const reportData = mapReportPrintData;
+      const generatedAt = formatDateTime(new Date().toISOString());
+      const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
+      const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
+      const reportNotes = mapReportSettings.report_notes.trim();
+      const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
+      const addPageFooter = () => {
+        const currentPage = document.getCurrentPageInfo().pageNumber;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        document.setTextColor(83, 103, 122);
+        document.text(`Pagina ${currentPage}`, pageWidth - 14, pageHeight - 8, { align: "right" });
+      };
+
+      try {
+        const logoDataUrl = await urlToDataUrl(logoAguasCholuteca);
+        document.addImage(logoDataUrl, "PNG", 14, 10, 18, 18);
+      } catch {
+        // Keep the report generation going even if the logo cannot be embedded.
+      }
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(15);
+      document.setTextColor(18, 59, 93);
+      document.text(document.splitTextToSize(reportTitle, 152), 36, 15);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9);
+      document.setTextColor(64, 91, 117);
+      document.text(reportSubtitle, 36, 24);
+      document.text(`Resumen ligero GPS | ${generatedAt}`, 36, 29);
+
+      document.setFillColor(238, 246, 252);
+      document.roundedRect(14, 38, 188, 24, 3, 3, "F");
+      document.setFont("helvetica", "bold");
+      document.setFontSize(10);
+      document.setTextColor(16, 55, 91);
+      document.text("Jornada", 20, 46);
+      document.text("Puntos", 80, 46);
+      document.text("Barrios", 122, 46);
+      document.text("Cajas", 164, 46);
+      document.setFontSize(13);
+      document.text(formatMapDiaryLabel(activeMapDiaryDateKey), 20, 55);
+      document.text(String(reportData.totalPoints), 80, 55);
+      document.text(String(reportData.totalZones), 122, 55);
+      document.text(String(totalCajaRegistro), 164, 55);
+
+      autoTable(document, {
+        startY: 70,
+        head: [["Tipo de punto", "Total"]],
+        body: Object.entries(reportData.totalsByType).length
+          ? Object.entries(reportData.totalsByType)
+          : [["Sin puntos", "0"]],
+        theme: "grid",
+        styles: { fontSize: 8.5, cellPadding: 2.2, textColor: [28, 44, 62] },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 251, 255] },
+        margin: { left: 14, right: 110 },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 18, halign: "center" }
+        }
+      });
+
+      autoTable(document, {
+        startY: 70,
+        head: [["Barrio principal", "Puntos"]],
+        body: getMapReportTopZones(reportData, 6).map((zone) => [
+          zone.displayName || zone.zone || "--",
+          String(zone.total || 0)
+        ]),
+        theme: "grid",
+        styles: { fontSize: 8.5, cellPadding: 2.2, textColor: [28, 44, 62] },
+        headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 251, 255] },
+        margin: { left: 110, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 66 },
+          1: { cellWidth: 16, halign: "center" }
+        }
+      });
+
+      let currentY = Math.max(118, document.lastAutoTable?.finalY ?? 108);
+      if (reportNotes) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(9);
+        document.setTextColor(16, 55, 91);
+        document.text("Observaciones", 14, currentY);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.2);
+        document.setTextColor(69, 96, 122);
+        const noteLines = document.splitTextToSize(reportNotes, 184);
+        document.text(noteLines.slice(0, 4), 14, currentY + 5);
+        currentY += Math.min(24, noteLines.length * 4 + 10);
+      }
+
+      autoTable(document, {
+        startY: currentY + 4,
+        head: [["#", "Barrio / zona", "Puntos", "Tipos", "Referencia", "Ubicacion"]],
+        body: buildMapReportBriefRows(reportData),
+        theme: "grid",
+        styles: {
+          fontSize: 7.4,
+          cellPadding: 1.8,
+          textColor: [28, 44, 62],
+          overflow: "linebreak"
+        },
+        headStyles: {
+          fillColor: [21, 118, 209],
+          textColor: [255, 255, 255],
+          fontStyle: "bold"
+        },
+        alternateRowStyles: {
+          fillColor: [248, 251, 255]
+        },
+        margin: { left: 14, right: 14, bottom: 14 },
+        columnStyles: {
+          0: { cellWidth: 8, halign: "center" },
+          1: { cellWidth: 42 },
+          2: { cellWidth: 14, halign: "center" },
+          3: { cellWidth: 34 },
+          4: { cellWidth: 46 },
+          5: { cellWidth: 44 }
+        }
+      });
+
+      const pageCount = document.getNumberOfPages();
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        document.setPage(pageNumber);
+        addPageFooter();
+      }
+
+      document.save(`resumen-ligero-gps-${activeMapDiaryDateKey || new Date().toISOString().slice(0, 10)}.pdf`);
+      showAlert("Resumen ligero GPS descargado.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible descargar el resumen ligero.");
+    }
+  };
+
   const handleOpenPointInMaps = (point, event) => {
     event?.stopPropagation();
     const url = buildExternalMapUrl(point.latitude, point.longitude);
@@ -11549,9 +11822,17 @@ function App() {
                   <Icon name="records" />
                   PDF con coordenadas
                 </button>
+                <button type="button" className="button-secondary" onClick={handleDownloadMapBriefPdf}>
+                  <Icon name="records" />
+                  PDF resumen ligero
+                </button>
                 <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
                   <Icon name="records" />
                   Imprimir con coordenadas
+                </button>
+                <button type="button" className="button-secondary" onClick={handlePrintMapBriefReport}>
+                  <Icon name="records" />
+                  Imprimir resumen
                 </button>
                 <button type="button" className="button-secondary" onClick={handleDownloadMapCensusPdf}>
                   <Icon name="records" />
@@ -14695,6 +14976,14 @@ function App() {
                       <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
                         <Icon name="records" />
                         PDF técnico con coordenadas
+                      </button>
+                      <button type="button" className="button-secondary" onClick={handleDownloadMapBriefPdf}>
+                        <Icon name="records" />
+                        PDF resumen ligero
+                      </button>
+                      <button type="button" className="button-secondary" onClick={handlePrintMapBriefReport}>
+                        <Icon name="records" />
+                        Imprimir resumen ligero
                       </button>
                       <button type="button" className="button-secondary" onClick={handlePrintMapCensusReport}>
                         <Icon name="records" />
