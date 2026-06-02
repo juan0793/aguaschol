@@ -9920,9 +9920,70 @@ textarea {
   align-items: start;
 }
 
-.map-housing-units-field input {
+.map-housing-stepper {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  min-height: 58px;
+  border: 1px solid #b8d3ed;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 248, 255, 0.96));
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.map-housing-stepper:focus-within {
+  border-color: #1576d1;
+  box-shadow: 0 0 0 3px rgba(21, 118, 209, 0.13);
+}
+
+.map-housing-stepper input {
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-left: 1px solid rgba(184, 211, 237, 0.8);
+  border-right: 1px solid rgba(184, 211, 237, 0.8);
+  border-radius: 0;
+  background: transparent;
   text-align: center;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #0f3758;
+  padding: 0 0.25rem;
+  appearance: textfield;
+}
+
+.map-housing-stepper input::-webkit-outer-spin-button,
+.map-housing-stepper input::-webkit-inner-spin-button {
+  opacity: 1;
+}
+
+.map-housing-stepper-button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 56px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #0d4d86;
+  font-size: 1.35rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.map-housing-stepper-button:hover {
+  background: rgba(21, 118, 209, 0.09);
+}
+
+.map-housing-stepper-button:active {
+  background: rgba(21, 118, 209, 0.17);
+}
+
+.map-housing-stepper-button .app-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.4;
 }
 
 .map-form-actions {

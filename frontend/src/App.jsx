@@ -425,6 +425,10 @@ const getMapPointHousingUnits = (point = {}) => {
   const numeric = Math.round(Number(point.housing_units || 1));
   return Number.isFinite(numeric) ? Math.max(1, numeric) : 1;
 };
+const normalizeHousingUnitsInput = (value) => {
+  const numeric = Math.round(Number(value || 1));
+  return Number.isFinite(numeric) ? String(Math.max(1, Math.min(999, numeric))) : "1";
+};
 const getMapZoneHousingUnits = (zone = {}) =>
   (zone.items || []).reduce((total, point) => total + getMapPointHousingUnits(point), 0);
 const getMapPointServicesLabel = (point = {}) => {
@@ -5279,7 +5283,14 @@ function App() {
     if (["latitude", "longitude"].includes(name) && value) {
       setMapLocationHelp("");
     }
-    setMapDraft((current) => ({ ...current, [name]: value }));
+    setMapDraft((current) => ({ ...current, [name]: name === "housing_units" ? normalizeHousingUnitsInput(value) : value }));
+  };
+
+  const adjustMapDraftHousingUnits = (delta) => {
+    setMapDraft((current) => ({
+      ...current,
+      housing_units: normalizeHousingUnitsInput(Number(current.housing_units || 1) + delta)
+    }));
   };
 
   const handleMapDraftFromMap = useCallback((updater) => {
@@ -5711,10 +5722,17 @@ function App() {
     const { name, value, type, checked } = event.target;
     setReportMapDraft((current) => ({
       ...current,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : name === "housing_units" ? normalizeHousingUnitsInput(value) : value,
       ...(name === "point_type" && value === COMMERCIAL_MAP_POINT_TYPE
         ? { marker_color: COMMERCIAL_MAP_POINT_COLOR }
         : {})
+    }));
+  };
+
+  const adjustReportMapDraftHousingUnits = (delta) => {
+    setReportMapDraft((current) => ({
+      ...current,
+      housing_units: normalizeHousingUnitsInput(Number(current.housing_units || 1) + delta)
     }));
   };
 
@@ -14750,16 +14768,35 @@ function App() {
                   </label>
                   <label className="map-housing-units-field">
                     <span>Viviendas</span>
-                    <input
-                      name="housing_units"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={mapDraft.housing_units}
-                      onChange={handleMapDraftChange}
-                      inputMode="numeric"
-                      placeholder="1"
-                    />
+                    <div className="map-housing-stepper">
+                      <button
+                        type="button"
+                        className="map-housing-stepper-button"
+                        onClick={() => adjustMapDraftHousingUnits(-1)}
+                        aria-label="Restar vivienda"
+                      >
+                        -
+                      </button>
+                      <input
+                        name="housing_units"
+                        type="number"
+                        min="1"
+                        max="999"
+                        step="1"
+                        value={mapDraft.housing_units}
+                        onChange={handleMapDraftChange}
+                        inputMode="numeric"
+                        placeholder="1"
+                      />
+                      <button
+                        type="button"
+                        className="map-housing-stepper-button"
+                        onClick={() => adjustMapDraftHousingUnits(1)}
+                        aria-label="Agregar vivienda"
+                      >
+                        <Icon name="plus" />
+                      </button>
+                    </div>
                   </label>
                 </div>
                 <div className="map-form-actions">
@@ -15371,16 +15408,35 @@ function App() {
                           </label>
                           <label className="map-housing-units-field">
                             <span>Viviendas</span>
-                            <input
-                              name="housing_units"
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={reportMapDraft.housing_units}
-                              onChange={handleReportMapDraftChange}
-                              inputMode="numeric"
-                              placeholder="1"
-                            />
+                            <div className="map-housing-stepper">
+                              <button
+                                type="button"
+                                className="map-housing-stepper-button"
+                                onClick={() => adjustReportMapDraftHousingUnits(-1)}
+                                aria-label="Restar vivienda"
+                              >
+                                -
+                              </button>
+                              <input
+                                name="housing_units"
+                                type="number"
+                                min="1"
+                                max="999"
+                                step="1"
+                                value={reportMapDraft.housing_units}
+                                onChange={handleReportMapDraftChange}
+                                inputMode="numeric"
+                                placeholder="1"
+                              />
+                              <button
+                                type="button"
+                                className="map-housing-stepper-button"
+                                onClick={() => adjustReportMapDraftHousingUnits(1)}
+                                aria-label="Agregar vivienda"
+                              >
+                                <Icon name="plus" />
+                              </button>
+                            </div>
                           </label>
                         </div>
                         <div className="map-form-actions">
