@@ -42,6 +42,7 @@ const buildDraftFromPoint = (value = {}) => {
     accuracy_meters: point.accuracy_meters ?? "",
     reference: point.reference_note || "",
     description: point.description || "",
+    housing_units: point.housing_units ?? "1",
     marker_color: point.marker_color || "#1576d1",
     is_terminal_point: Boolean(point.is_terminal_point),
     validation_status: point.validation_status || "pending",
@@ -451,6 +452,10 @@ const FieldValidationWorkspace = ({
                 <label>
                   <span>Descripcion tecnica</span>
                   <textarea name="description" value={draft.description} onChange={handleDraftChange} rows="3" />
+                </label>
+                <label>
+                  <span>Viviendas</span>
+                  <input name="housing_units" type="number" min="1" step="1" value={draft.housing_units} onChange={handleDraftChange} inputMode="numeric" />
                 </label>
               </details>
 

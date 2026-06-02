@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS map_points (
   reference_note VARCHAR(255) NOT NULL DEFAULT '',
   marker_color VARCHAR(20) NOT NULL DEFAULT '#1576d1',
   is_terminal_point TINYINT(1) NOT NULL DEFAULT 0,
+  housing_units INT UNSIGNED NOT NULL DEFAULT 1,
   diary_date DATE NULL DEFAULT NULL,
   validation_status ENUM('pending', 'approved', 'needs_correction', 'corrected') NOT NULL DEFAULT 'pending',
   validated_by INT UNSIGNED NULL,

@@ -964,6 +964,12 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             text-align: center;
             font-weight: 800;
           }
+          .map-brief-report-table th:nth-child(6),
+          .map-brief-report-table td:nth-child(6) {
+            width: 58px;
+            text-align: center;
+            font-weight: 800;
+          }
           .field-report-color-chip {
             display: inline-block;
             width: 8px;

@@ -329,6 +329,11 @@ const ensureSchema = async () => {
     });
     await ensureColumn(admin, {
       tableName: "map_points",
+      columnName: "housing_units",
+      definition: "INT UNSIGNED NOT NULL DEFAULT 1"
+    });
+    await ensureColumn(admin, {
+      tableName: "map_points",
       columnName: "diary_date",
       definition: "DATE NULL DEFAULT NULL"
     });

@@ -61,6 +61,10 @@ const MAP_POINT_SELECT_FIELDS = `
   map_points.*,
   DATE_FORMAT(map_points.diary_date, '%Y-%m-%d') AS diary_date
 `;
+const normalizeHousingUnits = (value) => {
+  const numeric = Math.round(Number(value || 1));
+  return Number.isFinite(numeric) ? Math.max(1, Math.min(999, numeric)) : 1;
+};
 
 const normalizePayload = (payload = {}) => ({
   point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
@@ -73,7 +77,8 @@ const normalizePayload = (payload = {}) => ({
   description: String(payload.description ?? "").trim(),
   reference_note: String(payload.reference ?? payload.reference_note ?? "").trim(),
   marker_color: normalizeMarkerColor(payload.marker_color),
-  is_terminal_point: Boolean(payload.is_terminal_point)
+  is_terminal_point: Boolean(payload.is_terminal_point),
+  housing_units: normalizeHousingUnits(payload.housing_units)
 });
 
 const validateCoordinates = ({ latitude, longitude }) => {
@@ -229,6 +234,7 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
     precision_metros: point.accuracy_meters ?? "",
     referencia: point.reference_note ?? "",
     descripcion: point.description ?? "",
+    viviendas: point.housing_units ?? 1,
     creado_por: point.created_by_name ?? "",
     maps_url: "Abrir punto"
   }));
@@ -241,9 +247,9 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
     []
   ];
   const visualMerges = [
-    XLSX.utils.decode_range("A1:H1"),
-    XLSX.utils.decode_range("B2:H2"),
-    XLSX.utils.decode_range("B4:H4")
+    XLSX.utils.decode_range("A1:I1"),
+    XLSX.utils.decode_range("B2:I2"),
+    XLSX.utils.decode_range("B4:I4")
   ];
 
   groupedPoints.forEach((group, groupIndex) => {
@@ -257,12 +263,12 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
     visualRows.push(["Total de puntos", group.total_puntos, "Precision promedio (m)", averageAccuracy || "--"]);
     visualRows.push(["Tipos registrados", Array.from(group.tipos).join(", ") || "--"]);
     visualRows.push(["Referencias", uniqueText(group.referencias).join(" | ") || "--"]);
-    visualRows.push(["#", "Fecha", "Tipo de punto", "Referencia", "Descripcion", "Precision (m)", "Creado por", "Maps"]);
+    visualRows.push(["#", "Fecha", "Tipo de punto", "Referencia", "Descripcion", "Viviendas", "Precision (m)", "Creado por", "Maps"]);
 
-    visualMerges.push(XLSX.utils.decode_range(`B${startRow}:H${startRow}`));
-    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 1}:H${startRow + 1}`));
-    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 3}:H${startRow + 3}`));
-    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 4}:H${startRow + 4}`));
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow}:I${startRow}`));
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 1}:I${startRow + 1}`));
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 3}:I${startRow + 3}`));
+    visualMerges.push(XLSX.utils.decode_range(`B${startRow + 4}:I${startRow + 4}`));
 
     group.items.forEach((point, pointIndex) => {
       visualRows.push([
@@ -271,6 +277,7 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
         point.point_type,
         point.reference_note || "--",
         point.description || "--",
+        point.housing_units ?? 1,
         point.accuracy_meters ?? "--",
         point.created_by_name || "--",
         "Abrir punto"
@@ -311,13 +318,14 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
     { wch: 17 },
     { wch: 34 },
     { wch: 50 },
+    { wch: 12 },
     { wch: 24 },
     { wch: 22 }
   ];
-  detailSheet["!autofilter"] = { ref: `A1:M${Math.max(detailRows.length + 1, 2)}` };
+  detailSheet["!autofilter"] = { ref: `A1:N${Math.max(detailRows.length + 1, 2)}` };
   detailSheet["!rows"] = [{ hpt: 24 }, ...detailRows.map(() => ({ hpt: 22 }))];
   points.forEach((point, index) => {
-    setSheetHyperlink(detailSheet, `M${index + 2}`, buildMapsUrl(point.latitude, point.longitude));
+    setSheetHyperlink(detailSheet, `N${index + 2}`, buildMapsUrl(point.latitude, point.longitude));
   });
 
   const metaSheet = XLSX.utils.aoa_to_sheet([
@@ -339,6 +347,7 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
     { wch: 22 },
     { wch: 22 },
     { wch: 50 },
+    { wch: 12 },
     { wch: 18 },
     { wch: 24 },
     { wch: 22 }
@@ -356,7 +365,7 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
   groupedPoints.forEach((group) => {
     setSheetHyperlink(visualSheet, `B${visualCursor + 1}`, group.maps_url, "Abrir punto en el mapa");
     group.items.forEach((point, index) => {
-      setSheetHyperlink(visualSheet, `H${visualCursor + 5 + index + 1}`, buildMapsUrl(point.latitude, point.longitude));
+      setSheetHyperlink(visualSheet, `I${visualCursor + 5 + index + 1}`, buildMapsUrl(point.latitude, point.longitude));
     });
     visualCursor += 6 + group.items.length + 2;
   });
@@ -394,9 +403,9 @@ export const createMapPoint = async (payload, authUser) => {
   const [result] = await pool.query(
     `
       INSERT INTO map_points (
-        point_type, latitude, longitude, accuracy_meters, description, reference_note, marker_color, is_terminal_point, created_by, diary_date
+        point_type, latitude, longitude, accuracy_meters, description, reference_note, marker_color, is_terminal_point, housing_units, created_by, diary_date
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.point_type,
@@ -407,6 +416,7 @@ export const createMapPoint = async (payload, authUser) => {
       data.reference_note,
       data.marker_color,
       data.is_terminal_point ? 1 : 0,
+      data.housing_units,
       authUser?.id ?? null,
       getLocalDiaryDateKey(new Date())
     ]
@@ -503,6 +513,7 @@ export const updateMapPoint = async (id, payload, authUser) => {
         reference_note = ?,
         marker_color = ?,
         is_terminal_point = ?,
+        housing_units = ?,
         validation_status = ?
       WHERE id = ?
     `,
@@ -515,6 +526,7 @@ export const updateMapPoint = async (id, payload, authUser) => {
       data.reference_note,
       data.marker_color,
       data.is_terminal_point ? 1 : 0,
+      data.housing_units,
       nextValidationStatus,
       id
     ]

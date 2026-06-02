@@ -31,7 +31,11 @@ const normalizePointPatch = (payload = {}) => ({
   description: String(payload.description ?? "").trim(),
   reference_note: String(payload.reference ?? payload.reference_note ?? "").trim(),
   marker_color: normalizeMarkerColor(payload.marker_color),
-  is_terminal_point: Boolean(payload.is_terminal_point)
+  is_terminal_point: Boolean(payload.is_terminal_point),
+  housing_units: (() => {
+    const numeric = Math.round(Number(payload.housing_units || 1));
+    return Number.isFinite(numeric) ? Math.max(1, Math.min(999, numeric)) : 1;
+  })()
 });
 
 const validateCoordinates = ({ latitude, longitude }) => {
@@ -145,6 +149,7 @@ export const validateFieldPoint = async (id, payload = {}, authUser) => {
         reference_note = ?,
         marker_color = ?,
         is_terminal_point = ?,
+        housing_units = ?,
         validation_status = ?,
         validated_by = ?,
         validated_at = NOW(),
@@ -161,6 +166,7 @@ export const validateFieldPoint = async (id, payload = {}, authUser) => {
       pointPatch.reference_note,
       pointPatch.marker_color,
       pointPatch.is_terminal_point ? 1 : 0,
+      pointPatch.housing_units,
       status,
       authUser?.id ?? null,
       validationNotes,
@@ -180,6 +186,7 @@ export const validateFieldPoint = async (id, payload = {}, authUser) => {
     reference_note: current.reference_note,
     marker_color: current.marker_color,
     is_terminal_point: Boolean(current.is_terminal_point),
+    housing_units: current.housing_units,
     validation_notes: current.validation_notes,
     correction_notes: current.correction_notes
   };
@@ -192,6 +199,7 @@ export const validateFieldPoint = async (id, payload = {}, authUser) => {
     reference_note: point.reference_note,
     marker_color: point.marker_color,
     is_terminal_point: Boolean(point.is_terminal_point),
+    housing_units: point.housing_units,
     validation_notes: point.validation_notes,
     correction_notes: point.correction_notes
   };

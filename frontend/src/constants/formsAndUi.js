@@ -25,7 +25,8 @@ export const emptyMapDraft = {
   accuracy_meters: "",
   point_type: "caja_registro",
   description: "",
-  reference: ""
+  reference: "",
+  housing_units: "1"
 };
 
 export const emptyMapReportDraft = {
@@ -35,6 +36,7 @@ export const emptyMapReportDraft = {
   point_type: "caja_registro",
   description: "",
   reference: "",
+  housing_units: "1",
   marker_color: "#1576d1",
   is_terminal_point: false
 };

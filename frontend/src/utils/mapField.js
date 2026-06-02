@@ -33,6 +33,7 @@ export const buildMapReportDraftFromPoint = (point = {}) => ({
   point_type: point.point_type || "caja_registro",
   description: point.description || "",
   reference: point.reference_note || "",
+  housing_units: point.housing_units ?? "1",
   marker_color: point.marker_color || "#1576d1",
   is_terminal_point: Boolean(point.is_terminal_point)
 });

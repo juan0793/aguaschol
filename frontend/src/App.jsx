@@ -411,8 +411,8 @@ const buildMapReportBriefRows = (reportData = {}) =>
     zone.displayName || zone.zone || "--",
     String(zone.total || 0),
     zone.pointTypesLabel || "--",
-    zone.displayReference || "Sin referencia",
-    zone.displayLocation || "Sin ubicacion"
+    getMapZoneServicesLabel(zone),
+    String(getMapZoneHousingUnits(zone))
   ]);
 const FIELD_DEBT_SERVICE_DEFINITIONS = [
   { field: "agua", label: "Agua potable", shortLabel: "Agua", aliases: ["agua", "potable"] },
@@ -421,6 +421,32 @@ const FIELD_DEBT_SERVICE_DEFINITIONS = [
   { field: "recoleccion", label: "Recolección", shortLabel: "Recolec.", aliases: ["recoleccion", "tren", "basura"] },
   { field: "desechos_peligrosos", label: "Desechos peligrosos", shortLabel: "Desechos", aliases: ["desechos", "peligrosos", "bomb"] }
 ];
+const getMapPointHousingUnits = (point = {}) => {
+  const numeric = Math.round(Number(point.housing_units || 1));
+  return Number.isFinite(numeric) ? Math.max(1, numeric) : 1;
+};
+const getMapZoneHousingUnits = (zone = {}) =>
+  (zone.items || []).reduce((total, point) => total + getMapPointHousingUnits(point), 0);
+const getMapPointServicesLabel = (point = {}) => {
+  const source = `${point.reference_note || ""}\n${point.description || ""}`;
+  const activeServices = FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) => {
+    const pattern = new RegExp(`${service.shortLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:\\s*S(?:i|í|Ã­)`, "i");
+    return pattern.test(source);
+  }).map((service) => service.shortLabel);
+
+  return activeServices.length ? activeServices.join(", ") : "--";
+};
+const getMapZoneServicesLabel = (zone = {}) => {
+  const services = new Set();
+  (zone.items || []).forEach((point) => {
+    getMapPointServicesLabel(point)
+      .split(",")
+      .map((service) => service.trim())
+      .filter((service) => service && service !== "--")
+      .forEach((service) => services.add(service));
+  });
+  return services.size ? Array.from(services).join(", ") : "--";
+};
 const extractFieldDebtKeys = (value = "") =>
   Array.from(new Set(String(value ?? "").match(/\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/g) ?? []));
 const getFieldDebtRequestedServices = (value = "") => {
@@ -5571,6 +5597,7 @@ function App() {
           point_type: mapDraft.point_type,
           description: mapDraft.description,
           reference: mapDraft.reference,
+          housing_units: mapDraft.housing_units,
           marker_color: markerColor,
           is_terminal_point: Boolean(editingPoint?.is_terminal_point)
         })
@@ -5648,6 +5675,7 @@ function App() {
           accuracy_meters: Number(payload.accuracy_meters) || null,
           description: payload.description,
           reference: payload.reference,
+          housing_units: payload.housing_units,
           marker_color: payload.marker_color || "#1576d1",
           is_terminal_point: Boolean(payload.is_terminal_point),
           validation_status: payload.validation_status,
@@ -6126,6 +6154,7 @@ function App() {
           point_type: reportMapDraft.point_type,
           description: reportMapDraft.description,
           reference: reportMapDraft.reference,
+          housing_units: reportMapDraft.housing_units,
           marker_color: reportMapDraft.marker_color,
           is_terminal_point: reportMapDraft.is_terminal_point
         })
@@ -6876,14 +6905,14 @@ function App() {
       .join("");
     const rowsMarkup = buildMapReportBriefRows(reportData)
       .map(
-        ([index, name, total, types, reference, location]) => `
+        ([index, name, total, types, services, housingUnits]) => `
           <tr>
             <td>${escapeHtml(index)}</td>
             <td>${escapeHtml(name)}</td>
             <td>${escapeHtml(total)}</td>
             <td>${escapeHtml(types)}</td>
-            <td>${escapeHtml(reference)}</td>
-            <td>${escapeHtml(location)}</td>
+            <td>${escapeHtml(services)}</td>
+            <td>${escapeHtml(housingUnits)}</td>
           </tr>
         `
       )
@@ -6939,8 +6968,8 @@ function App() {
                   <th>Barrio / zona</th>
                   <th>Puntos</th>
                   <th>Tipos</th>
-                  <th>Referencia</th>
-                  <th>Ubicacion</th>
+                  <th>Servicios</th>
+                  <th>Viviendas</th>
                 </tr>
               </thead>
               <tbody>
@@ -7067,7 +7096,7 @@ function App() {
 
       autoTable(document, {
         startY: currentY + 4,
-        head: [["#", "Barrio / zona", "Puntos", "Tipos", "Referencia", "Ubicacion"]],
+        head: [["#", "Barrio / zona", "Puntos", "Tipos", "Servicios", "Viviendas"]],
         body: buildMapReportBriefRows(reportData),
         theme: "grid",
         styles: {
@@ -7091,7 +7120,7 @@ function App() {
           2: { cellWidth: 14, halign: "center" },
           3: { cellWidth: 34 },
           4: { cellWidth: 46 },
-          5: { cellWidth: 44 }
+          5: { cellWidth: 20, halign: "center" }
         }
       });
 
@@ -14705,19 +14734,34 @@ function App() {
                     placeholder="Frente a poste, esquina noroeste, casa verde..."
                   />
                 </label>
-                <label>
-                  <span>Descripcion tecnica</span>
-                  <textarea
-                    name="description"
-                    value={mapDraft.description}
-                    onChange={handleMapDraftChange}
-                    rows="4"
-                    placeholder="Detalle de la caja, descarga o punto observado."
-                  />
-                  {mapDescriptionLookupStatus ? (
-                    <small className="helper-text">{mapDescriptionLookupStatus}</small>
-                  ) : null}
-                </label>
+                <div className="map-description-grid">
+                  <label>
+                    <span>Descripcion tecnica</span>
+                    <textarea
+                      name="description"
+                      value={mapDraft.description}
+                      onChange={handleMapDraftChange}
+                      rows="4"
+                      placeholder="Detalle de la caja, descarga o punto observado."
+                    />
+                    {mapDescriptionLookupStatus ? (
+                      <small className="helper-text">{mapDescriptionLookupStatus}</small>
+                    ) : null}
+                  </label>
+                  <label className="map-housing-units-field">
+                    <span>Viviendas</span>
+                    <input
+                      name="housing_units"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={mapDraft.housing_units}
+                      onChange={handleMapDraftChange}
+                      inputMode="numeric"
+                      placeholder="1"
+                    />
+                  </label>
+                </div>
                 <div className="map-form-actions">
                   <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
                     <Icon name="map" />
@@ -14751,6 +14795,7 @@ function App() {
                   <div className="map-point-coords">
                     <span>{formatCoordinate(selectedMapPoint.latitude)}</span>
                     <span>{formatCoordinate(selectedMapPoint.longitude)}</span>
+                    <span>{getMapPointHousingUnits(selectedMapPoint)} viviendas</span>
                     <span>{selectedMapPoint.accuracy_meters ? `±${selectedMapPoint.accuracy_meters} m` : "Sin precision"}</span>
                   </div>
                   <div className="map-point-actions">
@@ -15313,16 +15358,31 @@ function App() {
                             placeholder="Casa amarilla, esquina, tienda cercana..."
                           />
                         </label>
-                        <label>
-                          <span>Descripcion</span>
-                          <textarea
-                            name="description"
-                            value={reportMapDraft.description}
-                            onChange={handleReportMapDraftChange}
-                            rows="4"
-                            placeholder="Detalle operativo del punto para el reporte"
-                          />
-                        </label>
+                        <div className="map-description-grid">
+                          <label>
+                            <span>Descripcion</span>
+                            <textarea
+                              name="description"
+                              value={reportMapDraft.description}
+                              onChange={handleReportMapDraftChange}
+                              rows="4"
+                              placeholder="Detalle operativo del punto para el reporte"
+                            />
+                          </label>
+                          <label className="map-housing-units-field">
+                            <span>Viviendas</span>
+                            <input
+                              name="housing_units"
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={reportMapDraft.housing_units}
+                              onChange={handleReportMapDraftChange}
+                              inputMode="numeric"
+                              placeholder="1"
+                            />
+                          </label>
+                        </div>
                         <div className="map-form-actions">
                           <button type="submit" disabled={savingReportMapPoint}>
                             <Icon name={editingReportMapPointId ? "records" : "plus"} />
@@ -15407,6 +15467,7 @@ function App() {
                                     <th>Referencia cercana</th>
                                     <th>Referencia</th>
                                     <th>Fecha</th>
+                                    <th>Viviendas</th>
                                     <th>Acciones</th>
                                   </tr>
                                 </thead>
@@ -15438,6 +15499,7 @@ function App() {
                                       <td>{point.suggested_reference || "--"}</td>
                                       <td>{point.reference_note || point.description || "--"}</td>
                                       <td>{formatDateTime(point.created_at)}</td>
+                                      <td>{getMapPointHousingUnits(point)}</td>
                                       <td>
                                         <button
                                           type="button"
