@@ -458,16 +458,19 @@ const parseAlcaldiaWorkbookRows = (buffer) => {
   const worksheet = workbook.Sheets[firstSheetName];
   const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
   const columns = rows.length ? Object.keys(rows[0]) : [];
-  const claveKey = detectColumnKey(columns, ["clave_catastral", "clave", "catastral"]);
-  const identificadorKey = detectColumnKey(columns, ["identificador", "identidad", "dni", "rtn"]);
-  const nombreKey = detectColumnKey(columns, ["nombre", "propietario", "contribuyente"]);
-  const naturalezaKey = detectColumnKey(columns, ["naturaleza"]);
+  const claveKey = detectColumnKey(columns, ["clave_catastral", "clave", "catastral", "cocata1", "clavenueva", "canterior"]);
+  const identificadorKey = detectColumnKey(columns, ["identificador", "identidad", "dni", "rtn", "bidenti"]);
+  const rtnKey = detectColumnKey(columns, ["brtn"]);
+  const nombreKey = detectColumnKey(columns, ["nombre", "propietario", "contribuyente", "bnombre"]);
+  const nombreSimpleKey = detectColumnKey(columns, ["bnom"]);
+  const apellidoKey = detectColumnKey(columns, ["bape"]);
+  const naturalezaKey = detectColumnKey(columns, ["naturaleza", "bdesnatu", "bnatu"]);
   const habitaKey = detectColumnKey(columns, ["habitapropietario", "habita_propietario"]);
-  const direccionKey = detectColumnKey(columns, ["direccion", "ubicacion", "domicilio"]);
+  const direccionKey = detectColumnKey(columns, ["direccion", "ubicacion", "domicilio", "bubic", "bdomi"]);
   const codigoCaserioKey = detectColumnKey(columns, ["codigo_caserio", "cod_caserio"]);
-  const caserioKey = detectColumnKey(columns, ["descripcion_caserio", "caserio", "barrio", "colonia"]);
-  const terrenoKey = detectColumnKey(columns, ["avaluo_terreno", "avaluo_terr"]);
-  const edificacionKey = detectColumnKey(columns, ["avaluo_edificacion", "avaluo_edif"]);
+  const caserioKey = detectColumnKey(columns, ["descripcion_caserio", "caserio", "barrio", "colonia", "bubic"]);
+  const terrenoKey = detectColumnKey(columns, ["avaluo_terreno", "avaluo_terr", "impuesto", "impuesto2"]);
+  const edificacionKey = detectColumnKey(columns, ["avaluo_edificacion", "avaluo_edif", "constru", "constru1", "constru2"]);
   const periodoKey = detectColumnKey(columns, ["ultimo_periodo_pagado", "periodo_pagado"]);
 
   if (!claveKey) {
@@ -481,8 +484,10 @@ const parseAlcaldiaWorkbookRows = (buffer) => {
   const normalizedRows = normalizeAlcaldiaRows(
     rowsWithClave.map((row) => ({
       clave_catastral: row[claveKey],
-      identificador: identificadorKey ? row[identificadorKey] : "",
-      nombre: nombreKey ? row[nombreKey] : "",
+      identificador: (identificadorKey ? row[identificadorKey] : "") || (rtnKey ? row[rtnKey] : ""),
+      nombre:
+        (nombreKey ? row[nombreKey] : "") ||
+        [nombreSimpleKey ? row[nombreSimpleKey] : "", apellidoKey ? row[apellidoKey] : ""].filter(Boolean).join(" "),
       naturaleza: naturalezaKey ? row[naturalezaKey] : "",
       habita_propietario: habitaKey ? row[habitaKey] : "",
       direccion: direccionKey ? row[direccionKey] : "",

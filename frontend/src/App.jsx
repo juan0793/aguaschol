@@ -761,6 +761,11 @@ function App() {
   const [alcaldiaFile, setAlcaldiaFile] = useState(null);
   const [uploadingAlcaldia, setUploadingAlcaldia] = useState(false);
   const [loadingAlcaldiaMeta, setLoadingAlcaldiaMeta] = useState(false);
+  const [alcaldiaSyncState, setAlcaldiaSyncState] = useState({
+    status: "idle",
+    progress: 0,
+    message: "Padron de alcaldia listo"
+  });
   const [loadingAlcaldiaComparison, setLoadingAlcaldiaComparison] = useState(false);
   const [alcaldiaComparison, setAlcaldiaComparison] = useState(null);
   const [padronChartMode, setPadronChartMode] = useState("brecha");
@@ -3257,6 +3262,10 @@ function App() {
     setPadronSyncState((current) => ({ ...current, ...patch }));
   };
 
+  const updateAlcaldiaSyncState = (patch) => {
+    setAlcaldiaSyncState((current) => ({ ...current, ...patch }));
+  };
+
   const applyPadronSyncResult = (data = {}) => {
     setPadronMeta(data.meta ?? null);
     setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
@@ -3269,6 +3278,16 @@ function App() {
     if (workspaceView === "requests") {
       loadPadronServiceReport({ silent: true });
     }
+  };
+
+  const applyAlcaldiaSyncResult = (data = {}) => {
+    setAlcaldiaMeta(data.meta ?? null);
+    setAlcaldiaImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
+    updateAlcaldiaSyncState({
+      status: "complete",
+      progress: 100,
+      message: "Padron de alcaldia sincronizado"
+    });
   };
 
   const runPadronSyncSteps = async (request, successMessage) => {
@@ -7775,6 +7794,24 @@ function App() {
     }
 
     setUploadingAlcaldia(true);
+    let progressTimer = null;
+    updateAlcaldiaSyncState({
+      status: "running",
+      progress: 8,
+      message: "Iniciando reemplazo del padron de alcaldia"
+    });
+    clearClientPadronCaches();
+    updateAlcaldiaSyncState({ progress: 24, message: "Cache local y comparativas anteriores borradas" });
+    progressTimer = window.setInterval(() => {
+      setAlcaldiaSyncState((current) => {
+        if (current.status !== "running" || current.progress >= 68) return current;
+        return {
+          ...current,
+          progress: Math.min(68, current.progress + 4),
+          message: current.progress >= 48 ? "Verificando columnas y claves catastrales" : "Reemplazando data de alcaldia en consultas"
+        };
+      });
+    }, 420);
 
     try {
       const payload = new FormData();
@@ -7784,7 +7821,10 @@ function App() {
         method: "POST",
         body: payload
       });
-      const data = await response.json();
+      const data = await readJsonResponse(
+        response,
+        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+      );
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -7796,14 +7836,22 @@ function App() {
         throw new Error(data.message || "No se pudo actualizar el padron de alcaldia.");
       }
 
-      setAlcaldiaMeta(data.meta ?? null);
-      setAlcaldiaImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
+      updateAlcaldiaSyncState({ progress: 72, message: "Data de alcaldia reemplazada en el sistema" });
+      applyAlcaldiaSyncResult(data);
       setAlcaldiaFile(null);
       clearPadronDerivedState();
+      setDashboardLastUpdatedAt(Date.now());
+      setDashboardSyncCycleKey((current) => current + 1);
       showAlert(`Padron de alcaldia actualizado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
+      updateAlcaldiaSyncState({
+        status: "error",
+        progress: 100,
+        message: error.message || "No se pudo actualizar el padron de alcaldia."
+      });
       showAlert(error.message || "No se pudo actualizar el padron de alcaldia.");
     } finally {
+      if (progressTimer) window.clearInterval(progressTimer);
       setUploadingAlcaldia(false);
     }
   };
@@ -14319,6 +14367,24 @@ function App() {
                 </div>
               </div>
             ) : null}
+            {alcaldiaSyncState.status === "running" ? (
+              <div className="padron-system-overlay" role="status" aria-live="polite">
+                <div>
+                  <span className="padron-system-spinner"><Icon name="refresh" /></span>
+                  <p className="sheet-kicker">Sincronizando sistema</p>
+                  <h2>Actualizando padron Alcaldia</h2>
+                  <strong>{alcaldiaSyncState.progress}%</strong>
+                  <div className="padron-system-progress"><span style={{ width: `${alcaldiaSyncState.progress}%` }} /></div>
+                  <p>{alcaldiaSyncState.message}</p>
+                  <div className="padron-system-modules">
+                    <span>Buscar Alcaldia</span>
+                    <span>Comparativas</span>
+                    <span>Fichas</span>
+                    <span>Reportes</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <form className="lookup-card padron-master-console" onSubmit={handleUploadPadron}>
               <div className="padron-console-hero">
@@ -14501,45 +14567,100 @@ function App() {
             </form>
 
             <div className="padron-dual-grid">
-              <form className="lookup-card" onSubmit={handleUploadAlcaldia}>
-                <div className="lookup-card-head">
-                  <div>
+              <form className="lookup-card padron-master-console padron-alcaldia-console" onSubmit={handleUploadAlcaldia}>
+                <div className="padron-console-hero">
+                  <div className="padron-console-copy">
                     <p className="sheet-kicker">Padron de contraste</p>
-                    <h2><Icon name="records" className="title-icon" />Padron Alcaldia</h2>
-                    <p className="lookup-card-description">
-                      Este archivo se compara contra Aguas de Choluteca para detectar claves catastrales que no aparecen en el padron maestro.
-                    </p>
+                    <h2><Icon name="records" className="title-icon" />Alcaldia de Choluteca</h2>
+                    <p>Reemplaza la informacion catastral activa, limpia consultas viejas y actualiza comparativas contra Aguas.</p>
                   </div>
-                  <span className="panel-pill">{alcaldiaMeta?.total_records ?? 0} claves</span>
+                  <div className="padron-console-meter">
+                    <strong>{alcaldiaMeta?.total_records ? 100 : 0}%</strong>
+                    <span>padron municipal listo</span>
+                    <small>{alcaldiaMeta?.total_records ?? 0} claves activas</small>
+                  </div>
                 </div>
-                <div className="admin-result-grid padron-admin-grid">
-                  <div className="document-block">
-                    <h4>Archivo activo</h4>
-                    <p><strong>Archivo:</strong> {alcaldiaMeta?.file_name || "Sin registro"}</p>
-                    <p><strong>Fuente guardada:</strong> {alcaldiaMeta?.source_file_available ? (alcaldiaMeta?.source_file_name || "Disponible") : "No disponible"}</p>
-                    <p><strong>Hoja:</strong> {alcaldiaMeta?.sheet_name || "--"}</p>
-                    <p><strong>Ultima actualizacion:</strong> {formatDateTime(alcaldiaMeta?.updated_at)}</p>
-                    <p><strong>Estado actual:</strong> {loadingAlcaldiaMeta ? "Consultando..." : "Sincronizado"}</p>
-                    <div className="padron-summary-strip">
-                      <div className="log-summary-card"><span>Nuevas</span><strong>{alcaldiaImportSummary?.added ?? 0}</strong></div>
-                      <div className="log-summary-card"><span>Removidas</span><strong>{alcaldiaImportSummary?.removed ?? 0}</strong></div>
-                      <div className="log-summary-card"><span>Cambiadas</span><strong>{alcaldiaImportSummary?.changed ?? 0}</strong></div>
+
+                <div className="padron-console-grid">
+                  <section className="padron-file-panel">
+                    <div>
+                      <span>Archivo activo</span>
+                      <strong>{alcaldiaMeta?.file_name || "Sin registro"}</strong>
+                      <small>{alcaldiaMeta?.source_file_available ? `Fuente guardada: ${alcaldiaMeta?.source_file_name || "Disponible"}` : "Fuente guardada: no disponible"}</small>
                     </div>
-                  </div>
-                  <div className="document-block">
-                    <h4>Nuevo archivo Alcaldia</h4>
-                    <label className="file-input">
+                    <div className="padron-file-meta">
+                      <span>Hoja <b>{alcaldiaMeta?.sheet_name || "--"}</b></span>
+                      <span>Actualizacion <b>{formatDateTime(alcaldiaMeta?.updated_at)}</b></span>
+                      <span>Estado <b>{loadingAlcaldiaMeta ? "Consultando" : "Sincronizado"}</b></span>
+                    </div>
+                  </section>
+
+                  <section className="padron-upload-panel">
+                    <label className="padron-upload-drop">
+                      <Icon name="records" />
                       <span>Seleccionar Excel Alcaldia</span>
+                      <strong>{alcaldiaFile ? alcaldiaFile.name : "Ningun archivo seleccionado"}</strong>
                       <input
                         type="file"
                         accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         onChange={handleAlcaldiaFileChange}
                       />
                     </label>
-                    <p className="helper-text">Se usa CLAVE CATASTRAL y se conserva nombre, direccion, caserio e identificador.</p>
-                    {alcaldiaFile ? <p><strong>Archivo listo:</strong> {alcaldiaFile.name}</p> : null}
-                  </div>
+                    <p className="helper-text">Al actualizar se limpian caches de busqueda, reportes, comparativas y resultados anteriores.</p>
+                  </section>
                 </div>
+
+                <div className="padron-impact-grid">
+                  {[
+                    ["Nuevas", alcaldiaImportSummary?.added ?? 0],
+                    ["Removidas", alcaldiaImportSummary?.removed ?? 0],
+                    ["Cambiadas", alcaldiaImportSummary?.changed ?? 0],
+                    ["Importadas", alcaldiaMeta?.total_records ?? 0]
+                  ].map(([label, value]) => {
+                    const base = alcaldiaImportSummary?.source_rows ?? alcaldiaMeta?.total_records ?? 0;
+                    return (
+                      <div key={label} className="padron-impact-tile">
+                        <span>{label}</span>
+                        <strong>{value}</strong>
+                        <small>{formatPercent(value, base)}</small>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {alcaldiaSyncState.status !== "idle" ? (
+                  <div className={`padron-sync-panel is-${alcaldiaSyncState.status}`}>
+                    <div className="padron-sync-head">
+                      <div>
+                        <span className="padron-sync-icon">
+                          <Icon name={alcaldiaSyncState.status === "error" ? "warning" : "refresh"} />
+                        </span>
+                        <div>
+                          <strong>{alcaldiaSyncState.message}</strong>
+                          <small>
+                            {alcaldiaSyncState.status === "running"
+                              ? "No uses busqueda ni comparativas hasta que llegue a 100%."
+                              : alcaldiaSyncState.status === "error"
+                                ? "Revisa el archivo y vuelve a sincronizar."
+                                : "Busqueda municipal, fichas, reportes y comparativas ya consultan esta version."}
+                          </small>
+                        </div>
+                      </div>
+                      <b>{alcaldiaSyncState.progress}%</b>
+                    </div>
+                    <div className="padron-sync-bar" aria-hidden="true">
+                      <span style={{ width: `${alcaldiaSyncState.progress}%` }} />
+                    </div>
+                    <div className="padron-sync-steps">
+                      {PADRON_SYNC_STEPS.map((step) => (
+                        <span key={step.label} className={alcaldiaSyncState.progress >= step.progress ? "is-done" : ""}>
+                          {step.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="search-actions lookup-actions">
                   <button type="submit" disabled={uploadingAlcaldia}>
                     <Icon name="refresh" />

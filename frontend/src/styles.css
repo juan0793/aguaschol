@@ -7061,6 +7061,10 @@ textarea {
   gap: 16px;
 }
 
+.padron-alcaldia-console {
+  grid-column: 1 / -1;
+}
+
 .padron-master-console > .admin-result-grid {
   display: none;
 }
