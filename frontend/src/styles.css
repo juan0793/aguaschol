@@ -310,6 +310,44 @@
   font-weight: 800;
 }
 
+/* Improved visuals and interactions for barrio codes */
+.barrio-codes-hero {
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+.barrio-codes-hero:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.barrio-code-number {
+  min-width: 58px;
+  height: 42px;
+  font-size: 1rem;
+  border-radius: 10px;
+}
+
+.barrio-code-row { transition: transform 120ms ease, box-shadow 120ms ease; }
+.barrio-code-row:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+
+.barrio-codes-actions button { transition: transform 120ms ease, box-shadow 120ms ease; }
+.barrio-codes-actions button:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+
+/* Print-friendly summary for barrios */
+@media print {
+  :root { background: #fff !important; color: #000 !important; }
+  body { background: #fff !important; }
+  .app-chrome, .records-workspace-sidebar, .barrio-code-form, .barrio-code-row-actions, .barrio-code-list-tools, .barrio-codes-actions { display: none !important; }
+  .barrio-code-list-card, .barrio-code-list { box-shadow: none; border: none; background: transparent; }
+  .barrio-code-list { max-height: none; overflow: visible; }
+  .barrio-code-row { display: flex; gap: 1rem; border: none; background: transparent; padding: 6px 0; }
+  .barrio-code-number { background: #eef6ff; color: #0d4d86; font-weight: 900; padding: 6px 10px; border-radius: 6px; }
+  .barrio-code-row-main strong { font-size: 0.98rem; }
+  .barrio-codes-hero { display: block; border: none; background: transparent; }
+  header, footer, nav { display: none !important; }
+  * { -webkit-print-color-adjust: exact; color-adjust: exact; }
+  @page { margin: 12mm 10mm; }
+}
+
 .button-danger {
   border: 1px solid rgba(155, 32, 45, 0.24);
   background: #fff5f6;

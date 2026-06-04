@@ -1,13 +1,14 @@
 {
-  "file_name": "catastro_full (2).xls",
-  "sheet_name": "catastro_full",
-  "total_records": 24052,
-  "updated_at": "2026-04-09T17:40:52.053Z",
+  "file_name": "maestro (1).xls",
+  "source_file_name": "maestro (1).xls",
+  "sheet_name": "maestro",
+  "total_records": 24080,
+  "updated_at": "2026-05-28T15:51:43.228Z",
   "last_import_summary": {
-    "added": 0,
+    "added": 29,
     "removed": 0,
-    "changed": 0,
-    "discarded_missing_clave": 360,
-    "source_rows": 25335
+    "changed": 15649,
+    "discarded_missing_clave": 362,
+    "source_rows": 25365
   }
 }

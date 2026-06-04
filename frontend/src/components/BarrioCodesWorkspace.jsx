@@ -60,9 +60,13 @@ const BarrioCodesWorkspace = ({
           </div>
           <div className="barrio-codes-actions">
             <span className="panel-pill">{barrios.length} codigos</span>
-            <button type="button" onClick={() => onPrepareAdd("")}>
+            <button type="button" onClick={() => onPrepareAdd("")}> 
               <Icon name="plus" />
               Agregar codigo
+            </button>
+            <button type="button" className="barrio-code-small-button" onClick={() => window.print()} title="Imprimir resumen">
+              <Icon name="print" />
+              Imprimir resumen
             </button>
           </div>
         </div>
