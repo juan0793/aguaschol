@@ -6,6 +6,7 @@ import { formatDateTime } from "../utils/datesAndBusiness";
 import { buildExternalMapUrl, formatCoordinate, getMapPointTypeLabel } from "../utils/mapField";
 import { escapeHtml } from "../utils/html";
 import { printDocument } from "../utils/printDocument";
+import { extractClaveFromText } from "../utils/barrioCodes";
 
 const SUSPICIOUS_FAST_SECONDS = 90;
 const CRITICAL_FAST_SECONDS = 45;
@@ -67,6 +68,11 @@ const formatDuration = (seconds = 0) => {
 
 const getPointTechnicianName = (point = {}) =>
   point.created_by_name || point.created_by_username || point.created_by || "Tecnico sin nombre";
+const getPointCommentText = (point = {}) =>
+  [point.reference_note, point.description, point.validation_notes, point.correction_notes]
+    .filter(Boolean)
+    .join(" ");
+const getPointClaveFromComments = (point = {}) => extractClaveFromText(getPointCommentText(point)) || "--";
 
 const getCaptureTimeComment = (seconds = null) => {
   if (!Number.isFinite(seconds)) return "Primer punto del tecnico; no hay punto anterior para comparar.";
@@ -97,6 +103,7 @@ const buildTechnicianTimingReport = (points = []) => {
         return {
           point,
           index: index + 1,
+          clave: getPointClaveFromComments(point),
           secondsFromPrevious,
           isCritical,
           isSuspicious,
@@ -271,10 +278,9 @@ const FieldValidationWorkspace = ({
           .map(
             (row) => `
               <tr class="${row.isCritical ? "is-critical" : row.isSuspicious ? "is-suspicious" : ""}">
-                <td>${row.index}</td>
+                <td>${escapeHtml(technician.technician)}</td>
+                <td>${escapeHtml(row.clave)}</td>
                 <td>${escapeHtml(formatDateTime(row.point.created_at))}</td>
-                <td>${escapeHtml(getMapPointTypeLabel(row.point.point_type))}</td>
-                <td>${escapeHtml(row.point.reference_note || row.point.description || "--")}</td>
                 <td>${escapeHtml(formatDuration(row.secondsFromPrevious))}</td>
                 <td>${escapeHtml(row.comment)}</td>
               </tr>
@@ -297,10 +303,9 @@ const FieldValidationWorkspace = ({
             <table class="field-report-table field-validation-time-table">
               <thead>
                 <tr>
-                  <th>#</th>
+                  <th>Tecnico</th>
+                  <th>Clave</th>
                   <th>Hora</th>
-                  <th>Tipo</th>
-                  <th>Referencia</th>
                   <th>Tiempo</th>
                   <th>Comentario</th>
                 </tr>
