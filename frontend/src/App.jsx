@@ -15370,7 +15370,7 @@ function App() {
           setSelectedPointId={setSelectedMapPointId}
         />
       ) : (
-        <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
+        <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (
             <UsersSidebar
               loadingUsers={loadingUsers}
@@ -15384,7 +15384,7 @@ function App() {
             />
           ) : null}
 
-          <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
+          <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
             {workspaceView === "mapReports" ? (
               <section className="preview-panel log-panel-full">
                 <div className="log-shell">

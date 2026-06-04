@@ -77,80 +77,25 @@ const BarrioCodesWorkspace = ({
         </div>
       </div>
 
-      <div className="barrio-codes-grid">
-        <article className="barrio-code-list-card">
-          <div className="admin-section-head">
-            <div>
-              <p className="sheet-kicker">Listado</p>
-              <h3>Barrios registrados</h3>
-            </div>
-            <div className="barrio-code-list-tools">
-              <label className="compact-search">
-                <span>Buscar</span>
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Codigo o barrio" />
-              </label>
-              <button type="button" className="barrio-code-small-button" onClick={() => onPrepareAdd(normalizedSearchedCode)}>
-                <Icon name="plus" />
-                Agregar
-              </button>
-            </div>
+      <article className="barrio-code-list-card">
+        <div className="admin-section-head barrio-code-list-head">
+          <div>
+            <p className="sheet-kicker">Listado</p>
+            <h3>Barrios registrados</h3>
           </div>
-          <div className="barrio-code-list">
-            {loading ? (
-              <div className="barrio-code-empty">
-                <span>Cargando codigos...</span>
-              </div>
-            ) : visibleBarrios.length ? (
-              visibleBarrios.map((item) => (
-                <div className={`barrio-code-row ${form.codigo === item.codigo ? "is-selected" : ""}`} key={item.codigo}>
-                  <button type="button" className="barrio-code-row-main" onClick={() => onEdit(item)}>
-                    <span className="barrio-code-number">{item.codigo}</span>
-                    <span>
-                      <strong>{item.barrio}</strong>
-                      <small>{item.activo ? "Activo para autollenado" : "Inactivo"}</small>
-                    </span>
-                  </button>
-                  <div className="barrio-code-row-actions">
-                    <button type="button" className="barrio-code-icon-button" onClick={() => onEdit(item)} title="Editar codigo">
-                      <Icon name="records" />
-                    </button>
-                    <button
-                      type="button"
-                      className="barrio-code-icon-button is-danger"
-                      onClick={() => onDelete(item.codigo)}
-                      disabled={saving}
-                      title={item.activo ? "Desactivar o eliminar codigo" : "Eliminar codigo"}
-                    >
-                      <Icon name="archive" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="barrio-code-empty">
-                <span>No hay codigos con ese filtro.</span>
-                {normalizedSearchedCode && !searchedCodeExists ? (
-                  <button type="button" className="barrio-code-small-button" onClick={() => onPrepareAdd(normalizedSearchedCode)}>
-                    <Icon name="plus" />
-                    Agregar codigo {normalizedSearchedCode}
-                  </button>
-                ) : null}
-              </div>
-            )}
-          </div>
-        </article>
-
-        <form className="barrio-code-form" onSubmit={onSubmit}>
-          <div className="admin-section-head">
-            <div>
-              <p className="sheet-kicker">Gestion</p>
-              <h3>{isEditing ? `Codigo ${form.codigo}` : "Agregar codigo"}</h3>
-            </div>
-            <button type="button" className="barrio-code-small-button is-secondary" onClick={() => onPrepareAdd("")}>
+          <div className="barrio-code-list-tools">
+            <label className="compact-search">
+              <span>Buscar</span>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Codigo o barrio" />
+            </label>
+            <button type="button" className="barrio-code-small-button" onClick={() => onPrepareAdd(normalizedSearchedCode)}>
               <Icon name="plus" />
-              Nuevo
+              Agregar
             </button>
           </div>
+        </div>
+
+        <form className="barrio-code-form" onSubmit={onSubmit}>
           <label>
             <span>Codigo inicial</span>
             <input
@@ -193,7 +138,71 @@ const BarrioCodesWorkspace = ({
             ) : null}
           </div>
         </form>
-      </div>
+
+        <div className="barrio-code-table-wrap">
+          <table className="barrio-code-admin-table">
+            <thead>
+              <tr>
+                <th>Codigo</th>
+                <th>Barrio / colonia</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="4">Cargando codigos...</td>
+                </tr>
+              ) : visibleBarrios.length ? (
+                visibleBarrios.map((item) => (
+                  <tr className={form.codigo === item.codigo ? "is-selected" : ""} key={item.codigo}>
+                    <td><span className="barrio-code-number">{item.codigo}</span></td>
+                    <td>
+                      <strong>{item.barrio}</strong>
+                      <small>{item.activo ? "Activo para autollenado" : "Inactivo"}</small>
+                    </td>
+                    <td>
+                      <span className={`barrio-code-status ${item.activo ? "is-active" : "is-inactive"}`}>
+                        {item.activo ? "Activo" : "Inactivo"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="barrio-code-row-actions">
+                        <button type="button" className="barrio-code-small-button is-secondary" onClick={() => onEdit(item)}>
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="barrio-code-small-button is-danger"
+                          onClick={() => onDelete(item.codigo)}
+                          disabled={saving}
+                        >
+                          {item.activo ? "Desactivar" : "Eliminar"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4">
+                    <div className="barrio-code-empty">
+                      <span>No hay codigos con ese filtro.</span>
+                      {normalizedSearchedCode && !searchedCodeExists ? (
+                        <button type="button" className="barrio-code-small-button" onClick={() => onPrepareAdd(normalizedSearchedCode)}>
+                          <Icon name="plus" />
+                          Agregar codigo {normalizedSearchedCode}
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>
   );
 };
