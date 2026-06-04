@@ -441,22 +441,25 @@ const getMapReportTopZones = (reportData = {}, limit = 8) =>
   [...(reportData.zones || [])]
     .sort((left, right) => (right.total || 0) - (left.total || 0))
     .slice(0, limit);
-const getMapZoneClavesLabel = (zone = {}) => {
-  const claves = Array.from(zone.claves || []);
-  const visibleClaves = claves.slice(0, 8).join(", ");
-  const hiddenTotal = claves.length - 8;
-  return hiddenTotal > 0 ? `${visibleClaves} +${hiddenTotal}` : visibleClaves;
+const getMapZoneClavesLabel = (zone = {}) => Array.from(zone.claves || []).join(", ");
+const buildMapReportBriefRows = (reportData = {}) => {
+  const rows = [];
+  (reportData.zones || []).forEach((zone) => {
+    const items = zone.items?.length ? zone.items : [null];
+    items.forEach((point) => {
+      rows.push([
+        String(rows.length + 1),
+        zone.displayName || zone.zone || "--",
+        point?.report_key || "--",
+        "1",
+        point ? getMapPointTypeLabel(point.point_type) : zone.pointTypesLabel || "--",
+        point ? getMapPointServicesLabel(point) : getMapZoneServicesLabel(zone),
+        String(point ? getMapPointHousingUnits(point) : getMapZoneHousingUnits(zone))
+      ]);
+    });
+  });
+  return rows;
 };
-const buildMapReportBriefRows = (reportData = {}) =>
-  (reportData.zones || []).map((zone, index) => [
-    String(index + 1),
-    zone.displayName || zone.zone || "--",
-    zone.clavesLabel || "--",
-    String(zone.total || 0),
-    zone.pointTypesLabel || "--",
-    getMapZoneServicesLabel(zone),
-    String(getMapZoneHousingUnits(zone))
-  ]);
 const FIELD_DEBT_SERVICE_DEFINITIONS = [
   { field: "agua", label: "Agua potable", shortLabel: "Agua", aliases: ["agua", "potable"] },
   { field: "alcantarillado", label: "Alcantarillado", shortLabel: "Alcant.", aliases: ["alcantarillado", "alca"] },
@@ -7221,7 +7224,7 @@ function App() {
         (zone) => `
           <div>
             <strong>${escapeHtml(zone.displayName || zone.zone || "--")}</strong>
-            <span>${escapeHtml(zone.clavesLabel || "Sin clave")} | ${zone.total || 0} puntos</span>
+            <span>${zone.total || 0} puntos</span>
           </div>
         `
       )
@@ -7279,7 +7282,7 @@ function App() {
             <div class="field-report-zone-head">
               <div>
                 <span class="field-report-zone-kicker">Listado resumido</span>
-                <h3>Consolidado por barrio</h3>
+                <h3>Listado por barrio y clave</h3>
               </div>
               <div class="field-report-zone-meta">
                 <span>${reportData.totalZones} barrios</span>
@@ -7389,10 +7392,9 @@ function App() {
 
       autoTable(document, {
         startY: 70,
-        head: [["Barrio principal", "Clave(s)", "Puntos"]],
+        head: [["Barrio principal", "Puntos"]],
         body: getMapReportTopZones(reportData, 6).map((zone) => [
           zone.displayName || zone.zone || "--",
-          zone.clavesLabel || "--",
           String(zone.total || 0)
         ]),
         theme: "grid",
@@ -7401,9 +7403,8 @@ function App() {
         alternateRowStyles: { fillColor: [248, 251, 255] },
         margin: { left: 110, right: 14 },
         columnStyles: {
-          0: { cellWidth: 38 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 14, halign: "center" }
+          0: { cellWidth: 66 },
+          1: { cellWidth: 16, halign: "center" }
         }
       });
 
