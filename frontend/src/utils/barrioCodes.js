@@ -54,3 +54,18 @@ export const withReferenceBarrioPrefix = (draft = {}, barrios = []) => {
 
   return { ...draft, reference: `${barrio} - ${reference}` };
 };
+
+export const getBarrioCodeByName = (name = "", barrios = []) => {
+  const needle = String(name || "").trim().toLowerCase();
+  if (!needle) return "";
+  const match = (Array.isArray(barrios) ? barrios : []).find((item) => String(item.barrio || "").trim().toLowerCase() === needle);
+  return match?.codigo || "";
+};
+
+export const ensureClaveHasPrefix = (clave = "", barrioName = "", barrios = []) => {
+  const raw = String(clave || "").trim();
+  if (raw.includes("-")) return raw;
+  const code = getBarrioCodeByName(barrioName, barrios);
+  if (!code) return raw || "--";
+  return raw ? `${code}-${raw}` : `${code}-`;
+};

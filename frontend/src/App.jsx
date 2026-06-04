@@ -87,7 +87,8 @@ import {
   normalizeBarrioCode,
   resolveBarrioFromPayload,
   withBarrioFromPrefix,
-  withReferenceBarrioPrefix
+  withReferenceBarrioPrefix,
+  ensureClaveHasPrefix
 } from "./utils/barrioCodes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -4849,7 +4850,7 @@ function App() {
                         <td>${rowIndex + 1}</td>
                         <td>${escapeHtml(row.nombre || "--")}</td>
                         <td>${escapeHtml(row.abonado || "--")}</td>
-                        <td>${escapeHtml(row.clave_catastral || "--")}</td>
+                        <td>${escapeHtml(ensureClaveHasPrefix(row.clave_catastral || row.clave_aguas_formato || row.clave_alcaldia, row.barrio_colonia, safeBarrioCodes) || "--")}</td>
                         <td>${escapeHtml(row.barrio_colonia || "--")}</td>
                         <td>${formatCurrency(row.tarifa || 0)}</td>
                         <td>${formatCurrency(row.total || 0)}</td>
@@ -4972,7 +4973,7 @@ function App() {
             rowIndex + 1,
             row.nombre || "--",
             row.abonado || "--",
-            row.clave_catastral || "--",
+            ensureClaveHasPrefix(row.clave_catastral || row.clave_aguas_formato || row.clave_alcaldia, row.barrio_colonia, safeBarrioCodes) || "--",
             row.barrio_colonia || "--",
             formatCurrency(row.tarifa || 0),
             formatCurrency(row.total || 0)
@@ -17027,7 +17028,7 @@ function App() {
                                       <td>{rowIndex + 1}</td>
                                       <td>{row.nombre || "--"}</td>
                                       <td>{row.abonado || "--"}</td>
-                                      <td>{row.clave_catastral || "--"}</td>
+                                      <td>{ensureClaveHasPrefix(row.clave_catastral || row.clave_aguas_formato || row.clave_alcaldia, row.barrio_colonia, safeBarrioCodes) || "--"}</td>
                                       <td>{row.barrio_colonia || "--"}</td>
                                       <td>{formatCurrency(row.tarifa || 0)}</td>
                                       <td>{formatCurrency(row.total || 0)}</td>

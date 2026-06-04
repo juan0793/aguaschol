@@ -98,7 +98,7 @@
 
 .barrio-codes-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   gap: 16px;
   align-items: start;
 }
@@ -204,12 +204,12 @@
 
 .barrio-code-row-main {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  min-height: 0;
-  padding: 0;
-  border-radius: 0;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border-radius: 8px;
   background: transparent;
   color: inherit;
   box-shadow: none;
