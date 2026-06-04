@@ -1,6 +1,7 @@
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
+import { resolveBarrioNameFromClave } from "./barrioCodeService.js";
 import XLSX from "xlsx";
 
 const memoryPoints = [];
@@ -66,20 +67,36 @@ const normalizeHousingUnits = (value) => {
   return Number.isFinite(numeric) ? Math.max(1, Math.min(999, numeric)) : 1;
 };
 
-const normalizePayload = (payload = {}) => ({
-  point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
-  latitude: Number(payload.latitude),
-  longitude: Number(payload.longitude),
-  accuracy_meters:
-    payload.accuracy_meters == null || payload.accuracy_meters === ""
-      ? null
-      : Number(payload.accuracy_meters),
-  description: String(payload.description ?? "").trim(),
-  reference_note: String(payload.reference ?? payload.reference_note ?? "").trim(),
-  marker_color: normalizeMarkerColor(payload.marker_color),
-  is_terminal_point: Boolean(payload.is_terminal_point),
-  housing_units: normalizeHousingUnits(payload.housing_units)
-});
+const extractClaveFromText = (value = "") =>
+  String(value ?? "").match(/\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/)?.[0] || "";
+
+const applyBarrioToReference = ({ referenceNote = "", description = "" } = {}) => {
+  const barrio = resolveBarrioNameFromClave(extractClaveFromText(`${referenceNote} ${description}`), "");
+  if (!barrio) return referenceNote;
+  if (!referenceNote) return barrio;
+  if (referenceNote.toLowerCase().includes(barrio.toLowerCase())) return referenceNote;
+  return `${barrio} - ${referenceNote}`;
+};
+
+const normalizePayload = (payload = {}) => {
+  const description = String(payload.description ?? "").trim();
+  const referenceNote = String(payload.reference ?? payload.reference_note ?? "").trim();
+
+  return {
+    point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
+    latitude: Number(payload.latitude),
+    longitude: Number(payload.longitude),
+    accuracy_meters:
+      payload.accuracy_meters == null || payload.accuracy_meters === ""
+        ? null
+        : Number(payload.accuracy_meters),
+    description,
+    reference_note: applyBarrioToReference({ referenceNote, description }),
+    marker_color: normalizeMarkerColor(payload.marker_color),
+    is_terminal_point: Boolean(payload.is_terminal_point),
+    housing_units: normalizeHousingUnits(payload.housing_units)
+  };
+};
 
 const validateCoordinates = ({ latitude, longitude }) => {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {

@@ -81,6 +81,13 @@ import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/
 import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
 import { pause, printDocument } from "./utils/printDocument";
+import {
+  getBarrioNameFromClave,
+  normalizeBarrioCode,
+  resolveBarrioFromPayload,
+  withBarrioFromPrefix,
+  withReferenceBarrioPrefix
+} from "./utils/barrioCodes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,21 +139,6 @@ const GEOLOCATION_FALLBACK_OPTIONS = {
 };
 const IOS_GPS_HELP =
   "En iPhone la ubicacion solo funciona si abres el sistema con HTTPS y das permiso en Safari. Mientras tanto puedes tocar el mapa o escribir latitud y longitud para guardar el punto.";
-
-const normalizeBarrioCode = (value = "") => {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (!digits) return "";
-  return digits.length <= 2 ? digits.padStart(2, "0") : digits;
-};
-
-const getBarrioCodeFromClave = (clave = "") => normalizeBarrioCode(String(clave ?? "").split("-").filter(Boolean)[0] || "");
-
-const getBarrioNameFromClave = (clave = "", barrios = []) => {
-  const code = getBarrioCodeFromClave(clave);
-  if (!code) return "";
-  const match = barrios.find((item) => item.activo !== false && item.codigo === code);
-  return match?.barrio || "";
-};
 
 const isRedReportPoint = (point = {}) =>
   point.point_type === COMMERCIAL_MAP_POINT_TYPE ||
@@ -970,7 +962,7 @@ function App() {
   const safeBarrioCodes = Array.isArray(barrioCodes) ? barrioCodes : [];
   const getRecordBarrioName = useCallback(
     (record = {}, fallback = "Sin barrio") =>
-      String(record.barrio_colonia || getBarrioNameFromClave(record.clave_catastral, safeBarrioCodes) || fallback).trim() || fallback,
+      String(resolveBarrioFromPayload(record, safeBarrioCodes, fallback)).trim() || fallback,
     [safeBarrioCodes]
   );
   const displayRecords = useMemo(
@@ -1642,8 +1634,8 @@ function App() {
     return groups;
   }, [recordPagination.records, recordView]);
   const recordValidationIssues = useMemo(
-    () => getRecordValidationIssues(form, Boolean(form.foto_path), selectedFile),
-    [form, selectedFile]
+    () => getRecordValidationIssues(withBarrioFromPrefix(form, safeBarrioCodes), Boolean(form.foto_path), selectedFile),
+    [form, safeBarrioCodes, selectedFile]
   );
   const selectedRecordDeadlineMeta = useMemo(
     () => (form.id ? recordDeadlineMetaById[form.id] ?? null : null),
@@ -4531,8 +4523,8 @@ function App() {
     const { name, value } = event.target;
     setForm((current) => {
       const next = { ...current, [name]: value };
-      if (name === "clave_catastral" && !String(current.barrio_colonia || "").trim()) {
-        const barrio = getBarrioNameFromClave(value, safeBarrioCodes);
+      if (["clave_catastral", "clave_alcaldia"].includes(name) && !String(current.barrio_colonia || "").trim()) {
+        const barrio = resolveBarrioFromPayload(next, safeBarrioCodes, "");
         if (barrio) {
           next.barrio_colonia = barrio;
         }
@@ -4542,7 +4534,7 @@ function App() {
   };
 
   const applyRecord = (record) => {
-    setForm({ ...emptyForm, ...normalizeRecord(record) });
+    setForm(withBarrioFromPrefix({ ...emptyForm, ...normalizeRecord(record) }, safeBarrioCodes));
     setSelectedFile(null);
     setAvisoHtml("");
     setLastProcessedRecord(null);
@@ -5531,7 +5523,15 @@ function App() {
     if (["latitude", "longitude"].includes(name) && value) {
       setMapLocationHelp("");
     }
-    setMapDraft((current) => ({ ...current, [name]: name === "housing_units" ? normalizeHousingUnitsInput(value) : value }));
+    setMapDraft((current) =>
+      withReferenceBarrioPrefix(
+        {
+          ...current,
+          [name]: name === "housing_units" ? normalizeHousingUnitsInput(value) : value
+        },
+        safeBarrioCodes
+      )
+    );
   };
 
   const adjustMapDraftHousingUnits = (delta) => {
@@ -5613,7 +5613,7 @@ function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [mapDraft.description, padronMeta?.updated_at]);
+  }, [mapDraft.description, padronMeta?.updated_at, safeBarrioCodes]);
 
   const handleLocateUser = async () => {
     if (!navigator.geolocation) {
@@ -5657,7 +5657,7 @@ function App() {
           reference: mapDraft.reference
         };
 
-        setMapDraft(nextDraft);
+        setMapDraft(withReferenceBarrioPrefix(nextDraft, safeBarrioCodes));
         setMapStatus("GPS listo");
         setMapLocationHelp("");
         setMapFocusRequest({
@@ -5844,6 +5844,7 @@ function App() {
         mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE
           ? COMMERCIAL_MAP_POINT_COLOR
           : editingPoint?.marker_color || "#1576d1";
+      const enrichedMapDraft = withReferenceBarrioPrefix(mapDraft, safeBarrioCodes);
       const response = await apiFetch(isEditing ? `/map-points/${editingMapPointId}` : "/map-points", {
         method: isEditing ? "PUT" : "POST",
         headers: {
@@ -5853,10 +5854,10 @@ function App() {
           latitude,
           longitude,
           accuracy_meters: Number(mapDraft.accuracy_meters) || null,
-          point_type: mapDraft.point_type,
-          description: mapDraft.description,
-          reference: mapDraft.reference,
-          housing_units: mapDraft.housing_units,
+          point_type: enrichedMapDraft.point_type,
+          description: enrichedMapDraft.description,
+          reference: enrichedMapDraft.reference,
+          housing_units: enrichedMapDraft.housing_units,
           marker_color: markerColor,
           is_terminal_point: Boolean(editingPoint?.is_terminal_point)
         })
@@ -5968,13 +5969,18 @@ function App() {
 
   const handleReportMapDraftChange = (event) => {
     const { name, value, type, checked } = event.target;
-    setReportMapDraft((current) => ({
-      ...current,
-      [name]: type === "checkbox" ? checked : name === "housing_units" ? normalizeHousingUnitsInput(value) : value,
-      ...(name === "point_type" && value === COMMERCIAL_MAP_POINT_TYPE
-        ? { marker_color: COMMERCIAL_MAP_POINT_COLOR }
-        : {})
-    }));
+    setReportMapDraft((current) =>
+      withReferenceBarrioPrefix(
+        {
+          ...current,
+          [name]: type === "checkbox" ? checked : name === "housing_units" ? normalizeHousingUnitsInput(value) : value,
+          ...(name === "point_type" && value === COMMERCIAL_MAP_POINT_TYPE
+            ? { marker_color: COMMERCIAL_MAP_POINT_COLOR }
+            : {})
+        },
+        safeBarrioCodes
+      )
+    );
   };
 
   const adjustReportMapDraftHousingUnits = (delta) => {
@@ -6370,7 +6376,7 @@ function App() {
 
     setSelectedReportMapPointId(point.id);
     setEditingReportMapPointId(point.id);
-    setReportMapDraft(buildMapReportDraftFromPoint(point));
+    setReportMapDraft(withReferenceBarrioPrefix(buildMapReportDraftFromPoint(point), safeBarrioCodes));
     setReportMapStatus("Edicion activa");
     setReportMapFocusRequest({
       latitude: Number(point.latitude),
@@ -6408,6 +6414,7 @@ function App() {
 
     try {
       const isEditing = Boolean(editingReportMapPointId);
+      const enrichedReportMapDraft = withReferenceBarrioPrefix(reportMapDraft, safeBarrioCodes);
       const response = await apiFetch(isEditing ? `/map-points/${editingReportMapPointId}` : "/map-points", {
         method: isEditing ? "PUT" : "POST",
         headers: {
@@ -6417,12 +6424,12 @@ function App() {
           latitude,
           longitude,
           accuracy_meters: Number(reportMapDraft.accuracy_meters) || null,
-          point_type: reportMapDraft.point_type,
-          description: reportMapDraft.description,
-          reference: reportMapDraft.reference,
-          housing_units: reportMapDraft.housing_units,
-          marker_color: reportMapDraft.marker_color,
-          is_terminal_point: reportMapDraft.is_terminal_point
+          point_type: enrichedReportMapDraft.point_type,
+          description: enrichedReportMapDraft.description,
+          reference: enrichedReportMapDraft.reference,
+          housing_units: enrichedReportMapDraft.housing_units,
+          marker_color: enrichedReportMapDraft.marker_color,
+          is_terminal_point: enrichedReportMapDraft.is_terminal_point
         })
       });
       const data = await response.json();
@@ -6528,7 +6535,7 @@ function App() {
     setSelectedMapPointId(point.id);
     setEditingMapPointId(point.id);
     setMapLocationHelp("");
-    setMapDraft({
+    setMapDraft(withReferenceBarrioPrefix({
       latitude: formatCoordinate(point.latitude),
       longitude: formatCoordinate(point.longitude),
       accuracy_meters: point.accuracy_meters ?? "",
@@ -6536,7 +6543,7 @@ function App() {
       description: point.description || "",
       reference: point.reference_note || "",
       marker_color: point.marker_color || "#1576d1"
-    });
+    }, safeBarrioCodes));
     setMapStatus("Edicion activa");
     setMapFocusRequest({
       latitude: Number(point.latitude),
@@ -7442,19 +7449,20 @@ function App() {
       id: null,
       foto_path: ""
     };
+    const enrichedForm = withBarrioFromPrefix(nextForm, safeBarrioCodes);
 
     setSelectedRecordId(null);
     setLastProcessedRecord(null);
     setRecordQuickFilter("all");
     setRecordFilters({
-      clave: nextForm.clave_catastral || "",
+      clave: enrichedForm.clave_catastral || "",
       barrio: "",
       responsible: "",
       date_from: "",
       date_to: "",
       status: "all"
     });
-    setForm(nextForm);
+    setForm(enrichedForm);
     setSelectedFile(null);
     setAvisoHtml("");
     setActiveSection("abonado");
@@ -7470,17 +7478,21 @@ function App() {
     return "";
   };
 
-  const buildRecordPatchFromAguasMatch = (match = {}) => ({
-    clave_catastral: match.clave_catastral || "",
-    abonado: match.abonado || "",
-    nombre_catastral: match.nombre || "",
-    inquilino: match.inquilino || "",
-    barrio_colonia: match.barrio_colonia || "",
-    conexion_agua: padronFlagToRecordValue(match.agua),
-    conexion_alcantarillado: padronFlagToRecordValue(match.alcantarillado),
-    recoleccion_desechos: padronFlagToRecordValue(match.recoleccion),
-    estado_padron: "varios_padrones"
-  });
+  const buildRecordPatchFromAguasMatch = (match = {}) =>
+    withBarrioFromPrefix(
+      {
+        clave_catastral: match.clave_catastral || "",
+        abonado: match.abonado || "",
+        nombre_catastral: match.nombre || "",
+        inquilino: match.inquilino || "",
+        barrio_colonia: match.barrio_colonia || "",
+        conexion_agua: padronFlagToRecordValue(match.agua),
+        conexion_alcantarillado: padronFlagToRecordValue(match.alcantarillado),
+        recoleccion_desechos: padronFlagToRecordValue(match.recoleccion),
+        estado_padron: "varios_padrones"
+      },
+      safeBarrioCodes
+    );
 
   const openLookupMatchInRecord = async (match) => {
     try {
@@ -8588,26 +8600,26 @@ function App() {
     const method = isEdit ? "PUT" : "POST";
 
     try {
-      let payload = form;
+      let payload = withBarrioFromPrefix(form, safeBarrioCodes);
       try {
-        const match = form.estado_padron === "reportada" ? null : await findAlcaldiaMatchForForm(form);
+        const match = payload.estado_padron === "reportada" ? null : await findAlcaldiaMatchForForm(payload);
         if (match) {
           const nextState = match.exists_in_aguas ? "varios_padrones" : "clandestino";
-          payload = {
-            ...form,
+          payload = withBarrioFromPrefix({
+            ...payload,
             estado_padron: nextState,
             clave_alcaldia: match.clave_catastral || "",
-            nombre_alcaldia: match.nombre || form.nombre_alcaldia || "",
-            barrio_alcaldia: match.caserio || match.direccion || form.barrio_alcaldia || "",
-            nombre_catastral: match.nombre || form.nombre_catastral,
-            barrio_colonia: form.barrio_colonia || match.caserio || match.direccion || "",
-            identidad: form.identidad || match.identificador || "",
-            comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : form.comentarios || "Clandestino"
-          };
+            nombre_alcaldia: match.nombre || payload.nombre_alcaldia || "",
+            barrio_alcaldia: match.caserio || match.direccion || payload.barrio_alcaldia || "",
+            nombre_catastral: match.nombre || payload.nombre_catastral,
+            barrio_colonia: payload.barrio_colonia || match.caserio || match.direccion || "",
+            identidad: payload.identidad || match.identificador || "",
+            comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : payload.comentarios || "Clandestino"
+          }, safeBarrioCodes);
           setForm(payload);
         }
       } catch {
-        payload = form;
+        payload = withBarrioFromPrefix(form, safeBarrioCodes);
       }
 
       const response = await apiFetch(url.replace(API_URL, ""), {
@@ -8685,13 +8697,13 @@ function App() {
       setAvisoHtml(data.aviso_html);
       const avisoWindow = window.open("", "_blank", "width=980,height=1200");
       if (avisoWindow) {
-        const initialData = {
+        const initialData = withBarrioFromPrefix({
           fecha_aviso: normalizeDateField(data.fecha_aviso || form.fecha_aviso || ""),
           barrio_colonia: data.barrio_colonia || form.barrio_colonia || "",
           clave_catastral: data.clave_catastral || form.clave_catastral || "",
           firmante_aviso: data.firmante_aviso || form.firmante_aviso || "",
           cargo_firmante: data.cargo_firmante || form.cargo_firmante || ""
-        };
+        }, safeBarrioCodes);
 
         avisoWindow.document.write(`
           <html lang="es">
@@ -12914,7 +12926,7 @@ function App() {
         <RecordsWorkspace
           records={displayRecords}
           form={form}
-          draftForm={draftForm}
+          draftForm={draftForm ? withBarrioFromPrefix(draftForm, safeBarrioCodes) : draftForm}
           loading={loading}
           saving={saving}
           loadingAviso={loadingAviso}
