@@ -74,6 +74,71 @@
   color: #082542;
 }
 
+.barrio-codes-workspace {
+  display: grid;
+  gap: 18px;
+}
+
+.barrio-codes-hero {
+  border-left: 4px solid var(--brand-teal);
+}
+
+.barrio-codes-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.barrio-code-form,
+.barrio-code-list-card {
+  display: grid;
+  gap: 14px;
+}
+
+.barrio-code-form label,
+.compact-search {
+  display: grid;
+  gap: 6px;
+}
+
+.checkbox-row {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.barrio-code-table-wrap {
+  overflow-x: auto;
+}
+
+.barrio-code-table th:first-child,
+.barrio-code-table td:first-child {
+  width: 96px;
+}
+
+.table-action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.button-danger {
+  border: 1px solid rgba(155, 32, 45, 0.24);
+  background: #fff5f6;
+  color: var(--danger);
+}
+
+@media (max-width: 900px) {
+  .barrio-codes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

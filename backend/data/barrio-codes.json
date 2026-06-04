@@ -1,0 +1,474 @@
+{
+  "updated_at": "2026-06-04T16:20:08.723Z",
+  "barrios": [
+    {
+      "codigo": "01",
+      "barrio": "Barrio Suyapa",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "02",
+      "barrio": "Lotificacion Carranza",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "03",
+      "barrio": "Barrio Nueva Esperanza",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "04",
+      "barrio": "Brisas del Sur",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "05",
+      "barrio": "Barrio Campo Sol",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "06",
+      "barrio": "Barrio La Ceiba",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "07",
+      "barrio": "Barrio Campo Luna",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "08",
+      "barrio": "Barrio Piedras Azules",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "09",
+      "barrio": "Barrio Santa Lucia",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "10",
+      "barrio": "Barrio San Juan Bosco",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "11",
+      "barrio": "Barrio Los Graneros",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "12",
+      "barrio": "Barrio El Hospital",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "13",
+      "barrio": "Barrio Corbeta",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "14",
+      "barrio": "Barrio El Centro",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "15",
+      "barrio": "Barrio La Cruz",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "16",
+      "barrio": "Barrio Los Mangos",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "17",
+      "barrio": "Barrio Morazan",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "18",
+      "barrio": "Barrio Los Fuertes",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "19",
+      "barrio": "Aterrizaje",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "20",
+      "barrio": "Barrio Alegria",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "21",
+      "barrio": "Barrio El Cortijo",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "22",
+      "barrio": "Barrio Cabanas",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "23",
+      "barrio": "Barrio El Estadio",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "24",
+      "barrio": "La Libertad",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "25",
+      "barrio": "Barrio Guadalupe",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "26",
+      "barrio": "Barrio Tamarindo",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "27",
+      "barrio": "Barrio La Esperanza",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "28",
+      "barrio": "Barrio El Porvenir",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "29",
+      "barrio": "Barrio Valle",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "30",
+      "barrio": "Las Colinas",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "31",
+      "barrio": "Barrio El Brasil",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "33",
+      "barrio": "Colonia 9 de Enero",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "34",
+      "barrio": "Barrio Gracias a Dios",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "35",
+      "barrio": "Barrio San Pedro Sur",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "36",
+      "barrio": "Las Acacias",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "37",
+      "barrio": "Colonia Santa Marta",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "38",
+      "barrio": "Barrio El Recreo",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "39",
+      "barrio": "Buenos Aires",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "40",
+      "barrio": "Las Vegas",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "42",
+      "barrio": "Barrio El Estruendo",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "43",
+      "barrio": "La Venecia",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "44",
+      "barrio": "Colonia Monsenor Marcelo Gerin",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "45",
+      "barrio": "Barrio Sagrado Corazon",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "46",
+      "barrio": "Barrio La Providencia",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "47",
+      "barrio": "Colonia Iberia",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "48",
+      "barrio": "Colonia Victor Argenal",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "49",
+      "barrio": "Colonia 15 de Septiembre",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "50",
+      "barrio": "Las Arenas",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "51",
+      "barrio": "Barrio El Progreso",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "54",
+      "barrio": "Barrio San Fco del Palomar",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "55",
+      "barrio": "Colonia Miramonte",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "56",
+      "barrio": "Julio Midence",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "59",
+      "barrio": "Colonia Maria Milagrosa",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "62",
+      "barrio": "Barrio Los Llanos",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "64",
+      "barrio": "Colonia Isidro Pineda",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "70",
+      "barrio": "Colonia El Eden",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "81",
+      "barrio": "Barrio San Luis",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "90",
+      "barrio": "Barrio Nueva Jerusalen",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "91",
+      "barrio": "Villas del Cortijo",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "96",
+      "barrio": "Cumbre Chorotega",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "100",
+      "barrio": "Stybis",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "114",
+      "barrio": "Lotificacion Beel",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "115",
+      "barrio": "Barrio San Pedro del Norte",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "117",
+      "barrio": "Colonia Luis Alonso Narvaez",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "125",
+      "barrio": "Colonia Rotaria",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "136",
+      "barrio": "Colonia Cristo de Esquipulas",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    },
+    {
+      "codigo": "141",
+      "barrio": "Nueva Bella Vista",
+      "activo": true,
+      "created_at": "2026-06-04T16:20:08.722Z",
+      "updated_at": "2026-06-04T16:20:08.722Z"
+    }
+  ]
+}

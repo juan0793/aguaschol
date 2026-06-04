@@ -3,6 +3,7 @@ import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import FieldValidationWorkspace from "./components/FieldValidationWorkspace";
 import { Icon, actionIconName } from "./components/Icon";
 import LookupChatPanel from "./components/LookupChatPanel";
+import BarrioCodesWorkspace, { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import RecordsWorkspace from "./components/records/RecordsWorkspace";
 import TransportWorkspace from "./components/TransportWorkspace";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
@@ -131,6 +132,21 @@ const GEOLOCATION_FALLBACK_OPTIONS = {
 };
 const IOS_GPS_HELP =
   "En iPhone la ubicacion solo funciona si abres el sistema con HTTPS y das permiso en Safari. Mientras tanto puedes tocar el mapa o escribir latitud y longitud para guardar el punto.";
+
+const normalizeBarrioCode = (value = "") => {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.length <= 2 ? digits.padStart(2, "0") : digits;
+};
+
+const getBarrioCodeFromClave = (clave = "") => normalizeBarrioCode(String(clave ?? "").split("-").filter(Boolean)[0] || "");
+
+const getBarrioNameFromClave = (clave = "", barrios = []) => {
+  const code = getBarrioCodeFromClave(clave);
+  if (!code) return "";
+  const match = barrios.find((item) => item.activo !== false && item.codigo === code);
+  return match?.barrio || "";
+};
 
 const isRedReportPoint = (point = {}) =>
   point.point_type === COMMERCIAL_MAP_POINT_TYPE ||
@@ -709,6 +725,10 @@ function App() {
   const [showPadronServiceModal, setShowPadronServiceModal] = useState(false);
   const [showPadronRequestModal, setShowPadronRequestModal] = useState(false);
   const [selectedAguasServiceField, setSelectedAguasServiceField] = useState("agua");
+  const [barrioCodes, setBarrioCodes] = useState([]);
+  const [barrioCodeForm, setBarrioCodeForm] = useState(emptyBarrioForm);
+  const [loadingBarrioCodes, setLoadingBarrioCodes] = useState(false);
+  const [savingBarrioCode, setSavingBarrioCode] = useState(false);
   const [mapPoints, setMapPoints] = useState([]);
   const [mapDiaryGroupsSummary, setMapDiaryGroupsSummary] = useState([]);
   const [mapPointListLimit, setMapPointListLimit] = useState(MAP_POINT_LIST_INITIAL_LIMIT);
@@ -947,6 +967,24 @@ function App() {
   const safeMapDiaryGroupsSummary = Array.isArray(mapDiaryGroupsSummary) ? mapDiaryGroupsSummary : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
+  const safeBarrioCodes = Array.isArray(barrioCodes) ? barrioCodes : [];
+  const getRecordBarrioName = useCallback(
+    (record = {}, fallback = "Sin barrio") =>
+      String(record.barrio_colonia || getBarrioNameFromClave(record.clave_catastral, safeBarrioCodes) || fallback).trim() || fallback,
+    [safeBarrioCodes]
+  );
+  const displayRecords = useMemo(
+    () =>
+      safeRecords.map((record) => {
+        if (String(record.barrio_colonia || "").trim()) {
+          return record;
+        }
+
+        const barrio = getRecordBarrioName(record, "");
+        return barrio ? { ...record, barrio_colonia: barrio } : record;
+      }),
+    [getRecordBarrioName, safeRecords]
+  );
   const mapDiaryGroups = useMemo(() => {
     const todayKey = getTodayMapDiaryKey();
     if (safeMapDiaryGroupsSummary.length) {
@@ -1082,6 +1120,14 @@ function App() {
             title: "Padrón maestro",
             lead: "Carga y reemplazo del archivo maestro usado por la consulta rápida de claves.",
             kicker: "Actualización central"
+          },
+          barrioCodes: {
+            panelClass: "hero-panel-users",
+            cardClass: "search-card-users",
+            toplineLabel: "Catalogo territorial",
+            title: "Codigos de barrios",
+            lead: "Gestiona el prefijo inicial de las claves catastrales para completar barrios en fichas y reportes.",
+            kicker: "Barrios"
           },
           lookup: {
             panelClass: "hero-panel-records",
@@ -1268,6 +1314,26 @@ function App() {
       ];
     }
 
+    if (workspaceView === "barrioCodes") {
+      return [
+        {
+          icon: "map",
+          label: "Codigos",
+          value: String(safeBarrioCodes.length)
+        },
+        {
+          icon: "success",
+          label: "Activos",
+          value: String(safeBarrioCodes.filter((item) => item.activo !== false).length)
+        },
+        {
+          icon: "records",
+          label: "Uso",
+          value: "Fichas"
+        }
+      ];
+    }
+
     if (workspaceView === "map") {
       return [
         {
@@ -1419,6 +1485,7 @@ function App() {
     visibleMapPoints.length,
     safeRecords.length,
     safeMapPoints.length,
+    safeBarrioCodes,
     safeAuditLogs.length,
     selectedMapPoint,
     padronRequestResult,
@@ -1443,11 +1510,11 @@ function App() {
       Array.from(
         new Set(
           safeRecords
-            .map((record) => String(record.barrio_colonia || "").trim())
+            .map((record) => getRecordBarrioName(record, ""))
             .filter(Boolean)
         )
       ).sort((left, right) => left.localeCompare(right, "es")),
-    [safeRecords]
+    [getRecordBarrioName, safeRecords]
   );
   const availableRecordResponsibles = useMemo(
     () =>
@@ -1474,7 +1541,7 @@ function App() {
       }
 
       if (recordFilters.barrio) {
-        const barrio = String(record.barrio_colonia || "").trim();
+        const barrio = getRecordBarrioName(record, "");
         if (barrio !== recordFilters.barrio) {
           return false;
         }
@@ -1705,6 +1772,7 @@ function App() {
             { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
             { key: "requests", section: "control", label: "Reportes", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
+            { key: "barrioCodes", section: "control", label: "Barrios", icon: "map", meta: `${safeBarrioCodes.length} codigos`, tone: "is-map" },
             { key: "padron", section: "control", label: "Padrón", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
             { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
           ]
@@ -1717,6 +1785,7 @@ function App() {
       mapReportData.totalZones,
       padronMeta?.total_records,
       safeAuditLogs.length,
+      safeBarrioCodes.length,
       safeMapPoints.length,
       safeRecords.length,
       safeUsers.length
@@ -1757,6 +1826,7 @@ function App() {
             { key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" },
             { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
             { key: "requests", label: "Reportes", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
+            { key: "barrioCodes", label: "Barrios", icon: "map", group: "control", helper: `${safeBarrioCodes.length} codigos` },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
@@ -1778,6 +1848,7 @@ function App() {
       mapReportData.totalZones,
       padronMeta?.total_records,
       safeAuditLogs.length,
+      safeBarrioCodes.length,
       safeRecords.length,
       safeUsers.length,
       visibleMapPoints.length,
@@ -1809,6 +1880,7 @@ function App() {
       records: safeRecords.length,
       padron: padronMeta?.total_records ?? 0,
       logs: safeAuditLogs.length,
+      barrioCodes: safeBarrioCodes.length,
       users: safeUsers.length,
       map: visibleMapPoints.length,
       mapReports: mapReportData.totalZones,
@@ -1838,7 +1910,7 @@ function App() {
       {
         key: "gestion",
         title: "Gestion",
-        items: items.filter((item) => ["executiveReport", "requests", "padron", "logs", "users"].includes(item.key))
+        items: items.filter((item) => ["executiveReport", "requests", "barrioCodes", "padron", "logs", "users"].includes(item.key))
       }
     ].filter((section) => section.items.length);
   }, [
@@ -1849,6 +1921,7 @@ function App() {
     padronMeta?.total_records,
     padronRequestResult?.summary?.total_registros,
     safeAuditLogs.length,
+    safeBarrioCodes.length,
     safeRecords.length,
     safeUsers.length,
     visibleMapPoints.length
@@ -1937,7 +2010,7 @@ function App() {
   const pendingWorkflowBuckets = useMemo(() => {
     const isIncomplete = (record) =>
       !String(record.clave_catastral || "").trim() ||
-      !String(record.barrio_colonia || "").trim() ||
+      !getRecordBarrioName(record, "") ||
       !String(record.levantamiento_datos || "").trim() ||
       !String(record.analista_datos || "").trim();
     const hasNoticeData = (record) =>
@@ -2465,7 +2538,7 @@ function App() {
       pushFeedItem({
         key: `record-${record.id}`,
         title: "Ficha creada",
-        detail: `${record.clave_catastral || "Sin clave"} en ${record.barrio_colonia || "ubicacion pendiente"}`,
+        detail: `${record.clave_catastral || "Sin clave"} en ${getRecordBarrioName(record, "ubicacion pendiente")}`,
         user: record.levantamiento_datos || "Equipo operativo",
         icon: "records",
         tone: "is-record",
@@ -2806,7 +2879,7 @@ function App() {
   }, [recordDeadlineMetaById, safeRecords]);
   const dashboardZoneSummary = useMemo(() => {
     const grouped = safeRecords.reduce((acc, record) => {
-      const zone = String(record.barrio_colonia || "Sin zona").trim() || "Sin zona";
+      const zone = getRecordBarrioName(record, "Sin zona");
       if (!acc[zone]) {
         acc[zone] = {
           name: zone,
@@ -2888,7 +2961,7 @@ function App() {
       return acc;
     }, {});
     const recordZoneTotals = safeRecords.reduce((acc, record) => {
-      const zone = String(record.barrio_colonia || "Sin barrio").trim() || "Sin barrio";
+      const zone = getRecordBarrioName(record, "Sin barrio");
       if (!acc[zone]) {
         acc[zone] = {
           label: zone,
@@ -3207,6 +3280,8 @@ function App() {
     setPadronMeta(null);
     setPadronImportSummary(null);
     setPadronFile(null);
+    setBarrioCodes([]);
+    setBarrioCodeForm(emptyBarrioForm);
     setWorkspaceView("records");
     resetForm();
   };
@@ -3429,7 +3504,7 @@ function App() {
       const matchesSearch =
         !query ||
         String(record.clave_catastral || "").toLowerCase().includes(query) ||
-        String(record.barrio_colonia || "").toLowerCase().includes(query);
+        getRecordBarrioName(record, "").toLowerCase().includes(query);
 
       if (!matchesSearch) return false;
       if (printBatchQuickFilter === "clandestina") {
@@ -3536,8 +3611,24 @@ function App() {
   useEffect(() => {
     if (isAuthenticated && workspaceView === "records") {
       loadRecords(search, recordView);
+      loadBarrioCodes({ silent: true });
     }
   }, [isAuthenticated, recordView, workspaceView]);
+
+  useEffect(() => {
+    if (!String(form.clave_catastral || "").trim() || String(form.barrio_colonia || "").trim()) {
+      return;
+    }
+
+    const barrio = getBarrioNameFromClave(form.clave_catastral, safeBarrioCodes);
+    if (barrio) {
+      setForm((current) => (
+        String(current.barrio_colonia || "").trim()
+          ? current
+          : { ...current, barrio_colonia: barrio }
+      ));
+    }
+  }, [form.clave_catastral, form.barrio_colonia, safeBarrioCodes]);
 
   useEffect(() => {
     if (!isAuthenticated || !alertRecords.length || !["records", "dashboard"].includes(workspaceView)) {
@@ -3574,7 +3665,7 @@ function App() {
 
       try {
         new Notification(`Ficha ${meta.label.toLowerCase()}`, {
-          body: `${record.clave_catastral} · ${record.barrio_colonia || "Sin ubicacion"} · ${meta.helper}`,
+          body: `${record.clave_catastral} · ${getRecordBarrioName(record, "Sin ubicacion")} · ${meta.helper}`,
           tag: `record-alert-${record.id}-${meta.statusKey}`
         });
       } catch {
@@ -3825,6 +3916,122 @@ function App() {
       }
     } finally {
       setLoadingPadronServiceReport(false);
+    }
+  };
+
+  const loadBarrioCodes = async ({ silent = false } = {}) => {
+    if (!isAuthenticated) return;
+    if (!silent) {
+      setLoadingBarrioCodes(true);
+    }
+
+    try {
+      const response = await apiFetch("/barrios");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar los codigos de barrios.");
+      }
+
+      setBarrioCodes(Array.isArray(data.barrios) ? data.barrios : []);
+    } catch (error) {
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar los codigos de barrios.");
+      }
+    } finally {
+      if (!silent) {
+        setLoadingBarrioCodes(false);
+      }
+    }
+  };
+
+  const handleBarrioCodeFormChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setBarrioCodeForm((current) => ({
+      ...current,
+      [name]: type === "checkbox" ? checked : name === "codigo" ? normalizeBarrioCode(value) : value
+    }));
+  };
+
+  const handleResetBarrioCodeForm = () => {
+    setBarrioCodeForm(emptyBarrioForm);
+  };
+
+  const handleEditBarrioCode = (item) => {
+    setBarrioCodeForm({
+      codigo: item.codigo || "",
+      barrio: item.barrio || "",
+      activo: item.activo !== false
+    });
+  };
+
+  const handleSaveBarrioCode = async (event) => {
+    event.preventDefault();
+    setSavingBarrioCode(true);
+
+    try {
+      const response = await apiFetch("/barrios", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(barrioCodeForm)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible guardar el codigo de barrio.");
+      }
+
+      setBarrioCodes(Array.isArray(data.barrios) ? data.barrios : []);
+      setBarrioCodeForm(emptyBarrioForm);
+      showAlert(`Codigo ${data.item?.codigo || ""} guardado.`);
+    } catch (error) {
+      showAlert(error.message || "No fue posible guardar el codigo de barrio.");
+    } finally {
+      setSavingBarrioCode(false);
+    }
+  };
+
+  const handleDeleteBarrioCode = async (codigo) => {
+    if (!window.confirm(`Eliminar el codigo ${codigo}?`)) return;
+    setSavingBarrioCode(true);
+
+    try {
+      const response = await apiFetch(`/barrios/${encodeURIComponent(codigo)}`, {
+        method: "DELETE"
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible eliminar el codigo de barrio.");
+      }
+
+      setBarrioCodes(Array.isArray(data.barrios) ? data.barrios : []);
+      setBarrioCodeForm((current) => (current.codigo === codigo ? emptyBarrioForm : current));
+      showAlert(`Codigo ${codigo} eliminado.`);
+    } catch (error) {
+      showAlert(error.message || "No fue posible eliminar el codigo de barrio.");
+    } finally {
+      setSavingBarrioCode(false);
     }
   };
 
@@ -4105,12 +4312,18 @@ function App() {
     if (workspaceView === "padron") {
       loadPadronMeta();
       loadAlcaldiaMeta();
+      loadBarrioCodes({ silent: true });
+    }
+
+    if (workspaceView === "barrioCodes") {
+      loadBarrioCodes();
     }
 
     if (workspaceView === "requests") {
       loadPadronRequestMeta();
       loadPadronMeta();
       loadAlcaldiaMeta();
+      loadBarrioCodes({ silent: true });
       loadPadronServiceReport({ silent: true });
       if (!alcaldiaComparison?.summary) {
         loadAlcaldiaComparison({ silent: true });
@@ -4309,7 +4522,16 @@ function App() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => {
+      const next = { ...current, [name]: value };
+      if (name === "clave_catastral" && !String(current.barrio_colonia || "").trim()) {
+        const barrio = getBarrioNameFromClave(value, safeBarrioCodes);
+        if (barrio) {
+          next.barrio_colonia = barrio;
+        }
+      }
+      return next;
+    });
   };
 
   const applyRecord = (record) => {
@@ -5503,7 +5725,7 @@ function App() {
       nombre_alcaldia: match?.nombre || record.nombre_alcaldia || "",
       barrio_alcaldia: match?.caserio || match?.direccion || record.barrio_alcaldia || "",
       nombre_catastral: match?.nombre || record.nombre_catastral,
-      barrio_colonia: record.barrio_colonia || match?.caserio || match?.direccion || "",
+      barrio_colonia: getRecordBarrioName(record, "") || match?.caserio || match?.direccion || "",
       identidad: record.identidad || match?.identificador || "",
       comentarios: getAlcaldiaValidationComment(match, record)
     };
@@ -9476,7 +9698,7 @@ function App() {
                     <tr>
                       <td>${escapeHtml(record.clave_catastral || "--")}</td>
                       <td>${escapeHtml(getRecordDisplayName(record, alcaldiaMatch))}</td>
-                      <td>${escapeHtml(record.barrio_colonia || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--")}</td>
+                      <td>${escapeHtml(getRecordBarrioName(record, "") || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--")}</td>
                       <td>${escapeHtml(getRecordFichaDateLabel(record))}</td>
                       <td><span class="comparison-print-status">Vencida</span></td>
                       <td class="${aguasClass}">${escapeHtml(aguasLabel)}</td>
@@ -11051,7 +11273,7 @@ function App() {
                           <strong>{record.clave_catastral}</strong>
                           {isSelected ? <Badge variant="outline" className="print-selected-badge">Seleccionada</Badge> : null}
                         </div>
-                        <span>{record.barrio_colonia || "Sin ubicacion"}</span>
+                        <span>{getRecordBarrioName(record, "Sin ubicacion")}</span>
                         <div className="print-batch-card-meta">
                           <Badge
                             variant={isClandestina ? "destructive" : padronStatus === "reportada" ? "secondary" : "outline"}
@@ -11246,7 +11468,7 @@ function App() {
                         <tr key={`comparison-${record.id}`}>
                           <td>{record.clave_catastral || "--"}</td>
                           <td>{getRecordDisplayName(record, alcaldiaMatch)}</td>
-                          <td>{record.barrio_colonia || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--"}</td>
+                          <td>{getRecordBarrioName(record, "") || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--"}</td>
                           <td>{getRecordFichaDateLabel(record)}</td>
                           <td>
                             <span className="comparison-status-badge">Vencida</span>
@@ -12683,7 +12905,7 @@ function App() {
           </button>
         </div>
         <RecordsWorkspace
-          records={safeRecords}
+          records={displayRecords}
           form={form}
           draftForm={draftForm}
           loading={loading}
@@ -12954,7 +13176,7 @@ function App() {
                         <div className="record-card-top">
                           <div className="record-main">
                             <strong>{record.clave_catastral}</strong>
-                            <span className="record-location">{record.barrio_colonia || "Sin ubicacion"}</span>
+                            <span className="record-location">{getRecordBarrioName(record, "Sin ubicacion")}</span>
                           </div>
                           <div className="record-status-stack">
                             <span className={`record-badge ${record.estado_padron === "reportada" ? "is-reported" : ""}`}>
@@ -16755,6 +16977,18 @@ function App() {
                   </article>
                 </div>
               </section>
+            ) : workspaceView === "barrioCodes" ? (
+              <BarrioCodesWorkspace
+                barrios={safeBarrioCodes}
+                form={barrioCodeForm}
+                loading={loadingBarrioCodes}
+                saving={savingBarrioCode}
+                onFormChange={handleBarrioCodeFormChange}
+                onSubmit={handleSaveBarrioCode}
+                onEdit={handleEditBarrioCode}
+                onDelete={handleDeleteBarrioCode}
+                onReset={handleResetBarrioCodeForm}
+              />
             ) : workspaceView === "users" ? (
               <UsersContent
                 creatingUser={creatingUser}

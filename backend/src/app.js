@@ -6,6 +6,7 @@ import { getDatabaseStatus } from "./config/db.js";
 import { env } from "./config/env.js";
 import { getMapTileHandler } from "./controllers/mapTileController.js";
 import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
+import barrioCodeRoutes from "./routes/barrioCodeRoutes.js";
 import claveLookupRoutes from "./routes/claveLookupRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import aiRoutes from "./routes/aiRoutes.js";
@@ -130,6 +131,7 @@ app.get("/api/map-tiles/:z/:x/:y.png", getMapTileHandler);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/ai", requireAuth, aiRoutes);
+app.use("/api/barrios", requireAuth, barrioCodeRoutes);
 app.use("/api/claves", requireAuth, claveLookupRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
 app.use("/api/field-validation", requireAuth, fieldValidationRoutes);

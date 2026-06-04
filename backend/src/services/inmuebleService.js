@@ -3,6 +3,7 @@ import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { buildAvisoHtml } from "../utils/avisoTemplate.js";
 import { deleteStoredPhoto, saveUploadedPhoto } from "./fileStorageService.js";
+import { getBarrioByClave } from "./barrioCodeService.js";
 import { likeValue, normalizeDateField, normalizeKey } from "../utils/normalize.js";
 
 const memoryRecords = [
@@ -72,6 +73,15 @@ const mapPayload = (payload) => ({
   levantamiento_datos: payload.levantamiento_datos?.trim() ?? "",
   analista_datos: payload.analista_datos?.trim() ?? ""
 });
+
+const applyBarrioFromClave = async (data) => {
+  if (data.barrio_colonia) {
+    return data;
+  }
+
+  const match = await getBarrioByClave(data.clave_catastral);
+  return match?.barrio ? { ...data, barrio_colonia: match.barrio } : data;
+};
 
 const mapArchivePayload = (payload = {}) => ({
   archived_reason: payload.archived_reason?.trim() ?? ""
@@ -154,7 +164,7 @@ export const getById = async (id, { includeArchived = true } = {}) => {
 };
 
 export const createInmueble = async (payload, options = {}) => {
-  const data = mapPayload(payload);
+  const data = await applyBarrioFromClave(mapPayload(payload));
   ensureKey(data);
 
   if (env.useMemoryDb) {
@@ -240,7 +250,7 @@ export const createInmueble = async (payload, options = {}) => {
 };
 
 export const updateInmueble = async (id, payload, options = {}) => {
-  const data = mapPayload(payload);
+  const data = await applyBarrioFromClave(mapPayload(payload));
   ensureKey(data);
 
   if (env.useMemoryDb) {
