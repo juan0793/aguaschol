@@ -232,6 +232,8 @@
   display: inline-grid;
   place-items: center;
   min-height: 38px;
+  min-width: 58px;
+  width: 58px;
   border-radius: 8px;
   background: #e8f3ff;
   color: #0d4d86;
@@ -242,7 +244,17 @@
 .barrio-code-row-main strong,
 .barrio-code-row-main small {
   display: block;
-  overflow-wrap: anywhere;
+  /* Prevent breaking between every character; allow normal word breaks */
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: normal;
+}
+
+/* If the container is too narrow, prefer single-line with ellipsis instead of breaking every letter */
+.barrio-code-row-main .barrio-label-nowrap strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .barrio-code-row-main strong {
