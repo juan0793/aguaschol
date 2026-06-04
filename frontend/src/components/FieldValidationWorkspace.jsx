@@ -4,6 +4,11 @@ import { Icon } from "./Icon";
 import { MAP_POINT_TYPES } from "../constants/formsAndUi";
 import { formatDateTime } from "../utils/datesAndBusiness";
 import { buildExternalMapUrl, formatCoordinate, getMapPointTypeLabel } from "../utils/mapField";
+import { escapeHtml } from "../utils/html";
+import { printDocument } from "../utils/printDocument";
+
+const SUSPICIOUS_FAST_SECONDS = 90;
+const CRITICAL_FAST_SECONDS = 45;
 
 const validationStatusMeta = {
   pending: { label: "Pendiente", className: "is-pending" },
@@ -48,6 +53,77 @@ const buildDraftFromPoint = (value = {}) => {
     validation_status: point.validation_status || "pending",
     validation_notes: point.validation_notes || "",
     correction_notes: point.correction_notes || ""
+  };
+};
+
+const formatDuration = (seconds = 0) => {
+  if (!Number.isFinite(seconds) || seconds < 0) return "--";
+  const rounded = Math.round(seconds);
+  const minutes = Math.floor(rounded / 60);
+  const remainingSeconds = rounded % 60;
+  if (minutes <= 0) return `${remainingSeconds}s`;
+  return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+};
+
+const getPointTechnicianName = (point = {}) =>
+  point.created_by_name || point.created_by_username || point.created_by || "Tecnico sin nombre";
+
+const getCaptureTimeComment = (seconds = null) => {
+  if (!Number.isFinite(seconds)) return "Primer punto del tecnico; no hay punto anterior para comparar.";
+  if (seconds < CRITICAL_FAST_SECONDS) return "Sospechoso: tiempo extremadamente corto para un censo; conviene revisar evidencia y secuencia.";
+  if (seconds < SUSPICIOUS_FAST_SECONDS) return "Atencion: tiempo muy rapido para censo; validar que no sea captura repetida o incompleta.";
+  return "Tiempo dentro de un rango razonable para captura de censo.";
+};
+
+const buildTechnicianTimingReport = (points = []) => {
+  const technicianMap = new Map();
+  points.forEach((point) => {
+    const timestamp = Date.parse(point.created_at || "");
+    if (!Number.isFinite(timestamp)) return;
+    const technician = getPointTechnicianName(point);
+    const current = technicianMap.get(technician) ?? [];
+    current.push({ ...point, timestamp });
+    technicianMap.set(technician, current);
+  });
+
+  const technicians = Array.from(technicianMap.entries())
+    .map(([technician, technicianPoints]) => {
+      const orderedPoints = technicianPoints.sort((left, right) => left.timestamp - right.timestamp);
+      const rows = orderedPoints.map((point, index) => {
+        const previous = orderedPoints[index - 1] ?? null;
+        const secondsFromPrevious = previous ? (point.timestamp - previous.timestamp) / 1000 : null;
+        const isCritical = Number.isFinite(secondsFromPrevious) && secondsFromPrevious < CRITICAL_FAST_SECONDS;
+        const isSuspicious = Number.isFinite(secondsFromPrevious) && secondsFromPrevious < SUSPICIOUS_FAST_SECONDS;
+        return {
+          point,
+          index: index + 1,
+          secondsFromPrevious,
+          isCritical,
+          isSuspicious,
+          comment: getCaptureTimeComment(secondsFromPrevious)
+        };
+      });
+      const intervalRows = rows.filter((row) => Number.isFinite(row.secondsFromPrevious));
+      const suspiciousRows = rows.filter((row) => row.isSuspicious);
+      const totalSeconds = intervalRows.reduce((sum, row) => sum + row.secondsFromPrevious, 0);
+
+      return {
+        technician,
+        rows,
+        totalPoints: rows.length,
+        intervals: intervalRows.length,
+        suspiciousRows,
+        averageSeconds: intervalRows.length ? totalSeconds / intervalRows.length : null,
+        minimumSeconds: intervalRows.length ? Math.min(...intervalRows.map((row) => row.secondsFromPrevious)) : null
+      };
+    })
+    .sort((left, right) => right.totalPoints - left.totalPoints || left.technician.localeCompare(right.technician));
+
+  const totalSuspicious = technicians.reduce((sum, technician) => sum + technician.suspiciousRows.length, 0);
+  return {
+    technicians,
+    totalPoints: points.length,
+    totalSuspicious
   };
 };
 
@@ -173,6 +249,101 @@ const FieldValidationWorkspace = ({
     await onSaveValidation(selectedPoint.id, nextDraft);
   };
 
+  const handlePrintTimingReport = async () => {
+    const report = buildTechnicianTimingReport(mapPoints);
+    const generatedAt = formatDateTime(new Date().toISOString());
+    const summaryMarkup = report.technicians
+      .map(
+        (technician) => `
+          <div class="field-validation-time-summary-card ${technician.suspiciousRows.length ? "is-warning" : ""}">
+            <strong>${escapeHtml(technician.technician)}</strong>
+            <span>${technician.totalPoints} puntos</span>
+            <span>Promedio: ${escapeHtml(formatDuration(technician.averageSeconds))}</span>
+            <span>Minimo: ${escapeHtml(formatDuration(technician.minimumSeconds))}</span>
+            <b>${technician.suspiciousRows.length} sospechosos</b>
+          </div>
+        `
+      )
+      .join("");
+    const technicianSections = report.technicians
+      .map((technician) => {
+        const rowsMarkup = technician.rows
+          .map(
+            (row) => `
+              <tr class="${row.isCritical ? "is-critical" : row.isSuspicious ? "is-suspicious" : ""}">
+                <td>${row.index}</td>
+                <td>${escapeHtml(formatDateTime(row.point.created_at))}</td>
+                <td>${escapeHtml(getMapPointTypeLabel(row.point.point_type))}</td>
+                <td>${escapeHtml(row.point.reference_note || row.point.description || "--")}</td>
+                <td>${escapeHtml(formatDuration(row.secondsFromPrevious))}</td>
+                <td>${escapeHtml(row.comment)}</td>
+              </tr>
+            `
+          )
+          .join("");
+
+        return `
+          <section class="field-validation-time-section">
+            <div class="field-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">Tecnico</span>
+                <h3>${escapeHtml(technician.technician)}</h3>
+              </div>
+              <div class="field-report-zone-meta">
+                <span>${technician.totalPoints} puntos</span>
+                <span>${technician.suspiciousRows.length} sospechosos</span>
+              </div>
+            </div>
+            <table class="field-report-table field-validation-time-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Hora</th>
+                  <th>Tipo</th>
+                  <th>Referencia</th>
+                  <th>Tiempo</th>
+                  <th>Comentario</th>
+                </tr>
+              </thead>
+              <tbody>${rowsMarkup}</tbody>
+            </table>
+          </section>
+        `;
+      })
+      .join("");
+
+    await printDocument(
+      "Reporte de tiempos de captura - Validacion de campo",
+      `
+        <div class="field-report-shell field-validation-time-report">
+          <header class="field-report-header">
+            <div>
+              <p class="field-report-kicker">Validacion de campo</p>
+              <h1>Reporte de tiempos de captura</h1>
+              <p>Evalua cuanto tarda cada tecnico entre un punto y el siguiente. Para censo, tiempos menores a ${SUSPICIOUS_FAST_SECONDS} segundos se marcan como sospechosos.</p>
+            </div>
+            <div class="field-report-meta">
+              <span>Generado: ${escapeHtml(generatedAt)}</span>
+              <span>${escapeHtml(activeDateLabel)}</span>
+              <span>Puntos evaluados: ${report.totalPoints}</span>
+              <span>Sospechosos: ${report.totalSuspicious}</span>
+            </div>
+          </header>
+          <section class="field-validation-time-summary">
+            ${summaryMarkup || '<p class="field-report-empty">No hay puntos con fecha valida para evaluar tiempos.</p>'}
+          </section>
+          ${technicianSections || '<p class="field-report-empty">No hay puntos registrados para generar el reporte.</p>'}
+        </div>
+      `,
+      {
+        pageSize: "Letter portrait",
+        pageMargin: "9mm",
+        bodyClassName: "field-report-body field-validation-time-report-body",
+        showPageFooter: true
+      }
+    );
+  };
+
   const selectedMeta = validationStatusMeta[selectedPoint?.validation_status || "pending"] ?? validationStatusMeta.pending;
 
   return (
@@ -189,6 +360,12 @@ const FieldValidationWorkspace = ({
           <span><strong>1</strong>Ubica</span>
           <span><strong>2</strong>Corrige</span>
           <span><strong>3</strong>Aprueba</span>
+        </div>
+        <div className="field-validation-hero-actions">
+          <button type="button" className="button-secondary" onClick={handlePrintTimingReport} disabled={!mapPoints.length}>
+            <Icon name="records" />
+            Reporte tiempos
+          </button>
         </div>
       </section>
 

@@ -18043,16 +18043,119 @@ button,
 
 .field-validation-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 18px;
   padding: 18px;
+}
+
+.field-validation-hero-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .field-validation-guide {
   display: grid;
   grid-template-columns: repeat(3, minmax(84px, 1fr));
   gap: 8px;
+}
+
+.field-validation-time-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.field-validation-time-summary-card {
+  border: 1px solid #c8dff4;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 8px;
+}
+
+.field-validation-time-summary-card.is-warning {
+  border-color: #f2b64a;
+  background: #fff8eb;
+}
+
+.field-validation-time-summary-card strong,
+.field-validation-time-summary-card span,
+.field-validation-time-summary-card b {
+  display: block;
+}
+
+.field-validation-time-summary-card strong {
+  color: #123b61;
+  font-size: 0.88rem;
+}
+
+.field-validation-time-summary-card span,
+.field-validation-time-summary-card b {
+  font-size: 0.75rem;
+}
+
+.field-validation-time-summary-card b {
+  color: #9a5a06;
+}
+
+.field-validation-time-section {
+  margin-top: 10px;
+  break-inside: avoid;
+}
+
+.field-validation-time-table {
+  table-layout: fixed;
+}
+
+.field-validation-time-table th,
+.field-validation-time-table td {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.field-validation-time-table th:nth-child(1),
+.field-validation-time-table td:nth-child(1) {
+  width: 5%;
+  text-align: center;
+}
+
+.field-validation-time-table th:nth-child(2),
+.field-validation-time-table td:nth-child(2) {
+  width: 16%;
+}
+
+.field-validation-time-table th:nth-child(3),
+.field-validation-time-table td:nth-child(3) {
+  width: 16%;
+}
+
+.field-validation-time-table th:nth-child(4),
+.field-validation-time-table td:nth-child(4) {
+  width: 25%;
+}
+
+.field-validation-time-table th:nth-child(5),
+.field-validation-time-table td:nth-child(5) {
+  width: 10%;
+  text-align: center;
+  font-weight: 900;
+}
+
+.field-validation-time-table th:nth-child(6),
+.field-validation-time-table td:nth-child(6) {
+  width: 28%;
+}
+
+.field-validation-time-table tr.is-suspicious td {
+  background: #fff8eb;
+  color: #875a12;
+}
+
+.field-validation-time-table tr.is-critical td {
+  background: #fff1f3;
+  color: #8d1f28;
+  font-weight: 800;
 }
 
 .field-validation-guide span,
