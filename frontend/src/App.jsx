@@ -428,14 +428,30 @@ const getMapReportBarrioZone = (point = {}, context = null, barrios = []) => {
   const prefix = String(clave || "").split("-").filter(Boolean)[0] || "";
   return `${prefix} - ${barrio}`;
 };
+const getMapReportPointClave = (point = {}, context = null) =>
+  extractClaveFromText(
+    [
+      context?.zone,
+      point.reference_note,
+      point.reference,
+      point.description
+    ].filter(Boolean).join(" ")
+  );
 const getMapReportTopZones = (reportData = {}, limit = 8) =>
   [...(reportData.zones || [])]
     .sort((left, right) => (right.total || 0) - (left.total || 0))
     .slice(0, limit);
+const getMapZoneClavesLabel = (zone = {}) => {
+  const claves = Array.from(zone.claves || []);
+  const visibleClaves = claves.slice(0, 8).join(", ");
+  const hiddenTotal = claves.length - 8;
+  return hiddenTotal > 0 ? `${visibleClaves} +${hiddenTotal}` : visibleClaves;
+};
 const buildMapReportBriefRows = (reportData = {}) =>
   (reportData.zones || []).map((zone, index) => [
     String(index + 1),
     zone.displayName || zone.zone || "--",
+    zone.clavesLabel || "--",
     String(zone.total || 0),
     zone.pointTypesLabel || "--",
     getMapZoneServicesLabel(zone),
@@ -1687,19 +1703,26 @@ function App() {
       points.forEach((point) => {
         const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
         const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
+        const pointClave = getMapReportPointClave(point, context);
         const current = zoneMap.get(zone) ?? {
           zone,
           total: 0,
           items: [],
           accuracyValues: [],
           pointTypes: new Set(),
+          claves: new Set(),
           nearbyReferences: new Set(),
           locationHints: new Set()
         };
 
         current.total += 1;
+        if (pointClave) {
+          current.claves.add(pointClave);
+        }
         current.items.push({
           ...point,
+          report_key: pointClave,
+          report_zone_label: pointClave ? `${zone} | Clave ${pointClave}` : zone,
           suggested_zone: zone,
           suggested_reference: context?.reference || "",
           suggested_display_name: context?.display_name || ""
@@ -1723,6 +1746,8 @@ function App() {
           ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
           : null,
         pointTypesLabel: Array.from(zone.pointTypes).join(", "),
+        clavesLabel: getMapZoneClavesLabel(zone),
+        clavesTotal: zone.claves.size,
         nearbyReferencesLabel: Array.from(zone.nearbyReferences).slice(0, 3).join(" | "),
         primaryLocationLabel: Array.from(zone.locationHints)[0] || ""
       }));
@@ -6966,7 +6991,7 @@ function App() {
                     (point, pointIndex) => `
                       <tr class="${getReportPointRowClassName(point)}">
                         <td>${pointIndex + 1}</td>
-                        <td>${escapeHtml(zone.displayName || point.report_zone_label || zone.zone || "--")}</td>
+                        <td>${escapeHtml(point.report_zone_label || zone.displayName || zone.zone || "--")}</td>
                         <td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td>
                         <td>${escapeHtml(point.suggested_reference || zone.displayReference || "--")}</td>
                         <td>${escapeHtml(point.reference_note || point.description || zone.displayLocation || "--")}</td>
@@ -7120,7 +7145,7 @@ function App() {
           body: zone.items.map((point, pointIndex) => {
             const row = [
               String(pointIndex + 1),
-              zone.displayName || point.report_zone_label || zone.zone || "--",
+              point.report_zone_label || zone.displayName || zone.zone || "--",
               getMapPointTypeLabel(point.point_type),
               point.suggested_reference || zone.displayReference || "--",
               point.reference_note || point.description || zone.displayLocation || "--",
@@ -7196,17 +7221,18 @@ function App() {
         (zone) => `
           <div>
             <strong>${escapeHtml(zone.displayName || zone.zone || "--")}</strong>
-            <span>${zone.total || 0} puntos</span>
+            <span>${escapeHtml(zone.clavesLabel || "Sin clave")} | ${zone.total || 0} puntos</span>
           </div>
         `
       )
       .join("");
     const rowsMarkup = buildMapReportBriefRows(reportData)
       .map(
-        ([index, name, total, types, services, housingUnits]) => `
+        ([index, name, claves, total, types, services, housingUnits]) => `
           <tr>
             <td>${escapeHtml(index)}</td>
             <td>${escapeHtml(name)}</td>
+            <td>${escapeHtml(claves)}</td>
             <td>${escapeHtml(total)}</td>
             <td>${escapeHtml(types)}</td>
             <td>${escapeHtml(services)}</td>
@@ -7264,6 +7290,7 @@ function App() {
                 <tr>
                   <th>#</th>
                   <th>Barrio / zona</th>
+                  <th>Clave(s)</th>
                   <th>Puntos</th>
                   <th>Tipos</th>
                   <th>Servicios</th>
@@ -7271,7 +7298,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                ${rowsMarkup || '<tr><td colspan="6">No hay puntos guardados para generar el resumen.</td></tr>'}
+                ${rowsMarkup || '<tr><td colspan="7">No hay puntos guardados para generar el resumen.</td></tr>'}
               </tbody>
             </table>
           </section>
@@ -7362,9 +7389,10 @@ function App() {
 
       autoTable(document, {
         startY: 70,
-        head: [["Barrio principal", "Puntos"]],
+        head: [["Barrio principal", "Clave(s)", "Puntos"]],
         body: getMapReportTopZones(reportData, 6).map((zone) => [
           zone.displayName || zone.zone || "--",
+          zone.clavesLabel || "--",
           String(zone.total || 0)
         ]),
         theme: "grid",
@@ -7373,8 +7401,9 @@ function App() {
         alternateRowStyles: { fillColor: [248, 251, 255] },
         margin: { left: 110, right: 14 },
         columnStyles: {
-          0: { cellWidth: 66 },
-          1: { cellWidth: 16, halign: "center" }
+          0: { cellWidth: 38 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 14, halign: "center" }
         }
       });
 
@@ -7394,7 +7423,7 @@ function App() {
 
       autoTable(document, {
         startY: currentY + 4,
-        head: [["#", "Barrio / zona", "Puntos", "Tipos", "Servicios", "Viviendas"]],
+        head: [["#", "Barrio / zona", "Clave(s)", "Puntos", "Tipos", "Servicios", "Viviendas"]],
         body: buildMapReportBriefRows(reportData),
         theme: "grid",
         styles: {
@@ -7414,11 +7443,12 @@ function App() {
         margin: { left: 14, right: 14, bottom: 14 },
         columnStyles: {
           0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 42 },
-          2: { cellWidth: 14, halign: "center" },
-          3: { cellWidth: 34 },
-          4: { cellWidth: 46 },
-          5: { cellWidth: 20, halign: "center" }
+          1: { cellWidth: 36 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 13, halign: "center" },
+          4: { cellWidth: 28 },
+          5: { cellWidth: 42 },
+          6: { cellWidth: 18, halign: "center" }
         }
       });
 
