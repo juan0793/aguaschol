@@ -154,10 +154,22 @@ const getMergedCodes = () => {
 
 export const listBarrioCodes = async () => getMergedCodes();
 
-export const getBarrioByClave = async (clave = "") => {
+export const resolveBarrioNameFromClave = (clave = "", fallback = "") => {
   const firstPart = String(clave ?? "").trim().split("-").filter(Boolean)[0] || "";
   const codigo = normalizeCode(firstPart);
-  if (!codigo) return null;
+  if (!codigo) return normalizeBarrio(fallback);
+  const match = getMergedCodes().find((item) => item.activo && item.codigo === codigo);
+  return match?.barrio || normalizeBarrio(fallback);
+};
+
+export const resolveBarrioFromRecord = (record = {}, fallback = "") =>
+  normalizeBarrio(record.barrio_colonia) ||
+  resolveBarrioNameFromClave(record.clave_catastral ?? record.clave_aguas_formato ?? record.clave_alcaldia, fallback);
+
+export const getBarrioByClave = async (clave = "") => {
+  const barrio = resolveBarrioNameFromClave(clave);
+  if (!barrio) return null;
+  const codigo = normalizeCode(String(clave ?? "").trim().split("-").filter(Boolean)[0] || "");
   return getMergedCodes().find((item) => item.activo && item.codigo === codigo) ?? null;
 };
 

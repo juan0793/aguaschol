@@ -83,6 +83,14 @@
   border-left: 4px solid var(--brand-teal);
 }
 
+.barrio-codes-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .barrio-codes-grid {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
@@ -124,6 +132,14 @@
 .table-action-row {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.barrio-code-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
 }
 

@@ -3,6 +3,7 @@ import path from "node:path";
 import XLSX from "xlsx";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
+import { resolveBarrioFromRecord, resolveBarrioNameFromClave } from "./barrioCodeService.js";
 
 const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
 const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
@@ -812,7 +813,7 @@ const buildPadronRequestRows = (keywords = []) => {
           clave_catastral: item.clave_catastral,
           abonado: item.abonado ?? "",
           nombre: item.inquilino ?? "",
-          barrio_colonia: item.barrio_colonia || "Sin barrio",
+          barrio_colonia: resolveBarrioFromRecord(item, "Sin barrio"),
           tarifa: Number(item.valor ?? 0),
           intereses: Number(item.intereses ?? 0),
           total: Number(item.total ?? 0),
@@ -828,7 +829,7 @@ const buildPadronRequestRows = (keywords = []) => {
 
 const buildPadronRequestSummary = (rows = []) => {
   const totalsByBarrio = rows.reduce((accumulator, row) => {
-    const barrio = row.barrio_colonia || "Sin barrio";
+    const barrio = row.barrio_colonia || resolveBarrioNameFromClave(row.clave_catastral, "Sin barrio");
     const current = accumulator.get(barrio) ?? {
       barrio_colonia: barrio,
       total_registros: 0,
@@ -979,7 +980,7 @@ export const getAguasServiceReport = async () => {
   };
 
   masterRecords.forEach((record) => {
-    const barrio = String(record.barrio_colonia || "Sin barrio").trim() || "Sin barrio";
+    const barrio = resolveBarrioFromRecord(record, "Sin barrio");
     const barrioStats = barriosMap.get(barrio) ?? {
       barrio_colonia: barrio,
       total_registros: 0,
@@ -1228,7 +1229,7 @@ export const compareAlcaldiaWithAguas = async () => {
     ["desechos_peligrosos", "Desechos peligrosos"]
   ];
   const barrioStatsMap = comparedRows.reduce((accumulator, item) => {
-    const barrio = item.caserio || item.direccion || "Sin barrio";
+    const barrio = item.caserio || item.direccion || resolveBarrioNameFromClave(item.clave_catastral || item.clave_alcaldia, "Sin barrio");
     const current = accumulator.get(barrio) ?? {
       barrio_colonia: barrio,
       alcaldia_total: 0,

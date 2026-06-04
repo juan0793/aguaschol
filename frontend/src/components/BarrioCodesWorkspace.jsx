@@ -16,9 +16,19 @@ const BarrioCodesWorkspace = ({
   onSubmit,
   onEdit,
   onDelete,
-  onReset
+  onReset,
+  onPrepareAdd
 }) => {
   const [search, setSearch] = useState("");
+  const searchedCode = search.replace(/\D/g, "");
+  const normalizedSearchedCode = searchedCode
+    ? searchedCode.length <= 2
+      ? searchedCode.padStart(2, "0")
+      : searchedCode
+    : "";
+  const searchedCodeExists = normalizedSearchedCode
+    ? barrios.some((item) => item.codigo === normalizedSearchedCode)
+    : false;
   const visibleBarrios = useMemo(() => {
     const query = search.trim().toLowerCase();
     const safeBarrios = Array.isArray(barrios) ? barrios : [];
@@ -39,7 +49,13 @@ const BarrioCodesWorkspace = ({
               El primer bloque de la clave catastral se usa para completar el barrio en fichas, avisos y reportes.
             </p>
           </div>
-          <span className="panel-pill">{barrios.length} codigos</span>
+          <div className="barrio-codes-actions">
+            <span className="panel-pill">{barrios.length} codigos</span>
+            <button type="button" onClick={() => onPrepareAdd("")}>
+              <Icon name="plus" />
+              Agregar codigo
+            </button>
+          </div>
         </div>
       </div>
 
@@ -50,8 +66,8 @@ const BarrioCodesWorkspace = ({
               <p className="sheet-kicker">Gestion</p>
               <h3>{form.codigo ? `Codigo ${form.codigo}` : "Agregar codigo"}</h3>
             </div>
-            <button type="button" className="button-secondary" onClick={onReset}>
-              Nuevo
+            <button type="button" className="button-secondary" onClick={() => onPrepareAdd("")}>
+              Agregar
             </button>
           </div>
           <label>
@@ -138,7 +154,16 @@ const BarrioCodesWorkspace = ({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4">No hay codigos con ese filtro.</td>
+                    <td colSpan="4">
+                      <div className="barrio-code-empty">
+                        <span>No hay codigos con ese filtro.</span>
+                        {normalizedSearchedCode && !searchedCodeExists ? (
+                          <button type="button" onClick={() => onPrepareAdd(normalizedSearchedCode)}>
+                            Agregar codigo {normalizedSearchedCode}
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 )}
               </tbody>

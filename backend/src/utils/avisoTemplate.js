@@ -1,3 +1,5 @@
+import { resolveBarrioFromRecord } from "../services/barrioCodeService.js";
+
 const formatSpanishDate = (value) => {
   let date;
 
@@ -25,7 +27,7 @@ const formatSpanishDate = (value) => {
 
 export const buildAvisoHtml = (inmueble) => {
   const fecha = formatSpanishDate(inmueble.fecha_aviso);
-  const ubicacion = inmueble.barrio_colonia || "__________";
+  const ubicacion = resolveBarrioFromRecord(inmueble, "__________");
   const clave = inmueble.clave_catastral || "__________";
   const firmante = inmueble.firmante_aviso || "Jefatura de Comercializacion";
   const cargo = inmueble.cargo_firmante || "Aguas de Choluteca";

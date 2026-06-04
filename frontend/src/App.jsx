@@ -3963,6 +3963,13 @@ function App() {
     setBarrioCodeForm(emptyBarrioForm);
   };
 
+  const handlePrepareAddBarrioCode = (codigo = "") => {
+    setBarrioCodeForm({
+      ...emptyBarrioForm,
+      codigo: normalizeBarrioCode(codigo)
+    });
+  };
+
   const handleEditBarrioCode = (item) => {
     setBarrioCodeForm({
       codigo: item.codigo || "",
@@ -9090,7 +9097,7 @@ function App() {
         targetRecord.nombre_catastral,
         targetRecord.inquilino,
         targetRecord.identidad,
-        targetRecord.barrio_colonia
+        getRecordBarrioName(targetRecord, "")
       ]
         .map((value) => String(value ?? "").trim())
         .filter((value) => value.length >= 3 && value !== "--");
@@ -9124,9 +9131,9 @@ function App() {
       : "No registrada en Aguas";
     const fichaClaveAlcaldia = targetRecord.clave_alcaldia || alcaldiaFichaMatch?.clave_catastral || (!hasAguasPadronMatch ? recordClaveCatastral : "--");
     const fichaNombre = targetRecord.nombre_alcaldia || alcaldiaFichaMatch?.nombre || targetRecord.nombre_catastral || targetRecord.inquilino || "--";
-    const fichaBarrio = targetRecord.barrio_colonia || targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
+    const fichaBarrio = getRecordBarrioName(targetRecord, "") || targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
     const alcaldiaBarrio = targetRecord.barrio_alcaldia || alcaldiaFichaMatch?.caserio || alcaldiaFichaMatch?.direccion || "--";
-    const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_alcaldia || targetRecord.barrio_colonia || "--";
+    const fichaDireccion = alcaldiaFichaMatch?.direccion || targetRecord.barrio_alcaldia || getRecordBarrioName(targetRecord, "") || "--";
     const estadoPadronLabel = targetRecord.estado_padron === "reportada"
       ? "Reportada"
       : targetRecord.estado_padron === "varios_padrones" || alcaldiaFichaMatch?.exists_in_aguas
@@ -9266,7 +9273,7 @@ function App() {
   const buildAvisoPrintMarkup = (record = form) => {
     const targetRecord = { ...emptyForm, ...normalizeRecord(record) };
     const fecha = targetRecord.fecha_aviso ? formatSpanishDate(targetRecord.fecha_aviso) : "__________";
-    const barrio = targetRecord.barrio_colonia || "__________";
+    const barrio = getRecordBarrioName(targetRecord, "__________");
     const clave = targetRecord.clave_catastral || "__________";
     const firmante = targetRecord.firmante_aviso || "Jefatura de Comercializacion";
     const cargo = targetRecord.cargo_firmante || "Aguas de Choluteca";
@@ -13854,7 +13861,7 @@ function App() {
                   <div><strong>Abonado</strong><span>{form.abonado || "--"}</span></div>
                   <div><strong>Catastral</strong><span>{form.nombre_catastral || "--"}</span></div>
                   <div><strong>Inquilino</strong><span>{form.inquilino || "--"}</span></div>
-                  <div><strong>Barrio/Colonia</strong><span>{form.barrio_colonia || "--"}</span></div>
+                  <div><strong>Barrio/Colonia</strong><span>{getRecordBarrioName(form, "--")}</span></div>
                   <div><strong>Identidad</strong><span>{form.identidad || "--"}</span></div>
                   <div><strong>Telefono</strong><span>{form.telefono || "--"}</span></div>
                 </div>
@@ -16988,6 +16995,7 @@ function App() {
                 onEdit={handleEditBarrioCode}
                 onDelete={handleDeleteBarrioCode}
                 onReset={handleResetBarrioCodeForm}
+                onPrepareAdd={handlePrepareAddBarrioCode}
               />
             ) : workspaceView === "users" ? (
               <UsersContent
