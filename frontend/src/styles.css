@@ -327,7 +327,7 @@
 }
 
 .map-brief-col-barrio {
-  width: 24%;
+  width: 23%;
 }
 
 .map-brief-col-clave {
@@ -339,11 +339,11 @@
 }
 
 .map-brief-col-tipos {
-  width: 24%;
+  width: 22%;
 }
 
 .map-brief-col-servicios {
-  width: 8%;
+  width: 12%;
 }
 
 .map-brief-col-viviendas {
@@ -360,10 +360,17 @@
 }
 
 .map-brief-report-table td:nth-child(6) {
-  font-size: 1rem;
+  font-size: 0.82rem;
   font-weight: 900;
   color: #0d4d86;
-  line-height: 1;
+  line-height: 1.15;
+}
+
+.map-brief-service-legend {
+  margin: 0.12rem 0 0;
+  color: #45607a;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .barrio-code-small-button.is-secondary {

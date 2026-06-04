@@ -443,7 +443,25 @@ const getMapReportTopZones = (reportData = {}, limit = 8) =>
     .sort((left, right) => (right.total || 0) - (left.total || 0))
     .slice(0, limit);
 const getMapZoneClavesLabel = (zone = {}) => Array.from(zone.claves || []).join(", ");
-const getMapReportServicesCheck = (value = "") => (value && value !== "--" ? "✓" : "");
+const MAP_REPORT_SERVICE_CODES = [
+  { label: "Agua", code: "A" },
+  { label: "Alcant.", code: "AL" },
+  { label: "Barrido", code: "B" },
+  { label: "Recolec.", code: "R" },
+  { label: "Desechos", code: "D" }
+];
+const MAP_REPORT_SERVICE_LEGEND = "A=Agua, AL=Alcant., B=Barrido, R=Recolec., D=Desechos";
+const getMapReportServicesCheck = (value = "") => {
+  const activeServices = String(value || "")
+    .split(",")
+    .map((service) => service.trim())
+    .filter(Boolean);
+
+  return MAP_REPORT_SERVICE_CODES
+    .filter((service) => activeServices.includes(service.label))
+    .map((service) => `${service.code}✓`)
+    .join(" ");
+};
 const buildMapReportBriefRows = (reportData = {}) => {
   const rows = [];
   (reportData.zones || []).forEach((zone) => {
@@ -7286,6 +7304,7 @@ function App() {
               <div>
                 <span class="field-report-zone-kicker">Listado resumido</span>
                 <h3>Listado por barrio y clave</h3>
+                <p class="map-brief-service-legend">${escapeHtml(MAP_REPORT_SERVICE_LEGEND)}</p>
               </div>
               <div class="field-report-zone-meta">
                 <span>${reportData.totalZones} barrios</span>
@@ -7308,7 +7327,7 @@ function App() {
                   <th>Clave(s)</th>
                   <th>Pts.</th>
                   <th>Tipos</th>
-                  <th>Servicios</th>
+                  <th>Servicios<br />A/AL/B/R/D</th>
                   <th>Viviendas</th>
                 </tr>
               </thead>
@@ -7434,9 +7453,14 @@ function App() {
         currentY += Math.min(24, noteLines.length * 4 + 10);
       }
 
+      document.setFont("helvetica", "normal");
+      document.setFontSize(7.8);
+      document.setTextColor(69, 96, 122);
+      document.text(`Servicios: ${MAP_REPORT_SERVICE_LEGEND}`, 14, currentY + 2);
+
       autoTable(document, {
-        startY: currentY + 4,
-        head: [["#", "Barrio / zona", "Clave(s)", "Pts.", "Tipos", "Servicios", "Viviendas"]],
+        startY: currentY + 6,
+        head: [["#", "Barrio / zona", "Clave(s)", "Pts.", "Tipos", "Servicios A/AL/B/R/D", "Viviendas"]],
         body: buildMapReportBriefRows(reportData),
         theme: "grid",
         styles: {
@@ -7456,11 +7480,11 @@ function App() {
         margin: { left: 14, right: 14, bottom: 14 },
         columnStyles: {
           0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 42 },
+          1: { cellWidth: 39 },
           2: { cellWidth: 30 },
           3: { cellWidth: 9, halign: "center" },
-          4: { cellWidth: 36 },
-          5: { cellWidth: 12, halign: "center", fontStyle: "bold" },
+          4: { cellWidth: 34 },
+          5: { cellWidth: 20, halign: "center", fontStyle: "bold" },
           6: { cellWidth: 18, halign: "center" }
         }
       });
