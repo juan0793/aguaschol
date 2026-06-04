@@ -82,6 +82,7 @@ import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
 import { pause, printDocument } from "./utils/printDocument";
 import {
+  extractClaveFromText,
   getBarrioNameFromClave,
   normalizeBarrioCode,
   resolveBarrioFromPayload,
@@ -408,6 +409,24 @@ const buildMapReportStaffMarkup = (staff) => {
 const getMapReportTechniciansLabel = (staff) => {
   const names = getMapReportTechnicians(staff).filter(Boolean);
   return names.length ? names.join(" / ") : "--";
+};
+const getMapReportBarrioZone = (point = {}, context = null, barrios = []) => {
+  const rawZone = String(context?.zone || deriveMapPointZone(point) || "").trim();
+  const source = [
+    rawZone,
+    point.reference_note,
+    point.reference,
+    point.description
+  ].filter(Boolean).join(" ");
+  const clave = extractClaveFromText(source);
+  const barrio = getBarrioNameFromClave(clave, barrios);
+
+  if (!barrio) {
+    return rawZone || "Zona no especificada";
+  }
+
+  const prefix = String(clave || "").split("-").filter(Boolean)[0] || "";
+  return `${prefix} - ${barrio}`;
 };
 const getMapReportTopZones = (reportData = {}, limit = 8) =>
   [...(reportData.zones || [])]
@@ -1347,7 +1366,11 @@ function App() {
     }
 
     if (workspaceView === "mapReports") {
-      const zones = new Set(visibleMapPoints.map((point) => deriveMapPointZone(point)));
+      const zones = new Set(
+        visibleMapPoints.map((point) =>
+          getMapReportBarrioZone(point, mapPointContexts[getMapPointContextKey(point)] ?? null, safeBarrioCodes)
+        )
+      );
       return [
         {
           icon: "map",
@@ -1471,6 +1494,7 @@ function App() {
     lookupResult,
     mapDiaryGroups.length,
     mapStatus,
+    mapPointContexts,
     onlineUsers.length,
     padronMeta,
     loadingMapPoints,
@@ -1646,8 +1670,8 @@ function App() {
       const points = [...visibleMapPoints].sort((left, right) => {
         const leftContext = mapPointContexts[getMapPointContextKey(left)] ?? null;
         const rightContext = mapPointContexts[getMapPointContextKey(right)] ?? null;
-        const leftZone = String(leftContext?.zone || deriveMapPointZone(left) || "Zona no especificada");
-        const rightZone = String(rightContext?.zone || deriveMapPointZone(right) || "Zona no especificada");
+        const leftZone = getMapReportBarrioZone(left, leftContext, safeBarrioCodes);
+        const rightZone = getMapReportBarrioZone(right, rightContext, safeBarrioCodes);
         const zoneDiff = leftZone.localeCompare(rightZone, "es");
         if (zoneDiff !== 0) return zoneDiff;
         return new Date(right.created_at) - new Date(left.created_at);
@@ -1662,7 +1686,7 @@ function App() {
 
       points.forEach((point) => {
         const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-        const zone = String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+        const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
         const current = zoneMap.get(zone) ?? {
           zone,
           total: 0,
@@ -1676,7 +1700,7 @@ function App() {
         current.total += 1;
         current.items.push({
           ...point,
-          suggested_zone: context?.zone || "",
+          suggested_zone: zone,
           suggested_reference: context?.reference || "",
           suggested_display_name: context?.display_name || ""
         });
@@ -1718,7 +1742,7 @@ function App() {
         zones: []
       };
     }
-  }, [mapPointContexts, visibleMapPoints]);
+  }, [mapPointContexts, safeBarrioCodes, visibleMapPoints]);
   const mapReportPrintData = useMemo(() => {
     const manualBarrio = mapReportSettings.manual_barrio.trim();
     const applyZoneOverrides = (data) => ({
@@ -2518,7 +2542,7 @@ function App() {
       pushFeedItem({
         key: `point-${point.id}`,
         title: "GPS registrado",
-        detail: `Se agrego ${getMapPointTypeLabel(point.point_type).toLowerCase()} en ${deriveMapPointZone(point) || "zona pendiente"}`,
+        detail: `Se agrego ${getMapPointTypeLabel(point.point_type).toLowerCase()} en ${getMapReportBarrioZone(point, mapPointContexts[getMapPointContextKey(point)] ?? null, safeBarrioCodes) || "zona pendiente"}`,
         user: point.created_by_name || point.created_by || "Equipo de campo",
         icon: "map",
         tone: "is-map",
@@ -2555,7 +2579,7 @@ function App() {
       .filter((item) => Number.isFinite(item.timestamp))
       .sort((left, right) => right.timestamp - left.timestamp)
       .slice(0, 8);
-  }, [alertRecords, recordDeadlineMetaById, safeAuditLogs, safeMapPoints, safeRecords]);
+  }, [alertRecords, mapPointContexts, recordDeadlineMetaById, safeAuditLogs, safeBarrioCodes, safeMapPoints, safeRecords]);
   const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
   const dashboardFocusCards = useMemo(
     () => [
@@ -2922,13 +2946,13 @@ function App() {
     }, {});
     const mapZoneTotals = safeMapPoints.reduce((acc, point) => {
       const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-      const zone = String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+      const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
       acc[zone] = (acc[zone] ?? 0) + 1;
       return acc;
     }, {});
     const gpsZoneDetails = safeMapPoints.reduce((acc, point) => {
       const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-      const zone = String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+      const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
       const typeLabel = getMapPointTypeLabel(point.point_type);
       if (!acc[zone]) {
         acc[zone] = {
@@ -3008,7 +3032,7 @@ function App() {
       const dayZones = new Set(
         dayPoints.map((point) => {
           const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-          return String(context?.zone || deriveMapPointZone(point) || "Zona no especificada");
+          return getMapReportBarrioZone(point, context, safeBarrioCodes);
         })
       );
 
@@ -3133,6 +3157,7 @@ function App() {
     padronRequestResult?.summary?.total_registros,
     recordDeadlineMetaById,
     safeAuditLogs,
+    safeBarrioCodes,
     safeMapPoints,
     safeRecords,
     dashboardTechnicianSummary,
