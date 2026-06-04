@@ -318,6 +318,54 @@
   border-color: rgba(155, 32, 45, 0.2);
 }
 
+.map-brief-report-table {
+  table-layout: fixed;
+}
+
+.map-brief-col-index {
+  width: 5%;
+}
+
+.map-brief-col-barrio {
+  width: 24%;
+}
+
+.map-brief-col-clave {
+  width: 18%;
+}
+
+.map-brief-col-puntos {
+  width: 6%;
+}
+
+.map-brief-col-tipos {
+  width: 24%;
+}
+
+.map-brief-col-servicios {
+  width: 8%;
+}
+
+.map-brief-col-viviendas {
+  width: 8%;
+}
+
+.map-brief-report-table th:nth-child(4),
+.map-brief-report-table td:nth-child(4),
+.map-brief-report-table th:nth-child(6),
+.map-brief-report-table td:nth-child(6),
+.map-brief-report-table th:nth-child(7),
+.map-brief-report-table td:nth-child(7) {
+  text-align: center;
+}
+
+.map-brief-report-table td:nth-child(6) {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #0d4d86;
+  line-height: 1;
+}
+
 .barrio-code-small-button.is-secondary {
   background: #fff;
   color: var(--brand-blue-deep);

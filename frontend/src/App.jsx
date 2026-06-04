@@ -443,18 +443,20 @@ const getMapReportTopZones = (reportData = {}, limit = 8) =>
     .sort((left, right) => (right.total || 0) - (left.total || 0))
     .slice(0, limit);
 const getMapZoneClavesLabel = (zone = {}) => Array.from(zone.claves || []).join(", ");
+const getMapReportServicesCheck = (value = "") => (value && value !== "--" ? "✓" : "");
 const buildMapReportBriefRows = (reportData = {}) => {
   const rows = [];
   (reportData.zones || []).forEach((zone) => {
     const items = zone.items?.length ? zone.items : [null];
     items.forEach((point) => {
+      const servicesLabel = point ? getMapPointServicesLabel(point) : getMapZoneServicesLabel(zone);
       rows.push([
         String(rows.length + 1),
         zone.displayName || zone.zone || "--",
         point?.report_key || "--",
         "1",
         point ? getMapPointTypeLabel(point.point_type) : zone.pointTypesLabel || "--",
-        point ? getMapPointServicesLabel(point) : getMapZoneServicesLabel(zone),
+        getMapReportServicesCheck(servicesLabel),
         String(point ? getMapPointHousingUnits(point) : getMapZoneHousingUnits(zone))
       ]);
     });
@@ -7290,12 +7292,21 @@ function App() {
               </div>
             </div>
             <table class="field-report-table map-brief-report-table">
+              <colgroup>
+                <col class="map-brief-col-index" />
+                <col class="map-brief-col-barrio" />
+                <col class="map-brief-col-clave" />
+                <col class="map-brief-col-puntos" />
+                <col class="map-brief-col-tipos" />
+                <col class="map-brief-col-servicios" />
+                <col class="map-brief-col-viviendas" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Barrio / zona</th>
                   <th>Clave(s)</th>
-                  <th>Puntos</th>
+                  <th>Pts.</th>
                   <th>Tipos</th>
                   <th>Servicios</th>
                   <th>Viviendas</th>
@@ -7425,7 +7436,7 @@ function App() {
 
       autoTable(document, {
         startY: currentY + 4,
-        head: [["#", "Barrio / zona", "Clave(s)", "Puntos", "Tipos", "Servicios", "Viviendas"]],
+        head: [["#", "Barrio / zona", "Clave(s)", "Pts.", "Tipos", "Servicios", "Viviendas"]],
         body: buildMapReportBriefRows(reportData),
         theme: "grid",
         styles: {
@@ -7445,11 +7456,11 @@ function App() {
         margin: { left: 14, right: 14, bottom: 14 },
         columnStyles: {
           0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 36 },
+          1: { cellWidth: 42 },
           2: { cellWidth: 30 },
-          3: { cellWidth: 13, halign: "center" },
-          4: { cellWidth: 28 },
-          5: { cellWidth: 42 },
+          3: { cellWidth: 9, halign: "center" },
+          4: { cellWidth: 36 },
+          5: { cellWidth: 12, halign: "center", fontStyle: "bold" },
           6: { cellWidth: 18, halign: "center" }
         }
       });
