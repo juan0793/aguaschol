@@ -18235,6 +18235,15 @@ button,
   padding: 1rem;
 }
 
+.page-shell.map-reports-mode .app-chrome {
+  position: static;
+  z-index: auto;
+}
+
+.page-shell.map-reports-mode .app-chrome > .search-card {
+  box-shadow: 0 8px 18px rgba(11, 63, 115, 0.06);
+}
+
 @media (max-width: 1180px) {
   .page-shell {
     padding-left: 15rem;
