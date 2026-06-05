@@ -19206,3 +19206,54 @@ button,
     grid-column: span 2;
   }
 }
+
+/* Final shell spacing pass: keep the executive menu compact and avoid heavy gutters. */
+@media (min-width: 769px) {
+  .app-sidebar {
+    width: 15.5rem;
+    padding: 0.72rem;
+  }
+
+  .page-shell {
+    padding: 0.75rem 0.9rem 1.5rem 16.35rem;
+  }
+
+  .app-sidebar-profile {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 0.58rem;
+    margin-bottom: 0.78rem;
+    padding: 0.62rem;
+    border-radius: 12px;
+  }
+
+  .app-sidebar-profile img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .app-sidebar-item {
+    min-height: 46px;
+    padding: 0.48rem 0.56rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-shell {
+    padding: 0.58rem 0.58rem 1.2rem;
+  }
+
+  .app-sidebar {
+    width: min(78vw, 18rem);
+    padding: 0.7rem;
+  }
+
+  .app-sidebar-profile {
+    grid-template-columns: 34px minmax(0, 1fr);
+    padding: 0.58rem;
+  }
+
+  .app-sidebar-profile img {
+    width: 34px;
+    height: 34px;
+  }
+}
