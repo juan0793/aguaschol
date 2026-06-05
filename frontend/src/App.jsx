@@ -19,6 +19,8 @@ import {
   NOTIFICATION_REQUEST_STORAGE_KEY
 } from "./constants/storageKeys";
 import {
+  ALERT_MAP_POINT_COLOR,
+  ALERT_MAP_POINT_TYPE,
   COMMERCIAL_MAP_POINT_COLOR,
   COMMERCIAL_MAP_POINT_TYPE,
   defaultMapReportStaff,
@@ -129,6 +131,9 @@ const MAP_DIARY_PRIMARY_LIMIT = 4;
 const REPORT_POINT_DANGER_RGB = [220, 38, 38];
 const REPORT_POINT_DANGER_FILL_RGB = [254, 242, 242];
 const REPORT_POINT_DANGER_BORDER_RGB = [248, 113, 113];
+const REPORT_POINT_ALERT_RGB = [146, 64, 14];
+const REPORT_POINT_ALERT_FILL_RGB = [255, 251, 235];
+const REPORT_POINT_ALERT_BORDER_RGB = [245, 158, 11];
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: true,
   timeout: 18000,
@@ -145,6 +150,14 @@ const IOS_GPS_HELP =
 const isRedReportPoint = (point = {}) =>
   point.point_type === COMMERCIAL_MAP_POINT_TYPE ||
   String(point.marker_color || "").trim().toLowerCase() === COMMERCIAL_MAP_POINT_COLOR;
+const isAlertReportPoint = (point = {}) =>
+  point.point_type === ALERT_MAP_POINT_TYPE ||
+  String(point.marker_color || "").trim().toLowerCase() === ALERT_MAP_POINT_COLOR;
+const getDefaultMapPointColor = (pointType = "", fallback = "#1576d1") => {
+  if (pointType === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
+  if (pointType === ALERT_MAP_POINT_TYPE) return ALERT_MAP_POINT_COLOR;
+  return fallback;
+};
 
 const getCurrentPosition = (options) =>
   new Promise((resolve, reject) => {
@@ -181,7 +194,11 @@ const getGeolocationErrorMessage = (error) => {
 };
 
 const getReportPointRowClassName = (point = {}, baseClassName = "") =>
-  [baseClassName, isRedReportPoint(point) ? "is-red-report-point" : ""].filter(Boolean).join(" ");
+  [
+    baseClassName,
+    isRedReportPoint(point) ? "is-red-report-point" : "",
+    isAlertReportPoint(point) ? "is-alert-report-point" : ""
+  ].filter(Boolean).join(" ");
 
 const readJsonResponse = async (response, fallbackMessage = "La API no devolvio una respuesta JSON valida.") => {
   const text = await response.text();
@@ -5968,10 +5985,7 @@ function App() {
     try {
       const isEditing = Boolean(editingMapPointId);
       const editingPoint = safeMapPoints.find((point) => point.id === editingMapPointId) ?? null;
-      const markerColor =
-        mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE
-          ? COMMERCIAL_MAP_POINT_COLOR
-          : editingPoint?.marker_color || "#1576d1";
+      const markerColor = getDefaultMapPointColor(mapDraft.point_type, editingPoint?.marker_color || "#1576d1");
       const enrichedMapDraft = withReferenceBarrioPrefix(mapDraft, safeBarrioCodes);
       const response = await apiFetch(isEditing ? `/map-points/${editingMapPointId}` : "/map-points", {
         method: isEditing ? "PUT" : "POST",
@@ -6102,8 +6116,8 @@ function App() {
         {
           ...current,
           [name]: type === "checkbox" ? checked : name === "housing_units" ? normalizeHousingUnitsInput(value) : value,
-          ...(name === "point_type" && value === COMMERCIAL_MAP_POINT_TYPE
-            ? { marker_color: COMMERCIAL_MAP_POINT_COLOR }
+          ...(name === "point_type" && [COMMERCIAL_MAP_POINT_TYPE, ALERT_MAP_POINT_TYPE].includes(value)
+            ? { marker_color: getDefaultMapPointColor(value) }
             : {})
         },
         safeBarrioCodes
@@ -6999,10 +7013,19 @@ function App() {
             fillColor: [248, 251, 255]
           },
           didParseCell: (data) => {
-            if (data.section !== "body" || !isRedReportPoint(data.row.raw?.rawPoint)) return;
-            data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
-            data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
-            data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
+            if (data.section !== "body") return;
+            const rawPoint = data.row.raw?.rawPoint;
+            if (isAlertReportPoint(rawPoint)) {
+              data.cell.styles.textColor = REPORT_POINT_ALERT_RGB;
+              data.cell.styles.fillColor = REPORT_POINT_ALERT_FILL_RGB;
+              data.cell.styles.lineColor = REPORT_POINT_ALERT_BORDER_RGB;
+            } else if (isRedReportPoint(rawPoint)) {
+              data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
+              data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
+              data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
+            } else {
+              return;
+            }
             if (data.column.index === 1 || data.column.index === 2) {
               data.cell.styles.fontStyle = "bold";
             }
@@ -7256,10 +7279,19 @@ function App() {
             fillColor: [248, 251, 255]
           },
           didParseCell: (data) => {
-            if (data.section !== "body" || !isRedReportPoint(data.row.raw?.rawPoint)) return;
-            data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
-            data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
-            data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
+            if (data.section !== "body") return;
+            const rawPoint = data.row.raw?.rawPoint;
+            if (isAlertReportPoint(rawPoint)) {
+              data.cell.styles.textColor = REPORT_POINT_ALERT_RGB;
+              data.cell.styles.fillColor = REPORT_POINT_ALERT_FILL_RGB;
+              data.cell.styles.lineColor = REPORT_POINT_ALERT_BORDER_RGB;
+            } else if (isRedReportPoint(rawPoint)) {
+              data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
+              data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
+              data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
+            } else {
+              return;
+            }
             if (data.column.index === 1 || data.column.index === 2) {
               data.cell.styles.fontStyle = "bold";
             }
@@ -15281,6 +15313,8 @@ function App() {
                     </select>
                     {mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE ? (
                       <small className="helper-text">Este punto se guardara y mostrara en rojo.</small>
+                    ) : mapDraft.point_type === ALERT_MAP_POINT_TYPE ? (
+                      <small className="helper-text">Este punto se guardara como alerta y se destacara en amarillo en el reporte.</small>
                     ) : null}
                   </label>
                 </div>
@@ -15989,6 +16023,9 @@ function App() {
                                 </option>
                               ))}
                             </select>
+                            {reportMapDraft.point_type === ALERT_MAP_POINT_TYPE ? (
+                              <small className="helper-text">Usa la descripcion para anotar el problema encontrado.</small>
+                            ) : null}
                           </label>
                         </div>
                         <div className="map-report-color-grid">

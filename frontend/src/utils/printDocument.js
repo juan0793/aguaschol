@@ -643,6 +643,12 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             color: #b91c1c;
             font-weight: 700;
           }
+          .field-report-table tr.is-alert-report-point td {
+            background: #fffbeb;
+            border-color: #f59e0b;
+            color: #92400e;
+            font-weight: 700;
+          }
           .field-debt-print-shell {
             gap: 6px;
           }

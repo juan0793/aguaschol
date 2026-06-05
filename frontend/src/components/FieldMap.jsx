@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  ALERT_MAP_POINT_COLOR,
+  ALERT_MAP_POINT_TYPE,
+  COMMERCIAL_MAP_POINT_COLOR,
+  COMMERCIAL_MAP_POINT_TYPE
+} from "../constants/formsAndUi";
 
 const DEFAULT_CENTER = [13.3017, -87.1889];
 const DEFAULT_ZOOM = 14;
@@ -8,12 +14,13 @@ const MAX_NATIVE_ZOOM = 19;
 const MAX_INTERACTION_ZOOM = 21;
 const TILE_CACHE_BUSTER = "osm-20260407";
 const MOBILE_MEDIA_QUERY = "(max-width: 768px), (pointer: coarse)";
-const COMMERCIAL_MAP_POINT_TYPE = "negocio_local_comercial";
-const COMMERCIAL_MAP_POINT_COLOR = "#ef4444";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
-const getDraftMarkerColor = (draft = {}) =>
-  draft.point_type === COMMERCIAL_MAP_POINT_TYPE ? COMMERCIAL_MAP_POINT_COLOR : "#f8b043";
+const getDraftMarkerColor = (draft = {}) => {
+  if (draft.point_type === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
+  if (draft.point_type === ALERT_MAP_POINT_TYPE) return ALERT_MAP_POINT_COLOR;
+  return draft.marker_color || "#f8b043";
+};
 
 function FieldMap({
   apiUrl,

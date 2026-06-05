@@ -11056,12 +11056,30 @@ textarea {
   background: #fee2e2;
 }
 
+.map-report-table tbody tr.is-alert-report-point {
+  background: #fffbeb;
+}
+
+.map-report-table tbody tr.is-alert-report-point td {
+  border-bottom-color: rgba(245, 158, 11, 0.24);
+  color: #92400e;
+  font-weight: 700;
+}
+
+.map-report-table tbody tr.is-alert-report-point:hover {
+  background: #fef3c7;
+}
+
 .map-report-table tbody tr.is-selected {
   background: rgba(212, 235, 255, 0.78);
 }
 
 .map-report-table tbody tr.is-selected.is-red-report-point {
   background: #fecaca;
+}
+
+.map-report-table tbody tr.is-selected.is-alert-report-point {
+  background: #fde68a;
 }
 
 .request-sheet {

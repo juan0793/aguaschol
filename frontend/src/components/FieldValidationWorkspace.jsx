@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import FieldMap from "./FieldMap";
 import { Icon } from "./Icon";
-import { MAP_POINT_TYPES } from "../constants/formsAndUi";
+import {
+  ALERT_MAP_POINT_COLOR,
+  ALERT_MAP_POINT_TYPE,
+  COMMERCIAL_MAP_POINT_COLOR,
+  COMMERCIAL_MAP_POINT_TYPE,
+  MAP_POINT_TYPES
+} from "../constants/formsAndUi";
 import { formatDateTime } from "../utils/datesAndBusiness";
 import { buildExternalMapUrl, formatCoordinate, getMapPointTypeLabel } from "../utils/mapField";
 import { escapeHtml } from "../utils/html";
@@ -31,6 +37,11 @@ const validationProcessSteps = [
   { key: "validating", label: "Validando", helper: "En revision", className: "is-validating" },
   { key: "validated", label: "Validadas", helper: "Aprobadas", className: "is-validated" }
 ];
+const getValidationPointColor = (pointType = "", fallback = "#1576d1") => {
+  if (pointType === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
+  if (pointType === ALERT_MAP_POINT_TYPE) return ALERT_MAP_POINT_COLOR;
+  return fallback;
+};
 
 const normalizeSearchText = (value = "") =>
   String(value)
@@ -223,7 +234,10 @@ const FieldValidationWorkspace = ({
     const { name, value, type, checked } = event.target;
     setDraft((current) => ({
       ...current,
-      [name]: type === "checkbox" ? checked : value
+      [name]: type === "checkbox" ? checked : value,
+      ...(name === "point_type" && [COMMERCIAL_MAP_POINT_TYPE, ALERT_MAP_POINT_TYPE].includes(value)
+        ? { marker_color: getValidationPointColor(value, current.marker_color) }
+        : {})
     }));
   };
 
