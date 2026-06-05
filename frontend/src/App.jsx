@@ -6428,6 +6428,110 @@ function App() {
     );
   };
 
+  const buildFieldDebtChartPrintMarkup = () => {
+    const topRows = fieldDebtChartData.topRows.length ? fieldDebtChartData.topRows : fieldDebtChartData.debtRows.slice(0, 8);
+    const maxDebt = fieldDebtChartData.maxDebt || Math.max(1, ...topRows.map((row) => Number(row.total || 0)));
+    const barsMarkup = topRows
+      .map((row) => {
+        const percent = Math.max(3, Math.min(100, (Number(row.total || 0) / maxDebt) * 100));
+        return `
+          <article class="field-debt-chart-bar">
+            <div>
+              <strong>${escapeHtml(row.key)}</strong>
+              <span>${escapeHtml(row.nombre || "--")} - ${escapeHtml(row.barrio || "--")}</span>
+            </div>
+            <b>${escapeHtml(formatCurrency(row.total))}</b>
+            <i><span style="width: ${percent}%"></span></i>
+          </article>
+        `;
+      })
+      .join("");
+    const detailRowsMarkup = fieldDebtChartData.debtRows
+      .slice(0, 12)
+      .map(
+        (row) => `
+          <tr>
+            <td>${escapeHtml(row.key)}</td>
+            <td>${escapeHtml(row.abonado)}</td>
+            <td>${escapeHtml(row.nombre)}</td>
+            <td>${escapeHtml(row.barrio)}</td>
+            <td>${escapeHtml(formatCurrency(row.valor))}</td>
+            <td>${escapeHtml(formatCurrency(row.intereses))}</td>
+            <td class="is-total">${escapeHtml(formatCurrency(row.total))}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    return `
+      <div class="field-report-shell field-debt-print-shell field-debt-chart-print-shell">
+        <header class="field-report-header">
+          <div class="field-report-brand">
+            <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+            <div>
+              <p class="field-report-kicker">Analitica de mora</p>
+              <h1>Mora por clave del reporte</h1>
+              <p>Jornada ${escapeHtml(formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey))}</p>
+            </div>
+          </div>
+          <div class="field-report-meta">
+            <span>Generado: ${formatDateTime(fieldDebtReport?.generatedAt || new Date().toISOString())}</span>
+            <span>Claves verificadas: ${fieldDebtSummary.totalKeys}</span>
+            <span>Sin coincidencia: ${fieldDebtChartData.missingRows.length}</span>
+            <span class="field-debt-meta-money">Mora total: ${formatCurrency(fieldDebtChartData.totalDebt)}</span>
+          </div>
+        </header>
+        <section class="field-debt-chart-kpis">
+          <div><span>Claves verificadas</span><strong>${fieldDebtSummary.totalKeys}</strong></div>
+          <div><span>Mora total</span><strong>${formatCurrency(fieldDebtChartData.totalDebt)}</strong></div>
+          <div><span>Con mora critica</span><strong>${fieldDebtChartData.criticalRows.length}</strong></div>
+          <div><span>Sin coincidencia</span><strong>${fieldDebtChartData.missingRows.length}</strong></div>
+        </section>
+        <section class="field-debt-chart-print-grid">
+          <div class="field-debt-chart-card">
+            <h2>Grafico por clave</h2>
+            <div class="field-debt-chart-bars">${barsMarkup || '<p>No hay mora para graficar.</p>'}</div>
+          </div>
+          <div class="field-debt-chart-card">
+            <h2>Detalle ejecutivo</h2>
+            <table class="field-report-table field-debt-chart-table">
+              <thead>
+                <tr>
+                  <th>Clave</th>
+                  <th>Abonado</th>
+                  <th>Nombre</th>
+                  <th>Barrio</th>
+                  <th>Valor</th>
+                  <th>Intereses</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>${detailRowsMarkup || '<tr><td colspan="7">No hay cuentas encontradas.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    `;
+  };
+
+  const handlePrintFieldDebtChart = async () => {
+    if (!fieldDebtReport) {
+      showAlert("Primero genera el grafico de mora.");
+      return;
+    }
+
+    await printDocument(
+      "Grafico de mora por clave",
+      buildFieldDebtChartPrintMarkup(),
+      {
+        pageSize: "Letter landscape",
+        pageMargin: "8mm",
+        bodyClassName: "field-report-body field-debt-chart-print-body",
+        showPageFooter: true
+      }
+    );
+  };
+
   const handleDownloadFieldDebtPdf = async () => {
     if (!fieldDebtReport) {
       showAlert("Primero ejecuta la verificación de deuda.");
@@ -15676,13 +15780,13 @@ function App() {
                             <Icon name="search" />
                             Ver detalle completo
                           </button>
-                          <button type="button" className="button-secondary" onClick={handlePrintFieldDebtReport} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+                          <button type="button" className="button-secondary" onClick={handlePrintFieldDebtChart} disabled={!fieldDebtReport || loadingFieldDebtReport}>
                             <Icon name="print" />
-                            Imprimir mora
+                            Imprimir grafico
                           </button>
                           <button type="button" onClick={handleDownloadFieldDebtPdf} disabled={!fieldDebtReport || loadingFieldDebtReport}>
                             <Icon name="records" />
-                            PDF mora
+                            PDF detalle
                           </button>
                         </div>
                       </div>

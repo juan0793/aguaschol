@@ -726,6 +726,104 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             color: #8a3d00;
             font-weight: 900;
           }
+          .field-debt-chart-print-shell {
+            gap: 8px;
+          }
+          .field-debt-chart-kpis {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-debt-chart-kpis div,
+          .field-debt-chart-card {
+            border: 1px solid #d2e4f3;
+            border-radius: 9px;
+            background: #ffffff;
+            padding: 7px 8px;
+          }
+          .field-debt-chart-kpis span {
+            display: block;
+            color: #315b7d;
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+          }
+          .field-debt-chart-kpis strong {
+            display: block;
+            color: #102f49;
+            font-size: 16px;
+            font-weight: 900;
+            margin-top: 2px;
+          }
+          .field-debt-chart-print-grid {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 8px;
+            align-items: start;
+          }
+          .field-debt-chart-card {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .field-debt-chart-card h2 {
+            color: #0d3f6a;
+            font-size: 13px;
+            margin-bottom: 7px;
+          }
+          .field-debt-chart-bars {
+            display: grid;
+            gap: 6px;
+          }
+          .field-debt-chart-bar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 5px 8px;
+            padding: 6px;
+            border: 1px solid #dceaf5;
+            border-radius: 8px;
+            background: #fbfdff;
+          }
+          .field-debt-chart-bar strong {
+            color: #123b5d;
+            font-size: 12px;
+          }
+          .field-debt-chart-bar span {
+            display: block;
+            color: #5c7390;
+            font-size: 8.5px;
+            font-weight: 700;
+          }
+          .field-debt-chart-bar b {
+            color: #9b202d;
+            font-size: 11px;
+            white-space: nowrap;
+          }
+          .field-debt-chart-bar i {
+            grid-column: 1 / -1;
+            height: 9px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #e8eef5;
+          }
+          .field-debt-chart-bar i span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #0d6fb8, #f2b64a);
+          }
+          .field-debt-chart-table th,
+          .field-debt-chart-table td {
+            font-size: 8px;
+            padding: 4px;
+          }
+          .field-debt-chart-table td:nth-child(5),
+          .field-debt-chart-table td:nth-child(6),
+          .field-debt-chart-table td:nth-child(7) {
+            text-align: right;
+            white-space: nowrap;
+          }
           .field-debt-results-section {
             padding: 7px;
             break-inside: auto;
