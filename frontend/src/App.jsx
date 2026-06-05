@@ -2058,6 +2058,56 @@ function App() {
       services
     };
   }, [fieldDebtReport]);
+  const fieldDebtChartData = useMemo(() => {
+    const rows = Array.isArray(fieldDebtReport?.results)
+      ? fieldDebtReport.results.flatMap((result) => {
+          if (!result.matches?.length) {
+            return [
+              {
+                key: result.key,
+                abonado: "--",
+                nombre: result.error || "Sin coincidencia en padron",
+                barrio: "--",
+                valor: 0,
+                intereses: 0,
+                total: 0,
+                reportes: Number(fieldDebtReport?.keyCounts?.[result.key] || 0),
+                exists: false
+              }
+            ];
+          }
+
+          return result.matches.map((match) => ({
+            key: match.clave_catastral || match.clave_aguas_formato || result.key,
+            abonado: match.abonado || "--",
+            nombre: match.inquilino || match.nombre || "--",
+            barrio: match.barrio_colonia || "--",
+            valor: Number(match.valor || 0),
+            intereses: Number(match.intereses || 0),
+            total: Number(match.total || 0),
+            reportes: Number(fieldDebtReport?.keyCounts?.[result.key] || 0),
+            exists: true
+          }));
+        })
+      : [];
+    const debtRows = rows
+      .filter((row) => row.exists)
+      .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
+    const topRows = debtRows.slice(0, 8);
+    const maxDebt = Math.max(1, ...topRows.map((row) => Number(row.total || 0)));
+    const totalDebt = debtRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
+    const criticalRows = debtRows.filter((row) => Number(row.total || 0) >= 1000);
+
+    return {
+      rows,
+      debtRows,
+      topRows,
+      maxDebt,
+      totalDebt,
+      criticalRows,
+      missingRows: rows.filter((row) => !row.exists)
+    };
+  }, [fieldDebtReport]);
   const recordsUpdatedToday = useMemo(
     () =>
       safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey)
@@ -12352,6 +12402,13 @@ function App() {
         </div>
       </header>
       <aside className={`app-sidebar no-print ${showMobileModuleMenu ? "is-open" : ""}`}>
+        <div className="app-sidebar-profile">
+          <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" />
+          <div>
+            <strong>Aguas de Choluteca</strong>
+            <span>Panel ejecutivo</span>
+          </div>
+        </div>
         {sidebarNavigationSections.map((section) => (
           <div className="app-sidebar-section" key={section.key}>
             <span className="app-sidebar-label">{section.title}</span>
@@ -12366,7 +12423,10 @@ function App() {
                 }}
               >
                 <Icon name={item.icon} />
-                <span>{item.label}</span>
+                <span>
+                  <strong>{item.label}</strong>
+                  {item.helper ? <em>{item.helper}</em> : null}
+                </span>
                 {item.badge !== null && item.badge !== undefined ? (
                   <small className="app-sidebar-badge">{item.badge}</small>
                 ) : null}
@@ -12374,6 +12434,13 @@ function App() {
             ))}
           </div>
         ))}
+        <div className="app-sidebar-status">
+          <span className="app-sidebar-status-dot" />
+          <div>
+            <strong>{currentModuleNavigation?.label || "Sistema"}</strong>
+            <small>{currentModuleNavigation?.helper || "Modulo activo"}</small>
+          </div>
+        </div>
       </aside>
       {showMobileModuleMenu ? (
         <button
@@ -15530,6 +15597,90 @@ function App() {
                         PDF de censo sin coordenadas
                       </button>
                     </div>
+                    <section className="document-block debt-chart-panel">
+                      <div className="debt-chart-head">
+                        <div>
+                          <p className="sheet-kicker">Analitica de mora</p>
+                          <h3><Icon name="dashboard" className="title-icon" />Mora por clave del reporte</h3>
+                          <p className="helper-text">
+                            Grafico generado con las claves detectadas en las referencias de esta jornada.
+                          </p>
+                        </div>
+                        <button type="button" className="button-secondary" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
+                          <Icon name="refresh" />
+                          {loadingFieldDebtReport ? "Calculando..." : fieldDebtReport ? "Actualizar grafico" : "Generar grafico"}
+                        </button>
+                      </div>
+                      {fieldDebtReport ? (
+                        <>
+                          <div className="debt-chart-kpis">
+                            <div>
+                              <span>Claves verificadas</span>
+                              <strong>{fieldDebtSummary.totalKeys}</strong>
+                            </div>
+                            <div>
+                              <span>Mora total</span>
+                              <strong>{formatCurrency(fieldDebtChartData.totalDebt)}</strong>
+                            </div>
+                            <div>
+                              <span>Con mora critica</span>
+                              <strong>{fieldDebtChartData.criticalRows.length}</strong>
+                            </div>
+                            <div>
+                              <span>Sin coincidencia</span>
+                              <strong>{fieldDebtChartData.missingRows.length}</strong>
+                            </div>
+                          </div>
+                          {fieldDebtChartData.topRows.length ? (
+                            <div className="debt-chart-layout">
+                              <div className="debt-bar-list" aria-label="Grafico de mora por clave">
+                                {fieldDebtChartData.topRows.map((row) => (
+                                  <article key={`${row.key}-${row.abonado}`} className="debt-bar-row">
+                                    <div className="debt-bar-copy">
+                                      <div>
+                                        <strong>{row.key}</strong>
+                                        <span>{row.nombre} - {row.barrio}</span>
+                                      </div>
+                                      <b>{formatCurrency(row.total)}</b>
+                                    </div>
+                                    <div className="debt-bar-track">
+                                      <span style={{ width: `${Math.max(3, (Number(row.total || 0) / fieldDebtChartData.maxDebt) * 100)}%` }} />
+                                    </div>
+                                  </article>
+                                ))}
+                              </div>
+                              <div className="debt-table-card">
+                                <strong>Detalle ejecutivo</strong>
+                                <div className="debt-mini-table">
+                                  <div>
+                                    <span>Clave</span>
+                                    <span>Reportes</span>
+                                    <span>Total</span>
+                                  </div>
+                                  {fieldDebtChartData.debtRows.slice(0, 6).map((row) => (
+                                    <div key={`debt-table-${row.key}-${row.abonado}`}>
+                                      <span>{row.key}</span>
+                                      <span>{row.reportes}</span>
+                                      <strong>{formatCurrency(row.total)}</strong>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="empty-state debt-chart-empty">
+                              <h3>Sin mora encontrada</h3>
+                              <p>La verificacion no encontro saldos asociados a las claves de este reporte.</p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="empty-state debt-chart-empty">
+                          <h3>Grafico pendiente</h3>
+                          <p>Presiona Generar grafico para cruzar las claves del reporte contra el padron y ver la mora por clave.</p>
+                        </div>
+                      )}
+                    </section>
                     <div className="map-report-step-grid">
                       <article>
                         <span>1</span>
