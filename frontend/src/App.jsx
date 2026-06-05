@@ -15667,10 +15667,24 @@ function App() {
                             Grafico generado con las claves detectadas en las referencias de esta jornada.
                           </p>
                         </div>
-                        <button type="button" className="button-secondary" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
-                          <Icon name="refresh" />
-                          {loadingFieldDebtReport ? "Calculando..." : fieldDebtReport ? "Actualizar grafico" : "Generar grafico"}
-                        </button>
+                        <div className="debt-chart-actions">
+                          <button type="button" className="button-secondary" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
+                            <Icon name="refresh" />
+                            {loadingFieldDebtReport ? "Calculando..." : fieldDebtReport ? "Actualizar grafico" : "Generar grafico"}
+                          </button>
+                          <button type="button" className="button-secondary" onClick={() => setShowFieldDebtModal(true)} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+                            <Icon name="search" />
+                            Ver detalle completo
+                          </button>
+                          <button type="button" className="button-secondary" onClick={handlePrintFieldDebtReport} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+                            <Icon name="print" />
+                            Imprimir mora
+                          </button>
+                          <button type="button" onClick={handleDownloadFieldDebtPdf} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+                            <Icon name="records" />
+                            PDF mora
+                          </button>
+                        </div>
                       </div>
                       {fieldDebtReport ? (
                         <>
@@ -15693,41 +15707,71 @@ function App() {
                             </div>
                           </div>
                           {fieldDebtChartData.topRows.length ? (
-                            <div className="debt-chart-layout">
-                              <div className="debt-bar-list" aria-label="Grafico de mora por clave">
-                                {fieldDebtChartData.topRows.map((row) => (
-                                  <article key={`${row.key}-${row.abonado}`} className="debt-bar-row">
-                                    <div className="debt-bar-copy">
-                                      <div>
-                                        <strong>{row.key}</strong>
-                                        <span>{row.nombre} - {row.barrio}</span>
+                            <>
+                              <div className="debt-chart-layout">
+                                <div className="debt-bar-list" aria-label="Grafico de mora por clave">
+                                  {fieldDebtChartData.topRows.map((row) => (
+                                    <article key={`${row.key}-${row.abonado}`} className="debt-bar-row">
+                                      <div className="debt-bar-copy">
+                                        <div>
+                                          <strong>{row.key}</strong>
+                                          <span>{row.nombre} - {row.barrio}</span>
+                                        </div>
+                                        <b>{formatCurrency(row.total)}</b>
                                       </div>
-                                      <b>{formatCurrency(row.total)}</b>
+                                      <div className="debt-bar-track">
+                                        <span style={{ width: `${Math.max(3, (Number(row.total || 0) / fieldDebtChartData.maxDebt) * 100)}%` }} />
+                                      </div>
+                                    </article>
+                                  ))}
+                                </div>
+                                <div className="debt-table-card">
+                                  <strong>Detalle ejecutivo</strong>
+                                  <div className="debt-mini-table">
+                                    <div>
+                                      <span>Clave</span>
+                                      <span>Reportes</span>
+                                      <span>Total</span>
                                     </div>
-                                    <div className="debt-bar-track">
-                                      <span style={{ width: `${Math.max(3, (Number(row.total || 0) / fieldDebtChartData.maxDebt) * 100)}%` }} />
-                                    </div>
-                                  </article>
-                                ))}
+                                    {fieldDebtChartData.debtRows.slice(0, 6).map((row) => (
+                                      <div key={`debt-table-${row.key}-${row.abonado}`}>
+                                        <span>{row.key}</span>
+                                        <span>{row.reportes}</span>
+                                        <strong>{formatCurrency(row.total)}</strong>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
-                              <div className="debt-table-card">
-                                <strong>Detalle ejecutivo</strong>
-                                <div className="debt-mini-table">
-                                  <div>
+                              <div className="debt-expanded-card">
+                                <div className="debt-expanded-head">
+                                  <strong>Detalle ampliado de mora</strong>
+                                  <span>{fieldDebtChartData.debtRows.length} cuentas encontradas</span>
+                                </div>
+                                <div className="debt-expanded-table" role="table">
+                                  <div role="row">
                                     <span>Clave</span>
-                                    <span>Reportes</span>
+                                    <span>Abonado</span>
+                                    <span>Nombre</span>
+                                    <span>Barrio</span>
+                                    <span>Valor</span>
+                                    <span>Intereses</span>
                                     <span>Total</span>
                                   </div>
-                                  {fieldDebtChartData.debtRows.slice(0, 6).map((row) => (
-                                    <div key={`debt-table-${row.key}-${row.abonado}`}>
+                                  {fieldDebtChartData.debtRows.map((row) => (
+                                    <div key={`debt-expanded-${row.key}-${row.abonado}`} role="row">
                                       <span>{row.key}</span>
-                                      <span>{row.reportes}</span>
+                                      <span>{row.abonado}</span>
+                                      <span>{row.nombre}</span>
+                                      <span>{row.barrio}</span>
+                                      <span>{formatCurrency(row.valor)}</span>
+                                      <span>{formatCurrency(row.intereses)}</span>
                                       <strong>{formatCurrency(row.total)}</strong>
                                     </div>
                                   ))}
                                 </div>
                               </div>
-                            </div>
+                            </>
                           ) : (
                             <div className="empty-state debt-chart-empty">
                               <h3>Sin mora encontrada</h3>

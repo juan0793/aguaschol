@@ -18133,6 +18133,19 @@ button,
   color: #123b5d;
 }
 
+.debt-chart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  max-width: min(100%, 640px);
+}
+
+.debt-chart-actions button {
+  min-height: 38px;
+}
+
 .debt-chart-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -18253,6 +18266,78 @@ button,
   padding: 1rem;
 }
 
+.debt-expanded-card {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid rgba(21, 118, 209, 0.11);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.debt-expanded-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.debt-expanded-head strong {
+  color: #143d60;
+}
+
+.debt-expanded-head span {
+  color: #60788f;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.debt-expanded-table {
+  display: grid;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  border-radius: 10px;
+  scrollbar-width: thin;
+}
+
+.debt-expanded-table > div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(90px, 0.55fr) minmax(190px, 1.45fr) minmax(130px, 0.9fr) minmax(92px, 0.55fr) minmax(92px, 0.55fr) minmax(102px, 0.65fr);
+  gap: 0.65rem;
+  align-items: center;
+  min-width: 900px;
+  padding: 0.58rem 0.68rem;
+  border-bottom: 1px solid rgba(21, 118, 209, 0.08);
+  background: #ffffff;
+}
+
+.debt-expanded-table > div:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f0f6fc;
+  color: #60788f;
+  font-size: 0.73rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.debt-expanded-table > div:last-child {
+  border-bottom: 0;
+}
+
+.debt-expanded-table span,
+.debt-expanded-table strong {
+  overflow-wrap: anywhere;
+}
+
+.debt-expanded-table strong {
+  color: #9b202d;
+  text-align: right;
+}
+
 .page-shell.map-reports-mode .app-chrome {
   position: static;
   z-index: auto;
@@ -18292,6 +18377,8 @@ button,
     display: grid;
   }
 
+  .debt-chart-actions,
+  .debt-chart-actions button,
   .debt-chart-head .button-secondary {
     width: 100%;
     justify-content: center;
