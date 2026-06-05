@@ -6441,7 +6441,10 @@ function App() {
               <span>${escapeHtml(row.nombre || "--")} - ${escapeHtml(row.barrio || "--")}</span>
             </div>
             <b>${escapeHtml(formatCurrency(row.total))}</b>
-            <i><span style="width: ${percent}%"></span></i>
+            <svg class="field-debt-chart-svg" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(row.key)} ${escapeHtml(formatCurrency(row.total))}">
+              <rect x="0" y="0" width="100" height="10" rx="5" fill="#e8eef5"></rect>
+              <rect x="0" y="0" width="${percent.toFixed(2)}" height="10" rx="5" fill="#0d6fb8"></rect>
+            </svg>
           </article>
         `;
       })

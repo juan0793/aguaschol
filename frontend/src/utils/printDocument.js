@@ -800,18 +800,13 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             font-size: 11px;
             white-space: nowrap;
           }
-          .field-debt-chart-bar i {
+          .field-debt-chart-svg {
             grid-column: 1 / -1;
-            height: 9px;
-            overflow: hidden;
-            border-radius: 999px;
-            background: #e8eef5;
-          }
-          .field-debt-chart-bar i span {
             display: block;
-            height: 100%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #0d6fb8, #f2b64a);
+            width: 100%;
+            height: 9px;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
           }
           .field-debt-chart-table th,
           .field-debt-chart-table td {
