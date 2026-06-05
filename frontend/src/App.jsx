@@ -539,6 +539,10 @@ const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
 const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*(?:Datos del padron(?: \(clave [^)]+\))?:\n?)?(?:Abonado:.*\n)?(?:Nombre:.*\n)?(?:Barrio\/colonia:.*\n)?(?:Direccion:.*\n)?Servicios:.*(?=\n{2,}|$)/i;
 const stripMapDescriptionPadronBlock = (value = "") =>
   String(value ?? "").replace(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN, "").trimEnd();
+const getMapPointTechnicalDescription = (point = {}) =>
+  stripMapDescriptionPadronBlock(point.description || "").trim();
+const getMapPointReferenceNote = (point = {}) =>
+  String(point.reference_note || point.reference || "").trim();
 const buildMapDescriptionPadronBlock = (match = {}) => {
   const identityLines = [
     match.abonado ? `Abonado: ${match.abonado}` : "",
@@ -6756,6 +6760,7 @@ function App() {
                   <th>Barrio</th>
                   <th>Referencia cercana</th>
                   <th>Referencia</th>
+                  <th>Descripcion</th>
                   <th>Fecha</th>
                 </tr>
               </thead>
@@ -6774,8 +6779,9 @@ function App() {
                         <td>${formatCoordinate(point.longitude)}</td>
                         <td>${point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
                         <td>${escapeHtml(point.report_zone_label || point.suggested_zone || zone.zone)}</td>
-                        <td>${point.suggested_reference || "--"}</td>
-                        <td>${point.reference_note || point.description || "--"}</td>
+                        <td>${escapeHtml(point.suggested_reference || "--")}</td>
+                        <td>${escapeHtml(getMapPointReferenceNote(point) || "--")}</td>
+                        <td>${escapeHtml(getMapPointTechnicalDescription(point) || "--")}</td>
                         <td>${formatDateTime(point.created_at)}</td>
                       </tr>
                     `
@@ -6958,6 +6964,7 @@ function App() {
             "Precision",
             "Referencia cercana",
             "Referencia",
+            "Descripcion",
             "Fecha"
           ]],
           body: zone.items.map((point, pointIndex) => {
@@ -6969,7 +6976,8 @@ function App() {
               formatCoordinate(point.longitude),
               point.accuracy_meters ? `${point.accuracy_meters} m` : "--",
               point.suggested_reference || "--",
-              point.reference_note || point.description || "--",
+              getMapPointReferenceNote(point) || "--",
+              getMapPointTechnicalDescription(point) || "--",
               formatDateTime(point.created_at)
             ];
             row.rawPoint = point;
@@ -7002,14 +7010,15 @@ function App() {
           margin: { left: 14, right: 14 },
           columnStyles: {
             0: { cellWidth: 8, halign: "center" },
-            1: { cellWidth: 24 },
-            2: { cellWidth: 18 },
-            3: { cellWidth: 20 },
-            4: { cellWidth: 20 },
-            5: { cellWidth: 18 },
-            6: { cellWidth: 38 },
-            7: { cellWidth: 58 },
-            8: { cellWidth: 26 }
+            1: { cellWidth: 22 },
+            2: { cellWidth: 14 },
+            3: { cellWidth: 18 },
+            4: { cellWidth: 18 },
+            5: { cellWidth: 16 },
+            6: { cellWidth: 31 },
+            7: { cellWidth: 34 },
+            8: { cellWidth: 55 },
+            9: { cellWidth: 24 }
           }
         });
 
@@ -7056,6 +7065,7 @@ function App() {
                   <th>Tipo</th>
                   <th>Referencia 1</th>
                   <th>Referencia 2</th>
+                  <th>Descripcion</th>
                   <th>Fecha</th>
                 </tr>
               </thead>
@@ -7068,7 +7078,8 @@ function App() {
                         <td>${escapeHtml(point.report_zone_label || zone.displayName || zone.zone || "--")}</td>
                         <td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td>
                         <td>${escapeHtml(point.suggested_reference || zone.displayReference || "--")}</td>
-                        <td>${escapeHtml(point.reference_note || point.description || zone.displayLocation || "--")}</td>
+                        <td>${escapeHtml(getMapPointReferenceNote(point) || zone.displayLocation || "--")}</td>
+                        <td>${escapeHtml(getMapPointTechnicalDescription(point) || "--")}</td>
                         <td>${escapeHtml(formatDateTime(point.created_at))}</td>
                       </tr>
                     `
@@ -7215,14 +7226,15 @@ function App() {
 
         autoTable(document, {
           startY: currentY + 22,
-          head: [["#", "Nombre / sector", "Tipo", "Referencia 1", "Referencia 2", "Fecha"]],
+          head: [["#", "Nombre / sector", "Tipo", "Referencia 1", "Referencia 2", "Descripcion", "Fecha"]],
           body: zone.items.map((point, pointIndex) => {
             const row = [
               String(pointIndex + 1),
               point.report_zone_label || zone.displayName || zone.zone || "--",
               getMapPointTypeLabel(point.point_type),
               point.suggested_reference || zone.displayReference || "--",
-              point.reference_note || point.description || zone.displayLocation || "--",
+              getMapPointReferenceNote(point) || zone.displayLocation || "--",
+              getMapPointTechnicalDescription(point) || "--",
               formatDateTime(point.created_at)
             ];
             row.rawPoint = point;
@@ -7255,11 +7267,12 @@ function App() {
           margin: { left: 14, right: 14 },
           columnStyles: {
             0: { cellWidth: 8, halign: "center" },
-            1: { cellWidth: 34 },
-            2: { cellWidth: 24 },
-            3: { cellWidth: 42 },
-            4: { cellWidth: 54 },
-            5: { cellWidth: 26 }
+            1: { cellWidth: 30 },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 28 },
+            4: { cellWidth: 32 },
+            5: { cellWidth: 44 },
+            6: { cellWidth: 24 }
           }
         });
 
@@ -11253,6 +11266,7 @@ function App() {
                       <th>#</th>
                       <th>Tipo</th>
                       <th>Referencia</th>
+                      <th>Descripcion</th>
                       <th>Coordenadas</th>
                       <th>Precision</th>
                       <th>Hora</th>
@@ -11261,14 +11275,15 @@ function App() {
                   <tbody>
                     {loadingArchiveMapDiaryPoints ? (
                       <tr>
-                        <td colSpan="6">Cargando datos guardados...</td>
+                        <td colSpan="7">Cargando datos guardados...</td>
                       </tr>
                     ) : archiveMapDiaryPoints.length ? (
                       archiveMapDiaryPoints.map((point, index) => (
                         <tr key={point.id || `${point.latitude}-${point.longitude}-${index}`}>
                           <td>{index + 1}</td>
                           <td>{getMapPointTypeLabel(point.point_type)}</td>
-                          <td>{point.reference_note || point.description || "--"}</td>
+                          <td>{getMapPointReferenceNote(point) || "--"}</td>
+                          <td>{getMapPointTechnicalDescription(point) || "--"}</td>
                           <td>{formatCoordinate(point.latitude)}, {formatCoordinate(point.longitude)}</td>
                           <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
                           <td>{formatDateTime(point.created_at)}</td>
@@ -11276,7 +11291,7 @@ function App() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6">Selecciona una jornada para ver los datos guardados.</td>
+                        <td colSpan="7">Selecciona una jornada para ver los datos guardados.</td>
                       </tr>
                     )}
                   </tbody>
@@ -15354,7 +15369,9 @@ function App() {
                     <span className="panel-pill">#{selectedMapPoint.id}</span>
                   </div>
                   <p className="map-detail-copy">
-                    {selectedMapPoint.reference_note || selectedMapPoint.description || "Sin referencia adicional."}
+                    {[getMapPointReferenceNote(selectedMapPoint), getMapPointTechnicalDescription(selectedMapPoint)]
+                      .filter(Boolean)
+                      .join(" - ") || "Sin referencia adicional."}
                   </p>
                   <div className="map-point-coords">
                     <span>{formatCoordinate(selectedMapPoint.latitude)}</span>
@@ -15413,7 +15430,11 @@ function App() {
                             </strong>
                             <span className="map-point-meta">{formatDateTime(point.created_at)}</span>
                           </div>
-                          <p>{point.reference_note || point.description || "Sin referencia adicional."}</p>
+                          <p>
+                            {[getMapPointReferenceNote(point), getMapPointTechnicalDescription(point)]
+                              .filter(Boolean)
+                              .join(" - ") || "Sin referencia adicional."}
+                          </p>
                           <div className="map-point-coords">
                             <span>{formatCoordinate(point.latitude)}</span>
                             <span>{formatCoordinate(point.longitude)}</span>
@@ -16133,6 +16154,7 @@ function App() {
                                     <th>Barrio</th>
                                     <th>Referencia cercana</th>
                                     <th>Referencia</th>
+                                    <th>Descripcion</th>
                                     <th>Fecha</th>
                                     <th>Viviendas</th>
                                     <th>Acciones</th>
@@ -16164,7 +16186,8 @@ function App() {
                                       <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
                                       <td>{point.report_zone_label || point.suggested_zone || zone.zone}</td>
                                       <td>{point.suggested_reference || "--"}</td>
-                                      <td>{point.reference_note || point.description || "--"}</td>
+                                      <td>{getMapPointReferenceNote(point) || "--"}</td>
+                                      <td>{getMapPointTechnicalDescription(point) || "--"}</td>
                                       <td>{formatDateTime(point.created_at)}</td>
                                       <td>{getMapPointHousingUnits(point)}</td>
                                       <td>
