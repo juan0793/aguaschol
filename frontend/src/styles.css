@@ -10516,7 +10516,23 @@ textarea {
 
 .map-report-output-row {
   flex-wrap: wrap;
-  gap: 0.55rem;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 249, 255, 0.92));
+  box-shadow: 0 14px 34px rgba(11, 63, 115, 0.07);
+}
+
+.map-report-output-row button {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.map-report-output-row button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(11, 63, 115, 0.12);
 }
 
 .map-report-step-grid {
@@ -18113,10 +18129,34 @@ button,
 }
 
 .debt-chart-panel {
+  position: relative;
   display: grid;
-  gap: 0.9rem;
-  border-color: rgba(21, 118, 209, 0.14);
-  background: linear-gradient(180deg, #ffffff, #f4f9ff);
+  gap: 1rem;
+  overflow: hidden;
+  padding: 1rem;
+  border-color: rgba(21, 118, 209, 0.16);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.96));
+  box-shadow: 0 18px 44px rgba(11, 63, 115, 0.09);
+  animation: debtPanelIn 320ms ease both;
+}
+
+.debt-chart-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #1465d9, #18a689 48%, #f2b64a);
+}
+
+.debt-chart-panel::after {
+  content: "";
+  position: absolute;
+  inset: 4px 0 auto;
+  height: 72px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(24, 166, 137, 0.08), transparent);
 }
 
 .debt-chart-head,
@@ -18128,35 +18168,127 @@ button,
   gap: 0.8rem;
 }
 
+.debt-chart-head {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.1rem 0.1rem 0.9rem;
+  border-bottom: 1px solid rgba(21, 118, 209, 0.1);
+}
+
+.debt-chart-title {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.debt-chart-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #1465d9, #18a689);
+  box-shadow: 0 16px 30px rgba(20, 101, 217, 0.22);
+}
+
+.debt-chart-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
 .debt-chart-head h3 {
   margin: 0;
   color: #123b5d;
+}
+
+.debt-chart-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.debt-chart-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  color: #0d4d86;
+  font-size: 0.76rem;
+  font-weight: 900;
+  background: #e8f2ff;
+  border: 1px solid rgba(21, 118, 209, 0.14);
+}
+
+.debt-chart-state.is-ready {
+  color: #11624f;
+  background: #e8f8f3;
+  border-color: rgba(24, 166, 137, 0.2);
 }
 
 .debt-chart-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.45rem;
-  flex: 0 0 auto;
-  max-width: min(100%, 640px);
+  gap: 0.55rem;
+  flex: 1 1 auto;
+  max-width: none;
 }
 
 .debt-chart-actions button {
   min-height: 38px;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.debt-chart-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(11, 63, 115, 0.12);
+}
+
+.debt-chart-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.debt-chart-primary-action {
+  background: linear-gradient(135deg, #176bdc, #0f57b8);
+  box-shadow: 0 14px 24px rgba(23, 107, 220, 0.22);
+}
+
+.debt-chart-pdf-action {
+  color: #0d4d86;
+  background: #ffffff;
 }
 
 .debt-chart-kpis {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
 .debt-chart-kpis div {
-  padding: 0.75rem;
-  border: 1px solid rgba(21, 118, 209, 0.11);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
+  padding: 0.85rem;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 26px rgba(11, 63, 115, 0.06);
+  animation: debtRowIn 300ms ease both;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.debt-chart-kpis div:hover {
+  border-color: rgba(21, 118, 209, 0.22);
+  box-shadow: 0 16px 34px rgba(11, 63, 115, 0.09);
+  transform: translateY(-1px);
 }
 
 .debt-chart-kpis span,
@@ -18176,6 +18308,8 @@ button,
 }
 
 .debt-chart-layout {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.75fr);
   gap: 0.85rem;
@@ -18192,10 +18326,12 @@ button,
 .debt-bar-row {
   display: grid;
   gap: 0.42rem;
-  padding: 0.66rem;
-  border: 1px solid rgba(21, 118, 209, 0.09);
-  border-radius: 12px;
+  padding: 0.78rem;
+  border: 1px solid rgba(21, 118, 209, 0.1);
+  border-radius: 14px;
   background: #ffffff;
+  box-shadow: 0 10px 22px rgba(11, 63, 115, 0.045);
+  animation: debtRowIn 320ms ease both;
   transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
 
@@ -18230,14 +18366,15 @@ button,
   min-width: 3%;
   border-radius: inherit;
   background: linear-gradient(90deg, #0d6fb8, #f2b64a);
-  transition: width 360ms ease;
+  transition: width 420ms ease;
 }
 
 .debt-table-card {
-  padding: 0.75rem;
-  border: 1px solid rgba(21, 118, 209, 0.11);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
+  padding: 0.85rem;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 30px rgba(11, 63, 115, 0.06);
 }
 
 .debt-mini-table {
@@ -18266,14 +18403,126 @@ button,
   padding: 1rem;
 }
 
+.debt-chart-pending {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  min-height: 220px;
+  padding: 1rem;
+  border: 1px dashed rgba(21, 118, 209, 0.24);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(232, 242, 255, 0.82), rgba(255, 255, 255, 0.96) 54%, rgba(235, 248, 244, 0.86));
+}
+
+.debt-pending-visual {
+  display: grid;
+  align-content: center;
+  gap: 0.72rem;
+  min-height: 160px;
+  padding: 1rem;
+  border-radius: 15px;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  background:
+    repeating-linear-gradient(0deg, rgba(21, 118, 209, 0.06) 0 1px, transparent 1px 34px),
+    #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.debt-pending-visual span {
+  display: block;
+  width: var(--bar-size);
+  height: 13px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1465d9, #18a689 52%, #f2b64a);
+  box-shadow: 0 10px 18px rgba(20, 101, 217, 0.12);
+  animation: debtBarPulse 1.8s ease-in-out infinite;
+}
+
+.debt-pending-visual span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.debt-pending-visual span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.debt-pending-visual span:nth-child(4) {
+  animation-delay: 360ms;
+}
+
+.debt-pending-copy {
+  min-width: 0;
+}
+
+.debt-pending-copy h3 {
+  margin: 0 0 0.35rem;
+  color: #123b5d;
+}
+
+.debt-pending-copy p:not(.sheet-kicker) {
+  margin: 0;
+  color: #5c7791;
+  line-height: 1.45;
+}
+
+.debt-pending-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.debt-pending-steps span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 32px;
+  padding: 0.25rem 0.62rem 0.25rem 0.32rem;
+  border-radius: 999px;
+  color: #0d4d86;
+  font-size: 0.78rem;
+  font-weight: 900;
+  background: #ffffff;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+}
+
+.debt-pending-steps b {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #176bdc;
+}
+
+.debt-chart-pending > button {
+  min-width: 190px;
+  min-height: 44px;
+  box-shadow: 0 16px 28px rgba(23, 107, 220, 0.22);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.debt-chart-pending > button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 34px rgba(23, 107, 220, 0.28);
+}
+
 .debt-expanded-card {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 0.7rem;
   min-width: 0;
-  padding: 0.8rem;
-  border: 1px solid rgba(21, 118, 209, 0.11);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
+  padding: 0.9rem;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 30px rgba(11, 63, 115, 0.06);
 }
 
 .debt-expanded-head {
@@ -18338,6 +18587,43 @@ button,
   text-align: right;
 }
 
+@keyframes debtPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes debtRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes debtBarPulse {
+  0%,
+  100% {
+    transform: scaleX(0.96);
+    opacity: 0.78;
+  }
+
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
 .page-shell.map-reports-mode .app-chrome {
   position: static;
   z-index: auto;
@@ -18377,9 +18663,26 @@ button,
     display: grid;
   }
 
+  .debt-chart-head,
+  .debt-chart-pending {
+    grid-template-columns: 1fr;
+  }
+
+  .debt-chart-command,
+  .debt-chart-actions {
+    justify-items: stretch;
+  }
+
+  .debt-chart-command {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .debt-chart-actions,
   .debt-chart-actions button,
-  .debt-chart-head .button-secondary {
+  .debt-chart-head .button-secondary,
+  .debt-chart-primary-action,
+  .debt-chart-pending > button {
     width: 100%;
     justify-content: center;
   }

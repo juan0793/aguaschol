@@ -15765,32 +15765,42 @@ function App() {
                         PDF de censo sin coordenadas
                       </button>
                     </div>
-                    <section className="document-block debt-chart-panel">
+                    <section className={`document-block debt-chart-panel ${fieldDebtReport ? "is-ready" : "is-pending"}`}>
                       <div className="debt-chart-head">
-                        <div>
-                          <p className="sheet-kicker">Analitica de mora</p>
-                          <h3><Icon name="dashboard" className="title-icon" />Mora por clave del reporte</h3>
-                          <p className="helper-text">
-                            Grafico generado con las claves detectadas en las referencias de esta jornada.
-                          </p>
+                        <div className="debt-chart-title">
+                          <span className="debt-chart-icon" aria-hidden="true">
+                            <Icon name={fieldDebtReport ? "success" : "dashboard"} />
+                          </span>
+                          <div>
+                            <p className="sheet-kicker">Analitica de mora</p>
+                            <h3>Mora por clave del reporte</h3>
+                            <p className="helper-text">
+                              Grafico generado con las claves detectadas en las referencias de esta jornada.
+                            </p>
+                          </div>
                         </div>
-                        <div className="debt-chart-actions">
-                          <button type="button" className="button-secondary" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
-                            <Icon name="refresh" />
-                            {loadingFieldDebtReport ? "Calculando..." : fieldDebtReport ? "Actualizar grafico" : "Generar grafico"}
-                          </button>
-                          <button type="button" className="button-secondary" onClick={() => setShowFieldDebtModal(true)} disabled={!fieldDebtReport || loadingFieldDebtReport}>
-                            <Icon name="search" />
-                            Ver detalle completo
-                          </button>
-                          <button type="button" className="button-secondary" onClick={handlePrintFieldDebtChart} disabled={!fieldDebtReport || loadingFieldDebtReport}>
-                            <Icon name="print" />
-                            Imprimir grafico
-                          </button>
-                          <button type="button" onClick={handleDownloadFieldDebtPdf} disabled={!fieldDebtReport || loadingFieldDebtReport}>
-                            <Icon name="records" />
-                            PDF detalle
-                          </button>
+                        <div className="debt-chart-command">
+                          <span className={`debt-chart-state ${fieldDebtReport ? "is-ready" : "is-pending"}`}>
+                            {fieldDebtReport ? "Grafico listo" : "Pendiente de calcular"}
+                          </span>
+                          <div className="debt-chart-actions">
+                            <button type="button" className="debt-chart-primary-action" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
+                              <Icon name="refresh" />
+                              {loadingFieldDebtReport ? "Calculando..." : fieldDebtReport ? "Actualizar grafico" : "Generar grafico"}
+                            </button>
+                            <button type="button" className="button-secondary" onClick={() => setShowFieldDebtModal(true)} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+                              <Icon name="search" />
+                              Ver detalle completo
+                            </button>
+                            <button type="button" className="button-secondary" onClick={handlePrintFieldDebtChart} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+                              <Icon name="print" />
+                              Imprimir grafico
+                            </button>
+                            <button type="button" className="button-secondary debt-chart-pdf-action" onClick={handleDownloadFieldDebtPdf} disabled={!fieldDebtReport || loadingFieldDebtReport}>
+                              <Icon name="records" />
+                              PDF detalle
+                            </button>
+                          </div>
                         </div>
                       </div>
                       {fieldDebtReport ? (
@@ -15887,9 +15897,30 @@ function App() {
                           )}
                         </>
                       ) : (
-                        <div className="empty-state debt-chart-empty">
-                          <h3>Grafico pendiente</h3>
-                          <p>Presiona Generar grafico para cruzar las claves del reporte contra el padron y ver la mora por clave.</p>
+                        <div className="debt-chart-empty debt-chart-pending">
+                          <div className="debt-pending-visual" aria-hidden="true">
+                            <span style={{ "--bar-size": "86%" }} />
+                            <span style={{ "--bar-size": "64%" }} />
+                            <span style={{ "--bar-size": "42%" }} />
+                            <span style={{ "--bar-size": "72%" }} />
+                          </div>
+                          <div className="debt-pending-copy">
+                            <p className="sheet-kicker">Listo para generar</p>
+                            <h3>Genera el grafico de mora</h3>
+                            <p>
+                              Cruza las claves del reporte contra el padron y arma una lectura ejecutiva con totales,
+                              cuentas criticas y barras imprimibles.
+                            </p>
+                            <div className="debt-pending-steps">
+                              <span><b>1</b>Detecta claves</span>
+                              <span><b>2</b>Calcula mora</span>
+                              <span><b>3</b>Imprime grafico</span>
+                            </div>
+                          </div>
+                          <button type="button" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
+                            <Icon name="refresh" />
+                            {loadingFieldDebtReport ? "Calculando..." : "Generar grafico ahora"}
+                          </button>
                         </div>
                       )}
                     </section>
