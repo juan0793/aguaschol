@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Bell, MessageSquare, Send, UserCheck, Users, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ProfileWebSocketManager } from "../utils/profileWebSocket.js";
+import { ProfileWebSocketManager } from "@/utils/profileWebSocket.js";
 
 export function ChatMessagesPanel({
   apiFetch,
@@ -110,7 +110,6 @@ export function ChatMessagesPanel({
 
   const handleTyping = (e) => {
     const newBody = e.target.value;
-    const isAdmin = session?.user?.role === "admin";
     setMessageBody(newBody);
 
     if (isAdmin && wsManagerRef.current?.isConnected()) {
@@ -155,7 +154,6 @@ export function ChatMessagesPanel({
     }
   };
 
-  const isAdmin = session?.user?.role === "admin";
   const chatHeader = isAdmin
     ? `Chatear con: ${
         safeUsers.find((u) => u.id === Number(selectedUserId))?.full_name || "Selecciona usuario"
