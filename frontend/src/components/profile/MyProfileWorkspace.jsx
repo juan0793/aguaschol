@@ -140,6 +140,9 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
   }, [profile?.points]);
 
   const messages = useMemo(() => [...(profile?.messages ?? [])].reverse(), [profile?.messages]);
+  const visibleProfileMapPoints = useMemo(() => (profile?.points ?? []).slice(0, 80), [profile?.points]);
+  const recentProfilePoints = useMemo(() => (profile?.points ?? []).slice(0, 5), [profile?.points]);
+  const topProfileZone = profile?.zones?.[0] ?? null;
   const latestAdminMessage = useMemo(
     () => [...(profile?.messages ?? [])].find((message) => message.sender_role === "admin" && message.sender_user_id !== currentUserId),
     [currentUserId, profile?.messages]
@@ -249,20 +252,32 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
           </div>
           <div className="profile-mini-map">
             {(profile?.points ?? []).length ? (
-              profile.points.map((point) => (
+              <>
+                <div className="profile-map-summary-card">
+                  <span>Zona principal</span>
+                  <strong>{safeText(topProfileZone?.zone, "Actividad de campo")}</strong>
+                  <small>{formatNumber(profile?.points?.length ?? 0)} puntos registrados</small>
+                </div>
+                {visibleProfileMapPoints.map((point, index) => (
                 <button
                   key={point.id}
-                  type="button"
-                  className={`profile-map-dot status-${point.validation_status}`}
-                  style={{
-                    ...getPointPosition(point, bounds),
-                    background: point.marker_color || "#1576d1"
-                  }}
-                  title={`${safeText(point.zone_label)} · ${formatDateTime(point.created_at)}`}
-                >
-                  <MapPin size={13} />
-                </button>
-              ))
+                    type="button"
+                    className={`profile-map-dot status-${point.validation_status} ${index < 8 ? "is-prominent" : ""}`}
+                    style={{
+                      ...getPointPosition(point, bounds),
+                      "--point-color": point.marker_color || "#1576d1"
+                    }}
+                    title={`${safeText(point.zone_label)} · ${formatDateTime(point.created_at)}`}
+                    aria-label={`${safeText(point.zone_label)} registrado el ${formatDateTime(point.created_at)}`}
+                  >
+                    {index < 8 ? <span>{index + 1}</span> : null}
+                  </button>
+                ))}
+                <div className="profile-map-legend">
+                  <span><i />Recientes</span>
+                  <span><i className="is-pending" />Pendientes</span>
+                </div>
+              </>
             ) : (
               <div className="profile-map-empty">
                 <MapPin />
@@ -271,6 +286,19 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
               </div>
             )}
           </div>
+          {recentProfilePoints.length ? (
+            <div className="profile-recent-points" aria-label="Puntos recientes del perfil">
+              {recentProfilePoints.map((point, index) => (
+                <div key={`recent-${point.id}`} className="profile-recent-point">
+                  <span>{index + 1}</span>
+                  <div>
+                    <strong>{safeText(point.zone_label)}</strong>
+                    <small>{formatDateTime(point.created_at)}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="profile-zone-list">
             {(profile?.zones ?? []).slice(0, 8).map((zone) => (
               <div key={zone.zone} className="profile-zone-item">
@@ -328,7 +356,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
       </div>
 
       <div className="profile-achievement-grid">
-        <article className="profile-panel">
+        <article className="profile-panel profile-achievements-panel">
           <div className="profile-panel-head">
             <div>
               <p className="sheet-kicker">Logros</p>
@@ -340,8 +368,8 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
             {(profile?.achievements ?? []).length ? (
               profile.achievements.map((achievement) => (
                 <motion.div key={achievement.id} className="profile-achievement" whileHover={{ scale: 1.01 }}>
-                  <span style={{ background: achievement.badge_color || "#1576d1" }}>
-                    <Award size={18} />
+                  <span style={{ "--achievement-color": achievement.badge_color || "#1576d1" }}>
+                    <Award size={14} />
                   </span>
                   <div>
                     <strong>{achievement.title}</strong>
