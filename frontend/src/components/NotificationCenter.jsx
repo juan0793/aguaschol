@@ -46,11 +46,11 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
     };
 
     loadNotifications();
-  }, [isOpen, apiFetch, session?.user?.id]);
+  }, [isOpen, session?.user?.id]);
 
   // Conectar WebSocket para actualizaciones en tiempo real
   useEffect(() => {
-    if (!session?.sessionToken) return;
+    if (!session?.sessionToken || !isOpen) return;
 
     const manager = new ProfileWebSocketManager(session.sessionToken);
 
@@ -66,7 +66,7 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
     return () => {
       manager.disconnect();
     };
-  }, [session?.sessionToken, session?.user?.id]);
+  }, [session?.sessionToken, session?.user?.id, isOpen]);
 
   const handleMarkAsRead = async (messageId) => {
     try {
