@@ -1,4 +1,6 @@
-import { Icon } from "../Icon";
+import { CheckCircle2, FilePlus2, Printer, Send, ShieldCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const getReviewLabel = (record) => {
   if (record?.estado_padron === "reportada") return "Reportada";
@@ -23,37 +25,37 @@ const RecordActionBar = ({
       <span className="sheet-kicker">Modo Fichas</span>
       <strong>{form.clave_catastral || "Ficha nueva"}</strong>
       <div>
-        <span className={`record-status-chip ${isDirty ? "is-warning" : "is-success"}`}>
+        <Badge className={`record-status-chip ${isDirty ? "is-warning" : "is-success"}`}>
           {saving ? "Guardando" : isDirty ? "Cambios sin guardar" : "Sincronizada"}
-        </span>
-        <span className={`record-status-chip is-${form.estado_padron || "clandestino"}`}>{getReviewLabel(form)}</span>
+        </Badge>
+        <Badge className={`record-status-chip is-${form.estado_padron || "clandestino"}`}>{getReviewLabel(form)}</Badge>
       </div>
     </div>
     <div className="record-action-bar-buttons">
-      <button type="button" onClick={onSave} disabled={saving}>
-        <Icon name="success" />
+      <Button type="button" onClick={onSave} disabled={saving}>
+        <CheckCircle2 />
         {saving ? "Guardando..." : "Guardar"}
-      </button>
-      <button type="button" className="button-secondary" onClick={onNew}>
-        <Icon name="plus" />
+      </Button>
+      <Button type="button" variant="secondary" onClick={onNew}>
+        <FilePlus2 />
         Nueva ficha
-      </button>
-      <button type="button" className="button-secondary" onClick={onGenerateAviso} disabled={loadingAviso}>
-        <Icon name="records" />
+      </Button>
+      <Button type="button" variant="secondary" onClick={onGenerateAviso} disabled={loadingAviso}>
+        <ShieldCheck />
         Preparar aviso
-      </button>
-      <button type="button" className="button-secondary" onClick={onPrintFicha}>
-        <Icon name="records" />
+      </Button>
+      <Button type="button" variant="secondary" onClick={onPrintFicha}>
+        <Printer />
         Imprimir ficha
-      </button>
-      <button type="button" className="button-secondary" onClick={onPrintAviso}>
-        <Icon name="records" />
+      </Button>
+      <Button type="button" variant="secondary" onClick={onPrintAviso}>
+        <Printer />
         Imprimir aviso
-      </button>
-      <button type="button" className="button-secondary" onClick={onSendReview}>
-        <Icon name="activity" />
+      </Button>
+      <Button type="button" variant="secondary" onClick={onSendReview}>
+        <Send />
         Enviar para revision
-      </button>
+      </Button>
     </div>
   </div>
 );

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { AnimatePresence } from "motion/react";
+import { MotionAside, MotionSurface } from "../layout/MotionSurface";
 import RecordActionBar from "./RecordActionBar";
 import RecordAdminDecisionPanel from "./RecordAdminDecisionPanel";
 import RecordComparisonPanel from "./RecordComparisonPanel";
@@ -72,38 +74,49 @@ const RecordsWorkspace = ({
       />
 
       <main className="records-workspace-main">
-        <RecordActionBar
-          form={form}
-          saving={saving}
-          loadingAviso={loadingAviso}
-          isDirty={isDirty}
-          onSave={onSave}
-          onNew={onNewRecord}
-          onGenerateAviso={onGenerateAviso}
-          onPrintFicha={() => onPrintFicha(form)}
-          onPrintAviso={() => onPrintAviso(form)}
-          onSendReview={() => showAlert("Ficha enviada visualmente para revision. En esta fase queda trazada en comentarios al guardar.")}
-        />
+        <MotionSurface preset="settle">
+          <RecordActionBar
+            form={form}
+            saving={saving}
+            loadingAviso={loadingAviso}
+            isDirty={isDirty}
+            onSave={onSave}
+            onNew={onNewRecord}
+            onGenerateAviso={onGenerateAviso}
+            onPrintFicha={() => onPrintFicha(form)}
+            onPrintAviso={() => onPrintAviso(form)}
+            onSendReview={() => showAlert("Ficha enviada visualmente para revision. En esta fase queda trazada en comentarios al guardar.")}
+          />
+        </MotionSurface>
 
         <div className="records-workspace-grid">
-          <div className="records-workspace-editor">
-            <RecordEditor
-              form={form}
-              activeSection={activeSection}
-              selectedFile={selectedFile}
-              selectedPhotoUrl={selectedPhotoUrl}
-              localSelectedPhotoUrl={localSelectedPhotoUrl}
-              validationIssues={validationIssues}
-              saving={saving}
-              onChange={onChange}
-              onFileChange={onFileChange}
-              onSectionChange={onSectionChange}
-              onMoveSection={onMoveSection}
-              onSubmit={onSubmit}
-            />
-          </div>
+          <AnimatePresence mode="wait">
+            <MotionSurface
+              key={activeSection}
+              className="records-workspace-editor"
+              transition={{ duration: 0.2 }}
+            >
+              <RecordEditor
+                form={form}
+                activeSection={activeSection}
+                selectedFile={selectedFile}
+                selectedPhotoUrl={selectedPhotoUrl}
+                localSelectedPhotoUrl={localSelectedPhotoUrl}
+                validationIssues={validationIssues}
+                saving={saving}
+                onChange={onChange}
+                onFileChange={onFileChange}
+                onSectionChange={onSectionChange}
+                onMoveSection={onMoveSection}
+                onSubmit={onSubmit}
+              />
+            </MotionSurface>
+          </AnimatePresence>
 
-          <aside className="records-workspace-panels">
+          <MotionAside
+            className="records-workspace-panels"
+            transition={{ duration: 0.25, delay: 0.04 }}
+          >
             <RecordComparisonPanel
               form={form}
               padronMeta={padronMeta}
@@ -120,7 +133,7 @@ const RecordsWorkspace = ({
                 onDecision={onAdminDecision}
               />
             ) : null}
-          </aside>
+          </MotionAside>
         </div>
 
         <RecordPrintCenter

@@ -19665,3 +19665,498 @@ button,
     height: 34px;
   }
 }
+
+/* UX refresh for the records module: mobile-first cards, calmer surfaces, and tactile controls. */
+.records-workspace {
+  background:
+    linear-gradient(180deg, rgba(238, 246, 252, 0.92), rgba(248, 251, 253, 0.96)),
+    #f4f8fb;
+}
+
+.records-workspace-sidebar,
+.record-action-bar,
+.record-editor-shell,
+.record-comparison-panel,
+.record-admin-decision-panel,
+.record-print-center,
+.record-document-bundle,
+.record-document-card {
+  border-color: rgba(15, 76, 117, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 47, 72, 0.04), 0 16px 34px rgba(15, 76, 117, 0.08);
+}
+
+.records-workspace-sidebar {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+}
+
+.records-sidebar-top {
+  align-items: center;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(20, 101, 217, 0.1);
+}
+
+.records-sidebar-subtitle {
+  margin: 0.18rem 0 0;
+  color: #63788c;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.record-filter-field {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.95rem;
+}
+
+.record-filter-field > span,
+.record-editor-shell label > span,
+.sheet-section label > span {
+  color: #405b75;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.record-search-control {
+  position: relative;
+}
+
+.record-search-control svg {
+  position: absolute;
+  left: 0.78rem;
+  top: 50%;
+  z-index: 1;
+  width: 1rem;
+  height: 1rem;
+  color: #647b91;
+  transform: translateY(-50%);
+}
+
+.record-search-control input {
+  padding-left: 2.25rem;
+}
+
+.records-workspace-filters {
+  scrollbar-width: none;
+}
+
+.records-workspace-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.records-workspace-filters button {
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 47, 72, 0.04);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.records-workspace-filters button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(20, 101, 217, 0.28);
+  box-shadow: 0 8px 18px rgba(15, 76, 117, 0.08);
+}
+
+.records-workspace-filters button.is-active {
+  background: #0f5fb8;
+  border-color: #0f5fb8;
+  box-shadow: 0 12px 24px rgba(15, 95, 184, 0.18);
+}
+
+.records-workspace-filters button .inline-flex,
+.records-workspace-filters button [data-slot="badge"] {
+  min-width: 1.6rem;
+  justify-content: center;
+}
+
+.record-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(20, 101, 217, 0.11);
+  border-radius: 14px;
+  background: #fff;
+  padding: 0.9rem 0.9rem 0.9rem 2.9rem;
+  box-shadow: 0 1px 2px rgba(15, 47, 72, 0.04);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.record-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: transparent;
+}
+
+.record-card.active {
+  border-color: rgba(15, 95, 184, 0.45);
+  background: #f3f9ff;
+  box-shadow: 0 12px 26px rgba(15, 95, 184, 0.13);
+}
+
+.record-card.active::before {
+  background: #0f5fb8;
+}
+
+.record-card-leading-icon {
+  position: absolute;
+  left: 0.9rem;
+  top: 1rem;
+  width: 1.12rem;
+  height: 1.12rem;
+  color: #0f5fb8;
+}
+
+.record-card-warning-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #b45309;
+}
+
+.record-card strong,
+.record-card span,
+.record-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.records-empty-state,
+.records-loading-list {
+  display: grid;
+  gap: 0.45rem;
+  place-items: center;
+  border: 1px dashed rgba(20, 101, 217, 0.2);
+  border-radius: 14px;
+  background: #f7fbff;
+  padding: 1.2rem;
+  color: #557087;
+  text-align: center;
+}
+
+.records-empty-state svg {
+  width: 1.6rem;
+  height: 1.6rem;
+  color: #0f5fb8;
+}
+
+.records-empty-state p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.records-loading-list span {
+  width: 100%;
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #edf4fb, #f9fcff, #edf4fb);
+  background-size: 220% 100%;
+  animation: records-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes records-skeleton {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+
+.record-action-bar {
+  top: 0.75rem;
+  padding: 0.85rem;
+  backdrop-filter: blur(18px);
+}
+
+.record-action-bar-copy strong {
+  color: #102f4d;
+  font-size: clamp(1.05rem, 2vw, 1.28rem);
+  line-height: 1.1;
+}
+
+.record-action-bar-buttons button,
+.record-step-nav-flow button,
+.action-row button,
+.records-sidebar-top button {
+  min-height: 40px;
+  border-radius: 10px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.record-action-bar-buttons button:hover,
+.record-step-nav-flow button:hover,
+.action-row button:hover,
+.records-sidebar-top button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(15, 76, 117, 0.12);
+}
+
+.record-editor-shell {
+  gap: 1.1rem;
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.record-editor-head {
+  align-items: center;
+}
+
+.record-editor-key input,
+.sheet-section input,
+.sheet-section select,
+.sheet-section textarea,
+.record-filter-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(20, 101, 217, 0.14);
+  border-radius: 10px;
+  background: #fbfdff;
+  color: #183b5a;
+  font: inherit;
+  box-shadow: inset 0 1px 2px rgba(11, 47, 89, 0.04);
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.record-editor-key input:focus,
+.sheet-section input:focus,
+.sheet-section select:focus,
+.sheet-section textarea:focus,
+.record-filter-field input:focus {
+  border-color: rgba(15, 95, 184, 0.55);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(20, 101, 217, 0.16);
+  outline: none;
+}
+
+.sheet-section {
+  border: 1px solid rgba(20, 101, 217, 0.09);
+  border-radius: 14px;
+  background: #fff;
+  padding: clamp(0.9rem, 2vw, 1.05rem);
+}
+
+.sheet-section h3,
+.record-panel-head h3,
+.record-print-center h3 {
+  color: #102f4d;
+  letter-spacing: 0;
+}
+
+.form-grid {
+  gap: 0.85rem;
+}
+
+.record-step-nav {
+  border: 1px solid rgba(20, 101, 217, 0.1);
+  border-radius: 14px;
+  background: #f7fbff;
+}
+
+.record-step-nav-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+
+.record-step-nav-tabs button {
+  min-width: 0;
+  border-radius: 12px;
+  background: #fff;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.record-step-nav-tabs button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 76, 117, 0.08);
+}
+
+.record-step-nav-tabs button.is-active {
+  background: #0f335a;
+  border-color: #0f335a;
+}
+
+.record-step-nav-flow {
+  gap: 0.7rem;
+}
+
+.record-comparison-grid article,
+.record-document-card {
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.record-document-actions button {
+  min-height: 38px;
+  border-radius: 10px;
+}
+
+.photo-workspace {
+  border: 1px dashed rgba(20, 101, 217, 0.18);
+  border-radius: 14px;
+  background: #f7fbff;
+  padding: 0.9rem;
+}
+
+.photo-preview,
+.photo-placeholder {
+  border-radius: 12px;
+}
+
+@media (max-width: 1100px) {
+  .records-workspace-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 22;
+    max-height: none;
+  }
+
+  .record-mobile-drawer {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .records-workspace {
+    display: block;
+    min-height: 100vh;
+  }
+
+  .records-workspace-sidebar,
+  .records-workspace-main {
+    padding: 0.75rem;
+  }
+
+  .records-workspace-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid rgba(20, 101, 217, 0.1);
+    border-radius: 0 0 18px 18px;
+  }
+
+  .records-sidebar-top {
+    gap: 0.75rem;
+  }
+
+  .records-sidebar-top button {
+    width: auto;
+    min-width: 112px;
+  }
+
+  .records-workspace-filters {
+    display: flex;
+    flex-wrap: nowrap;
+    margin: 0.75rem -0.75rem 0.7rem;
+    overflow-x: auto;
+    padding: 0 0.75rem 0.2rem;
+  }
+
+  .records-workspace-filters button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    white-space: nowrap;
+  }
+
+  .record-mobile-drawer {
+    display: flex;
+    gap: 0.65rem;
+    margin: 0 -0.75rem;
+    overflow-x: auto;
+    padding: 0 0.75rem 0.2rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .record-mobile-drawer .record-card,
+  .record-mobile-drawer .draft-card {
+    flex: 0 0 min(86vw, 330px);
+    scroll-snap-align: start;
+  }
+
+  .records-empty-state,
+  .records-loading-list {
+    flex: 1 0 min(86vw, 330px);
+  }
+
+  .record-action-bar {
+    position: sticky;
+    top: 0.5rem;
+    z-index: 18;
+    margin-bottom: 0.75rem;
+    border-radius: 16px;
+  }
+
+  .record-action-bar-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .record-action-bar-buttons button {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .record-action-bar-buttons button:first-child,
+  .record-action-bar-buttons button:nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .record-editor-head {
+    gap: 0.85rem;
+  }
+
+  .record-editor-key {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .record-step-nav-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .record-step-nav-tabs button {
+    flex: 0 0 min(62vw, 190px);
+    scroll-snap-align: start;
+  }
+
+  .record-step-nav-flow {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .record-step-nav-flow small {
+    order: -1;
+    text-align: center;
+  }
+
+  .form-grid,
+  .padron-cross-grid,
+  .photo-workspace {
+    grid-template-columns: 1fr !important;
+  }
+
+  .record-comparison-panel,
+  .record-admin-decision-panel,
+  .record-print-center {
+    padding: 0.9rem;
+  }
+
+  .record-document-actions,
+  .record-document-card-head,
+  .record-document-summary {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .record-document-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .records-workspace *,
+  .records-workspace *::before,
+  .records-workspace *::after {
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

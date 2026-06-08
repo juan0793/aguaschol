@@ -6,5 +6,9 @@
     "postinstall": "npm --prefix backend install",
     "app": "levantar-app.bat",
     "app:stop": "detener-app.bat"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "tailwindcss": "^4.3.0"
   }
 }

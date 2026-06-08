@@ -1,4 +1,7 @@
+import { motion } from "motion/react";
+import { Save } from "lucide-react";
 import { fieldGroups, sectionDefinitions } from "../../constants/formsAndUi";
+import { Button } from "@/components/ui/button";
 import RecordStepNav from "./RecordStepNav";
 
 const RecordEditor = ({
@@ -35,7 +38,7 @@ const RecordEditor = ({
     />
 
     {activeSection === "abonado" ? (
-      <section className="sheet-section">
+      <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
         <h3>Informacion del abonado</h3>
         <div className="form-grid padron-cross-grid">
           <label>
@@ -61,19 +64,19 @@ const RecordEditor = ({
             ))}
           </div>
         ))}
-      </section>
+      </motion.section>
     ) : null}
 
     {activeSection === "inmueble" ? (
       <>
-        <section className="sheet-section">
+        <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
           <h3>Identificacion del inmueble</h3>
           <label>
             <span>Accion</span>
             <textarea name="accion_inspeccion" value={form.accion_inspeccion || ""} onChange={onChange} rows="4" />
           </label>
-        </section>
-        <section className="sheet-section">
+        </motion.section>
+        <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.04 }}>
           <h3>Datos del inmueble</h3>
           {fieldGroups.slice(2, 4).map((group, index) => (
             <div className="form-grid" key={index}>
@@ -85,12 +88,12 @@ const RecordEditor = ({
               ))}
             </div>
           ))}
-        </section>
+        </motion.section>
       </>
     ) : null}
 
     {activeSection === "servicios" ? (
-      <section className="sheet-section">
+      <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
         <h3>Datos de los servicios</h3>
         <div className="form-grid">
           {fieldGroups[4].map((field) => (
@@ -103,11 +106,11 @@ const RecordEditor = ({
             </label>
           ))}
         </div>
-      </section>
+      </motion.section>
     ) : null}
 
     {activeSection === "aviso" ? (
-      <section className="sheet-section">
+      <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
         <h3>Datos para aviso</h3>
         <div className="form-grid">
           <label>
@@ -131,11 +134,11 @@ const RecordEditor = ({
             <input name="analista_datos" value={form.analista_datos || ""} onChange={onChange} />
           </label>
         </div>
-      </section>
+      </motion.section>
     ) : null}
 
     {activeSection === "foto" ? (
-      <section className="sheet-section">
+      <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
         <h3>Fotografia del inmueble</h3>
         <div className="photo-workspace">
           <div>
@@ -153,7 +156,7 @@ const RecordEditor = ({
             <div className="photo-placeholder">Sin fotografia cargada</div>
           )}
         </div>
-      </section>
+      </motion.section>
     ) : null}
 
     {validationIssues.length ? (
@@ -173,9 +176,10 @@ const RecordEditor = ({
     ) : null}
 
     <div className="action-row">
-      <button type="submit" disabled={saving} data-intent="stay">
+      <Button type="submit" disabled={saving} data-intent="stay">
+        <Save />
         {saving ? "Guardando..." : form.id ? "Actualizar ficha" : "Guardar ficha"}
-      </button>
+      </Button>
     </div>
   </form>
 );

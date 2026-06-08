@@ -1,4 +1,5 @@
-import { Icon } from "../Icon";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const RecordStepNav = ({ sections, activeSection, onChange, onMove }) => {
   const currentIndex = Math.max(0, sections.findIndex((section) => section.key === activeSection));
@@ -23,15 +24,15 @@ const RecordStepNav = ({ sections, activeSection, onChange, onMove }) => {
         ))}
       </div>
       <div className="record-step-nav-flow">
-        <button type="button" className="button-secondary" onClick={() => onMove(-1)} disabled={!previous}>
-          <Icon name="arrowLeft" />
+        <Button type="button" variant="secondary" onClick={() => onMove(-1)} disabled={!previous}>
+          <ArrowLeft />
           {previous?.mobileLabel || "Inicio"}
-        </button>
+        </Button>
         <small>{next ? `Sigue: ${next.label}` : "Ultimo paso"}</small>
-        <button type="button" className="button-secondary" onClick={() => onMove(1)} disabled={!next}>
+        <Button type="button" variant="secondary" onClick={() => onMove(1)} disabled={!next}>
           {next?.mobileLabel || "Listo"}
-          <Icon name="arrowRight" />
-        </button>
+          <ArrowRight />
+        </Button>
       </div>
     </div>
   );
