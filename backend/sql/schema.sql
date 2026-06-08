@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS user_profile_messages (
 CREATE TABLE IF NOT EXISTS user_achievements (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
+  achievement_code VARCHAR(80) NULL,
   awarded_by INT UNSIGNED NULL,
   title VARCHAR(120) NOT NULL,
   description VARCHAR(255) NOT NULL DEFAULT '',

@@ -12,7 +12,6 @@ import {
   Sparkles,
   Target,
   Timer,
-  UserRound,
   Zap
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -75,12 +74,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
   const [error, setError] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [replyBody, setReplyBody] = useState("");
-  const [achievementForm, setAchievementForm] = useState({
-    title: "",
-    description: ""
-  });
   const [savingMessage, setSavingMessage] = useState(false);
-  const [savingAchievement, setSavingAchievement] = useState(false);
 
   const selectedUserId = isAdmin ? Number(targetUserId || currentUserId) : currentUserId;
 
@@ -185,35 +179,6 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
     }
   };
 
-  const handleAwardAchievement = async (event) => {
-    event.preventDefault();
-    if (!isAdmin || !achievementForm.title.trim()) return;
-
-    setSavingAchievement(true);
-    try {
-      const response = await apiFetch("/profile/achievements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: selectedUserId,
-          title: achievementForm.title,
-          description: achievementForm.description,
-          icon: "success",
-          badge_color: "#1576d1"
-        })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "No fue posible asignar el logro.");
-      setAchievementForm({ title: "", description: "" });
-      await loadProfile({ silent: true });
-      showAlert?.("Logro asignado.");
-    } catch (achievementError) {
-      showAlert?.(achievementError.message);
-    } finally {
-      setSavingAchievement(false);
-    }
-  };
-
   if (loading && !profile) {
     return <div className="module-loading-state">Cargando mi perfil...</div>;
   }
@@ -269,7 +234,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
       <div className="profile-stat-grid">
         <StatCard icon={Target} label="Puntos censados" value={formatNumber(stats.points_total)} detail={`${formatNumber(stats.points_today)} registrados hoy`} />
         <StatCard icon={Clock} label="Horas trabajadas" value={formatMinutes(stats.worked_minutes_estimated)} detail={`${formatNumber(stats.worked_days)} jornadas estimadas`} tone="is-green" />
-        <StatCard icon={Timer} label="Tiempo en pantalla" value={formatMinutes(stats.screen_minutes_estimated)} detail="Sesion activa estimada" tone="is-amber" />
+        <StatCard icon={Timer} label="Tiempo en pantalla" value={formatMinutes(stats.screen_minutes_estimated)} detail="Sesión activa estimada" tone="is-amber" />
         <StatCard icon={Zap} label="Rendimiento" value={`${formatNumber(stats.performance_score)}%`} detail={`${formatNumber(stats.approved_points)} puntos validados`} tone="is-blue" />
       </div>
 
@@ -302,7 +267,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
               <div className="profile-map-empty">
                 <MapPin />
                 <strong>Sin puntos GPS</strong>
-                <span>Los puntos censados apareceran aqui.</span>
+                <span>Los puntos censados aparecerán aquí.</span>
               </div>
             )}
           </div>
@@ -343,7 +308,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
             ) : (
               <div className="profile-inline-empty">
                 <MessageSquare />
-                <span>Sin mensajes todavia.</span>
+                <span>Sin mensajes todavía.</span>
               </div>
             )}
           </div>
@@ -351,7 +316,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
             <textarea
               value={isAdmin ? messageBody : replyBody}
               onChange={(event) => (isAdmin ? setMessageBody(event.target.value) : setReplyBody(event.target.value))}
-              placeholder={isAdmin ? "Enviar mensaje al usuario..." : latestAdminMessage ? "Responder a administracion..." : "Espera un mensaje de administracion para responder"}
+              placeholder={isAdmin ? "Enviar mensaje al usuario..." : latestAdminMessage ? "Responder a administración..." : "Espera un mensaje de administración para responder"}
               disabled={!isAdmin && !latestAdminMessage}
             />
             <button type="submit" disabled={savingMessage || (!isAdmin && !latestAdminMessage)}>
@@ -367,7 +332,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
           <div className="profile-panel-head">
             <div>
               <p className="sheet-kicker">Logros</p>
-              <h3><Medal size={20} />Reconocimientos</h3>
+              <h3><Medal size={20} />Logros desbloqueados</h3>
             </div>
             <span>{formatNumber(profile?.achievements?.length ?? 0)}</span>
           </div>
@@ -380,7 +345,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
                   </span>
                   <div>
                     <strong>{achievement.title}</strong>
-                    <p>{safeText(achievement.description, "Reconocimiento asignado por administracion.")}</p>
+                    <p>{safeText(achievement.description, "Logro desbloqueado automáticamente.")}</p>
                     <small>{formatDateTime(achievement.awarded_at)}</small>
                   </div>
                 </motion.div>
@@ -388,38 +353,11 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
             ) : (
               <div className="profile-inline-empty">
                 <Sparkles />
-                <span>Sin logros asignados.</span>
+                <span>Sin logros desbloqueados todavía.</span>
               </div>
             )}
           </div>
         </article>
-
-        {isAdmin ? (
-          <article className="profile-panel">
-            <div className="profile-panel-head">
-              <div>
-                <p className="sheet-kicker">Administracion</p>
-                <h3><UserRound size={20} />Asignar logro</h3>
-              </div>
-            </div>
-            <form className="profile-achievement-form" onSubmit={handleAwardAchievement}>
-              <input
-                value={achievementForm.title}
-                onChange={(event) => setAchievementForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Nombre del logro"
-              />
-              <textarea
-                value={achievementForm.description}
-                onChange={(event) => setAchievementForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Detalle breve"
-              />
-              <button type="submit" disabled={savingAchievement}>
-                <Award size={16} />
-                {savingAchievement ? "Asignando..." : "Asignar logro"}
-              </button>
-            </form>
-          </article>
-        ) : null}
       </div>
     </section>
   );

@@ -15,6 +15,169 @@ const asPositiveId = (value) => {
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
+const AUTO_ACHIEVEMENTS = [
+  {
+    code: "first_point",
+    title: "Primer punto GPS",
+    description: "Registró su primer punto GPS en campo.",
+    icon: "map-pin",
+    badge_color: "#1576d1",
+    condition: ({ stats }) => stats.points_total >= 1
+  },
+  {
+    code: "ten_points",
+    title: "10 puntos censados",
+    description: "Registró 10 puntos GPS en el sistema.",
+    icon: "target",
+    badge_color: "#0f766e",
+    condition: ({ stats }) => stats.points_total >= 10
+  },
+  {
+    code: "fifty_points",
+    title: "50 puntos censados",
+    description: "Registró 50 puntos GPS en el sistema.",
+    icon: "target",
+    badge_color: "#0e7490",
+    condition: ({ stats }) => stats.points_total >= 50
+  },
+  {
+    code: "hundred_points",
+    title: "100 puntos censados",
+    description: "Registró 100 puntos GPS en el sistema.",
+    icon: "target",
+    badge_color: "#1d4ed8",
+    condition: ({ stats }) => stats.points_total >= 100
+  },
+  {
+    code: "two_hundred_fifty_points",
+    title: "250 puntos censados",
+    description: "Registró 250 puntos GPS en el sistema.",
+    icon: "target",
+    badge_color: "#7c3aed",
+    condition: ({ stats }) => stats.points_total >= 250
+  },
+  {
+    code: "five_hundred_points",
+    title: "500 puntos censados",
+    description: "Registró 500 puntos GPS en el sistema.",
+    icon: "target",
+    badge_color: "#be123c",
+    condition: ({ stats }) => stats.points_total >= 500
+  },
+  {
+    code: "first_approved_point",
+    title: "Primer punto validado",
+    description: "Obtuvo su primer punto GPS validado.",
+    icon: "check",
+    badge_color: "#16a34a",
+    condition: ({ stats }) => stats.approved_points >= 1
+  },
+  {
+    code: "twenty_five_approved",
+    title: "25 puntos validados",
+    description: "Acumuló 25 puntos GPS validados.",
+    icon: "check",
+    badge_color: "#15803d",
+    condition: ({ stats }) => stats.approved_points >= 25
+  },
+  {
+    code: "hundred_approved",
+    title: "100 puntos validados",
+    description: "Acumuló 100 puntos GPS validados.",
+    icon: "check",
+    badge_color: "#166534",
+    condition: ({ stats }) => stats.approved_points >= 100
+  },
+  {
+    code: "first_work_day",
+    title: "Primera jornada",
+    description: "Completó su primera jornada con actividad de campo.",
+    icon: "calendar",
+    badge_color: "#0f766e",
+    condition: ({ stats }) => stats.worked_days >= 1
+  },
+  {
+    code: "five_work_days",
+    title: "5 jornadas trabajadas",
+    description: "Registró actividad en 5 jornadas de trabajo.",
+    icon: "calendar",
+    badge_color: "#0e7490",
+    condition: ({ stats }) => stats.worked_days >= 5
+  },
+  {
+    code: "fifteen_work_days",
+    title: "15 jornadas trabajadas",
+    description: "Registró actividad en 15 jornadas de trabajo.",
+    icon: "calendar",
+    badge_color: "#1d4ed8",
+    condition: ({ stats }) => stats.worked_days >= 15
+  },
+  {
+    code: "zone_explorer",
+    title: "Explorador de zonas",
+    description: "Trabajó en 3 zonas diferentes.",
+    icon: "map",
+    badge_color: "#0369a1",
+    condition: ({ stats }) => stats.zones_total >= 3
+  },
+  {
+    code: "zone_master",
+    title: "Dominador de zonas",
+    description: "Trabajó en 10 zonas diferentes.",
+    icon: "map",
+    badge_color: "#4338ca",
+    condition: ({ stats }) => stats.zones_total >= 10
+  },
+  {
+    code: "good_performance",
+    title: "Buen rendimiento",
+    description: "Alcanzó un rendimiento general de 50%.",
+    icon: "zap",
+    badge_color: "#ca8a04",
+    condition: ({ stats }) => stats.performance_score >= 50
+  },
+  {
+    code: "high_performance",
+    title: "Alto rendimiento",
+    description: "Alcanzó un rendimiento general de 80%.",
+    icon: "zap",
+    badge_color: "#ea580c",
+    condition: ({ stats }) => stats.performance_score >= 80
+  },
+  {
+    code: "perfect_performance",
+    title: "Rendimiento perfecto",
+    description: "Alcanzó un rendimiento general de 100%.",
+    icon: "zap",
+    badge_color: "#dc2626",
+    condition: ({ stats }) => stats.performance_score >= 100
+  },
+  {
+    code: "productive_day",
+    title: "Día productivo",
+    description: "Registró 10 puntos GPS en una misma jornada.",
+    icon: "sun",
+    badge_color: "#f59e0b",
+    condition: ({ stats }) => stats.points_today >= 10
+  },
+  {
+    code: "great_day",
+    title: "Gran jornada",
+    description: "Registró 25 puntos GPS en una misma jornada.",
+    icon: "sun",
+    badge_color: "#d97706",
+    condition: ({ stats }) => stats.points_today >= 25
+  },
+  {
+    code: "active_user",
+    title: "Usuario activo",
+    description: "Mantuvo una sesión activa de al menos 30 minutos.",
+    icon: "clock",
+    badge_color: "#2563eb",
+    condition: ({ stats }) => stats.screen_minutes_estimated >= 30
+  }
+];
+
 const sanitizeUser = (user) => ({
   id: user.id,
   full_name: user.full_name,
@@ -35,7 +198,7 @@ const getTargetUser = async (pool, authUser, requestedUserId) => {
   const targetId = asPositiveId(requestedUserId) ?? authUser.id;
 
   if (targetId !== authUser.id && authUser.role !== "admin") {
-    throw makeError("Solo administracion puede consultar perfiles de otros usuarios.", 403);
+    throw makeError("Solo administración puede consultar perfiles de otros usuarios.", 403);
   }
 
   const [rows] = await pool.query(
@@ -115,6 +278,48 @@ const emptyProfile = (authUser) => ({
   unread_count: 0,
   generated_at: new Date().toISOString()
 });
+
+const evaluateAutomaticAchievements = async ({ pool, targetId, stats }) => {
+  const unlockedAchievements = AUTO_ACHIEVEMENTS.filter((achievement) => achievement.condition({ stats }));
+
+  if (!unlockedAchievements.length) {
+    return [];
+  }
+
+  const codes = unlockedAchievements.map((achievement) => achievement.code);
+  const [existingRows] = await pool.query(
+    `
+      SELECT achievement_code
+      FROM user_achievements
+      WHERE user_id = ?
+        AND achievement_code IN (?)
+    `,
+    [targetId, codes]
+  );
+  const existingCodes = new Set(existingRows.map((row) => row.achievement_code).filter(Boolean));
+  const newAchievements = unlockedAchievements.filter((achievement) => !existingCodes.has(achievement.code));
+
+  for (const achievement of newAchievements) {
+    await pool.query(
+      `
+        INSERT INTO user_achievements
+          (user_id, awarded_by, achievement_code, title, description, icon, badge_color)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        targetId,
+        null,
+        achievement.code,
+        achievement.title,
+        achievement.description,
+        achievement.icon,
+        achievement.badge_color
+      ]
+    );
+  }
+
+  return newAchievements;
+};
 
 export const getProfile = async ({ authUser, userId }) => {
   if (env.useMemoryDb) {
@@ -205,19 +410,6 @@ export const getProfile = async ({ authUser, userId }) => {
     `,
     [targetId, targetId]
   );
-  const [achievements] = await pool.query(
-    `
-      SELECT
-        achievements.*,
-        awarded_by_user.full_name AS awarded_by_name
-      FROM user_achievements AS achievements
-      LEFT JOIN app_users AS awarded_by_user ON awarded_by_user.id = achievements.awarded_by
-      WHERE achievements.user_id = ?
-      ORDER BY achievements.awarded_at DESC
-      LIMIT 40
-    `,
-    [targetId]
-  );
   const [[unreadRow]] = await pool.query(
     `
       SELECT COUNT(*) AS unread_count
@@ -240,21 +432,42 @@ export const getProfile = async ({ authUser, userId }) => {
     0,
     100
   );
+  const stats = {
+    points_total: pointsTotal,
+    points_today: Number(statsRow?.points_today ?? 0),
+    approved_points: approvedPoints,
+    pending_points: Number(statsRow?.pending_points ?? 0),
+    housing_units_total: Number(statsRow?.housing_units_total ?? 0),
+    worked_days: Number(statsRow?.worked_days ?? 0),
+    worked_minutes_estimated: workedMinutes,
+    screen_minutes_estimated: sessionMinutes,
+    performance_score: performanceScore,
+    zones_total: zonesTotal
+  };
+
+  await evaluateAutomaticAchievements({
+    pool,
+    targetId,
+    stats
+  });
+
+  const [achievements] = await pool.query(
+    `
+      SELECT
+        achievements.*,
+        awarded_by_user.full_name AS awarded_by_name
+      FROM user_achievements AS achievements
+      LEFT JOIN app_users AS awarded_by_user ON awarded_by_user.id = achievements.awarded_by
+      WHERE achievements.user_id = ?
+      ORDER BY achievements.awarded_at DESC
+      LIMIT 40
+    `,
+    [targetId]
+  );
 
   return {
     user,
-    stats: {
-      points_total: pointsTotal,
-      points_today: Number(statsRow?.points_today ?? 0),
-      approved_points: approvedPoints,
-      pending_points: Number(statsRow?.pending_points ?? 0),
-      housing_units_total: Number(statsRow?.housing_units_total ?? 0),
-      worked_days: Number(statsRow?.worked_days ?? 0),
-      worked_minutes_estimated: workedMinutes,
-      screen_minutes_estimated: sessionMinutes,
-      performance_score: performanceScore,
-      zones_total: zonesTotal
-    },
+    stats,
     zones: zones.map((zone) => ({
       ...zone,
       total: Number(zone.total ?? 0),
@@ -271,7 +484,7 @@ export const getProfile = async ({ authUser, userId }) => {
     messages: messages.map(normalizeMessage),
     achievements: achievements.map((achievement) => ({
       ...achievement,
-      awarded_by_name: achievement.awarded_by_name ?? "Administracion"
+      awarded_by_name: achievement.awarded_by_name ?? "Administración"
     })),
     unread_count: Number(unreadRow?.unread_count ?? 0),
     generated_at: new Date().toISOString()
@@ -299,7 +512,7 @@ export const sendProfileMessage = async ({ authUser, recipientUserId, body, pare
   }
 
   if (authUser.role !== "admin" && recipientRows[0].role !== "admin") {
-    throw makeError("Las respuestas de usuarios deben enviarse a administracion.", 403);
+    throw makeError("Las respuestas de usuarios deben enviarse a administración.", 403);
   }
 
   const [result] = await pool.query(
@@ -366,7 +579,7 @@ export const awardProfileAchievement = async ({ authUser, userId, title, descrip
   }
 
   if (authUser.role !== "admin") {
-    throw makeError("Solo administracion puede asignar logros.", 403);
+    throw makeError("Solo administración puede asignar logros.", 403);
   }
 
   const targetId = asPositiveId(userId);
@@ -408,6 +621,6 @@ export const awardProfileAchievement = async ({ authUser, userId, title, descrip
 
   return {
     ...achievement,
-    awarded_by_name: achievement.awarded_by_name ?? "Administracion"
+    awarded_by_name: achievement.awarded_by_name ?? "Administración"
   };
 };

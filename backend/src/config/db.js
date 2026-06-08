@@ -432,6 +432,7 @@ const ensureSchema = async () => {
         CREATE TABLE IF NOT EXISTS user_achievements (
           id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
           user_id INT UNSIGNED NOT NULL,
+          achievement_code VARCHAR(80) NULL,
           awarded_by INT UNSIGNED NULL,
           title VARCHAR(120) NOT NULL,
           description VARCHAR(255) NOT NULL DEFAULT '',
@@ -447,6 +448,11 @@ const ensureSchema = async () => {
         )
       `
     );
+    await ensureColumn(admin, {
+      tableName: "user_achievements",
+      columnName: "achievement_code",
+      definition: "VARCHAR(80) NULL AFTER user_id"
+    });
     await ensureIndex(admin, {
       tableName: "auth_sessions",
       indexName: "idx_auth_sessions_user",
@@ -486,6 +492,11 @@ const ensureSchema = async () => {
       tableName: "user_achievements",
       indexName: "idx_user_achievements_user",
       columns: ["user_id", "awarded_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "user_achievements",
+      indexName: "idx_user_achievements_user_code",
+      columns: ["user_id", "achievement_code"]
     });
     await ensureIndex(admin, {
       tableName: "inmuebles_clandestinos",
