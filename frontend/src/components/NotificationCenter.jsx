@@ -68,18 +68,24 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
     };
   }, [session?.sessionToken, session?.user?.id, isOpen]);
 
-  const handleMarkAsRead = async (messageId, senderUserId) => {
+  const handleMarkAsRead = async (messageId) => {
     try {
       await apiFetch(`/profile/messages/${messageId}/read`, {
         method: "PATCH"
       });
       setNotifications((prev) => prev.filter((n) => n.id !== messageId));
-      if (senderUserId) {
-        onNotificationSelect?.(senderUserId);
-      }
     } catch (error) {
       console.error("Error marcando como leído:", error);
     }
+  };
+
+  const handleOpenNotification = (notification) => {
+    if (notification?.sender_user_id) {
+      onNotificationSelect?.(notification.sender_user_id);
+    } else {
+      onNotificationClick?.();
+    }
+    setIsOpen(false);
   };
 
   const handleClearAll = async () => {
@@ -152,9 +158,18 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
                   <motion.div
                     key={notification.id}
                     className="notification-item"
+                    role="button"
+                    tabIndex={0}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
+                    onClick={() => handleOpenNotification(notification)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleOpenNotification(notification);
+                      }
+                    }}
                   >
                     <div className="notification-item-content">
                       <div className="notification-item-header">
@@ -172,7 +187,10 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
                     </div>
                     <button
                       className="notification-item-close"
-                      onClick={() => handleMarkAsRead(notification.id, notification.sender_user_id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleMarkAsRead(notification.id);
+                      }}
                       title="Marcar como leído"
                     >
                       <X size={14} />

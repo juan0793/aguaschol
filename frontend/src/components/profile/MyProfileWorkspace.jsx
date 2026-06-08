@@ -14,7 +14,7 @@ import {
   Timer,
   Zap
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatMessagesPanel } from "../chat/ChatMessagesPanel.jsx";
 
 const formatNumber = (value) => new Intl.NumberFormat("es-HN").format(Number(value ?? 0));
@@ -69,20 +69,22 @@ const StatCard = ({ icon: Icon, label, value, detail, tone = "" }) => (
 
 export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], session, showAlert, initialTargetUserId, onTargetUserSelected }) {
   const currentUserId = session?.user?.id;
-  const [targetUserId, setTargetUserId] = useState(initialTargetUserId ?? currentUserId ?? "");
+  const [targetUserId, setTargetUserId] = useState(currentUserId ?? "");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [replyBody, setReplyBody] = useState("");
   const [savingMessage, setSavingMessage] = useState(false);
+  const processedUserIdRef = useRef(null);
 
   useEffect(() => {
-    if (initialTargetUserId && initialTargetUserId !== targetUserId) {
+    if (initialTargetUserId && initialTargetUserId !== processedUserIdRef.current) {
+      processedUserIdRef.current = initialTargetUserId;
       setTargetUserId(initialTargetUserId);
       onTargetUserSelected?.();
     }
-  }, [initialTargetUserId, targetUserId, onTargetUserSelected]);
+  }, [initialTargetUserId, onTargetUserSelected]);
 
   const selectedUserId = isAdmin ? Number(targetUserId || currentUserId) : currentUserId;
 
