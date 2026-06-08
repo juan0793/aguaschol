@@ -762,6 +762,7 @@ function App() {
   );
   const [notifiedRecordAlerts, setNotifiedRecordAlerts] = useState(() => loadStoredRecordNotifications());
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [notificationUserId, setNotificationUserId] = useState(null);
   const [workspaceView, setWorkspaceView] = useState(() => getWorkspaceViewByRole(session?.user?.role));
   const [dashboardWidgetPrefs, setDashboardWidgetPrefs] = useState(() => {
     try {
@@ -12050,6 +12051,10 @@ function App() {
               session={session}
               unreadCount={unreadMessagesCount}
               onNotificationClick={() => setWorkspaceView("profile")}
+              onNotificationSelect={(userId) => {
+                setWorkspaceView("profile");
+                setNotificationUserId(userId);
+              }}
             />
             <span className="app-user-chip">
               <Icon name="users" />
@@ -13151,6 +13156,8 @@ function App() {
               safeUsers={safeUsers}
               session={session}
               showAlert={showAlert}
+              initialTargetUserId={notificationUserId}
+              onTargetUserSelected={() => setNotificationUserId(null)}
             />
           </Suspense>
         </main>

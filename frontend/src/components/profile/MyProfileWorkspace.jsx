@@ -67,15 +67,22 @@ const StatCard = ({ icon: Icon, label, value, detail, tone = "" }) => (
   </motion.article>
 );
 
-export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], session, showAlert }) {
+export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], session, showAlert, initialTargetUserId, onTargetUserSelected }) {
   const currentUserId = session?.user?.id;
-  const [targetUserId, setTargetUserId] = useState(currentUserId ?? "");
+  const [targetUserId, setTargetUserId] = useState(initialTargetUserId ?? currentUserId ?? "");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [replyBody, setReplyBody] = useState("");
   const [savingMessage, setSavingMessage] = useState(false);
+
+  useEffect(() => {
+    if (initialTargetUserId && initialTargetUserId !== targetUserId) {
+      setTargetUserId(initialTargetUserId);
+      onTargetUserSelected?.();
+    }
+  }, [initialTargetUserId, targetUserId, onTargetUserSelected]);
 
   const selectedUserId = isAdmin ? Number(targetUserId || currentUserId) : currentUserId;
 

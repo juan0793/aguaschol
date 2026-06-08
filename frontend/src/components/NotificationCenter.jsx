@@ -3,7 +3,7 @@ import { Bell, MessageSquare, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ProfileWebSocketManager } from "../utils/profileWebSocket.js";
 
-export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotificationClick }) {
+export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotificationClick, onNotificationSelect }) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -68,12 +68,15 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
     };
   }, [session?.sessionToken, session?.user?.id, isOpen]);
 
-  const handleMarkAsRead = async (messageId) => {
+  const handleMarkAsRead = async (messageId, senderUserId) => {
     try {
       await apiFetch(`/profile/messages/${messageId}/read`, {
         method: "PATCH"
       });
       setNotifications((prev) => prev.filter((n) => n.id !== messageId));
+      if (senderUserId) {
+        onNotificationSelect?.(senderUserId);
+      }
     } catch (error) {
       console.error("Error marcando como leído:", error);
     }
@@ -169,7 +172,7 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
                     </div>
                     <button
                       className="notification-item-close"
-                      onClick={() => handleMarkAsRead(notification.id)}
+                      onClick={() => handleMarkAsRead(notification.id, notification.sender_user_id)}
                       title="Marcar como leído"
                     >
                       <X size={14} />
