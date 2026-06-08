@@ -504,6 +504,10 @@ export const sendProfileMessage = async ({ authUser, recipientUserId, body, pare
     throw makeError("Selecciona un destinatario y escribe un mensaje.");
   }
 
+  if (recipientId === authUser.id) {
+    throw makeError("No puedes enviarte mensajes a ti mismo.", 400);
+  }
+
   const pool = getPool();
   const [recipientRows] = await pool.query("SELECT id, role, full_name FROM app_users WHERE id = ? AND is_active = 1 LIMIT 1", [recipientId]);
 

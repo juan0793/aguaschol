@@ -475,8 +475,7 @@
 }
 
 .chat-user-selector {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 10px;
   padding: 12px;
   background: var(--surface-subtle);
@@ -484,17 +483,123 @@
   margin: 12px 0 0 0;
 }
 
-.chat-user-selector label {
+.chat-user-selector-head {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-weight: 500;
   font-size: 13px;
   color: var(--text-muted);
+}
+
+.chat-user-selector-head span {
+  color: #14344f;
+  font-weight: 800;
+}
+
+.chat-user-selector-head small {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chat-user-list {
+  display: grid;
+  gap: 6px;
+  max-height: 156px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.chat-user-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 12px;
+  padding: 7px 8px;
+  background: #fff;
+  color: #14344f;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.chat-user-option:hover,
+.chat-user-option.is-selected {
+  border-color: rgba(21, 118, 209, 0.38);
+  box-shadow: 0 10px 22px rgba(16, 55, 91, 0.08);
+  transform: translateY(-1px);
+}
+
+.chat-user-option.is-selected {
+  background: #f0f7ff;
+}
+
+.chat-user-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1576d1, #0f9f8f);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.chat-user-copy {
+  min-width: 0;
+}
+
+.chat-user-copy strong,
+.chat-user-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.chat-user-copy strong {
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.chat-user-copy small {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.chat-user-status {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.chat-user-status.is-online {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+.chat-user-empty {
+  border: 1px dashed rgba(21, 118, 209, 0.22);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .chat-user-dropdown {
+  display: none;
   flex: 1;
   padding: 8px 12px;
   background: white;

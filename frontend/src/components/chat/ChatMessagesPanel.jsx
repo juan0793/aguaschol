@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Bell, MessageSquare, Send, UserCheck, Users, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Bell, MessageSquare, Send, Users } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ProfileWebSocketManager } from "@/utils/profileWebSocket.js";
 
 export function ChatMessagesPanel({
@@ -25,6 +25,11 @@ export function ChatMessagesPanel({
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const selectableUsers = useMemo(
+    () => safeUsers.filter((user) => Number(user.id) !== Number(currentUserId)),
+    [currentUserId, safeUsers]
+  );
+  const selectedUser = selectableUsers.find((user) => Number(user.id) === Number(selectedUserId));
 
   const latestAdminMessage = messages.find(
     (m) => m.sender_role === "admin" && m.sender_user_id !== currentUserId
@@ -126,6 +131,10 @@ export function ChatMessagesPanel({
     const recipientId = isAdmin ? selectedUserId : latestAdminMessage?.sender_user_id;
 
     if (!body.trim() || !recipientId) return;
+    if (Number(recipientId) === Number(currentUserId)) {
+      showAlert?.("No puedes enviarte mensajes a ti mismo.");
+      return;
+    }
 
     setSavingMessage(true);
     try {
@@ -159,7 +168,7 @@ export function ChatMessagesPanel({
 
   const chatHeader = isAdmin
     ? `Chatear con: ${
-        safeUsers.find((u) => u.id === Number(selectedUserId))?.full_name || "Selecciona usuario"
+        selectedUser?.full_name || "Selecciona usuario"
       }`
     : "Soporte técnico";
 
@@ -201,10 +210,39 @@ export function ChatMessagesPanel({
 
       {isAdmin && (
         <div className="chat-user-selector">
-          <label htmlFor="chat-user-select">
+          <div className="chat-user-selector-head">
             <Users size={16} />
-            Selecciona usuario
-          </label>
+            <span>Personas</span>
+            <small>{selectableUsers.length} disponibles</small>
+          </div>
+          {selectableUsers.length ? (
+            <div className="chat-user-list" role="listbox" aria-label="Selecciona usuario para chatear">
+              {selectableUsers.map((user) => {
+                const isSelected = Number(user.id) === Number(selectedUserId);
+                const isOnline = onlineUsers.has(user.id);
+                const displayName = user.full_name || user.username || "Usuario";
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    className={`chat-user-option ${isSelected ? "is-selected" : ""}`}
+                    onClick={() => onUserSelect?.(user.id)}
+                    role="option"
+                    aria-selected={isSelected}
+                  >
+                    <span className="chat-user-avatar">{String(displayName).slice(0, 1).toUpperCase()}</span>
+                    <span className="chat-user-copy">
+                      <strong>{displayName}</strong>
+                      <small>{user.role || "usuario"}</small>
+                    </span>
+                    <i className={`chat-user-status ${isOnline ? "is-online" : ""}`} title={isOnline ? "En línea" : "Sin conexión"} />
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="chat-user-empty">No hay otros usuarios disponibles.</div>
+          )}
           <select
             id="chat-user-select"
             value={selectedUserId}
@@ -295,7 +333,7 @@ export function ChatMessagesPanel({
                 ? "Responder a administración..."
                 : "Espera un mensaje de administración"
           }
-          disabled={(!isAdmin && !latestAdminMessage) || savingMessage}
+          disabled={(isAdmin && !selectedUser) || (!isAdmin && !latestAdminMessage) || savingMessage}
           className="chat-message-input"
           rows="3"
         />
@@ -303,7 +341,7 @@ export function ChatMessagesPanel({
           type="submit"
           disabled={
             savingMessage ||
-            !((isAdmin && messageBody.trim()) || (!isAdmin && latestAdminMessage && replyBody.trim()))
+            !((isAdmin && selectedUser && messageBody.trim()) || (!isAdmin && latestAdminMessage && replyBody.trim()))
           }
           className="chat-send-button"
         >
