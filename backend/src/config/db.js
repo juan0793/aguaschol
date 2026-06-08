@@ -448,6 +448,40 @@ const ensureSchema = async () => {
         )
       `
     );
+    await admin.query(
+      `
+        CREATE TABLE IF NOT EXISTS profile_general_messages (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          sender_user_id INT UNSIGNED NULL,
+          body TEXT NOT NULL,
+          pinned_at TIMESTAMP NULL DEFAULT NULL,
+          pinned_by INT UNSIGNED NULL,
+          deleted_at TIMESTAMP NULL DEFAULT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT fk_profile_general_messages_sender
+            FOREIGN KEY (sender_user_id) REFERENCES app_users(id)
+            ON DELETE SET NULL,
+          CONSTRAINT fk_profile_general_messages_pinned_by
+            FOREIGN KEY (pinned_by) REFERENCES app_users(id)
+            ON DELETE SET NULL
+        )
+      `
+    );
+    await ensureColumn(admin, {
+      tableName: "profile_general_messages",
+      columnName: "pinned_at",
+      definition: "TIMESTAMP NULL DEFAULT NULL AFTER body"
+    });
+    await ensureColumn(admin, {
+      tableName: "profile_general_messages",
+      columnName: "pinned_by",
+      definition: "INT UNSIGNED NULL AFTER pinned_at"
+    });
+    await ensureColumn(admin, {
+      tableName: "profile_general_messages",
+      columnName: "deleted_at",
+      definition: "TIMESTAMP NULL DEFAULT NULL AFTER pinned_by"
+    });
     await ensureColumn(admin, {
       tableName: "user_achievements",
       columnName: "achievement_code",
@@ -487,6 +521,21 @@ const ensureSchema = async () => {
       tableName: "user_profile_messages",
       indexName: "idx_user_profile_messages_parent",
       columns: ["parent_message_id"]
+    });
+    await ensureIndex(admin, {
+      tableName: "profile_general_messages",
+      indexName: "idx_profile_general_messages_created_at",
+      columns: ["created_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "profile_general_messages",
+      indexName: "idx_profile_general_messages_deleted_at",
+      columns: ["deleted_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "profile_general_messages",
+      indexName: "idx_profile_general_messages_sender",
+      columns: ["sender_user_id", "created_at"]
     });
     await ensureIndex(admin, {
       tableName: "user_achievements",

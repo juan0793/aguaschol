@@ -1,8 +1,11 @@
 import {
   awardProfileAchievement,
+  deleteGeneralProfileMessage,
   getProfile,
   markProfileMessageRead,
-  sendProfileMessage
+  sendGeneralProfileMessage,
+  sendProfileMessage,
+  updateGeneralProfileMessagePin
 } from "../services/profileService.js";
 import { emitProfileMessage } from "../services/profileRealtimeService.js";
 
@@ -29,6 +32,46 @@ export const sendProfileMessageHandler = async (req, res, next) => {
     res.status(201).json(message);
     // Emitir evento WebSocket para entrega en tiempo real
     emitProfileMessage(message);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const sendGeneralProfileMessageHandler = async (req, res, next) => {
+  try {
+    const message = await sendGeneralProfileMessage({
+      authUser: req.authUser,
+      body: req.body?.body
+    });
+    res.status(201).json(message);
+    emitProfileMessage(message);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateGeneralProfileMessagePinHandler = async (req, res, next) => {
+  try {
+    const message = await updateGeneralProfileMessagePin({
+      authUser: req.authUser,
+      messageId: req.params.id,
+      pinned: req.body?.pinned !== false
+    });
+    res.json(message);
+    emitProfileMessage(message);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteGeneralProfileMessageHandler = async (req, res, next) => {
+  try {
+    const result = await deleteGeneralProfileMessage({
+      authUser: req.authUser,
+      messageId: req.params.id
+    });
+    res.json(result);
+    emitProfileMessage({ is_general: true, deleted_id: result.id });
   } catch (error) {
     next(error);
   }

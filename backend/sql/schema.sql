@@ -56,6 +56,22 @@ CREATE TABLE IF NOT EXISTS user_profile_messages (
     ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS profile_general_messages (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  sender_user_id INT UNSIGNED NULL,
+  body TEXT NOT NULL,
+  pinned_at TIMESTAMP NULL DEFAULT NULL,
+  pinned_by INT UNSIGNED NULL,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_profile_general_messages_sender
+    FOREIGN KEY (sender_user_id) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_profile_general_messages_pinned_by
+    FOREIGN KEY (pinned_by) REFERENCES app_users(id)
+    ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS user_achievements (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,

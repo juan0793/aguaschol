@@ -257,6 +257,19 @@ const normalizeMessage = (message) => ({
   recipient_name: message.recipient_name ?? ""
 });
 
+const normalizeGeneralMessage = (message) => ({
+  id: message.id,
+  sender_user_id: message.sender_user_id,
+  body: message.body,
+  pinned_at: message.pinned_at,
+  pinned_by: message.pinned_by,
+  deleted_at: message.deleted_at,
+  created_at: message.created_at,
+  sender_name: message.sender_name ?? "Sistema",
+  sender_role: message.sender_role ?? "",
+  is_general: true
+});
+
 const emptyProfile = (authUser) => ({
   user: sanitizeUser({ ...authUser, active_sessions: 1 }),
   stats: {
@@ -410,6 +423,19 @@ export const getProfile = async ({ authUser, userId }) => {
     `,
     [targetId, targetId]
   );
+  const [generalMessages] = await pool.query(
+    `
+      SELECT
+        messages.*,
+        sender.full_name AS sender_name,
+        sender.role AS sender_role
+      FROM profile_general_messages AS messages
+      LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
+      WHERE messages.deleted_at IS NULL
+      ORDER BY messages.created_at DESC
+      LIMIT 80
+    `
+  );
   const [[unreadRow]] = await pool.query(
     `
       SELECT COUNT(*) AS unread_count
@@ -482,6 +508,7 @@ export const getProfile = async ({ authUser, userId }) => {
       zone_label: point.reference_note || String(point.description ?? "").split("\n")[0] || "Zona sin referencia"
     })),
     messages: messages.map(normalizeMessage),
+    general_messages: generalMessages.map(normalizeGeneralMessage),
     achievements: achievements.map((achievement) => ({
       ...achievement,
       awarded_by_name: achievement.awarded_by_name ?? "Administración"
@@ -552,6 +579,129 @@ export const sendProfileMessage = async ({ authUser, recipientUserId, body, pare
   );
 
   return normalizeMessage(message);
+};
+
+export const sendGeneralProfileMessage = async ({ authUser, body }) => {
+  if (env.useMemoryDb) {
+    throw makeError("Los mensajes requieren base de datos persistente.", 503);
+  }
+
+  const cleanBody = String(body ?? "").trim();
+
+  if (cleanBody.length < 2) {
+    throw makeError("Escribe un mensaje para el chat general.");
+  }
+
+  const pool = getPool();
+  const [result] = await pool.query(
+    `
+      INSERT INTO profile_general_messages (sender_user_id, body)
+      VALUES (?, ?)
+    `,
+    [authUser.id, cleanBody.slice(0, 2000)]
+  );
+
+  await createAuditLog({
+    actorUserId: authUser.id,
+    action: "profile.general_message_sent",
+    entityType: "profile_general_message",
+    entityId: result.insertId,
+    summary: "Mensaje enviado al chat general."
+  });
+
+  const [[message]] = await pool.query(
+    `
+      SELECT
+        messages.*,
+        sender.full_name AS sender_name,
+        sender.role AS sender_role
+      FROM profile_general_messages AS messages
+      LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
+      WHERE messages.id = ?
+        AND messages.deleted_at IS NULL
+      LIMIT 1
+    `,
+    [result.insertId]
+  );
+
+  return normalizeGeneralMessage(message);
+};
+
+export const updateGeneralProfileMessagePin = async ({ authUser, messageId, pinned = true }) => {
+  if (env.useMemoryDb) {
+    throw makeError("Los mensajes requieren base de datos persistente.", 503);
+  }
+
+  if (authUser.role !== "admin") {
+    throw makeError("Solo administración puede anclar mensajes.", 403);
+  }
+
+  const id = asPositiveId(messageId);
+  if (!id) {
+    throw makeError("Mensaje invalido.");
+  }
+
+  const pool = getPool();
+  await pool.query(
+    `
+      UPDATE profile_general_messages
+      SET pinned_at = ?, pinned_by = ?
+      WHERE id = ? AND deleted_at IS NULL
+    `,
+    [pinned ? new Date() : null, pinned ? authUser.id : null, id]
+  );
+
+  const [[message]] = await pool.query(
+    `
+      SELECT
+        messages.*,
+        sender.full_name AS sender_name,
+        sender.role AS sender_role
+      FROM profile_general_messages AS messages
+      LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
+      WHERE messages.id = ?
+        AND messages.deleted_at IS NULL
+      LIMIT 1
+    `,
+    [id]
+  );
+
+  if (!message) {
+    throw makeError("Mensaje no encontrado.", 404);
+  }
+
+  return normalizeGeneralMessage(message);
+};
+
+export const deleteGeneralProfileMessage = async ({ authUser, messageId }) => {
+  if (env.useMemoryDb) {
+    throw makeError("Los mensajes requieren base de datos persistente.", 503);
+  }
+
+  if (authUser.role !== "admin") {
+    throw makeError("Solo administración puede borrar mensajes.", 403);
+  }
+
+  const id = asPositiveId(messageId);
+  if (!id) {
+    throw makeError("Mensaje invalido.");
+  }
+
+  const pool = getPool();
+  const [result] = await pool.query(
+    `
+      UPDATE profile_general_messages
+      SET deleted_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND deleted_at IS NULL
+    `,
+    [id]
+  );
+
+  if (!result.affectedRows) {
+    throw makeError("Mensaje no encontrado.", 404);
+  }
+
+  return { ok: true, id };
 };
 
 export const markProfileMessageRead = async ({ authUser, messageId }) => {

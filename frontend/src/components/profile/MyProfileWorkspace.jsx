@@ -150,6 +150,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
   }, [profile?.points]);
 
   const messages = useMemo(() => [...(profile?.messages ?? [])].reverse(), [profile?.messages]);
+  const generalMessages = useMemo(() => [...(profile?.general_messages ?? [])].reverse(), [profile?.general_messages]);
   const visibleProfileMapPoints = useMemo(() => (profile?.points ?? []).slice(0, 80), [profile?.points]);
   const recentProfilePoints = useMemo(() => (profile?.points ?? []).slice(0, 5), [profile?.points]);
   const topProfileZone = profile?.zones?.[0] ?? null;
@@ -322,7 +323,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
         <ChatMessagesPanel
           apiFetch={apiFetch}
           isAdmin={isAdmin}
-          messages={messages}
+          messages={generalMessages}
           safeUsers={safeUsers}
           currentUserId={currentUserId}
           selectedUserId={selectedUserId}
