@@ -36,6 +36,7 @@ const formatDateTime = (value) => {
 };
 
 const safeText = (value, fallback = "Sin referencia") => String(value ?? "").trim() || fallback;
+const PROFILE_REFRESH_INTERVAL_MS = 60000;
 
 const getPointPosition = (point, bounds) => {
   if (!bounds) return { left: "50%", top: "50%" };
@@ -121,7 +122,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
 
   useEffect(() => {
     loadProfile();
-    const timer = window.setInterval(() => loadProfile({ silent: true }), 10000);
+    const timer = window.setInterval(() => loadProfile({ silent: true }), PROFILE_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [loadProfile]);
 
