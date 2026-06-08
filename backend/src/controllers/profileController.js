@@ -4,6 +4,7 @@ import {
   markProfileMessageRead,
   sendProfileMessage
 } from "../services/profileService.js";
+import { emitProfileMessage } from "../services/profileRealtimeService.js";
 
 export const getProfileHandler = async (req, res, next) => {
   try {
@@ -26,6 +27,8 @@ export const sendProfileMessageHandler = async (req, res, next) => {
       body: req.body?.body
     });
     res.status(201).json(message);
+    // Emitir evento WebSocket para entrega en tiempo real
+    emitProfileMessage(message);
   } catch (error) {
     next(error);
   }

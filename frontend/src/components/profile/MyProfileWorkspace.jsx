@@ -15,6 +15,7 @@ import {
   Zap
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChatMessagesPanel } from "../chat/ChatMessagesPanel.jsx";
 
 const formatNumber = (value) => new Intl.NumberFormat("es-HN").format(Number(value ?? 0));
 
@@ -309,50 +310,18 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
           </div>
         </motion.article>
 
-        <motion.article className="profile-panel" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
-          <div className="profile-panel-head">
-            <div>
-              <p className="sheet-kicker">Mensajes</p>
-              <h3><MessageSquare size={20} />Notificaciones</h3>
-            </div>
-            <AnimatePresence>
-              {unreadOwnMessages ? (
-                <motion.span className="profile-notification-pill" initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }}>
-                  <Bell size={14} />
-                  {unreadOwnMessages}
-                </motion.span>
-              ) : null}
-            </AnimatePresence>
-          </div>
-          <div className="profile-message-list">
-            {messages.length ? (
-              messages.map((message) => (
-                <div key={message.id} className={`profile-message ${message.sender_user_id === currentUserId ? "is-own" : ""}`}>
-                  <strong>{message.sender_user_id === currentUserId ? "Tu" : message.sender_name}</strong>
-                  <p>{message.body}</p>
-                  <small>{formatDateTime(message.created_at)}</small>
-                </div>
-              ))
-            ) : (
-              <div className="profile-inline-empty">
-                <MessageSquare />
-                <span>Sin mensajes todavía.</span>
-              </div>
-            )}
-          </div>
-          <form className="profile-message-form" onSubmit={handleSendMessage}>
-            <textarea
-              value={isAdmin ? messageBody : replyBody}
-              onChange={(event) => (isAdmin ? setMessageBody(event.target.value) : setReplyBody(event.target.value))}
-              placeholder={isAdmin ? "Enviar mensaje al usuario..." : latestAdminMessage ? "Responder a administración..." : "Espera un mensaje de administración para responder"}
-              disabled={!isAdmin && !latestAdminMessage}
-            />
-            <button type="submit" disabled={savingMessage || (!isAdmin && !latestAdminMessage)}>
-              <Send size={16} />
-              {savingMessage ? "Enviando..." : isAdmin ? "Enviar" : "Responder"}
-            </button>
-          </form>
-        </motion.article>
+        <ChatMessagesPanel
+          apiFetch={apiFetch}
+          isAdmin={isAdmin}
+          messages={messages}
+          safeUsers={safeUsers}
+          currentUserId={currentUserId}
+          selectedUserId={selectedUserId}
+          onUserSelect={setTargetUserId}
+          onMessageSent={() => loadProfile({ silent: true })}
+          session={session}
+          showAlert={showAlert}
+        />
       </div>
 
       <div className="profile-achievement-grid">

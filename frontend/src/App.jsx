@@ -4,6 +4,7 @@ import { Icon, actionIconName } from "./components/Icon";
 import LookupChatPanel from "./components/LookupChatPanel";
 import BarrioCodesWorkspace, { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
+import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
 import {
@@ -760,6 +761,7 @@ function App() {
     () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
   );
   const [notifiedRecordAlerts, setNotifiedRecordAlerts] = useState(() => loadStoredRecordNotifications());
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [workspaceView, setWorkspaceView] = useState(() => getWorkspaceViewByRole(session?.user?.role));
   const [dashboardWidgetPrefs, setDashboardWidgetPrefs] = useState(() => {
     try {
@@ -3855,6 +3857,34 @@ function App() {
       window.removeEventListener("focus", handleWindowFocus);
     };
   }, [isAuthenticated, recordView, search, workspaceView]);
+
+  // Cargar conteo de mensajes sin leer periodicamente
+  useEffect(() => {
+    if (!isAuthenticated || !session?.user?.id) return;
+
+    const loadUnreadMessagesCount = async () => {
+      try {
+        const response = await apiFetch("/profile");
+        const data = await response.json();
+        if (response.ok && data.messages) {
+          const unreadCount = (data.messages ?? []).filter(
+            (m) => m.recipient_user_id === session.user.id && !m.read_at
+          ).length;
+          setUnreadMessagesCount(unreadCount);
+        }
+      } catch (error) {
+        console.error("Error cargando conteo de mensajes:", error);
+      }
+    };
+
+    // Cargar al iniciar
+    loadUnreadMessagesCount();
+
+    // Actualizar cada 30 segundos
+    const intervalId = window.setInterval(loadUnreadMessagesCount, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAuthenticated, session?.user?.id, apiFetch]);
 
   const loadUsers = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !isAdmin) return;
@@ -12015,6 +12045,12 @@ function App() {
                   ? "Cambios sin guardar"
                   : "Todo guardado"}
             </span>
+            <NotificationCenter
+              apiFetch={apiFetch}
+              session={session}
+              unreadCount={unreadMessagesCount}
+              onNotificationClick={() => setWorkspaceView("profile")}
+            />
             <span className="app-user-chip">
               <Icon name="users" />
               {session?.user?.full_name || session?.user?.username || "Sesion activa"}
