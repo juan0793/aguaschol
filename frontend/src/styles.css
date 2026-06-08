@@ -20739,3 +20739,24 @@ button,
   font-size: 0.72rem;
   font-weight: 900;
 }
+
+.field-map-loading {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  border: 1px dashed rgba(21, 118, 209, 0.22);
+  background: #f7fbff;
+  color: #405b75;
+  font-weight: 900;
+}
+
+.module-loading-state {
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+  border: 1px dashed rgba(21, 118, 209, 0.2);
+  border-radius: 16px;
+  background: #f7fbff;
+  color: #405b75;
+  font-weight: 900;
+}

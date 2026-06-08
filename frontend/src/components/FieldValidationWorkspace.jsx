@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import FieldMap from "./FieldMap";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "./Icon";
 import {
   ALERT_MAP_POINT_COLOR,
@@ -13,6 +12,8 @@ import { buildExternalMapUrl, formatCoordinate, getMapPointTypeLabel } from "../
 import { escapeHtml } from "../utils/html";
 import { printDocument } from "../utils/printDocument";
 import { extractClaveFromText } from "../utils/barrioCodes";
+
+const FieldMap = lazy(() => import("./FieldMap"));
 
 const SUSPICIOUS_FAST_SECONDS = 90;
 const CRITICAL_FAST_SECONDS = 45;
@@ -513,16 +514,18 @@ const FieldValidationWorkspace = ({
               </button>
             </div>
           </div>
-          <FieldMap
-            apiUrl={apiUrl}
-            isActive={isActive}
-            mapDraft={mapDraft}
-            mapPoints={filteredPoints}
-            onDraftChange={handleDraftFromMap}
-            onSelectPoint={handleMapSelectPoint}
-            onStatusChange={setMapStatus}
-            selectedMapPointId={selectedPoint?.id}
-          />
+          <Suspense fallback={<div className="map-canvas field-map-loading">Cargando mapa...</div>}>
+            <FieldMap
+              apiUrl={apiUrl}
+              isActive={isActive}
+              mapDraft={mapDraft}
+              mapPoints={filteredPoints}
+              onDraftChange={handleDraftFromMap}
+              onSelectPoint={handleMapSelectPoint}
+              onStatusChange={setMapStatus}
+              selectedMapPointId={selectedPoint?.id}
+            />
+          </Suspense>
           <div className="field-validation-map-hint">
             <Icon name="map" />
             <span>Estado del mapa: {mapStatus}. Toca el mapa para ajustar la ubicacion del punto seleccionado.</span>

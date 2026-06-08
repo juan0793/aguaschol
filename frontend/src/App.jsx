@@ -1,11 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
-import FieldValidationWorkspace from "./components/FieldValidationWorkspace";
 import { Icon, actionIconName } from "./components/Icon";
 import LookupChatPanel from "./components/LookupChatPanel";
 import BarrioCodesWorkspace, { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
-import RecordsWorkspace from "./components/records/RecordsWorkspace";
-import TransportWorkspace from "./components/TransportWorkspace";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
@@ -108,6 +105,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const FieldMap = lazy(() => import("./components/FieldMap"));
+const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
+const RecordsWorkspace = lazy(() => import("./components/records/RecordsWorkspace"));
+const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
 const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
@@ -13268,14 +13268,16 @@ function App() {
       ) : workspaceView === "transport" ? (
       <main className="layout transport-layout-page">
         <section className="preview-panel transport-preview-panel">
-          <TransportWorkspace
-            apiFetch={apiFetch}
-            clearSession={clearSession}
-            isActive={workspaceView === "transport" && isAuthenticated}
-            isAdmin={isAdmin}
-            session={session}
-            showAlert={showAlert}
-          />
+          <Suspense fallback={<div className="module-loading-state">Cargando transporte...</div>}>
+            <TransportWorkspace
+              apiFetch={apiFetch}
+              clearSession={clearSession}
+              isActive={workspaceView === "transport" && isAuthenticated}
+              isAdmin={isAdmin}
+              session={session}
+              showAlert={showAlert}
+            />
+          </Suspense>
         </section>
       </main>
       ) : workspaceView === "records" && recordsFocusMode ? (
@@ -13289,43 +13291,45 @@ function App() {
             Volver a vista actual
           </button>
         </div>
-        <RecordsWorkspace
-          records={displayRecords}
-          form={form}
-          draftForm={draftForm ? withBarrioFromPrefix(draftForm, safeBarrioCodes) : draftForm}
-          loading={loading}
-          saving={saving}
-          loadingAviso={loadingAviso}
-          selectedFile={selectedFile}
-          selectedPhotoUrl={selectedPhotoUrl}
-          localSelectedPhotoUrl={localSelectedPhotoUrl}
-          activeSection={activeSection}
-          validationIssues={recordValidationIssues}
-          isDirty={isDirty}
-          isAdmin={isAdmin}
-          currentUser={session?.user}
-          padronMeta={padronMeta}
-          alcaldiaMeta={alcaldiaMeta}
-          alcaldiaComparison={alcaldiaComparison}
-          loadingAlcaldiaComparison={loadingAlcaldiaComparison}
-          processingRecordId={processingRecordId}
-          onChange={handleChange}
-          onFileChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-          onSectionChange={setActiveSection}
-          onMoveSection={moveRecordSection}
-          onSubmit={saveRecord}
-          onSave={saveRecordFromWorkspace}
-          onNewRecord={resetForm}
-          onRestoreDraft={restoreDraft}
-          onSelectRecord={handleSelectRecord}
-          onGenerateAviso={generateAviso}
-          onPrintFicha={handlePrintFicha}
-          onPrintAviso={handlePrintAviso}
-          onValidatePadron={handleValidateFormPadron}
-          onComparePadrones={loadAlcaldiaComparison}
-          onAdminDecision={handleWorkspaceAdminDecision}
-          showAlert={showAlert}
-        />
+        <Suspense fallback={<div className="module-loading-state">Cargando fichas...</div>}>
+          <RecordsWorkspace
+            records={displayRecords}
+            form={form}
+            draftForm={draftForm ? withBarrioFromPrefix(draftForm, safeBarrioCodes) : draftForm}
+            loading={loading}
+            saving={saving}
+            loadingAviso={loadingAviso}
+            selectedFile={selectedFile}
+            selectedPhotoUrl={selectedPhotoUrl}
+            localSelectedPhotoUrl={localSelectedPhotoUrl}
+            activeSection={activeSection}
+            validationIssues={recordValidationIssues}
+            isDirty={isDirty}
+            isAdmin={isAdmin}
+            currentUser={session?.user}
+            padronMeta={padronMeta}
+            alcaldiaMeta={alcaldiaMeta}
+            alcaldiaComparison={alcaldiaComparison}
+            loadingAlcaldiaComparison={loadingAlcaldiaComparison}
+            processingRecordId={processingRecordId}
+            onChange={handleChange}
+            onFileChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            onSectionChange={setActiveSection}
+            onMoveSection={moveRecordSection}
+            onSubmit={saveRecord}
+            onSave={saveRecordFromWorkspace}
+            onNewRecord={resetForm}
+            onRestoreDraft={restoreDraft}
+            onSelectRecord={handleSelectRecord}
+            onGenerateAviso={generateAviso}
+            onPrintFicha={handlePrintFicha}
+            onPrintAviso={handlePrintAviso}
+            onValidatePadron={handleValidateFormPadron}
+            onComparePadrones={loadAlcaldiaComparison}
+            onAdminDecision={handleWorkspaceAdminDecision}
+            showAlert={showAlert}
+          />
+        </Suspense>
       </main>
       ) : workspaceView === "records" ? (
       <main className="layout records-view shadcn-records-module">
@@ -15669,23 +15673,25 @@ function App() {
           </section>
         </main>
       ) : workspaceView === "fieldValidation" ? (
-        <FieldValidationWorkspace
-          apiUrl={API_URL}
-          activeDateLabel={`Jornada ${formatMapDiaryLabel(activeMapDiaryDateKey)}`}
-          isActive={workspaceView === "fieldValidation" && isAuthenticated}
-          loading={loadingMapPoints}
-          mapPoints={visibleMapPoints}
-          onCopyCoordinates={handleCopyCoordinates}
-          onRefresh={() => {
-            loadMapDiaryGroups({ silent: true });
-            loadMapPoints({ date: activeMapDiaryDateKey });
-          }}
-          onSaveValidation={handleSaveFieldValidation}
-          onSelectPoint={handleSelectMapPoint}
-          savingPointId={savingFieldValidationPointId}
-          selectedPointId={selectedMapPointId}
-          setSelectedPointId={setSelectedMapPointId}
-        />
+        <Suspense fallback={<div className="module-loading-state">Cargando validacion de campo...</div>}>
+          <FieldValidationWorkspace
+            apiUrl={API_URL}
+            activeDateLabel={`Jornada ${formatMapDiaryLabel(activeMapDiaryDateKey)}`}
+            isActive={workspaceView === "fieldValidation" && isAuthenticated}
+            loading={loadingMapPoints}
+            mapPoints={visibleMapPoints}
+            onCopyCoordinates={handleCopyCoordinates}
+            onRefresh={() => {
+              loadMapDiaryGroups({ silent: true });
+              loadMapPoints({ date: activeMapDiaryDateKey });
+            }}
+            onSaveValidation={handleSaveFieldValidation}
+            onSelectPoint={handleSelectMapPoint}
+            savingPointId={savingFieldValidationPointId}
+            selectedPointId={selectedMapPointId}
+            setSelectedPointId={setSelectedMapPointId}
+          />
+        </Suspense>
       ) : (
         <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
           {workspaceView === "users" ? (
