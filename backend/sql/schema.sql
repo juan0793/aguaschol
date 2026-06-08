@@ -37,6 +37,42 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS user_profile_messages (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  sender_user_id INT UNSIGNED NULL,
+  recipient_user_id INT UNSIGNED NOT NULL,
+  parent_message_id INT UNSIGNED NULL,
+  body TEXT NOT NULL,
+  read_at TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_profile_messages_sender
+    FOREIGN KEY (sender_user_id) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_user_profile_messages_recipient
+    FOREIGN KEY (recipient_user_id) REFERENCES app_users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_user_profile_messages_parent
+    FOREIGN KEY (parent_message_id) REFERENCES user_profile_messages(id)
+    ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  awarded_by INT UNSIGNED NULL,
+  title VARCHAR(120) NOT NULL,
+  description VARCHAR(255) NOT NULL DEFAULT '',
+  icon VARCHAR(40) NOT NULL DEFAULT 'success',
+  badge_color VARCHAR(20) NOT NULL DEFAULT '#1576d1',
+  awarded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_achievements_user
+    FOREIGN KEY (user_id) REFERENCES app_users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_user_achievements_awarded_by
+    FOREIGN KEY (awarded_by) REFERENCES app_users(id)
+    ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   clave_catastral VARCHAR(30) NOT NULL UNIQUE,

@@ -106,6 +106,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const FieldMap = lazy(() => import("./components/FieldMap"));
 const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
+const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const RecordsWorkspace = lazy(() => import("./components/records/RecordsWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 
@@ -1851,6 +1852,7 @@ function App() {
       isAdmin
         ? [
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
+            { key: "profile", section: "vision", label: "Mi perfil", icon: "users", meta: "Rendimiento personal", tone: "is-users" },
             { key: "executiveReport", section: "vision", label: "Operaciones realizadas", icon: "records", meta: "PDF general", tone: "is-report" },
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
@@ -1906,6 +1908,7 @@ function App() {
     () =>
       (isAdmin
         ? [
+            { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
@@ -1919,6 +1922,7 @@ function App() {
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
           ]
         : [
+            { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
@@ -1942,7 +1946,7 @@ function App() {
     ]
   );
   const mobilePrimaryModuleKeys = useMemo(
-    () => ["records", "lookup", "map"],
+    () => ["profile", "records", "lookup", "map"],
     []
   );
   const primaryModuleNavigationItems = useMemo(
@@ -1987,7 +1991,7 @@ function App() {
       {
         key: "principal",
         title: "Principal",
-        items: [dashboardItem, ...items.filter((item) => ["records", "lookup"].includes(item.key))].filter(Boolean)
+        items: [dashboardItem, ...items.filter((item) => ["profile", "records", "lookup"].includes(item.key))].filter(Boolean)
       },
       {
         key: "campo",
@@ -12286,6 +12290,27 @@ function App() {
                 </button>
               </div>
             </div>
+          ) : workspaceView === "profile" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">
+                Perfil operativo con rendimiento, puntos censados, zonas trabajadas, mensajes y logros del equipo.
+              </p>
+              <div className="dashboard-summary-chips">
+                <span className="panel-pill">Vista en vivo</span>
+                <span className="panel-pill">Mapa personal</span>
+                <span className="panel-pill">Mensajes y logros</span>
+              </div>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contrasena
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesion
+                </button>
+              </div>
+            </div>
           ) : workspaceView === "executiveReport" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
@@ -13081,6 +13106,18 @@ function App() {
           </MotionSurface>
         </section>
       </main>
+      ) : workspaceView === "profile" ? (
+        <main className="profile-layout">
+          <Suspense fallback={<div className="module-loading-state">Cargando mi perfil...</div>}>
+            <MyProfileWorkspace
+              apiFetch={apiFetch}
+              isAdmin={isAdmin}
+              safeUsers={safeUsers}
+              session={session}
+              showAlert={showAlert}
+            />
+          </Suspense>
+        </main>
       ) : workspaceView === "executiveReport" ? (
       <main className="executive-report-layout">
         <section className="executive-hero-panel">
