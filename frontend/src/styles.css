@@ -20688,13 +20688,25 @@ button,
 
 .dashboard-live-header.is-updating::before,
 .dashboard-live-header.is-retrying::before {
-  opacity: 0.18 !important;
-  background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.18) 42%, transparent 72%) !important;
+  display: none !important;
+  opacity: 0 !important;
+  animation: none !important;
 }
 
 .dashboard-live-header.is-updating,
 .dashboard-live-header.is-retrying {
-  color: #fff;
+  border-color: rgba(15, 76, 117, 0.1) !important;
+  background:
+    linear-gradient(135deg, rgba(12, 43, 70, 0.96), rgba(13, 83, 128, 0.94) 48%, rgba(16, 123, 120, 0.9)),
+    #0c2b46 !important;
+  color: #fff !important;
+}
+
+.dashboard-live-header.is-updating strong,
+.dashboard-live-header.is-retrying strong,
+.dashboard-live-header.is-updating small,
+.dashboard-live-header.is-retrying small {
+  color: #fff !important;
 }
 
 .dashboard-feed-item {
