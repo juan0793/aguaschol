@@ -24,6 +24,7 @@ export function ChatMessagesPanel({
   const wsManagerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   const latestAdminMessage = messages.find(
     (m) => m.sender_role === "admin" && m.sender_user_id !== currentUserId
@@ -103,9 +104,11 @@ export function ChatMessagesPanel({
     };
   }, [session?.sessionToken, currentUserId, selectedUserId, onMessageSent]);
 
-  // Auto-scroll al último mensaje
+  // Auto-scroll al último mensaje (dentro del contenedor, no la página)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleTyping = (e) => {
@@ -218,7 +221,7 @@ export function ChatMessagesPanel({
         </div>
       )}
 
-      <div className="chat-messages-container">
+      <div className="chat-messages-container" ref={messagesContainerRef}>
         <div className="chat-messages-list">
           {messages.length > 0 ? (
             messages.map((message) => (
