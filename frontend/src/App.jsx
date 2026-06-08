@@ -2655,7 +2655,10 @@ function App() {
         user: log.actor_name || log.actor_email || "Sistema",
         icon: actionIconName(log.action),
         tone: log.action?.includes("alert") ? "is-warning" : "is-info",
-        createdAt: log.created_at
+        createdAt: log.created_at,
+        targetView: log.action === "map_point.created" ? "mapReports" : log.action?.startsWith("inmueble.") ? "records" : "logs",
+        targetPointId: log.action === "map_point.created" ? log.entity_id : null,
+        targetRecordId: log.action?.startsWith("inmueble.") ? log.entity_id : null
       });
     });
 
@@ -2667,7 +2670,9 @@ function App() {
         user: point.created_by_name || point.created_by || "Equipo de campo",
         icon: "map",
         tone: "is-map",
-        createdAt: point.created_at || point.updated_at
+        createdAt: point.created_at || point.updated_at,
+        targetView: "mapReports",
+        targetPointId: point.id
       });
     });
 
@@ -2679,7 +2684,9 @@ function App() {
         user: record.levantamiento_datos || "Equipo operativo",
         icon: "records",
         tone: "is-record",
-        createdAt: record.created_at
+        createdAt: record.created_at,
+        targetView: "records",
+        targetRecordId: record.id
       });
     });
 
@@ -2692,7 +2699,9 @@ function App() {
         user: record.analista_datos || "Sistema",
         icon: meta?.statusKey === "overdue" ? "warning" : "records",
         tone: meta?.statusKey === "overdue" ? "is-warning" : "is-ready",
-        createdAt: record.updated_at || record.created_at
+        createdAt: record.updated_at || record.created_at,
+        targetView: "records",
+        targetRecordId: record.id
       });
     });
 
@@ -10707,7 +10716,7 @@ function App() {
             <div className="dashboard-panel-head dashboard-spotlight-head">
               <div>
                 <p className="sheet-kicker">Vision ejecutiva</p>
-                <h2><Icon name="dashboard" className="title-icon" />Tablero de mando</h2>
+                  <h2><Icon name="dashboard" className="title-icon" />Tablero</h2>
                 <p className="workspace-title">
                   Una vista rapida para decidir a donde entrar, que revisar y donde hace falta atencion inmediata.
                 </p>
@@ -12617,7 +12626,7 @@ function App() {
           <MotionSurface className={`dashboard-live-header is-${dashboardConnectionStatus}`} preset="settle">
             <div>
               <span className="dashboard-live-pill"><span />En vivo</span>
-              <strong>Tablero de mando</strong>
+              <strong>Tablero</strong>
               <small>Ultima sincronizacion: {formatDashboardSyncDate(dashboardLastUpdatedAt)}</small>
               <small>
                 {dashboardConnectionStatus === "retrying"
@@ -12838,7 +12847,20 @@ function App() {
                   type="button"
                   className={`dashboard-live-activity-item ${item.tone} ${index === 0 ? "is-current" : ""}`}
                   style={{ "--dash-enter-delay": `${Math.min(index, 4) * 42}ms` }}
-                  onClick={() => setWorkspaceView(item.tone === "is-map" ? "mapReports" : item.tone === "is-warning" ? "records" : "logs")}
+                  onClick={() => {
+                    if (item.targetPointId) {
+                      setWorkspaceView("mapReports");
+                      handleSelectReportMapPoint(item.targetPointId);
+                      return;
+                    }
+                    if (item.targetRecordId) {
+                      const record = safeRecords.find((entry) => String(entry.id) === String(item.targetRecordId));
+                      if (record) handleSelectRecord(record);
+                      setWorkspaceView("records");
+                      return;
+                    }
+                    setWorkspaceView(item.targetView || (item.tone === "is-map" ? "mapReports" : item.tone === "is-warning" ? "records" : "logs"));
+                  }}
                 >
                   <span className="dashboard-live-activity-icon"><Icon name={item.icon} /></span>
                   <span>
@@ -12883,10 +12905,25 @@ function App() {
               <div className="dashboard-activity-list dashboard-live-feed">
                 {dashboardLiveFeed.length ? (
                   dashboardLiveFeed.map((item, index) => (
-                    <article
+                    <button
+                      type="button"
                       key={item.key}
                       className={`dashboard-activity-item dashboard-feed-item ${item.tone} ${index === 0 ? "is-new" : ""}`}
                       style={{ "--feed-delay": `${Math.min(index, 5) * 45}ms` }}
+                      onClick={() => {
+                        if (item.targetPointId) {
+                          setWorkspaceView("mapReports");
+                          handleSelectReportMapPoint(item.targetPointId);
+                          return;
+                        }
+                        if (item.targetRecordId) {
+                          const record = safeRecords.find((entry) => String(entry.id) === String(item.targetRecordId));
+                          if (record) handleSelectRecord(record);
+                          setWorkspaceView("records");
+                          return;
+                        }
+                        setWorkspaceView(item.targetView || "logs");
+                      }}
                     >
                       <span className="dashboard-activity-icon">
                         <Icon name={item.icon} />
@@ -12897,7 +12934,7 @@ function App() {
                         <span>{item.user || "Sistema"}</span>
                       </div>
                       <small>{formatCompactRelativeTime(item.createdAt, dashboardNow)}</small>
-                    </article>
+                    </button>
                   ))
                 ) : (
                   <div className="empty-state">
