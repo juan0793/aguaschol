@@ -4604,8 +4604,8 @@ function App() {
 
   useEffect(() => {
     const allowedViews = isFieldValidator
-      ? ["records", "lookup", "map", "fieldValidation"]
-      : ["records", "lookup", "map"];
+      ? ["profile", "records", "lookup", "map", "fieldValidation"]
+      : ["profile", "records", "lookup", "map"];
     if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
       setWorkspaceView("records");
     }
