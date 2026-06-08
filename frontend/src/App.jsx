@@ -95,6 +95,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MotionSurface } from "./components/layout/MotionSurface";
 import {
   Dialog,
   DialogContent,
@@ -12613,7 +12614,7 @@ function App() {
       {workspaceView === "dashboard" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
-          <section className={`dashboard-live-header is-${dashboardConnectionStatus}`}>
+          <MotionSurface className={`dashboard-live-header is-${dashboardConnectionStatus}`} preset="settle">
             <div>
               <span className="dashboard-live-pill"><span />En vivo</span>
               <strong>Tablero de mando</strong>
@@ -12645,12 +12646,21 @@ function App() {
                 Actualizar ahora
               </button>
             </div>
+            <div className="dashboard-hero-kpis" aria-label="Resumen ejecutivo del tablero">
+              {dashboardLiveMetrics.slice(0, 3).map((metric) => (
+                <div key={`hero-${metric.key}`} className="dashboard-hero-kpi">
+                  <span>{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                  <small>{metric.badge}</small>
+                </div>
+              ))}
+            </div>
             {dashboardRefreshing || dashboardConnectionStatus === "retrying" ? (
               <div className="sync-progress" aria-hidden="true">
                 <span key={dashboardSyncCycleKey} className="sync-progress-bar" />
               </div>
             ) : null}
-          </section>
+          </MotionSurface>
 
           <section className={`dashboard-online-rail ${onlineUsers.length ? "has-users" : "is-empty"}`} aria-label="Usuarios en linea">
             <div className="dashboard-online-rail-head">
@@ -12688,7 +12698,7 @@ function App() {
             )}
           </section>
 
-          <section className="dashboard-topline">
+          <MotionSurface className="dashboard-topline" transition={{ delay: 0.03 }}>
             <article className="dashboard-priority-panel">
               <div className="dashboard-panel-head">
                 <div>
@@ -12765,9 +12775,9 @@ function App() {
                 ))}
               </div>
             </article>
-          </section>
+          </MotionSurface>
 
-          <section className="dashboard-metrics-grid">
+          <MotionSurface className="dashboard-metrics-grid" transition={{ delay: 0.06 }}>
             {dashboardLiveMetrics.map((metric, index) => (
               <article
                 key={metric.key}
@@ -12800,7 +12810,7 @@ function App() {
                 </div>
               </article>
             ))}
-          </section>
+          </MotionSurface>
 
           <article className={`preview-panel dashboard-panel dashboard-live-activity-card ${dashboardRefreshing ? "is-loading" : ""}`}>
             <div className="dashboard-panel-head">
@@ -12846,7 +12856,7 @@ function App() {
             </div>
           </article>
 
-          <section className="dashboard-content-grid">
+          <MotionSurface className="dashboard-content-grid" transition={{ delay: 0.09 }}>
             <article className="preview-panel dashboard-panel">
               <div className="dashboard-panel-head">
                 <div>
@@ -13031,7 +13041,7 @@ function App() {
                 )}
               </div>
             </article>
-          </section>
+          </MotionSurface>
         </section>
       </main>
       ) : workspaceView === "executiveReport" ? (
