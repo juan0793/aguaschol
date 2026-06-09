@@ -11221,6 +11221,7 @@ function App() {
       className={[
         "page-shell",
         workspaceView === "records" && recordsFocusMode ? "records-focus-mode" : "",
+        ["requests", "mapReports", "mapAnalytics"].includes(workspaceView) ? "reports-layout-mode" : "",
         workspaceView === "mapReports" ? "map-reports-mode" : ""
       ].filter(Boolean).join(" ")}
     >
