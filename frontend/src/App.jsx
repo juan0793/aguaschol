@@ -7406,7 +7406,8 @@ function App() {
           formatMapDiaryLabel(point.evidence_date_key || getMapDiaryDateKey(point)),
           getMapReportBarrioZone(point, context, safeBarrioCodes),
           getMapPointTypeLabel(point.point_type),
-          getMapPointReferenceNote(point) || point.suggested_reference || "--",
+          `${formatCoordinate(point.latitude)}, ${formatCoordinate(point.longitude)}`,
+          getMapPointReferenceNote(point) || point.suggested_reference || getMapPointTechnicalDescription(point) || "--",
           formatDateTime(point.updated_at || point.created_at)
         ];
       });
@@ -7424,7 +7425,7 @@ function App() {
       }, new Map());
       const zoneRows = Array.from(evidenceZoneMap.values())
         .sort((left, right) => right.total - left.total)
-        .slice(0, 12)
+        .slice(0, 8)
         .map((zone, index) => [
         String(index + 1),
         zone.zone || "--",
@@ -7433,7 +7434,32 @@ function App() {
         Array.from(zone.claves).slice(0, 4).join(", ") || "--",
         Array.from(zone.types).join(", ") || "--"
       ]);
+      const formatWorkDuration = (minutes) => {
+        const safeMinutes = Math.max(0, Math.round(Number(minutes || 0)));
+        const hours = Math.floor(safeMinutes / 60);
+        const rest = safeMinutes % 60;
+        if (!hours) return `${rest} min`;
+        return rest ? `${hours} h ${rest} min` : `${hours} h`;
+      };
+      const getJourneyStats = (entry) => {
+        const sortedPoints = [...entry.points].sort(
+          (left, right) => new Date(left.created_at || left.updated_at) - new Date(right.created_at || right.updated_at)
+        );
+        const first = sortedPoints[0] ?? null;
+        const last = sortedPoints[sortedPoints.length - 1] ?? null;
+        const firstTime = first ? new Date(first.created_at || first.updated_at).getTime() : 0;
+        const lastTime = last ? new Date(last.updated_at || last.created_at).getTime() : 0;
+        const rangeMinutes = firstTime && lastTime ? Math.max(0, Math.round((lastTime - firstTime) / 60000)) : 0;
+        const estimatedMinutes = entry.points.length ? Math.max(rangeMinutes, Math.min(entry.points.length * 4, 600)) : 0;
+        return { first, last, rangeMinutes, estimatedMinutes };
+      };
+      const journeyStatsByDate = Object.fromEntries(journeyEntries.map((entry) => [entry.dateKey, getJourneyStats(entry)]));
+      const totalEstimatedMinutes = Object.values(journeyStatsByDate).reduce(
+        (sum, stats) => sum + Number(stats.estimatedMinutes || 0),
+        0
+      );
       const journeyRows = journeyEntries.map((entry, index) => {
+        const stats = journeyStatsByDate[entry.dateKey] ?? getJourneyStats(entry);
         const latest = [...entry.points].sort((left, right) => new Date(right.updated_at || right.created_at) - new Date(left.updated_at || left.created_at))[0];
         const types = entry.points.reduce((accumulator, point) => {
           const label = getMapPointTypeLabel(point.point_type);
@@ -7444,6 +7470,10 @@ function App() {
           String(index + 1),
           formatMapDiaryLabel(entry.dateKey),
           String(entry.points.length),
+          formatWorkDuration(stats.estimatedMinutes),
+          stats.first && stats.last
+            ? `${formatDateTime(stats.first.created_at || stats.first.updated_at)} - ${formatDateTime(stats.last.updated_at || stats.last.created_at)}`
+            : "--",
           Object.entries(types).map(([label, total]) => `${label}: ${total}`).join(" | ") || "--",
           latest ? formatDateTime(latest.updated_at || latest.created_at) : "--"
         ];
@@ -7493,6 +7523,7 @@ function App() {
         ["Ultima actualizacion visible", latestPoint ? formatDateTime(latestPoint.updated_at || latestPoint.created_at) : "Sin puntos registrados"],
         ["Puntos incluidos", String(evidencePoints.length)],
         ["Barrios / zonas", String(evidenceZoneMap.size)],
+        ["Horas estimadas de campo", formatWorkDuration(totalEstimatedMinutes)],
         ["Usuarios registrados", String(safeUsers.length || appUserRows.length)],
         ["Usuarios con eventos recientes", String(auditActors.size)],
         ["Tecnicos", getMapReportTechniciansLabel(mapReportStaff)],
@@ -7603,18 +7634,44 @@ function App() {
 
       autoTable(document, {
         startY: 112,
-        head: [["#", "Jornada", "Puntos", "Trabajo observado", "Ultima actualizacion"]],
-        body: journeyRows.length ? journeyRows : [["1", "Sin jornadas", "0", "--", "--"]],
+        head: [["#", "Jornada", "Puntos", "Horas", "Inicio / cierre", "Trabajo observado", "Ultima actualizacion"]],
+        body: journeyRows.length ? journeyRows : [["1", "Sin jornadas", "0", "0 min", "--", "--", "--"]],
         theme: "grid",
-        styles: { fontSize: 7.6, cellPadding: 2, overflow: "linebreak" },
+        styles: { fontSize: 7.1, cellPadding: 1.6, overflow: "linebreak" },
         headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
         margin: { left: 14, right: 14 },
         columnStyles: {
-          0: { cellWidth: 9, halign: "center" },
-          1: { cellWidth: 36 },
-          2: { cellWidth: 16, halign: "center" },
-          3: { cellWidth: 140 },
-          4: { cellWidth: 38 }
+          0: { cellWidth: 8, halign: "center" },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 13, halign: "center" },
+          3: { cellWidth: 18 },
+          4: { cellWidth: 58 },
+          5: { cellWidth: 84 },
+          6: { cellWidth: 32 }
+        }
+      });
+      const firstPageUsersY = (document.lastAutoTable?.finalY ?? 136) + 6;
+      document.setFont("helvetica", "bold");
+      document.setFontSize(10);
+      document.setTextColor(18, 59, 93);
+      document.text("Usuarios que han trabajado en la aplicacion", 14, firstPageUsersY);
+      autoTable(document, {
+        startY: firstPageUsersY + 4,
+        head: [["#", "Usuario", "Rol", "Cuenta", "Estado", "Ultimo ingreso / evento", "Eventos"]],
+        body: appUserRows.length ? appUserRows : [["1", "Sin usuarios cargados", "--", "--", "--", "--", "0"]],
+        theme: "grid",
+        styles: { fontSize: 6.8, cellPadding: 1.3, overflow: "linebreak" },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 251, 255] },
+        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 8, halign: "center" },
+          1: { cellWidth: 44 },
+          2: { cellWidth: 28 },
+          3: { cellWidth: 40 },
+          4: { cellWidth: 23 },
+          5: { cellWidth: 45 },
+          6: { cellWidth: 16, halign: "center" }
         }
       });
       addFooter();
@@ -7639,28 +7696,29 @@ function App() {
         document.setFont("helvetica", "bold");
         document.setFontSize(14);
         document.setTextColor(18, 59, 93);
-        document.text("Listado parcial de usuarios / puntos del sistema", 14, 16);
+        document.text("Listado parcial de puntos de mapa", 14, 16);
         document.setFont("helvetica", "normal");
         document.setFontSize(8.5);
         document.setTextColor(71, 95, 118);
         document.text("Muestra limitada para evidencia documental; el sistema conserva el historial completo en base de datos.", 14, 22);
         autoTable(document, {
           startY: 30,
-          head: [["#", "Clave", "Jornada", "Barrio / zona", "Tipo", "Referencia", "Actualizado"]],
-          body: partialUserRows.length ? partialUserRows : [["1", "--", "--", "Sin puntos", "--", "--", "--"]],
+          head: [["#", "Clave", "Jornada", "Barrio / zona", "Tipo", "Coordenada", "Referencia / evidencia", "Actualizado"]],
+          body: partialUserRows.length ? partialUserRows : [["1", "--", "--", "Sin puntos", "--", "--", "--", "--"]],
           theme: "grid",
-          styles: { fontSize: 7.6, cellPadding: 2, overflow: "linebreak" },
+          styles: { fontSize: 7.1, cellPadding: 1.8, overflow: "linebreak" },
           headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
           alternateRowStyles: { fillColor: [248, 251, 255] },
           margin: { left: 14, right: 14 },
           columnStyles: {
             0: { cellWidth: 9, halign: "center" },
-            1: { cellWidth: 26 },
-            2: { cellWidth: 28 },
-            3: { cellWidth: 48 },
-            4: { cellWidth: 30 },
-            5: { cellWidth: 72 },
-            6: { cellWidth: 33 }
+            1: { cellWidth: 24 },
+            2: { cellWidth: 26 },
+            3: { cellWidth: 43 },
+            4: { cellWidth: 26 },
+            5: { cellWidth: 38 },
+            6: { cellWidth: 64 },
+            7: { cellWidth: 26 }
           }
         });
       }
@@ -7707,30 +7765,6 @@ function App() {
           }
         });
 
-        const usersStartY = Math.min((document.lastAutoTable?.finalY ?? 86) + 9, 124);
-        document.setFont("helvetica", "bold");
-        document.setFontSize(11);
-        document.setTextColor(18, 59, 93);
-        document.text("Usuarios que han trabajado en la aplicacion", 14, usersStartY);
-        autoTable(document, {
-          startY: usersStartY + 5,
-          head: [["#", "Usuario", "Rol", "Cuenta", "Estado", "Ultimo ingreso / evento", "Eventos"]],
-          body: appUserRows.length ? appUserRows : [["1", "Sin usuarios cargados", "--", "--", "--", "--", "0"]],
-          theme: "grid",
-          styles: { fontSize: 7.2, cellPadding: 1.7, overflow: "linebreak" },
-          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
-          alternateRowStyles: { fillColor: [248, 251, 255] },
-          margin: { left: 14, right: 14 },
-          columnStyles: {
-            0: { cellWidth: 8, halign: "center" },
-            1: { cellWidth: 46 },
-            2: { cellWidth: 28 },
-            3: { cellWidth: 40 },
-            4: { cellWidth: 24 },
-            5: { cellWidth: 44 },
-            6: { cellWidth: 16, halign: "center" }
-          }
-        });
       }
 
       if (addPage()) {
@@ -7744,6 +7778,8 @@ function App() {
           body: [
             ["Alcance", "Reporte maximo de 5 paginas con evidencia visual, jornadas seleccionadas y muestra parcial del sistema."],
             ["Base del reporte", `${selectedDateKeys.length} jornadas con ${evidencePoints.length} puntos y ${evidenceZoneMap.size} barrios / zonas.`],
+            ["Horas empleadas", `${formatWorkDuration(totalEstimatedMinutes)} estimadas a partir de la bitacora de puntos GPS.`],
+            ["Usuarios del sistema", `${safeUsers.length || appUserRows.length} usuarios registrados y ${auditActors.size} con eventos recientes.`],
             ["Actualizacion reciente", latestPoint ? `Ultimo punto actualizado: ${formatDateTime(latestPoint.updated_at || latestPoint.created_at)}` : "Sin actualizacion registrada en la jornada."],
             ["Responsables", `Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}. Datos: ${mapReportStaff.data_engineer || "--"}.`],
             ["Observaciones", mapReportSettings.report_notes.trim() || "Sin observaciones adicionales."]
