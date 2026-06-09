@@ -832,6 +832,7 @@ function App() {
   const [mapReportStaff, setMapReportStaff] = useState(() => normalizeMapReportStaff(defaultMapReportStaff));
   const [mapReportSettingsByDate, setMapReportSettingsByDate] = useState(() => loadMapReportSettingsByDate());
   const [regulatorReportDiaryKeys, setRegulatorReportDiaryKeys] = useState([]);
+  const [generatingRegulatorReport, setGeneratingRegulatorReport] = useState(false);
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [savingFieldValidationPointId, setSavingFieldValidationPointId] = useState(null);
   const [locatingUser, setLocatingUser] = useState(false);
@@ -7326,6 +7327,16 @@ function App() {
   };
 
   const handleDownloadRegulatorEvidencePdf = async () => {
+    if (generatingRegulatorReport) return;
+    const selectedDateKeys = selectedRegulatorDiaryKeys.length ? selectedRegulatorDiaryKeys : [activeMapDiaryDateKey].filter(Boolean);
+    if (!selectedDateKeys.length) {
+      showAlert("Selecciona al menos una jornada con puntos GPS para generar el resumen.");
+      return;
+    }
+
+    setGeneratingRegulatorReport(true);
+    showAlert("Generando resumen de trabajo realizado...");
+
     try {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
@@ -7335,11 +7346,15 @@ function App() {
       const generatedAt = formatDateTime(generatedAtIso);
       const reportTitle = "Resumen de trabajo realizado";
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
-      const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
+      const mapImageDataUrl =
+        mapReportSettings.map_image_data_url ||
+        (await Promise.race([
+          captureReportMapImage(),
+          new Promise((resolve) => window.setTimeout(() => resolve(""), 3500))
+        ]));
       const pageWidth = document.internal.pageSize.getWidth();
       const pageHeight = document.internal.pageSize.getHeight();
       const maxPages = 5;
-      const selectedDateKeys = selectedRegulatorDiaryKeys.length ? selectedRegulatorDiaryKeys : [activeMapDiaryDateKey].filter(Boolean);
       const journeyEntries = await Promise.all(
         selectedDateKeys.map(async (dateKey) => {
           const localPoints = safeMapPoints.filter((point) => getMapDiaryDateKey(point) === dateKey);
@@ -7347,10 +7362,13 @@ function App() {
             return { dateKey, points: localPoints };
           }
 
-          const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
-          const data = await response.json();
-          if (!response.ok) throw new Error(data?.message || `No fue posible cargar la jornada ${dateKey}.`);
-          return { dateKey, points: Array.isArray(data) ? data : [] };
+          try {
+            const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
+            const data = await response.json();
+            return { dateKey, points: response.ok && Array.isArray(data) ? data : [] };
+          } catch {
+            return { dateKey, points: [] };
+          }
         })
       );
       const evidencePoints = journeyEntries
@@ -7691,6 +7709,8 @@ function App() {
       showAlert("Resumen de trabajo realizado descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible generar el PDF para ente regulador.");
+    } finally {
+      setGeneratingRegulatorReport(false);
     }
   };
 
@@ -16373,9 +16393,14 @@ function App() {
                         <Icon name="records" />
                         PDF resumen ligero
                       </button>
-                      <button type="button" className="button-secondary" onClick={handleDownloadRegulatorEvidencePdf}>
-                        <Icon name="records" />
-                        PDF ente regulador
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={handleDownloadRegulatorEvidencePdf}
+                        disabled={generatingRegulatorReport}
+                      >
+                        <Icon name={generatingRegulatorReport ? "refresh" : "records"} />
+                        {generatingRegulatorReport ? "Generando..." : "PDF ente regulador"}
                       </button>
                       <button type="button" className="button-secondary" onClick={handlePrintMapBriefReport}>
                         <Icon name="records" />
