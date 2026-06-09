@@ -20,6 +20,19 @@ const broadcastEvent = (event, filterFn = () => true) => {
   });
 };
 
+const getUniqueOnlineUsers = () => {
+  const usersById = new Map();
+  profileClients.forEach((client) => {
+    usersById.set(client.userId, {
+      id: client.userId,
+      name: client.user.full_name,
+      full_name: client.user.full_name,
+      role: client.user.role
+    });
+  });
+  return Array.from(usersById.values());
+};
+
 export const initializeProfileRealtime = ({ server }) => {
   websocketServer = new WebSocketServer({ server, path: "/ws/profile" });
 
@@ -44,7 +57,8 @@ export const initializeProfileRealtime = ({ server }) => {
           id: user.id,
           role: user.role,
           full_name: user.full_name
-        }
+        },
+        online_users: getUniqueOnlineUsers()
       });
 
       // Notificar a otros usuarios que este usuario está online
@@ -65,7 +79,6 @@ export const initializeProfileRealtime = ({ server }) => {
           const data = JSON.parse(raw.toString());
 
           if (data.type === "profile.message_sent") {
-            // Broadcast del mensaje a usuarios interesados
             broadcastEvent(
               {
                 type: "profile.message_received",
@@ -76,22 +89,23 @@ export const initializeProfileRealtime = ({ server }) => {
                 c.userId === data.message.recipient_user_id
             );
           } else if (data.type === "profile.typing") {
-            // Notificar que alguien está escribiendo
             broadcastEvent(
               {
                 type: "profile.user_typing",
                 typingUserId: user.id,
-                typingUserName: user.full_name
+                typingUserName: user.full_name,
+                channel: data.channel || "general"
               },
-              (c) => c.userId === data.recipientUserId
+              (c) => c.userId !== user.id && (!data.recipientUserId || c.userId === data.recipientUserId)
             );
           } else if (data.type === "profile.stop_typing") {
             broadcastEvent(
               {
                 type: "profile.user_stop_typing",
-                typingUserId: user.id
+                typingUserId: user.id,
+                channel: data.channel || "general"
               },
-              (c) => c.userId === data.recipientUserId
+              (c) => c.userId !== user.id && (!data.recipientUserId || c.userId === data.recipientUserId)
             );
           }
         } catch (error) {
@@ -125,15 +139,11 @@ export const emitProfileMessage = (message) => {
   if (!websocketServer) return;
 
   broadcastEvent({
-    type: "profile.message_received",
+    type: message?.deleted_id ? "profile.message_deleted" : "profile.message_received",
     message
   });
 };
 
 export const getProfileOnlineUsers = () => {
-  return Array.from(profileClients).map((client) => ({
-    id: client.userId,
-    name: client.user.full_name,
-    role: client.user.role
-  }));
+  return getUniqueOnlineUsers();
 };

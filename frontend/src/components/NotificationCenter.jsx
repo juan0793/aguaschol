@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Bell, MessageSquare, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { ProfileWebSocketManager } from "../utils/profileWebSocket.js";
+import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../utils/profileWebSocket.js";
 
 export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotificationClick, onNotificationSelect }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,19 +52,23 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
   useEffect(() => {
     if (!session?.sessionToken || !isOpen) return;
 
-    const manager = new ProfileWebSocketManager(session.sessionToken);
+    const manager = getSharedProfileWebSocketManager(session.sessionToken);
+    if (!manager) return;
 
-    manager.on("message_received", (message) => {
+    const handleMessageReceived = (message) => {
       if (message.recipient_user_id === session?.user?.id) {
         setNotifications((prev) => [message, ...prev]);
       }
-    });
+    };
+
+    manager.on("message_received", handleMessageReceived);
 
     wsManagerRef.current = manager;
     manager.connect().catch((error) => console.error("WebSocket error:", error));
 
     return () => {
-      manager.disconnect();
+      manager.off("message_received", handleMessageReceived);
+      releaseSharedProfileWebSocketManager(session.sessionToken);
     };
   }, [session?.sessionToken, session?.user?.id, isOpen]);
 

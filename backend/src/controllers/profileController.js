@@ -8,6 +8,7 @@ import {
   updateGeneralProfileMessagePin
 } from "../services/profileService.js";
 import { emitProfileMessage } from "../services/profileRealtimeService.js";
+import { saveUploadedPhoto } from "../services/fileStorageService.js";
 
 export const getProfileHandler = async (req, res, next) => {
   try {
@@ -39,9 +40,25 @@ export const sendProfileMessageHandler = async (req, res, next) => {
 
 export const sendGeneralProfileMessageHandler = async (req, res, next) => {
   try {
+    let attachmentUrl = "";
+    let attachmentType = "";
+
+    if (req.file) {
+      if (!String(req.file.mimetype || "").startsWith("image/")) {
+        return res.status(400).json({ message: "Solo se permiten imagenes en el chat." });
+      }
+
+      const saved = await saveUploadedPhoto(req.file);
+      attachmentUrl = saved.photoPath;
+      attachmentType = "image";
+    }
+
     const message = await sendGeneralProfileMessage({
       authUser: req.authUser,
-      body: req.body?.body
+      body: req.body?.body,
+      channel: req.body?.channel,
+      attachmentUrl,
+      attachmentType
     });
     res.status(201).json(message);
     emitProfileMessage(message);

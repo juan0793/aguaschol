@@ -193,6 +193,10 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
     }
   };
 
+  const handleChatMessagesChanged = useCallback(() => {
+    loadProfile({ silent: true });
+  }, [loadProfile]);
+
   if (loading && !profile) {
     return <div className="module-loading-state">Cargando mi perfil...</div>;
   }
@@ -328,9 +332,10 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
           currentUserId={currentUserId}
           selectedUserId={selectedUserId}
           onUserSelect={setTargetUserId}
-          onMessageSent={() => loadProfile({ silent: true })}
+          onMessageSent={handleChatMessagesChanged}
           session={session}
           showAlert={showAlert}
+          chatChannels={profile?.chat_channels ?? []}
         />
       </div>
 

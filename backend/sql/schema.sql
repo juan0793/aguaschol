@@ -59,7 +59,10 @@ CREATE TABLE IF NOT EXISTS user_profile_messages (
 CREATE TABLE IF NOT EXISTS profile_general_messages (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sender_user_id INT UNSIGNED NULL,
+  channel VARCHAR(40) NOT NULL DEFAULT 'general',
   body TEXT NOT NULL,
+  attachment_url VARCHAR(500) NOT NULL DEFAULT '',
+  attachment_type VARCHAR(40) NOT NULL DEFAULT '',
   pinned_at TIMESTAMP NULL DEFAULT NULL,
   pinned_by INT UNSIGNED NULL,
   deleted_at TIMESTAMP NULL DEFAULT NULL,

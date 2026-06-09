@@ -15,6 +15,27 @@ const asPositiveId = (value) => {
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
+export const CHAT_CHANNELS = [
+  { key: "general", label: "General" },
+  { key: "campo", label: "Campo" },
+  { key: "avisos", label: "Avisos" },
+  { key: "soporte", label: "Soporte" },
+  { key: "administracion", label: "Administración" }
+];
+
+const validChatChannelKeys = new Set(CHAT_CHANNELS.map((channel) => channel.key));
+
+const normalizeChatChannel = (value = "general") => {
+  const normalized = String(value || "general")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return validChatChannelKeys.has(normalized) ? normalized : "general";
+};
+
 const AUTO_ACHIEVEMENTS = [
   {
     code: "first_point",
@@ -260,7 +281,10 @@ const normalizeMessage = (message) => ({
 const normalizeGeneralMessage = (message) => ({
   id: message.id,
   sender_user_id: message.sender_user_id,
+  channel: normalizeChatChannel(message.channel),
   body: message.body,
+  attachment_url: message.attachment_url ?? "",
+  attachment_type: message.attachment_type ?? "",
   pinned_at: message.pinned_at,
   pinned_by: message.pinned_by,
   deleted_at: message.deleted_at,
@@ -286,8 +310,10 @@ const emptyProfile = (authUser) => ({
   },
   zones: [],
   points: [],
-  messages: [],
-  achievements: [],
+    messages: [],
+    general_messages: [],
+    chat_channels: CHAT_CHANNELS,
+    achievements: [],
   unread_count: 0,
   generated_at: new Date().toISOString()
 });
@@ -509,6 +535,7 @@ export const getProfile = async ({ authUser, userId }) => {
     })),
     messages: messages.map(normalizeMessage),
     general_messages: generalMessages.map(normalizeGeneralMessage),
+    chat_channels: CHAT_CHANNELS,
     achievements: achievements.map((achievement) => ({
       ...achievement,
       awarded_by_name: achievement.awarded_by_name ?? "Administración"
@@ -581,24 +608,27 @@ export const sendProfileMessage = async ({ authUser, recipientUserId, body, pare
   return normalizeMessage(message);
 };
 
-export const sendGeneralProfileMessage = async ({ authUser, body }) => {
+export const sendGeneralProfileMessage = async ({ authUser, body, channel = "general", attachmentUrl = "", attachmentType = "" }) => {
   if (env.useMemoryDb) {
     throw makeError("Los mensajes requieren base de datos persistente.", 503);
   }
 
   const cleanBody = String(body ?? "").trim();
+  const cleanAttachmentUrl = String(attachmentUrl ?? "").trim();
+  const cleanAttachmentType = String(attachmentType ?? "").trim();
+  const cleanChannel = normalizeChatChannel(channel);
 
-  if (cleanBody.length < 2) {
-    throw makeError("Escribe un mensaje para el chat general.");
+  if (cleanBody.length < 2 && !cleanAttachmentUrl) {
+    throw makeError("Escribe un mensaje o adjunta una imagen.");
   }
 
   const pool = getPool();
   const [result] = await pool.query(
     `
-      INSERT INTO profile_general_messages (sender_user_id, body)
-      VALUES (?, ?)
+      INSERT INTO profile_general_messages (sender_user_id, channel, body, attachment_url, attachment_type)
+      VALUES (?, ?, ?, ?, ?)
     `,
-    [authUser.id, cleanBody.slice(0, 2000)]
+    [authUser.id, cleanChannel, cleanBody.slice(0, 2000), cleanAttachmentUrl.slice(0, 500), cleanAttachmentType.slice(0, 40)]
   );
 
   await createAuditLog({
@@ -606,7 +636,7 @@ export const sendGeneralProfileMessage = async ({ authUser, body }) => {
     action: "profile.general_message_sent",
     entityType: "profile_general_message",
     entityId: result.insertId,
-    summary: "Mensaje enviado al chat general."
+    summary: `Mensaje enviado al canal ${cleanChannel}.`
   });
 
   const [[message]] = await pool.query(
@@ -678,16 +708,30 @@ export const deleteGeneralProfileMessage = async ({ authUser, messageId }) => {
     throw makeError("Los mensajes requieren base de datos persistente.", 503);
   }
 
-  if (authUser.role !== "admin") {
-    throw makeError("Solo administración puede borrar mensajes.", 403);
-  }
-
   const id = asPositiveId(messageId);
   if (!id) {
     throw makeError("Mensaje invalido.");
   }
 
   const pool = getPool();
+  const [[message]] = await pool.query(
+    `
+      SELECT id, sender_user_id
+      FROM profile_general_messages
+      WHERE id = ? AND deleted_at IS NULL
+      LIMIT 1
+    `,
+    [id]
+  );
+
+  if (!message) {
+    throw makeError("Mensaje no encontrado.", 404);
+  }
+
+  if (authUser.role !== "admin" && Number(message.sender_user_id) !== Number(authUser.id)) {
+    throw makeError("Solo administracion o el dueno del mensaje puede borrarlo.", 403);
+  }
+
   const [result] = await pool.query(
     `
       UPDATE profile_general_messages

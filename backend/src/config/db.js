@@ -453,7 +453,10 @@ const ensureSchema = async () => {
         CREATE TABLE IF NOT EXISTS profile_general_messages (
           id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
           sender_user_id INT UNSIGNED NULL,
+          channel VARCHAR(40) NOT NULL DEFAULT 'general',
           body TEXT NOT NULL,
+          attachment_url VARCHAR(500) NOT NULL DEFAULT '',
+          attachment_type VARCHAR(40) NOT NULL DEFAULT '',
           pinned_at TIMESTAMP NULL DEFAULT NULL,
           pinned_by INT UNSIGNED NULL,
           deleted_at TIMESTAMP NULL DEFAULT NULL,
@@ -467,6 +470,21 @@ const ensureSchema = async () => {
         )
       `
     );
+    await ensureColumn(admin, {
+      tableName: "profile_general_messages",
+      columnName: "channel",
+      definition: "VARCHAR(40) NOT NULL DEFAULT 'general' AFTER sender_user_id"
+    });
+    await ensureColumn(admin, {
+      tableName: "profile_general_messages",
+      columnName: "attachment_url",
+      definition: "VARCHAR(500) NOT NULL DEFAULT '' AFTER body"
+    });
+    await ensureColumn(admin, {
+      tableName: "profile_general_messages",
+      columnName: "attachment_type",
+      definition: "VARCHAR(40) NOT NULL DEFAULT '' AFTER attachment_url"
+    });
     await ensureColumn(admin, {
       tableName: "profile_general_messages",
       columnName: "pinned_at",
@@ -526,6 +544,11 @@ const ensureSchema = async () => {
       tableName: "profile_general_messages",
       indexName: "idx_profile_general_messages_created_at",
       columns: ["created_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "profile_general_messages",
+      indexName: "idx_profile_general_messages_channel_created",
+      columns: ["channel", "created_at"]
     });
     await ensureIndex(admin, {
       tableName: "profile_general_messages",
