@@ -64,6 +64,9 @@ export function ChatMessagesPanel({
   const [onlineUsers, setOnlineUsers] = useState(new Map());
   const [typingUsers, setTypingUsers] = useState(new Map());
   const [wsConnected, setWsConnected] = useState(false);
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const sessionToken = session?.token || session?.sessionToken || "";
+  const workspaceRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingStopTimerRef = useRef(null);
@@ -76,9 +79,21 @@ export function ChatMessagesPanel({
   }, [messages]);
 
   useEffect(() => {
-    if (!session?.sessionToken) return undefined;
+    const node = workspaceRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return undefined;
 
-    const manager = getSharedProfileWebSocketManager(session.sessionToken);
+    const updateLayout = () => setIsCompactLayout(node.getBoundingClientRect().width < 780);
+    updateLayout();
+
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!sessionToken) return undefined;
+
+    const manager = getSharedProfileWebSocketManager(sessionToken);
     if (!manager) return undefined;
     wsManagerRef.current = manager;
 
@@ -143,9 +158,9 @@ export function ChatMessagesPanel({
       manager.off("user_typing", handleTyping);
       manager.off("user_stop_typing", handleStopTyping);
       wsManagerRef.current = null;
-      releaseSharedProfileWebSocketManager(session.sessionToken);
+      releaseSharedProfileWebSocketManager(sessionToken);
     };
-  }, [currentUserId, onMessageSent, session?.sessionToken]);
+  }, [currentUserId, onMessageSent, sessionToken]);
 
   useEffect(() => {
     const node = messagesContainerRef.current;
@@ -289,7 +304,12 @@ export function ChatMessagesPanel({
   let lastDay = "";
 
   return (
-    <motion.article className="profile-panel chat-workspace" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.article
+      ref={workspaceRef}
+      className={`profile-panel chat-workspace ${isCompactLayout ? "is-compact" : ""}`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
       <aside className="chat-channel-rail" aria-label="Canales de chat">
         <div className="chat-connection-row">
           <span className={`chat-presence-dot ${wsConnected ? "is-online" : ""}`} />

@@ -7,6 +7,7 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const sessionToken = session?.token || session?.sessionToken || "";
   const dropdownRef = useRef(null);
   const wsManagerRef = useRef(null);
 
@@ -50,9 +51,9 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
 
   // Conectar WebSocket para actualizaciones en tiempo real
   useEffect(() => {
-    if (!session?.sessionToken || !isOpen) return;
+    if (!sessionToken || !isOpen) return;
 
-    const manager = getSharedProfileWebSocketManager(session.sessionToken);
+    const manager = getSharedProfileWebSocketManager(sessionToken);
     if (!manager) return;
 
     const handleMessageReceived = (message) => {
@@ -68,9 +69,9 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
 
     return () => {
       manager.off("message_received", handleMessageReceived);
-      releaseSharedProfileWebSocketManager(session.sessionToken);
+      releaseSharedProfileWebSocketManager(sessionToken);
     };
-  }, [session?.sessionToken, session?.user?.id, isOpen]);
+  }, [sessionToken, session?.user?.id, isOpen]);
 
   const handleMarkAsRead = async (messageId) => {
     try {
