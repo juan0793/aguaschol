@@ -831,6 +831,7 @@ function App() {
   const [reportMapFocusRequest, setReportMapFocusRequest] = useState(null);
   const [mapReportStaff, setMapReportStaff] = useState(() => normalizeMapReportStaff(defaultMapReportStaff));
   const [mapReportSettingsByDate, setMapReportSettingsByDate] = useState(() => loadMapReportSettingsByDate());
+  const [regulatorReportDiaryKeys, setRegulatorReportDiaryKeys] = useState([]);
   const [savingMapPoint, setSavingMapPoint] = useState(false);
   const [savingFieldValidationPointId, setSavingFieldValidationPointId] = useState(null);
   const [locatingUser, setLocatingUser] = useState(false);
@@ -1115,6 +1116,15 @@ function App() {
     const visibleKeys = new Set(primaryMapDiaryGroups.map((group) => group.key));
     return mapDiaryGroups.filter((group) => !visibleKeys.has(group.key));
   }, [mapDiaryGroups, primaryMapDiaryGroups]);
+  const regulatorReportDiaryOptions = useMemo(
+    () => mapDiaryGroups.filter((group) => Number(group.total || 0) > 0).slice(0, 8),
+    [mapDiaryGroups]
+  );
+  const selectedRegulatorDiaryKeys = useMemo(() => {
+    const availableKeys = new Set(regulatorReportDiaryOptions.map((group) => group.key));
+    const selected = regulatorReportDiaryKeys.filter((key) => availableKeys.has(key)).slice(0, 5);
+    return selected.length ? selected : regulatorReportDiaryOptions.slice(0, 3).map((group) => group.key);
+  }, [regulatorReportDiaryKeys, regulatorReportDiaryOptions]);
   const selectedArchiveMapDiaryGroup = useMemo(
     () => archivedMapDiaryGroups.find((group) => group.key === selectedArchiveMapDiaryKey) ?? archivedMapDiaryGroups[0] ?? null,
     [archivedMapDiaryGroups, selectedArchiveMapDiaryKey]
@@ -3389,6 +3399,11 @@ function App() {
       setMapDiaryDateKey(activeMapDiaryDateKey);
     }
   }, [activeMapDiaryDateKey, mapDiaryDateKey]);
+
+  useEffect(() => {
+    if (regulatorReportDiaryKeys.length || !regulatorReportDiaryOptions.length) return;
+    setRegulatorReportDiaryKeys(regulatorReportDiaryOptions.slice(0, 3).map((group) => group.key));
+  }, [regulatorReportDiaryKeys.length, regulatorReportDiaryOptions]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia?.("(max-width: 768px), (pointer: coarse)");
@@ -7298,6 +7313,18 @@ function App() {
     }
   };
 
+  const handleToggleRegulatorDiaryKey = (dateKey) => {
+    setRegulatorReportDiaryKeys((current) => {
+      const baseline = current.length ? current : selectedRegulatorDiaryKeys;
+      if (baseline.includes(dateKey)) {
+        const next = baseline.filter((key) => key !== dateKey);
+        return next.length ? next : baseline;
+      }
+
+      return [...baseline, dateKey].slice(0, 5);
+    });
+  };
+
   const handleDownloadRegulatorEvidencePdf = async () => {
     try {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
@@ -7306,44 +7333,156 @@ function App() {
       const reportData = mapReportPrintData;
       const generatedAtIso = new Date().toISOString();
       const generatedAt = formatDateTime(generatedAtIso);
-      const reportTitle = "Evidencia de actualizacion catastral";
+      const reportTitle = "Resumen de trabajo realizado";
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
       const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
       const pageWidth = document.internal.pageSize.getWidth();
       const pageHeight = document.internal.pageSize.getHeight();
       const maxPages = 5;
-      const recentPoints = [...visibleMapPoints]
-        .sort((left, right) => new Date(right.updated_at || right.created_at) - new Date(left.updated_at || left.created_at))
-        .slice(0, 34);
+      const selectedDateKeys = selectedRegulatorDiaryKeys.length ? selectedRegulatorDiaryKeys : [activeMapDiaryDateKey].filter(Boolean);
+      const journeyEntries = await Promise.all(
+        selectedDateKeys.map(async (dateKey) => {
+          const localPoints = safeMapPoints.filter((point) => getMapDiaryDateKey(point) === dateKey);
+          if (localPoints.length) {
+            return { dateKey, points: localPoints };
+          }
+
+          const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data?.message || `No fue posible cargar la jornada ${dateKey}.`);
+          return { dateKey, points: Array.isArray(data) ? data : [] };
+        })
+      );
+      const evidencePoints = journeyEntries
+        .flatMap((entry) => entry.points.map((point) => ({ ...point, evidence_date_key: entry.dateKey })))
+        .sort((left, right) => new Date(right.updated_at || right.created_at) - new Date(left.updated_at || left.created_at));
+      let evidenceContexts = {};
+      if (evidencePoints.length && isAdmin) {
+        try {
+          const response = await apiFetch("/map-points/context", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              points: evidencePoints.map((point) => ({
+                latitude: point.latitude,
+                longitude: point.longitude
+              }))
+            })
+          });
+          const data = await response.json();
+          if (response.ok) {
+            evidenceContexts = Object.fromEntries((Array.isArray(data.contexts) ? data.contexts : []).map((context) => [context.key, context]));
+          }
+        } catch {
+          evidenceContexts = {};
+        }
+      }
+      const getEvidenceContext = (point) => evidenceContexts[getMapPointContextKey(point)] ?? mapPointContexts[getMapPointContextKey(point)] ?? null;
+      const recentPoints = evidencePoints.slice(0, 40);
       const latestPoint = recentPoints[0] || visibleMapPoints[0] || null;
       const partialUserRows = recentPoints.slice(0, 28).map((point, index) => {
-        const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
+        const context = getEvidenceContext(point);
         return [
           String(index + 1),
           getMapReportPointClave(point, context) || "--",
+          formatMapDiaryLabel(point.evidence_date_key || getMapDiaryDateKey(point)),
           getMapReportBarrioZone(point, context, safeBarrioCodes),
           getMapPointTypeLabel(point.point_type),
           getMapPointReferenceNote(point) || point.suggested_reference || "--",
           formatDateTime(point.updated_at || point.created_at)
         ];
       });
-      const zoneRows = getMapReportTopZones(reportData, 10).map((zone, index) => [
+      const evidenceZoneMap = evidencePoints.reduce((accumulator, point) => {
+        const context = getEvidenceContext(point);
+        const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
+        const current = accumulator.get(zone) ?? { zone, total: 0, dates: new Set(), types: new Set(), claves: new Set() };
+        current.total += 1;
+        current.dates.add(point.evidence_date_key || getMapDiaryDateKey(point));
+        current.types.add(getMapPointTypeLabel(point.point_type));
+        const clave = getMapReportPointClave(point, context);
+        if (clave) current.claves.add(clave);
+        accumulator.set(zone, current);
+        return accumulator;
+      }, new Map());
+      const zoneRows = Array.from(evidenceZoneMap.values())
+        .sort((left, right) => right.total - left.total)
+        .slice(0, 12)
+        .map((zone, index) => [
         String(index + 1),
-        zone.displayName || zone.zone || "--",
+        zone.zone || "--",
         String(zone.total || 0),
-        zone.clavesLabel || "--",
-        zone.pointTypesLabel || "--"
+        Array.from(zone.dates).map(formatMapDiaryLabel).join(" / ") || "--",
+        Array.from(zone.claves).slice(0, 4).join(", ") || "--",
+        Array.from(zone.types).join(", ") || "--"
       ]);
+      const journeyRows = journeyEntries.map((entry, index) => {
+        const latest = [...entry.points].sort((left, right) => new Date(right.updated_at || right.created_at) - new Date(left.updated_at || left.created_at))[0];
+        const types = entry.points.reduce((accumulator, point) => {
+          const label = getMapPointTypeLabel(point.point_type);
+          accumulator[label] = (accumulator[label] || 0) + 1;
+          return accumulator;
+        }, {});
+        return [
+          String(index + 1),
+          formatMapDiaryLabel(entry.dateKey),
+          String(entry.points.length),
+          Object.entries(types).map(([label, total]) => `${label}: ${total}`).join(" | ") || "--",
+          latest ? formatDateTime(latest.updated_at || latest.created_at) : "--"
+        ];
+      });
       const evidenceRows = [
         ["Sistema fuente", "Aguas de Choluteca / modulo Reportes GPS"],
-        ["Jornada revisada", formatMapDiaryLabel(activeMapDiaryDateKey)],
+        ["Jornadas revisadas", selectedDateKeys.map(formatMapDiaryLabel).join(" / ")],
         ["Generado", generatedAt],
         ["Ultima actualizacion visible", latestPoint ? formatDateTime(latestPoint.updated_at || latestPoint.created_at) : "Sin puntos registrados"],
-        ["Puntos incluidos", String(reportData.totalPoints)],
-        ["Barrios / zonas", String(reportData.totalZones)],
+        ["Puntos incluidos", String(evidencePoints.length)],
+        ["Barrios / zonas", String(evidenceZoneMap.size)],
         ["Tecnicos", getMapReportTechniciansLabel(mapReportStaff)],
         ["Responsable de datos", mapReportStaff.data_engineer || "--"]
       ];
+      const drawMiniMap = (points, x, y, width, height, title) => {
+        document.setDrawColor(185, 209, 228);
+        document.setFillColor(237, 245, 252);
+        document.roundedRect(x, y, width, height, 3, 3, "FD");
+        document.setFont("helvetica", "bold");
+        document.setFontSize(8);
+        document.setTextColor(18, 59, 93);
+        document.text(title, x + 4, y + 6);
+        const validPoints = points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)));
+        if (!validPoints.length) {
+          document.setFont("helvetica", "normal");
+          document.setTextColor(91, 116, 139);
+          document.text("Sin puntos", x + width / 2, y + height / 2, { align: "center" });
+          return;
+        }
+        const minLat = Math.min(...validPoints.map((point) => Number(point.latitude)));
+        const maxLat = Math.max(...validPoints.map((point) => Number(point.latitude)));
+        const minLng = Math.min(...validPoints.map((point) => Number(point.longitude)));
+        const maxLng = Math.max(...validPoints.map((point) => Number(point.longitude)));
+        const latSpan = maxLat - minLat || 0.0001;
+        const lngSpan = maxLng - minLng || 0.0001;
+        document.setDrawColor(209, 224, 237);
+        for (let line = 1; line <= 3; line += 1) {
+          document.line(x + 4, y + 10 + (height - 16) * (line / 4), x + width - 4, y + 10 + (height - 16) * (line / 4));
+          document.line(x + 4 + (width - 8) * (line / 4), y + 10, x + 4 + (width - 8) * (line / 4), y + height - 4);
+        }
+        validPoints.slice(0, 55).forEach((point) => {
+          const dotX = x + 5 + ((Number(point.longitude) - minLng) / lngSpan) * (width - 10);
+          const dotY = y + 11 + ((maxLat - Number(point.latitude)) / latSpan) * (height - 17);
+          if (isRedReportPoint(point)) {
+            document.setFillColor(220, 38, 38);
+          } else if (isAlertReportPoint(point)) {
+            document.setFillColor(245, 158, 11);
+          } else {
+            document.setFillColor(21, 118, 209);
+          }
+          document.circle(dotX, dotY, 1.5, "F");
+        });
+        document.setFont("helvetica", "normal");
+        document.setFontSize(7);
+        document.setTextColor(78, 101, 123);
+        document.text(`${validPoints.length} puntos`, x + width - 4, y + height - 4, { align: "right" });
+      };
 
       const addFooter = () => {
         const currentPage = document.getCurrentPageInfo().pageNumber;
@@ -7351,7 +7490,7 @@ function App() {
         document.setFontSize(8);
         document.setTextColor(78, 101, 123);
         document.text(`Pagina ${currentPage} de maximo ${maxPages}`, pageWidth - 14, pageHeight - 8, { align: "right" });
-        document.text("Evidencia documental para ente regulador", 14, pageHeight - 8);
+        document.text("Resumen del trabajo realizado", 14, pageHeight - 8);
       };
       const addPage = () => {
         if (document.getNumberOfPages() >= maxPages) return false;
@@ -7375,7 +7514,7 @@ function App() {
       document.setFontSize(9.5);
       document.setTextColor(71, 95, 118);
       document.text(reportSubtitle, 38, 22);
-      document.text("Captura del sistema catastral, listado parcial y evidencia de actualizacion reciente.", 38, 28);
+      document.text("Jornadas seleccionadas, capturas pequenas, puntos de mapa y pruebas generales de trabajo.", 38, 28);
 
       autoTable(document, {
         startY: 38,
@@ -7404,21 +7543,39 @@ function App() {
         document.text("Mapa / captura no disponible", 206, 69, { align: "center" });
       }
 
-      document.setFont("helvetica", "bold");
-      document.setFontSize(10);
-      document.setTextColor(18, 59, 93);
-      document.text("Contenido incluido", 14, 118);
-      document.setFont("helvetica", "normal");
-      document.setFontSize(8.5);
-      document.text(
-        document.splitTextToSize(
-          "Este documento resume evidencia operativa reciente del sistema de catastro: captura del mapa, listado parcial de usuarios/puntos y trazabilidad de actualizacion.",
-          238
-        ),
-        14,
-        124
-      );
+      autoTable(document, {
+        startY: 112,
+        head: [["#", "Jornada", "Puntos", "Trabajo observado", "Ultima actualizacion"]],
+        body: journeyRows.length ? journeyRows : [["1", "Sin jornadas", "0", "--", "--"]],
+        theme: "grid",
+        styles: { fontSize: 7.6, cellPadding: 2, overflow: "linebreak" },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 9, halign: "center" },
+          1: { cellWidth: 36 },
+          2: { cellWidth: 16, halign: "center" },
+          3: { cellWidth: 140 },
+          4: { cellWidth: 38 }
+        }
+      });
       addFooter();
+
+      if (addPage()) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.setTextColor(18, 59, 93);
+        document.text("Capturas pequenas y puntos de mapa por jornada", 14, 16);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(71, 95, 118);
+        document.text("Cada recuadro resume la distribucion de puntos GPS levantados en la jornada seleccionada.", 14, 22);
+        journeyEntries.slice(0, 5).forEach((entry, index) => {
+          const col = index % 2;
+          const row = Math.floor(index / 2);
+          drawMiniMap(entry.points, 14 + col * 126, 32 + row * 52, 116, 42, formatMapDiaryLabel(entry.dateKey));
+        });
+      }
 
       if (addPage()) {
         document.setFont("helvetica", "bold");
@@ -7431,8 +7588,8 @@ function App() {
         document.text("Muestra limitada para evidencia documental; el sistema conserva el historial completo en base de datos.", 14, 22);
         autoTable(document, {
           startY: 30,
-          head: [["#", "Clave", "Barrio / zona", "Tipo", "Referencia", "Actualizado"]],
-          body: partialUserRows.length ? partialUserRows : [["1", "--", "Sin puntos", "--", "--", "--"]],
+          head: [["#", "Clave", "Jornada", "Barrio / zona", "Tipo", "Referencia", "Actualizado"]],
+          body: partialUserRows.length ? partialUserRows : [["1", "--", "--", "Sin puntos", "--", "--", "--"]],
           theme: "grid",
           styles: { fontSize: 7.6, cellPadding: 2, overflow: "linebreak" },
           headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
@@ -7440,11 +7597,12 @@ function App() {
           margin: { left: 14, right: 14 },
           columnStyles: {
             0: { cellWidth: 9, halign: "center" },
-            1: { cellWidth: 28 },
-            2: { cellWidth: 52 },
-            3: { cellWidth: 34 },
-            4: { cellWidth: 82 },
-            5: { cellWidth: 35 }
+            1: { cellWidth: 26 },
+            2: { cellWidth: 28 },
+            3: { cellWidth: 48 },
+            4: { cellWidth: 30 },
+            5: { cellWidth: 72 },
+            6: { cellWidth: 33 }
           }
         });
       }
@@ -7471,11 +7629,11 @@ function App() {
         document.setFont("helvetica", "bold");
         document.setFontSize(14);
         document.setTextColor(18, 59, 93);
-        document.text("Resumen por barrio / zona", 14, 16);
+        document.text("Resumen por barrio / zona y pruebas generales", 14, 16);
         autoTable(document, {
           startY: 26,
-          head: [["#", "Barrio / zona", "Puntos", "Claves detectadas", "Tipos de punto"]],
-          body: zoneRows.length ? zoneRows : [["1", "Sin zonas", "0", "--", "--"]],
+          head: [["#", "Barrio / zona", "Puntos", "Jornadas", "Claves detectadas", "Tipos de punto"]],
+          body: zoneRows.length ? zoneRows : [["1", "Sin zonas", "0", "--", "--", "--"]],
           theme: "grid",
           styles: { fontSize: 8, cellPadding: 2.2, overflow: "linebreak" },
           headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
@@ -7483,10 +7641,11 @@ function App() {
           margin: { left: 14, right: 14 },
           columnStyles: {
             0: { cellWidth: 10, halign: "center" },
-            1: { cellWidth: 82 },
+            1: { cellWidth: 64 },
             2: { cellWidth: 18, halign: "center" },
-            3: { cellWidth: 72 },
-            4: { cellWidth: 58 }
+            3: { cellWidth: 48 },
+            4: { cellWidth: 58 },
+            5: { cellWidth: 60 }
           }
         });
       }
@@ -7500,8 +7659,8 @@ function App() {
           startY: 27,
           head: [["Elemento", "Detalle"]],
           body: [
-            ["Alcance", "Reporte maximo de 5 paginas con evidencia visual y muestra parcial del sistema."],
-            ["Base del reporte", `Jornada ${formatMapDiaryLabel(activeMapDiaryDateKey)} con ${reportData.totalPoints} puntos y ${reportData.totalZones} barrios / zonas.`],
+            ["Alcance", "Reporte maximo de 5 paginas con evidencia visual, jornadas seleccionadas y muestra parcial del sistema."],
+            ["Base del reporte", `${selectedDateKeys.length} jornadas con ${evidencePoints.length} puntos y ${evidenceZoneMap.size} barrios / zonas.`],
             ["Actualizacion reciente", latestPoint ? `Ultimo punto actualizado: ${formatDateTime(latestPoint.updated_at || latestPoint.created_at)}` : "Sin actualizacion registrada en la jornada."],
             ["Responsables", `Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}. Datos: ${mapReportStaff.data_engineer || "--"}.`],
             ["Observaciones", mapReportSettings.report_notes.trim() || "Sin observaciones adicionales."]
@@ -7528,8 +7687,8 @@ function App() {
         document.deletePage(document.getNumberOfPages());
       }
 
-      document.save(`evidencia-ente-regulador-${activeMapDiaryDateKey || generatedAtIso.slice(0, 10)}.pdf`);
-      showAlert("PDF para ente regulador descargado.");
+      document.save(`resumen-trabajo-realizado-${selectedDateKeys[0] || generatedAtIso.slice(0, 10)}.pdf`);
+      showAlert("Resumen de trabajo realizado descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible generar el PDF para ente regulador.");
     }
@@ -16231,6 +16390,40 @@ function App() {
                         PDF de censo sin coordenadas
                       </button>
                     </div>
+                    <section className="document-block regulator-report-selector">
+                      <div>
+                        <p className="sheet-kicker">Resumen para ente regulador</p>
+                        <h3>Jornadas incluidas</h3>
+                        <p className="helper-text">
+                          Marca hasta 5 jornadas recientes para mostrar capturas pequenas, puntos GPS, tecnicos y evidencia general del trabajo realizado.
+                        </p>
+                      </div>
+                      <div className="regulator-report-days">
+                        {regulatorReportDiaryOptions.length ? (
+                          regulatorReportDiaryOptions.map((group) => {
+                            const selected = selectedRegulatorDiaryKeys.includes(group.key);
+                            const disabled = !selected && selectedRegulatorDiaryKeys.length >= 5;
+                            return (
+                              <button
+                                key={`regulator-day-${group.key}`}
+                                type="button"
+                                className={`regulator-day-chip ${selected ? "is-selected" : ""}`}
+                                onClick={() => handleToggleRegulatorDiaryKey(group.key)}
+                                disabled={disabled}
+                              >
+                                <Icon name={selected ? "success" : "map"} />
+                                <span>
+                                  <strong>{formatMapDiaryLabel(group.key)}</strong>
+                                  <small>{group.total} puntos</small>
+                                </span>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <span className="helper-text">No hay jornadas con puntos GPS para resumir.</span>
+                        )}
+                      </div>
+                    </section>
                     <section className={`document-block debt-chart-panel ${fieldDebtReport ? "is-ready" : "is-pending"}`}>
                       <div className="debt-chart-head">
                         <div className="debt-chart-title">

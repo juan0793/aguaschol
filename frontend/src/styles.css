@@ -10406,6 +10406,71 @@ textarea {
   background: #fbfdff;
 }
 
+.regulator-report-selector {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding: 0.85rem;
+  border-color: rgba(21, 118, 209, 0.18);
+  background: linear-gradient(135deg, rgba(237, 247, 255, 0.9), rgba(255, 255, 255, 0.96));
+}
+
+.regulator-report-selector h3 {
+  margin: 0.15rem 0;
+  color: #123b5d;
+  font-size: 1rem;
+}
+
+.regulator-report-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.regulator-day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #c7d9ea;
+  border-radius: 10px;
+  color: #174d77;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.regulator-day-chip span {
+  display: grid;
+  gap: 0.05rem;
+  text-align: left;
+}
+
+.regulator-day-chip strong {
+  font-size: 0.82rem;
+}
+
+.regulator-day-chip small {
+  color: #637f98;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.regulator-day-chip.is-selected {
+  border-color: #176bdc;
+  color: #ffffff;
+  background: #176bdc;
+}
+
+.regulator-day-chip.is-selected small {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.regulator-day-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 @media (max-width: 1180px) {
   .map-report-action-groups {
     grid-template-columns: 1fr;
