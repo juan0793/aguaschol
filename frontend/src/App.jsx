@@ -7298,6 +7298,243 @@ function App() {
     }
   };
 
+  const handleDownloadRegulatorEvidencePdf = async () => {
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
+      const reportData = mapReportPrintData;
+      const generatedAtIso = new Date().toISOString();
+      const generatedAt = formatDateTime(generatedAtIso);
+      const reportTitle = "Evidencia de actualizacion catastral";
+      const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
+      const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
+      const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
+      const maxPages = 5;
+      const recentPoints = [...visibleMapPoints]
+        .sort((left, right) => new Date(right.updated_at || right.created_at) - new Date(left.updated_at || left.created_at))
+        .slice(0, 34);
+      const latestPoint = recentPoints[0] || visibleMapPoints[0] || null;
+      const partialUserRows = recentPoints.slice(0, 28).map((point, index) => {
+        const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
+        return [
+          String(index + 1),
+          getMapReportPointClave(point, context) || "--",
+          getMapReportBarrioZone(point, context, safeBarrioCodes),
+          getMapPointTypeLabel(point.point_type),
+          getMapPointReferenceNote(point) || point.suggested_reference || "--",
+          formatDateTime(point.updated_at || point.created_at)
+        ];
+      });
+      const zoneRows = getMapReportTopZones(reportData, 10).map((zone, index) => [
+        String(index + 1),
+        zone.displayName || zone.zone || "--",
+        String(zone.total || 0),
+        zone.clavesLabel || "--",
+        zone.pointTypesLabel || "--"
+      ]);
+      const evidenceRows = [
+        ["Sistema fuente", "Aguas de Choluteca / modulo Reportes GPS"],
+        ["Jornada revisada", formatMapDiaryLabel(activeMapDiaryDateKey)],
+        ["Generado", generatedAt],
+        ["Ultima actualizacion visible", latestPoint ? formatDateTime(latestPoint.updated_at || latestPoint.created_at) : "Sin puntos registrados"],
+        ["Puntos incluidos", String(reportData.totalPoints)],
+        ["Barrios / zonas", String(reportData.totalZones)],
+        ["Tecnicos", getMapReportTechniciansLabel(mapReportStaff)],
+        ["Responsable de datos", mapReportStaff.data_engineer || "--"]
+      ];
+
+      const addFooter = () => {
+        const currentPage = document.getCurrentPageInfo().pageNumber;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        document.setTextColor(78, 101, 123);
+        document.text(`Pagina ${currentPage} de maximo ${maxPages}`, pageWidth - 14, pageHeight - 8, { align: "right" });
+        document.text("Evidencia documental para ente regulador", 14, pageHeight - 8);
+      };
+      const addPage = () => {
+        if (document.getNumberOfPages() >= maxPages) return false;
+        document.addPage("letter", "landscape");
+        addFooter();
+        return true;
+      };
+
+      try {
+        const logoDataUrl = await urlToDataUrl(logoAguasCholuteca);
+        document.addImage(logoDataUrl, "PNG", 14, 10, 20, 20);
+      } catch {
+        // Logo optional in generated evidence.
+      }
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(17);
+      document.setTextColor(18, 59, 93);
+      document.text(reportTitle, 38, 16);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9.5);
+      document.setTextColor(71, 95, 118);
+      document.text(reportSubtitle, 38, 22);
+      document.text("Captura del sistema catastral, listado parcial y evidencia de actualizacion reciente.", 38, 28);
+
+      autoTable(document, {
+        startY: 38,
+        head: [["Indicador", "Valor"]],
+        body: evidenceRows,
+        theme: "grid",
+        styles: { fontSize: 8.5, cellPadding: 2.4, overflow: "linebreak" },
+        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 251, 255] },
+        margin: { left: 14, right: 150 },
+        columnStyles: {
+          0: { cellWidth: 43, fontStyle: "bold" },
+          1: { cellWidth: 94 }
+        }
+      });
+
+      document.setFillColor(237, 245, 252);
+      document.roundedRect(154, 38, 104, 62, 3, 3, "F");
+      if (mapImageDataUrl) {
+        const mapImageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+        document.addImage(mapImageDataUrl, mapImageType, 157, 41, 98, 56);
+      } else {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(10);
+        document.setTextColor(81, 106, 128);
+        document.text("Mapa / captura no disponible", 206, 69, { align: "center" });
+      }
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(10);
+      document.setTextColor(18, 59, 93);
+      document.text("Contenido incluido", 14, 118);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(8.5);
+      document.text(
+        document.splitTextToSize(
+          "Este documento resume evidencia operativa reciente del sistema de catastro: captura del mapa, listado parcial de usuarios/puntos y trazabilidad de actualizacion.",
+          238
+        ),
+        14,
+        124
+      );
+      addFooter();
+
+      if (addPage()) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.setTextColor(18, 59, 93);
+        document.text("Listado parcial de usuarios / puntos del sistema", 14, 16);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(71, 95, 118);
+        document.text("Muestra limitada para evidencia documental; el sistema conserva el historial completo en base de datos.", 14, 22);
+        autoTable(document, {
+          startY: 30,
+          head: [["#", "Clave", "Barrio / zona", "Tipo", "Referencia", "Actualizado"]],
+          body: partialUserRows.length ? partialUserRows : [["1", "--", "Sin puntos", "--", "--", "--"]],
+          theme: "grid",
+          styles: { fontSize: 7.6, cellPadding: 2, overflow: "linebreak" },
+          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 251, 255] },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 9, halign: "center" },
+            1: { cellWidth: 28 },
+            2: { cellWidth: 52 },
+            3: { cellWidth: 34 },
+            4: { cellWidth: 82 },
+            5: { cellWidth: 35 }
+          }
+        });
+      }
+
+      if (addPage()) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.setTextColor(18, 59, 93);
+        document.text("Mapa / evidencia visual del catastro", 14, 16);
+        document.setFillColor(237, 245, 252);
+        document.roundedRect(14, 24, 246, 138, 3, 3, "F");
+        if (mapImageDataUrl) {
+          const mapImageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+          document.addImage(mapImageDataUrl, mapImageType, 18, 28, 238, 130);
+        } else {
+          document.setFont("helvetica", "bold");
+          document.setFontSize(11);
+          document.setTextColor(81, 106, 128);
+          document.text("Adjunta una captura o deja visible el mapa para incluir evidencia grafica.", pageWidth / 2, 92, { align: "center" });
+        }
+      }
+
+      if (addPage()) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.setTextColor(18, 59, 93);
+        document.text("Resumen por barrio / zona", 14, 16);
+        autoTable(document, {
+          startY: 26,
+          head: [["#", "Barrio / zona", "Puntos", "Claves detectadas", "Tipos de punto"]],
+          body: zoneRows.length ? zoneRows : [["1", "Sin zonas", "0", "--", "--"]],
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 2.2, overflow: "linebreak" },
+          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 251, 255] },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 10, halign: "center" },
+            1: { cellWidth: 82 },
+            2: { cellWidth: 18, halign: "center" },
+            3: { cellWidth: 72 },
+            4: { cellWidth: 58 }
+          }
+        });
+      }
+
+      if (addPage()) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.setTextColor(18, 59, 93);
+        document.text("Constancia de evidencia reciente", 14, 16);
+        autoTable(document, {
+          startY: 27,
+          head: [["Elemento", "Detalle"]],
+          body: [
+            ["Alcance", "Reporte maximo de 5 paginas con evidencia visual y muestra parcial del sistema."],
+            ["Base del reporte", `Jornada ${formatMapDiaryLabel(activeMapDiaryDateKey)} con ${reportData.totalPoints} puntos y ${reportData.totalZones} barrios / zonas.`],
+            ["Actualizacion reciente", latestPoint ? `Ultimo punto actualizado: ${formatDateTime(latestPoint.updated_at || latestPoint.created_at)}` : "Sin actualizacion registrada en la jornada."],
+            ["Responsables", `Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}. Datos: ${mapReportStaff.data_engineer || "--"}.`],
+            ["Observaciones", mapReportSettings.report_notes.trim() || "Sin observaciones adicionales."]
+          ],
+          theme: "grid",
+          styles: { fontSize: 9, cellPadding: 3, overflow: "linebreak" },
+          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 48, fontStyle: "bold" },
+            1: { cellWidth: 200 }
+          }
+        });
+        const signY = Math.min((document.lastAutoTable?.finalY ?? 85) + 20, pageHeight - 42);
+        document.setDrawColor(120, 151, 178);
+        document.line(154, signY, 244, signY);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(9);
+        document.setTextColor(71, 95, 118);
+        document.text("Firma y sello", 199, signY + 7, { align: "center" });
+      }
+
+      while (document.getNumberOfPages() > maxPages) {
+        document.deletePage(document.getNumberOfPages());
+      }
+
+      document.save(`evidencia-ente-regulador-${activeMapDiaryDateKey || generatedAtIso.slice(0, 10)}.pdf`);
+      showAlert("PDF para ente regulador descargado.");
+    } catch (error) {
+      showAlert(error.message || "No fue posible generar el PDF para ente regulador.");
+    }
+  };
+
   const handlePrintMapCensusReport = async () => {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = mapReportPrintData;
@@ -15976,6 +16213,10 @@ function App() {
                       <button type="button" className="button-secondary" onClick={handleDownloadMapBriefPdf}>
                         <Icon name="records" />
                         PDF resumen ligero
+                      </button>
+                      <button type="button" className="button-secondary" onClick={handleDownloadRegulatorEvidencePdf}>
+                        <Icon name="records" />
+                        PDF ente regulador
                       </button>
                       <button type="button" className="button-secondary" onClick={handlePrintMapBriefReport}>
                         <Icon name="records" />
