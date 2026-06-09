@@ -11222,6 +11222,7 @@ function App() {
         "page-shell",
         workspaceView === "records" && recordsFocusMode ? "records-focus-mode" : "",
         ["requests", "mapReports", "mapAnalytics"].includes(workspaceView) ? "reports-layout-mode" : "",
+        showPadronServiceModal || showPadronStatsModal ? "reports-modal-open" : "",
         workspaceView === "mapReports" ? "map-reports-mode" : ""
       ].filter(Boolean).join(" ")}
     >
