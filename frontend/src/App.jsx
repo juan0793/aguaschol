@@ -7448,6 +7448,44 @@ function App() {
           latest ? formatDateTime(latest.updated_at || latest.created_at) : "--"
         ];
       });
+      const auditActors = new Map();
+      safeAuditLogs.forEach((log) => {
+        const actor = String(log.actor_name || log.actor_email || "Sistema").trim();
+        if (!actor || actor === "Sistema") return;
+        const current = auditActors.get(actor) ?? { actor, total: 0, latest: log.created_at };
+        current.total += 1;
+        if (new Date(log.created_at) > new Date(current.latest)) {
+          current.latest = log.created_at;
+        }
+        auditActors.set(actor, current);
+      });
+      const appUserRows = (safeUsers.length ? safeUsers : [session?.user].filter(Boolean))
+        .map((user) => {
+          const actorActivity = auditActors.get(user.full_name) || auditActors.get(user.email) || auditActors.get(user.username);
+          return {
+            name: user.full_name || user.username || user.email || "Usuario",
+            username: user.username || user.email || "--",
+            role: roleLabel(user.role || "operador"),
+            sessions: Number(user.active_sessions || 0),
+            latest: actorActivity?.latest || user.last_login_at || "",
+            events: actorActivity?.total || 0,
+            isOnline: Boolean(user.is_online || Number(user.active_sessions || 0) > 0)
+          };
+        })
+        .sort((left, right) => {
+          if (right.sessions !== left.sessions) return right.sessions - left.sessions;
+          return new Date(right.latest || 0) - new Date(left.latest || 0);
+        })
+        .slice(0, 12)
+        .map((user, index) => [
+          String(index + 1),
+          user.name,
+          user.role,
+          user.username,
+          user.isOnline ? "En linea" : "Fuera de linea",
+          user.latest ? formatDateTime(user.latest) : "--",
+          String(user.events)
+        ]);
       const evidenceRows = [
         ["Sistema fuente", "Aguas de Choluteca / modulo Reportes GPS"],
         ["Jornadas revisadas", selectedDateKeys.map(formatMapDiaryLabel).join(" / ")],
@@ -7455,6 +7493,8 @@ function App() {
         ["Ultima actualizacion visible", latestPoint ? formatDateTime(latestPoint.updated_at || latestPoint.created_at) : "Sin puntos registrados"],
         ["Puntos incluidos", String(evidencePoints.length)],
         ["Barrios / zonas", String(evidenceZoneMap.size)],
+        ["Usuarios registrados", String(safeUsers.length || appUserRows.length)],
+        ["Usuarios con eventos recientes", String(auditActors.size)],
         ["Tecnicos", getMapReportTechniciansLabel(mapReportStaff)],
         ["Responsable de datos", mapReportStaff.data_engineer || "--"]
       ];
@@ -7664,6 +7704,31 @@ function App() {
             3: { cellWidth: 48 },
             4: { cellWidth: 58 },
             5: { cellWidth: 60 }
+          }
+        });
+
+        const usersStartY = Math.min((document.lastAutoTable?.finalY ?? 86) + 9, 124);
+        document.setFont("helvetica", "bold");
+        document.setFontSize(11);
+        document.setTextColor(18, 59, 93);
+        document.text("Usuarios que han trabajado en la aplicacion", 14, usersStartY);
+        autoTable(document, {
+          startY: usersStartY + 5,
+          head: [["#", "Usuario", "Rol", "Cuenta", "Estado", "Ultimo ingreso / evento", "Eventos"]],
+          body: appUserRows.length ? appUserRows : [["1", "Sin usuarios cargados", "--", "--", "--", "--", "0"]],
+          theme: "grid",
+          styles: { fontSize: 7.2, cellPadding: 1.7, overflow: "linebreak" },
+          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 251, 255] },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 8, halign: "center" },
+            1: { cellWidth: 46 },
+            2: { cellWidth: 28 },
+            3: { cellWidth: 40 },
+            4: { cellWidth: 24 },
+            5: { cellWidth: 44 },
+            6: { cellWidth: 16, halign: "center" }
           }
         });
       }
