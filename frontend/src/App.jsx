@@ -7557,6 +7557,20 @@ function App() {
           types
         };
       };
+      const journeyEvidenceRows = journeyEntries.slice(0, 5).map((entry, index) => {
+        const summary = getJourneyEvidenceSummary(entry);
+        return [
+          String(index + 1),
+          formatMapDiaryLabel(entry.dateKey),
+          `${entry.points.length} puntos\n${formatWorkDuration(summary.stats.estimatedMinutes)}`,
+          `${summary.zones.length} zonas\n${summary.creators.slice(0, 3).join(" / ") || getMapReportTechniciansLabel(mapReportStaff)}`,
+          Object.entries(summary.types).map(([label, total]) => `${label}: ${total}`).join("\n") || "--",
+          [
+            summary.claves.length ? `Claves: ${summary.claves.slice(0, 5).join(", ")}` : "",
+            summary.references.length ? `Refs: ${summary.references.slice(0, 3).join(" | ")}` : ""
+          ].filter(Boolean).join("\n") || "Referencias registradas en puntos GPS."
+        ];
+      });
       const drawMiniMap = (points, x, y, width, height, title) => {
         document.setDrawColor(185, 209, 228);
         document.setFillColor(237, 245, 252);
@@ -7601,62 +7615,6 @@ function App() {
         document.setFontSize(7);
         document.setTextColor(78, 101, 123);
         document.text(`${validPoints.length} puntos`, x + width - 4, y + height - 4, { align: "right" });
-      };
-      const drawJourneyEvidenceCard = (entry, x, y, width, height) => {
-        const summary = getJourneyEvidenceSummary(entry);
-        const mapWidth = 66;
-        const textX = x + 5;
-        const mapX = x + width - mapWidth - 5;
-        document.setDrawColor(188, 210, 229);
-        document.setFillColor(248, 252, 255);
-        document.roundedRect(x, y, width, height, 3, 3, "FD");
-        document.setFont("helvetica", "bold");
-        document.setFontSize(10);
-        document.setTextColor(18, 59, 93);
-        document.text(formatMapDiaryLabel(entry.dateKey), textX, y + 8);
-        document.setFontSize(8);
-        document.setTextColor(71, 95, 118);
-        document.text(`${entry.points.length} puntos | ${formatWorkDuration(summary.stats.estimatedMinutes)} | ${summary.zones.length} zonas`, textX, y + 15);
-        document.setFont("helvetica", "bold");
-        document.setTextColor(18, 59, 93);
-        document.text("Equipo:", textX, y + 23);
-        document.setFont("helvetica", "normal");
-        document.setTextColor(71, 95, 118);
-        document.text(
-          document.splitTextToSize(summary.creators.slice(0, 3).join(" / ") || getMapReportTechniciansLabel(mapReportStaff), width - mapWidth - 28),
-          textX + 16,
-          y + 23
-        );
-        document.setFont("helvetica", "bold");
-        document.setTextColor(18, 59, 93);
-        document.text("Trabajo:", textX, y + 32);
-        document.setFont("helvetica", "normal");
-        document.setTextColor(71, 95, 118);
-        document.text(
-          document.splitTextToSize(
-            Object.entries(summary.types).map(([label, total]) => `${label}: ${total}`).join(" | ") || "Sin clasificacion",
-            width - mapWidth - 24
-          ),
-          textX + 18,
-          y + 32
-        );
-        document.setFont("helvetica", "bold");
-        document.setTextColor(18, 59, 93);
-        document.text("Evidencia:", textX, y + 43);
-        document.setFont("helvetica", "normal");
-        document.setTextColor(71, 95, 118);
-        document.text(
-          document.splitTextToSize(
-            [
-              summary.claves.length ? `Claves: ${summary.claves.slice(0, 4).join(", ")}` : "",
-              summary.references.length ? `Refs: ${summary.references.slice(0, 2).join(" | ")}` : ""
-            ].filter(Boolean).join("  ") || "Referencias registradas en puntos GPS.",
-            width - mapWidth - 24
-          ),
-          textX + 24,
-          y + 43
-        );
-        drawMiniMap(entry.points, mapX, y + 7, mapWidth, height - 14, "");
       };
 
       const addFooter = () => {
@@ -7770,11 +7728,26 @@ function App() {
         document.setFont("helvetica", "normal");
         document.setFontSize(8.5);
         document.setTextColor(71, 95, 118);
-        document.text("Cada tarjeta combina puntos GPS, horas estimadas, equipo, tipos de trabajo, claves y referencias registradas.", 14, 22);
-        journeyEntries.slice(0, 5).forEach((entry, index) => {
-          const col = index % 2;
-          const row = Math.floor(index / 2);
-          drawJourneyEvidenceCard(entry, 14 + col * 132, 31 + row * 50, 122, 44);
+        document.text("Resumen legible de las jornadas seleccionadas: trabajo levantado, personal, zonas, claves y referencias.", 14, 22);
+        autoTable(document, {
+          startY: 31,
+          head: [["#", "Jornada", "Puntos / horas", "Zonas / equipo", "Tipos de trabajo", "Evidencia"]],
+          body: journeyEvidenceRows.length
+            ? journeyEvidenceRows
+            : [["1", "Sin jornadas", "0 puntos", "--", "--", "--"]],
+          theme: "grid",
+          styles: { fontSize: 7.8, cellPadding: 2.4, overflow: "linebreak", valign: "top" },
+          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 251, 255] },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 9, halign: "center" },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 28 },
+            3: { cellWidth: 50 },
+            4: { cellWidth: 58 },
+            5: { cellWidth: 71 }
+          }
         });
       }
 
