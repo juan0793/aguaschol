@@ -12129,6 +12129,41 @@ textarea {
   border-radius: 12px;
 }
 
+.aguas-barrio-print-filter {
+  margin-top: 0.7rem;
+}
+
+.request-barrio-print-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.request-barrio-print-actions button {
+  min-height: 34px;
+  padding: 0.42rem 0.65rem;
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+.request-barrio-select-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.55rem;
+}
+
+.request-barrio-select-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.1rem;
+  accent-color: var(--brand-blue);
+}
+
+.request-barrio-select-row .request-chart-track {
+  grid-column: 2;
+}
+
 .request-chart-report-controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -19407,6 +19442,67 @@ button,
 
 .page-shell.map-reports-mode .app-chrome > .search-card {
   box-shadow: 0 8px 18px rgba(11, 63, 115, 0.06);
+}
+
+/* Reports layout repair: keep report panels and chart modals inside the viewport. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.page-shell:not(.records-focus-mode) {
+  max-width: 100vw;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.page-shell:not(.records-focus-mode) > main,
+.app-chrome,
+.app-topbar,
+.log-panel-full,
+.log-shell,
+.request-sheet,
+.request-chart-card,
+.request-chart-list {
+  min-width: 0;
+}
+
+.log-panel-full {
+  overflow: visible;
+}
+
+.log-shell {
+  width: 100%;
+}
+
+.stats-modal-backdrop {
+  z-index: 1200;
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.stats-modal-card {
+  width: min(1180px, calc(100vw - 2rem));
+  min-width: 0;
+}
+
+.stats-modal-body,
+.stats-modal-body .request-chart-grid {
+  min-width: 0;
+}
+
+.request-chart-heading,
+.request-service-row > div:first-child {
+  min-width: 0;
+}
+
+.request-chart-heading strong,
+.request-service-row span {
+  min-width: 0;
 }
 
 @media (max-width: 1180px) {

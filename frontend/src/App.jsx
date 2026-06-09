@@ -802,6 +802,8 @@ function App() {
   const [showPadronServiceModal, setShowPadronServiceModal] = useState(false);
   const [showPadronRequestModal, setShowPadronRequestModal] = useState(false);
   const [selectedAguasServiceField, setSelectedAguasServiceField] = useState("agua");
+  const [selectedAguasServiceBarrios, setSelectedAguasServiceBarrios] = useState([]);
+  const [aguasServiceBarrioFilter, setAguasServiceBarrioFilter] = useState("");
   const [barrioCodes, setBarrioCodes] = useState([]);
   const [barrioCodeForm, setBarrioCodeForm] = useState(emptyBarrioForm);
   const [loadingBarrioCodes, setLoadingBarrioCodes] = useState(false);
@@ -2502,6 +2504,62 @@ function App() {
       hasData: totalRecords > 0
     };
   }, [padronServiceReport, selectedAguasServiceField]);
+  const getAguasServiceBarrioName = useCallback((barrio = {}) => {
+    const name = String(barrio.barrio_colonia || "").trim();
+    return name || "Sin barrio";
+  }, []);
+  const selectedAguasServiceBarrioSet = useMemo(
+    () => new Set(selectedAguasServiceBarrios.map((name) => String(name || "").trim()).filter(Boolean)),
+    [selectedAguasServiceBarrios]
+  );
+  const visibleAguasServiceBarrioRows = useMemo(() => {
+    const normalizedFilter = aguasServiceBarrioFilter.trim().toLowerCase();
+    if (!normalizedFilter) return aguasServiceReportData.barrioRows;
+    return aguasServiceReportData.barrioRows.filter((barrio) =>
+      String(barrio.barrio_colonia || "").toLowerCase().includes(normalizedFilter)
+    );
+  }, [aguasServiceBarrioFilter, aguasServiceReportData.barrioRows]);
+  const selectedAguasServiceBarrioRows = useMemo(
+    () =>
+      aguasServiceReportData.barrios.filter((barrio) =>
+        selectedAguasServiceBarrioSet.has(getAguasServiceBarrioName(barrio))
+      ),
+    [aguasServiceReportData.barrios, getAguasServiceBarrioName, selectedAguasServiceBarrioSet]
+  );
+  const allVisibleAguasServiceBarriosSelected =
+    visibleAguasServiceBarrioRows.length > 0 &&
+    visibleAguasServiceBarrioRows.every((barrio) => selectedAguasServiceBarrioSet.has(getAguasServiceBarrioName(barrio)));
+
+  useEffect(() => {
+    setSelectedAguasServiceBarrios((current) => {
+      if (!current.length) return current;
+      const validNames = new Set(aguasServiceReportData.barrios.map((barrio) => getAguasServiceBarrioName(barrio)));
+      const next = current.filter((name) => validNames.has(name));
+      return next.length === current.length ? current : next;
+    });
+  }, [aguasServiceReportData.barrios, getAguasServiceBarrioName]);
+
+  const toggleAguasServiceBarrioSelection = useCallback((barrioName) => {
+    const normalizedName = String(barrioName || "").trim() || "Sin barrio";
+    setSelectedAguasServiceBarrios((current) =>
+      current.includes(normalizedName)
+        ? current.filter((name) => name !== normalizedName)
+        : [...current, normalizedName]
+    );
+  }, []);
+
+  const toggleVisibleAguasServiceBarrios = useCallback(() => {
+    const visibleNames = visibleAguasServiceBarrioRows.map((barrio) => getAguasServiceBarrioName(barrio));
+    setSelectedAguasServiceBarrios((current) => {
+      const currentSet = new Set(current);
+      const shouldRemove = visibleNames.length > 0 && visibleNames.every((name) => currentSet.has(name));
+      if (shouldRemove) {
+        return current.filter((name) => !visibleNames.includes(name));
+      }
+      visibleNames.forEach((name) => currentSet.add(name));
+      return Array.from(currentSet);
+    });
+  }, [getAguasServiceBarrioName, visibleAguasServiceBarrioRows]);
   const dashboardMetrics = useMemo(
     () => [
       {
@@ -5131,14 +5189,46 @@ function App() {
     }
   };
 
-  const handlePrintAguasServiceReport = async () => {
+  const handlePrintAguasServiceReport = async ({ onlySelected = false } = {}) => {
     if (!aguasServiceReportData.hasData) {
       showAlert("Actualiza primero el informe del padron maestro.");
       return;
     }
 
+    const barriosToPrint = onlySelected ? selectedAguasServiceBarrioRows : aguasServiceReportData.barrios;
+    if (onlySelected && !barriosToPrint.length) {
+      showAlert("Selecciona al menos un barrio para imprimir.");
+      return;
+    }
+
     const generatedAt = formatDateTime(padronServiceReport?.generated_at || new Date().toISOString());
-    const serviceRows = aguasServiceReportData.serviceRows
+    const reportTitle = onlySelected
+      ? "Informe de servicios por barrios seleccionados"
+      : "Informe de servicios del padron maestro";
+    const printedTotalRecords = onlySelected
+      ? barriosToPrint.reduce((total, barrio) => total + Number(barrio.total_registros || 0), 0)
+      : aguasServiceReportData.totalRecords;
+    const serviceRowsForPrint = aguasServiceReportData.serviceRows.map((service) => {
+      if (!onlySelected) return service;
+      const scopedTotals = barriosToPrint.reduce(
+        (totals, barrio) => {
+          const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
+          const match = services.find((item) => item.field === service.field) || {};
+          return {
+            active: totals.active + Number(match.active || 0),
+            inactive: totals.inactive + Number(match.inactive || 0),
+            unknown: totals.unknown + Number(match.unknown || 0)
+          };
+        },
+        { active: 0, inactive: 0, unknown: 0 }
+      );
+      return {
+        ...service,
+        ...scopedTotals,
+        percentage: printedTotalRecords ? Number(((scopedTotals.active / printedTotalRecords) * 100).toFixed(1)) : 0
+      };
+    });
+    const serviceRows = serviceRowsForPrint
       .map(
         (service) => `
           <tr>
@@ -5151,7 +5241,7 @@ function App() {
         `
       )
       .join("");
-    const barrioRows = aguasServiceReportData.barrios
+    const barrioRows = barriosToPrint
       .map((barrio) => {
         const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
         return `
@@ -5167,7 +5257,7 @@ function App() {
       .join("");
 
     await printDocument(
-      "Informe de servicios del padron maestro",
+      reportTitle,
       `
         <div class="field-report-shell census-report-shell">
           <header class="field-report-header census-report-header">
@@ -5175,19 +5265,19 @@ function App() {
               <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
               <div>
                 <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
-                <h1>Informe de servicios del padron maestro</h1>
-                <p>Resumen actualizado desde el padron maestro activo de Aguas.</p>
+                <h1>${escapeHtml(reportTitle)}</h1>
+                <p>${onlySelected ? "Resumen filtrado con los barrios seleccionados por el operador." : "Resumen actualizado desde el padron maestro activo de Aguas."}</p>
               </div>
             </div>
             <div class="field-report-meta">
               <span>Generado: ${generatedAt}</span>
-              <span>Registros: ${aguasServiceReportData.totalRecords}</span>
-              <span>Barrios: ${padronServiceReport?.summary?.total_barrios ?? 0}</span>
+              <span>Registros impresos: ${printedTotalRecords}</span>
+              <span>Barrios impresos: ${barriosToPrint.length}</span>
               <span>Fuente: ${escapeHtml(padronServiceReport?.source?.file_name || "Padron maestro")}</span>
             </div>
           </header>
           <section class="field-report-summary">
-            ${aguasServiceReportData.serviceRows
+            ${serviceRowsForPrint
               .map(
                 (service) => `
                   <div class="field-report-total-chip">
@@ -5222,7 +5312,7 @@ function App() {
             <div class="field-report-zone-head census-report-zone-head">
               <div>
                 <span class="field-report-zone-kicker">Barrios principales</span>
-                <h3>Desglose por barrio</h3>
+                <h3>${onlySelected ? "Desglose de barrios seleccionados" : "Desglose por barrio"}</h3>
               </div>
             </div>
             <table class="field-report-table census-report-table">
@@ -16970,9 +17060,18 @@ function App() {
                                 <Icon name="records" />
                                 {downloadingAguasServicePdf ? "Guardando..." : "Guardar PDF"}
                               </button>
-                              <button type="button" onClick={handlePrintAguasServiceReport}>
+                              <button type="button" onClick={() => handlePrintAguasServiceReport()}>
                                 <Icon name="records" />
                                 Imprimir
+                              </button>
+                              <button
+                                type="button"
+                                className="button-secondary"
+                                onClick={() => handlePrintAguasServiceReport({ onlySelected: true })}
+                                disabled={!selectedAguasServiceBarrios.length}
+                              >
+                                <Icon name="records" />
+                                Imprimir barrios ({selectedAguasServiceBarrios.length})
                               </button>
                               <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronServiceModal(false)}>
                                 Cerrar
@@ -17041,12 +17140,66 @@ function App() {
                               <section className="request-chart-card">
                                 <div>
                                   <strong>{aguasServiceReportData.selectedService?.label || "Servicio"} por barrio</strong>
-                                  <span>Barrios con mas usuarios activos para el servicio seleccionado.</span>
+                                  <span>Marca los barrios que quieres imprimir con el desglose completo de servicios.</span>
+                                  <label className="request-chart-filter aguas-barrio-print-filter">
+                                    <span>Buscar barrio para imprimir</span>
+                                    <input
+                                      value={aguasServiceBarrioFilter}
+                                      onChange={(event) => setAguasServiceBarrioFilter(event.target.value)}
+                                      placeholder="Ej. La Providencia"
+                                    />
+                                  </label>
+                                  <div className="request-barrio-print-actions">
+                                    <button
+                                      type="button"
+                                      className="button-secondary"
+                                      onClick={toggleVisibleAguasServiceBarrios}
+                                      disabled={!visibleAguasServiceBarrioRows.length}
+                                    >
+                                      {allVisibleAguasServiceBarriosSelected ? "Quitar visibles" : "Seleccionar visibles"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="button-secondary"
+                                      onClick={() => setSelectedAguasServiceBarrios([])}
+                                      disabled={!selectedAguasServiceBarrios.length}
+                                    >
+                                      Limpiar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePrintAguasServiceReport({ onlySelected: true })}
+                                      disabled={!selectedAguasServiceBarrios.length}
+                                    >
+                                      <Icon name="records" />
+                                      Imprimir seleccion
+                                    </button>
+                                  </div>
+                                  <span className="helper-text">
+                                    {selectedAguasServiceBarrios.length
+                                      ? `${selectedAguasServiceBarrios.length} barrios seleccionados`
+                                      : "Selecciona uno o varios barrios para imprimirlos aparte."}
+                                  </span>
                                 </div>
                                 <div className="request-chart-list">
-                                  {aguasServiceReportData.barrioRows.length ? (
-                                    aguasServiceReportData.barrioRows.map((item) => (
-                                      <div key={`service-barrio-${item.barrio_colonia}`} className="request-chart-row">
+                                  {visibleAguasServiceBarrioRows.length ? (
+                                    visibleAguasServiceBarrioRows.map((item) => {
+                                      const barrioName = getAguasServiceBarrioName(item);
+                                      const isSelected = selectedAguasServiceBarrioSet.has(barrioName);
+                                      return (
+                                      <button
+                                        key={`service-barrio-${item.barrio_colonia}`}
+                                        type="button"
+                                        className={`request-chart-row request-barrio-select-row ${isSelected ? "is-selected" : ""}`}
+                                        onClick={() => toggleAguasServiceBarrioSelection(barrioName)}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => toggleAguasServiceBarrioSelection(barrioName)}
+                                          onClick={(event) => event.stopPropagation()}
+                                          aria-label={`Seleccionar ${barrioName}`}
+                                        />
                                         <div className="request-chart-copy">
                                           <div className="request-chart-heading">
                                             <strong>{item.barrio_colonia}</strong>
@@ -17057,10 +17210,11 @@ function App() {
                                         <div className="request-chart-track">
                                           <span style={{ width: `${(Number(item.active || 0) / aguasServiceReportData.maxBarrioServiceTotal) * 100}%` }} />
                                         </div>
-                                      </div>
-                                    ))
+                                      </button>
+                                      );
+                                    })
                                   ) : (
-                                    <p className="helper-text">No hay barrios para este servicio.</p>
+                                    <p className="helper-text">No hay barrios para este filtro.</p>
                                   )}
                                 </div>
                               </section>
