@@ -7423,17 +7423,6 @@ function App() {
         accumulator.set(zone, current);
         return accumulator;
       }, new Map());
-      const zoneRows = Array.from(evidenceZoneMap.values())
-        .sort((left, right) => right.total - left.total)
-        .slice(0, 8)
-        .map((zone, index) => [
-        String(index + 1),
-        zone.zone || "--",
-        String(zone.total || 0),
-        Array.from(zone.dates).map(formatMapDiaryLabel).join(" / ") || "--",
-        Array.from(zone.claves).slice(0, 4).join(", ") || "--",
-        Array.from(zone.types).join(", ") || "--"
-      ]);
       const formatWorkDuration = (minutes) => {
         const safeMinutes = Math.max(0, Math.round(Number(minutes || 0)));
         const hours = Math.floor(safeMinutes / 60);
@@ -7458,26 +7447,6 @@ function App() {
         (sum, stats) => sum + Number(stats.estimatedMinutes || 0),
         0
       );
-      const journeyRows = journeyEntries.map((entry, index) => {
-        const stats = journeyStatsByDate[entry.dateKey] ?? getJourneyStats(entry);
-        const latest = [...entry.points].sort((left, right) => new Date(right.updated_at || right.created_at) - new Date(left.updated_at || left.created_at))[0];
-        const types = entry.points.reduce((accumulator, point) => {
-          const label = getMapPointTypeLabel(point.point_type);
-          accumulator[label] = (accumulator[label] || 0) + 1;
-          return accumulator;
-        }, {});
-        return [
-          String(index + 1),
-          formatMapDiaryLabel(entry.dateKey),
-          String(entry.points.length),
-          formatWorkDuration(stats.estimatedMinutes),
-          stats.first && stats.last
-            ? `${formatDateTime(stats.first.created_at || stats.first.updated_at)} - ${formatDateTime(stats.last.updated_at || stats.last.created_at)}`
-            : "--",
-          Object.entries(types).map(([label, total]) => `${label}: ${total}`).join(" | ") || "--",
-          latest ? formatDateTime(latest.updated_at || latest.created_at) : "--"
-        ];
-      });
       const auditActors = new Map();
       safeAuditLogs.forEach((log) => {
         const actor = String(log.actor_name || log.actor_email || "Sistema").trim();
@@ -7676,49 +7645,60 @@ function App() {
         document.text("Mapa / captura no disponible", 206, 69, { align: "center" });
       }
 
-      autoTable(document, {
-        startY: 112,
-        head: [["#", "Jornada", "Puntos", "Horas", "Inicio / cierre", "Trabajo observado", "Ultima actualizacion"]],
-        body: journeyRows.length ? journeyRows : [["1", "Sin jornadas", "0", "0 min", "--", "--", "--"]],
-        theme: "grid",
-        styles: { fontSize: 7.1, cellPadding: 1.6, overflow: "linebreak" },
-        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
-        margin: { left: 14, right: 14 },
-        columnStyles: {
-          0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 28 },
-          2: { cellWidth: 13, halign: "center" },
-          3: { cellWidth: 18 },
-          4: { cellWidth: 58 },
-          5: { cellWidth: 84 },
-          6: { cellWidth: 32 }
-        }
-      });
-      const firstPageUsersY = (document.lastAutoTable?.finalY ?? 136) + 6;
       document.setFont("helvetica", "bold");
-      document.setFontSize(10);
+      document.setFontSize(11);
       document.setTextColor(18, 59, 93);
-      document.text("Usuarios que han trabajado en la aplicacion", 14, firstPageUsersY);
+      document.text("Distribucion del informe", 14, 116);
       autoTable(document, {
-        startY: firstPageUsersY + 4,
-        head: [["#", "Usuario", "Rol", "Cuenta", "Estado", "Ultimo ingreso / evento", "Eventos"]],
-        body: appUserRows.length ? appUserRows : [["1", "Sin usuarios cargados", "--", "--", "--", "--", "0"]],
+        startY: 122,
+        head: [["Hoja", "Contenido"]],
+        body: [
+          ["1", "Resumen ejecutivo del trabajo realizado"],
+          ["2", "Usuarios que han trabajado en la aplicacion"],
+          ["3", "Jornadas de trabajo seleccionadas"],
+          ["4", "Listado parcial de puntos de mapa"],
+          ["5", "Mapa principal adjunto y constancia"]
+        ],
         theme: "grid",
-        styles: { fontSize: 6.8, cellPadding: 1.3, overflow: "linebreak" },
+        styles: { fontSize: 8.4, cellPadding: 2.3, overflow: "linebreak" },
         headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [248, 251, 255] },
-        margin: { left: 14, right: 14 },
+        margin: { left: 14, right: 150 },
         columnStyles: {
-          0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 44 },
-          2: { cellWidth: 28 },
-          3: { cellWidth: 40 },
-          4: { cellWidth: 23 },
-          5: { cellWidth: 45 },
-          6: { cellWidth: 16, halign: "center" }
+          0: { cellWidth: 16, halign: "center", fontStyle: "bold" },
+          1: { cellWidth: 116 }
         }
       });
       addFooter();
+
+      if (addPage()) {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(14);
+        document.setTextColor(18, 59, 93);
+        document.text("Usuarios que han trabajado en la aplicacion", 14, 16);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(71, 95, 118);
+        document.text("Cuentas operativas con actividad, sesiones o eventos recientes dentro del sistema.", 14, 22);
+        autoTable(document, {
+          startY: 31,
+          head: [["#", "Usuario", "Rol", "Cuenta", "Estado", "Ultimo ingreso / evento", "Eventos"]],
+          body: appUserRows.length ? appUserRows : [["1", "Sin usuarios cargados", "--", "--", "--", "--", "0"]],
+          theme: "grid",
+          styles: { fontSize: 8.1, cellPadding: 2.2, overflow: "linebreak" },
+          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 251, 255] },
+          margin: { left: 14, right: 14 },
+          columnStyles: {
+            0: { cellWidth: 9, halign: "center" },
+            1: { cellWidth: 52 },
+            2: { cellWidth: 33 },
+            3: { cellWidth: 52 },
+            4: { cellWidth: 26 },
+            5: { cellWidth: 56 },
+            6: { cellWidth: 18, halign: "center" }
+          }
+        });
+      }
 
       if (addPage()) {
         document.setFont("helvetica", "bold");
@@ -7786,53 +7766,24 @@ function App() {
         document.setFont("helvetica", "bold");
         document.setFontSize(14);
         document.setTextColor(18, 59, 93);
-        document.text("Mapa / evidencia visual del catastro", 14, 16);
+        document.text("Mapa principal adjunto y constancia", 14, 16);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(71, 95, 118);
+        document.text("Evidencia visual separada del resumen operativo para evitar mezclar actividades.", 14, 22);
         document.setFillColor(237, 245, 252);
-        document.roundedRect(14, 24, 246, 138, 3, 3, "F");
+        document.roundedRect(14, 28, 246, 92, 3, 3, "F");
         if (mapImageDataUrl) {
           const mapImageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-          document.addImage(mapImageDataUrl, mapImageType, 18, 28, 238, 130);
+          document.addImage(mapImageDataUrl, mapImageType, 18, 32, 238, 84);
         } else {
           document.setFont("helvetica", "bold");
           document.setFontSize(11);
           document.setTextColor(81, 106, 128);
-          document.text("Adjunta una captura o deja visible el mapa para incluir evidencia grafica.", pageWidth / 2, 92, { align: "center" });
+          document.text("Adjunta una captura o deja visible el mapa para incluir evidencia grafica.", pageWidth / 2, 75, { align: "center" });
         }
-      }
-
-      if (addPage()) {
-        document.setFont("helvetica", "bold");
-        document.setFontSize(14);
-        document.setTextColor(18, 59, 93);
-        document.text("Resumen por barrio / zona y pruebas generales", 14, 16);
         autoTable(document, {
-          startY: 26,
-          head: [["#", "Barrio / zona", "Puntos", "Jornadas", "Claves detectadas", "Tipos de punto"]],
-          body: zoneRows.length ? zoneRows : [["1", "Sin zonas", "0", "--", "--", "--"]],
-          theme: "grid",
-          styles: { fontSize: 8, cellPadding: 2.2, overflow: "linebreak" },
-          headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
-          alternateRowStyles: { fillColor: [248, 251, 255] },
-          margin: { left: 14, right: 14 },
-          columnStyles: {
-            0: { cellWidth: 10, halign: "center" },
-            1: { cellWidth: 64 },
-            2: { cellWidth: 18, halign: "center" },
-            3: { cellWidth: 48 },
-            4: { cellWidth: 58 },
-            5: { cellWidth: 60 }
-          }
-        });
-
-      }
-
-      if (addPage()) {
-        document.setFont("helvetica", "bold");
-        document.setFontSize(14);
-        document.setTextColor(18, 59, 93);
-        document.text("Constancia de evidencia reciente", 14, 16);
-        autoTable(document, {
-          startY: 27,
+          startY: 128,
           head: [["Elemento", "Detalle"]],
           body: [
             ["Alcance", "Reporte maximo de 5 paginas con evidencia visual, jornadas seleccionadas y muestra parcial del sistema."],
@@ -16526,6 +16477,15 @@ function App() {
                     </div>
                   </div>
                   <article className="document-sheet log-sheet map-report-sheet">
+                    {generatingRegulatorReport ? (
+                      <div className="regulator-pdf-loading" role="status" aria-live="polite">
+                        <div>
+                          <span className="regulator-pdf-spinner" aria-hidden="true" />
+                          <strong>Generando PDF ente regulador</strong>
+                          <p>Preparando resumen, usuarios, jornadas, puntos y mapa principal...</p>
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="map-report-office-head">
                       <div className="map-report-brand">
                         <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
@@ -16583,6 +16543,33 @@ function App() {
                           Marca hasta 5 jornadas recientes para mostrar capturas pequenas, puntos GPS, tecnicos y evidencia general del trabajo realizado.
                         </p>
                       </div>
+                      <div className="regulator-map-upload-row">
+                        <div>
+                          <span>Mapa principal</span>
+                          <small>
+                            {mapReportSettings.map_image_name
+                              ? `Adjunto: ${mapReportSettings.map_image_name}`
+                              : "Adjunta una captura del mapa o del sistema para incluirla en la hoja 5."}
+                          </small>
+                        </div>
+                        <label className="button-secondary regulator-map-upload-button">
+                          <Icon name="records" />
+                          Adjuntar mapa
+                          <input type="file" accept="image/*" onChange={handleMapReportImageChange} />
+                        </label>
+                        {mapReportSettings.map_image_data_url ? (
+                          <button type="button" className="button-secondary" onClick={clearMapReportImage}>
+                            Quitar
+                          </button>
+                        ) : null}
+                      </div>
+                      {mapReportSettings.map_image_data_url ? (
+                        <img
+                          className="regulator-map-preview"
+                          src={mapReportSettings.map_image_data_url}
+                          alt="Vista previa del mapa principal adjunto"
+                        />
+                      ) : null}
                       <div className="regulator-report-days">
                         {regulatorReportDiaryOptions.length ? (
                           regulatorReportDiaryOptions.map((group) => {
