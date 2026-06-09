@@ -7632,6 +7632,7 @@ function App() {
           1: { cellWidth: 94 }
         }
       });
+      const distributionStartY = Math.min(Math.max((document.lastAutoTable?.finalY ?? 108) + 10, 116), 166);
 
       document.setFillColor(237, 245, 252);
       document.roundedRect(154, 38, 104, 62, 3, 3, "F");
@@ -7648,9 +7649,9 @@ function App() {
       document.setFont("helvetica", "bold");
       document.setFontSize(11);
       document.setTextColor(18, 59, 93);
-      document.text("Distribucion del informe", 14, 116);
+      document.text("Distribucion del informe", 14, distributionStartY);
       autoTable(document, {
-        startY: 122,
+        startY: distributionStartY + 6,
         head: [["Hoja", "Contenido"]],
         body: [
           ["1", "Resumen ejecutivo del trabajo realizado"],
@@ -7663,9 +7664,10 @@ function App() {
         styles: { fontSize: 8.4, cellPadding: 2.3, overflow: "linebreak" },
         headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
         margin: { left: 14, right: 150 },
+        tableWidth: 150,
         columnStyles: {
           0: { cellWidth: 16, halign: "center", fontStyle: "bold" },
-          1: { cellWidth: 116 }
+          1: { cellWidth: 134 }
         }
       });
       addFooter();
