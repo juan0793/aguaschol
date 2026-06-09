@@ -7529,6 +7529,34 @@ function App() {
         ["Tecnicos", getMapReportTechniciansLabel(mapReportStaff)],
         ["Responsable de datos", mapReportStaff.data_engineer || "--"]
       ];
+      const getJourneyEvidenceSummary = (entry) => {
+        const stats = journeyStatsByDate[entry.dateKey] ?? getJourneyStats(entry);
+        const creators = Array.from(
+          new Set(entry.points.map((point) => String(point.created_by_name || "").trim()).filter(Boolean))
+        );
+        const zones = new Set();
+        const claves = new Set();
+        const references = new Set();
+        const types = entry.points.reduce((accumulator, point) => {
+          const context = getEvidenceContext(point);
+          zones.add(getMapReportBarrioZone(point, context, safeBarrioCodes));
+          const clave = getMapReportPointClave(point, context);
+          if (clave) claves.add(clave);
+          const reference = getMapPointReferenceNote(point) || getMapPointTechnicalDescription(point) || context?.reference || "";
+          if (reference) references.add(reference);
+          const label = getMapPointTypeLabel(point.point_type);
+          accumulator[label] = (accumulator[label] || 0) + 1;
+          return accumulator;
+        }, {});
+        return {
+          stats,
+          creators,
+          zones: Array.from(zones).filter(Boolean),
+          claves: Array.from(claves).filter(Boolean),
+          references: Array.from(references).filter(Boolean),
+          types
+        };
+      };
       const drawMiniMap = (points, x, y, width, height, title) => {
         document.setDrawColor(185, 209, 228);
         document.setFillColor(237, 245, 252);
@@ -7536,7 +7564,9 @@ function App() {
         document.setFont("helvetica", "bold");
         document.setFontSize(8);
         document.setTextColor(18, 59, 93);
-        document.text(title, x + 4, y + 6);
+        if (title) {
+          document.text(title, x + 4, y + 6);
+        }
         const validPoints = points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)));
         if (!validPoints.length) {
           document.setFont("helvetica", "normal");
@@ -7571,6 +7601,62 @@ function App() {
         document.setFontSize(7);
         document.setTextColor(78, 101, 123);
         document.text(`${validPoints.length} puntos`, x + width - 4, y + height - 4, { align: "right" });
+      };
+      const drawJourneyEvidenceCard = (entry, x, y, width, height) => {
+        const summary = getJourneyEvidenceSummary(entry);
+        const mapWidth = 66;
+        const textX = x + 5;
+        const mapX = x + width - mapWidth - 5;
+        document.setDrawColor(188, 210, 229);
+        document.setFillColor(248, 252, 255);
+        document.roundedRect(x, y, width, height, 3, 3, "FD");
+        document.setFont("helvetica", "bold");
+        document.setFontSize(10);
+        document.setTextColor(18, 59, 93);
+        document.text(formatMapDiaryLabel(entry.dateKey), textX, y + 8);
+        document.setFontSize(8);
+        document.setTextColor(71, 95, 118);
+        document.text(`${entry.points.length} puntos | ${formatWorkDuration(summary.stats.estimatedMinutes)} | ${summary.zones.length} zonas`, textX, y + 15);
+        document.setFont("helvetica", "bold");
+        document.setTextColor(18, 59, 93);
+        document.text("Equipo:", textX, y + 23);
+        document.setFont("helvetica", "normal");
+        document.setTextColor(71, 95, 118);
+        document.text(
+          document.splitTextToSize(summary.creators.slice(0, 3).join(" / ") || getMapReportTechniciansLabel(mapReportStaff), width - mapWidth - 28),
+          textX + 16,
+          y + 23
+        );
+        document.setFont("helvetica", "bold");
+        document.setTextColor(18, 59, 93);
+        document.text("Trabajo:", textX, y + 32);
+        document.setFont("helvetica", "normal");
+        document.setTextColor(71, 95, 118);
+        document.text(
+          document.splitTextToSize(
+            Object.entries(summary.types).map(([label, total]) => `${label}: ${total}`).join(" | ") || "Sin clasificacion",
+            width - mapWidth - 24
+          ),
+          textX + 18,
+          y + 32
+        );
+        document.setFont("helvetica", "bold");
+        document.setTextColor(18, 59, 93);
+        document.text("Evidencia:", textX, y + 43);
+        document.setFont("helvetica", "normal");
+        document.setTextColor(71, 95, 118);
+        document.text(
+          document.splitTextToSize(
+            [
+              summary.claves.length ? `Claves: ${summary.claves.slice(0, 4).join(", ")}` : "",
+              summary.references.length ? `Refs: ${summary.references.slice(0, 2).join(" | ")}` : ""
+            ].filter(Boolean).join("  ") || "Referencias registradas en puntos GPS.",
+            width - mapWidth - 24
+          ),
+          textX + 24,
+          y + 43
+        );
+        drawMiniMap(entry.points, mapX, y + 7, mapWidth, height - 14, "");
       };
 
       const addFooter = () => {
@@ -7680,15 +7766,15 @@ function App() {
         document.setFont("helvetica", "bold");
         document.setFontSize(14);
         document.setTextColor(18, 59, 93);
-        document.text("Capturas pequenas y puntos de mapa por jornada", 14, 16);
+        document.text("Evidencia de jornadas de trabajo", 14, 16);
         document.setFont("helvetica", "normal");
         document.setFontSize(8.5);
         document.setTextColor(71, 95, 118);
-        document.text("Cada recuadro resume la distribucion de puntos GPS levantados en la jornada seleccionada.", 14, 22);
+        document.text("Cada tarjeta combina puntos GPS, horas estimadas, equipo, tipos de trabajo, claves y referencias registradas.", 14, 22);
         journeyEntries.slice(0, 5).forEach((entry, index) => {
           const col = index % 2;
           const row = Math.floor(index / 2);
-          drawMiniMap(entry.points, 14 + col * 126, 32 + row * 52, 116, 42, formatMapDiaryLabel(entry.dateKey));
+          drawJourneyEvidenceCard(entry, 14 + col * 132, 31 + row * 50, 122, 44);
         });
       }
 
