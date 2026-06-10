@@ -22661,7 +22661,7 @@ body,
 
 .chat-room {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) minmax(86px, auto);
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -22960,6 +22960,7 @@ body,
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  min-height: 86px;
   padding: 0.65rem;
   border-top: 1px solid #dce8f3;
   background: #ffffff;
@@ -23068,12 +23069,15 @@ body,
 }
 
 .chat-composer-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(120px, 1fr) auto;
   gap: 0.45rem;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  min-height: 42px;
+  overflow: visible;
 }
 
 .chat-delivery-status {
@@ -23091,9 +23095,14 @@ body,
   white-space: nowrap;
 }
 
+.chat-textarea-shell {
+  display: grid;
+  min-width: 0;
+  width: 100%;
+}
+
 .chat-composer textarea {
-  flex: 1 1 0;
-  width: auto;
+  width: 100%;
   min-width: 0;
   box-sizing: border-box;
   min-height: 42px;
@@ -23147,8 +23156,11 @@ body,
 .chat-workspace.is-compact {
   grid-template-columns: 1fr;
   grid-template-rows: auto minmax(0, 1fr);
+  height: min(760px, calc(100vh - 140px));
   height: min(760px, calc(100dvh - 140px));
+  min-height: min(680px, calc(100vh - 140px));
   min-height: min(680px, calc(100dvh - 140px));
+  max-height: min(760px, calc(100vh - 140px));
   max-height: min(760px, calc(100dvh - 140px));
 }
 
@@ -23219,8 +23231,11 @@ body,
   .chat-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+    height: min(760px, calc(100vh - 120px));
     height: min(760px, calc(100dvh - 120px));
+    min-height: min(680px, calc(100vh - 120px));
     min-height: min(680px, calc(100dvh - 120px));
+    max-height: min(760px, calc(100vh - 120px));
     max-height: min(760px, calc(100dvh - 120px));
   }
 
@@ -23258,8 +23273,11 @@ body,
   .chat-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+    height: min(760px, calc(100vh - 120px));
     height: min(760px, calc(100dvh - 120px));
+    min-height: min(680px, calc(100vh - 120px));
     min-height: min(680px, calc(100dvh - 120px));
+    max-height: min(760px, calc(100vh - 120px));
     max-height: min(760px, calc(100dvh - 120px));
   }
 
@@ -23332,6 +23350,7 @@ body,
   }
 
   .chat-composer-row {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
     gap: 0.35rem;
   }
 
@@ -23402,8 +23421,11 @@ body,
   }
 
   .chat-workspace {
+    height: min(720px, calc(100vh - 88px));
     height: min(720px, calc(100dvh - 88px));
+    min-height: min(620px, calc(100vh - 88px));
     min-height: min(620px, calc(100dvh - 88px));
+    max-height: min(720px, calc(100vh - 88px));
     max-height: min(720px, calc(100dvh - 88px));
     margin-inline: 0;
     padding: 0;

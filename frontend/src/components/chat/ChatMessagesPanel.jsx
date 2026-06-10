@@ -632,13 +632,15 @@ export function ChatMessagesPanel({
             <button type="button" className="chat-attach-button" onClick={() => setSharePanelOpen((current) => !current)} title="Compartir clave, punto o ficha">
               <Share2 size={18} />
             </button>
-            <textarea
-              value={messageBody}
-              onChange={(event) => handleTypingChange(event.target.value)}
-              placeholder={`Mensaje en ${channels.find((channel) => channel.key === activeChannel)?.label || "General"}...`}
-              disabled={savingMessage}
-              rows="1"
-            />
+            <div className="chat-textarea-shell">
+              <textarea
+                value={messageBody}
+                onChange={(event) => handleTypingChange(event.target.value)}
+                placeholder={`Mensaje en ${channels.find((channel) => channel.key === activeChannel)?.label || "General"}...`}
+                disabled={savingMessage}
+                rows="1"
+              />
+            </div>
             <button type="submit" className="chat-send-button" disabled={savingMessage || (!messageBody.trim() && !imageFile)}>
               {imageFile && !messageBody.trim() ? <ImageIcon size={17} /> : <Send size={17} />}
             </button>
