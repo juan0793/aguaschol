@@ -22845,6 +22845,60 @@ body,
   white-space: nowrap;
 }
 
+.chat-shared-summary {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+  margin-top: 0.15rem;
+  padding: 0.58rem 0.65rem;
+  border: 1px solid #cfe0f0;
+  border-left: 4px solid #176bdc;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.chat-shared-summary.is-point {
+  border-left-color: #0f766e;
+  background: #f3fffb;
+}
+
+.chat-shared-summary.is-record {
+  border-left-color: #7c3aed;
+  background: #fbf8ff;
+}
+
+.chat-shared-summary-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #516a80;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.chat-shared-summary strong,
+.chat-shared-summary p,
+.chat-shared-summary small {
+  overflow-wrap: anywhere;
+}
+
+.chat-shared-summary strong {
+  color: #113b5d;
+  font-size: 0.88rem;
+}
+
+.chat-shared-summary p {
+  margin: 0;
+  color: #254a66;
+  font-size: 0.8rem;
+}
+
+.chat-shared-summary small {
+  color: #61788e;
+  font-weight: 800;
+}
+
 .chat-image-attachment {
   display: block;
   overflow: hidden;
@@ -22909,6 +22963,83 @@ body,
   padding: 0.65rem;
   border-top: 1px solid #dce8f3;
   background: #ffffff;
+}
+
+.chat-share-panel {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.55rem;
+  border: 1px solid #cfe0f0;
+  border-radius: 12px;
+  background: #f7fbff;
+}
+
+.chat-share-type-row,
+.chat-share-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.chat-share-type-row {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chat-share-type-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-share-type-row button,
+.chat-share-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 32px;
+  padding: 0.35rem 0.58rem;
+  border: 1px solid #cfe0f0;
+  border-radius: 999px;
+  color: #31536f;
+  background: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 900;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.chat-share-type-row button.is-active,
+.chat-share-actions button:last-child {
+  border-color: #176bdc;
+  color: #ffffff;
+  background: #176bdc;
+}
+
+.chat-share-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.chat-share-grid input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0.48rem 0.6rem;
+  border: 1px solid #cfe0f0;
+  border-radius: 9px;
+  color: #143b5a;
+  background: #ffffff;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.chat-share-actions {
+  justify-content: flex-end;
 }
 
 .chat-reply-composer {
@@ -23016,8 +23147,9 @@ body,
 .chat-workspace.is-compact {
   grid-template-columns: 1fr;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 680px;
-  max-height: none;
+  height: min(760px, calc(100dvh - 140px));
+  min-height: min(680px, calc(100dvh - 140px));
+  max-height: min(760px, calc(100dvh - 140px));
 }
 
 .chat-workspace.is-compact .chat-channel-rail {
@@ -23087,8 +23219,9 @@ body,
   .chat-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
-    min-height: 720px;
-    max-height: none;
+    height: min(760px, calc(100dvh - 120px));
+    min-height: min(680px, calc(100dvh - 120px));
+    max-height: min(760px, calc(100dvh - 120px));
   }
 
   .chat-channel-rail {
@@ -23125,8 +23258,9 @@ body,
   .chat-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
-    min-height: 680px;
-    max-height: none;
+    height: min(760px, calc(100dvh - 120px));
+    min-height: min(680px, calc(100dvh - 120px));
+    max-height: min(760px, calc(100dvh - 120px));
   }
 
   .chat-channel-rail {
@@ -23213,6 +23347,10 @@ body,
     padding: 0.62rem 0.7rem;
     border-radius: 18px;
   }
+
+  .chat-share-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -23264,7 +23402,9 @@ body,
   }
 
   .chat-workspace {
-    min-height: min(720px, calc(100vh - 88px));
+    height: min(720px, calc(100dvh - 88px));
+    min-height: min(620px, calc(100dvh - 88px));
+    max-height: min(720px, calc(100dvh - 88px));
     margin-inline: 0;
     padding: 0;
     width: 100%;

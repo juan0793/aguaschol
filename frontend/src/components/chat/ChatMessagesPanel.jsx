@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Hash, Image as ImageIcon, Paperclip, Pin, Reply, Send, Trash2, Users, X } from "lucide-react";
+import { FileText, Hash, Image as ImageIcon, KeyRound, MapPin, Paperclip, Pin, Reply, Send, Share2, Trash2, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FILES_URL } from "../../config/api.js";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../../utils/profileWebSocket.js";
@@ -42,6 +42,39 @@ const upsertMessage = (messages, message) => {
   return next.sort((left, right) => new Date(left.created_at) - new Date(right.created_at));
 };
 
+const SHARE_TYPES = {
+  clave: { label: "Clave", icon: KeyRound, tone: "is-key" },
+  punto: { label: "Punto", icon: MapPin, tone: "is-point" },
+  ficha: { label: "Ficha", icon: FileText, tone: "is-record" }
+};
+
+const SHARE_PREFIX = "[CHAT_SHARE]";
+
+const parseSharedSummary = (body = "") => {
+  const text = String(body || "");
+  if (!text.startsWith(SHARE_PREFIX)) return null;
+
+  const lines = text.split("\n").slice(1);
+  const fields = lines.reduce((acc, line) => {
+    const separator = line.indexOf(":");
+    if (separator < 0) return acc;
+    const key = line.slice(0, separator).trim().toLowerCase();
+    const value = line.slice(separator + 1).trim();
+    if (key) acc[key] = value;
+    return acc;
+  }, {});
+
+  const type = SHARE_TYPES[fields.tipo] ? fields.tipo : "clave";
+  return {
+    type,
+    label: SHARE_TYPES[type].label,
+    title: fields.titulo || SHARE_TYPES[type].label,
+    clave: fields.clave || "",
+    detail: fields.detalle || "",
+    extra: fields.extra || ""
+  };
+};
+
 export function ChatMessagesPanel({
   apiFetch,
   isAdmin,
@@ -59,6 +92,8 @@ export function ChatMessagesPanel({
   const [messageBody, setMessageBody] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [sharePanelOpen, setSharePanelOpen] = useState(false);
+  const [shareDraft, setShareDraft] = useState({ type: "clave", title: "", clave: "", detail: "", extra: "" });
   const [savingMessage, setSavingMessage] = useState(false);
   const [actingMessageId, setActingMessageId] = useState(null);
   const [replyToMessage, setReplyToMessage] = useState(null);
@@ -234,28 +269,30 @@ export function ChatMessagesPanel({
     }
   };
 
+  const updateShareDraft = (field, value) => {
+    setShareDraft((current) => ({ ...current, [field]: value }));
+  };
+
   const getReplyPreview = (message = {}) => {
+    const sharedSummary = parseSharedSummary(message.body);
+    if (sharedSummary) return `${sharedSummary.label}: ${sharedSummary.clave || sharedSummary.title}`;
     const body = String(message.body || "").trim();
     if (body) return body.length > 120 ? `${body.slice(0, 120)}...` : body;
     if (message.attachment_type === "image" || message.attachment_url) return "Fotografia adjunta";
     return "Mensaje";
   };
 
-  const handleSendMessage = async (event) => {
-    event.preventDefault();
-    const body = messageBody.trim();
-    if (!body && !imageFile) return;
-
+  const sendChatMessage = async ({ body, image = null, replyTo = replyToMessage, clearText = true }) => {
     setSavingMessage(true);
     try {
       const formData = new FormData();
       formData.set("body", body);
       formData.set("channel", activeChannel);
-      if (replyToMessage?.id) {
-        formData.set("reply_to_message_id", replyToMessage.id);
+      if (replyTo?.id) {
+        formData.set("reply_to_message_id", replyTo.id);
       }
-      if (imageFile) {
-        formData.set("image", imageFile);
+      if (image) {
+        formData.set("image", image);
       }
 
       const response = await apiFetch("/profile/messages/general", {
@@ -267,9 +304,9 @@ export function ChatMessagesPanel({
       const sentMessage = data?.message || data;
       const deliveredCount = Number(data?.notifications_delivered ?? 0);
 
-      setMessageBody("");
+      if (clearText) setMessageBody("");
       setReplyToMessage(null);
-      clearImage();
+      if (image) clearImage();
       setLocalMessages((prev) => upsertMessage(prev, sentMessage));
       setDeliveryStatus(
         deliveredCount
@@ -288,6 +325,38 @@ export function ChatMessagesPanel({
     } finally {
       setSavingMessage(false);
     }
+  };
+
+  const handleSendMessage = async (event) => {
+    event.preventDefault();
+    const body = messageBody.trim();
+    if (!body && !imageFile) return;
+    await sendChatMessage({ body, image: imageFile });
+  };
+
+  const handleSendSharedSummary = async () => {
+    const cleanTitle = shareDraft.title.trim();
+    const cleanClave = shareDraft.clave.trim();
+    const cleanDetail = shareDraft.detail.trim();
+    const cleanExtra = shareDraft.extra.trim();
+    if (!cleanTitle && !cleanClave && !cleanDetail && !cleanExtra) {
+      showAlert?.("Agrega al menos una clave, referencia o detalle para compartir.");
+      return;
+    }
+
+    const typeLabel = SHARE_TYPES[shareDraft.type]?.label || "Resumen";
+    const body = [
+      SHARE_PREFIX,
+      `Tipo: ${shareDraft.type}`,
+      `Titulo: ${cleanTitle || `${typeLabel} compartida`}`,
+      `Clave: ${cleanClave}`,
+      `Detalle: ${cleanDetail}`,
+      `Extra: ${cleanExtra}`
+    ].join("\n");
+
+    await sendChatMessage({ body, image: null });
+    setShareDraft({ type: "clave", title: "", clave: "", detail: "", extra: "" });
+    setSharePanelOpen(false);
   };
 
   const handleTogglePin = async (message) => {
@@ -399,6 +468,7 @@ export function ChatMessagesPanel({
               const isOwn = Number(message.sender_user_id) === Number(currentUserId);
               const canDelete = isAdmin || isOwn;
               const imageUrl = resolveFileUrl(message.attachment_url);
+              const sharedSummary = parseSharedSummary(message.body);
 
               return (
                 <div key={`chat-message-wrap-${message.id}`}>
@@ -424,7 +494,21 @@ export function ChatMessagesPanel({
                           <img src={imageUrl} alt="Adjunto del chat" />
                         </a>
                       ) : null}
-                      {message.body ? <p>{message.body}</p> : null}
+                      {sharedSummary ? (
+                        <article className={`chat-shared-summary ${SHARE_TYPES[sharedSummary.type]?.tone || ""}`}>
+                          <div className="chat-shared-summary-head">
+                            {(() => {
+                              const ShareIcon = SHARE_TYPES[sharedSummary.type]?.icon || Share2;
+                              return <ShareIcon size={15} />;
+                            })()}
+                            <span>{sharedSummary.label}</span>
+                          </div>
+                          <strong>{sharedSummary.title}</strong>
+                          {sharedSummary.clave ? <p><b>Clave:</b> {sharedSummary.clave}</p> : null}
+                          {sharedSummary.detail ? <p>{sharedSummary.detail}</p> : null}
+                          {sharedSummary.extra ? <small>{sharedSummary.extra}</small> : null}
+                        </article>
+                      ) : message.body ? <p>{message.body}</p> : null}
                       <div className="chat-bubble-actions">
                         {message.pinned_at ? <span><Pin size={11} />Fijado</span> : null}
                         <button type="button" onClick={() => setReplyToMessage(message)} title="Responder mensaje">
@@ -484,6 +568,56 @@ export function ChatMessagesPanel({
               </button>
             </div>
           ) : null}
+          {sharePanelOpen ? (
+            <div className="chat-share-panel">
+              <div className="chat-share-type-row" role="group" aria-label="Tipo de resumen">
+                {Object.entries(SHARE_TYPES).map(([key, item]) => {
+                  const ShareIcon = item.icon;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className={shareDraft.type === key ? "is-active" : ""}
+                      onClick={() => updateShareDraft("type", key)}
+                    >
+                      <ShareIcon size={14} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="chat-share-grid">
+                <input
+                  value={shareDraft.title}
+                  onChange={(event) => updateShareDraft("title", event.target.value)}
+                  placeholder={shareDraft.type === "punto" ? "Referencia del punto" : shareDraft.type === "ficha" ? "Titulo de la ficha" : "Nombre o referencia"}
+                />
+                <input
+                  value={shareDraft.clave}
+                  onChange={(event) => updateShareDraft("clave", event.target.value)}
+                  placeholder="Clave catastral o codigo"
+                />
+                <input
+                  value={shareDraft.detail}
+                  onChange={(event) => updateShareDraft("detail", event.target.value)}
+                  placeholder="Resumen breve"
+                />
+                <input
+                  value={shareDraft.extra}
+                  onChange={(event) => updateShareDraft("extra", event.target.value)}
+                  placeholder={shareDraft.type === "punto" ? "Coordenadas o zona" : "Estado, deuda o nota"}
+                />
+              </div>
+              <div className="chat-share-actions">
+                <button type="button" onClick={() => setSharePanelOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="button" onClick={handleSendSharedSummary} disabled={savingMessage}>
+                  Compartir resumen
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div className="chat-composer-row">
             <input
               ref={fileInputRef}
@@ -494,6 +628,9 @@ export function ChatMessagesPanel({
             />
             <button type="button" className="chat-attach-button" onClick={() => fileInputRef.current?.click()} title="Adjuntar imagen">
               <Paperclip size={18} />
+            </button>
+            <button type="button" className="chat-attach-button" onClick={() => setSharePanelOpen((current) => !current)} title="Compartir clave, punto o ficha">
+              <Share2 size={18} />
             </button>
             <textarea
               value={messageBody}
