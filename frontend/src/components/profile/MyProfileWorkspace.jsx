@@ -256,7 +256,7 @@ export default function MyProfileWorkspace({ apiFetch, isAdmin, safeUsers = [], 
         <StatCard icon={Zap} label="Rendimiento" value={`${formatNumber(stats.performance_score)}%`} detail={`${formatNumber(stats.approved_points)} puntos validados`} tone="is-blue" />
       </div>
 
-      <div className="profile-main-grid">
+      <div className={`profile-main-grid ${isAdmin ? "is-chat-focused" : ""}`}>
         <motion.article className="profile-map-panel" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <div className="profile-panel-head">
             <div>

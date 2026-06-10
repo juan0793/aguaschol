@@ -334,6 +334,13 @@ export function ChatMessagesPanel({
     await sendChatMessage({ body, image: imageFile });
   };
 
+  const handleComposerKeyDown = (event) => {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    if (savingMessage || (!messageBody.trim() && !imageFile)) return;
+    event.currentTarget.form?.requestSubmit();
+  };
+
   const handleSendSharedSummary = async () => {
     const cleanTitle = shareDraft.title.trim();
     const cleanClave = shareDraft.clave.trim();
@@ -636,6 +643,7 @@ export function ChatMessagesPanel({
               <textarea
                 value={messageBody}
                 onChange={(event) => handleTypingChange(event.target.value)}
+                onKeyDown={handleComposerKeyDown}
                 placeholder={`Mensaje en ${channels.find((channel) => channel.key === activeChannel)?.label || "General"}...`}
                 disabled={savingMessage}
                 rows="1"

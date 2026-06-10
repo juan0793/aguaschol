@@ -21980,6 +21980,18 @@ body,
   gap: 1rem;
 }
 
+.profile-main-grid.is-chat-focused {
+  grid-template-columns: 1fr;
+}
+
+.profile-main-grid.is-chat-focused .profile-map-panel {
+  display: none;
+}
+
+.profile-main-grid.is-chat-focused .chat-workspace {
+  max-height: min(820px, calc(100dvh - 120px));
+}
+
 .profile-panel,
 .profile-map-panel {
   padding: 1rem;
