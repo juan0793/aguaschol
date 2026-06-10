@@ -483,18 +483,24 @@ export const getProfile = async ({ authUser, userId }) => {
         reply.attachment_type AS reply_attachment_type,
         reply.attachment_url AS reply_attachment_url,
         reply_sender.full_name AS reply_sender_name,
-        COUNT(reads.user_id) AS read_count,
-        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
+        (
+          SELECT COUNT(*)
+          FROM profile_general_message_reads AS receipt_reads
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_count,
+        (
+          SELECT GROUP_CONCAT(receipt_reader.full_name ORDER BY receipt_reads.read_at SEPARATOR ', ')
+          FROM profile_general_message_reads AS receipt_reads
+          LEFT JOIN app_users AS receipt_reader ON receipt_reader.id = receipt_reads.user_id
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_by_names
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
       LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
       LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
-      LEFT JOIN profile_general_message_reads AS reads
-        ON reads.message_id = messages.id
-       AND reads.user_id <> messages.sender_user_id
-      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
       WHERE messages.deleted_at IS NULL
-      GROUP BY messages.id
       ORDER BY messages.created_at DESC
       LIMIT 80
     `
@@ -705,19 +711,25 @@ export const sendGeneralProfileMessage = async ({ authUser, body, channel = "gen
         reply.attachment_type AS reply_attachment_type,
         reply.attachment_url AS reply_attachment_url,
         reply_sender.full_name AS reply_sender_name,
-        COUNT(reads.user_id) AS read_count,
-        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
+        (
+          SELECT COUNT(*)
+          FROM profile_general_message_reads AS receipt_reads
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_count,
+        (
+          SELECT GROUP_CONCAT(receipt_reader.full_name ORDER BY receipt_reads.read_at SEPARATOR ', ')
+          FROM profile_general_message_reads AS receipt_reads
+          LEFT JOIN app_users AS receipt_reader ON receipt_reader.id = receipt_reads.user_id
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_by_names
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
       LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
       LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
-      LEFT JOIN profile_general_message_reads AS reads
-        ON reads.message_id = messages.id
-       AND reads.user_id <> messages.sender_user_id
-      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
       WHERE messages.id = ?
         AND messages.deleted_at IS NULL
-      GROUP BY messages.id
       LIMIT 1
     `,
     [result.insertId]
@@ -814,19 +826,25 @@ export const updateGeneralProfileMessagePin = async ({ authUser, messageId, pinn
         reply.attachment_type AS reply_attachment_type,
         reply.attachment_url AS reply_attachment_url,
         reply_sender.full_name AS reply_sender_name,
-        COUNT(reads.user_id) AS read_count,
-        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
+        (
+          SELECT COUNT(*)
+          FROM profile_general_message_reads AS receipt_reads
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_count,
+        (
+          SELECT GROUP_CONCAT(receipt_reader.full_name ORDER BY receipt_reads.read_at SEPARATOR ', ')
+          FROM profile_general_message_reads AS receipt_reads
+          LEFT JOIN app_users AS receipt_reader ON receipt_reader.id = receipt_reads.user_id
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_by_names
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
       LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
       LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
-      LEFT JOIN profile_general_message_reads AS reads
-        ON reads.message_id = messages.id
-       AND reads.user_id <> messages.sender_user_id
-      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
       WHERE messages.id = ?
         AND messages.deleted_at IS NULL
-      GROUP BY messages.id
       LIMIT 1
     `,
     [id]
@@ -944,15 +962,21 @@ export const markGeneralProfileMessagesRead = async ({ authUser, messageIds = []
         messages.id,
         messages.sender_user_id,
         messages.channel,
-        COUNT(reads.user_id) AS read_count,
-        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
+        (
+          SELECT COUNT(*)
+          FROM profile_general_message_reads AS receipt_reads
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_count,
+        (
+          SELECT GROUP_CONCAT(receipt_reader.full_name ORDER BY receipt_reads.read_at SEPARATOR ', ')
+          FROM profile_general_message_reads AS receipt_reads
+          LEFT JOIN app_users AS receipt_reader ON receipt_reader.id = receipt_reads.user_id
+          WHERE receipt_reads.message_id = messages.id
+            AND receipt_reads.user_id <> messages.sender_user_id
+        ) AS read_by_names
       FROM profile_general_messages AS messages
-      LEFT JOIN profile_general_message_reads AS reads
-        ON reads.message_id = messages.id
-       AND reads.user_id <> messages.sender_user_id
-      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
       WHERE messages.id IN (?)
-      GROUP BY messages.id
     `,
     [readableIds]
   );
