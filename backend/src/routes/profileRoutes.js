@@ -3,6 +3,7 @@ import {
   awardProfileAchievementHandler,
   deleteGeneralProfileMessageHandler,
   getProfileHandler,
+  markGeneralProfileMessagesReadHandler,
   markProfileMessageReadHandler,
   sendGeneralProfileMessageHandler,
   sendProfileMessageHandler,
@@ -17,6 +18,7 @@ router.post("/messages", sendProfileMessageHandler);
 router.post("/messages/general", upload.single("image"), sendGeneralProfileMessageHandler);
 router.patch("/messages/general/:id/pin", updateGeneralProfileMessagePinHandler);
 router.delete("/messages/general/:id", deleteGeneralProfileMessageHandler);
+router.patch("/messages/general/read", markGeneralProfileMessagesReadHandler);
 router.patch("/messages/:id/read", markProfileMessageReadHandler);
 router.post("/achievements", awardProfileAchievementHandler);
 

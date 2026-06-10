@@ -79,6 +79,19 @@ CREATE TABLE IF NOT EXISTS profile_general_messages (
     ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS profile_general_message_reads (
+  message_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (message_id, user_id),
+  CONSTRAINT fk_profile_general_message_reads_message
+    FOREIGN KEY (message_id) REFERENCES profile_general_messages(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_profile_general_message_reads_user
+    FOREIGN KEY (user_id) REFERENCES app_users(id)
+    ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS user_achievements (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,

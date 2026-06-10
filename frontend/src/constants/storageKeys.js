@@ -5,4 +5,5 @@ export const LOOKUP_HISTORY_STORAGE_KEY = "aguaschol-lookup-history";
 export const RECORD_ALERT_NOTIFICATION_STORAGE_KEY = "aguaschol-record-alert-notifications";
 export const NOTIFICATION_REQUEST_STORAGE_KEY = "aguaschol-notification-requested";
 export const NOTIFICATION_SOUND_MUTED_STORAGE_KEY = "aguaschol-notification-sound-muted";
+export const CHAT_FONT_STORAGE_KEY = "aguaschol-chat-font";
 export const MAP_REPORT_SETTINGS_STORAGE_KEY = "aguaschol-map-report-settings";

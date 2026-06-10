@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
-import { FileText, Hash, Image as ImageIcon, KeyRound, MapPin, Paperclip, Pin, Reply, Send, Share2, Trash2, Users, X } from "lucide-react";
+import { Check, CheckCheck, FileText, Hash, Image as ImageIcon, KeyRound, MapPin, Paperclip, Pin, Reply, Send, Share2, Trash2, Type, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FILES_URL } from "../../config/api.js";
+import { CHAT_FONT_STORAGE_KEY } from "../../constants/storageKeys.js";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../../utils/profileWebSocket.js";
 
 const DEFAULT_CHANNELS = [
@@ -37,6 +38,13 @@ const resolveFileUrl = (value = "") => {
 
 const upsertMessage = (messages, message) => {
   if (!message?.id) return messages;
+  if (message.read_receipt) {
+    return messages.map((item) =>
+      Number(item.id) === Number(message.id)
+        ? { ...item, read_count: message.read_count, read_by_names: message.read_by_names }
+        : item
+    );
+  }
   const exists = messages.some((item) => item.id === message.id);
   const next = exists ? messages.map((item) => (item.id === message.id ? { ...item, ...message } : item)) : [...messages, message];
   return next.sort((left, right) => new Date(left.created_at) - new Date(right.created_at));
@@ -49,6 +57,11 @@ const SHARE_TYPES = {
 };
 
 const SHARE_PREFIX = "[CHAT_SHARE]";
+const CHAT_FONTS = [
+  { key: "system", label: "Sistema" },
+  { key: "serif", label: "Serif" },
+  { key: "mono", label: "Mono" }
+];
 
 const parseSharedSummary = (body = "") => {
   const text = String(body || "");
@@ -98,6 +111,7 @@ export function ChatMessagesPanel({
   const [actingMessageId, setActingMessageId] = useState(null);
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [deliveryStatus, setDeliveryStatus] = useState("");
+  const [chatFont, setChatFont] = useState(() => window.localStorage.getItem(CHAT_FONT_STORAGE_KEY) || "system");
   const [onlineUsers, setOnlineUsers] = useState(new Map());
   const [typingUsers, setTypingUsers] = useState(new Map());
   const [wsConnected, setWsConnected] = useState(false);
@@ -108,12 +122,17 @@ export function ChatMessagesPanel({
   const fileInputRef = useRef(null);
   const typingStopTimerRef = useRef(null);
   const wsManagerRef = useRef(null);
+  const readMarkedIdsRef = useRef(new Set());
 
   useEffect(() => {
     setLocalMessages(
       [...messages].sort((left, right) => new Date(left.created_at) - new Date(right.created_at))
     );
   }, [messages]);
+
+  useEffect(() => {
+    window.localStorage.setItem(CHAT_FONT_STORAGE_KEY, chatFont);
+  }, [chatFont]);
 
   useEffect(() => {
     const node = workspaceRef.current;
@@ -223,6 +242,28 @@ export function ChatMessagesPanel({
     () => localMessages.filter((message) => (message.channel || "general") === activeChannel),
     [activeChannel, localMessages]
   );
+
+  useEffect(() => {
+    const unreadIds = channelMessages
+      .filter((message) => Number(message.sender_user_id) !== Number(currentUserId))
+      .filter((message) => !readMarkedIdsRef.current.has(Number(message.id)))
+      .map((message) => Number(message.id))
+      .filter(Boolean);
+    if (!unreadIds.length) return;
+    unreadIds.forEach((id) => readMarkedIdsRef.current.add(id));
+    apiFetch("/profile/messages/general/read", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message_ids: unreadIds })
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data?.receipts)) {
+          setLocalMessages((prev) => data.receipts.reduce((acc, receipt) => upsertMessage(acc, receipt), prev));
+        }
+      })
+      .catch(() => null);
+  }, [apiFetch, channelMessages, currentUserId]);
 
   const pinnedMessages = useMemo(
     () => channelMessages.filter((message) => message.pinned_at).slice(-3),
@@ -411,7 +452,7 @@ export function ChatMessagesPanel({
   return (
     <motion.article
       ref={workspaceRef}
-      className={`profile-panel chat-workspace ${isCompactLayout ? "is-compact" : ""}`}
+      className={`profile-panel chat-workspace ${isCompactLayout ? "is-compact" : ""} font-${chatFont}`}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -452,7 +493,17 @@ export function ChatMessagesPanel({
             <p className="sheet-kicker">Chat del equipo</p>
             <h3><Hash size={18} />{channels.find((channel) => channel.key === activeChannel)?.label || "General"}</h3>
           </div>
-          <span>{channelMessages.length} mensajes</span>
+          <div className="chat-room-tools">
+            <label title="Cambiar fuente del chat">
+              <Type size={14} />
+              <select value={chatFont} onChange={(event) => setChatFont(event.target.value)}>
+                {CHAT_FONTS.map((font) => (
+                  <option key={font.key} value={font.key}>{font.label}</option>
+                ))}
+              </select>
+            </label>
+            <span>{channelMessages.length} mensajes</span>
+          </div>
         </header>
 
         {pinnedMessages.length ? (
@@ -518,6 +569,11 @@ export function ChatMessagesPanel({
                       ) : message.body ? <p>{message.body}</p> : null}
                       <div className="chat-bubble-actions">
                         {message.pinned_at ? <span><Pin size={11} />Fijado</span> : null}
+                        {isOwn ? (
+                          <span className={`chat-read-state ${Number(message.read_count || 0) > 0 ? "is-seen" : ""}`} title={Number(message.read_count || 0) > 0 ? `Visto por ${message.read_by_names?.join(", ") || "el equipo"}` : "Enviado"}>
+                            {Number(message.read_count || 0) > 0 ? <CheckCheck size={13} /> : <Check size={13} />}
+                          </span>
+                        ) : null}
                         <button type="button" onClick={() => setReplyToMessage(message)} title="Responder mensaje">
                           <Reply size={12} />
                         </button>

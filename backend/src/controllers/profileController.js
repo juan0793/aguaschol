@@ -2,6 +2,7 @@ import {
   awardProfileAchievement,
   deleteGeneralProfileMessage,
   getProfile,
+  markGeneralProfileMessagesRead,
   markProfileMessageRead,
   sendGeneralProfileMessage,
   sendProfileMessage,
@@ -103,6 +104,19 @@ export const markProfileMessageReadHandler = async (req, res, next) => {
       messageId: req.params.id
     });
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markGeneralProfileMessagesReadHandler = async (req, res, next) => {
+  try {
+    const receipts = await markGeneralProfileMessagesRead({
+      authUser: req.authUser,
+      messageIds: req.body?.message_ids
+    });
+    res.json({ ok: true, receipts });
+    receipts.forEach((receipt) => emitProfileMessage(receipt));
   } catch (error) {
     next(error);
   }

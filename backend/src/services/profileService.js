@@ -301,6 +301,11 @@ const normalizeGeneralMessage = (message) => ({
   created_at: message.created_at,
   sender_name: message.sender_name ?? "Sistema",
   sender_role: message.sender_role ?? "",
+  read_count: Number(message.read_count ?? 0),
+  read_by_names: String(message.read_by_names ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean),
   reply_to: message.reply_to_message_id
     ? {
         id: message.reply_to_message_id,
@@ -477,12 +482,19 @@ export const getProfile = async ({ authUser, userId }) => {
         reply.body AS reply_body,
         reply.attachment_type AS reply_attachment_type,
         reply.attachment_url AS reply_attachment_url,
-        reply_sender.full_name AS reply_sender_name
+        reply_sender.full_name AS reply_sender_name,
+        COUNT(reads.user_id) AS read_count,
+        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
       LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
       LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
+      LEFT JOIN profile_general_message_reads AS reads
+        ON reads.message_id = messages.id
+       AND reads.user_id <> messages.sender_user_id
+      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
       WHERE messages.deleted_at IS NULL
+      GROUP BY messages.id
       ORDER BY messages.created_at DESC
       LIMIT 80
     `
@@ -692,13 +704,20 @@ export const sendGeneralProfileMessage = async ({ authUser, body, channel = "gen
         reply.body AS reply_body,
         reply.attachment_type AS reply_attachment_type,
         reply.attachment_url AS reply_attachment_url,
-        reply_sender.full_name AS reply_sender_name
+        reply_sender.full_name AS reply_sender_name,
+        COUNT(reads.user_id) AS read_count,
+        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
       LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
       LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
+      LEFT JOIN profile_general_message_reads AS reads
+        ON reads.message_id = messages.id
+       AND reads.user_id <> messages.sender_user_id
+      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
       WHERE messages.id = ?
         AND messages.deleted_at IS NULL
+      GROUP BY messages.id
       LIMIT 1
     `,
     [result.insertId]
@@ -794,13 +813,20 @@ export const updateGeneralProfileMessagePin = async ({ authUser, messageId, pinn
         reply.body AS reply_body,
         reply.attachment_type AS reply_attachment_type,
         reply.attachment_url AS reply_attachment_url,
-        reply_sender.full_name AS reply_sender_name
+        reply_sender.full_name AS reply_sender_name,
+        COUNT(reads.user_id) AS read_count,
+        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
       LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
       LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
+      LEFT JOIN profile_general_message_reads AS reads
+        ON reads.message_id = messages.id
+       AND reads.user_id <> messages.sender_user_id
+      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
       WHERE messages.id = ?
         AND messages.deleted_at IS NULL
+      GROUP BY messages.id
       LIMIT 1
     `,
     [id]
@@ -879,6 +905,70 @@ export const markProfileMessageRead = async ({ authUser, messageId }) => {
   );
 
   return { ok: result.affectedRows > 0 };
+};
+
+export const markGeneralProfileMessagesRead = async ({ authUser, messageIds = [] }) => {
+  if (env.useMemoryDb) {
+    return [];
+  }
+
+  const ids = [...new Set((Array.isArray(messageIds) ? messageIds : [messageIds]).map(asPositiveId).filter(Boolean))].slice(0, 80);
+  if (!ids.length) return [];
+
+  const pool = getPool();
+  const [messages] = await pool.query(
+    `
+      SELECT id
+      FROM profile_general_messages
+      WHERE id IN (?)
+        AND deleted_at IS NULL
+        AND (sender_user_id IS NULL OR sender_user_id <> ?)
+    `,
+    [ids, authUser.id]
+  );
+  const readableIds = messages.map((message) => Number(message.id));
+  if (!readableIds.length) return [];
+
+  await pool.query(
+    `
+      INSERT INTO profile_general_message_reads (message_id, user_id, read_at)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE read_at = read_at
+    `,
+    [readableIds.map((id) => [id, authUser.id, new Date()])]
+  );
+
+  const [rows] = await pool.query(
+    `
+      SELECT
+        messages.id,
+        messages.sender_user_id,
+        messages.channel,
+        COUNT(reads.user_id) AS read_count,
+        GROUP_CONCAT(reader.full_name ORDER BY reads.read_at SEPARATOR ', ') AS read_by_names
+      FROM profile_general_messages AS messages
+      LEFT JOIN profile_general_message_reads AS reads
+        ON reads.message_id = messages.id
+       AND reads.user_id <> messages.sender_user_id
+      LEFT JOIN app_users AS reader ON reader.id = reads.user_id
+      WHERE messages.id IN (?)
+      GROUP BY messages.id
+    `,
+    [readableIds]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    sender_user_id: row.sender_user_id,
+    channel: normalizeChatChannel(row.channel),
+    read_count: Number(row.read_count ?? 0),
+    read_by_names: String(row.read_by_names ?? "")
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean),
+    is_general: true,
+    read_receipt: true
+  }));
 };
 
 export const awardProfileAchievement = async ({ authUser, userId, title, description = "", icon = "success", badgeColor = "#1576d1" }) => {

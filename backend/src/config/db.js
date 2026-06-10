@@ -474,6 +474,22 @@ const ensureSchema = async () => {
         )
       `
     );
+    await admin.query(
+      `
+        CREATE TABLE IF NOT EXISTS profile_general_message_reads (
+          message_id INT UNSIGNED NOT NULL,
+          user_id INT UNSIGNED NOT NULL,
+          read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (message_id, user_id),
+          CONSTRAINT fk_profile_general_message_reads_message
+            FOREIGN KEY (message_id) REFERENCES profile_general_messages(id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_profile_general_message_reads_user
+            FOREIGN KEY (user_id) REFERENCES app_users(id)
+            ON DELETE CASCADE
+        )
+      `
+    );
     await ensureColumn(admin, {
       tableName: "profile_general_messages",
       columnName: "channel",
@@ -573,6 +589,11 @@ const ensureSchema = async () => {
       tableName: "profile_general_messages",
       indexName: "idx_profile_general_messages_reply",
       columns: ["reply_to_message_id"]
+    });
+    await ensureIndex(admin, {
+      tableName: "profile_general_message_reads",
+      indexName: "idx_profile_general_message_reads_user",
+      columns: ["user_id", "read_at"]
     });
     await ensureIndex(admin, {
       tableName: "user_achievements",
