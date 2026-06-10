@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Hash, Image as ImageIcon, Paperclip, Pin, Send, Trash2, Users, X } from "lucide-react";
+import { Hash, Image as ImageIcon, Paperclip, Pin, Reply, Send, Trash2, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FILES_URL } from "../../config/api.js";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../../utils/profileWebSocket.js";
@@ -61,6 +61,7 @@ export function ChatMessagesPanel({
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [savingMessage, setSavingMessage] = useState(false);
   const [actingMessageId, setActingMessageId] = useState(null);
+  const [replyToMessage, setReplyToMessage] = useState(null);
   const [deliveryStatus, setDeliveryStatus] = useState("");
   const [onlineUsers, setOnlineUsers] = useState(new Map());
   const [typingUsers, setTypingUsers] = useState(new Map());
@@ -170,6 +171,10 @@ export function ChatMessagesPanel({
   }, [activeChannel, localMessages.length, typingUsers]);
 
   useEffect(() => {
+    setReplyToMessage(null);
+  }, [activeChannel]);
+
+  useEffect(() => {
     if (!imageFile) {
       setImagePreviewUrl("");
       return undefined;
@@ -229,6 +234,13 @@ export function ChatMessagesPanel({
     }
   };
 
+  const getReplyPreview = (message = {}) => {
+    const body = String(message.body || "").trim();
+    if (body) return body.length > 120 ? `${body.slice(0, 120)}...` : body;
+    if (message.attachment_type === "image" || message.attachment_url) return "Fotografia adjunta";
+    return "Mensaje";
+  };
+
   const handleSendMessage = async (event) => {
     event.preventDefault();
     const body = messageBody.trim();
@@ -239,6 +251,9 @@ export function ChatMessagesPanel({
       const formData = new FormData();
       formData.set("body", body);
       formData.set("channel", activeChannel);
+      if (replyToMessage?.id) {
+        formData.set("reply_to_message_id", replyToMessage.id);
+      }
       if (imageFile) {
         formData.set("image", imageFile);
       }
@@ -253,6 +268,7 @@ export function ChatMessagesPanel({
       const deliveredCount = Number(data?.notifications_delivered ?? 0);
 
       setMessageBody("");
+      setReplyToMessage(null);
       clearImage();
       setLocalMessages((prev) => upsertMessage(prev, sentMessage));
       setDeliveryStatus(
@@ -397,6 +413,12 @@ export function ChatMessagesPanel({
                         <strong>{isOwn ? "Tu" : message.sender_name || "Usuario"}</strong>
                         <span>{formatMessageTime(message.created_at)}</span>
                       </div>
+                      {message.reply_to ? (
+                        <button type="button" className="chat-reply-quote" onClick={() => setReplyToMessage(message.reply_to)}>
+                          <strong>{message.reply_to.sender_name || "Usuario"}</strong>
+                          <span>{getReplyPreview(message.reply_to)}</span>
+                        </button>
+                      ) : null}
                       {imageUrl ? (
                         <a href={imageUrl} target="_blank" rel="noreferrer" className="chat-image-attachment">
                           <img src={imageUrl} alt="Adjunto del chat" />
@@ -405,6 +427,9 @@ export function ChatMessagesPanel({
                       {message.body ? <p>{message.body}</p> : null}
                       <div className="chat-bubble-actions">
                         {message.pinned_at ? <span><Pin size={11} />Fijado</span> : null}
+                        <button type="button" onClick={() => setReplyToMessage(message)} title="Responder mensaje">
+                          <Reply size={12} />
+                        </button>
                         {isAdmin ? (
                           <button type="button" onClick={() => handleTogglePin(message)} disabled={actingMessageId === message.id}>
                             <Pin size={12} />
@@ -439,6 +464,18 @@ export function ChatMessagesPanel({
         </div>
 
         <form className="chat-composer" onSubmit={handleSendMessage}>
+          {replyToMessage ? (
+            <div className="chat-reply-composer">
+              <Reply size={14} />
+              <div>
+                <strong>Respondiendo a {Number(replyToMessage.sender_user_id) === Number(currentUserId) ? "tu mensaje" : replyToMessage.sender_name || "Usuario"}</strong>
+                <span>{getReplyPreview(replyToMessage)}</span>
+              </div>
+              <button type="button" onClick={() => setReplyToMessage(null)} title="Cancelar respuesta">
+                <X size={14} />
+              </button>
+            </div>
+          ) : null}
           {imagePreviewUrl ? (
             <div className="chat-image-preview">
               <img src={imagePreviewUrl} alt="Vista previa" />

@@ -290,6 +290,7 @@ const normalizeMessage = (message) => ({
 const normalizeGeneralMessage = (message) => ({
   id: message.id,
   sender_user_id: message.sender_user_id,
+  reply_to_message_id: message.reply_to_message_id,
   channel: normalizeChatChannel(message.channel),
   body: message.body,
   attachment_url: message.attachment_url ?? "",
@@ -300,6 +301,15 @@ const normalizeGeneralMessage = (message) => ({
   created_at: message.created_at,
   sender_name: message.sender_name ?? "Sistema",
   sender_role: message.sender_role ?? "",
+  reply_to: message.reply_to_message_id
+    ? {
+        id: message.reply_to_message_id,
+        body: message.reply_body ?? "",
+        sender_name: message.reply_sender_name ?? "Usuario",
+        attachment_type: message.reply_attachment_type ?? "",
+        attachment_url: message.reply_attachment_url ?? ""
+      }
+    : null,
   is_general: true
 });
 
@@ -463,9 +473,15 @@ export const getProfile = async ({ authUser, userId }) => {
       SELECT
         messages.*,
         sender.full_name AS sender_name,
-        sender.role AS sender_role
+        sender.role AS sender_role,
+        reply.body AS reply_body,
+        reply.attachment_type AS reply_attachment_type,
+        reply.attachment_url AS reply_attachment_url,
+        reply_sender.full_name AS reply_sender_name
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
+      LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
+      LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
       WHERE messages.deleted_at IS NULL
       ORDER BY messages.created_at DESC
       LIMIT 80
@@ -617,7 +633,7 @@ export const sendProfileMessage = async ({ authUser, recipientUserId, body, pare
   return normalizeMessage(message);
 };
 
-export const sendGeneralProfileMessage = async ({ authUser, body, channel = "general", attachmentUrl = "", attachmentType = "" }) => {
+export const sendGeneralProfileMessage = async ({ authUser, body, channel = "general", attachmentUrl = "", attachmentType = "", replyToMessageId = null }) => {
   if (env.useMemoryDb) {
     throw makeError("Los mensajes requieren base de datos persistente.", 503);
   }
@@ -626,18 +642,37 @@ export const sendGeneralProfileMessage = async ({ authUser, body, channel = "gen
   const cleanAttachmentUrl = String(attachmentUrl ?? "").trim();
   const cleanAttachmentType = String(attachmentType ?? "").trim();
   const cleanChannel = normalizeChatChannel(channel);
+  const replyToId = asPositiveId(replyToMessageId);
 
   if (cleanBody.length < 2 && !cleanAttachmentUrl) {
     throw makeError("Escribe un mensaje o adjunta una imagen.");
   }
 
   const pool = getPool();
+  if (replyToId) {
+    const [[replyMessage]] = await pool.query(
+      `
+        SELECT id
+        FROM profile_general_messages
+        WHERE id = ?
+          AND channel = ?
+          AND deleted_at IS NULL
+        LIMIT 1
+      `,
+      [replyToId, cleanChannel]
+    );
+
+    if (!replyMessage) {
+      throw makeError("El mensaje al que respondes ya no esta disponible.", 404);
+    }
+  }
+
   const [result] = await pool.query(
     `
-      INSERT INTO profile_general_messages (sender_user_id, channel, body, attachment_url, attachment_type)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO profile_general_messages (sender_user_id, reply_to_message_id, channel, body, attachment_url, attachment_type)
+      VALUES (?, ?, ?, ?, ?, ?)
     `,
-    [authUser.id, cleanChannel, cleanBody.slice(0, 2000), cleanAttachmentUrl.slice(0, 500), cleanAttachmentType.slice(0, 40)]
+    [authUser.id, replyToId, cleanChannel, cleanBody.slice(0, 2000), cleanAttachmentUrl.slice(0, 500), cleanAttachmentType.slice(0, 40)]
   );
 
   await createAuditLog({
@@ -653,9 +688,15 @@ export const sendGeneralProfileMessage = async ({ authUser, body, channel = "gen
       SELECT
         messages.*,
         sender.full_name AS sender_name,
-        sender.role AS sender_role
+        sender.role AS sender_role,
+        reply.body AS reply_body,
+        reply.attachment_type AS reply_attachment_type,
+        reply.attachment_url AS reply_attachment_url,
+        reply_sender.full_name AS reply_sender_name
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
+      LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
+      LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
       WHERE messages.id = ?
         AND messages.deleted_at IS NULL
       LIMIT 1
@@ -749,9 +790,15 @@ export const updateGeneralProfileMessagePin = async ({ authUser, messageId, pinn
       SELECT
         messages.*,
         sender.full_name AS sender_name,
-        sender.role AS sender_role
+        sender.role AS sender_role,
+        reply.body AS reply_body,
+        reply.attachment_type AS reply_attachment_type,
+        reply.attachment_url AS reply_attachment_url,
+        reply_sender.full_name AS reply_sender_name
       FROM profile_general_messages AS messages
       LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
+      LEFT JOIN profile_general_messages AS reply ON reply.id = messages.reply_to_message_id
+      LEFT JOIN app_users AS reply_sender ON reply_sender.id = reply.sender_user_id
       WHERE messages.id = ?
         AND messages.deleted_at IS NULL
       LIMIT 1

@@ -22804,6 +22804,47 @@ body,
   overflow-wrap: anywhere;
 }
 
+.chat-reply-quote,
+.chat-reply-composer {
+  display: grid;
+  min-width: 0;
+  border: 0;
+  border-left: 3px solid #5ba5ed;
+  background: rgba(21, 118, 209, 0.08);
+  color: #22465f;
+}
+
+.chat-reply-quote {
+  width: 100%;
+  max-width: 100%;
+  gap: 0.08rem;
+  margin: 0.25rem 0 0.35rem;
+  padding: 0.38rem 0.5rem;
+  border-radius: 8px;
+  text-align: left;
+  box-shadow: none;
+}
+
+.chat-reply-quote strong,
+.chat-reply-composer strong {
+  overflow: hidden;
+  color: #11466f;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-reply-quote span,
+.chat-reply-composer span {
+  overflow: hidden;
+  color: #5b7289;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chat-image-attachment {
   display: block;
   overflow: hidden;
@@ -22868,6 +22909,31 @@ body,
   padding: 0.65rem;
   border-top: 1px solid #dce8f3;
   background: #ffffff;
+}
+
+.chat-reply-composer {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+}
+
+.chat-reply-composer > div {
+  display: grid;
+  min-width: 0;
+}
+
+.chat-reply-composer button {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: #47677f;
+  background: transparent;
+  box-shadow: none;
 }
 
 .chat-composer-row {

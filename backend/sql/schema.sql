@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS user_profile_messages (
 CREATE TABLE IF NOT EXISTS profile_general_messages (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sender_user_id INT UNSIGNED NULL,
+  reply_to_message_id INT UNSIGNED NULL,
   channel VARCHAR(40) NOT NULL DEFAULT 'general',
   body TEXT NOT NULL,
   attachment_url VARCHAR(500) NOT NULL DEFAULT '',
@@ -69,6 +70,9 @@ CREATE TABLE IF NOT EXISTS profile_general_messages (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_profile_general_messages_sender
     FOREIGN KEY (sender_user_id) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_profile_general_messages_reply
+    FOREIGN KEY (reply_to_message_id) REFERENCES profile_general_messages(id)
     ON DELETE SET NULL,
   CONSTRAINT fk_profile_general_messages_pinned_by
     FOREIGN KEY (pinned_by) REFERENCES app_users(id)

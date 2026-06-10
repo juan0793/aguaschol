@@ -57,6 +57,7 @@ export const sendGeneralProfileMessageHandler = async (req, res, next) => {
       authUser: req.authUser,
       body: req.body?.body,
       channel: req.body?.channel,
+      replyToMessageId: req.body?.reply_to_message_id,
       attachmentUrl,
       attachmentType
     });

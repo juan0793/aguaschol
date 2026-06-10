@@ -453,6 +453,7 @@ const ensureSchema = async () => {
         CREATE TABLE IF NOT EXISTS profile_general_messages (
           id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
           sender_user_id INT UNSIGNED NULL,
+          reply_to_message_id INT UNSIGNED NULL,
           channel VARCHAR(40) NOT NULL DEFAULT 'general',
           body TEXT NOT NULL,
           attachment_url VARCHAR(500) NOT NULL DEFAULT '',
@@ -464,6 +465,9 @@ const ensureSchema = async () => {
           CONSTRAINT fk_profile_general_messages_sender
             FOREIGN KEY (sender_user_id) REFERENCES app_users(id)
             ON DELETE SET NULL,
+          CONSTRAINT fk_profile_general_messages_reply
+            FOREIGN KEY (reply_to_message_id) REFERENCES profile_general_messages(id)
+            ON DELETE SET NULL,
           CONSTRAINT fk_profile_general_messages_pinned_by
             FOREIGN KEY (pinned_by) REFERENCES app_users(id)
             ON DELETE SET NULL
@@ -474,6 +478,11 @@ const ensureSchema = async () => {
       tableName: "profile_general_messages",
       columnName: "channel",
       definition: "VARCHAR(40) NOT NULL DEFAULT 'general' AFTER sender_user_id"
+    });
+    await ensureColumn(admin, {
+      tableName: "profile_general_messages",
+      columnName: "reply_to_message_id",
+      definition: "INT UNSIGNED NULL AFTER sender_user_id"
     });
     await ensureColumn(admin, {
       tableName: "profile_general_messages",
@@ -559,6 +568,11 @@ const ensureSchema = async () => {
       tableName: "profile_general_messages",
       indexName: "idx_profile_general_messages_sender",
       columns: ["sender_user_id", "created_at"]
+    });
+    await ensureIndex(admin, {
+      tableName: "profile_general_messages",
+      indexName: "idx_profile_general_messages_reply",
+      columns: ["reply_to_message_id"]
     });
     await ensureIndex(admin, {
       tableName: "user_achievements",
