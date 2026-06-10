@@ -12671,6 +12671,8 @@ function App() {
               apiFetch={apiFetch}
               session={session}
               unreadCount={unreadMessagesCount}
+              onUnreadCountChange={setUnreadMessagesCount}
+              showAlert={showAlert}
               onNotificationClick={() => setWorkspaceView("profile")}
               onNotificationSelect={(userId) => {
                 setWorkspaceView("profile");

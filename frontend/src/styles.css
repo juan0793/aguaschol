@@ -946,9 +946,13 @@
 /* Notification Center */
 .notification-center-container {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-.notification-bell {
+.notification-bell,
+.notification-sound-toggle {
   position: relative;
   display: flex;
   align-items: center;
@@ -963,13 +967,19 @@
   transition: all 120ms ease;
 }
 
-.notification-bell:hover {
+.notification-bell:hover,
+.notification-sound-toggle:hover {
   background: var(--surface-subtle);
   color: var(--brand-blue);
 }
 
 .notification-bell.has-notifications {
   color: var(--brand-indigo);
+}
+
+.notification-sound-toggle.is-muted {
+  color: #9b5262;
+  background: #fff4f6;
 }
 
 .notification-badge {
@@ -22845,6 +22855,21 @@ body,
   min-width: 0;
 }
 
+.chat-delivery-status {
+  min-height: 18px;
+  padding: 0 0.3rem;
+  color: #587189;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.chat-delivery-status span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chat-composer textarea {
   flex: 1 1 auto;
   width: 100%;
@@ -22956,6 +22981,19 @@ body,
 }
 
 @media (max-width: 920px) {
+  .profile-layout {
+    width: min(100%, calc(100% - 0.75rem));
+  }
+
+  .profile-main-grid,
+  .profile-achievement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chat-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
@@ -23084,9 +23122,73 @@ body,
 }
 
 @media (max-width: 560px) {
+  .profile-layout {
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+
+  .profile-workspace {
+    gap: 0.7rem;
+  }
+
+  .profile-hero,
+  .profile-admin-switcher {
+    grid-template-columns: 1fr;
+    margin-inline: 0.45rem;
+  }
+
+  .profile-hero {
+    display: grid;
+    padding: 0.85rem;
+  }
+
+  .profile-live-badge {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-admin-switcher {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .profile-admin-switcher select {
+    max-width: none;
+  }
+
+  .profile-stat-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    margin-inline: 0.45rem;
+  }
+
+  .profile-map-panel,
+  .profile-panel {
+    margin-inline: 0.45rem;
+    padding: 0.7rem;
+    border-radius: 12px;
+  }
+
   .chat-workspace {
-    min-height: calc(100vh - 120px);
-    border-radius: 10px;
+    min-height: min(720px, calc(100vh - 88px));
+    margin-inline: 0;
+    border-radius: 0;
+  }
+
+  .chat-channel-rail {
+    min-height: 52px;
+    max-height: 60px;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .chat-connection-row {
+    font-size: 0.72rem;
+  }
+
+  .chat-channel-button {
+    min-width: 104px;
+    min-height: 36px;
+    padding: 0.38rem 0.48rem;
   }
 
   .chat-room-header {
@@ -23094,12 +23196,16 @@ body,
     padding: 0.55rem 0.7rem;
   }
 
+  .chat-room-header > span {
+    display: none;
+  }
+
   .chat-thread {
     padding: 0.65rem;
   }
 
   .chat-bubble {
-    max-width: 86%;
+    max-width: 94%;
   }
 
   .chat-composer {
@@ -23108,6 +23214,11 @@ body,
 
   .chat-composer textarea {
     border-radius: 16px;
+    font-size: 0.88rem;
+  }
+
+  .chat-delivery-status span {
+    white-space: normal;
   }
 }
 

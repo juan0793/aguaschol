@@ -1,15 +1,50 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Bell, MessageSquare, X } from "lucide-react";
+import { Bell, MessageSquare, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { NOTIFICATION_SOUND_MUTED_STORAGE_KEY } from "../constants/storageKeys.js";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../utils/profileWebSocket.js";
+import { playNotificationSound, primeNotificationSound } from "../utils/notificationSound.js";
 
-export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotificationClick, onNotificationSelect }) {
+export function NotificationCenter({
+  apiFetch,
+  session,
+  unreadCount = 0,
+  onNotificationClick,
+  onNotificationSelect,
+  onUnreadCountChange,
+  showAlert
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [soundMuted, setSoundMuted] = useState(
+    () => typeof window !== "undefined" && window.localStorage.getItem(NOTIFICATION_SOUND_MUTED_STORAGE_KEY) === "1"
+  );
   const sessionToken = session?.token || session?.sessionToken || "";
   const dropdownRef = useRef(null);
   const wsManagerRef = useRef(null);
+  const soundMutedRef = useRef(soundMuted);
+
+  useEffect(() => {
+    soundMutedRef.current = soundMuted;
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(NOTIFICATION_SOUND_MUTED_STORAGE_KEY, soundMuted ? "1" : "0");
+  }, [soundMuted]);
+
+  useEffect(() => {
+    const unlockSound = () => {
+      if (!soundMutedRef.current) {
+        primeNotificationSound();
+      }
+    };
+
+    window.addEventListener("pointerdown", unlockSound, { once: true });
+    window.addEventListener("keydown", unlockSound, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockSound);
+      window.removeEventListener("keydown", unlockSound);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -38,6 +73,7 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
             (m) => m.recipient_user_id === session?.user?.id && !m.read_at
           );
           setNotifications(unread);
+          onUnreadCountChange?.(unread.length);
         }
       } catch (error) {
         console.error("Error cargando notificaciones:", error);
@@ -47,18 +83,24 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
     };
 
     loadNotifications();
-  }, [isOpen, session?.user?.id]);
+  }, [apiFetch, isOpen, onUnreadCountChange, session?.user?.id]);
 
   // Conectar WebSocket para actualizaciones en tiempo real
   useEffect(() => {
-    if (!sessionToken || !isOpen) return;
+    if (!sessionToken || !session?.user?.id) return undefined;
 
     const manager = getSharedProfileWebSocketManager(sessionToken);
-    if (!manager) return;
+    if (!manager) return undefined;
 
     const handleMessageReceived = (message) => {
-      if (message.recipient_user_id === session?.user?.id) {
-        setNotifications((prev) => [message, ...prev]);
+      if (Number(message?.recipient_user_id) === Number(session.user.id) && !message?.read_at) {
+        setNotifications((prev) => {
+          if (prev.some((item) => Number(item.id) === Number(message.id))) return prev;
+          return [message, ...prev];
+        });
+        onUnreadCountChange?.((current) => Number(current || 0) + 1);
+        playNotificationSound({ muted: soundMutedRef.current });
+        showAlert?.(message.body || "Nueva notificacion del equipo.");
       }
     };
 
@@ -71,7 +113,7 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
       manager.off("message_received", handleMessageReceived);
       releaseSharedProfileWebSocketManager(sessionToken);
     };
-  }, [sessionToken, session?.user?.id, isOpen]);
+  }, [onUnreadCountChange, session?.user?.id, sessionToken, showAlert]);
 
   const handleMarkAsRead = async (messageId) => {
     try {
@@ -79,6 +121,7 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
         method: "PATCH"
       });
       setNotifications((prev) => prev.filter((n) => n.id !== messageId));
+      onUnreadCountChange?.((current) => Math.max(0, Number(current || 0) - 1));
     } catch (error) {
       console.error("Error marcando como leído:", error);
     }
@@ -107,11 +150,31 @@ export function NotificationCenter({ apiFetch, session, unreadCount = 0, onNotif
     );
 
     setNotifications([]);
+    onUnreadCountChange?.(0);
     setIsOpen(false);
+  };
+
+  const handleToggleSound = () => {
+    setSoundMuted((current) => {
+      const next = !current;
+      if (!next) {
+        primeNotificationSound();
+      }
+      return next;
+    });
   };
 
   return (
     <div className="notification-center-container" ref={dropdownRef}>
+      <button
+        className={`notification-sound-toggle ${soundMuted ? "is-muted" : ""}`}
+        onClick={handleToggleSound}
+        title={soundMuted ? "Activar sonido de mensajes" : "Mutear sonido de mensajes"}
+        aria-label={soundMuted ? "Activar sonido de mensajes" : "Mutear sonido de mensajes"}
+        type="button"
+      >
+        {soundMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </button>
       <button
         className={`notification-bell ${unreadCount > 0 ? "has-notifications" : ""}`}
         onClick={() => setIsOpen(!isOpen)}

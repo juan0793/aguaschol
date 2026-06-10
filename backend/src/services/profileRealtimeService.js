@@ -138,10 +138,19 @@ export const initializeProfileRealtime = ({ server }) => {
 export const emitProfileMessage = (message) => {
   if (!websocketServer) return;
 
-  broadcastEvent({
+  const event = {
     type: message?.deleted_id ? "profile.message_deleted" : "profile.message_received",
     message
-  });
+  };
+
+  if (message?.is_general || message?.deleted_id) {
+    broadcastEvent(event);
+    return;
+  }
+
+  const senderId = Number(message?.sender_user_id ?? 0);
+  const recipientId = Number(message?.recipient_user_id ?? 0);
+  broadcastEvent(event, (client) => client.userId === senderId || client.userId === recipientId);
 };
 
 export const getProfileOnlineUsers = () => {

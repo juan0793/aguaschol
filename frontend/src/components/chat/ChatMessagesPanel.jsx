@@ -61,6 +61,7 @@ export function ChatMessagesPanel({
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [savingMessage, setSavingMessage] = useState(false);
   const [actingMessageId, setActingMessageId] = useState(null);
+  const [deliveryStatus, setDeliveryStatus] = useState("");
   const [onlineUsers, setOnlineUsers] = useState(new Map());
   const [typingUsers, setTypingUsers] = useState(new Map());
   const [wsConnected, setWsConnected] = useState(false);
@@ -248,12 +249,24 @@ export function ChatMessagesPanel({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.message || data?.error || "No fue posible enviar el mensaje.");
+      const sentMessage = data?.message || data;
+      const deliveredCount = Number(data?.notifications_delivered ?? 0);
 
       setMessageBody("");
       clearImage();
-      setLocalMessages((prev) => upsertMessage(prev, data));
+      setLocalMessages((prev) => upsertMessage(prev, sentMessage));
+      setDeliveryStatus(
+        deliveredCount
+          ? `Mensaje enviado. Notificacion entregada a ${deliveredCount} usuario${deliveredCount === 1 ? "" : "s"}.`
+          : "Mensaje enviado en el canal."
+      );
       wsManagerRef.current?.notifyStopTyping(null, activeChannel);
       onMessageSent?.({ silent: true });
+      showAlert?.(
+        deliveredCount
+          ? `Mensaje enviado y notificado a ${deliveredCount} usuario${deliveredCount === 1 ? "" : "s"}.`
+          : "Mensaje enviado."
+      );
     } catch (sendError) {
       showAlert?.(sendError.message);
     } finally {
@@ -455,6 +468,9 @@ export function ChatMessagesPanel({
             <button type="submit" className="chat-send-button" disabled={savingMessage || (!messageBody.trim() && !imageFile)}>
               {imageFile && !messageBody.trim() ? <ImageIcon size={17} /> : <Send size={17} />}
             </button>
+          </div>
+          <div className="chat-delivery-status" aria-live="polite">
+            <span>{savingMessage ? "Enviando y notificando..." : deliveryStatus || "Las notificaciones se entregan al equipo conectado y quedan pendientes si no estan en linea."}</span>
           </div>
         </form>
       </section>

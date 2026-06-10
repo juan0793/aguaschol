@@ -24,6 +24,7 @@ export const CHAT_CHANNELS = [
 ];
 
 const validChatChannelKeys = new Set(CHAT_CHANNELS.map((channel) => channel.key));
+const chatChannelLabelsByKey = new Map(CHAT_CHANNELS.map((channel) => [channel.key, channel.label]));
 
 const normalizeChatChannel = (value = "general") => {
   const normalized = String(value || "general")
@@ -34,6 +35,14 @@ const normalizeChatChannel = (value = "general") => {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
   return validChatChannelKeys.has(normalized) ? normalized : "general";
+};
+
+const buildChannelNotificationBody = ({ channel, senderName, body, attachmentType }) => {
+  const label = chatChannelLabelsByKey.get(channel) || "General";
+  const cleanSender = String(senderName || "Un usuario").trim();
+  const cleanBody = String(body || "").trim();
+  const preview = cleanBody || (attachmentType === "image" ? "Envio una fotografia." : "Envio un adjunto.");
+  return `Nuevo mensaje en #${label} de ${cleanSender}: ${preview}`.slice(0, 2000);
 };
 
 const AUTO_ACHIEVEMENTS = [
@@ -654,7 +663,61 @@ export const sendGeneralProfileMessage = async ({ authUser, body, channel = "gen
     [result.insertId]
   );
 
-  return normalizeGeneralMessage(message);
+  const normalizedMessage = normalizeGeneralMessage(message);
+  const [recipients] = await pool.query(
+    `
+      SELECT id
+      FROM app_users
+      WHERE is_active = 1
+        AND id <> ?
+      ORDER BY role = 'admin' ASC, full_name ASC
+    `,
+    [authUser.id]
+  );
+
+  let notificationMessages = [];
+  if (recipients.length) {
+    const notificationBody = buildChannelNotificationBody({
+      channel: cleanChannel,
+      senderName: message?.sender_name || authUser.full_name,
+      body: cleanBody,
+      attachmentType: cleanAttachmentType
+    });
+    const values = recipients.map((recipient) => [authUser.id, recipient.id, null, notificationBody]);
+    const [notificationResult] = await pool.query(
+      `
+        INSERT INTO user_profile_messages (sender_user_id, recipient_user_id, parent_message_id, body)
+        VALUES ?
+      `,
+      [values]
+    );
+    const firstId = Number(notificationResult.insertId ?? 0);
+    if (firstId) {
+      const ids = values.map((_, index) => firstId + index);
+      const [notificationRows] = await pool.query(
+        `
+          SELECT
+            messages.*,
+            sender.full_name AS sender_name,
+            sender.role AS sender_role,
+            recipient.full_name AS recipient_name
+          FROM user_profile_messages AS messages
+          LEFT JOIN app_users AS sender ON sender.id = messages.sender_user_id
+          LEFT JOIN app_users AS recipient ON recipient.id = messages.recipient_user_id
+          WHERE messages.id IN (?)
+          ORDER BY messages.id ASC
+        `,
+        [ids]
+      );
+      notificationMessages = notificationRows.map(normalizeMessage);
+    }
+  }
+
+  return {
+    message: normalizedMessage,
+    notifications: notificationMessages,
+    notifications_delivered: notificationMessages.length
+  };
 };
 
 export const updateGeneralProfileMessagePin = async ({ authUser, messageId, pinned = true }) => {

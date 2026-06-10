@@ -53,15 +53,16 @@ export const sendGeneralProfileMessageHandler = async (req, res, next) => {
       attachmentType = "image";
     }
 
-    const message = await sendGeneralProfileMessage({
+    const result = await sendGeneralProfileMessage({
       authUser: req.authUser,
       body: req.body?.body,
       channel: req.body?.channel,
       attachmentUrl,
       attachmentType
     });
-    res.status(201).json(message);
-    emitProfileMessage(message);
+    res.status(201).json(result);
+    emitProfileMessage(result.message);
+    result.notifications.forEach((notification) => emitProfileMessage(notification));
   } catch (error) {
     next(error);
   }
