@@ -21527,6 +21527,66 @@ body,
   .padron-status-actions {
     grid-column: 1 / -1;
   }
+
+  .record-list .record-card,
+  .record-list-scroll .record-card {
+    width: 100%;
+    padding: 0.9rem;
+  }
+
+  .record-list .record-card-shell,
+  .record-list-scroll .record-card-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+
+  .record-list .record-number,
+  .record-list-scroll .record-number {
+    display: none;
+  }
+
+  .record-list .record-card-body,
+  .record-list .record-main,
+  .record-list .record-status-stack,
+  .record-list .record-ledger,
+  .record-list-scroll .record-card-body,
+  .record-list-scroll .record-main,
+  .record-list-scroll .record-status-stack,
+  .record-list-scroll .record-ledger {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .record-list .record-status-stack,
+  .record-list-scroll .record-status-stack {
+    align-items: flex-start;
+  }
+
+  .record-list .record-badge,
+  .record-list .record-quick-chip,
+  .record-list-scroll .record-badge,
+  .record-list-scroll .record-quick-chip {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .record-list .record-ledger-row,
+  .record-list-scroll .record-ledger-row {
+    grid-template-columns: minmax(76px, auto) minmax(0, 1fr);
+  }
+
+  .record-list .record-ledger-label,
+  .record-list .record-ledger-value,
+  .record-list .record-card small,
+  .record-list-scroll .record-ledger-label,
+  .record-list-scroll .record-ledger-value,
+  .record-list-scroll .record-card small {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
 }
 
 /* Dashboard principal refresh: executive, responsive, and visibly modern. */
