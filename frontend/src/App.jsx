@@ -671,6 +671,14 @@ const loadMapReportSettingsByDate = () => {
   return {};
 };
 
+const sectionIconNames = {
+  abonado: "users",
+  inmueble: "home",
+  servicios: "water",
+  aviso: "auth",
+  foto: "activity"
+};
+
 function App() {
   const sheetRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
@@ -14522,11 +14530,18 @@ function App() {
                   <button
                     key={section.key}
                     type="button"
-                    className={activeSection === section.key ? "tab active" : "tab"}
+                    className={`${activeSection === section.key ? "tab active" : "tab"} ${
+                      index < currentSectionIndex ? "is-complete" : ""
+                    }`}
                     onClick={() => setActiveSection(section.key)}
                   >
-                    <span className="tab-step">{index + 1}</span>
-                    <span className="tab-label-desktop">{section.label}</span>
+                    <span className="tab-step">
+                      {index < currentSectionIndex ? <Icon name="success" /> : index + 1}
+                    </span>
+                    <span className="tab-copy">
+                      <Icon name={sectionIconNames[section.key] || "records"} className="tab-icon" />
+                      <span className="tab-label-desktop">{section.label}</span>
+                    </span>
                     <span className="tab-label-mobile">{section.mobileLabel}</span>
                   </button>
                 ))}
@@ -14553,6 +14568,17 @@ function App() {
               <section className="sheet-section">
                 <h3>Informacion del abonado</h3>
                 <div className={`padron-status-panel no-print is-${form.estado_padron || "clandestino"}`}>
+                  <span className="padron-status-icon" aria-hidden="true">
+                    <Icon
+                      name={
+                        form.estado_padron === "reportada"
+                          ? "success"
+                          : form.estado_padron === "varios_padrones"
+                            ? "search"
+                            : "warning"
+                      }
+                    />
+                  </span>
                   <div className="padron-status-copy">
                     <span className="sheet-kicker">Estado de padrones</span>
                     <div className="padron-status-heading">
