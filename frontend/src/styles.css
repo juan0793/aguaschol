@@ -24068,3 +24068,176 @@ body,
     max-height: calc(100dvh - 1rem) !important;
   }
 }
+
+/* ponytail: CSS-only polish; swap for motion library only if real page transitions are needed. */
+@keyframes shellFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes savedPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.18);
+  }
+
+  50% {
+    box-shadow: 0 0 0 7px rgba(34, 197, 94, 0);
+  }
+}
+
+.app-chrome {
+  animation: shellFadeUp 360ms ease both;
+}
+
+.app-topbar {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.92)) !important;
+  box-shadow: 0 14px 34px rgba(13, 38, 61, 0.1) !important;
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.app-topbar::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(21, 118, 209, 0.08), transparent);
+  transform: translateX(-100%);
+  transition: transform 700ms ease;
+}
+
+.app-topbar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 40px rgba(13, 38, 61, 0.13) !important;
+}
+
+.app-topbar:hover::before {
+  transform: translateX(100%);
+}
+
+.app-topbar-logo,
+.app-sidebar-profile img {
+  filter: drop-shadow(0 6px 10px rgba(21, 118, 209, 0.16));
+  transition: transform 180ms ease;
+}
+
+.app-topbar-brand:hover .app-topbar-logo,
+.app-sidebar-profile:hover img {
+  transform: rotate(-3deg) scale(1.04);
+}
+
+.app-topbar-kpi,
+.app-save-state,
+.app-user-chip,
+.app-logout-button,
+.app-chrome > .search-card {
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.app-topbar-kpi:hover,
+.app-user-chip:hover,
+.app-logout-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(13, 38, 61, 0.09);
+}
+
+.app-save-state:not(.is-live) {
+  animation: savedPulse 2.8s ease-in-out infinite;
+}
+
+.app-save-state.is-live {
+  animation: none;
+}
+
+.app-chrome > .search-card {
+  animation: shellFadeUp 420ms 80ms ease both;
+}
+
+.app-chrome > .search-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(11, 63, 115, 0.09) !important;
+}
+
+.app-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96)) !important;
+  box-shadow: 10px 0 28px rgba(13, 38, 61, 0.08);
+}
+
+.app-sidebar-profile {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.app-sidebar-profile:hover {
+  transform: translateY(-1px);
+  border-color: rgba(21, 118, 209, 0.22);
+  box-shadow: 0 10px 24px rgba(13, 38, 61, 0.08);
+}
+
+.app-sidebar-item {
+  overflow: hidden;
+  will-change: transform;
+}
+
+.app-sidebar-item::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(90deg, rgba(21, 118, 209, 0.12), transparent 58%);
+  opacity: 0;
+  transform: translateX(-18px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.app-sidebar-item:hover {
+  transform: translateX(4px);
+}
+
+.app-sidebar-item:hover::after,
+.app-sidebar-item.is-active::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.app-sidebar-item svg {
+  transition: transform 180ms ease;
+}
+
+.app-sidebar-item:hover svg,
+.app-sidebar-item.is-active svg {
+  transform: scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-chrome,
+  .app-chrome > .search-card,
+  .app-save-state:not(.is-live) {
+    animation: none;
+  }
+
+  .app-topbar,
+  .app-topbar::before,
+  .app-topbar-logo,
+  .app-sidebar-profile,
+  .app-sidebar-profile img,
+  .app-sidebar-item,
+  .app-sidebar-item::after,
+  .app-sidebar-item svg,
+  .app-topbar-kpi,
+  .app-save-state,
+  .app-user-chip,
+  .app-logout-button,
+  .app-chrome > .search-card {
+    transition: none;
+  }
+}
