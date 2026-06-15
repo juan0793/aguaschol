@@ -1,4 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BlossomCarousel } from "@blossom-carousel/react";
+import "@blossom-carousel/core/style.css";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import LookupChatPanel from "./components/LookupChatPanel";
@@ -14525,7 +14527,7 @@ function App() {
                   Paso {sectionDefinitions.findIndex((section) => section.key === activeSection) + 1} de {sectionDefinitions.length}
                 </strong>
               </div>
-              <div className="section-tabs">
+              <BlossomCarousel as="div" className="section-tabs" load="always">
                 {sectionDefinitions.map((section, index) => (
                   <button
                     key={section.key}
@@ -14545,7 +14547,7 @@ function App() {
                     <span className="tab-label-mobile">{section.mobileLabel}</span>
                   </button>
                 ))}
-              </div>
+              </BlossomCarousel>
               <div className="section-flow-bar no-print">
                 <button type="button" className="button-secondary" onClick={() => moveRecordSection(-1)} disabled={!previousSection}>
                   <Icon name="arrowLeft" />

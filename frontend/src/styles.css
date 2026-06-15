@@ -5808,13 +5808,13 @@ button.is-loading::before {
 
 .section-tabs {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(104px, 1fr));
-  gap: 0.55rem;
+  display: block;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 0.2rem;
+  padding-bottom: 0.25rem;
   scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+  --section-tab-gap: 0.55rem;
 }
 
 .section-tabs::before {
@@ -5857,7 +5857,7 @@ button.is-loading::before {
 .tab {
   position: relative;
   z-index: 1;
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   justify-content: flex-start;
   gap: 0.55rem;
@@ -5867,8 +5867,12 @@ button.is-loading::before {
   border: 1px solid rgba(20, 101, 217, 0.12);
   box-shadow: var(--shadow-xs);
   min-height: 54px;
+  width: calc((100% - (var(--section-tab-gap) * 4)) / 5);
+  min-width: 104px;
+  margin-right: var(--section-tab-gap);
   padding: 0.58rem 0.72rem;
   font-weight: 600;
+  scroll-snap-align: start;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
@@ -5879,6 +5883,10 @@ button.is-loading::before {
 .tab:hover:not(.active) {
   background: #fbfdff;
   border-color: rgba(20, 101, 217, 0.2);
+}
+
+.tab:last-child {
+  margin-right: 0;
 }
 
 .tab-step {
@@ -21425,7 +21433,7 @@ body,
 }
 
 .sheet .section-tabs {
-  grid-template-columns: repeat(5, minmax(104px, 1fr));
+  --section-tab-gap: 0.55rem;
 }
 
 .sheet .tab {
@@ -21499,8 +21507,7 @@ body,
 
 @media (max-width: 900px) {
   .sheet .section-tabs {
-    display: flex;
-    flex-wrap: nowrap;
+    display: block;
   }
 
   .sheet .section-tabs::before {
@@ -21508,7 +21515,8 @@ body,
   }
 
   .sheet .tab {
-    flex: 0 0 min(44vw, 172px);
+    width: min(44vw, 172px);
+    min-width: 132px;
   }
 
   .padron-status-panel,
