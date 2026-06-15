@@ -20922,10 +20922,62 @@ body,
   backdrop-filter: blur(18px);
 }
 
+.record-action-bar {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(240px, 1.2fr) minmax(300px, auto);
+  align-items: center;
+  border-color: rgba(15, 95, 184, 0.16);
+}
+
 .record-action-bar-copy strong {
   color: #102f4d;
   font-size: clamp(1.05rem, 2vw, 1.28rem);
   line-height: 1.1;
+}
+
+.record-workflow-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.record-workflow-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid rgba(20, 101, 217, 0.12);
+  border-radius: 10px;
+  background: #f7fbff;
+  color: #526b82;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.35rem 0.55rem;
+}
+
+.record-workflow-strip svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.record-workflow-strip span.is-done {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: #effdf5;
+  color: #166534;
+}
+
+.record-next-step {
+  grid-column: 1 / -1;
+  justify-self: end;
+  color: #526b82;
+  font-size: 0.86rem;
+}
+
+.record-next-step strong {
+  color: #102f4d;
 }
 
 .record-action-bar-buttons button,
@@ -20988,6 +21040,26 @@ body,
   padding: clamp(0.9rem, 2vw, 1.05rem);
 }
 
+.sheet-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(20, 101, 217, 0.08);
+}
+
+.sheet-section-head h3 {
+  margin: 0;
+}
+
+.sheet-section-head small {
+  max-width: 18rem;
+  color: #607385;
+  text-align: right;
+}
+
 .sheet-section h3,
 .record-panel-head h3,
 .record-print-center h3 {
@@ -21042,6 +21114,28 @@ body,
   border-radius: 10px;
 }
 
+.record-document-bundle.is-current {
+  border-color: rgba(15, 95, 184, 0.35);
+  background: #fbfdff;
+  box-shadow: 0 14px 32px rgba(15, 76, 117, 0.08), inset 4px 0 0 #0f5fb8;
+}
+
+.record-document-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.record-document-summary > div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.record-document-summary span:not(.sheet-kicker):not(.record-status-chip) {
+  color: #607385;
+  overflow-wrap: anywhere;
+}
+
 .photo-workspace {
   border: 1px dashed rgba(20, 101, 217, 0.18);
   border-radius: 14px;
@@ -21052,6 +21146,16 @@ body,
 .photo-preview,
 .photo-placeholder {
   border-radius: 12px;
+}
+
+@media (max-width: 1280px) {
+  .record-action-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .record-next-step {
+    justify-self: start;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -21141,6 +21245,15 @@ body,
     width: 100%;
   }
 
+  .record-workflow-strip,
+  .record-document-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .record-workflow-strip span {
+    min-height: 34px;
+  }
+
   .record-action-bar-buttons button {
     width: 100%;
     white-space: normal;
@@ -21158,6 +21271,15 @@ body,
   .record-editor-key {
     min-width: 0;
     width: 100%;
+  }
+
+  .sheet-section-head {
+    display: grid;
+  }
+
+  .sheet-section-head small {
+    max-width: none;
+    text-align: left;
   }
 
   .record-step-nav-tabs {

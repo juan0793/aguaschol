@@ -66,12 +66,20 @@ const formatDate = (value) => {
   }
 };
 
+const getStatusLabel = (status) => ({
+  pendiente_generar: "Pendiente",
+  generada: "Generada",
+  impresa: "Impresa",
+  reimpresa: "Reimpresa",
+  entregado: "Entregado"
+}[status] || status.replace("_", " "));
+
 const DocumentCard = ({ title, type, state, onGenerate, onPreview, onPrint, onDeliver }) => (
   <article className={`record-document-card is-${state.status} ${state.hasPrinted ? "is-printed" : ""}`}>
     <div className="record-document-card-head">
       <div>
         <span className="sheet-kicker">{title}</span>
-        <strong>Estado: {state.status.replace("_", " ")}</strong>
+        <strong>Estado: {getStatusLabel(state.status)}</strong>
       </div>
       <span className={`record-status-chip is-${state.status}`}>{state.printCount ? `${state.printCount} impresiones` : "Sin imprimir"}</span>
     </div>
@@ -157,6 +165,54 @@ const RecordPrintCenter = ({ records, form, currentUser, onGenerateAviso, onPrin
     });
   }, [filter, form, logs, records]);
 
+  const selectedRecord = form?.id ? selectedRecords.find((record) => record.id === form.id) : null;
+  const queuedRecords = selectedRecord
+    ? selectedRecords.filter((record) => record.id !== selectedRecord.id)
+    : selectedRecords;
+
+  const renderBundle = (record, variant = "queue") => {
+    const ficha = getDocumentState(logs, record, "ficha_informacion");
+    const aviso = getDocumentState(logs, record, "aviso");
+
+    return (
+      <article key={`documents-${record.id}`} className={`record-document-bundle ${variant === "current" ? "is-current" : ""} ${record.estado_padron === "reportada" ? "is-printed" : ""}`}>
+        <div className="record-document-summary">
+          <div>
+            <span className="sheet-kicker">{variant === "current" ? "Ficha actual" : "En cola"}</span>
+            <strong>{record.clave_catastral || "Sin clave"}</strong>
+            <span>{record.abonado || record.nombre_catastral || "Sin abonado"} - {record.barrio_colonia || "Sin barrio"}</span>
+          </div>
+          {record.estado_padron === "reportada" ? <span className="record-status-chip is-printed">Ficha impresa/reportada</span> : null}
+        </div>
+        <div className="record-document-grid">
+          <DocumentCard
+            title="Documento 1: Ficha de informacion"
+            type="ficha"
+            state={ficha}
+            onGenerate={() => {
+              onPrintFicha(record);
+              addLog(record, "ficha_informacion", "generar");
+            }}
+            onPreview={() => onPrintFicha(record)}
+            onPrint={() => runPrint(record, "ficha_informacion", onPrintFicha, ficha)}
+          />
+          <DocumentCard
+            title="Documento 2: Aviso"
+            type="aviso"
+            state={aviso}
+            onGenerate={async () => {
+              if (form.id === record.id) await onGenerateAviso();
+              addLog(record, "aviso", "generar");
+            }}
+            onPreview={() => onPrintAviso(record)}
+            onPrint={() => runPrint(record, "aviso", onPrintAviso, aviso)}
+            onDeliver={() => addLog(record, "aviso", "marcar_entregado")}
+          />
+        </div>
+      </article>
+    );
+  };
+
   return (
     <section className="record-print-center">
       <div className="record-panel-head">
@@ -164,6 +220,7 @@ const RecordPrintCenter = ({ records, form, currentUser, onGenerateAviso, onPrin
           <span className="sheet-kicker">Documentos de la ficha</span>
           <h3>Centro de impresion</h3>
         </div>
+        <span className="record-status-chip is-muted">{selectedRecords.length} en vista</span>
       </div>
       <div className="records-workspace-filters">
         {printFilters.map((item) => (
@@ -173,39 +230,14 @@ const RecordPrintCenter = ({ records, form, currentUser, onGenerateAviso, onPrin
         ))}
       </div>
       <div className="record-print-list">
-        {selectedRecords.slice(0, 12).map((record) => {
-          const ficha = getDocumentState(logs, record, "ficha_informacion");
-          const aviso = getDocumentState(logs, record, "aviso");
-          return (
-            <article key={`documents-${record.id}`} className={`record-document-bundle ${record.estado_padron === "reportada" ? "is-printed" : ""}`}>
-              <div className="record-document-summary">
-                <strong>{record.clave_catastral || "Sin clave"}</strong>
-                <span>{record.abonado || record.nombre_catastral || "Sin abonado"} · {record.barrio_colonia || "Sin barrio"}</span>
-                {record.estado_padron === "reportada" ? <span className="record-status-chip is-printed">Ficha impresa/reportada</span> : null}
-              </div>
-              <DocumentCard
-                title="Documento 1: Ficha de informacion"
-                type="ficha"
-                state={ficha}
-                onGenerate={() => addLog(record, "ficha_informacion", "generar")}
-                onPreview={() => onPrintFicha(record)}
-                onPrint={() => runPrint(record, "ficha_informacion", onPrintFicha, ficha)}
-              />
-              <DocumentCard
-                title="Documento 2: Aviso"
-                type="aviso"
-                state={aviso}
-                onGenerate={async () => {
-                  if (form.id === record.id) await onGenerateAviso();
-                  addLog(record, "aviso", "generar");
-                }}
-                onPreview={() => onPrintAviso(record)}
-                onPrint={() => runPrint(record, "aviso", onPrintAviso, aviso)}
-                onDeliver={() => addLog(record, "aviso", "marcar_entregado")}
-              />
-            </article>
-          );
-        })}
+        {selectedRecord ? renderBundle(selectedRecord, "current") : null}
+        {queuedRecords.slice(0, selectedRecord ? 8 : 12).map((record) => renderBundle(record))}
+        {!selectedRecords.length ? (
+          <div className="records-empty-state">
+            <strong>No hay documentos con este filtro</strong>
+            <p>Cambia el filtro o selecciona una ficha en la lista.</p>
+          </div>
+        ) : null}
       </div>
     </section>
   );

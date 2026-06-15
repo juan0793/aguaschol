@@ -39,7 +39,13 @@ const RecordEditor = ({
 
     {activeSection === "abonado" ? (
       <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-        <h3>Informacion del abonado</h3>
+        <div className="sheet-section-head">
+          <div>
+            <span className="sheet-kicker">Paso 1</span>
+            <h3>Informacion del abonado</h3>
+          </div>
+          <small>Base para buscar, validar y generar documentos.</small>
+        </div>
         <div className="form-grid padron-cross-grid">
           <label>
             <span>Clave Alcaldia</span>
@@ -70,14 +76,26 @@ const RecordEditor = ({
     {activeSection === "inmueble" ? (
       <>
         <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-          <h3>Identificacion del inmueble</h3>
+          <div className="sheet-section-head">
+            <div>
+              <span className="sheet-kicker">Paso 2</span>
+              <h3>Identificacion del inmueble</h3>
+            </div>
+            <small>Describe el hallazgo y la accion tomada en campo.</small>
+          </div>
           <label>
             <span>Accion</span>
             <textarea name="accion_inspeccion" value={form.accion_inspeccion || ""} onChange={onChange} rows="4" />
           </label>
         </motion.section>
         <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.04 }}>
-          <h3>Datos del inmueble</h3>
+          <div className="sheet-section-head">
+            <div>
+              <span className="sheet-kicker">Clasificacion</span>
+              <h3>Datos del inmueble</h3>
+            </div>
+            <small>Uso, situacion y comentarios administrativos.</small>
+          </div>
           {fieldGroups.slice(2, 4).map((group, index) => (
             <div className="form-grid" key={index}>
               {group.map((field) => (
@@ -94,7 +112,13 @@ const RecordEditor = ({
 
     {activeSection === "servicios" ? (
       <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-        <h3>Datos de los servicios</h3>
+        <div className="sheet-section-head">
+          <div>
+            <span className="sheet-kicker">Paso 3</span>
+            <h3>Datos de los servicios</h3>
+          </div>
+          <small>Marca los servicios observados para la ficha tecnica.</small>
+        </div>
         <div className="form-grid">
           {fieldGroups[4].map((field) => (
             <label key={field.key}>
@@ -111,7 +135,13 @@ const RecordEditor = ({
 
     {activeSection === "aviso" ? (
       <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-        <h3>Datos para aviso</h3>
+        <div className="sheet-section-head">
+          <div>
+            <span className="sheet-kicker">Paso 4</span>
+            <h3>Datos para aviso</h3>
+          </div>
+          <small>Estos datos alimentan el documento de aviso.</small>
+        </div>
         <div className="form-grid">
           <label>
             <span>Fecha del aviso</span>
@@ -139,7 +169,13 @@ const RecordEditor = ({
 
     {activeSection === "foto" ? (
       <motion.section className="sheet-section" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-        <h3>Fotografia del inmueble</h3>
+        <div className="sheet-section-head">
+          <div>
+            <span className="sheet-kicker">Paso 5</span>
+            <h3>Fotografia del inmueble</h3>
+          </div>
+          <small>Evidencia visual para imprimir y archivar.</small>
+        </div>
         <div className="photo-workspace">
           <div>
             <label className="file-input">
