@@ -10736,6 +10736,7 @@ textarea {
 .map-diary-tabs {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 0.55rem;
 }
 
@@ -10744,6 +10745,7 @@ textarea {
   justify-items: start;
   gap: 0.12rem;
   min-width: 170px;
+  min-height: 84px;
   padding: 0.75rem 0.9rem;
   border-radius: 16px;
   border: 1px solid rgba(21, 118, 209, 0.12);
