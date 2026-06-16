@@ -110,6 +110,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const FieldMap = lazy(() => import("./components/FieldMap"));
 const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
+const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
 const RecordsWorkspace = lazy(() => import("./components/records/RecordsWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 
@@ -1347,6 +1348,14 @@ function App() {
             lead: "Traza la calle autorizada, ve el recorrido en verde y detecta a tiempo si el vehículo se sale de la ruta.",
             kicker: "Ruta supervisada"
           },
+          planos: {
+            panelClass: "hero-panel-records",
+            cardClass: "search-card-records",
+            toplineLabel: "Planos y croquis",
+            title: "Planos y Croquis",
+            lead: "Actualiza croquis de barrios usando el PDF como fondo y una capa editable para revision.",
+            kicker: "Croquis editable"
+          },
           requests: {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
@@ -2011,6 +2020,7 @@ function App() {
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" },
             { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
+            { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
             { key: "requests", label: "Reportes", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
             { key: "barrioCodes", label: "Barrios", icon: "map", group: "control", helper: `${safeBarrioCodes.length} codigos` },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
@@ -2025,6 +2035,7 @@ function App() {
             ...(isFieldValidator
               ? [{ key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" }]
               : []),
+            { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
             { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" }
           ]),
     [
@@ -2070,6 +2081,7 @@ function App() {
       barrioCodes: safeBarrioCodes.length,
       users: safeUsers.length,
       map: visibleMapPoints.length,
+      planos: null,
       mapReports: mapReportData.totalZones,
       requests: padronRequestResult?.summary?.total_registros ?? 0
     };
@@ -2092,7 +2104,7 @@ function App() {
       {
         key: "campo",
         title: "Puntos GPS",
-        items: items.filter((item) => ["map", "fieldValidation", "mapReports"].includes(item.key))
+        items: items.filter((item) => ["map", "fieldValidation", "mapReports", "planos"].includes(item.key))
       },
       {
         key: "gestion",
@@ -4758,8 +4770,8 @@ function App() {
 
   useEffect(() => {
     const allowedViews = isFieldValidator
-      ? ["profile", "records", "lookup", "map", "fieldValidation"]
-      : ["profile", "records", "lookup", "map"];
+      ? ["profile", "records", "lookup", "map", "fieldValidation", "planos"]
+      : ["profile", "records", "lookup", "map", "planos"];
     if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
       setWorkspaceView("records");
     }
@@ -16473,6 +16485,10 @@ function App() {
             </aside>
           </section>
         </main>
+      ) : workspaceView === "planos" ? (
+        <Suspense fallback={<div className="module-loading-state">Cargando planos y croquis...</div>}>
+          <PlanosWorkspace apiFetch={apiFetch} isAdmin={isAdmin} users={safeUsers} />
+        </Suspense>
       ) : workspaceView === "fieldValidation" ? (
         <Suspense fallback={<div className="module-loading-state">Cargando validacion de campo...</div>}>
           <FieldValidationWorkspace

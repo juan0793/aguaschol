@@ -18,6 +18,7 @@ const dbStatus = {
 };
 
 const schemaPath = path.resolve(env.dbRoot, "backend", "sql", "schema.sql");
+const planosManifestPath = path.resolve(env.dbRoot, "backend", "data", "planos-manifest.json");
 
 const escapeIdentifier = (value) => `\`${String(value).replace(/`/g, "``")}\``;
 
@@ -135,6 +136,42 @@ const ensureRoleEnum = async (connection) => {
       ALTER TABLE ${escapeIdentifier("app_users")}
       MODIFY COLUMN ${escapeIdentifier("role")} ENUM('admin', 'operator', 'transport', 'validadora_campo') NOT NULL DEFAULT 'operator'
     `
+  );
+};
+
+const seedPlanosBarrios = async (connection) => {
+  let planos = [];
+
+  try {
+    planos = JSON.parse(await fs.readFile(planosManifestPath, "utf8"));
+  } catch {
+    return;
+  }
+
+  if (!Array.isArray(planos) || !planos.length) {
+    return;
+  }
+
+  const rows = planos.map((item) => [
+    String(item.codigo_barrio || "").trim(),
+    String(item.nombre_barrio || "").trim(),
+    String(item.archivo_pdf || "").trim(),
+    "pendiente"
+  ]).filter(([codigo, nombre, archivo]) => codigo && nombre && archivo);
+
+  if (!rows.length) {
+    return;
+  }
+
+  await connection.query(
+    `
+      INSERT INTO planos_barrios (codigo_barrio, nombre_barrio, archivo_pdf, estado)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE
+        nombre_barrio = VALUES(nombre_barrio),
+        archivo_pdf = VALUES(archivo_pdf)
+    `,
+    [rows]
   );
 };
 
@@ -261,6 +298,7 @@ const ensureSchema = async () => {
 
     const schemaSql = await fs.readFile(schemaPath, "utf8");
     await admin.query(schemaSql);
+    await seedPlanosBarrios(admin);
     await ensureRoleEnum(admin);
     await ensureColumn(admin, {
       tableName: "app_users",

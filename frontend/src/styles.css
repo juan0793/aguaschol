@@ -10896,6 +10896,324 @@ textarea {
   cursor: default;
 }
 
+.planos-workspace,
+.planos-editor {
+  width: min(1500px, calc(100% - 2rem));
+  margin: 0 auto 2rem;
+  color: #14344f;
+}
+
+.planos-header,
+.planos-editor-head,
+.planos-create-card,
+.planos-toolbar,
+.planos-card,
+.planos-table article,
+.planos-properties {
+  border: 1px solid rgba(21, 118, 209, 0.14);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 42px rgba(16, 55, 91, 0.06);
+}
+
+.planos-header,
+.planos-editor-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 18px;
+}
+
+.planos-header h2,
+.planos-editor-head h2 {
+  margin: 0.15rem 0;
+  font-size: 1.25rem;
+}
+
+.planos-header p:not(.sheet-kicker) {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.planos-tabs,
+.planos-toolbar,
+.planos-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.planos-tabs button,
+.planos-toolbar button,
+.planos-card-actions button,
+.planos-create-card button,
+.planos-table button,
+.planos-finish-polygon {
+  min-height: 42px;
+  border: 1px solid rgba(21, 118, 209, 0.18);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #123b5d;
+  font-weight: 800;
+  padding: 0.55rem 0.8rem;
+}
+
+.planos-tabs button.is-active,
+.planos-toolbar button.is-active,
+.planos-primary-action {
+  background: #1576d1 !important;
+  color: #ffffff !important;
+  border-color: #1576d1 !important;
+}
+
+.planos-create-card {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.6rem;
+  padding: 0.85rem;
+  border-radius: 16px;
+  margin-top: 1rem;
+}
+
+.planos-create-card input,
+.planos-create-card select,
+.planos-toolbar input,
+.planos-properties input {
+  min-height: 42px;
+  border: 1px solid rgba(21, 118, 209, 0.18);
+  border-radius: 12px;
+  padding: 0.55rem 0.7rem;
+  background: #ffffff;
+  color: #14344f;
+}
+
+.planos-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.planos-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border-radius: 16px;
+}
+
+.planos-card span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.planos-card h3 {
+  margin: 0.2rem 0;
+  font-size: 1rem;
+}
+
+.planos-card p,
+.planos-table p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.planos-status {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  background: rgba(21, 118, 209, 0.1);
+  color: #123b5d;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.planos-status.is-enviado_revision,
+.planos-status.is-devuelto {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.planos-status.is-aprobado,
+.planos-status.is-publicado {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.planos-table {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.planos-table article {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.8rem;
+  border-radius: 14px;
+}
+
+.planos-editor-head {
+  margin-bottom: 0.8rem;
+}
+
+.planos-toolbar {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 4;
+  padding: 0.65rem;
+  border-radius: 16px;
+  margin-bottom: 0.8rem;
+}
+
+.planos-toolbar input {
+  flex: 1 1 220px;
+}
+
+.planos-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 0.8rem;
+}
+
+.planos-editor-stage {
+  position: relative;
+  min-height: 680px;
+  border-radius: 18px;
+  overflow: auto;
+  border: 1px solid rgba(21, 118, 209, 0.14);
+  background: #eaf3fb;
+  touch-action: none;
+}
+
+.planos-canvas-zoom {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.planos-pdf-base,
+.planos-pdf-empty,
+.planos-svg-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.planos-pdf-empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.planos-svg-layer {
+  z-index: 2;
+  cursor: crosshair;
+}
+
+.planos-svg-layer text {
+  fill: #0f172a;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 3px;
+  cursor: move;
+  user-select: none;
+}
+
+.planos-svg-layer polyline,
+.planos-svg-layer polygon,
+.planos-svg-layer circle {
+  cursor: move;
+}
+
+.planos-svg-layer .is-selected {
+  outline: none;
+  filter: drop-shadow(0 0 4px rgba(21, 118, 209, 0.75));
+}
+
+.planos-draft-line {
+  stroke: #1576d1;
+  stroke-width: 3;
+  stroke-dasharray: 10 8;
+}
+
+.planos-finish-polygon {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 3;
+}
+
+.planos-properties {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+  padding: 1rem;
+  border-radius: 16px;
+}
+
+.planos-properties label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 800;
+}
+
+.planos-mini-stats {
+  display: grid;
+  margin-top: 0.5rem;
+  padding: 0.8rem;
+  border-radius: 12px;
+  background: rgba(21, 118, 209, 0.08);
+}
+
+.planos-mini-stats span {
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+@media (max-width: 900px) {
+  .planos-workspace,
+  .planos-editor {
+    width: min(100% - 1rem, 1500px);
+  }
+
+  .planos-header,
+  .planos-editor-head,
+  .planos-table article {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .planos-header,
+  .planos-editor-head {
+    display: grid;
+  }
+
+  .planos-create-card,
+  .planos-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .planos-editor-stage {
+    min-height: 520px;
+  }
+
+  .planos-properties {
+    position: sticky;
+    bottom: 0.5rem;
+    z-index: 5;
+  }
+}
+
 .map-diary-archive-modal {
   width: min(1380px, calc(100vw - 1rem));
   min-height: min(860px, calc(100vh - 1rem));

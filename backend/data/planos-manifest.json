@@ -1,0 +1,332 @@
+[
+    {
+        "codigo_barrio":  "001",
+        "nombre_barrio":  "RES LOS OLIVOS",
+        "archivo_pdf":  "/planos-pdf/001-res-los-olivos.pdf"
+    },
+    {
+        "codigo_barrio":  "01",
+        "nombre_barrio":  "SUYAPA",
+        "archivo_pdf":  "/planos-pdf/01-suyapa.pdf"
+    },
+    {
+        "codigo_barrio":  "02",
+        "nombre_barrio":  "LOTIFICACION CARRANZA",
+        "archivo_pdf":  "/planos-pdf/02-lotificacion-carranza.pdf"
+    },
+    {
+        "codigo_barrio":  "03",
+        "nombre_barrio":  "NUEVA ESPERANZA",
+        "archivo_pdf":  "/planos-pdf/03-nueva-esperanza.pdf"
+    },
+    {
+        "codigo_barrio":  "04",
+        "nombre_barrio":  "BRISAS DEL SUR",
+        "archivo_pdf":  "/planos-pdf/04-brisas-del-sur.pdf"
+    },
+    {
+        "codigo_barrio":  "05",
+        "nombre_barrio":  "CAMPO SOL",
+        "archivo_pdf":  "/planos-pdf/05-campo-sol.pdf"
+    },
+    {
+        "codigo_barrio":  "06",
+        "nombre_barrio":  "CEIBA",
+        "archivo_pdf":  "/planos-pdf/06-ceiba.pdf"
+    },
+    {
+        "codigo_barrio":  "07",
+        "nombre_barrio":  "CAMPO LUNA",
+        "archivo_pdf":  "/planos-pdf/07-campo-luna.pdf"
+    },
+    {
+        "codigo_barrio":  "08",
+        "nombre_barrio":  "PIEDRAS AZULES",
+        "archivo_pdf":  "/planos-pdf/08-piedras-azules.pdf"
+    },
+    {
+        "codigo_barrio":  "09",
+        "nombre_barrio":  "SANTA LUCIA",
+        "archivo_pdf":  "/planos-pdf/09-santa-lucia.pdf"
+    },
+    {
+        "codigo_barrio":  "100",
+        "nombre_barrio":  "ESTIBIS",
+        "archivo_pdf":  "/planos-pdf/100-estibis.pdf"
+    },
+    {
+        "codigo_barrio":  "11",
+        "nombre_barrio":  "GRANEROS",
+        "archivo_pdf":  "/planos-pdf/11-graneros.pdf"
+    },
+    {
+        "codigo_barrio":  "114",
+        "nombre_barrio":  "LOTIFICACION BEEL",
+        "archivo_pdf":  "/planos-pdf/114-lotificacion-beel.pdf"
+    },
+    {
+        "codigo_barrio":  "115",
+        "nombre_barrio":  "SAN PEDRO DEL NORTE",
+        "archivo_pdf":  "/planos-pdf/115-san-pedro-del-norte.pdf"
+    },
+    {
+        "codigo_barrio":  "117",
+        "nombre_barrio":  "LUIS ALONSO NARVAEZ",
+        "archivo_pdf":  "/planos-pdf/117-luis-alonso-narvaez.pdf"
+    },
+    {
+        "codigo_barrio":  "12",
+        "nombre_barrio":  "HOSPITAL",
+        "archivo_pdf":  "/planos-pdf/12-hospital.pdf"
+    },
+    {
+        "codigo_barrio":  "13",
+        "nombre_barrio":  "CORBETA",
+        "archivo_pdf":  "/planos-pdf/13-corbeta.pdf"
+    },
+    {
+        "codigo_barrio":  "136",
+        "nombre_barrio":  "COLONIA CRISTO DE ESQUIPULAS",
+        "archivo_pdf":  "/planos-pdf/136-colonia-cristo-de-esquipulas.pdf"
+    },
+    {
+        "codigo_barrio":  "14",
+        "nombre_barrio":  "EL CENTRO",
+        "archivo_pdf":  "/planos-pdf/14-el-centro.pdf"
+    },
+    {
+        "codigo_barrio":  "141",
+        "nombre_barrio":  "COLONIA NUEVA BELLA VISTA",
+        "archivo_pdf":  "/planos-pdf/141-colonia-nueva-bella-vista.pdf"
+    },
+    {
+        "codigo_barrio":  "15",
+        "nombre_barrio":  "LA CRUZ",
+        "archivo_pdf":  "/planos-pdf/15-la-cruz.pdf"
+    },
+    {
+        "codigo_barrio":  "16",
+        "nombre_barrio":  "LOS MANGOS",
+        "archivo_pdf":  "/planos-pdf/16-los-mangos.pdf"
+    },
+    {
+        "codigo_barrio":  "17",
+        "nombre_barrio":  "MORAZAN",
+        "archivo_pdf":  "/planos-pdf/17-morazan.pdf"
+    },
+    {
+        "codigo_barrio":  "18",
+        "nombre_barrio":  "LOS FUERTES",
+        "archivo_pdf":  "/planos-pdf/18-los-fuertes.pdf"
+    },
+    {
+        "codigo_barrio":  "19",
+        "nombre_barrio":  "ATERRIZAJE",
+        "archivo_pdf":  "/planos-pdf/19-aterrizaje.pdf"
+    },
+    {
+        "codigo_barrio":  "20",
+        "nombre_barrio":  "ALEGRIA",
+        "archivo_pdf":  "/planos-pdf/20-alegria.pdf"
+    },
+    {
+        "codigo_barrio":  "21",
+        "nombre_barrio":  "BARRIO EL CORTIJO",
+        "archivo_pdf":  "/planos-pdf/21-barrio-el-cortijo.pdf"
+    },
+    {
+        "codigo_barrio":  "22",
+        "nombre_barrio":  "CABA AS",
+        "archivo_pdf":  "/planos-pdf/22-caba-as.pdf"
+    },
+    {
+        "codigo_barrio":  "23",
+        "nombre_barrio":  "EL ESTADIO",
+        "archivo_pdf":  "/planos-pdf/23-el-estadio.pdf"
+    },
+    {
+        "codigo_barrio":  "24",
+        "nombre_barrio":  "LIBERTAD",
+        "archivo_pdf":  "/planos-pdf/24-libertad.pdf"
+    },
+    {
+        "codigo_barrio":  "25",
+        "nombre_barrio":  "GUADALUPE",
+        "archivo_pdf":  "/planos-pdf/25-guadalupe.pdf"
+    },
+    {
+        "codigo_barrio":  "26",
+        "nombre_barrio":  "TAMARINDO",
+        "archivo_pdf":  "/planos-pdf/26-tamarindo.pdf"
+    },
+    {
+        "codigo_barrio":  "27",
+        "nombre_barrio":  "LA ESPERANZA",
+        "archivo_pdf":  "/planos-pdf/27-la-esperanza.pdf"
+    },
+    {
+        "codigo_barrio":  "28",
+        "nombre_barrio":  "PORVENIR",
+        "archivo_pdf":  "/planos-pdf/28-porvenir.pdf"
+    },
+    {
+        "codigo_barrio":  "29",
+        "nombre_barrio":  "BARRIO VALLE",
+        "archivo_pdf":  "/planos-pdf/29-barrio-valle.pdf"
+    },
+    {
+        "codigo_barrio":  "30",
+        "nombre_barrio":  "LAS COLINAS",
+        "archivo_pdf":  "/planos-pdf/30-las-colinas.pdf"
+    },
+    {
+        "codigo_barrio":  "31",
+        "nombre_barrio":  "BRASIL",
+        "archivo_pdf":  "/planos-pdf/31-brasil.pdf"
+    },
+    {
+        "codigo_barrio":  "33",
+        "nombre_barrio":  "9 DE ENERO",
+        "archivo_pdf":  "/planos-pdf/33-9-de-enero.pdf"
+    },
+    {
+        "codigo_barrio":  "34",
+        "nombre_barrio":  "GRACIAS A DIOS",
+        "archivo_pdf":  "/planos-pdf/34-gracias-a-dios.pdf"
+    },
+    {
+        "codigo_barrio":  "35",
+        "nombre_barrio":  "SAN PEDRO SUR",
+        "archivo_pdf":  "/planos-pdf/35-san-pedro-sur.pdf"
+    },
+    {
+        "codigo_barrio":  "36",
+        "nombre_barrio":  "LAS ACACIAS",
+        "archivo_pdf":  "/planos-pdf/36-las-acacias.pdf"
+    },
+    {
+        "codigo_barrio":  "37",
+        "nombre_barrio":  "SANTA MARTA",
+        "archivo_pdf":  "/planos-pdf/37-santa-marta.pdf"
+    },
+    {
+        "codigo_barrio":  "38",
+        "nombre_barrio":  "RECREO",
+        "archivo_pdf":  "/planos-pdf/38-recreo.pdf"
+    },
+    {
+        "codigo_barrio":  "39",
+        "nombre_barrio":  "BUENOS AIRES",
+        "archivo_pdf":  "/planos-pdf/39-buenos-aires.pdf"
+    },
+    {
+        "codigo_barrio":  "40",
+        "nombre_barrio":  "LAS VEGAS",
+        "archivo_pdf":  "/planos-pdf/40-las-vegas.pdf"
+    },
+    {
+        "codigo_barrio":  "42",
+        "nombre_barrio":  "ESTRUENDO",
+        "archivo_pdf":  "/planos-pdf/42-estruendo.pdf"
+    },
+    {
+        "codigo_barrio":  "43",
+        "nombre_barrio":  "LA VENECIA",
+        "archivo_pdf":  "/planos-pdf/43-la-venecia.pdf"
+    },
+    {
+        "codigo_barrio":  "44",
+        "nombre_barrio":  "MARCELO GERIN",
+        "archivo_pdf":  "/planos-pdf/44-marcelo-gerin.pdf"
+    },
+    {
+        "codigo_barrio":  "45",
+        "nombre_barrio":  "BARRIO SAGRADO CORAZON",
+        "archivo_pdf":  "/planos-pdf/45-barrio-sagrado-corazon.pdf"
+    },
+    {
+        "codigo_barrio":  "46",
+        "nombre_barrio":  "BARRIO LA PROVIDENCIA",
+        "archivo_pdf":  "/planos-pdf/46-barrio-la-providencia.pdf"
+    },
+    {
+        "codigo_barrio":  "47",
+        "nombre_barrio":  "COL IBERIA",
+        "archivo_pdf":  "/planos-pdf/47-col-iberia.pdf"
+    },
+    {
+        "codigo_barrio":  "48",
+        "nombre_barrio":  "VICTOR ARGE AL",
+        "archivo_pdf":  "/planos-pdf/48-victor-arge-al.pdf"
+    },
+    {
+        "codigo_barrio":  "49",
+        "nombre_barrio":  "15 DE SEPTIEMBRE",
+        "archivo_pdf":  "/planos-pdf/49-15-de-septiembre.pdf"
+    },
+    {
+        "codigo_barrio":  "50",
+        "nombre_barrio":  "LAS ARENAS",
+        "archivo_pdf":  "/planos-pdf/50-las-arenas.pdf"
+    },
+    {
+        "codigo_barrio":  "51",
+        "nombre_barrio":  "PROGRESO",
+        "archivo_pdf":  "/planos-pdf/51-progreso.pdf"
+    },
+    {
+        "codigo_barrio":  "54",
+        "nombre_barrio":  "PALOMAR",
+        "archivo_pdf":  "/planos-pdf/54-palomar.pdf"
+    },
+    {
+        "codigo_barrio":  "55",
+        "nombre_barrio":  "MIRAMONTE",
+        "archivo_pdf":  "/planos-pdf/55-miramonte.pdf"
+    },
+    {
+        "codigo_barrio":  "56",
+        "nombre_barrio":  "JULIO MIDENCE",
+        "archivo_pdf":  "/planos-pdf/56-julio-midence.pdf"
+    },
+    {
+        "codigo_barrio":  "59",
+        "nombre_barrio":  "MARIA MILAGROSA",
+        "archivo_pdf":  "/planos-pdf/59-maria-milagrosa.pdf"
+    },
+    {
+        "codigo_barrio":  "62",
+        "nombre_barrio":  "LOS LLANOS",
+        "archivo_pdf":  "/planos-pdf/62-los-llanos.pdf"
+    },
+    {
+        "codigo_barrio":  "64",
+        "nombre_barrio":  "COL ISIDRO PINEDA",
+        "archivo_pdf":  "/planos-pdf/64-col-isidro-pineda.pdf"
+    },
+    {
+        "codigo_barrio":  "65",
+        "nombre_barrio":  "PROVIDENCIA",
+        "archivo_pdf":  "/planos-pdf/65-providencia.pdf"
+    },
+    {
+        "codigo_barrio":  "70",
+        "nombre_barrio":  "EL EDEN",
+        "archivo_pdf":  "/planos-pdf/70-el-eden.pdf"
+    },
+    {
+        "codigo_barrio":  "90",
+        "nombre_barrio":  "NUEVA JERUSALEN",
+        "archivo_pdf":  "/planos-pdf/90-nueva-jerusalen.pdf"
+    },
+    {
+        "codigo_barrio":  "91",
+        "nombre_barrio":  "RESIDENCIAL VILLAS DEL CORTIJO",
+        "archivo_pdf":  "/planos-pdf/91-residencial-villas-del-cortijo.pdf"
+    },
+    {
+        "codigo_barrio":  "96",
+        "nombre_barrio":  "CUMBRE CHOROTEGA",
+        "archivo_pdf":  "/planos-pdf/96-cumbre-chorotega.pdf"
+    }
+]

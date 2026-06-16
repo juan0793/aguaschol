@@ -227,6 +227,109 @@ ON DUPLICATE KEY UPDATE
   barrio = VALUES(barrio),
   activo = VALUES(activo);
 
+CREATE TABLE IF NOT EXISTS planos_barrios (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  codigo_barrio VARCHAR(20) NOT NULL UNIQUE,
+  nombre_barrio VARCHAR(180) NOT NULL,
+  archivo_pdf VARCHAR(500) NOT NULL DEFAULT '',
+  estado ENUM('pendiente', 'asignado', 'en_edicion', 'borrador', 'enviado_revision', 'devuelto', 'aprobado', 'publicado') NOT NULL DEFAULT 'pendiente',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_planos_barrios_estado (estado),
+  KEY idx_planos_barrios_nombre (nombre_barrio)
+);
+
+CREATE TABLE IF NOT EXISTS planos_asignaciones (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barrio_id INT UNSIGNED NOT NULL,
+  tecnico_id INT UNSIGNED NOT NULL,
+  asignado_por INT UNSIGNED NULL,
+  estado ENUM('pendiente', 'asignado', 'en_edicion', 'borrador', 'enviado_revision', 'devuelto', 'aprobado', 'publicado') NOT NULL DEFAULT 'asignado',
+  fecha_asignacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_limite DATE NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_planos_asignaciones_barrio
+    FOREIGN KEY (barrio_id) REFERENCES planos_barrios(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_planos_asignaciones_tecnico
+    FOREIGN KEY (tecnico_id) REFERENCES app_users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_planos_asignaciones_asignador
+    FOREIGN KEY (asignado_por) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  KEY idx_planos_asignaciones_barrio (barrio_id),
+  KEY idx_planos_asignaciones_tecnico (tecnico_id),
+  KEY idx_planos_asignaciones_estado (estado)
+);
+
+CREATE TABLE IF NOT EXISTS planos_versiones (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barrio_id INT UNSIGNED NOT NULL,
+  numero_version INT UNSIGNED NOT NULL DEFAULT 1,
+  estado ENUM('borrador', 'enviado_revision', 'devuelto', 'aprobado', 'publicado') NOT NULL DEFAULT 'borrador',
+  creado_por INT UNSIGNED NULL,
+  aprobado_por INT UNSIGNED NULL,
+  observacion_revision TEXT NULL,
+  fecha_envio_revision TIMESTAMP NULL DEFAULT NULL,
+  fecha_aprobacion TIMESTAMP NULL DEFAULT NULL,
+  archivo_pdf_final VARCHAR(500) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_planos_versiones_barrio
+    FOREIGN KEY (barrio_id) REFERENCES planos_barrios(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_planos_versiones_creador
+    FOREIGN KEY (creado_por) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_planos_versiones_aprobador
+    FOREIGN KEY (aprobado_por) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  UNIQUE KEY uq_planos_versiones_barrio_numero (barrio_id, numero_version),
+  KEY idx_planos_versiones_estado (estado),
+  KEY idx_planos_versiones_barrio (barrio_id)
+);
+
+CREATE TABLE IF NOT EXISTS planos_elementos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barrio_id INT UNSIGNED NOT NULL,
+  version_id INT UNSIGNED NOT NULL,
+  tecnico_id INT UNSIGNED NULL,
+  tipo_elemento ENUM('linea', 'poligono', 'texto', 'codigo', 'punto', 'foto', 'observacion') NOT NULL,
+  data_json LONGTEXT NOT NULL,
+  estado ENUM('pendiente', 'asignado', 'en_edicion', 'borrador', 'enviado_revision', 'devuelto', 'aprobado', 'publicado') NOT NULL DEFAULT 'borrador',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_planos_elementos_barrio
+    FOREIGN KEY (barrio_id) REFERENCES planos_barrios(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_planos_elementos_version
+    FOREIGN KEY (version_id) REFERENCES planos_versiones(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_planos_elementos_tecnico
+    FOREIGN KEY (tecnico_id) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  KEY idx_planos_elementos_barrio (barrio_id),
+  KEY idx_planos_elementos_version (version_id),
+  KEY idx_planos_elementos_tipo (tipo_elemento)
+);
+
+CREATE TABLE IF NOT EXISTS planos_observaciones_revision (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  version_id INT UNSIGNED NOT NULL,
+  supervisor_id INT UNSIGNED NULL,
+  observacion TEXT NOT NULL,
+  estado ENUM('pendiente_revision', 'aprobado', 'devuelto', 'publicado') NOT NULL DEFAULT 'pendiente_revision',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_planos_observaciones_version
+    FOREIGN KEY (version_id) REFERENCES planos_versiones(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_planos_observaciones_supervisor
+    FOREIGN KEY (supervisor_id) REFERENCES app_users(id)
+    ON DELETE SET NULL,
+  KEY idx_planos_observaciones_version (version_id)
+);
+
 CREATE TABLE IF NOT EXISTS map_points (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   point_type VARCHAR(60) NOT NULL DEFAULT 'caja_registro',

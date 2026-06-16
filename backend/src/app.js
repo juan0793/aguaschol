@@ -14,6 +14,7 @@ import authRoutes from "./routes/authRoutes.js";
 import inmuebleRoutes from "./routes/inmuebleRoutes.js";
 import fieldValidationRoutes from "./routes/fieldValidationRoutes.js";
 import mapPointRoutes from "./routes/mapPointRoutes.js";
+import planosRoutes from "./routes/planosRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import transportRoutes from "./routes/transportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -24,6 +25,7 @@ const allowedOrigins = new Set([...env.frontendUrls, ...localOrigins]);
 const frontendDistAvailable = fs.existsSync(env.frontendDistDir);
 const frontendAssetsDir = path.join(env.frontendDistDir, "assets");
 const frontendAssetsAvailable = fs.existsSync(frontendAssetsDir);
+const planosPdfDir = path.resolve(env.dbRoot, "backend", "data", "planos");
 
 const getOriginHost = (value) => {
   if (!value) return "";
@@ -66,6 +68,7 @@ app.use(
 );
 app.use(express.json());
 app.use("/uploads", express.static(env.uploadDir));
+app.use("/planos-pdf", express.static(planosPdfDir));
 
 app.get("/api/health", (_req, res) => {
   const db = getDatabaseStatus();
@@ -137,6 +140,7 @@ app.use("/api/claves", requireAuth, claveLookupRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
 app.use("/api/field-validation", requireAuth, fieldValidationRoutes);
 app.use("/api/map-points", requireAuth, mapPointRoutes);
+app.use("/api/planos", requireAuth, planosRoutes);
 app.use("/api/profile", requireAuth, profileRoutes);
 app.use("/api/transport", requireAuth, transportRoutes);
 app.use("/api/users", requireAuth, requireAdmin, userRoutes);
