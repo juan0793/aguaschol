@@ -133,6 +133,7 @@ const DEFAULT_DASHBOARD_WIDGET_ORDER = [
 ];
 const RECORDS_PAGE_SIZE = 10;
 const MAP_DIARY_PRIMARY_LIMIT = 4;
+const MAP_DIARY_WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
 const REPORT_POINT_DANGER_RGB = [220, 38, 38];
 const REPORT_POINT_DANGER_FILL_RGB = [254, 242, 242];
 const REPORT_POINT_DANGER_BORDER_RGB = [248, 113, 113];
@@ -204,6 +205,75 @@ const getReportPointRowClassName = (point = {}, baseClassName = "") =>
     isRedReportPoint(point) ? "is-red-report-point" : "",
     isAlertReportPoint(point) ? "is-alert-report-point" : ""
   ].filter(Boolean).join(" ");
+
+const parseMapDiaryDate = (dateKey) => {
+  const [year, month, day] = String(dateKey || "").split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const getMapDiaryCalendarDays = (activeDateKey, groups = []) => {
+  const activeDate = parseMapDiaryDate(activeDateKey) || new Date();
+  const year = activeDate.getFullYear();
+  const month = activeDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+  const totalsByKey = new Map(groups.map((group) => [group.key, Number(group.total || 0)]));
+  const blanks = Array.from({ length: firstWeekday }, (_, index) => ({ key: `blank-${index}`, blank: true }));
+  const days = Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1;
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return { key, day, total: totalsByKey.get(key) || 0 };
+  });
+  return blanks.concat(days);
+};
+
+const MapDiaryCalendarCard = ({ activeDateKey, archivedCount = 0, groups, onOpenArchive, onSelectDate }) => {
+  const activeDate = parseMapDiaryDate(activeDateKey) || new Date();
+  const monthLabel = activeDate.toLocaleDateString("es-HN", { month: "short", year: "numeric" });
+  const workedDays = groups.filter((group) => Number(group.total || 0) > 0);
+
+  return (
+    <div className="map-diary-calendar-card" aria-label="Calendario de jornadas trabajadas">
+      <div className="map-diary-calendar-head">
+        <strong>Calendario</strong>
+        <span>{monthLabel}</span>
+      </div>
+      <div className="map-diary-calendar-grid" aria-hidden="true">
+        {MAP_DIARY_WEEKDAYS.map((day) => (
+          <span key={day} className="map-diary-calendar-weekday">{day}</span>
+        ))}
+      </div>
+      <div className="map-diary-calendar-grid">
+        {getMapDiaryCalendarDays(activeDateKey, groups).map((day) =>
+          day.blank ? (
+            <span key={day.key} className="map-diary-calendar-day is-blank" />
+          ) : (
+            <button
+              key={day.key}
+              type="button"
+              className={`map-diary-calendar-day ${day.total ? "has-work" : ""} ${activeDateKey === day.key ? "is-active" : ""}`}
+              title={day.total ? `${formatMapDiaryLabel(day.key)}: ${day.total} puntos` : formatMapDiaryLabel(day.key)}
+              onClick={() => day.total && onSelectDate(day.key)}
+              disabled={!day.total}
+            >
+              {day.day}
+            </button>
+          )
+        )}
+      </div>
+      <button
+        type="button"
+        className="map-diary-calendar-summary"
+        onClick={onOpenArchive}
+        disabled={!archivedCount || !onOpenArchive}
+      >
+        <strong>{workedDays.length}</strong>
+        <span>{archivedCount ? "ver anteriores" : "dias trabajados"}</span>
+      </button>
+    </div>
+  );
+};
 
 const readJsonResponse = async (response, fallbackMessage = "La API no devolvio una respuesta JSON valida.") => {
   const text = await response.text();
@@ -16477,11 +16547,17 @@ function App() {
                         ) : (
                           <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
                         )}
-                        {archivedMapDiaryGroups.length ? (
-                          <button type="button" className="map-diary-archive-card" onClick={openMapDiaryArchiveModal}>
-                            <strong>Jornadas anteriores</strong>
-                            <span>{archivedMapDiaryGroups.length} dias adjuntos</span>
-                          </button>
+                        {mapDiaryGroups.length ? (
+                          <MapDiaryCalendarCard
+                            activeDateKey={activeMapDiaryDateKey}
+                            archivedCount={archivedMapDiaryGroups.length}
+                            groups={mapDiaryGroups}
+                            onOpenArchive={openMapDiaryArchiveModal}
+                            onSelectDate={(dateKey) => {
+                              setMapDiaryDateKey(dateKey);
+                              setMapReportPage(1);
+                            }}
+                          />
                         ) : null}
                       </div>
                     </div>

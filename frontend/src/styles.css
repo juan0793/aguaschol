@@ -10792,6 +10792,108 @@ textarea {
   font-size: 0.76rem;
 }
 
+.map-diary-calendar-card {
+  display: grid;
+  gap: 0.45rem;
+  width: 214px;
+  min-width: 0;
+  padding: 0.7rem;
+  border-radius: 16px;
+  border: 1px solid rgba(21, 118, 209, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  color: #16324a;
+}
+
+.map-diary-calendar-head,
+.map-diary-calendar-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.map-diary-calendar-head strong {
+  font-size: 0.82rem;
+}
+
+.map-diary-calendar-head span,
+.map-diary-calendar-summary span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: capitalize;
+}
+
+.map-diary-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.map-diary-calendar-weekday,
+.map-diary-calendar-day {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.map-diary-calendar-weekday {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.map-diary-calendar-day {
+  border: 1px solid transparent;
+  background: rgba(241, 245, 249, 0.75);
+  color: rgba(22, 50, 74, 0.58);
+}
+
+.map-diary-calendar-day.has-work {
+  border-color: rgba(21, 118, 209, 0.2);
+  background: rgba(21, 118, 209, 0.1);
+  color: #123b5d;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.map-diary-calendar-day.has-work:hover {
+  background: rgba(21, 118, 209, 0.18);
+}
+
+.map-diary-calendar-day.is-active {
+  background: #1576d1;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(21, 118, 209, 0.22);
+}
+
+.map-diary-calendar-day.is-blank {
+  background: transparent;
+}
+
+.map-diary-calendar-day:disabled {
+  cursor: default;
+}
+
+.map-diary-calendar-summary {
+  padding-top: 0.15rem;
+  border: 0;
+  background: transparent;
+  color: #123b5d;
+  text-align: left;
+}
+
+.map-diary-calendar-summary strong {
+  font-size: 0.86rem;
+}
+
+.map-diary-calendar-summary:disabled {
+  cursor: default;
+}
+
 .map-diary-archive-modal {
   width: min(1380px, calc(100vw - 1rem));
   min-height: min(860px, calc(100vh - 1rem));
