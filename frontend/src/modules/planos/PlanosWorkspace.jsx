@@ -613,6 +613,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState("saved");
   const hydratedRef = useRef(false);
+  const hasLocalDraftRef = useRef(false);
   const lastSavedRef = useRef("[]");
   const historyRef = useRef({ past: [], future: [] });
 
@@ -628,6 +629,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   useEffect(() => {
     let cancelled = false;
     hydratedRef.current = false;
+    hasLocalDraftRef.current = false;
     apiFetch(`/planos/${barrio.id}/elementos`)
       .then((response) => response.json())
       .then((data) => {
@@ -639,8 +641,9 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         setElements(nextElements);
         historyRef.current = { past: [], future: [] };
         lastSavedRef.current = JSON.stringify(loadedElements);
+        hasLocalDraftRef.current = Boolean(localDraft);
         hydratedRef.current = true;
-        setSaveState(localDraft ? "dirty" : "saved");
+        setSaveState(localDraft ? "local" : "saved");
       })
       .catch(() => setSaveState("error"));
     return () => { cancelled = true; };
@@ -650,8 +653,14 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     if (!hydratedRef.current) return;
     const current = JSON.stringify(elements);
     const clean = current === lastSavedRef.current;
-    if (!clean) window.localStorage.setItem(localDraftKey(barrio.id), current);
-    setSaveState(clean ? "saved" : "dirty");
+    if (!clean) {
+      window.localStorage.setItem(localDraftKey(barrio.id), current);
+      setSaveState(hasLocalDraftRef.current ? "local" : "dirty");
+      return;
+    }
+    hasLocalDraftRef.current = false;
+    window.localStorage.removeItem(localDraftKey(barrio.id));
+    setSaveState("saved");
   }, [elements]);
 
   const commitElements = useCallback((updater) => {
@@ -681,7 +690,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     });
   };
 
-  const saveDraft = useCallback(async () => {
+  const saveDraft = useCallback(async ({ silent = false } = {}) => {
     setSaving(true);
     setSaveState("saving");
     try {
@@ -695,14 +704,16 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       setVersion(data.version || version);
       const savedElements = normalizeElements(data.elements || elements);
       lastSavedRef.current = JSON.stringify(savedElements);
+      hasLocalDraftRef.current = false;
       window.localStorage.removeItem(localDraftKey(barrio.id));
       setElements(savedElements);
       setSaveState("saved");
       return savedElements;
     } catch (error) {
+      hasLocalDraftRef.current = true;
       window.localStorage.setItem(localDraftKey(barrio.id), JSON.stringify(elements));
       setSaveState("local");
-      toast.error(error.message || "No se pudo guardar en el servidor. Borrador local pendiente.");
+      if (!silent) toast.error(error.message || "No se pudo guardar en el servidor. Borrador local pendiente.");
       throw error;
     } finally {
       setSaving(false);
@@ -710,11 +721,24 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   }, [apiFetch, barrio.id, elements, version]);
 
   useEffect(() => {
-    if (saveState !== "dirty") return undefined;
+    if (saveState !== "dirty" && saveState !== "local") return undefined;
     const timer = window.setTimeout(() => {
-      saveDraft().catch(() => {});
+      saveDraft({ silent: saveState === "local" }).catch(() => {});
     }, 20000);
     return () => window.clearTimeout(timer);
+  }, [saveDraft, saveState]);
+
+  useEffect(() => {
+    if (saveState !== "local") return undefined;
+    const syncLocalDraft = () => {
+      saveDraft({ silent: true }).catch(() => {});
+    };
+    const timer = window.setTimeout(syncLocalDraft, 1200);
+    window.addEventListener("online", syncLocalDraft);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("online", syncLocalDraft);
+    };
   }, [saveDraft, saveState]);
 
   useEffect(() => {
@@ -736,7 +760,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   }, [undo, redo]);
 
   useEffect(() => {
-    if (saveState === "dirty") saveDraft().catch(() => {});
+    if (saveState === "dirty" || saveState === "local") saveDraft({ silent: saveState === "local" }).catch(() => {});
   }, [tool]);
 
   const sendReview = async () => {
@@ -786,7 +810,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         <div className="planos-editor-status">
           <StatusBadge status={version?.estado || barrio.estado} />
           <span className={`planos-save-state is-${saveState}`}>
-            {saveState === "saving" ? "Guardando..." : saveState === "dirty" ? "Cambios sin guardar" : saveState === "local" ? "Guardado local, pendiente de sincronizar" : saveState === "error" ? "Error al guardar" : "Todo guardado"}
+            {saveState === "saving" ? "Guardando..." : saveState === "dirty" ? "Cambios sin guardar" : saveState === "local" ? "Borrador local pendiente de subir" : saveState === "error" ? "Error al guardar" : "Todo guardado"}
           </span>
         </div>
       </header>
@@ -806,7 +830,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar</button>
           <button type="button" onClick={() => setRotation(0)}>0 deg</button>
           {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
-          <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
+          <button type="button" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
           <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
         </div>
         <div className="planos-view-state">{tool} · Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg{tool === "linea" ? " · Mueve el mapa y agrega puntos" : ""}</div>
