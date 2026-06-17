@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BlossomCarousel } from "@blossom-carousel/react";
 import "@blossom-carousel/core/style.css";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
@@ -107,12 +107,45 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const FieldMap = lazy(() => import("./components/FieldMap"));
+const lazyWithRetry = (loader) => lazy(async () => {
+  try {
+    return await loader();
+  } catch (error) {
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    return loader();
+  }
+});
+
+const FieldMap = lazyWithRetry(() => import("./components/FieldMap"));
 const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
 const RecordsWorkspace = lazy(() => import("./components/records/RecordsWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
+
+class MapLoadBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="map-canvas map-canvas-loading">
+          <button type="button" className="button-secondary" onClick={() => this.setState({ failed: false })}>
+            Reintentar mapa
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
 const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
@@ -16206,19 +16239,21 @@ function App() {
                   ) : null}
                 </div>
               </div>
-              <Suspense fallback={<div className="map-canvas map-canvas-loading">Cargando mapa...</div>}>
-                <FieldMap
-                  apiUrl={API_URL}
-                  isActive={workspaceView === "map"}
-                  mapDraft={mapDraft}
-                  mapFocusRequest={mapFocusRequest}
-                  mapPoints={mapPointsForCanvas}
-                  onDraftChange={handleMapDraftFromMap}
-                  onSelectPoint={handleSelectMapPoint}
-                  onStatusChange={setMapStatus}
-                  selectedMapPointId={selectedMapPointId}
-                />
-              </Suspense>
+              <MapLoadBoundary>
+                <Suspense fallback={<div className="map-canvas map-canvas-loading">Cargando mapa...</div>}>
+                  <FieldMap
+                    apiUrl={API_URL}
+                    isActive={workspaceView === "map"}
+                    mapDraft={mapDraft}
+                    mapFocusRequest={mapFocusRequest}
+                    mapPoints={mapPointsForCanvas}
+                    onDraftChange={handleMapDraftFromMap}
+                    onSelectPoint={handleSelectMapPoint}
+                    onStatusChange={setMapStatus}
+                    selectedMapPointId={selectedMapPointId}
+                  />
+                </Suspense>
+              </MapLoadBoundary>
               {hiddenCanvasPointCount ? (
                 <p className="helper-text map-mobile-limit-note">
                   En movil se muestran los {mapPointsForCanvas.length} puntos mas recientes en el mapa para mantenerlo fluido. La bitacora conserva {visibleMapPoints.length} puntos.

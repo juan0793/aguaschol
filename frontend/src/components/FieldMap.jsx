@@ -16,6 +16,11 @@ const TILE_CACHE_BUSTER = "osm-20260407";
 const MOBILE_MEDIA_QUERY = "(max-width: 768px), (pointer: coarse)";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
+const invalidateSoon = (map) => {
+  window.requestAnimationFrame(() => map?.invalidateSize(false));
+  window.setTimeout(() => map?.invalidateSize(false), 80);
+  window.setTimeout(() => map?.invalidateSize(false), 280);
+};
 const getDraftMarkerColor = (draft = {}) => {
   if (draft.point_type === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
   if (draft.point_type === ALERT_MAP_POINT_TYPE) return ALERT_MAP_POINT_COLOR;
@@ -180,7 +185,7 @@ function FieldMap({
     });
 
     resizeObserver.observe(containerRef.current);
-    window.setTimeout(() => map.invalidateSize(false), 120);
+    invalidateSoon(map);
 
     return () => {
       resizeObserver.disconnect();
@@ -211,9 +216,7 @@ function FieldMap({
       return;
     }
 
-    window.requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize(false);
-    });
+    invalidateSoon(mapRef.current);
   }, [isActive]);
 
   useEffect(() => {
