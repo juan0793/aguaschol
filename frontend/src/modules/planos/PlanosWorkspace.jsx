@@ -52,9 +52,11 @@ const StatusBadge = ({ status }) => <span className={`planos-status is-${status 
 function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, polygonDraft, setPolygonDraft, zoom }) {
   const shellRef = useRef(null);
   const panRef = useRef(null);
+  const lineRef = useRef(null);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
+  const [lineDraft, setLineDraft] = useState([]);
   const pdfUrl = toPdfUrl(barrio?.archivo_pdf);
   const fitScale = Math.min(stageSize.width / background.width, stageSize.height / background.height) || 1;
   const scale = fitScale * zoom;
@@ -109,6 +111,12 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     return () => { cancelled = true; };
   }, [pdfUrl]);
 
+  useEffect(() => {
+    lineRef.current = null;
+    setLineDraft([]);
+    if (tool !== "poligono") setPolygonDraft([]);
+  }, [setPolygonDraft, tool]);
+
   const stagePoint = (stage) => {
     const pointer = stage.getPointerPosition();
     if (!pointer) return null;
@@ -128,15 +136,6 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       setElements((current) => [...current, { localId: uid(), tipo_elemento: "punto", data_json: { x: point.x, y: point.y, descripcion: content.trim() || "Punto GPS" } }]);
       return;
     }
-    if (tool === "linea") {
-      if (!polygonDraft.length) {
-        setPolygonDraft([point]);
-        return;
-      }
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: "linea", data_json: { puntos: [polygonDraft[0], point], color: "#0f172a", grosor: 3 } }]);
-      setPolygonDraft([]);
-      return;
-    }
     if (tool === "poligono") {
       setPolygonDraft((current) => [...current, point]);
     }
@@ -150,11 +149,21 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     const point = stagePoint(event.target.getStage());
     if (!point) return;
-    if (["linea", "poligono", "texto", "codigo", "punto"].includes(tool)) addElement(point);
+    if (tool === "linea") {
+      lineRef.current = point;
+      setLineDraft([point, point]);
+      return;
+    }
+    if (["poligono", "texto", "codigo", "punto"].includes(tool)) addElement(point);
     if (tool === "select") setSelectedId("");
   };
 
   const handleStageMove = (event) => {
+    if (tool === "linea" && lineRef.current) {
+      const point = stagePoint(event.target.getStage());
+      if (point) setLineDraft([lineRef.current, point]);
+      return;
+    }
     if (tool !== "pan" || !panRef.current) return;
     const pointer = event.target.getStage().getPointerPosition();
     if (!pointer || !panRef.current.pointer) return;
@@ -162,6 +171,17 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
       y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
     });
+  };
+
+  const handleStageUp = (event) => {
+    panRef.current = null;
+    if (tool !== "linea" || !lineRef.current) return;
+    const point = stagePoint(event.target.getStage());
+    const start = lineRef.current;
+    lineRef.current = null;
+    setLineDraft([]);
+    if (!point || Math.hypot(point.x - start.x, point.y - start.y) < 6) return;
+    setElements((current) => [...current, { localId: uid(), tipo_elemento: "linea", data_json: { puntos: [start, point], color: "#0f172a", grosor: 3 } }]);
   };
 
   const handleElementDown = (event, element) => {
@@ -205,8 +225,9 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
         onTouchStart={handleStageDown}
         onMouseMove={handleStageMove}
         onTouchMove={handleStageMove}
-        onMouseUp={() => { panRef.current = null; }}
-        onTouchEnd={() => { panRef.current = null; }}
+        onMouseUp={handleStageUp}
+        onTouchEnd={handleStageUp}
+        onMouseLeave={handleStageUp}
       >
         <Layer>
           {background.image ? <KonvaImage image={background.image} x={imageX} y={imageY} width={background.width * scale} height={background.height * scale} listening={false} /> : null}
@@ -256,6 +277,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                 />
               );
             })}
+            {lineDraft.length ? <Line points={lineDraft.flatMap((point) => [point.x, point.y])} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} /> : null}
             {polygonDraft.length ? <Line points={polygonDraft.flatMap((point) => [point.x, point.y])} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} /> : null}
           </Group>
         </Layer>

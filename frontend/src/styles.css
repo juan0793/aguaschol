@@ -11108,13 +11108,22 @@ textarea {
   position: sticky;
   top: 0.5rem;
   z-index: 4;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
   padding: 0.65rem;
   border-radius: 16px;
   margin-bottom: 0.8rem;
 }
 
+.planos-toolbar button {
+  flex: 0 0 auto;
+}
+
 .planos-toolbar input {
-  flex: 1 1 220px;
+  flex: 0 0 min(320px, 45vw);
+  min-width: 220px;
 }
 
 .planos-editor-grid {
