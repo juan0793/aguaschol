@@ -68,7 +68,9 @@ app.use(
 );
 app.use(express.json());
 app.use("/uploads", express.static(env.uploadDir));
+app.use("/api/uploads", express.static(env.uploadDir));
 app.use("/planos-pdf", express.static(planosPdfDir));
+app.use("/api/planos-pdf", express.static(planosPdfDir));
 
 app.get("/api/health", (_req, res) => {
   const db = getDatabaseStatus();

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL, FILES_URL } from "../../config/api";
+import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
 
 const tools = [
@@ -25,8 +25,7 @@ const statusLabel = {
 };
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-const fileBaseUrl = FILES_URL || API_URL.replace(/\/api$/, "");
-const toPdfUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${fileBaseUrl}${value}` : "");
+const toPdfUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
 const normalizeElements = (elements = []) =>
   elements.map((item) => ({
     localId: item.localId || String(item.id || uid()),
