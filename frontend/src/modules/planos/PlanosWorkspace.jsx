@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, Save, Send, Type, Undo2 } from "lucide-react";
-import { Circle, Group, Image as KonvaImage, Layer, Line, Stage, Text } from "react-konva";
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from "react-konva";
+import { toast } from "sonner";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
-import { pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
+import { nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -53,7 +54,8 @@ const statusLabel = {
 };
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-const toPdfUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
+const toAssetUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
+const isPdf = (value = "") => /\.pdf($|\?)/i.test(value);
 const localDraftKey = (barrioId) => `planos-draft-${barrioId}`;
 const readLocalDraft = (barrioId) => {
   try {
@@ -87,12 +89,12 @@ const StatusBadge = ({ status }) => <span className={`planos-status is-${status 
 function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, activeLayer, polygonDraft, setPolygonDraft, zoom, setZoom }) {
   const shellRef = useRef(null);
   const panRef = useRef(null);
-  const draftRef = useRef(null);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
-  const [draftObject, setDraftObject] = useState(null);
-  const pdfUrl = toPdfUrl(barrio?.archivo_pdf);
+  const [lineDraft, setLineDraft] = useState(null);
+  const [pointerPreview, setPointerPreview] = useState(null);
+  const baseUrl = toAssetUrl(barrio?.baseUrl || barrio?.base_url || barrio?.fondo_url || barrio?.imagen_fondo || barrio?.archivo_fondo || barrio?.archivo_pdf);
   const fitScale = Math.min(stageSize.width / background.width, stageSize.height / background.height) || 1;
   const scale = fitScale * zoom;
   const imageX = (stageSize.width - background.width * scale) / 2 + viewPos.x;
@@ -112,18 +114,29 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   useEffect(() => {
     let cancelled = false;
     setViewPos({ x: 0, y: 0 });
-    if (!pdfUrl) {
+    if (!baseUrl) {
       setBackground({ image: null, width: 1000, height: 700, loading: false, error: "" });
       return () => { cancelled = true; };
     }
-    if (pdfBackgroundCache.has(pdfUrl)) {
-      setBackground({ ...pdfBackgroundCache.get(pdfUrl), loading: false, error: "" });
+    if (pdfBackgroundCache.has(baseUrl)) {
+      setBackground({ ...pdfBackgroundCache.get(baseUrl), loading: false, error: "" });
       return () => { cancelled = true; };
     }
     setBackground((current) => ({ ...current, loading: true, error: "" }));
     (async () => {
+      if (!isPdf(baseUrl)) {
+        const image = new window.Image();
+        image.crossOrigin = "anonymous";
+        image.onload = () => {
+          const next = { image, width: image.naturalWidth || 1000, height: image.naturalHeight || 700 };
+          pdfBackgroundCache.set(baseUrl, next);
+          if (!cancelled) setBackground({ ...next, loading: false, error: "" });
+        };
+        image.src = baseUrl;
+        return;
+      }
       const pdfjsLib = await loadPdfJs();
-      const bytes = await fetch(pdfUrl).then((response) => {
+      const bytes = await fetch(baseUrl).then((response) => {
         if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
         return response.arrayBuffer();
       });
@@ -138,7 +151,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       const image = new window.Image();
       image.onload = () => {
         const next = { image, width: canvas.width, height: canvas.height };
-        pdfBackgroundCache.set(pdfUrl, next);
+        pdfBackgroundCache.set(baseUrl, next);
         if (!cancelled) setBackground({ ...next, loading: false, error: "" });
       };
       image.src = canvas.toDataURL("image/png");
@@ -146,11 +159,11 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       if (!cancelled) setBackground({ image: null, width: 1000, height: 700, loading: false, error: error.message || "No se pudo preparar el fondo." });
     });
     return () => { cancelled = true; };
-  }, [pdfUrl]);
+  }, [baseUrl]);
 
   useEffect(() => {
-    draftRef.current = null;
-    setDraftObject(null);
+    setLineDraft(null);
+    setPointerPreview(null);
     if (tool !== "poligono") setPolygonDraft([]);
   }, [setPolygonDraft, tool]);
 
@@ -161,6 +174,18 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       x: Math.round((pointer.x - imageX) / scale),
       y: Math.round((pointer.y - imageY) / scale)
     };
+  };
+
+  const addLinePoint = (point) => {
+    const next = nextLineDraft(lineDraft, point, activeLayer);
+    if (!next.line) {
+      setLineDraft(next.draft);
+      setPointerPreview(point);
+      return;
+    }
+    setElements((current) => [...current, { localId: uid(), ...next.line }]);
+    setLineDraft(next.draft);
+    setPointerPreview(null);
   };
 
   const addElement = (point) => {
@@ -187,9 +212,11 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     const point = stagePoint(event.target.getStage());
     if (!point) return;
     if (tool === "linea") {
-      const draft = { tipo_elemento: "linea", data_json: { puntos: [point, point], color: "#1576d1", grosor: 3 } };
-      draftRef.current = draft;
-      setDraftObject(draft);
+      addLinePoint(point);
+      return;
+    }
+    if (tool === "borrar") {
+      toast.info("Esta linea pertenece al plano base. Solo puedes borrar correcciones agregadas.");
       return;
     }
     if (["poligono", "texto", "codigo", "punto"].includes(tool)) addElement(point);
@@ -197,16 +224,9 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageMove = (event) => {
-    if (tool === "linea" && draftRef.current?.tipo_elemento === "linea") {
+    if (tool === "linea" && lineDraft) {
       const point = stagePoint(event.target.getStage());
-      if (point) {
-        const next = {
-          ...draftRef.current,
-          data_json: { ...draftRef.current.data_json, puntos: [draftRef.current.data_json.puntos[0], point] }
-        };
-        draftRef.current = next;
-        setDraftObject(next);
-      }
+      if (point) setPointerPreview(point);
       return;
     }
     if (tool !== "pan" || !panRef.current) return;
@@ -220,13 +240,6 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const handleStageUp = (event) => {
     panRef.current = null;
-    if (tool !== "linea" || draftRef.current?.tipo_elemento !== "linea") return;
-    const point = stagePoint(event.target.getStage()) || draftRef.current.data_json.puntos?.[1];
-    const start = draftRef.current.data_json.puntos?.[0];
-    draftRef.current = null;
-    setDraftObject(null);
-    if (!point || Math.hypot(point.x - start.x, point.y - start.y) < 6) return;
-    setElements((current) => [...current, { localId: uid(), tipo_elemento: "linea", data_json: { capa: activeLayer, puntos: [start, point], color: "#0f172a", grosor: 3 } }]);
   };
 
   const handleElementDown = (event, element) => {
@@ -234,6 +247,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (tool === "borrar") {
       setElements((current) => current.filter((item) => item.localId !== element.localId));
       setSelectedId((current) => (current === element.localId ? "" : current));
+      toast.success("Objeto eliminado.");
       return;
     }
     setSelectedId(element.localId);
@@ -258,8 +272,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   return (
-    <div ref={shellRef} className="planos-editor-stage">
-      {background.loading || background.error || !pdfUrl ? (
+    <div ref={shellRef} className={`planos-editor-stage is-tool-${tool}`}>
+      {background.loading || background.error || !baseUrl ? (
         <div className="planos-canvas-message">{background.loading ? "Preparando fondo..." : background.error || "Sube un PDF base para este barrio."}</div>
       ) : null}
       <Stage
@@ -290,7 +304,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                     fill={element.tipo_elemento === "poligono" ? data.relleno || "rgba(21,118,209,0.12)" : undefined}
                     stroke={stroke}
                     strokeWidth={selected ? Number(data.grosor || 2) + 2 : Number(data.grosor || 3)}
-                    hitStrokeWidth={24}
+                    hitStrokeWidth={44}
                     draggable={tool === "select" || tool === "pan"}
                     onMouseDown={(event) => handleElementDown(event, element)}
                     onTouchStart={(event) => handleElementDown(event, element)}
@@ -301,31 +315,34 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               if (element.tipo_elemento === "punto") {
                 return (
                   <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} draggable={tool === "select" || tool === "pan"} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
+                    <Circle radius={26} fill="rgba(0,0,0,0)" />
                     <Circle radius={12} fill={selected ? "#0f9f8f" : data.color || "#1576d1"} />
                   </Group>
                 );
               }
+              const fontSize = Number(data.fontSize || 22);
+              const textValue = data.contenido || "";
               return (
-                <Text
+                <Group
                   key={element.localId}
                   x={Number(data.x || 0)}
                   y={Number(data.y || 0)}
-                  text={data.contenido || ""}
-                  fontSize={Number(data.fontSize || 22)}
-                  fill={selected ? "#1576d1" : data.color || "#0f172a"}
                   rotation={Number(data.rotacion || 0)}
                   draggable={tool === "select" || tool === "pan"}
                   onMouseDown={(event) => handleElementDown(event, element)}
                   onTouchStart={(event) => handleElementDown(event, element)}
                   onDragEnd={(event) => moveByDrag(element, event)}
-                />
+                >
+                  <Rect width={Math.max(48, textValue.length * fontSize * 0.65)} height={Math.max(34, fontSize * 1.4)} fill="rgba(0,0,0,0)" />
+                  <Text text={textValue} fontSize={fontSize} fill={selected ? "#1576d1" : data.color || "#0f172a"} />
+                </Group>
               );
             })}
           </Group>
         </Layer>
         <Layer name="draft-layer">
           <Group x={imageX} y={imageY} scaleX={scale} scaleY={scale}>
-            {draftObject?.tipo_elemento === "linea" ? <Line points={(draftObject.data_json.puntos || []).flatMap((point) => [point.x, point.y])} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} /> : null}
+            {lineDraft && pointerPreview ? <Line points={[lineDraft.start.x, lineDraft.start.y, pointerPreview.x, pointerPreview.y]} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} listening={false} /> : null}
             {polygonDraft.length ? <Line points={polygonDraft.flatMap((point) => [point.x, point.y])} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} /> : null}
           </Group>
         </Layer>
@@ -490,15 +507,19 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         </div>
       </header>
       <div className="planos-toolbar">
-        {tools.map(([key, label, ToolIcon]) => <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}><ToolIcon size={16} />{label}</button>)}
-        <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-        <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Texto, codigo u observacion" />
-        <button type="button" onClick={undo} disabled={!canUndo}><Undo2 size={16} />Deshacer</button>
-        <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
-        <button type="button" onClick={() => setZoom((current) => Math.max(0.15, Number((current - 0.5).toFixed(2))))}><Minus size={16} />Zoom</button>
-        <button type="button" onClick={() => setZoom((current) => Math.min(12, Number((current + 0.5).toFixed(2))))}><Plus size={16} />Zoom</button>
-        <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
-        <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
+        <div className="planos-tool-group">
+          {tools.map(([key, label, ToolIcon]) => <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}><ToolIcon size={16} />{label}</button>)}
+        </div>
+        <div className="planos-action-group">
+          <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+          {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Texto, codigo u observacion" /> : null}
+          <button type="button" onClick={undo} disabled={!canUndo}><Undo2 size={16} />Deshacer</button>
+          <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
+          <button type="button" onClick={() => setZoom((current) => Math.max(0.15, Number((current - 0.5).toFixed(2))))}><Minus size={16} />Zoom</button>
+          <button type="button" onClick={() => setZoom((current) => Math.min(12, Number((current + 0.5).toFixed(2))))}><Plus size={16} />Zoom</button>
+          <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
+          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
+        </div>
       </div>
       <div className="planos-editor-grid">
         <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} content={content} activeLayer={activeLayer} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} />
