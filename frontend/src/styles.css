@@ -11017,7 +11017,10 @@ body.planos-focus-mode .page-shell > main {
 .planos-create-card input,
 .planos-create-card select,
 .planos-picker select,
+.planos-layer-select,
+.planos-layer-select select,
 .planos-toolbar input,
+.planos-properties select,
 .planos-properties input {
   min-height: 42px;
   border: 1px solid rgba(21, 118, 209, 0.18);
@@ -11191,6 +11194,29 @@ body.planos-focus-mode .page-shell > main {
   white-space: nowrap;
 }
 
+.planos-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.planos-layer-select {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 36px;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.45rem;
+  background: #ffffff;
+  color: #123b5d;
+}
+
+.planos-layer-select select {
+  min-height: 34px;
+  border: 0;
+  padding: 0 1.4rem 0 0.1rem;
+  font-weight: 800;
+}
+
 .planos-toolbar input {
   flex: 0 0 min(320px, 45vw);
   min-width: 220px;
@@ -11328,7 +11354,8 @@ body.planos-focus-mode .page-shell > main {
   font-weight: 800;
 }
 
-.planos-properties input {
+.planos-properties input,
+.planos-properties select {
   width: 100%;
   box-sizing: border-box;
 }

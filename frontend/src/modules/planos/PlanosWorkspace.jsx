@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Edit3, Eraser, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Save, Send, Type } from "lucide-react";
+import { Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, Save, Send, Type, Undo2 } from "lucide-react";
 import { Circle, Group, Image as KonvaImage, Layer, Line, Stage, Text } from "react-konva";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
+import { pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -34,6 +35,12 @@ const tools = [
   ["borrar", "Borrar", Eraser]
 ];
 
+const editorLayers = [
+  ["correcciones", "Correcciones"],
+  ["codigos", "Codigos"],
+  ["puntos", "Puntos"]
+];
+
 const statusLabel = {
   pendiente: "Pendiente",
   asignado: "Asignado",
@@ -61,7 +68,10 @@ const normalizeElements = (elements = []) =>
   elements.map((item) => ({
     localId: item.localId || String(item.id || uid()),
     tipo_elemento: item.tipo_elemento || item.tipo || "texto",
-    data_json: item.data_json?.data_json || item.data_json || item.data || {}
+    data_json: {
+      capa: "correcciones",
+      ...(item.data_json?.data_json || item.data_json || item.data || {})
+    }
   }));
 
 const moveElement = (element, dx, dy) => {
@@ -74,7 +84,7 @@ const moveElement = (element, dx, dy) => {
 
 const StatusBadge = ({ status }) => <span className={`planos-status is-${status || "pendiente"}`}>{statusLabel[status] || status || "Pendiente"}</span>;
 
-function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, polygonDraft, setPolygonDraft, zoom, setZoom }) {
+function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, activeLayer, polygonDraft, setPolygonDraft, zoom, setZoom }) {
   const shellRef = useRef(null);
   const panRef = useRef(null);
   const draftRef = useRef(null);
@@ -156,11 +166,11 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const addElement = (point) => {
     if (tool === "texto" || tool === "codigo") {
       const text = content.trim() || (tool === "codigo" ? "10-00-00-00" : "Texto");
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: tool, data_json: { x: point.x, y: point.y, contenido: text, fontSize: tool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
+      setElements((current) => [...current, { localId: uid(), tipo_elemento: tool, data_json: { capa: activeLayer, x: point.x, y: point.y, contenido: text, fontSize: tool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
       return;
     }
     if (tool === "punto") {
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: "punto", data_json: { x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1" } }]);
+      setElements((current) => [...current, { localId: uid(), tipo_elemento: "punto", data_json: { capa: activeLayer, x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1" } }]);
       return;
     }
     if (tool === "poligono") {
@@ -216,7 +226,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     draftRef.current = null;
     setDraftObject(null);
     if (!point || Math.hypot(point.x - start.x, point.y - start.y) < 6) return;
-    setElements((current) => [...current, { localId: uid(), tipo_elemento: "linea", data_json: { puntos: [start, point], color: "#0f172a", grosor: 3 } }]);
+    setElements((current) => [...current, { localId: uid(), tipo_elemento: "linea", data_json: { capa: activeLayer, puntos: [start, point], color: "#0f172a", grosor: 3 } }]);
   };
 
   const handleElementDown = (event, element) => {
@@ -243,7 +253,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const finishPolygon = () => {
     if (polygonDraft.length < 3) return;
-    setElements((current) => [...current, { localId: uid(), tipo_elemento: "poligono", data_json: { puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
+    setElements((current) => [...current, { localId: uid(), tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
     setPolygonDraft([]);
   };
 
@@ -331,6 +341,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const [version, setVersion] = useState(null);
   const [tool, setTool] = useState("select");
   const [content, setContent] = useState("");
+  const [activeLayer, setActiveLayer] = useState("correcciones");
   const [selectedId, setSelectedId] = useState("");
   const [polygonDraft, setPolygonDraft] = useState([]);
   const [zoom, setZoom] = useState(1);
@@ -338,8 +349,11 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const [saveState, setSaveState] = useState("saved");
   const hydratedRef = useRef(false);
   const lastSavedRef = useRef("[]");
+  const historyRef = useRef({ past: [], future: [] });
 
   const selected = elements.find((item) => item.localId === selectedId);
+  const canUndo = historyRef.current.past.length > 0;
+  const canRedo = historyRef.current.future.length > 0;
 
   useEffect(() => {
     document.body.classList.add("planos-focus-mode");
@@ -358,6 +372,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         const nextElements = localDraft ? normalizeElements(localDraft) : loadedElements;
         setVersion(data.version || null);
         setElements(nextElements);
+        historyRef.current = { past: [], future: [] };
         lastSavedRef.current = JSON.stringify(loadedElements);
         hydratedRef.current = true;
         setSaveState(localDraft ? "dirty" : "saved");
@@ -373,6 +388,33 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     if (!clean) window.localStorage.setItem(localDraftKey(barrio.id), current);
     setSaveState(clean ? "saved" : "dirty");
   }, [elements]);
+
+  const commitElements = useCallback((updater) => {
+    setElements((current) => {
+      const next = typeof updater === "function" ? updater(current) : updater;
+      const result = pushEditorHistory(historyRef.current, current, next);
+      historyRef.current = result.history;
+      return result.next;
+    });
+  }, []);
+
+  const undo = () => {
+    setElements((current) => {
+      const result = undoEditorHistory(historyRef.current, current);
+      historyRef.current = result.history;
+      setSelectedId("");
+      return result.next;
+    });
+  };
+
+  const redo = () => {
+    setElements((current) => {
+      const result = redoEditorHistory(historyRef.current, current);
+      historyRef.current = result.history;
+      setSelectedId("");
+      return result.next;
+    });
+  };
 
   const saveDraft = useCallback(async () => {
     setSaving(true);
@@ -429,7 +471,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
 
   const updateSelected = (patch) => {
     if (!selected) return;
-    setElements((current) => current.map((item) => item.localId === selected.localId ? { ...item, data_json: { ...item.data_json, ...patch } } : item));
+    commitElements((current) => current.map((item) => item.localId === selected.localId ? { ...item, data_json: { ...item.data_json, ...patch } } : item));
   };
 
   return (
@@ -449,20 +491,24 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       </header>
       <div className="planos-toolbar">
         {tools.map(([key, label, ToolIcon]) => <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}><ToolIcon size={16} />{label}</button>)}
+        <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Texto, codigo u observacion" />
+        <button type="button" onClick={undo} disabled={!canUndo}><Undo2 size={16} />Deshacer</button>
+        <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
         <button type="button" onClick={() => setZoom((current) => Math.max(0.15, Number((current - 0.5).toFixed(2))))}><Minus size={16} />Zoom</button>
         <button type="button" onClick={() => setZoom((current) => Math.min(12, Number((current + 0.5).toFixed(2))))}><Plus size={16} />Zoom</button>
         <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
         <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
       </div>
       <div className="planos-editor-grid">
-        <CanvasCroquis barrio={barrio} elements={elements} setElements={setElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} content={content} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} />
+        <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} content={content} activeLayer={activeLayer} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} />
         <AnimatePresence>
         {selected ? <motion.aside className="planos-properties" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 18 }}>
           <p className="sheet-kicker">Propiedades</p>
           <strong>{selected.tipo_elemento}</strong>
           {["texto", "codigo"].includes(selected.tipo_elemento) ? <label>Texto <input value={selected.data_json.contenido || ""} onChange={(event) => updateSelected({ contenido: event.target.value })} /></label> : null}
           {selected.tipo_elemento === "punto" ? <label>Etiqueta <input value={selected.data_json.descripcion || ""} onChange={(event) => updateSelected({ descripcion: event.target.value })} /></label> : null}
+          <label>Capa <select value={selected.data_json.capa || "correcciones"} onChange={(event) => updateSelected({ capa: event.target.value })}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           <label>Color <input type="color" value={selected.data_json.color || selected.data_json.colorBorde || "#0f172a"} onChange={(event) => updateSelected({ color: event.target.value, colorBorde: event.target.value })} /></label>
           {["texto", "codigo"].includes(selected.tipo_elemento) ? (
             <>
@@ -478,11 +524,11 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           ) : (
             <label>Grosor <input type="number" min="1" max="20" value={selected.data_json.grosor || 3} onChange={(event) => updateSelected({ grosor: Number(event.target.value || 3) })} /></label>
           )}
-          <button type="button" className="button-secondary" onClick={() => setElements((current) => current.filter((item) => item.localId !== selected.localId))}>Eliminar</button>
+          <button type="button" className="button-secondary" onClick={() => commitElements((current) => current.filter((item) => item.localId !== selected.localId))}>Eliminar</button>
           <button type="button" className="button-secondary" onClick={() => setSelectedId("")}>Cerrar</button>
           <div className="planos-mini-stats">
             <span>{elements.length}</span>
-            <small>objetos JSON</small>
+            <small>{editorLayers.map(([key, label]) => `${label}: ${elements.filter((item) => (item.data_json?.capa || "correcciones") === key).length}`).join(" · ")}</small>
           </div>
         </motion.aside> : null}
         </AnimatePresence>
