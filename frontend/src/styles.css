@@ -10903,8 +10903,33 @@ textarea {
   color: #14344f;
 }
 
+body.planos-focus-mode {
+  overflow: hidden;
+}
+
+body.planos-focus-mode .page-shell {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+body.planos-focus-mode .app-sidebar,
+body.planos-focus-mode .app-sidebar-backdrop,
+body.planos-focus-mode .app-bottom-nav,
+body.planos-focus-mode .app-chrome > .search-card,
+body.planos-focus-mode .app-chrome > .app-topbar {
+  display: none !important;
+}
+
+body.planos-focus-mode .page-shell > main {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+}
+
 .planos-editor {
-  width: min(100vw - 1rem, 1800px);
+  width: 100vw;
   max-width: none;
   height: 100vh;
   height: 100dvh;
@@ -10961,7 +10986,8 @@ textarea {
 .planos-create-card button,
 .planos-picker button,
 .planos-table button,
-.planos-finish-polygon {
+.planos-finish-polygon,
+.planos-fit-button {
   min-height: 42px;
   border: 1px solid rgba(21, 118, 209, 0.18);
   border-radius: 12px;
@@ -11100,25 +11126,69 @@ textarea {
 }
 
 .planos-editor-head {
-  margin-bottom: 0.8rem;
-  min-height: 74px;
+  min-height: 64px;
+  margin: 0.45rem 0.5rem 0.45rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+}
+
+.planos-editor-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.planos-save-state {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.planos-save-state.is-dirty {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.planos-save-state.is-saving {
+  background: #eef6ff;
+  color: #0d4d86;
+}
+
+.planos-save-state.is-error {
+  background: #fff1f2;
+  color: #9b202d;
 }
 
 .planos-toolbar {
-  position: sticky;
-  top: 0.5rem;
+  position: relative;
   z-index: 4;
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: thin;
-  padding: 0.65rem;
-  border-radius: 16px;
-  margin-bottom: 0.8rem;
+  gap: 0.45rem;
+  margin: 0 0.5rem 0.45rem;
+  padding: 0.45rem;
+  border-radius: 12px;
 }
 
 .planos-toolbar button {
+  display: inline-flex;
   flex: 0 0 auto;
+  min-height: 36px;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.62rem;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
 .planos-toolbar input {
@@ -11131,8 +11201,9 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.8rem;
-  height: calc(100dvh - 172px);
+  height: calc(100dvh - 126px);
   min-height: 420px;
+  margin: 0 0.5rem 0.5rem;
 }
 
 .planos-editor-stage {
@@ -11231,6 +11302,13 @@ textarea {
   z-index: 3;
 }
 
+.planos-fit-button {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 3;
+}
+
 .planos-properties {
   position: absolute;
   top: 0.8rem;
@@ -11292,7 +11370,7 @@ textarea {
   }
 
   .planos-editor-grid {
-    height: calc(100dvh - 218px);
+    height: calc(100dvh - 198px);
     min-height: 420px;
   }
 
