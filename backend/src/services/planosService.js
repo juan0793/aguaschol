@@ -113,7 +113,8 @@ const ensureDraftVersionMemory = (barrioId, user) => {
 const assertCanEditMemory = (barrioId, user) => {
   if (isAdmin(user)) return;
   const assigned = memory.asignaciones.some((item) => Number(item.barrio_id) === Number(barrioId) && Number(item.tecnico_id) === Number(user?.id));
-  if (!assigned) fail("Solo puedes editar croquis asignados a tu usuario.", 403);
+  const draftOwner = memory.versiones.some((item) => Number(item.barrio_id) === Number(barrioId) && Number(item.creado_por) === Number(user?.id) && !["aprobado", "publicado"].includes(item.estado));
+  if (!assigned && !draftOwner) fail("Solo puedes editar croquis asignados a tu usuario.", 403);
 };
 
 const mapVersionRow = (row = {}) => ({
@@ -296,8 +297,17 @@ const assertCanEdit = async (barrioId, user) => {
   if (env.useMemoryDb) return assertCanEditMemory(barrioId, user);
   if (isAdmin(user)) return;
   const [[row]] = await getPool().query(
-    "SELECT id FROM planos_asignaciones WHERE barrio_id = ? AND tecnico_id = ? LIMIT 1",
-    [barrioId, user.id]
+    `
+      SELECT a.id
+      FROM planos_asignaciones a
+      WHERE a.barrio_id = ? AND a.tecnico_id = ?
+      UNION
+      SELECT v.id
+      FROM planos_versiones v
+      WHERE v.barrio_id = ? AND v.creado_por = ? AND v.estado NOT IN ('aprobado', 'publicado')
+      LIMIT 1
+    `,
+    [barrioId, user.id, barrioId, user.id]
   );
   if (!row) fail("Solo puedes editar croquis asignados a tu usuario.", 403);
 };

@@ -630,6 +630,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     } catch (error) {
       window.localStorage.setItem(localDraftKey(barrio.id), JSON.stringify(elements));
       setSaveState("local");
+      toast.error(error.message || "No se pudo guardar en el servidor. Borrador local pendiente.");
       throw error;
     } finally {
       setSaving(false);
@@ -668,7 +669,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
 
   const sendReview = async () => {
     if (!elements.length) {
-      window.alert("Agrega al menos un cambio antes de enviar a revision.");
+      toast.warning("Agrega al menos un cambio antes de enviar a revision.");
       return;
     }
     await saveDraft();
@@ -680,11 +681,19 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
 
   const closeEditor = async () => {
     if (saveState === "dirty" || saveState === "local") {
-      const shouldSave = window.confirm("Tienes cambios sin guardar. ¿Quieres guardar el borrador antes de salir?");
-      if (!shouldSave) return;
-      await saveDraft().catch(() => {
-        window.alert("No se pudo guardar en el servidor. El borrador queda guardado localmente en este equipo.");
+      toast.warning("Tienes cambios sin guardar.", {
+        description: "Guarda el borrador antes de salir para continuar despues.",
+        action: {
+          label: "Guardar",
+          onClick: async () => {
+            await saveDraft().catch(() => {
+              toast.warning("No se pudo guardar en el servidor. El borrador queda guardado localmente en este equipo.");
+            });
+            onClose();
+          }
+        }
       });
+      return;
     }
     onClose();
   };
@@ -822,7 +831,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
 
   const assign = async (barrioId) => {
     if (!form.tecnico_id) {
-      window.alert("Selecciona un tecnico.");
+      toast.warning("Selecciona un tecnico.");
       return;
     }
     const response = await apiFetch("/planos/asignaciones", {
@@ -830,14 +839,25 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ barrio_id: barrioId, tecnico_id: form.tecnico_id })
     });
-    if (!response.ok) window.alert((await response.json()).message || "No se pudo asignar.");
+    if (!response.ok) toast.error((await response.json()).message || "No se pudo asignar.");
     await load();
   };
 
   const review = async (version, action) => {
     if (action === "publicar") {
-      const ok = window.confirm("Publicar en Mapas Actualizados\n\nEsta accion mandara el croquis a Mapas Actualizados. El tecnico ya no podra modificar esta version sin crear una nueva revision.");
-      if (!ok) return;
+      toast.warning("Publicar en Mapas Actualizados", {
+        description: "Esta accion mandara el croquis a Mapas Actualizados.",
+        action: {
+          label: "Publicar",
+          onClick: async () => {
+            const response = await apiFetch(`/planos/versiones/${version.id}/publicar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ observacion: "" }) });
+            if (!response.ok) toast.error((await response.json()).message || "No se pudo publicar.");
+            else toast.success("Publicado en Mapas Actualizados.");
+            await load();
+          }
+        }
+      });
+      return;
     }
     const observacion = action === "devolver" ? window.prompt("Observacion para devolver:", "") || "" : "";
     const response = await apiFetch(`/planos/versiones/${version.id}/${action}`, {
@@ -845,7 +865,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ observacion })
     });
-    if (!response.ok) window.alert((await response.json()).message || "No se pudo revisar.");
+    if (!response.ok) toast.error((await response.json()).message || "No se pudo revisar.");
     await load();
   };
 
