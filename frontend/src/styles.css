@@ -11095,7 +11095,7 @@ textarea {
 .planos-canvas-zoom {
   position: relative;
   min-width: 100%;
-  min-height: 100%;
+  min-height: 680px;
 }
 
 .planos-pdf-base,
@@ -11110,8 +11110,15 @@ textarea {
 .planos-pdf-empty {
   display: grid;
   place-items: center;
+  z-index: 1;
+  background:
+    linear-gradient(rgba(21, 118, 209, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(21, 118, 209, 0.08) 1px, transparent 1px),
+    #eaf3fb;
+  background-size: 32px 32px;
   color: var(--text-muted);
   font-weight: 800;
+  text-align: center;
 }
 
 .planos-svg-layer {

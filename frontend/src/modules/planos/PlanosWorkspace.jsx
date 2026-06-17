@@ -30,7 +30,7 @@ const normalizeElements = (elements = []) =>
   elements.map((item) => ({
     localId: item.localId || String(item.id || uid()),
     tipo_elemento: item.tipo_elemento || item.tipo || "texto",
-    data_json: item.data_json || item.data || {}
+    data_json: item.data_json?.data_json || item.data_json || item.data || {}
   }));
 
 const elementCenter = (element) => {
@@ -125,7 +125,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   return (
     <div className="planos-editor-stage">
-      <div className="planos-canvas-zoom" style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}>
+      <div className="planos-canvas-zoom" style={{ width: `${zoom * 100}%`, height: `${700 * zoom}px` }}>
         {pdfUrl ? <object className="planos-pdf-base" data={pdfUrl} type="application/pdf" aria-label="PDF base del croquis" /> : <div className="planos-pdf-empty">Sube un PDF base para este barrio.</div>}
         <svg
           ref={svgRef}
