@@ -36,6 +36,8 @@ const tools = [
   ["tapado", "Tapar", Square],
   ["borrar", "Borrar", Eraser]
 ];
+const deleteTool = tools.find(([key]) => key === "borrar");
+const drawingTools = tools.filter(([key]) => key !== "borrar");
 
 const editorLayers = [
   ["correcciones", "Correcciones"],
@@ -53,6 +55,11 @@ const statusLabel = {
   aprobado: "Aprobado",
   publicado: "Publicado"
 };
+
+const sortDraftsFirst = (items = []) => [...items].sort((a, b) => {
+  const score = (item) => (["borrador", "en_edicion", "devuelto"].includes(item.latest_version_estado || item.estado) ? 0 : 1);
+  return score(a) - score(b);
+});
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const toAssetUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
@@ -666,8 +673,12 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   };
 
   const closeEditor = async () => {
-    if (saveState === "dirty") {
-      await saveDraft().catch(() => {});
+    if (saveState === "dirty" || saveState === "local") {
+      const shouldSave = window.confirm("Tienes cambios sin guardar. ¿Quieres guardar el borrador antes de salir?");
+      if (!shouldSave) return;
+      await saveDraft().catch(() => {
+        window.alert("No se pudo guardar en el servidor. El borrador queda guardado localmente en este equipo.");
+      });
     }
     onClose();
   };
@@ -694,8 +705,9 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       </header>
       <div className="planos-toolbar">
         <div className="planos-tool-group">
-          {tools.map(([key, label, ToolIcon]) => <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}><ToolIcon size={16} />{label}</button>)}
+          {drawingTools.map(([key, label, ToolIcon]) => <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}><ToolIcon size={16} />{label}</button>)}
         </div>
+        {deleteTool ? <button type="button" className={`planos-delete-tool ${tool === "borrar" ? "is-active" : ""}`} onClick={() => setTool("borrar")}><Eraser size={16} />Borrar</button> : null}
         <div className="planos-action-group">
           <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Texto, codigo u observacion" /> : null}
@@ -773,7 +785,10 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
       apiFetch("/planos/versiones")
     ]);
     setBarrios((await barriosRes.json()).barrios || []);
-    setMios((await miosRes.json()).barrios || []);
+    const myBarrios = sortDraftsFirst((await miosRes.json()).barrios || []);
+    setMios(myBarrios);
+    const draft = myBarrios.find((barrio) => ["borrador", "en_edicion", "devuelto"].includes(barrio.latest_version_estado || barrio.estado));
+    if (!barrioId && draft) setBarrioId(String(draft.id));
     setHistorial((await historialRes.json()).versiones || []);
     if (isAdmin) {
       const revisionRes = await apiFetch("/planos/revision/pendientes");

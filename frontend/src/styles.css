@@ -11171,11 +11171,16 @@ body.planos-focus-mode .page-shell > main {
   color: #9b202d;
 }
 
+.planos-save-state.is-local {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .planos-toolbar {
   position: relative;
   z-index: 4;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   overflow: visible;
   gap: 0.45rem;
   margin: 0 0.5rem 0.45rem;
@@ -11210,6 +11215,19 @@ body.planos-focus-mode .page-shell > main {
 
 .planos-action-group {
   justify-content: flex-end;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.planos-delete-tool {
+  border-color: rgba(220, 38, 38, 0.35) !important;
+  color: #991b1b !important;
+}
+
+.planos-delete-tool.is-active {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
 }
 
 .planos-toolbar button {
@@ -11514,6 +11532,11 @@ body.planos-focus-mode .page-shell > main {
     overflow: hidden;
     margin: 0;
     border-radius: 16px;
+  }
+
+  .planos-delete-tool {
+    justify-content: center;
+    width: 100%;
   }
 
   .planos-tool-group,

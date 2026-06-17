@@ -248,15 +248,28 @@ export const listMyPlanoAssignments = async (user) => {
   if (isAdmin(user)) return listPlanosBarrios(user);
   if (env.useMemoryDb) {
     const assignedIds = new Set(memory.asignaciones.filter((item) => Number(item.tecnico_id) === Number(user.id)).map((item) => item.barrio_id));
-    return memory.barrios.filter((barrio) => assignedIds.has(barrio.id));
+    return memory.barrios.filter((barrio) => assignedIds.has(barrio.id)).map((barrio) => {
+      const version = getLatestVersionMemory(barrio.id);
+      return { ...barrio, latest_version_id: version?.id || null, latest_version_estado: version?.estado || "" };
+    });
   }
   const [rows] = await getPool().query(
     `
-      SELECT b.*, a.estado AS asignacion_estado, a.fecha_limite, a.updated_at AS asignacion_updated_at
+      SELECT
+        b.*,
+        a.estado AS asignacion_estado,
+        a.fecha_limite,
+        a.updated_at AS asignacion_updated_at,
+        v.id AS latest_version_id,
+        v.numero_version AS latest_version_number,
+        v.estado AS latest_version_estado
       FROM planos_asignaciones a
       JOIN planos_barrios b ON b.id = a.barrio_id
+      LEFT JOIN planos_versiones v ON v.id = (
+        SELECT pv.id FROM planos_versiones pv WHERE pv.barrio_id = b.id ORDER BY pv.numero_version DESC LIMIT 1
+      )
       WHERE a.tecnico_id = ?
-      ORDER BY a.updated_at DESC
+      ORDER BY FIELD(COALESCE(v.estado, b.estado), 'borrador', 'en_edicion', 'devuelto', 'enviado_revision', 'asignado', 'pendiente', 'aprobado', 'publicado'), a.updated_at DESC
     `,
     [user.id]
   );
