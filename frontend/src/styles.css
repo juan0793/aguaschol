@@ -11328,6 +11328,12 @@ body.planos-focus-mode .page-shell > main {
   font-weight: 800;
 }
 
+.planos-position-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
 .planos-mini-stats {
   display: grid;
   margin-top: 0.5rem;

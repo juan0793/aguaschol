@@ -156,7 +156,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const addElement = (point) => {
     if (tool === "texto" || tool === "codigo") {
       const text = content.trim() || (tool === "codigo" ? "10-00-00-00" : "Texto");
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: tool, data_json: { x: point.x, y: point.y, contenido: text, fontSize: 22, rotacion: 0 } }]);
+      setElements((current) => [...current, { localId: uid(), tipo_elemento: tool, data_json: { x: point.x, y: point.y, contenido: text, fontSize: tool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
       return;
     }
     if (tool === "punto") {
@@ -222,9 +222,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const handleElementDown = (event, element) => {
     event.cancelBubble = true;
     if (tool === "borrar") {
-      if (window.confirm("Eliminar este elemento del croquis?")) {
-        setElements((current) => current.filter((item) => item.localId !== element.localId));
-      }
+      setElements((current) => current.filter((item) => item.localId !== element.localId));
+      setSelectedId((current) => (current === element.localId ? "" : current));
       return;
     }
     setSelectedId(element.localId);
@@ -281,6 +280,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                     fill={element.tipo_elemento === "poligono" ? data.relleno || "rgba(21,118,209,0.12)" : undefined}
                     stroke={stroke}
                     strokeWidth={selected ? Number(data.grosor || 2) + 2 : Number(data.grosor || 3)}
+                    hitStrokeWidth={24}
                     draggable={tool === "select" || tool === "pan"}
                     onMouseDown={(event) => handleElementDown(event, element)}
                     onTouchStart={(event) => handleElementDown(event, element)}
@@ -292,7 +292,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                 return (
                   <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} draggable={tool === "select" || tool === "pan"} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
                     <Circle radius={12} fill={selected ? "#0f9f8f" : "#1576d1"} />
-                    <Text x={16} y={-8} text={data.descripcion || "Punto"} fontSize={18} fill="#0f172a" stroke="#ffffff" strokeWidth={3} />
+                    <Text x={16} y={-8} text={data.descripcion || "Punto"} fontSize={18} fill={data.color || "#0f172a"} stroke="#ffffff" strokeWidth={3} />
                   </Group>
                 );
               }
@@ -303,9 +303,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                   y={Number(data.y || 0)}
                   text={data.contenido || ""}
                   fontSize={Number(data.fontSize || 22)}
-                  fill={selected ? "#1576d1" : "#0f172a"}
+                  fill={selected ? "#1576d1" : data.color || "#0f172a"}
                   stroke="#ffffff"
                   strokeWidth={3}
+                  rotation={Number(data.rotacion || 0)}
                   draggable={tool === "select" || tool === "pan"}
                   onMouseDown={(event) => handleElementDown(event, element)}
                   onTouchStart={(event) => handleElementDown(event, element)}
@@ -463,8 +464,23 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         {selected ? <motion.aside className="planos-properties" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 18 }}>
           <p className="sheet-kicker">Propiedades</p>
           <strong>{selected.tipo_elemento}</strong>
-          {["texto", "codigo"].includes(selected.tipo_elemento) ? <input value={selected.data_json.contenido || ""} onChange={(event) => updateSelected({ contenido: event.target.value })} /> : null}
+          {["texto", "codigo"].includes(selected.tipo_elemento) ? <label>Texto <input value={selected.data_json.contenido || ""} onChange={(event) => updateSelected({ contenido: event.target.value })} /></label> : null}
+          {selected.tipo_elemento === "punto" ? <label>Etiqueta <input value={selected.data_json.descripcion || ""} onChange={(event) => updateSelected({ descripcion: event.target.value })} /></label> : null}
           <label>Color <input type="color" value={selected.data_json.color || selected.data_json.colorBorde || "#0f172a"} onChange={(event) => updateSelected({ color: event.target.value, colorBorde: event.target.value })} /></label>
+          {["texto", "codigo"].includes(selected.tipo_elemento) ? (
+            <>
+              <label>Tamano <input type="number" min="8" max="120" value={selected.data_json.fontSize || 22} onChange={(event) => updateSelected({ fontSize: Number(event.target.value || 22) })} /></label>
+              <label>Rotacion <input type="number" min="-360" max="360" value={selected.data_json.rotacion || 0} onChange={(event) => updateSelected({ rotacion: Number(event.target.value || 0) })} /></label>
+            </>
+          ) : null}
+          {!Array.isArray(selected.data_json.puntos) ? (
+            <div className="planos-position-grid">
+              <label>X <input type="number" value={Math.round(Number(selected.data_json.x || 0))} onChange={(event) => updateSelected({ x: Number(event.target.value || 0) })} /></label>
+              <label>Y <input type="number" value={Math.round(Number(selected.data_json.y || 0))} onChange={(event) => updateSelected({ y: Number(event.target.value || 0) })} /></label>
+            </div>
+          ) : (
+            <label>Grosor <input type="number" min="1" max="20" value={selected.data_json.grosor || 3} onChange={(event) => updateSelected({ grosor: Number(event.target.value || 3) })} /></label>
+          )}
           <button type="button" className="button-secondary" onClick={() => setElements((current) => current.filter((item) => item.localId !== selected.localId))}>Eliminar</button>
           <button type="button" className="button-secondary" onClick={() => setSelectedId("")}>Cerrar</button>
           <div className="planos-mini-stats">
