@@ -114,6 +114,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
   const [lineDraft, setLineDraft] = useState(null);
   const [pointerPreview, setPointerPreview] = useState(null);
+  const [isPanning, setIsPanning] = useState(false);
   const baseUrl = toAssetUrl(barrio?.baseUrl || barrio?.base_url || barrio?.fondo_url || barrio?.imagen_fondo || barrio?.archivo_fondo || barrio?.archivo_pdf);
   const fitScale = Math.min(stageSize.width / background.width, stageSize.height / background.height) || 1;
   const scale = fitScale * zoom;
@@ -286,10 +287,12 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (event.target !== event.target.getStage()) return;
     if (tool === "pan") {
       panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos };
+      setIsPanning(true);
       return;
     }
     if (showPrecision) {
       panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos, moved: false };
+      setIsPanning(true);
       return;
     }
     const point = stagePoint(event.target.getStage());
@@ -343,6 +346,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     panRef.current = null;
     pinchRef.current = null;
+    setIsPanning(false);
   };
 
   const handleWheel = (event) => {
@@ -355,6 +359,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (tool === "pan" || showPrecision) {
       event.cancelBubble = true;
       panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos, moved: false };
+      setIsPanning(true);
       return;
     }
     event.cancelBubble = true;
@@ -515,6 +520,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
           </div>
         </>
       ) : null}
+      {isPanning ? <div className="planos-pan-guide"><span>{centerPoint().x}, {centerPoint().y}</span></div> : null}
       <button type="button" className="planos-fit-button" onClick={() => { setZoom(1); setRotation(0); setViewPos({ x: 0, y: 0 }); }}>Ajustar</button>
       {polygonDraft.length >= 3 ? <button type="button" className="planos-finish-polygon" onClick={finishPolygon}>Cerrar poligono</button> : null}
     </div>

@@ -11418,6 +11418,42 @@ body.planos-focus-mode .page-shell > main {
   font-weight: 900;
 }
 
+.planos-pan-guide {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(15, 23, 42, 0.34) 50%, transparent calc(50% + 1px)),
+    linear-gradient(transparent calc(50% - 1px), rgba(15, 23, 42, 0.34) 50%, transparent calc(50% + 1px));
+}
+
+.planos-pan-guide::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  border: 2px dashed rgba(21, 118, 209, 0.45);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.planos-pan-guide span {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 58px);
+  transform: translateX(-50%);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f172a;
+  font-size: 0.74rem;
+  font-weight: 900;
+  box-shadow: 0 8px 22px rgba(16, 55, 91, 0.12);
+}
+
 .planos-precision-actions {
   position: absolute;
   left: 50%;
