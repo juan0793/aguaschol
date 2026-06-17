@@ -17,7 +17,7 @@ const planosManifestPath = path.resolve(env.dbRoot, "backend", "data", "planos-m
 
 const CROQUIS_STATES = new Set(["pendiente", "asignado", "en_edicion", "borrador", "enviado_revision", "devuelto", "aprobado", "publicado"]);
 const REVIEW_STATES = new Set(["pendiente_revision", "aprobado", "devuelto", "publicado"]);
-const ELEMENT_TYPES = new Set(["linea", "poligono", "texto", "codigo", "punto", "foto", "observacion"]);
+const ELEMENT_TYPES = new Set(["linea", "poligono", "texto", "codigo", "punto", "tapado", "foto", "observacion"]);
 
 const fail = (message, status = 400) => {
   const error = new Error(message);

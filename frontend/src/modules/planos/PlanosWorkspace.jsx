@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Crosshair, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Type, Undo2 } from "lucide-react";
+import { Crosshair, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Square, Type, Undo2 } from "lucide-react";
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from "react-konva";
 import { toast } from "sonner";
 import { API_URL } from "../../config/api";
@@ -33,6 +33,7 @@ const tools = [
   ["texto", "Texto", Type],
   ["codigo", "Codigo", MapIcon],
   ["punto", "Punto", LocateFixed],
+  ["tapado", "Tapar", Square],
   ["borrar", "Borrar", Eraser]
 ];
 
@@ -109,7 +110,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const scale = fitScale * zoom;
   const viewport = { x: stageSize.width / 2 + viewPos.x, y: stageSize.height / 2 + viewPos.y, scale, rotation };
   const groupProps = { x: viewport.x, y: viewport.y, scaleX: viewport.scale, scaleY: viewport.scale, rotation: viewport.rotation, offsetX: background.width / 2, offsetY: background.height / 2 };
-  const precisionTools = ["linea", "poligono", "texto", "codigo", "punto"];
+  const precisionTools = ["linea", "poligono", "texto", "codigo", "punto", "tapado"];
   const showPrecision = precisionTools.includes(tool);
 
   useEffect(() => {
@@ -244,6 +245,12 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     if (tool === "punto") {
       setElements((current) => [...current, { localId: uid(), tipo_elemento: "punto", data_json: { capa: activeLayer, x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1" } }]);
+      toast.success("Punto agregado.");
+      return;
+    }
+    if (tool === "tapado") {
+      setElements((current) => [...current, { localId: uid(), tipo_elemento: "tapado", data_json: { capa: activeLayer, x: point.x - 40, y: point.y - 20, width: 80, height: 40, color: "#ffffff" } }]);
+      toast.success("Tapado agregado.");
       return;
     }
     if (tool === "poligono") {
@@ -265,7 +272,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (showPrecision) {
-      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos };
+      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos, moved: false };
       return;
     }
     const point = stagePoint(event.target.getStage());
@@ -299,6 +306,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
         x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
         y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
       });
+      if (Math.hypot(pointer.x - panRef.current.pointer.x, pointer.y - panRef.current.pointer.y) > 6) panRef.current.moved = true;
       return;
     }
     if (tool === "linea" && lineDraft) {
@@ -309,6 +317,13 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageUp = (event) => {
+    if (showPrecision && panRef.current && !panRef.current.moved) {
+      const point = stagePoint(event.target.getStage());
+      if (point) {
+        if (tool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
+        else addElement(point);
+      }
+    }
     panRef.current = null;
     pinchRef.current = null;
   };
@@ -322,7 +337,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const handleElementDown = (event, element) => {
     if (tool === "pan" || showPrecision) {
       event.cancelBubble = true;
-      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos };
+      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos, moved: false };
       return;
     }
     event.cancelBubble = true;
@@ -405,6 +420,24 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                   </Group>
                 );
               }
+              if (element.tipo_elemento === "tapado") {
+                return (
+                  <Rect
+                    key={element.localId}
+                    x={Number(data.x || 0)}
+                    y={Number(data.y || 0)}
+                    width={Number(data.width || 80)}
+                    height={Number(data.height || 40)}
+                    fill={data.color || "#ffffff"}
+                    stroke={selected ? "#1576d1" : data.color || "#ffffff"}
+                    strokeWidth={selected ? 2 : 0}
+                    draggable={tool === "select"}
+                    onMouseDown={(event) => handleElementDown(event, element)}
+                    onTouchStart={(event) => handleElementDown(event, element)}
+                    onDragEnd={(event) => moveByDrag(element, event)}
+                  />
+                );
+              }
               const fontSize = Number(data.fontSize || 22);
               const textValue = data.contenido || "";
               return (
@@ -440,7 +473,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               const point = centerPoint();
               if (tool === "linea") addLinePoint(point, snap);
               else addElement(point);
-            }}>{tool === "linea" || tool === "poligono" ? "Agregar punto" : "Colocar"}</button>
+            }}>{tool === "linea" || tool === "poligono" ? "Agregar punto" : tool === "tapado" ? "Tapar" : "Colocar"}</button>
             {lineDraft ? <button type="button" onClick={() => { setLineDraft(null); setPointerPreview(null); }}>Cancelar</button> : null}
           </div>
         </>
@@ -641,6 +674,12 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
               <label>Tamano <input type="number" min="8" max="120" value={selected.data_json.fontSize || 22} onChange={(event) => updateSelected({ fontSize: Number(event.target.value || 22) })} /></label>
               <label>Rotacion <input type="number" min="-360" max="360" value={selected.data_json.rotacion || 0} onChange={(event) => updateSelected({ rotacion: Number(event.target.value || 0) })} /></label>
             </>
+          ) : null}
+          {selected.tipo_elemento === "tapado" ? (
+            <div className="planos-position-grid">
+              <label>Ancho <input type="number" min="10" max="500" value={selected.data_json.width || 80} onChange={(event) => updateSelected({ width: Number(event.target.value || 80) })} /></label>
+              <label>Alto <input type="number" min="10" max="500" value={selected.data_json.height || 40} onChange={(event) => updateSelected({ height: Number(event.target.value || 40) })} /></label>
+            </div>
           ) : null}
           {!Array.isArray(selected.data_json.puntos) ? (
             <div className="planos-position-grid">
