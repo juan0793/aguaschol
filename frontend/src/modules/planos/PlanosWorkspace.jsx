@@ -47,6 +47,16 @@ const statusLabel = {
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const toPdfUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
+const localDraftKey = (barrioId) => `planos-draft-${barrioId}`;
+const readLocalDraft = (barrioId) => {
+  try {
+    const value = window.localStorage.getItem(localDraftKey(barrioId));
+    return value ? JSON.parse(value) : null;
+  } catch {
+    window.localStorage.removeItem(localDraftKey(barrioId));
+    return null;
+  }
+};
 const normalizeElements = (elements = []) =>
   elements.map((item) => ({
     localId: item.localId || String(item.id || uid()),
@@ -67,6 +77,7 @@ const StatusBadge = ({ status }) => <span className={`planos-status is-${status 
 function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, polygonDraft, setPolygonDraft, zoom, setZoom }) {
   const shellRef = useRef(null);
   const panRef = useRef(null);
+  const draftRef = useRef(null);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
@@ -128,6 +139,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   }, [pdfUrl]);
 
   useEffect(() => {
+    draftRef.current = null;
     setDraftObject(null);
     if (tool !== "poligono") setPolygonDraft([]);
   }, [setPolygonDraft, tool]);
@@ -165,7 +177,9 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     const point = stagePoint(event.target.getStage());
     if (!point) return;
     if (tool === "linea") {
-      setDraftObject({ tipo_elemento: "linea", data_json: { puntos: [point, point], color: "#1576d1", grosor: 3 } });
+      const draft = { tipo_elemento: "linea", data_json: { puntos: [point, point], color: "#1576d1", grosor: 3 } };
+      draftRef.current = draft;
+      setDraftObject(draft);
       return;
     }
     if (["poligono", "texto", "codigo", "punto"].includes(tool)) addElement(point);
@@ -173,13 +187,15 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageMove = (event) => {
-    if (tool === "linea" && draftObject?.tipo_elemento === "linea") {
+    if (tool === "linea" && draftRef.current?.tipo_elemento === "linea") {
       const point = stagePoint(event.target.getStage());
       if (point) {
-        setDraftObject((current) => ({
-          ...current,
-          data_json: { ...current.data_json, puntos: [current.data_json.puntos[0], point] }
-        }));
+        const next = {
+          ...draftRef.current,
+          data_json: { ...draftRef.current.data_json, puntos: [draftRef.current.data_json.puntos[0], point] }
+        };
+        draftRef.current = next;
+        setDraftObject(next);
       }
       return;
     }
@@ -194,8 +210,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const handleStageUp = (event) => {
     panRef.current = null;
-    if (tool !== "linea" || draftObject?.tipo_elemento !== "linea") return;
-    const [start, point] = draftObject.data_json.puntos || [];
+    if (tool !== "linea" || draftRef.current?.tipo_elemento !== "linea") return;
+    const point = stagePoint(event.target.getStage()) || draftRef.current.data_json.puntos?.[1];
+    const start = draftRef.current.data_json.puntos?.[0];
+    draftRef.current = null;
     setDraftObject(null);
     if (!point || Math.hypot(point.x - start.x, point.y - start.y) < 6) return;
     setElements((current) => [...current, { localId: uid(), tipo_elemento: "linea", data_json: { puntos: [start, point], color: "#0f172a", grosor: 3 } }]);
@@ -263,7 +281,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                     fill={element.tipo_elemento === "poligono" ? data.relleno || "rgba(21,118,209,0.12)" : undefined}
                     stroke={stroke}
                     strokeWidth={selected ? Number(data.grosor || 2) + 2 : Number(data.grosor || 3)}
-                    draggable={tool === "select"}
+                    draggable={tool === "select" || tool === "pan"}
                     onMouseDown={(event) => handleElementDown(event, element)}
                     onTouchStart={(event) => handleElementDown(event, element)}
                     onDragEnd={(event) => moveByDrag(element, event)}
@@ -272,7 +290,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               }
               if (element.tipo_elemento === "punto") {
                 return (
-                  <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} draggable={tool === "select"} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
+                  <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} draggable={tool === "select" || tool === "pan"} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
                     <Circle radius={12} fill={selected ? "#0f9f8f" : "#1576d1"} />
                     <Text x={16} y={-8} text={data.descripcion || "Punto"} fontSize={18} fill="#0f172a" stroke="#ffffff" strokeWidth={3} />
                   </Group>
@@ -288,7 +306,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                   fill={selected ? "#1576d1" : "#0f172a"}
                   stroke="#ffffff"
                   strokeWidth={3}
-                  draggable={tool === "select"}
+                  draggable={tool === "select" || tool === "pan"}
                   onMouseDown={(event) => handleElementDown(event, element)}
                   onTouchStart={(event) => handleElementDown(event, element)}
                   onDragEnd={(event) => moveByDrag(element, event)}
@@ -338,11 +356,13 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       .then((data) => {
         if (cancelled) return;
         const loadedElements = normalizeElements(data.elements || []);
+        const localDraft = readLocalDraft(barrio.id);
+        const nextElements = localDraft ? normalizeElements(localDraft) : loadedElements;
         setVersion(data.version || null);
-        setElements(loadedElements);
+        setElements(nextElements);
         lastSavedRef.current = JSON.stringify(loadedElements);
         hydratedRef.current = true;
-        setSaveState("saved");
+        setSaveState(localDraft ? "dirty" : "saved");
       })
       .catch(() => setSaveState("error"));
     return () => { cancelled = true; };
@@ -350,7 +370,10 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
 
   useEffect(() => {
     if (!hydratedRef.current) return;
-    setSaveState(JSON.stringify(elements) === lastSavedRef.current ? "saved" : "dirty");
+    const current = JSON.stringify(elements);
+    const clean = current === lastSavedRef.current;
+    if (!clean) window.localStorage.setItem(localDraftKey(barrio.id), current);
+    setSaveState(clean ? "saved" : "dirty");
   }, [elements]);
 
   const saveDraft = useCallback(async () => {
@@ -367,6 +390,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       setVersion(data.version || version);
       const savedElements = normalizeElements(data.elements || elements);
       lastSavedRef.current = JSON.stringify(savedElements);
+      window.localStorage.removeItem(localDraftKey(barrio.id));
       setElements(savedElements);
       setSaveState("saved");
       return savedElements;
@@ -428,8 +452,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       <div className="planos-toolbar">
         {tools.map(([key, label, ToolIcon]) => <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}><ToolIcon size={16} />{label}</button>)}
         <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Texto, codigo u observacion" />
-        <button type="button" onClick={() => setZoom((current) => Math.max(0.7, Number((current - 0.1).toFixed(1))))}><Minus size={16} />Zoom</button>
-        <button type="button" onClick={() => setZoom((current) => Math.min(2, Number((current + 0.1).toFixed(1))))}><Plus size={16} />Zoom</button>
+        <button type="button" onClick={() => setZoom((current) => Math.max(0.15, Number((current - 0.5).toFixed(2))))}><Minus size={16} />Zoom</button>
+        <button type="button" onClick={() => setZoom((current) => Math.min(12, Number((current + 0.5).toFixed(2))))}><Plus size={16} />Zoom</button>
         <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
         <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
       </div>
