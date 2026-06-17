@@ -160,7 +160,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (tool === "punto") {
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: "punto", data_json: { x: point.x, y: point.y, descripcion: content.trim() || "Punto GPS" } }]);
+      setElements((current) => [...current, { localId: uid(), tipo_elemento: "punto", data_json: { x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1" } }]);
       return;
     }
     if (tool === "poligono") {
@@ -291,8 +291,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               if (element.tipo_elemento === "punto") {
                 return (
                   <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} draggable={tool === "select" || tool === "pan"} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
-                    <Circle radius={12} fill={selected ? "#0f9f8f" : "#1576d1"} />
-                    <Text x={16} y={-8} text={data.descripcion || "Punto"} fontSize={18} fill={data.color || "#0f172a"} stroke="#ffffff" strokeWidth={3} />
+                    <Circle radius={12} fill={selected ? "#0f9f8f" : data.color || "#1576d1"} />
                   </Group>
                 );
               }
@@ -304,8 +303,6 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                   text={data.contenido || ""}
                   fontSize={Number(data.fontSize || 22)}
                   fill={selected ? "#1576d1" : data.color || "#0f172a"}
-                  stroke="#ffffff"
-                  strokeWidth={3}
                   rotation={Number(data.rotacion || 0)}
                   draggable={tool === "select" || tool === "pan"}
                   onMouseDown={(event) => handleElementDown(event, element)}
