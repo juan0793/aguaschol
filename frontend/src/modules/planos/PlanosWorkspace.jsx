@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Edit3, Eraser, LocateFixed, Map, Minus, MousePointer2, Move, Pentagon, Plus, Save, Send, Type } from "lucide-react";
+import { Edit3, Eraser, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Save, Send, Type } from "lucide-react";
 import { Circle, Group, Image as KonvaImage, Layer, Line, Stage, Text } from "react-konva";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
@@ -29,7 +29,7 @@ const tools = [
   ["linea", "Linea", Edit3],
   ["poligono", "Poligono", Pentagon],
   ["texto", "Texto", Type],
-  ["codigo", "Codigo", Map],
+  ["codigo", "Codigo", MapIcon],
   ["punto", "Punto", LocateFixed],
   ["borrar", "Borrar", Eraser]
 ];
