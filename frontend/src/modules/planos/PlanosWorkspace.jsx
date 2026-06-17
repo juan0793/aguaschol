@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, Save, Send, Type, Undo2 } from "lucide-react";
+import { Crosshair, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Type, Undo2 } from "lucide-react";
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from "react-konva";
 import { toast } from "sonner";
 import { API_URL } from "../../config/api";
@@ -56,6 +56,15 @@ const statusLabel = {
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const toAssetUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
 const isPdf = (value = "") => /\.pdf($|\?)/i.test(value);
+const clampZoom = (value) => Math.min(12, Math.max(0.2, Number(value.toFixed(3))));
+const snapPoint = (start, end) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const distance = Math.hypot(dx, dy);
+  if (!distance) return end;
+  const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+  return { x: Math.round(start.x + Math.cos(angle) * distance), y: Math.round(start.y + Math.sin(angle) * distance) };
+};
 const localDraftKey = (barrioId) => `planos-draft-${barrioId}`;
 const readLocalDraft = (barrioId) => {
   try {
@@ -86,9 +95,10 @@ const moveElement = (element, dx, dy) => {
 
 const StatusBadge = ({ status }) => <span className={`planos-status is-${status || "pendiente"}`}>{statusLabel[status] || status || "Pendiente"}</span>;
 
-function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, activeLayer, polygonDraft, setPolygonDraft, zoom, setZoom }) {
+function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, activeLayer, polygonDraft, setPolygonDraft, zoom, setZoom, rotation, setRotation, snap }) {
   const shellRef = useRef(null);
   const panRef = useRef(null);
+  const pinchRef = useRef(null);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
@@ -97,8 +107,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const baseUrl = toAssetUrl(barrio?.baseUrl || barrio?.base_url || barrio?.fondo_url || barrio?.imagen_fondo || barrio?.archivo_fondo || barrio?.archivo_pdf);
   const fitScale = Math.min(stageSize.width / background.width, stageSize.height / background.height) || 1;
   const scale = fitScale * zoom;
-  const imageX = (stageSize.width - background.width * scale) / 2 + viewPos.x;
-  const imageY = (stageSize.height - background.height * scale) / 2 + viewPos.y;
+  const viewport = { x: stageSize.width / 2 + viewPos.x, y: stageSize.height / 2 + viewPos.y, scale, rotation };
+  const groupProps = { x: viewport.x, y: viewport.y, scaleX: viewport.scale, scaleY: viewport.scale, rotation: viewport.rotation, offsetX: background.width / 2, offsetY: background.height / 2 };
+  const precisionTools = ["linea", "poligono", "texto", "codigo", "punto"];
+  const showPrecision = precisionTools.includes(tool);
 
   useEffect(() => {
     const resize = () => {
@@ -167,25 +179,61 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (tool !== "poligono") setPolygonDraft([]);
   }, [setPolygonDraft, tool]);
 
-  const stagePoint = (stage) => {
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return null;
+  const getImagePointFromScreenPoint = (pointer, nextZoom = zoom, nextViewPos = viewPos, nextRotation = rotation) => {
+    const nextScale = fitScale * nextZoom;
+    const centerX = stageSize.width / 2 + nextViewPos.x;
+    const centerY = stageSize.height / 2 + nextViewPos.y;
+    const dx = pointer.x - centerX;
+    const dy = pointer.y - centerY;
+    const radians = nextRotation * Math.PI / 180;
     return {
-      x: Math.round((pointer.x - imageX) / scale),
-      y: Math.round((pointer.y - imageY) / scale)
+      x: Math.round(((dx * Math.cos(radians) + dy * Math.sin(radians)) / nextScale) + background.width / 2),
+      y: Math.round(((-dx * Math.sin(radians) + dy * Math.cos(radians)) / nextScale) + background.height / 2)
     };
   };
 
-  const addLinePoint = (point) => {
-    const next = nextLineDraft(lineDraft, point, activeLayer);
+  const getScreenPointFromImagePoint = (point, nextZoom = zoom, nextViewPos = viewPos, nextRotation = rotation) => {
+    const nextScale = fitScale * nextZoom;
+    const radians = nextRotation * Math.PI / 180;
+    const x = (point.x - background.width / 2) * nextScale;
+    const y = (point.y - background.height / 2) * nextScale;
+    return {
+      x: stageSize.width / 2 + nextViewPos.x + x * Math.cos(radians) - y * Math.sin(radians),
+      y: stageSize.height / 2 + nextViewPos.y + x * Math.sin(radians) + y * Math.cos(radians)
+    };
+  };
+
+  const stagePoint = (stage) => {
+    const pointer = stage.getPointerPosition();
+    return pointer ? getImagePointFromScreenPoint(pointer) : null;
+  };
+
+  const centerPoint = () => getImagePointFromScreenPoint({ x: stageSize.width / 2, y: stageSize.height / 2 });
+  const touchCenterPoint = (touches) => {
+    const rect = shellRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
+    return { x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left, y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top };
+  };
+
+  const zoomAtPoint = (pointer, nextZoom) => {
+    const imagePoint = getImagePointFromScreenPoint(pointer);
+    const projected = getScreenPointFromImagePoint(imagePoint, nextZoom);
+    setZoom(nextZoom);
+    setViewPos((current) => ({ x: current.x + pointer.x - projected.x, y: current.y + pointer.y - projected.y }));
+  };
+
+  const addLinePoint = (point, useSnap = false) => {
+    const finalPoint = lineDraft && useSnap ? snapPoint(lineDraft.start, point) : point;
+    const next = nextLineDraft(lineDraft, finalPoint, activeLayer);
     if (!next.line) {
       setLineDraft(next.draft);
-      setPointerPreview(point);
+      setPointerPreview(finalPoint);
+      toast.info("Punto inicial colocado.");
       return;
     }
     setElements((current) => [...current, { localId: uid(), ...next.line }]);
     setLineDraft(next.draft);
     setPointerPreview(null);
+    toast.success("Linea agregada.");
   };
 
   const addElement = (point) => {
@@ -204,15 +252,26 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageDown = (event) => {
+    if (event.evt.touches?.length >= 2) {
+      const touches = event.evt.touches;
+      const distance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+      const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX) * 180 / Math.PI;
+      pinchRef.current = { distance, angle, zoom, rotation, viewPos };
+      return;
+    }
     if (event.target !== event.target.getStage()) return;
     if (tool === "pan") {
+      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos };
+      return;
+    }
+    if (showPrecision) {
       panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos };
       return;
     }
     const point = stagePoint(event.target.getStage());
     if (!point) return;
     if (tool === "linea") {
-      addLinePoint(point);
+      addLinePoint(point, snap || event.evt.shiftKey);
       return;
     }
     if (tool === "borrar") {
@@ -224,25 +283,48 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageMove = (event) => {
-    if (tool === "linea" && lineDraft) {
-      const point = stagePoint(event.target.getStage());
-      if (point) setPointerPreview(point);
+    if (event.evt.touches?.length >= 2 && pinchRef.current) {
+      event.evt.preventDefault();
+      const touches = event.evt.touches;
+      const distance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+      const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX) * 180 / Math.PI;
+      zoomAtPoint(touchCenterPoint(touches), clampZoom(pinchRef.current.zoom * (distance / pinchRef.current.distance)));
+      setRotation(Math.round(pinchRef.current.rotation + angle - pinchRef.current.angle));
       return;
     }
-    if (tool !== "pan" || !panRef.current) return;
-    const pointer = event.target.getStage().getPointerPosition();
-    if (!pointer || !panRef.current.pointer) return;
-    setViewPos({
-      x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
-      y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
-    });
+    if (panRef.current) {
+      const pointer = event.target.getStage().getPointerPosition();
+      if (!pointer || !panRef.current.pointer) return;
+      setViewPos({
+        x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
+        y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
+      });
+      return;
+    }
+    if (tool === "linea" && lineDraft) {
+      const point = stagePoint(event.target.getStage());
+      if (point) setPointerPreview(snap || event.evt.shiftKey ? snapPoint(lineDraft.start, point) : point);
+      return;
+    }
   };
 
   const handleStageUp = (event) => {
     panRef.current = null;
+    pinchRef.current = null;
+  };
+
+  const handleWheel = (event) => {
+    event.evt.preventDefault();
+    const pointer = event.target.getStage().getPointerPosition();
+    if (pointer) zoomAtPoint(pointer, clampZoom(zoom * (event.evt.deltaY > 0 ? 0.9 : 1.1)));
   };
 
   const handleElementDown = (event, element) => {
+    if (tool === "pan" || showPrecision) {
+      event.cancelBubble = true;
+      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos };
+      return;
+    }
     event.cancelBubble = true;
     if (tool === "borrar") {
       setElements((current) => current.filter((item) => item.localId !== element.localId));
@@ -285,12 +367,15 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
         onTouchMove={handleStageMove}
         onMouseUp={handleStageUp}
         onTouchEnd={handleStageUp}
+        onWheel={handleWheel}
       >
         <Layer name="background-layer">
-          {background.image ? <KonvaImage image={background.image} x={imageX} y={imageY} width={background.width * scale} height={background.height * scale} listening={false} /> : null}
+          <Group {...groupProps}>
+            {background.image ? <KonvaImage image={background.image} width={background.width} height={background.height} listening={false} /> : null}
+          </Group>
         </Layer>
         <Layer name="objects-layer">
-          <Group x={imageX} y={imageY} scaleX={scale} scaleY={scale}>
+          <Group {...groupProps}>
             {elements.map((element) => {
               const data = element.data_json || {};
               const selected = selectedId === element.localId;
@@ -305,7 +390,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                     stroke={stroke}
                     strokeWidth={selected ? Number(data.grosor || 2) + 2 : Number(data.grosor || 3)}
                     hitStrokeWidth={44}
-                    draggable={tool === "select" || tool === "pan"}
+                    draggable={tool === "select"}
                     onMouseDown={(event) => handleElementDown(event, element)}
                     onTouchStart={(event) => handleElementDown(event, element)}
                     onDragEnd={(event) => moveByDrag(element, event)}
@@ -314,7 +399,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               }
               if (element.tipo_elemento === "punto") {
                 return (
-                  <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} draggable={tool === "select" || tool === "pan"} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
+                  <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} draggable={tool === "select"} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
                     <Circle radius={26} fill="rgba(0,0,0,0)" />
                     <Circle radius={12} fill={selected ? "#0f9f8f" : data.color || "#1576d1"} />
                   </Group>
@@ -328,7 +413,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                   x={Number(data.x || 0)}
                   y={Number(data.y || 0)}
                   rotation={Number(data.rotacion || 0)}
-                  draggable={tool === "select" || tool === "pan"}
+                  draggable={tool === "select"}
                   onMouseDown={(event) => handleElementDown(event, element)}
                   onTouchStart={(event) => handleElementDown(event, element)}
                   onDragEnd={(event) => moveByDrag(element, event)}
@@ -341,13 +426,26 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
           </Group>
         </Layer>
         <Layer name="draft-layer">
-          <Group x={imageX} y={imageY} scaleX={scale} scaleY={scale}>
-            {lineDraft && pointerPreview ? <Line points={[lineDraft.start.x, lineDraft.start.y, pointerPreview.x, pointerPreview.y]} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} listening={false} /> : null}
+          <Group {...groupProps}>
+            {lineDraft ? <Line points={[lineDraft.start.x, lineDraft.start.y, (showPrecision ? centerPoint() : pointerPreview || lineDraft.start).x, (showPrecision ? centerPoint() : pointerPreview || lineDraft.start).y]} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} listening={false} /> : null}
             {polygonDraft.length ? <Line points={polygonDraft.flatMap((point) => [point.x, point.y])} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} /> : null}
           </Group>
         </Layer>
       </Stage>
-      <button type="button" className="planos-fit-button" onClick={() => { setZoom(1); setViewPos({ x: 0, y: 0 }); }}>Ajustar</button>
+      {showPrecision ? (
+        <>
+          <div className="planos-crosshair"><Crosshair size={42} /><span>{centerPoint().x}, {centerPoint().y}</span></div>
+          <div className="planos-precision-actions">
+            <button type="button" onClick={() => {
+              const point = centerPoint();
+              if (tool === "linea") addLinePoint(point, snap);
+              else addElement(point);
+            }}>{tool === "linea" || tool === "poligono" ? "Agregar punto" : "Colocar"}</button>
+            {lineDraft ? <button type="button" onClick={() => { setLineDraft(null); setPointerPreview(null); }}>Cancelar</button> : null}
+          </div>
+        </>
+      ) : null}
+      <button type="button" className="planos-fit-button" onClick={() => { setZoom(1); setRotation(0); setViewPos({ x: 0, y: 0 }); }}>Ajustar</button>
       {polygonDraft.length >= 3 ? <button type="button" className="planos-finish-polygon" onClick={finishPolygon}>Cerrar poligono</button> : null}
     </div>
   );
@@ -362,6 +460,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const [selectedId, setSelectedId] = useState("");
   const [polygonDraft, setPolygonDraft] = useState([]);
   const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [snap, setSnap] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState("saved");
   const hydratedRef = useRef(false);
@@ -515,14 +615,19 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Texto, codigo u observacion" /> : null}
           <button type="button" onClick={undo} disabled={!canUndo}><Undo2 size={16} />Deshacer</button>
           <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
-          <button type="button" onClick={() => setZoom((current) => Math.max(0.15, Number((current - 0.5).toFixed(2))))}><Minus size={16} />Zoom</button>
-          <button type="button" onClick={() => setZoom((current) => Math.min(12, Number((current + 0.5).toFixed(2))))}><Plus size={16} />Zoom</button>
+          <button type="button" onClick={() => setZoom((current) => clampZoom(current - 0.5))}><Minus size={16} />Zoom</button>
+          <button type="button" onClick={() => setZoom((current) => clampZoom(current + 0.5))}><Plus size={16} />Zoom</button>
+          <button type="button" onClick={() => setRotation((current) => current - 15)}><RotateCcw size={16} />Girar</button>
+          <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar</button>
+          <button type="button" onClick={() => setRotation(0)}>0 deg</button>
+          {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
           <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
           <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
         </div>
+        <div className="planos-view-state">{tool} · Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg{tool === "linea" ? " · Mueve el mapa y agrega puntos" : ""}</div>
       </div>
       <div className="planos-editor-grid">
-        <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} content={content} activeLayer={activeLayer} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} />
+        <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} content={content} activeLayer={activeLayer} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} />
         <AnimatePresence>
         {selected ? <motion.aside className="planos-properties" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 18 }}>
           <p className="sheet-kicker">Propiedades</p>

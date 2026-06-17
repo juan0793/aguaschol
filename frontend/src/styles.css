@@ -11183,6 +11183,13 @@ body.planos-focus-mode .page-shell > main {
   border-radius: 12px;
 }
 
+.planos-view-state {
+  grid-column: 1 / -1;
+  color: #42617d;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
 .planos-tool-group,
 .planos-action-group {
   display: flex;
@@ -11267,6 +11274,7 @@ body.planos-focus-mode .page-shell > main {
     #eaf3fb;
   background-size: 32px 32px;
   touch-action: none;
+  overscroll-behavior: none;
 }
 
 .planos-editor-stage.is-tool-linea {
@@ -11367,6 +11375,55 @@ body.planos-focus-mode .page-shell > main {
   left: 1rem;
   bottom: 1rem;
   z-index: 3;
+}
+
+.planos-crosshair {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  transform: translate(-50%, -50%);
+  color: #0f172a;
+  text-shadow: 0 1px 8px rgba(255, 255, 255, 0.95);
+}
+
+.planos-crosshair span {
+  margin-top: 0.25rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  background: rgba(255, 255, 255, 0.86);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.planos-precision-actions {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 25;
+  display: flex;
+  gap: 0.5rem;
+  transform: translateX(-50%);
+}
+
+.planos-precision-actions button {
+  min-height: 42px;
+  border: 1px solid rgba(21, 118, 209, 0.18);
+  border-radius: 12px;
+  background: #1576d1;
+  color: #ffffff;
+  font-weight: 900;
+  padding: 0.55rem 0.8rem;
+  box-shadow: 0 12px 28px rgba(16, 55, 91, 0.18);
+}
+
+.planos-precision-actions button + button {
+  background: #ffffff;
+  color: #123b5d;
 }
 
 .planos-properties {
