@@ -1,14 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
-import PdfWorker from "pdfjs-dist/build/pdf.worker.mjs?worker&inline";
 import { AnimatePresence, motion } from "motion/react";
 import { Edit3, Eraser, LocateFixed, Map, Minus, MousePointer2, Move, Pentagon, Plus, Save, Send, Type } from "lucide-react";
 import { Circle, Group, Image as KonvaImage, Layer, Line, Stage, Text } from "react-konva";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
 
-pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker();
 const pdfBackgroundCache = new Map();
+let pdfJsPromise = null;
+
+const loadPdfJs = async () => {
+  if (!pdfJsPromise) {
+    pdfJsPromise = import("pdfjs-dist").then(async (pdfjsLib) => {
+      try {
+        const { default: PdfWorker } = await import("pdfjs-dist/build/pdf.worker.mjs?worker&inline");
+        pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker();
+      } catch {
+        pdfjsLib.GlobalWorkerOptions.workerPort = null;
+      }
+      return pdfjsLib;
+    });
+  }
+  return pdfJsPromise;
+};
 
 const tools = [
   ["select", "Seleccionar", MousePointer2],
@@ -88,6 +101,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     setBackground((current) => ({ ...current, loading: true, error: "" }));
     (async () => {
+      const pdfjsLib = await loadPdfJs();
       const bytes = await fetch(pdfUrl).then((response) => {
         if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
         return response.arrayBuffer();
