@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Crosshair, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Square, Type, Undo2 } from "lucide-react";
+import { Crosshair, Download, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Square, Type, Undo2 } from "lucide-react";
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
 import { toast } from "sonner";
 import { API_URL } from "../../config/api";
@@ -92,6 +92,78 @@ const normalizeElements = (elements = []) =>
       ...(item.data_json?.data_json || item.data_json || item.data || {})
     }
   }));
+
+const loadImage = (src) => new Promise((resolve, reject) => {
+  const image = new window.Image();
+  image.crossOrigin = "anonymous";
+  image.onload = () => resolve(image);
+  image.onerror = reject;
+  image.src = src;
+});
+
+const renderCroquisBackground = async (baseUrl) => {
+  if (isPdf(baseUrl)) {
+    const pdfjsLib = await loadPdfJs();
+    const bytes = await fetch(baseUrl).then((response) => {
+      if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
+      return response.arrayBuffer();
+    });
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const page = await pdf.getPage(1);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: Math.min(4, Math.max(2, 2800 / baseViewport.width)) });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    return canvas;
+  }
+  const image = await loadImage(baseUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+  canvas.getContext("2d").drawImage(image, 0, 0);
+  return canvas;
+};
+
+const drawCroquisElements = (ctx, elements = []) => {
+  elements.forEach((element) => {
+    const data = element.data_json || {};
+    ctx.save();
+    if (element.tipo_elemento === "linea" || element.tipo_elemento === "poligono") {
+      const points = data.puntos || [];
+      if (points.length) {
+        ctx.beginPath();
+        ctx.moveTo(Number(points[0].x || 0), Number(points[0].y || 0));
+        points.slice(1).forEach((point) => ctx.lineTo(Number(point.x || 0), Number(point.y || 0)));
+        if (element.tipo_elemento === "poligono") {
+          ctx.closePath();
+          ctx.fillStyle = data.relleno || "rgba(21,118,209,0.12)";
+          ctx.fill();
+        }
+        ctx.strokeStyle = data.color || data.colorBorde || "#0f172a";
+        ctx.lineWidth = Number(data.grosor || 3);
+        ctx.stroke();
+      }
+    } else if (element.tipo_elemento === "punto") {
+      ctx.beginPath();
+      ctx.arc(Number(data.x || 0), Number(data.y || 0), 12, 0, Math.PI * 2);
+      ctx.fillStyle = data.color || "#1576d1";
+      ctx.fill();
+    } else if (element.tipo_elemento === "tapado") {
+      ctx.fillStyle = data.color || "#ffffff";
+      ctx.fillRect(Number(data.x || 0), Number(data.y || 0), Number(data.width || 80), Number(data.height || 40));
+    } else {
+      const fontSize = Number(data.fontSize || 22);
+      ctx.translate(Number(data.x || 0), Number(data.y || 0));
+      ctx.rotate(Number(data.rotacion || 0) * Math.PI / 180);
+      ctx.fillStyle = data.color || "#0f172a";
+      ctx.font = `800 ${fontSize}px sans-serif`;
+      ctx.fillText(data.contenido || "", 0, fontSize);
+    }
+    ctx.restore();
+  });
+};
 
 const moveElement = (element, dx, dy) => {
   const data = element.data_json || {};
@@ -869,6 +941,29 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
     await load();
   };
 
+  const downloadUpdatedMap = async (version) => {
+    try {
+      const sourceBarrio = barrios.find((barrio) => Number(barrio.id) === Number(version.barrio_id)) || mios.find((barrio) => Number(barrio.id) === Number(version.barrio_id)) || {};
+      const baseUrl = toAssetUrl(version.baseUrl || version.base_url || version.fondo_url || version.archivo_fondo || version.archivo_pdf || sourceBarrio.archivo_pdf);
+      if (!baseUrl) throw new Error("Este croquis no tiene archivo base para descargar.");
+      const response = await apiFetch(`/planos/${version.barrio_id}/elementos`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudieron cargar las correcciones.");
+      const canvas = await renderCroquisBackground(baseUrl);
+      drawCroquisElements(canvas.getContext("2d"), normalizeElements(data.elements || []));
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.95));
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `croquis-${version.codigo_barrio || version.barrio_id}-v${version.numero_version || 1}.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Mapa actualizado descargado.");
+    } catch (error) {
+      toast.error(error.message || "No se pudo descargar el mapa actualizado.");
+    }
+  };
+
   if (selectedBarrio) {
     return <EditorCroquis apiFetch={apiFetch} barrio={selectedBarrio} onClose={() => { setSelectedBarrio(null); load().catch(() => {}); }} />;
   }
@@ -947,6 +1042,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
               <strong>{version.nombre_barrio || `Barrio ${version.barrio_id}`}</strong>
               <span>Version {version.numero_version}</span>
               <StatusBadge status={version.estado} />
+              {["aprobado", "publicado"].includes(version.estado) ? <button type="button" className="button-secondary" onClick={() => downloadUpdatedMap(version)}><Download size={16} />Descargar</button> : null}
               {isAdmin && version.estado === "aprobado" ? <button type="button" onClick={() => review(version, "publicar")}>Publicar</button> : null}
             </article>
           ))}
@@ -960,6 +1056,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
               <strong>{version.nombre_barrio || `Barrio ${version.barrio_id}`}</strong>
               <span>Version {version.numero_version}</span>
               <StatusBadge status={version.estado} />
+              <button type="button" className="button-secondary" onClick={() => downloadUpdatedMap(version)}><Download size={16} />Descargar</button>
               {isAdmin && version.estado === "aprobado" ? <button type="button" onClick={() => review(version, "publicar")}>Publicar en Mapas Actualizados</button> : null}
             </article>
           ))}

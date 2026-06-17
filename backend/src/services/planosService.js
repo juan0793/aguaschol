@@ -431,7 +431,7 @@ export const listPendingPlanoReviews = async (user) => {
   if (env.useMemoryDb) return memory.versiones.filter((version) => version.estado === "enviado_revision");
   const [rows] = await getPool().query(
     `
-      SELECT v.*, b.codigo_barrio, b.nombre_barrio, u.full_name AS creado_por_nombre
+      SELECT v.*, b.codigo_barrio, b.nombre_barrio, b.archivo_pdf, u.full_name AS creado_por_nombre
       FROM planos_versiones v
       JOIN planos_barrios b ON b.id = v.barrio_id
       LEFT JOIN app_users u ON u.id = v.creado_por
