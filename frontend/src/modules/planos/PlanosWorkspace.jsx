@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Crosshair, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Square, Type, Undo2 } from "lucide-react";
-import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from "react-konva";
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
 import { toast } from "sonner";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
@@ -100,6 +100,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const shellRef = useRef(null);
   const panRef = useRef(null);
   const pinchRef = useRef(null);
+  const transformerRef = useRef(null);
+  const shapeRefs = useRef({});
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
@@ -112,6 +114,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const groupProps = { x: viewport.x, y: viewport.y, scaleX: viewport.scale, scaleY: viewport.scale, rotation: viewport.rotation, offsetX: background.width / 2, offsetY: background.height / 2 };
   const precisionTools = ["linea", "poligono", "texto", "codigo", "punto", "tapado"];
   const showPrecision = precisionTools.includes(tool);
+  const selected = elements.find((item) => item.localId === selectedId);
 
   useEffect(() => {
     const resize = () => {
@@ -179,6 +182,13 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     setPointerPreview(null);
     if (tool !== "poligono") setPolygonDraft([]);
   }, [setPolygonDraft, tool]);
+
+  useEffect(() => {
+    if (!transformerRef.current) return;
+    const node = selected?.tipo_elemento === "tapado" ? shapeRefs.current[selected.localId] : null;
+    transformerRef.current.nodes(node ? [node] : []);
+    transformerRef.current.getLayer()?.batchDraw();
+  }, [selected]);
 
   const getImagePointFromScreenPoint = (pointer, nextZoom = zoom, nextViewPos = viewPos, nextRotation = rotation) => {
     const nextScale = fitScale * nextZoom;
@@ -282,7 +292,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (tool === "borrar") {
-      toast.info("Esta linea pertenece al plano base. Solo puedes borrar correcciones agregadas.");
+      toast.info("El plano base no se puede borrar. Solo puedes borrar correcciones agregadas.");
       return;
     }
     if (["poligono", "texto", "codigo", "punto"].includes(tool)) addElement(point);
@@ -362,6 +372,23 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     setElements((current) => current.map((item) => item.localId === element.localId ? { ...item, data_json: { ...item.data_json, x: Math.round(event.target.x()), y: Math.round(event.target.y()) } } : item));
   };
 
+  const resizeTapado = (element, event) => {
+    const node = event.target;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    node.scale({ x: 1, y: 1 });
+    setElements((current) => current.map((item) => item.localId === element.localId ? {
+      ...item,
+      data_json: {
+        ...item.data_json,
+        x: Math.round(node.x()),
+        y: Math.round(node.y()),
+        width: Math.max(10, Math.round(node.width() * scaleX)),
+        height: Math.max(10, Math.round(node.height() * scaleY))
+      }
+    } : item));
+  };
+
   const finishPolygon = () => {
     if (polygonDraft.length < 3) return;
     setElements((current) => [...current, { localId: uid(), tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
@@ -424,6 +451,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                 return (
                   <Rect
                     key={element.localId}
+                    ref={(node) => { if (node) shapeRefs.current[element.localId] = node; }}
                     x={Number(data.x || 0)}
                     y={Number(data.y || 0)}
                     width={Number(data.width || 80)}
@@ -435,6 +463,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                     onMouseDown={(event) => handleElementDown(event, element)}
                     onTouchStart={(event) => handleElementDown(event, element)}
                     onDragEnd={(event) => moveByDrag(element, event)}
+                    onTransformEnd={(event) => resizeTapado(element, event)}
                   />
                 );
               }
@@ -456,6 +485,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                 </Group>
               );
             })}
+            <Transformer ref={transformerRef} rotateEnabled={false} enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"]} />
           </Group>
         </Layer>
         <Layer name="draft-layer">
@@ -585,7 +615,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       setSaveState("saved");
       return savedElements;
     } catch (error) {
-      setSaveState("error");
+      window.localStorage.setItem(localDraftKey(barrio.id), JSON.stringify(elements));
+      setSaveState("local");
       throw error;
     } finally {
       setSaving(false);
@@ -599,6 +630,28 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     }, 20000);
     return () => window.clearTimeout(timer);
   }, [saveDraft, saveState]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      const tag = event.target?.tagName?.toLowerCase();
+      if (["input", "textarea", "select"].includes(tag)) return;
+      const key = event.key.toLowerCase();
+      const mod = event.ctrlKey || event.metaKey;
+      if (mod && key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      } else if ((mod && key === "y") || (mod && event.shiftKey && key === "z")) {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undo, redo]);
+
+  useEffect(() => {
+    if (saveState === "dirty") saveDraft().catch(() => {});
+  }, [tool]);
 
   const sendReview = async () => {
     if (!elements.length) {
@@ -635,7 +688,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         <div className="planos-editor-status">
           <StatusBadge status={version?.estado || barrio.estado} />
           <span className={`planos-save-state is-${saveState}`}>
-            {saveState === "saving" ? "Guardando..." : saveState === "dirty" ? "Cambios sin guardar" : saveState === "error" ? "Error al guardar" : "Todo guardado"}
+            {saveState === "saving" ? "Guardando..." : saveState === "dirty" ? "Cambios sin guardar" : saveState === "local" ? "Guardado local, pendiente de sincronizar" : saveState === "error" ? "Error al guardar" : "Todo guardado"}
           </span>
         </div>
       </header>
@@ -654,7 +707,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar</button>
           <button type="button" onClick={() => setRotation(0)}>0 deg</button>
           {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
-          <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
+          <button type="button" onClick={saveDraft} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
           <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
         </div>
         <div className="planos-view-state">{tool} · Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg{tool === "linea" ? " · Mueve el mapa y agrega puntos" : ""}</div>
@@ -761,6 +814,10 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
   };
 
   const review = async (version, action) => {
+    if (action === "publicar") {
+      const ok = window.confirm("Publicar en Mapas Actualizados\n\nEsta accion mandara el croquis a Mapas Actualizados. El tecnico ya no podra modificar esta version sin crear una nueva revision.");
+      if (!ok) return;
+    }
     const observacion = action === "devolver" ? window.prompt("Observacion para devolver:", "") || "" : "";
     const response = await apiFetch(`/planos/versiones/${version.id}/${action}`, {
       method: "POST",
@@ -777,6 +834,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
 
   const currentList = tab === "mios" ? mios : barrios;
   const pickedBarrio = currentList.find((barrio) => String(barrio.id) === barrioId) || null;
+  const mapasActualizados = historial.filter((version) => ["aprobado", "publicado"].includes(version.estado));
 
   return (
     <section className="planos-workspace">
@@ -787,9 +845,9 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
           <p>PDF base + capa editable JSON para revision y publicacion.</p>
         </div>
         <div className="planos-tabs">
-          {["mios", "barrios", "revision", "historial"].map((key) => (
+          {["mios", "barrios", "revision", "mapas", "historial"].map((key) => (
             <button key={key} type="button" className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}>
-              {key === "mios" ? "Mis Croquis" : key === "barrios" ? "Barrios" : key === "revision" ? "Revision" : "Historial"}
+              {key === "mios" ? "Mis Croquis" : key === "barrios" ? "Barrios" : key === "revision" ? "Revision" : key === "mapas" ? "Mapas Actualizados" : "Historial"}
             </button>
           ))}
         </div>
@@ -851,6 +909,20 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
               {isAdmin && version.estado === "aprobado" ? <button type="button" onClick={() => review(version, "publicar")}>Publicar</button> : null}
             </article>
           ))}
+        </div>
+      ) : null}
+
+      {tab === "mapas" ? (
+        <div className="planos-table">
+          {mapasActualizados.map((version) => (
+            <article key={version.id}>
+              <strong>{version.nombre_barrio || `Barrio ${version.barrio_id}`}</strong>
+              <span>Version {version.numero_version}</span>
+              <StatusBadge status={version.estado} />
+              {isAdmin && version.estado === "aprobado" ? <button type="button" onClick={() => review(version, "publicar")}>Publicar en Mapas Actualizados</button> : null}
+            </article>
+          ))}
+          {!mapasActualizados.length ? <p>No hay mapas aprobados o publicados.</p> : null}
         </div>
       ) : null}
     </section>
