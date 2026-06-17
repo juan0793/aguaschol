@@ -10903,6 +10903,15 @@ textarea {
   color: #14344f;
 }
 
+.planos-editor {
+  width: min(100vw - 1rem, 1800px);
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
 .planos-header,
 .planos-editor-head,
 .planos-create-card,
@@ -11092,6 +11101,7 @@ textarea {
 
 .planos-editor-head {
   margin-bottom: 0.8rem;
+  min-height: 74px;
 }
 
 .planos-toolbar {
@@ -11108,18 +11118,26 @@ textarea {
 }
 
 .planos-editor-grid {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.8rem;
+  height: calc(100dvh - 172px);
+  min-height: 420px;
 }
 
 .planos-editor-stage {
   position: relative;
-  min-height: 680px;
-  border-radius: 18px;
-  overflow: auto;
+  min-height: 0;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
   border: 1px solid rgba(21, 118, 209, 0.14);
-  background: #eaf3fb;
+  background:
+    linear-gradient(rgba(21, 118, 209, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(21, 118, 209, 0.06) 1px, transparent 1px),
+    #eaf3fb;
+  background-size: 32px 32px;
   touch-action: none;
 }
 
@@ -11157,6 +11175,19 @@ textarea {
   cursor: crosshair;
 }
 
+.planos-canvas-message {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  color: var(--text-muted);
+  font-weight: 900;
+  text-align: center;
+  pointer-events: none;
+}
+
 .planos-svg-layer text {
   fill: #0f172a;
   font-weight: 800;
@@ -11192,11 +11223,16 @@ textarea {
 }
 
 .planos-properties {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  z-index: 6;
   display: grid;
   align-content: start;
   gap: 0.7rem;
+  width: min(280px, calc(100% - 1.6rem));
   padding: 1rem;
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .planos-properties label {
@@ -11242,14 +11278,24 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .planos-editor-stage {
-    min-height: 520px;
+  .planos-editor {
+    width: 100%;
+  }
+
+  .planos-editor-grid {
+    height: calc(100dvh - 218px);
+    min-height: 420px;
   }
 
   .planos-properties {
-    position: sticky;
+    position: absolute;
+    top: auto;
+    right: 0.5rem;
     bottom: 0.5rem;
+    left: 0.5rem;
     z-index: 5;
+    width: auto;
+    border-radius: 14px 14px 10px 10px;
   }
 }
 
