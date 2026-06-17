@@ -10906,6 +10906,7 @@ textarea {
 .planos-header,
 .planos-editor-head,
 .planos-create-card,
+.planos-picker,
 .planos-toolbar,
 .planos-card,
 .planos-table article,
@@ -10949,6 +10950,7 @@ textarea {
 .planos-toolbar button,
 .planos-card-actions button,
 .planos-create-card button,
+.planos-picker button,
 .planos-table button,
 .planos-finish-polygon {
   min-height: 42px;
@@ -10979,6 +10981,7 @@ textarea {
 
 .planos-create-card input,
 .planos-create-card select,
+.planos-picker select,
 .planos-toolbar input,
 .planos-properties input {
   min-height: 42px;
@@ -10987,6 +10990,34 @@ textarea {
   padding: 0.55rem 0.7rem;
   background: #ffffff;
   color: #14344f;
+}
+
+.planos-picker {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.85rem;
+  border-radius: 16px;
+  margin-top: 1rem;
+}
+
+.planos-picker-summary {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.planos-picker-summary strong {
+  color: #14344f;
+}
+
+.planos-picker button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .planos-card-grid {
@@ -11206,6 +11237,7 @@ textarea {
   }
 
   .planos-create-card,
+  .planos-picker,
   .planos-editor-grid {
     grid-template-columns: 1fr;
   }

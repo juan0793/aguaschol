@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../../config/api";
+import { API_URL, FILES_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
 
 const tools = [
@@ -25,7 +25,8 @@ const statusLabel = {
 };
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-const toPdfUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
+const fileBaseUrl = FILES_URL || API_URL.replace(/\/api$/, "");
+const toPdfUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${fileBaseUrl}${value}` : "");
 const normalizeElements = (elements = []) =>
   elements.map((item) => ({
     localId: item.localId || String(item.id || uid()),
@@ -266,6 +267,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
   const [revision, setRevision] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [selectedBarrio, setSelectedBarrio] = useState(null);
+  const [barrioId, setBarrioId] = useState("");
   const [form, setForm] = useState({ codigo_barrio: "", nombre_barrio: "", tecnico_id: "" });
   const [pdf, setPdf] = useState(null);
 
@@ -332,6 +334,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
   }
 
   const currentList = tab === "mios" ? mios : barrios;
+  const pickedBarrio = currentList.find((barrio) => String(barrio.id) === barrioId) || null;
 
   return (
     <section className="planos-workspace">
@@ -364,21 +367,21 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
       ) : null}
 
       {["mios", "barrios"].includes(tab) ? (
-        <div className="planos-card-grid">
-          {currentList.map((barrio) => (
-            <article key={barrio.id} className="planos-card">
-              <div>
-                <span>Codigo {barrio.codigo_barrio}</span>
-                <h3>{barrio.nombre_barrio}</h3>
-                <StatusBadge status={barrio.latest_version_estado || barrio.estado} />
-              </div>
-              <p>{barrio.archivo_pdf ? "PDF base cargado" : "Sin PDF base"}</p>
-              <div className="planos-card-actions">
-                <button type="button" onClick={() => setSelectedBarrio(barrio)}>Editar croquis</button>
-                {tab === "barrios" && isAdmin ? <button type="button" className="button-secondary" onClick={() => assign(barrio.id)}>Asignar</button> : null}
-              </div>
-            </article>
-          ))}
+        <div className="planos-picker">
+          <select value={barrioId} onChange={(event) => setBarrioId(event.target.value)}>
+            <option value="">Selecciona un barrio</option>
+            {currentList.map((barrio) => <option key={barrio.id} value={barrio.id}>{barrio.codigo_barrio} - {barrio.nombre_barrio}</option>)}
+          </select>
+          <button type="button" disabled={!pickedBarrio} onClick={() => setSelectedBarrio(pickedBarrio)}>Editar croquis</button>
+          {tab === "barrios" && isAdmin ? <button type="button" className="button-secondary" disabled={!pickedBarrio} onClick={() => assign(pickedBarrio.id)}>Asignar</button> : null}
+          {pickedBarrio ? (
+            <div className="planos-picker-summary">
+              <strong>{pickedBarrio.nombre_barrio}</strong>
+              <span>{pickedBarrio.archivo_pdf ? "PDF base cargado" : "Sin PDF base"}</span>
+              <StatusBadge status={pickedBarrio.latest_version_estado || pickedBarrio.estado} />
+            </div>
+          ) : null}
+          {!currentList.length ? <p>No hay barrios para mostrar.</p> : null}
         </div>
       ) : null}
 
