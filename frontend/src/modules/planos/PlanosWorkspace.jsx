@@ -294,10 +294,19 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     };
   };
 
-  const stagePoint = (stage) => {
-    const pointer = stage.getPointerPosition();
+  const eventPointer = (event) => {
+    const stage = event.target.getStage();
+    const touch = event.evt.touches?.[0] || event.evt.changedTouches?.[0];
+    if (!touch) return stage.getPointerPosition();
+    const rect = stage.container().getBoundingClientRect();
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+  };
+
+  const stagePoint = (stage, pointer = stage.getPointerPosition()) => {
     return pointer ? getImagePointFromScreenPoint(pointer) : null;
   };
+
+  const eventPoint = (event) => stagePoint(event.target.getStage(), eventPointer(event));
 
   const centerPoint = () => getImagePointFromScreenPoint({ x: stageSize.width / 2, y: stageSize.height / 2 });
   const centerDelta = () => {
@@ -366,17 +375,17 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     if (event.target !== event.target.getStage()) return;
     if (tool === "pan") {
-      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos };
+      panRef.current = { pointer: eventPointer(event), start: viewPos };
       setIsPanning(true);
       return;
     }
     if (showPrecision) {
-      const stage = event.target.getStage();
-      panRef.current = { pointer: stage.getPointerPosition(), imagePoint: stagePoint(stage), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
+      const pointer = eventPointer(event);
+      panRef.current = { pointer, imagePoint: stagePoint(event.target.getStage(), pointer), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
       setIsPanning(true);
       return;
     }
-    const point = stagePoint(event.target.getStage());
+    const point = eventPoint(event);
     if (!point) return;
     if (tool === "linea") {
       addLinePoint(point, snap || event.evt.shiftKey);
@@ -401,7 +410,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (panRef.current) {
-      const pointer = event.target.getStage().getPointerPosition();
+      const pointer = eventPointer(event);
       if (!pointer || !panRef.current.pointer) return;
       setViewPos({
         x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
@@ -411,7 +420,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (tool === "linea" && lineDraft) {
-      const point = stagePoint(event.target.getStage());
+      const point = eventPoint(event);
       if (point) setPointerPreview(snap || event.evt.shiftKey ? snapPoint(lineDraft.start, point) : point);
       return;
     }
@@ -420,7 +429,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const handleStageUp = (event) => {
     if (showPrecision && panRef.current && !panRef.current.moved) {
       if (panRef.current.touch) setViewPos(panRef.current.start);
-      const point = panRef.current.touch ? panRef.current.imagePoint : stagePoint(event.target.getStage()) || panRef.current.imagePoint;
+      const point = panRef.current.touch ? panRef.current.imagePoint : eventPoint(event) || panRef.current.imagePoint;
       if (point) {
         if (tool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
         else addElement(point);
@@ -440,8 +449,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const handleElementDown = (event, element) => {
     if (tool === "pan" || showPrecision) {
       event.cancelBubble = true;
-      const stage = event.target.getStage();
-      panRef.current = { pointer: stage.getPointerPosition(), imagePoint: stagePoint(stage), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
+      const pointer = eventPointer(event);
+      panRef.current = { pointer, imagePoint: stagePoint(event.target.getStage(), pointer), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
       setIsPanning(true);
       return;
     }
