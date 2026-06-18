@@ -300,6 +300,13 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const centerPoint = () => getImagePointFromScreenPoint({ x: stageSize.width / 2, y: stageSize.height / 2 });
+  const centerDelta = () => {
+    const point = centerPoint();
+    const dx = Math.round(point.x - background.width / 2);
+    const dy = Math.round(point.y - background.height / 2);
+    const tilt = Math.round(((rotation % 360) + 360) % 360);
+    return { dx, dy, tilt: tilt > 180 ? tilt - 360 : tilt };
+  };
   const touchCenterPoint = (touches) => {
     const rect = shellRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
     return { x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left, y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top };
@@ -354,6 +361,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       const distance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
       const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX) * 180 / Math.PI;
       pinchRef.current = { distance, angle, zoom, rotation, viewPos };
+      setIsPanning(true);
       return;
     }
     if (event.target !== event.target.getStage()) return;
@@ -398,7 +406,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
         x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
         y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
       });
-      if (Math.hypot(pointer.x - panRef.current.pointer.x, pointer.y - panRef.current.pointer.y) > 6) panRef.current.moved = true;
+      if (Math.hypot(pointer.x - panRef.current.pointer.x, pointer.y - panRef.current.pointer.y) > (event.evt.touches ? 22 : 6)) panRef.current.moved = true;
       return;
     }
     if (tool === "linea" && lineDraft) {
@@ -592,7 +600,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
           </div>
         </>
       ) : null}
-      {isPanning ? <div className="planos-pan-guide"><span>{centerPoint().x}, {centerPoint().y}</span></div> : null}
+      {isPanning ? <div className="planos-pan-guide"><span>Centro {centerDelta().dx}, {centerDelta().dy} · Giro {centerDelta().tilt}°</span></div> : null}
       <button type="button" className="planos-fit-button" onClick={() => { setZoom(1); setRotation(0); setViewPos({ x: 0, y: 0 }); }}>Ajustar</button>
       {polygonDraft.length >= 3 ? <button type="button" className="planos-finish-polygon" onClick={finishPolygon}>Cerrar poligono</button> : null}
     </div>
