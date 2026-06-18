@@ -371,7 +371,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (showPrecision) {
-      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos, moved: false };
+      const stage = event.target.getStage();
+      panRef.current = { pointer: stage.getPointerPosition(), imagePoint: stagePoint(stage), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
       setIsPanning(true);
       return;
     }
@@ -418,7 +419,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const handleStageUp = (event) => {
     if (showPrecision && panRef.current && !panRef.current.moved) {
-      const point = stagePoint(event.target.getStage());
+      if (panRef.current.touch) setViewPos(panRef.current.start);
+      const point = panRef.current.touch ? panRef.current.imagePoint : stagePoint(event.target.getStage()) || panRef.current.imagePoint;
       if (point) {
         if (tool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
         else addElement(point);
@@ -438,7 +440,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const handleElementDown = (event, element) => {
     if (tool === "pan" || showPrecision) {
       event.cancelBubble = true;
-      panRef.current = { pointer: event.target.getStage().getPointerPosition(), start: viewPos, moved: false };
+      const stage = event.target.getStage();
+      panRef.current = { pointer: stage.getPointerPosition(), imagePoint: stagePoint(stage), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
       setIsPanning(true);
       return;
     }
