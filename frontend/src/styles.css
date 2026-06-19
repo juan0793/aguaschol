@@ -11180,17 +11180,19 @@ body.planos-focus-mode .page-shell > main {
   position: relative;
   z-index: 4;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
   gap: 0.45rem;
   margin: 0 0.5rem 0.45rem;
-  padding: 0.45rem;
+  padding: 0.35rem;
   border-radius: 12px;
+  scrollbar-width: none;
 }
 
 .planos-view-state {
-  flex: 1 0 100%;
+  flex: 0 0 auto;
   color: #42617d;
   font-size: 0.75rem;
   font-weight: 800;
@@ -11205,7 +11207,7 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .planos-tool-group {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   overflow: visible;
   scrollbar-width: none;
 }
@@ -11216,7 +11218,7 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .planos-action-group {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-start;
   overflow: visible;
   scrollbar-width: none;
@@ -11240,16 +11242,16 @@ body.planos-focus-mode .page-shell > main {
 .planos-toolbar button {
   display: inline-flex;
   flex: 0 0 auto;
-  min-height: 36px;
+  min-height: 34px;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.42rem 0.62rem;
+  padding: 0.35rem 0.52rem;
   border-radius: 10px;
   white-space: nowrap;
 }
 
 .planos-tool-group button {
-  min-width: 112px;
+  min-width: 0;
 }
 
 .planos-toolbar button:disabled {
@@ -11260,7 +11262,7 @@ body.planos-focus-mode .page-shell > main {
 .planos-layer-select {
   display: inline-flex;
   flex: 0 0 auto;
-  min-height: 36px;
+  min-height: 34px;
   align-items: center;
   gap: 0.35rem;
   padding: 0 0.45rem;
@@ -11414,20 +11416,70 @@ body.planos-focus-mode .page-shell > main {
   z-index: 20;
   display: grid;
   place-items: center;
-  width: 92px;
+  width: 124px;
+  height: 124px;
   transform: translate(-50%, -50%);
   color: #0f172a;
   text-shadow: 0 1px 8px rgba(255, 255, 255, 0.95);
 }
 
+.planos-crosshair::before,
+.planos-crosshair::after {
+  content: "";
+  position: absolute;
+  background: rgba(21, 118, 209, 0.92);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+
+.planos-crosshair::before {
+  width: 1px;
+  height: 96px;
+}
+
+.planos-crosshair::after {
+  width: 96px;
+  height: 1px;
+}
+
 .planos-crosshair span {
-  margin-top: 0.25rem;
+  position: absolute;
+  top: calc(50% + 36px);
   border-radius: 999px;
   padding: 0.15rem 0.45rem;
   background: rgba(255, 255, 255, 0.86);
   font-size: 0.72rem;
   font-weight: 900;
 }
+
+.planos-nudge-pad {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  z-index: 24;
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down .";
+  gap: 0.25rem;
+  transform: translateY(-50%);
+}
+
+.planos-nudge-pad button {
+  min-height: 34px;
+  border: 1px solid rgba(21, 118, 209, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #123b5d;
+  font-weight: 900;
+  box-shadow: 0 8px 22px rgba(16, 55, 91, 0.12);
+}
+
+.planos-nudge-pad button:nth-child(1) { grid-area: up; }
+.planos-nudge-pad button:nth-child(2) { grid-area: left; }
+.planos-nudge-pad button:nth-child(3) { grid-area: right; }
+.planos-nudge-pad button:nth-child(4) { grid-area: down; }
 
 .planos-pan-guide {
   pointer-events: none;
@@ -11658,6 +11710,16 @@ body.planos-focus-mode .page-shell > main {
   .planos-precision-actions button {
     flex: 1;
     min-height: 46px;
+  }
+
+  .planos-nudge-pad {
+    right: 0.75rem;
+    grid-template-columns: repeat(3, 30px);
+  }
+
+  .planos-nudge-pad button {
+    min-height: 30px;
+    padding: 0;
   }
 
   .planos-fit-button {

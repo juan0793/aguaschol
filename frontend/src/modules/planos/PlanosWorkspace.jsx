@@ -501,6 +501,14 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     setElements((current) => [...current, { localId: uid(), tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
     setPolygonDraft([]);
   };
+  const nudgeCenter = (dx, dy) => {
+    const target = { x: centerPoint().x + dx, y: centerPoint().y + dy };
+    const projected = getScreenPointFromImagePoint(target);
+    setViewPos((current) => ({
+      x: current.x + stageSize.width / 2 - projected.x,
+      y: current.y + stageSize.height / 2 - projected.y
+    }));
+  };
   const centeredActionLabel =
     tool === "linea" ? (lineDraft ? "Terminar linea" : "Iniciar linea") :
     tool === "poligono" ? "Agregar vertice" :
@@ -612,6 +620,12 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       {showPrecision ? (
         <>
           <div className="planos-crosshair"><Crosshair size={42} /><span>Centrado {centerPoint().x}, {centerPoint().y}</span></div>
+          <div className="planos-nudge-pad" aria-label="Ajuste fino del punto centrado">
+            <button type="button" onClick={() => nudgeCenter(0, -1)}>↑</button>
+            <button type="button" onClick={() => nudgeCenter(-1, 0)}>←</button>
+            <button type="button" onClick={() => nudgeCenter(1, 0)}>→</button>
+            <button type="button" onClick={() => nudgeCenter(0, 1)}>↓</button>
+          </div>
           <div className="planos-precision-actions">
             <button type="button" onClick={() => {
               const point = centerPoint();
