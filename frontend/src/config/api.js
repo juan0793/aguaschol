@@ -1,9 +1,12 @@
-const rawApiBase = (import.meta.env.VITE_API_URL?.trim() || "").replace(/\/$/, "");
-export const API_URL = (rawApiBase ? (rawApiBase.endsWith("/api") ? rawApiBase : `${rawApiBase}/api`) : "/api").replace(
+const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? "http://127.0.0.1:4000" : "");
+const FILES_BASE_URL = import.meta.env.VITE_FILES_URL?.trim() || (import.meta.env.DEV ? API_BASE_URL : "");
+const rawApiBase = API_BASE_URL.replace(/\/$/, "");
+
+export const API_URL = (rawApiBase ? (rawApiBase.endsWith("/api") ? rawApiBase : `${rawApiBase}/api`) : "").replace(
   /\/$/,
   ""
 );
-export const FILES_URL = (import.meta.env.VITE_FILES_URL?.trim() || rawApiBase).replace(/\/$/, "");
+export const FILES_URL = FILES_BASE_URL.replace(/\/$/, "");
 
 export const WS_URL = (() => {
   if (rawApiBase) {

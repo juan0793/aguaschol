@@ -206,7 +206,7 @@ const getCurrentPosition = (options) =>
 
 const isLocalSecureHost = () => {
   if (typeof window === "undefined") return false;
-  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+  return window.location.hostname === "::1";
 };
 
 const getGeolocationUnavailableMessage = () => {
@@ -3743,12 +3743,12 @@ function App() {
       const response = await request();
       const data = await readJsonResponse(
         response,
-        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+        "La API no devolvio JSON. Revisa que el backend este disponible y que la base de datos este lista."
       );
 
       if (!response.ok) {
         if (response.status >= 500 && !data.message) {
-          throw new Error("No se pudo conectar correctamente con la API local. Revisa que el backend este corriendo en http://127.0.0.1:4000.");
+          throw new Error("No se pudo conectar correctamente con la API. Revisa que el backend este disponible.");
         }
         if (response.status === 401) {
           clearSession();
@@ -4569,11 +4569,11 @@ function App() {
           }))
         })
       }).catch(() => {
-        throw new Error("No se pudo conectar con la API local. Revisa que el backend este corriendo en http://127.0.0.1:4000.");
+        throw new Error("No se pudo conectar con la API. Revisa que el backend este disponible.");
       });
       const data = await readJsonResponse(
         response,
-        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+        "La API no devolvio JSON. Revisa que el backend este disponible y que la base de datos este lista."
       );
 
       if (!response.ok) {
@@ -8964,11 +8964,11 @@ function App() {
         },
         body: JSON.stringify(loginForm)
       }).catch(() => {
-        throw new Error("No se pudo conectar con la API local. Revisa que el backend este corriendo en http://127.0.0.1:4000.");
+        throw new Error("No se pudo conectar con la API. Revisa que el backend este disponible.");
       });
       const data = await readJsonResponse(
         response,
-        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+        "La API no devolvio JSON. Revisa que el backend este disponible y que la base de datos este lista."
       );
 
       if (!response.ok) {
@@ -9147,7 +9147,7 @@ function App() {
       });
       const data = await readJsonResponse(
         response,
-        "La API local no devolvio JSON. Revisa que el backend este corriendo y que la base de datos este lista."
+        "La API no devolvio JSON. Revisa que el backend este disponible y que la base de datos este lista."
       );
 
       if (!response.ok) {
