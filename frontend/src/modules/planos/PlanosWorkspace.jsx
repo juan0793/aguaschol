@@ -29,15 +29,16 @@ const tools = [
   ["select", "Seleccionar", MousePointer2],
   ["pan", "Mover", Move],
   ["linea", "Linea", Edit3],
-  ["poligono", "Poligono", Pentagon],
+  ["codigo", "Numero", MapIcon],
   ["texto", "Texto", Type],
-  ["codigo", "Codigo", MapIcon],
+  ["borrar", "Borrar", Eraser],
+  ["poligono", "Poligono", Pentagon],
   ["punto", "Punto", LocateFixed],
-  ["tapado", "Tapar", Square],
-  ["borrar", "Borrar", Eraser]
+  ["tapado", "Tapar", Square]
 ];
-const deleteTool = tools.find(([key]) => key === "borrar");
-const drawingTools = tools.filter(([key]) => key !== "borrar");
+const primaryToolKeys = new Set(["select", "pan", "linea", "codigo", "texto", "borrar"]);
+const primaryTools = tools.filter(([key]) => primaryToolKeys.has(key));
+const secondaryTools = tools.filter(([key]) => !primaryToolKeys.has(key));
 
 const editorLayers = [
   ["correcciones", "Correcciones"],
@@ -55,6 +56,8 @@ const statusLabel = {
   aprobado: "Aprobado",
   publicado: "Publicado"
 };
+
+const toolLabel = Object.fromEntries(tools.map(([key, label]) => [key, label]));
 
 const sortDraftsFirst = (items = []) => [...items].sort((a, b) => {
   const score = (item) => (["borrador", "en_edicion", "devuelto"].includes(item.latest_version_estado || item.estado) ? 0 : 1);
@@ -498,6 +501,13 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     setElements((current) => [...current, { localId: uid(), tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
     setPolygonDraft([]);
   };
+  const centeredActionLabel =
+    tool === "linea" ? (lineDraft ? "Terminar linea" : "Iniciar linea") :
+    tool === "poligono" ? "Agregar vertice" :
+    tool === "codigo" ? "Agregar numero" :
+    tool === "texto" ? "Agregar texto" :
+    tool === "tapado" ? "Tapar area" :
+    "Agregar punto";
 
   return (
     <div ref={shellRef} className={`planos-editor-stage is-tool-${tool}`}>
@@ -601,13 +611,13 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       </Stage>
       {showPrecision ? (
         <>
-          <div className="planos-crosshair"><Crosshair size={42} /><span>{centerPoint().x}, {centerPoint().y}</span></div>
+          <div className="planos-crosshair"><Crosshair size={42} /><span>Centrado {centerPoint().x}, {centerPoint().y}</span></div>
           <div className="planos-precision-actions">
             <button type="button" onClick={() => {
               const point = centerPoint();
               if (tool === "linea") addLinePoint(point, snap);
               else addElement(point);
-            }}>{tool === "linea" || tool === "poligono" ? "Agregar punto" : tool === "tapado" ? "Tapar" : "Colocar"}</button>
+            }}>{centeredActionLabel}</button>
             {lineDraft ? <button type="button" onClick={() => { setLineDraft(null); setPointerPreview(null); }}>Cancelar</button> : null}
           </div>
         </>
@@ -785,14 +795,15 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
 
   const sendReview = async () => {
     if (!elements.length) {
-      toast.warning("Agrega al menos un cambio antes de enviar a revision.");
+      toast.warning("Agrega al menos un cambio antes de finalizar.");
       return;
     }
     await saveDraft();
     const response = await apiFetch(`/planos/${barrio.id}/enviar-revision`, { method: "POST" });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "No se pudo enviar.");
+    if (!response.ok) throw new Error(data.message || "No se pudo finalizar.");
     setVersion(data);
+    toast.success("Croquis finalizado y enviado al admin.");
   };
 
   const closeEditor = async () => {
@@ -836,12 +847,20 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       </header>
       <div className="planos-toolbar">
         <div className="planos-tool-group">
-          {drawingTools.map(([key, label, ToolIcon]) => <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}><ToolIcon size={16} />{label}</button>)}
+          {primaryTools.map(([key, label, ToolIcon]) => (
+            <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
+              <ToolIcon size={16} />{label}
+            </button>
+          ))}
         </div>
-        {deleteTool ? <button type="button" className={`planos-delete-tool ${tool === "borrar" ? "is-active" : ""}`} onClick={() => setTool("borrar")}><Eraser size={16} />Borrar</button> : null}
         <div className="planos-action-group">
           <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-          {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="Texto, codigo u observacion" /> : null}
+          {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder={tool === "codigo" ? "Numero" : "Texto u observacion"} /> : null}
+          {secondaryTools.map(([key, label, ToolIcon]) => (
+            <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
+              <ToolIcon size={16} />{label}
+            </button>
+          ))}
           <button type="button" onClick={undo} disabled={!canUndo}><Undo2 size={16} />Deshacer</button>
           <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
           <button type="button" onClick={() => setZoom((current) => clampZoom(current - 0.5))}><Minus size={16} />Zoom</button>
@@ -851,9 +870,9 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <button type="button" onClick={() => setRotation(0)}>0 deg</button>
           {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
           <button type="button" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
-          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Revision</button>
+          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
         </div>
-        <div className="planos-view-state">{tool} · Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg{tool === "linea" ? " · Mueve el mapa y agrega puntos" : ""}</div>
+        <div className="planos-view-state">{toolLabel[tool] || tool} · Centrado · Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg</div>
       </div>
       <div className="planos-editor-grid">
         <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} content={content} activeLayer={activeLayer} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} />
@@ -1027,7 +1046,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
         <div className="planos-tabs">
           {["mios", "barrios", "revision", "mapas", "historial"].map((key) => (
             <button key={key} type="button" className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}>
-              {key === "mios" ? "Mis Croquis" : key === "barrios" ? "Barrios" : key === "revision" ? "Revision" : key === "mapas" ? "Mapas Actualizados" : "Historial"}
+              {key === "mios" ? "Mis Croquis" : key === "barrios" ? "Barrios" : key === "revision" ? "Planos finalizados" : key === "mapas" ? "Mapas Actualizados" : "Historial"}
             </button>
           ))}
         </div>
@@ -1075,7 +1094,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
               <button type="button" onClick={() => review(version, "devolver")}>Devolver</button>
             </article>
           ))}
-          {!revision.length ? <p>No hay croquis enviados a revision.</p> : null}
+          {!revision.length ? <p>No hay planos finalizados pendientes de revisar.</p> : null}
         </div>
       ) : null}
 
