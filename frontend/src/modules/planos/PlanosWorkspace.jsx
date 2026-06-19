@@ -843,6 +843,10 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
             </button>
           ))}
         </div>
+        <div className="planos-action-group planos-save-group">
+          <button type="button" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
+          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
+        </div>
         <div className="planos-action-group">
           <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder={tool === "codigo" ? "Numero" : "Texto u observacion"} /> : null}
@@ -863,10 +867,6 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar</button>
           <button type="button" onClick={() => setRotation(0)}>0 deg</button>
           {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
-        </div>
-        <div className="planos-action-group planos-save-group">
-          <button type="button" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
-          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
         </div>
         <div className="planos-view-state">{toolLabel[tool] || tool} · Centrado · Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg</div>
       </div>

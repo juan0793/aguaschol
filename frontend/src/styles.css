@@ -11566,7 +11566,7 @@ body.planos-focus-mode .page-shell > main {
   .planos-editor-grid {
     height: calc(100dvh - 168px);
     min-height: 420px;
-    margin-bottom: 13rem;
+    margin-bottom: 9rem;
   }
 
   .planos-toolbar {
@@ -11574,7 +11574,7 @@ body.planos-focus-mode .page-shell > main {
     right: 0.5rem;
     bottom: 0.5rem;
     left: 0.5rem;
-    max-height: min(46vh, 360px);
+    max-height: min(28vh, 230px);
     overflow-y: auto;
     margin: 0;
     border-radius: 16px;
@@ -11589,15 +11589,17 @@ body.planos-focus-mode .page-shell > main {
   }
 
   .planos-action-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
     flex: 1 0 100%;
     gap: 0.35rem;
-    overflow: visible;
+    overflow-x: auto;
     scrollbar-width: none;
   }
 
   .planos-save-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-left: 0;
   }
 
@@ -11613,11 +11615,32 @@ body.planos-focus-mode .page-shell > main {
   }
 
   .planos-primary-action,
-  .planos-layer-select,
-  .planos-view-state,
   .planos-toolbar input {
-    grid-column: 1 / -1;
     width: 100%;
+  }
+
+  .planos-layer-select {
+    flex: 1 0 100%;
+  }
+
+  .planos-view-state {
+    display: none;
+  }
+
+  .planos-history-group,
+  .planos-view-group {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .planos-history-group button,
+  .planos-view-group button,
+  .planos-action-group button {
+    min-width: 112px;
+  }
+
+  .planos-save-group button {
+    min-width: 0;
   }
 
   .planos-layer-select {
