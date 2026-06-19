@@ -852,8 +852,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       <div className="planos-toolbar">
         <div className="planos-tool-group">
           {primaryTools.map(([key, label, ToolIcon]) => (
-            <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
-              <ToolIcon size={16} />{label}
+            <button key={key} type="button" aria-label={label} title={label} className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
+              <ToolIcon size={16} /><span className="planos-tool-label">{label}</span>
             </button>
           ))}
         </div>
@@ -865,7 +865,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{editorLayers.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder={tool === "codigo" ? "Numero" : "Texto u observacion"} /> : null}
           {secondaryTools.map(([key, label, ToolIcon]) => (
-            <button key={key} type="button" className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
+            <button key={key} type="button" aria-label={label} title={label} className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
               <ToolIcon size={16} />{label}
             </button>
           ))}
