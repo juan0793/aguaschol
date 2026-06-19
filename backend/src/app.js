@@ -21,7 +21,8 @@ import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 const localOrigins = env.isRailway ? [] : ["http://127.0.0.1:5173", "http://localhost:5173"];
-const allowedOrigins = new Set([...env.frontendUrls, ...localOrigins]);
+const productionOrigins = env.isRailway ? ["https://www.controlaguas.com", "https://controlaguas.com"] : [];
+const allowedOrigins = new Set([...env.frontendUrls, ...localOrigins, ...productionOrigins]);
 const frontendDistAvailable = fs.existsSync(env.frontendDistDir);
 const frontendAssetsDir = path.join(env.frontendDistDir, "assets");
 const frontendAssetsAvailable = fs.existsSync(frontendAssetsDir);
