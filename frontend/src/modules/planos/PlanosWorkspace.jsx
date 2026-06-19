@@ -808,19 +808,9 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
 
   const closeEditor = async () => {
     if (saveState === "dirty" || saveState === "local") {
-      toast.warning("Tienes cambios sin guardar.", {
-        description: "Guarda el borrador antes de salir para continuar despues.",
-        action: {
-          label: "Guardar",
-          onClick: async () => {
-            await saveDraft().catch(() => {
-              toast.warning("No se pudo guardar en el servidor. El borrador queda guardado localmente en este equipo.");
-            });
-            onClose();
-          }
-        }
+      saveDraft({ silent: true }).catch(() => {
+        toast.warning("El borrador queda guardado localmente en este equipo.");
       });
-      return;
     }
     onClose();
   };
@@ -861,14 +851,20 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
               <ToolIcon size={16} />{label}
             </button>
           ))}
+        </div>
+        <div className="planos-action-group planos-history-group">
           <button type="button" onClick={undo} disabled={!canUndo}><Undo2 size={16} />Deshacer</button>
           <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
+        </div>
+        <div className="planos-action-group planos-view-group">
           <button type="button" onClick={() => setZoom((current) => clampZoom(current - 0.5))}><Minus size={16} />Zoom</button>
           <button type="button" onClick={() => setZoom((current) => clampZoom(current + 0.5))}><Plus size={16} />Zoom</button>
           <button type="button" onClick={() => setRotation((current) => current - 15)}><RotateCcw size={16} />Girar</button>
           <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar</button>
           <button type="button" onClick={() => setRotation(0)}>0 deg</button>
           {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
+        </div>
+        <div className="planos-action-group planos-save-group">
           <button type="button" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
           <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
         </div>

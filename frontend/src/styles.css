@@ -11179,8 +11179,9 @@ body.planos-focus-mode .page-shell > main {
 .planos-toolbar {
   position: relative;
   z-index: 4;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   overflow: visible;
   gap: 0.45rem;
   margin: 0 0.5rem 0.45rem;
@@ -11189,7 +11190,7 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .planos-view-state {
-  grid-column: 1 / -1;
+  flex: 1 0 100%;
   color: #42617d;
   font-size: 0.75rem;
   font-weight: 800;
@@ -11219,6 +11220,10 @@ body.planos-focus-mode .page-shell > main {
   justify-content: flex-start;
   overflow: visible;
   scrollbar-width: none;
+}
+
+.planos-save-group {
+  margin-left: auto;
 }
 
 .planos-delete-tool {
@@ -11569,7 +11574,6 @@ body.planos-focus-mode .page-shell > main {
     right: 0.5rem;
     bottom: 0.5rem;
     left: 0.5rem;
-    grid-template-columns: 1fr;
     max-height: min(46vh, 360px);
     overflow-y: auto;
     margin: 0;
@@ -11580,15 +11584,21 @@ body.planos-focus-mode .page-shell > main {
   .planos-tool-group {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex: 1 0 100%;
     gap: 0.35rem;
   }
 
   .planos-action-group {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 1 0 100%;
     gap: 0.35rem;
     overflow: visible;
     scrollbar-width: none;
+  }
+
+  .planos-save-group {
+    margin-left: 0;
   }
 
   .planos-toolbar button {
