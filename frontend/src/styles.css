@@ -11600,6 +11600,52 @@ body.planos-focus-mode .page-shell > main {
   min-height: 38px;
 }
 
+.planos-layers-panel {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(21, 118, 209, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.planos-layer-row {
+  display: grid;
+  grid-template-columns: minmax(145px, 1fr) 42px 42px minmax(100px, 120px);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(21, 118, 209, 0.14);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.planos-layer-row.is-active {
+  border-color: rgba(21, 118, 209, 0.55);
+  box-shadow: 0 0 0 2px rgba(21, 118, 209, 0.08);
+}
+
+.planos-layer-row button {
+  min-height: 38px;
+}
+
+.planos-layer-row button:first-child {
+  justify-content: space-between;
+}
+
+.planos-layer-row button span {
+  font-size: 0.75rem;
+  opacity: 0.72;
+}
+
+.planos-layer-row label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .planos-mini-stats {
   display: grid;
   margin-top: 0.5rem;

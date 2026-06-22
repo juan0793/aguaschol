@@ -97,3 +97,6 @@ export const moveElementInStack = (elements, localId, direction) => {
   next.splice(nextIndex, 0, item);
   return next;
 };
+
+export const patchEditorLayer = (layers, key, patch) =>
+  layers.map((layer) => (layer.key === key ? { ...layer, ...patch } : layer));

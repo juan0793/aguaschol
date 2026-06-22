@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cloneEditorElement, finishLineDraft, legacyTwoClickLineDraft, moveElementInStack, nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
+import { cloneEditorElement, finishLineDraft, legacyTwoClickLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
 
 test("croquis history undoes and redoes element edits", () => {
   let history = { past: [], future: [] };
@@ -56,4 +56,11 @@ test("editor duplicates and reorders elements", () => {
 
   assert.deepEqual(moveElementInStack([{ localId: "a" }, { localId: "b" }, { localId: "c" }], "b", "front").map((item) => item.localId), ["a", "c", "b"]);
   assert.deepEqual(moveElementInStack([{ localId: "a" }, { localId: "b" }, { localId: "c" }], "b", "back").map((item) => item.localId), ["b", "a", "c"]);
+});
+
+test("editor updates one layer without mutating the rest", () => {
+  const layers = [{ key: "calles", visible: true }, { key: "lotes", visible: true }];
+  const next = patchEditorLayer(layers, "calles", { visible: false, locked: true });
+  assert.deepEqual(next, [{ key: "calles", visible: false, locked: true }, { key: "lotes", visible: true }]);
+  assert.equal(layers[0].visible, true);
 });
