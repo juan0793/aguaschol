@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cloneEditorElement, finishLineDraft, legacyTwoClickLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
+import { cloneEditorElement, completePlacementTool, finishLineDraft, legacyTwoClickLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
 
 test("croquis history undoes and redoes element edits", () => {
   let history = { past: [], future: [] };
@@ -63,4 +63,13 @@ test("editor updates one layer without mutating the rest", () => {
   const next = patchEditorLayer(layers, "calles", { visible: false, locked: true });
   assert.deepEqual(next, [{ key: "calles", visible: false, locked: true }, { key: "lotes", visible: true }]);
   assert.equal(layers[0].visible, true);
+});
+
+test("single placement tools return to select unless continuous mode is enabled", () => {
+  assert.equal(completePlacementTool("punto", false), "select");
+  assert.equal(completePlacementTool("texto", false), "select");
+  assert.equal(completePlacementTool("codigo", false), "select");
+  assert.equal(completePlacementTool("tapado", false), "select");
+  assert.equal(completePlacementTool("punto", true), "punto");
+  assert.equal(completePlacementTool("linea", false), "linea");
 });

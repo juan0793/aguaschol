@@ -11600,6 +11600,62 @@ body.planos-focus-mode .page-shell > main {
   min-height: 38px;
 }
 
+.planos-tool-hint {
+  display: grid;
+  min-width: min(280px, 100%);
+  gap: 0.15rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(21, 118, 209, 0.12);
+  border-radius: 10px;
+  background: rgba(21, 118, 209, 0.07);
+  color: #123b5d;
+}
+
+.planos-tool-hint strong {
+  font-size: 0.78rem;
+}
+
+.planos-tool-hint span {
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.planos-drawing-actions {
+  position: absolute;
+  left: 50%;
+  bottom: 4.8rem;
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(21, 118, 209, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 34px rgba(16, 55, 91, 0.12);
+  transform: translateX(-50%);
+}
+
+.planos-drawing-actions strong {
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.planos-drawing-actions button {
+  min-height: 40px;
+  border: 1px solid rgba(21, 118, 209, 0.18);
+  border-radius: 10px;
+  padding: 0 0.75rem;
+  background: #1576d1;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.planos-drawing-actions button:last-child {
+  background: #ffffff;
+  color: #123b5d;
+}
+
 .planos-layers-panel {
   display: flex;
   gap: 0.55rem;
@@ -11790,6 +11846,20 @@ body.planos-focus-mode .page-shell > main {
   .planos-precision-actions button {
     flex: 1;
     min-height: 46px;
+  }
+
+  .planos-drawing-actions {
+    right: 0.75rem;
+    bottom: 5.2rem;
+    left: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    transform: none;
+  }
+
+  .planos-drawing-actions strong {
+    width: 100%;
+    text-align: center;
   }
 
   .planos-nudge-pad {

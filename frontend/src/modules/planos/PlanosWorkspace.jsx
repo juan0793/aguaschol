@@ -5,7 +5,9 @@ import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Tra
 import { toast } from "sonner";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
-import { cloneEditorElement, finishLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
+import { CroquisSyncStatus } from "./CroquisSyncStatus";
+import { CroquisToolHint } from "./CroquisToolHint";
+import { cloneEditorElement, completePlacementTool, finishLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -66,6 +68,8 @@ const statusLabel = {
 };
 
 const toolLabel = Object.fromEntries(tools.map(([key, label]) => [key, label]));
+const singlePlacementTools = new Set(["punto", "texto", "codigo", "tapado"]);
+const placementTools = new Set(["linea", "poligono", "texto", "codigo", "punto", "tapado"]);
 
 const sortDraftsFirst = (items = []) => [...items].sort((a, b) => {
   const score = (item) => (["borrador", "en_edicion", "devuelto"].includes(item.latest_version_estado || item.estado) ? 0 : 1);
@@ -186,12 +190,13 @@ const moveElement = (element, dx, dy) => {
 
 const StatusBadge = ({ status }) => <span className={`planos-status is-${status || "pendiente"}`}>{statusLabel[status] || status || "Pendiente"}</span>;
 
-function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, content, activeLayer, layers, polygonDraft, setPolygonDraft, zoom, setZoom, rotation, setRotation, snap }) {
+function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, onToolChange, content, activeLayer, layers, polygonDraft, setPolygonDraft, zoom, setZoom, rotation, setRotation, snap, continuousPlacement, precisionMode }) {
   const shellRef = useRef(null);
   const panRef = useRef(null);
   const pinchRef = useRef(null);
   const transformerRef = useRef(null);
   const shapeRefs = useRef({});
+  const lastTouchAtRef = useRef(0);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
@@ -204,7 +209,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const viewport = { x: stageSize.width / 2 + viewPos.x, y: stageSize.height / 2 + viewPos.y, scale, rotation };
   const groupProps = { x: viewport.x, y: viewport.y, scaleX: viewport.scale, scaleY: viewport.scale, rotation: viewport.rotation, offsetX: background.width / 2, offsetY: background.height / 2 };
   const precisionTools = ["linea", "poligono", "texto", "codigo", "punto", "tapado"];
-  const showPrecision = precisionTools.includes(tool);
+  const showPrecision = precisionMode && precisionTools.includes(tool);
   const selected = elements.find((item) => item.localId === selectedId);
   const layerMap = useMemo(() => Object.fromEntries(layers.map((layer) => [layer.key, layer])), [layers]);
   const baseLayer = layerMap.plano_base || { visible: true, opacity: 1, locked: true };
@@ -362,7 +367,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (activeLayerState.locked || !activeLayerState.visible) return;
     const line = finishLineDraft(lineDraft, activeLayer);
     if (!line) return;
-    setElements((current) => [...current, { localId: uid(), ...line }]);
+    const localId = uid();
+    setElements((current) => [...current, { localId, ...line }]);
+    setSelectedId(localId);
+    onToolChange("select");
     setLineDraft(null);
     setPointerPreview(null);
     toast.success("Linea agregada.");
@@ -403,6 +411,11 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }));
   };
 
+  const completeSinglePlacement = (localId) => {
+    setSelectedId(localId);
+    onToolChange(completePlacementTool(tool, continuousPlacement));
+  };
+
   const addElement = (point) => {
     if (activeLayerState.locked || !activeLayerState.visible) {
       toast.warning("La capa activa esta bloqueada u oculta.");
@@ -410,16 +423,23 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     if (tool === "texto" || tool === "codigo") {
       const text = content.trim() || (tool === "codigo" ? "10-00-00-00" : "Texto");
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: tool, data_json: { capa: activeLayer, x: point.x, y: point.y, contenido: text, fontSize: tool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
+      const localId = uid();
+      setElements((current) => [...current, { localId, tipo_elemento: tool, data_json: { capa: activeLayer, x: point.x, y: point.y, contenido: text, fontSize: tool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
+      completeSinglePlacement(localId);
+      toast.success(tool === "codigo" ? "Numero agregado." : "Texto agregado.");
       return;
     }
     if (tool === "punto") {
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: "punto", data_json: { capa: activeLayer, x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1" } }]);
+      const localId = uid();
+      setElements((current) => [...current, { localId, tipo_elemento: "punto", data_json: { capa: activeLayer, x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1", size: 12, tipoPunto: "referencia" } }]);
+      completeSinglePlacement(localId);
       toast.success("Punto agregado.");
       return;
     }
     if (tool === "tapado") {
-      setElements((current) => [...current, { localId: uid(), tipo_elemento: "tapado", data_json: { capa: activeLayer, x: point.x - 40, y: point.y - 20, width: 80, height: 40, color: "#ffffff" } }]);
+      const localId = uid();
+      setElements((current) => [...current, { localId, tipo_elemento: "tapado", data_json: { capa: activeLayer, x: point.x - 40, y: point.y - 20, width: 80, height: 40, color: "#ffffff" } }]);
+      completeSinglePlacement(localId);
       toast.success("Tapado agregado.");
       return;
     }
@@ -429,6 +449,9 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageDown = (event) => {
+    const eventType = event.evt.type || "";
+    if (eventType.startsWith("touch")) lastTouchAtRef.current = Date.now();
+    if (eventType.startsWith("mouse") && Date.now() - lastTouchAtRef.current < 700) return;
     if (event.evt.touches?.length >= 2) {
       const touches = event.evt.touches;
       const distance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
@@ -438,6 +461,12 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (event.target !== event.target.getStage()) return;
+    if (event.evt.touches?.length === 1 && placementTools.has(tool)) {
+      const pointer = eventPointer(event);
+      panRef.current = { pointer, imagePoint: stagePoint(event.target.getStage(), pointer), start: viewPos, moved: false, touch: true, placement: true };
+      setIsPanning(true);
+      return;
+    }
     if (tool === "pan") {
       panRef.current = { pointer: eventPointer(event), start: viewPos };
       setIsPanning(true);
@@ -459,7 +488,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       toast.info("El plano base no se puede borrar. Solo puedes borrar correcciones agregadas.");
       return;
     }
-    if (["poligono", "texto", "codigo", "punto"].includes(tool)) addElement(point);
+    if (["poligono", "texto", "codigo", "punto", "tapado"].includes(tool)) addElement(point);
     if (tool === "select") setSelectedId("");
   };
 
@@ -476,11 +505,14 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (panRef.current) {
       const pointer = eventPointer(event);
       if (!pointer || !panRef.current.pointer) return;
-      setViewPos({
-        x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
-        y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
-      });
-      if (Math.hypot(pointer.x - panRef.current.pointer.x, pointer.y - panRef.current.pointer.y) > (event.evt.touches ? 22 : 6)) panRef.current.moved = true;
+      const distance = Math.hypot(pointer.x - panRef.current.pointer.x, pointer.y - panRef.current.pointer.y);
+      if (distance > (event.evt.touches ? 22 : 6)) panRef.current.moved = true;
+      if (!panRef.current.placement || panRef.current.moved) {
+        setViewPos({
+          x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
+          y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
+        });
+      }
       return;
     }
     if (tool === "linea" && lineDraft) {
@@ -492,6 +524,24 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageUp = (event) => {
+    if (pinchRef.current) {
+      panRef.current = null;
+      pinchRef.current = null;
+      setIsPanning(false);
+      return;
+    }
+    if (panRef.current?.placement) {
+      if (!panRef.current.moved) {
+        const point = panRef.current.imagePoint;
+        if (point) {
+          if (tool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
+          else addElement(point);
+        }
+      }
+      panRef.current = null;
+      setIsPanning(false);
+      return;
+    }
     if (showPrecision && panRef.current && !panRef.current.moved) {
       if (panRef.current.touch) setViewPos(panRef.current.start);
       const point = panRef.current.touch ? panRef.current.imagePoint : eventPoint(event) || panRef.current.imagePoint;
@@ -567,7 +617,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const finishPolygon = () => {
     if (activeLayerState.locked || !activeLayerState.visible) return;
     if (polygonDraft.length < 3) return;
-    setElements((current) => [...current, { localId: uid(), tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
+    const localId = uid();
+    setElements((current) => [...current, { localId, tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
+    setSelectedId(localId);
+    onToolChange("select");
     setPolygonDraft([]);
   };
   const draftPreviewPoints = lineDraftPoints.length
@@ -673,8 +726,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               if (element.tipo_elemento === "punto") {
                 return (
                   <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} opacity={layer.opacity} draggable={tool === "select" && !layer.locked} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
-                    <Circle radius={26} fill="rgba(0,0,0,0)" />
-                    <Circle radius={12} fill={selected ? "#0f9f8f" : data.color || "#1576d1"} />
+                    <Circle radius={Math.max(22, Number(data.size || 12) + 14)} fill="rgba(0,0,0,0)" />
+                    <Circle radius={Number(data.size || 12)} fill={selected ? "#0f9f8f" : data.color || "#1576d1"} />
                   </Group>
                 );
               }
@@ -748,6 +801,14 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
           </div>
         </>
       ) : null}
+      {lineDraft || polygonDraft.length ? (
+        <div className="planos-drawing-actions">
+          <strong>{lineDraft ? `Dibujando linea · ${lineDraftPoints.length} vertices` : `Dibujando poligono · ${polygonDraft.length} vertices`}</strong>
+          {lineDraftPoints.length > 1 ? <button type="button" onClick={finishLine}>Finalizar</button> : null}
+          {polygonDraft.length >= 3 ? <button type="button" onClick={finishPolygon}>Cerrar poligono</button> : null}
+          <button type="button" onClick={() => { setLineDraft(null); setPointerPreview(null); setPolygonDraft([]); }}>Cancelar</button>
+        </div>
+      ) : null}
       {isPanning ? <div className="planos-pan-guide"><span>Centro {centerDelta().dx}, {centerDelta().dy} · Giro {centerDelta().tilt}°</span></div> : null}
       <button type="button" className="planos-fit-button" onClick={() => { setZoom(1); setRotation(0); setViewPos({ x: 0, y: 0 }); }}>Ajustar</button>
       {polygonDraft.length >= 3 ? <button type="button" className="planos-finish-polygon" onClick={finishPolygon}>Cerrar poligono</button> : null}
@@ -767,6 +828,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [snap, setSnap] = useState(false);
+  const [continuousPlacement, setContinuousPlacement] = useState(false);
+  const [precisionMode, setPrecisionMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState("saved");
   const hydratedRef = useRef(false);
@@ -1044,9 +1107,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         </div>
         <div className="planos-editor-status">
           <StatusBadge status={version?.estado || barrio.estado} />
-          <span className={`planos-save-state is-${saveState}`}>
-            {saveState === "saving" ? "Guardando..." : saveState === "dirty" ? "Cambios sin guardar" : saveState === "local" ? "Borrador local pendiente de subir" : saveState === "error" ? "Error al guardar" : "Todo guardado"}
-          </span>
+          <CroquisSyncStatus saveState={saveState} />
         </div>
       </header>
       <div className="planos-toolbar">
@@ -1065,6 +1126,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         <div className="planos-action-group">
           <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{layerOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder={tool === "codigo" ? "Numero" : "Texto u observacion"} /> : null}
+          {singlePlacementTools.has(tool) ? <button type="button" className={continuousPlacement ? "is-active" : ""} onClick={() => setContinuousPlacement((current) => !current)}>Colocar varios</button> : null}
+          {placementTools.has(tool) ? <button type="button" className={precisionMode ? "is-active" : ""} onClick={() => setPrecisionMode((current) => !current)}>Precision</button> : null}
           {secondaryTools.map(([key, label, ToolIcon]) => (
             <button key={key} type="button" aria-label={label} title={label} className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
               <ToolIcon size={16} />{label}
@@ -1083,7 +1146,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <button type="button" onClick={() => setRotation(0)}>0 deg</button>
           {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
         </div>
-        <div className="planos-view-state">{toolLabel[tool] || tool} · Centrado · Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg</div>
+        <CroquisToolHint tool={tool} label={toolLabel[tool]} />
+        <div className="planos-view-state">Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg</div>
       </div>
       <div className="planos-layers-panel">
         {layers.map((layer) => {
@@ -1102,13 +1166,15 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         })}
       </div>
       <div className="planos-editor-grid">
-        <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} content={content} activeLayer={activeLayer} layers={layers} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} />
+        <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} onToolChange={setTool} content={content} activeLayer={activeLayer} layers={layers} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} continuousPlacement={continuousPlacement} precisionMode={precisionMode} />
         <AnimatePresence>
         {selected ? <motion.aside className="planos-properties" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 18 }}>
           <p className="sheet-kicker">Propiedades</p>
           <strong>{selected.tipo_elemento}</strong>
           {["texto", "codigo"].includes(selected.tipo_elemento) ? <label>Texto <input value={selected.data_json.contenido || ""} onChange={(event) => updateSelected({ contenido: event.target.value })} /></label> : null}
           {selected.tipo_elemento === "punto" ? <label>Etiqueta <input value={selected.data_json.descripcion || ""} onChange={(event) => updateSelected({ descripcion: event.target.value })} /></label> : null}
+          {selected.tipo_elemento === "punto" ? <label>Tipo de punto <select value={selected.data_json.tipoPunto || "referencia"} onChange={(event) => updateSelected({ tipoPunto: event.target.value })}><option value="referencia">Referencia</option><option value="valvula">Valvula</option><option value="hidrante">Hidrante</option><option value="fuga">Fuga</option><option value="observacion">Observacion</option></select></label> : null}
+          {selected.tipo_elemento === "punto" ? <label>Tamano <input type="number" min="6" max="40" value={selected.data_json.size || 12} onChange={(event) => updateSelected({ size: Number(event.target.value || 12) })} /></label> : null}
           <label>Capa <select value={selected.data_json.capa || "correcciones"} onChange={(event) => updateSelected({ capa: event.target.value })}>{layerOptions.filter(([key]) => key !== "plano_base").map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           <label>Color <input type="color" value={selected.data_json.color || selected.data_json.colorBorde || "#0f172a"} onChange={(event) => updateSelected({ color: event.target.value, colorBorde: event.target.value })} /></label>
           {["texto", "codigo"].includes(selected.tipo_elemento) ? (

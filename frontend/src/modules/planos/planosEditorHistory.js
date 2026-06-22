@@ -100,3 +100,9 @@ export const moveElementInStack = (elements, localId, direction) => {
 
 export const patchEditorLayer = (layers, key, patch) =>
   layers.map((layer) => (layer.key === key ? { ...layer, ...patch } : layer));
+
+export const completePlacementTool = (tool, continuous = false) => {
+  const singleUseTools = new Set(["punto", "texto", "codigo", "tapado"]);
+  if (!singleUseTools.has(tool)) return tool;
+  return continuous ? tool : "select";
+};
