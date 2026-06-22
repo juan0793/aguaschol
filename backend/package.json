@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "node --watch src/server.js",
+    "test:planos": "set USE_MEMORY_DB=true&& node --test src/services/planosService.test.mjs",
     "start": "node ./src/server.js"
   },
   "dependencies": {

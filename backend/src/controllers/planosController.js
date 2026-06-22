@@ -71,7 +71,24 @@ export const savePlanoDraftHandler = async (req, res, next) => {
   try {
     res.json(await savePlanoDraft(req.params.barrioId, req.body?.elements ?? [], req.authUser));
   } catch (error) {
-    next(error);
+    const status = error.status ?? 500;
+    const details = {
+      message: error.message,
+      sqlMessage: error.sqlMessage,
+      sqlCode: error.code,
+      userId: req.authUser?.id ?? null,
+      barrioId: req.params.barrioId,
+      endpoint: req.originalUrl,
+      date: new Date().toISOString(),
+      ...(error.croquisSaveContext ?? {})
+    };
+    console.error("CROQUIS_SAVE_FAILED", details);
+    res.status(status).json({
+      ok: false,
+      message: "No se pudo guardar el croquis.",
+      code: "CROQUIS_SAVE_FAILED",
+      ...(process.env.NODE_ENV === "production" ? {} : { details })
+    });
   }
 };
 

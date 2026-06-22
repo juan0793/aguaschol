@@ -175,6 +175,15 @@ const seedPlanosBarrios = async (connection) => {
   );
 };
 
+const ensurePlanoElementTypeEnum = async (connection) => {
+  await connection.query(
+    `
+      ALTER TABLE ${escapeIdentifier("planos_elementos")}
+      MODIFY COLUMN ${escapeIdentifier("tipo_elemento")} ENUM('linea', 'poligono', 'texto', 'codigo', 'punto', 'tapado', 'foto', 'observacion') NOT NULL
+    `
+  );
+};
+
 const findLocalMariaDbBin = async () => {
   try {
     const entries = await fs.readdir(path.resolve(env.dbWorkspaceDir, "mariadb"), {
@@ -300,6 +309,7 @@ const ensureSchema = async () => {
     await admin.query(schemaSql);
     await seedPlanosBarrios(admin);
     await ensureRoleEnum(admin);
+    await ensurePlanoElementTypeEnum(admin);
     await ensureColumn(admin, {
       tableName: "app_users",
       columnName: "full_name",

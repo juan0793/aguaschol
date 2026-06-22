@@ -295,7 +295,7 @@ CREATE TABLE IF NOT EXISTS planos_elementos (
   barrio_id INT UNSIGNED NOT NULL,
   version_id INT UNSIGNED NOT NULL,
   tecnico_id INT UNSIGNED NULL,
-  tipo_elemento ENUM('linea', 'poligono', 'texto', 'codigo', 'punto', 'foto', 'observacion') NOT NULL,
+  tipo_elemento ENUM('linea', 'poligono', 'texto', 'codigo', 'punto', 'tapado', 'foto', 'observacion') NOT NULL,
   data_json LONGTEXT NOT NULL,
   estado ENUM('pendiente', 'asignado', 'en_edicion', 'borrador', 'enviado_revision', 'devuelto', 'aprobado', 'publicado') NOT NULL DEFAULT 'borrador',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

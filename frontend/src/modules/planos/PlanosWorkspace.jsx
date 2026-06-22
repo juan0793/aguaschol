@@ -734,6 +734,25 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     });
   };
 
+  const readErrorBody = async (response) => {
+    try {
+      return await response.json();
+    } catch {
+      return {};
+    }
+  };
+
+  const saveErrorMessage = (status, data = {}) => {
+    if (!status) return "Sin conexion con el servidor.";
+    if (status === 401) return "Sesion vencida. Ingresa nuevamente.";
+    if (status === 403) return "No tienes permiso para editar este croquis.";
+    if (status === 409) return "Hay un conflicto con la version del servidor.";
+    if (status === 413) return "El croquis es demasiado grande para sincronizar.";
+    if (status === 422) return data.message || "El croquis tiene datos invalidos.";
+    if (status >= 500) return "Error del servidor al guardar el croquis.";
+    return data.message || "No se pudo guardar.";
+  };
+
   const saveDraft = useCallback(async ({ silent = false } = {}) => {
     setSaving(true);
     setSaveState("saving");
@@ -743,8 +762,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ elements })
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "No se pudo guardar.");
+      const data = await readErrorBody(response);
+      if (!response.ok || data.ok !== true) throw new Error(saveErrorMessage(response.status, data));
       setVersion(data.version || version);
       const savedElements = normalizeElements(data.elements || elements);
       lastSavedRef.current = JSON.stringify(savedElements);
@@ -757,7 +776,11 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       hasLocalDraftRef.current = true;
       window.localStorage.setItem(localDraftKey(barrio.id), JSON.stringify(elements));
       setSaveState("local");
-      if (!silent) toast.error(error.message || "No se pudo guardar en el servidor. Borrador local pendiente.");
+      if (!silent) {
+        toast.error("No se pudo sincronizar con el servidor. Los cambios quedaron guardados en este dispositivo.", {
+          description: error.message || ""
+        });
+      }
       throw error;
     } finally {
       setSaving(false);
@@ -859,6 +882,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         </div>
         <div className="planos-action-group planos-save-group">
           <button type="button" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
+          {saveState === "local" ? <button type="button" onClick={() => saveDraft()} disabled={saving}><RotateCw size={16} />Reintentar sincronizacion</button> : null}
           <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
         </div>
         <div className="planos-action-group">

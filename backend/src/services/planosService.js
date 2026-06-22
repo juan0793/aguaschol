@@ -18,6 +18,8 @@ const planosManifestPath = path.resolve(env.dbRoot, "backend", "data", "planos-m
 const CROQUIS_STATES = new Set(["pendiente", "asignado", "en_edicion", "borrador", "enviado_revision", "devuelto", "aprobado", "publicado"]);
 const REVIEW_STATES = new Set(["pendiente_revision", "aprobado", "devuelto", "publicado"]);
 const ELEMENT_TYPES = new Set(["linea", "poligono", "texto", "codigo", "punto", "tapado", "foto", "observacion"]);
+const MAX_DRAFT_ELEMENTS = 2000;
+const MAX_ELEMENT_JSON_BYTES = 65535;
 
 const fail = (message, status = 400) => {
   const error = new Error(message);
@@ -46,13 +48,54 @@ const safeJson = (value, fallback = {}) => {
   return value && typeof value === "object" ? value : fallback;
 };
 
+const parseElementJson = (value) => {
+  if (typeof value !== "string") return value && typeof value === "object" ? value : {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    fail("data_json no es JSON valido.", 422);
+  }
+};
+
+const asPoint = (point) => {
+  const x = Number(point?.x);
+  const y = Number(point?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) fail("Coordenadas invalidas.", 422);
+  return { ...point, x, y };
+};
+
+const validateElementData = (tipo, data) => {
+  const size = Buffer.byteLength(JSON.stringify(data), "utf8");
+  if (size > MAX_ELEMENT_JSON_BYTES) fail("Elemento demasiado grande.", 413);
+
+  if (tipo === "linea" || tipo === "poligono") {
+    const puntos = Array.isArray(data.puntos) ? data.puntos.map(asPoint) : [];
+    if (puntos.length < (tipo === "linea" ? 2 : 3)) fail("El elemento no tiene suficientes vertices.", 422);
+    return { ...data, puntos };
+  }
+
+  if (["texto", "codigo", "punto", "tapado"].includes(tipo)) {
+    asPoint(data);
+  }
+
+  if (tipo === "tapado") {
+    const width = Number(data.width);
+    const height = Number(data.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) fail("Tapado invalido.", 422);
+  }
+
+  return data;
+};
+
 const normalizeElement = (element = {}, user = {}) => {
   const tipo = normalizeText(element.tipo_elemento || element.tipo || "texto");
-  if (!ELEMENT_TYPES.has(tipo)) fail("Tipo de elemento no valido.");
+  if (!ELEMENT_TYPES.has(tipo)) fail("Tipo de elemento no valido.", 422);
+  const data = parseElementJson(element.data_json || element.data || {});
   return {
     id: element.id ? Number(element.id) : undefined,
     tipo_elemento: tipo,
-    data_json: safeJson(element.data_json || element.data || {}),
+    data_json: validateElementData(tipo, data),
     estado: normalizeState(element.estado, "borrador"),
     tecnico_id: Number(element.tecnico_id || user.id || 0) || null
   };
@@ -277,26 +320,27 @@ export const listMyPlanoAssignments = async (user) => {
   return rows;
 };
 
-const ensureDraftVersion = async (barrioId, user) => {
+const ensureDraftVersion = async (barrioId, user, db) => {
   if (env.useMemoryDb) return ensureDraftVersionMemory(barrioId, user);
-  const pool = getPool();
-  const [[latest]] = await pool.query(
+  db ||= getPool();
+  const [[latest]] = await db.query(
     "SELECT * FROM planos_versiones WHERE barrio_id = ? ORDER BY numero_version DESC LIMIT 1",
     [barrioId]
   );
   if (latest && !["aprobado", "publicado"].includes(latest.estado)) return mapVersionRow(latest);
   const nextNumber = latest ? Number(latest.numero_version) + 1 : 1;
-  const [result] = await pool.query(
+  const [result] = await db.query(
     "INSERT INTO planos_versiones (barrio_id, numero_version, estado, creado_por) VALUES (?, ?, 'borrador', ?)",
     [barrioId, nextNumber, user.id]
   );
   return { id: result.insertId, barrio_id: barrioId, numero_version: nextNumber, estado: "borrador", creado_por: user.id };
 };
 
-const assertCanEdit = async (barrioId, user) => {
+const assertCanEdit = async (barrioId, user, db) => {
   if (env.useMemoryDb) return assertCanEditMemory(barrioId, user);
+  db ||= getPool();
   if (isAdmin(user)) return;
-  const [[row]] = await getPool().query(
+  const [[row]] = await db.query(
     `
       SELECT a.id
       FROM planos_asignaciones a
@@ -331,29 +375,58 @@ export const listPlanoElements = async (barrioId, user) => {
 };
 
 export const savePlanoDraft = async (barrioId, elements = [], user) => {
-  await assertCanEdit(barrioId, user);
-  const version = await ensureDraftVersion(barrioId, user);
+  if (!Array.isArray(elements)) fail("La lista de elementos es invalida.", 422);
+  if (elements.length > MAX_DRAFT_ELEMENTS) fail("El croquis tiene demasiados elementos.", 413);
   const normalized = elements.map((element) => normalizeElement(element, user));
   if (env.useMemoryDb) {
+    await assertCanEdit(barrioId, user);
+    const version = await ensureDraftVersion(barrioId, user);
     memory.elementos = memory.elementos.filter((item) => item.version_id !== version.id);
     normalized.forEach((element) => memory.elementos.push({ ...element, id: nextId++, barrio_id: Number(barrioId), version_id: version.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
     version.estado = "borrador";
-    return { version, elements: memory.elementos.filter((item) => item.version_id === version.id) };
+    const saved = memory.elementos.filter((item) => item.version_id === version.id);
+    return { ok: true, version, elements: saved, savedAt: new Date().toISOString(), elementCount: saved.length };
   }
   const pool = getPool();
-  await pool.query("DELETE FROM planos_elementos WHERE version_id = ?", [version.id]);
-  for (const element of normalized) {
-    await pool.query(
-      `
-        INSERT INTO planos_elementos (barrio_id, version_id, tecnico_id, tipo_elemento, data_json, estado)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      [barrioId, version.id, element.tecnico_id || user.id, element.tipo_elemento, JSON.stringify(element.data_json), element.estado]
-    );
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await assertCanEdit(barrioId, user, connection);
+    const [[barrio]] = await connection.query("SELECT id FROM planos_barrios WHERE id = ? LIMIT 1", [barrioId]);
+    if (!barrio) fail("Barrio no encontrado.", 404);
+    const version = await ensureDraftVersion(barrioId, user, connection);
+    if (["aprobado", "publicado"].includes(version.estado)) fail("La version no es editable.", 409);
+
+    await connection.query("DELETE FROM planos_elementos WHERE version_id = ?", [version.id]);
+    for (const element of normalized) {
+      await connection.query(
+        `
+          INSERT INTO planos_elementos (barrio_id, version_id, tecnico_id, tipo_elemento, data_json, estado)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [barrioId, version.id, element.tecnico_id || user.id, element.tipo_elemento, JSON.stringify(element.data_json), element.estado]
+      );
+    }
+    await connection.query("UPDATE planos_versiones SET estado = 'borrador' WHERE id = ?", [version.id]);
+    await connection.query("UPDATE planos_barrios SET estado = 'borrador' WHERE id = ?", [barrioId]);
+    const [savedRows] = await connection.query("SELECT * FROM planos_elementos WHERE version_id = ? ORDER BY id ASC", [version.id]);
+    const [[savedVersion]] = await connection.query("SELECT * FROM planos_versiones WHERE id = ? LIMIT 1", [version.id]);
+    await connection.commit();
+    const savedAt = new Date().toISOString();
+    const saved = savedRows.map(mapElementRow);
+    return { ok: true, version: mapVersionRow(savedVersion), elements: saved, savedAt, elementCount: saved.length };
+  } catch (error) {
+    await connection.rollback();
+    error.croquisSaveContext = {
+      userId: user?.id ?? null,
+      barrioId,
+      elementCount: elements.length,
+      elementTypes: elements.map((element) => element?.tipo_elemento || element?.tipo || "").filter(Boolean)
+    };
+    throw error;
+  } finally {
+    connection.release();
   }
-  await pool.query("UPDATE planos_versiones SET estado = 'borrador' WHERE id = ?", [version.id]);
-  await pool.query("UPDATE planos_barrios SET estado = 'borrador' WHERE id = ?", [barrioId]);
-  return listPlanoElements(barrioId, user);
 };
 
 export const createPlanoElement = async (barrioId, payload, user) => {
