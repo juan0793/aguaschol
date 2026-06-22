@@ -197,6 +197,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const transformerRef = useRef(null);
   const shapeRefs = useRef({});
   const lastTouchAtRef = useRef(0);
+  const placementCompletedAtRef = useRef(0);
+  const toolRef = useRef(tool);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
   const [background, setBackground] = useState({ image: null, width: 1000, height: 700, loading: false, error: "" });
@@ -215,6 +217,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const baseLayer = layerMap.plano_base || { visible: true, opacity: 1, locked: true };
   const activeLayerState = layerMap[activeLayer] || { visible: true, locked: false, opacity: 1 };
   const layerForElement = (element) => layerMap[element.data_json?.capa || "correcciones"] || { visible: true, locked: false, opacity: 1 };
+
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
 
   useEffect(() => {
     const resize = () => {
@@ -412,46 +418,51 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const completeSinglePlacement = (localId) => {
+    const nextTool = completePlacementTool(toolRef.current, continuousPlacement);
+    placementCompletedAtRef.current = Date.now();
+    toolRef.current = nextTool;
     setSelectedId(localId);
-    onToolChange(completePlacementTool(tool, continuousPlacement));
+    onToolChange(nextTool);
   };
 
   const addElement = (point) => {
+    const currentTool = toolRef.current;
     if (activeLayerState.locked || !activeLayerState.visible) {
       toast.warning("La capa activa esta bloqueada u oculta.");
       return;
     }
-    if (tool === "texto" || tool === "codigo") {
-      const text = content.trim() || (tool === "codigo" ? "10-00-00-00" : "Texto");
+    if (currentTool === "texto" || currentTool === "codigo") {
+      const text = content.trim() || (currentTool === "codigo" ? "10-00-00-00" : "Texto");
       const localId = uid();
-      setElements((current) => [...current, { localId, tipo_elemento: tool, data_json: { capa: activeLayer, x: point.x, y: point.y, contenido: text, fontSize: tool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
+      setElements((current) => [...current, { localId, tipo_elemento: currentTool, data_json: { capa: activeLayer, x: point.x, y: point.y, contenido: text, fontSize: currentTool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
       completeSinglePlacement(localId);
-      toast.success(tool === "codigo" ? "Numero agregado." : "Texto agregado.");
+      toast.success(currentTool === "codigo" ? "Numero agregado." : "Texto agregado.");
       return;
     }
-    if (tool === "punto") {
+    if (currentTool === "punto") {
       const localId = uid();
       setElements((current) => [...current, { localId, tipo_elemento: "punto", data_json: { capa: activeLayer, x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1", size: 12, tipoPunto: "referencia" } }]);
       completeSinglePlacement(localId);
       toast.success("Punto agregado.");
       return;
     }
-    if (tool === "tapado") {
+    if (currentTool === "tapado") {
       const localId = uid();
       setElements((current) => [...current, { localId, tipo_elemento: "tapado", data_json: { capa: activeLayer, x: point.x - 40, y: point.y - 20, width: 80, height: 40, color: "#ffffff" } }]);
       completeSinglePlacement(localId);
       toast.success("Tapado agregado.");
       return;
     }
-    if (tool === "poligono") {
+    if (currentTool === "poligono") {
       setPolygonDraft((current) => [...current, point]);
     }
   };
 
   const handleStageDown = (event) => {
+    const currentTool = toolRef.current;
     const eventType = event.evt.type || "";
     if (eventType.startsWith("touch")) lastTouchAtRef.current = Date.now();
-    if (eventType.startsWith("mouse") && Date.now() - lastTouchAtRef.current < 700) return;
+    if (eventType.startsWith("mouse") && (Date.now() - lastTouchAtRef.current < 1200 || Date.now() - placementCompletedAtRef.current < 1200)) return;
     if (event.evt.touches?.length >= 2) {
       const touches = event.evt.touches;
       const distance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
@@ -461,18 +472,18 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       return;
     }
     if (event.target !== event.target.getStage()) return;
-    if (event.evt.touches?.length === 1 && placementTools.has(tool)) {
+    if (event.evt.touches?.length === 1 && placementTools.has(currentTool)) {
       const pointer = eventPointer(event);
       panRef.current = { pointer, imagePoint: stagePoint(event.target.getStage(), pointer), start: viewPos, moved: false, touch: true, placement: true };
       setIsPanning(true);
       return;
     }
-    if (tool === "pan") {
+    if (currentTool === "pan") {
       panRef.current = { pointer: eventPointer(event), start: viewPos };
       setIsPanning(true);
       return;
     }
-    if (showPrecision) {
+    if (precisionMode && precisionTools.includes(currentTool)) {
       const pointer = eventPointer(event);
       panRef.current = { pointer, imagePoint: stagePoint(event.target.getStage(), pointer), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
       setIsPanning(true);
@@ -480,16 +491,16 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     const point = eventPoint(event);
     if (!point) return;
-    if (tool === "linea") {
+    if (currentTool === "linea") {
       addLinePoint(point, snap || event.evt.shiftKey);
       return;
     }
-    if (tool === "borrar") {
+    if (currentTool === "borrar") {
       toast.info("El plano base no se puede borrar. Solo puedes borrar correcciones agregadas.");
       return;
     }
-    if (["poligono", "texto", "codigo", "punto", "tapado"].includes(tool)) addElement(point);
-    if (tool === "select") setSelectedId("");
+    if (["poligono", "texto", "codigo", "punto", "tapado"].includes(currentTool)) addElement(point);
+    if (currentTool === "select") setSelectedId("");
   };
 
   const handleStageMove = (event) => {
@@ -524,6 +535,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   };
 
   const handleStageUp = (event) => {
+    const currentTool = toolRef.current;
+    const eventType = event.evt.type || "";
+    if (eventType.startsWith("touch")) lastTouchAtRef.current = Date.now();
+    if (eventType.startsWith("mouse") && (Date.now() - lastTouchAtRef.current < 1200 || Date.now() - placementCompletedAtRef.current < 1200)) return;
     if (pinchRef.current) {
       panRef.current = null;
       pinchRef.current = null;
@@ -534,7 +549,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       if (!panRef.current.moved) {
         const point = panRef.current.imagePoint;
         if (point) {
-          if (tool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
+          if (currentTool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
           else addElement(point);
         }
       }
@@ -546,7 +561,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       if (panRef.current.touch) setViewPos(panRef.current.start);
       const point = panRef.current.touch ? panRef.current.imagePoint : eventPoint(event) || panRef.current.imagePoint;
       if (point) {
-        if (tool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
+        if (currentTool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
         else addElement(point);
       }
     }
@@ -1108,6 +1123,9 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         <div className="planos-editor-status">
           <StatusBadge status={version?.estado || barrio.estado} />
           <CroquisSyncStatus saveState={saveState} />
+          <button type="button" className="button-secondary" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
+          {saveState === "local" ? <button type="button" className="button-secondary" onClick={() => saveDraft()} disabled={saving}><RotateCw size={16} />Reintentar</button> : null}
+          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
         </div>
       </header>
       <div className="planos-toolbar">
@@ -1117,11 +1135,6 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
               <ToolIcon size={16} /><span className="planos-tool-label">{label}</span>
             </button>
           ))}
-        </div>
-        <div className="planos-action-group planos-save-group">
-          <button type="button" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
-          {saveState === "local" ? <button type="button" onClick={() => saveDraft()} disabled={saving}><RotateCw size={16} />Reintentar sincronizacion</button> : null}
-          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
         </div>
         <div className="planos-action-group">
           <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{layerOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>

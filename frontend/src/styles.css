@@ -11191,6 +11191,21 @@ body.planos-focus-mode .page-shell > main {
   scrollbar-width: none;
 }
 
+.planos-editor-status button {
+  min-height: 38px;
+  border: 1px solid rgba(21, 118, 209, 0.18);
+  border-radius: 10px;
+  padding: 0.45rem 0.7rem;
+  background: #ffffff;
+  color: #123b5d;
+  font-weight: 900;
+}
+
+.planos-editor-status .planos-primary-action {
+  background: #1576d1;
+  color: #ffffff;
+}
+
 .planos-view-state {
   flex: 0 0 auto;
   color: #42617d;
@@ -11211,6 +11226,8 @@ body.planos-focus-mode .page-shell > main {
   flex-wrap: nowrap;
   overflow: visible;
   scrollbar-width: none;
+  padding-right: 0.7rem;
+  border-right: 1px solid rgba(21, 118, 209, 0.14);
 }
 
 .planos-tool-group::-webkit-scrollbar,
@@ -11602,13 +11619,14 @@ body.planos-focus-mode .page-shell > main {
 
 .planos-tool-hint {
   display: grid;
-  min-width: min(280px, 100%);
+  min-width: min(320px, 100%);
   gap: 0.15rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid rgba(21, 118, 209, 0.12);
   border-radius: 10px;
   background: rgba(21, 118, 209, 0.07);
   color: #123b5d;
+  margin-left: auto;
 }
 
 .planos-tool-hint strong {
@@ -11767,6 +11785,8 @@ body.planos-focus-mode .page-shell > main {
     flex: 1 0 100%;
     min-width: 0;
     gap: 0.35rem;
+    padding-right: 0;
+    border-right: 0;
   }
 
   .planos-action-group {
@@ -11805,6 +11825,21 @@ body.planos-focus-mode .page-shell > main {
   .planos-primary-action,
   .planos-toolbar input {
     width: 100%;
+  }
+
+  .planos-editor-status {
+    justify-content: flex-end;
+  }
+
+  .planos-editor-status button {
+    min-height: 36px;
+    padding: 0.35rem 0.55rem;
+  }
+
+  .planos-tool-hint {
+    flex: 1 0 100%;
+    min-width: 0;
+    margin-left: 0;
   }
 
   .planos-layer-select {
