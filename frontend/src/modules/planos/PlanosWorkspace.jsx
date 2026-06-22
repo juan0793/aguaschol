@@ -334,7 +334,12 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const eventPoint = (event) => stagePoint(event.target.getStage(), eventPointer(event));
 
-  const centerPoint = () => getImagePointFromScreenPoint({ x: stageSize.width / 2, y: stageSize.height / 2 });
+  const aimScreenPoint = () => {
+    const mobile = typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
+    const bottomSafe = mobile ? Math.min(220, Math.max(120, stageSize.height * 0.24)) : 0;
+    return { x: stageSize.width / 2, y: (stageSize.height - bottomSafe) / 2 };
+  };
+  const centerPoint = () => getImagePointFromScreenPoint(aimScreenPoint());
   const centerDelta = () => {
     const point = centerPoint();
     const dx = Math.round(point.x - background.width / 2);
@@ -798,7 +803,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       </Stage>
       {showPrecision ? (
         <>
-          <div className="planos-crosshair"><Crosshair size={42} /><span>Centrado {centerPoint().x}, {centerPoint().y}</span></div>
+          <div className="planos-crosshair" style={{ left: aimScreenPoint().x, top: aimScreenPoint().y }}><Crosshair size={42} /><span>Centrado {centerPoint().x}, {centerPoint().y}</span></div>
           <div className="planos-nudge-pad" aria-label="Ajuste fino del punto centrado">
             <button type="button" onClick={() => nudgeCenter(0, -1)}>↑</button>
             <button type="button" onClick={() => nudgeCenter(-1, 0)}>←</button>
@@ -826,7 +831,6 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       ) : null}
       {isPanning ? <div className="planos-pan-guide"><span>Centro {centerDelta().dx}, {centerDelta().dy} · Giro {centerDelta().tilt}°</span></div> : null}
       <button type="button" className="planos-fit-button" onClick={() => { setZoom(1); setRotation(0); setViewPos({ x: 0, y: 0 }); }}>Ajustar</button>
-      {polygonDraft.length >= 3 ? <button type="button" className="planos-finish-polygon" onClick={finishPolygon}>Cerrar poligono</button> : null}
     </div>
   );
 }

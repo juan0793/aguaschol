@@ -11762,9 +11762,9 @@ body.planos-focus-mode .page-shell > main {
   }
 
   .planos-editor-grid {
-    height: calc(100dvh - 168px);
+    height: calc(100dvh - 188px);
     min-height: 420px;
-    margin-bottom: 9rem;
+    margin-bottom: min(30vh, 230px);
   }
 
   .planos-toolbar {
@@ -11772,7 +11772,7 @@ body.planos-focus-mode .page-shell > main {
     right: 0.5rem;
     bottom: 0.5rem;
     left: 0.5rem;
-    max-height: min(28vh, 230px);
+    max-height: min(24vh, 190px);
     overflow-y: auto;
     margin: 0;
     border-radius: 16px;
@@ -11872,7 +11872,7 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-precision-actions {
     right: 0.75rem;
-    bottom: 1rem;
+    bottom: calc(min(24vh, 190px) + 1rem);
     left: 0.75rem;
     justify-content: center;
     transform: none;
@@ -11885,7 +11885,7 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-drawing-actions {
     right: 0.75rem;
-    bottom: 5.2rem;
+    bottom: calc(min(24vh, 190px) + 4.6rem);
     left: 0.75rem;
     flex-wrap: wrap;
     justify-content: center;
@@ -11899,6 +11899,7 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-nudge-pad {
     right: 0.75rem;
+    top: 42%;
     grid-template-columns: repeat(3, 30px);
   }
 
@@ -11916,7 +11917,7 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-finish-polygon {
     right: 0.75rem;
-    bottom: 4.5rem;
+    bottom: calc(min(24vh, 190px) + 1rem);
   }
 
   .planos-properties {
