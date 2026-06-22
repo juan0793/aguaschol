@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cloneEditorElement, completePlacementTool, finishLineDraft, legacyTwoClickLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
+import { cloneEditorElement, completePlacementTool, finishLineDraft, legacyTwoClickLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, shouldPlaceFromPointerUp, undoEditorHistory } from "./planosEditorHistory.js";
 
 test("croquis history undoes and redoes element edits", () => {
   let history = { past: [], future: [] };
@@ -72,4 +72,16 @@ test("single placement tools return to select unless continuous mode is enabled"
   assert.equal(completePlacementTool("tapado", false), "select");
   assert.equal(completePlacementTool("punto", true), "punto");
   assert.equal(completePlacementTool("linea", false), "linea");
+});
+
+test("croquis pointerup places only clean direct taps", () => {
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto" }), true);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto", moved: true }), false);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto", pinched: true }), false);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto", cancelled: true }), false);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto", pointers: 2 }), false);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto", onCanvas: false }), false);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto", onUi: true }), false);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "punto", precisionMode: true }), false);
+  assert.equal(shouldPlaceFromPointerUp({ tool: "select" }), false);
 });

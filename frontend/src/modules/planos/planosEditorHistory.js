@@ -106,3 +106,6 @@ export const completePlacementTool = (tool, continuous = false) => {
   if (!singleUseTools.has(tool)) return tool;
   return continuous ? tool : "select";
 };
+
+export const shouldPlaceFromPointerUp = ({ tool, precisionMode = false, pointers = 1, moved = false, pinched = false, cancelled = false, onCanvas = true, onUi = false } = {}) =>
+  Boolean(tool && tool !== "select" && !precisionMode && pointers === 1 && !moved && !pinched && !cancelled && onCanvas && !onUi);

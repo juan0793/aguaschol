@@ -7,7 +7,7 @@ import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
 import { CroquisSyncStatus } from "./CroquisSyncStatus";
 import { CroquisToolHint } from "./CroquisToolHint";
-import { cloneEditorElement, completePlacementTool, finishLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
+import { cloneEditorElement, completePlacementTool, finishLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, shouldPlaceFromPointerUp, undoEditorHistory } from "./planosEditorHistory";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -194,10 +194,9 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const shellRef = useRef(null);
   const panRef = useRef(null);
   const pinchRef = useRef(null);
+  const activePointersRef = useRef(new Map());
   const transformerRef = useRef(null);
   const shapeRefs = useRef({});
-  const lastTouchAtRef = useRef(0);
-  const placementCompletedAtRef = useRef(0);
   const toolRef = useRef(tool);
   const [stageSize, setStageSize] = useState({ width: 1000, height: 700 });
   const [viewPos, setViewPos] = useState({ x: 0, y: 0 });
@@ -323,6 +322,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
   const eventPointer = (event) => {
     const stage = event.target.getStage();
     const touch = event.evt.touches?.[0] || event.evt.changedTouches?.[0];
+    if (!touch && Number.isFinite(event.evt.clientX) && Number.isFinite(event.evt.clientY)) {
+      const rect = stage.container().getBoundingClientRect();
+      return { x: event.evt.clientX - rect.left, y: event.evt.clientY - rect.top };
+    }
     if (!touch) return stage.getPointerPosition();
     const rect = stage.container().getBoundingClientRect();
     return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
@@ -351,6 +354,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     const rect = shellRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
     return { x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left, y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top };
   };
+  const pointerPair = () => [...activePointersRef.current.values()].slice(0, 2);
+  const pointerDistance = ([a, b]) => Math.hypot(a.x - b.x, a.y - b.y);
+  const pointerAngle = ([a, b]) => Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+  const pointerCenter = ([a, b]) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
   const zoomAtPoint = (pointer, nextZoom) => {
     const imagePoint = getImagePointFromScreenPoint(pointer);
@@ -424,7 +431,6 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const completeSinglePlacement = (localId) => {
     const nextTool = completePlacementTool(toolRef.current, continuousPlacement);
-    placementCompletedAtRef.current = Date.now();
     toolRef.current = nextTool;
     setSelectedId(localId);
     onToolChange(nextTool);
@@ -465,65 +471,57 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const handleStageDown = (event) => {
     const currentTool = toolRef.current;
-    const eventType = event.evt.type || "";
-    if (eventType.startsWith("touch")) lastTouchAtRef.current = Date.now();
-    if (eventType.startsWith("mouse") && (Date.now() - lastTouchAtRef.current < 1200 || Date.now() - placementCompletedAtRef.current < 1200)) return;
-    if (event.evt.touches?.length >= 2) {
-      const touches = event.evt.touches;
-      const distance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-      const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX) * 180 / Math.PI;
+    const pointer = eventPointer(event);
+    if (event.evt.pointerId != null && pointer) activePointersRef.current.set(event.evt.pointerId, pointer);
+    if (activePointersRef.current.size >= 2) {
+      const pair = pointerPair();
+      const distance = pointerDistance(pair);
+      const angle = pointerAngle(pair);
       pinchRef.current = { distance, angle, zoom, rotation, viewPos };
+      if (panRef.current) panRef.current.pinched = true;
       setIsPanning(true);
       return;
     }
     if (event.target !== event.target.getStage()) return;
-    if (event.evt.touches?.length === 1 && placementTools.has(currentTool)) {
-      const pointer = eventPointer(event);
-      panRef.current = { pointer, imagePoint: stagePoint(event.target.getStage(), pointer), start: viewPos, moved: false, touch: true, placement: true };
+    if ((currentTool === "pan" || (precisionMode && precisionTools.includes(currentTool)) || placementTools.has(currentTool)) && pointer) {
+      panRef.current = {
+        pointer,
+        imagePoint: stagePoint(event.target.getStage(), pointer),
+        start: viewPos,
+        moved: false,
+        cancelled: false,
+        pinched: false,
+        placement: placementTools.has(currentTool),
+        precision: precisionMode && precisionTools.includes(currentTool)
+      };
       setIsPanning(true);
-      return;
-    }
-    if (currentTool === "pan") {
-      panRef.current = { pointer: eventPointer(event), start: viewPos };
-      setIsPanning(true);
-      return;
-    }
-    if (precisionMode && precisionTools.includes(currentTool)) {
-      const pointer = eventPointer(event);
-      panRef.current = { pointer, imagePoint: stagePoint(event.target.getStage(), pointer), start: viewPos, moved: false, touch: Boolean(event.evt.touches) };
-      setIsPanning(true);
-      return;
-    }
-    const point = eventPoint(event);
-    if (!point) return;
-    if (currentTool === "linea") {
-      addLinePoint(point, snap || event.evt.shiftKey);
       return;
     }
     if (currentTool === "borrar") {
       toast.info("El plano base no se puede borrar. Solo puedes borrar correcciones agregadas.");
       return;
     }
-    if (["poligono", "texto", "codigo", "punto", "tapado"].includes(currentTool)) addElement(point);
     if (currentTool === "select") setSelectedId("");
   };
 
   const handleStageMove = (event) => {
-    if (event.evt.touches?.length >= 2 && pinchRef.current) {
+    const currentTool = toolRef.current;
+    const pointer = eventPointer(event);
+    if (event.evt.pointerId != null && pointer) activePointersRef.current.set(event.evt.pointerId, pointer);
+    if (activePointersRef.current.size >= 2 && pinchRef.current) {
       event.evt.preventDefault();
-      const touches = event.evt.touches;
-      const distance = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-      const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX) * 180 / Math.PI;
-      zoomAtPoint(touchCenterPoint(touches), clampZoom(pinchRef.current.zoom * (distance / pinchRef.current.distance)));
+      const pair = pointerPair();
+      const distance = pointerDistance(pair);
+      const angle = pointerAngle(pair);
+      zoomAtPoint(pointerCenter(pair), clampZoom(pinchRef.current.zoom * (distance / pinchRef.current.distance)));
       setRotation(Math.round(pinchRef.current.rotation + angle - pinchRef.current.angle));
       return;
     }
     if (panRef.current) {
-      const pointer = eventPointer(event);
       if (!pointer || !panRef.current.pointer) return;
       const distance = Math.hypot(pointer.x - panRef.current.pointer.x, pointer.y - panRef.current.pointer.y);
-      if (distance > (event.evt.touches ? 22 : 6)) panRef.current.moved = true;
-      if (!panRef.current.placement || panRef.current.moved) {
+      if (distance > (event.evt.pointerType === "touch" ? 22 : 6)) panRef.current.moved = true;
+      if (panRef.current.precision || currentTool === "pan" || panRef.current.moved) {
         setViewPos({
           x: panRef.current.start.x + pointer.x - panRef.current.pointer.x,
           y: panRef.current.start.y + pointer.y - panRef.current.pointer.y
@@ -541,30 +539,24 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
 
   const handleStageUp = (event) => {
     const currentTool = toolRef.current;
-    const eventType = event.evt.type || "";
-    if (eventType.startsWith("touch")) lastTouchAtRef.current = Date.now();
-    if (eventType.startsWith("mouse") && (Date.now() - lastTouchAtRef.current < 1200 || Date.now() - placementCompletedAtRef.current < 1200)) return;
+    const started = panRef.current;
     if (pinchRef.current) {
       panRef.current = null;
       pinchRef.current = null;
+      if (event.evt.pointerId != null) activePointersRef.current.delete(event.evt.pointerId);
       setIsPanning(false);
       return;
     }
-    if (panRef.current?.placement) {
-      if (!panRef.current.moved) {
-        const point = panRef.current.imagePoint;
-        if (point) {
-          if (currentTool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
-          else addElement(point);
-        }
-      }
-      panRef.current = null;
-      setIsPanning(false);
-      return;
-    }
-    if (showPrecision && panRef.current && !panRef.current.moved) {
-      if (panRef.current.touch) setViewPos(panRef.current.start);
-      const point = panRef.current.touch ? panRef.current.imagePoint : eventPoint(event) || panRef.current.imagePoint;
+    if (started?.placement && shouldPlaceFromPointerUp({
+      tool: currentTool,
+      precisionMode,
+      pointers: activePointersRef.current.size || 1,
+      moved: started.moved,
+      pinched: started.pinched,
+      cancelled: started.cancelled,
+      onCanvas: event.target === event.target.getStage()
+    })) {
+      const point = started.imagePoint;
       if (point) {
         if (currentTool === "linea") addLinePoint(point, snap || event.evt.shiftKey);
         else addElement(point);
@@ -572,6 +564,15 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     panRef.current = null;
     pinchRef.current = null;
+    if (event.evt.pointerId != null) activePointersRef.current.delete(event.evt.pointerId);
+    setIsPanning(false);
+  };
+
+  const handleStageCancel = (event) => {
+    if (panRef.current) panRef.current.cancelled = true;
+    panRef.current = null;
+    pinchRef.current = null;
+    if (event.evt.pointerId != null) activePointersRef.current.delete(event.evt.pointerId);
     setIsPanning(false);
   };
 
@@ -670,12 +671,10 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       <Stage
         width={stageSize.width}
         height={stageSize.height}
-        onMouseDown={handleStageDown}
-        onTouchStart={handleStageDown}
-        onMouseMove={handleStageMove}
-        onTouchMove={handleStageMove}
-        onMouseUp={handleStageUp}
-        onTouchEnd={handleStageUp}
+        onPointerDown={handleStageDown}
+        onPointerMove={handleStageMove}
+        onPointerUp={handleStageUp}
+        onPointerCancel={handleStageCancel}
         onDblClick={tool === "linea" ? finishLine : undefined}
         onDblTap={tool === "linea" ? finishLine : undefined}
         onWheel={handleWheel}
