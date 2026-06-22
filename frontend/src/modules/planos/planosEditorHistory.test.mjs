@@ -53,6 +53,7 @@ test("editor duplicates and reorders elements", () => {
   const copy = cloneEditorElement(original, 10);
   assert.equal(copy.tipo_elemento, "linea");
   assert.deepEqual(copy.data_json.puntos, [{ x: 11, y: 12 }, { x: 13, y: 14 }]);
+  assert.equal(copy.data_json.localId, copy.localId);
 
   assert.deepEqual(moveElementInStack([{ localId: "a" }, { localId: "b" }, { localId: "c" }], "b", "front").map((item) => item.localId), ["a", "c", "b"]);
   assert.deepEqual(moveElementInStack([{ localId: "a" }, { localId: "b" }, { localId: "c" }], "b", "back").map((item) => item.localId), ["b", "a", "c"]);

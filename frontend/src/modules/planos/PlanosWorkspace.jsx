@@ -99,14 +99,17 @@ const readLocalDraft = (barrioId) => {
   }
 };
 const normalizeElements = (elements = []) =>
-  elements.map((item) => ({
-    localId: item.localId || String(item.id || uid()),
-    tipo_elemento: item.tipo_elemento || item.tipo || "texto",
-    data_json: {
-      capa: "correcciones",
-      ...(item.data_json?.data_json || item.data_json || item.data || {})
-    }
-  }));
+  elements.map((item) => {
+    const data = item.data_json?.data_json || item.data_json || item.data || {};
+    return {
+      localId: item.localId || data.localId || String(item.id || uid()),
+      tipo_elemento: item.tipo_elemento || item.tipo || "texto",
+      data_json: {
+        capa: "correcciones",
+        ...data
+      }
+    };
+  });
 
 const loadImage = (src) => new Promise((resolve, reject) => {
   const image = new window.Image();
@@ -386,7 +389,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     const line = finishLineDraft(lineDraft, activeLayer);
     if (!line) return;
     const localId = uid();
-    setElements((current) => [...current, { localId, ...line }]);
+    setElements((current) => [...current, { localId, ...line, data_json: { ...line.data_json, localId } }]);
     setSelectedId(localId);
     onToolChange("select");
     setLineDraft(null);
@@ -445,21 +448,21 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (currentTool === "texto" || currentTool === "codigo") {
       const text = content.trim() || (currentTool === "codigo" ? "10-00-00-00" : "Texto");
       const localId = uid();
-      setElements((current) => [...current, { localId, tipo_elemento: currentTool, data_json: { capa: activeLayer, x: point.x, y: point.y, contenido: text, fontSize: currentTool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
+      setElements((current) => [...current, { localId, tipo_elemento: currentTool, data_json: { localId, capa: activeLayer, x: point.x, y: point.y, contenido: text, fontSize: currentTool === "codigo" ? 28 : 22, rotacion: 0, color: "#0f172a" } }]);
       completeSinglePlacement(localId);
       toast.success(currentTool === "codigo" ? "Numero agregado." : "Texto agregado.");
       return;
     }
     if (currentTool === "punto") {
       const localId = uid();
-      setElements((current) => [...current, { localId, tipo_elemento: "punto", data_json: { capa: activeLayer, x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1", size: 12, tipoPunto: "referencia" } }]);
+      setElements((current) => [...current, { localId, tipo_elemento: "punto", data_json: { localId, capa: activeLayer, x: point.x, y: point.y, descripcion: content.trim() || "", color: "#1576d1", size: 12, tipoPunto: "referencia" } }]);
       completeSinglePlacement(localId);
       toast.success("Punto agregado.");
       return;
     }
     if (currentTool === "tapado") {
       const localId = uid();
-      setElements((current) => [...current, { localId, tipo_elemento: "tapado", data_json: { capa: activeLayer, x: point.x - 40, y: point.y - 20, width: 80, height: 40, color: "#ffffff" } }]);
+      setElements((current) => [...current, { localId, tipo_elemento: "tapado", data_json: { localId, capa: activeLayer, x: point.x - 40, y: point.y - 20, width: 80, height: 40, color: "#ffffff" } }]);
       completeSinglePlacement(localId);
       toast.success("Tapado agregado.");
       return;
@@ -639,7 +642,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     if (activeLayerState.locked || !activeLayerState.visible) return;
     if (polygonDraft.length < 3) return;
     const localId = uid();
-    setElements((current) => [...current, { localId, tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
+    setElements((current) => [...current, { localId, tipo_elemento: "poligono", data_json: { localId, capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
     setSelectedId(localId);
     onToolChange("select");
     setPolygonDraft([]);

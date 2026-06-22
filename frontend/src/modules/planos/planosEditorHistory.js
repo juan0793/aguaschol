@@ -74,6 +74,8 @@ export const legacyTwoClickLineDraft = (draft, point, activeLayer) => {
 export const cloneEditorElement = (element, offset = 18) => {
   if (!element) return null;
   const data = JSON.parse(JSON.stringify(element.data_json || {}));
+  const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  data.localId = localId;
   if (Array.isArray(data.puntos)) {
     data.puntos = data.puntos.map((point) => ({ ...point, x: Number(point.x || 0) + offset, y: Number(point.y || 0) + offset }));
   } else {
@@ -81,7 +83,7 @@ export const cloneEditorElement = (element, offset = 18) => {
     data.y = Number(data.y || 0) + offset;
   }
   return {
-    localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    localId,
     tipo_elemento: element.tipo_elemento,
     data_json: data
   };
