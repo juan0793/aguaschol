@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
+import { finishLineDraft, legacyTwoClickLineDraft, nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
 
 test("croquis history undoes and redoes element edits", () => {
   let history = { past: [], future: [] };
@@ -28,12 +28,22 @@ test("croquis history keeps the last snapshots only", () => {
 });
 
 test("line tool creates a line with two clicks", () => {
-  const first = nextLineDraft(null, { x: 10, y: 20 }, "correcciones");
+  const first = legacyTwoClickLineDraft(null, { x: 10, y: 20 }, "correcciones");
   assert.equal(first.line, null);
-  assert.deepEqual(first.draft, { start: { x: 10, y: 20 }, layer: "correcciones" });
+  assert.deepEqual(first.draft, { points: [{ x: 10, y: 20 }], layer: "correcciones" });
 
-  const second = nextLineDraft(first.draft, { x: 11, y: 21 }, "codigos");
+  const second = legacyTwoClickLineDraft(first.draft, { x: 11, y: 21 }, "codigos");
   assert.equal(second.draft, null);
   assert.deepEqual(second.line.data_json.puntos, [{ x: 10, y: 20 }, { x: 11, y: 21 }]);
   assert.equal(second.line.data_json.capa, "correcciones");
+});
+
+test("line tool creates editable polylines", () => {
+  let result = nextLineDraft(null, { x: 10, y: 20 }, "correcciones");
+  result = nextLineDraft(result.draft, { x: 30, y: 40 }, "correcciones");
+  result = nextLineDraft(result.draft, { x: 50, y: 60 }, "correcciones");
+
+  const line = finishLineDraft(result.draft, "codigos");
+  assert.deepEqual(line.data_json.puntos, [{ x: 10, y: 20 }, { x: 30, y: 40 }, { x: 50, y: 60 }]);
+  assert.equal(line.data_json.capa, "correcciones");
 });

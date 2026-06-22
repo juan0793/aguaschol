@@ -34,14 +34,36 @@ export const redoEditorHistory = (history, current, limit = 30) => {
 };
 
 export const nextLineDraft = (draft, point, activeLayer) => {
-  if (!draft) return { draft: { start: point, layer: activeLayer }, line: null };
+  if (!draft) return { draft: { points: [point], layer: activeLayer }, line: null };
+  return {
+    draft: { ...draft, points: [...(draft.points || []), point] },
+    line: null
+  };
+};
+
+export const finishLineDraft = (draft, activeLayer) => {
+  const points = draft?.points || [];
+  if (points.length < 2) return null;
+  return {
+    tipo_elemento: "linea",
+    data_json: {
+      capa: draft.layer || activeLayer,
+      puntos: points,
+      color: "#0f172a",
+      grosor: 3
+    }
+  };
+};
+
+export const legacyTwoClickLineDraft = (draft, point, activeLayer) => {
+  if (!draft) return { draft: { points: [point], layer: activeLayer }, line: null };
   return {
     draft: null,
     line: {
       tipo_elemento: "linea",
       data_json: {
         capa: draft.layer || activeLayer,
-        puntos: [draft.start, point],
+        puntos: [...(draft.points || []), point],
         color: "#0f172a",
         grosor: 3
       }

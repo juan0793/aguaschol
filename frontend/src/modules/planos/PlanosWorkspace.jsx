@@ -5,7 +5,7 @@ import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Tra
 import { toast } from "sonner";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
-import { nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
+import { finishLineDraft, nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -331,19 +331,59 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     setViewPos((current) => ({ x: current.x + pointer.x - projected.x, y: current.y + pointer.y - projected.y }));
   };
 
+  const lineDraftPoints = lineDraft?.points || [];
+
   const addLinePoint = (point, useSnap = false) => {
-    const finalPoint = lineDraft && useSnap ? snapPoint(lineDraft.start, point) : point;
+    const previousPoint = lineDraftPoints[lineDraftPoints.length - 1];
+    const finalPoint = previousPoint && useSnap ? snapPoint(previousPoint, point) : point;
     const next = nextLineDraft(lineDraft, finalPoint, activeLayer);
-    if (!next.line) {
-      setLineDraft(next.draft);
-      setPointerPreview(finalPoint);
-      toast.info("Punto inicial colocado.");
-      return;
-    }
-    setElements((current) => [...current, { localId: uid(), ...next.line }]);
     setLineDraft(next.draft);
+    setPointerPreview(finalPoint);
+    toast.info(next.draft.points.length === 1 ? "Punto inicial colocado." : "Vertice agregado.");
+  };
+
+  const finishLine = () => {
+    const line = finishLineDraft(lineDraft, activeLayer);
+    if (!line) return;
+    setElements((current) => [...current, { localId: uid(), ...line }]);
+    setLineDraft(null);
     setPointerPreview(null);
     toast.success("Linea agregada.");
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      const tag = event.target?.tagName?.toLowerCase();
+      if (["input", "textarea", "select"].includes(tag) || tool !== "linea") return;
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finishLine();
+      } else if (event.key === "Escape" && lineDraft) {
+        event.preventDefault();
+        setLineDraft(null);
+        setPointerPreview(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeLayer, lineDraft, tool]);
+
+  const updateVertex = (element, index, point) => {
+    setElements((current) => current.map((item) => {
+      if (item.localId !== element.localId) return item;
+      const puntos = [...(item.data_json?.puntos || [])];
+      puntos[index] = { x: Math.round(point.x), y: Math.round(point.y) };
+      return { ...item, data_json: { ...item.data_json, puntos } };
+    }));
+  };
+
+  const insertVertex = (element, index, point) => {
+    setElements((current) => current.map((item) => {
+      if (item.localId !== element.localId) return item;
+      const puntos = [...(item.data_json?.puntos || [])];
+      puntos.splice(index + 1, 0, { x: Math.round(point.x), y: Math.round(point.y) });
+      return { ...item, data_json: { ...item.data_json, puntos } };
+    }));
   };
 
   const addElement = (point) => {
@@ -424,7 +464,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }
     if (tool === "linea" && lineDraft) {
       const point = eventPoint(event);
-      if (point) setPointerPreview(snap || event.evt.shiftKey ? snapPoint(lineDraft.start, point) : point);
+      const previousPoint = lineDraftPoints[lineDraftPoints.length - 1];
+      if (point) setPointerPreview(previousPoint && (snap || event.evt.shiftKey) ? snapPoint(previousPoint, point) : point);
       return;
     }
   };
@@ -501,6 +542,9 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     setElements((current) => [...current, { localId: uid(), tipo_elemento: "poligono", data_json: { capa: activeLayer, puntos: polygonDraft, colorBorde: "#0f172a", grosor: 2, relleno: "rgba(21,118,209,0.12)" } }]);
     setPolygonDraft([]);
   };
+  const draftPreviewPoints = lineDraftPoints.length
+    ? [...lineDraftPoints, showPrecision ? centerPoint() : pointerPreview || lineDraftPoints[lineDraftPoints.length - 1]]
+    : [];
   const nudgeCenter = (dx, dy) => {
     const target = { x: centerPoint().x + dx, y: centerPoint().y + dy };
     const projected = getScreenPointFromImagePoint(target);
@@ -510,7 +554,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     }));
   };
   const centeredActionLabel =
-    tool === "linea" ? (lineDraft ? "Terminar linea" : "Iniciar linea") :
+    tool === "linea" ? (lineDraft ? "Agregar vertice" : "Iniciar linea") :
     tool === "poligono" ? "Agregar vertice" :
     tool === "codigo" ? "Agregar numero" :
     tool === "texto" ? "Agregar texto" :
@@ -531,6 +575,8 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
         onTouchMove={handleStageMove}
         onMouseUp={handleStageUp}
         onTouchEnd={handleStageUp}
+        onDblClick={tool === "linea" ? finishLine : undefined}
+        onDblTap={tool === "linea" ? finishLine : undefined}
         onWheel={handleWheel}
       >
         <Layer name="background-layer">
@@ -546,19 +592,51 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               const stroke = selected ? "#1576d1" : data.color || data.colorBorde || "#0f172a";
               if (element.tipo_elemento === "linea" || element.tipo_elemento === "poligono") {
                 return (
-                  <Line
-                    key={element.localId}
-                    points={(data.puntos || []).flatMap((point) => [Number(point.x || 0), Number(point.y || 0)])}
-                    closed={element.tipo_elemento === "poligono"}
-                    fill={element.tipo_elemento === "poligono" ? data.relleno || "rgba(21,118,209,0.12)" : undefined}
-                    stroke={stroke}
-                    strokeWidth={selected ? Number(data.grosor || 2) + 2 : Number(data.grosor || 3)}
-                    hitStrokeWidth={44}
-                    draggable={tool === "select"}
-                    onMouseDown={(event) => handleElementDown(event, element)}
-                    onTouchStart={(event) => handleElementDown(event, element)}
-                    onDragEnd={(event) => moveByDrag(element, event)}
-                  />
+                  <Group key={element.localId}>
+                    <Line
+                      points={(data.puntos || []).flatMap((point) => [Number(point.x || 0), Number(point.y || 0)])}
+                      closed={element.tipo_elemento === "poligono"}
+                      fill={element.tipo_elemento === "poligono" ? data.relleno || "rgba(21,118,209,0.12)" : undefined}
+                      stroke={stroke}
+                      strokeWidth={selected ? Number(data.grosor || 2) + 2 : Number(data.grosor || 3)}
+                      hitStrokeWidth={44}
+                      draggable={tool === "select"}
+                      onMouseDown={(event) => handleElementDown(event, element)}
+                      onTouchStart={(event) => handleElementDown(event, element)}
+                      onDragEnd={(event) => moveByDrag(element, event)}
+                    />
+                    {selected && tool === "select" ? (data.puntos || []).map((point, index) => (
+                      <Circle
+                        key={`${element.localId}-vertex-${index}`}
+                        x={Number(point.x || 0)}
+                        y={Number(point.y || 0)}
+                        radius={8}
+                        fill="#ffffff"
+                        stroke="#1576d1"
+                        strokeWidth={3}
+                        draggable
+                        onMouseDown={(event) => { event.cancelBubble = true; }}
+                        onTouchStart={(event) => { event.cancelBubble = true; }}
+                        onDragEnd={(event) => updateVertex(element, index, { x: event.target.x(), y: event.target.y() })}
+                      />
+                    )) : null}
+                    {selected && tool === "select" ? (data.puntos || []).slice(0, -1).map((point, index) => {
+                      const next = data.puntos[index + 1];
+                      const mid = { x: (Number(point.x || 0) + Number(next.x || 0)) / 2, y: (Number(point.y || 0) + Number(next.y || 0)) / 2 };
+                      return (
+                        <Circle
+                          key={`${element.localId}-mid-${index}`}
+                          x={mid.x}
+                          y={mid.y}
+                          radius={6}
+                          fill="#1576d1"
+                          opacity={0.72}
+                          onMouseDown={(event) => { event.cancelBubble = true; insertVertex(element, index, mid); }}
+                          onTouchStart={(event) => { event.cancelBubble = true; insertVertex(element, index, mid); }}
+                        />
+                      );
+                    }) : null}
+                  </Group>
                 );
               }
               if (element.tipo_elemento === "punto") {
@@ -612,7 +690,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
         </Layer>
         <Layer name="draft-layer">
           <Group {...groupProps}>
-            {lineDraft ? <Line points={[lineDraft.start.x, lineDraft.start.y, (showPrecision ? centerPoint() : pointerPreview || lineDraft.start).x, (showPrecision ? centerPoint() : pointerPreview || lineDraft.start).y]} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} listening={false} /> : null}
+            {draftPreviewPoints.length > 1 ? <Line points={draftPreviewPoints.flatMap((point) => [point.x, point.y])} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} listening={false} /> : null}
             {polygonDraft.length ? <Line points={polygonDraft.flatMap((point) => [point.x, point.y])} stroke="#1576d1" strokeWidth={3} dash={[10, 8]} /> : null}
           </Group>
         </Layer>
@@ -633,6 +711,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
               else addElement(point);
             }}>{centeredActionLabel}</button>
             {lineDraft ? <button type="button" onClick={() => { setLineDraft(null); setPointerPreview(null); }}>Cancelar</button> : null}
+            {lineDraftPoints.length > 1 ? <button type="button" onClick={finishLine}>Finalizar linea</button> : null}
           </div>
         </>
       ) : null}
@@ -857,6 +936,17 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     commitElements((current) => current.map((item) => item.localId === selected.localId ? { ...item, data_json: { ...item.data_json, ...patch } } : item));
   };
 
+  const deleteSelectedVertex = (index) => {
+    if (!selected || !Array.isArray(selected.data_json?.puntos)) return;
+    const minimum = selected.tipo_elemento === "poligono" ? 3 : 2;
+    const puntos = selected.data_json.puntos.filter((_, pointIndex) => pointIndex !== index);
+    if (puntos.length < minimum) {
+      toast.warning(`No puedes dejar menos de ${minimum} vertices.`);
+      return;
+    }
+    updateSelected({ puntos });
+  };
+
   return (
     <section className="planos-editor">
       <header className="planos-editor-head">
@@ -936,7 +1026,16 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
               <label>Y <input type="number" value={Math.round(Number(selected.data_json.y || 0))} onChange={(event) => updateSelected({ y: Number(event.target.value || 0) })} /></label>
             </div>
           ) : (
-            <label>Grosor <input type="number" min="1" max="20" value={selected.data_json.grosor || 3} onChange={(event) => updateSelected({ grosor: Number(event.target.value || 3) })} /></label>
+            <>
+              <label>Grosor <input type="number" min="1" max="20" value={selected.data_json.grosor || 3} onChange={(event) => updateSelected({ grosor: Number(event.target.value || 3) })} /></label>
+              <div className="planos-vertex-list">
+                {(selected.data_json.puntos || []).map((point, index) => (
+                  <button key={`${selected.localId}-delete-vertex-${index}`} type="button" className="button-secondary" onClick={() => deleteSelectedVertex(index)}>
+                    Eliminar vertice {index + 1} ({Math.round(Number(point.x || 0))}, {Math.round(Number(point.y || 0))})
+                  </button>
+                ))}
+              </div>
+            </>
           )}
           <button type="button" className="button-secondary" onClick={() => commitElements((current) => current.filter((item) => item.localId !== selected.localId))}>Eliminar</button>
           <button type="button" className="button-secondary" onClick={() => setSelectedId("")}>Cerrar</button>
