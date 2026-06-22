@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { finishLineDraft, legacyTwoClickLineDraft, nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
+import { cloneEditorElement, finishLineDraft, legacyTwoClickLineDraft, moveElementInStack, nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory.js";
 
 test("croquis history undoes and redoes element edits", () => {
   let history = { past: [], future: [] };
@@ -46,4 +46,14 @@ test("line tool creates editable polylines", () => {
   const line = finishLineDraft(result.draft, "codigos");
   assert.deepEqual(line.data_json.puntos, [{ x: 10, y: 20 }, { x: 30, y: 40 }, { x: 50, y: 60 }]);
   assert.equal(line.data_json.capa, "correcciones");
+});
+
+test("editor duplicates and reorders elements", () => {
+  const original = { localId: "a", tipo_elemento: "linea", data_json: { puntos: [{ x: 1, y: 2 }, { x: 3, y: 4 }] } };
+  const copy = cloneEditorElement(original, 10);
+  assert.equal(copy.tipo_elemento, "linea");
+  assert.deepEqual(copy.data_json.puntos, [{ x: 11, y: 12 }, { x: 13, y: 14 }]);
+
+  assert.deepEqual(moveElementInStack([{ localId: "a" }, { localId: "b" }, { localId: "c" }], "b", "front").map((item) => item.localId), ["a", "c", "b"]);
+  assert.deepEqual(moveElementInStack([{ localId: "a" }, { localId: "b" }, { localId: "c" }], "b", "back").map((item) => item.localId), ["b", "a", "c"]);
 });

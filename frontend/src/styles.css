@@ -11589,6 +11589,17 @@ body.planos-focus-mode .page-shell > main {
   text-align: left;
 }
 
+.planos-object-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.planos-object-actions button {
+  justify-content: flex-start;
+  min-height: 38px;
+}
+
 .planos-mini-stats {
   display: grid;
   margin-top: 0.5rem;

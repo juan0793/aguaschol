@@ -70,3 +70,30 @@ export const legacyTwoClickLineDraft = (draft, point, activeLayer) => {
     }
   };
 };
+
+export const cloneEditorElement = (element, offset = 18) => {
+  if (!element) return null;
+  const data = JSON.parse(JSON.stringify(element.data_json || {}));
+  if (Array.isArray(data.puntos)) {
+    data.puntos = data.puntos.map((point) => ({ ...point, x: Number(point.x || 0) + offset, y: Number(point.y || 0) + offset }));
+  } else {
+    data.x = Number(data.x || 0) + offset;
+    data.y = Number(data.y || 0) + offset;
+  }
+  return {
+    localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    tipo_elemento: element.tipo_elemento,
+    data_json: data
+  };
+};
+
+export const moveElementInStack = (elements, localId, direction) => {
+  const index = elements.findIndex((item) => item.localId === localId);
+  if (index < 0) return elements;
+  const nextIndex = direction === "front" ? Math.min(elements.length - 1, index + 1) : Math.max(0, index - 1);
+  if (index === nextIndex) return elements;
+  const next = [...elements];
+  const [item] = next.splice(index, 1);
+  next.splice(nextIndex, 0, item);
+  return next;
+};

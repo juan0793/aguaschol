@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Crosshair, Download, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Square, Type, Undo2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clipboard, Copy, Crosshair, Download, Edit3, Eraser, Layers, LocateFixed, Map as MapIcon, Minus, MousePointer2, Move, Pentagon, Plus, Redo2, RotateCcw, RotateCw, Save, Send, Square, Trash2, Type, Undo2 } from "lucide-react";
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
 import { toast } from "sonner";
 import { API_URL } from "../../config/api";
 import { Icon } from "../../components/Icon";
-import { finishLineDraft, nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
+import { cloneEditorElement, finishLineDraft, moveElementInStack, nextLineDraft, pushEditorHistory, redoEditorHistory, undoEditorHistory } from "./planosEditorHistory";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -739,6 +739,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const hasLocalDraftRef = useRef(false);
   const lastSavedRef = useRef("[]");
   const historyRef = useRef({ past: [], future: [] });
+  const clipboardRef = useRef(null);
 
   const selected = elements.find((item) => item.localId === selectedId);
   const canUndo = historyRef.current.past.length > 0;
@@ -811,6 +812,39 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       setSelectedId("");
       return result.next;
     });
+  };
+
+  const copySelected = () => {
+    if (!selected) return;
+    clipboardRef.current = selected;
+    toast.success("Objeto copiado.");
+  };
+
+  const pasteSelected = () => {
+    const copy = cloneEditorElement(clipboardRef.current);
+    if (!copy) return;
+    commitElements((current) => [...current, copy]);
+    setSelectedId(copy.localId);
+    clipboardRef.current = copy;
+  };
+
+  const duplicateSelected = () => {
+    if (!selected) return;
+    const copy = cloneEditorElement(selected);
+    commitElements((current) => [...current, copy]);
+    setSelectedId(copy.localId);
+    clipboardRef.current = copy;
+  };
+
+  const deleteSelected = () => {
+    if (!selected) return;
+    commitElements((current) => current.filter((item) => item.localId !== selected.localId));
+    setSelectedId("");
+  };
+
+  const moveSelectedInStack = (direction) => {
+    if (!selected) return;
+    commitElements((current) => moveElementInStack(current, selected.localId, direction));
   };
 
   const readErrorBody = async (response) => {
@@ -899,11 +933,23 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       } else if ((mod && key === "y") || (mod && event.shiftKey && key === "z")) {
         event.preventDefault();
         redo();
+      } else if (mod && key === "c") {
+        event.preventDefault();
+        copySelected();
+      } else if (mod && key === "v") {
+        event.preventDefault();
+        pasteSelected();
+      } else if (mod && key === "d") {
+        event.preventDefault();
+        duplicateSelected();
+      } else if (key === "delete" || key === "backspace") {
+        event.preventDefault();
+        deleteSelected();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, selected]);
 
   useEffect(() => {
     if (saveState === "dirty" || saveState === "local") saveDraft({ silent: saveState === "local" }).catch(() => {});
@@ -1037,7 +1083,14 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
               </div>
             </>
           )}
-          <button type="button" className="button-secondary" onClick={() => commitElements((current) => current.filter((item) => item.localId !== selected.localId))}>Eliminar</button>
+          <div className="planos-object-actions">
+            <button type="button" className="button-secondary" onClick={copySelected}><Copy size={16} />Copiar</button>
+            <button type="button" className="button-secondary" onClick={pasteSelected}><Clipboard size={16} />Pegar</button>
+            <button type="button" className="button-secondary" onClick={duplicateSelected}><Copy size={16} />Duplicar</button>
+            <button type="button" className="button-secondary" onClick={() => moveSelectedInStack("front")}><ArrowUp size={16} />Adelante</button>
+            <button type="button" className="button-secondary" onClick={() => moveSelectedInStack("back")}><ArrowDown size={16} />Atras</button>
+          </div>
+          <button type="button" className="button-secondary" onClick={deleteSelected}><Trash2 size={16} />Eliminar</button>
           <button type="button" className="button-secondary" onClick={() => setSelectedId("")}>Cerrar</button>
           <div className="planos-mini-stats">
             <span>{elements.length}</span>
