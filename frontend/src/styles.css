@@ -11675,21 +11675,23 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .planos-layers-panel {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 0.55rem;
-  overflow-x: auto;
-  padding: 0.65rem 0.85rem;
+  max-height: 118px;
+  overflow: auto;
+  padding: 0.55rem 0.85rem;
   border-bottom: 1px solid rgba(21, 118, 209, 0.12);
   background: rgba(255, 255, 255, 0.9);
 }
 
 .planos-layer-row {
   display: grid;
-  grid-template-columns: minmax(145px, 1fr) 42px 42px minmax(100px, 120px);
-  flex: 0 0 auto;
+  grid-template-columns: minmax(118px, 1fr) 38px 38px minmax(72px, 92px);
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.3rem;
   border: 1px solid rgba(21, 118, 209, 0.14);
   border-radius: 10px;
   background: #ffffff;
@@ -11701,16 +11703,33 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .planos-layer-row button {
-  min-height: 38px;
+  min-height: 34px;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
 }
 
-.planos-layer-row button:first-child {
+.planos-layer-name {
   justify-content: space-between;
+  gap: 0.45rem;
+  overflow: hidden;
 }
 
-.planos-layer-row button span {
-  font-size: 0.75rem;
-  opacity: 0.72;
+.planos-layer-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planos-layer-name small {
+  display: inline-grid;
+  min-width: 1.55rem;
+  min-height: 1.55rem;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(21, 118, 209, 0.1);
+  color: #123b5d;
+  font-size: 0.72rem;
+  font-weight: 900;
 }
 
 .planos-layer-row label {
@@ -11868,6 +11887,16 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-layer-select {
     justify-content: center;
+  }
+
+  .planos-layers-panel {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    max-height: 96px;
+    padding: 0.45rem;
+  }
+
+  .planos-layer-row {
+    grid-template-columns: minmax(100px, 1fr) 36px 36px minmax(64px, 76px);
   }
 
   .planos-precision-actions {

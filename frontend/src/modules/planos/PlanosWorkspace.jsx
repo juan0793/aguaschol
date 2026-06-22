@@ -1171,7 +1171,10 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           const count = layer.key === "plano_base" ? 1 : elements.filter((item) => (item.data_json?.capa || "correcciones") === layer.key).length;
           return (
             <div key={layer.key} className={`planos-layer-row ${activeLayer === layer.key ? "is-active" : ""}`}>
-              <button type="button" className="button-secondary" onClick={() => setActiveLayer(layer.key)}>{layer.label}<span>{count}</span></button>
+              <button type="button" className="button-secondary planos-layer-name" onClick={() => setActiveLayer(layer.key)}>
+                <span>{layer.label}</span>
+                <small>{count}</small>
+              </button>
               <button type="button" className="button-secondary" title={layer.visible ? "Ocultar" : "Mostrar"} onClick={() => updateLayer(layer.key, { visible: !layer.visible })}>{layer.visible ? <Eye size={16} /> : <EyeOff size={16} />}</button>
               <button type="button" className="button-secondary" title={layer.locked ? "Desbloquear" : "Bloquear"} onClick={() => updateLayer(layer.key, { locked: !layer.locked })}>{layer.locked ? <Lock size={16} /> : <Unlock size={16} />}</button>
               <label>
