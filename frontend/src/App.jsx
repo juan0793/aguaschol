@@ -11406,12 +11406,12 @@ function App() {
             <div className="login-brand">
               <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
               <div>
-                <p className="eyebrow">Control Aguas</p>
-                <h1>Centro operativo de campo</h1>
+                <p className="eyebrow">Aguas de Choluteca</p>
+                <h1>Control Aguas</h1>
               </div>
             </div>
             <p className="lead">
-              Registro, consulta, mapas y seguimiento en una version beta preparada para trabajo de campo y oficina.
+              App beta para registrar inmuebles clandestinos, consultar fichas y ubicar puntos en el mapa.
             </p>
             <div className="login-intro-notes">
               <div className="login-intro-note">
