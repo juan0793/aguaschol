@@ -39,6 +39,7 @@ test("exportMapPointsWorkbook builds a formatted, numbered Excel report", async 
 
   const reportSheet = workbook.getWorksheet("reporte_detallado");
   assert.ok(reportSheet);
+  assert.equal(reportSheet.getCell("C1").value, "REPORTE DETALLADO DE PUNTOS DE CAMPO");
   assert.equal(reportSheet.getCell("A7").value, "No.");
   assert.equal(reportSheet.getCell("A8").value, 1);
   assert.equal(reportSheet.getCell("A9").value, 2);

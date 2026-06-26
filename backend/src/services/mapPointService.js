@@ -240,8 +240,8 @@ const addReportLogo = (workbook, worksheet) => {
   if (!fs.existsSync(LOGO_PATH)) return;
   const logoId = workbook.addImage({ filename: LOGO_PATH, extension: "png" });
   worksheet.addImage(logoId, {
-    tl: { col: 0.15, row: 0.15 },
-    ext: { width: 74, height: 74 }
+    tl: { col: 0.2, row: 0.2 },
+    ext: { width: 58, height: 58 }
   });
 };
 
@@ -312,20 +312,20 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
     { header: "Registrado", key: "registrado", width: 23 },
     { header: "Google Maps", key: "maps", width: 20 }
   ];
-  reportSheet.mergeCells("B1:J1");
-  reportSheet.mergeCells("B2:J2");
-  reportSheet.mergeCells("B3:J3");
+  reportSheet.mergeCells("C1:J1");
+  reportSheet.mergeCells("C2:J2");
+  reportSheet.mergeCells("C3:J3");
   reportSheet.mergeCells("K1:L2");
   reportSheet.mergeCells("K3:L4");
   reportSheet.mergeCells("A5:L5");
   addReportLogo(workbook, reportSheet);
   reportSheet.getCell("A1").value = "";
-  reportSheet.getCell("B1").value = "REPORTE DETALLADO DE PUNTOS DE CAMPO";
-  reportSheet.getCell("B1").font = { bold: true, size: 16, color: { argb: REPORT_DARK } };
-  reportSheet.getCell("B2").value = "Aguas de Choluteca, S.A. de C.V.";
-  reportSheet.getCell("B2").font = { bold: true, size: 11, color: { argb: REPORT_BLUE } };
-  reportSheet.getCell("B3").value = `Jornada: ${formatDiaryDateLabel(diaryDate)} | Generado: ${generatedLabel}`;
-  reportSheet.getCell("B3").font = { size: 10, color: { argb: "FF405B75" } };
+  reportSheet.getCell("C1").value = "REPORTE DETALLADO DE PUNTOS DE CAMPO";
+  reportSheet.getCell("C1").font = { bold: true, size: 16, color: { argb: REPORT_DARK } };
+  reportSheet.getCell("C2").value = "Aguas de Choluteca, S.A. de C.V.";
+  reportSheet.getCell("C2").font = { bold: true, size: 11, color: { argb: REPORT_BLUE } };
+  reportSheet.getCell("C3").value = `Jornada: ${formatDiaryDateLabel(diaryDate)} | Generado: ${generatedLabel}`;
+  reportSheet.getCell("C3").font = { size: 10, color: { argb: "FF405B75" } };
   reportSheet.getCell("K1").value = `${points.length}\npuntos`;
   reportSheet.getCell("K1").font = { bold: true, size: 16, color: { argb: "FFFFFFFF" } };
   reportSheet.getCell("K1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: REPORT_BLUE } };
