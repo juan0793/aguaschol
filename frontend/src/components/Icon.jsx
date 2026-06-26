@@ -52,6 +52,8 @@ const iconPaths = {
   more:
     "M5 12a1.5 1.5 0 1 0 0-.01M12 12a1.5 1.5 0 1 0 0-.01M19 12a1.5 1.5 0 1 0 0-.01"
   ,
+  download:
+    "M12 3v12m0 0 5-5m-5 5-5-5M5 21h14",
   print:
     "M19 8h-14v6h3v4h8v-4h3V8zM7 2h10v4H7z"
 };

@@ -16445,7 +16445,7 @@ function App() {
                   <div className="map-list-head-actions">
                     <span className="panel-pill">{visibleMapPoints.length}</span>
                     <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
-                      <Icon name="records" />
+                      <Icon name="download" />
                       Reporte detallado
                     </button>
                   </div>
