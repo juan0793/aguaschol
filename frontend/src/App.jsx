@@ -11393,43 +11393,41 @@ function App() {
         ) : null}
         <div className="login-layout">
           <section className="login-intro-card">
-            <div className="login-intro-orb login-intro-orb-primary" />
-            <div className="login-intro-orb login-intro-orb-secondary" />
             <div className="login-intro-topline">
               <span className="login-chip">
-                <Icon name="history" />
-                Operacion trazable
+                <Icon name="activity" />
+                Beta operativa
               </span>
               <span className="login-chip">
-                <Icon name="auth" />
-                Acceso protegido
+                <Icon name="success" />
+                v2026.06
               </span>
             </div>
             <div className="login-brand">
               <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
               <div>
-                <p className="eyebrow">Aguas de Choluteca</p>
-                <h1>Control de inmuebles clandestinos</h1>
+                <p className="eyebrow">Control Aguas</p>
+                <h1>Centro operativo de campo</h1>
               </div>
             </div>
             <p className="lead">
-              Registro, consulta y seguimiento en una interfaz ligera para trabajo de campo y oficina.
+              Registro, consulta, mapas y seguimiento en una version beta preparada para trabajo de campo y oficina.
             </p>
             <div className="login-intro-notes">
               <div className="login-intro-note">
-                <strong>Fichas y avisos</strong>
-                <span>Consulta y captura en un solo flujo.</span>
+                <strong>Version beta</strong>
+                <span>Modulo activo con mejoras continuas para Aguas de Choluteca.</span>
               </div>
               <div className="login-intro-note">
-                <strong>Bitacora activa</strong>
-                <span>Cada accion queda asociada al usuario.</span>
+                <strong>Acceso auditado</strong>
+                <span>Cada accion queda asociada al usuario y a su sesion.</span>
               </div>
             </div>
           </section>
 
           <div className="login-card">
             <div className="login-card-head">
-              <p className="eyebrow">Acceso seguro</p>
+              <p className="eyebrow">Acceso seguro beta</p>
               <div className="login-card-title">
                 <span className="login-card-title-icon"><Icon name="auth" /></span>
                 <h2>Iniciar sesion</h2>

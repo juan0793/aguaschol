@@ -127,8 +127,18 @@ export function UsersContent({
               </div>
               <span className="panel-pill">Perfil inicial</span>
             </div>
+            <div className="users-create-guide" aria-label="Flujo de creacion de usuario">
+              <span><Icon name="users" /> Datos</span>
+              <span><Icon name="auth" /> Perfil</span>
+              <span><Icon name="success" /> Entrega</span>
+            </div>
             <section className="sheet-section users-form-section">
-              <h3>Datos del usuario</h3>
+              <div className="users-form-section-head">
+                <div>
+                  <h3>Datos del usuario</h3>
+                  <p>El sistema genera credenciales temporales y prepara el correo de bienvenida.</p>
+                </div>
+              </div>
               <div className="form-grid users-form-grid">
                 <label>
                   <span>Nombre completo</span>
@@ -147,6 +157,10 @@ export function UsersContent({
                     <option value="admin">Administrador</option>
                   </select>
                 </label>
+              </div>
+              <div className="users-role-hint">
+                <Icon name="auth" />
+                <span>Usa administrador solo para personal que deba gestionar usuarios, padrones y configuraciones.</span>
               </div>
             </section>
             <div className="action-row users-action-row">

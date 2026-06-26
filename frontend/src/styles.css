@@ -25906,3 +25906,227 @@ body {
     display: flex !important;
   }
 }
+
+/* Final visual overrides for login beta and user creation */
+.login-shell {
+  background:
+    linear-gradient(115deg, rgba(11, 63, 115, 0.05) 0 1px, transparent 1px 72px),
+    linear-gradient(25deg, rgba(20, 184, 166, 0.07) 0 1px, transparent 1px 88px),
+    radial-gradient(ellipse at top left, rgba(21, 118, 209, 0.16), transparent 34%),
+    radial-gradient(ellipse at bottom right, rgba(16, 185, 129, 0.13), transparent 32%),
+    linear-gradient(135deg, #f8fbff 0%, #eef7ff 43%, #f6fff9 100%) !important;
+  animation: loginBackdropShift 18s ease-in-out infinite alternate;
+}
+
+.login-layout {
+  width: min(1080px, 100%) !important;
+  grid-template-columns: minmax(0, 1.08fr) minmax(340px, 440px) !important;
+  gap: 1.25rem !important;
+}
+
+.login-intro-card,
+.login-card,
+.users-sidebar-panel,
+.users-hero-strip,
+.users-form-card,
+.users-detail-card {
+  border-radius: 10px !important;
+  border-color: rgba(13, 77, 134, 0.14) !important;
+  box-shadow: 0 26px 70px rgba(14, 51, 86, 0.13) !important;
+}
+
+.login-intro-card {
+  min-height: 520px !important;
+  padding: 1.55rem !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+}
+
+.login-card {
+  padding: 1.45rem !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+
+.login-brand h1 {
+  font-size: clamp(2rem, 5vw, 3.9rem) !important;
+  line-height: 0.96 !important;
+  letter-spacing: 0 !important;
+  color: #082f49 !important;
+}
+
+.login-logo {
+  width: 82px !important;
+  height: 82px !important;
+  padding: 0.35rem !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+}
+
+.login-chip,
+.login-card-badge {
+  border-radius: 8px !important;
+  background: #f7fbff !important;
+  border: 1px solid rgba(13, 77, 134, 0.12) !important;
+}
+
+.login-chip:first-child {
+  background: #ecfdf6 !important;
+  border-color: rgba(16, 185, 129, 0.22) !important;
+  color: #176548 !important;
+}
+
+.login-intro-notes {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.login-intro-note,
+.login-form input,
+.login-form button,
+.users-form-grid input,
+.users-form-grid select,
+.users-role-editor select,
+.users-create-guide span,
+.users-role-hint,
+.users-selected-profile {
+  border-radius: 10px !important;
+}
+
+.login-form input {
+  min-height: 56px !important;
+  background: #fbfdff !important;
+  border-color: rgba(13, 77, 134, 0.12) !important;
+}
+
+.login-form button {
+  min-height: 56px !important;
+  background: linear-gradient(135deg, #0ea5e9, #1465d9 52%, #0f766e) !important;
+}
+
+.users-hero-strip {
+  background: linear-gradient(100deg, #ffffff, #f2f9ff 58%, #effdf6) !important;
+}
+
+.users-workspace-grid {
+  grid-template-columns: minmax(420px, 0.95fr) minmax(360px, 1fr) !important;
+  gap: 1.2rem !important;
+}
+
+.users-form-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.3rem !important;
+  background: linear-gradient(180deg, #ffffff, #f8fcff) !important;
+}
+
+.users-form-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, #1465d9, #14b8a6, #f59e0b);
+}
+
+.users-create-guide {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 0.55rem !important;
+  margin: 1rem 0 !important;
+}
+
+.users-create-guide > span {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.42rem !important;
+  min-height: 40px !important;
+  background: #f1f8ff !important;
+  border: 1px solid rgba(21, 118, 209, 0.12) !important;
+  color: #174365 !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+}
+
+.users-create-guide > span:nth-child(2) {
+  background: #ecfdf6 !important;
+  border-color: rgba(16, 185, 129, 0.18) !important;
+  color: #176548 !important;
+}
+
+.users-create-guide > span:nth-child(3),
+.users-role-hint {
+  background: #fff8e7 !important;
+  border-color: rgba(245, 158, 11, 0.22) !important;
+  color: #805600 !important;
+}
+
+.users-create-guide .app-icon {
+  width: 1rem !important;
+  height: 1rem !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.users-form-section {
+  border-radius: 10px !important;
+  background: #fbfdff !important;
+  border: 1px solid rgba(13, 77, 134, 0.1) !important;
+}
+
+.users-form-section-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 1rem !important;
+  margin-bottom: 0.95rem !important;
+}
+
+.users-form-grid input,
+.users-form-grid select {
+  min-height: 52px !important;
+  background: #fff !important;
+}
+
+.users-role-hint {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0.5rem !important;
+  margin-top: 0.95rem !important;
+  padding: 0.75rem 0.8rem !important;
+}
+
+.users-selected-profile {
+  padding: 1rem !important;
+  background: linear-gradient(135deg, #f1f8ff, #ecfdf6) !important;
+}
+
+@keyframes loginBackdropShift {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 40px 22px, -28px 18px, 0 0, 0 0, 0 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .login-layout,
+  .users-workspace-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .login-intro-card {
+    min-height: auto !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .login-intro-notes,
+  .users-create-guide {
+    grid-template-columns: 1fr !important;
+  }
+
+  .login-brand h1 {
+    font-size: 2.1rem !important;
+  }
+}
