@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/authMiddleware.js";
-import { changeOwnPassword, loginUser, logoutUser } from "../services/authService.js";
+import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
+import { changeOwnPassword, loginUser, logoutAllSessions, logoutUser } from "../services/authService.js";
 
 const router = Router();
 
@@ -29,6 +29,15 @@ router.post("/logout-on-exit", async (req, res, next) => {
       username: req.body?.user?.username ?? "usuario"
     });
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/logout-all", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const closedSessions = await logoutAllSessions(req.authUser);
+    res.json({ ok: true, closedSessions });
   } catch (error) {
     next(error);
   }

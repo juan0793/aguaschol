@@ -88,6 +88,24 @@ export const logoutUser = async (token, actorUser) => {
   });
 };
 
+export const logoutAllSessions = async (actorUser) => {
+  const pool = getPool();
+  const [result] = await pool.query("DELETE FROM auth_sessions");
+
+  await createAuditLog({
+    actorUserId: actorUser?.id ?? null,
+    action: "auth.logout_all",
+    entityType: "session",
+    entityId: "all",
+    summary: `Cierre de todas las sesiones activas por ${actorUser?.username ?? "admin"}`,
+    details: {
+      closed_sessions: Number(result.affectedRows || 0)
+    }
+  });
+
+  return Number(result.affectedRows || 0);
+};
+
 export const changeOwnPassword = async ({ userId, currentPassword, newPassword }) => {
   const current = currentPassword?.trim() ?? "";
   const next = newPassword?.trim() ?? "";
