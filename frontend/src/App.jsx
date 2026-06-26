@@ -316,6 +316,10 @@ const readJsonResponse = async (response, fallbackMessage = "La API no devolvio 
   try {
     return JSON.parse(text);
   } catch {
+    if ((response.headers.get("content-type") || "").includes("text/html") || /^\s*<!doctype html/i.test(text)) {
+      throw new Error("La app recibio una pagina HTML en vez de la API. Abre el dominio principal o configura VITE_API_URL/BACKEND_URL hacia el backend.");
+    }
+
     throw new Error(fallbackMessage);
   }
 };
