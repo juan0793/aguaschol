@@ -76,6 +76,7 @@ import {
   comparableFormShape,
   getRecordDeadlineMeta,
   getRecordGroupDate,
+  getRecordListRows,
   getRecordValidationIssues,
   hasDraftContent
 } from "./utils/records";
@@ -791,6 +792,7 @@ const sectionIconNames = {
 
 function App() {
   const sheetRef = useRef(null);
+  const recordHistoryRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
   const padronStatsChartRef = useRef(null);
   const mapPointsRequestRef = useRef({ id: 0, controller: null });
@@ -847,6 +849,7 @@ function App() {
   const [recordsFocusMode, setRecordsFocusMode] = useState(false);
   const [recordQuickFilter, setRecordQuickFilter] = useState("all");
   const [recordPage, setRecordPage] = useState(1);
+  const [recordListSelection, setRecordListSelection] = useState([]);
   const [showRecordAdvancedFilters, setShowRecordAdvancedFilters] = useState(false);
   const [showRecordPreview, setShowRecordPreview] = useState(false);
   const [recordFilters, setRecordFilters] = useState({
@@ -1832,6 +1835,14 @@ function App() {
 
     return advancedFilteredRecords;
   }, [advancedFilteredRecords, recordDeadlineMetaById, recordQuickFilter, todayDateKey]);
+  const recordListSelectionSet = useMemo(() => new Set(recordListSelection), [recordListSelection]);
+  const selectedRecordListRecords = useMemo(
+    () => safeRecords.filter((record) => recordListSelectionSet.has(String(record.id ?? record.clave_catastral))),
+    [recordListSelectionSet, safeRecords]
+  );
+  const allFilteredRecordsSelected = Boolean(filteredRecords.length) && filteredRecords.every(
+    (record) => recordListSelectionSet.has(String(record.id ?? record.clave_catastral))
+  );
   const recordPagination = useMemo(() => {
     const totalPages = Math.max(1, Math.ceil(filteredRecords.length / RECORDS_PAGE_SIZE));
     const currentPage = Math.min(recordPage, totalPages);
@@ -3612,6 +3623,7 @@ function App() {
       confirm_password: ""
     });
     setRecords([]);
+    setRecordListSelection([]);
     setUsers([]);
     setAuditLogs([]);
     setRecordHistory([]);
@@ -4996,6 +5008,22 @@ function App() {
       status: "all"
     });
     setRecordQuickFilter("all");
+  };
+
+  const toggleRecordListSelection = (record) => {
+    const selectionId = String(record.id ?? record.clave_catastral);
+    setRecordListSelection((current) =>
+      current.includes(selectionId) ? current.filter((id) => id !== selectionId) : [...current, selectionId]
+    );
+  };
+
+  const toggleFilteredRecordListSelection = () => {
+    const filteredIds = filteredRecords.map((record) => String(record.id ?? record.clave_catastral));
+    setRecordListSelection((current) =>
+      allFilteredRecordsSelected
+        ? current.filter((id) => !filteredIds.includes(id))
+        : Array.from(new Set([...current, ...filteredIds]))
+    );
   };
 
   const handleLookupSearch = async (event) => {
@@ -8852,21 +8880,17 @@ function App() {
     });
   };
 
-  const handleCopyClave = async (record, event) => {
-    event.stopPropagation();
-
-    try {
-      await navigator.clipboard.writeText(record.clave_catastral || "");
-      showAlert(`Clave ${record.clave_catastral} copiada.`);
-    } catch {
-      showAlert("No se pudo copiar la clave.");
-    }
-  };
-
   const handleQuickEdit = (record, event) => {
     event.stopPropagation();
     handleSelectRecord(record);
     setActiveSection("abonado");
+  };
+
+  const handleQuickHistory = (record, event) => {
+    event.stopPropagation();
+    setShowRecordPreview(true);
+    handleSelectRecord(record);
+    window.requestAnimationFrame(() => recordHistoryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   const moveRecordSection = (direction) => {
@@ -10839,6 +10863,53 @@ function App() {
     } finally {
       setPrintingComparison(false);
     }
+  };
+
+  const handlePrintRecordList = async () => {
+    const recordsToPrint = selectedRecordListRecords.length ? selectedRecordListRecords : filteredRecords;
+    if (!recordsToPrint.length) {
+      showAlert("No hay fichas para imprimir con los filtros actuales.");
+      return;
+    }
+
+    const rows = getRecordListRows(recordsToPrint, getRecordBarrioName);
+    const generatedAt = new Intl.DateTimeFormat("es-HN", { dateStyle: "long" }).format(new Date());
+    await printDocument(
+      `Listado de clandestinos (${rows.length})`,
+      `
+        <style>
+          .record-list-print { color: #132f49; font-family: Arial, sans-serif; }
+          .record-list-print header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 3px solid #1267ad; }
+          .record-list-print h1 { margin: 0 0 4px; color: #0b3d67; font-size: 22px; }
+          .record-list-print p { margin: 0; color: #526b80; font-size: 11px; }
+          .record-list-print strong { color: #0b3d67; font-size: 12px; white-space: nowrap; }
+          .record-list-print table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          .record-list-print th { padding: 9px 10px; background: #eaf4fc; color: #0b3d67; text-align: left; border: 1px solid #bad2e5; }
+          .record-list-print td { padding: 8px 10px; border: 1px solid #cbdbe7; vertical-align: top; }
+          .record-list-print tbody tr:nth-child(even) { background: #f7fafc; }
+          .record-list-print .record-list-number { width: 34px; text-align: center; }
+          .record-list-print .record-list-key { width: 24%; font-weight: 700; }
+          .record-list-print .record-list-neighborhood { width: 28%; }
+          @media print { .record-list-print tr { break-inside: avoid; } }
+        </style>
+        <section class="record-list-print">
+          <header>
+            <div>
+              <h1>Listado de inmuebles clandestinos</h1>
+              <p>Nombre, clave catastral y barrio o colonia</p>
+            </div>
+            <strong>${escapeHtml(String(rows.length))} registros · ${escapeHtml(generatedAt)}</strong>
+          </header>
+          <table>
+            <thead><tr><th class="record-list-number">N.º</th><th>Nombre</th><th class="record-list-key">Clave catastral</th><th class="record-list-neighborhood">Barrio o colonia</th></tr></thead>
+            <tbody>
+              ${rows.map((row) => `<tr><td class="record-list-number">${row.number}</td><td>${escapeHtml(row.name)}</td><td class="record-list-key">${escapeHtml(row.clave)}</td><td>${escapeHtml(row.barrio)}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </section>
+      `,
+      { pageSize: "Letter portrait", pageMargin: "12mm", windowFeatures: "width=1000,height=1200" }
+    );
   };
 
   const handleDownloadExecutiveReportPdf = async () => {
@@ -14303,6 +14374,26 @@ function App() {
                 </label>
               </div>
             ) : null}
+            <div className="record-list-export">
+              <div>
+                <strong>Lista breve</strong>
+                <span>
+                  {selectedRecordListRecords.length
+                    ? `${selectedRecordListRecords.length} fichas marcadas`
+                    : `${filteredRecords.length} fichas filtradas`}
+                </span>
+              </div>
+              <div className="record-list-export-actions">
+                <Button type="button" variant="outline" onClick={toggleFilteredRecordListSelection} disabled={!filteredRecords.length}>
+                  <Icon name={allFilteredRecordsSelected ? "success" : "records"} />
+                  {allFilteredRecordsSelected ? "Desmarcar" : "Marcar filtradas"}
+                </Button>
+                <Button type="button" onClick={handlePrintRecordList} disabled={!selectedRecordListRecords.length && !filteredRecords.length}>
+                  <Icon name="print" />
+                  Imprimir {selectedRecordListRecords.length || filteredRecords.length}
+                </Button>
+              </div>
+            </div>
           </div>
 
         <div className="record-list-head">
@@ -14381,64 +14472,75 @@ function App() {
               {group.items.map((record, index) => {
                 const globalIndex = safeRecords.findIndex((item) => item.id === record.id) + 1;
                 const deadlineMeta = recordDeadlineMetaById[record.id] ?? null;
+                const isMarkedForList = recordListSelectionSet.has(String(record.id ?? record.clave_catastral));
 
                 return (
-                  <button
-                    type="button"
+                  <article
                     key={record.id ?? record.clave_catastral}
-                    className={`record-card ${form.id === record.id ? "active" : ""}`}
-                    onClick={() => handleSelectRecord(record)}
+                    className={`record-card ${form.id === record.id ? "active" : ""} ${isMarkedForList ? "is-marked" : ""}`}
                   >
                     <div className="record-card-shell">
-                      <span className="record-number">{globalIndex || index + 1}</span>
+                      <label className={`record-list-selector ${isMarkedForList ? "is-selected" : ""}`} title="Marcar para la lista imprimible">
+                        <input
+                          type="checkbox"
+                          checked={isMarkedForList}
+                          onChange={() => toggleRecordListSelection(record)}
+                          aria-label={`Marcar ficha ${record.clave_catastral} para imprimir en la lista`}
+                        />
+                        <span aria-hidden="true">{isMarkedForList ? <Icon name="success" /> : globalIndex || index + 1}</span>
+                      </label>
                       <div className="record-card-body">
-                        <div className="record-card-top">
-                          <div className="record-main">
-                            <strong>{record.clave_catastral}</strong>
-                            <span className="record-location">{getRecordBarrioName(record, "Sin ubicacion")}</span>
-                          </div>
-                          <div className="record-status-stack">
-                            <span className={`record-badge ${record.estado_padron === "reportada" ? "is-reported" : ""}`}>
-                              {recordView === "archived" ? "Log" : getPadronStatusLabel(record.estado_padron)}
-                            </span>
-                            {deadlineMeta ? (
-                              <span className={`record-badge deadline-badge ${deadlineMeta.tone}`}>
-                                {deadlineMeta.label}
+                        <button type="button" className="record-card-open" onClick={() => handleSelectRecord(record)}>
+                          <div className="record-card-top">
+                            <div className="record-main">
+                              <strong>{record.clave_catastral}</strong>
+                              <span className="record-location">{getRecordBarrioName(record, "Sin ubicacion")}</span>
+                            </div>
+                            <div className="record-status-stack">
+                              <span className={`record-badge ${record.estado_padron === "reportada" ? "is-reported" : ""}`}>
+                                {recordView === "archived" ? "Log" : getPadronStatusLabel(record.estado_padron)}
                               </span>
-                            ) : null}
+                              {deadlineMeta ? (
+                                <span className={`record-badge deadline-badge ${deadlineMeta.tone}`}>
+                                  {deadlineMeta.label}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                        <div className="record-ledger">
-                          <div className="record-ledger-row">
-                            <span className="record-ledger-label">Titular</span>
-                            <span className="record-ledger-value">
-                              {record.inquilino || record.abonado || "Sin nombre"}
-                            </span>
+                          <div className="record-ledger">
+                            <div className="record-ledger-row">
+                              <span className="record-ledger-label">Titular</span>
+                              <span className="record-ledger-value">
+                                {record.inquilino || record.abonado || record.nombre_catastral || "Sin nombre"}
+                              </span>
+                            </div>
+                            <div className="record-ledger-row">
+                              <span className="record-ledger-label">
+                                {recordView === "archived" ? "Guardada" : "Ultimo mov."}
+                              </span>
+                              <span className="record-ledger-value">
+                                {recordView === "archived"
+                                  ? formatSpanishDate(record.archived_at)
+                                  : formatDateTime(record.updated_at || record.created_at)}
+                              </span>
+                            </div>
                           </div>
-                          <div className="record-ledger-row">
-                            <span className="record-ledger-label">
-                              {recordView === "archived" ? "Guardada" : "Ultimo mov."}
-                            </span>
-                            <span className="record-ledger-value">
-                              {recordView === "archived"
-                                ? formatSpanishDate(record.archived_at)
-                                : formatDateTime(record.updated_at || record.created_at)}
-                            </span>
-                          </div>
-                        </div>
-                        <small>
-                          {recordView === "archived"
-                            ? `Guardada${record.archived_reason ? `: ${record.archived_reason}` : ""}`
-                            : deadlineMeta
-                              ? `${deadlineMeta.helper} · Limite ${deadlineMeta.deadlineLabel}`
-                              : record.comentarios || "Sin comentario"}
-                        </small>
+                          <small className="record-card-note">
+                            {recordView === "archived"
+                              ? `Guardada${record.archived_reason ? `: ${record.archived_reason}` : ""}`
+                              : deadlineMeta
+                                ? `${deadlineMeta.helper} · Limite ${deadlineMeta.deadlineLabel}`
+                                : record.comentarios || "Sin comentario"}
+                          </small>
+                        </button>
                         <div className="record-quick-actions">
-                          <button type="button" className="record-quick-chip" onClick={(event) => handleQuickEdit(record, event)}>
-                            Abrir
+                          <button type="button" className="record-quick-chip is-primary" onClick={(event) => handleQuickEdit(record, event)}>
+                            <Icon name="records" />
+                            Ver detalles
                           </button>
-                          <button type="button" className="record-quick-chip" onClick={(event) => handleCopyClave(record, event)}>
-                            Copiar clave
+                          <button type="button" className="record-quick-chip" onClick={(event) => handleQuickHistory(record, event)}>
+                            <Icon name="history" />
+                            Historial
                           </button>
                           {recordView !== "archived" && record.estado_padron !== "reportada" ? (
                             <button
@@ -14453,7 +14555,7 @@ function App() {
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </article>
                 );
               })}
             </section>
@@ -15151,7 +15253,7 @@ function App() {
               </section>
             </article>
 
-            <article className="document-sheet record-history-sheet no-print">
+            <article ref={recordHistoryRef} className="document-sheet record-history-sheet no-print">
               <div className="admin-section-head">
                 <div>
                   <p className="sheet-kicker">Trazabilidad de la ficha</p>

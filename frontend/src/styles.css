@@ -26130,3 +26130,222 @@ body {
     font-size: 2.1rem !important;
   }
 }
+
+/* Lista lateral de fichas: seleccion e impresion resumida. */
+.shadcn-records-module .record-list-export {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.72rem;
+  border: 1px solid #cfe1ef;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f6fbff 0%, #edf7ff 100%);
+}
+
+.shadcn-records-module .record-list-export > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.shadcn-records-module .record-list-export strong {
+  color: #123f66;
+  font-size: 0.82rem;
+}
+
+.shadcn-records-module .record-list-export span {
+  color: #61778a;
+  font-size: 0.72rem;
+}
+
+.shadcn-records-module .record-list-export-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.shadcn-records-module .record-list-export-actions button {
+  min-width: 0;
+  min-height: 36px;
+  padding-inline: 0.55rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.shadcn-records-module .record-card {
+  padding: 0.7rem;
+  border-color: #d4e2ed;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 7px 18px rgba(15, 58, 91, 0.06);
+}
+
+.shadcn-records-module .record-card:hover {
+  border-color: #9dc5e3;
+  box-shadow: 0 12px 26px rgba(15, 75, 118, 0.11);
+}
+
+.shadcn-records-module .record-card.is-marked {
+  border-color: #57a4dc;
+  background: linear-gradient(145deg, #f7fcff 0%, #edf7ff 100%);
+  box-shadow: 0 10px 24px rgba(15, 95, 184, 0.12);
+}
+
+.shadcn-records-module .record-card-shell {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.shadcn-records-module .record-list-selector {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #cdddea;
+  border-radius: 12px;
+  background: #f1f7fc;
+  color: #46657e;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.shadcn-records-module .record-list-selector input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.shadcn-records-module .record-list-selector:focus-within {
+  outline: 3px solid rgba(21, 118, 209, 0.2);
+  outline-offset: 2px;
+}
+
+.shadcn-records-module .record-list-selector.is-selected {
+  border-color: #1465a8;
+  background: #1465a8;
+  color: #fff;
+  box-shadow: 0 7px 16px rgba(20, 101, 168, 0.22);
+}
+
+.shadcn-records-module .record-list-selector span,
+.shadcn-records-module .record-list-selector .app-icon {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.shadcn-records-module .record-card-open {
+  display: grid;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  box-shadow: none;
+}
+
+.shadcn-records-module .record-card-open:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.shadcn-records-module .record-card-top {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+}
+
+.shadcn-records-module .record-main strong {
+  color: #0c3151;
+  font-size: 1.08rem;
+  letter-spacing: 0.01em;
+}
+
+.shadcn-records-module .record-location {
+  margin-top: 0.16rem;
+  color: #58748b;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.shadcn-records-module .record-status-stack {
+  justify-content: flex-end;
+  max-width: 112px;
+}
+
+.shadcn-records-module .record-ledger {
+  gap: 0.24rem;
+  padding: 0.38rem 0.5rem;
+  border: 1px solid #e3edf4;
+  border-radius: 10px;
+  background: rgba(244, 249, 253, 0.86);
+}
+
+.shadcn-records-module .record-ledger-row {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.shadcn-records-module .record-card-note {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #64798b;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.shadcn-records-module .record-quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding-top: 0.35rem;
+  border-top: 1px solid #e7eff5;
+}
+
+.shadcn-records-module .record-quick-actions > :only-child,
+.shadcn-records-module .record-quick-actions .is-success {
+  grid-column: 1 / -1;
+}
+
+.shadcn-records-module .record-quick-actions .record-quick-chip {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+}
+
+.shadcn-records-module .record-quick-actions .record-quick-chip.is-primary {
+  border-color: #1465a8;
+  background: #1465a8;
+  color: #fff;
+}
+
+.shadcn-records-module .record-quick-actions .app-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.shadcn-records-module .record-card.active {
+  border-color: #5aa4db;
+  background: linear-gradient(145deg, #f6fbff 0%, #eaf6ff 100%);
+  box-shadow: inset 4px 0 0 #0f5fb8, 0 12px 28px rgba(15, 95, 184, 0.14);
+}
+
+@media (max-width: 900px) {
+  .shadcn-records-module .record-card-shell {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .shadcn-records-module .record-status-stack {
+    align-items: flex-end;
+  }
+}

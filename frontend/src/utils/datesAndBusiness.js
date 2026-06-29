@@ -124,7 +124,7 @@ export const countBusinessDaysBetween = (startValue, endValue) => {
 
 export const formatSpanishDate = (value) => {
   if (!value) return "--";
-  const normalized = normalizeDateField(value);
+  const normalized = value instanceof Date ? getMapDiaryDateKey(value) : normalizeDateField(value);
   if (!normalized) return "--";
   const date = new Date(`${normalized}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "--";

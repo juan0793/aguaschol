@@ -117,6 +117,14 @@ export const getRecordGroupDate = (record, recordView) =>
     ? record?.archived_at || record?.updated_at || record?.created_at
     : record?.updated_at || record?.created_at || record?.fecha_aviso;
 
+export const getRecordListRows = (records = [], getBarrioName = (record) => record?.barrio_colonia) =>
+  records.filter(Boolean).map((record, index) => ({
+    number: index + 1,
+    name: String(record.inquilino || record.abonado || record.nombre_catastral || "").trim() || "Sin nombre",
+    clave: String(record.clave_catastral || "").trim() || "Sin clave",
+    barrio: String(getBarrioName(record, "") || record.barrio_colonia || "").trim() || "Sin barrio"
+  }));
+
 export const comparableFormShape = (candidate = {}) => ({
   clave_catastral: candidate.clave_catastral ?? "",
   abonado: candidate.abonado ?? "",
