@@ -14235,6 +14235,7 @@ function App() {
       ) : workspaceView === "records" ? (
       <main className="layout records-view shadcn-records-module">
         <Card className="sidebar no-print shadcn-records-sidebar" size="sm">
+          <div className="records-sidebar-fixed-header">
           <div className="panel-header">
             <h2>Registros</h2>
             <div className="sidebar-actions">
@@ -14395,28 +14396,31 @@ function App() {
               </div>
             </div>
           </div>
+          </div>
 
-        <div className="record-list-head">
-          <span>Exp.</span>
-          <span>
-            {recordQuickFilter === "all"
-              ? "Fichas activas"
-              : recordQuickFilter === "clandestino"
-                ? "Clandestinas"
-              : recordQuickFilter === "reportada"
-                ? "Reportadas"
-              : recordQuickFilter === "varios_padrones"
-                ? "En varios padrones"
-              : recordQuickFilter === "today"
-                ? "Movimiento de hoy"
-                : recordQuickFilter === "no_photo"
-                  ? "Pendientes de foto"
-                  : "Plazo en alerta"}
-          </span>
-          <span>Vista</span>
-        </div>
+        <div className="records-sidebar-list-zone">
+          <div className="record-list-head">
+            <span>Exp.</span>
+            <span>
+              {recordQuickFilter === "all"
+                ? "Fichas activas"
+                : recordQuickFilter === "clandestino"
+                  ? "Clandestinas"
+                : recordQuickFilter === "reportada"
+                  ? "Reportadas"
+                : recordQuickFilter === "varios_padrones"
+                  ? "En varios padrones"
+                : recordQuickFilter === "today"
+                  ? "Movimiento de hoy"
+                  : recordQuickFilter === "no_photo"
+                    ? "Pendientes de foto"
+                    : "Plazo en alerta"}
+            </span>
+            <span>Vista</span>
+          </div>
 
-        <div className="record-list-scroll" role="region" aria-label="Lista de fichas">
+          <div className="record-list-scroll-frame">
+          <div className="record-list-scroll" role="region" aria-label="Lista de fichas">
         <div className="record-list">
           {loading ? (
             <div className="record-skeleton-stack" aria-label="Cargando fichas">
@@ -14560,6 +14564,8 @@ function App() {
               })}
             </section>
           ))}
+        </div>
+        </div>
         </div>
         </div>
         <div className="record-pagination">
