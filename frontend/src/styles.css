@@ -26350,6 +26350,47 @@ body {
   }
 }
 
+/* ponytail: un solo estado y CSS nativo bastan para contraer la navegacion. */
+.app-sidebar-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(30, 94, 137, 0.18);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f5fb8;
+  box-shadow: 0 8px 18px rgba(12, 43, 70, 0.08);
+}
+
+@media (min-width: 769px) {
+  .app-sidebar-toggle {
+    display: inline-grid;
+  }
+
+  .page-shell:not(.records-focus-mode),
+  .page-shell:not(.records-focus-mode) .app-sidebar,
+  .app-sidebar-toggle .app-icon {
+    transition: padding-left 180ms ease, transform 180ms ease, opacity 180ms ease;
+  }
+
+  .page-shell.sidebar-collapsed:not(.records-focus-mode) {
+    padding-left: var(--app-shell-gap) !important;
+  }
+
+  .page-shell.sidebar-collapsed .app-sidebar {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(calc(-100% - 1rem));
+  }
+
+  .page-shell.sidebar-collapsed .app-sidebar-toggle .app-icon {
+    transform: rotate(180deg);
+  }
+}
+
 /* Panel lateral en tres zonas: controles, listado desplazable y paginacion. */
 .shadcn-records-module {
   overflow-x: clip;

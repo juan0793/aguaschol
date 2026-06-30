@@ -906,6 +906,7 @@ function App() {
   const [changedDashboardMetricKeys, setChangedDashboardMetricKeys] = useState([]);
   const dashboardMetricValuesRef = useRef({});
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [lookupSearchMode, setLookupSearchMode] = useState("clave");
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupPrefixMode, setLookupPrefixMode] = useState("auto");
@@ -11947,6 +11948,7 @@ function App() {
     <div
       className={[
         "page-shell",
+        sidebarCollapsed ? "sidebar-collapsed" : "",
         workspaceView === "records" && recordsFocusMode ? "records-focus-mode" : "",
         ["requests", "mapReports", "mapAnalytics"].includes(workspaceView) ? "reports-layout-mode" : "",
         showPadronServiceModal || showPadronStatsModal ? "reports-modal-open" : "",
@@ -12833,6 +12835,16 @@ function App() {
             aria-label="Abrir menu"
           >
             <Icon name="more" />
+          </button>
+          <button
+            type="button"
+            className="app-sidebar-toggle no-print"
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            aria-label={sidebarCollapsed ? "Mostrar barra lateral" : "Ocultar barra lateral"}
+            aria-pressed={sidebarCollapsed}
+            title={sidebarCollapsed ? "Mostrar barra lateral" : "Ocultar barra lateral"}
+          >
+            <Icon name="arrowLeft" />
           </button>
           <div className="app-topbar-brand">
             <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="app-topbar-logo" />
