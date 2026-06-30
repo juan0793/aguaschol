@@ -356,16 +356,19 @@ const assertCanEdit = async (barrioId, user, db) => {
   if (!row) fail("Solo puedes editar croquis asignados a tu usuario.", 403);
 };
 
-export const listPlanoElements = async (barrioId, user) => {
+export const listPlanoElements = async (barrioId, user, versionId = null) => {
   if (env.useMemoryDb) {
-    const version = getLatestVersionMemory(barrioId);
+    const version = versionId
+      ? memory.versiones.find((item) => Number(item.id) === Number(versionId) && Number(item.barrio_id) === Number(barrioId)) || null
+      : getLatestVersionMemory(barrioId);
+    if (versionId && !version) fail("Version no encontrada.", 404);
     const elements = version ? memory.elementos.filter((item) => item.version_id === version.id) : [];
     return { version, elements };
   }
-  const [[version]] = await getPool().query(
-    "SELECT * FROM planos_versiones WHERE barrio_id = ? ORDER BY numero_version DESC LIMIT 1",
-    [barrioId]
-  );
+  const [[version]] = versionId
+    ? await getPool().query("SELECT * FROM planos_versiones WHERE id = ? AND barrio_id = ? LIMIT 1", [versionId, barrioId])
+    : await getPool().query("SELECT * FROM planos_versiones WHERE barrio_id = ? ORDER BY numero_version DESC LIMIT 1", [barrioId]);
+  if (versionId && !version) fail("Version no encontrada.", 404);
   if (!version) return { version: null, elements: [] };
   const [elements] = await getPool().query(
     "SELECT * FROM planos_elementos WHERE version_id = ? ORDER BY id ASC",
@@ -381,6 +384,7 @@ export const savePlanoDraft = async (barrioId, elements = [], user) => {
   if (env.useMemoryDb) {
     await assertCanEdit(barrioId, user);
     const version = await ensureDraftVersion(barrioId, user);
+    if (!['borrador', 'en_edicion', 'devuelto'].includes(version.estado)) fail("La version ya fue enviada y no se puede editar.", 409);
     memory.elementos = memory.elementos.filter((item) => item.version_id !== version.id);
     normalized.forEach((element) => memory.elementos.push({ ...element, id: nextId++, barrio_id: Number(barrioId), version_id: version.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
     version.estado = "borrador";
@@ -395,7 +399,7 @@ export const savePlanoDraft = async (barrioId, elements = [], user) => {
     const [[barrio]] = await connection.query("SELECT id FROM planos_barrios WHERE id = ? LIMIT 1", [barrioId]);
     if (!barrio) fail("Barrio no encontrado.", 404);
     const version = await ensureDraftVersion(barrioId, user, connection);
-    if (["aprobado", "publicado"].includes(version.estado)) fail("La version no es editable.", 409);
+    if (!["borrador", "en_edicion", "devuelto"].includes(version.estado)) fail("La version ya fue enviada y no se puede editar.", 409);
 
     await connection.query("DELETE FROM planos_elementos WHERE version_id = ?", [version.id]);
     for (const element of normalized) {

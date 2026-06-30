@@ -3656,7 +3656,7 @@ function App() {
     resetForm();
   };
 
-  const apiFetch = async (path, options = {}) => {
+  const apiFetch = useCallback(async (path, options = {}) => {
     const headers = new Headers(options.headers ?? {});
 
     if (session?.token) {
@@ -3668,7 +3668,7 @@ function App() {
       cache: options.cache ?? "no-store",
       headers
     });
-  };
+  }, [session?.token]);
 
   const persistLookupHistory = (nextHistory) => {
     window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));

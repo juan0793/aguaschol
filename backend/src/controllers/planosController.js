@@ -61,7 +61,7 @@ export const listMyPlanoAssignmentsHandler = async (req, res, next) => {
 
 export const listPlanoElementsHandler = async (req, res, next) => {
   try {
-    res.json(await listPlanoElements(req.params.barrioId, req.authUser));
+    res.json(await listPlanoElements(req.params.barrioId, req.authUser, req.query.versionId));
   } catch (error) {
     next(error);
   }

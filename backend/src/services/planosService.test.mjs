@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 process.env.USE_MEMORY_DB = "true";
 
-const { listPlanoElements, savePlanoDraft } = await import("./planosService.js");
+const { listPlanoElements, savePlanoDraft, sendPlanoToReview } = await import("./planosService.js");
 
 const admin = { id: 1, role: "admin", username: "admin" };
 
@@ -33,4 +33,11 @@ test("savePlanoDraft accepts tapado and preserves draft after invalid save", asy
   const afterFailure = await listPlanoElements(barrioId, admin);
   assert.equal(afterFailure.elements.length, 2);
   assert.equal(afterFailure.elements[1].tipo_elemento, "tapado");
+
+  const exactVersion = await listPlanoElements(barrioId, admin, saved.version.id);
+  assert.equal(exactVersion.version.id, saved.version.id);
+  assert.equal(exactVersion.elements.length, 2);
+
+  await sendPlanoToReview(barrioId, admin);
+  await assert.rejects(() => savePlanoDraft(barrioId, original, admin), /ya fue enviada/);
 });

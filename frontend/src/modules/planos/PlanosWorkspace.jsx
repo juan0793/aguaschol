@@ -8,6 +8,7 @@ import { Icon } from "../../components/Icon";
 import { CroquisSyncStatus } from "./CroquisSyncStatus";
 import { CroquisToolHint } from "./CroquisToolHint";
 import { cloneEditorElement, completePlacementTool, finishLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, shouldPlaceFromPointerUp, undoEditorHistory } from "./planosEditorHistory";
+import { buildCroquisSvg } from "./planosVectorExport";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -144,43 +145,20 @@ const renderCroquisBackground = async (baseUrl) => {
   return canvas;
 };
 
-const drawCroquisElements = (ctx, elements = []) => {
-  elements.forEach((element) => {
-    const data = element.data_json || {};
-    ctx.save();
-    if (element.tipo_elemento === "linea" || element.tipo_elemento === "poligono") {
-      const points = data.puntos || [];
-      if (points.length) {
-        ctx.beginPath();
-        ctx.moveTo(Number(points[0].x || 0), Number(points[0].y || 0));
-        points.slice(1).forEach((point) => ctx.lineTo(Number(point.x || 0), Number(point.y || 0)));
-        if (element.tipo_elemento === "poligono") {
-          ctx.closePath();
-          ctx.fillStyle = data.relleno || "rgba(21,118,209,0.12)";
-          ctx.fill();
-        }
-        ctx.strokeStyle = data.color || data.colorBorde || "#0f172a";
-        ctx.lineWidth = Number(data.grosor || 3);
-        ctx.stroke();
-      }
-    } else if (element.tipo_elemento === "punto") {
-      ctx.beginPath();
-      ctx.arc(Number(data.x || 0), Number(data.y || 0), 12, 0, Math.PI * 2);
-      ctx.fillStyle = data.color || "#1576d1";
-      ctx.fill();
-    } else if (element.tipo_elemento === "tapado") {
-      ctx.fillStyle = data.color || "#ffffff";
-      ctx.fillRect(Number(data.x || 0), Number(data.y || 0), Number(data.width || 80), Number(data.height || 40));
-    } else {
-      const fontSize = Number(data.fontSize || 22);
-      ctx.translate(Number(data.x || 0), Number(data.y || 0));
-      ctx.rotate(Number(data.rotacion || 0) * Math.PI / 180);
-      ctx.fillStyle = data.color || "#0f172a";
-      ctx.font = `800 ${fontSize}px sans-serif`;
-      ctx.fillText(data.contenido || "", 0, fontSize);
-    }
-    ctx.restore();
-  });
+const downloadVectorCroquis = async ({ barrio, elements, layers = [], versionNumber = 1 }) => {
+  const baseUrl = toAssetUrl(barrio?.baseUrl || barrio?.base_url || barrio?.fondo_url || barrio?.archivo_fondo || barrio?.imagen_fondo || barrio?.archivo_pdf);
+  if (!baseUrl) throw new Error("Este croquis no tiene archivo base para descargar.");
+  const canvas = await renderCroquisBackground(baseUrl);
+  const svg = buildCroquisSvg({ width: canvas.width, height: canvas.height, backgroundDataUrl: canvas.toDataURL("image/png"), elements, layers });
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  const link = document.createElement("a");
+  const code = String(barrio?.codigo_barrio || barrio?.id || "croquis").replace(/[^a-zA-Z0-9_-]+/g, "-");
+  link.href = url;
+  link.download = `croquis-${code}-v${versionNumber}.svg`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 const moveElement = (element, dx, dy) => {
@@ -667,7 +645,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     "Agregar punto";
 
   return (
-    <div ref={shellRef} className={`planos-editor-stage is-tool-${tool}`}>
+    <div ref={shellRef} className={`planos-editor-stage is-tool-${tool}`} data-testid="croquis-stage">
       {background.loading || background.error || !baseUrl ? (
         <div className="planos-canvas-message">{background.loading ? "Preparando fondo..." : background.error || "Sube un PDF base para este barrio."}</div>
       ) : null}
@@ -750,6 +728,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
                   <Group key={element.localId} x={Number(data.x || 0)} y={Number(data.y || 0)} opacity={layer.opacity} draggable={tool === "select" && !layer.locked} onMouseDown={(event) => handleElementDown(event, element)} onTouchStart={(event) => handleElementDown(event, element)} onDragEnd={(event) => moveByDrag(element, event)}>
                     <Circle radius={Math.max(22, Number(data.size || 12) + 14)} fill="rgba(0,0,0,0)" />
                     <Circle radius={Number(data.size || 12)} fill={selected ? "#0f9f8f" : data.color || "#1576d1"} />
+                    {data.descripcion ? <Text x={Number(data.size || 12) + 6} y={-9} text={data.descripcion} fontSize={18} fontStyle="bold" fill={data.color || "#0f172a"} /> : null}
                   </Group>
                 );
               }
@@ -851,7 +830,10 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const [snap, setSnap] = useState(false);
   const [continuousPlacement, setContinuousPlacement] = useState(false);
   const [precisionMode, setPrecisionMode] = useState(false);
+  const [showLayers, setShowLayers] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [saveState, setSaveState] = useState("saved");
   const hydratedRef = useRef(false);
   const hasLocalDraftRef = useRef(false);
@@ -916,23 +898,19 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     });
   }, []);
 
-  const undo = () => {
-    setElements((current) => {
-      const result = undoEditorHistory(historyRef.current, current);
-      historyRef.current = result.history;
-      setSelectedId("");
-      return result.next;
-    });
-  };
+  const undo = useCallback(() => {
+    const result = undoEditorHistory(historyRef.current, elements);
+    historyRef.current = result.history;
+    setSelectedId("");
+    setElements(result.next);
+  }, [elements]);
 
-  const redo = () => {
-    setElements((current) => {
-      const result = redoEditorHistory(historyRef.current, current);
-      historyRef.current = result.history;
-      setSelectedId("");
-      return result.next;
-    });
-  };
+  const redo = useCallback(() => {
+    const result = redoEditorHistory(historyRef.current, elements);
+    historyRef.current = result.history;
+    setSelectedId("");
+    setElements(result.next);
+  }, [elements]);
 
   const copySelected = () => {
     if (!selected) return;
@@ -1076,21 +1054,38 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [undo, redo, selected]);
 
-  useEffect(() => {
-    if (saveState === "dirty" || saveState === "local") saveDraft({ silent: saveState === "local" }).catch(() => {});
-  }, [tool]);
+  const downloadDraft = async () => {
+    setExporting(true);
+    try {
+      const savedElements = await saveDraft();
+      await downloadVectorCroquis({ barrio, elements: savedElements, layers, versionNumber: version?.numero_version || 1 });
+      toast.success("Borrador guardado y SVG descargado.");
+    } catch (error) {
+      toast.error(error.message || "No se pudo descargar el croquis.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const sendReview = async () => {
     if (!elements.length) {
       toast.warning("Agrega al menos un cambio antes de finalizar.");
       return;
     }
-    await saveDraft();
-    const response = await apiFetch(`/planos/${barrio.id}/enviar-revision`, { method: "POST" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "No se pudo finalizar.");
-    setVersion(data);
-    toast.success("Croquis finalizado y enviado al admin.");
+    setSubmitting(true);
+    try {
+      await saveDraft();
+      const response = await apiFetch(`/planos/${barrio.id}/enviar-revision`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudo enviar a revision.");
+      setVersion(data);
+      toast.success("Croquis guardado y enviado a revision.");
+      onClose();
+    } catch (error) {
+      toast.error(error.message || "No se pudo enviar a revision.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const closeEditor = async () => {
@@ -1129,9 +1124,10 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         <div className="planos-editor-status">
           <StatusBadge status={version?.estado || barrio.estado} />
           <CroquisSyncStatus saveState={saveState} />
-          <button type="button" className="button-secondary" onClick={() => saveDraft()} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar"}</button>
-          {saveState === "local" ? <button type="button" className="button-secondary" onClick={() => saveDraft()} disabled={saving}><RotateCw size={16} />Reintentar</button> : null}
-          <button type="button" className="planos-primary-action" onClick={sendReview}><Send size={16} />Finalizar</button>
+          <button type="button" className="button-secondary" onClick={() => saveDraft().then(() => toast.success("Borrador guardado.")).catch(() => {})} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
+          {saveState === "local" ? <button type="button" className="button-secondary" onClick={() => saveDraft().catch(() => {})} disabled={saving}><RotateCw size={16} />Reintentar</button> : null}
+          <button type="button" className="button-secondary" onClick={downloadDraft} disabled={saving || exporting}><Download size={16} />{exporting ? "Preparando" : "Guardar y descargar SVG"}</button>
+          <button type="button" className="planos-primary-action" onClick={sendReview} disabled={saving || submitting}><Send size={16} />{submitting ? "Enviando" : "Enviar a revision"}</button>
         </div>
       </header>
       <div className="planos-toolbar">
@@ -1143,6 +1139,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           ))}
         </div>
         <div className="planos-action-group">
+          <button type="button" className={showLayers ? "is-active" : ""} onClick={() => setShowLayers((current) => !current)}><Layers size={16} />Capas</button>
           <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{layerOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder={tool === "codigo" ? "Numero" : "Texto u observacion"} /> : null}
           {singlePlacementTools.has(tool) ? <button type="button" className={continuousPlacement ? "is-active" : ""} onClick={() => setContinuousPlacement((current) => !current)}>Colocar varios</button> : null}
@@ -1158,17 +1155,17 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
         </div>
         <div className="planos-action-group planos-view-group">
-          <button type="button" onClick={() => setZoom((current) => clampZoom(current - 0.5))}><Minus size={16} />Zoom</button>
-          <button type="button" onClick={() => setZoom((current) => clampZoom(current + 0.5))}><Plus size={16} />Zoom</button>
-          <button type="button" onClick={() => setRotation((current) => current - 15)}><RotateCcw size={16} />Girar</button>
-          <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar</button>
-          <button type="button" onClick={() => setRotation(0)}>0 deg</button>
+          <button type="button" onClick={() => setZoom((current) => clampZoom(current - 0.5))}><Minus size={16} />Alejar</button>
+          <button type="button" onClick={() => setZoom((current) => clampZoom(current + 0.5))}><Plus size={16} />Acercar</button>
+          <button type="button" onClick={() => setRotation((current) => current - 15)}><RotateCcw size={16} />Girar izq.</button>
+          <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar der.</button>
+          <button type="button" onClick={() => setRotation(0)}>Restablecer giro</button>
           {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
         </div>
         <CroquisToolHint tool={tool} label={toolLabel[tool]} />
         <div className="planos-view-state">Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg</div>
       </div>
-      <div className="planos-layers-panel">
+      {showLayers ? <div className="planos-layers-panel">
         {layers.map((layer) => {
           const count = layer.key === "plano_base" ? 1 : elements.filter((item) => (item.data_json?.capa || "correcciones") === layer.key).length;
           return (
@@ -1186,7 +1183,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
             </div>
           );
         })}
-      </div>
+      </div> : null}
       <div className="planos-editor-grid">
         <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} onToolChange={setTool} content={content} activeLayer={activeLayer} layers={layers} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} continuousPlacement={continuousPlacement} precisionMode={precisionMode} />
         <AnimatePresence>
@@ -1338,21 +1335,11 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
   const downloadUpdatedMap = async (version) => {
     try {
       const sourceBarrio = barrios.find((barrio) => Number(barrio.id) === Number(version.barrio_id)) || mios.find((barrio) => Number(barrio.id) === Number(version.barrio_id)) || {};
-      const baseUrl = toAssetUrl(version.baseUrl || version.base_url || version.fondo_url || version.archivo_fondo || version.archivo_pdf || sourceBarrio.archivo_pdf);
-      if (!baseUrl) throw new Error("Este croquis no tiene archivo base para descargar.");
-      const response = await apiFetch(`/planos/${version.barrio_id}/elementos`);
+      const response = await apiFetch(`/planos/${version.barrio_id}/elementos?versionId=${version.id}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "No se pudieron cargar las correcciones.");
-      const canvas = await renderCroquisBackground(baseUrl);
-      drawCroquisElements(canvas.getContext("2d"), normalizeElements(data.elements || []));
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.95));
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `croquis-${version.codigo_barrio || version.barrio_id}-v${version.numero_version || 1}.png`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast.success("Mapa actualizado descargado.");
+      await downloadVectorCroquis({ barrio: { ...sourceBarrio, ...version, archivo_pdf: version.archivo_pdf || sourceBarrio.archivo_pdf }, elements: normalizeElements(data.elements || []), versionNumber: version.numero_version || 1 });
+      toast.success("Mapa vectorial SVG descargado.");
     } catch (error) {
       toast.error(error.message || "No se pudo descargar el mapa actualizado.");
     }

@@ -10930,6 +10930,8 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .planos-editor {
+  display: flex;
+  flex-direction: column;
   width: 100vw;
   max-width: none;
   height: 100vh;
@@ -11130,6 +11132,7 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .planos-editor-head {
+  flex: 0 0 auto;
   min-height: 64px;
   margin: 0.45rem 0.5rem 0.45rem;
   padding: 0.55rem 0.7rem;
@@ -11180,10 +11183,12 @@ body.planos-focus-mode .page-shell > main {
   position: relative;
   z-index: 4;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  overflow-x: auto;
-  overflow-y: hidden;
+  align-content: flex-start;
+  max-height: 132px;
+  overflow-x: hidden;
+  overflow-y: auto;
   gap: 0.45rem;
   margin: 0 0.5rem 0.45rem;
   padding: 0.35rem;
@@ -11306,7 +11311,8 @@ body.planos-focus-mode .page-shell > main {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.8rem;
-  height: calc(100dvh - 126px);
+  flex: 1 1 auto;
+  height: auto;
   min-height: 420px;
   margin: 0 0.5rem 0.5rem;
 }
@@ -11770,6 +11776,33 @@ body.planos-focus-mode .page-shell > main {
     display: grid;
   }
 
+  .planos-editor-head {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .planos-editor-status {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .planos-editor-status > * {
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .planos-editor-status button,
+  .planos-editor-status .planos-primary-action {
+    width: 100%;
+  }
+
+  .planos-editor-status .planos-primary-action {
+    grid-column: 1 / -1;
+  }
+
   .planos-create-card,
   .planos-picker,
   .planos-editor-grid {
@@ -11781,8 +11814,8 @@ body.planos-focus-mode .page-shell > main {
   }
 
   .planos-editor-grid {
-    height: calc(100dvh - 188px);
-    min-height: 420px;
+    height: auto;
+    min-height: 0;
     margin-bottom: min(30vh, 230px);
   }
 
@@ -11791,7 +11824,9 @@ body.planos-focus-mode .page-shell > main {
     right: 0.5rem;
     bottom: 0.5rem;
     left: 0.5rem;
-    max-height: min(24vh, 190px);
+    flex-wrap: wrap;
+    max-height: min(28vh, 220px);
+    overflow-x: hidden;
     overflow-y: auto;
     margin: 0;
     border-radius: 16px;
@@ -11871,8 +11906,10 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-history-group,
   .planos-view-group {
-    flex: 0 0 auto;
-    width: auto;
+    flex: 1 0 100%;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   .planos-history-group button,
@@ -11901,7 +11938,7 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-precision-actions {
     right: 0.75rem;
-    bottom: calc(min(24vh, 190px) + 1rem);
+    bottom: calc(min(28vh, 220px) + 1rem);
     left: 0.75rem;
     justify-content: center;
     transform: none;
@@ -11914,7 +11951,7 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-drawing-actions {
     right: 0.75rem;
-    bottom: calc(min(24vh, 190px) + 4.6rem);
+    bottom: calc(min(28vh, 220px) + 4.6rem);
     left: 0.75rem;
     flex-wrap: wrap;
     justify-content: center;
@@ -11946,7 +11983,7 @@ body.planos-focus-mode .page-shell > main {
 
   .planos-finish-polygon {
     right: 0.75rem;
-    bottom: calc(min(24vh, 190px) + 1rem);
+    bottom: calc(min(28vh, 220px) + 1rem);
   }
 
   .planos-properties {
