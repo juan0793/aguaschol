@@ -857,7 +857,11 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     hydratedRef.current = false;
     hasLocalDraftRef.current = false;
     apiFetch(`/planos/${barrio.id}/elementos`)
-      .then((response) => response.json())
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "No se pudo cargar el croquis.");
+        return data;
+      })
       .then((data) => {
         if (cancelled) return;
         const loadedElements = normalizeElements(data.elements || []);
@@ -980,14 +984,15 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
       });
       const data = await readErrorBody(response);
       if (!response.ok || data.ok !== true) throw new Error(saveErrorMessage(response.status, data));
-      setVersion(data.version || version);
+      const savedVersion = data.version || version;
+      setVersion(savedVersion);
       const savedElements = normalizeElements(data.elements || elements);
       lastSavedRef.current = JSON.stringify(savedElements);
       hasLocalDraftRef.current = false;
       window.localStorage.removeItem(localDraftKey(barrio.id));
       setElements(savedElements);
       setSaveState("saved");
-      return savedElements;
+      return { elements: savedElements, version: savedVersion };
     } catch (error) {
       hasLocalDraftRef.current = true;
       window.localStorage.setItem(localDraftKey(barrio.id), JSON.stringify(elements));
@@ -1057,8 +1062,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   const downloadDraft = async () => {
     setExporting(true);
     try {
-      const savedElements = await saveDraft();
-      await downloadVectorCroquis({ barrio, elements: savedElements, layers, versionNumber: version?.numero_version || 1 });
+      const saved = await saveDraft({ silent: true });
+      await downloadVectorCroquis({ barrio, elements: saved.elements, layers, versionNumber: saved.version?.numero_version || 1 });
       toast.success("Borrador guardado y SVG descargado.");
     } catch (error) {
       toast.error(error.message || "No se pudo descargar el croquis.");
@@ -1074,7 +1079,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     }
     setSubmitting(true);
     try {
-      await saveDraft();
+      await saveDraft({ silent: true });
       const response = await apiFetch(`/planos/${barrio.id}/enviar-revision`, { method: "POST" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "No se pudo enviar a revision.");
@@ -1351,6 +1356,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
 
   const currentList = tab === "mios" ? mios : barrios;
   const pickedBarrio = currentList.find((barrio) => String(barrio.id) === barrioId) || null;
+  const pickedState = pickedBarrio?.latest_version_estado || pickedBarrio?.estado;
   const mapasActualizados = historial.filter((version) => ["aprobado", "publicado"].includes(version.estado));
 
   return (
@@ -1389,7 +1395,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
             <option value="">Selecciona un barrio</option>
             {currentList.map((barrio) => <option key={barrio.id} value={barrio.id}>{barrio.codigo_barrio} - {barrio.nombre_barrio}</option>)}
           </select>
-          <button type="button" disabled={!pickedBarrio} onClick={() => setSelectedBarrio(pickedBarrio)}>Editar croquis</button>
+          <button type="button" disabled={!pickedBarrio || pickedState === "enviado_revision"} onClick={() => setSelectedBarrio(pickedBarrio)}>{pickedState === "enviado_revision" ? "En revision" : "Editar croquis"}</button>
           {tab === "barrios" && isAdmin ? <button type="button" className="button-secondary" disabled={!pickedBarrio} onClick={() => assign(pickedBarrio.id)}>Asignar</button> : null}
           {pickedBarrio ? (
             <div className="planos-picker-summary">

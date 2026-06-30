@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test:planos": "node --test src/modules/planos/planosEditorHistory.test.mjs",
+    "test:planos": "node --test src/modules/planos/planosEditorHistory.test.mjs src/modules/planos/planosVectorExport.test.mjs",
     "preview": "vite preview",
     "start": "node ./server.js"
   },

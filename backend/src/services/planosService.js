@@ -490,6 +490,7 @@ export const sendPlanoToReview = async (barrioId, user) => {
   await assertCanEdit(barrioId, user);
   const current = await listPlanoElements(barrioId, user);
   if (!current.version || !current.elements.length) fail("No puedes enviar a revision un croquis sin cambios.");
+  if (!["borrador", "en_edicion", "devuelto"].includes(current.version.estado)) fail("Esta version ya no se puede enviar a revision.", 409);
   if (env.useMemoryDb) {
     current.version.estado = "enviado_revision";
     current.version.fecha_envio_revision = new Date().toISOString();

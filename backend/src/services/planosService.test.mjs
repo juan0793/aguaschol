@@ -39,5 +39,6 @@ test("savePlanoDraft accepts tapado and preserves draft after invalid save", asy
   assert.equal(exactVersion.elements.length, 2);
 
   await sendPlanoToReview(barrioId, admin);
+  await assert.rejects(() => sendPlanoToReview(barrioId, admin), /ya no se puede enviar/);
   await assert.rejects(() => savePlanoDraft(barrioId, original, admin), /ya fue enviada/);
 });
