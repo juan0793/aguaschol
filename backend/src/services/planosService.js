@@ -552,6 +552,37 @@ export const reviewPlanoVersion = async (versionId, action, payload, user) => {
   return { ...version, estado, observacion_revision: observacion };
 };
 
+export const savePlanoFinalPdf = async (versionId, file, user) => {
+  if (!file?.buffer?.length) fail("No se recibio ningun PDF.");
+  const pdfPath = await savePlanoPdf(file);
+  if (!pdfPath) fail("No se pudo guardar el PDF.");
+
+  if (env.useMemoryDb) {
+    const version = memory.versiones.find((item) => Number(item.id) === Number(versionId));
+    if (!version) fail("Version no encontrada.", 404);
+    await assertCanEdit(version.barrio_id, user);
+    version.archivo_pdf_final = pdfPath;
+    version.updated_at = new Date().toISOString();
+    return { ok: true, versionId: Number(versionId), archivo_pdf_final: pdfPath };
+  }
+
+  const pool = getPool();
+  const [[version]] = await pool.query("SELECT * FROM planos_versiones WHERE id = ? LIMIT 1", [versionId]);
+  if (!version) fail("Version no encontrada.", 404);
+  await assertCanEdit(version.barrio_id, user);
+  await pool.query("UPDATE planos_versiones SET archivo_pdf_final = ? WHERE id = ?", [pdfPath, versionId]);
+  await createAuditLog({
+    actorUserId: user.id,
+    actorName: user.full_name || user.username || "",
+    actorEmail: user.email || "",
+    action: "plano.pdf_final_saved",
+    entityType: "planos_versiones",
+    entityId: Number(versionId),
+    summary: `PDF actualizado guardado para la version ${version.numero_version || ""}.`
+  });
+  return { ok: true, versionId: Number(versionId), archivo_pdf_final: pdfPath };
+};
+
 export const listPlanoVersions = async (barrioId, user) => {
   if (env.useMemoryDb) return memory.versiones.filter((version) => !barrioId || Number(version.barrio_id) === Number(barrioId));
   const params = [];

@@ -10,6 +10,7 @@ import {
   listPlanoVersions,
   reviewPlanoVersion,
   savePlanoDraft,
+  savePlanoFinalPdf,
   savePlanoPdf,
   sendPlanoToReview,
   updatePlanoElement,
@@ -135,6 +136,14 @@ export const listPendingPlanoReviewsHandler = async (req, res, next) => {
 export const reviewPlanoVersionHandler = (action) => async (req, res, next) => {
   try {
     res.json(await reviewPlanoVersion(req.params.versionId, action, req.body ?? {}, req.authUser));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const savePlanoFinalPdfHandler = async (req, res, next) => {
+  try {
+    res.json(await savePlanoFinalPdf(req.params.versionId, req.file, req.authUser));
   } catch (error) {
     next(error);
   }

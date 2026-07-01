@@ -11,6 +11,7 @@ import {
   listPlanoVersionsHandler,
   reviewPlanoVersionHandler,
   savePlanoDraftHandler,
+  savePlanoFinalPdfHandler,
   sendPlanoToReviewHandler,
   updatePlanoElementHandler,
   updatePlanoBarrioHandler
@@ -29,6 +30,7 @@ router.get("/versiones", listPlanoVersionsHandler);
 router.post("/versiones/:versionId/aprobar", reviewPlanoVersionHandler("aprobar"));
 router.post("/versiones/:versionId/devolver", reviewPlanoVersionHandler("devolver"));
 router.post("/versiones/:versionId/publicar", reviewPlanoVersionHandler("publicar"));
+router.post("/versiones/:versionId/pdf-final", upload.single("pdf"), savePlanoFinalPdfHandler);
 router.put("/elementos/:id", updatePlanoElementHandler);
 router.delete("/elementos/:id", deletePlanoElementHandler);
 router.get("/:barrioId/elementos", listPlanoElementsHandler);

@@ -9,6 +9,7 @@ import { CroquisSyncStatus } from "./CroquisSyncStatus";
 import { CroquisToolHint } from "./CroquisToolHint";
 import { cloneEditorElement, completePlacementTool, finishLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, shouldPlaceFromPointerUp, undoEditorHistory } from "./planosEditorHistory";
 import { buildCroquisSvg } from "./planosVectorExport";
+import { buildCroquisPdf } from "./planosPdfExport";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -159,6 +160,44 @@ const downloadVectorCroquis = async ({ barrio, elements, layers = [], versionNum
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const triggerDownload = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const barrioBaseUrl = (barrio = {}) =>
+  toAssetUrl(barrio.baseUrl || barrio.base_url || barrio.fondo_url || barrio.archivo_fondo || barrio.imagen_fondo || barrio.archivo_pdf);
+
+// Genera el PDF vectorial (plano base + trazos) y lo devuelve como Blob listo para subir/descargar.
+const buildCroquisPdfBlob = async ({ barrio, elements, layers = [], renderWidth, renderHeight }) => {
+  const baseUrl = barrioBaseUrl(barrio);
+  if (!baseUrl) throw new Error("Este croquis no tiene plano base para exportar.");
+  let args;
+  if (isPdf(baseUrl)) {
+    const pdfBytes = await fetch(baseUrl).then((response) => {
+      if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
+      return response.arrayBuffer();
+    });
+    args = { pdfBytes, renderWidth, renderHeight };
+  } else {
+    const canvas = await renderCroquisBackground(baseUrl);
+    args = { imageDataUrl: canvas.toDataURL("image/png"), renderWidth: canvas.width, renderHeight: canvas.height };
+  }
+  const bytes = await buildCroquisPdf({ ...args, elements, layers });
+  return new Blob([bytes], { type: "application/pdf" });
+};
+
+const croquisFileName = (barrio = {}, versionNumber = 1, extension = "pdf") => {
+  const code = String(barrio.codigo_barrio || barrio.id || "croquis").replace(/[^a-zA-Z0-9_-]+/g, "-");
+  return `croquis-${code}-v${versionNumber}.${extension}`;
 };
 
 const moveElement = (element, dx, dy) => {
@@ -1059,6 +1098,42 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [undo, redo, selected]);
 
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      const saved = await saveDraft({ silent: true });
+      const versionNumber = saved.version?.numero_version || version?.numero_version || 1;
+      const versionId = saved.version?.id || version?.id;
+      const blob = await buildCroquisPdfBlob({
+        barrio,
+        elements: saved.elements,
+        layers,
+        renderWidth: background.width,
+        renderHeight: background.height
+      });
+      const filename = croquisFileName(barrio, versionNumber, "pdf");
+      if (versionId) {
+        try {
+          const form = new FormData();
+          form.append("pdf", blob, filename);
+          const response = await apiFetch(`/planos/versiones/${versionId}/pdf-final`, { method: "POST", body: form });
+          if (!response.ok) {
+            const info = await response.json().catch(() => ({}));
+            toast.warning(info.message || "El PDF se descargo, pero no se pudo guardar en el servidor.");
+          }
+        } catch {
+          toast.warning("El PDF se descargo, pero no se pudo guardar en el servidor.");
+        }
+      }
+      triggerDownload(blob, filename);
+      toast.success("Croquis guardado en PDF.");
+    } catch (error) {
+      toast.error(error.message || "No se pudo generar el PDF.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const downloadDraft = async () => {
     setExporting(true);
     try {
@@ -1131,7 +1206,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           <CroquisSyncStatus saveState={saveState} />
           <button type="button" className="button-secondary" onClick={() => saveDraft().then(() => toast.success("Borrador guardado.")).catch(() => {})} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
           {saveState === "local" ? <button type="button" className="button-secondary" onClick={() => saveDraft().catch(() => {})} disabled={saving}><RotateCw size={16} />Reintentar</button> : null}
-          <button type="button" className="button-secondary" onClick={downloadDraft} disabled={saving || exporting}><Download size={16} />{exporting ? "Preparando" : "Guardar y descargar SVG"}</button>
+          <button type="button" className="button-secondary" onClick={exportPdf} disabled={saving || exporting}><Download size={16} />{exporting ? "Preparando" : "Guardar en PDF"}</button>
+          <button type="button" className="button-secondary" onClick={downloadDraft} disabled={saving || exporting} title="Descargar como SVG vectorial">SVG</button>
           <button type="button" className="planos-primary-action" onClick={sendReview} disabled={saving || submitting}><Send size={16} />{submitting ? "Enviando" : "Enviar a revision"}</button>
         </div>
       </header>
@@ -1340,11 +1416,23 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
   const downloadUpdatedMap = async (version) => {
     try {
       const sourceBarrio = barrios.find((barrio) => Number(barrio.id) === Number(version.barrio_id)) || mios.find((barrio) => Number(barrio.id) === Number(version.barrio_id)) || {};
+      const filename = croquisFileName({ ...sourceBarrio, ...version }, version.numero_version || 1, "pdf");
+      if (version.archivo_pdf_final) {
+        const stored = await apiFetch(version.archivo_pdf_final);
+        if (!stored.ok) throw new Error("No se pudo descargar el PDF guardado.");
+        triggerDownload(await stored.blob(), filename);
+        toast.success("PDF actualizado descargado.");
+        return;
+      }
       const response = await apiFetch(`/planos/${version.barrio_id}/elementos?versionId=${version.id}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "No se pudieron cargar las correcciones.");
-      await downloadVectorCroquis({ barrio: { ...sourceBarrio, ...version, archivo_pdf: version.archivo_pdf || sourceBarrio.archivo_pdf }, elements: normalizeElements(data.elements || []), versionNumber: version.numero_version || 1 });
-      toast.success("Mapa vectorial SVG descargado.");
+      const blob = await buildCroquisPdfBlob({
+        barrio: { ...sourceBarrio, ...version, archivo_pdf: version.archivo_pdf || sourceBarrio.archivo_pdf },
+        elements: normalizeElements(data.elements || [])
+      });
+      triggerDownload(blob, filename);
+      toast.success("PDF actualizado descargado.");
     } catch (error) {
       toast.error(error.message || "No se pudo descargar el mapa actualizado.");
     }
