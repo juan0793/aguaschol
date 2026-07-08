@@ -48,6 +48,7 @@ import {
   roleLabel
 } from "./utils/formatting";
 import {
+  extractPadronLookupReferences,
   formatClaveInput,
   getLookupServiceMeta,
   getLookupValidationMessage,
@@ -578,10 +579,10 @@ const MAP_REPORT_SERVICE_CODES = [
   { label: "Agua", code: "A" },
   { label: "Alcant.", code: "AL" },
   { label: "Barrido", code: "B" },
-  { label: "Recolec.", code: "R" },
-  { label: "Desechos", code: "D" }
+  { label: "Desechos", code: "D" },
+  { label: "Peligrosos", code: "P" }
 ];
-const MAP_REPORT_SERVICE_LEGEND = "A=Agua, AL=Alcant., B=Barrido, R=Recolec., D=Desechos";
+const MAP_REPORT_SERVICE_LEGEND = "A=Agua, AL=Alcant., B=Barrido, D=Desechos/tren, P=Peligrosos";
 const getMapReportServicesCheck = (value = "") => {
   const activeServices = String(value || "")
     .split(",")
@@ -616,9 +617,22 @@ const FIELD_DEBT_SERVICE_DEFINITIONS = [
   { field: "agua", label: "Agua potable", shortLabel: "Agua", aliases: ["agua", "potable"] },
   { field: "alcantarillado", label: "Alcantarillado", shortLabel: "Alcant.", aliases: ["alcantarillado", "alca"] },
   { field: "barrido", label: "Barrido", shortLabel: "Barrido", aliases: ["barrido", "barr"] },
-  { field: "recoleccion", label: "Recolección", shortLabel: "Recolec.", aliases: ["recoleccion", "tren", "basura"] },
-  { field: "desechos_peligrosos", label: "Desechos peligrosos", shortLabel: "Desechos", aliases: ["desechos", "peligrosos", "bomb"] }
+  {
+    field: "recoleccion",
+    label: "Recoleccion de desechos",
+    shortLabel: "Desechos",
+    legacyShortLabels: ["Recolec."],
+    aliases: ["desechos", "recoleccion", "tren", "basura", "aseo"]
+  },
+  {
+    field: "desechos_peligrosos",
+    label: "Desechos peligrosos",
+    shortLabel: "Peligrosos",
+    aliases: ["peligrosos", "bomb"]
+  }
 ];
+const getFieldDebtServiceShortLabels = (service = {}) =>
+  [service.shortLabel, ...(service.legacyShortLabels || [])].filter(Boolean);
 const getMapPointHousingUnits = (point = {}) => {
   const numeric = Math.round(Number(point.housing_units || 1));
   return Number.isFinite(numeric) ? Math.max(1, numeric) : 1;
@@ -632,8 +646,10 @@ const getMapZoneHousingUnits = (zone = {}) =>
 const getMapPointServicesLabel = (point = {}) => {
   const source = `${point.reference_note || ""}\n${point.description || ""}`;
   const activeServices = FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) => {
-    const pattern = new RegExp(`${service.shortLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:\\s*S(?:i|í|Ã­)`, "i");
-    return pattern.test(source);
+    return getFieldDebtServiceShortLabels(service).some((label) => {
+      const pattern = new RegExp(`${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:\\s*S(?:i|\\u00ed)`, "i");
+      return pattern.test(source);
+    });
   }).map((service) => service.shortLabel);
 
   return activeServices.length ? activeServices.join(", ") : "--";
@@ -649,8 +665,7 @@ const getMapZoneServicesLabel = (zone = {}) => {
   });
   return services.size ? Array.from(services).join(", ") : "--";
 };
-const extractFieldDebtKeys = (value = "") =>
-  Array.from(new Set(String(value ?? "").match(/\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/g) ?? []));
+const extractFieldDebtLookupReferences = (value = "") => extractPadronLookupReferences(value);
 const getFieldDebtRequestedServices = (value = "") => {
   const normalized = String(value ?? "")
     .toLowerCase()
@@ -667,7 +682,7 @@ const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
   if (value === "N") return "No";
   return "--";
 };
-const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*(?:Datos del padron(?: \(clave [^)]+\))?:\n?)?(?:Abonado:.*\n)?(?:Nombre:.*\n)?(?:Barrio\/colonia:.*\n)?(?:Direccion:.*\n)?Servicios:.*(?=\n{2,}|$)/i;
+const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*(?:Datos del padron(?: \([^)]+\))?:\n?)?(?:Abonado:.*\n)?(?:Nombre:.*\n)?(?:Barrio\/colonia:.*\n)?(?:Direccion:.*\n)?Servicios:.*(?=\n{2,}|$)/i;
 const stripMapDescriptionPadronBlock = (value = "") =>
   String(value ?? "").replace(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN, "").trimEnd();
 const getMapPointTechnicalDescription = (point = {}) =>
@@ -708,7 +723,7 @@ const buildLookupAssistantDetails = (match = {}) => {
     ["Agua potable", getFieldDebtServiceStatus(match, "agua")],
     ["Alcantarillado", getFieldDebtServiceStatus(match, "alcantarillado")],
     ["Barrido", getFieldDebtServiceStatus(match, "barrido")],
-    ["Recoleccion", getFieldDebtServiceStatus(match, "recoleccion")],
+    ["Desechos / tren de aseo", getFieldDebtServiceStatus(match, "recoleccion")],
     ["Desechos peligrosos", getFieldDebtServiceStatus(match, "desechos_peligrosos")],
     ["Valor", formatLookupAssistantMoney(match.valor)],
     ["Intereses", formatLookupAssistantMoney(match.intereses)],
@@ -732,16 +747,18 @@ const buildFieldDebtPointRows = (points = []) =>
   points
     .map((point, index) => {
       const sourceText = [point.reference_note, point.description].filter(Boolean).join(" ");
-      const keys = extractFieldDebtKeys(sourceText);
+      const references = extractFieldDebtLookupReferences(sourceText);
       return {
         point,
         index,
         sourceText,
-        keys,
+        keys: references.map((reference) => reference.key),
+        references,
         requestedServices: getFieldDebtRequestedServices(sourceText)
       };
     })
     .filter((row) => row.keys.length);
+const getFieldDebtResultLabel = (result = {}) => result.label || result.key || "--";
 const normalizeMapReportSettings = (value) => ({
   ...defaultMapReportSettings,
   ...(value && typeof value === "object" ? value : {}),
@@ -2247,7 +2264,7 @@ function App() {
           if (!result.matches?.length) {
             return [
               {
-                key: result.key,
+                key: getFieldDebtResultLabel(result),
                 abonado: "--",
                 nombre: result.error || "Sin coincidencia en padron",
                 barrio: "--",
@@ -2440,7 +2457,7 @@ function App() {
       agua: "Agua potable",
       alcantarillado: "Alcantarillado",
       barrido: "Barrido",
-      recoleccion: "Recoleccion",
+      recoleccion: "Desechos / tren de aseo",
       desechos_peligrosos: "Desechos peligrosos"
     };
     const normalizedBarrioFilter = padronStatsBarrioFilter.trim().toLowerCase();
@@ -5497,7 +5514,7 @@ function App() {
                   <th>Agua</th>
                   <th>Alcantarillado</th>
                   <th>Barrido</th>
-                  <th>Recoleccion</th>
+                  <th>Desechos / tren</th>
                   <th>Desechos peligrosos</th>
                 </tr>
               </thead>
@@ -5760,7 +5777,7 @@ function App() {
 
       autoTable(document, {
         startY: 30,
-        head: [["Barrio", "Total", "Agua", "Alcantarillado", "Barrido", "Recoleccion", "Desechos peligrosos"]],
+        head: [["Barrio", "Total", "Agua", "Alcantarillado", "Barrido", "Desechos / tren", "Desechos peligrosos"]],
         body: aguasServiceReportData.barrios.map((barrio) => {
           const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
           const getActive = (field) => Number(services.find((service) => service.field === field)?.active || 0);
@@ -6004,10 +6021,10 @@ function App() {
   useEffect(() => {
     const description = String(mapDraft.description || "");
     const descriptionWithoutPadron = stripMapDescriptionPadronBlock(description);
-    const keys = extractFieldDebtKeys(descriptionWithoutPadron);
-    const key = keys[keys.length - 1] || "";
+    const references = extractFieldDebtLookupReferences(descriptionWithoutPadron);
+    const reference = references[references.length - 1] || null;
 
-    if (!key) {
+    if (!reference) {
       setMapDescriptionLookupStatus("");
       return undefined;
     }
@@ -6017,15 +6034,15 @@ function App() {
       setMapDescriptionLookupStatus("Informacion del padron anexada.");
       return undefined;
     }
-    setMapDescriptionLookupStatus(`Consultando padron para ${key}...`);
+    setMapDescriptionLookupStatus(`Consultando padron para ${reference.label}...`);
 
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
-        let data = mapDescriptionLookupCacheRef.current.get(key);
+        let data = mapDescriptionLookupCacheRef.current.get(reference.key);
         if (!data) {
           const response = await apiFetch(
-            `/claves/search?clave=${encodeURIComponent(key)}&field=clave&_padron=${encodeURIComponent(
+            `/claves/search?clave=${encodeURIComponent(reference.value)}&field=${encodeURIComponent(reference.field)}&_padron=${encodeURIComponent(
               padronMeta?.updated_at || ""
             )}`
           );
@@ -6033,20 +6050,20 @@ function App() {
           if (!response.ok) {
             throw new Error(data.message || "No fue posible consultar el padron.");
           }
-          mapDescriptionLookupCacheRef.current.set(key, data);
+          mapDescriptionLookupCacheRef.current.set(reference.key, data);
         }
 
         if (cancelled) return;
         const match = Array.isArray(data.matches) ? data.matches[0] : null;
         if (!match) {
-          setMapDescriptionLookupStatus(`La clave ${key} no aparece en el padron.`);
+          setMapDescriptionLookupStatus(`${reference.label} no aparece en el padron.`);
           return;
         }
 
         setMapDraft((current) => {
           const currentDescription = String(current.description || "");
           const cleanDescription = stripMapDescriptionPadronBlock(currentDescription);
-          if (!extractFieldDebtKeys(cleanDescription).includes(key)) {
+          if (!extractFieldDebtLookupReferences(cleanDescription).some((item) => item.key === reference.key)) {
             return current;
           }
           const nextBlock = buildMapDescriptionPadronBlock(match);
@@ -6553,7 +6570,15 @@ function App() {
 
   const buildFieldDebtReport = async () => {
     const pointRows = buildFieldDebtPointRows(visibleMapPoints);
-    const keys = Array.from(new Set(pointRows.flatMap((row) => row.keys)));
+    const referencesByKey = new Map();
+    pointRows.forEach((row) => {
+      row.references.forEach((reference) => {
+        if (!referencesByKey.has(reference.key)) {
+          referencesByKey.set(reference.key, reference);
+        }
+      });
+    });
+    const keys = Array.from(referencesByKey.keys());
     const keyCounts = pointRows.reduce((accumulator, row) => {
       row.keys.forEach((key) => {
         accumulator[key] = (accumulator[key] || 0) + 1;
@@ -6574,9 +6599,10 @@ function App() {
 
     const results = await Promise.all(
       keys.map(async (key) => {
+        const reference = referencesByKey.get(key) || { field: "clave", value: key, label: key };
         try {
           const response = await apiFetch(
-            `/claves/search?clave=${encodeURIComponent(key)}&field=clave&_padron=${encodeURIComponent(padronMeta?.updated_at || Date.now())}`
+            `/claves/search?clave=${encodeURIComponent(reference.value)}&field=${encodeURIComponent(reference.field)}&_padron=${encodeURIComponent(padronMeta?.updated_at || Date.now())}`
           );
           const data = await response.json();
 
@@ -6586,6 +6612,9 @@ function App() {
 
           return {
             key,
+            field: reference.field,
+            label: reference.label,
+            query: reference.value,
             exists: Boolean(data.exists),
             total_matches: Number(data.total_matches || 0),
             matches: Array.isArray(data.matches) ? data.matches : [],
@@ -6594,6 +6623,9 @@ function App() {
         } catch (error) {
           return {
             key,
+            field: reference.field,
+            label: reference.label,
+            query: reference.value,
             exists: false,
             total_matches: 0,
             matches: [],
@@ -6622,8 +6654,8 @@ function App() {
       setFieldDebtReport(report);
       showAlert(
         report.keys.length
-          ? `Verificación lista: ${report.keys.length} claves extraídas de la jornada.`
-          : "No encontré claves con formato 00-00-00 en las referencias de esta jornada."
+          ? `Verificacion lista: ${report.keys.length} referencias extraidas de la jornada.`
+          : "No encontre claves o abonados en las referencias de esta jornada."
       );
     } catch (error) {
       showAlert(error.message || "No fue posible verificar la deuda de la jornada.");
@@ -6640,7 +6672,7 @@ function App() {
         return matches
           .map((match, matchIndex) => `
             <tr class="${result.exists ? "" : "is-red-report-point"}">
-              <td class="field-debt-key-cell">${matchIndex === 0 ? escapeHtml(result.key) : ""}</td>
+              <td class="field-debt-key-cell">${matchIndex === 0 ? escapeHtml(getFieldDebtResultLabel(result)) : ""}</td>
               <td class="field-debt-account-cell">${matchIndex === 0 ? Number(fieldDebtReport?.keyCounts?.[result.key] || 0) : ""}</td>
               <td class="field-debt-account-cell">${match ? escapeHtml(match.abonado || "--") : "--"}</td>
               <td>${match ? escapeHtml(match.inquilino || match.nombre || "--") : result.error ? escapeHtml(result.error) : "No aparece en el padrón"}</td>
@@ -6663,12 +6695,12 @@ function App() {
             <div>
               <p class="field-report-kicker">Verificación de deuda por reporte GPS</p>
               <h1>Jornada ${escapeHtml(formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey))}</h1>
-              <p>Claves extraídas de referencias escritas por el equipo técnico en campo.</p>
+              <p>Claves o abonados extraidos de referencias escritas por el equipo tecnico en campo.</p>
             </div>
           </div>
           <div class="field-report-meta">
             <span>Generado: ${formatDateTime(fieldDebtReport?.generatedAt || new Date().toISOString())}</span>
-            <span>Claves únicas: ${fieldDebtSummary.totalKeys}</span>
+            <span>Referencias unicas: ${fieldDebtSummary.totalKeys}</span>
             <span>Encontradas: ${fieldDebtSummary.foundKeys}</span>
             <span class="field-debt-meta-money">Deuda total: ${formatCurrency(fieldDebtSummary.totalDebt)} lempiras</span>
           </div>
@@ -6677,7 +6709,7 @@ function App() {
           <span class="field-report-kicker">Resumen compacto</span>
           <h2>Totales de zona censada</h2>
           <div class="field-debt-metrics">
-            <div><strong>Puntos con clave</strong><span>${fieldDebtSummary.totalPoints}</span></div>
+            <div><strong>Puntos con referencia</strong><span>${fieldDebtSummary.totalPoints}</span></div>
             <div><strong>Cuentas encontradas</strong><span>${fieldDebtSummary.accounts}</span></div>
             <div class="is-money"><strong>Deuda total</strong><span>${formatCurrency(fieldDebtSummary.totalDebt)} lempiras</span></div>
           </div>
@@ -6686,13 +6718,13 @@ function App() {
           <div class="field-report-zone-head">
             <div>
               <span class="field-report-zone-kicker">Consulta al padrón</span>
-              <h3>Resultado por clave extraída</h3>
+              <h3>Resultado por referencia extraida</h3>
             </div>
           </div>
           <table class="field-report-table field-debt-print-table">
             <thead>
               <tr>
-                <th>Clave</th>
+                <th>Referencia</th>
                 <th>Reportes</th>
                 <th>Abonado</th>
                 <th>Nombre</th>
@@ -6703,7 +6735,7 @@ function App() {
                 <th>Servicios</th>
               </tr>
             </thead>
-            <tbody>${rowsMarkup || '<tr><td colspan="9">No se extrajeron claves de la jornada.</td></tr>'}</tbody>
+            <tbody>${rowsMarkup || '<tr><td colspan="9">No se extrajeron claves ni abonados de la jornada.</td></tr>'}</tbody>
           </table>
         </section>
         <section class="field-debt-signature">
@@ -6782,26 +6814,26 @@ function App() {
             <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
             <div>
               <p class="field-report-kicker">Analitica de mora</p>
-              <h1>Mora por clave del reporte</h1>
+              <h1>Mora por referencia del reporte</h1>
               <p>Jornada ${escapeHtml(formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey))}</p>
             </div>
           </div>
           <div class="field-report-meta">
             <span>Generado: ${formatDateTime(fieldDebtReport?.generatedAt || new Date().toISOString())}</span>
-            <span>Claves verificadas: ${fieldDebtSummary.totalKeys}</span>
+            <span>Referencias verificadas: ${fieldDebtSummary.totalKeys}</span>
             <span>Sin coincidencia: ${fieldDebtChartData.missingRows.length}</span>
             <span class="field-debt-meta-money">Mora total: ${formatCurrency(fieldDebtChartData.totalDebt)}</span>
           </div>
         </header>
         <section class="field-debt-chart-kpis">
-          <div><span>Claves verificadas</span><strong>${fieldDebtSummary.totalKeys}</strong></div>
+          <div><span>Referencias verificadas</span><strong>${fieldDebtSummary.totalKeys}</strong></div>
           <div><span>Mora total</span><strong>${formatCurrency(fieldDebtChartData.totalDebt)}</strong></div>
           <div><span>Con mora critica</span><strong>${fieldDebtChartData.criticalRows.length}</strong></div>
           <div><span>Sin coincidencia</span><strong>${fieldDebtChartData.missingRows.length}</strong></div>
         </section>
         <section class="field-debt-chart-print-grid">
           <div class="field-debt-chart-card">
-            <h2>Grafico por clave</h2>
+            <h2>Grafico por referencia</h2>
             <div class="field-debt-chart-bars">${barsMarkup || '<p>No hay mora para graficar.</p>'}</div>
           </div>
           <div class="field-debt-chart-card">
@@ -6833,7 +6865,7 @@ function App() {
     }
 
     await printDocument(
-      "Grafico de mora por clave",
+      "Grafico de mora por referencia",
       buildFieldDebtChartPrintMarkup(),
       {
         pageSize: "Letter landscape",
@@ -6862,16 +6894,16 @@ function App() {
       document.setFont("helvetica", "normal");
       document.setFontSize(9);
       document.text(`Jornada: ${formatMapDiaryLabel(fieldDebtReport.dateKey)} | Generado: ${formatDateTime(fieldDebtReport.generatedAt)}`, 14, 21);
-      document.text(`Claves únicas: ${fieldDebtSummary.totalKeys} | Encontradas: ${fieldDebtSummary.foundKeys} | Sin coincidencia: ${fieldDebtSummary.missingKeys}`, 14, 28);
-      document.text(`Deuda total: ${formatCurrency(fieldDebtSummary.totalDebt)} lempiras | Puntos con clave: ${fieldDebtSummary.totalPoints}`, 14, 35);
+      document.text(`Referencias unicas: ${fieldDebtSummary.totalKeys} | Encontradas: ${fieldDebtSummary.foundKeys} | Sin coincidencia: ${fieldDebtSummary.missingKeys}`, 14, 28);
+      document.text(`Deuda total: ${formatCurrency(fieldDebtSummary.totalDebt)} lempiras | Puntos con referencia: ${fieldDebtSummary.totalPoints}`, 14, 35);
 
       const body = (fieldDebtReport.results || []).flatMap((result) => {
         if (!result.matches?.length) {
-          return [[result.key, String(fieldDebtReport?.keyCounts?.[result.key] || 0), "--", result.error || "No aparece", "--", "--", "--", "--"]];
+          return [[getFieldDebtResultLabel(result), String(fieldDebtReport?.keyCounts?.[result.key] || 0), "--", result.error || "No aparece", "--", "--", "--", "--"]];
         }
 
         return result.matches.map((match) => [
-          result.key,
+          getFieldDebtResultLabel(result),
           String(fieldDebtReport?.keyCounts?.[result.key] || 0),
           match.abonado || "--",
           match.inquilino || match.nombre || "--",
@@ -6884,8 +6916,8 @@ function App() {
 
       autoTable(document, {
         startY: 42,
-        head: [["Clave", "Reportes", "Abonado", "Nombre", "Barrio", "Valor", "Intereses", "Total"]],
-        body: body.length ? body : [["Sin claves", "--", "--", "--", "--", "--", "--", "--"]],
+        head: [["Referencia", "Reportes", "Abonado", "Nombre", "Barrio", "Valor", "Intereses", "Total"]],
+        body: body.length ? body : [["Sin referencias", "--", "--", "--", "--", "--", "--", "--"]],
         theme: "grid",
         styles: { fontSize: 7.8, cellPadding: 2, overflow: "linebreak" },
         headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
@@ -8668,7 +8700,7 @@ function App() {
       { label: "Agua", value: match?.agua, icon: "water" },
       { label: "Alcantarillado", value: match?.alcantarillado, icon: "sewer" },
       { label: "Barrido", value: match?.barrido, icon: "broom" },
-      { label: "Recoleccion", value: match?.recoleccion, icon: "refresh" },
+      { label: "Desechos / tren de aseo", value: match?.recoleccion, icon: "refresh" },
       { label: "Desechos peligrosos", value: match?.desechos_peligrosos, icon: "waste" }
     ];
 
@@ -12082,7 +12114,7 @@ function App() {
             <p className="eyebrow">Verificación administrativa</p>
             <DialogTitle>Verificación</DialogTitle>
             <DialogDescription className="lead">
-              Claves detectadas en las referencias de la jornada {formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey)}, cruzadas contra el padrón maestro.
+              Claves o abonados detectados en las referencias de la jornada {formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey)}, cruzados contra el padron maestro.
             </DialogDescription>
           </DialogHeader>
           <div className="field-debt-modal-body">
@@ -12090,14 +12122,14 @@ function App() {
               <div className="empty-state field-debt-loading-state">
                 <Icon name="refresh" className="empty-state-icon field-debt-loading-icon" />
                 <h3>Verificación en proceso</h3>
-                <p>Estoy extrayendo claves de las referencias y consultando el padron cargado.</p>
+                <p>Estoy extrayendo claves y abonados de las referencias, y consultando el padron cargado.</p>
                 <span className="field-debt-loading-bar" aria-hidden="true" />
               </div>
             ) : fieldDebtReport ? (
               <>
                 <div className="field-debt-summary-grid">
                   <div className="log-summary-card">
-                    <span>Claves únicas</span>
+                    <span>Referencias unicas</span>
                     <strong>{fieldDebtSummary.totalKeys}</strong>
                   </div>
                   <div className="log-summary-card">
@@ -12127,7 +12159,7 @@ function App() {
                   <table className="field-debt-table">
                     <thead>
                       <tr>
-                        <th>Clave detectada</th>
+                        <th>Referencia detectada</th>
                         <th>Reportes</th>
                         <th>Abonado</th>
                         <th>Nombre</th>
@@ -12144,7 +12176,7 @@ function App() {
                           if (!result.matches?.length) {
                             return (
                               <tr key={`${result.key}-missing`} className="is-missing">
-                                <td>{result.key}</td>
+                                <td>{getFieldDebtResultLabel(result)}</td>
                                 <td>{fieldDebtReport?.keyCounts?.[result.key] || 0}</td>
                                 <td>--</td>
                                 <td>{result.error || "No aparece en el padrón"}</td>
@@ -12159,7 +12191,7 @@ function App() {
 
                           return result.matches.map((match, matchIndex) => (
                             <tr key={`${result.key}-${match.abonado || match.clave_catastral || matchIndex}`}>
-                              <td>{matchIndex === 0 ? result.key : ""}</td>
+                              <td>{matchIndex === 0 ? getFieldDebtResultLabel(result) : ""}</td>
                               <td>{matchIndex === 0 ? fieldDebtReport?.keyCounts?.[result.key] || 0 : ""}</td>
                               <td>{match.abonado || "--"}</td>
                               <td>{match.inquilino || match.nombre || "--"}</td>
@@ -12183,7 +12215,7 @@ function App() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan="9">No se detectaron claves con formato 00-00-00 en esta jornada.</td>
+                          <td colSpan="9">No se detectaron claves ni abonados en esta jornada.</td>
                         </tr>
                       )}
                     </tbody>
@@ -12191,13 +12223,13 @@ function App() {
                 </div>
 
                 <p className="helper-text">
-                  Se revisaron {fieldDebtSummary.totalPoints} puntos con clave manual. El detalle final se resume arriba para evitar duplicar la referencia de campo.
+                  Se revisaron {fieldDebtSummary.totalPoints} puntos con referencia manual. El detalle final se resume arriba para evitar duplicar la referencia de campo.
                 </p>
               </>
             ) : (
               <div className="empty-state">
                 <h3>Sin verificación</h3>
-                <p>Ejecuta la verificación desde Reportes GPS para revisar las claves de la jornada.</p>
+                <p>Ejecuta la verificacion desde Reportes GPS para revisar las claves o abonados de la jornada.</p>
               </div>
             )}
           </div>
@@ -15857,7 +15889,7 @@ function App() {
                                     { label: "Agua", value: match.agua, icon: "water" },
                                     { label: "Alcantarillado", value: match.alcantarillado, icon: "sewer" },
                                     { label: "Barrido", value: match.barrido, icon: "broom" },
-                                    { label: "Recoleccion", value: match.recoleccion, icon: "refresh" },
+                                    { label: "Desechos / tren de aseo", value: match.recoleccion, icon: "refresh" },
                                     { label: "Desechos peligrosos", value: match.desechos_peligrosos, icon: "waste" }
                                   ].map((service) => {
                                     const serviceMeta = getLookupServiceMeta(service.value);
@@ -16464,7 +16496,7 @@ function App() {
                       value={mapDraft.description}
                       onChange={handleMapDraftChange}
                       rows="4"
-                      placeholder="Detalle de la caja, descarga o punto observado."
+                      placeholder="Detalle de la caja, descarga o punto observado. Ej. clave 10-07-01-01 o abonado 22095."
                     />
                     {mapDescriptionLookupStatus ? (
                       <small className="helper-text">{mapDescriptionLookupStatus}</small>
@@ -16885,9 +16917,9 @@ function App() {
                           </span>
                           <div>
                             <p className="sheet-kicker">Analitica de mora</p>
-                            <h3>Mora por clave del reporte</h3>
+                            <h3>Mora por referencia del reporte</h3>
                             <p className="helper-text">
-                              Grafico generado con las claves detectadas en las referencias de esta jornada.
+                              Grafico generado con las claves o abonados detectados en las referencias de esta jornada.
                             </p>
                           </div>
                         </div>
@@ -16919,7 +16951,7 @@ function App() {
                         <>
                           <div className="debt-chart-kpis">
                             <div>
-                              <span>Claves verificadas</span>
+                              <span>Referencias verificadas</span>
                               <strong>{fieldDebtSummary.totalKeys}</strong>
                             </div>
                             <div>
@@ -16938,7 +16970,7 @@ function App() {
                           {fieldDebtChartData.topRows.length ? (
                             <>
                               <div className="debt-chart-layout">
-                                <div className="debt-bar-list" aria-label="Grafico de mora por clave">
+                                <div className="debt-bar-list" aria-label="Grafico de mora por referencia">
                                   {fieldDebtChartData.topRows.map((row) => (
                                     <article key={`${row.key}-${row.abonado}`} className="debt-bar-row">
                                       <div className="debt-bar-copy">
@@ -17004,7 +17036,7 @@ function App() {
                           ) : (
                             <div className="empty-state debt-chart-empty">
                               <h3>Sin mora encontrada</h3>
-                              <p>La verificacion no encontro saldos asociados a las claves de este reporte.</p>
+                              <p>La verificacion no encontro saldos asociados a las referencias de este reporte.</p>
                             </div>
                           )}
                         </>
@@ -17020,11 +17052,11 @@ function App() {
                             <p className="sheet-kicker">Listo para generar</p>
                             <h3>Genera el grafico de mora</h3>
                             <p>
-                              Cruza las claves del reporte contra el padron y arma una lectura ejecutiva con totales,
+                              Cruza las claves o abonados del reporte contra el padron y arma una lectura ejecutiva con totales,
                               cuentas criticas y barras imprimibles.
                             </p>
                             <div className="debt-pending-steps">
-                              <span><b>1</b>Detecta claves</span>
+                              <span><b>1</b>Detecta referencias</span>
                               <span><b>2</b>Calcula mora</span>
                               <span><b>3</b>Imprime grafico</span>
                             </div>

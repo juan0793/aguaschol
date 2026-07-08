@@ -42,6 +42,41 @@ export const sanitizeLookupInput = (value = "", mode = "clave", prefixMode = "au
   return String(value ?? "").replace(/\s+/g, " ").replace(/^\s+/, "");
 };
 
+export const extractPadronLookupReferences = (value = "") => {
+  const source = String(value ?? "");
+  const references = [];
+  const seen = new Set();
+  const addReference = (field, rawValue, index) => {
+    const normalizedValue =
+      field === "abonado" ? String(rawValue ?? "").replace(/\D/g, "") : String(rawValue ?? "").trim();
+    const key = `${field}:${normalizedValue}`;
+
+    if (!normalizedValue || seen.has(key)) return;
+    seen.add(key);
+    references.push({
+      field,
+      value: normalizedValue,
+      key,
+      label: field === "abonado" ? `Abonado ${normalizedValue}` : normalizedValue,
+      index
+    });
+  };
+
+  for (const match of source.matchAll(/\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/g)) {
+    addReference("clave", match[0], match.index ?? 0);
+  }
+
+  const normalizedSource = source.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const abonadoPattern =
+    /\b(?:abonado|codigo\s+(?:de\s+)?abonado|cod\.?\s*(?:de\s+)?abonado|numero\s+(?:de\s+)?abonado|num\.?\s*(?:de\s+)?abonado|no\.?\s*(?:de\s+)?abonado|cuenta)\s*[:#-]?\s*(\d{3,18})\b/gi;
+
+  for (const match of normalizedSource.matchAll(abonadoPattern)) {
+    addReference("abonado", match[1], match.index ?? 0);
+  }
+
+  return references.sort((left, right) => left.index - right.index);
+};
+
 export const isLookupQueryReady = (value = "", mode = "clave") => {
   const trimmed = String(value ?? "").trim();
   if (!trimmed) return false;

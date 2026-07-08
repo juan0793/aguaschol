@@ -232,7 +232,7 @@ const MASTER_SERVICE_FIELDS = [
   ["agua", "Agua potable"],
   ["alcantarillado", "Alcantarillado"],
   ["barrido", "Barrido"],
-  ["recoleccion", "Recoleccion"],
+  ["recoleccion", "Recoleccion de desechos"],
   ["desechos_peligrosos", "Desechos peligrosos"]
 ];
 
@@ -1225,7 +1225,7 @@ export const compareAlcaldiaWithAguas = async () => {
     ["agua", "Agua potable"],
     ["alcantarillado", "Alcantarillado"],
     ["barrido", "Barrido"],
-    ["recoleccion", "Recoleccion"],
+    ["recoleccion", "Recoleccion de desechos"],
     ["desechos_peligrosos", "Desechos peligrosos"]
   ];
   const barrioStatsMap = comparedRows.reduce((accumulator, item) => {
