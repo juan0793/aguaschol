@@ -22,3 +22,12 @@ test("reconoce abonado con acento y evita numeros sueltos", () => {
     [{ field: "abonado", value: "16523" }]
   );
 });
+
+test("acepta solo el numero como abonado", () => {
+  assert.deepEqual(
+    extractPadronLookupReferences("22095").map(({ field, value, label }) => ({ field, value, label })),
+    [{ field: "abonado", value: "22095", label: "Abonado 22095" }]
+  );
+
+  assert.deepEqual(extractPadronLookupReferences("casa 2026"), []);
+});

@@ -21914,6 +21914,151 @@ body,
   font-weight: 850;
 }
 
+.map-stage-card,
+.map-form-card,
+.map-list-card,
+.map-detail-card {
+  border-color: rgba(20, 101, 217, 0.16);
+  box-shadow: 0 18px 44px rgba(15, 39, 66, 0.09);
+}
+
+.map-stage-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(8, 28, 48, 0.04), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(20, 101, 217, 0.055) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(0deg, rgba(20, 101, 217, 0.045) 0 1px, transparent 1px 44px),
+    #fbfdff;
+}
+
+.map-stage-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.map-stage-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 0 46%, rgba(37, 199, 240, 0.08) 46% 47%, transparent 47% 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(241, 248, 255, 0.7));
+}
+
+.map-card-head {
+  align-items: center;
+}
+
+.map-card-head .title-icon {
+  color: #0e7490;
+}
+
+.map-spatial-strip {
+  display: grid;
+  grid-template-columns: 1.35fr repeat(2, minmax(0, 0.85fr));
+  gap: 0.65rem;
+}
+
+.map-spatial-strip > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.72rem 0.85rem;
+  border: 1px solid rgba(14, 116, 144, 0.18);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(240, 249, 255, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.map-spatial-strip span {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.map-spatial-strip strong {
+  color: #0f2742;
+  font-size: clamp(0.9rem, 1.5vw, 1.05rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.map-toolbar {
+  padding: 0.72rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.map-workflow-steps span {
+  border-color: rgba(14, 116, 144, 0.18);
+  background: #ecfeff;
+  color: #155e75;
+}
+
+.map-canvas-shell {
+  padding: 0.45rem;
+  border: 1px solid rgba(14, 116, 144, 0.16);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(226, 242, 255, 0.58));
+  box-shadow: 0 18px 42px rgba(15, 39, 66, 0.12);
+}
+
+.map-canvas {
+  min-height: 560px;
+  border-radius: 14px;
+  border-color: rgba(15, 39, 66, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.map-precision-chip,
+.map-center-pin-button {
+  backdrop-filter: blur(10px);
+}
+
+.map-precision-chip {
+  border-color: rgba(14, 116, 144, 0.2);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.map-center-pin-button {
+  background: #0f766e;
+  box-shadow: 0 14px 28px rgba(15, 118, 110, 0.28);
+}
+
+.map-form-card input,
+.map-form-card select,
+.map-form-card textarea {
+  border-color: rgba(14, 116, 144, 0.18);
+  background: #fbfdff;
+}
+
+.map-form-card input:focus,
+.map-form-card select:focus,
+.map-form-card textarea:focus {
+  border-color: #0e7490;
+  box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.12);
+}
+
+.map-point-card {
+  border-color: rgba(14, 116, 144, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 249, 255, 0.82));
+}
+
+.map-point-card.is-active {
+  border-color: rgba(15, 118, 110, 0.34);
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.12);
+}
+
 @media (max-width: 768px) {
   .app-chrome {
     position: static;
@@ -21925,12 +22070,15 @@ body,
   }
 
   .map-canvas-shell {
+    margin-inline: -0.25rem;
+    padding: 0.3rem;
+    border-radius: 16px;
     touch-action: none;
   }
 
   .map-canvas {
-    min-height: min(68vh, 520px);
-    border-radius: 14px;
+    min-height: min(62svh, 520px);
+    border-radius: 12px;
   }
 
   .map-precision-chip {
@@ -21943,6 +22091,39 @@ body,
 
   .map-precision-chip span {
     display: none;
+  }
+
+  .map-spatial-strip {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .map-stage-card {
+    padding: 0.75rem;
+    border-radius: 14px;
+  }
+
+  .map-toolbar {
+    padding: 0.55rem;
+  }
+
+  .map-form-card input,
+  .map-form-card select,
+  .map-form-card textarea {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .map-form-card textarea {
+    min-height: 112px;
+  }
+
+  .map-form-actions button {
+    min-height: 50px;
+  }
+
+  .map-point-card {
+    padding: 0.75rem;
   }
 }
 

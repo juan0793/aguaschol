@@ -74,6 +74,11 @@ export const extractPadronLookupReferences = (value = "") => {
     addReference("abonado", match[1], match.index ?? 0);
   }
 
+  const bareAbonado = normalizedSource.trim().match(/^#?\s*(\d{3,18})$/);
+  if (!references.length && bareAbonado) {
+    addReference("abonado", bareAbonado[1], 0);
+  }
+
   return references.sort((left, right) => left.index - right.index);
 };
 

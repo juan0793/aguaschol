@@ -16347,6 +16347,20 @@ function App() {
                 </div>
                 <span className="panel-pill">{visibleMapPoints.length} puntos</span>
               </div>
+              <div className="map-spatial-strip" aria-label="Resumen de jornada GPS">
+                <div>
+                  <span>Jornada</span>
+                  <strong>{formatMapDiaryLabel(activeMapDiaryDateKey)}</strong>
+                </div>
+                <div>
+                  <span>Captura</span>
+                  <strong>{mapDraft.latitude && mapDraft.longitude ? "Punto listo" : "Sin fijar"}</strong>
+                </div>
+                <div>
+                  <span>Viviendas</span>
+                  <strong>{visibleMapPoints.reduce((total, point) => total + getMapPointHousingUnits(point), 0)}</strong>
+                </div>
+              </div>
               <div className="map-toolbar">
                 <span className={`map-status-chip ${["Sin conexion", "Sin GPS", "Sin permiso", "HTTPS requerido"].includes(mapStatus) ? "is-offline" : ""}`}>
                   <Icon name={mapStatus === "GPS listo" ? "success" : mapStatus === "Sin conexion" ? "activity" : "map"} />
@@ -16496,7 +16510,7 @@ function App() {
                       value={mapDraft.description}
                       onChange={handleMapDraftChange}
                       rows="4"
-                      placeholder="Detalle de la caja, descarga o punto observado. Ej. clave 10-07-01-01 o abonado 22095."
+                      placeholder="Detalle de la caja, descarga o punto observado. Ej. clave 10-07-01-01 o 22095."
                     />
                     {mapDescriptionLookupStatus ? (
                       <small className="helper-text">{mapDescriptionLookupStatus}</small>
