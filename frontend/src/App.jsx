@@ -7,6 +7,7 @@ import LookupChatPanel from "./components/LookupChatPanel";
 import BarrioCodesWorkspace, { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import { NotificationCenter } from "./components/NotificationCenter.jsx";
+import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
 import {
@@ -122,7 +123,6 @@ const FieldMap = lazyWithRetry(() => import("./components/FieldMap"));
 const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
-const RecordsWorkspace = lazy(() => import("./components/records/RecordsWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 
 class MapLoadBoundary extends Component {
@@ -863,7 +863,6 @@ function App() {
   const [aiSuggestion, setAiSuggestion] = useState(null);
   const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
-  const [recordsFocusMode, setRecordsFocusMode] = useState(false);
   const [recordQuickFilter, setRecordQuickFilter] = useState("all");
   const [recordPage, setRecordPage] = useState(1);
   const [recordListSelection, setRecordListSelection] = useState([]);
@@ -9586,102 +9585,6 @@ function App() {
     }
   };
 
-  const saveRecordFromWorkspace = () => {
-    saveRecord({
-      preventDefault: () => {},
-      nativeEvent: {
-        submitter: {
-          dataset: { intent: saveIntentOptions.stay }
-        }
-      }
-    });
-  };
-
-  const handleWorkspaceAdminDecision = async (decision, reason) => {
-    if (!form.id) {
-      showAlert("Primero selecciona o guarda una ficha.");
-      return;
-    }
-
-    if (!reason?.trim()) {
-      showAlert("El motivo es obligatorio para decisiones administrativas.");
-      return;
-    }
-
-    if (decision === "archivada") {
-      try {
-        const response = await apiFetch(`/inmuebles/${form.id}/archive`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ archived_reason: reason })
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "No se pudo archivar la ficha.");
-        }
-        const archivedRecord = normalizeRecord(data);
-        setRecords((current) => current.filter((record) => record.id !== archivedRecord.id));
-        resetForm();
-        showAlert(`Ficha ${archivedRecord.clave_catastral} archivada con motivo administrativo.`);
-        loadRecords(search, "active", { silent: true });
-      } catch (error) {
-        showAlert(error.message || "No se pudo archivar la ficha.");
-      }
-      return;
-    }
-
-    if (decision === "reportada") {
-      await handleMarkRecordReported(
-        {
-          ...form,
-          comentarios: `${form.comentarios || ""}\nDecision admin: reportada. Motivo: ${reason}`.trim()
-        },
-        null
-      );
-      return;
-    }
-
-    const statusByDecision = {
-      confirmada_clandestina: "clandestino",
-      descartada: "clandestino",
-      varios_padrones: "varios_padrones",
-      requiere_correccion: form.estado_padron || "clandestino"
-    };
-    const nextComments = `${form.comentarios || ""}\nDecision admin: ${decision}. Motivo: ${reason}`.trim();
-    const payload = {
-      ...emptyForm,
-      ...normalizeRecord(form),
-      estado_padron: statusByDecision[decision] || form.estado_padron || "clandestino",
-      comentarios: nextComments
-    };
-
-    setProcessingRecordId(form.id);
-    try {
-      const response = await apiFetch(`/inmuebles/${form.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "No se pudo registrar la decision administrativa.");
-      }
-      const normalized = normalizeRecord(data);
-      setForm({ ...emptyForm, ...normalized });
-      setRecords((current) => current.map((record) => (record.id === normalized.id ? normalized : record)));
-      showAlert("Decision administrativa registrada en comentarios e historial.");
-      loadRecords(search, recordView, { silent: true });
-    } catch (error) {
-      showAlert(error.message || "No se pudo registrar la decision administrativa.");
-    } finally {
-      setProcessingRecordId(null);
-    }
-  };
-
   const handleRestoreRecord = async (recordId) => {
     try {
       const response = await apiFetch(`/inmuebles/${recordId}/restore`, {
@@ -11982,7 +11885,6 @@ function App() {
       className={[
         "page-shell",
         sidebarCollapsed ? "sidebar-collapsed" : "",
-        workspaceView === "records" && recordsFocusMode ? "records-focus-mode" : "",
         ["requests", "mapReports", "mapAnalytics"].includes(workspaceView) ? "reports-layout-mode" : "",
         showPadronServiceModal || showPadronStatsModal ? "reports-modal-open" : "",
         workspaceView === "mapReports" ? "map-reports-mode" : ""
@@ -14226,57 +14128,6 @@ function App() {
           </Suspense>
         </section>
       </main>
-      ) : workspaceView === "records" && recordsFocusMode ? (
-      <main className="layout records-view records-focus-layout">
-        <div className="records-focus-toolbar no-print">
-          <div>
-            <span className="sheet-kicker">Vista alternativa</span>
-            <strong>Workspace de Fichas</strong>
-          </div>
-          <button type="button" className="button-secondary" onClick={() => setRecordsFocusMode(false)}>
-            Volver a vista actual
-          </button>
-        </div>
-        <Suspense fallback={<div className="module-loading-state">Cargando fichas...</div>}>
-          <RecordsWorkspace
-            records={displayRecords}
-            form={form}
-            draftForm={draftForm ? withBarrioFromPrefix(draftForm, safeBarrioCodes) : draftForm}
-            loading={loading}
-            saving={saving}
-            loadingAviso={loadingAviso}
-            selectedFile={selectedFile}
-            selectedPhotoUrl={selectedPhotoUrl}
-            localSelectedPhotoUrl={localSelectedPhotoUrl}
-            activeSection={activeSection}
-            validationIssues={recordValidationIssues}
-            isDirty={isDirty}
-            isAdmin={isAdmin}
-            currentUser={session?.user}
-            padronMeta={padronMeta}
-            alcaldiaMeta={alcaldiaMeta}
-            alcaldiaComparison={alcaldiaComparison}
-            loadingAlcaldiaComparison={loadingAlcaldiaComparison}
-            processingRecordId={processingRecordId}
-            onChange={handleChange}
-            onFileChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-            onSectionChange={setActiveSection}
-            onMoveSection={moveRecordSection}
-            onSubmit={saveRecord}
-            onSave={saveRecordFromWorkspace}
-            onNewRecord={resetForm}
-            onRestoreDraft={restoreDraft}
-            onSelectRecord={handleSelectRecord}
-            onGenerateAviso={generateAviso}
-            onPrintFicha={handlePrintFicha}
-            onPrintAviso={handlePrintAviso}
-            onValidatePadron={handleValidateFormPadron}
-            onComparePadrones={loadAlcaldiaComparison}
-            onAdminDecision={handleWorkspaceAdminDecision}
-            showAlert={showAlert}
-          />
-        </Suspense>
-      </main>
       ) : workspaceView === "records" ? (
       <main className="layout records-view shadcn-records-module">
         <Card className="sidebar no-print shadcn-records-sidebar" size="sm">
@@ -14646,83 +14497,21 @@ function App() {
         </Card>
 
         <section className="content">
-          <section className="records-workspace-header no-print">
-            <div className="records-title-row">
-              <div>
-                <p className="sheet-kicker">Gestion de fichas</p>
-                <h2><Icon name="records" className="title-icon" />Fichas registradas</h2>
-                <p className="workspace-title">
-                  Flujo principal de clandestinos: validar clave, completar ficha, adjuntar evidencia, generar aviso y dar seguimiento.
-                </p>
-              </div>
-              <div className="records-main-actions">
-                <Button type="button" variant="outline" onClick={() => setRecordsFocusMode(true)}>
-                  <Icon name="records" />
-                  Modo Fichas
-                </Button>
-                <Button type="button" onClick={resetForm}>
-                  <Icon name="plus" />
-                  Nueva ficha
-                </Button>
-                <Button type="button" variant="outline" onClick={openPrintBatchModal}>
-                  <Icon name="records" />
-                  Imprimir
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowRecordPreview((current) => !current)}
-                >
-                  <Icon name="records" />
-                  {showRecordPreview ? "Ocultar vista" : "Vista previa"}
-                </Button>
-              </div>
-            </div>
-            <div className={`record-flow-panel ${selectedRecordFlow.tone}`}>
-              <div>
-                <span className="record-flow-label">{selectedRecordFlow.label}</span>
-                <strong>{selectedRecordFlow.title}</strong>
-                <p>{selectedRecordFlow.detail}</p>
-              </div>
-              <div className="record-flow-actions">
-                <Button type="button" onClick={selectedRecordFlow.action} disabled={loadingAviso}>
-                  {selectedRecordFlow.primary}
-                </Button>
-                {selectedRecordFlow.secondary ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={selectedRecordFlow.secondaryAction}
-                    disabled={loadingAviso || Boolean(processingRecordId)}
-                  >
-                    {selectedRecordFlow.secondary}
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-            <div className="pending-tray" aria-label="Bandeja de pendientes">
-              {pendingWorkflowBuckets.map((bucket) => (
-                <button
-                  key={bucket.key}
-                  type="button"
-                  className="pending-card"
-                  onClick={() => {
-                    if (bucket.key === "archived" && isAdmin) {
-                      setRecordView("archived");
-                    } else {
-                      setRecordView("active");
-                    }
-                    setRecordQuickFilter(bucket.filter);
-                    setRecordPage(1);
-                  }}
-                >
-                  <span>{bucket.title}</span>
-                  <strong>{bucket.count}</strong>
-                  <small>{bucket.helper}</small>
-                </button>
-              ))}
-            </div>
-          </section>
+          <RecordsWorkspaceHeader
+            selectedFlow={selectedRecordFlow}
+            pendingBuckets={pendingWorkflowBuckets}
+            loadingAviso={loadingAviso}
+            processingRecordId={processingRecordId}
+            showPreview={showRecordPreview}
+            onNew={resetForm}
+            onPrint={openPrintBatchModal}
+            onTogglePreview={() => setShowRecordPreview((current) => !current)}
+            onSelectBucket={(bucket) => {
+              setRecordView(bucket.key === "archived" && isAdmin ? "archived" : "active");
+              setRecordQuickFilter(bucket.filter);
+              setRecordPage(1);
+            }}
+          />
 
           {lastProcessedRecord ? (
             <div className="processed-record-notice no-print" role="status">
