@@ -48,3 +48,6 @@ export const generatePassword = (length = 8) => {
 };
 
 export const generateToken = () => crypto.randomBytes(32).toString(HASH_ENCODING);
+
+export const hashToken = (token) =>
+  crypto.createHash("sha256").update(String(token || "")).digest(HASH_ENCODING);

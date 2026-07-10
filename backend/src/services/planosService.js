@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
+import { assertUploadedPdf } from "../utils/fileValidation.js";
 import { createAuditLog } from "./auditService.js";
 
 const memory = {
@@ -116,7 +117,7 @@ const normalizeBarrio = (payload = {}, filePath = "") => {
 
 export const savePlanoPdf = async (file) => {
   if (!file?.buffer?.length) return "";
-  if (file.mimetype && file.mimetype !== "application/pdf") fail("Solo se permiten planos en PDF.");
+  assertUploadedPdf(file);
   await fs.mkdir(env.uploadDir, { recursive: true });
   const baseName = normalizeText(file.originalname, "plano")
     .replace(/\.pdf$/i, "")

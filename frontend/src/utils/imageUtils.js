@@ -1,3 +1,5 @@
+import { FILES_URL } from "../config/api.js";
+
 const loadImageFromFile = (file) =>
   new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
@@ -71,7 +73,12 @@ export const optimizeImageForUpload = async (file) => {
 };
 
 export const urlToDataUrl = async (url) => {
-  const response = await fetch(url, { cache: "no-store" });
+  const targetOrigin = new URL(url, window.location.href).origin;
+  const filesOrigin = new URL(FILES_URL || window.location.href, window.location.href).origin;
+  const response = await fetch(url, {
+    cache: "no-store",
+    credentials: targetOrigin === filesOrigin ? "include" : "omit"
+  });
   const blob = await response.blob();
 
   return new Promise((resolve, reject) => {

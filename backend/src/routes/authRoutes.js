@@ -1,14 +1,23 @@
 import { Router } from "express";
-import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
-import { changeOwnPassword, loginUser, logoutAllSessions, logoutUser } from "../services/authService.js";
+import {
+  clearMediaSessionCookie,
+  requireAdmin,
+  requireAuth,
+  setMediaSessionCookie
+} from "../middleware/authMiddleware.js";
+import { clearLoginFailures, limitLoginAttempts, recordLoginFailure } from "../middleware/loginRateLimit.js";
+import { changeOwnPassword, getSessionUser, loginUser, logoutAllSessions, logoutUser } from "../services/authService.js";
 
 const router = Router();
 
-router.post("/login", async (req, res, next) => {
+router.post("/login", limitLoginAttempts, async (req, res, next) => {
   try {
     const session = await loginUser(req.body ?? {});
+    clearLoginFailures(req);
+    setMediaSessionCookie(res, session.token);
     res.json(session);
   } catch (error) {
+    if (error.status === 401) recordLoginFailure(req);
     next(error);
   }
 });
@@ -16,6 +25,7 @@ router.post("/login", async (req, res, next) => {
 router.post("/logout", requireAuth, async (req, res, next) => {
   try {
     await logoutUser(req.authToken, req.authUser);
+    clearMediaSessionCookie(res);
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -24,10 +34,10 @@ router.post("/logout", requireAuth, async (req, res, next) => {
 
 router.post("/logout-on-exit", async (req, res, next) => {
   try {
-    await logoutUser(req.body?.token, {
-      id: req.body?.user?.id ?? null,
-      username: req.body?.user?.username ?? "usuario"
-    });
+    const token = req.body?.token ?? "";
+    const user = await getSessionUser(token);
+    if (user) await logoutUser(token, user);
+    clearMediaSessionCookie(res);
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -37,6 +47,7 @@ router.post("/logout-on-exit", async (req, res, next) => {
 router.post("/logout-all", requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const closedSessions = await logoutAllSessions(req.authUser);
+    clearMediaSessionCookie(res);
     res.json({ ok: true, closedSessions });
   } catch (error) {
     next(error);

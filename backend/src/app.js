@@ -5,7 +5,7 @@ import path from "node:path";
 import { getDatabaseStatus } from "./config/db.js";
 import { env } from "./config/env.js";
 import { getMapTileHandler } from "./controllers/mapTileController.js";
-import { requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
+import { requireAdmin, requireAuth, requireMediaAuth } from "./middleware/authMiddleware.js";
 import barrioCodeRoutes from "./routes/barrioCodeRoutes.js";
 import claveLookupRoutes from "./routes/claveLookupRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -20,6 +20,8 @@ import transportRoutes from "./routes/transportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
+app.disable("x-powered-by");
+if (env.isRailway) app.set("trust proxy", 1);
 const localOrigins = env.isRailway ? [] : ["http://127.0.0.1:5173", "http://localhost:5173"];
 const productionOrigins = env.isRailway ? ["https://www.controlaguas.com", "https://controlaguas.com"] : [];
 const allowedOrigins = new Set([...env.frontendUrls, ...localOrigins, ...productionOrigins]);
@@ -50,6 +52,16 @@ if (frontendDistAvailable) {
   });
 }
 
+app.use((_req, res, next) => {
+  res.set({
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(self), geolocation=(self), microphone=()"
+  });
+  next();
+});
+
 app.use(
   cors((req, callback) => {
     const origin = req.headers.origin;
@@ -60,7 +72,7 @@ app.use(
     const allowByRailwayFallback = env.isRailway && (allowedOrigins.size === 0 || sameHost);
 
     if (!origin || allowedOrigins.has(origin) || sameHost || allowByRailwayFallback) {
-      callback(null, { origin: true });
+      callback(null, { origin: true, credentials: true });
       return;
     }
 
@@ -68,10 +80,11 @@ app.use(
   })
 );
 app.use(express.json());
-app.use("/uploads", express.static(env.uploadDir));
-app.use("/api/uploads", express.static(env.uploadDir));
-app.use("/planos-pdf", express.static(planosPdfDir));
-app.use("/api/planos-pdf", express.static(planosPdfDir));
+const privateAssetHeaders = (res) => res.setHeader("Cache-Control", "private, max-age=300");
+app.use("/uploads", requireMediaAuth, express.static(env.uploadDir, { setHeaders: privateAssetHeaders }));
+app.use("/api/uploads", requireMediaAuth, express.static(env.uploadDir, { setHeaders: privateAssetHeaders }));
+app.use("/planos-pdf", requireMediaAuth, express.static(planosPdfDir, { setHeaders: privateAssetHeaders }));
+app.use("/api/planos-pdf", requireMediaAuth, express.static(planosPdfDir, { setHeaders: privateAssetHeaders }));
 
 app.get("/api/health", (_req, res) => {
   const db = getDatabaseStatus();
@@ -79,7 +92,7 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     mode: db.mode,
     dbReady: db.ready,
-    dbError: db.lastError
+    dbError: env.isProduction ? undefined : db.lastError
   });
 });
 

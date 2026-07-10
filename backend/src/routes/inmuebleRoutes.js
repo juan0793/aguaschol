@@ -14,7 +14,7 @@ import {
   uploadPhoto
 } from "../controllers/inmuebleController.js";
 import { requireAdmin } from "../middleware/authMiddleware.js";
-import { upload } from "../middleware/upload.js";
+import { imageUpload } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -29,6 +29,6 @@ router.post("/:id/mark-printed", markPrinted);
 router.post("/:id/archive", archive);
 router.post("/:id/restore", requireAdmin, restore);
 router.delete("/:id", requireAdmin, deleteArchived);
-router.post("/:id/foto", upload.single("foto"), uploadPhoto);
+router.post("/:id/foto", imageUpload.single("foto"), uploadPhoto);
 
 export default router;

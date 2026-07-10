@@ -3682,6 +3682,7 @@ function App() {
     return fetch(`${API_URL}${path}`, {
       ...options,
       cache: options.cache ?? "no-store",
+      credentials: options.credentials ?? "include",
       headers
     });
   }, [session?.token]);
@@ -9020,6 +9021,7 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },

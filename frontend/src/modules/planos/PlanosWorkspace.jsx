@@ -80,6 +80,14 @@ const sortDraftsFirst = (items = []) => [...items].sort((a, b) => {
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const toAssetUrl = (value = "") => (/^https?:\/\//i.test(value) ? value : value ? `${API_URL}${value}` : "");
+const usesApiCredentials = (value = "") => {
+  try {
+    return new URL(value, window.location.href).origin === new URL(API_URL, window.location.href).origin;
+  } catch {
+    return false;
+  }
+};
+const fetchAsset = (url) => fetch(url, { credentials: usesApiCredentials(url) ? "include" : "omit" });
 const isPdf = (value = "") => /\.pdf($|\?)/i.test(value);
 const clampZoom = (value) => Math.min(12, Math.max(0.2, Number(value.toFixed(3))));
 const snapPoint = (start, end) => {
@@ -115,7 +123,7 @@ const normalizeElements = (elements = []) =>
 
 const loadImage = (src) => new Promise((resolve, reject) => {
   const image = new window.Image();
-  image.crossOrigin = "anonymous";
+  image.crossOrigin = usesApiCredentials(src) ? "use-credentials" : "anonymous";
   image.onload = () => resolve(image);
   image.onerror = reject;
   image.src = src;
@@ -124,7 +132,7 @@ const loadImage = (src) => new Promise((resolve, reject) => {
 const renderCroquisBackground = async (baseUrl) => {
   if (isPdf(baseUrl)) {
     const pdfjsLib = await loadPdfJs();
-    const bytes = await fetch(baseUrl).then((response) => {
+    const bytes = await fetchAsset(baseUrl).then((response) => {
       if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
       return response.arrayBuffer();
     });
@@ -182,7 +190,7 @@ const buildCroquisPdfBlob = async ({ barrio, elements, layers = [], renderWidth,
   if (!baseUrl) throw new Error("Este croquis no tiene plano base para exportar.");
   let args;
   if (isPdf(baseUrl)) {
-    const pdfBytes = await fetch(baseUrl).then((response) => {
+    const pdfBytes = await fetchAsset(baseUrl).then((response) => {
       if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
       return response.arrayBuffer();
     });
@@ -267,7 +275,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     (async () => {
       if (!isPdf(baseUrl)) {
         const image = new window.Image();
-        image.crossOrigin = "anonymous";
+        image.crossOrigin = usesApiCredentials(baseUrl) ? "use-credentials" : "anonymous";
         image.onload = () => {
           const next = { image, width: image.naturalWidth || 1000, height: image.naturalHeight || 700 };
           pdfBackgroundCache.set(baseUrl, next);
@@ -277,7 +285,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
         return;
       }
       const pdfjsLib = await loadPdfJs();
-      const bytes = await fetch(baseUrl).then((response) => {
+      const bytes = await fetchAsset(baseUrl).then((response) => {
         if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
         return response.arrayBuffer();
       });

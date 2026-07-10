@@ -10,6 +10,7 @@ const isRailway =
   Boolean(process.env.RAILWAY_ENVIRONMENT) ||
   Boolean(process.env.RAILWAY_PROJECT_ID) ||
   Boolean(process.env.RAILWAY_SERVICE_ID);
+const isProduction = isRailway || process.env.NODE_ENV === "production";
 
 const parseDatabaseUrl = (value) => {
   if (!value) {
@@ -42,6 +43,7 @@ const frontendUrls = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? f
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   isRailway,
+  isProduction,
   frontendUrl: frontendUrls[0] ?? "",
   frontendUrls,
   dbHost: process.env.DB_HOST ?? process.env.MYSQLHOST ?? databaseUrlConfig.dbHost ?? (isRailway ? "" : "localhost"),
@@ -65,9 +67,11 @@ export const env = {
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET ?? "",
   cloudinaryFolder: process.env.CLOUDINARY_FOLDER ?? "aguas-clandestinos",
   authUsername: process.env.AUTH_USERNAME ?? "admin",
-  authPassword: process.env.AUTH_PASSWORD ?? "abcd123",
+  authPassword: process.env.AUTH_PASSWORD ?? (isProduction ? "" : "abcd123"),
   authSeedName: process.env.AUTH_SEED_NAME ?? "Administrador General",
   authSessionDays: Number(process.env.AUTH_SESSION_DAYS ?? 7),
+  authLoginMaxAttempts: Number(process.env.AUTH_LOGIN_MAX_ATTEMPTS ?? 5),
+  authLoginWindowMinutes: Number(process.env.AUTH_LOGIN_WINDOW_MINUTES ?? 15),
   emailProvider: process.env.EMAIL_PROVIDER ?? "brevo",
   emailFrom: process.env.EMAIL_FROM ?? "",
   emailFromName: process.env.EMAIL_FROM_NAME ?? "Aguas de Choluteca",
@@ -86,3 +90,9 @@ export const env = {
 };
 
 env.useCloudinary = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);
+
+export const validateRuntimeEnv = (config = env) => {
+  if (config.isProduction && !String(config.authPassword || "").trim()) {
+    throw new Error("AUTH_PASSWORD es obligatoria en produccion.");
+  }
+};

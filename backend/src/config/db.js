@@ -737,6 +737,10 @@ const ensureDefaultAdminUser = async () => {
       return;
     }
 
+    if (!env.authPassword) {
+      throw createConfigError("AUTH_PASSWORD es obligatoria para crear el usuario administrador inicial.");
+    }
+
     const passwordHash = await hashPassword(env.authPassword);
     await admin.query(
       `

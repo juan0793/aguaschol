@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { v2 as cloudinary } from "cloudinary";
 import { env } from "../config/env.js";
+import { assertUploadedImage } from "../utils/fileValidation.js";
 
 if (env.useCloudinary) {
   cloudinary.config({
@@ -20,22 +21,6 @@ const sanitizeBaseName = (value = "") =>
     .replace(/\.[^.]+$/, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "fotografia";
-
-const inferExtension = (file) => {
-  const originalExt = path.extname(file?.originalname ?? "");
-  if (originalExt) return originalExt.toLowerCase();
-  if (file?.mimetype === "image/png") return ".png";
-  if (file?.mimetype === "image/webp") return ".webp";
-  return ".jpg";
-};
-
-const inferMimeType = (file) => {
-  if (file?.mimetype) return file.mimetype;
-  const ext = inferExtension(file);
-  if (ext === ".png") return "image/png";
-  if (ext === ".webp") return "image/webp";
-  return "image/jpeg";
-};
 
 const buildCloudinaryPublicId = (file) => {
   const baseName = sanitizeBaseName(file?.originalname);
@@ -75,11 +60,7 @@ const getCloudinaryPublicIdFromUrl = (photoPath = "") => {
 };
 
 export const saveUploadedPhoto = async (file) => {
-  if (!file?.buffer?.length) {
-    const error = new Error("No se recibio una fotografia valida para guardar.");
-    error.status = 400;
-    throw error;
-  }
+  const imageType = assertUploadedImage(file);
 
   if (env.useCloudinary) {
     const publicId = buildCloudinaryPublicId(file);
@@ -111,7 +92,7 @@ export const saveUploadedPhoto = async (file) => {
   }
 
   await fs.mkdir(env.uploadDir, { recursive: true });
-  const extension = inferExtension(file);
+  const extension = imageType.extension;
   const fileName = `${Date.now()}-${sanitizeBaseName(file.originalname)}${extension}`;
   const absolutePath = path.join(env.uploadDir, fileName);
   await fs.writeFile(absolutePath, file.buffer);
@@ -142,5 +123,3 @@ export const deleteStoredPhoto = async (photoPath = "") => {
 };
 
 export const getStorageModeLabel = () => (env.useCloudinary ? "cloudinary" : "local");
-
-export const getDefaultPhotoMimeType = inferMimeType;

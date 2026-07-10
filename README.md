@@ -197,6 +197,8 @@ USE_MEMORY_DB=false
 AUTH_USERNAME=admin
 AUTH_PASSWORD=cambia-esta-clave
 AUTH_SEED_NAME=Administrador General
+AUTH_LOGIN_MAX_ATTEMPTS=5
+AUTH_LOGIN_WINDOW_MINUTES=15
 EMAIL_PROVIDER=brevo
 EMAIL_FROM=
 EMAIL_FROM_NAME=Aguas de Choluteca
@@ -212,6 +214,14 @@ LLM_MODEL=openai/gpt-oss-20b:free
 LLM_APP_NAME=Aguas de Choluteca
 LLM_SITE_URL=
 LLM_TIMEOUT_MS=25000
+```
+
+`AUTH_PASSWORD` es obligatoria en produccion. El backend no inicia si falta.
+
+Pruebas de seguridad y servicios backend:
+
+```bash
+npm --prefix backend test
 ```
 
 Opciones de base de datos:

@@ -16,13 +16,13 @@ import {
   updatePlanoElementHandler,
   updatePlanoBarrioHandler
 } from "../controllers/planosController.js";
-import { upload } from "../middleware/upload.js";
+import { pdfUpload } from "../middleware/upload.js";
 
 const router = Router();
 
 router.get("/barrios", listPlanosBarriosHandler);
-router.post("/barrios", upload.single("pdf"), createPlanoBarrioHandler);
-router.put("/barrios/:id", upload.single("pdf"), updatePlanoBarrioHandler);
+router.post("/barrios", pdfUpload.single("pdf"), createPlanoBarrioHandler);
+router.put("/barrios/:id", pdfUpload.single("pdf"), updatePlanoBarrioHandler);
 router.post("/asignaciones", assignPlanoBarrioHandler);
 router.get("/asignaciones/mias", listMyPlanoAssignmentsHandler);
 router.get("/revision/pendientes", listPendingPlanoReviewsHandler);
@@ -30,7 +30,7 @@ router.get("/versiones", listPlanoVersionsHandler);
 router.post("/versiones/:versionId/aprobar", reviewPlanoVersionHandler("aprobar"));
 router.post("/versiones/:versionId/devolver", reviewPlanoVersionHandler("devolver"));
 router.post("/versiones/:versionId/publicar", reviewPlanoVersionHandler("publicar"));
-router.post("/versiones/:versionId/pdf-final", upload.single("pdf"), savePlanoFinalPdfHandler);
+router.post("/versiones/:versionId/pdf-final", pdfUpload.single("pdf"), savePlanoFinalPdfHandler);
 router.put("/elementos/:id", updatePlanoElementHandler);
 router.delete("/elementos/:id", deletePlanoElementHandler);
 router.get("/:barrioId/elementos", listPlanoElementsHandler);

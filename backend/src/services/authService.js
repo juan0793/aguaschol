@@ -1,7 +1,7 @@
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { env } from "../config/env.js";
-import { generateToken, hashPassword, verifyPassword } from "../utils/password.js";
+import { generateToken, hashPassword, hashToken, verifyPassword } from "../utils/password.js";
 
 const sanitizeUser = (user) => ({
   id: user.id,
@@ -48,6 +48,7 @@ export const loginUser = async ({ username, password }) => {
   }
 
   const token = generateToken();
+  const storedToken = hashToken(token);
   const sessionDays = Math.max(env.authSessionDays, 1);
 
   await pool.query(
@@ -55,7 +56,7 @@ export const loginUser = async ({ username, password }) => {
       INSERT INTO auth_sessions (user_id, token, expires_at)
       VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? DAY))
     `,
-    [user.id, token, sessionDays]
+    [user.id, storedToken, sessionDays]
   );
   await pool.query("UPDATE app_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", [user.id]);
 
@@ -63,7 +64,7 @@ export const loginUser = async ({ username, password }) => {
     actorUserId: user.id,
     action: "auth.login",
     entityType: "session",
-    entityId: token.slice(0, 12),
+    entityId: storedToken.slice(0, 12),
     summary: `Inicio de sesion de ${user.username}`
   });
 
@@ -77,13 +78,14 @@ export const logoutUser = async (token, actorUser) => {
   if (!token) return;
 
   const pool = getPool();
-  await pool.query("DELETE FROM auth_sessions WHERE token = ?", [token]);
+  const storedToken = hashToken(token);
+  await pool.query("DELETE FROM auth_sessions WHERE token IN (?, ?)", [storedToken, token]);
 
   await createAuditLog({
     actorUserId: actorUser?.id ?? null,
     action: "auth.logout",
     entityType: "session",
-    entityId: token.slice(0, 12),
+    entityId: storedToken.slice(0, 12),
     summary: `Cierre de sesion de ${actorUser?.username ?? "usuario"}`
   });
 };
@@ -188,7 +190,10 @@ export const changeOwnPassword = async ({ userId, currentPassword, newPassword }
 };
 
 export const getSessionUser = async (token) => {
+  if (!token) return null;
+
   const pool = getPool();
+  const storedToken = hashToken(token);
   const [rows] = await pool.query(
     `
       SELECT
@@ -204,12 +209,12 @@ export const getSessionUser = async (token) => {
         app_users.last_login_at
       FROM auth_sessions
       INNER JOIN app_users ON app_users.id = auth_sessions.user_id
-      WHERE auth_sessions.token = ?
+      WHERE auth_sessions.token IN (?, ?)
         AND auth_sessions.expires_at > NOW()
         AND app_users.is_active = 1
       LIMIT 1
     `,
-    [token]
+    [storedToken, token]
   );
 
   return rows[0] ? sanitizeUser(rows[0]) : null;
