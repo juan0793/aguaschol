@@ -4846,6 +4846,7 @@ function App() {
 
   useEffect(() => {
     setShowMobileModuleMenu(false);
+    window.scrollTo(0, 0);
   }, [workspaceView]);
 
   useEffect(() => {

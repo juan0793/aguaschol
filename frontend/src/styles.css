@@ -15705,10 +15705,16 @@ select:focus {
   }
 
   .records-view > .sidebar.shadcn-records-sidebar {
+    order: -2;
     height: auto;
     max-height: none;
     overflow: visible;
     position: static;
+  }
+
+  .records-view .records-workspace-header {
+    order: -1;
+    grid-row: auto;
   }
 
   .records-sidebar-controls .records-advanced-filters {
@@ -25734,27 +25740,27 @@ body {
 }
 
 .app-chrome {
-  gap: 0.75rem !important;
-  padding-top: 0.7rem !important;
+  gap: 0.5rem !important;
+  padding-top: 0.45rem !important;
   background: linear-gradient(180deg, rgba(236, 244, 251, 0.94), rgba(236, 244, 251, 0.78)) !important;
 }
 
 .app-topbar {
-  min-height: 74px !important;
+  min-height: 60px !important;
   grid-template-columns: auto minmax(260px, 1fr) minmax(360px, auto) auto !important;
-  padding: 0.65rem 0.9rem !important;
+  padding: 0.4rem 0.7rem !important;
   border: 1px solid rgba(30, 94, 137, 0.16) !important;
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 248, 255, 0.94)) !important;
   box-shadow: 0 18px 36px rgba(12, 43, 70, 0.12) !important;
 }
 
 .app-topbar-logo {
-  width: 48px !important;
-  height: 48px !important;
+  width: 38px !important;
+  height: 38px !important;
   padding: 0.25rem;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 8px 18px rgba(15, 76, 117, 0.14);
 }
@@ -25770,8 +25776,8 @@ body {
 }
 
 .app-topbar-kpi {
-  min-height: 36px !important;
-  padding: 0.35rem 0.7rem !important;
+  min-height: 30px !important;
+  padding: 0.25rem 0.55rem !important;
   border-color: rgba(14, 116, 144, 0.14) !important;
   background: #eef7fb !important;
 }
@@ -25812,9 +25818,9 @@ body {
 }
 
 .app-chrome > .search-card {
-  padding: 0.95rem 1rem !important;
+  padding: 0.65rem 0.75rem !important;
   border: 1px solid rgba(30, 94, 137, 0.14) !important;
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   background: rgba(255, 255, 255, 0.94) !important;
   box-shadow: 0 16px 32px rgba(12, 43, 70, 0.08) !important;
 }
@@ -25838,8 +25844,8 @@ body {
 .app-chrome .search-actions button,
 .app-chrome .search-row button,
 .app-chrome .button-secondary {
-  min-height: 40px !important;
-  border-radius: 12px !important;
+  min-height: 36px !important;
+  border-radius: 8px !important;
   font-weight: 850 !important;
 }
 
@@ -25853,25 +25859,25 @@ body {
 }
 
 .dashboard-main {
-  gap: 1.25rem !important;
+  gap: 0.9rem !important;
 }
 
 .dashboard-live-header {
-  min-height: 230px !important;
-  padding: clamp(1.25rem, 2.6vw, 2rem) !important;
+  min-height: 0 !important;
+  padding: 1rem !important;
   border: 1px solid rgba(198, 231, 255, 0.2) !important;
-  border-radius: 26px !important;
+  border-radius: 14px !important;
   background:
     linear-gradient(135deg, rgba(5, 31, 52, 0.98), rgba(8, 81, 125, 0.96) 46%, rgba(20, 118, 112, 0.94)) !important;
   box-shadow: 0 24px 56px rgba(5, 31, 52, 0.28) !important;
 }
 
 .dashboard-live-header::after {
-  opacity: 0.45 !important;
+  display: none;
 }
 
 .dashboard-live-header strong {
-  font-size: clamp(2.8rem, 5vw, 4.2rem) !important;
+  font-size: clamp(2rem, 3vw, 2.8rem) !important;
 }
 
 .dashboard-live-header small {
@@ -25886,9 +25892,9 @@ body {
 }
 
 .dashboard-refresh-button {
-  min-height: 54px !important;
-  padding-inline: 1.15rem !important;
-  border-radius: 12px !important;
+  min-height: 42px !important;
+  padding-inline: 0.9rem !important;
+  border-radius: 8px !important;
   background: #dff6ff !important;
   color: #0b3f5f !important;
 }
@@ -25898,14 +25904,14 @@ body {
 }
 
 .dashboard-hero-kpi {
-  min-height: 112px !important;
-  padding: 1rem !important;
-  border-radius: 18px !important;
+  min-height: 72px !important;
+  padding: 0.7rem !important;
+  border-radius: 10px !important;
   background: rgba(255, 255, 255, 0.13) !important;
 }
 
 .dashboard-hero-kpi strong {
-  font-size: clamp(2.2rem, 5vw, 3rem) !important;
+  font-size: clamp(1.5rem, 3vw, 2rem) !important;
 }
 
 .dashboard-online-rail,
@@ -26021,22 +26027,16 @@ body {
 
 @media (max-width: 1380px) and (min-width: 769px) {
   .app-topbar {
-    grid-template-columns: minmax(220px, 1fr) auto !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
   }
 
-  .app-topbar-brand {
-    grid-column: 1;
-  }
-
+  .app-topbar-brand,
   .app-topbar-session {
-    grid-column: 2;
+    grid-column: auto;
   }
 
   .app-topbar-kpis {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    flex-wrap: wrap;
-    overflow: visible !important;
+    display: none;
   }
 }
 
@@ -26068,23 +26068,45 @@ body {
   }
 
   .app-topbar {
+    min-height: 52px !important;
     grid-template-columns: auto minmax(0, 1fr) !important;
-    border-radius: 0 0 18px 18px !important;
+    padding: 0.35rem 0.5rem !important;
+    border-radius: 0 0 10px 10px !important;
   }
 
-  .app-topbar-kpis,
   .app-topbar-session {
     grid-column: 1 / -1;
   }
 
   .app-topbar-kpis {
-    width: 100%;
-    flex-wrap: nowrap;
-    overflow-x: auto !important;
+    display: none;
   }
 
   .app-chrome > .search-card {
     width: 100% !important;
+  }
+
+  .app-chrome .search-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 0.4rem;
+  }
+
+  .app-chrome .search-row button {
+    width: auto !important;
+  }
+
+  .app-chrome .search-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .app-chrome .search-actions button,
+  .app-chrome .search-actions .button-secondary {
+    flex: 0 0 auto;
+    width: auto !important;
+    min-width: max-content !important;
+    white-space: nowrap !important;
   }
 
   .dashboard-live-header {
@@ -26102,7 +26124,8 @@ body {
       "copy"
       "actions"
       "kpis" !important;
-    border-radius: 20px !important;
+    padding: 0.85rem !important;
+    border-radius: 12px !important;
   }
 
   .dashboard-live-header > *,
