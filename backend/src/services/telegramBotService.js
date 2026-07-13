@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../config/env.js";
+import { searchClaveCatastral } from "./claveLookupService.js";
 import { findByAbonadoOrClave } from "./inmuebleService.js";
 
 const fields = [
@@ -44,6 +45,37 @@ const display = (value) => {
 
 export const formatInmuebleForTelegram = (record) =>
   ["INFORMACIÓN DEL INMUEBLE", ...fields.map(([key, label]) => `${label}: ${display(record[key])}`)].join("\n");
+
+const serviceStatus = (value) => ({ S: "Sí", N: "No" })[String(value ?? "").toUpperCase()] ?? display(value);
+const money = (value) =>
+  new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL" }).format(Number(value) || 0);
+
+export const formatPadronForTelegram = (record) =>
+  [
+    "INFORMACIÓN DEL PADRÓN DE AGUAS",
+    `Clave catastral: ${display(record.clave_catastral)}`,
+    `Abonado: ${display(record.abonado)}`,
+    `Nombre: ${display(record.nombre)}`,
+    `Inquilino: ${display(record.inquilino)}`,
+    `Barrio o colonia: ${display(record.barrio_colonia)}`,
+    `Agua potable: ${serviceStatus(record.agua)}`,
+    `Alcantarillado: ${serviceStatus(record.alcantarillado)}`,
+    `Barrido: ${serviceStatus(record.barrido)}`,
+    `Recolección: ${serviceStatus(record.recoleccion)}`,
+    `Desechos peligrosos: ${serviceStatus(record.desechos_peligrosos)}`,
+    `Valor: ${money(record.valor)}`,
+    `Intereses: ${money(record.intereses)}`,
+    `Total: ${money(record.total)}`
+  ].join("\n");
+
+export const findPadronForTelegram = async (query) => {
+  const digits = query.replace(/\D/g, "");
+  const field = query.includes("-") || digits.length >= 6 ? "clave" : "abonado";
+  const result = await searchClaveCatastral(query, { field });
+  return field === "abonado"
+    ? result.matches.filter((record) => String(record.abonado) === digits)
+    : result.matches;
+};
 
 export const splitTelegramMessage = (text, limit = 3900) =>
   Array.from({ length: Math.ceil(text.length / limit) }, (_, index) =>
@@ -101,10 +133,15 @@ const handleMessage = async (message) => {
     return;
   }
 
-  const records = await findByAbonadoOrClave(query);
-  if (!records.length) {
+  const padronRecords = await findPadronForTelegram(query);
+  const records = await findByAbonadoOrClave(query).catch(() => []);
+  if (!padronRecords.length && !records.length) {
     await sendText(chatId, "No se encontró un inmueble con ese abonado o clave catastral.");
     return;
+  }
+
+  for (const record of padronRecords) {
+    await sendText(chatId, formatPadronForTelegram(record));
   }
 
   for (const record of records) {

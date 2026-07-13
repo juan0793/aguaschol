@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatInmuebleForTelegram, splitTelegramMessage } from "./telegramBotService.js";
-import { findByAbonadoOrClave } from "./inmuebleService.js";
+import {
+  findPadronForTelegram,
+  formatInmuebleForTelegram,
+  formatPadronForTelegram,
+  splitTelegramMessage
+} from "./telegramBotService.js";
 
 test("formatea la ficha y divide mensajes sin perder contenido", () => {
   const text = formatInmuebleForTelegram({ clave_catastral: "10-22-23", abonado: "456" });
@@ -13,8 +17,10 @@ test("formatea la ficha y divide mensajes sin perder contenido", () => {
   assert.ok(chunks.every((chunk) => chunk.length <= 120));
 });
 
-test("encuentra la misma ficha por abonado o clave", async () => {
-  const byAbonado = await findByAbonadoOrClave("12345");
-  const byClave = await findByAbonadoOrClave("10-22-23");
-  assert.equal(byAbonado[0].id, byClave[0].id);
+test("consulta el padrón real por abonado o clave", async () => {
+  const byAbonado = await findPadronForTelegram("1223");
+  const byClave = await findPadronForTelegram("09-02-03");
+  assert.equal(byAbonado[0].clave_catastral, "10-24-06-02");
+  assert.ok(byClave.some((record) => record.abonado === "3421"));
+  assert.match(formatPadronForTelegram(byAbonado[0]), /Total:.*1[,.]430/);
 });

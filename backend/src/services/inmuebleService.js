@@ -10,7 +10,7 @@ const memoryRecords = [
   {
     id: 1,
     clave_catastral: "10-22-23",
-    abonado: "12345",
+    abonado: "",
     nombre_catastral: "10-22-23",
     inquilino: "",
     barrio_colonia: "Barrio San Juan Bosco",
