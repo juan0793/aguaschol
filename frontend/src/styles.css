@@ -26595,3 +26595,97 @@ body {
   .telegram-add-form button,
   .telegram-chat-actions button { width: 100%; justify-content: center; }
 }
+
+/* Cartera del padron por barrio y servicio */
+.stats-modal-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.request-summary-card.is-debt-total {
+  border-color: rgba(12, 112, 95, 0.22);
+  background: linear-gradient(145deg, #ecfdf5, #f7fffb);
+}
+
+.request-summary-card.is-debt-total strong {
+  color: #0c705f;
+  font-size: clamp(1rem, 1.4vw, 1.35rem);
+  overflow-wrap: anywhere;
+}
+
+.request-summary-card.is-debt-total small {
+  color: #4d756d;
+  font-weight: 700;
+}
+
+.request-chart-debt {
+  color: #0c705f !important;
+  font-weight: 850 !important;
+}
+
+.stats-modal-body .request-chart-card.is-wide.aguas-debt-table-card {
+  grid-column: 1 / -1;
+  gap: 0.8rem;
+}
+
+.aguas-debt-table-wrap {
+  max-height: 48vh;
+  overflow: auto;
+  border: 1px solid rgba(13, 77, 134, 0.12);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.aguas-debt-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #183b5a;
+  font-size: 0.76rem;
+}
+
+.aguas-debt-table th,
+.aguas-debt-table td {
+  padding: 0.58rem 0.62rem;
+  border-bottom: 1px solid #e5eef6;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.aguas-debt-table th:first-child,
+.aguas-debt-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 190px;
+  background: inherit;
+  text-align: left;
+}
+
+.aguas-debt-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #0d659e;
+  color: #fff;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.aguas-debt-table thead th:first-child {
+  z-index: 3;
+  background: #0a527f;
+}
+
+.aguas-debt-table tbody tr:nth-child(even) { background: #f7fbfe; }
+.aguas-debt-table tbody tr:hover { background: #eef9f5; }
+.aguas-debt-table tbody td strong { color: #0c705f; }
+
+@media (max-width: 1100px) {
+  .stats-modal-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .stats-modal-summary { grid-template-columns: 1fr; }
+}

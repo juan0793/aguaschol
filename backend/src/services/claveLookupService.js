@@ -956,6 +956,7 @@ export const getAguasServiceReport = async () => {
   // Recargar datos desde disco para evitar caché en múltiples procesos
   reloadMasterRecords();
   
+  const emptyDebt = () => ({ capital: 0, intereses: 0, total: 0, deudores: 0 });
   const emptyServiceTotals = () =>
     Object.fromEntries(
       MASTER_SERVICE_FIELDS.map(([field, label]) => [
@@ -966,11 +967,13 @@ export const getAguasServiceReport = async () => {
           active: 0,
           inactive: 0,
           unknown: 0,
-          percentage: 0
+          percentage: 0,
+          deuda: emptyDebt()
         }
       ])
     );
   const serviceTotals = emptyServiceTotals();
+  const debtTotals = emptyDebt();
   const barriosMap = new Map();
   const profiles = {
     all_core_services: 0,
@@ -984,16 +987,44 @@ export const getAguasServiceReport = async () => {
     const barrioStats = barriosMap.get(barrio) ?? {
       barrio_colonia: barrio,
       total_registros: 0,
+      deuda: emptyDebt(),
       servicios: emptyServiceTotals()
     };
 
     barrioStats.total_registros += 1;
+    const deuda = {
+      capital: Number(record.valor || 0),
+      intereses: Number(record.intereses || 0),
+      total: Number(record.total || 0)
+    };
+    debtTotals.capital += deuda.capital;
+    debtTotals.intereses += deuda.intereses;
+    debtTotals.total += deuda.total;
+    barrioStats.deuda.capital += deuda.capital;
+    barrioStats.deuda.intereses += deuda.intereses;
+    barrioStats.deuda.total += deuda.total;
+    if (deuda.total > 0) {
+      debtTotals.deudores += 1;
+      barrioStats.deuda.deudores += 1;
+    }
 
     MASTER_SERVICE_FIELDS.forEach(([field]) => {
       const value = String(record[field] ?? "").trim().toUpperCase();
       const status = value === "S" ? "active" : value === "N" ? "inactive" : "unknown";
       serviceTotals[field][status] += 1;
       barrioStats.servicios[field][status] += 1;
+      if (status === "active") {
+        serviceTotals[field].deuda.capital += deuda.capital;
+        serviceTotals[field].deuda.intereses += deuda.intereses;
+        serviceTotals[field].deuda.total += deuda.total;
+        barrioStats.servicios[field].deuda.capital += deuda.capital;
+        barrioStats.servicios[field].deuda.intereses += deuda.intereses;
+        barrioStats.servicios[field].deuda.total += deuda.total;
+        if (deuda.total > 0) {
+          serviceTotals[field].deuda.deudores += 1;
+          barrioStats.servicios[field].deuda.deudores += 1;
+        }
+      }
     });
 
     const hasWater = isActiveServiceFlag(record.agua);
@@ -1013,13 +1044,19 @@ export const getAguasServiceReport = async () => {
     Object.values(serviceMap)
       .map((service) => ({
         ...service,
-        percentage: total ? Number(((Number(service.active || 0) / total) * 100).toFixed(1)) : 0
+        percentage: total ? Number(((Number(service.active || 0) / total) * 100).toFixed(1)) : 0,
+        deuda: Object.fromEntries(
+          Object.entries(service.deuda).map(([key, value]) => [key, key === "deudores" ? value : Number(value.toFixed(2))])
+        )
       }))
       .sort((left, right) => right.active - left.active || left.label.localeCompare(right.label, "es"));
 
   const barrios = Array.from(barriosMap.values())
     .map((barrio) => ({
       ...barrio,
+      deuda: Object.fromEntries(
+        Object.entries(barrio.deuda).map(([key, value]) => [key, key === "deudores" ? value : Number(value.toFixed(2))])
+      ),
       servicios: withPercentages(barrio.servicios, barrio.total_registros)
     }))
     .sort((left, right) => right.total_registros - left.total_registros || left.barrio_colonia.localeCompare(right.barrio_colonia, "es"));
@@ -1035,6 +1072,9 @@ export const getAguasServiceReport = async () => {
     summary: {
       total_records: masterRecords.length,
       total_barrios: barrios.length,
+      deuda: Object.fromEntries(
+        Object.entries(debtTotals).map(([key, value]) => [key, key === "deudores" ? value : Number(value.toFixed(2))])
+      ),
       profiles,
       services: withPercentages(serviceTotals, masterRecords.length)
     },

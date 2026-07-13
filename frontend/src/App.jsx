@@ -2637,7 +2637,7 @@ function App() {
     const maxServiceTotal = Math.max(1, ...services.map((service) => Number(service.active || 0)));
     const serviceRows = services.map((service) => ({
       ...service,
-      detail: `${Number(service.active || 0)} con servicio activo, ${Number(service.inactive || 0)} sin servicio`
+      detail: `${Number(service.active || 0)} con servicio activo, deuda asociada ${formatCurrency(service.deuda?.total || 0)}`
     }));
     const barrioRows = barrios
       .map((barrio) => {
@@ -2647,7 +2647,9 @@ function App() {
           total_registros: Number(barrio.total_registros || 0),
           active: Number(service?.active || 0),
           inactive: Number(service?.inactive || 0),
-          percentage: Number(service?.percentage || 0)
+          percentage: Number(service?.percentage || 0),
+          deuda: barrio.deuda || {},
+          deuda_servicio: service?.deuda || {}
         };
       })
       .filter((item) => item.total_registros > 0)
@@ -2665,6 +2667,7 @@ function App() {
       barrios,
       barrioRows,
       selectedService,
+      deuda: padronServiceReport?.summary?.deuda || {},
       totalRecords,
       maxServiceTotal,
       maxBarrioServiceTotal,
@@ -2687,6 +2690,13 @@ function App() {
       String(barrio.barrio_colonia || "").toLowerCase().includes(normalizedFilter)
     );
   }, [aguasServiceBarrioFilter, aguasServiceReportData.barrioRows]);
+  const visibleAguasDebtBarrioRows = useMemo(() => {
+    const normalizedFilter = aguasServiceBarrioFilter.trim().toLowerCase();
+    if (!normalizedFilter) return aguasServiceReportData.barrios;
+    return aguasServiceReportData.barrios.filter((barrio) =>
+      getAguasServiceBarrioName(barrio).toLowerCase().includes(normalizedFilter)
+    );
+  }, [aguasServiceBarrioFilter, aguasServiceReportData.barrios, getAguasServiceBarrioName]);
   const selectedAguasServiceBarrioRows = useMemo(
     () =>
       aguasServiceReportData.barrios.filter((barrio) =>
@@ -5400,6 +5410,15 @@ function App() {
     const printedTotalRecords = onlySelected
       ? barriosToPrint.reduce((total, barrio) => total + Number(barrio.total_registros || 0), 0)
       : aguasServiceReportData.totalRecords;
+    const printedDebt = barriosToPrint.reduce(
+      (totals, barrio) => ({
+        capital: totals.capital + Number(barrio.deuda?.capital || 0),
+        intereses: totals.intereses + Number(barrio.deuda?.intereses || 0),
+        total: totals.total + Number(barrio.deuda?.total || 0),
+        deudores: totals.deudores + Number(barrio.deuda?.deudores || 0)
+      }),
+      { capital: 0, intereses: 0, total: 0, deudores: 0 }
+    );
     const serviceRowsForPrint = aguasServiceReportData.serviceRows.map((service) => {
       if (!onlySelected) return service;
       const scopedTotals = barriosToPrint.reduce(
@@ -5409,10 +5428,16 @@ function App() {
           return {
             active: totals.active + Number(match.active || 0),
             inactive: totals.inactive + Number(match.inactive || 0),
-            unknown: totals.unknown + Number(match.unknown || 0)
+            unknown: totals.unknown + Number(match.unknown || 0),
+            deuda: {
+              capital: totals.deuda.capital + Number(match.deuda?.capital || 0),
+              intereses: totals.deuda.intereses + Number(match.deuda?.intereses || 0),
+              total: totals.deuda.total + Number(match.deuda?.total || 0),
+              deudores: totals.deuda.deudores + Number(match.deuda?.deudores || 0)
+            }
           };
         },
-        { active: 0, inactive: 0, unknown: 0 }
+        { active: 0, inactive: 0, unknown: 0, deuda: { capital: 0, intereses: 0, total: 0, deudores: 0 } }
       );
       return {
         ...service,
@@ -5429,6 +5454,9 @@ function App() {
             <td>${Number(service.inactive || 0)}</td>
             <td>${Number(service.unknown || 0)}</td>
             <td>${Number(service.percentage || 0)}%</td>
+            <td>${escapeHtml(formatCurrency(service.deuda?.capital || 0))}</td>
+            <td>${escapeHtml(formatCurrency(service.deuda?.intereses || 0))}</td>
+            <td>${escapeHtml(formatCurrency(service.deuda?.total || 0))}</td>
           </tr>
         `
       )
@@ -5442,6 +5470,23 @@ function App() {
             <td>${Number(barrio.total_registros || 0)}</td>
             ${["agua", "alcantarillado", "barrido", "recoleccion", "desechos_peligrosos"]
               .map((field) => `<td>${Number(services.find((service) => service.field === field)?.active || 0)}</td>`)
+              .join("")}
+          </tr>
+        `;
+      })
+      .join("");
+    const barrioDebtRows = barriosToPrint
+      .map((barrio) => {
+        const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
+        const serviceDebt = (field) => services.find((service) => service.field === field)?.deuda?.total || 0;
+        return `
+          <tr>
+            <td>${escapeHtml(barrio.barrio_colonia || "Sin barrio")}</td>
+            <td>${escapeHtml(formatCurrency(barrio.deuda?.capital || 0))}</td>
+            <td>${escapeHtml(formatCurrency(barrio.deuda?.intereses || 0))}</td>
+            <td>${escapeHtml(formatCurrency(barrio.deuda?.total || 0))}</td>
+            ${["agua", "alcantarillado", "barrido", "recoleccion", "desechos_peligrosos"]
+              .map((field) => `<td>${escapeHtml(formatCurrency(serviceDebt(field)))}</td>`)
               .join("")}
           </tr>
         `;
@@ -5465,6 +5510,7 @@ function App() {
               <span>Generado: ${generatedAt}</span>
               <span>Registros impresos: ${printedTotalRecords}</span>
               <span>Barrios impresos: ${barriosToPrint.length}</span>
+              <span>Deuda total: ${escapeHtml(formatCurrency(printedDebt.total))}</span>
               <span>Fuente: ${escapeHtml(padronServiceReport?.source?.file_name || "Padron maestro")}</span>
             </div>
           </header>
@@ -5495,6 +5541,9 @@ function App() {
                   <th>Sin servicio</th>
                   <th>Sin dato</th>
                   <th>% activo</th>
+                  <th>Capital asociado</th>
+                  <th>Intereses asociados</th>
+                  <th>Deuda asociada</th>
                 </tr>
               </thead>
               <tbody>${serviceRows}</tbody>
@@ -5521,6 +5570,31 @@ function App() {
               </thead>
               <tbody>${barrioRows}</tbody>
             </table>
+          </section>
+          <section class="field-report-zone census-report-zone">
+            <div class="field-report-zone-head census-report-zone-head">
+              <div>
+                <span class="field-report-zone-kicker">Cartera por barrio</span>
+                <h3>Capital, intereses y deuda asociada a cada servicio activo</h3>
+              </div>
+            </div>
+            <table class="field-report-table census-report-table">
+              <thead>
+                <tr>
+                  <th>Barrio</th>
+                  <th>Capital</th>
+                  <th>Intereses</th>
+                  <th>Total</th>
+                  <th>Agua</th>
+                  <th>Alcantarillado</th>
+                  <th>Barrido</th>
+                  <th>Recoleccion</th>
+                  <th>Desechos peligrosos</th>
+                </tr>
+              </thead>
+              <tbody>${barrioDebtRows}</tbody>
+            </table>
+            <p><strong>Nota:</strong> la deuda por servicio corresponde al total de las cuentas que tienen ese servicio activo; una misma cuenta puede aparecer en varios servicios.</p>
           </section>
         </div>
       `,
@@ -5554,6 +5628,8 @@ function App() {
       const formatPdfInteger = (value) =>
         new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(value || 0));
       const formatPdfPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
+      const formatPdfCurrency = (value) =>
+        new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL" }).format(Number(value || 0));
       const totalBarrios = Number(padronServiceReport?.summary?.total_barrios || 0);
       const sourceName = padronServiceReport?.source?.file_name || "Padron maestro";
       const sourceUpdated = padronServiceReport?.source?.updated_at
@@ -5630,7 +5706,7 @@ function App() {
         ["Total barrios Choluteca", formatPdfInteger(totalBarrios), "Barrios o sectores registrados en el padron maestro."],
         ["Total padron", formatPdfInteger(aguasServiceReportData.totalRecords), "Usuarios registrados en el padron activo."],
         ["Sin servicios base", formatPdfInteger(noCoreServices), "Usuarios sin agua, alcantarillado, barrido ni recoleccion activos."],
-        ["Total general", formatPdfInteger(totalGeneralBarriosSinServicio), "Suma de incidencias de barrios sin servicio por categoria."]
+        ["Deuda total", formatPdfCurrency(aguasServiceReportData.deuda.total), `${formatPdfInteger(aguasServiceReportData.deuda.deudores)} cuentas con deuda.`]
       ];
 
       summaryCards.forEach((card, index) => {
@@ -5731,13 +5807,14 @@ function App() {
 
       autoTable(document, {
         startY: 164,
-        head: [["Servicio", "Barrios sin servicio", "Barrios con servicio", "% barrios con servicio", "Usuarios activos"]],
+        head: [["Servicio", "Barrios sin servicio", "Barrios con servicio", "% barrios con servicio", "Usuarios activos", "Deuda asociada"]],
         body: serviceCoverageRows.map((service) => [
           service.label,
           formatPdfInteger(service.barriosSinServicio),
           formatPdfInteger(service.barriosConServicio),
           formatPdfPercent(service.barrioCoverage),
           formatPdfInteger(service.active),
+          formatPdfCurrency(service.deuda?.total),
         ]),
         theme: "grid",
         styles: { fontSize: 8.8, cellPadding: 2.6, textColor: [24, 55, 82] },
@@ -5797,6 +5874,46 @@ function App() {
         headStyles: { fillColor: [21, 118, 209], textColor: 255 },
         alternateRowStyles: { fillColor: [244, 248, 252] },
         margin: { left: 14, right: 14 },
+        didDrawPage: addFooter
+      });
+
+      document.addPage("letter", "landscape");
+      document.setTextColor(10, 65, 112);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(14);
+      document.text("Totales de deuda por barrio y servicio", 14, 16);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(8);
+      document.setTextColor(74, 96, 120);
+      document.text(
+        "La deuda por servicio corresponde a cuentas con ese servicio activo; una cuenta puede sumar en varios servicios.",
+        14,
+        23
+      );
+
+      autoTable(document, {
+        startY: 30,
+        head: [["Barrio", "Capital", "Intereses", "Total", "Agua", "Alcantarillado", "Barrido", "Recoleccion", "Peligrosos"]],
+        body: aguasServiceReportData.barrios.map((barrio) => {
+          const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
+          const serviceDebt = (field) => services.find((service) => service.field === field)?.deuda?.total || 0;
+          return [
+            barrio.barrio_colonia || "Sin barrio",
+            formatPdfCurrency(barrio.deuda?.capital),
+            formatPdfCurrency(barrio.deuda?.intereses),
+            formatPdfCurrency(barrio.deuda?.total),
+            formatPdfCurrency(serviceDebt("agua")),
+            formatPdfCurrency(serviceDebt("alcantarillado")),
+            formatPdfCurrency(serviceDebt("barrido")),
+            formatPdfCurrency(serviceDebt("recoleccion")),
+            formatPdfCurrency(serviceDebt("desechos_peligrosos"))
+          ];
+        }),
+        theme: "grid",
+        styles: { fontSize: 6.3, cellPadding: 1.5, textColor: [23, 52, 78], overflow: "linebreak" },
+        headStyles: { fillColor: [12, 112, 95], textColor: 255 },
+        alternateRowStyles: { fillColor: [241, 250, 247] },
+        margin: { left: 10, right: 10 },
         didDrawPage: addFooter
       });
 
@@ -17822,6 +17939,11 @@ function App() {
                               <span>Barrios</span>
                               <strong>{padronServiceReport?.summary?.total_barrios ?? 0}</strong>
                             </div>
+                            <div className="request-summary-card is-debt-total">
+                              <span>Deuda total</span>
+                              <strong>{formatCurrency(aguasServiceReportData.deuda.total || 0)}</strong>
+                              <small>{aguasServiceReportData.deuda.deudores || 0} cuentas con deuda</small>
+                            </div>
                           </div>
                           <div className="stats-modal-body">
                             <div className="request-chart-controls" role="group" aria-label="Servicio del padron maestro">
@@ -17856,6 +17978,7 @@ function App() {
                                           <b className="request-chart-value">{service.active}</b>
                                         </div>
                                         <span>{service.percentage}% del padron - {service.inactive} sin servicio</span>
+                                        <span className="request-chart-debt">Deuda asociada: {formatCurrency(service.deuda?.total || 0)}</span>
                                       </div>
                                       <div className="request-chart-track">
                                         <span style={{ width: `${(Number(service.active || 0) / aguasServiceReportData.maxServiceTotal) * 100}%` }} />
@@ -17933,6 +18056,7 @@ function App() {
                                             <b className="request-chart-value">{item.active}</b>
                                           </div>
                                           <span>{item.percentage}% de {item.total_registros} usuarios</span>
+                                          <span className="request-chart-debt">Deuda asociada: {formatCurrency(item.deuda_servicio?.total || 0)}</span>
                                         </div>
                                         <div className="request-chart-track">
                                           <span style={{ width: `${(Number(item.active || 0) / aguasServiceReportData.maxBarrioServiceTotal) * 100}%` }} />
@@ -17944,6 +18068,51 @@ function App() {
                                     <p className="helper-text">No hay barrios para este filtro.</p>
                                   )}
                                 </div>
+                              </section>
+                              <section className="request-chart-card is-wide aguas-debt-table-card">
+                                <div>
+                                  <strong>Totales de deuda por barrio y servicio</strong>
+                                  <span>Capital e intereses del barrio, más la deuda de las cuentas que tienen cada servicio activo.</span>
+                                </div>
+                                <div className="aguas-debt-table-wrap">
+                                  <table className="aguas-debt-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Barrio</th>
+                                        <th>Capital</th>
+                                        <th>Intereses</th>
+                                        <th>Total</th>
+                                        <th>Agua</th>
+                                        <th>Alcantarillado</th>
+                                        <th>Barrido</th>
+                                        <th>Recoleccion</th>
+                                        <th>Peligrosos</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {visibleAguasDebtBarrioRows.map((barrio) => {
+                                        const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
+                                        const serviceDebt = (field) => services.find((service) => service.field === field)?.deuda?.total || 0;
+                                        return (
+                                          <tr key={`debt-${getAguasServiceBarrioName(barrio)}`}>
+                                            <th>{getAguasServiceBarrioName(barrio)}</th>
+                                            <td>{formatCurrency(barrio.deuda?.capital || 0)}</td>
+                                            <td>{formatCurrency(barrio.deuda?.intereses || 0)}</td>
+                                            <td><strong>{formatCurrency(barrio.deuda?.total || 0)}</strong></td>
+                                            <td>{formatCurrency(serviceDebt("agua"))}</td>
+                                            <td>{formatCurrency(serviceDebt("alcantarillado"))}</td>
+                                            <td>{formatCurrency(serviceDebt("barrido"))}</td>
+                                            <td>{formatCurrency(serviceDebt("recoleccion"))}</td>
+                                            <td>{formatCurrency(serviceDebt("desechos_peligrosos"))}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <p className="helper-text">
+                                  Nota: una misma cuenta puede sumar en varios servicios porque el archivo maestro no separa la deuda por concepto facturado.
+                                </p>
                               </section>
                             </div>
                           </div>
