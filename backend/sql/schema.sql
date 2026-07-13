@@ -56,6 +56,23 @@ CREATE TABLE IF NOT EXISTS user_profile_messages (
     ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS telegram_chat_access (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  chat_id VARCHAR(32) NOT NULL UNIQUE,
+  display_name VARCHAR(180) NOT NULL DEFAULT 'Chat de Telegram',
+  username VARCHAR(120) NOT NULL DEFAULT '',
+  chat_type VARCHAR(30) NOT NULL DEFAULT 'private',
+  status ENUM('pending', 'allowed', 'revoked') NOT NULL DEFAULT 'pending',
+  allowed_by INT UNSIGNED NULL,
+  allowed_at TIMESTAMP NULL DEFAULT NULL,
+  last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_telegram_chat_access_allowed_by
+    FOREIGN KEY (allowed_by) REFERENCES app_users(id)
+    ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS profile_general_messages (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sender_user_id INT UNSIGNED NULL,

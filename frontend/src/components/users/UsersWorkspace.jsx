@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../Icon";
 import {
   Dialog,
@@ -8,6 +8,177 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
+
+function TelegramAccessPanel({ apiFetch, formatDateTime, showAlert }) {
+  const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [form, setForm] = useState({ chat_id: "", display_name: "" });
+
+  const loadChats = async () => {
+    try {
+      const response = await apiFetch("/users/telegram-chats");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudieron cargar los accesos de Telegram.");
+      setChats(Array.isArray(data) ? data : []);
+    } catch (error) {
+      showAlert(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadChats();
+  }, []);
+
+  const addChat = async (event) => {
+    event.preventDefault();
+    setSavingId("new");
+    try {
+      const response = await apiFetch("/users/telegram-chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudo autorizar el chat.");
+      setForm({ chat_id: "", display_name: "" });
+      showAlert("Chat de Telegram autorizado.");
+      await loadChats();
+    } catch (error) {
+      showAlert(error.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const changeStatus = async (chat, status) => {
+    setSavingId(chat.id);
+    try {
+      const response = await apiFetch(`/users/telegram-chats/${chat.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudo actualizar el acceso.");
+      setChats((current) => current.map((item) => (item.id === data.id ? data : item)));
+      showAlert(status === "allowed" ? "Acceso de Telegram autorizado." : "Acceso de Telegram revocado.");
+    } catch (error) {
+      showAlert(error.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const removeChat = async (chat) => {
+    if (!window.confirm(`¿Eliminar el chat ${chat.display_name || chat.chat_id}?`)) return;
+    setSavingId(chat.id);
+    try {
+      const response = await apiFetch(`/users/telegram-chats/${chat.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No se pudo eliminar el chat.");
+      setChats((current) => current.filter((item) => item.id !== chat.id));
+      showAlert("Chat eliminado. Si vuelve a escribir, aparecerá como solicitud pendiente.");
+    } catch (error) {
+      showAlert(error.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const counts = chats.reduce(
+    (result, chat) => ({ ...result, [chat.status]: (result[chat.status] || 0) + 1 }),
+    { pending: 0, allowed: 0, revoked: 0 }
+  );
+
+  return (
+    <section className="telegram-access-panel no-print">
+      <div className="telegram-access-head">
+        <div>
+          <p className="sheet-kicker">Bot conectado</p>
+          <h2><Icon name="telegram" className="title-icon" />Accesos de Telegram</h2>
+          <p>Autoriza chats al instante. Los cambios se guardan en MySQL y no requieren un nuevo despliegue.</p>
+        </div>
+        <div className="telegram-access-stats">
+          <span><strong>{counts.pending}</strong> Pendientes</span>
+          <span className="is-allowed"><strong>{counts.allowed}</strong> Autorizados</span>
+          <button type="button" className="button-secondary" onClick={loadChats} disabled={loading}>
+            <Icon name="refresh" />Actualizar
+          </button>
+        </div>
+      </div>
+
+      <form className="telegram-add-form" onSubmit={addChat}>
+        <label>
+          <span>ID del chat</span>
+          <input
+            inputMode="numeric"
+            placeholder="Ej. 123456789"
+            value={form.chat_id}
+            onChange={(event) => setForm((current) => ({ ...current, chat_id: event.target.value }))}
+            required
+          />
+        </label>
+        <label>
+          <span>Nombre para identificarlo</span>
+          <input
+            placeholder="Ej. Supervisor de campo"
+            value={form.display_name}
+            onChange={(event) => setForm((current) => ({ ...current, display_name: event.target.value }))}
+          />
+        </label>
+        <button type="submit" disabled={savingId === "new"}>
+          <Icon name="plus" />{savingId === "new" ? "Agregando..." : "Autorizar chat"}
+        </button>
+      </form>
+
+      <div className="telegram-chat-grid">
+        {loading ? <p className="helper-text">Cargando accesos...</p> : null}
+        {!loading && !chats.length ? (
+          <div className="empty-state telegram-empty-state">
+            <Icon name="telegram" />
+            <h3>Sin chats registrados</h3>
+            <p>Cuando alguien escriba al bot, su solicitud aparecerá aquí automáticamente.</p>
+          </div>
+        ) : null}
+        {chats.map((chat) => (
+          <article key={chat.id} className={`telegram-chat-card is-${chat.status}`}>
+            <div className="telegram-chat-icon"><Icon name="telegram" /></div>
+            <div className="telegram-chat-copy">
+              <div>
+                <strong>{chat.display_name || "Chat de Telegram"}</strong>
+                <span className={`telegram-status is-${chat.status}`}>
+                  {chat.status === "allowed" ? "Autorizado" : chat.status === "revoked" ? "Revocado" : "Pendiente"}
+                </span>
+              </div>
+              <code>{chat.chat_id}</code>
+              <small>
+                {chat.username ? `@${chat.username} · ` : ""}{chat.chat_type === "private" ? "Chat privado" : chat.chat_type}
+                {chat.last_seen_at ? ` · Visto ${formatDateTime(chat.last_seen_at)}` : ""}
+              </small>
+            </div>
+            <div className="telegram-chat-actions">
+              {chat.status !== "allowed" ? (
+                <button type="button" onClick={() => changeStatus(chat, "allowed")} disabled={savingId === chat.id}>
+                  <Icon name="success" />Autorizar
+                </button>
+              ) : (
+                <button type="button" className="button-secondary" onClick={() => changeStatus(chat, "revoked")} disabled={savingId === chat.id}>
+                  <Icon name="auth" />Revocar
+                </button>
+              )}
+              <button type="button" className="button-danger" onClick={() => removeChat(chat)} disabled={savingId === chat.id}>
+                Eliminar
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function UsersSidebar({
   loadingUsers,
@@ -80,6 +251,7 @@ export function UsersSidebar({
 }
 
 export function UsersContent({
+  apiFetch,
   creatingUser,
   handleCreateUser,
   handleResetUserPassword,
@@ -92,7 +264,9 @@ export function UsersContent({
   setUserForm,
   userForm,
   formatDateTime,
-  roleLabel
+  roleLabel,
+  safeUsers,
+  showAlert
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -104,7 +278,7 @@ export function UsersContent({
             <p className="sheet-kicker">Administracion de usuarios</p>
             <h2><Icon name="users" className="title-icon" />Accesos del equipo</h2>
             <p className="workspace-title">
-              Alta de usuarios con envio por correo, perfiles de acceso y control de sesiones activas.
+              Administra cuentas, perfiles, sesiones activas y accesos al bot desde un solo lugar.
             </p>
           </div>
           <div className="users-hero-actions">
@@ -116,6 +290,12 @@ export function UsersContent({
               </button>
             ) : null}
           </div>
+        </div>
+
+        <div className="users-metric-grid no-print">
+          <article><span>Usuarios</span><strong>{safeUsers.length}</strong><small>Cuentas registradas</small></article>
+          <article><span>En línea</span><strong>{safeUsers.filter((user) => user.is_online).length}</strong><small>Sesiones activas ahora</small></article>
+          <article><span>Administradores</span><strong>{safeUsers.filter((user) => user.role === "admin").length}</strong><small>Con control total</small></article>
         </div>
 
         <div className="users-workspace-grid">
@@ -248,6 +428,8 @@ export function UsersContent({
             </article>
           </section>
         </div>
+
+        <TelegramAccessPanel apiFetch={apiFetch} formatDateTime={formatDateTime} showAlert={showAlert} />
       </section>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>

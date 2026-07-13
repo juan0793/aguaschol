@@ -1,5 +1,45 @@
 import { exportAuditLogsCsv, listAuditLogs } from "../services/auditService.js";
 import { createUser, deleteUser, listUsers, resetUserPassword, updateUserRole } from "../services/userService.js";
+import {
+  createTelegramChat,
+  deleteTelegramChat,
+  listTelegramChats,
+  updateTelegramChatStatus
+} from "../services/telegramChatService.js";
+
+export const listTelegramChatsHandler = async (_req, res, next) => {
+  try {
+    res.json(await listTelegramChats());
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createTelegramChatHandler = async (req, res, next) => {
+  try {
+    res.status(201).json(await createTelegramChat(req.body, req.authUser));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateTelegramChatHandler = async (req, res, next) => {
+  try {
+    res.json(await updateTelegramChatStatus(req.params.id, req.body?.status, req.authUser));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteTelegramChatHandler = async (req, res, next) => {
+  try {
+    const chat = await deleteTelegramChat(req.params.id, req.authUser);
+    if (!chat) return res.status(404).json({ message: "Chat de Telegram no encontrado." });
+    res.json({ ok: true, chat });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const listUsersHandler = async (_req, res, next) => {
   try {

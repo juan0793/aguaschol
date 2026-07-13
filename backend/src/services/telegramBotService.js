@@ -3,6 +3,7 @@ import path from "node:path";
 import { env } from "../config/env.js";
 import { searchClaveCatastral } from "./claveLookupService.js";
 import { findByAbonadoOrClave } from "./inmuebleService.js";
+import { touchTelegramChat } from "./telegramChatService.js";
 
 const fields = [
   ["id", "Registro"],
@@ -118,8 +119,17 @@ const sendPhoto = async (chatId, record) => {
 const handleMessage = async (message) => {
   const chatId = String(message.chat?.id ?? "");
   if (!chatId || !message.text) return;
-  if (!env.telegramAllowedChatIds.has(chatId)) {
-    await sendText(chatId, `Chat no autorizado. ID para habilitar: ${chatId}`);
+  const access = await touchTelegramChat(message.chat).catch(() => ({
+    is_allowed: env.telegramAllowedChatIds.has(chatId),
+    status: "pending"
+  }));
+  if (!access.is_allowed) {
+    await sendText(
+      chatId,
+      access.status === "revoked"
+        ? "El acceso de este chat fue revocado. Solicita autorización a un administrador."
+        : `Solicitud registrada. Un administrador debe autorizar este chat desde Usuarios > Telegram. ID: ${chatId}`
+    );
     return;
   }
 

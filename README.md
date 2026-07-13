@@ -174,6 +174,8 @@ TELEGRAM_ALLOWED_CHAT_IDS=123456789,-1001234567890
 
 Para conocer el ID de un chat, escriba al bot antes de autorizarlo: responderá `Chat no autorizado. ID para habilitar: ...`. Separe varios IDs con comas y reinicie el backend después de cambiar las variables.
 
+Después del primer despliegue, los administradores pueden gestionar los chats desde **Usuarios > Accesos de Telegram**. Las solicitudes aparecen automáticamente y se pueden autorizar, revocar, eliminar o agregar manualmente sin volver a desplegar. `TELEGRAM_ALLOWED_CHAT_IDS` queda únicamente como acceso inicial de compatibilidad.
+
 Si `CEREBRAS_API_KEY` y `LLM_API_KEY` quedan vacias, la app sigue funcionando normal y solo muestra el aviso de configuracion cuando se intenta usar IA. Para volver a OpenRouter, usa `LLM_PROVIDER=openrouter` y configura `LLM_API_KEY`.
 
 ### 2. Backend

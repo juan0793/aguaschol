@@ -18516,6 +18516,7 @@ function App() {
               />
             ) : workspaceView === "users" ? (
               <UsersContent
+                apiFetch={apiFetch}
                 creatingUser={creatingUser}
                 handleCreateUser={handleCreateUser}
                 handleResetUserPassword={handleResetUserPassword}
@@ -18529,6 +18530,8 @@ function App() {
                 userForm={userForm}
                 formatDateTime={formatDateTime}
                 roleLabel={roleLabel}
+                safeUsers={safeUsers}
+                showAlert={showAlert}
               />
             ) : (
               <section className="preview-panel log-panel-full log-terminal-view">
