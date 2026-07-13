@@ -86,7 +86,14 @@ export const env = {
   llmModel: process.env.LLM_MODEL ?? "openai/gpt-oss-20b:free",
   llmAppName: process.env.LLM_APP_NAME ?? "Aguas de Choluteca",
   llmSiteUrl: process.env.LLM_SITE_URL ?? frontendUrls[0] ?? "",
-  llmTimeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 25000)
+  llmTimeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 25000),
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "",
+  telegramAllowedChatIds: new Set(
+    (process.env.TELEGRAM_ALLOWED_CHAT_IDS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+  )
 };
 
 env.useCloudinary = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);

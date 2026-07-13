@@ -163,6 +163,17 @@ LLM_SITE_URL=http://localhost:5173
 LLM_TIMEOUT_MS=25000
 ```
 
+### Bot de Telegram
+
+El bot responde al enviar únicamente un número de abonado o una clave catastral. Devuelve todos los campos de la ficha y su fotografía, si existe. Créalo con `@BotFather` y agrega al backend o a Railway:
+
+```env
+TELEGRAM_BOT_TOKEN=token-entregado-por-botfather
+TELEGRAM_ALLOWED_CHAT_IDS=123456789,-1001234567890
+```
+
+Para conocer el ID de un chat, escriba al bot antes de autorizarlo: responderá `Chat no autorizado. ID para habilitar: ...`. Separe varios IDs con comas y reinicie el backend después de cambiar las variables.
+
 Si `CEREBRAS_API_KEY` y `LLM_API_KEY` quedan vacias, la app sigue funcionando normal y solo muestra el aviso de configuracion cuando se intenta usar IA. Para volver a OpenRouter, usa `LLM_PROVIDER=openrouter` y configura `LLM_API_KEY`.
 
 ### 2. Backend

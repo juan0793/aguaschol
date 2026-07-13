@@ -10,7 +10,7 @@ const memoryRecords = [
   {
     id: 1,
     clave_catastral: "10-22-23",
-    abonado: "",
+    abonado: "12345",
     nombre_catastral: "10-22-23",
     inquilino: "",
     barrio_colonia: "Barrio San Juan Bosco",
@@ -142,6 +142,27 @@ export const getByClave = async (clave) => {
     [normalized]
   );
   return rows[0] ?? null;
+};
+
+export const findByAbonadoOrClave = async (value) => {
+  const term = String(value ?? "").trim();
+  const clave = normalizeKey(term);
+  if (!term) return [];
+
+  if (env.useMemoryDb) {
+    return memoryRecords.filter(
+      (item) => !item.archived_at && (item.clave_catastral === clave || item.abonado === term)
+    );
+  }
+
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT * FROM inmuebles_clandestinos
+     WHERE archived_at IS NULL AND (clave_catastral = ? OR abonado = ?)
+     ORDER BY updated_at DESC`,
+    [clave, term]
+  );
+  return rows;
 };
 
 export const getById = async (id, { includeArchived = true } = {}) => {
