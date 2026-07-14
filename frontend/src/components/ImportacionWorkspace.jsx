@@ -92,8 +92,8 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
 
   return (
     <main className="import-workspace no-print">
-      <pre className="import-ascii-fox" aria-hidden="true">{FOX_ASCII}</pre>
       <section className="import-header">
+        <pre className="import-ascii-fox" aria-hidden="true">{FOX_ASCII}</pre>
         <div><p className="sheet-kicker">Integracion manual FoxPro</p><h2>Importacion</h2><p>Los datos permanecen temporales hasta que un administrador los revise y aplique.</p></div>
         <button type="button" className="button-secondary" onClick={() => loadBatches(true)} disabled={loading}><span className={loading ? "import-refresh-icon is-spinning" : "import-refresh-icon"}><Icon name="refresh" /></span>{loading ? "Consultando..." : "Buscar paquetes"}</button>
       </section>

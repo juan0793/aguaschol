@@ -21350,8 +21350,9 @@ body,
 .import-workspace { position: relative; isolation: isolate; display: grid; gap: 1rem; min-height: calc(100vh - 160px); padding: 1rem; overflow: hidden; color: #173b5a; }
 .import-workspace::before { content: ""; position: absolute; inset: 0; z-index: -2; background: linear-gradient(125deg, #f8fbff 0%, #edf6ff 55%, #e4f1fb 100%); }
 .import-workspace::after { content: ""; position: absolute; inset: 0; z-index: -1; background: repeating-linear-gradient(0deg, transparent 0 31px, rgba(20,101,217,.035) 31px 32px), repeating-linear-gradient(90deg, transparent 0 31px, rgba(20,101,217,.03) 31px 32px); pointer-events: none; }
-.import-ascii-fox { position: absolute; top: 150px; right: clamp(-90px, -3vw, -24px); z-index: -1; margin: 0; color: rgba(20,101,217,.16); font: 700 clamp(10px, 1.05vw, 17px)/1.16 "Courier New", monospace; letter-spacing: .04em; white-space: pre; text-shadow: 0 0 22px rgba(22,135,229,.14); transform: rotate(-1deg); animation: import-ascii-glow 4s ease-in-out infinite; user-select: none; }
-.import-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.15rem; border: 1px solid rgba(194,217,237,.88); border-radius: 18px; background: rgba(255,255,255,.84); box-shadow: 0 18px 46px rgba(23,59,90,.08); backdrop-filter: blur(16px); animation: import-rise .45s ease both; }
+.import-ascii-fox { position: absolute; top: -20px; right: 220px; z-index: 0; margin: 0; color: rgba(20,101,217,.23); font: 700 clamp(8px, .78vw, 12px)/1.08 "Courier New", monospace; letter-spacing: .03em; white-space: pre; text-shadow: 0 0 18px rgba(22,135,229,.18); transform: rotate(-1deg); animation: import-ascii-glow 4s ease-in-out infinite; user-select: none; }
+.import-header { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; min-height: 150px; padding: 1.15rem; overflow: hidden; border: 1px solid rgba(194,217,237,.88); border-radius: 18px; background: rgba(255,255,255,.8); box-shadow: 0 18px 46px rgba(23,59,90,.08); backdrop-filter: blur(16px); animation: import-rise .45s ease both; }
+.import-header > div, .import-header > button { position: relative; z-index: 1; }
 .import-header h2, .import-header p { margin: 0; }
 .import-header > div { display: grid; gap: .35rem; }
 .import-refresh-icon { display: inline-flex; }
@@ -21423,7 +21424,7 @@ body,
   .import-actions > button { width: 100%; }
   .import-difference-row td > div { grid-template-columns: 1fr; }
   .import-pagination { justify-content: space-between; font-size: .72rem; }
-  .import-ascii-fox { top: 230px; right: -155px; opacity: .55; font-size: 10px; }
+  .import-ascii-fox { top: 58px; right: -85px; opacity: .6; font-size: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
