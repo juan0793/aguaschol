@@ -1,18 +1,14 @@
-using System.Data.OleDb;
 using System.Data;
+using System.Data.OleDb;
 
 namespace ControlAguasFoxProReader;
 
 internal static class FoxProReader
 {
     private static readonly HashSet<string> AllowedTables = new(StringComparer.OrdinalIgnoreCase) { "maestro" };
-    private static readonly string[][] ColumnAliases =
-    {
-        new[] { "catastral" }, new[] { "abonado" }, new[] { "inquilino" },
-        new[] { "des_coloni", "des_colon", "des_col", "colonia" },
-        new[] { "agua" }, new[] { "alca" }, new[] { "barr" }, new[] { "tren" },
-        new[] { "bomb" }, new[] { "valor" }, new[] { "intereses" }
-    };
+    private static readonly string[] GroupFields = { "catastral", "abonado", "inquilino", "agua", "alca", "barr", "tren", "bomb" };
+    private static readonly string[] ValueFields = { "sdo_agua", "sdo_alca", "sdo_barr", "sdo_tren", "sdo_cemt", "sdo_bomb", "sdo_cagu", "sdo_otro" };
+    private static readonly string[] InterestFields = { "int_agua", "int_alca", "int_barr", "int_tren" };
 
     private static string ConnectionString(string path) =>
         $"Provider=VFPOLEDB.1;Data Source={path};Mode=Read;Collating Sequence=machine;";
@@ -38,8 +34,19 @@ internal static class FoxProReader
         var table = Validate(config);
         using var connection = new OleDbConnection(ConnectionString(config.FoxPro.DataPath));
         connection.Open();
-        var columns = ResolveColumns(connection, table);
-        using var command = new OleDbCommand($"SELECT {string.Join(", ", columns.Select(name => $"[{name.Replace("]", "]]" )}]"))} FROM {table}", connection);
+        var available = AvailableColumns(connection, table);
+        var groups = GroupFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
+        var colony = new[] { "des_coloni", "des_colon", "des_col", "colonia" }
+            .Select(alias => available.FirstOrDefault(name => name.Equals(alias, StringComparison.OrdinalIgnoreCase)))
+            .FirstOrDefault(name => name != null);
+        var colonySelect = colony is null ? "'' AS des_coloni" : Quote(colony);
+        var values = ValueFields.Select(field => Quote(RequiredColumn(available, field)));
+        var interests = InterestFields.Select(field => Quote(RequiredColumn(available, field)));
+        var select = string.Join(", ", groups.Take(3).Concat(new[] { colonySelect }).Concat(groups.Skip(3)))
+            + $", SUM({string.Join("+", values)}) AS valor, SUM({string.Join("+", interests)}) AS intereses";
+        var groupBy = string.Join(", ", groups.Concat(colony is null ? Array.Empty<string>() : new[] { Quote(colony) }));
+
+        using var command = new OleDbCommand($"SELECT {select} FROM {table} GROUP BY {groupBy}", connection);
         using var reader = command.ExecuteReader();
         var rows = new List<FoxProRow>();
         while (reader != null && reader.Read())
@@ -55,19 +62,18 @@ internal static class FoxProReader
         return rows;
     }
 
-    private static string[] ResolveColumns(OleDbConnection connection, string table)
+    private static string[] AvailableColumns(OleDbConnection connection, string table)
     {
         using var command = new OleDbCommand($"SELECT * FROM {table}", connection);
         using var reader = command.ExecuteReader(CommandBehavior.SchemaOnly) ?? throw new InvalidOperationException("No fue posible leer la estructura de maestro.dbf.");
-        var available = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        return ColumnAliases.Select(aliases =>
-            aliases.Select(alias => available.FirstOrDefault(name => name.Equals(alias, StringComparison.OrdinalIgnoreCase)))
-                .FirstOrDefault(name => name != null)
-            ?? (aliases[0] == "des_coloni" ? available.FirstOrDefault(name => name.Contains("COLON", StringComparison.OrdinalIgnoreCase)) : null)
-            ?? throw new InvalidOperationException($"No se encontro la columna {aliases[0]}. Columnas disponibles: {string.Join(", ", available)}")
-        ).ToArray()!;
+        return Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
     }
 
+    private static string RequiredColumn(string[] available, string expected) =>
+        available.FirstOrDefault(name => name.Equals(expected, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"No se encontro la columna {expected}. Columnas disponibles: {string.Join(", ", available)}");
+
+    private static string Quote(string name) => $"[{name.Replace("]", "]]" )}]";
     private static string Value(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? "" : Convert.ToString(reader.GetValue(index))?.Trim() ?? "";
     private static decimal Amount(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? 0 : Convert.ToDecimal(reader.GetValue(index));
 }
