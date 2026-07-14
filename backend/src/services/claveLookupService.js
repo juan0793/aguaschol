@@ -899,7 +899,8 @@ export const replaceMasterRecordsFromImport = (records, { codigoLote = "" } = {}
   writeJsonFile(maestroPath, rows);
   masterMeta = {
     ...masterMeta,
-    file_name: masterMeta.file_name || "padron-maestro.json",
+    file_name: codigoLote ? `Lote FoxPro ${codigoLote}` : masterMeta.file_name || "padron-maestro.json",
+    sheet_name: codigoLote ? "maestro.dbf" : masterMeta.sheet_name,
     total_records: rows.length,
     updated_at: new Date().toISOString(),
     last_import_summary: { ...importSummary, source: "FOXPRO_MANUAL", codigo_lote: codigoLote }

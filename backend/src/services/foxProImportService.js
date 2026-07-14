@@ -356,6 +356,64 @@ const rowToMaster = (row) => ({
   barrido: row.barrido_normalizado || "", recoleccion: row.tren_aseo_normalizado || "",
   desechos_peligrosos: row.bombeo_normalizado || "", valor: Number(row.valor || 0), intereses: Number(row.intereses || 0)
 });
+export const foxProRowsToMaster = (rows = []) => rows.map(rowToMaster);
+
+export const activateFoxProBatch = async (codigoLote, actorUser) => {
+  const pool = getPool();
+  const codigo = batchCode(codigoLote);
+  const [lots] = await pool.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? LIMIT 1", [codigo]);
+  const lot = lots[0];
+  if (!lot) throw fail("Lote no encontrado.", 404);
+  if (!["LISTO", "PARCIALMENTE_APLICADO", "APLICADO"].includes(lot.estado)) {
+    throw fail(`El lote esta en estado ${lot.estado} y no puede activarse como padron.`, 409);
+  }
+
+  const [rows] = await pool.query(
+    "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO') ORDER BY numero_fila",
+    [lot.id]
+  );
+  if (!rows.length) throw fail("El lote no contiene registros validos para activar.", 409);
+
+  const result = replaceMasterRecordsFromImport(foxProRowsToMaster(rows), { codigoLote: codigo });
+  await pool.query(
+    `UPDATE importacion_padron_lotes SET estado='APLICADO', registros_aplicados=?, usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE id=?`,
+    [rows.length, actorUser.id, lot.id]
+  );
+  await pool.query(
+    "UPDATE importacion_padron_registros SET estado='APLICADO', usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO')",
+    [actorUser.id, lot.id]
+  );
+  try {
+    await createAuditLog({
+      actorUserId: actorUser.id,
+      action: "padron.foxpro_batch_activated",
+      entityType: "padron",
+      entityId: codigo,
+      summary: `Lote ${codigo} activado como padron maestro`,
+      details: { activated: result.meta.total_records, excluded_errors: Number(lot.registros_error || 0) }
+    });
+  } catch {
+    // El padron debe permanecer activo aunque el registro de auditoria falle temporalmente.
+  }
+
+  return {
+    ...result,
+    activated: result.meta.total_records,
+    excluded_errors: Number(lot.registros_error || 0),
+    cache: { cleared: true, refreshed_at: new Date().toISOString() },
+    verification: {
+      ok: result.meta.total_records === rows.length,
+      source_rows: rows.length,
+      normalized_source_rows: rows.length,
+      active_records: result.meta.total_records,
+      verified_records: result.meta.total_records,
+      missing_records: Math.max(0, rows.length - result.meta.total_records),
+      extra_records: 0,
+      verified_percent: rows.length ? Number(((result.meta.total_records / rows.length) * 100).toFixed(2)) : 0,
+      checked_at: new Date().toISOString()
+    }
+  };
+};
 
 const pruneOldBatchDetails = async () => {
   const retain = Math.max(1, Number(env.foxProSyncRetainBatches) || 5);

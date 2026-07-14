@@ -988,6 +988,10 @@ function App() {
   const [padronImportSummary, setPadronImportSummary] = useState(null);
   const [padronFile, setPadronFile] = useState(null);
   const [uploadingPadron, setUploadingPadron] = useState(false);
+  const [padronBatches, setPadronBatches] = useState([]);
+  const [selectedPadronBatchCode, setSelectedPadronBatchCode] = useState("");
+  const [loadingPadronBatches, setLoadingPadronBatches] = useState(false);
+  const [activatingPadronBatch, setActivatingPadronBatch] = useState(false);
   const [reprocessingPadron, setReprocessingPadron] = useState(false);
   const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
   const [padronSyncState, setPadronSyncState] = useState({
@@ -996,6 +1000,7 @@ function App() {
     message: "Padron listo",
     verification: null
   });
+  const selectedPadronBatch = padronBatches.find((batch) => batch.codigo_lote === selectedPadronBatchCode) ?? null;
   const [alcaldiaMeta, setAlcaldiaMeta] = useState(null);
   const [alcaldiaImportSummary, setAlcaldiaImportSummary] = useState(null);
   const [alcaldiaFile, setAlcaldiaFile] = useState(null);
@@ -3781,7 +3786,7 @@ function App() {
     });
   };
 
-  const runPadronSyncSteps = async (request, successMessage) => {
+  const runPadronSyncSteps = async (request, successMessage, sourceLabel = "Excel") => {
     let progressTimer = null;
     updatePadronSyncState({
       status: "running",
@@ -3797,7 +3802,7 @@ function App() {
         return {
           ...current,
           progress: Math.min(68, current.progress + 4),
-          message: current.progress >= 48 ? "Verificando Excel completo contra el sistema" : "Reemplazando data de padron en todos los modulos"
+          message: current.progress >= 48 ? `Verificando ${sourceLabel} completo contra el sistema` : "Reemplazando data de padron en todos los modulos"
         };
       });
     }, 420);
@@ -4218,6 +4223,23 @@ function App() {
       if (!silent) {
         setLoadingPadronMeta(false);
       }
+    }
+  };
+
+  const loadPadronBatches = async ({ silent = false } = {}) => {
+    if (!isAuthenticated || !isAdmin) return;
+    if (!silent) setLoadingPadronBatches(true);
+    try {
+      const response = await apiFetch("/integracion/foxpro/lotes?limit=20");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No fue posible cargar los lotes FoxPro.");
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      setPadronBatches(rows);
+      setSelectedPadronBatchCode((current) => rows.some((row) => row.codigo_lote === current) ? current : rows[0]?.codigo_lote || "");
+    } catch (error) {
+      if (!silent) showAlert(error.message || "No fue posible cargar los lotes FoxPro.");
+    } finally {
+      if (!silent) setLoadingPadronBatches(false);
     }
   };
 
@@ -4762,6 +4784,7 @@ function App() {
 
     if (workspaceView === "padron") {
       loadPadronMeta();
+      loadPadronBatches();
       loadAlcaldiaMeta();
       loadBarrioCodes({ silent: true });
     }
@@ -9305,6 +9328,33 @@ function App() {
       showAlert(error.message || "No se pudo actualizar el padron maestro.");
     } finally {
       setUploadingPadron(false);
+    }
+  };
+
+  const handleActivatePadronBatch = async () => {
+    if (!selectedPadronBatch) {
+      showAlert("Selecciona un lote FoxPro.");
+      return;
+    }
+    if (!["LISTO", "PARCIALMENTE_APLICADO", "APLICADO"].includes(selectedPadronBatch.estado)) {
+      showAlert(`El lote esta en estado ${selectedPadronBatch.estado} y todavia no puede activarse.`);
+      return;
+    }
+    if (!window.confirm(`¿Activar el lote ${selectedPadronBatch.codigo_lote} como padron maestro? Se reemplazara la data activa y se limpiaran las consultas anteriores.`)) return;
+
+    setActivatingPadronBatch(true);
+    try {
+      await runPadronSyncSteps(
+        () => apiFetch(`/integracion/foxpro/lotes/${encodeURIComponent(selectedPadronBatch.codigo_lote)}/activar`, { method: "POST" }),
+        (data) => `Lote ${selectedPadronBatch.codigo_lote} activado con ${data.meta?.total_records ?? 0} claves. Cache y consultas anteriores limpiadas.`,
+        "lote FoxPro"
+      );
+      await loadPadronBatches({ silent: true });
+    } catch (error) {
+      updatePadronSyncState({ status: "error", progress: 100, message: error.message || "No se pudo activar el lote FoxPro." });
+      showAlert(error.message || "No se pudo activar el lote FoxPro.");
+    } finally {
+      setActivatingPadronBatch(false);
     }
   };
 
@@ -15941,7 +15991,7 @@ function App() {
                 <div className="padron-console-copy">
                   <p className="sheet-kicker">Padron maestro</p>
                   <h2><Icon name="refresh" className="title-icon" />Aguas de Choluteca</h2>
-                  <p>Reemplaza la data activa, limpia consultas viejas y verifica que el Excel completo sea el que usan todos los módulos.</p>
+                  <p>Activa un lote FoxPro como fuente principal, limpia consultas anteriores y conserva Excel como alternativa manual.</p>
                 </div>
                 <div className="padron-console-meter">
                   <strong>{padronSyncState.verification?.verified_percent ?? (padronMeta?.total_records ? 100 : 0)}%</strong>
@@ -15950,12 +16000,12 @@ function App() {
                 </div>
               </div>
 
-              <div className="padron-console-grid">
-                <section className="padron-file-panel">
+              <div className="padron-console-grid padron-source-grid">
+                <section className="padron-file-panel padron-active-source">
                   <div>
-                    <span>Archivo activo</span>
+                    <span>Fuente activa</span>
                     <strong>{padronMeta?.file_name || "Sin registro"}</strong>
-                    <small>{padronMeta?.source_file_available ? `Fuente guardada: ${padronMeta?.source_file_name || "Disponible"}` : "Fuente guardada: no disponible"}</small>
+                    <small>{padronMeta?.last_import_summary?.source === "FOXPRO_MANUAL" ? `Lote ${padronMeta?.last_import_summary?.codigo_lote || "FoxPro"} conectado al sistema` : "Excel conectado al sistema"}</small>
                   </div>
                   <div className="padron-file-meta">
                     <span>Hoja <b>{padronMeta?.sheet_name || "--"}</b></span>
@@ -15964,10 +16014,35 @@ function App() {
                   </div>
                 </section>
 
-                <section className="padron-upload-panel">
+                <section className="padron-lot-panel">
+                  <div className="padron-source-heading">
+                    <span className="padron-source-badge">Fuente principal</span>
+                    <div><strong>Lote recibido desde FoxPro</strong><small>Selecciona una lectura revisada para convertirla en el padrón activo.</small></div>
+                  </div>
+                  <label className="padron-lot-select">
+                    <span>Lote disponible</span>
+                    <select value={selectedPadronBatchCode} onChange={(event) => setSelectedPadronBatchCode(event.target.value)} disabled={loadingPadronBatches || activatingPadronBatch}>
+                      {!padronBatches.length ? <option value="">No hay lotes recibidos</option> : null}
+                      {padronBatches.map((batch) => <option key={batch.id} value={batch.codigo_lote}>{batch.codigo_lote} · {String(batch.estado).replaceAll("_", " ")} · {Number(batch.total_registros || 0).toLocaleString("es-HN")} registros</option>)}
+                    </select>
+                  </label>
+                  {selectedPadronBatch ? (
+                    <div className="padron-lot-summary">
+                      <span><b>{Number(selectedPadronBatch.total_registros || 0).toLocaleString("es-HN")}</b> registros</span>
+                      <span><b>{Number(selectedPadronBatch.registros_error || 0).toLocaleString("es-HN")}</b> errores excluidos</span>
+                      <span className={`is-${String(selectedPadronBatch.estado).toLowerCase()}`}>{String(selectedPadronBatch.estado).replaceAll("_", " ")}</span>
+                    </div>
+                  ) : null}
+                  <button type="button" className="padron-activate-button" onClick={handleActivatePadronBatch} disabled={!selectedPadronBatch || loadingPadronBatches || activatingPadronBatch || !["LISTO", "PARCIALMENTE_APLICADO", "APLICADO"].includes(selectedPadronBatch?.estado)}>
+                    <Icon name="refresh" />{activatingPadronBatch ? "Activando lote..." : "Activar lote y limpiar cache"}
+                  </button>
+                </section>
+
+                <section className="padron-upload-panel padron-excel-alternative">
+                  <span className="padron-source-badge is-secondary">Alternativa manual</span>
                   <label className="padron-upload-drop">
                     <Icon name="records" />
-                    <span>Seleccionar Excel maestro</span>
+                    <span>Seleccionar Excel alternativo</span>
                     <strong>{padronFile ? padronFile.name : "Ningún archivo seleccionado"}</strong>
                     <input
                       type="file"
@@ -15975,7 +16050,7 @@ function App() {
                       onChange={handlePadronFileChange}
                     />
                   </label>
-                  <p className="helper-text">Al actualizar se limpian caches de búsqueda, deuda GPS, reportes y comparativas.</p>
+                  <p className="helper-text">{padronMeta?.source_file_available ? `Excel alternativo guardado: ${padronMeta?.source_file_name || "Disponible"}.` : "Todavía no hay un Excel alternativo guardado."} Al usarlo también se reemplaza la data y se limpian consultas anteriores.</p>
                 </section>
               </div>
 
@@ -16084,9 +16159,9 @@ function App() {
               ) : null}
 
               <div className="search-actions lookup-actions">
-                <button type="submit" disabled={uploadingPadron}>
+                <button type="submit" disabled={uploadingPadron || activatingPadronBatch || !padronFile}>
                   <Icon name="refresh" />
-                  {uploadingPadron ? "Actualizando..." : "Actualizar padron maestro"}
+                  {uploadingPadron ? "Activando Excel..." : "Usar Excel alternativo"}
                 </button>
                 <button
                   type="button"

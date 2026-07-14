@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import {
-  applyBatchHandler, claimUpdateRequestHandler, discardRecordsHandler, finalizeBatchHandler,
+  activateBatchHandler, applyBatchHandler, claimUpdateRequestHandler, discardRecordsHandler, finalizeBatchHandler,
   finishUpdateRequestHandler, getUpdateRequestHandler, listBatchRecordsHandler,
   listBatchesHandler, receiveBlockHandler, requestUpdateHandler, startBatchHandler
 } from "../controllers/foxProImportController.js";
@@ -21,6 +21,7 @@ router.get("/lotes", requireAuth, requireAdmin, listBatchesHandler);
 router.post("/solicitudes", requireAuth, requireAdmin, requestUpdateHandler);
 router.get("/solicitudes/:id", requireAuth, requireAdmin, getUpdateRequestHandler);
 router.get("/lotes/:codigoLote/registros", requireAuth, requireAdmin, listBatchRecordsHandler);
+router.post("/lotes/:codigoLote/activar", requireAuth, requireAdmin, activateBatchHandler);
 router.post("/lotes/:codigoLote/aplicar", requireAuth, requireAdmin, applyBatchHandler);
 router.post("/lotes/:codigoLote/descartar", requireAuth, requireAdmin, discardRecordsHandler);
 

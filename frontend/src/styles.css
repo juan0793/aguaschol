@@ -7906,8 +7906,18 @@ textarea {
   gap: 12px;
 }
 
+.padron-source-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.padron-active-source {
+  grid-column: 1 / -1;
+  animation: padronPanelEnter 320ms ease-out both;
+}
+
 .padron-file-panel,
 .padron-upload-panel,
+.padron-lot-panel,
 .padron-impact-tile {
   border: 1px solid #d7e7f4;
   border-radius: 8px;
@@ -7960,6 +7970,134 @@ textarea {
   display: grid;
   gap: 10px;
   padding: 14px;
+}
+
+.padron-lot-panel,
+.padron-excel-alternative {
+  align-content: start;
+  min-height: 270px;
+  animation: padronPanelEnter 380ms ease-out both;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.padron-excel-alternative {
+  animation-delay: 55ms;
+}
+
+.padron-lot-panel:hover,
+.padron-excel-alternative:hover {
+  transform: translateY(-2px);
+  border-color: rgba(33, 105, 210, 0.32);
+  box-shadow: 0 14px 30px rgba(17, 55, 92, 0.08);
+}
+
+.padron-lot-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: linear-gradient(145deg, #ffffff, #f3f8ff);
+}
+
+.padron-source-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.padron-source-heading > div {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+.padron-source-heading strong {
+  color: #0a3558;
+  font-size: 1.05rem;
+}
+
+.padron-source-heading small,
+.padron-lot-select span {
+  color: #52728d;
+}
+
+.padron-source-badge {
+  width: max-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #0f6b4a;
+  background: #e5f7ee;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.padron-source-badge.is-secondary {
+  color: #526d84;
+  background: #eef4f9;
+}
+
+.padron-lot-select {
+  display: grid;
+  gap: 6px;
+}
+
+.padron-lot-select span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.padron-lot-select select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #c9ddec;
+  border-radius: 8px;
+  color: #0a3558;
+  background: #ffffff;
+  font: inherit;
+}
+
+.padron-lot-select select:focus-visible {
+  outline: 3px solid rgba(33, 105, 210, 0.16);
+  border-color: #2169d2;
+}
+
+.padron-lot-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.padron-lot-summary span {
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+  border-radius: 8px;
+  color: #52728d;
+  background: #ffffff;
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.padron-lot-summary b {
+  color: #0a3558;
+  font-size: 1rem;
+}
+
+.padron-lot-summary span[class*="is-"] {
+  place-items: center;
+  color: #0f6b4a;
+  background: #e5f7ee;
+  font-weight: 900;
+}
+
+.padron-activate-button {
+  justify-content: center;
+  min-height: 46px;
+  margin-top: auto;
 }
 
 .padron-upload-drop {
@@ -8153,6 +8291,18 @@ textarea {
   }
 }
 
+@keyframes padronPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 820px) {
   .padron-console-hero,
   .padron-console-grid,
@@ -8168,6 +8318,22 @@ textarea {
 
   .padron-system-overlay > div {
     padding: 20px;
+  }
+  .padron-active-source {
+    grid-column: auto;
+  }
+
+  .padron-lot-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .padron-active-source,
+  .padron-lot-panel,
+  .padron-excel-alternative {
+    animation: none;
+    transition: none;
   }
 }
 

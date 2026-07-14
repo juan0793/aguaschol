@@ -1,5 +1,5 @@
 import {
-  applyFoxProBatch, claimFoxProUpdateRequest, discardFoxProRecords, finalizeFoxProBatch,
+  activateFoxProBatch, applyFoxProBatch, claimFoxProUpdateRequest, discardFoxProRecords, finalizeFoxProBatch,
   finishFoxProUpdateRequest, getFoxProUpdateRequest, listFoxProBatchRecords,
   listFoxProBatches, receiveFoxProBlock, requestFoxProUpdate, startFoxProBatch
 } from "../services/foxProImportService.js";
@@ -38,6 +38,9 @@ export const listBatchRecordsHandler = async (req, res, next) => {
 };
 export const applyBatchHandler = async (req, res, next) => {
   try { res.json({ ok: true, ...(await applyFoxProBatch(req.params.codigoLote, req.body, req.authUser)) }); } catch (error) { next(error); }
+};
+export const activateBatchHandler = async (req, res, next) => {
+  try { res.json({ ok: true, ...(await activateFoxProBatch(req.params.codigoLote, req.authUser)) }); } catch (error) { next(error); }
 };
 export const discardRecordsHandler = async (req, res, next) => {
   try { res.json({ ok: true, ...(await discardFoxProRecords(req.params.codigoLote, req.body?.ids, req.authUser)) }); } catch (error) { next(error); }
