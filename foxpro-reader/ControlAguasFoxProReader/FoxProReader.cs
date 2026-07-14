@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.OleDb;
+using System.Globalization;
 
 namespace ControlAguasFoxProReader;
 
@@ -28,51 +29,61 @@ internal static class FoxProReader
         using var connection = new OleDbConnection(ConnectionString(config.FoxPro.DataPath));
         connection.Open();
         var available = AvailableColumns(connection, table);
-        var groups = GroupFields.Select(field => Quote(RequiredColumn(available, field).Name)).ToArray();
-        var colony = Quote(RequiredColony(available, config).Name);
-        var values = ValueFields.Select(field => NumericExpression(RequiredColumn(available, field)));
-        var interests = InterestFields.Select(field => NumericExpression(RequiredColumn(available, field)));
-        var select = string.Join(", ", groups.Take(3).Concat(new[] { colony }).Concat(groups.Skip(3)))
-            + $", SUM({string.Join("+", values)}) AS valor, SUM({string.Join("+", interests)}) AS intereses";
-        var groupBy = string.Join(", ", groups.Concat(new[] { colony }));
+        var groups = GroupFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
+        var colony = Quote(RequiredColony(available, config));
+        var values = ValueFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
+        var interests = InterestFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
+        var select = string.Join(", ", groups.Take(3).Concat(new[] { colony }).Concat(groups.Skip(3)).Concat(values).Concat(interests));
 
-        using var command = new OleDbCommand($"SELECT {select} FROM {table} GROUP BY {groupBy}", connection);
+        using var command = new OleDbCommand($"SELECT {select} FROM {table}", connection);
         using var reader = command.ExecuteReader();
-        var rows = new List<FoxProRow>();
+        var rows = new Dictionary<string, FoxProRow>();
         while (reader != null && reader.Read())
         {
-            rows.Add(new FoxProRow
+            var fields = Enumerable.Range(0, 9).Select(index => Value(reader, index)).ToArray();
+            var key = string.Join('\u001f', fields);
+            if (!rows.TryGetValue(key, out var row))
             {
-                NumeroFila = rows.Count + 1,
-                Catastral = Value(reader, 0), Abonado = Value(reader, 1), Inquilino = Value(reader, 2), Colonia = Value(reader, 3),
-                Agua = Value(reader, 4), Alcantarillado = Value(reader, 5), Barrido = Value(reader, 6), TrenAseo = Value(reader, 7),
-                Bombeo = Value(reader, 8), Valor = Amount(reader, 9), Intereses = Amount(reader, 10)
-            });
+                row = new FoxProRow
+                {
+                    NumeroFila = rows.Count + 1,
+                    Catastral = fields[0], Abonado = fields[1], Inquilino = fields[2], Colonia = fields[3],
+                    Agua = fields[4], Alcantarillado = fields[5], Barrido = fields[6], TrenAseo = fields[7], Bombeo = fields[8]
+                };
+                rows.Add(key, row);
+            }
+            row.Valor += Enumerable.Range(9, values.Length).Sum(index => Amount(reader, index));
+            row.Intereses += Enumerable.Range(9 + values.Length, interests.Length).Sum(index => Amount(reader, index));
         }
-        return rows;
+        return rows.Values.ToList();
     }
 
-    private static (string Name, Type Type)[] AvailableColumns(OleDbConnection connection, string table)
+    private static string[] AvailableColumns(OleDbConnection connection, string table)
     {
         using var command = new OleDbCommand($"SELECT * FROM {table}", connection);
         using var reader = command.ExecuteReader(CommandBehavior.SchemaOnly) ?? throw new InvalidOperationException("No fue posible leer la estructura de maestro.dbf.");
-        return Enumerable.Range(0, reader.FieldCount).Select(index => (reader.GetName(index), reader.GetFieldType(index))).ToArray();
+        return Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
     }
 
-    private static (string Name, Type Type) RequiredColumn((string Name, Type Type)[] available, string expected) =>
-        available.FirstOrDefault(column => column.Name.Equals(expected, StringComparison.OrdinalIgnoreCase)) is var column && column.Name != null
-            ? column
-            : throw new InvalidOperationException($"No se encontro la columna {expected}. Columnas disponibles: {string.Join(", ", available.Select(item => item.Name))}");
+    private static string RequiredColumn(string[] available, string expected) =>
+        available.FirstOrDefault(name => name.Equals(expected, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"No se encontro la columna {expected}. Columnas disponibles: {string.Join(", ", available)}");
 
-    private static (string Name, Type Type) RequiredColony((string Name, Type Type)[] available, ReaderConfig config) =>
-        available.FirstOrDefault(column => column.Name.Equals("des_coloni", StringComparison.OrdinalIgnoreCase)) is var column && column.Name != null
-            ? column
-            : throw new InvalidOperationException($"El maestro.dbf seleccionado no contiene des_coloni y no corresponde al archivo verificado. Ruta: {Path.Combine(config.FoxPro.DataPath, "maestro.dbf")}. Columnas disponibles: {string.Join(", ", available.Select(item => item.Name))}");
+    private static string RequiredColony(string[] available, ReaderConfig config) =>
+        available.FirstOrDefault(name => name.Equals("des_coloni", StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"El maestro.dbf seleccionado no contiene des_coloni y no corresponde al archivo verificado. Ruta: {Path.Combine(config.FoxPro.DataPath, "maestro.dbf")}. Columnas disponibles: {string.Join(", ", available)}");
 
-    private static string NumericExpression((string Name, Type Type) column) => column.Type == typeof(string)
-        ? $"VAL(NVL(ALLTRIM({Quote(column.Name)}), '0'))"
-        : $"NVL({Quote(column.Name)}, 0)";
     private static string Quote(string name) => $"[{name.Replace("]", "]]" )}]";
     private static string Value(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? "" : Convert.ToString(reader.GetValue(index))?.Trim() ?? "";
-    private static decimal Amount(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? 0 : Convert.ToDecimal(reader.GetValue(index));
+    private static decimal Amount(OleDbDataReader reader, int index)
+    {
+        if (reader.IsDBNull(index)) return 0;
+        var value = reader.GetValue(index);
+        if (value is not string text) return Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+        text = text.Trim();
+        if (text.Length == 0) return 0;
+        return decimal.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var amount)
+            ? amount
+            : throw new InvalidOperationException($"El campo {reader.GetName(index)} contiene un valor no numerico: {text}.");
+    }
 }
