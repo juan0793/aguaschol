@@ -990,6 +990,7 @@ function App() {
   const [uploadingPadron, setUploadingPadron] = useState(false);
   const [padronBatches, setPadronBatches] = useState([]);
   const [selectedPadronBatchCode, setSelectedPadronBatchCode] = useState("");
+  const [confirmingPadronBatch, setConfirmingPadronBatch] = useState(null);
   const [loadingPadronBatches, setLoadingPadronBatches] = useState(false);
   const [activatingPadronBatch, setActivatingPadronBatch] = useState(false);
   const [reprocessingPadron, setReprocessingPadron] = useState(false);
@@ -9340,13 +9341,20 @@ function App() {
       showAlert(`El lote esta en estado ${selectedPadronBatch.estado} y todavia no puede activarse.`);
       return;
     }
-    if (!window.confirm(`¿Activar el lote ${selectedPadronBatch.codigo_lote} como padron maestro? Se reemplazara la data activa y se limpiaran las consultas anteriores.`)) return;
+    setConfirmingPadronBatch(selectedPadronBatch);
+  };
+
+  const confirmActivatePadronBatch = async () => {
+    if (!confirmingPadronBatch) return;
+
+    const batch = confirmingPadronBatch;
+    setConfirmingPadronBatch(null);
 
     setActivatingPadronBatch(true);
     try {
       await runPadronSyncSteps(
-        () => apiFetch(`/integracion/foxpro/lotes/${encodeURIComponent(selectedPadronBatch.codigo_lote)}/activar`, { method: "POST" }),
-        (data) => `Lote ${selectedPadronBatch.codigo_lote} activado con ${data.meta?.total_records ?? 0} claves. Cache y consultas anteriores limpiadas.`,
+        () => apiFetch(`/integracion/foxpro/lotes/${encodeURIComponent(batch.codigo_lote)}/activar`, { method: "POST" }),
+        (data) => `Lote ${batch.codigo_lote} activado con ${data.meta?.total_records ?? 0} claves. Cache y consultas anteriores limpiadas.`,
         "lote FoxPro"
       );
       await loadPadronBatches({ silent: true });
@@ -15985,6 +15993,45 @@ function App() {
                 </div>
               </div>
             ) : null}
+
+            <Dialog open={Boolean(confirmingPadronBatch)} onOpenChange={(open) => !open && setConfirmingPadronBatch(null)}>
+              <DialogContent className="padron-confirm-dialog sm:max-w-xl">
+                <DialogHeader className="padron-confirm-head">
+                  <p className="sheet-kicker">Confirmar cambio de fuente</p>
+                  <DialogTitle>Activar lote FoxPro</DialogTitle>
+                  <DialogDescription>
+                    Revisa el lote antes de convertirlo en el padrón maestro del sistema.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="padron-confirm-body">
+                  <div className="padron-confirm-lot">
+                    <span>Lote seleccionado</span>
+                    <strong>{confirmingPadronBatch?.codigo_lote}</strong>
+                  </div>
+                  <div className="padron-confirm-summary">
+                    <span><b>{Number(confirmingPadronBatch?.total_registros || 0).toLocaleString("es-HN")}</b> registros</span>
+                    <span><b>{Number(confirmingPadronBatch?.registros_error || 0).toLocaleString("es-HN")}</b> errores excluidos</span>
+                    <span><b>{String(confirmingPadronBatch?.estado || "").replaceAll("_", " ")}</b> estado</span>
+                  </div>
+                  <div className="padron-confirm-effects">
+                    <strong>Al continuar:</strong>
+                    <ul>
+                      <li>Este lote reemplazará el padrón activo.</li>
+                      <li>Se limpiarán búsquedas, deuda, reportes y comparativas anteriores.</li>
+                      <li>El Excel guardado seguirá disponible como alternativa manual.</li>
+                    </ul>
+                  </div>
+                </div>
+                <DialogFooter className="padron-confirm-actions">
+                  <button type="button" className="button-secondary" onClick={() => setConfirmingPadronBatch(null)}>
+                    Cancelar
+                  </button>
+                  <button type="button" className="padron-confirm-button" onClick={confirmActivatePadronBatch}>
+                    <Icon name="refresh" /> Activar lote
+                  </button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <form className="lookup-card padron-master-console" onSubmit={handleUploadPadron}>
               <div className="padron-console-hero">

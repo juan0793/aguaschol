@@ -7841,7 +7841,11 @@ textarea {
 }
 
 .padron-master-console {
-  gap: 16px;
+  gap: 24px;
+  padding: clamp(16px, 2vw, 26px);
+  border: 1px solid #b9d2e6;
+  background: #edf4fa;
+  box-shadow: 0 18px 42px rgba(10, 53, 88, 0.08);
 }
 
 .padron-alcaldia-console {
@@ -7868,7 +7872,9 @@ textarea {
   border-radius: 8px;
   color: #44647e;
   background: linear-gradient(135deg, #f8fbff 0%, #edf6ff 62%, #f4fbf8 100%);
-  border: 1px solid rgba(21, 118, 209, 0.14);
+  border: 1px solid #b8d4e9;
+  border-left: 5px solid #2169d2;
+  box-shadow: 0 8px 22px rgba(10, 53, 88, 0.06);
 }
 
 .padron-console-copy p {
@@ -7887,6 +7893,8 @@ textarea {
   background: #0b3458;
   color: #ffffff;
   text-align: center;
+  border: 1px solid #062743;
+  box-shadow: 0 10px 24px rgba(7, 42, 70, 0.2);
 }
 
 .padron-console-meter strong {
@@ -7908,10 +7916,18 @@ textarea {
 
 .padron-source-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid #bfd6e7;
+  border-radius: 12px;
+  background: #f8fbfe;
 }
 
 .padron-active-source {
   grid-column: 1 / -1;
+  border-color: #9fc4df;
+  border-left: 5px solid #2169d2;
+  box-shadow: 0 8px 20px rgba(10, 53, 88, 0.07);
   animation: padronPanelEnter 320ms ease-out both;
 }
 
@@ -7919,7 +7935,7 @@ textarea {
 .padron-upload-panel,
 .padron-lot-panel,
 .padron-impact-tile {
-  border: 1px solid #d7e7f4;
+  border: 1px solid #bfd6e7;
   border-radius: 8px;
   background: #ffffff;
 }
@@ -7927,7 +7943,7 @@ textarea {
 .padron-file-panel {
   display: grid;
   gap: 14px;
-  padding: 16px;
+  padding: 20px;
 }
 
 .padron-file-panel span,
@@ -7962,7 +7978,8 @@ textarea {
 .padron-file-meta span {
   padding: 9px 10px;
   border-radius: 8px;
-  background: #f4f8fc;
+  border: 1px solid #d9e7f1;
+  background: #f0f6fb;
   text-transform: none;
 }
 
@@ -7981,7 +7998,20 @@ textarea {
 }
 
 .padron-excel-alternative {
+  position: relative;
   animation-delay: 55ms;
+  border-color: #c7d1da;
+  background: #f7f9fb;
+}
+
+.padron-excel-alternative::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: -10px;
+  width: 1px;
+  background: #b9d2e6;
 }
 
 .padron-lot-panel:hover,
@@ -7995,7 +8025,9 @@ textarea {
   display: grid;
   gap: 14px;
   padding: 16px;
-  background: linear-gradient(145deg, #ffffff, #f3f8ff);
+  border: 2px solid #74a9d3;
+  background: linear-gradient(145deg, #ffffff, #edf6ff);
+  box-shadow: 0 10px 24px rgba(16, 76, 122, 0.1);
 }
 
 .padron-source-heading {
@@ -8124,11 +8156,29 @@ textarea {
 .padron-impact-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #bfd6e7;
+  border-radius: 12px;
+  background: #f8fbfe;
 }
 
 .padron-impact-tile {
-  padding: 12px 14px;
+  padding: 16px;
+  border-top: 4px solid #2169d2;
+  box-shadow: 0 7px 16px rgba(10, 53, 88, 0.06);
+}
+
+.padron-impact-tile:nth-child(2) {
+  border-top-color: #c5533d;
+}
+
+.padron-impact-tile:nth-child(3) {
+  border-top-color: #7a5cc7;
+}
+
+.padron-impact-tile:nth-child(4) {
+  border-top-color: #16835d;
 }
 
 .padron-impact-tile strong {
@@ -8291,6 +8341,138 @@ textarea {
   }
 }
 
+.padron-master-console > .search-actions {
+  margin-top: 0;
+  padding-top: 20px;
+  border-top: 2px solid #bfd6e7;
+}
+
+.padron-confirm-dialog {
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #78a9cf;
+  background: #f7fbff;
+  box-shadow: 0 28px 70px rgba(4, 28, 48, 0.34);
+}
+
+.padron-confirm-head {
+  gap: 7px;
+  padding: 24px 26px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0b3458, #155d93);
+  border-bottom: 4px solid #55a6e8;
+}
+
+.padron-confirm-head .sheet-kicker,
+.padron-confirm-head h2,
+.padron-confirm-head p {
+  margin: 0;
+  color: #ffffff;
+}
+
+.padron-confirm-head p:last-child {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.padron-confirm-head h2 {
+  font-size: 1.45rem;
+}
+
+.padron-confirm-dialog > [data-slot="dialog-close"] {
+  color: #ffffff;
+}
+
+.padron-confirm-body {
+  display: grid;
+  gap: 16px;
+  padding: 22px 26px;
+}
+
+.padron-confirm-lot {
+  padding-left: 14px;
+  border-left: 4px solid #2169d2;
+}
+
+.padron-confirm-lot span,
+.padron-confirm-lot strong {
+  display: block;
+}
+
+.padron-confirm-lot span {
+  color: #526d84;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.padron-confirm-lot strong {
+  margin-top: 3px;
+  color: #0a3558;
+  font-size: 1.12rem;
+}
+
+.padron-confirm-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.padron-confirm-summary span {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid #cbddea;
+  border-radius: 8px;
+  color: #526d84;
+  background: #ffffff;
+  font-size: 0.75rem;
+}
+
+.padron-confirm-summary b {
+  color: #0a3558;
+  font-size: 1rem;
+}
+
+.padron-confirm-effects {
+  padding: 14px 16px;
+  border: 1px solid #d4e1eb;
+  border-left: 4px solid #d69b2d;
+  border-radius: 8px;
+  color: #36556e;
+  background: #fffaf0;
+}
+
+.padron-confirm-effects strong {
+  color: #7a4d00;
+}
+
+.padron-confirm-effects ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.padron-confirm-effects li + li {
+  margin-top: 5px;
+}
+
+.padron-confirm-actions {
+  gap: 10px;
+  margin: 0;
+  padding: 16px 26px;
+  border-top: 1px solid #cbddea;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.padron-confirm-button {
+  justify-content: center;
+  min-width: 150px;
+  color: #ffffff;
+  background: #1266a5;
+  box-shadow: 0 7px 16px rgba(18, 102, 165, 0.22);
+}
+
 @keyframes padronPanelEnter {
   from {
     opacity: 0;
@@ -8325,6 +8507,14 @@ textarea {
 
   .padron-lot-summary {
     grid-template-columns: 1fr;
+  }
+
+  .padron-confirm-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .padron-excel-alternative::before {
+    display: none;
   }
 }
 
