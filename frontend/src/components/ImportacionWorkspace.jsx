@@ -46,7 +46,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
       knownBatchIds.current = new Set(nextBatches.map((item) => item.id));
       if (announce) setSyncMessage(added ? `${added} paquete${added === 1 ? "" : "s"} nuevo${added === 1 ? "" : "s"} recibido${added === 1 ? "" : "s"}.` : "Todo esta al dia. No hay paquetes nuevos.");
       setBatches(nextBatches);
-      setSelectedBatch((current) => current && nextBatches.find((item) => item.codigo_lote === current.codigo_lote) || nextBatches[0] || null);
+      setSelectedBatch((current) => added ? nextBatches[0] || null : current && nextBatches.find((item) => item.codigo_lote === current.codigo_lote) || nextBatches[0] || null);
     } catch (error) { showAlert(error.message); } finally { setLoading(false); }
   }, [apiFetch, showAlert]);
 
@@ -105,6 +105,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
     [records, selectedIds]
   );
   const requestInProgress = ["PENDIENTE", "EN_PROCESO"].includes(activeRequest?.estado);
+  const batchApplicable = ["LISTO", "PARCIALMENTE_APLICADO"].includes(selectedBatch?.estado);
   const changeFilter = (key, value) => { setPage(1); setFilters((current) => ({ ...current, [key]: value })); };
   const toggle = (id) => setSelectedIds((current) => {
     const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next;
@@ -175,8 +176,8 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
               </div>
 
               <div className="import-actions">
-                <button type="button" onClick={() => runAction("aplicar", { ids: [...selectedIds] }, (data) => `${data.applied} registros aplicados.`, "¿Aplicar los registros seleccionados al padron activo?")} disabled={loading || !selectedValid}>Aplicar seleccionados</button>
-                <button type="button" onClick={() => runAction("aplicar", { allValid: true }, (data) => `${data.applied} registros validos aplicados.`, "¿Aplicar todos los registros nuevos y modificados de este lote?")} disabled={loading}>Aplicar todos los validos</button>
+                <button type="button" onClick={() => runAction("aplicar", { ids: [...selectedIds] }, (data) => `${data.applied} registros aplicados.`, "¿Aplicar los registros seleccionados al padron activo?")} disabled={loading || !batchApplicable || !selectedValid}>Aplicar seleccionados</button>
+                <button type="button" onClick={() => runAction("aplicar", { allValid: true }, (data) => `${data.applied} registros validos aplicados.`, "¿Aplicar todos los registros nuevos y modificados de este lote?")} disabled={loading || !batchApplicable}>{selectedBatch?.estado === "APLICADO" ? "Lote ya aplicado" : "Aplicar todos los validos"}</button>
                 <button type="button" className="button-secondary" onClick={() => runAction("descartar", { ids: [...selectedIds] }, (data) => `${data.discarded} registros descartados.`, "¿Descartar los registros seleccionados?")} disabled={loading || !selectedIds.size}>Descartar seleccionados</button>
                 <button type="button" className="button-secondary" onClick={() => changeFilter("estado", "ERROR")}>Ver errores</button>
               </div>

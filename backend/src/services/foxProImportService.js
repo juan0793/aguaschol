@@ -388,7 +388,7 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
     const [lots] = await connection.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? FOR UPDATE", [codigo]);
     const lot = lots[0];
     if (!lot) throw fail("Lote no encontrado.", 404);
-    if (!["LISTO", "PARCIALMENTE_APLICADO"].includes(lot.estado)) throw fail("El lote no esta disponible para aplicar.", 409);
+    if (!["LISTO", "PARCIALMENTE_APLICADO"].includes(lot.estado)) throw fail(`El lote esta en estado ${lot.estado} y no se puede aplicar.`, 409);
     const idClause = allValid ? "" : `AND id IN (${selectedIds.map(() => "?").join(",")})`;
     const [rows] = await connection.query(
       `SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado IN ('NUEVO','MODIFICADO') ${idClause} FOR UPDATE`,
