@@ -3,6 +3,7 @@ import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
 import { getMasterRecordsForImport, replaceMasterRecordsFromImport } from "./claveLookupService.js";
+import { resolveBarrioNameFromClave } from "./barrioCodeService.js";
 
 const IMPORTABLE_FIELDS = [
   ["clave_catastral", "clave_catastral"], ["inquilino", "nombre"], ["barrio_colonia", "colonia"],
@@ -65,7 +66,7 @@ export const normalizeFoxProRecord = (record = {}, numeroFila = 0) => {
     codigo_abonado: abonado,
     clave_catastral: text(record.catastral, 80),
     nombre: text(record.inquilino, 255),
-    colonia: text(record.des_coloni, 255),
+    colonia: text(record.des_coloni || resolveBarrioNameFromClave(record.catastral), 255),
     agua_original: flags.agua.original, agua_normalizada: flags.agua.normalized,
     alcantarillado_original: flags.alca.original, alcantarillado_normalizado: flags.alca.normalized,
     barrido_original: flags.barr.original, barrido_normalizado: flags.barr.normalized,

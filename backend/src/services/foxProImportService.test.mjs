@@ -29,3 +29,8 @@ test("hash de bloque es estable y la clave se compara exactamente", () => {
   assert.equal(sameSecret("secreto", "secreto"), true);
   assert.equal(sameSecret("secreto", "otro"), false);
 });
+
+test("completa la colonia desde la clave cuando FoxPro no la incluye", () => {
+  const row = normalizeFoxProRecord({ catastral: "45-54-09-01", abonado: "21237" }, 1);
+  assert.equal(row.colonia, "Barrio Sagrado Corazon");
+});
