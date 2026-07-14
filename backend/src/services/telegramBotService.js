@@ -51,31 +51,37 @@ const serviceStatus = (value) => ({ S: "Sí", N: "No" })[String(value ?? "").toU
 const money = (value) =>
   new Intl.NumberFormat("es-HN", { style: "currency", currency: "HNL" }).format(Number(value) || 0);
 
+const balance = (record) => Number((Number(record.valor || 0) + Number(record.intereses || 0)).toFixed(2));
+
 export const formatPadronForTelegram = (record) =>
   [
-    "INFORMACIÓN DEL PADRÓN DE AGUAS",
-    `Clave catastral: ${display(record.clave_catastral)}`,
+    "🏠 PADRÓN DE AGUAS",
+    "",
+    "DATOS DEL ABONADO",
     `Abonado: ${display(record.abonado)}`,
     `Nombre: ${display(record.nombre)}`,
     `Inquilino: ${display(record.inquilino)}`,
+    `Clave catastral: ${display(record.clave_catastral)}`,
     `Barrio o colonia: ${display(record.barrio_colonia)}`,
+    "",
+    "SALDO",
+    `Capital: ${money(record.valor)}`,
+    `Intereses: ${money(record.intereses)}`,
+    `TOTAL: ${money(balance(record))}`,
+    "",
+    "SERVICIOS",
     `Agua potable: ${serviceStatus(record.agua)}`,
     `Alcantarillado: ${serviceStatus(record.alcantarillado)}`,
     `Barrido: ${serviceStatus(record.barrido)}`,
     `Recolección: ${serviceStatus(record.recoleccion)}`,
-    `Desechos peligrosos: ${serviceStatus(record.desechos_peligrosos)}`,
-    `Valor: ${money(record.valor)}`,
-    `Intereses: ${money(record.intereses)}`,
-    `Total: ${money(record.total)}`
+    `Desechos peligrosos: ${serviceStatus(record.desechos_peligrosos)}`
   ].join("\n");
 
 export const findPadronForTelegram = async (query) => {
   const digits = query.replace(/\D/g, "");
   const field = query.includes("-") || digits.length >= 6 ? "clave" : "abonado";
   const result = await searchClaveCatastral(query, { field });
-  return field === "abonado"
-    ? result.matches.filter((record) => String(record.abonado) === digits)
-    : result.matches;
+  return result.matches;
 };
 
 export const splitTelegramMessage = (text, limit = 3900) =>

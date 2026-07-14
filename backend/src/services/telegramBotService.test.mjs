@@ -22,5 +22,13 @@ test("consulta el padrón real por abonado o clave", async () => {
   const byClave = await findPadronForTelegram("09-02-03");
   assert.equal(byAbonado[0].clave_catastral, "10-24-06-02");
   assert.ok(byClave.some((record) => record.abonado === "3421"));
-  assert.match(formatPadronForTelegram(byAbonado[0]), /Total:.*1[,.]430/);
+  assert.match(formatPadronForTelegram(byAbonado[0]), /TOTAL:.*1[,.]430/);
+});
+
+test("calcula el total desde capital e intereses y ordena la informacion", () => {
+  const text = formatPadronForTelegram({ abonado: "1234", valor: 1000, intereses: 125.5, total: 9999 });
+  assert.match(text, /Capital:.*1[,.]000/);
+  assert.match(text, /Intereses:.*125[,.]50/);
+  assert.match(text, /TOTAL:.*1[,.]125[,.]50/);
+  assert.ok(text.indexOf("SALDO") < text.indexOf("SERVICIOS"));
 });

@@ -1397,7 +1397,7 @@ export const searchClaveCatastral = async (value, options = {}) => {
         return item.search_name?.includes(normalized);
       }
 
-      return String(item.abonado ?? "").includes(normalized);
+      return String(item.abonado ?? "").replace(/\D/g, "") === normalized;
     })
   );
 
