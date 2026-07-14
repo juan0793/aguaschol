@@ -1,11 +1,18 @@
 using System.Data.OleDb;
+using System.Data;
 
 namespace ControlAguasFoxProReader;
 
 internal static class FoxProReader
 {
     private static readonly HashSet<string> AllowedTables = new(StringComparer.OrdinalIgnoreCase) { "maestro" };
-    private const string Columns = "catastral, abonado, inquilino, des_coloni, agua, alca, barr, tren, bomb, valor, intereses";
+    private static readonly string[][] ColumnAliases =
+    {
+        new[] { "catastral" }, new[] { "abonado" }, new[] { "inquilino" },
+        new[] { "des_coloni", "des_colon", "des_col", "colonia" },
+        new[] { "agua" }, new[] { "alca" }, new[] { "barr" }, new[] { "tren" },
+        new[] { "bomb" }, new[] { "valor" }, new[] { "intereses" }
+    };
 
     private static string ConnectionString(string path) =>
         $"Provider=VFPOLEDB.1;Data Source={path};Mode=Read;Collating Sequence=machine;";
@@ -31,7 +38,8 @@ internal static class FoxProReader
         var table = Validate(config);
         using var connection = new OleDbConnection(ConnectionString(config.FoxPro.DataPath));
         connection.Open();
-        using var command = new OleDbCommand($"SELECT {Columns} FROM {table}", connection);
+        var columns = ResolveColumns(connection, table);
+        using var command = new OleDbCommand($"SELECT {string.Join(", ", columns.Select(name => $"[{name.Replace("]", "]]" )}]"))} FROM {table}", connection);
         using var reader = command.ExecuteReader();
         var rows = new List<FoxProRow>();
         while (reader != null && reader.Read())
@@ -45,6 +53,19 @@ internal static class FoxProReader
             });
         }
         return rows;
+    }
+
+    private static string[] ResolveColumns(OleDbConnection connection, string table)
+    {
+        using var command = new OleDbCommand($"SELECT * FROM {table}", connection);
+        using var reader = command.ExecuteReader(CommandBehavior.SchemaOnly) ?? throw new InvalidOperationException("No fue posible leer la estructura de maestro.dbf.");
+        var available = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+        return ColumnAliases.Select(aliases =>
+            aliases.Select(alias => available.FirstOrDefault(name => name.Equals(alias, StringComparison.OrdinalIgnoreCase)))
+                .FirstOrDefault(name => name != null)
+            ?? (aliases[0] == "des_coloni" ? available.FirstOrDefault(name => name.Contains("COLON", StringComparison.OrdinalIgnoreCase)) : null)
+            ?? throw new InvalidOperationException($"No se encontro la columna {aliases[0]}. Columnas disponibles: {string.Join(", ", available)}")
+        ).ToArray()!;
     }
 
     private static string Value(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? "" : Convert.ToString(reader.GetValue(index))?.Trim() ?? "";
