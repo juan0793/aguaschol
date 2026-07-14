@@ -19,6 +19,12 @@ internal sealed class ControlAguasClient : IDisposable
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", config.ControlAguas.ApiKey);
     }
 
+    internal async Task TestAsync()
+    {
+        using var response = await _http.GetAsync("api/integracion/foxpro/conexion");
+        if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Control Aguas respondio {(int)response.StatusCode}. Revisa la clave de integracion.");
+    }
+
     internal async Task<SendResult> SendAsync(List<FoxProRow> rows, string batchCode, DateTime extractedAt, Action<int, int> progress)
     {
         var size = Math.Clamp(_config.Importacion.BatchSize, 1, 1000);

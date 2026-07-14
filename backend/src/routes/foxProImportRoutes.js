@@ -9,6 +9,7 @@ import { requireFoxProSyncKey } from "../middleware/foxProSyncAuth.js";
 const router = Router();
 router.use(express.json({ limit: "2mb" }));
 
+router.get("/conexion", requireFoxProSyncKey, (_req, res) => res.json({ ok: true }));
 router.post("/lotes/iniciar", requireFoxProSyncKey, startBatchHandler);
 router.post("/lotes/:codigoLote/bloques", requireFoxProSyncKey, receiveBlockHandler);
 router.post("/lotes/:codigoLote/finalizar", requireFoxProSyncKey, finalizeBatchHandler);

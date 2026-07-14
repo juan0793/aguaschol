@@ -112,9 +112,9 @@ Compruebe el proveedor desde PowerShell de 32 bits:
 Pruebe la salida HTTPS, sustituyendo el host:
 
 ```powershell
-Test-NetConnection control-aguas.example.com -Port 443
+Test-NetConnection aguaschol-production.up.railway.app -Port 443
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-WebRequest "https://control-aguas.example.com/api/health" -UseBasicParsing
+Invoke-WebRequest "https://aguaschol-production.up.railway.app/api/health" -UseBasicParsing
 ```
 
 ## Compilar y publicar el lector
@@ -129,14 +129,25 @@ dotnet publish .\foxpro-reader\ControlAguasFoxProReader\ControlAguasFoxProReader
   -o .\foxpro-reader\publish\win-x86
 ```
 
-Copie `appsettings.example.json` como `appsettings.json` junto al ejecutable y configure:
+Al abrir el ejecutable, seleccione la carpeta FoxPro y pegue la clave de integracion. La URL de produccion ya aparece configurada y el programa crea `appsettings.json` al pulsar **Probar conexiones**. No es necesario editar JSON para el uso normal.
+
+La configuracion guardada tiene esta estructura:
 
 ```json
 {
-  "FoxProFolder": "D:\\FoxPro\\DATOS",
-  "BackendBaseUrl": "https://control-aguas.example.com",
-  "ApiKey": "la-misma-clave-configurada-en-railway",
-  "BatchSize": 500
+  "FoxPro": {
+    "DataPath": "D:\\FoxPro\\DATOS",
+    "TableName": "maestro"
+  },
+  "ControlAguas": {
+    "ApiUrl": "https://aguaschol-production.up.railway.app/",
+    "ApiKey": "la-misma-clave-configurada-en-railway"
+  },
+  "Importacion": {
+    "BatchSize": 500,
+    "TimeoutSeconds": 120,
+    "MaxRetries": 3
+  }
 }
 ```
 
@@ -151,8 +162,8 @@ La aplicacion muestra conexion FoxPro, conexion Control Aguas, hora de ultima im
 
 ## Operacion y recuperacion
 
-- Pulse **Probar conexion** antes del primer envio.
-- Pulse **Leer y enviar ahora** solamente cuando el archivo no este siendo mantenido o respaldado.
+- Pulse **1. Probar conexiones** antes del primer envio.
+- Pulse **2. Enviar paquete ahora** solamente cuando el archivo no este siendo mantenido o respaldado.
 - Si falla la red, repita el envio: el codigo de lote y los hashes evitan duplicados.
 - Si una fila queda en conflicto, revise el abonado duplicado y descarte o corrija el origen antes de un nuevo lote.
 - Aplicar es manual y queda registrado con usuario, fecha, lote, cantidad y accion.

@@ -9,7 +9,7 @@ internal sealed class ReaderConfig
     public ImportConfig Importacion { get; set; } = new();
 }
 internal sealed class FoxProConfig { public string DataPath { get; set; } = ""; public string TableName { get; set; } = "maestro"; }
-internal sealed class ControlAguasConfig { public string ApiUrl { get; set; } = ""; public string ApiKey { get; set; } = ""; }
+internal sealed class ControlAguasConfig { public string ApiUrl { get; set; } = "https://aguaschol-production.up.railway.app/"; public string ApiKey { get; set; } = ""; }
 internal sealed class ImportConfig { public int BatchSize { get; set; } = 500; public int TimeoutSeconds { get; set; } = 120; public int MaxRetries { get; set; } = 3; }
 internal sealed record SendResult(int Blocks, int Rejected);
 

@@ -1,0 +1,44 @@
+CONTROL AGUAS - LECTOR FOXPRO
+=============================
+
+PREPARACION UNICA
+-----------------
+1. El administrador de Control Aguas debe crear en Railway la variable:
+
+   FOXPRO_SYNC_API_KEY = una clave privada larga
+
+2. Entregar esa clave de forma privada al administrador del servidor.
+3. Instalar VFPOLEDB.1 de 32 bits si todavia no esta instalado.
+4. La cuenta que ejecuta el programa solo necesita permiso de lectura sobre la
+   carpeta donde se encuentra maestro.dbf.
+
+USO
+---
+1. Descomprimir el ZIP completo en C:\ControlAguasFoxProReader.
+2. Ejecutar ControlAguasFoxProReader.exe.
+3. Pulsar "Elegir carpeta" y seleccionar la carpeta que contiene maestro.dbf.
+4. La URL de Control Aguas ya viene configurada.
+5. Pegar la clave de integracion.
+6. Pulsar "1. Probar conexiones".
+7. Si indica "Todo listo", pulsar "2. Enviar paquete ahora".
+
+No hay que editar archivos JSON ni ejecutar comandos para el uso normal.
+La configuracion queda guardada para la proxima vez.
+
+IMPORTANTE
+----------
+- El programa nunca modifica FoxPro: solamente lee.
+- No envia nada automaticamente.
+- Cada envio ocurre unicamente al pulsar "Enviar paquete ahora".
+- El paquete no cambia el padron hasta que un administrador lo revise y aplique
+  en Control Aguas > Administracion > Importacion.
+- No compartir la clave de integracion ni el archivo appsettings.json.
+
+SOPORTE
+-------
+Los logs se guardan en:
+
+  C:\ProgramData\ControlAguasFoxProReader\logs
+
+Si falla, enviar el mensaje mostrado, la fecha y la hora. No enviar la clave.
+
