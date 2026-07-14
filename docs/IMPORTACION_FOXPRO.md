@@ -1,4 +1,4 @@
-# Importacion manual del padron FoxPro
+# Importacion bajo demanda del padron FoxPro
 
 ## Alcance
 
@@ -7,12 +7,13 @@ La integracion copia el padron desde la tabla libre `maestro.dbf` hacia tablas t
 Flujo:
 
 1. El lector Windows abre la carpeta FoxPro con `VFPOLEDB.1` en modo lectura.
-2. Al pulsar **Leer y enviar ahora**, lee solamente las columnas permitidas y envia bloques HTTPS autenticados.
-3. El backend valida integridad e idempotencia, y clasifica cada fila.
-4. Un administrador revisa el lote en **Administracion > Importacion**.
-5. **Aplicar seleccionados** o **Aplicar todos los validos** actualiza el padron activo usando el mismo mecanismo de reemplazo y recarga que ya usa Control Aguas.
+2. Un administrador pulsa **Solicitar actualizacion** en Control Aguas.
+3. El lector consulta la cola por HTTPS saliente cada 5 segundos, toma la solicitud y envia el padron en bloques.
+4. El backend valida integridad e idempotencia, y clasifica cada fila.
+5. Un administrador revisa el lote en **Administracion > Importacion**.
+6. **Aplicar seleccionados** o **Aplicar todos los validos** actualiza el padron activo usando el mismo mecanismo de reemplazo y recarga que ya usa Control Aguas.
 
-No hay tarea programada, disparador ni sincronizacion automatica.
+No hay lectura periodica del DBF. El lector permanece conectado, pero solo abre FoxPro cuando existe una solicitud creada desde Control Aguas.
 
 ## Mapeo de datos
 
@@ -129,7 +130,7 @@ dotnet publish .\foxpro-reader\ControlAguasFoxProReader\ControlAguasFoxProReader
   -o .\foxpro-reader\publish\win-x86
 ```
 
-Al abrir el ejecutable, seleccione la carpeta FoxPro y pegue la clave de integracion. La URL de produccion ya aparece configurada y el programa crea `appsettings.json` al pulsar **Probar conexiones**. No es necesario editar JSON para el uso normal.
+Al abrir el ejecutable, seleccione la carpeta FoxPro, pegue la clave de integracion y pulse **Guardar y activar**. La URL de produccion ya aparece configurada. No es necesario editar JSON para el uso normal.
 
 La configuracion guardada tiene esta estructura:
 
@@ -162,8 +163,8 @@ La aplicacion muestra conexion FoxPro, conexion Control Aguas, hora de ultima im
 
 ## Operacion y recuperacion
 
-- Pulse **1. Probar conexiones** antes del primer envio.
-- Pulse **2. Enviar paquete ahora** solamente cuando el archivo no este siendo mantenido o respaldado.
+- Pulse **Guardar y activar** durante la instalacion y deje el lector abierto.
+- Las actualizaciones posteriores se solicitan desde Control Aguas; no requieren intervencion en el servidor.
 - Si falla la red, repita el envio: el codigo de lote y los hashes evitan duplicados.
 - Si una fila queda en conflicto, revise el abonado duplicado y descarte o corrija el origen antes de un nuevo lote.
 - Aplicar es manual y queda registrado con usuario, fecha, lote, cantidad y accion.

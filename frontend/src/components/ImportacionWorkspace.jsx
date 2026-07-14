@@ -30,6 +30,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [expandedId, setExpandedId] = useState(null);
   const [syncMessage, setSyncMessage] = useState("");
+  const [activeRequest, setActiveRequest] = useState(null);
   const [filters, setFilters] = useState({ abonado: "", clave: "", nombre: "", colonia: "", estado: "" });
   const knownBatchIds = useRef(new Set());
   const pageCount = Math.max(1, Math.ceil(total / 50));
@@ -67,10 +68,43 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   useEffect(() => { loadBatches(); }, [loadBatches]);
   useEffect(() => { loadRecords(); }, [loadRecords]);
 
+  const refreshRequest = useCallback(async (id) => {
+    try {
+      const response = await apiFetch(`/integracion/foxpro/solicitudes/${id}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No fue posible consultar la solicitud.");
+      setActiveRequest(data.request);
+      if (data.request.estado === "COMPLETADA") {
+        setSyncMessage("Paquete recibido desde FoxPro y listo para revision.");
+        await loadBatches();
+      } else if (data.request.estado === "ERROR") {
+        showAlert(data.request.mensaje_error || "El lector FoxPro reporto un error.");
+      }
+    } catch (error) { showAlert(error.message); }
+  }, [apiFetch, loadBatches, showAlert]);
+
+  useEffect(() => {
+    if (!activeRequest?.id || ["COMPLETADA", "ERROR"].includes(activeRequest.estado)) return undefined;
+    const timer = window.setInterval(() => refreshRequest(activeRequest.id), 3000);
+    return () => window.clearInterval(timer);
+  }, [activeRequest?.estado, activeRequest?.id, refreshRequest]);
+
+  const requestUpdate = async () => {
+    setLoading(true);
+    try {
+      const response = await apiFetch("/integracion/foxpro/solicitudes", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No fue posible solicitar la actualizacion.");
+      setActiveRequest(data.request);
+      setSyncMessage("Solicitud enviada. El lector FoxPro la atendera automaticamente.");
+    } catch (error) { showAlert(error.message); } finally { setLoading(false); }
+  };
+
   const selectedValid = useMemo(
     () => records.filter((row) => selectedIds.has(row.id) && ["NUEVO", "MODIFICADO"].includes(row.estado)).length,
     [records, selectedIds]
   );
+  const requestInProgress = ["PENDIENTE", "EN_PROCESO"].includes(activeRequest?.estado);
   const changeFilter = (key, value) => { setPage(1); setFilters((current) => ({ ...current, [key]: value })); };
   const toggle = (id) => setSelectedIds((current) => {
     const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next;
@@ -94,17 +128,17 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
     <main className="import-workspace no-print">
       <section className="import-header">
         <pre className="import-ascii-fox" aria-hidden="true">{FOX_ASCII}</pre>
-        <div><p className="sheet-kicker">Integracion manual FoxPro</p><h2>Importacion</h2><p>Los datos permanecen temporales hasta que un administrador los revise y aplique.</p></div>
-        <button type="button" className="button-secondary" onClick={() => loadBatches(true)} disabled={loading}><span className={loading ? "import-refresh-icon is-spinning" : "import-refresh-icon"}><Icon name="refresh" /></span>{loading ? "Consultando..." : "Buscar paquetes"}</button>
+        <div><p className="sheet-kicker">Integracion FoxPro bajo demanda</p><h2>Importacion</h2><p>Solicita la lectura desde aqui; el servidor responde automaticamente.</p></div>
+        <button type="button" onClick={requestUpdate} disabled={loading || requestInProgress}><span className={loading || requestInProgress ? "import-refresh-icon is-spinning" : "import-refresh-icon"}><Icon name="refresh" /></span>{requestInProgress ? "Actualizacion en proceso" : "Solicitar actualizacion"}</button>
       </section>
 
-      <section className={`import-sync-strip ${loading ? "is-loading" : selectedBatch ? "is-received" : "is-waiting"}`} role="status" aria-live="polite">
-        <span className="import-sync-symbol" aria-hidden="true">{loading ? "" : selectedBatch ? "✓" : "</>"}</span>
+      <section className={`import-sync-strip ${requestInProgress || loading ? "is-loading" : activeRequest?.estado === "COMPLETADA" || selectedBatch ? "is-received" : "is-waiting"}`} role="status" aria-live="polite">
+        <span className="import-sync-symbol" aria-hidden="true">{requestInProgress || loading ? "" : activeRequest?.estado === "COMPLETADA" || selectedBatch ? "✓" : "</>"}</span>
         <div>
-          <strong>{loading ? "Sincronizando con Control Aguas" : selectedBatch ? "Paquete recibido y listo para revision" : "Esperando un paquete desde FoxPro"}</strong>
-          <span>{loading ? "Consultando lotes y preparando la informacion..." : selectedBatch ? `Lote ${selectedBatch.codigo_lote}` : "El envio ocurre solamente cuando se pulsa el boton en el lector del servidor."}</span>
+          <strong>{activeRequest?.estado === "PENDIENTE" ? "Solicitud enviada; esperando respuesta del servidor" : activeRequest?.estado === "EN_PROCESO" ? "FoxPro esta leyendo y enviando la informacion" : activeRequest?.estado === "ERROR" ? "La solicitud termino con error" : activeRequest?.estado === "COMPLETADA" || selectedBatch ? "Paquete recibido y listo para revision" : "Listo para solicitar una actualizacion"}</strong>
+          <span>{requestInProgress ? "La pantalla se actualizara cuando termine el envio." : activeRequest?.codigo_lote ? `Lote ${activeRequest.codigo_lote}` : selectedBatch ? `Lote ${selectedBatch.codigo_lote}` : "Pulsa Solicitar actualizacion cuando necesites leer el padron FoxPro."}</span>
         </div>
-        {loading ? <span className="import-progress-line" aria-hidden="true" /> : null}
+        {requestInProgress || loading ? <span className="import-progress-line" aria-hidden="true" /> : null}
       </section>
 
       {syncMessage ? <button type="button" className="import-sync-message" onClick={() => setSyncMessage("")} aria-label="Cerrar aviso">{syncMessage}<span aria-hidden="true">×</span></button> : null}

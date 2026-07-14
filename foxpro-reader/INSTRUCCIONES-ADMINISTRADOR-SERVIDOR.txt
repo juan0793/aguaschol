@@ -19,8 +19,8 @@ USO
 3. Pulsar "Elegir carpeta" y seleccionar la carpeta que contiene maestro.dbf.
 4. La URL de Control Aguas ya viene configurada.
 5. Pegar la clave de integracion.
-6. Pulsar "1. Probar conexiones".
-7. Si indica "Todo listo", pulsar "2. Enviar paquete ahora".
+6. Pulsar "Guardar y activar".
+7. Dejar el programa abierto. Mostrara "Escuchando solicitudes".
 
 No hay que editar archivos JSON ni ejecutar comandos para el uso normal.
 La configuracion queda guardada para la proxima vez.
@@ -28,8 +28,9 @@ La configuracion queda guardada para la proxima vez.
 IMPORTANTE
 ----------
 - El programa nunca modifica FoxPro: solamente lee.
-- No envia nada automaticamente.
-- Cada envio ocurre unicamente al pulsar "Enviar paquete ahora".
+- El programa consulta solicitudes cada 5 segundos, pero solo lee y envia cuando
+  un administrador pulsa "Solicitar actualizacion" dentro de Control Aguas.
+- El administrador del servidor no tiene que iniciar cada envio.
 - El paquete no cambia el padron hasta que un administrador lo revise y aplique
   en Control Aguas > Administracion > Importacion.
 - No compartir la clave de integracion ni el archivo appsettings.json.
@@ -41,4 +42,3 @@ Los logs se guardan en:
   C:\ProgramData\ControlAguasFoxProReader\logs
 
 Si falla, enviar el mensaje mostrado, la fecha y la hora. No enviar la clave.
-

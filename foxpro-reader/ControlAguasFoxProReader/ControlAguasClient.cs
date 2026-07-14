@@ -25,6 +25,20 @@ internal sealed class ControlAguasClient : IDisposable
         if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Control Aguas respondio {(int)response.StatusCode}. Revisa la clave de integracion.");
     }
 
+    internal async Task<SyncRequest?> TakeRequestAsync()
+    {
+        using var content = new StringContent("{}", Encoding.UTF8, "application/json");
+        using var response = await _http.PostAsync("api/integracion/foxpro/solicitudes/tomar", content);
+        if (response.StatusCode == System.Net.HttpStatusCode.NoContent) return null;
+        var responseText = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Control Aguas respondio {(int)response.StatusCode}: {responseText}");
+        using var document = JsonDocument.Parse(responseText);
+        return new SyncRequest(document.RootElement.GetProperty("request").GetProperty("id").GetInt32());
+    }
+
+    internal Task CompleteRequestAsync(int requestId, string? batchCode = null, string? error = null) =>
+        PostWithRetry($"api/integracion/foxpro/solicitudes/{requestId}/finalizar", new { codigo_lote = batchCode, error });
+
     internal async Task<SendResult> SendAsync(List<FoxProRow> rows, string batchCode, DateTime extractedAt, Action<int, int> progress)
     {
         var size = Math.Clamp(_config.Importacion.BatchSize, 1, 1000);

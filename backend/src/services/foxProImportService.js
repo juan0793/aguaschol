@@ -240,6 +240,77 @@ export const finalizeFoxProBatch = async (codigoLote) => {
   } finally { connection.release(); }
 };
 
+export const requestFoxProUpdate = async (actorUser) => {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [active] = await connection.query(
+      "SELECT * FROM importacion_padron_solicitudes WHERE estado IN ('PENDIENTE','EN_PROCESO') ORDER BY id DESC LIMIT 1 FOR UPDATE"
+    );
+    if (active.length) { await connection.commit(); return active[0]; }
+    const [result] = await connection.query(
+      "INSERT INTO importacion_padron_solicitudes (solicitado_por) VALUES (?)", [actorUser.id]
+    );
+    const [rows] = await connection.query("SELECT * FROM importacion_padron_solicitudes WHERE id=?", [result.insertId]);
+    await connection.commit();
+    await createAuditLog({ actorUserId: actorUser.id, action: "padron.foxpro_update_requested", entityType: "importacion_padron_solicitud",
+      entityId: String(result.insertId), summary: "Actualizacion de padron FoxPro solicitada desde Control Aguas" });
+    return rows[0];
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
+};
+
+export const getFoxProUpdateRequest = async (id) => {
+  const requestId = positiveInt(id, "Solicitud");
+  const [rows] = await getPool().query("SELECT * FROM importacion_padron_solicitudes WHERE id=? LIMIT 1", [requestId]);
+  if (!rows.length) throw fail("Solicitud no encontrada.", 404);
+  return rows[0];
+};
+
+export const claimFoxProUpdateRequest = async () => {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [claimed] = await connection.query(
+      "SELECT * FROM importacion_padron_solicitudes WHERE estado='EN_PROCESO' ORDER BY id LIMIT 1 FOR UPDATE"
+    );
+    if (claimed.length) { await connection.commit(); return claimed[0]; }
+    const [rows] = await connection.query(
+      "SELECT * FROM importacion_padron_solicitudes WHERE estado='PENDIENTE' ORDER BY id LIMIT 1 FOR UPDATE"
+    );
+    if (!rows.length) { await connection.commit(); return null; }
+    await connection.query("UPDATE importacion_padron_solicitudes SET estado='EN_PROCESO', fecha_inicio=NOW(), mensaje_error=NULL WHERE id=?", [rows[0].id]);
+    await connection.commit();
+    return { ...rows[0], estado: "EN_PROCESO" };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
+};
+
+export const finishFoxProUpdateRequest = async (id, { codigo_lote: codigoLote = "", error = "" } = {}) => {
+  const requestId = positiveInt(id, "Solicitud");
+  const code = codigoLote ? batchCode(codigoLote) : null;
+  const message = text(error, 2000);
+  if (!code && !message) throw fail("Falta el resultado de la solicitud.");
+  const state = code ? "COMPLETADA" : "ERROR";
+  const current = await getFoxProUpdateRequest(requestId);
+  if (["COMPLETADA", "ERROR"].includes(current.estado)) {
+    if (current.estado === state && (state === "ERROR" || current.codigo_lote === code)) return current;
+    throw fail("La solicitud ya fue finalizada con otro resultado.", 409);
+  }
+  const [result] = await getPool().query(
+    `UPDATE importacion_padron_solicitudes SET estado=?, codigo_lote=?, mensaje_error=?, fecha_finalizacion=NOW()
+     WHERE id=? AND estado='EN_PROCESO'`, [state, code, message || null, requestId]
+  );
+  if (!result.affectedRows) throw fail("La solicitud ya no esta en proceso.", 409);
+  return getFoxProUpdateRequest(requestId);
+};
+
 export const listFoxProBatches = async ({ page = 1, limit = 20, estado = "", codigo = "", fecha = "" } = {}) => {
   const pool = getPool();
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);

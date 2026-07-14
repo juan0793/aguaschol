@@ -12,11 +12,13 @@ internal sealed class MainForm : Form
     private readonly TextBox _apiKey = new() { Dock = DockStyle.Fill, UseSystemPasswordChar = true };
     private readonly TextBox _errors = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill };
     private readonly Button _browse = new() { Text = "Elegir carpeta...", AutoSize = true };
-    private readonly Button _test = new() { Text = "1. Probar conexiones", AutoSize = true };
-    private readonly Button _send = new() { Text = "2. Enviar paquete ahora", AutoSize = true };
+    private readonly Button _test = new() { Text = "Guardar y activar", AutoSize = true };
     private readonly Button _logs = new() { Text = "Abrir logs", AutoSize = true };
+    private readonly System.Windows.Forms.Timer _pollTimer = new() { Interval = 5000 };
     private readonly string _configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
     private readonly string _logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ControlAguasFoxProReader", "logs");
+    private bool _checkingRequests;
+    private string _lastPollError = "";
 
     internal MainForm()
     {
@@ -25,15 +27,15 @@ internal sealed class MainForm : Form
         Font = new Font("Segoe UI", 9F); BackColor = Color.FromArgb(244, 248, 252);
         Directory.CreateDirectory(_logDir);
 
-        var title = new Label { Text = "Enviar padron desde FoxPro", Font = new Font("Segoe UI", 18F, FontStyle.Bold), AutoSize = true };
-        var note = new Label { Text = "Proceso manual y de solo lectura. Nada se envia hasta pulsar el boton.", AutoSize = true, ForeColor = Color.FromArgb(22, 112, 75) };
+        var title = new Label { Text = "Conexion FoxPro con Control Aguas", Font = new Font("Segoe UI", 18F, FontStyle.Bold), AutoSize = true };
+        var note = new Label { Text = "Solo lectura. El envio inicia cuando un administrador lo solicita desde Control Aguas.", AutoSize = true, ForeColor = Color.FromArgb(22, 112, 75) };
         var config = BuildConfigPanel();
         var status = new TableLayoutPanel { AutoSize = true, ColumnCount = 2, Dock = DockStyle.Top, Padding = new Padding(0, 12, 0, 12) };
         status.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230)); status.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        foreach (var item in new[] { "Modo FoxPro", "Registros encontrados", "Registros enviados", "Bloques enviados", "Registros rechazados", "Codigo del lote", "Conexion Control Aguas", "Fecha y hora" }) AddStatus(status, item);
+        foreach (var item in new[] { "Estado del lector", "Modo FoxPro", "Registros encontrados", "Registros enviados", "Bloques enviados", "Registros rechazados", "Codigo del lote", "Conexion Control Aguas", "Fecha y hora" }) AddStatus(status, item);
 
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 8, 0, 8) };
-        actions.Controls.AddRange(new Control[] { _test, _send, _logs });
+        actions.Controls.AddRange(new Control[] { _test, _logs });
         var errorLabel = new Label { Text = "Actividad", Font = new Font("Segoe UI", 10F, FontStyle.Bold), AutoSize = true };
         var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), RowCount = 7, ColumnCount = 1 };
         for (var row = 0; row < 6; row++) root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -43,9 +45,9 @@ internal sealed class MainForm : Form
 
         _browse.Click += (_, _) => ChooseFolder();
         _test.Click += async (_, _) => await TestConnection();
-        _send.Click += async (_, _) => await Send();
+        _pollTimer.Tick += async (_, _) => await CheckRequests();
         _logs.Click += (_, _) => Process.Start(new ProcessStartInfo("explorer.exe", _logDir) { UseShellExecute = true });
-        Shown += (_, _) => ShowConfig();
+        Shown += async (_, _) => { ShowConfig(); _pollTimer.Start(); await CheckRequests(); };
     }
 
     private TableLayoutPanel BuildConfigPanel()
@@ -98,7 +100,7 @@ internal sealed class MainForm : Form
         {
             var config = LoadConfig();
             _dataPath.Text = config.FoxPro.DataPath; _backendUrl.Text = config.ControlAguas.ApiUrl; _apiKey.Text = config.ControlAguas.ApiKey;
-            Set("Modo FoxPro", "Solo lectura");
+            Set("Modo FoxPro", "Solo lectura"); Set("Estado del lector", File.Exists(_configPath) ? "Escuchando solicitudes" : "Pendiente de configurar");
         }
         catch (Exception error) { Report(error); }
     }
@@ -116,21 +118,51 @@ internal sealed class MainForm : Form
             var config = SaveConfig();
             var count = await Task.Run(() => FoxProReader.Test(config));
             using var client = new ControlAguasClient(config); await client.TestAsync();
-            Set("Registros encontrados", count.ToString("N0")); Set("Modo FoxPro", "Solo lectura confirmada"); Set("Conexion Control Aguas", "Correcta");
-            Report($"Todo listo. {count:N0} registros disponibles.");
+            Set("Registros encontrados", count.ToString("N0")); Set("Modo FoxPro", "Solo lectura confirmada"); Set("Conexion Control Aguas", "Correcta"); Set("Estado del lector", "Escuchando solicitudes");
+            Report($"Todo listo. {count:N0} registros disponibles. Las solicitudes se reciben desde Control Aguas.");
         });
     }
 
-    private async Task Send()
+    private async Task CheckRequests()
     {
-        await Busy(async () =>
+        if (_checkingRequests || !File.Exists(_configPath)) return;
+        _checkingRequests = true;
+        try
         {
-            var config = SaveConfig();
+            var config = LoadConfig();
+            if (!Directory.Exists(config.FoxPro.DataPath) || string.IsNullOrWhiteSpace(config.ControlAguas.ApiKey)) return;
+            using var client = new ControlAguasClient(config);
+            var request = await client.TakeRequestAsync();
+            _lastPollError = "";
+            if (request is null) { Set("Estado del lector", "Escuchando solicitudes"); return; }
+            Set("Estado del lector", $"Procesando solicitud {request.Id}");
+            try
+            {
+                var code = await SendRequestedPackage(config, client);
+                await client.CompleteRequestAsync(request.Id, batchCode: code);
+                Set("Estado del lector", "Solicitud completada");
+            }
+            catch (Exception error)
+            {
+                await client.CompleteRequestAsync(request.Id, error: error.Message);
+                Set("Estado del lector", "Solicitud con error");
+                throw;
+            }
+        }
+        catch (Exception error)
+        {
+            Set("Estado del lector", "Sin conexion; reintentando");
+            if (_lastPollError != error.Message) { _lastPollError = error.Message; Report(error); }
+        }
+        finally { _checkingRequests = false; }
+    }
+
+    private async Task<string> SendRequestedPackage(ReaderConfig config, ControlAguasClient client)
+    {
             Set("Conexion Control Aguas", "Enviando"); Set("Fecha y hora", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             var rows = await Task.Run(() => FoxProReader.ReadAll(config));
             var code = $"FOXPRO-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..8]}";
             Set("Registros encontrados", rows.Count.ToString("N0")); Set("Codigo del lote", code);
-            using var client = new ControlAguasClient(config);
             var result = await client.SendAsync(rows, code, DateTime.Now, (sent, total) => BeginInvoke(new Action(() =>
             {
                 Set("Bloques enviados", $"{sent:N0} / {total:N0}");
@@ -138,16 +170,16 @@ internal sealed class MainForm : Form
             })));
             Set("Conexion Control Aguas", "Paquete recibido"); Set("Registros rechazados", result.Rejected.ToString("N0"));
             Report($"Paquete {code} enviado. Ya puede revisarse en Control Aguas > Importacion.");
-        });
+            return code;
     }
 
     private async Task Busy(Func<Task> action)
     {
-        _test.Enabled = _send.Enabled = false;
+        _test.Enabled = false;
         try { await action(); }
         catch (OleDbException error) when (error.Message.Contains("provider", StringComparison.OrdinalIgnoreCase)) { Report(new InvalidOperationException("VFPOLEDB.1 no esta instalado o no es de 32 bits.", error)); }
         catch (Exception error) { Report(error); }
-        finally { _test.Enabled = _send.Enabled = true; }
+        finally { _test.Enabled = true; }
     }
 
     private void Set(string key, string value) { if (_values.TryGetValue(key, out var label)) label.Text = value; }

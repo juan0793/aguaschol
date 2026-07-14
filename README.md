@@ -22,7 +22,7 @@ El objetivo es reemplazar el flujo manual en Excel manteniendo una ficha y un av
 - Editar el aviso antes de imprimirlo
 - Guardado persistente con MariaDB/MySQL
 - Consulta separada de clave catastral contra padron maestro
-- Importacion manual y revisable del padron FoxPro
+- Importacion bajo demanda y revisable del padron FoxPro
 
 ## Stack
 

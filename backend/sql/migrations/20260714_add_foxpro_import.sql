@@ -1,3 +1,17 @@
+CREATE TABLE IF NOT EXISTS importacion_padron_solicitudes (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  estado VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE',
+  solicitado_por INT UNSIGNED NULL,
+  fecha_solicitud TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_inicio DATETIME NULL,
+  fecha_finalizacion DATETIME NULL,
+  codigo_lote VARCHAR(80) NULL,
+  mensaje_error TEXT NULL,
+  KEY idx_importacion_solicitudes_estado_fecha (estado, fecha_solicitud),
+  CONSTRAINT fk_importacion_solicitudes_usuario FOREIGN KEY (solicitado_por) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
+
 CREATE TABLE IF NOT EXISTS importacion_padron_lotes (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, codigo_lote VARCHAR(80) NOT NULL UNIQUE,
   origen VARCHAR(80) NOT NULL DEFAULT 'FOXPRO', fecha_extraccion DATETIME NULL,
