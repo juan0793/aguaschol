@@ -3651,10 +3651,10 @@ function App() {
     setMapPointListLimit(MAP_POINT_LIST_INITIAL_LIMIT);
   }, [activeMapDiaryDateKey]);
 
-  const showAlert = (text) => {
+  const showAlert = useCallback((text) => {
     if (!text) return;
     setAlert({ text, id: Date.now() });
-  };
+  }, []);
 
   const clearSession = () => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
