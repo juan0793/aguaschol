@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { formatCurrency } from "../utils/formatting";
 import { formatDateTime } from "../utils/datesAndBusiness";
@@ -15,17 +15,23 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [expandedId, setExpandedId] = useState(null);
+  const [syncMessage, setSyncMessage] = useState("");
   const [filters, setFilters] = useState({ abonado: "", clave: "", nombre: "", colonia: "", estado: "" });
+  const knownBatchIds = useRef(new Set());
   const pageCount = Math.max(1, Math.ceil(total / 50));
 
-  const loadBatches = useCallback(async () => {
+  const loadBatches = useCallback(async (announce = false) => {
     setLoading(true);
     try {
       const response = await apiFetch("/integracion/foxpro/lotes?limit=50");
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "No fue posible cargar los lotes.");
-      setBatches(data.rows || []);
-      setSelectedBatch((current) => current && (data.rows || []).find((item) => item.codigo_lote === current.codigo_lote) || data.rows?.[0] || null);
+      const nextBatches = data.rows || [];
+      const added = nextBatches.filter((item) => !knownBatchIds.current.has(item.id)).length;
+      knownBatchIds.current = new Set(nextBatches.map((item) => item.id));
+      if (announce) setSyncMessage(added ? `${added} paquete${added === 1 ? "" : "s"} nuevo${added === 1 ? "" : "s"} recibido${added === 1 ? "" : "s"}.` : "Todo esta al dia. No hay paquetes nuevos.");
+      setBatches(nextBatches);
+      setSelectedBatch((current) => current && nextBatches.find((item) => item.codigo_lote === current.codigo_lote) || nextBatches[0] || null);
     } catch (error) { showAlert(error.message); } finally { setLoading(false); }
   }, [apiFetch, showAlert]);
 
@@ -74,8 +80,19 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
     <main className="import-workspace no-print">
       <section className="import-header">
         <div><p className="sheet-kicker">Integracion manual FoxPro</p><h2>Importacion</h2><p>Los datos permanecen temporales hasta que un administrador los revise y aplique.</p></div>
-        <button type="button" className="button-secondary" onClick={loadBatches} disabled={loading}><Icon name="refresh" />Refrescar informacion</button>
+        <button type="button" className="button-secondary" onClick={() => loadBatches(true)} disabled={loading}><span className={loading ? "import-refresh-icon is-spinning" : "import-refresh-icon"}><Icon name="refresh" /></span>{loading ? "Consultando..." : "Buscar paquetes"}</button>
       </section>
+
+      <section className={`import-sync-strip ${loading ? "is-loading" : selectedBatch ? "is-received" : "is-waiting"}`} role="status" aria-live="polite">
+        <span className="import-sync-symbol" aria-hidden="true">{loading ? "" : selectedBatch ? "✓" : "</>"}</span>
+        <div>
+          <strong>{loading ? "Sincronizando con Control Aguas" : selectedBatch ? "Paquete recibido y listo para revision" : "Esperando un paquete desde FoxPro"}</strong>
+          <span>{loading ? "Consultando lotes y preparando la informacion..." : selectedBatch ? `Lote ${selectedBatch.codigo_lote}` : "El envio ocurre solamente cuando se pulsa el boton en el lector del servidor."}</span>
+        </div>
+        {loading ? <span className="import-progress-line" aria-hidden="true" /> : null}
+      </section>
+
+      {syncMessage ? <button type="button" className="import-sync-message" onClick={() => setSyncMessage("")} aria-label="Cerrar aviso">{syncMessage}<span aria-hidden="true">×</span></button> : null}
 
       <section className="import-layout">
         <aside className="import-batches">
@@ -118,9 +135,9 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
               <div className="import-table-wrap">
                 <table className="import-table">
                   <thead><tr><th></th><th>Abonado / clave</th><th>Nombre / colonia</th><th>Servicios</th><th>Saldo</th><th>Estado</th><th></th></tr></thead>
-                  <tbody>{records.map((row) => (
+                  <tbody>{records.map((row, index) => (
                     <Fragment key={row.id}>
-                      <tr>
+                      <tr className="import-data-row" style={{ "--import-row-delay": `${Math.min(index, 12) * 35}ms` }}>
                         <td><input type="checkbox" checked={selectedIds.has(row.id)} onChange={() => toggle(row.id)} aria-label={`Seleccionar ${row.codigo_abonado}`} /></td>
                         <td><strong>{row.codigo_abonado || "--"}</strong><span>{row.clave_catastral || "--"}</span></td>
                         <td><strong>{row.nombre || "--"}</strong><span>{row.colonia || "--"}</span></td>
