@@ -81,7 +81,12 @@ export const findPadronForTelegram = async (query) => {
   const digits = query.replace(/\D/g, "");
   const field = query.includes("-") || digits.length >= 6 ? "clave" : "abonado";
   const result = await searchClaveCatastral(query, { field });
-  return result.matches;
+  if (result.matches.length || field === "abonado") return result.matches;
+
+  const parts = result.normalized_query.split("-");
+  if (parts.length !== 4) return [];
+  const baseMatches = (await searchClaveCatastral(parts.slice(0, 3).join("-"), { field: "clave" })).matches;
+  return baseMatches.length === 1 ? baseMatches : [];
 };
 
 export const splitTelegramMessage = (text, limit = 3900) =>
