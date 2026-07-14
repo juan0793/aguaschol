@@ -20,15 +20,7 @@ internal static class FoxProReader
         return config.FoxPro.TableName;
     }
 
-    internal static int Test(ReaderConfig config)
-    {
-        var table = Validate(config);
-        using var connection = new OleDbConnection(ConnectionString(config.FoxPro.DataPath));
-        connection.Open();
-        _ = RequiredColony(AvailableColumns(connection, table), config);
-        using var command = new OleDbCommand($"SELECT COUNT(*) FROM {table}", connection);
-        return Convert.ToInt32(command.ExecuteScalar());
-    }
+    internal static int Test(ReaderConfig config) => ReadAll(config).Count;
 
     internal static List<FoxProRow> ReadAll(ReaderConfig config)
     {
@@ -36,10 +28,10 @@ internal static class FoxProReader
         using var connection = new OleDbConnection(ConnectionString(config.FoxPro.DataPath));
         connection.Open();
         var available = AvailableColumns(connection, table);
-        var groups = GroupFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
-        var colony = Quote(RequiredColony(available, config));
-        var values = ValueFields.Select(field => Quote(RequiredColumn(available, field)));
-        var interests = InterestFields.Select(field => Quote(RequiredColumn(available, field)));
+        var groups = GroupFields.Select(field => Quote(RequiredColumn(available, field).Name)).ToArray();
+        var colony = Quote(RequiredColony(available, config).Name);
+        var values = ValueFields.Select(field => NumericExpression(RequiredColumn(available, field)));
+        var interests = InterestFields.Select(field => NumericExpression(RequiredColumn(available, field)));
         var select = string.Join(", ", groups.Take(3).Concat(new[] { colony }).Concat(groups.Skip(3)))
             + $", SUM({string.Join("+", values)}) AS valor, SUM({string.Join("+", interests)}) AS intereses";
         var groupBy = string.Join(", ", groups.Concat(new[] { colony }));
@@ -60,21 +52,26 @@ internal static class FoxProReader
         return rows;
     }
 
-    private static string[] AvailableColumns(OleDbConnection connection, string table)
+    private static (string Name, Type Type)[] AvailableColumns(OleDbConnection connection, string table)
     {
         using var command = new OleDbCommand($"SELECT * FROM {table}", connection);
         using var reader = command.ExecuteReader(CommandBehavior.SchemaOnly) ?? throw new InvalidOperationException("No fue posible leer la estructura de maestro.dbf.");
-        return Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+        return Enumerable.Range(0, reader.FieldCount).Select(index => (reader.GetName(index), reader.GetFieldType(index))).ToArray();
     }
 
-    private static string RequiredColumn(string[] available, string expected) =>
-        available.FirstOrDefault(name => name.Equals(expected, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException($"No se encontro la columna {expected}. Columnas disponibles: {string.Join(", ", available)}");
+    private static (string Name, Type Type) RequiredColumn((string Name, Type Type)[] available, string expected) =>
+        available.FirstOrDefault(column => column.Name.Equals(expected, StringComparison.OrdinalIgnoreCase)) is var column && column.Name != null
+            ? column
+            : throw new InvalidOperationException($"No se encontro la columna {expected}. Columnas disponibles: {string.Join(", ", available.Select(item => item.Name))}");
 
-    private static string RequiredColony(string[] available, ReaderConfig config) =>
-        available.FirstOrDefault(name => name.Equals("des_coloni", StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException($"El maestro.dbf seleccionado no contiene des_coloni y no corresponde al archivo verificado. Ruta: {Path.Combine(config.FoxPro.DataPath, "maestro.dbf")}. Columnas disponibles: {string.Join(", ", available)}");
+    private static (string Name, Type Type) RequiredColony((string Name, Type Type)[] available, ReaderConfig config) =>
+        available.FirstOrDefault(column => column.Name.Equals("des_coloni", StringComparison.OrdinalIgnoreCase)) is var column && column.Name != null
+            ? column
+            : throw new InvalidOperationException($"El maestro.dbf seleccionado no contiene des_coloni y no corresponde al archivo verificado. Ruta: {Path.Combine(config.FoxPro.DataPath, "maestro.dbf")}. Columnas disponibles: {string.Join(", ", available.Select(item => item.Name))}");
 
+    private static string NumericExpression((string Name, Type Type) column) => column.Type == typeof(string)
+        ? $"VAL(NVL(ALLTRIM({Quote(column.Name)}), '0'))"
+        : $"NVL({Quote(column.Name)}, 0)";
     private static string Quote(string name) => $"[{name.Replace("]", "]]" )}]";
     private static string Value(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? "" : Convert.ToString(reader.GetValue(index))?.Trim() ?? "";
     private static decimal Amount(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? 0 : Convert.ToDecimal(reader.GetValue(index));
