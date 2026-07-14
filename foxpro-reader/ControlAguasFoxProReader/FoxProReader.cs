@@ -29,10 +29,10 @@ internal static class FoxProReader
         using var connection = new OleDbConnection(ConnectionString(config.FoxPro.DataPath));
         connection.Open();
         var available = AvailableColumns(connection, table);
-        var groups = GroupFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
-        var colony = Quote(RequiredColony(available, config));
-        var values = ValueFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
-        var interests = InterestFields.Select(field => Quote(RequiredColumn(available, field))).ToArray();
+        var groups = GroupFields.Select(field => RequiredColumn(available, field)).ToArray();
+        var colony = RequiredColony(available, config);
+        var values = ValueFields.Select(field => RequiredColumn(available, field)).ToArray();
+        var interests = InterestFields.Select(field => RequiredColumn(available, field)).ToArray();
         var select = string.Join(", ", groups.Take(3).Concat(new[] { colony }).Concat(groups.Skip(3)).Concat(values).Concat(interests));
 
         using var command = new OleDbCommand($"SELECT {select} FROM {table}", connection);
@@ -73,7 +73,6 @@ internal static class FoxProReader
         available.FirstOrDefault(name => name.Equals("des_coloni", StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException($"El maestro.dbf seleccionado no contiene des_coloni y no corresponde al archivo verificado. Ruta: {Path.Combine(config.FoxPro.DataPath, "maestro.dbf")}. Columnas disponibles: {string.Join(", ", available)}");
 
-    private static string Quote(string name) => $"[{name.Replace("]", "]]" )}]";
     private static string Value(OleDbDataReader reader, int index) => reader.IsDBNull(index) ? "" : Convert.ToString(reader.GetValue(index))?.Trim() ?? "";
     private static decimal Amount(OleDbDataReader reader, int index)
     {
