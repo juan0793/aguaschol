@@ -33,7 +33,8 @@ internal static class FoxProReader
         var colony = RequiredColony(available, config);
         var values = ValueFields.Select(field => RequiredColumn(available, field)).ToArray();
         var interests = InterestFields.Select(field => RequiredColumn(available, field)).ToArray();
-        var select = string.Join(", ", groups.Take(3).Concat(new[] { colony }).Concat(groups.Skip(3)).Concat(values).Concat(interests));
+        var amounts = values.Concat(interests).Select((field, index) => $"NVL(TRANSFORM({field}), '0') AS amount_{index}");
+        var select = string.Join(", ", groups.Take(3).Concat(new[] { colony }).Concat(groups.Skip(3)).Concat(amounts));
 
         using var command = new OleDbCommand($"SELECT {select} FROM {table}", connection);
         using var reader = command.ExecuteReader();
