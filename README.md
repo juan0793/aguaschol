@@ -22,6 +22,7 @@ El objetivo es reemplazar el flujo manual en Excel manteniendo una ficha y un av
 - Editar el aviso antes de imprimirlo
 - Guardado persistente con MariaDB/MySQL
 - Consulta separada de clave catastral contra padron maestro
+- Importacion manual y revisable del padron FoxPro
 
 ## Stack
 
@@ -41,8 +42,11 @@ backend/
   uploads/
 frontend/
   src/
+foxpro-reader/
 referencia/
 ```
+
+La instalacion, seguridad, publicacion `win-x86` y operacion de la integracion FoxPro se documentan en [docs/IMPORTACION_FOXPRO.md](docs/IMPORTACION_FOXPRO.md).
 
 ## Base de datos
 

@@ -881,6 +881,34 @@ export const getClaveLookupMeta = async () => {
   };
 };
 
+export const getMasterRecordsForImport = () => {
+  reloadMasterRecords();
+  return masterRecords.map((record) => ({ ...record }));
+};
+
+export const replaceMasterRecordsFromImport = (records, { codigoLote = "" } = {}) => {
+  reloadMasterRecords();
+  const rows = normalizeMasterRows(records);
+  if (!rows.length) {
+    const error = new Error("La importacion no produjo registros validos para el padron.");
+    error.status = 400;
+    throw error;
+  }
+
+  const importSummary = summarizePadronChanges(masterRecords, rows);
+  writeJsonFile(maestroPath, rows);
+  masterMeta = {
+    ...masterMeta,
+    file_name: masterMeta.file_name || "padron-maestro.json",
+    total_records: rows.length,
+    updated_at: new Date().toISOString(),
+    last_import_summary: { ...importSummary, source: "FOXPRO_MANUAL", codigo_lote: codigoLote }
+  };
+  writeJsonFile(maestroMetaPath, masterMeta);
+  masterRecords = rows;
+  return { meta: masterMeta, import_summary: masterMeta.last_import_summary };
+};
+
 export const verifyClavePadronIntegrity = async () => {
   reloadMasterRecords();
 

@@ -18,6 +18,7 @@ import planosRoutes from "./routes/planosRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import transportRoutes from "./routes/transportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import foxProImportRoutes from "./routes/foxProImportRoutes.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -79,6 +80,7 @@ app.use(
     callback(new Error("Origen no permitido por CORS."));
   })
 );
+app.use("/api/integracion/foxpro", foxProImportRoutes);
 app.use(express.json());
 const privateAssetHeaders = (res) => res.setHeader("Cache-Control", "private, max-age=300");
 app.use("/uploads", requireMediaAuth, express.static(env.uploadDir, { setHeaders: privateAssetHeaders }));

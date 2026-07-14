@@ -88,6 +88,10 @@ export const env = {
   llmSiteUrl: process.env.LLM_SITE_URL ?? frontendUrls[0] ?? "",
   llmTimeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 25000),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "",
+  foxProSyncApiKey: process.env.FOXPRO_SYNC_API_KEY?.trim() ?? "",
+  foxProSyncBatchSize: Number(process.env.FOXPRO_SYNC_BATCH_SIZE ?? 500),
+  foxProSyncMaxRecords: Number(process.env.FOXPRO_SYNC_MAX_RECORDS ?? 25000),
+  foxProSyncRetainBatches: Number(process.env.FOXPRO_SYNC_RETAIN_BATCHES ?? 5),
   telegramAllowedChatIds: new Set(
     (process.env.TELEGRAM_ALLOWED_CHAT_IDS ?? "")
       .split(",")

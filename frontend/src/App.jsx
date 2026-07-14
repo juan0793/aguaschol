@@ -124,6 +124,7 @@ const FieldValidationWorkspace = lazy(() => import("./components/FieldValidation
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
+const ImportacionWorkspace = lazy(() => import("./components/ImportacionWorkspace"));
 
 class MapLoadBoundary extends Component {
   constructor(props) {
@@ -1349,6 +1350,14 @@ function App() {
             lead: "Carga y reemplazo del archivo maestro usado por la consulta rápida de claves.",
             kicker: "Actualización central"
           },
+          importacion: {
+            panelClass: "hero-panel-users",
+            cardClass: "search-card-users",
+            toplineLabel: "Integracion FoxPro",
+            title: "Importacion",
+            lead: "Revision y aplicacion manual de lotes recibidos desde el servidor FoxPro.",
+            kicker: "Zona temporal"
+          },
           barrioCodes: {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
@@ -1547,6 +1556,14 @@ function App() {
           label: "Archivo",
           value: padronMeta?.file_name || "Sin padrón"
         }
+      ];
+    }
+
+    if (workspaceView === "importacion") {
+      return [
+        { icon: "refresh", label: "Origen", value: "FoxPro" },
+        { icon: "success", label: "Flujo", value: "Manual" },
+        { icon: "records", label: "Destino", value: "Revision" }
       ];
     }
 
@@ -2033,6 +2050,7 @@ function App() {
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
             { key: "barrioCodes", section: "control", label: "Barrios", icon: "map", meta: `${safeBarrioCodes.length} codigos`, tone: "is-map" },
             { key: "padron", section: "control", label: "Padrón", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
+            { key: "importacion", section: "control", label: "Importación", icon: "refresh", meta: "FoxPro manual", tone: "is-padron" },
             { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
           ]
         : [],
@@ -2089,6 +2107,7 @@ function App() {
             { key: "requests", label: "Reportes", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
             { key: "barrioCodes", label: "Barrios", icon: "map", group: "control", helper: `${safeBarrioCodes.length} codigos` },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
+            { key: "importacion", label: "Importación", icon: "refresh", group: "control", helper: "Lotes FoxPro" },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
           ]
@@ -2174,7 +2193,7 @@ function App() {
       {
         key: "gestion",
         title: "Gestion",
-        items: items.filter((item) => ["executiveReport", "requests", "barrioCodes", "padron", "logs", "users"].includes(item.key))
+        items: items.filter((item) => ["executiveReport", "requests", "barrioCodes", "padron", "importacion", "logs", "users"].includes(item.key))
       }
     ].filter((section) => section.items.length);
   }, [
@@ -13352,6 +13371,13 @@ function App() {
                 </button>
               </div>
             </div>
+          ) : workspaceView === "importacion" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">Revisa los lotes recibidos desde FoxPro antes de aplicar cambios al padron maestro.</p>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={handleLogout}><Icon name="logout" />Cerrar sesion</button>
+              </div>
+            </div>
           ) : workspaceView === "padron" ? (
             <div className="workspace-summary">
               <p className="workspace-title">
@@ -15866,6 +15892,10 @@ function App() {
             </div>
           </section>
         </main>
+      ) : workspaceView === "importacion" ? (
+        <Suspense fallback={<main className="import-workspace"><div className="empty-state">Cargando importacion...</div></main>}>
+          <ImportacionWorkspace apiFetch={apiFetch} showAlert={showAlert} />
+        </Suspense>
       ) : workspaceView === "padron" ? (
         <main className="lookup-layout">
           <section className="lookup-shell no-print">
