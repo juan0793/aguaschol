@@ -5,6 +5,20 @@ import { formatDateTime } from "../utils/datesAndBusiness";
 
 const STATES = ["", "NUEVO", "MODIFICADO", "SIN_CAMBIOS", "CONFLICTO", "ERROR", "APLICADO", "DESCARTADO"];
 const statusLabel = (value) => String(value || "").replaceAll("_", " ");
+const FOX_ASCII = String.raw`
+                    /\     /\
+              _____/  \___/  \_____
+       DBF > /      0       0      \ < SQL
+            /            ^           \
+           /        \  _____  /       \
+          /__________\_______/_________\
+                  /  /|     |\  \
+            _____/  / | FOX | \  \_____
+       0101_____/__/  | PRO |  \__\_____1010
+                    __|_____|__
+                   /___/   \___\
+        SELECT  ·  VALIDATE  ·  SEND  ·  REVIEW
+`;
 
 export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const [batches, setBatches] = useState([]);
@@ -78,6 +92,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
 
   return (
     <main className="import-workspace no-print">
+      <pre className="import-ascii-fox" aria-hidden="true">{FOX_ASCII}</pre>
       <section className="import-header">
         <div><p className="sheet-kicker">Integracion manual FoxPro</p><h2>Importacion</h2><p>Los datos permanecen temporales hasta que un administrador los revise y aplique.</p></div>
         <button type="button" className="button-secondary" onClick={() => loadBatches(true)} disabled={loading}><span className={loading ? "import-refresh-icon is-spinning" : "import-refresh-icon"}><Icon name="refresh" /></span>{loading ? "Consultando..." : "Buscar paquetes"}</button>
