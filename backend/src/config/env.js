@@ -90,7 +90,7 @@ export const env = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "",
   foxProSyncApiKey: process.env.FOXPRO_SYNC_API_KEY?.trim() ?? "",
   foxProSyncBatchSize: Number(process.env.FOXPRO_SYNC_BATCH_SIZE ?? 500),
-  foxProSyncMaxRecords: Number(process.env.FOXPRO_SYNC_MAX_RECORDS ?? 25000),
+  foxProSyncMaxRecords: Number(process.env.FOXPRO_SYNC_MAX_RECORDS ?? 50000),
   foxProSyncRetainBatches: Number(process.env.FOXPRO_SYNC_RETAIN_BATCHES ?? 5),
   telegramAllowedChatIds: new Set(
     (process.env.TELEGRAM_ALLOWED_CHAT_IDS ?? "")

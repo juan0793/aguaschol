@@ -52,7 +52,7 @@ Configure estas variables en Railway:
 ```env
 FOXPRO_SYNC_API_KEY=una-clave-larga-aleatoria-y-distinta-de-las-claves-de-usuarios
 FOXPRO_SYNC_BATCH_SIZE=500
-FOXPRO_SYNC_MAX_RECORDS=25000
+FOXPRO_SYNC_MAX_RECORDS=50000
 FOXPRO_SYNC_RETAIN_BATCHES=5
 ```
 
