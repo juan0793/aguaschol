@@ -985,7 +985,7 @@ export const getAguasServiceReport = async () => {
   // Recargar datos desde disco para evitar caché en múltiples procesos
   reloadMasterRecords();
   
-  const emptyDebt = () => ({ capital: 0, intereses: 0, total: 0, deudores: 0 });
+  const emptyDebt = () => ({ capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0 });
   const emptyServiceTotals = () =>
     Object.fromEntries(
       MASTER_SERVICE_FIELDS.map(([field, label]) => [
@@ -1036,6 +1036,10 @@ export const getAguasServiceReport = async () => {
       debtTotals.deudores += 1;
       barrioStats.deuda.deudores += 1;
     }
+    if (deuda.total >= 1000) {
+      debtTotals.criticos += 1;
+      barrioStats.deuda.criticos += 1;
+    }
 
     MASTER_SERVICE_FIELDS.forEach(([field]) => {
       const value = String(record[field] ?? "").trim().toUpperCase();
@@ -1052,6 +1056,10 @@ export const getAguasServiceReport = async () => {
         if (deuda.total > 0) {
           serviceTotals[field].deuda.deudores += 1;
           barrioStats.servicios[field].deuda.deudores += 1;
+        }
+        if (deuda.total >= 1000) {
+          serviceTotals[field].deuda.criticos += 1;
+          barrioStats.servicios[field].deuda.criticos += 1;
         }
       }
     });
@@ -1075,7 +1083,7 @@ export const getAguasServiceReport = async () => {
         ...service,
         percentage: total ? Number(((Number(service.active || 0) / total) * 100).toFixed(1)) : 0,
         deuda: Object.fromEntries(
-          Object.entries(service.deuda).map(([key, value]) => [key, key === "deudores" ? value : Number(value.toFixed(2))])
+          Object.entries(service.deuda).map(([key, value]) => [key, ["deudores", "criticos"].includes(key) ? value : Number(value.toFixed(2))])
         )
       }))
       .sort((left, right) => right.active - left.active || left.label.localeCompare(right.label, "es"));
@@ -1084,7 +1092,7 @@ export const getAguasServiceReport = async () => {
     .map((barrio) => ({
       ...barrio,
       deuda: Object.fromEntries(
-        Object.entries(barrio.deuda).map(([key, value]) => [key, key === "deudores" ? value : Number(value.toFixed(2))])
+        Object.entries(barrio.deuda).map(([key, value]) => [key, ["deudores", "criticos"].includes(key) ? value : Number(value.toFixed(2))])
       ),
       servicios: withPercentages(barrio.servicios, barrio.total_registros)
     }))
@@ -1102,7 +1110,7 @@ export const getAguasServiceReport = async () => {
       total_records: masterRecords.length,
       total_barrios: barrios.length,
       deuda: Object.fromEntries(
-        Object.entries(debtTotals).map(([key, value]) => [key, key === "deudores" ? value : Number(value.toFixed(2))])
+        Object.entries(debtTotals).map(([key, value]) => [key, ["deudores", "criticos"].includes(key) ? value : Number(value.toFixed(2))])
       ),
       profiles,
       services: withPercentages(serviceTotals, masterRecords.length)

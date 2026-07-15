@@ -4806,12 +4806,15 @@ function App() {
       loadBarrioCodes();
     }
 
+    if (["dashboard", "requests"].includes(workspaceView)) {
+      loadPadronServiceReport({ silent: true });
+    }
+
     if (workspaceView === "requests") {
       loadPadronRequestMeta();
       loadPadronMeta();
       loadAlcaldiaMeta();
       loadBarrioCodes({ silent: true });
-      loadPadronServiceReport({ silent: true });
       if (!alcaldiaComparison?.summary) {
         loadAlcaldiaComparison({ silent: true });
       }
@@ -4823,7 +4826,7 @@ function App() {
   }, [auditFilters, isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin || workspaceView !== "requests") {
+    if (!isAuthenticated || !isAdmin || !["dashboard", "requests"].includes(workspaceView)) {
       return undefined;
     }
 
@@ -13682,6 +13685,7 @@ function App() {
             metrics: dashboardLiveMetrics,
             journeys: mapDiaryGroups,
             debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
+            onlineUsers: onlineUsers.map((user) => ({ ...user, roleLabel: roleLabel(user.role) })),
             attention: dashboardPriorityItems,
             feed: dashboardLiveFeed,
             navigate: setWorkspaceView

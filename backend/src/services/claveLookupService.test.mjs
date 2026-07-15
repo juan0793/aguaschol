@@ -7,6 +7,7 @@ test("calcula deuda general y por servicio para cada barrio", async () => {
   assert.ok(report.summary.deuda.total > 0);
   assert.ok(report.summary.services.every((service) => Number.isFinite(service.deuda.total)));
   assert.ok(report.barrios.every((barrio) => Number.isFinite(barrio.deuda.total)));
+  assert.equal(report.summary.deuda.criticos, report.barrios.reduce((total, barrio) => total + barrio.deuda.criticos, 0));
   assert.ok(report.barrios.every((barrio) => barrio.servicios.every((service) => Number.isFinite(service.deuda.total))));
 });
 
