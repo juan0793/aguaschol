@@ -125,6 +125,7 @@ const FieldValidationWorkspace = lazy(() => import("./components/FieldValidation
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
 const ReportsWorkspace = lazy(() => import("./modules/reports/ReportsWorkspace"));
+const DashboardWorkspace = lazy(() => import("./modules/dashboard/DashboardWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 const ImportacionWorkspace = lazy(() => import("./components/ImportacionWorkspace"));
 
@@ -12094,7 +12095,8 @@ function App() {
         sidebarCollapsed ? "sidebar-collapsed" : "",
         ["requests", "mapReports", "mapAnalytics"].includes(workspaceView) ? "reports-layout-mode" : "",
         showPadronServiceModal || showPadronStatsModal ? "reports-modal-open" : "",
-        workspaceView === "mapReports" ? "map-reports-mode" : ""
+        workspaceView === "mapReports" ? "map-reports-mode" : "",
+        workspaceView === "dashboard" ? "dashboard-refactor-mode" : ""
       ].filter(Boolean).join(" ")}
     >
       {authFx ? (
@@ -13673,6 +13675,19 @@ function App() {
         />
       ) : null}
       {workspaceView === "dashboard" ? (
+        <Suspense fallback={<div className="module-loading-state" role="status">Cargando tablero...</div>}>
+          <DashboardWorkspace model={{
+            userName: session?.user?.full_name || session?.user?.username || "admin",
+            syncLabel: dashboardRefreshing ? "Actualizando..." : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
+            metrics: dashboardLiveMetrics,
+            journeys: mapDiaryGroups,
+            debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
+            attention: dashboardPriorityItems,
+            feed: dashboardLiveFeed,
+            navigate: setWorkspaceView
+          }} />
+        </Suspense>
+      ) : workspaceView === "dashboardLegacyDisabled" ? (
       <main className="dashboard-layout">
         <section className="dashboard-main">
           <MotionSurface className={`dashboard-live-header is-${dashboardConnectionStatus}`} preset="settle">

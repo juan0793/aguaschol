@@ -27192,3 +27192,19 @@ body {
 @media (max-width: 760px) {
   .stats-modal-summary { grid-template-columns: 1fr; }
 }
+
+/* Navegacion principal compacta del dashboard 2026. */
+@media (min-width: 981px) {
+  .page-shell {
+    --app-sidebar-width: 13.5rem;
+  }
+}
+
+.app-sidebar-item {
+  min-height: 44px !important;
+  padding-block: 0.45rem !important;
+}
+
+.app-sidebar-item span em {
+  display: none !important;
+}

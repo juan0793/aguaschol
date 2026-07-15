@@ -1,0 +1,26 @@
+import { useMemo, useState } from "react";
+import { Icon } from "../../components/Icon";
+import { formatCurrency } from "../../utils/formatting";
+import { formatSpanishDate } from "../../utils/datesAndBusiness";
+import { activitySeries, debtRanking } from "./dashboardSelectors";
+import "./dashboard.css";
+
+export default function DashboardWorkspace({ model }) {
+  const [range, setRange] = useState(7);
+  const [debtMetric, setDebtMetric] = useState("total");
+  const [moreOpen, setMoreOpen] = useState(false);
+  const activity = useMemo(() => activitySeries(model.journeys, range), [model.journeys, range]);
+  const ranking = useMemo(() => debtRanking(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
+  const maxActivity = Math.max(1, ...activity.map((item) => item.total));
+  const maxDebt = Math.max(1, ...ranking.map((item) => item.value));
+  return <main className="dashboard-workspace">
+    <header className="dashboard-new-header dashboard-glass"><div><span>Resumen operativo · {formatSpanishDate(new Date())}</span><h1>Buenos días, {model.userName}</h1><p>Información crítica, actividad y accesos del sistema en una sola vista.</p></div><div className="dashboard-live"><i /><strong>Sistema en vivo</strong><small>{model.syncLabel}</small></div><div className="dashboard-new-actions"><button type="button" onClick={() => model.navigate("records")}><Icon name="plus" />Nueva ficha</button><button type="button" className="button-secondary" onClick={() => model.navigate("lookup")}><Icon name="search" />Buscar clave</button><div><button type="button" className="button-secondary" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>Más acciones ▾</button>{moreOpen ? <nav><button onClick={() => model.navigate("map")}>Ir a campo</button><button onClick={() => model.navigate("logs")}>Revisar actividad</button><button onClick={() => model.navigate("executiveReport")}>Operaciones realizadas</button></nav> : null}</div></div></header>
+    <section className="dashboard-summary-bar dashboard-glass">{model.metrics.map((item) => <button type="button" key={item.key} onClick={() => model.navigate(item.key === "gps" ? "map" : item.key === "records" || item.key === "alerts" ? "records" : "users")}><span>{item.label}</span><strong>{item.value}</strong></button>)}</section>
+    <section className="dashboard-new-grid">
+      <article className="dashboard-panel"><header><div><span>Actividad de campo</span><h2>Puntos registrados</h2></div><div><button className={range === 7 ? "active" : ""} onClick={() => setRange(7)}>7 días</button><button className={range === 30 ? "active" : ""} onClick={() => setRange(30)}>30 días</button></div></header>{activity.length ? <div className="dashboard-bars">{activity.map((item) => <div key={item.key}><span style={{ height: `${Math.max(6, item.total / maxActivity * 100)}%` }} /><small>{item.key.slice(5)}</small><b>{item.total}</b></div>)}</div> : <p className="dashboard-empty">Sin actividad GPS en el período.</p>}</article>
+      <article className="dashboard-panel"><header><div><span>Datos reales del padrón</span><h2>Barrios con mayor mora</h2></div><select value={debtMetric} onChange={(e) => setDebtMetric(e.target.value)}><option value="total">Mora total</option><option value="accounts">Abonados</option><option value="critical">Casos críticos</option></select></header>{ranking.length ? <div className="dashboard-ranking">{ranking.map((item, index) => <div key={item.name}><b>{index + 1}</b><span><strong>{item.name}</strong><i><em style={{ width: `${item.value / maxDebt * 100}%` }} /></i></span><small>{debtMetric === "total" ? formatCurrency(item.value) : item.value}</small></div>)}</div> : <p className="dashboard-empty">No hay desglose de mora por barrio disponible.</p>}<button className="dashboard-link" onClick={() => model.navigate("mapReports")}>Ver informe</button></article>
+      <article className="dashboard-panel dashboard-attention"><header><div><span>Prioridades</span><h2>Atención requerida</h2></div></header>{model.attention.slice(0, 4).map((item) => <button key={item.title} onClick={() => model.navigate(item.actionView)}><Icon name={item.icon} /><span><strong>{item.title}</strong><small>{item.detail}</small></span><b>→</b></button>)}</article>
+      <article className="dashboard-panel dashboard-recent"><header><div><span>Aplicación viva</span><h2>Actividad reciente</h2></div></header>{model.feed.slice(0, 5).map((item, index) => <button key={item.key} onClick={() => model.navigate(item.targetView)}><Icon name={item.icon} /><span><strong>{item.title}{index === 0 ? <em>Nuevo</em> : null}</strong><small>{item.detail}</small></span></button>)}</article>
+    </section>
+  </main>;
+}
