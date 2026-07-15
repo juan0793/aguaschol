@@ -7,3 +7,4 @@ export const NOTIFICATION_REQUEST_STORAGE_KEY = "aguaschol-notification-requeste
 export const NOTIFICATION_SOUND_MUTED_STORAGE_KEY = "aguaschol-notification-sound-muted";
 export const CHAT_FONT_STORAGE_KEY = "aguaschol-chat-font";
 export const MAP_REPORT_SETTINGS_STORAGE_KEY = "aguaschol-map-report-settings";
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = "aguaschol-sidebar-collapsed";

@@ -2586,7 +2586,7 @@ button.is-loading::before {
 .page-shell {
   width: 100%;
   margin: 0;
-  padding: 0 1rem 1.5rem 16.5rem;
+  padding: 0 1rem 1.5rem 15rem;
 }
 
 .app-chrome {
@@ -2801,12 +2801,36 @@ button.is-loading::before {
   left: 0;
   bottom: 0;
   z-index: 24;
-  width: 15rem;
+  width: 13.75rem;
   padding: 0.85rem 0.65rem;
   border-right: 1px solid rgba(20, 101, 217, 0.1);
   background: #ffffff;
   box-shadow: 8px 0 24px rgba(11, 63, 115, 0.06);
   overflow-y: auto;
+  transition: width 220ms ease;
+}
+
+@media (min-width: 769px) {
+  .page-shell.sidebar-collapsed {
+    padding-left: 68px;
+  }
+
+  .page-shell.sidebar-collapsed .app-sidebar {
+    width: 68px;
+  }
+
+  .page-shell.sidebar-collapsed .app-sidebar-profile div,
+  .page-shell.sidebar-collapsed .app-sidebar-label,
+  .page-shell.sidebar-collapsed .app-sidebar-item > span,
+  .page-shell.sidebar-collapsed .app-sidebar-badge,
+  .page-shell.sidebar-collapsed .app-sidebar-status div {
+    display: none;
+  }
+
+  .page-shell.sidebar-collapsed .app-sidebar-item {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
 }
 
 .app-sidebar-section {
@@ -7846,6 +7870,43 @@ textarea {
   border: 1px solid #b9d2e6;
   background: #edf4fa;
   box-shadow: 0 18px 42px rgba(10, 53, 88, 0.08);
+}
+
+.app-topbar-session {
+  position: relative;
+}
+
+button.app-user-chip {
+  border: 0;
+  box-shadow: none;
+}
+
+.app-user-menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 40;
+  width: 210px;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.45rem;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #dce7f1;
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(20, 65, 110, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.app-user-menu button {
+  justify-content: flex-start;
+  background: transparent;
+  color: #173f62;
+  box-shadow: none;
+}
+
+.app-user-menu button:hover {
+  background: #edf5fc;
+  transform: none;
 }
 
 .padron-alcaldia-console {

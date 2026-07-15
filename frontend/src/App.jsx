@@ -16,6 +16,7 @@ import {
   DRAFT_SAVED_AT_STORAGE_KEY,
   LOOKUP_HISTORY_STORAGE_KEY,
   MAP_REPORT_SETTINGS_STORAGE_KEY,
+  SIDEBAR_COLLAPSED_STORAGE_KEY,
   RECORD_ALERT_NOTIFICATION_STORAGE_KEY,
   NOTIFICATION_REQUEST_STORAGE_KEY
 } from "./constants/storageKeys";
@@ -123,6 +124,7 @@ const FieldMap = lazyWithRetry(() => import("./components/FieldMap"));
 const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
+const ReportsWorkspace = lazy(() => import("./modules/reports/ReportsWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 const ImportacionWorkspace = lazy(() => import("./components/ImportacionWorkspace"));
 
@@ -923,7 +925,11 @@ function App() {
   const [changedDashboardMetricKeys, setChangedDashboardMetricKeys] = useState([]);
   const dashboardMetricValuesRef = useRef({});
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    return saved === null ? window.matchMedia?.("(max-width: 1100px)").matches : saved === "true";
+  });
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [lookupSearchMode, setLookupSearchMode] = useState("clave");
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupPrefixMode, setLookupPrefixMode] = useState("auto");
@@ -3613,6 +3619,10 @@ function App() {
   }, [dashboardWidgetPrefs]);
 
   useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
     const byDate = Object.fromEntries(
       Object.entries(mapReportSettingsByDate).map(([dateKey, settings]) => [
         dateKey,
@@ -3627,6 +3637,7 @@ function App() {
       if (event.key !== "Escape") return;
       setShowMobileModuleMenu(false);
       setShowRecordAdvancedFilters(false);
+      setShowUserMenu(false);
     };
 
     window.addEventListener("keydown", handleEscape);
@@ -13020,14 +13031,17 @@ function App() {
                 setNotificationUserId(userId);
               }}
             />
-            <span className="app-user-chip">
+            <button type="button" className="app-user-chip" aria-haspopup="menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu((current) => !current)}>
               <Icon name="users" />
               {session?.user?.full_name || session?.user?.username || "Sesion activa"}
-            </span>
-            <button type="button" className="button-secondary app-logout-button" onClick={handleLogout}>
-              <Icon name="logout" />
-              Salir
             </button>
+            {showUserMenu ? (
+              <div className="app-user-menu" role="menu">
+                <button type="button" role="menuitem" onClick={() => { setWorkspaceView("profile"); setShowUserMenu(false); }}><Icon name="users" />Mi perfil</button>
+                <button type="button" role="menuitem" onClick={() => { setShowPasswordModal(true); setShowUserMenu(false); }}><Icon name="auth" />Cambiar contraseña</button>
+                <button type="button" role="menuitem" onClick={handleLogout}><Icon name="logout" />Cerrar sesión</button>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -13624,6 +13638,7 @@ function App() {
                 key={item.key}
                 type="button"
                 className={`app-sidebar-item ${workspaceView === item.key ? "is-active" : ""}`}
+                title={sidebarCollapsed ? item.label : undefined}
                 onClick={() => {
                   setWorkspaceView(item.key);
                   setShowMobileModuleMenu(false);
@@ -16790,6 +16805,65 @@ function App() {
 
           <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
             {workspaceView === "mapReports" ? (
+              <Suspense fallback={<div className="module-loading-state" role="status" aria-live="polite">Cargando reportes...</div>}>
+                <ReportsWorkspace
+                  model={{
+                    activeDateKey: activeMapDiaryDateKey,
+                    days: mapDiaryGroups,
+                    data: mapReportPrintData,
+                    settings: mapReportSettings,
+                    staff: mapReportStaff,
+                    technicians: getMapReportTechnicians(mapReportStaff),
+                    debtReport: fieldDebtReport,
+                    debtSummary: fieldDebtSummary,
+                    debtChart: fieldDebtChartData,
+                    regulatorDays: regulatorReportDiaryOptions,
+                    selectedRegulatorDays: selectedRegulatorDiaryKeys,
+                    loadingPoints: loadingMapPoints,
+                    loadingContexts: loadingMapContexts,
+                    loadingDebt: loadingFieldDebtReport,
+                    generatingRegulator: generatingRegulatorReport,
+                    reportDraft: reportMapDraft,
+                    savingPoint: savingReportMapPoint,
+                    onSelectDay: (dateKey) => {
+                      setMapDiaryDateKey(dateKey);
+                      setMapReportPage(1);
+                    },
+                    onRefresh: () => {
+                      loadMapDiaryGroups({ silent: true });
+                      loadMapPoints();
+                    },
+                    onOpenMap: (point) => {
+                      handleSelectMapPoint(point.id);
+                      setWorkspaceView("map");
+                    },
+                    onEditPoint: handleEditReportMapPoint,
+                    onDraftChange: handleReportMapDraftChange,
+                    onSavePoint: handleSaveReportMapPoint,
+                    onResetPoint: resetReportMapDraft,
+                    onVerifyDebt: handleVerifyFieldDebt,
+                    onDebtDetail: () => setShowFieldDebtModal(true),
+                    onPrintDebt: handlePrintFieldDebtChart,
+                    onDownloadDebt: handleDownloadFieldDebtPdf,
+                    onDownloadTechnical: handleDownloadMapFieldPdf,
+                    onPrintTechnical: handlePrintMapFieldReport,
+                    onDownloadBrief: handleDownloadMapBriefPdf,
+                    onPrintBrief: handlePrintMapBriefReport,
+                    onDownloadCensus: handleDownloadMapCensusPdf,
+                    onPrintCensus: handlePrintMapCensusReport,
+                    onDownloadRegulator: handleDownloadRegulatorEvidencePdf,
+                    onToggleRegulatorDay: handleToggleRegulatorDiaryKey,
+                    onSettingsChange: handleMapReportSettingsChange,
+                    onImage: handleMapReportImageChange,
+                    onClearImage: clearMapReportImage,
+                    onStaffChange: handleMapReportStaffChange,
+                    onTechnicianChange: handleMapReportTechnicianChange,
+                    onAddTechnician: addMapReportTechnician,
+                    onRemoveTechnician: removeMapReportTechnician
+                  }}
+                />
+              </Suspense>
+            ) : workspaceView === "mapReportsLegacyDisabled" ? (
               <section className="preview-panel log-panel-full">
                 <div className="log-shell">
                   <div className="log-hero">
