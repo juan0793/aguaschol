@@ -247,7 +247,7 @@ const tryNormalizeAguasKey = (value = "") => {
   }
 };
 
-const normalizeMasterRows = (rows = []) =>
+export const normalizeMasterRecords = (rows = []) =>
   sortByClave(
     rows
       .map((item) => {
@@ -369,7 +369,7 @@ const parseWorkbookRows = (buffer) => {
 
   return {
     sheetName: firstSheetName,
-    rows: normalizeMasterRows(normalizedRows),
+    rows: normalizeMasterRecords(normalizedRows),
     stats: {
       source_rows: rows.length,
       discarded_missing_clave: discardedMissingClave
@@ -511,7 +511,7 @@ const parseAlcaldiaWorkbookRows = (buffer) => {
   };
 };
 
-let masterRecords = normalizeMasterRows(readJsonFile(maestroPath, []));
+let masterRecords = normalizeMasterRecords(readJsonFile(maestroPath, []));
 let masterMeta = readJsonFile(maestroMetaPath, {
   file_name: fs.existsSync(maestroPath) ? path.basename(maestroPath) : "",
   sheet_name: "",
@@ -539,7 +539,7 @@ let alcaldiaMeta = readJsonFile(alcaldiaMetaPath, {
 // Funciones para recargar datos desde disco (soluciona problema de caché en múltiples procesos)
 const reloadMasterRecords = () => {
   try {
-    masterRecords = normalizeMasterRows(readJsonFile(maestroPath, []));
+    masterRecords = normalizeMasterRecords(readJsonFile(maestroPath, []));
     masterMeta = readJsonFile(maestroMetaPath, {
       file_name: fs.existsSync(maestroPath) ? path.basename(maestroPath) : "",
       sheet_name: "",
@@ -889,7 +889,7 @@ export const getMasterRecordsForImport = () => {
 
 export const replaceMasterRecordsFromImport = (records, { codigoLote = "" } = {}) => {
   reloadMasterRecords();
-  const rows = normalizeMasterRows(records);
+  const rows = normalizeMasterRecords(records);
   if (!rows.length) {
     const error = new Error("La importacion no produjo registros validos para el padron.");
     error.status = 400;
@@ -908,7 +908,7 @@ export const replaceMasterRecordsFromImport = (records, { codigoLote = "" } = {}
   };
   writeJsonFile(maestroMetaPath, masterMeta);
   masterRecords = rows;
-  return { meta: masterMeta, import_summary: masterMeta.last_import_summary };
+  return { meta: masterMeta, import_summary: masterMeta.last_import_summary, records: rows };
 };
 
 export const verifyClavePadronIntegrity = async () => {
@@ -934,7 +934,7 @@ export const verifyClavePadronIntegrity = async () => {
   const buffer = fs.readFileSync(maestroSourcePath);
   const parsed = parseWorkbookRows(buffer);
   const sourceRows = parsed.rows;
-  const activeRows = normalizeMasterRows(readJsonFile(maestroPath, []));
+  const activeRows = normalizeMasterRecords(readJsonFile(maestroPath, []));
   const verifiedRecords = countVerifiedRows(sourceRows, activeRows);
   const normalizedSourceRows = sourceRows.length;
 

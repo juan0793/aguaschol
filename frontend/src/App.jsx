@@ -9401,7 +9401,7 @@ function App() {
         verification
       });
       showAlert(verification.ok
-        ? `Verificacion 100% correcta. El lote ${verification.selected_lot} esta activo con ${verification.active_records.toLocaleString("es-HN")} registros.`
+        ? `Verificacion 100% correcta. El lote ${verification.selected_lot} esta activo con ${verification.active_records.toLocaleString("es-HN")} registros${verification.excluded_invalid_keys ? `; ${verification.excluded_invalid_keys.toLocaleString("es-HN")} filas sin clave valida fueron excluidas` : ""}.`
         : `El lote seleccionado no coincide completamente con el padron activo. Coincidencia: ${verification.verified_percent}%.`);
     } catch (error) {
       showAlert(error.message || "No fue posible verificar el lote.");

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord } from "./foxProImportService.js";
+import { normalizeMasterRecords } from "./claveLookupService.js";
 import { sameSecret } from "../middleware/foxProSyncAuth.js";
 
 test("normaliza S y N conservando los valores originales", () => {
@@ -44,4 +45,9 @@ test("la huella del padron detecta cambios pero no depende del orden", () => {
   const rows = [{ abonado: "1", valor: 100 }, { abonado: "2", valor: 200 }];
   assert.equal(hashMasterRecords(rows), hashMasterRecords([...rows].reverse()));
   assert.notEqual(hashMasterRecords(rows), hashMasterRecords([{ abonado: "1", valor: 101 }, rows[1]]));
+});
+
+test("la verificacion usa la clave normalizada que consulta el sistema", () => {
+  const [row] = normalizeMasterRecords([{ clave_catastral: "01050901", abonado: "1" }]);
+  assert.equal(row.clave_catastral, "01-05-09-01");
 });

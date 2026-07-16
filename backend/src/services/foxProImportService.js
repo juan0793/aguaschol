@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
-import { getMasterRecordsForImport, replaceMasterRecordsFromImport } from "./claveLookupService.js";
+import { getMasterRecordsForImport, normalizeMasterRecords, replaceMasterRecordsFromImport } from "./claveLookupService.js";
 import { loadActivePadronSnapshot, saveActivePadronSnapshot } from "./padronSnapshotService.js";
 import { resolveBarrioNameFromClave } from "./barrioCodeService.js";
 
@@ -408,7 +408,7 @@ export const restoreActivePadronFromDatabase = async () => {
   if (!rows.length) throw fail(`El lote aplicado ${lots[0].codigo_lote} no conserva registros para recuperar el padron.`, 503);
   const records = foxProRowsToMaster(rows);
   const result = replaceMasterRecordsFromImport(records, { codigoLote: lots[0].codigo_lote });
-  await saveActivePadronSnapshot(records, lots[0].codigo_lote);
+  await saveActivePadronSnapshot(result.records, lots[0].codigo_lote);
   return { restored: true, source: "latest_applied_batch", ...result };
 };
 
@@ -430,7 +430,7 @@ export const activateFoxProBatch = async (codigoLote, actorUser) => {
 
   const activeRecords = foxProRowsToMaster(rows);
   const result = replaceMasterRecordsFromImport(activeRecords, { codigoLote: codigo });
-  await saveActivePadronSnapshot(activeRecords, codigo);
+  await saveActivePadronSnapshot(result.records, codigo);
   await pool.query(
     `UPDATE importacion_padron_lotes SET estado='APLICADO', registros_aplicados=?, usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE id=?`,
     [rows.length, actorUser.id, lot.id]
@@ -485,8 +485,10 @@ export const verifyActiveFoxProBatch = async (codigoLote) => {
 
   const snapshot = await loadActivePadronSnapshot();
   if (!snapshot) throw fail("No existe una copia persistida del padron activo.", 409);
-  const source = foxProRowsToMaster(rows);
-  const active = getMasterRecordsForImport();
+  const sourceRows = foxProRowsToMaster(rows);
+  const source = normalizeMasterRecords(sourceRows);
+  const persisted = normalizeMasterRecords(snapshot.records);
+  const active = normalizeMasterRecords(getMasterRecordsForImport());
   const sourceKeys = new Map();
   source.forEach((row) => sourceKeys.set(masterRecordKey(row), (sourceKeys.get(masterRecordKey(row)) || 0) + 1));
   const verifiedRecords = active.reduce((total, row) => {
@@ -497,7 +499,7 @@ export const verifyActiveFoxProBatch = async (codigoLote) => {
     return total + 1;
   }, 0);
   const sourceHash = hashMasterRecords(source);
-  const snapshotHash = hashMasterRecords(snapshot.records);
+  const snapshotHash = hashMasterRecords(persisted);
   const activeHash = hashMasterRecords(active);
   const codeMatches = snapshot.codigo_lote === codigo;
   const contentMatches = sourceHash === snapshotHash && snapshotHash === activeHash;
@@ -508,13 +510,14 @@ export const verifyActiveFoxProBatch = async (codigoLote) => {
     selected_lot: codigo,
     active_lot: snapshot.codigo_lote,
     lot_status: lot.estado,
-    source_rows: source.length,
+    source_rows: sourceRows.length,
     normalized_source_rows: source.length,
-    snapshot_records: snapshot.records.length,
+    snapshot_records: persisted.length,
     active_records: active.length,
     verified_records: verifiedRecords,
     missing_records: Math.max(0, source.length - verifiedRecords),
     extra_records: Math.max(0, active.length - verifiedRecords),
+    excluded_invalid_keys: Math.max(0, sourceRows.length - source.length),
     verified_percent: ok ? 100 : Number(((verifiedRecords / base) * 100).toFixed(2)),
     code_matches: codeMatches,
     content_matches: contentMatches,
@@ -574,9 +577,9 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
       else if (indexes.length === 1) nextMaster[indexes[0]] = { ...nextMaster[indexes[0]], ...rowToMaster(row) };
       else throw fail(`El abonado ${row.codigo_abonado} dejo de tener una coincidencia segura.`, 409);
     }
-    replaceMasterRecordsFromImport(nextMaster, { codigoLote: codigo });
+    const replacement = replaceMasterRecordsFromImport(nextMaster, { codigoLote: codigo });
     padronChanged = true;
-    await saveActivePadronSnapshot(nextMaster, codigo, connection);
+    await saveActivePadronSnapshot(replacement.records, codigo, connection);
     const appliedIds = rows.map((row) => row.id);
     if (allValid) {
       await connection.query(
