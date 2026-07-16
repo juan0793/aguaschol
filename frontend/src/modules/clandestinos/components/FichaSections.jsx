@@ -13,6 +13,7 @@ export default function FichaSections({ form, onChange, onValidatePadron, histor
       <Field label="Identidad"><Text name="identidad" value={form.identidad} onChange={onChange} /></Field>
       <Field label="Teléfono"><Text name="telefono" value={form.telefono} onChange={onChange} /></Field>
       <button type="button" className="cl-secondary is-wide" onClick={onValidatePadron}><Icon name="search" />Validar padrones</button>
+      {form.comentarios?.includes("Alcaldia") ? <div className="cl-padron-result is-wide"><strong>{form.comentarios}</strong><span>Alcaldia: {form.clave_alcaldia ? "Si aparece" : "No aparece"}</span><span>Aguas: {form.estado_padron === "varios_padrones" ? "Si aparece" : "No aparece"}</span></div> : null}
     </div></details>
     <details open><summary><span><Icon name="home" />Inmueble y ubicación</span><small>Características observadas</small></summary><div className="cl-fields">
       <Field label="Barrio / colonia" wide><Text name="barrio_colonia" value={form.barrio_colonia} onChange={onChange} /></Field>
