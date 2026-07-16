@@ -14374,6 +14374,8 @@ function App() {
         session={session}
         showAlert={showAlert}
         navigate={setWorkspaceView}
+        onPrintFicha={handlePrintFicha}
+        onPrintAviso={handlePrintAviso}
       />
       ) : workspaceView === "recordsLegacyDisabled" ? (
       <main className="layout records-view shadcn-records-module">
