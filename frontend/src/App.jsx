@@ -9,6 +9,7 @@ import BatchPicker from "./components/BatchPicker";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader";
+import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
 import {
@@ -14368,6 +14369,13 @@ function App() {
         </section>
       </main>
       ) : workspaceView === "records" ? (
+      <ClandestinosPage
+        apiFetch={apiFetch}
+        session={session}
+        showAlert={showAlert}
+        navigate={setWorkspaceView}
+      />
+      ) : workspaceView === "recordsLegacyDisabled" ? (
       <main className="layout records-view shadcn-records-module">
         <Card className="sidebar no-print shadcn-records-sidebar" size="sm">
           <div className="records-sidebar-fixed-header">

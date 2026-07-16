@@ -19,6 +19,7 @@ import profileRoutes from "./routes/profileRoutes.js";
 import transportRoutes from "./routes/transportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import foxProImportRoutes from "./routes/foxProImportRoutes.js";
+import clandestinosRoutes from "./routes/clandestinosRoutes.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -156,6 +157,7 @@ app.use("/api/ai", requireAuth, aiRoutes);
 app.use("/api/barrios", requireAuth, barrioCodeRoutes);
 app.use("/api/claves", requireAuth, claveLookupRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
+app.use("/api/clandestinos", requireAuth, clandestinosRoutes);
 app.use("/api/field-validation", requireAuth, fieldValidationRoutes);
 app.use("/api/map-points", requireAuth, mapPointRoutes);
 app.use("/api/planos", requireAuth, planosRoutes);

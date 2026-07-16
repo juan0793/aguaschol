@@ -356,6 +356,16 @@ const ensureSchema = async () => {
       definition: "VARCHAR(180) NOT NULL DEFAULT ''"
     });
     await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "estado_operativo",
+      definition: "VARCHAR(40) NOT NULL DEFAULT 'pending'"
+    });
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "observaciones_internas",
+      definition: "TEXT NULL"
+    });
+    await ensureColumn(admin, {
       tableName: "audit_logs",
       columnName: "actor_name_snapshot",
       definition: "VARCHAR(180) NOT NULL DEFAULT ''"

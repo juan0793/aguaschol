@@ -245,6 +245,8 @@ CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   printed_at TIMESTAMP NULL DEFAULT NULL,
   archived_at TIMESTAMP NULL DEFAULT NULL,
   archived_reason VARCHAR(255) NOT NULL DEFAULT '',
+  estado_operativo VARCHAR(40) NOT NULL DEFAULT 'pending',
+  observaciones_internas TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -340,6 +342,76 @@ CREATE TABLE IF NOT EXISTS planos_barrios (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_planos_barrios_estado (estado),
   KEY idx_planos_barrios_nombre (nombre_barrio)
+);
+
+CREATE TABLE IF NOT EXISTS reportes_tecnicos (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  codigo VARCHAR(40) NOT NULL UNIQUE,
+  estado VARCHAR(40) NOT NULL DEFAULT 'new',
+  inmueble_id INT UNSIGNED NULL,
+  clave_consultada VARCHAR(80) NOT NULL DEFAULT '',
+  abonado_consultado VARCHAR(80) NOT NULL DEFAULT '',
+  inmueble_sin_registro TINYINT(1) NOT NULL DEFAULT 0,
+  nombre_reportado VARCHAR(180) NOT NULL DEFAULT '',
+  barrio_colonia VARCHAR(180) NOT NULL DEFAULT '',
+  direccion TEXT NOT NULL,
+  hallazgo TEXT NOT NULL,
+  servicios_json LONGTEXT NULL,
+  latitude DECIMAL(10,7) NULL,
+  longitude DECIMAL(10,7) NULL,
+  accuracy_meters DECIMAL(8,2) NULL,
+  observaciones_internas TEXT NOT NULL,
+  motivo_estado VARCHAR(255) NOT NULL DEFAULT '',
+  creado_por INT UNSIGNED NULL,
+  revisado_por INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_reportes_tecnicos_estado_fecha (estado, created_at),
+  KEY idx_reportes_tecnicos_clave (clave_consultada),
+  KEY idx_reportes_tecnicos_inmueble (inmueble_id),
+  CONSTRAINT fk_reportes_tecnicos_inmueble FOREIGN KEY (inmueble_id) REFERENCES inmuebles_clandestinos(id) ON DELETE SET NULL,
+  CONSTRAINT fk_reportes_tecnicos_creador FOREIGN KEY (creado_por) REFERENCES app_users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_reportes_tecnicos_revisor FOREIGN KEY (revisado_por) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS reporte_evidencias (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  reporte_id BIGINT UNSIGNED NOT NULL,
+  tipo VARCHAR(40) NOT NULL DEFAULT 'photo',
+  archivo_path VARCHAR(500) NOT NULL,
+  nombre_original VARCHAR(255) NOT NULL DEFAULT '',
+  descripcion VARCHAR(255) NOT NULL DEFAULT '',
+  creado_por INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_reporte_evidencias_reporte (reporte_id, created_at),
+  CONSTRAINT fk_reporte_evidencias_reporte FOREIGN KEY (reporte_id) REFERENCES reportes_tecnicos(id) ON DELETE CASCADE,
+  CONSTRAINT fk_reporte_evidencias_creador FOREIGN KEY (creado_por) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS historial_estados (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  entidad_tipo VARCHAR(40) NOT NULL,
+  entidad_id BIGINT UNSIGNED NOT NULL,
+  estado_anterior VARCHAR(40) NOT NULL DEFAULT '',
+  estado_nuevo VARCHAR(40) NOT NULL,
+  motivo VARCHAR(255) NOT NULL DEFAULT '',
+  usuario_id INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_historial_estados_entidad (entidad_tipo, entidad_id, created_at),
+  CONSTRAINT fk_historial_estados_usuario FOREIGN KEY (usuario_id) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS vinculos_reportes (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  reporte_id BIGINT UNSIGNED NOT NULL,
+  inmueble_id INT UNSIGNED NOT NULL,
+  tipo VARCHAR(40) NOT NULL DEFAULT 'linked',
+  creado_por INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_vinculos_reportes (reporte_id, inmueble_id),
+  CONSTRAINT fk_vinculos_reportes_reporte FOREIGN KEY (reporte_id) REFERENCES reportes_tecnicos(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vinculos_reportes_inmueble FOREIGN KEY (inmueble_id) REFERENCES inmuebles_clandestinos(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vinculos_reportes_creador FOREIGN KEY (creado_por) REFERENCES app_users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS planos_asignaciones (
@@ -551,7 +623,8 @@ INSERT INTO inmuebles_clandestinos (
   firmante_aviso,
   cargo_firmante,
   levantamiento_datos,
-  analista_datos
+  analista_datos,
+  observaciones_internas
 ) VALUES (
   '10-22-23',
   '',
@@ -574,7 +647,8 @@ INSERT INTO inmuebles_clandestinos (
   'Maria Eugenia Berrios',
   'Jefe de Facturacion',
   'LUIS FERNANDO HERRERA SOLIZ',
-  'Ing. Juan Ordoñez Bonilla'
+  'Ing. Juan Ordoñez Bonilla',
+  ''
 )
 ON DUPLICATE KEY UPDATE
   barrio_colonia = VALUES(barrio_colonia),

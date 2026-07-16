@@ -1,0 +1,23 @@
+import { Icon } from "../../../components/Icon";
+
+const STATE_LABELS = { draft: "Borrador", pending: "Pendiente", visit: "Visita", confirmed: "Confirmada", regularization: "Regularización", regularized: "Regularizada", discarded: "Descartada" };
+const stateLabel = (value) => STATE_LABELS[value] || "Pendiente";
+
+export default function FichasInbox({ model, selectedIds, onToggle, onOpen, onNew, canCreate = false }) {
+  const barrios = [...new Set(model.items.map((item) => item.barrio_colonia).filter(Boolean))].sort();
+  return <section className="cl-inbox" aria-label="Bandeja de trabajo de fichas">
+    <header className="cl-inbox-head"><div><span className="cl-kicker">Bandeja de trabajo</span><h2>Fichas clandestinas</h2><p>{model.total} expedientes en el resultado actual</p></div>{canCreate ? <button type="button" className="cl-primary" onClick={onNew}><Icon name="plus" />Nueva ficha</button> : null}</header>
+    <div className="cl-toolbar">
+      <label className="cl-search"><span>Buscar ficha</span><div><Icon name="search" /><input value={model.filters.query} onChange={(event) => model.filters.setQuery(event.target.value)} placeholder="Clave, abonado o barrio" /></div></label>
+      <label><span>Estado</span><select value={model.filters.state} onChange={(event) => model.filters.setState(event.target.value)}><option value="">Todos</option>{Object.entries(STATE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label><span>Barrio</span><select value={model.filters.barrio} onChange={(event) => model.filters.setBarrio(event.target.value)}><option value="">Todos</option>{barrios.map((item) => <option key={item}>{item}</option>)}</select></label>
+      <button type="button" className="cl-quiet" onClick={model.filters.clear}><Icon name="refresh" />Limpiar</button>
+    </div>
+    <div className="cl-indicators">{[["pending","Pendientes"],["visit","Investigación"],["confirmed","Confirmadas"],["regularized","Regularizadas"]].map(([key,label]) => <button type="button" key={key} className={model.filters.state === key ? "is-active" : ""} onClick={() => model.filters.setState(model.filters.state === key ? "" : key)}><span>{label}</span><strong>{model.counts[key] || 0}</strong></button>)}</div>
+    {model.error ? <p className="cl-alert">{model.error}</p> : null}
+    <div className="cl-table-wrap"><table className="cl-table"><thead><tr><th aria-label="Seleccionar" /><th>Clave / abonado</th><th>Responsable</th><th>Barrio</th><th>Estado</th><th>Actualizada</th><th /></tr></thead><tbody>
+      {model.loading ? <tr><td colSpan="7" className="cl-empty">Cargando fichas…</td></tr> : model.items.length ? model.items.map((item) => <tr key={item.id} className={selectedIds.has(String(item.id)) ? "is-selected" : ""}><td><input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => onToggle(item)} aria-label={`Seleccionar ${item.clave_catastral}`} /></td><td><button type="button" className="cl-link" onClick={() => onOpen(item)}><strong>{item.clave_catastral}</strong><span>{item.abonado || "Sin abonado"}</span></button></td><td>{item.levantamiento_datos || "Sin asignar"}</td><td>{item.barrio_colonia || "Sin ubicación"}</td><td><span className={`cl-status is-${item.estado_operativo || "pending"}`}><i />{stateLabel(item.estado_operativo)}</span></td><td>{item.updated_at ? new Date(item.updated_at).toLocaleDateString("es-HN") : "—"}</td><td><button type="button" className="cl-icon-button" onClick={() => onOpen(item)} aria-label="Abrir ficha"><Icon name="arrowRight" /></button></td></tr>) : <tr><td colSpan="7" className="cl-empty">No hay fichas con estos filtros.</td></tr>}
+    </tbody></table></div>
+    <footer className="cl-pagination"><span>Página {model.page} de {model.total_pages}</span><div><button type="button" disabled={model.page <= 1} onClick={() => model.filters.setPage(model.page - 1)}><Icon name="arrowLeft" />Anterior</button><button type="button" disabled={model.page >= model.total_pages} onClick={() => model.filters.setPage(model.page + 1)}>Siguiente<Icon name="arrowRight" /></button></div></footer>
+  </section>;
+}
