@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { foxProRowsToMaster, hashFoxProRecords, normalizeFoxProRecord } from "./foxProImportService.js";
+import { foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord } from "./foxProImportService.js";
 import { sameSecret } from "../middleware/foxProSyncAuth.js";
 
 test("normaliza S y N conservando los valores originales", () => {
@@ -38,4 +38,10 @@ test("completa la colonia desde la clave cuando FoxPro no la incluye", () => {
 test("convierte un lote FoxPro en registros del padron activo", () => {
   const [row] = foxProRowsToMaster([{ clave_catastral: "45-54-09-01", codigo_abonado: "21237", nombre: "JUAN", colonia: "BO. SAGRADO CORAZON", agua_normalizada: "S", valor: 100, intereses: 25 }]);
   assert.deepEqual({ clave: row.clave_catastral, abonado: row.abonado, agua: row.agua, total: row.valor + row.intereses }, { clave: "45-54-09-01", abonado: "21237", agua: "S", total: 125 });
+});
+
+test("la huella del padron detecta cambios pero no depende del orden", () => {
+  const rows = [{ abonado: "1", valor: 100 }, { abonado: "2", valor: 200 }];
+  assert.equal(hashMasterRecords(rows), hashMasterRecords([...rows].reverse()));
+  assert.notEqual(hashMasterRecords(rows), hashMasterRecords([{ abonado: "1", valor: 101 }, rows[1]]));
 });

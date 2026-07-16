@@ -1002,6 +1002,7 @@ function App() {
   const [confirmingPadronBatch, setConfirmingPadronBatch] = useState(null);
   const [loadingPadronBatches, setLoadingPadronBatches] = useState(false);
   const [activatingPadronBatch, setActivatingPadronBatch] = useState(false);
+  const [verifyingPadronBatch, setVerifyingPadronBatch] = useState(false);
   const [reprocessingPadron, setReprocessingPadron] = useState(false);
   const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
   const [padronSyncState, setPadronSyncState] = useState({
@@ -9383,6 +9384,32 @@ function App() {
     }
   };
 
+  const handleVerifyPadronBatch = async () => {
+    if (!selectedPadronBatch) return;
+    setVerifyingPadronBatch(true);
+    try {
+      const response = await apiFetch(`/integracion/foxpro/lotes/${encodeURIComponent(selectedPadronBatch.codigo_lote)}/verificar`);
+      const data = await readJsonResponse(response, "La API no devolvio el resultado de la verificacion.");
+      if (!response.ok) throw new Error(data.message || "No fue posible verificar el lote.");
+      const verification = data.verification;
+      updatePadronSyncState({
+        status: verification.ok ? "complete" : "error",
+        progress: verification.verified_percent,
+        message: verification.ok
+          ? `Verificado: ${verification.selected_lot} es el padron activo`
+          : `No coincide: el padron activo es ${verification.active_lot || "desconocido"}`,
+        verification
+      });
+      showAlert(verification.ok
+        ? `Verificacion 100% correcta. El lote ${verification.selected_lot} esta activo con ${verification.active_records.toLocaleString("es-HN")} registros.`
+        : `El lote seleccionado no coincide completamente con el padron activo. Coincidencia: ${verification.verified_percent}%.`);
+    } catch (error) {
+      showAlert(error.message || "No fue posible verificar el lote.");
+    } finally {
+      setVerifyingPadronBatch(false);
+    }
+  };
+
   const handleUploadAlcaldia = async (event) => {
     event.preventDefault();
 
@@ -16122,6 +16149,9 @@ function App() {
                   ) : null}
                   <button type="button" className="padron-activate-button" onClick={handleActivatePadronBatch} disabled={!selectedPadronBatch || loadingPadronBatches || activatingPadronBatch || !["LISTO", "PARCIALMENTE_APLICADO", "APLICADO"].includes(selectedPadronBatch?.estado)}>
                     <Icon name="refresh" />{activatingPadronBatch ? "Activando lote..." : "Activar lote y limpiar cache"}
+                  </button>
+                  <button type="button" className="button-secondary" onClick={handleVerifyPadronBatch} disabled={!selectedPadronBatch || verifyingPadronBatch || activatingPadronBatch}>
+                    <Icon name="search" />{verifyingPadronBatch ? "Verificando contenido..." : "Verificar lote activo"}
                   </button>
                 </section>
 

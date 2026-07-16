@@ -37,6 +37,7 @@ const normalizeAmount = (value) => {
 };
 
 const FOXPRO_FIELDS = ["catastral", "abonado", "inquilino", "des_coloni", "agua", "alca", "barr", "tren", "bomb", "valor", "intereses"];
+const MASTER_VERIFY_FIELDS = ["clave_catastral", "abonado", "inquilino", "barrio_colonia", "agua", "alcantarillado", "barrido", "recoleccion", "desechos_peligrosos", "valor", "intereses"];
 const canonicalFoxProValue = (field, value) => {
   if (["valor", "intereses"].includes(field) && value != null && value !== "") {
     const number = Number(value);
@@ -47,6 +48,9 @@ const canonicalFoxProValue = (field, value) => {
 export const hashFoxProRecords = (records) => crypto.createHash("sha256").update(
   records.map((record) => FOXPRO_FIELDS.map((field) => canonicalFoxProValue(field, record?.[field])).join("\u001f")).join("\u001e")
 ).digest("hex");
+
+const masterRecordKey = (record) => MASTER_VERIFY_FIELDS.map((field) => canonicalFoxProValue(field, record?.[field])).join("\u001f");
+export const hashMasterRecords = (records = []) => crypto.createHash("sha256").update(records.map(masterRecordKey).sort().join("\u001e")).digest("hex");
 
 export const normalizeFoxProRecord = (record = {}, numeroFila = 0) => {
   const flags = {
@@ -464,6 +468,57 @@ export const activateFoxProBatch = async (codigoLote, actorUser) => {
       verified_percent: rows.length ? Number(((result.meta.total_records / rows.length) * 100).toFixed(2)) : 0,
       checked_at: new Date().toISOString()
     }
+  };
+};
+
+export const verifyActiveFoxProBatch = async (codigoLote) => {
+  const pool = getPool();
+  const codigo = batchCode(codigoLote);
+  const [lots] = await pool.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? LIMIT 1", [codigo]);
+  const lot = lots[0];
+  if (!lot) throw fail("Lote no encontrado.", 404);
+  const [rows] = await pool.query(
+    "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO') ORDER BY numero_fila",
+    [lot.id]
+  );
+  if (!rows.length) throw fail("El lote ya no conserva registros para verificarlo.", 409);
+
+  const snapshot = await loadActivePadronSnapshot();
+  if (!snapshot) throw fail("No existe una copia persistida del padron activo.", 409);
+  const source = foxProRowsToMaster(rows);
+  const active = getMasterRecordsForImport();
+  const sourceKeys = new Map();
+  source.forEach((row) => sourceKeys.set(masterRecordKey(row), (sourceKeys.get(masterRecordKey(row)) || 0) + 1));
+  const verifiedRecords = active.reduce((total, row) => {
+    const key = masterRecordKey(row);
+    const remaining = sourceKeys.get(key) || 0;
+    if (!remaining) return total;
+    sourceKeys.set(key, remaining - 1);
+    return total + 1;
+  }, 0);
+  const sourceHash = hashMasterRecords(source);
+  const snapshotHash = hashMasterRecords(snapshot.records);
+  const activeHash = hashMasterRecords(active);
+  const codeMatches = snapshot.codigo_lote === codigo;
+  const contentMatches = sourceHash === snapshotHash && snapshotHash === activeHash;
+  const ok = codeMatches && contentMatches;
+  const base = Math.max(source.length, active.length, 1);
+  return {
+    ok,
+    selected_lot: codigo,
+    active_lot: snapshot.codigo_lote,
+    lot_status: lot.estado,
+    source_rows: source.length,
+    normalized_source_rows: source.length,
+    snapshot_records: snapshot.records.length,
+    active_records: active.length,
+    verified_records: verifiedRecords,
+    missing_records: Math.max(0, source.length - verifiedRecords),
+    extra_records: Math.max(0, active.length - verifiedRecords),
+    verified_percent: ok ? 100 : Number(((verifiedRecords / base) * 100).toFixed(2)),
+    code_matches: codeMatches,
+    content_matches: contentMatches,
+    checked_at: new Date().toISOString()
   };
 };
 
