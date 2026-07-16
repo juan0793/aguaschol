@@ -623,8 +623,7 @@ INSERT INTO inmuebles_clandestinos (
   firmante_aviso,
   cargo_firmante,
   levantamiento_datos,
-  analista_datos,
-  observaciones_internas
+  analista_datos
 ) VALUES (
   '10-22-23',
   '',
@@ -647,8 +646,7 @@ INSERT INTO inmuebles_clandestinos (
   'Maria Eugenia Berrios',
   'Jefe de Facturacion',
   'LUIS FERNANDO HERRERA SOLIZ',
-  'Ing. Juan Ordoñez Bonilla',
-  ''
+  'Ing. Juan Ordoñez Bonilla'
 )
 ON DUPLICATE KEY UPDATE
   barrio_colonia = VALUES(barrio_colonia),
