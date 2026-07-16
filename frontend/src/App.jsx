@@ -5,6 +5,7 @@ import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import LookupChatPanel from "./components/LookupChatPanel";
 import BarrioCodesWorkspace, { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
+import BatchPicker from "./components/BatchPicker";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader";
@@ -4243,7 +4244,7 @@ function App() {
     if (!isAuthenticated || !isAdmin) return;
     if (!silent) setLoadingPadronBatches(true);
     try {
-      const response = await apiFetch("/integracion/foxpro/lotes?limit=20");
+      const response = await apiFetch("/integracion/foxpro/lotes?limit=500");
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "No fue posible cargar los lotes FoxPro.");
       const rows = Array.isArray(data.rows) ? data.rows : [];
@@ -16101,13 +16102,7 @@ function App() {
                     <span className="padron-source-badge">Fuente principal</span>
                     <div><strong>Lote recibido desde FoxPro</strong><small>Selecciona una lectura revisada para convertirla en el padrón activo.</small></div>
                   </div>
-                  <label className="padron-lot-select">
-                    <span>Lote disponible</span>
-                    <select value={selectedPadronBatchCode} onChange={(event) => setSelectedPadronBatchCode(event.target.value)} disabled={loadingPadronBatches || activatingPadronBatch}>
-                      {!padronBatches.length ? <option value="">No hay lotes recibidos</option> : null}
-                      {padronBatches.map((batch) => <option key={batch.id} value={batch.codigo_lote}>{batch.codigo_lote} · {String(batch.estado).replaceAll("_", " ")} · {Number(batch.total_registros || 0).toLocaleString("es-HN")} registros</option>)}
-                    </select>
-                  </label>
+                  <BatchPicker batches={padronBatches} selectedCode={selectedPadronBatchCode} loading={loadingPadronBatches} title="Lotes disponibles" onSelect={(batch) => setSelectedPadronBatchCode(batch.codigo_lote)} />
                   {selectedPadronBatch ? (
                     <div className="padron-lot-summary">
                       <span><b>{Number(selectedPadronBatch.total_registros || 0).toLocaleString("es-HN")}</b> registros</span>

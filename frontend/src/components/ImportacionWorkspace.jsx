@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import BatchPicker from "./BatchPicker";
 import { formatCurrency } from "../utils/formatting";
-import { formatDateTime } from "../utils/datesAndBusiness";
 
 const STATES = ["", "NUEVO", "MODIFICADO", "SIN_CAMBIOS", "CONFLICTO", "ERROR", "APLICADO", "DESCARTADO"];
 const statusLabel = (value) => String(value || "").replaceAll("_", " ");
@@ -38,7 +38,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const loadBatches = useCallback(async (announce = false) => {
     setLoading(true);
     try {
-      const response = await apiFetch("/integracion/foxpro/lotes?limit=50");
+      const response = await apiFetch("/integracion/foxpro/lotes?limit=500");
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "No fue posible cargar los lotes.");
       const nextBatches = data.rows || [];
@@ -146,14 +146,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
 
       <section className="import-layout">
         <aside className="import-batches">
-          <h3>Lotes recibidos</h3>
-          {batches.map((lot) => (
-            <button key={lot.id} type="button" className={selectedBatch?.id === lot.id ? "is-active" : ""} onClick={() => { setSelectedBatch(lot); setPage(1); }}>
-              <strong>{lot.codigo_lote}</strong><span>{formatDateTime(lot.fecha_recepcion)}</span>
-              <small className={`import-status is-${String(lot.estado).toLowerCase()}`}>{statusLabel(lot.estado)}</small>
-            </button>
-          ))}
-          {!batches.length && !loading ? <p className="helper-text">Todavia no hay lotes enviados.</p> : null}
+          <BatchPicker batches={batches} selectedCode={selectedBatch?.codigo_lote} loading={loading} onSelect={(lot) => { setSelectedBatch(lot); setPage(1); }} />
         </aside>
 
         <div className="import-detail">

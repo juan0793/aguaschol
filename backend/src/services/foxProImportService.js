@@ -314,7 +314,7 @@ export const finishFoxProUpdateRequest = async (id, { codigo_lote: codigoLote = 
 
 export const listFoxProBatches = async ({ page = 1, limit = 20, estado = "", codigo = "", fecha = "" } = {}) => {
   const pool = getPool();
-  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 500);
   const safePage = Math.max(Number(page) || 1, 1);
   const filters = [], params = [];
   if (estado) { filters.push("l.estado = ?"); params.push(text(estado, 40)); }
