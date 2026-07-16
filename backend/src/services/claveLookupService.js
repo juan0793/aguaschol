@@ -4,6 +4,7 @@ import XLSX from "xlsx";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
 import { resolveBarrioFromRecord, resolveBarrioNameFromClave } from "./barrioCodeService.js";
+import { saveActivePadronSnapshot } from "./padronSnapshotService.js";
 
 const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
 const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
@@ -1153,6 +1154,7 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
   };
   writeJsonFile(maestroMetaPath, masterMeta);
   masterRecords = rows;
+  await saveActivePadronSnapshot(rows, originalName || "PADRON_MANUAL");
 
   try {
     await createAuditLog({

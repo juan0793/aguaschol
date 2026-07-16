@@ -123,6 +123,14 @@ CREATE TABLE IF NOT EXISTS importacion_padron_bloques (
   CONSTRAINT fk_importacion_bloques_lote FOREIGN KEY (lote_id) REFERENCES importacion_padron_lotes(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS padron_maestro_snapshot (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  codigo_lote VARCHAR(120) NOT NULL DEFAULT '',
+  total_registros INT UNSIGNED NOT NULL,
+  registros_json LONGTEXT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS user_profile_messages (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sender_user_id INT UNSIGNED NULL,

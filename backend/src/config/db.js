@@ -831,6 +831,13 @@ export const getDatabaseStatus = () => ({ ...dbStatus });
 export const startDatabaseReconnectLoop = async () => {
   try {
     const mode = await ensureDatabaseReady();
+    if (mode === "mysql") {
+      const { restoreActivePadronFromDatabase } = await import("../services/foxProImportService.js");
+      const restored = await restoreActivePadronFromDatabase();
+      console.log(restored.restored
+        ? `Padron maestro recuperado desde ${restored.source}: ${restored.meta.total_records} registros.`
+        : "No hay lote FoxPro aplicado; se conserva el padron inicial.");
+    }
     console.log(`Base de datos disponible en modo ${mode}.`);
     return mode;
   } catch (error) {

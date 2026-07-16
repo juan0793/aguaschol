@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "node --watch src/server.js",
-    "test": "set USE_MEMORY_DB=true&& node --test src/middleware/loginRateLimit.test.mjs src/utils/security.test.mjs src/services/mapPointService.test.mjs src/services/planosService.test.mjs src/services/telegramBotService.test.mjs src/services/telegramChatService.test.mjs src/services/claveLookupService.test.mjs src/services/foxProImportService.test.mjs src/services/clandestinosService.test.mjs",
+    "test": "set USE_MEMORY_DB=true&& node --test src/middleware/loginRateLimit.test.mjs src/utils/security.test.mjs src/services/mapPointService.test.mjs src/services/planosService.test.mjs src/services/telegramBotService.test.mjs src/services/telegramChatService.test.mjs src/services/claveLookupService.test.mjs src/services/foxProImportService.test.mjs src/services/padronSnapshotService.test.mjs src/services/clandestinosService.test.mjs",
     "test:planos": "set USE_MEMORY_DB=true&& node --test src/services/planosService.test.mjs",
     "start": "node ./src/server.js"
   },

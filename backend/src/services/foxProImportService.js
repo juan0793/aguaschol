@@ -3,6 +3,7 @@ import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
 import { getMasterRecordsForImport, replaceMasterRecordsFromImport } from "./claveLookupService.js";
+import { loadActivePadronSnapshot, saveActivePadronSnapshot } from "./padronSnapshotService.js";
 import { resolveBarrioNameFromClave } from "./barrioCodeService.js";
 
 const IMPORTABLE_FIELDS = [
@@ -358,6 +359,29 @@ const rowToMaster = (row) => ({
 });
 export const foxProRowsToMaster = (rows = []) => rows.map(rowToMaster);
 
+export const restoreActivePadronFromDatabase = async () => {
+  const snapshot = await loadActivePadronSnapshot();
+  if (snapshot) {
+    const result = replaceMasterRecordsFromImport(snapshot.records, { codigoLote: snapshot.codigo_lote });
+    return { restored: true, source: "snapshot", ...result };
+  }
+
+  const pool = getPool();
+  const [lots] = await pool.query(
+    "SELECT * FROM importacion_padron_lotes WHERE estado='APLICADO' ORDER BY fecha_aplicacion DESC, id DESC LIMIT 1"
+  );
+  if (!lots.length) return { restored: false, source: "repository" };
+  const [rows] = await pool.query(
+    "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado IN ('APLICADO','SIN_CAMBIOS') ORDER BY numero_fila",
+    [lots[0].id]
+  );
+  if (!rows.length) throw fail(`El lote aplicado ${lots[0].codigo_lote} no conserva registros para recuperar el padron.`, 503);
+  const records = foxProRowsToMaster(rows);
+  const result = replaceMasterRecordsFromImport(records, { codigoLote: lots[0].codigo_lote });
+  await saveActivePadronSnapshot(records, lots[0].codigo_lote);
+  return { restored: true, source: "latest_applied_batch", ...result };
+};
+
 export const activateFoxProBatch = async (codigoLote, actorUser) => {
   const pool = getPool();
   const codigo = batchCode(codigoLote);
@@ -374,7 +398,9 @@ export const activateFoxProBatch = async (codigoLote, actorUser) => {
   );
   if (!rows.length) throw fail("El lote no contiene registros validos para activar.", 409);
 
-  const result = replaceMasterRecordsFromImport(foxProRowsToMaster(rows), { codigoLote: codigo });
+  const activeRecords = foxProRowsToMaster(rows);
+  const result = replaceMasterRecordsFromImport(activeRecords, { codigoLote: codigo });
+  await saveActivePadronSnapshot(activeRecords, codigo);
   await pool.query(
     `UPDATE importacion_padron_lotes SET estado='APLICADO', registros_aplicados=?, usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE id=?`,
     [rows.length, actorUser.id, lot.id]
@@ -469,6 +495,7 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
     }
     replaceMasterRecordsFromImport(nextMaster, { codigoLote: codigo });
     padronChanged = true;
+    await saveActivePadronSnapshot(nextMaster, codigo, connection);
     const appliedIds = rows.map((row) => row.id);
     if (allValid) {
       await connection.query(
