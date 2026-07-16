@@ -7,6 +7,7 @@ const json = async (response) => {
 export const createClandestinosApi = (apiFetch) => ({
   config: () => apiFetch("/clandestinos/config").then(json),
   fichas: (params = {}) => apiFetch(`/clandestinos/fichas?${new URLSearchParams(params)}`).then(json),
+  compareFichas: (ids) => apiFetch("/clandestinos/fichas/compare-padrones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).then(json),
   saveFicha: (record) => apiFetch(record.id ? `/inmuebles/${record.id}` : "/inmuebles", { method: record.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(record) }).then(json),
   validatePadron: (clave) => apiFetch(`/claves/alcaldia/search?field=clave&clave=${encodeURIComponent(clave)}`).then(json),
   searchAguas: (value, field) => apiFetch(`/claves/search?field=${field}&clave=${encodeURIComponent(value)}`).then(json),

@@ -3,6 +3,7 @@ import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { getById, listInmuebles } from "./inmuebleService.js";
 import { saveUploadedPhoto } from "./fileStorageService.js";
+import { compareAlcaldiaWithAguas, getMasterRecordsForImport } from "./claveLookupService.js";
 
 export const FICHA_STATES = ["draft", "pending", "visit", "confirmed", "regularization", "regularized", "discarded"];
 export const REPORT_STATES = ["new", "review", "info_requested", "approved", "linked", "duplicate", "discarded"];
@@ -44,12 +45,50 @@ export const listClandestinosFichas = async ({ query = "", state = "", barrio = 
     (!state || (item.estado_operativo || "pending") === state) &&
     (!barrio || clean(item.barrio_colonia).toLowerCase() === clean(barrio).toLowerCase())
   );
-  const safeLimit = Math.min(Math.max(Number(limit) || 15, 5), 100);
+  const safeLimit = Math.min(Math.max(Number(limit) || 15, 5), 500);
   const totalPages = Math.max(1, Math.ceil(filtered.length / safeLimit));
   const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
   const start = (currentPage - 1) * safeLimit;
   const counts = FICHA_STATES.reduce((result, key) => ({ ...result, [key]: all.filter((item) => (item.estado_operativo || "pending") === key).length }), {});
   return { items: filtered.slice(start, start + safeLimit), total: filtered.length, page: currentPage, total_pages: totalPages, counts };
+};
+
+export const summarizePadronComparison = (rows = []) => ({
+  total: rows.length,
+  both: rows.filter((row) => row.appears_in_aguas && row.appears_in_alcaldia).length,
+  alcaldia_only: rows.filter((row) => !row.appears_in_aguas && row.appears_in_alcaldia).length,
+  aguas_only: rows.filter((row) => row.appears_in_aguas && !row.appears_in_alcaldia).length,
+  neither: rows.filter((row) => !row.appears_in_aguas && !row.appears_in_alcaldia).length
+});
+
+export const compareClandestinosFichas = async (ids = []) => {
+  const selected = [...new Set((Array.isArray(ids) ? ids : []).map(Number).filter(Number.isInteger))];
+  if (!selected.length) throw fail("Selecciona al menos una ficha para comparar.");
+  if (selected.length > 500) throw fail("La comparacion admite hasta 500 fichas por lote.", 413);
+  const records = (await Promise.all(selected.map((id) => getById(id, { includeArchived: false })))).filter(Boolean);
+  const canonical = (value) => clean(value).replace(/\D/g, "");
+  const aguas = getMasterRecordsForImport();
+  const comparison = await compareAlcaldiaWithAguas();
+  const alcaldia = [...(comparison.candidates || []), ...(comparison.matched_by_base || []), ...(comparison.matched_exact || [])];
+  const aguasByKey = new Map(aguas.flatMap((row) => [[canonical(row.clave_catastral), row], [clean(row.abonado), row]]).filter(([key]) => key));
+  const alcaldiaByKey = new Map(alcaldia.flatMap((row) => [[canonical(row.clave_catastral), row], [canonical(row.clave_aguas_formato), row]]).filter(([key]) => key));
+  const rows = records.map((record) => {
+    const aguasMatch = aguasByKey.get(canonical(record.clave_catastral)) || aguasByKey.get(clean(record.abonado)) || null;
+    const alcaldiaMatch = alcaldiaByKey.get(canonical(aguasMatch?.clave_catastral || record.clave_catastral)) || null;
+    return {
+      id: record.id,
+      clave_catastral: aguasMatch?.clave_catastral || record.clave_catastral,
+      abonado: aguasMatch?.abonado || record.abonado,
+      nombre: alcaldiaMatch?.nombre || record.nombre_catastral || record.inquilino || "",
+      barrio: record.barrio_colonia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "",
+      appears_in_aguas: Boolean(aguasMatch || alcaldiaMatch?.exists_in_aguas),
+      appears_in_alcaldia: Boolean(alcaldiaMatch)
+    };
+  });
+  return {
+    rows,
+    summary: summarizePadronComparison(rows)
+  };
 };
 
 const addHistory = async ({ entityType, entityId, previous = "", next, reason = "", user }) => {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { changeReportState, createTechnicalReport, getClandestinosConfig, listClandestinosFichas, listTechnicalReports } from "./clandestinosService.js";
+import { changeReportState, createTechnicalReport, getClandestinosConfig, listClandestinosFichas, listTechnicalReports, summarizePadronComparison } from "./clandestinosService.js";
 
 const technician = { id: 7, role: "validadora_campo", full_name: "Técnica de campo" };
 const reviewer = { id: 8, role: "operator", full_name: "Revisor" };
@@ -31,4 +31,13 @@ test("un técnico no puede aprobar reportes", async () => {
 test("el backend rechaza saltos de estado fuera del flujo", async () => {
   const [report] = await listTechnicalReports();
   await assert.rejects(() => changeReportState(report.id, { state: "linked" }, reviewer), (error) => error.status === 409);
+});
+
+test("resume una comparacion masiva de padrones", () => {
+  const summary = summarizePadronComparison([
+    { appears_in_aguas: true, appears_in_alcaldia: true },
+    { appears_in_aguas: false, appears_in_alcaldia: true },
+    { appears_in_aguas: false, appears_in_alcaldia: false }
+  ]);
+  assert.deepEqual(summary, { total: 3, both: 1, alcaldia_only: 1, aguas_only: 0, neither: 1 });
 });
