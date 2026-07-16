@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { Icon } from "./Icon";
 import BatchPicker from "./BatchPicker";
 import { formatCurrency } from "../utils/formatting";
+import { getBatchTransferProgress } from "../utils/batchList";
 
 const STATES = ["", "NUEVO", "MODIFICADO", "SIN_CAMBIOS", "CONFLICTO", "ERROR", "APLICADO", "DESCARTADO"];
 const statusLabel = (value) => String(value || "").replaceAll("_", " ");
@@ -105,6 +106,29 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
     [records, selectedIds]
   );
   const requestInProgress = ["PENDIENTE", "EN_PROCESO"].includes(activeRequest?.estado);
+  const transfer = getBatchTransferProgress(activeRequest);
+  const requestTitle = activeRequest?.estado === "PENDIENTE"
+    ? "Solicitud enviada; esperando que el lector FoxPro la tome"
+    : activeRequest?.estado === "EN_PROCESO" && transfer.complete
+      ? "Transferencia completa; validando y clasificando el lote"
+      : activeRequest?.estado === "EN_PROCESO" && transfer.totalBlocks
+        ? `Recibiendo bloque ${transfer.blocksReceived} de ${transfer.totalBlocks}`
+        : activeRequest?.estado === "EN_PROCESO"
+          ? "FoxPro esta preparando el lote"
+          : activeRequest?.estado === "ERROR"
+            ? "La solicitud termino con error"
+            : activeRequest?.estado === "COMPLETADA" || selectedBatch
+              ? "Paquete recibido y listo para revision"
+              : "Listo para solicitar una actualizacion";
+  const requestDetail = requestInProgress && transfer.totalBlocks
+    ? `${transfer.recordsReceived.toLocaleString("es-HN")} de ${transfer.totalRecords.toLocaleString("es-HN")} registros confirmados por el servidor`
+    : requestInProgress
+      ? "El estado se consulta directamente al servidor."
+      : activeRequest?.codigo_lote
+        ? `Lote ${activeRequest.codigo_lote}`
+        : selectedBatch
+          ? `Lote ${selectedBatch.codigo_lote}`
+          : "Pulsa Solicitar actualizacion cuando necesites leer el padron FoxPro.";
   const batchApplicable = ["LISTO", "PARCIALMENTE_APLICADO"].includes(selectedBatch?.estado);
   const changeFilter = (key, value) => { setPage(1); setFilters((current) => ({ ...current, [key]: value })); };
   const toggle = (id) => setSelectedIds((current) => {
@@ -136,10 +160,15 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
       <section className={`import-sync-strip ${requestInProgress || loading ? "is-loading" : activeRequest?.estado === "COMPLETADA" || selectedBatch ? "is-received" : "is-waiting"}`} role="status" aria-live="polite">
         <span className="import-sync-symbol" aria-hidden="true">{requestInProgress || loading ? "" : activeRequest?.estado === "COMPLETADA" || selectedBatch ? "✓" : "</>"}</span>
         <div>
-          <strong>{activeRequest?.estado === "PENDIENTE" ? "Solicitud enviada; esperando respuesta del servidor" : activeRequest?.estado === "EN_PROCESO" ? "FoxPro esta leyendo y enviando la informacion" : activeRequest?.estado === "ERROR" ? "La solicitud termino con error" : activeRequest?.estado === "COMPLETADA" || selectedBatch ? "Paquete recibido y listo para revision" : "Listo para solicitar una actualizacion"}</strong>
-          <span>{requestInProgress ? "La pantalla se actualizara cuando termine el envio." : activeRequest?.codigo_lote ? `Lote ${activeRequest.codigo_lote}` : selectedBatch ? `Lote ${selectedBatch.codigo_lote}` : "Pulsa Solicitar actualizacion cuando necesites leer el padron FoxPro."}</span>
+          <strong>{requestTitle}</strong>
+          <span>{requestDetail}</span>
+          {requestInProgress && transfer.totalBlocks ? (
+            <div className="import-real-progress">
+              <progress value={transfer.blocksReceived} max={transfer.totalBlocks} aria-label={`Transferencia real: ${transfer.percent}%`} />
+              <span>{transfer.complete ? "Transferencia 100%" : `${transfer.percent}% transferido`}</span>
+            </div>
+          ) : null}
         </div>
-        {requestInProgress || loading ? <span className="import-progress-line" aria-hidden="true" /> : null}
       </section>
 
       {syncMessage ? <button type="button" className="import-sync-message" onClick={() => setSyncMessage("")} aria-label="Cerrar aviso">{syncMessage}<span aria-hidden="true">×</span></button> : null}

@@ -5,3 +5,15 @@ export const filterAndSortBatches = (batches = [], { query = "", status = "", or
     .filter((item) => (!status || item.estado === status) && (!needle || `${item.codigo_lote} ${item.estado} ${item.fecha_recepcion || item.fecha_extraccion || ""}`.toLowerCase().includes(needle)))
     .sort((left, right) => order === "oldest" ? dateValue(left) - dateValue(right) : order === "code" ? String(left.codigo_lote).localeCompare(String(right.codigo_lote), "es") : dateValue(right) - dateValue(left));
 };
+
+export const getBatchTransferProgress = (item = {}) => {
+  const totalBlocks = Math.max(0, Number(item.total_bloques) || 0);
+  const blocksReceived = Math.max(0, Number(item.bloques_recibidos) || 0);
+  const totalRecords = Math.max(0, Number(item.total_registros) || 0);
+  const recordsReceived = Math.max(0, Number(item.registros_recibidos) || 0);
+  return {
+    totalBlocks, blocksReceived, totalRecords, recordsReceived,
+    percent: totalBlocks ? Math.min(100, Math.round((blocksReceived / totalBlocks) * 100)) : null,
+    complete: totalBlocks > 0 && blocksReceived >= totalBlocks
+  };
+};

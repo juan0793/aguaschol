@@ -21777,12 +21777,13 @@ body,
 .import-sync-strip { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .85rem; min-height: 72px; padding: .85rem 1rem; overflow: hidden; border: 1px solid rgba(190,213,234,.86); border-radius: 16px; background: rgba(255,255,255,.8); box-shadow: 0 14px 36px rgba(20,77,122,.08); backdrop-filter: blur(14px); animation: import-rise .5s .08s ease both; }
 .import-sync-strip > div { display: grid; gap: .18rem; }
 .import-sync-strip strong { color: #113d63; font-size: .98rem; }
-.import-sync-strip span:not(.import-sync-symbol):not(.import-progress-line) { color: #5a7690; font-size: .8rem; }
+.import-sync-strip span:not(.import-sync-symbol) { color: #5a7690; font-size: .8rem; }
 .import-sync-symbol { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; background: #e6f2ff; color: #1465d9; font-weight: 900; }
 .import-sync-strip.is-received .import-sync-symbol { background: #dcfce7; color: #15803d; animation: import-pop .38s ease both; }
 .import-sync-strip.is-loading .import-sync-symbol { border: 3px solid #d7e8f7; border-top-color: #1465d9; border-radius: 50%; background: transparent; animation: import-spin .8s linear infinite; }
-.import-progress-line { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; overflow: hidden; background: #deebf7; }
-.import-progress-line::after { content: ""; position: absolute; width: 34%; height: 100%; background: linear-gradient(90deg, transparent, #1687e5, transparent); animation: import-sweep 1.1s ease-in-out infinite; }
+.import-real-progress { display: grid; grid-template-columns: minmax(140px, 420px) auto; align-items: center; gap: .65rem; margin-top: .35rem; }
+.import-real-progress progress { width: 100%; height: 10px; accent-color: #1465d9; }
+.import-real-progress span { color: #1465d9 !important; font-weight: 800; white-space: nowrap; }
 .import-sync-message { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: .72rem .9rem; border: 1px solid #b9e8cc; border-radius: 13px; background: rgba(235,253,242,.94); color: #166534; font: inherit; font-weight: 750; text-align: left; animation: import-pop .3s ease both; }
 .import-sync-message span { font-size: 1.15rem; }
 .import-layout { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 1rem; }

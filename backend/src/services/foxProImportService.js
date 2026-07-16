@@ -107,6 +107,12 @@ export const startFoxProBatch = async (payload = {}) => {
   if (Number(lot.total_bloques) !== totalBloques || Number(lot.total_registros) !== totalRegistros) {
     throw fail("El lote ya existe con cantidades diferentes.", 409);
   }
+  await pool.query(
+    `UPDATE importacion_padron_solicitudes SET codigo_lote=?
+     WHERE estado='EN_PROCESO' AND (codigo_lote IS NULL OR codigo_lote='')
+     ORDER BY id DESC LIMIT 1`,
+    [codigo]
+  );
   return lot;
 };
 
@@ -267,7 +273,19 @@ export const requestFoxProUpdate = async (actorUser) => {
 
 export const getFoxProUpdateRequest = async (id) => {
   const requestId = positiveInt(id, "Solicitud");
-  const [rows] = await getPool().query("SELECT * FROM importacion_padron_solicitudes WHERE id=? LIMIT 1", [requestId]);
+  const [rows] = await getPool().query(
+    `SELECT s.*, l.estado lote_estado, l.total_bloques, l.total_registros,
+      COALESCE(p.bloques_recibidos, 0) bloques_recibidos,
+      COALESCE(p.registros_recibidos, 0) registros_recibidos
+     FROM importacion_padron_solicitudes s
+     LEFT JOIN importacion_padron_lotes l ON l.codigo_lote=s.codigo_lote
+     LEFT JOIN (
+       SELECT lote_id, COUNT(*) bloques_recibidos, COALESCE(SUM(cantidad_registros), 0) registros_recibidos
+       FROM importacion_padron_bloques GROUP BY lote_id
+     ) p ON p.lote_id=l.id
+     WHERE s.id=? LIMIT 1`,
+    [requestId]
+  );
   if (!rows.length) throw fail("Solicitud no encontrada.", 404);
   return rows[0];
 };
@@ -324,8 +342,16 @@ export const listFoxProBatches = async ({ page = 1, limit = 20, estado = "", cod
   const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
   const [[count]] = await pool.query(`SELECT COUNT(*) total FROM importacion_padron_lotes l ${where}`, params);
   const [rows] = await pool.query(
-    `SELECT l.*, u.full_name usuario_aplicacion_nombre FROM importacion_padron_lotes l
-     LEFT JOIN app_users u ON u.id=l.usuario_aplicacion ${where} ORDER BY l.fecha_recepcion DESC LIMIT ? OFFSET ?`,
+    `SELECT l.*, u.full_name usuario_aplicacion_nombre,
+      COALESCE(p.bloques_recibidos, 0) bloques_recibidos,
+      COALESCE(p.registros_recibidos, 0) registros_recibidos
+     FROM importacion_padron_lotes l
+     LEFT JOIN app_users u ON u.id=l.usuario_aplicacion
+     LEFT JOIN (
+       SELECT lote_id, COUNT(*) bloques_recibidos, COALESCE(SUM(cantidad_registros), 0) registros_recibidos
+       FROM importacion_padron_bloques GROUP BY lote_id
+     ) p ON p.lote_id=l.id
+     ${where} ORDER BY l.fecha_recepcion DESC LIMIT ? OFFSET ?`,
     [...params, safeLimit, (safePage - 1) * safeLimit]
   );
   return { rows, total: Number(count.total), page: safePage, limit: safeLimit };
