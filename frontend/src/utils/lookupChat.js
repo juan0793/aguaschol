@@ -112,7 +112,7 @@ export const parseLookupChatMessage = (message = "") => {
 
 const serviceStatus = (value) => {
   const normalized = String(value ?? "").trim().toUpperCase();
-  if (normalized === "S") return "Si";
+  if (normalized === "S") return "Sí";
   if (normalized === "N") return "No";
   return "--";
 };
@@ -132,17 +132,17 @@ const buildAguasCard = (match = {}) => ({
   status: "En Aguas",
   tone: "success",
   fields: [
-    ["Numero de abonado", match.abonado],
+    ["Número de abonado", match.abonado],
     ["Abonado", match.nombre || match.inquilino],
-    ["Inquilino", match.inquilino && match.inquilino !== match.nombre ? match.inquilino : ""],
+    ["Inquilino", match.nombre && match.inquilino !== match.nombre ? match.inquilino : ""],
     ["Clave catastral", match.clave_catastral],
     ["Barrio/Colonia", match.barrio_colonia],
-    ["Direccion", match.direccion],
+    ["Dirección", match.direccion],
     ["Saldo", money(match.total)],
     ["Agua", serviceStatus(match.agua)],
     ["Alcantarillado", serviceStatus(match.alcantarillado)],
     ["Barrido", serviceStatus(match.barrido)],
-    ["Recoleccion", serviceStatus(match.recoleccion)],
+    ["Recolección", serviceStatus(match.recoleccion)],
     ["Desechos peligrosos", serviceStatus(match.desechos_peligrosos)]
   ]
     .filter(([, value]) => String(value ?? "").trim())
@@ -155,8 +155,8 @@ const buildMunicipalCard = (match = {}) => ({
   fields: [
     ["Clave catastral", match.clave_catastral],
     ["Nombre catastral", match.nombre],
-    ["Barrio/Caserio", match.caserio],
-    ["Direccion", match.direccion],
+    ["Barrio/Caserío", match.caserio],
+    ["Dirección", match.direccion],
     ["Estado en Aguas", match.exists_in_aguas ? "Con registro asociado" : "Sin registro asociado"],
     ["Clave Aguas", match.clave_aguas_formato]
   ]
@@ -171,16 +171,16 @@ export const buildLookupNoResultsResponse = (queryMeta = {}) => ({
   title: "Sin resultados",
   text:
     queryMeta.intent === "municipal_check" || queryMeta.intent === "missing_in_aguas"
-      ? "No encontre esta clave ni en la informacion catastral ni en el padron de Aguas de Choluteca. Revisa si la clave esta completa o si tiene errores de escritura."
-      : "No encontre registros con esa busqueda. Proba con la clave completa, numero de abonado o nombre.",
+      ? "No encontré esta clave ni en la información catastral ni en el padrón de Aguas de Choluteca. Revisa si la clave está completa o si tiene errores de escritura."
+      : "No encontré registros con esa búsqueda. Prueba con la clave completa, número de abonado o nombre.",
   cards: [],
   actions: []
 });
 
 export const buildLookupErrorResponse = (error, queryMeta = {}) => ({
   tone: "warning",
-  title: "No pude completar la busqueda",
-  text: error?.message || `No fue posible consultar ${queryMeta.query || "la busqueda"}.`,
+  title: "No pude completar la búsqueda",
+  text: error?.message || `No fue posible consultar ${queryMeta.query || "la búsqueda"}.`,
   cards: [],
   actions: []
 });
@@ -195,9 +195,9 @@ export const buildLookupChatResponse = (result = {}, queryMeta = {}) => {
     return {
       tone: "success",
       title: "Varios registros encontrados",
-      text: "Encontre varios registros parecidos. Te muestro los mas relevantes.",
+      text: "Encontré varios registros parecidos. Te muestro los más relevantes.",
       cards: aguasMatches.slice(0, 6).map(buildAguasCard),
-      actions: ["Copiar clave", "Copiar abonado", "Ver saldo", "Ver servicios"]
+      actions: ["Copiar clave", "Copiar abonado"]
     };
   }
 
@@ -213,30 +213,30 @@ export const buildLookupChatResponse = (result = {}, queryMeta = {}) => {
       queryMeta.intent === "saldo"
         ? total
           ? `El abonado ${aguasMatch.abonado || ""} tiene un saldo pendiente de ${total}.`
-          : "No encontre saldo pendiente registrado para este abonado."
+          : "No encontré saldo pendiente registrado para este abonado."
         : queryMeta.intent === "servicios"
           ? "Servicios registrados para este abonado:"
           : alcaldiaMatch
-            ? `Su clave ${aguasMatch.clave_catastral || queryMeta.query} aparece en Aguas de Choluteca y tambien en la informacion municipal/catastral.`
-            : `La clave ${aguasMatch.clave_catastral || queryMeta.query} si tiene registro en Aguas de Choluteca.`;
+            ? `Su clave ${aguasMatch.clave_catastral || queryMeta.query} aparece en Aguas de Choluteca y también en la información municipal/catastral.`
+            : `La clave ${aguasMatch.clave_catastral || queryMeta.query} sí tiene registro en Aguas de Choluteca.`;
 
     return {
       tone: "success",
       title,
       text,
       cards: [buildAguasCard(aguasMatch)],
-      actions: ["Copiar clave", "Copiar abonado", "Ver saldo", "Ver servicios"]
+      actions: ["Copiar clave", "Copiar abonado"]
     };
   }
 
   if (alcaldiaMatch) {
     return {
       tone: "warning",
-      title: "Resultado de verificacion",
+      title: "Resultado de verificación",
       text:
-        "La clave catastral si aparece en la informacion municipal/catastral, pero no encontre un abonado asociado en Aguas de Choluteca. Esto puede significar que el inmueble existe en Catastro/Alcaldia, pero todavia no esta vinculado al padron de Aguas. Conviene validar en campo o remitir esta clave para revision.",
+        "La clave catastral sí aparece en la información municipal/catastral, pero no encontré un abonado asociado en Aguas de Choluteca. Esto puede significar que el inmueble existe en Catastro/Alcaldía, pero todavía no está vinculado al padrón de Aguas. Conviene validar en campo o remitir esta clave para revisión.",
       cards: [buildMunicipalCard(alcaldiaMatch)],
-      actions: ["Copiar clave", "Validar en campo", "Pendiente de revision"]
+      actions: ["Copiar clave"]
     };
   }
 

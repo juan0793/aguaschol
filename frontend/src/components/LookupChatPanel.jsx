@@ -8,25 +8,29 @@ import {
 } from "../utils/lookupChat";
 
 const suggestions = [
-  "buscar clave 10-10-10-10",
-  "abonado 16523",
-  "saldo de Juan Perez",
-  "esta clave esta en alcaldia pero no en aguas 10-10-10-10"
+  { label: "Buscar una clave", example: "10-10-10-10", query: "buscar clave 10-10-10-10" },
+  { label: "Consultar abonado", example: "Abonado 16523", query: "abonado 16523" },
+  { label: "Revisar un saldo", example: "Nombre o abonado", query: "saldo de Juan Perez" },
+  {
+    label: "Comparar padrones",
+    example: "Alcaldía vs. Aguas",
+    query: "esta clave esta en alcaldia pero no en aguas 10-10-10-10"
+  }
 ];
 
 const buildId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const modeLabel = {
   clave: "clave catastral",
-  abonado: "numero de abonado",
+  abonado: "número de abonado",
   nombre: "nombre"
 };
 
 const intentLabel = {
   balance: "saldo y servicios",
   services: "servicios disponibles",
-  municipal_check: "comparacion con Alcaldia",
-  missing_in_aguas: "Alcaldia vs Aguas",
+  municipal_check: "comparación con Alcaldía",
+  missing_in_aguas: "Alcaldía vs. Aguas",
   general: "consulta general"
 };
 
@@ -34,7 +38,9 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
   const messagesRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     messagesRef.current?.scrollTo({
@@ -52,13 +58,13 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
       return {
         tone: "thinking",
         title: "Interpretando en tiempo real",
-        text: "Todavia necesito detectar si buscas por clave, abonado o nombre."
+        text: "Todavía necesito detectar si buscas por clave, abonado o nombre."
       };
     }
     const ready = isLookupQueryReady(liveMeta.query, liveMeta.mode);
     return {
       tone: ready ? "ready" : "thinking",
-      title: ready ? "Listo para consultar" : "Falta un poco mas de dato",
+      title: ready ? "Listo para consultar" : "Falta un poco más de información",
       text: `Entiendo: buscar por ${modeLabel[liveMeta.mode] || liveMeta.mode} "${liveMeta.query}" para ${
         intentLabel[liveMeta.intent] || "consulta general"
       }.`
@@ -73,7 +79,7 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
     const aguas = await aguasResponse.json();
 
     if (!aguasResponse.ok) {
-      throw new Error(aguas.message || "No fue posible consultar el padron de Aguas.");
+      throw new Error(aguas.message || "No fue posible consultar el padrón de Aguas.");
     }
 
     let alcaldia = null;
@@ -110,7 +116,7 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
           role: "assistant",
           tone: "warning",
           text:
-            "No pude identificar si queres buscar por clave, abonado o nombre. Escribi por ejemplo: clave 10-10-10-10, abonado 16523 o nombre Juan Perez."
+            "No pude identificar la búsqueda. Escribe una clave, un número de abonado o el nombre completo de una persona."
         }
       ]);
       return;
@@ -167,66 +173,40 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
   const handleAction = async (action, card) => {
     if (!navigator.clipboard) return;
     const clave = card?.fields?.find((field) => field.label === "Clave catastral")?.value;
-    const abonado = card?.fields?.find((field) => field.label === "Numero de abonado")?.value;
-    if (action === "Copiar clave" && clave) await navigator.clipboard.writeText(String(clave));
-    if (action === "Copiar abonado" && abonado) await navigator.clipboard.writeText(String(abonado));
+    const abonado = card?.fields?.find((field) => field.label === "Número de abonado")?.value;
+    const value = action === "Copiar clave" ? clave : abonado;
+    if (!value) return;
+    await navigator.clipboard.writeText(String(value));
+    setCopyStatus(action === "Copiar clave" ? "Clave copiada" : "Número de abonado copiado");
+  };
+
+  const startNewLookup = () => {
+    setMessages([]);
+    setInput("");
+    setCopyStatus("");
+    inputRef.current?.focus();
   };
 
   return (
-    <section className="lookup-chat">
+    <section className={`lookup-chat ${messages.length ? "has-messages" : ""}`}>
       <div className="lookup-chat-shell">
         <div className="lookup-chat-hero">
-          <span className="lookup-chat-kicker">Consultar clave</span>
-          <h3>Que clave deseas consultar?</h3>
-          <p>Escribe una clave, abonado, nombre o una comparacion entre Aguas y Alcaldia.</p>
-        </div>
-
-        <form className="lookup-chat-input-row" onSubmit={handleSubmit}>
-          <button type="button" className="lookup-chat-plus" aria-label="Nueva consulta" onClick={() => setInput("")} disabled={loading}>
-            <Icon name="plus" />
-          </button>
-          <input
-            className="lookup-chat-input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Escribe una clave, abonado o nombre"
-            disabled={loading}
-          />
-          <span className="lookup-chat-mode">Reglas + padron</span>
-          <button type="submit" className="lookup-chat-send" disabled={loading || !input.trim()} aria-label="Consultar">
-            <Icon name="search" />
-          </button>
-        </form>
-
-        {livePreview ? (
-          <div className={`lookup-chat-live is-${livePreview.tone}`} aria-live="polite">
-            <strong>{livePreview.title}</strong>
-            <span>{livePreview.text}</span>
+          <span className="lookup-chat-hero-icon"><Icon name="search" /></span>
+          <div>
+            <span className="lookup-chat-kicker">Consulta inteligente</span>
+            <h3>¿Qué deseas consultar?</h3>
+            <p>Busca por clave, abonado o nombre y compara Catastro con el padrón de Aguas.</p>
           </div>
-        ) : null}
-
-        <div className="lookup-chat-suggestions">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              className="lookup-chat-suggestion-button"
-              onClick={() => submitMessage(suggestion)}
-              disabled={loading}
-            >
-              {suggestion}
-            </button>
-          ))}
         </div>
 
         {messages.length ? (
-          <div ref={messagesRef} className="lookup-chat-messages" aria-live="polite">
+          <div ref={messagesRef} className="lookup-chat-messages" role="log" aria-live="polite">
             {messages.map((message) => (
               <article key={message.id} className={`lookup-chat-message is-${message.role}`}>
                 <div className={`lookup-chat-bubble ${message.tone ? `is-${message.tone}` : ""}`}>
                   {message.title ? <strong className="lookup-chat-message-title">{message.title}</strong> : null}
                   <p>{message.text}</p>
-                  {message.tone === "loading" ? <span className="lookup-chat-loading">Consultando...</span> : null}
+                  {message.tone === "loading" ? <span className="lookup-chat-loading">Consultando<span>...</span></span> : null}
                   {message.cards?.length ? (
                     <div className="lookup-chat-result-list">
                       {message.cards.map((card, index) => (
@@ -244,7 +224,7 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
                             <div className="lookup-chat-actions">
                               {message.actions.map((action) => (
                                 <button key={action} type="button" onClick={() => handleAction(action, card)}>
-                                  {action}
+                                  <Icon name="copy" /> {action}
                                 </button>
                               ))}
                             </div>
@@ -257,7 +237,51 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
               </article>
             ))}
           </div>
+        ) : (
+          <div className="lookup-chat-suggestions" aria-label="Consultas de ejemplo">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion.label}
+                type="button"
+                className="lookup-chat-suggestion-button"
+                onClick={() => submitMessage(suggestion.query)}
+                disabled={loading}
+              >
+                <Icon name="search" />
+                <span><strong>{suggestion.label}</strong><small>{suggestion.example}</small></span>
+                <Icon name="arrowRight" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {livePreview ? (
+          <div className={`lookup-chat-live is-${livePreview.tone}`} aria-live="polite">
+            <Icon name={livePreview.tone === "ready" ? "success" : "activity"} />
+            <span><strong>{livePreview.title}</strong>{livePreview.text}</span>
+          </div>
         ) : null}
+
+        <form className="lookup-chat-input-row" onSubmit={handleSubmit}>
+          <button type="button" className="lookup-chat-plus" aria-label="Nueva consulta" title="Nueva consulta" onClick={startNewLookup} disabled={loading}>
+            <Icon name="plus" />
+          </button>
+          <input
+            ref={inputRef}
+            className="lookup-chat-input"
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Escribe una clave, abonado o nombre…"
+            aria-label="Consulta de clave, abonado o nombre"
+            autoComplete="off"
+            disabled={loading}
+          />
+          <span className="lookup-chat-mode">Padrón + Catastro</span>
+          <button type="submit" className="lookup-chat-send" disabled={loading || !input.trim()} aria-label="Consultar">
+            <Icon name="search" />
+          </button>
+        </form>
+        <span className="lookup-chat-feedback" aria-live="polite">{copyStatus}</span>
       </div>
     </section>
   );

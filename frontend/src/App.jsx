@@ -15448,7 +15448,7 @@ function App() {
                     Consulta una clave y decide el siguiente paso sin abrir toda la ficha desde el inicio.
                   </p>
                 </div>
-                <span className="panel-pill">Alcaldia vs Aguas</span>
+                <span className="panel-pill">Alcaldía vs. Aguas</span>
               </div>
 
               <LookupChatPanel apiFetch={apiFetch} padronMeta={padronMeta} />
@@ -15456,7 +15456,7 @@ function App() {
               <div className="lookup-classic-launch">
                 <button type="button" className="button-secondary" onClick={() => setShowLookupClassicModal(true)}>
                   <Icon name="records" />
-                  Abrir busqueda clasica
+                  Abrir búsqueda clásica
                 </button>
               </div>
 
