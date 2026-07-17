@@ -11,3 +11,6 @@ assert.deepEqual(getBatchTransferProgress({ total_bloques: 10, bloques_recibidos
 assert.deepEqual(getBatchTransferProgress({ total_bloques: 2, bloques_recibidos: 3 }), {
   totalBlocks: 2, blocksReceived: 3, totalRecords: 0, recordsReceived: 0, percent: 100, complete: true
 });
+assert.deepEqual(getBatchTransferProgress(null), {
+  totalBlocks: 0, blocksReceived: 0, totalRecords: 0, recordsReceived: 0, percent: null, complete: false
+});

@@ -7,6 +7,7 @@ export const filterAndSortBatches = (batches = [], { query = "", status = "", or
 };
 
 export const getBatchTransferProgress = (item = {}) => {
+  item ??= {};
   const totalBlocks = Math.max(0, Number(item.total_bloques) || 0);
   const blocksReceived = Math.max(0, Number(item.bloques_recibidos) || 0);
   const totalRecords = Math.max(0, Number(item.total_registros) || 0);
