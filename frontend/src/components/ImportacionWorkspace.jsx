@@ -32,6 +32,8 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const [expandedId, setExpandedId] = useState(null);
   const [syncMessage, setSyncMessage] = useState("");
   const [activeRequest, setActiveRequest] = useState(null);
+  const [r2Status, setR2Status] = useState(null);
+  const [historicalKey, setHistoricalKey] = useState("");
   const [filters, setFilters] = useState({ abonado: "", clave: "", nombre: "", colonia: "", estado: "" });
   const knownBatchIds = useRef(new Set());
   const pageCount = Math.max(1, Math.ceil(total / 50));
@@ -68,6 +70,32 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
 
   useEffect(() => { loadBatches(); }, [loadBatches]);
   useEffect(() => { loadRecords(); }, [loadRecords]);
+
+  const loadR2Status = useCallback(async () => {
+    try {
+      const response = await apiFetch("/integracion/foxpro/r2/padron");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No fue posible consultar R2.");
+      setR2Status(data);
+      setHistoricalKey((current) => current || data.historical_versions?.[0]?.key || "");
+    } catch (error) { showAlert(error.message); }
+  }, [apiFetch, showAlert]);
+
+  useEffect(() => { loadR2Status(); }, [loadR2Status]);
+
+  const runR2Action = async (path, body, confirmation, success) => {
+    if (confirmation && !window.confirm(confirmation)) return;
+    setLoading(true);
+    try {
+      const response = await apiFetch(`/integracion/foxpro/r2/${path}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No fue posible completar la operacion en R2.");
+      showAlert(success(data));
+      await Promise.all([loadR2Status(), loadBatches()]);
+    } catch (error) { showAlert(error.message); } finally { setLoading(false); }
+  };
 
   const refreshRequest = useCallback(async (id) => {
     try {
@@ -172,6 +200,31 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
       </section>
 
       {syncMessage ? <button type="button" className="import-sync-message" onClick={() => setSyncMessage("")} aria-label="Cerrar aviso">{syncMessage}<span aria-hidden="true">×</span></button> : null}
+
+      <section className="import-r2-panel" aria-label="Respaldo privado del padron en R2">
+        <div>
+          <p className="sheet-kicker">Almacenamiento privado</p>
+          <strong>Cloudflare R2</strong>
+          <span>{!r2Status?.configured ? "No configurado" : r2Status.reachable ? `Padron activo verificado · ${Number(r2Status.active?.total_records || 0).toLocaleString("es-HN")} registros` : "Configurado, sin conexion confirmada"}</span>
+        </div>
+        <div className="import-r2-actions">
+          <button type="button" className="button-secondary" disabled={loading || !r2Status?.configured} onClick={async () => {
+            try {
+              const response = await apiFetch("/integracion/foxpro/r2/conexion");
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.message || "R2 no respondio.");
+              showAlert("Conexion privada con R2 confirmada.");
+              await loadR2Status();
+            } catch (error) { showAlert(error.message); }
+          }}>Comprobar conexion</button>
+          <button type="button" disabled={loading || !r2Status?.configured} onClick={() => runR2Action("migrar", {}, "¿Migrar ahora el snapshot MySQL actual hacia R2? No se borraran datos de MySQL.", (data) => `${Number(data.total_records || 0).toLocaleString("es-HN")} registros migrados y verificados en R2.`)}>Migrar snapshot MySQL</button>
+          <select value={historicalKey} onChange={(event) => setHistoricalKey(event.target.value)} disabled={loading || !r2Status?.historical_versions?.length} aria-label="Version historica de R2">
+            <option value="">Seleccionar version historica</option>
+            {(r2Status?.historical_versions || []).map((item) => <option key={item.key} value={item.key}>{item.key.replace("padron/historico/", "")}</option>)}
+          </select>
+          <button type="button" className="button-secondary" disabled={loading || !historicalKey} onClick={() => runR2Action("restaurar", { key: historicalKey, confirmation: "RESTAURAR_PADRON_R2" }, "¿Restaurar esta version historica como padron activo? La busqueda cambiara inmediatamente.", (data) => `Version restaurada con ${Number(data.total_records || 0).toLocaleString("es-HN")} registros.`)}>Restaurar version</button>
+        </div>
+      </section>
 
       <section className="import-layout">
         <aside className="import-batches">

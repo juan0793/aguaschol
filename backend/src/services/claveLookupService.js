@@ -4,7 +4,7 @@ import XLSX from "xlsx";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
 import { resolveBarrioFromRecord, resolveBarrioNameFromClave } from "./barrioCodeService.js";
-import { saveActivePadronSnapshot } from "./padronSnapshotService.js";
+import { persistActivePadron } from "./padronSnapshotService.js";
 
 const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
 const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
@@ -536,26 +536,7 @@ let alcaldiaMeta = readJsonFile(alcaldiaMetaPath, {
   }
 });
 
-// Funciones para recargar datos desde disco (soluciona problema de caché en múltiples procesos)
-const reloadMasterRecords = () => {
-  try {
-    masterRecords = normalizeMasterRecords(readJsonFile(maestroPath, []));
-    masterMeta = readJsonFile(maestroMetaPath, {
-      file_name: fs.existsSync(maestroPath) ? path.basename(maestroPath) : "",
-      sheet_name: "",
-      total_records: masterRecords.length,
-      updated_at: fs.existsSync(maestroPath) ? fs.statSync(maestroPath).mtime.toISOString() : null,
-      last_import_summary: {
-        added: 0,
-        removed: 0,
-        changed: 0
-      }
-    });
-  } catch (error) {
-    console.error("Error recargando maestro records:", error);
-  }
-};
-
+// El padron de Alcaldia sigue siendo un archivo independiente y se recarga bajo demanda.
 const reloadAlcaldiaRecords = () => {
   try {
     alcaldiaRecords = normalizeAlcaldiaRows(readJsonFile(alcaldiaPath, []));
@@ -861,9 +842,6 @@ const buildPadronRequestSummary = (rows = []) => {
 };
 
 export const getClaveLookupMeta = async () => {
-  // Recargar datos desde disco para evitar caché en múltiples procesos
-  reloadMasterRecords();
-  
   return {
     ok: true,
     meta: {
@@ -883,21 +861,23 @@ export const getClaveLookupMeta = async () => {
 };
 
 export const getMasterRecordsForImport = () => {
-  reloadMasterRecords();
   return masterRecords.map((record) => ({ ...record }));
 };
 
-export const replaceMasterRecordsFromImport = (records, { codigoLote = "" } = {}) => {
-  reloadMasterRecords();
+export const activateMasterRecordsInMemory = (records, { codigoLote = "" } = {}) => {
   const rows = normalizeMasterRecords(records);
   if (!rows.length) {
     const error = new Error("La importacion no produjo registros validos para el padron.");
     error.status = 400;
     throw error;
   }
+  if (rows.length !== records.length) {
+    const error = new Error(`El padron normalizado esta incompleto: ${rows.length} de ${records.length} registros son validos.`);
+    error.status = 409;
+    throw error;
+  }
 
   const importSummary = summarizePadronChanges(masterRecords, rows);
-  writeJsonFile(maestroPath, rows);
   masterMeta = {
     ...masterMeta,
     file_name: codigoLote ? `Lote FoxPro ${codigoLote}` : masterMeta.file_name || "padron-maestro.json",
@@ -906,13 +886,18 @@ export const replaceMasterRecordsFromImport = (records, { codigoLote = "" } = {}
     updated_at: new Date().toISOString(),
     last_import_summary: { ...importSummary, source: "FOXPRO_MANUAL", codigo_lote: codigoLote }
   };
-  writeJsonFile(maestroMetaPath, masterMeta);
   masterRecords = rows;
   return { meta: masterMeta, import_summary: masterMeta.last_import_summary, records: rows };
 };
 
+export const replaceMasterRecordsFromImport = (records, options = {}) => {
+  const result = activateMasterRecordsInMemory(records, options);
+  writeJsonFile(maestroPath, result.records);
+  writeJsonFile(maestroMetaPath, result.meta);
+  return result;
+};
+
 export const verifyClavePadronIntegrity = async () => {
-  reloadMasterRecords();
 
   if (!fs.existsSync(maestroSourcePath)) {
     return {
@@ -983,9 +968,6 @@ export const getPadronRequestTemplates = async () => ({
 });
 
 export const getAguasServiceReport = async () => {
-  // Recargar datos desde disco para evitar caché en múltiples procesos
-  reloadMasterRecords();
-  
   const emptyDebt = () => ({ capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0 });
   const emptyServiceTotals = () =>
     Object.fromEntries(
@@ -1135,8 +1117,8 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
     throw error;
   }
 
-  reloadMasterRecords();
   const importSummary = summarizePadronChanges(masterRecords, rows);
+  await persistActivePadron(rows, originalName || "PADRON_MANUAL");
   writeBinaryFile(maestroSourcePath, buffer);
   writeJsonFile(maestroPath, rows);
 
@@ -1154,8 +1136,6 @@ export const uploadClavePadron = async ({ buffer, originalName = "" }, options =
   };
   writeJsonFile(maestroMetaPath, masterMeta);
   masterRecords = rows;
-  await saveActivePadronSnapshot(rows, originalName || "PADRON_MANUAL");
-
   try {
     await createAuditLog({
       actorUserId: options.actorUserId ?? null,
@@ -1242,8 +1222,6 @@ export const uploadAlcaldiaPadron = async ({ buffer, originalName = "" }, option
 };
 
 export const searchAlcaldiaClaveCatastral = async (value, options = {}) => {
-  // Recargar datos desde disco para evitar caché en múltiples procesos
-  reloadMasterRecords();
   reloadAlcaldiaRecords();
   
   const field = ["clave", "texto"].includes(options.field) ? options.field : "clave";
@@ -1291,8 +1269,6 @@ export const searchAlcaldiaClaveCatastral = async (value, options = {}) => {
 };
 
 export const compareAlcaldiaWithAguas = async () => {
-  // Recargar datos desde disco para evitar caché en múltiples procesos
-  reloadMasterRecords();
   reloadAlcaldiaRecords();
   
   const aguasIndex = buildAguasIndex();
@@ -1399,9 +1375,6 @@ export const reprocessClavePadron = async (options = {}) => {
 };
 
 export const searchClaveCatastral = async (value, options = {}) => {
-  // Recargar datos desde disco para evitar caché en múltiples procesos
-  reloadMasterRecords();
-  
   const field = ["clave", "nombre", "abonado"].includes(options.field) ? options.field : "clave";
   let normalized = String(value ?? "").trim();
   let mode = "contains";
@@ -1453,9 +1426,6 @@ export const searchClaveCatastral = async (value, options = {}) => {
 };
 
 export const generatePadronRequestReport = async (payload = {}) => {
-  // Recargar datos desde disco para evitar caché en múltiples procesos
-  reloadMasterRecords();
-  
   const presetId = String(payload.preset_id ?? "").trim();
   const template = PADRON_REQUEST_TEMPLATES.find((item) => item.id === presetId) ?? null;
   const providedKeywords = Array.isArray(payload.keywords) ? payload.keywords : [];
@@ -1493,9 +1463,6 @@ export const generatePadronRequestReport = async (payload = {}) => {
 };
 
 export const exportClavePadronWorkbook = async () => {
-  // Recargar datos desde disco para evitar caché en múltiples procesos
-  reloadMasterRecords();
-  
   const sourceFileName = sanitizeExcelText(masterMeta.source_file_name || masterMeta.file_name || "");
   const sourceExtension = path.extname(sourceFileName).toLowerCase();
 

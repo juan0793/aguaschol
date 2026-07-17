@@ -415,6 +415,19 @@ const ensureSchema = async () => {
       columnName: "validation_notes",
       definition: "TEXT NULL"
     });
+    for (const [tableName, columnName, definition] of [
+      ["padron_maestro_snapshot", "r2_active_key", "VARCHAR(500) NULL"],
+      ["padron_maestro_snapshot", "r2_active_etag", "VARCHAR(160) NULL"],
+      ["padron_maestro_snapshot", "r2_active_verified_at", "DATETIME NULL"],
+      ["padron_maestro_snapshot", "r2_history_key", "VARCHAR(500) NULL"],
+      ["padron_maestro_snapshot", "r2_history_etag", "VARCHAR(160) NULL"],
+      ["padron_maestro_snapshot", "r2_history_verified_at", "DATETIME NULL"],
+      ["importacion_padron_lotes", "r2_historico_key", "VARCHAR(500) NULL"],
+      ["importacion_padron_lotes", "r2_historico_etag", "VARCHAR(160) NULL"],
+      ["importacion_padron_lotes", "r2_historico_verificado_at", "DATETIME NULL"]
+    ]) {
+      await ensureColumn(admin, { tableName, columnName, definition });
+    }
     await ensureColumn(admin, {
       tableName: "map_points",
       columnName: "correction_notes",

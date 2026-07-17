@@ -48,6 +48,8 @@ referencia/
 
 La instalacion, seguridad, publicacion `win-x86` y operacion de la integracion FoxPro se documentan en [docs/IMPORTACION_FOXPRO.md](docs/IMPORTACION_FOXPRO.md).
 
+El despliegue, la migracion manual, la recuperacion y el rollback del padron privado en Cloudflare R2 se documentan en [docs/R2_PADRON.md](docs/R2_PADRON.md).
+
 ## Base de datos
 
 El script inicial esta en [backend/sql/schema.sql](/c:/Users/kyubi/OneDrive/Documentos/app-clandestinos/backend/sql/schema.sql).

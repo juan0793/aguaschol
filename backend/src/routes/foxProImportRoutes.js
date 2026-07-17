@@ -1,8 +1,9 @@
 import express, { Router } from "express";
 import {
-  activateBatchHandler, applyBatchHandler, claimUpdateRequestHandler, discardRecordsHandler, finalizeBatchHandler,
-  finishUpdateRequestHandler, getUpdateRequestHandler, listBatchRecordsHandler,
-  listBatchesHandler, receiveBlockHandler, requestUpdateHandler, startBatchHandler, verifyBatchHandler
+  activateBatchHandler, applyBatchHandler, checkR2ConnectionHandler, claimUpdateRequestHandler, discardRecordsHandler,
+  finalizeBatchHandler, finishUpdateRequestHandler, getR2PadronStatusHandler, getUpdateRequestHandler,
+  listBatchRecordsHandler, listBatchesHandler, migratePadronToR2Handler, receiveBlockHandler,
+  requestUpdateHandler, restoreHistoricalPadronHandler, startBatchHandler, verifyBatchHandler
 } from "../controllers/foxProImportController.js";
 import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
 import { requireFoxProSyncKey } from "../middleware/foxProSyncAuth.js";
@@ -25,5 +26,9 @@ router.get("/lotes/:codigoLote/verificar", requireAuth, requireAdmin, verifyBatc
 router.post("/lotes/:codigoLote/activar", requireAuth, requireAdmin, activateBatchHandler);
 router.post("/lotes/:codigoLote/aplicar", requireAuth, requireAdmin, applyBatchHandler);
 router.post("/lotes/:codigoLote/descartar", requireAuth, requireAdmin, discardRecordsHandler);
+router.get("/r2/conexion", requireAuth, requireAdmin, checkR2ConnectionHandler);
+router.get("/r2/padron", requireAuth, requireAdmin, getR2PadronStatusHandler);
+router.post("/r2/migrar", requireAuth, requireAdmin, migratePadronToR2Handler);
+router.post("/r2/restaurar", requireAuth, requireAdmin, restoreHistoricalPadronHandler);
 
 export default router;

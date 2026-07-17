@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS importacion_padron_lotes (
   registros_error INT UNSIGNED NOT NULL DEFAULT 0,
   registros_aplicados INT UNSIGNED NOT NULL DEFAULT 0,
   registros_descartados INT UNSIGNED NOT NULL DEFAULT 0,
+  r2_historico_key VARCHAR(500) NULL,
+  r2_historico_etag VARCHAR(160) NULL,
+  r2_historico_verificado_at DATETIME NULL,
   usuario_aplicacion INT UNSIGNED NULL,
   fecha_aplicacion DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -128,6 +131,12 @@ CREATE TABLE IF NOT EXISTS padron_maestro_snapshot (
   codigo_lote VARCHAR(120) NOT NULL DEFAULT '',
   total_registros INT UNSIGNED NOT NULL,
   registros_json LONGTEXT NOT NULL,
+  r2_active_key VARCHAR(500) NULL,
+  r2_active_etag VARCHAR(160) NULL,
+  r2_active_verified_at DATETIME NULL,
+  r2_history_key VARCHAR(500) NULL,
+  r2_history_etag VARCHAR(160) NULL,
+  r2_history_verified_at DATETIME NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 

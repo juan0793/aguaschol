@@ -1,7 +1,8 @@
 import {
-  activateFoxProBatch, applyFoxProBatch, claimFoxProUpdateRequest, discardFoxProRecords, finalizeFoxProBatch,
+  activateFoxProBatch, applyFoxProBatch, checkR2PadronConnection, claimFoxProUpdateRequest, discardFoxProRecords, finalizeFoxProBatch,
   finishFoxProUpdateRequest, getFoxProUpdateRequest, listFoxProBatchRecords,
-  listFoxProBatches, receiveFoxProBlock, requestFoxProUpdate, startFoxProBatch, verifyActiveFoxProBatch
+  getR2PadronStatus, listFoxProBatches, migrateActivePadronToR2, receiveFoxProBlock, requestFoxProUpdate,
+  restoreHistoricalPadronFromR2, startFoxProBatch, verifyActiveFoxProBatch
 } from "../services/foxProImportService.js";
 
 export const requestUpdateHandler = async (req, res, next) => {
@@ -47,4 +48,16 @@ export const verifyBatchHandler = async (req, res, next) => {
 };
 export const discardRecordsHandler = async (req, res, next) => {
   try { res.json({ ok: true, ...(await discardFoxProRecords(req.params.codigoLote, req.body?.ids, req.authUser)) }); } catch (error) { next(error); }
+};
+export const checkR2ConnectionHandler = async (_req, res, next) => {
+  try { res.json(await checkR2PadronConnection()); } catch (error) { next(error); }
+};
+export const getR2PadronStatusHandler = async (_req, res, next) => {
+  try { res.json({ ok: true, ...(await getR2PadronStatus()) }); } catch (error) { next(error); }
+};
+export const migratePadronToR2Handler = async (req, res, next) => {
+  try { res.json({ ok: true, ...(await migrateActivePadronToR2(req.authUser)) }); } catch (error) { next(error); }
+};
+export const restoreHistoricalPadronHandler = async (req, res, next) => {
+  try { res.json({ ok: true, ...(await restoreHistoricalPadronFromR2(req.body, req.authUser)) }); } catch (error) { next(error); }
 };

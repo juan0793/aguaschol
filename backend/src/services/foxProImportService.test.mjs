@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord } from "./foxProImportService.js";
+import { foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord, pruneOldBatchDetails } from "./foxProImportService.js";
 import { normalizeMasterRecords } from "./claveLookupService.js";
 import { sameSecret } from "../middleware/foxProSyncAuth.js";
 
@@ -50,4 +50,16 @@ test("la huella del padron detecta cambios pero no depende del orden", () => {
 test("la verificacion usa la clave normalizada que consulta el sistema", () => {
   const [row] = normalizeMasterRecords([{ clave_catastral: "01050901", abonado: "1" }]);
   assert.equal(row.clave_catastral, "01-05-09-01");
+});
+
+test("no limpia detalles si el respaldo activo no esta verificado en R2", async () => {
+  const statements = [];
+  const pool = { query: async (sql) => {
+    statements.push(sql);
+    return [[]];
+  } };
+  const result = await pruneOldBatchDetails({ pool });
+  assert.equal(result.pruned, false);
+  assert.equal(result.reason, "active_r2_not_verified");
+  assert.equal(statements.some((sql) => /^DELETE/i.test(sql.trim())), false);
 });

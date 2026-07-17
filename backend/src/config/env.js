@@ -92,6 +92,11 @@ export const env = {
   foxProSyncBatchSize: Number(process.env.FOXPRO_SYNC_BATCH_SIZE ?? 500),
   foxProSyncMaxRecords: Number(process.env.FOXPRO_SYNC_MAX_RECORDS ?? 50000),
   foxProSyncRetainBatches: Number(process.env.FOXPRO_SYNC_RETAIN_BATCHES ?? 5),
+  r2AccessKeyId: process.env.R2_ACCESS_KEY_ID?.trim() ?? "",
+  r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY?.trim() ?? "",
+  r2Endpoint: process.env.R2_ENDPOINT?.trim() ?? "",
+  r2Bucket: process.env.R2_BUCKET?.trim() ?? "",
+  r2Region: process.env.R2_REGION?.trim() || "auto",
   telegramAllowedChatIds: new Set(
     (process.env.TELEGRAM_ALLOWED_CHAT_IDS ?? "")
       .split(",")
@@ -101,6 +106,7 @@ export const env = {
 };
 
 env.useCloudinary = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);
+env.useR2 = Boolean(env.r2AccessKeyId && env.r2SecretAccessKey && env.r2Endpoint && env.r2Bucket);
 
 export const validateRuntimeEnv = (config = env) => {
   if (config.isProduction && !String(config.authPassword || "").trim()) {

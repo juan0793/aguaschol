@@ -3,8 +3,16 @@ import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
 import { getMasterRecordsForImport, normalizeMasterRecords, replaceMasterRecordsFromImport } from "./claveLookupService.js";
-import { loadActivePadronSnapshot, saveActivePadronSnapshot } from "./padronSnapshotService.js";
+import {
+  getActivePadronStorageMeta,
+  loadActivePadronSnapshot,
+  loadPreferredActivePadron,
+  migrateMysqlSnapshotToR2,
+  persistActivePadron,
+  saveActivePadronSnapshot
+} from "./padronSnapshotService.js";
 import { resolveBarrioNameFromClave } from "./barrioCodeService.js";
+import { r2PadronService } from "./r2PadronService.js";
 
 const IMPORTABLE_FIELDS = [
   ["clave_catastral", "clave_catastral"], ["inquilino", "nombre"], ["barrio_colonia", "colonia"],
@@ -390,17 +398,29 @@ const rowToMaster = (row) => ({
 export const foxProRowsToMaster = (rows = []) => rows.map(rowToMaster);
 
 export const restoreActivePadronFromDatabase = async () => {
-  const snapshot = await loadActivePadronSnapshot();
-  if (snapshot) {
-    const result = replaceMasterRecordsFromImport(snapshot.records, { codigoLote: snapshot.codigo_lote });
-    return { restored: true, source: "snapshot", ...result };
+  let preferred = { source: "none", records: null, r2_error: null };
+  let preferredError = null;
+  try {
+    preferred = await loadPreferredActivePadron();
+  } catch (error) {
+    preferredError = error;
   }
+  if (preferred.records) {
+    const result = replaceMasterRecordsFromImport(preferred.records, { codigoLote: preferred.codigo_lote || preferred.source.toUpperCase() });
+    return { restored: true, source: preferred.source, r2_error: preferred.r2_error, ...result };
+  }
+
+  const repositoryRecords = getMasterRecordsForImport();
+  if (repositoryRecords.length) return { restored: true, source: "repository", r2_error: preferred.r2_error, warning: preferredError?.message, meta: { total_records: repositoryRecords.length } };
 
   const pool = getPool();
   const [lots] = await pool.query(
     "SELECT * FROM importacion_padron_lotes WHERE estado='APLICADO' ORDER BY fecha_aplicacion DESC, id DESC LIMIT 1"
   );
-  if (!lots.length) return { restored: false, source: "repository" };
+  if (!lots.length) {
+    if (preferredError) throw preferredError;
+    return { restored: false, source: "repository" };
+  }
   const [rows] = await pool.query(
     "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado IN ('APLICADO','SIN_CAMBIOS') ORDER BY numero_fila",
     [lots[0].id]
@@ -415,30 +435,54 @@ export const restoreActivePadronFromDatabase = async () => {
 export const activateFoxProBatch = async (codigoLote, actorUser) => {
   const pool = getPool();
   const codigo = batchCode(codigoLote);
-  const [lots] = await pool.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? LIMIT 1", [codigo]);
-  const lot = lots[0];
-  if (!lot) throw fail("Lote no encontrado.", 404);
-  if (!["LISTO", "PARCIALMENTE_APLICADO", "APLICADO"].includes(lot.estado)) {
-    throw fail(`El lote esta en estado ${lot.estado} y no puede activarse como padron.`, 409);
+  const connection = await pool.getConnection();
+  const previousMaster = getMasterRecordsForImport();
+  let result;
+  let persistence;
+  let rows;
+  let lot;
+  let padronChanged = false;
+  let r2Changed = false;
+  try {
+    await connection.beginTransaction();
+    const [lots] = await connection.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? FOR UPDATE", [codigo]);
+    lot = lots[0];
+    if (!lot) throw fail("Lote no encontrado.", 404);
+    if (!["LISTO", "PARCIALMENTE_APLICADO", "APLICADO"].includes(lot.estado)) {
+      throw fail(`El lote esta en estado ${lot.estado} y no puede activarse como padron.`, 409);
+    }
+    [rows] = await connection.query(
+      "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO') ORDER BY numero_fila FOR UPDATE",
+      [lot.id]
+    );
+    if (!rows.length) throw fail("El lote no contiene registros validos para activar.", 409);
+
+    const activeRecords = foxProRowsToMaster(rows);
+    const normalizedRecords = normalizeMasterRecords(activeRecords);
+    if (normalizedRecords.length !== activeRecords.length) throw fail("El lote no produce un padron completo y valido.", 409);
+    r2Changed = r2PadronService.configured;
+    persistence = await persistActivePadron(normalizedRecords, codigo, { connection, date: lot.fecha_extraccion || lot.fecha_recepcion || new Date() });
+    padronChanged = true;
+    result = replaceMasterRecordsFromImport(normalizedRecords, { codigoLote: codigo });
+    await connection.query(
+      `UPDATE importacion_padron_lotes SET estado='APLICADO', registros_aplicados=?, usuario_aplicacion=?, fecha_aplicacion=NOW(),
+        r2_historico_key=?, r2_historico_etag=?, r2_historico_verificado_at=? WHERE id=?`,
+      [rows.length, actorUser.id, persistence.r2.historical?.key || null, persistence.r2.historical?.etag || null,
+        persistence.r2.historical?.verified_at ? new Date(persistence.r2.historical.verified_at) : null, lot.id]
+    );
+    await connection.query(
+      "UPDATE importacion_padron_registros SET estado='APLICADO', usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO')",
+      [actorUser.id, lot.id]
+    );
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    if (padronChanged) replaceMasterRecordsFromImport(previousMaster, { codigoLote: `${codigo}-ROLLBACK` });
+    if (r2Changed) await r2PadronService.uploadActive(previousMaster, `${codigo}-ROLLBACK`).catch(() => {});
+    throw error;
+  } finally {
+    connection.release();
   }
-
-  const [rows] = await pool.query(
-    "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO') ORDER BY numero_fila",
-    [lot.id]
-  );
-  if (!rows.length) throw fail("El lote no contiene registros validos para activar.", 409);
-
-  const activeRecords = foxProRowsToMaster(rows);
-  const result = replaceMasterRecordsFromImport(activeRecords, { codigoLote: codigo });
-  await saveActivePadronSnapshot(result.records, codigo);
-  await pool.query(
-    `UPDATE importacion_padron_lotes SET estado='APLICADO', registros_aplicados=?, usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE id=?`,
-    [rows.length, actorUser.id, lot.id]
-  );
-  await pool.query(
-    "UPDATE importacion_padron_registros SET estado='APLICADO', usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO')",
-    [actorUser.id, lot.id]
-  );
   try {
     await createAuditLog({
       actorUserId: actorUser.id,
@@ -451,6 +495,7 @@ export const activateFoxProBatch = async (codigoLote, actorUser) => {
   } catch {
     // El padron debe permanecer activo aunque el registro de auditoria falle temporalmente.
   }
+  if (persistence.r2_verified) await pruneOldBatchDetails().catch(() => {});
 
   return {
     ...result,
@@ -525,21 +570,44 @@ export const verifyActiveFoxProBatch = async (codigoLote) => {
   };
 };
 
-const pruneOldBatchDetails = async () => {
+export const pruneOldBatchDetails = async ({ pool = getPool() } = {}) => {
   const retain = Math.max(1, Number(env.foxProSyncRetainBatches) || 5);
-  const pool = getPool();
+  const [snapshots] = await pool.query(
+    "SELECT total_registros, r2_active_key, r2_active_verified_at FROM padron_maestro_snapshot WHERE id=1 LIMIT 1"
+  );
+  if (!snapshots[0]?.r2_active_key || !snapshots[0]?.r2_active_verified_at) {
+    return { pruned: false, reason: "active_r2_not_verified", deleted_batches: 0 };
+  }
+  try {
+    const active = await r2PadronService.getActiveStatus();
+    if (active.key !== snapshots[0].r2_active_key || active.total_records !== Number(snapshots[0].total_registros)) {
+      return { pruned: false, reason: "active_r2_not_verified", deleted_batches: 0 };
+    }
+  } catch {
+    return { pruned: false, reason: "active_r2_not_verified", deleted_batches: 0 };
+  }
   const [oldLots] = await pool.query(
-    `SELECT id FROM importacion_padron_lotes
-     WHERE estado IN ('APLICADO','DESCARTADO')
-     ORDER BY COALESCE(fecha_aplicacion, fecha_recepcion) DESC
-     LIMIT 18446744073709551615 OFFSET ?`,
+    `SELECT old.id, old.r2_historico_key FROM (
+       SELECT id, estado, r2_historico_key, r2_historico_verificado_at FROM importacion_padron_lotes
+       ORDER BY COALESCE(fecha_aplicacion, fecha_recepcion) DESC
+       LIMIT 18446744073709551615 OFFSET ?
+     ) old WHERE old.estado='APLICADO' AND old.r2_historico_key IS NOT NULL AND old.r2_historico_verificado_at IS NOT NULL`,
     [retain]
   );
-  if (!oldLots.length) return;
-  const ids = oldLots.map((lot) => lot.id);
+  if (!oldLots.length) return { pruned: false, reason: "nothing_verified_to_prune", deleted_batches: 0 };
+  const confirmedLots = [];
+  for (const lot of oldLots) {
+    try {
+      await r2PadronService.getHistoricalStatus(lot.r2_historico_key);
+      confirmedLots.push(lot);
+    } catch { /* Una copia ausente no autoriza a limpiar su detalle. */ }
+  }
+  if (!confirmedLots.length) return { pruned: false, reason: "historical_r2_not_verified", deleted_batches: 0 };
+  const ids = confirmedLots.map((lot) => lot.id);
   const placeholders = ids.map(() => "?").join(",");
   await pool.query(`DELETE FROM importacion_padron_bloques WHERE lote_id IN (${placeholders})`, ids);
   await pool.query(`DELETE FROM importacion_padron_registros WHERE lote_id IN (${placeholders})`, ids);
+  return { pruned: true, deleted_batches: ids.length };
 };
 
 export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false } = {}, actorUser) => {
@@ -551,6 +619,8 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
   const connection = await pool.getConnection();
   const previousMaster = getMasterRecordsForImport();
   let padronChanged = false;
+  let r2Changed = false;
+  let committed = false;
   try {
     await connection.beginTransaction();
     const [lots] = await connection.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? FOR UPDATE", [codigo]);
@@ -577,9 +647,15 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
       else if (indexes.length === 1) nextMaster[indexes[0]] = { ...nextMaster[indexes[0]], ...rowToMaster(row) };
       else throw fail(`El abonado ${row.codigo_abonado} dejo de tener una coincidencia segura.`, 409);
     }
-    const replacement = replaceMasterRecordsFromImport(nextMaster, { codigoLote: codigo });
+    const normalizedMaster = normalizeMasterRecords(nextMaster);
+    if (normalizedMaster.length !== nextMaster.length) throw fail("La importacion produciria un padron incompleto.", 409);
+    r2Changed = r2PadronService.configured;
+    const persistence = await persistActivePadron(normalizedMaster, codigo, {
+      connection,
+      date: lot.fecha_extraccion || lot.fecha_recepcion || new Date()
+    });
     padronChanged = true;
-    await saveActivePadronSnapshot(replacement.records, codigo, connection);
+    const replacement = replaceMasterRecordsFromImport(normalizedMaster, { codigoLote: codigo });
     const appliedIds = rows.map((row) => row.id);
     if (allValid) {
       await connection.query(
@@ -598,18 +674,98 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
     const nextState = Number(remaining.total) ? "PARCIALMENTE_APLICADO" : "APLICADO";
     await connection.query(
       `UPDATE importacion_padron_lotes SET estado=?, registros_aplicados=(SELECT COUNT(*) FROM importacion_padron_registros WHERE lote_id=? AND estado='APLICADO'),
-       usuario_aplicacion=?, fecha_aplicacion=NOW() WHERE id=?`, [nextState, lot.id, actorUser.id, lot.id]
+       usuario_aplicacion=?, fecha_aplicacion=NOW(), r2_historico_key=?, r2_historico_etag=?, r2_historico_verificado_at=? WHERE id=?`,
+      [nextState, lot.id, actorUser.id, persistence.r2.historical?.key || null, persistence.r2.historical?.etag || null,
+        persistence.r2.historical?.verified_at ? new Date(persistence.r2.historical.verified_at) : null, lot.id]
     );
     await connection.commit();
-    await createAuditLog({ actorUserId: actorUser.id, action: "padron.foxpro_import_applied", entityType: "importacion_padron", entityId: codigo,
-      summary: `${rows.length} registros del lote ${codigo} aplicados al padron`, details: { applied: rows.length } });
-    if (nextState === "APLICADO") await pruneOldBatchDetails();
-    return { applied: rows.length, estado: nextState };
+    committed = true;
+    try {
+      await createAuditLog({ actorUserId: actorUser.id, action: "padron.foxpro_import_applied", entityType: "importacion_padron", entityId: codigo,
+        summary: `${rows.length} registros del lote ${codigo} aplicados al padron`, details: { applied: rows.length } });
+    } catch { /* La importacion confirmada no se revierte por una falla de auditoria. */ }
+    if (nextState === "APLICADO" && persistence.r2_verified) await pruneOldBatchDetails().catch(() => {});
+    return { applied: rows.length, estado: nextState, active_records: replacement.records.length, r2_verified: persistence.r2_verified };
   } catch (error) {
-    await connection.rollback();
-    if (padronChanged) replaceMasterRecordsFromImport(previousMaster, { codigoLote: `${codigo}-ROLLBACK` });
+    if (!committed) {
+      await connection.rollback();
+      if (padronChanged) replaceMasterRecordsFromImport(previousMaster, { codigoLote: `${codigo}-ROLLBACK` });
+      if (r2Changed) await r2PadronService.uploadActive(previousMaster, `${codigo}-ROLLBACK`).catch(() => {});
+    }
     throw error;
   } finally { connection.release(); }
+};
+
+export const checkR2PadronConnection = async () => r2PadronService.checkConnection();
+
+export const getR2PadronStatus = async () => {
+  const mysql = await getActivePadronStorageMeta();
+  if (!r2PadronService.configured) {
+    return { configured: false, active: null, historical_versions: [], mysql };
+  }
+  try {
+    const [active, historical] = await Promise.all([
+      r2PadronService.getActiveStatus(),
+      r2PadronService.listHistorical(50)
+    ]);
+    return { configured: true, reachable: true, active, historical_versions: historical, mysql };
+  } catch (error) {
+    return { configured: true, reachable: false, error: error.message, active: null, historical_versions: [], mysql };
+  }
+};
+
+export const migrateActivePadronToR2 = async (actorUser) => {
+  const result = await migrateMysqlSnapshotToR2();
+  if (result.codigo_lote && result.r2.historical) {
+    await getPool().query(
+      `UPDATE importacion_padron_lotes SET r2_historico_key=?, r2_historico_etag=?, r2_historico_verificado_at=?
+       WHERE codigo_lote=?`,
+      [result.r2.historical.key, result.r2.historical.etag || null, new Date(result.r2.historical.verified_at), result.codigo_lote]
+    );
+  }
+  await createAuditLog({
+    actorUserId: actorUser.id,
+    action: "padron.r2_initial_migration",
+    entityType: "padron",
+    entityId: result.codigo_lote || "maestro",
+    summary: `Padron activo migrado manualmente a R2 con ${result.total_records} registros`
+  });
+  return result;
+};
+
+export const restoreHistoricalPadronFromR2 = async ({ key = "", confirmation = "", codigo_lote: codigoLote = "" } = {}, actorUser) => {
+  if (confirmation !== "RESTAURAR_PADRON_R2") throw fail("Debes confirmar la restauracion con RESTAURAR_PADRON_R2.", 400);
+  const historical = await r2PadronService.loadHistorical(key);
+  const codigo = codigoLote ? batchCode(codigoLote) : `R2-RESTORE-${Date.now()}`;
+  const verifiedAt = new Date().toISOString();
+  const previousMaster = getMasterRecordsForImport();
+  let result;
+  let activeChanged = false;
+  let padronChanged = false;
+  try {
+    const active = await r2PadronService.uploadActive(historical.records, codigo);
+    activeChanged = true;
+    const r2 = {
+      active,
+      historical: { key: historical.key, etag: historical.etag, verified_at: verifiedAt, total_records: historical.total_records }
+    };
+    await saveActivePadronSnapshot(historical.records, codigo, null, r2);
+    padronChanged = true;
+    result = replaceMasterRecordsFromImport(historical.records, { codigoLote: codigo });
+  } catch (error) {
+    if (padronChanged && previousMaster.length) replaceMasterRecordsFromImport(previousMaster, { codigoLote: `${codigo}-ROLLBACK` });
+    if (activeChanged && previousMaster.length) await r2PadronService.uploadActive(previousMaster, `${codigo}-ROLLBACK`).catch(() => {});
+    throw error;
+  }
+  await createAuditLog({
+    actorUserId: actorUser.id,
+    action: "padron.r2_historical_restored",
+    entityType: "padron",
+    entityId: codigo,
+    summary: `Version historica R2 restaurada con ${historical.total_records} registros`,
+    details: { historical_key: historical.key, total_records: historical.total_records }
+  });
+  return { restored: true, codigo_lote: codigo, total_records: result.records.length, historical_key: historical.key };
 };
 
 export const discardFoxProRecords = async (codigoLote, ids = [], actorUser) => {

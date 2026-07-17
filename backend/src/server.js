@@ -10,7 +10,7 @@ import { startTelegramBot } from "./services/telegramBotService.js";
 try {
   validateRuntimeEnv();
   await fs.mkdir(env.uploadDir, { recursive: true });
-  void startDatabaseReconnectLoop();
+  await startDatabaseReconnectLoop();
   const server = http.createServer(app);
   initializeTransportRealtime({ server });
   initializeProfileRealtime({ server });

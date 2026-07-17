@@ -1,0 +1,12 @@
+ALTER TABLE padron_maestro_snapshot
+  ADD COLUMN IF NOT EXISTS r2_active_key VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS r2_active_etag VARCHAR(160) NULL,
+  ADD COLUMN IF NOT EXISTS r2_active_verified_at DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS r2_history_key VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS r2_history_etag VARCHAR(160) NULL,
+  ADD COLUMN IF NOT EXISTS r2_history_verified_at DATETIME NULL;
+
+ALTER TABLE importacion_padron_lotes
+  ADD COLUMN IF NOT EXISTS r2_historico_key VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS r2_historico_etag VARCHAR(160) NULL,
+  ADD COLUMN IF NOT EXISTS r2_historico_verificado_at DATETIME NULL;
