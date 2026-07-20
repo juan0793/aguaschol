@@ -610,6 +610,34 @@ export const pruneOldBatchDetails = async ({ pool = getPool() } = {}) => {
   return { pruned: true, deleted_batches: ids.length };
 };
 
+export const deleteHistoricalFoxProBatch = async (
+  codigoLote,
+  actorUser,
+  { pool = getPool(), r2 = r2PadronService } = {}
+) => {
+  const codigo = batchCode(codigoLote);
+  const [lots] = await pool.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? LIMIT 1", [codigo]);
+  const lot = lots[0];
+  if (!lot) throw fail("Lote no encontrado.", 404);
+  if (lot.estado !== "APLICADO") throw fail("Solo se pueden eliminar lotes aplicados.", 409);
+  const active = await getActivePadronStorageMeta(pool);
+  if (active?.codigo_lote === codigo) throw fail("El lote activo no se puede eliminar.", 409);
+  if (!lot.r2_historico_key || !lot.r2_historico_verificado_at) {
+    throw fail("El lote no tiene un respaldo historico verificado en R2.", 409);
+  }
+  await r2.getHistoricalStatus(lot.r2_historico_key);
+  await pool.query("DELETE FROM importacion_padron_lotes WHERE id=?", [lot.id]);
+  await createAuditLog({
+    actorUserId: actorUser?.id,
+    action: "padron.historical_batch_deleted",
+    entityType: "importacion_padron",
+    entityId: codigo,
+    summary: `Lote antiguo ${codigo} eliminado de MySQL; respaldo conservado en R2`,
+    details: { historical_key: lot.r2_historico_key, total_records: Number(lot.total_registros || 0) }
+  }).catch(() => {});
+  return { deleted: true, codigo_lote: codigo, historical_key: lot.r2_historico_key };
+};
+
 export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false } = {}, actorUser) => {
   const pool = getPool();
   const codigo = batchCode(codigoLote);

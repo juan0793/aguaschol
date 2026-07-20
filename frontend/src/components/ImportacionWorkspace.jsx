@@ -207,6 +207,30 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
     } catch (error) { showAlert(error.message); } finally { setLoading(false); }
   };
 
+  const deleteSelectedBatch = async () => {
+    if (!selectedBatch) return;
+    setLoading(true);
+    try {
+      const response = await apiFetch(`/integracion/foxpro/lotes/${encodeURIComponent(selectedBatch.codigo_lote)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "ELIMINAR_LOTE_RESPALDADO" })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No fue posible eliminar el lote.");
+      showAlert(`Lote ${data.codigo_lote} eliminado de la app. Su respaldo continua en R2.`);
+      setSelectedBatch(null);
+      await loadBatches();
+    } catch (error) { showAlert(error.message); } finally { setLoading(false); }
+  };
+
+  const confirmDeleteSelectedBatch = () => setPendingConfirmation({
+    title: "Eliminar lote antiguo",
+    description: `¿Eliminar ${selectedBatch?.codigo_lote} de la app? Sus registros saldran de MySQL, pero el respaldo historico permanecera en R2.`,
+    confirmLabel: "Eliminar lote",
+    action: deleteSelectedBatch
+  });
+
   return (
     <main className="import-workspace no-print">
       <Dialog open={Boolean(pendingConfirmation)} onOpenChange={(open) => !open && setPendingConfirmation(null)}>
@@ -312,6 +336,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
                 <button type="button" onClick={() => runAction("aplicar", { ids: [...selectedIds] }, (data) => `${data.applied} registros aplicados.`, "¿Aplicar los registros seleccionados al padron activo?")} disabled={loading || !batchApplicable || !selectedValid}>Aplicar seleccionados</button>
                 <button type="button" onClick={() => runAction("aplicar", { allValid: true }, (data) => `${data.applied} registros validos aplicados.`, "¿Aplicar todos los registros nuevos y modificados de este lote?")} disabled={loading || !batchApplicable}>{selectedBatch?.estado === "APLICADO" ? "Lote ya aplicado" : "Aplicar todos los validos"}</button>
                 <button type="button" className="button-secondary" onClick={() => runAction("descartar", { ids: [...selectedIds] }, (data) => `${data.discarded} registros descartados.`, "¿Descartar los registros seleccionados?")} disabled={loading || !selectedIds.size}>Descartar seleccionados</button>
+                <button type="button" className="button-danger" onClick={confirmDeleteSelectedBatch} disabled={loading || selectedBatch?.estado !== "APLICADO" || selectedBatch?.codigo_lote === r2Status?.mysql?.codigo_lote || !selectedBatch?.r2_historico_verificado_at}>Eliminar lote antiguo</button>
                 <button type="button" className="button-secondary" onClick={() => changeFilter("estado", "ERROR")}>Ver errores</button>
               </div>
 

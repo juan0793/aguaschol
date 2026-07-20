@@ -1,5 +1,5 @@
 import {
-  activateFoxProBatch, applyFoxProBatch, checkR2PadronConnection, claimFoxProUpdateRequest, discardFoxProRecords, finalizeFoxProBatch,
+  activateFoxProBatch, applyFoxProBatch, checkR2PadronConnection, claimFoxProUpdateRequest, deleteHistoricalFoxProBatch, discardFoxProRecords, finalizeFoxProBatch,
   finishFoxProUpdateRequest, getFoxProUpdateRequest, listFoxProBatchRecords,
   getR2PadronStatus, listFoxProBatches, migrateActivePadronToR2, receiveFoxProBlock, requestFoxProUpdate,
   restoreHistoricalPadronFromR2, startFoxProBatch, verifyActiveFoxProBatch
@@ -72,5 +72,13 @@ export const migrateUploadsToR2Handler = async (req, res, next) => {
     }
     const result = await migrateLocalUploadsToR2({ deleteLocal: req.body?.delete_local === true });
     return res.json({ ok: true, ...result, ...(await getUploadStorageStatus()) });
+  } catch (error) { return next(error); }
+};
+export const deleteBatchHandler = async (req, res, next) => {
+  try {
+    if (req.body?.confirmation !== "ELIMINAR_LOTE_RESPALDADO") {
+      return res.status(400).json({ message: "Confirmacion de eliminacion invalida." });
+    }
+    return res.json({ ok: true, ...(await deleteHistoricalFoxProBatch(req.params.codigoLote, req.authUser)) });
   } catch (error) { return next(error); }
 };

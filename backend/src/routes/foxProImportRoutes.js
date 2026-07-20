@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import {
-  activateBatchHandler, applyBatchHandler, checkR2ConnectionHandler, claimUpdateRequestHandler, discardRecordsHandler,
+  activateBatchHandler, applyBatchHandler, checkR2ConnectionHandler, claimUpdateRequestHandler, deleteBatchHandler, discardRecordsHandler,
   finalizeBatchHandler, finishUpdateRequestHandler, getR2PadronStatusHandler, getR2UploadStatusHandler, getUpdateRequestHandler,
   listBatchRecordsHandler, listBatchesHandler, migratePadronToR2Handler, receiveBlockHandler,
   migrateUploadsToR2Handler, requestUpdateHandler, restoreHistoricalPadronHandler, startBatchHandler, verifyBatchHandler
@@ -19,6 +19,7 @@ router.post("/lotes/:codigoLote/bloques", requireFoxProSyncKey, receiveBlockHand
 router.post("/lotes/:codigoLote/finalizar", requireFoxProSyncKey, finalizeBatchHandler);
 
 router.get("/lotes", requireAuth, requireAdmin, listBatchesHandler);
+router.delete("/lotes/:codigoLote", requireAuth, requireAdmin, deleteBatchHandler);
 router.post("/solicitudes", requireAuth, requireAdmin, requestUpdateHandler);
 router.get("/solicitudes/:id", requireAuth, requireAdmin, getUpdateRequestHandler);
 router.get("/lotes/:codigoLote/registros", requireAuth, requireAdmin, listBatchRecordsHandler);

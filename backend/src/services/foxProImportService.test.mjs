@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord, pruneOldBatchDetails } from "./foxProImportService.js";
+import { deleteHistoricalFoxProBatch, foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord, pruneOldBatchDetails } from "./foxProImportService.js";
 import { normalizeMasterRecords } from "./claveLookupService.js";
 import { sameSecret } from "../middleware/foxProSyncAuth.js";
 
@@ -62,4 +62,32 @@ test("no limpia detalles si el respaldo activo no esta verificado en R2", async 
   assert.equal(result.pruned, false);
   assert.equal(result.reason, "active_r2_not_verified");
   assert.equal(statements.some((sql) => /^DELETE/i.test(sql.trim())), false);
+});
+
+test("elimina de la app un lote antiguo solo si su respaldo existe en R2", async () => {
+  const statements = [];
+  const lot = {
+    id: 2,
+    codigo_lote: "FOXPRO-ANTIGUO",
+    estado: "APLICADO",
+    total_registros: 2,
+    r2_historico_key: "padron/historico/lote-antiguo.json.gz",
+    r2_historico_verificado_at: new Date()
+  };
+  const pool = { query: async (sql) => {
+    statements.push(sql);
+    if (sql.includes("FROM importacion_padron_lotes")) return [[lot]];
+    if (sql.includes("FROM padron_maestro_snapshot")) return [[{ codigo_lote: "FOXPRO-ACTIVO" }]];
+    return [{ affectedRows: 1 }];
+  } };
+  let verified = false;
+  const r2 = { getHistoricalStatus: async () => {
+    verified = true;
+    return { key: lot.r2_historico_key, total_records: 2 };
+  } };
+
+  const result = await deleteHistoricalFoxProBatch(lot.codigo_lote, { id: 1 }, { pool, r2 });
+  assert.equal(result.deleted, true);
+  assert.equal(verified, true);
+  assert.equal(statements.some((sql) => /^DELETE FROM importacion_padron_lotes/i.test(sql.trim())), true);
 });
