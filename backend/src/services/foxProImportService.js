@@ -314,7 +314,7 @@ export const claimFoxProUpdateRequest = async () => {
       "SELECT * FROM importacion_padron_solicitudes WHERE estado='EN_PROCESO' ORDER BY id LIMIT 1 FOR UPDATE"
     );
     if (claimed.length) { await connection.commit(); return claimed[0]; }
-    let [rows] = await connection.query(
+    const [rows] = await connection.query(
       "SELECT * FROM importacion_padron_solicitudes WHERE estado='PENDIENTE' ORDER BY id LIMIT 1 FOR UPDATE"
     );
     if (!rows.length) { await connection.commit(); return null; }
@@ -659,7 +659,7 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
     if (!lot) throw fail("Lote no encontrado.", 404);
     if (!["LISTO", "PARCIALMENTE_APLICADO"].includes(lot.estado)) throw fail(`El lote esta en estado ${lot.estado} y no se puede aplicar.`, 409);
     const idClause = allValid ? "" : `AND id IN (${selectedIds.map(() => "?").join(",")})`;
-    const [rows] = await connection.query(
+    let [rows] = await connection.query(
       `SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado IN ('NUEVO','MODIFICADO') ${idClause} FOR UPDATE`,
       [lot.id, ...selectedIds]
     );
