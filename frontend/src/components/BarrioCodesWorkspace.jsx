@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { printDocument } from "../utils/printDocument";
 
 const emptyBarrioForm = {
   codigo: "",
@@ -19,6 +20,7 @@ const BarrioCodesWorkspace = ({
   onReset,
   onPrepareAdd
 }) => {
+  const tableRef = useRef(null);
   const [search, setSearch] = useState("");
   const activeTotal = barrios.filter((item) => item.activo !== false).length;
   const inactiveTotal = Math.max(0, barrios.length - activeTotal);
@@ -46,6 +48,11 @@ const BarrioCodesWorkspace = ({
     );
   }, [barrios, search]);
   const isEditing = Boolean(form.codigo);
+  const printSummary = () => tableRef.current && printDocument(
+    "Resumen de codigos de barrios",
+    `<style>.barrio-code-print-table th:last-child,.barrio-code-print-table td:last-child{display:none}.barrio-code-print-table tr{break-inside:avoid}</style><section class="print-header"><h1>Codigos de barrios</h1><p>${activeTotal} activos · ${inactiveTotal} inactivos · ${visibleBarrios.length} en lista</p></section><table class="field-report-table barrio-code-print-table">${tableRef.current.innerHTML}</table>`,
+    { pageSize: "Letter portrait", showPageFooter: true }
+  );
 
   return (
     <section className="preview-panel barrio-codes-workspace">
@@ -64,7 +71,7 @@ const BarrioCodesWorkspace = ({
               <Icon name="plus" />
               Agregar codigo
             </button>
-            <button type="button" className="barrio-code-small-button" onClick={() => window.print()} title="Imprimir resumen">
+            <button type="button" className="barrio-code-small-button" onClick={printSummary} title="Imprimir resumen">
               <Icon name="print" />
               Imprimir resumen
             </button>
@@ -140,7 +147,7 @@ const BarrioCodesWorkspace = ({
         </form>
 
         <div className="barrio-code-table-wrap">
-          <table className="barrio-code-admin-table">
+          <table className="barrio-code-admin-table" ref={tableRef}>
             <thead>
               <tr>
                 <th>Codigo</th>
