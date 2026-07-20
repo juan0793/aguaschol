@@ -2,8 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
-import { assertUploadedPdf } from "../utils/fileValidation.js";
 import { createAuditLog } from "./auditService.js";
+import { saveUploadedPdf } from "./fileStorageService.js";
 
 const memory = {
   barrios: [],
@@ -117,15 +117,7 @@ const normalizeBarrio = (payload = {}, filePath = "") => {
 
 export const savePlanoPdf = async (file) => {
   if (!file?.buffer?.length) return "";
-  assertUploadedPdf(file);
-  await fs.mkdir(env.uploadDir, { recursive: true });
-  const baseName = normalizeText(file.originalname, "plano")
-    .replace(/\.pdf$/i, "")
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "plano";
-  const fileName = `${Date.now()}-${baseName}.pdf`;
-  await fs.writeFile(path.join(env.uploadDir, fileName), file.buffer);
-  return `/uploads/${fileName}`;
+  return (await saveUploadedPdf(file)).photoPath;
 };
 
 const getLatestVersionMemory = (barrioId) =>

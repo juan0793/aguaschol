@@ -4,6 +4,7 @@ import {
   getR2PadronStatus, listFoxProBatches, migrateActivePadronToR2, receiveFoxProBlock, requestFoxProUpdate,
   restoreHistoricalPadronFromR2, startFoxProBatch, verifyActiveFoxProBatch
 } from "../services/foxProImportService.js";
+import { getUploadStorageStatus, migrateLocalUploadsToR2 } from "../services/fileStorageService.js";
 
 export const requestUpdateHandler = async (req, res, next) => {
   try { res.status(201).json({ ok: true, request: await requestFoxProUpdate(req.authUser) }); } catch (error) { next(error); }
@@ -60,4 +61,16 @@ export const migratePadronToR2Handler = async (req, res, next) => {
 };
 export const restoreHistoricalPadronHandler = async (req, res, next) => {
   try { res.json({ ok: true, ...(await restoreHistoricalPadronFromR2(req.body, req.authUser)) }); } catch (error) { next(error); }
+};
+export const getR2UploadStatusHandler = async (_req, res, next) => {
+  try { res.json({ ok: true, ...(await getUploadStorageStatus()) }); } catch (error) { next(error); }
+};
+export const migrateUploadsToR2Handler = async (req, res, next) => {
+  try {
+    if (req.body?.confirmation !== "MIGRAR_ARCHIVOS_R2") {
+      return res.status(400).json({ message: "Confirmacion de migracion invalida." });
+    }
+    const result = await migrateLocalUploadsToR2({ deleteLocal: req.body?.delete_local === true });
+    return res.json({ ok: true, ...result, ...(await getUploadStorageStatus()) });
+  } catch (error) { return next(error); }
 };

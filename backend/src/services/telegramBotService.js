@@ -1,6 +1,6 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../config/env.js";
+import { readStoredFile } from "./fileStorageService.js";
 import { searchClaveCatastral } from "./claveLookupService.js";
 import { findByAbonadoOrClave } from "./inmuebleService.js";
 import { touchTelegramChat } from "./telegramChatService.js";
@@ -121,9 +121,10 @@ const sendPhoto = async (chatId, record) => {
   }
 
   const fileName = path.basename(record.foto_path);
+  const stored = await readStoredFile(record.foto_path);
   const form = new FormData();
   form.append("chat_id", String(chatId));
-  form.append("photo", new Blob([await fs.readFile(path.join(env.uploadDir, fileName))]), fileName);
+  form.append("photo", new Blob([stored.buffer], { type: stored.contentType }), fileName);
   await telegram("sendPhoto", form);
 };
 

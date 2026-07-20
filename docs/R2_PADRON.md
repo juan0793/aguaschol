@@ -62,3 +62,23 @@ Para rollback de la funcionalidad, desplegar el commit anterior sin borrar colum
 `FOXPRO_SYNC_RETAIN_BATCHES` sigue definiendo cuantos lotes recientes conservar con detalle. Tambien se conserva cualquier lote en revision. Solo se eliminan `importacion_padron_bloques` y `importacion_padron_registros` de lotes antiguos aplicados cuando el padron activo y el historico correspondiente tienen verificacion R2. Los lotes, resúmenes y auditoria no se eliminan.
 
 No ejecutar limpieza manual ni borrar `registros_json` durante esta etapa de migracion.
+
+## Archivos del volumen
+
+Las fotografias, evidencias, adjuntos de chat y PDF nuevos se guardan en `uploads/` dentro del mismo bucket privado. Sus rutas publicadas siguen siendo `/uploads/{archivo}`: la peticion siempre llega autenticada al backend, que lee R2 sin exponer el bucket ni sus credenciales.
+
+Para migrar los archivos existentes, abrir **Administracion > Importacion** y pulsar **Migrar archivos del volumen**. La operacion es idempotente: sube cada archivo, confirma el tamaño con `HeadObject`, vuelve a descargarlo para comparar todo su contenido y solo entonces borra la copia local. Si se interrumpe, volver a pulsar el botón continúa con los archivos restantes.
+
+Durante la transición la lectura intenta R2 primero y conserva el volumen como respaldo. El estado del panel muestra cantidad y tamaño local y remoto. Los endpoints administrativos equivalentes son:
+
+- `GET /api/integracion/foxpro/r2/archivos`
+- `POST /api/integracion/foxpro/r2/archivos/migrar`
+
+El cuerpo de migracion que libera el volumen es:
+
+```json
+{
+  "confirmation": "MIGRAR_ARCHIVOS_R2",
+  "delete_local": true
+}
+```

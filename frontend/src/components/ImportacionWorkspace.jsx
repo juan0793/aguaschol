@@ -6,6 +6,7 @@ import { getBatchTransferProgress } from "../utils/batchList";
 
 const STATES = ["", "NUEVO", "MODIFICADO", "SIN_CAMBIOS", "CONFLICTO", "ERROR", "APLICADO", "DESCARTADO"];
 const statusLabel = (value) => String(value || "").replaceAll("_", " ");
+const formatBytes = (value = 0) => `${(Number(value) / 1024 / 1024).toFixed(1)} MB`;
 const FOX_ASCII = String.raw`
                     /\     /\
               _____/  \___/  \_____
@@ -33,6 +34,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const [syncMessage, setSyncMessage] = useState("");
   const [activeRequest, setActiveRequest] = useState(null);
   const [r2Status, setR2Status] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState(null);
   const [historicalKey, setHistoricalKey] = useState("");
   const [filters, setFilters] = useState({ abonado: "", clave: "", nombre: "", colonia: "", estado: "" });
   const knownBatchIds = useRef(new Set());
@@ -73,11 +75,16 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
 
   const loadR2Status = useCallback(async () => {
     try {
-      const response = await apiFetch("/integracion/foxpro/r2/padron");
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "No fue posible consultar R2.");
-      setR2Status(data);
-      setHistoricalKey((current) => current || data.historical_versions?.[0]?.key || "");
+      const [padronResponse, uploadsResponse] = await Promise.all([
+        apiFetch("/integracion/foxpro/r2/padron"),
+        apiFetch("/integracion/foxpro/r2/archivos")
+      ]);
+      const [padron, uploads] = await Promise.all([padronResponse.json(), uploadsResponse.json()]);
+      if (!padronResponse.ok) throw new Error(padron.message || "No fue posible consultar R2.");
+      if (!uploadsResponse.ok) throw new Error(uploads.message || "No fue posible consultar los archivos.");
+      setR2Status(padron);
+      setUploadStatus(uploads);
+      setHistoricalKey((current) => current || padron.historical_versions?.[0]?.key || "");
     } catch (error) { showAlert(error.message); }
   }, [apiFetch, showAlert]);
 
@@ -205,7 +212,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
         <div>
           <p className="sheet-kicker">Almacenamiento privado</p>
           <strong>Cloudflare R2</strong>
-          <span>{!r2Status?.configured ? "No configurado" : r2Status.reachable ? `Padron activo verificado · ${Number(r2Status.active?.total_records || 0).toLocaleString("es-HN")} registros` : "Configurado, sin conexion confirmada"}</span>
+          <span>{!r2Status?.configured ? "No configurado" : r2Status.reachable ? `Padron activo verificado · ${Number(r2Status.active?.total_records || 0).toLocaleString("es-HN")} registros · ${uploadStatus?.local_files || 0} archivos en volumen (${formatBytes(uploadStatus?.local_bytes)}) · ${uploadStatus?.r2_files || 0} en R2` : "Configurado, sin conexion confirmada"}</span>
         </div>
         <div className="import-r2-actions">
           <button type="button" className="button-secondary" disabled={loading || !r2Status?.configured} onClick={async () => {
@@ -218,6 +225,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
             } catch (error) { showAlert(error.message); }
           }}>Comprobar conexion</button>
           <button type="button" disabled={loading || !r2Status?.configured} onClick={() => runR2Action("migrar", {}, "¿Migrar ahora el snapshot MySQL actual hacia R2? No se borraran datos de MySQL.", (data) => `${Number(data.total_records || 0).toLocaleString("es-HN")} registros migrados y verificados en R2.`)}>Migrar snapshot MySQL</button>
+          <button type="button" disabled={loading || !uploadStatus?.configured || !uploadStatus?.local_files} onClick={() => runR2Action("archivos/migrar", { confirmation: "MIGRAR_ARCHIVOS_R2", delete_local: true }, "¿Copiar y verificar todos los archivos del volumen en R2? Cada archivo local se borrara solo despues de volver a descargarlo y comprobar que su contenido es identico.", (data) => `${Number(data.migrated_files || 0).toLocaleString("es-HN")} archivos (${formatBytes(data.migrated_bytes)}) migrados y verificados en R2.`)}>Migrar archivos del volumen</button>
           <select value={historicalKey} onChange={(event) => setHistoricalKey(event.target.value)} disabled={loading || !r2Status?.historical_versions?.length} aria-label="Version historica de R2">
             <option value="">Seleccionar version historica</option>
             {(r2Status?.historical_versions || []).map((item) => <option key={item.key} value={item.key}>{item.key.replace("padron/historico/", "")}</option>)}

@@ -1,9 +1,9 @@
 import express, { Router } from "express";
 import {
   activateBatchHandler, applyBatchHandler, checkR2ConnectionHandler, claimUpdateRequestHandler, discardRecordsHandler,
-  finalizeBatchHandler, finishUpdateRequestHandler, getR2PadronStatusHandler, getUpdateRequestHandler,
+  finalizeBatchHandler, finishUpdateRequestHandler, getR2PadronStatusHandler, getR2UploadStatusHandler, getUpdateRequestHandler,
   listBatchRecordsHandler, listBatchesHandler, migratePadronToR2Handler, receiveBlockHandler,
-  requestUpdateHandler, restoreHistoricalPadronHandler, startBatchHandler, verifyBatchHandler
+  migrateUploadsToR2Handler, requestUpdateHandler, restoreHistoricalPadronHandler, startBatchHandler, verifyBatchHandler
 } from "../controllers/foxProImportController.js";
 import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
 import { requireFoxProSyncKey } from "../middleware/foxProSyncAuth.js";
@@ -30,5 +30,7 @@ router.get("/r2/conexion", requireAuth, requireAdmin, checkR2ConnectionHandler);
 router.get("/r2/padron", requireAuth, requireAdmin, getR2PadronStatusHandler);
 router.post("/r2/migrar", requireAuth, requireAdmin, migratePadronToR2Handler);
 router.post("/r2/restaurar", requireAuth, requireAdmin, restoreHistoricalPadronHandler);
+router.get("/r2/archivos", requireAuth, requireAdmin, getR2UploadStatusHandler);
+router.post("/r2/archivos/migrar", requireAuth, requireAdmin, migrateUploadsToR2Handler);
 
 export default router;

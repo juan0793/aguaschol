@@ -20,6 +20,7 @@ import transportRoutes from "./routes/transportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import foxProImportRoutes from "./routes/foxProImportRoutes.js";
 import clandestinosRoutes from "./routes/clandestinosRoutes.js";
+import { readStoredFile } from "./services/fileStorageService.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -84,8 +85,19 @@ app.use(
 app.use("/api/integracion/foxpro", foxProImportRoutes);
 app.use(express.json());
 const privateAssetHeaders = (res) => res.setHeader("Cache-Control", "private, max-age=300");
-app.use("/uploads", requireMediaAuth, express.static(env.uploadDir, { setHeaders: privateAssetHeaders }));
-app.use("/api/uploads", requireMediaAuth, express.static(env.uploadDir, { setHeaders: privateAssetHeaders }));
+const serveUpload = async (req, res, next) => {
+  try {
+    const file = await readStoredFile(`/uploads/${req.params.fileName}`);
+    privateAssetHeaders(res);
+    res.type(file.contentType);
+    if (file.etag) res.setHeader("ETag", file.etag);
+    res.send(file.buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+app.get("/uploads/:fileName", requireMediaAuth, serveUpload);
+app.get("/api/uploads/:fileName", requireMediaAuth, serveUpload);
 app.use("/planos-pdf", requireMediaAuth, express.static(planosPdfDir, { setHeaders: privateAssetHeaders }));
 app.use("/api/planos-pdf", requireMediaAuth, express.static(planosPdfDir, { setHeaders: privateAssetHeaders }));
 

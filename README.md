@@ -258,10 +258,7 @@ Flujo recomendado:
 
 Si luego deseas separar frontend y backend en servicios distintos, todavia puedes hacerlo, pero ya no es obligatorio para una primera version.
 
-Nota importante sobre archivos:
-
-- `backend/uploads` funciona en Railway, pero el sistema de archivos del contenedor no debe considerarse permanente
-- para fotografias realmente persistentes conviene migrar luego a S3, Cloudinary o un volumen montado
+Los archivos subidos usan el mismo bucket privado de Cloudflare R2 cuando las variables `R2_*` estan configuradas. Las URLs `/uploads/...` no cambian: el navegador solicita el archivo autenticado a la app y el backend lo obtiene de R2. La migracion del volumen existente esta documentada en [docs/R2_PADRON.md](docs/R2_PADRON.md).
 
 ### 3. Frontend
 
