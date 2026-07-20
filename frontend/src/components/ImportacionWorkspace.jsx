@@ -37,6 +37,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const [r2Status, setR2Status] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
+  const [confirmationPassword, setConfirmationPassword] = useState("");
   const [historicalKey, setHistoricalKey] = useState("");
   const [filters, setFilters] = useState({ abonado: "", clave: "", nombre: "", colonia: "", estado: "" });
   const knownBatchIds = useRef(new Set());
@@ -207,14 +208,14 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
     } catch (error) { showAlert(error.message); } finally { setLoading(false); }
   };
 
-  const deleteSelectedBatch = async () => {
+  const deleteSelectedBatch = async (password) => {
     if (!selectedBatch) return;
     setLoading(true);
     try {
       const response = await apiFetch(`/integracion/foxpro/lotes/${encodeURIComponent(selectedBatch.codigo_lote)}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmation: "ELIMINAR_LOTE_RESPALDADO" })
+        body: JSON.stringify({ confirmation: "ELIMINAR_LOTE_RESPALDADO", password })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "No fue posible eliminar el lote.");
@@ -228,12 +229,15 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
     title: "Eliminar lote antiguo",
     description: `¿Eliminar ${selectedBatch?.codigo_lote} de la app? Sus registros saldran de MySQL, pero el respaldo historico permanecera en R2.`,
     confirmLabel: "Eliminar lote",
+    requiresPassword: true,
     action: deleteSelectedBatch
   });
 
   return (
     <main className="import-workspace no-print">
-      <Dialog open={Boolean(pendingConfirmation)} onOpenChange={(open) => !open && setPendingConfirmation(null)}>
+      <Dialog open={Boolean(pendingConfirmation)} onOpenChange={(open) => {
+        if (!open) { setPendingConfirmation(null); setConfirmationPassword(""); }
+      }}>
         <DialogContent className="padron-confirm-dialog sm:max-w-xl">
           <DialogHeader className="padron-confirm-head">
             <p className="sheet-kicker">Confirmación administrativa</p>
@@ -245,15 +249,23 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
               <strong>Esta operación requiere confirmación</strong>
               <p>{pendingConfirmation?.description}</p>
             </div>
+            {pendingConfirmation?.requiresPassword ? (
+              <label className="padron-confirm-password">
+                <span>Contraseña del administrador</span>
+                <input type="password" value={confirmationPassword} onChange={(event) => setConfirmationPassword(event.target.value)} autoComplete="current-password" autoFocus />
+              </label>
+            ) : null}
           </div>
           <DialogFooter className="padron-confirm-actions">
-            <button type="button" className="button-secondary" onClick={() => setPendingConfirmation(null)}>
+            <button type="button" className="button-secondary" onClick={() => { setPendingConfirmation(null); setConfirmationPassword(""); }}>
               Cancelar
             </button>
-            <button type="button" className="padron-confirm-button" onClick={() => {
+            <button type="button" className="padron-confirm-button" disabled={pendingConfirmation?.requiresPassword && !confirmationPassword.trim()} onClick={() => {
               const action = pendingConfirmation?.action;
+              const password = confirmationPassword;
               setPendingConfirmation(null);
-              action?.();
+              setConfirmationPassword("");
+              action?.(password);
             }}>
               <Icon name="refresh" /> {pendingConfirmation?.confirmLabel}
             </button>
@@ -336,7 +348,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
                 <button type="button" onClick={() => runAction("aplicar", { ids: [...selectedIds] }, (data) => `${data.applied} registros aplicados.`, "¿Aplicar los registros seleccionados al padron activo?")} disabled={loading || !batchApplicable || !selectedValid}>Aplicar seleccionados</button>
                 <button type="button" onClick={() => runAction("aplicar", { allValid: true }, (data) => `${data.applied} registros validos aplicados.`, "¿Aplicar todos los registros nuevos y modificados de este lote?")} disabled={loading || !batchApplicable}>{selectedBatch?.estado === "APLICADO" ? "Lote ya aplicado" : "Aplicar todos los validos"}</button>
                 <button type="button" className="button-secondary" onClick={() => runAction("descartar", { ids: [...selectedIds] }, (data) => `${data.discarded} registros descartados.`, "¿Descartar los registros seleccionados?")} disabled={loading || !selectedIds.size}>Descartar seleccionados</button>
-                <button type="button" className="button-danger" onClick={confirmDeleteSelectedBatch} disabled={loading || selectedBatch?.estado !== "APLICADO" || selectedBatch?.codigo_lote === r2Status?.mysql?.codigo_lote || !selectedBatch?.r2_historico_verificado_at}>Eliminar lote antiguo</button>
+                <button type="button" className="button-danger" onClick={confirmDeleteSelectedBatch} disabled={loading || selectedBatch?.estado !== "APLICADO" || selectedBatch?.codigo_lote === r2Status?.mysql?.codigo_lote}>Eliminar lote antiguo</button>
                 <button type="button" className="button-secondary" onClick={() => changeFilter("estado", "ERROR")}>Ver errores</button>
               </div>
 

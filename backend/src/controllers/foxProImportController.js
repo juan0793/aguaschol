@@ -79,6 +79,6 @@ export const deleteBatchHandler = async (req, res, next) => {
     if (req.body?.confirmation !== "ELIMINAR_LOTE_RESPALDADO") {
       return res.status(400).json({ message: "Confirmacion de eliminacion invalida." });
     }
-    return res.json({ ok: true, ...(await deleteHistoricalFoxProBatch(req.params.codigoLote, req.authUser)) });
+    return res.json({ ok: true, ...(await deleteHistoricalFoxProBatch(req.params.codigoLote, req.authUser, { password: req.body?.password })) });
   } catch (error) { return next(error); }
 };

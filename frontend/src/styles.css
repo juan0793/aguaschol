@@ -8919,6 +8919,27 @@ button.app-user-chip {
   margin-top: 1rem;
 }
 
+.padron-confirm-password {
+  display: grid;
+  gap: 7px;
+  color: #173f5f;
+  font-weight: 800;
+}
+
+.padron-confirm-password input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #a9c4d9;
+  border-radius: 8px;
+  color: #0a3558;
+  background: #ffffff;
+}
+
+.padron-confirm-password input:focus {
+  border-color: #1674b8;
+  outline: 3px solid rgba(22, 116, 184, 0.15);
+}
+
 .lookup-chat-shell {
   display: grid;
   gap: 1.15rem;

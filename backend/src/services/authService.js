@@ -108,6 +108,20 @@ export const logoutAllSessions = async (actorUser) => {
   return Number(result.affectedRows || 0);
 };
 
+export const assertUserPassword = async (userId, password, pool = getPool()) => {
+  if (!String(password || "").trim()) {
+    const error = new Error("Debes ingresar tu contrasena de administrador.");
+    error.status = 400;
+    throw error;
+  }
+  const [rows] = await pool.query("SELECT password_hash FROM app_users WHERE id=? AND is_active=1 LIMIT 1", [userId]);
+  if (!rows[0] || !(await verifyPassword(password, rows[0].password_hash))) {
+    const error = new Error("La contrasena de administrador no es correcta.");
+    error.status = 401;
+    throw error;
+  }
+};
+
 export const changeOwnPassword = async ({ userId, currentPassword, newPassword }) => {
   const current = currentPassword?.trim() ?? "";
   const next = newPassword?.trim() ?? "";

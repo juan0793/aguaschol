@@ -13,6 +13,7 @@ import {
 } from "./padronSnapshotService.js";
 import { resolveBarrioNameFromClave } from "./barrioCodeService.js";
 import { r2PadronService } from "./r2PadronService.js";
+import { assertUserPassword } from "./authService.js";
 
 const IMPORTABLE_FIELDS = [
   ["clave_catastral", "clave_catastral"], ["inquilino", "nombre"], ["barrio_colonia", "colonia"],
@@ -616,19 +617,23 @@ export const pruneOldBatchDetails = async ({ pool = getPool() } = {}) => {
 export const deleteHistoricalFoxProBatch = async (
   codigoLote,
   actorUser,
-  { pool = getPool(), r2 = r2PadronService } = {}
+  { pool = getPool(), r2 = r2PadronService, password = "", verifyAdminPassword = assertUserPassword } = {}
 ) => {
   const codigo = batchCode(codigoLote);
+  await verifyAdminPassword(actorUser?.id, password, pool);
   const [lots] = await pool.query("SELECT * FROM importacion_padron_lotes WHERE codigo_lote=? LIMIT 1", [codigo]);
   const lot = lots[0];
   if (!lot) throw fail("Lote no encontrado.", 404);
   if (lot.estado !== "APLICADO") throw fail("Solo se pueden eliminar lotes aplicados.", 409);
   const active = await getActivePadronStorageMeta(pool);
   if (active?.codigo_lote === codigo) throw fail("El lote activo no se puede eliminar.", 409);
-  if (!lot.r2_historico_key || !lot.r2_historico_verificado_at) {
-    throw fail("El lote no tiene un respaldo historico verificado en R2.", 409);
+  let historicalKey = lot.r2_historico_key;
+  if (!historicalKey) {
+    const versions = await r2.listHistorical(100);
+    historicalKey = versions.find((item) => String(item.key).endsWith(`-${codigo}.json.gz`))?.key || "";
   }
-  await r2.getHistoricalStatus(lot.r2_historico_key);
+  if (!historicalKey) throw fail("No se encontro el respaldo historico de este lote en R2.", 409);
+  await r2.getHistoricalStatus(historicalKey);
   await pool.query("DELETE FROM importacion_padron_lotes WHERE id=?", [lot.id]);
   await createAuditLog({
     actorUserId: actorUser?.id,
@@ -636,9 +641,9 @@ export const deleteHistoricalFoxProBatch = async (
     entityType: "importacion_padron",
     entityId: codigo,
     summary: `Lote antiguo ${codigo} eliminado de MySQL; respaldo conservado en R2`,
-    details: { historical_key: lot.r2_historico_key, total_records: Number(lot.total_registros || 0) }
+    details: { historical_key: historicalKey, total_records: Number(lot.total_registros || 0) }
   }).catch(() => {});
-  return { deleted: true, codigo_lote: codigo, historical_key: lot.r2_historico_key };
+  return { deleted: true, codigo_lote: codigo, historical_key: historicalKey };
 };
 
 export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false } = {}, actorUser) => {
