@@ -61,7 +61,7 @@ const formatLookupKeyFromDigits = (digits = "") => {
   return groups.join("-");
 };
 
-const normalizeLookupKey = (value = "") => {
+export const normalizeLookupKey = (value = "") => {
   const raw = value
     .toString()
     .trim();

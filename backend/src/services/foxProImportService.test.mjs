@@ -5,7 +5,7 @@ import { normalizeMasterRecords } from "./claveLookupService.js";
 import { sameSecret } from "../middleware/foxProSyncAuth.js";
 
 test("normaliza S y N conservando los valores originales", () => {
-  const row = normalizeFoxProRecord({ abonado: " 21237 ", agua: " s ", alca: "N", barr: "", tren: "S", bomb: "N", valor: 100, intereses: 25 }, 1);
+  const row = normalizeFoxProRecord({ catastral: "45-54-09-01", abonado: " 21237 ", agua: " s ", alca: "N", barr: "", tren: "S", bomb: "N", valor: 100, intereses: 25 }, 1);
   assert.equal(row.codigo_abonado, "21237");
   assert.equal(row.agua_original, "s");
   assert.equal(row.agua_normalizada, "S");
@@ -21,6 +21,12 @@ test("marca errores sin descartar el dato original", () => {
   assert.match(row.mensaje_error, /agua/i);
   assert.match(row.mensaje_error, /principal/i);
   assert.equal(row.dato_original.agua, "2");
+});
+
+test("marca como error una clave invalida antes de aplicar el padron", () => {
+  const row = normalizeFoxProRecord({ abonado: "21237", catastral: "SIN-CLAVE", agua: "S", valor: 0, intereses: 0 }, 1);
+  assert.equal(row.estado, "ERROR");
+  assert.match(row.mensaje_error, /clave catastral invalida/i);
 });
 
 test("hash de bloque es estable y la clave se compara exactamente", () => {

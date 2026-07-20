@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
-import { getMasterRecordsForImport, normalizeMasterRecords, replaceMasterRecordsFromImport } from "./claveLookupService.js";
+import { getMasterRecordsForImport, normalizeLookupKey, normalizeMasterRecords, replaceMasterRecordsFromImport } from "./claveLookupService.js";
 import {
   getActivePadronStorageMeta,
   loadActivePadronSnapshot,
@@ -69,7 +69,10 @@ export const normalizeFoxProRecord = (record = {}, numeroFila = 0) => {
   const intereses = normalizeAmount(record.intereses);
   const errors = [];
   const abonado = text(record.abonado, 80);
+  const rawClave = text(record.catastral, 80);
+  let clave = rawClave;
   if (!abonado) errors.push("Falta el codigo de abonado.");
+  try { clave = normalizeLookupKey(rawClave); } catch { errors.push("Clave catastral invalida."); }
   Object.entries(flags).forEach(([field, value]) => value.invalid && errors.push(`Valor de servicio ${field} no reconocido: ${value.original}.`));
   if (valor.invalid) errors.push("Valor principal invalido.");
   if (intereses.invalid) errors.push("Intereses invalidos.");
@@ -77,7 +80,7 @@ export const normalizeFoxProRecord = (record = {}, numeroFila = 0) => {
   return {
     numero_fila: Number.isInteger(Number(record.numero_fila)) && Number(record.numero_fila) > 0 ? Number(record.numero_fila) : numeroFila,
     codigo_abonado: abonado,
-    clave_catastral: text(record.catastral, 80),
+    clave_catastral: clave,
     nombre: text(record.inquilino, 255),
     colonia: text(record.des_coloni || resolveBarrioNameFromClave(record.catastral), 255),
     agua_original: flags.agua.original, agua_normalizada: flags.agua.normalized,
@@ -311,7 +314,7 @@ export const claimFoxProUpdateRequest = async () => {
       "SELECT * FROM importacion_padron_solicitudes WHERE estado='EN_PROCESO' ORDER BY id LIMIT 1 FOR UPDATE"
     );
     if (claimed.length) { await connection.commit(); return claimed[0]; }
-    const [rows] = await connection.query(
+    let [rows] = await connection.query(
       "SELECT * FROM importacion_padron_solicitudes WHERE estado='PENDIENTE' ORDER BY id LIMIT 1 FOR UPDATE"
     );
     if (!rows.length) { await connection.commit(); return null; }
@@ -662,6 +665,32 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
     );
     if (!rows.length) { await connection.commit(); return { applied: 0, estado: lot.estado }; }
 
+    const invalidRows = [];
+    rows = rows.flatMap((row) => {
+      try { return [{ ...row, clave_catastral: normalizeLookupKey(row.clave_catastral) }]; }
+      catch { invalidRows.push(row); return []; }
+    });
+    if (invalidRows.length) {
+      const invalidIds = invalidRows.map((row) => row.id);
+      await connection.query(
+        `UPDATE importacion_padron_registros SET estado='ERROR', mensaje_error='Clave catastral invalida para el padron.'
+         WHERE id IN (${invalidIds.map(() => "?").join(",")})`,
+        invalidIds
+      );
+    }
+    if (!rows.length) {
+      const [[remaining]] = await connection.query(
+        "SELECT COUNT(*) total FROM importacion_padron_registros WHERE lote_id=? AND estado IN ('NUEVO','MODIFICADO')", [lot.id]
+      );
+      const nextState = Number(remaining.total) ? "PARCIALMENTE_APLICADO" : "APLICADO";
+      await connection.query(
+        `UPDATE importacion_padron_lotes SET estado=?, registros_error=(SELECT COUNT(*) FROM importacion_padron_registros WHERE lote_id=? AND estado='ERROR') WHERE id=?`,
+        [nextState, lot.id, lot.id]
+      );
+      await connection.commit();
+      return { applied: 0, rejected: invalidRows.length, estado: nextState };
+    }
+
     const nextMaster = previousMaster.map((row) => ({ ...row }));
     const masterIndexes = nextMaster.reduce((map, item, index) => {
       const key = text(item.abonado, 80); const indexes = map.get(key) || []; indexes.push(index); map.set(key, indexes); return map;
@@ -702,8 +731,9 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
     const nextState = Number(remaining.total) ? "PARCIALMENTE_APLICADO" : "APLICADO";
     await connection.query(
       `UPDATE importacion_padron_lotes SET estado=?, registros_aplicados=(SELECT COUNT(*) FROM importacion_padron_registros WHERE lote_id=? AND estado='APLICADO'),
+       registros_error=(SELECT COUNT(*) FROM importacion_padron_registros WHERE lote_id=? AND estado='ERROR'),
        usuario_aplicacion=?, fecha_aplicacion=NOW(), r2_historico_key=?, r2_historico_etag=?, r2_historico_verificado_at=? WHERE id=?`,
-      [nextState, lot.id, actorUser.id, persistence.r2.historical?.key || null, persistence.r2.historical?.etag || null,
+      [nextState, lot.id, lot.id, actorUser.id, persistence.r2.historical?.key || null, persistence.r2.historical?.etag || null,
         persistence.r2.historical?.verified_at ? new Date(persistence.r2.historical.verified_at) : null, lot.id]
     );
     await connection.commit();
