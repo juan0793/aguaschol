@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
@@ -26,6 +27,13 @@ const cleanDate = (value = new Date()) => {
 
 export const buildHistoricalPadronKey = (codigoLote, date = new Date()) =>
   `${HISTORICAL_PADRON_PREFIX}${cleanDate(date)}-${cleanCode(codigoLote)}.json.gz`;
+
+const historicalCodeFromKey = (key = "") => {
+  const fileName = String(key).slice(HISTORICAL_PADRON_PREFIX.length);
+  return String(key).startsWith(HISTORICAL_PADRON_PREFIX) && fileName[24] === "-" && fileName.endsWith(".json.gz")
+    ? fileName.slice(25, -8)
+    : "";
+};
 
 export const validatePadronRecords = (records, expectedTotal = null) => {
   if (!Array.isArray(records) || !records.length) throw fail("El snapshot del padron esta vacio o no es JSON valido.", 409);
@@ -111,6 +119,22 @@ export const createR2PadronService = ({ config = env, client = null } = {}) => {
     return { ...uploaded, etag: verified.etag || uploaded.etag, verified_at: new Date().toISOString() };
   };
 
+  const listHistoricalObjects = async () => {
+    const objects = [];
+    let continuationToken;
+    do {
+      const result = await ensureConfigured().send(new ListObjectsV2Command({
+        Bucket: config.r2Bucket,
+        Prefix: HISTORICAL_PADRON_PREFIX,
+        MaxKeys: 1000,
+        ContinuationToken: continuationToken
+      }));
+      objects.push(...(result.Contents || []));
+      continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+    } while (continuationToken);
+    return objects;
+  };
+
   return {
     configured,
     checkConnection: async () => {
@@ -128,6 +152,15 @@ export const createR2PadronService = ({ config = env, client = null } = {}) => {
       const historical = await uploadAndVerify(buildHistoricalPadronKey(codigoLote, date), records, codigoLote);
       const active = await uploadAndVerify(ACTIVE_PADRON_KEY, records, codigoLote);
       return { historical, active, total_records: records.length };
+    },
+    removeHistoricalDuplicates: async (codigoLote, keepKey) => {
+      const code = cleanCode(codigoLote);
+      const versions = await listHistoricalObjects();
+      const duplicates = versions.filter((item) => item.Key !== keepKey && historicalCodeFromKey(item.Key) === code);
+      for (const item of duplicates) {
+        await ensureConfigured().send(new DeleteObjectCommand({ Bucket: config.r2Bucket, Key: item.Key }));
+      }
+      return duplicates.length;
     },
     getActiveStatus: async () => {
       const result = await ensureConfigured().send(new HeadObjectCommand({ Bucket: config.r2Bucket, Key: ACTIVE_PADRON_KEY }));
@@ -150,19 +183,7 @@ export const createR2PadronService = ({ config = env, client = null } = {}) => {
       return { key, total_records: totalRecords, etag: String(result.ETag || "").replaceAll('"', "") };
     },
     listHistorical: async (limit = 50) => {
-      const objects = [];
-      let continuationToken;
-      do {
-        const result = await ensureConfigured().send(new ListObjectsV2Command({
-          Bucket: config.r2Bucket,
-          Prefix: HISTORICAL_PADRON_PREFIX,
-          MaxKeys: 1000,
-          ContinuationToken: continuationToken
-        }));
-        objects.push(...(result.Contents || []));
-        continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
-      } while (continuationToken);
-      return objects
+      return (await listHistoricalObjects())
         .sort((left, right) => String(right.Key).localeCompare(String(left.Key)))
         .slice(0, Math.min(Math.max(Number(limit) || 50, 1), 100))
         .map((item) => ({ key: item.Key, size: Number(item.Size || 0), last_modified: item.LastModified || null }));

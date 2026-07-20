@@ -36,7 +36,8 @@ const fakeClient = () => {
         if (!object) throw new Error("NoSuchKey");
         return { Metadata: object.metadata, ETag: '"etag-test"', ContentLength: object.body.length };
       }
-      if (name === "ListObjectsV2Command") return { Contents: [] };
+      if (name === "ListObjectsV2Command") return { Contents: [...objects].filter(([key]) => key.startsWith(command.input.Prefix || "")).map(([Key, object]) => ({ Key, Size: object.body.length })) };
+      if (name === "DeleteObjectCommand") { objects.delete(command.input.Key); return {}; }
       throw new Error(`Comando inesperado: ${name}`);
     }
   };
@@ -64,4 +65,16 @@ test("rechaza un snapshot R2 cuyo conteo esta incompleto", async () => {
   const body = await compressPadronRecords([{ clave_catastral: "01-02-03-04" }]);
   client.objects.set(ACTIVE_PADRON_KEY, { body, metadata: { "total-registros": "2" } });
   await assert.rejects(service.loadActive(), /incompleto/i);
+});
+
+test("elimina historicos duplicados del mismo lote conservando la fecha correcta", async () => {
+  const client = fakeClient();
+  const service = createR2PadronService({ config, client });
+  const records = [{ clave_catastral: "01-02-03-04", abonado: "10" }];
+  const first = await service.uploadVersions(records, "LOTE-TEST", new Date("2026-07-10T08:00:00Z"));
+  const correct = await service.uploadVersions(records, "LOTE-TEST", new Date("2026-07-09T08:00:00Z"));
+
+  assert.equal(await service.removeHistoricalDuplicates("LOTE-TEST", correct.historical.key), 1);
+  assert.equal(client.objects.has(first.historical.key), false);
+  assert.equal(client.objects.has(correct.historical.key), true);
 });

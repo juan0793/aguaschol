@@ -96,11 +96,20 @@ export const loadPreferredActivePadron = async ({ connection = null, r2 = r2Padr
   return { source: "none", records: null, r2_error: r2Error?.message || null };
 };
 
-export const migrateMysqlSnapshotToR2 = async ({ connection = null, r2 = r2PadronService, date = new Date() } = {}) => {
+export const migrateMysqlSnapshotToR2 = async ({ connection = null, r2 = r2PadronService, date = null } = {}) => {
   if (!r2.configured) throw Object.assign(new Error("Cloudflare R2 no esta configurado."), { status: 503 });
   const snapshot = await loadActivePadronSnapshot(connection);
   if (!snapshot) throw Object.assign(new Error("No existe un snapshot MySQL para migrar."), { status: 404 });
-  const r2Result = await r2.uploadVersions(snapshot.records, snapshot.codigo_lote || "MIGRACION-INICIAL", date);
-  await saveActivePadronSnapshot(snapshot.records, snapshot.codigo_lote || "MIGRACION-INICIAL", connection, r2Result);
-  return { migrated: true, total_records: snapshot.records.length, codigo_lote: snapshot.codigo_lote, r2: r2Result };
+  const codigoLote = snapshot.codigo_lote || "MIGRACION-INICIAL";
+  const [lots] = await getDb(connection).query(
+    "SELECT COALESCE(fecha_extraccion, fecha_recepcion) historical_date FROM importacion_padron_lotes WHERE codigo_lote=? LIMIT 1",
+    [codigoLote]
+  );
+  const historicalDate = date || lots[0]?.historical_date || snapshot.updated_at || new Date();
+  const r2Result = await r2.uploadVersions(snapshot.records, codigoLote, historicalDate);
+  const duplicatesRemoved = r2.removeHistoricalDuplicates
+    ? await r2.removeHistoricalDuplicates(codigoLote, r2Result.historical.key)
+    : 0;
+  await saveActivePadronSnapshot(snapshot.records, codigoLote, connection, r2Result);
+  return { migrated: true, total_records: snapshot.records.length, codigo_lote: snapshot.codigo_lote, duplicates_removed: duplicatesRemoved, r2: r2Result };
 };
