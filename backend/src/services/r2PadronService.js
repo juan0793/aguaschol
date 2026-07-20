@@ -147,6 +147,8 @@ export const createR2PadronService = ({ config = env, client = null } = {}) => {
       return download(key, expectedTotal);
     },
     uploadActive: (records, codigoLote) => uploadAndVerify(ACTIVE_PADRON_KEY, records, codigoLote),
+    uploadHistorical: (records, codigoLote, date = new Date()) =>
+      uploadAndVerify(buildHistoricalPadronKey(codigoLote, date), records, codigoLote),
     uploadVersions: async (records, codigoLote, date = new Date()) => {
       validatePadronRecords(records);
       const historical = await uploadAndVerify(buildHistoricalPadronKey(codigoLote, date), records, codigoLote);

@@ -227,7 +227,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
 
   const confirmDeleteSelectedBatch = () => setPendingConfirmation({
     title: "Eliminar lote antiguo",
-    description: `¿Eliminar ${selectedBatch?.codigo_lote} de la app? Sus registros saldran de MySQL, pero el respaldo historico permanecera en R2.`,
+    description: `¿Eliminar ${selectedBatch?.codigo_lote} de la app? Antes de borrar sus registros de MySQL, la app comprobara o creara y verificara su respaldo historico en R2.`,
     confirmLabel: "Eliminar lote",
     requiresPassword: true,
     action: deleteSelectedBatch

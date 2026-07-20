@@ -59,6 +59,17 @@ test("sube y carga el padron activo validado desde R2", async () => {
   assert.deepEqual(loaded.records, records);
 });
 
+test("sube un historico sin reemplazar el padron activo", async () => {
+  const client = fakeClient();
+  const service = createR2PadronService({ config, client });
+  const active = [{ clave_catastral: "01-02-03-04", abonado: "10" }];
+  const historical = [{ clave_catastral: "01-02-03-05", abonado: "11" }];
+  await service.uploadActive(active, "LOTE-ACTIVO");
+  await service.uploadHistorical(historical, "LOTE-ANTIGUO", new Date("2026-07-15T07:45:00Z"));
+
+  assert.deepEqual((await service.loadActive()).records, active);
+});
+
 test("rechaza un snapshot R2 cuyo conteo esta incompleto", async () => {
   const client = fakeClient();
   const service = createR2PadronService({ config, client });

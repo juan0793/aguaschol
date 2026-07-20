@@ -70,7 +70,7 @@ test("no limpia detalles si el respaldo activo no esta verificado en R2", async 
   assert.equal(statements.some((sql) => /^DELETE/i.test(sql.trim())), false);
 });
 
-test("elimina de la app un lote antiguo solo si su respaldo existe en R2", async () => {
+test("crea el respaldo historico faltante antes de eliminar un lote antiguo", async () => {
   const statements = [];
   const historicalKey = "padron/historico/2026-07-15-FOXPRO-ANTIGUO.json.gz";
   const lot = {
@@ -78,23 +78,38 @@ test("elimina de la app un lote antiguo solo si su respaldo existe en R2", async
     codigo_lote: "FOXPRO-ANTIGUO",
     estado: "APLICADO",
     total_registros: 2,
+    fecha_extraccion: new Date("2026-07-15T07:45:00Z"),
     r2_historico_key: null,
     r2_historico_verificado_at: null
   };
+  const records = [
+    { numero_fila: 1, codigo_abonado: "100", clave_catastral: "01-02-03-04", nombre: "ANA", colonia: "CENTRO", agua_normalizada: "S", valor: 10, intereses: 1 },
+    { numero_fila: 2, codigo_abonado: "101", clave_catastral: "01-02-03-05", nombre: "LUIS", colonia: "CENTRO", agua_normalizada: "N", valor: 20, intereses: 2 }
+  ];
   const pool = { query: async (sql) => {
     statements.push(sql);
     if (sql.includes("FROM importacion_padron_lotes")) return [[lot]];
     if (sql.includes("FROM padron_maestro_snapshot")) return [[{ codigo_lote: "FOXPRO-ACTIVO" }]];
+    if (sql.includes("FROM importacion_padron_registros")) return [records];
     return [{ affectedRows: 1 }];
   } };
   let verified = false;
+  let uploaded = false;
   const r2 = {
-    listHistorical: async () => [{ key: historicalKey }],
+    listHistorical: async () => [],
+    uploadHistorical: async (snapshot, code, date) => {
+      assert.equal(snapshot.length, 2);
+      assert.equal(code, lot.codigo_lote);
+      assert.equal(date, lot.fecha_extraccion);
+      uploaded = true;
+      return { key: historicalKey, total_records: snapshot.length };
+    },
     getHistoricalStatus: async (key) => {
-    assert.equal(key, historicalKey);
-    verified = true;
-    return { key, total_records: 2 };
-  } };
+      assert.equal(key, historicalKey);
+      verified = true;
+      return { key, total_records: 2 };
+    }
+  };
 
   const result = await deleteHistoricalFoxProBatch(lot.codigo_lote, { id: 1 }, {
     pool,
@@ -103,6 +118,7 @@ test("elimina de la app un lote antiguo solo si su respaldo existe en R2", async
     verifyAdminPassword: async (_userId, password) => assert.equal(password, "secreta")
   });
   assert.equal(result.deleted, true);
+  assert.equal(uploaded, true);
   assert.equal(verified, true);
   assert.equal(statements.some((sql) => /^DELETE FROM importacion_padron_lotes/i.test(sql.trim())), true);
 });

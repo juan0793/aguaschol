@@ -632,7 +632,17 @@ export const deleteHistoricalFoxProBatch = async (
     const versions = await r2.listHistorical(100);
     historicalKey = versions.find((item) => String(item.key).endsWith(`-${codigo}.json.gz`))?.key || "";
   }
-  if (!historicalKey) throw fail("No se encontro el respaldo historico de este lote en R2.", 409);
+  if (!historicalKey) {
+    const [rows] = await pool.query(
+      "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO') ORDER BY numero_fila",
+      [lot.id]
+    );
+    if (!rows.length) throw fail("Este lote ya no conserva registros suficientes para crear su respaldo historico.", 409);
+    const records = normalizeMasterRecords(foxProRowsToMaster(rows));
+    if (records.length !== rows.length) throw fail("No se pudo crear un respaldo historico completo de este lote.", 409);
+    const historical = await r2.uploadHistorical(records, codigo, lot.fecha_extraccion || lot.fecha_recepcion || new Date());
+    historicalKey = historical.key;
+  }
   await r2.getHistoricalStatus(historicalKey);
   await pool.query("DELETE FROM importacion_padron_lotes WHERE id=?", [lot.id]);
   await createAuditLog({
