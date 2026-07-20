@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import BatchPicker from "./BatchPicker";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { formatCurrency } from "../utils/formatting";
 import { getBatchTransferProgress } from "../utils/batchList";
 
@@ -35,6 +36,7 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   const [activeRequest, setActiveRequest] = useState(null);
   const [r2Status, setR2Status] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState(null);
   const [historicalKey, setHistoricalKey] = useState("");
   const [filters, setFilters] = useState({ abonado: "", clave: "", nombre: "", colonia: "", estado: "" });
   const knownBatchIds = useRef(new Set());
@@ -91,7 +93,20 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   useEffect(() => { loadR2Status(); }, [loadR2Status]);
 
   const runR2Action = async (path, body, confirmation, success) => {
-    if (confirmation && !window.confirm(confirmation)) return;
+    if (confirmation) {
+      const titles = {
+        migrar: "Migrar padrón a Cloudflare R2",
+        "archivos/migrar": "Migrar archivos privados",
+        restaurar: "Restaurar versión del padrón"
+      };
+      setPendingConfirmation({
+        title: titles[path] || "Confirmar operación",
+        description: confirmation,
+        confirmLabel: path === "restaurar" ? "Restaurar versión" : "Iniciar migración",
+        action: () => runR2Action(path, body, "", success)
+      });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch(`/integracion/foxpro/r2/${path}`, {
@@ -171,7 +186,15 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
   });
   const runAction = async (path, body, success, confirmation) => {
     if (!selectedBatch) return;
-    if (confirmation && !window.confirm(confirmation)) return;
+    if (confirmation) {
+      setPendingConfirmation({
+        title: path === "descartar" ? "Descartar registros" : "Aplicar cambios al padrón",
+        description: confirmation,
+        confirmLabel: path === "descartar" ? "Descartar" : "Aplicar cambios",
+        action: () => runAction(path, body, success, "")
+      });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiFetch(`/integracion/foxpro/lotes/${encodeURIComponent(selectedBatch.codigo_lote)}/${path}`, {
@@ -186,6 +209,33 @@ export default function ImportacionWorkspace({ apiFetch, showAlert }) {
 
   return (
     <main className="import-workspace no-print">
+      <Dialog open={Boolean(pendingConfirmation)} onOpenChange={(open) => !open && setPendingConfirmation(null)}>
+        <DialogContent className="padron-confirm-dialog sm:max-w-xl">
+          <DialogHeader className="padron-confirm-head">
+            <p className="sheet-kicker">Confirmación administrativa</p>
+            <DialogTitle>{pendingConfirmation?.title}</DialogTitle>
+            <DialogDescription>Revisa el alcance antes de continuar.</DialogDescription>
+          </DialogHeader>
+          <div className="padron-confirm-body">
+            <div className="padron-confirm-effects">
+              <strong>Esta operación requiere confirmación</strong>
+              <p>{pendingConfirmation?.description}</p>
+            </div>
+          </div>
+          <DialogFooter className="padron-confirm-actions">
+            <button type="button" className="button-secondary" onClick={() => setPendingConfirmation(null)}>
+              Cancelar
+            </button>
+            <button type="button" className="padron-confirm-button" onClick={() => {
+              const action = pendingConfirmation?.action;
+              setPendingConfirmation(null);
+              action?.();
+            }}>
+              <Icon name="refresh" /> {pendingConfirmation?.confirmLabel}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <section className="import-header">
         <pre className="import-ascii-fox" aria-hidden="true">{FOX_ASCII}</pre>
         <div><p className="sheet-kicker">Integracion FoxPro bajo demanda</p><h2>Importacion</h2><p>Solicita la lectura desde aqui; el servidor responde automaticamente.</p></div>
