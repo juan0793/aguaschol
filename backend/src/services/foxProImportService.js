@@ -73,7 +73,9 @@ export const normalizeFoxProRecord = (record = {}, numeroFila = 0) => {
   const rawClave = text(record.catastral, 80);
   let clave = rawClave;
   if (!abonado) errors.push("Falta el codigo de abonado.");
-  try { clave = normalizeLookupKey(rawClave); } catch { errors.push("Clave catastral invalida."); }
+  if (rawClave) {
+    try { clave = normalizeLookupKey(rawClave); } catch { errors.push("Clave catastral invalida."); }
+  }
   Object.entries(flags).forEach(([field, value]) => value.invalid && errors.push(`Valor de servicio ${field} no reconocido: ${value.original}.`));
   if (valor.invalid) errors.push("Valor principal invalido.");
   if (intereses.invalid) errors.push("Intereses invalidos.");
@@ -192,25 +194,32 @@ export const receiveFoxProBlock = async (codigoLote, payload = {}) => {
 };
 
 const comparable = (value) => typeof value === "number" ? Number(value.toFixed(2)) : text(value);
-const classifyRow = (row, batchCounts, masterByAbonado) => {
+export const classifyFoxProRow = (row, batchCounts, masterByAbonado) => {
   if (row.estado === "ERROR") return { estado: "ERROR", diferencias: null, mensaje: row.mensaje_error, padronId: null };
   if ((batchCounts.get(row.codigo_abonado) || 0) > 1) return { estado: "CONFLICTO", diferencias: null, mensaje: "Abonado repetido dentro del lote.", padronId: null };
   const matches = masterByAbonado.get(row.codigo_abonado) || [];
   if (matches.length > 1) return { estado: "CONFLICTO", diferencias: null, mensaje: "El abonado tiene varias coincidencias en el padron.", padronId: null };
-  if (!matches.length) return { estado: "NUEVO", diferencias: null, mensaje: "", padronId: null };
+  if (!matches.length) {
+    return row.clave_catastral
+      ? { estado: "NUEVO", diferencias: null, mensaje: "", padronId: null, claveCatastral: row.clave_catastral }
+      : { estado: "ERROR", diferencias: null, mensaje: "Falta la clave catastral para crear el abonado.", padronId: null };
+  }
 
   const current = matches[0];
+  const claveCatastral = row.clave_catastral || current.clave_catastral;
+  if (!claveCatastral) return { estado: "ERROR", diferencias: null, mensaje: "El abonado no tiene una clave catastral valida.", padronId: null };
   const differences = {};
   for (const [masterField, importField] of IMPORTABLE_FIELDS) {
     const actual = comparable(current[masterField]);
-    const received = comparable(row[importField]);
+    const received = comparable(masterField === "clave_catastral" ? claveCatastral : row[importField]);
     if (actual !== received) differences[masterField] = { actual, recibido: received };
   }
   return {
     estado: Object.keys(differences).length ? "MODIFICADO" : "SIN_CAMBIOS",
     diferencias: Object.keys(differences).length ? differences : null,
     mensaje: "",
-    padronId: current.abonado || row.codigo_abonado
+    padronId: current.abonado || row.codigo_abonado,
+    claveCatastral
   };
 };
 
@@ -244,11 +253,12 @@ export const finalizeFoxProBatch = async (codigoLote) => {
     }, new Map());
     const totals = { NUEVO: 0, MODIFICADO: 0, SIN_CAMBIOS: 0, CONFLICTO: 0, ERROR: 0 };
     for (const row of rows) {
-      const result = classifyRow(row, batchCounts, masterByAbonado);
+      const result = classifyFoxProRow(row, batchCounts, masterByAbonado);
       totals[result.estado] += 1;
       await connection.query(
-        "UPDATE importacion_padron_registros SET estado = ?, diferencias = ?, mensaje_error = ?, padron_maestro_id = ? WHERE id = ?",
-        [result.estado, result.diferencias ? JSON.stringify(result.diferencias) : null, result.mensaje || null, result.padronId, row.id]
+        "UPDATE importacion_padron_registros SET estado = ?, clave_catastral = ?, diferencias = ?, mensaje_error = ?, padron_maestro_id = ? WHERE id = ?",
+        [result.estado, result.claveCatastral || row.clave_catastral, result.diferencias ? JSON.stringify(result.diferencias) : null,
+          result.mensaje || null, result.padronId, row.id]
       );
     }
     await connection.query(

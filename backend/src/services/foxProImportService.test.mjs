@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deleteHistoricalFoxProBatch, foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord, pruneOldBatchDetails } from "./foxProImportService.js";
+import { classifyFoxProRow, deleteHistoricalFoxProBatch, foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord, pruneOldBatchDetails } from "./foxProImportService.js";
 import { normalizeMasterRecords } from "./claveLookupService.js";
 import { sameSecret } from "../middleware/foxProSyncAuth.js";
 
@@ -27,6 +27,22 @@ test("marca como error una clave invalida antes de aplicar el padron", () => {
   const row = normalizeFoxProRecord({ abonado: "21237", catastral: "SIN-CLAVE", agua: "S", valor: 0, intereses: 0 }, 1);
   assert.equal(row.estado, "ERROR");
   assert.match(row.mensaje_error, /clave catastral invalida/i);
+});
+
+test("conserva la clave actual cuando FoxPro la omite para un abonado existente", () => {
+  const row = normalizeFoxProRecord({ abonado: "21237", catastral: "", valor: 20, intereses: 0 }, 1);
+  const result = classifyFoxProRow(
+    row,
+    new Map([["21237", 1]]),
+    new Map([["21237", [{ abonado: "21237", clave_catastral: "45-54-09-01", valor: 10, intereses: 0 }]]])
+  );
+  assert.equal(row.estado, "RECIBIDO");
+  assert.equal(result.estado, "MODIFICADO");
+  assert.equal(result.claveCatastral, "45-54-09-01");
+
+  const newSubscriber = classifyFoxProRow(row, new Map([["21237", 1]]), new Map());
+  assert.equal(newSubscriber.estado, "ERROR");
+  assert.match(newSubscriber.mensaje, /falta la clave/i);
 });
 
 test("hash de bloque es estable y la clave se compara exactamente", () => {
