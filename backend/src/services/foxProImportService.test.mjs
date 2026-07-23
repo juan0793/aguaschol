@@ -18,15 +18,23 @@ test("marca errores sin descartar el dato original", () => {
   const row = normalizeFoxProRecord({ abonado: "", agua: "2", valor: "invalido", intereses: null }, 8);
   assert.equal(row.estado, "ERROR");
   assert.match(row.mensaje_error, /abonado/i);
-  assert.match(row.mensaje_error, /agua/i);
   assert.match(row.mensaje_error, /principal/i);
   assert.equal(row.dato_original.agua, "2");
 });
 
-test("marca como error una clave invalida antes de aplicar el padron", () => {
+test("usa el abonado cuando la clave catastral es inutilizable", () => {
   const row = normalizeFoxProRecord({ abonado: "21237", catastral: "SIN-CLAVE", agua: "S", valor: 0, intereses: 0 }, 1);
-  assert.equal(row.estado, "ERROR");
-  assert.match(row.mensaje_error, /clave catastral invalida/i);
+  assert.equal(row.estado, "RECIBIDO");
+  assert.equal(row.clave_catastral, "");
+});
+
+test("conserva los valores de servicio propios de FoxPro", () => {
+  const row = normalizeFoxProRecord({ abonado: "11045", catastral: "36-02-04-01", agua: "2", alca: "2", barr: "/", bomb: "7" }, 1);
+  assert.equal(row.estado, "RECIBIDO");
+  assert.deepEqual(
+    [row.agua_normalizada, row.alcantarillado_normalizado, row.barrido_normalizado, row.bombeo_normalizado],
+    ["2", "2", "/", "7"]
+  );
 });
 
 test("acepta la clave historica enviada por FoxPro", () => {
