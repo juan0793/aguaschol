@@ -252,7 +252,12 @@ export const normalizeMasterRecords = (rows = []) =>
           const rawClave = String(item?.clave_catastral ?? item?.catastral ?? "").trim();
           const abonado = String(item?.abonado ?? "").trim();
           if (!rawClave && !abonado) return null;
-          const clave = rawClave ? normalizeLookupKey(rawClave) : "";
+          let clave = "";
+          if (rawClave) {
+            try { clave = normalizeLookupKey(rawClave); } catch {
+              if (!abonado) return null;
+            }
+          }
           const valor = parseNumericValue(item?.valor);
           const intereses = parseNumericValue(item?.intereses);
           const inquilino = String(item?.inquilino ?? item?.nombre ?? "").trim();

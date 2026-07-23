@@ -36,8 +36,7 @@ const positiveInt = (value, label) => {
 };
 const normalizeFlag = (value) => {
   const original = text(value, 40);
-  const normalized = original.toUpperCase();
-  return { original, normalized: ["S", "N"].includes(normalized) ? normalized : null, invalid: Boolean(original && !["S", "N"].includes(normalized)) };
+  return { original, normalized: original.toUpperCase() || null };
 };
 const normalizeAmount = (value) => {
   if (value == null || text(value) === "") return { value: 0, invalid: false };
@@ -74,9 +73,8 @@ export const normalizeFoxProRecord = (record = {}, numeroFila = 0) => {
   let clave = rawClave;
   if (!abonado) errors.push("Falta el codigo de abonado.");
   if (rawClave) {
-    try { clave = normalizeLookupKey(rawClave); } catch { errors.push("Clave catastral invalida."); }
+    try { clave = normalizeLookupKey(rawClave); } catch { clave = ""; }
   }
-  Object.entries(flags).forEach(([field, value]) => value.invalid && errors.push(`Valor de servicio ${field} no reconocido: ${value.original}.`));
   if (valor.invalid) errors.push("Valor principal invalido.");
   if (intereses.invalid) errors.push("Intereses invalidos.");
 
