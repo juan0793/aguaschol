@@ -1,15 +1,19 @@
 export const formatClaveInput = (value = "", prefixMode = "auto") => {
   const raw = String(value ?? "");
+  if (raw.includes("-")) {
+    return raw
+      .replace(/[^\d-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^-/, "")
+      .split("-")
+      .slice(0, 4)
+      .map((part) => part.slice(0, 3))
+      .join("-");
+  }
   const digits = raw.replace(/\D/g, "").slice(0, 9);
-  const explicitPrefixLength = raw.includes("-")
-    ? raw
-        .replace(/[^\d-]/g, "")
-        .split("-")
-        .filter(Boolean)[0]?.length ?? 0
-    : 0;
   const useThreeDigitPrefix =
     prefixMode === "three" ||
-    (prefixMode !== "two" && (explicitPrefixLength === 3 || (!explicitPrefixLength && [7, 9].includes(digits.length))));
+    (prefixMode !== "two" && [7, 9].includes(digits.length));
   const chunkSizes = useThreeDigitPrefix ? [3, 2, 2, 2] : [2, 2, 2, 2];
   const groups = [];
   let cursor = 0;
@@ -25,9 +29,7 @@ export const formatClaveInput = (value = "", prefixMode = "auto") => {
 
 export const isLookupKeyComplete = (value = "") => {
   const parts = value.split("-").filter(Boolean);
-  if (![3, 4].includes(parts.length)) return false;
-  const [firstPart, ...rest] = parts;
-  return /^\d{2,3}$/.test(firstPart) && rest.every((part) => /^\d{2}$/.test(part));
+  return [3, 4].includes(parts.length) && parts.every((part) => /^\d{2,3}$/.test(part));
 };
 
 export const sanitizeLookupInput = (value = "", mode = "clave", prefixMode = "auto") => {
@@ -62,7 +64,7 @@ export const extractPadronLookupReferences = (value = "") => {
     });
   };
 
-  for (const match of source.matchAll(/\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/g)) {
+  for (const match of source.matchAll(/\b\d{2,3}(?:-\d{2,3}){2}(?:-\d{2,3})?\b/g)) {
     addReference("clave", match[0], match.index ?? 0);
   }
 
@@ -103,7 +105,7 @@ export const getLookupValidationMessage = (mode = "clave") => {
     return "Escribe al menos 3 caracteres para buscar en el padron de alcaldia.";
   }
 
-  return "La clave debe tener formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.";
+  return "La clave debe tener tres o cuatro bloques de 2 a 3 digitos.";
 };
 
 export const getLookupServiceMeta = (value = "") => {

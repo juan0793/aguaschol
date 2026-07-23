@@ -74,14 +74,11 @@ export const normalizeLookupKey = (value = "") => {
 
   const parts = cleaned.split("-").filter(Boolean);
 
-  const [firstPart, ...rest] = parts;
-
   if (
     ![3, 4].includes(parts.length) ||
-    !/^\d{2,3}$/.test(firstPart || "") ||
-    rest.some((part) => !/^\d{2}$/.test(part))
+    parts.some((part) => !/^\d{2,3}$/.test(part))
   ) {
-    const error = new Error("La clave debe tener formato 00-00-00, 000-00-00, 00-00-00-00 o 000-00-00-00.");
+    const error = new Error("La clave debe tener tres o cuatro bloques de 2 a 3 digitos.");
     error.status = 400;
     throw error;
   }

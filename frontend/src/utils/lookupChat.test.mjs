@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLookupChatResponse } from "./lookupChat.js";
+import { buildLookupChatResponse, parseLookupChatMessage } from "./lookupChat.js";
+
+test("reconoce una clave historica con bloques de tres digitos", () => {
+  assert.deepEqual(
+    parseLookupChatMessage("buscar clave 22-37-116-03"),
+    { mode: "clave", query: "22-37-116-03", originalText: "buscar clave 22-37-116-03", intent: "general" }
+  );
+});
 
 test("no repite el mismo nombre como abonado e inquilino", () => {
   const response = buildLookupChatResponse({

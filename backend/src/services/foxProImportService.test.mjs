@@ -29,6 +29,12 @@ test("marca como error una clave invalida antes de aplicar el padron", () => {
   assert.match(row.mensaje_error, /clave catastral invalida/i);
 });
 
+test("acepta la clave historica enviada por FoxPro", () => {
+  const row = normalizeFoxProRecord({ abonado: "3984", catastral: "22-37-116-03", agua: "S", valor: 0, intereses: 0 }, 1);
+  assert.equal(row.estado, "RECIBIDO");
+  assert.equal(row.clave_catastral, "22-37-116-03");
+});
+
 test("conserva la clave actual cuando FoxPro la omite para un abonado existente", () => {
   const row = normalizeFoxProRecord({ abonado: "21237", catastral: "", valor: 20, intereses: 0 }, 1);
   const result = classifyFoxProRow(

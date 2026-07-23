@@ -1,6 +1,6 @@
 import { formatClaveInput } from "./claveAndLookup.js";
 
-const CLAVE_WITH_DASHES_PATTERN = /\b\d{2,3}-\d{2}-\d{2}(?:-\d{2})?\b/;
+const CLAVE_WITH_DASHES_PATTERN = /\b\d{2,3}(?:-\d{2,3}){2}(?:-\d{2,3})?\b/;
 
 const normalizeText = (value = "") =>
   String(value ?? "")
