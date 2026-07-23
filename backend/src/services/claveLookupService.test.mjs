@@ -4,8 +4,14 @@ import {
   activateMasterRecordsInMemory,
   getAguasServiceReport,
   getMasterRecordsForImport,
+  normalizeLookupKey,
   searchClaveCatastral
 } from "./claveLookupService.js";
+
+test("acepta claves catastrales historicas con bloques de tres digitos", () => {
+  assert.equal(normalizeLookupKey("22-37-116-03"), "22-37-116-03");
+  assert.throws(() => normalizeLookupKey("110"));
+});
 
 test("calcula deuda general y por servicio para cada barrio", async () => {
   const report = await getAguasServiceReport();

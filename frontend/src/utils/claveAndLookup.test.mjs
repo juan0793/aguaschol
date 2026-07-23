@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { extractPadronLookupReferences } from "./claveAndLookup.js";
+import { extractPadronLookupReferences, formatClaveInput, isLookupKeyComplete } from "./claveAndLookup.js";
+
+test("acepta y conserva claves historicas con bloques de tres digitos", () => {
+  assert.equal(formatClaveInput("22-37-116-03"), "22-37-116-03");
+  assert.equal(isLookupKeyComplete("22-37-116-03"), true);
+  assert.equal(isLookupKeyComplete("110"), false);
+});
 
 test("extrae clave y abonado desde descripcion tecnica", () => {
   assert.deepEqual(
