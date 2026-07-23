@@ -1,6 +1,11 @@
 import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
-import { r2PadronService, validatePadronRecords } from "./r2PadronService.js";
+import {
+  compressPadronRecords,
+  decompressPadronRecords,
+  r2PadronService,
+  validatePadronRecords
+} from "./r2PadronService.js";
 
 const snapshotColumns = `codigo_lote, total_registros, registros_json, updated_at,
   r2_active_key, r2_active_etag, r2_active_verified_at,
@@ -8,13 +13,18 @@ const snapshotColumns = `codigo_lote, total_registros, registros_json, updated_a
 
 const getDb = (connection = null) => connection || getPool();
 
-const parseSnapshotRow = (row) => {
+const parseSnapshotRow = async (row) => {
   if (!row) return null;
   let records;
-  try {
-    records = JSON.parse(String(row.registros_json));
-  } catch {
-    throw new Error("El snapshot MySQL del padron maestro no contiene JSON valido.");
+  const stored = String(row.registros_json);
+  if (stored.startsWith("gzip:")) {
+    records = await decompressPadronRecords(Buffer.from(stored.slice(5), "base64"), Number(row.total_registros));
+  } else {
+    try {
+      records = JSON.parse(stored);
+    } catch {
+      throw new Error("El snapshot MySQL del padron maestro no contiene JSON valido.");
+    }
   }
   validatePadronRecords(records, Number(row.total_registros));
   return { ...row, records };
@@ -23,6 +33,7 @@ const parseSnapshotRow = (row) => {
 export const saveActivePadronSnapshot = async (records, codigoLote = "", connection = null, r2 = {}) => {
   validatePadronRecords(records);
   if (env.useMemoryDb && !connection) return { saved: false, total: records.length, r2 };
+  const compressedRecords = `gzip:${(await compressPadronRecords(records)).toString("base64")}`;
   await getDb(connection).query(
     `INSERT INTO padron_maestro_snapshot (
        id, codigo_lote, total_registros, registros_json,
@@ -37,7 +48,7 @@ export const saveActivePadronSnapshot = async (records, codigoLote = "", connect
     [
       codigoLote,
       records.length,
-      JSON.stringify(records),
+      compressedRecords,
       r2.active?.key || null,
       r2.active?.etag || null,
       r2.active?.verified_at ? new Date(r2.active.verified_at) : null,

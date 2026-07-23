@@ -480,7 +480,7 @@ export const activateFoxProBatch = async (codigoLote, actorUser) => {
     );
     await connection.commit();
   } catch (error) {
-    await connection.rollback();
+    await connection.rollback().catch(() => {});
     if (padronChanged) replaceMasterRecordsFromImport(previousMaster, { codigoLote: `${codigo}-ROLLBACK` });
     if (r2Changed) await r2PadronService.uploadActive(previousMaster, `${codigo}-ROLLBACK`).catch(() => {});
     throw error;
@@ -761,7 +761,7 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
     return { applied: rows.length, estado: nextState, active_records: replacement.records.length, r2_verified: persistence.r2_verified };
   } catch (error) {
     if (!committed) {
-      await connection.rollback();
+      await connection.rollback().catch(() => {});
       if (padronChanged) replaceMasterRecordsFromImport(previousMaster, { codigoLote: `${codigo}-ROLLBACK` });
       if (r2Changed) await r2PadronService.uploadActive(previousMaster, `${codigo}-ROLLBACK`).catch(() => {});
     }

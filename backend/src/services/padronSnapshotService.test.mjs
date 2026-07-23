@@ -15,6 +15,7 @@ test("guarda y valida el snapshot completo del padron", async () => {
     return [[{ codigo_lote: stored[0], total_registros: stored[1], registros_json: stored[2], updated_at: new Date() }]];
   } };
   await saveActivePadronSnapshot(records, "FOXPRO-HOY", db);
+  assert.match(stored[2], /^gzip:/);
   const snapshot = await loadActivePadronSnapshot(db);
   assert.equal(snapshot.codigo_lote, "FOXPRO-HOY");
   assert.deepEqual(snapshot.records, records);
