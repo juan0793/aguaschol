@@ -47,8 +47,8 @@ test("conserva la clave actual cuando FoxPro la omite para un abonado existente"
   assert.equal(result.claveCatastral, "45-54-09-01");
 
   const newSubscriber = classifyFoxProRow(row, new Map([["21237", 1]]), new Map());
-  assert.equal(newSubscriber.estado, "ERROR");
-  assert.match(newSubscriber.mensaje, /falta la clave/i);
+  assert.equal(newSubscriber.estado, "NUEVO");
+  assert.equal(newSubscriber.claveCatastral, "");
 });
 
 test("hash de bloque es estable y la clave se compara exactamente", () => {

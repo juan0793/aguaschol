@@ -200,14 +200,11 @@ export const classifyFoxProRow = (row, batchCounts, masterByAbonado) => {
   const matches = masterByAbonado.get(row.codigo_abonado) || [];
   if (matches.length > 1) return { estado: "CONFLICTO", diferencias: null, mensaje: "El abonado tiene varias coincidencias en el padron.", padronId: null };
   if (!matches.length) {
-    return row.clave_catastral
-      ? { estado: "NUEVO", diferencias: null, mensaje: "", padronId: null, claveCatastral: row.clave_catastral }
-      : { estado: "ERROR", diferencias: null, mensaje: "Falta la clave catastral para crear el abonado.", padronId: null };
+    return { estado: "NUEVO", diferencias: null, mensaje: "", padronId: null, claveCatastral: row.clave_catastral };
   }
 
   const current = matches[0];
   const claveCatastral = row.clave_catastral || current.clave_catastral;
-  if (!claveCatastral) return { estado: "ERROR", diferencias: null, mensaje: "El abonado no tiene una clave catastral valida.", padronId: null };
   const differences = {};
   for (const [masterField, importField] of IMPORTABLE_FIELDS) {
     const actual = comparable(current[masterField]);
@@ -692,6 +689,7 @@ export const applyFoxProBatch = async (codigoLote, { ids = [], allValid = false 
 
     const invalidRows = [];
     rows = rows.flatMap((row) => {
+      if (!text(row.clave_catastral)) return [row];
       try { return [{ ...row, clave_catastral: normalizeLookupKey(row.clave_catastral) }]; }
       catch { invalidRows.push(row); return []; }
     });

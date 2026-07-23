@@ -13,6 +13,18 @@ test("acepta claves catastrales historicas con bloques de tres digitos", () => {
   assert.throws(() => normalizeLookupKey("110"));
 });
 
+test("conserva abonados sin clave catastral para buscarlos por abonado", async () => {
+  const previous = getMasterRecordsForImport();
+  try {
+    activateMasterRecordsInMemory([{ clave_catastral: "", abonado: "266", nombre: "PENDIENTE" }], { codigoLote: "TEST-SIN-CLAVE" });
+    const result = await searchClaveCatastral("266", { field: "abonado" });
+    assert.equal(result.matches.length, 1);
+    assert.equal(result.matches[0].clave_catastral, "");
+  } finally {
+    activateMasterRecordsInMemory(previous, { codigoLote: "RESTORE-TEST" });
+  }
+});
+
 test("calcula deuda general y por servicio para cada barrio", async () => {
   const report = await getAguasServiceReport();
   assert.ok(report.summary.deuda.total > 0);

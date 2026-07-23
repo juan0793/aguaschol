@@ -249,12 +249,14 @@ export const normalizeMasterRecords = (rows = []) =>
     rows
       .map((item) => {
         try {
-          const clave = normalizeLookupKey(String(item?.clave_catastral ?? item?.catastral ?? ""));
+          const rawClave = String(item?.clave_catastral ?? item?.catastral ?? "").trim();
+          const abonado = String(item?.abonado ?? "").trim();
+          if (!rawClave && !abonado) return null;
+          const clave = rawClave ? normalizeLookupKey(rawClave) : "";
           const valor = parseNumericValue(item?.valor);
           const intereses = parseNumericValue(item?.intereses);
           const inquilino = String(item?.inquilino ?? item?.nombre ?? "").trim();
           const nombre = String(item?.nombre ?? "").trim();
-          const abonado = String(item?.abonado ?? "").trim();
           const barrioColonia = String(
             item?.des_coloni ??
               item?.barrio_colonia ??
