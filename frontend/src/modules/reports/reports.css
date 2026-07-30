@@ -18,3 +18,4 @@ linear-gradient(145deg,#eaf5fc 0%,#f8fbfe 48%,#e9f2fa 100%);overflow:hidden}
 .reports-tabs button{border-radius:11px 11px 0 0}.reports-tabs button.is-active{background:rgba(255,255,255,.82);box-shadow:0 -6px 18px rgba(26,85,130,.08)}
 .reports-solid-panel{border-radius:18px;transition:transform .18s ease,box-shadow .18s ease}.reports-solid-panel:hover{transform:translateY(-2px);box-shadow:0 20px 44px rgba(22,69,108,.13),inset 0 1px rgba(255,255,255,.95)}
 .report-summary-bar>div{border-color:rgba(126,175,210,.28)}.reports-primary-actions{border-radius:18px}
+.report-generator-options label{align-items:flex-start;padding:.7rem;border-radius:10px;background:#f5faff}.report-generator-options label>span{display:grid;gap:.15rem}.report-generator-options small{color:#647f95;font-weight:400}

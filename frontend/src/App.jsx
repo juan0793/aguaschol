@@ -77,7 +77,7 @@ import {
   getMapPointContextKey,
   getMapPointTypeLabel
 } from "./utils/mapField";
-import { buildPadronNameIndex, buildSharedCadastralKeys, stripServicesFromDescription } from "./modules/reports/utils/reportSelectors";
+import { buildPadronNameIndex, buildReportDebtRows, buildSharedCadastralKeys, stripServicesFromDescription } from "./modules/reports/utils/reportSelectors";
 import {
   comparableFormShape,
   getRecordDeadlineMeta,
@@ -769,7 +769,11 @@ const buildFieldDebtPointRows = (points = []) =>
   points
     .map((point, index) => {
       const sourceText = [point.reference_note, point.description].filter(Boolean).join(" ");
-      const references = extractFieldDebtLookupReferences(sourceText);
+      const references = extractFieldDebtLookupReferences(sourceText).map((reference) => {
+        if (reference.field !== "clave") return reference;
+        const value = reference.value.split("-").slice(0, 3).join("-");
+        return { ...reference, value, key: `clave:${value}`, label: value };
+      });
       return {
         point,
         index,
@@ -6842,7 +6846,11 @@ function App() {
 
   const buildMapReportPadronData = async () => {
     const results = (await buildFieldDebtReport()).results;
-    return { padronNames: buildPadronNameIndex(results), sharedKeys: buildSharedCadastralKeys(results) };
+    return {
+      padronNames: buildPadronNameIndex(results),
+      sharedKeys: buildSharedCadastralKeys(results),
+      debtRows: buildReportDebtRows(results)
+    };
   };
 
   const handleVerifyFieldDebt = async () => {
@@ -8501,14 +8509,15 @@ function App() {
     }
   };
 
-  const handlePrintMapBriefReport = async () => {
+  const handlePrintMapBriefReport = async ({ sharedKeys: includeSharedKeys = false, debtSummary: includeDebtSummary = false } = {}) => {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = mapReportPrintData;
-    const { padronNames, sharedKeys } = await buildMapReportPadronData();
+    const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData();
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportNotes = mapReportSettings.report_notes.trim();
     const sharedAccounts = sharedKeys.reduce((total, item) => total + item.total, 0);
+    const totalDebt = debtRows.reduce((total, item) => total + item.total, 0);
     const rowsMarkup = buildMapReportBriefRows(reportData, padronNames)
       .map(
         ([index, barrio, clave, nombre, tipo, descripcion, services]) => `
@@ -8588,7 +8597,7 @@ function App() {
               </tbody>
             </table>
           </section>
-          <section class="map-brief-shared-keys">
+          ${includeSharedKeys ? `<section class="map-brief-shared-keys">
             <div>
               <span class="field-report-zone-kicker">Cruce del padrón</span>
               <h3>Abonados que comparten clave catastral</h3>
@@ -8596,7 +8605,7 @@ function App() {
             </div>
             ${
               sharedKeys.length
-                ? `<table><thead><tr><th>Clave catastral</th><th>Abonados</th><th>Total</th></tr></thead><tbody>${sharedKeys
+                ? `<table><thead><tr><th>Clave catastral base</th><th>Abonados</th><th>Total</th></tr></thead><tbody>${sharedKeys
                     .map(
                       (item) =>
                         `<tr><td>${escapeHtml(item.clave)}</td><td>${escapeHtml(item.abonados.join(", "))}</td><td>${item.total}</td></tr>`
@@ -8604,7 +8613,20 @@ function App() {
                     .join("")}</tbody></table>`
                 : "<p>No se detectaron varios abonados con la misma clave catastral.</p>"
             }
-          </section>
+          </section>` : ""}
+          ${includeDebtSummary ? `<section class="map-brief-debt-summary">
+            <header><div><span class="field-report-zone-kicker">Cartera de los abonados</span><h3>Deuda asociada</h3></div><strong>${escapeHtml(formatCurrency(totalDebt))}</strong></header>
+            ${
+              debtRows.length
+                ? `<table><thead><tr><th>Clave</th><th>Abonado</th><th>Nombre</th><th>Deuda</th></tr></thead><tbody>${debtRows
+                    .map(
+                      (item) =>
+                        `<tr><td>${escapeHtml(item.clave)}</td><td>${escapeHtml(item.abonado)}</td><td>${escapeHtml(item.nombre)}</td><td>${escapeHtml(formatCurrency(item.total))}</td></tr>`
+                    )
+                    .join("")}</tbody></table>`
+                : "<p>No se encontraron abonados del padrón para calcular deuda.</p>"
+            }
+          </section>` : ""}
         </div>
       `,
       {
@@ -8616,7 +8638,7 @@ function App() {
     );
   };
 
-  const handleDownloadMapBriefPdf = async () => {
+  const handleDownloadMapBriefPdf = async ({ sharedKeys: includeSharedKeys = false, debtSummary: includeDebtSummary = false } = {}) => {
     try {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
@@ -8627,12 +8649,13 @@ function App() {
         compress: true
       });
       const reportData = mapReportPrintData;
-      const { padronNames, sharedKeys } = await buildMapReportPadronData();
+      const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData();
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
       const reportNotes = mapReportSettings.report_notes.trim();
       const sharedAccounts = sharedKeys.reduce((total, item) => total + item.total, 0);
+      const totalDebt = debtRows.reduce((total, item) => total + item.total, 0);
       const pageWidth = document.internal.pageSize.getWidth();
       const pageHeight = document.internal.pageSize.getHeight();
       const addPageFooter = () => {
@@ -8744,38 +8767,77 @@ function App() {
         }
       });
 
-      let sharedY = (document.lastAutoTable?.finalY ?? 220) + 10;
-      if (sharedY > 230) {
-        document.addPage("letter", "portrait");
-        sharedY = 18;
+      let appendixY = (document.lastAutoTable?.finalY ?? 220) + 10;
+      if (includeSharedKeys) {
+        if (appendixY > 230) {
+          document.addPage("letter", "portrait");
+          appendixY = 18;
+        }
+        document.setFont("helvetica", "bold");
+        document.setFontSize(11);
+        document.setTextColor(16, 55, 91);
+        document.text("Abonados que comparten clave catastral", 14, appendixY);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8.5);
+        document.setTextColor(69, 96, 122);
+        document.text(`${sharedKeys.length} claves agrupan ${sharedAccounts} abonados.`, 14, appendixY + 6);
+        if (sharedKeys.length) {
+          autoTable(document, {
+            startY: appendixY + 10,
+            head: [["Clave catastral base", "Abonados", "Nombres", "Total"]],
+            body: sharedKeys.map((item) => [item.clave, item.abonados.join(", "), item.nombres.join(", ") || "--", String(item.total)]),
+            theme: "grid",
+            styles: { fontSize: 8, cellPadding: 2, textColor: [28, 44, 62] },
+            headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255], fontStyle: "bold" },
+            alternateRowStyles: { fillColor: [248, 251, 255] },
+            margin: { left: 14, right: 14, bottom: 14 },
+            columnStyles: {
+              0: { cellWidth: 40 },
+              1: { cellWidth: 45 },
+              2: { cellWidth: 87 },
+              3: { cellWidth: 16, halign: "center" }
+            }
+          });
+          appendixY = (document.lastAutoTable?.finalY ?? appendixY + 10) + 10;
+        } else {
+          document.text("No se detectaron varios abonados con la misma clave catastral base.", 14, appendixY + 12);
+          appendixY += 20;
+        }
       }
-      document.setFont("helvetica", "bold");
-      document.setFontSize(11);
-      document.setTextColor(16, 55, 91);
-      document.text("Abonados que comparten clave catastral", 14, sharedY);
-      document.setFont("helvetica", "normal");
-      document.setFontSize(8.5);
-      document.setTextColor(69, 96, 122);
-      document.text(`${sharedKeys.length} claves agrupan ${sharedAccounts} abonados.`, 14, sharedY + 6);
-      if (sharedKeys.length) {
-        autoTable(document, {
-          startY: sharedY + 10,
-          head: [["Clave catastral", "Abonados", "Nombres", "Total"]],
-          body: sharedKeys.map((item) => [item.clave, item.abonados.join(", "), item.nombres.join(", ") || "--", String(item.total)]),
-          theme: "grid",
-          styles: { fontSize: 8, cellPadding: 2, textColor: [28, 44, 62] },
-          headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255], fontStyle: "bold" },
-          alternateRowStyles: { fillColor: [248, 251, 255] },
-          margin: { left: 14, right: 14, bottom: 14 },
-          columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 45 },
-            2: { cellWidth: 87 },
-            3: { cellWidth: 16, halign: "center" }
-          }
-        });
-      } else {
-        document.text("No se detectaron varios abonados con la misma clave catastral.", 14, sharedY + 12);
+
+      if (includeDebtSummary) {
+        if (appendixY > 225) {
+          document.addPage("letter", "portrait");
+          appendixY = 18;
+        }
+        document.setFont("helvetica", "bold");
+        document.setFontSize(11);
+        document.setTextColor(16, 55, 91);
+        document.text("Deuda de los abonados del informe", 14, appendixY);
+        document.setFontSize(12);
+        document.text(formatCurrency(totalDebt), 202, appendixY, { align: "right" });
+        if (debtRows.length) {
+          autoTable(document, {
+            startY: appendixY + 5,
+            head: [["Clave", "Abonado", "Nombre", "Deuda"]],
+            body: debtRows.map((item) => [item.clave, item.abonado, item.nombre, formatCurrency(item.total)]),
+            theme: "grid",
+            styles: { fontSize: 7.8, cellPadding: 1.8, textColor: [28, 44, 62] },
+            headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255], fontStyle: "bold" },
+            alternateRowStyles: { fillColor: [248, 251, 255] },
+            margin: { left: 14, right: 14, bottom: 14 },
+            columnStyles: {
+              0: { cellWidth: 38 },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 80 },
+              3: { cellWidth: 40, halign: "right", fontStyle: "bold" }
+            }
+          });
+        } else {
+          document.setFont("helvetica", "normal");
+          document.setFontSize(8.5);
+          document.text("No se encontraron abonados del padron para calcular deuda.", 14, appendixY + 7);
+        }
       }
 
       const pageCount = document.getNumberOfPages();

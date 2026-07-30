@@ -1113,6 +1113,24 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           .map-brief-shared-keys th { color: #ffffff; background: #0d4d86; }
           .map-brief-shared-keys th:last-child,
           .map-brief-shared-keys td:last-child { width: 44px; text-align: center; font-weight: 800; }
+          .map-brief-debt-summary {
+            border: 1px solid #b9d7ec;
+            border-radius: 12px;
+            padding: 9px 10px;
+            background: linear-gradient(135deg, #ffffff, #edf7fd);
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .map-brief-debt-summary header { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+          .map-brief-debt-summary h3 { margin: 3px 0 0; font-size: 12px; color: #0d3f6a; }
+          .map-brief-debt-summary header > strong { font-size: 15px; color: #0d4d86; }
+          .map-brief-debt-summary p { margin: 6px 0 0; font-size: 9px; color: #45607a; }
+          .map-brief-debt-summary table { width: 100%; margin-top: 7px; border-collapse: collapse; font-size: 8.2px; }
+          .map-brief-debt-summary th,
+          .map-brief-debt-summary td { padding: 3px 5px; border: 1px solid #d8e7f4; text-align: left; }
+          .map-brief-debt-summary th { color: #ffffff; background: #0d4d86; }
+          .map-brief-debt-summary th:last-child,
+          .map-brief-debt-summary td:last-child { width: 72px; text-align: right; font-weight: 800; }
           .field-report-color-chip {
             display: inline-block;
             width: 8px;

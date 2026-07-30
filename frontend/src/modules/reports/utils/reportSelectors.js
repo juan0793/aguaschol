@@ -67,7 +67,8 @@ export const buildSharedCadastralKeys = (results = []) => {
 
   results.forEach((result) => {
     (result.matches || []).forEach((match) => {
-      const clave = String(match.clave_catastral || match.clave_aguas_formato || "").trim();
+      const fullKey = String(match.clave_catastral || match.clave_aguas_formato || "").trim();
+      const clave = String(match.clave_base || fullKey.split("-").slice(0, 3).join("-")).trim();
       const abonado = String(match.abonado || "").trim();
       if (!clave || !abonado) return;
       if (!keys.has(clave)) keys.set(clave, { abonados: new Set(), nombres: new Set() });
@@ -83,6 +84,27 @@ export const buildSharedCadastralKeys = (results = []) => {
     nombres: Array.from(data.nombres),
     total: data.abonados.size
   })).filter((item) => item.total > 1);
+};
+
+export const buildReportDebtRows = (results = []) => {
+  const accounts = new Map();
+
+  results.forEach((result) => {
+    (result.matches || []).forEach((match) => {
+      const abonado = String(match.abonado || "").trim();
+      const clave = String(match.clave_base || match.clave_catastral || match.clave_aguas_formato || "").trim();
+      const key = abonado || `${clave}:${match.inquilino || match.nombre || ""}`;
+      if (!key || accounts.has(key)) return;
+      accounts.set(key, {
+        clave: clave || "--",
+        abonado: abonado || "--",
+        nombre: String(match.inquilino || match.nombre || "--").trim(),
+        total: Number(match.total || 0)
+      });
+    });
+  });
+
+  return Array.from(accounts.values()).sort((left, right) => right.total - left.total);
 };
 
 const servicesPattern =

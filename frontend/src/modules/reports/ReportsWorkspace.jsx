@@ -25,6 +25,7 @@ export default function ReportsWorkspace({ model }) {
   const [dayLimit, setDayLimit] = useState(15);
   const [documentType, setDocumentType] = useState("technical");
   const [documentFormat, setDocumentFormat] = useState("pdf");
+  const [reportOptions, setReportOptions] = useState({ sharedKeys: false, debtSummary: false });
   const [previewPage, setPreviewPage] = useState(1);
   const [previewZoom, setPreviewZoom] = useState(100);
 
@@ -51,7 +52,7 @@ export default function ReportsWorkspace({ model }) {
       census: documentFormat === "pdf" ? model.onDownloadCensus : model.onPrintCensus,
       regulator: model.onDownloadRegulator
     };
-    actions[documentType]?.();
+    actions[documentType]?.(documentType === "brief" ? reportOptions : {});
   };
 
   return <section className="reports-workspace">
@@ -72,7 +73,7 @@ export default function ReportsWorkspace({ model }) {
     </ReportDialog>
 
     <ReportDialog open={generatorOpen} onClose={() => setGeneratorOpen(false)} title="Generar documento" variant="drawer">
-      <div className="report-generator"><fieldset><legend>Tipo de reporte</legend>{[["technical", "Técnico con coordenadas"], ["brief", "Resumen ligero"], ["census", "Censo sin coordenadas"], ["regulator", "Ente regulador"]].map(([value, label]) => <label key={value}><input type="radio" name="documentType" value={value} checked={documentType === value} onChange={(event) => setDocumentType(event.target.value)} />{label}</label>)}</fieldset><fieldset disabled={documentType === "regulator"}><legend>Formato</legend><label><input type="radio" name="documentFormat" value="pdf" checked={documentFormat === "pdf"} onChange={(event) => setDocumentFormat(event.target.value)} />PDF</label><label><input type="radio" name="documentFormat" value="print" checked={documentFormat === "print"} onChange={(event) => setDocumentFormat(event.target.value)} />Imprimir</label></fieldset><div className="report-generator-summary"><strong>{model.data.totalPoints} puntos · {model.data.totalZones} barrios</strong><span>Jornada {formatMapDiaryLabel(model.activeDateKey)}</span></div></div>
+      <div className="report-generator"><fieldset><legend>Tipo de reporte</legend>{[["technical", "Técnico con coordenadas"], ["brief", "Resumen ligero"], ["census", "Censo sin coordenadas"], ["regulator", "Ente regulador"]].map(([value, label]) => <label key={value}><input type="radio" name="documentType" value={value} checked={documentType === value} onChange={(event) => setDocumentType(event.target.value)} />{label}</label>)}</fieldset><fieldset disabled={documentType === "regulator"}><legend>Formato</legend><label><input type="radio" name="documentFormat" value="pdf" checked={documentFormat === "pdf"} onChange={(event) => setDocumentFormat(event.target.value)} />PDF</label><label><input type="radio" name="documentFormat" value="print" checked={documentFormat === "print"} onChange={(event) => setDocumentFormat(event.target.value)} />Imprimir</label></fieldset>{documentType === "brief" ? <fieldset className="report-generator-options"><legend>Agregar al final</legend><label><input type="checkbox" checked={reportOptions.sharedKeys} onChange={(event) => setReportOptions((current) => ({ ...current, sharedKeys: event.target.checked }))} /><span><strong>Claves compartidas</strong><small>Lista abonados agrupados por la misma clave catastral base.</small></span></label><label><input type="checkbox" checked={reportOptions.debtSummary} onChange={(event) => setReportOptions((current) => ({ ...current, debtSummary: event.target.checked }))} /><span><strong>Deuda de abonados</strong><small>Agrega un listado compacto y el total adeudado.</small></span></label></fieldset> : null}<div className="report-generator-summary"><strong>{model.data.totalPoints} puntos · {model.data.totalZones} barrios</strong><span>Jornada {formatMapDiaryLabel(model.activeDateKey)}</span></div></div>
       <footer className="reports-dialog-actions"><button type="button" className="button-secondary" onClick={() => setGeneratorOpen(false)}>Cancelar</button><button type="button" className="button-secondary" onClick={() => generate({ preview: true })}>Vista previa</button><button type="button" onClick={() => generate()}>Generar</button></footer>
     </ReportDialog>
 
