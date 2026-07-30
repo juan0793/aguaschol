@@ -9,6 +9,8 @@ import BatchPicker from "./components/BatchPicker";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader";
+import AppSidebar from "./components/sidebar/AppSidebar";
+import { buildSidebarSections } from "./components/sidebar/sidebarConfig";
 import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import { API_URL } from "./config/api";
@@ -948,8 +950,10 @@ function App() {
   const [changedDashboardMetricKeys, setChangedDashboardMetricKeys] = useState([]);
   const dashboardMetricValuesRef = useRef({});
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
+  const closeMobileModuleMenu = useCallback(() => setShowMobileModuleMenu(false), []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    const saved = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    const saved = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)
+      ?? window.localStorage.getItem("aguaschol-sidebar-collapsed");
     return saved === null ? window.matchMedia?.("(max-width: 1100px)").matches : saved === "true";
   });
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -2189,11 +2193,6 @@ function App() {
     [moduleNavigationItems, workspaceView]
   );
   const sidebarNavigationSections = useMemo(() => {
-    const labelByKey = {
-      executiveReport: "Operaciones",
-      mapReports: "Reportes",
-      padron: "Padron"
-    };
     const badgeByKey = {
       records: safeRecords.length,
       padron: padronMeta?.total_records ?? 0,
@@ -2207,7 +2206,6 @@ function App() {
     };
     const normalizeItem = (item) => ({
       ...item,
-      label: labelByKey[item.key] || item.label,
       badge: badgeByKey[item.key] ?? null
     });
     const items = moduleNavigationItems.map(normalizeItem);
@@ -2215,23 +2213,7 @@ function App() {
       ? { key: "dashboard", label: "Tablero", icon: "dashboard", helper: "Control", badge: null }
       : null;
 
-    return [
-      {
-        key: "principal",
-        title: "Principal",
-        items: [dashboardItem, ...items.filter((item) => ["profile", "records", "lookup"].includes(item.key))].filter(Boolean)
-      },
-      {
-        key: "campo",
-        title: "Puntos GPS",
-        items: items.filter((item) => ["map", "fieldValidation", "mapReports", "planos"].includes(item.key))
-      },
-      {
-        key: "gestion",
-        title: "Gestion",
-        items: items.filter((item) => ["executiveReport", "requests", "barrioCodes", "padron", "importacion", "logs", "users"].includes(item.key))
-      }
-    ].filter((section) => section.items.length);
+    return buildSidebarSections(items, dashboardItem);
   }, [
     isAdmin,
     mapReportData.totalPoints,
@@ -13124,19 +13106,11 @@ function App() {
             type="button"
             className="app-menu-button"
             onClick={() => setShowMobileModuleMenu((current) => !current)}
-            aria-label="Abrir menu"
+            aria-label={showMobileModuleMenu ? "Cerrar menú" : "Abrir menú"}
+            aria-expanded={showMobileModuleMenu}
+            aria-controls="control-sidebar"
           >
-            <Icon name="more" />
-          </button>
-          <button
-            type="button"
-            className="app-sidebar-toggle no-print"
-            onClick={() => setSidebarCollapsed((current) => !current)}
-            aria-label={sidebarCollapsed ? "Mostrar barra lateral" : "Ocultar barra lateral"}
-            aria-pressed={sidebarCollapsed}
-            title={sidebarCollapsed ? "Mostrar barra lateral" : "Ocultar barra lateral"}
-          >
-            <Icon name="arrowLeft" />
+            <Icon name="menu" />
           </button>
           <div className="app-topbar-brand">
             <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="app-topbar-logo" />
@@ -13772,56 +13746,19 @@ function App() {
           )}
         </div>
       </header>
-      <aside className={`app-sidebar no-print ${showMobileModuleMenu ? "is-open" : ""}`}>
-        <div className="app-sidebar-profile">
-          <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" />
-          <div>
-            <strong>Aguas de Choluteca</strong>
-            <span>Panel ejecutivo</span>
-          </div>
-        </div>
-        {sidebarNavigationSections.map((section) => (
-          <div className="app-sidebar-section" key={section.key}>
-            <span className="app-sidebar-label">{section.title}</span>
-            {section.items.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`app-sidebar-item ${workspaceView === item.key ? "is-active" : ""}`}
-                title={sidebarCollapsed ? item.label : undefined}
-                onClick={() => {
-                  setWorkspaceView(item.key);
-                  setShowMobileModuleMenu(false);
-                }}
-              >
-                <Icon name={item.icon} />
-                <span>
-                  <strong>{item.label}</strong>
-                  {item.helper ? <em>{item.helper}</em> : null}
-                </span>
-                {item.badge !== null && item.badge !== undefined ? (
-                  <small className="app-sidebar-badge">{item.badge}</small>
-                ) : null}
-              </button>
-            ))}
-          </div>
-        ))}
-        <div className="app-sidebar-status">
-          <span className="app-sidebar-status-dot" />
-          <div>
-            <strong>{currentModuleNavigation?.label || "Sistema"}</strong>
-            <small>{currentModuleNavigation?.helper || "Modulo activo"}</small>
-          </div>
-        </div>
-      </aside>
-      {showMobileModuleMenu ? (
-        <button
-          type="button"
-          className="app-sidebar-backdrop no-print"
-          aria-label="Cerrar menu"
-          onClick={() => setShowMobileModuleMenu(false)}
-        />
-      ) : null}
+      <AppSidebar
+        sections={sidebarNavigationSections}
+        activeKey={workspaceView}
+        collapsed={sidebarCollapsed}
+        mobileOpen={showMobileModuleMenu}
+        logo={logoAguasCholuteca}
+        userName={session?.user?.full_name || session?.user?.username || "Usuario"}
+        userRole={roleLabel(session?.user?.role)}
+        onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+        onNavigate={setWorkspaceView}
+        onCloseMobile={closeMobileModuleMenu}
+        onLogout={handleLogout}
+      />
       {workspaceView === "dashboard" ? (
         <Suspense fallback={<div className="module-loading-state" role="status">Cargando tablero...</div>}>
           <DashboardWorkspace model={{
