@@ -616,6 +616,14 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           .census-report-table td {
             font-size: 9px;
           }
+          .census-report-table th:nth-child(1),
+          .census-report-table td:nth-child(1) { width: 24px; text-align: center; }
+          .census-report-table th:nth-child(3),
+          .census-report-table td:nth-child(3) { width: 84px; }
+          .census-report-table th:nth-child(4),
+          .census-report-table td:nth-child(4) { width: 120px; }
+          .census-report-table th:nth-child(7),
+          .census-report-table td:nth-child(7) { width: 26%; }
           .field-report-table {
             width: 100%;
             border-collapse: collapse;
@@ -1012,6 +1020,19 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             border-radius: 10px;
             font-size: 9px;
           }
+          .map-report-chart {
+            border: 1px solid rgba(178, 207, 230, 0.82);
+            border-radius: 12px;
+            padding: 8px 10px;
+            background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(225,241,252,.86));
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .map-report-chart h2 { margin: 0 0 6px; font-size: 11px; color: #0d3f6a; }
+          .map-report-chart > div { display: grid; grid-template-columns: 120px 1fr 28px; gap: 7px; align-items: center; margin-top: 4px; font-size: 8.5px; }
+          .map-report-chart i { height: 6px; overflow: hidden; border-radius: 999px; background: #dcebf6; }
+          .map-report-chart i b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0d6fb8, #52b7e8); }
+          .map-report-chart strong { text-align: right; color: #0d4d86; }
           .map-brief-report-top h2 {
             margin: 0 0 6px;
             font-size: 12px;
@@ -1065,6 +1086,10 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           }
           .map-brief-report-table th:nth-child(6),
           .map-brief-report-table td:nth-child(6) {
+            width: 30%;
+          }
+          .map-brief-report-table th:nth-child(7),
+          .map-brief-report-table td:nth-child(7) {
             width: 58px;
             text-align: center;
             font-weight: 800;
