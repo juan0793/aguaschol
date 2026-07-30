@@ -77,7 +77,7 @@ import {
   getMapPointContextKey,
   getMapPointTypeLabel
 } from "./utils/mapField";
-import { buildPadronNameIndex } from "./modules/reports/utils/reportSelectors";
+import { buildPadronNameIndex, buildSharedCadastralKeys, stripServicesFromDescription } from "./modules/reports/utils/reportSelectors";
 import {
   comparableFormShape,
   getRecordDeadlineMeta,
@@ -582,25 +582,7 @@ const getMapReportTopZones = (reportData = {}, limit = 8) =>
     .sort((left, right) => (right.total || 0) - (left.total || 0))
     .slice(0, limit);
 const getMapZoneClavesLabel = (zone = {}) => Array.from(zone.claves || []).join(", ");
-const MAP_REPORT_SERVICE_CODES = [
-  { label: "Agua", code: "A" },
-  { label: "Alcant.", code: "AL" },
-  { label: "Barrido", code: "B" },
-  { label: "Desechos", code: "D" },
-  { label: "Peligrosos", code: "P" }
-];
-const MAP_REPORT_SERVICE_LEGEND = "A=Agua, AL=Alcant., B=Barrido, D=Desechos/tren, P=Peligrosos";
-const getMapReportServicesCheck = (value = "") => {
-  const activeServices = String(value || "")
-    .split(",")
-    .map((service) => service.trim())
-    .filter(Boolean);
-
-  return MAP_REPORT_SERVICE_CODES
-    .filter((service) => activeServices.includes(service.label))
-    .map((service) => `${service.code}✓`)
-    .join(" ");
-};
+const MAP_REPORT_SERVICE_LEGEND = "Servicios activos extraídos de la descripción de campo";
 const getMapPointPadronNames = (point = {}, nameIndex = new Map()) =>
   Array.from(
     new Set(
@@ -646,7 +628,7 @@ const buildMapReportBriefRows = (reportData = {}, nameIndex = new Map()) => {
         point ? getMapPointPadronNames(point, nameIndex) : "--",
         point ? getMapPointTypeLabel(point.point_type) : zone.pointTypesLabel || "--",
         point ? getMapPointTechnicalDescription(point) || "--" : "--",
-        getMapReportServicesCheck(servicesLabel)
+        servicesLabel
       ]);
     });
   });
@@ -671,7 +653,7 @@ const FIELD_DEBT_SERVICE_DEFINITIONS = [
   }
 ];
 const getFieldDebtServiceShortLabels = (service = {}) =>
-  [service.shortLabel, ...(service.legacyShortLabels || [])].filter(Boolean);
+  [service.shortLabel, service.label, ...(service.legacyShortLabels || [])].filter(Boolean);
 const getMapPointHousingUnits = (point = {}) => {
   const numeric = Math.round(Number(point.housing_units || 1));
   return Number.isFinite(numeric) ? Math.max(1, numeric) : 1;
@@ -691,7 +673,7 @@ const getMapPointServicesLabel = (point = {}) => {
     });
   }).map((service) => service.shortLabel);
 
-  return activeServices.length ? activeServices.join(", ") : "--";
+  return activeServices.length ? activeServices.join(", ") : "Sin servicios activos";
 };
 const getMapZoneServicesLabel = (zone = {}) => {
   const services = new Set();
@@ -721,11 +703,12 @@ const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
   if (value === "N") return "No";
   return "--";
 };
-const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN = /\n?\s*(?:Datos del padron(?: \([^)]+\))?:\n?)?(?:Abonado:.*\n)?(?:Nombre:.*\n)?(?:Barrio\/colonia:.*\n)?(?:Direccion:.*\n)?Servicios:.*(?=\n{2,}|$)/i;
+const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN =
+  /\n?\s*(?:Datos del padron(?: \([^)]+\))?:\n?)?(?:(?:Abonado|Nombre|Barrio\/colonia|Direccion):.*\n)+Servicios:.*(?=\n{2,}|$)/i;
 const stripMapDescriptionPadronBlock = (value = "") =>
   String(value ?? "").replace(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN, "").trimEnd();
 const getMapPointTechnicalDescription = (point = {}) =>
-  stripMapDescriptionPadronBlock(point.description || "").trim();
+  stripServicesFromDescription(stripMapDescriptionPadronBlock(point.description || ""));
 const getMapPointReferenceNote = (point = {}) =>
   String(point.reference_note || point.reference || "").trim();
 const buildMapDescriptionPadronBlock = (match = {}) => {
@@ -6857,8 +6840,10 @@ function App() {
     };
   };
 
-  const buildMapReportPadronNameIndex = async () =>
-    buildPadronNameIndex((await buildFieldDebtReport()).results);
+  const buildMapReportPadronData = async () => {
+    const results = (await buildFieldDebtReport()).results;
+    return { padronNames: buildPadronNameIndex(results), sharedKeys: buildSharedCadastralKeys(results) };
+  };
 
   const handleVerifyFieldDebt = async () => {
     setLoadingFieldDebtReport(true);
@@ -8235,7 +8220,7 @@ function App() {
   const handlePrintMapCensusReport = async () => {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = mapReportPrintData;
-    const padronNames = await buildMapReportPadronNameIndex();
+    const { padronNames } = await buildMapReportPadronData();
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
@@ -8346,7 +8331,7 @@ function App() {
         compress: true
       });
       const reportData = mapReportPrintData;
-      const padronNames = await buildMapReportPadronNameIndex();
+      const { padronNames } = await buildMapReportPadronData();
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
@@ -8519,10 +8504,11 @@ function App() {
   const handlePrintMapBriefReport = async () => {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = mapReportPrintData;
-    const padronNames = await buildMapReportPadronNameIndex();
+    const { padronNames, sharedKeys } = await buildMapReportPadronData();
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportNotes = mapReportSettings.report_notes.trim();
+    const sharedAccounts = sharedKeys.reduce((total, item) => total + item.total, 0);
     const rowsMarkup = buildMapReportBriefRows(reportData, padronNames)
       .map(
         ([index, barrio, clave, nombre, tipo, descripcion, services]) => `
@@ -8533,7 +8519,7 @@ function App() {
             <td>${escapeHtml(nombre)}</td>
             <td>${escapeHtml(tipo)}</td>
             <td>${escapeHtml(descripcion)}</td>
-            <td>${escapeHtml(services)}</td>
+            <td class="map-brief-service-cell">${escapeHtml(services)}</td>
           </tr>
         `
       )
@@ -8594,13 +8580,30 @@ function App() {
                   <th>Nombre en padrón</th>
                   <th>Tipo</th>
                   <th>Descripción</th>
-                  <th>Servicios<br />A/AL/B/R/D</th>
+                  <th>Servicios activos</th>
                 </tr>
               </thead>
               <tbody>
                 ${rowsMarkup || '<tr><td colspan="7">No hay puntos guardados para generar el resumen.</td></tr>'}
               </tbody>
             </table>
+          </section>
+          <section class="map-brief-shared-keys">
+            <div>
+              <span class="field-report-zone-kicker">Cruce del padrón</span>
+              <h3>Abonados que comparten clave catastral</h3>
+              <p><strong>${sharedKeys.length}</strong> claves agrupan <strong>${sharedAccounts}</strong> abonados.</p>
+            </div>
+            ${
+              sharedKeys.length
+                ? `<table><thead><tr><th>Clave catastral</th><th>Abonados</th><th>Total</th></tr></thead><tbody>${sharedKeys
+                    .map(
+                      (item) =>
+                        `<tr><td>${escapeHtml(item.clave)}</td><td>${escapeHtml(item.abonados.join(", "))}</td><td>${item.total}</td></tr>`
+                    )
+                    .join("")}</tbody></table>`
+                : "<p>No se detectaron varios abonados con la misma clave catastral.</p>"
+            }
           </section>
         </div>
       `,
@@ -8624,11 +8627,12 @@ function App() {
         compress: true
       });
       const reportData = mapReportPrintData;
-      const padronNames = await buildMapReportPadronNameIndex();
+      const { padronNames, sharedKeys } = await buildMapReportPadronData();
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
       const reportNotes = mapReportSettings.report_notes.trim();
+      const sharedAccounts = sharedKeys.reduce((total, item) => total + item.total, 0);
       const pageWidth = document.internal.pageSize.getWidth();
       const pageHeight = document.internal.pageSize.getHeight();
       const addPageFooter = () => {
@@ -8731,14 +8735,48 @@ function App() {
         margin: { left: 14, right: 14, bottom: 14 },
         columnStyles: {
           0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 27 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 34 },
-          4: { cellWidth: 21 },
-          5: { cellWidth: 52 },
-          6: { cellWidth: 21, halign: "center", fontStyle: "bold" }
+          1: { cellWidth: 25 },
+          2: { cellWidth: 24 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 50 },
+          6: { cellWidth: 31, fontStyle: "bold" }
         }
       });
+
+      let sharedY = (document.lastAutoTable?.finalY ?? 220) + 10;
+      if (sharedY > 230) {
+        document.addPage("letter", "portrait");
+        sharedY = 18;
+      }
+      document.setFont("helvetica", "bold");
+      document.setFontSize(11);
+      document.setTextColor(16, 55, 91);
+      document.text("Abonados que comparten clave catastral", 14, sharedY);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(8.5);
+      document.setTextColor(69, 96, 122);
+      document.text(`${sharedKeys.length} claves agrupan ${sharedAccounts} abonados.`, 14, sharedY + 6);
+      if (sharedKeys.length) {
+        autoTable(document, {
+          startY: sharedY + 10,
+          head: [["Clave catastral", "Abonados", "Nombres", "Total"]],
+          body: sharedKeys.map((item) => [item.clave, item.abonados.join(", "), item.nombres.join(", ") || "--", String(item.total)]),
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 2, textColor: [28, 44, 62] },
+          headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 251, 255] },
+          margin: { left: 14, right: 14, bottom: 14 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 45 },
+            2: { cellWidth: 87 },
+            3: { cellWidth: 16, halign: "center" }
+          }
+        });
+      } else {
+        document.text("No se detectaron varios abonados con la misma clave catastral.", 14, sharedY + 12);
+      }
 
       const pageCount = document.getNumberOfPages();
       for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
