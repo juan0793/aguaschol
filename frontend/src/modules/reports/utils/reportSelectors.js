@@ -41,3 +41,23 @@ export const paginate = (items = [], page = 1, pageSize = PAGE_SIZE) => ({
   totalPages: Math.max(1, Math.ceil(items.length / pageSize)),
   total: items.length
 });
+
+export const buildPadronNameIndex = (results = []) => {
+  const names = new Map();
+  const add = (key, name) => {
+    const cleanName = String(name || "").trim();
+    if (key && cleanName && !names.has(key)) names.set(key, cleanName);
+  };
+
+  results.forEach((result) => {
+    (result.matches || []).forEach((match) => {
+      const name = match.inquilino || match.nombre;
+      add(result.key, name);
+      add(match.clave_catastral && `clave:${match.clave_catastral}`, name);
+      add(match.clave_aguas_formato && `clave:${match.clave_aguas_formato}`, name);
+      add(match.abonado && `abonado:${String(match.abonado).replace(/\D/g, "")}`, name);
+    });
+  });
+
+  return names;
+};

@@ -77,6 +77,7 @@ import {
   getMapPointContextKey,
   getMapPointTypeLabel
 } from "./utils/mapField";
+import { buildPadronNameIndex } from "./modules/reports/utils/reportSelectors";
 import {
   comparableFormShape,
   getRecordDeadlineMeta,
@@ -600,7 +601,39 @@ const getMapReportServicesCheck = (value = "") => {
     .map((service) => `${service.code}✓`)
     .join(" ");
 };
-const buildMapReportBriefRows = (reportData = {}) => {
+const getMapPointPadronNames = (point = {}, nameIndex = new Map()) =>
+  Array.from(
+    new Set(
+      extractFieldDebtLookupReferences(
+        [point.report_key, point.reference_note, point.reference, point.description].filter(Boolean).join("\n")
+      )
+        .map((reference) => nameIndex.get(reference.key))
+        .filter(Boolean)
+    )
+  ).join(", ") || "--";
+const getMapPointReportReferenceLabel = (point = {}) =>
+  extractFieldDebtLookupReferences(
+    [point.report_key, point.reference_note, point.reference, point.description].filter(Boolean).join("\n")
+  )
+    .map((reference) => reference.label)
+    .join(", ") || point.report_key || "--";
+const getMapReportTypeChartRows = (reportData = {}, limit = 6) =>
+  Object.entries(reportData.totalsByType || {})
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, limit);
+const buildMapReportTypeChartMarkup = (reportData = {}) => {
+  const rows = getMapReportTypeChartRows(reportData);
+  const max = Math.max(1, ...rows.map(([, total]) => Number(total || 0)));
+  return rows.length
+    ? `<section class="map-report-chart"><h2>Distribución de puntos</h2>${rows
+        .map(
+          ([label, total]) =>
+            `<div><span>${escapeHtml(label)}</span><i><b style="width:${Math.max(5, (Number(total || 0) / max) * 100)}%"></b></i><strong>${total}</strong></div>`
+        )
+        .join("")}</section>`
+    : "";
+};
+const buildMapReportBriefRows = (reportData = {}, nameIndex = new Map()) => {
   const rows = [];
   (reportData.zones || []).forEach((zone) => {
     const items = zone.items?.length ? zone.items : [null];
@@ -609,11 +642,11 @@ const buildMapReportBriefRows = (reportData = {}) => {
       rows.push([
         String(rows.length + 1),
         zone.displayName || zone.zone || "--",
-        point?.report_key || "--",
-        "1",
+        point ? getMapPointReportReferenceLabel(point) : "--",
+        point ? getMapPointPadronNames(point, nameIndex) : "--",
         point ? getMapPointTypeLabel(point.point_type) : zone.pointTypesLabel || "--",
-        getMapReportServicesCheck(servicesLabel),
-        String(point ? getMapPointHousingUnits(point) : getMapZoneHousingUnits(zone))
+        point ? getMapPointTechnicalDescription(point) || "--" : "--",
+        getMapReportServicesCheck(servicesLabel)
       ]);
     });
   });
@@ -6824,6 +6857,9 @@ function App() {
     };
   };
 
+  const buildMapReportPadronNameIndex = async () =>
+    buildPadronNameIndex((await buildFieldDebtReport()).results);
+
   const handleVerifyFieldDebt = async () => {
     setLoadingFieldDebtReport(true);
     setShowFieldDebtModal(true);
@@ -8199,6 +8235,7 @@ function App() {
   const handlePrintMapCensusReport = async () => {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = mapReportPrintData;
+    const padronNames = await buildMapReportPadronNameIndex();
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
@@ -8212,24 +8249,22 @@ function App() {
               <div>
                 <span class="field-report-zone-kicker">${escapeHtml(zone.displayKicker || `Zona ${index + 1}`)}</span>
                 <h3>${escapeHtml(zone.displayName || zone.zone)}</h3>
-                <p>Referencia 1: ${escapeHtml(zone.displayReference || "Sin referencia principal")}</p>
-                <p>Referencia 2: ${escapeHtml(zone.displayLocation || "Sin referencia secundaria")}</p>
+                <p>Ubicación: ${escapeHtml(zone.displayLocation || "Sin referencia")}</p>
               </div>
               <div class="field-report-zone-meta">
                 <span>Puntos: ${zone.total}</span>
-                <span>Fecha: ${formatDateTime(zone.items[0]?.created_at)}</span>
               </div>
             </div>
             <table class="field-report-table census-report-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Nombre / sector</th>
+                  <th>Barrio / sector</th>
+                  <th>Clave / abonado</th>
+                  <th>Nombre en padrón</th>
                   <th>Tipo</th>
-                  <th>Referencia 1</th>
-                  <th>Referencia 2</th>
-                  <th>Descripcion</th>
-                  <th>Fecha</th>
+                  <th>Referencia</th>
+                  <th>Descripción</th>
                 </tr>
               </thead>
               <tbody>
@@ -8238,12 +8273,12 @@ function App() {
                     (point, pointIndex) => `
                       <tr class="${getReportPointRowClassName(point)}">
                         <td>${pointIndex + 1}</td>
-                        <td>${escapeHtml(point.report_zone_label || zone.displayName || zone.zone || "--")}</td>
+                        <td>${escapeHtml(zone.displayName || zone.zone || "--")}</td>
+                        <td>${escapeHtml(getMapPointReportReferenceLabel(point))}</td>
+                        <td>${escapeHtml(getMapPointPadronNames(point, padronNames))}</td>
                         <td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td>
-                        <td>${escapeHtml(point.suggested_reference || zone.displayReference || "--")}</td>
                         <td>${escapeHtml(getMapPointReferenceNote(point) || zone.displayLocation || "--")}</td>
                         <td>${escapeHtml(getMapPointTechnicalDescription(point) || "--")}</td>
-                        <td>${escapeHtml(formatDateTime(point.created_at))}</td>
                       </tr>
                     `
                   )
@@ -8286,6 +8321,7 @@ function App() {
             <div class="field-report-total-chip"><strong>Zonas / manzanas</strong><span>${reportData.totalZones}</span></div>
             <div class="field-report-total-chip"><strong>Cajas de registro</strong><span>${totalCajaRegistro}</span></div>
           </section>
+          ${buildMapReportTypeChartMarkup(reportData)}
           ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones del censo</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
           ${zonesMarkup || '<p class="field-report-empty">No hay puntos guardados para generar el reporte.</p>'}
         </div>
@@ -8310,6 +8346,7 @@ function App() {
         compress: true
       });
       const reportData = mapReportPrintData;
+      const padronNames = await buildMapReportPadronNameIndex();
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
@@ -8352,7 +8389,28 @@ function App() {
       document.text(`Zonas / manzanas: ${reportData.totalZones}`, 102, 51);
       document.text(document.splitTextToSize(`Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}`, 178), 18, 57);
 
+      const chartRows = getMapReportTypeChartRows(reportData);
       let currentY = 66;
+      if (chartRows.length) {
+        const maxChartValue = Math.max(1, ...chartRows.map(([, total]) => Number(total || 0)));
+        document.setFont("helvetica", "bold");
+        document.setFontSize(9);
+        document.setTextColor(16, 55, 91);
+        document.text("Distribucion de puntos", 14, currentY);
+        chartRows.forEach(([label, total], index) => {
+          const rowY = currentY + 6 + index * 5;
+          document.setFont("helvetica", "normal");
+          document.setFontSize(7.5);
+          document.setTextColor(45, 75, 101);
+          document.text(String(label).slice(0, 25), 14, rowY);
+          document.setFillColor(224, 235, 245);
+          document.roundedRect(62, rowY - 2.7, 120, 3, 1.5, 1.5, "F");
+          document.setFillColor(21, 118, 209);
+          document.roundedRect(62, rowY - 2.7, Math.max(4, (Number(total || 0) / maxChartValue) * 120), 3, 1.5, 1.5, "F");
+          document.text(String(total), 198, rowY, { align: "right" });
+        });
+        currentY += chartRows.length * 5 + 10;
+      }
       if (reportNotes) {
         document.setFont("helvetica", "bold");
         document.setFontSize(9);
@@ -8377,28 +8435,27 @@ function App() {
         }
 
         document.setFillColor(237, 245, 252);
-        document.roundedRect(14, currentY, 188, 18, 3, 3, "F");
+        document.roundedRect(14, currentY, 188, 13, 3, 3, "F");
         document.setFont("helvetica", "bold");
         document.setFontSize(10.5);
         document.setTextColor(16, 55, 91);
         document.text(`${zone.displayKicker || `Zona ${index + 1}`}: ${zone.displayName || zone.zone}`, 18, currentY + 6);
         document.setFont("helvetica", "normal");
         document.setFontSize(8.2);
-        document.text(`Referencia 1: ${zone.displayReference || "Sin referencia principal"}`, 18, currentY + 11);
-        document.text(`Referencia 2: ${zone.displayLocation || "Sin referencia secundaria"}`, 18, currentY + 15);
+        document.text(`Ubicacion: ${zone.displayLocation || "Sin referencia"}`, 18, currentY + 11);
 
         autoTable(document, {
-          startY: currentY + 22,
-          head: [["#", "Nombre / sector", "Tipo", "Referencia 1", "Referencia 2", "Descripcion", "Fecha"]],
+          startY: currentY + 17,
+          head: [["#", "Barrio / sector", "Clave / abonado", "Nombre en padron", "Tipo", "Referencia", "Descripcion"]],
           body: zone.items.map((point, pointIndex) => {
             const row = [
               String(pointIndex + 1),
-              point.report_zone_label || zone.displayName || zone.zone || "--",
+              zone.displayName || zone.zone || "--",
+              getMapPointReportReferenceLabel(point),
+              getMapPointPadronNames(point, padronNames),
               getMapPointTypeLabel(point.point_type),
-              point.suggested_reference || zone.displayReference || "--",
               getMapPointReferenceNote(point) || zone.displayLocation || "--",
-              getMapPointTechnicalDescription(point) || "--",
-              formatDateTime(point.created_at)
+              getMapPointTechnicalDescription(point) || "--"
             ];
             row.rawPoint = point;
             return row;
@@ -8439,12 +8496,12 @@ function App() {
           margin: { left: 14, right: 14 },
           columnStyles: {
             0: { cellWidth: 8, halign: "center" },
-            1: { cellWidth: 30 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 28 },
-            4: { cellWidth: 32 },
-            5: { cellWidth: 44 },
-            6: { cellWidth: 24 }
+            1: { cellWidth: 27 },
+            2: { cellWidth: 25 },
+            3: { cellWidth: 35 },
+            4: { cellWidth: 22 },
+            5: { cellWidth: 28 },
+            6: { cellWidth: 43 }
           }
         });
 
@@ -8462,40 +8519,21 @@ function App() {
   const handlePrintMapBriefReport = async () => {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = mapReportPrintData;
+    const padronNames = await buildMapReportPadronNameIndex();
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportNotes = mapReportSettings.report_notes.trim();
-    const totalsMarkup = Object.entries(reportData.totalsByType)
+    const rowsMarkup = buildMapReportBriefRows(reportData, padronNames)
       .map(
-        ([label, total]) => `
-          <div class="field-report-total-chip">
-            <strong>${escapeHtml(label)}</strong>
-            <span>${total}</span>
-          </div>
-        `
-      )
-      .join("");
-    const topZonesMarkup = getMapReportTopZones(reportData, 6)
-      .map(
-        (zone) => `
-          <div>
-            <strong>${escapeHtml(zone.displayName || zone.zone || "--")}</strong>
-            <span>${zone.total || 0} puntos</span>
-          </div>
-        `
-      )
-      .join("");
-    const rowsMarkup = buildMapReportBriefRows(reportData)
-      .map(
-        ([index, name, claves, total, types, services, housingUnits]) => `
+        ([index, barrio, clave, nombre, tipo, descripcion, services]) => `
           <tr>
             <td>${escapeHtml(index)}</td>
-            <td>${escapeHtml(name)}</td>
-            <td>${escapeHtml(claves)}</td>
-            <td>${escapeHtml(total)}</td>
-            <td>${escapeHtml(types)}</td>
+            <td>${escapeHtml(barrio)}</td>
+            <td>${escapeHtml(clave)}</td>
+            <td>${escapeHtml(nombre)}</td>
+            <td>${escapeHtml(tipo)}</td>
+            <td>${escapeHtml(descripcion)}</td>
             <td>${escapeHtml(services)}</td>
-            <td>${escapeHtml(housingUnits)}</td>
           </tr>
         `
       )
@@ -8525,14 +8563,7 @@ function App() {
             <div><strong>Barrios / zonas</strong><span>${reportData.totalZones}</span></div>
             <div><strong>Cajas de registro</strong><span>${totalCajaRegistro}</span></div>
           </section>
-          <section class="field-report-summary map-brief-report-types">
-            ${totalsMarkup || '<div class="field-report-total-chip"><strong>Sin puntos</strong><span>0</span></div>'}
-          </section>
-          ${
-            topZonesMarkup
-              ? `<section class="map-brief-report-top"><h2>Barrios principales</h2><div>${topZonesMarkup}</div></section>`
-              : ""
-          }
+          ${buildMapReportTypeChartMarkup(reportData)}
           ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
           <section class="field-report-zone map-brief-report-table-section">
             <div class="field-report-zone-head">
@@ -8550,20 +8581,20 @@ function App() {
                 <col class="map-brief-col-index" />
                 <col class="map-brief-col-barrio" />
                 <col class="map-brief-col-clave" />
-                <col class="map-brief-col-puntos" />
-                <col class="map-brief-col-tipos" />
+                <col class="map-brief-col-nombre" />
+                <col class="map-brief-col-tipo" />
+                <col class="map-brief-col-descripcion" />
                 <col class="map-brief-col-servicios" />
-                <col class="map-brief-col-viviendas" />
               </colgroup>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Barrio / zona</th>
-                  <th>Clave(s)</th>
-                  <th>Pts.</th>
-                  <th>Tipos</th>
+                  <th>Clave / abonado</th>
+                  <th>Nombre en padrón</th>
+                  <th>Tipo</th>
+                  <th>Descripción</th>
                   <th>Servicios<br />A/AL/B/R/D</th>
-                  <th>Viviendas</th>
                 </tr>
               </thead>
               <tbody>
@@ -8593,6 +8624,7 @@ function App() {
         compress: true
       });
       const reportData = mapReportPrintData;
+      const padronNames = await buildMapReportPadronNameIndex();
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
@@ -8639,42 +8671,26 @@ function App() {
       document.text(String(reportData.totalZones), 122, 55);
       document.text(String(totalCajaRegistro), 164, 55);
 
-      autoTable(document, {
-        startY: 70,
-        head: [["Tipo de punto", "Total"]],
-        body: Object.entries(reportData.totalsByType).length
-          ? Object.entries(reportData.totalsByType)
-          : [["Sin puntos", "0"]],
-        theme: "grid",
-        styles: { fontSize: 8.5, cellPadding: 2.2, textColor: [28, 44, 62] },
-        headStyles: { fillColor: [21, 118, 209], textColor: [255, 255, 255], fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [248, 251, 255] },
-        margin: { left: 14, right: 110 },
-        columnStyles: {
-          0: { cellWidth: 60 },
-          1: { cellWidth: 18, halign: "center" }
-        }
+      const chartRows = getMapReportTypeChartRows(reportData);
+      const maxChartValue = Math.max(1, ...chartRows.map(([, total]) => Number(total || 0)));
+      document.setFont("helvetica", "bold");
+      document.setFontSize(9);
+      document.setTextColor(16, 55, 91);
+      document.text("Distribucion de puntos", 14, 70);
+      chartRows.forEach(([label, total], index) => {
+        const rowY = 76 + index * 5;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(7.5);
+        document.setTextColor(45, 75, 101);
+        document.text(String(label).slice(0, 25), 14, rowY);
+        document.setFillColor(224, 235, 245);
+        document.roundedRect(62, rowY - 2.7, 120, 3, 1.5, 1.5, "F");
+        document.setFillColor(21, 118, 209);
+        document.roundedRect(62, rowY - 2.7, Math.max(4, (Number(total || 0) / maxChartValue) * 120), 3, 1.5, 1.5, "F");
+        document.text(String(total), 198, rowY, { align: "right" });
       });
 
-      autoTable(document, {
-        startY: 70,
-        head: [["Barrio principal", "Puntos"]],
-        body: getMapReportTopZones(reportData, 6).map((zone) => [
-          zone.displayName || zone.zone || "--",
-          String(zone.total || 0)
-        ]),
-        theme: "grid",
-        styles: { fontSize: 8.5, cellPadding: 2.2, textColor: [28, 44, 62] },
-        headStyles: { fillColor: [13, 77, 134], textColor: [255, 255, 255], fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [248, 251, 255] },
-        margin: { left: 110, right: 14 },
-        columnStyles: {
-          0: { cellWidth: 66 },
-          1: { cellWidth: 16, halign: "center" }
-        }
-      });
-
-      let currentY = Math.max(118, document.lastAutoTable?.finalY ?? 108);
+      let currentY = 80 + chartRows.length * 5;
       if (reportNotes) {
         document.setFont("helvetica", "bold");
         document.setFontSize(9);
@@ -8695,8 +8711,8 @@ function App() {
 
       autoTable(document, {
         startY: currentY + 6,
-        head: [["#", "Barrio / zona", "Clave(s)", "Pts.", "Tipos", "Servicios A/AL/B/R/D", "Viviendas"]],
-        body: buildMapReportBriefRows(reportData),
+        head: [["#", "Barrio / zona", "Clave / abonado", "Nombre en padron", "Tipo", "Descripcion", "Servicios"]],
+        body: buildMapReportBriefRows(reportData, padronNames),
         theme: "grid",
         styles: {
           fontSize: 7.4,
@@ -8715,12 +8731,12 @@ function App() {
         margin: { left: 14, right: 14, bottom: 14 },
         columnStyles: {
           0: { cellWidth: 8, halign: "center" },
-          1: { cellWidth: 39 },
-          2: { cellWidth: 30 },
-          3: { cellWidth: 9, halign: "center" },
-          4: { cellWidth: 34 },
-          5: { cellWidth: 20, halign: "center", fontStyle: "bold" },
-          6: { cellWidth: 18, halign: "center" }
+          1: { cellWidth: 27 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 34 },
+          4: { cellWidth: 21 },
+          5: { cellWidth: 52 },
+          6: { cellWidth: 21, halign: "center", fontStyle: "bold" }
         }
       });
 
