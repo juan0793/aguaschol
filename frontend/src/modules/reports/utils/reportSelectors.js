@@ -61,3 +61,32 @@ export const buildPadronNameIndex = (results = []) => {
 
   return names;
 };
+
+export const buildSharedCadastralKeys = (results = []) => {
+  const keys = new Map();
+
+  results.forEach((result) => {
+    (result.matches || []).forEach((match) => {
+      const clave = String(match.clave_catastral || match.clave_aguas_formato || "").trim();
+      const abonado = String(match.abonado || "").trim();
+      if (!clave || !abonado) return;
+      if (!keys.has(clave)) keys.set(clave, { abonados: new Set(), nombres: new Set() });
+      keys.get(clave).abonados.add(abonado);
+      const nombre = String(match.inquilino || match.nombre || "").trim();
+      if (nombre) keys.get(clave).nombres.add(nombre);
+    });
+  });
+
+  return Array.from(keys, ([clave, data]) => ({
+    clave,
+    abonados: Array.from(data.abonados),
+    nombres: Array.from(data.nombres),
+    total: data.abonados.size
+  })).filter((item) => item.total > 1);
+};
+
+const servicesPattern =
+  /\s*(?:Servicios:\s*)?(?:Agua|Alcant\.?|Alcantarillado|Barrido|Desechos|Recolec\.?|Recolecci[oó]n|Peligrosos)\s*:\s*(?:S[ií]|No)(?:\s*\|\s*(?:Agua|Alcant\.?|Alcantarillado|Barrido|Desechos|Recolec\.?|Recolecci[oó]n|Peligrosos)\s*:\s*(?:S[ií]|No)){1,4}/gi;
+
+export const stripServicesFromDescription = (value = "") =>
+  String(value).replace(servicesPattern, "").replace(/\s{2,}/g, " ").trim();
