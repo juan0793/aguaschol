@@ -35,14 +35,14 @@ export const loginUser = async ({ username, password }) => {
 
   const user = rows[0];
   if (!user || !user.is_active) {
-    const error = new Error("Usuario o contrasena incorrectos.");
+    const error = new Error("Usuario o contraseña incorrectos.");
     error.status = 401;
     throw error;
   }
 
   const validPassword = await verifyPassword(password, user.password_hash);
   if (!validPassword) {
-    const error = new Error("Usuario o contrasena incorrectos.");
+    const error = new Error("Usuario o contraseña incorrectos.");
     error.status = 401;
     throw error;
   }

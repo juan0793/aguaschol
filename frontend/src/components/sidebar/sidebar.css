@@ -60,8 +60,10 @@
 .control-sidebar-user { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: .55rem; align-items: center; min-width: 0; padding: .35rem; border: 0; background: transparent; color: var(--sidebar-text); box-shadow: none; text-align: left; }
 .control-sidebar-user>span { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(142,215,250,.28); border-radius: 10px; background: var(--sidebar-surface); color: var(--sidebar-icon); font-weight: 800; }
 .control-sidebar-user strong { overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
-.control-sidebar-logout { display: grid; width: 34px; height: 34px; min-height: 34px; padding: 0; place-items: center; align-self: center; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: var(--sidebar-surface); color: var(--sidebar-text-muted); box-shadow: none; }
-.control-sidebar-logout span { display: none; }
+.control-sidebar-logout { display: grid; width: 34px; height: 34px; min-height: 34px; padding: 0; place-items: center; align-self: center; border: 1px solid rgba(254,202,202,.38); border-radius: 10px; background: rgba(220,38,38,.2); color: #ffe4e6; box-shadow: none; }
+.control-sidebar-logout .app-icon { display: inline-flex; color: currentColor; }
+.control-sidebar-logout:hover { border-color: rgba(254,202,202,.62); background: rgba(220,38,38,.36); color: #fff; }
+.control-sidebar-logout > span:not(.app-icon) { display: none; }
 .control-sidebar button:focus-visible { outline: 2px solid var(--sidebar-active-border); outline-offset: 2px; }
 .control-sidebar [data-tooltip] { position: relative; }
 .control-sidebar.is-collapsed .control-sidebar-header { grid-template-columns: 1fr 0; gap:0; justify-items: center; padding-inline: .4rem; }.control-sidebar.is-collapsed .control-sidebar-header div { max-width:0; visibility:hidden; opacity:0; transform:translateX(-8px); transition-delay:0s,0s,0s,280ms; }.control-sidebar.is-collapsed .control-sidebar-header img { width: 36px; height: 36px; }.control-sidebar.is-collapsed .control-sidebar-toggle { right: -14px; top:46px; width: 28px; height: 28px; min-height: 28px; background: #0b3558; }.control-sidebar.is-collapsed .control-sidebar-toggle .app-icon { transform: rotate(180deg); }

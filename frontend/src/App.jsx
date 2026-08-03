@@ -844,6 +844,7 @@ function App() {
   const reportMapCaptureRef = useRef(null);
   const padronStatsChartRef = useRef(null);
   const mapPointsRequestRef = useRef({ id: 0, controller: null });
+  const intentionalLogoutRef = useRef(false);
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -3679,7 +3680,7 @@ function App() {
   }, [activeMapDiaryDateKey]);
 
   const showAlert = useCallback((text) => {
-    if (!text) return;
+    if (!text || (intentionalLogoutRef.current && /la sesi[oó]n venci[oó]/i.test(text))) return;
     setAlert({ text, id: Date.now() });
   }, []);
 
@@ -9298,6 +9299,7 @@ function App() {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+    intentionalLogoutRef.current = false;
     setLoginLoading(true);
 
     try {
@@ -9342,6 +9344,8 @@ function App() {
   };
 
   const handleLogout = async () => {
+    intentionalLogoutRef.current = true;
+    setAlert(null);
     try {
       setAuthFx({ mode: "logout", text: "Cerrando sesión..." });
       await apiFetch("/auth/logout", { method: "POST" });
@@ -11742,7 +11746,7 @@ function App() {
         ) : null}
         {alert ? (
           <div className="app-alert login-alert" role="alert">
-            <strong>Atencion</strong>
+            <strong>Atención</strong>
             <span>{alert.text}</span>
           </div>
         ) : null}
@@ -11760,7 +11764,7 @@ function App() {
               <p className="login-subtitle">Acceso al sistema de registro y seguimiento.</p>
             </header>
 
-            <form className="login-form" onSubmit={handleLogin} autoComplete="off">
+            <form className="login-form" onSubmit={handleLogin}>
               <div className="login-field">
                 <label htmlFor="login-username">Usuario o correo</label>
                 <div className="login-input-shell">
@@ -11770,7 +11774,7 @@ function App() {
                     name="username"
                     value={loginForm.username}
                     onChange={handleLoginChange}
-                    autoComplete="off"
+                    autoComplete="username"
                     placeholder="Ingresa tu usuario o correo"
                   />
                 </div>
@@ -11786,7 +11790,7 @@ function App() {
                     type={showLoginPassword ? "text" : "password"}
                     value={loginForm.password}
                     onChange={handleLoginChange}
-                    autoComplete="new-password"
+                    autoComplete="current-password"
                     placeholder="Ingresa tu contraseña"
                   />
                   <button
