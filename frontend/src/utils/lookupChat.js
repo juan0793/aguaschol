@@ -230,11 +230,13 @@ export const buildLookupChatResponse = (result = {}, queryMeta = {}) => {
   }
 
   if (alcaldiaMatch) {
+    const linkedToAguas = Boolean(alcaldiaMatch.exists_in_aguas);
     return {
-      tone: "warning",
-      title: "Resultado de verificación",
-      text:
-        "La clave catastral sí aparece en la información municipal/catastral, pero no encontré un abonado asociado en Aguas de Choluteca. Esto puede significar que el inmueble existe en Catastro/Alcaldía, pero todavía no está vinculado al padrón de Aguas. Conviene validar en campo o remitir esta clave para revisión.",
+      tone: linkedToAguas ? "success" : "warning",
+      title: linkedToAguas ? "Vinculación encontrada" : "Resultado de verificación",
+      text: linkedToAguas
+        ? "La clave aparece en la información municipal/catastral y figura vinculada al padrón de Aguas. No se recuperó el detalle del abonado en esta consulta."
+        : "La clave catastral sí aparece en la información municipal/catastral, pero no tiene un registro asociado en Aguas de Choluteca. Conviene validar en campo o remitir esta clave para revisión.",
       cards: [buildMunicipalCard(alcaldiaMatch)],
       actions: ["Copiar clave"]
     };

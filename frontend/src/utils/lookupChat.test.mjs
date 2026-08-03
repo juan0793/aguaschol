@@ -18,3 +18,15 @@ test("no repite el mismo nombre como abonado e inquilino", () => {
   assert.equal(labels.filter((label) => label === "Abonado").length, 1);
   assert.equal(labels.includes("Inquilino"), false);
 });
+
+test("mantiene consistente una vinculacion municipal con Aguas", () => {
+  const response = buildLookupChatResponse({
+    aguas: { matches: [] },
+    alcaldia: { matches: [{ clave_catastral: "10-10-10", exists_in_aguas: true, clave_aguas_formato: "10-10-10" }] }
+  });
+
+  assert.equal(response.tone, "success");
+  assert.equal(response.title, "Vinculación encontrada");
+  assert.match(response.text, /figura vinculada al padrón de Aguas/);
+  assert.equal(response.cards[0].fields.find(({ label }) => label === "Estado en Aguas")?.value, "Con registro asociado");
+});

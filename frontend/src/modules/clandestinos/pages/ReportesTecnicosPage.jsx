@@ -26,7 +26,7 @@ export default function ReportesTecnicosPage({ api, config, notify }) {
           <div className="cl-report-meta"><span><Icon name="map" />{report.latitude ? `${report.latitude}, ${report.longitude}` : "Sin GPS"}</span><span><Icon name="activity" />{report.evidences?.length || 0} evidencias</span><span><Icon name="users" />{report.creator_name || "Sin técnico"}</span></div>
           {config.permissions.can_review_report && transitions.length ? <footer><label><span>Motivo</span><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Para solicitar, duplicar o descartar" /></label><div>{transitions.filter((state) => !["linked", "review"].includes(state)).map((state) => <button type="button" className={state === "discarded" ? "cl-danger" : "cl-secondary"} key={state} onClick={() => transition(report, state)}>{labels[state]}</button>)}</div>{transitions.includes("linked") ? <><label><span>ID de ficha</span><input inputMode="numeric" value={linkId} onChange={(event) => setLinkId(event.target.value)} placeholder="Ej. 24" /></label><button type="button" className="cl-primary" disabled={!linkId} onClick={() => link(report)}>Vincular</button></> : null}</footer> : null}
         </article>;
-      }) : <p className="cl-empty">No hay reportes con estos filtros.</p>}</div>
+      }) : <div className="cl-empty-state"><Icon name="records" /><strong>No hay reportes con estos filtros</strong><span>Los reportes documentan hallazgos de campo y pueden vincularse con una ficha.</span><button type="button" className="cl-primary" onClick={() => setMode("form")}>Crear primer reporte</button></div>}</div>
     </>}
   </section>;
 }
