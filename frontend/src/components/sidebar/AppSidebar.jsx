@@ -53,7 +53,7 @@ export default function AppSidebar({
     if (!mobileOpen) return undefined;
     previousFocusRef.current = document.activeElement;
     document.body.style.overflow = "hidden";
-    sidebarRef.current?.querySelector(".control-sidebar-navigation button")?.focus();
+    (sidebarRef.current?.querySelector(".control-sidebar-item.is-active") || sidebarRef.current?.querySelector(".control-sidebar-navigation button"))?.focus();
     return () => {
       document.body.style.overflow = "";
       previousFocusRef.current?.focus?.();
@@ -111,7 +111,7 @@ export default function AppSidebar({
         type="button"
         className={`control-sidebar-item ${active ? "is-active" : ""} ${flyout ? "is-flyout" : ""}`}
         aria-current={active ? "page" : undefined}
-        aria-label={effectiveCollapsed && !flyout ? item.label : undefined}
+        aria-label={effectiveCollapsed || flyout ? item.label : undefined}
         data-tooltip={effectiveCollapsed && !flyout ? item.label : undefined}
         onClick={() => navigate(item.key)}
       >

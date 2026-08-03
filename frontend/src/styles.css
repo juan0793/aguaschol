@@ -27403,6 +27403,17 @@ body {
 @media (max-width: 700px) { .batch-picker > header { grid-template-columns: 1fr; } .batch-picker-filters { grid-template-columns: 1fr; } .import-batches .batch-picker-list,.padron-lot-panel .batch-picker-list { max-height: 280px; } }
 @media (prefers-reduced-motion: reduce) { .batch-picker-item { transition: none; } }
 
+/* Auditoria UX 2026: controles compactos sin desbordamiento en movil. */
+@media (max-width: 560px) {
+  .app-menu-button { display:grid !important; place-items:center; background:#1465d9 !important; color:#fff !important; }
+  .app-menu-button .app-icon { color:#fff !important; }
+  .hero-module .search-row { grid-template-columns:1fr !important; }
+  .hero-module .search-row button { width:100% !important; }
+  .hero-module .search-actions { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; overflow:visible !important; }
+  .hero-module .search-actions button,
+  .hero-module .search-actions .button-secondary { width:100% !important; min-width:0 !important; white-space:normal !important; }
+}
+
 /* Navegacion principal compacta del dashboard 2026. */
 @media (min-width: 981px) {
   .page-shell {
