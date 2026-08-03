@@ -13,6 +13,9 @@ import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections } from "./components/sidebar/sidebarConfig";
 import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
+import loginBridgeBackground from "./assets/login/login-bridge-background.webp";
+import loginDroplet from "./assets/login/control-aguas-droplet.png";
+import loginSplash from "./assets/login/control-aguas-splash.png";
 import { API_URL } from "./config/api";
 import {
   AUTH_STORAGE_KEY,
@@ -854,6 +857,7 @@ function App() {
   });
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState("");
@@ -3684,6 +3688,8 @@ function App() {
     window.localStorage.removeItem(DRAFT_STORAGE_KEY);
     window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
     setSession(null);
+    setLoginForm({ username: "", password: "" });
+    setShowLoginPassword(false);
     setShowPasswordModal(false);
     setPasswordFeedback("");
     setPasswordForm({
@@ -11722,7 +11728,10 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="login-shell">
+      <div
+        className="login-shell login-scene"
+        style={{ "--login-bridge-background": `url(${loginBridgeBackground})` }}
+      >
         {authFx ? (
           <div className={`auth-fx auth-fx-${authFx.mode}`}>
             <div className="auth-fx-card">
@@ -11737,95 +11746,68 @@ function App() {
             <span>{alert.text}</span>
           </div>
         ) : null}
+        <div className="login-droplet-sequence" aria-hidden="true">
+          <img className="login-droplet-fall" src={loginDroplet} alt="" />
+          <img className="login-droplet-splash" src={loginSplash} alt="" />
+          <img className="login-droplet-resolve" src={loginDroplet} alt="" />
+        </div>
         <div className="login-layout">
-          <section className="login-intro-card">
-            <div className="login-intro-topline">
-              <span className="login-chip">
-                <Icon name="activity" />
-                Beta operativa
-              </span>
-              <span className="login-chip">
-                <Icon name="success" />
-                v2026.06
-              </span>
-            </div>
-            <div className="login-brand">
-              <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="login-logo" />
-              <div>
-                <p className="eyebrow">Aguas de Choluteca</p>
-                <h1>Control Aguas</h1>
-              </div>
-            </div>
-            <p className="lead">
-              App beta para registrar inmuebles clandestinos, consultar fichas y ubicar puntos en el mapa.
-            </p>
-            <div className="login-intro-notes">
-              <div className="login-intro-note">
-                <strong>Version beta</strong>
-                <span>Modulo activo con mejoras continuas para Aguas de Choluteca.</span>
-              </div>
-              <div className="login-intro-note">
-                <strong>Acceso auditado</strong>
-                <span>Cada accion queda asociada al usuario y a su sesion.</span>
-              </div>
-            </div>
-          </section>
+          <main className="login-card" aria-labelledby="login-title">
+            <header className="login-card-head">
+              <img src={loginDroplet} alt="Logo de Control Aguas" className="login-logo" />
+              <p className="login-brand-kicker">AGUAS DE CHOLUTECA</p>
+              <h1 id="login-title">Control Aguas</h1>
+              <p className="login-subtitle">Acceso al sistema de registro y seguimiento.</p>
+            </header>
 
-          <div className="login-card">
-            <div className="login-card-head">
-              <p className="eyebrow">Acceso seguro beta</p>
-              <div className="login-card-title">
-                <span className="login-card-title-icon"><Icon name="auth" /></span>
-                <h2>Iniciar sesion</h2>
-              </div>
-              <p className="lead">Ingresa con tu usuario o correo para continuar.</p>
-              <div className="login-card-badges">
-                <span className="login-card-badge">
-                  <Icon name="success" />
-                  Sesion cifrada
-                </span>
-                <span className="login-card-badge">
-                  <Icon name="history" />
-                  Registro auditado
-                </span>
-              </div>
-            </div>
-            <form className="login-form" onSubmit={handleLogin}>
-              <label className="login-field">
-                <span>Usuario o correo</span>
+            <form className="login-form" onSubmit={handleLogin} autoComplete="off">
+              <div className="login-field">
+                <label htmlFor="login-username">Usuario o correo</label>
                 <div className="login-input-shell">
-                  <span className="login-input-icon"><Icon name="users" /></span>
+                  <span className="login-input-icon" aria-hidden="true"><Icon name="users" /></span>
                   <input
+                    id="login-username"
                     name="username"
                     value={loginForm.username}
                     onChange={handleLoginChange}
-                    autoComplete="username"
+                    autoComplete="off"
+                    placeholder="Ingresa tu usuario o correo"
                   />
                 </div>
-              </label>
-              <label className="login-field">
-                <span>Contrasena</span>
+              </div>
+
+              <div className="login-field">
+                <label htmlFor="login-password">Contraseña</label>
                 <div className="login-input-shell">
-                  <span className="login-input-icon"><Icon name="auth" /></span>
+                  <span className="login-input-icon" aria-hidden="true"><Icon name="auth" /></span>
                   <input
+                    id="login-password"
                     name="password"
-                    type="password"
+                    type={showLoginPassword ? "text" : "password"}
                     value={loginForm.password}
                     onChange={handleLoginChange}
-                    autoComplete="current-password"
+                    autoComplete="new-password"
+                    placeholder="Ingresa tu contraseña"
                   />
+                  <button
+                    type="button"
+                    className="login-password-toggle"
+                    onClick={() => setShowLoginPassword((current) => !current)}
+                    aria-label={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    aria-pressed={showLoginPassword}
+                  >
+                    {showLoginPassword ? "Ocultar" : "Mostrar"}
+                  </button>
                 </div>
-              </label>
-              <button type="submit" disabled={loginLoading}>
-                <Icon name="auth" />
-                {loginLoading ? "Ingresando..." : "Entrar"}
+              </div>
+
+              <button className="login-submit" type="submit" disabled={loginLoading}>
+                {loginLoading ? "Ingresando..." : "Ingresar"}
               </button>
             </form>
-            <div className="login-footnote">
-              <span className="login-footnote-line" />
-              <p>Solo usuarios autorizados pueden continuar.</p>
-            </div>
-          </div>
+
+            <p className="login-footnote">Acceso exclusivo para personal autorizado.</p>
+          </main>
         </div>
       </div>
     );
