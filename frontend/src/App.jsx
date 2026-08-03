@@ -3067,6 +3067,7 @@ function App() {
         detail: `${alertRecords.length} fichas están en alerta o vencidas por regla de 7 días hábiles.`,
         icon: "warning",
         actionView: "records",
+        filter: "alerts",
         actionLabel: "Ver alertas",
         level: "Crítico",
         badge: "Crítico"
@@ -10685,33 +10686,41 @@ function App() {
     const clave = targetRecord.clave_catastral || "__________";
     const firmante = targetRecord.firmante_aviso || "Jefatura de Comercializacion";
     const cargo = targetRecord.cargo_firmante || "Aguas de Choluteca";
+    const destinatario = targetRecord.aviso_destinatario || targetRecord.abonado || targetRecord.inquilino || targetRecord.nombre_catastral || "Señor(a)";
+    const plazoDias = Math.max(1, Math.min(90, Number(targetRecord.aviso_plazo_dias) || 7));
+    const fechaLimite = targetRecord.fecha_limite_aviso ? formatSpanishDate(targetRecord.fecha_limite_aviso) : "";
+    const plazoTexto = fechaLimite
+      ? `a más tardar el ${escapeHtml(fechaLimite)}`
+      : `en un plazo máximo de ${plazoDias} (${plazoDias}) días calendario a partir de la recepción del presente aviso`;
+    const instrucciones = String(targetRecord.aviso_instrucciones || "").trim();
 
     return `
       <div class="print-header"><img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" /></div>
       <section class="aviso">
         <div class="aviso-header">
           <p><strong>AGUAS DE CHOLUTECA</strong></p>
-          <p>Departamento de Comercializacion</p>
+          <p>Departamento de Comercialización</p>
         </div>
         <h2 class="aviso-title">AVISO IMPORTANTE AL ABONADO</h2>
         <p class="aviso-date">Fecha: Choluteca, ${escapeHtml(fecha)}</p>
-        <p class="aviso-saludo">Estimado(a) Senor(a):</p>
+        <p class="aviso-saludo">Estimado(a) ${escapeHtml(destinatario)}:</p>
         <p class="aviso-body">
-          Por medio de la presente, se le informa que, como resultado del reciente levantamiento de informacion realizado por la Unidad Tecnica de Catastro, se ha identificado que el inmueble ubicado en ${escapeHtml(barrio)}, con Clave Catastral ${escapeHtml(clave)}, no se encuentra registrado en la base de datos de la empresa, pese a contar con servicios activos.
+          Por medio de la presente, se le informa que, como resultado del reciente levantamiento de información realizado por la Unidad Técnica de Catastro, se ha identificado que el inmueble ubicado en ${escapeHtml(barrio)}, con Clave Catastral ${escapeHtml(clave)}, no se encuentra registrado en la base de datos de la empresa, pese a contar con servicios activos.
         </p>
         <p class="aviso-body">
-          Con el proposito de regularizar su situacion, evitar circunstancias legales y establecer un acuerdo acorde al caso, se le solicita presentarse al Departamento de Comercializacion de Aguas de Choluteca, en un plazo maximo de siete (7) dias calendario a partir de la recepcion del presente aviso, debiendo presentar la siguiente documentacion:
+          Con el propósito de regularizar su situación, evitar circunstancias legales y establecer un acuerdo acorde al caso, se le solicita presentarse al Departamento de Comercialización de Aguas de Choluteca ${plazoTexto}, debiendo presentar la siguiente documentación:
         </p>
         <ul class="aviso-list">
-          <li>Copia de Escritura publica del Inmueble.</li>
+          <li>Copia de Escritura pública del inmueble.</li>
           <li>Copia de Constancia Catastral vigente.</li>
-          <li>Copia de Documento Nacional de Identificacion (DNI).</li>
+          <li>Copia de Documento Nacional de Identificación (DNI).</li>
           <li>Constancia de solvencia municipal.</li>
         </ul>
+        ${instrucciones ? `<p class="aviso-body"><strong>Indicación adicional:</strong><br />${escapeHtml(instrucciones).replace(/\n/g, "<br />")}</p>` : ""}
         <p class="aviso-body">
-          En caso de no presentarse dentro del plazo indicado, la empresa procedera conforme a los lineamientos administrativos establecidos por la ley que implican recargos y multas.
+          En caso de no presentarse dentro del plazo indicado, la empresa procederá conforme a los lineamientos administrativos establecidos por la ley que implican recargos y multas.
         </p>
-        <p class="aviso-body">Sin otro particular, agradecemos su pronta colaboracion.</p>
+        <p class="aviso-body">Sin otro particular, agradecemos su pronta colaboración.</p>
         <p class="aviso-body">Atentamente,</p>
         <div class="aviso-signature">
           <p><strong>${escapeHtml(firmante)}</strong></p>
