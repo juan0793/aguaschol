@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
+import { escapeHtml } from "../utils/html";
+import { printDocument } from "../utils/printDocument";
 
 const MAP_LAYERS = {
   imagery: { label: "Satelite", attribution: "Esri, Maxar, Earthstar Geographics" },
@@ -18,6 +20,61 @@ const MAP_LAYERS = {
 
 const validPoints = (points) =>
   points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)));
+
+const captureLeafletMap = (mapNode) => {
+  const bounds = mapNode.getBoundingClientRect();
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bounds.width * scale);
+  canvas.height = Math.round(bounds.height * scale);
+  const context = canvas.getContext("2d");
+  context.scale(scale, scale);
+  context.fillStyle = "#dce7f2";
+  context.fillRect(0, 0, bounds.width, bounds.height);
+
+  mapNode.querySelectorAll(".leaflet-tile-loaded").forEach((tile) => {
+    if (!tile.complete || !tile.naturalWidth) return;
+    const tileBounds = tile.getBoundingClientRect();
+    context.drawImage(
+      tile,
+      tileBounds.left - bounds.left,
+      tileBounds.top - bounds.top,
+      tileBounds.width,
+      tileBounds.height
+    );
+  });
+
+  mapNode.querySelectorAll(".map-print-marker").forEach((marker) => {
+    const markerBounds = marker.getBoundingClientRect();
+    const markerStyle = window.getComputedStyle(marker);
+    const centerX = markerBounds.left - bounds.left + markerBounds.width / 2;
+    const centerY = markerBounds.top - bounds.top + markerBounds.height / 2;
+    const radius = markerBounds.width / 2;
+    const outline = Number.parseFloat(markerStyle.getPropertyValue("--outline-width")) || 0;
+
+    context.beginPath();
+    context.arc(centerX, centerY, radius + outline, 0, Math.PI * 2);
+    context.fillStyle = markerStyle.getPropertyValue("--outline-color") || "#ffffff";
+    context.fill();
+    context.beginPath();
+    context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    context.fillStyle = markerStyle.backgroundColor || "#1576d1";
+    context.fill();
+    context.lineWidth = 2;
+    context.strokeStyle = "#ffffff";
+    context.stroke();
+
+    if (marker.textContent) {
+      context.fillStyle = "#ffffff";
+      context.font = "800 9px Arial";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(marker.textContent, centerX, centerY + 0.5);
+    }
+  });
+
+  return canvas.toDataURL("image/jpeg", 0.94);
+};
 
 function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
   const printAreaRef = useRef(null);
@@ -123,7 +180,23 @@ function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
     try {
       mapRef.current?.invalidateSize(false);
       await new Promise((resolve) => window.setTimeout(resolve, 300));
-      window.print();
+      const image = captureLeafletMap(mapNode);
+      await printDocument(title || "Mapa de puntos GPS", `
+        <section style="display:grid;gap:10px;">
+          <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:2px solid #0d4d86;padding-bottom:8px;">
+            <div>
+              <p style="margin:0 0 4px;color:#1576d1;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">Levantamiento GPS</p>
+              <h1 style="margin:0;color:#123b5d;font-size:20px;">${escapeHtml(title || "Mapa de puntos GPS")}</h1>
+            </div>
+            <div style="text-align:right;color:#45607a;font-size:10px;">
+              <strong style="display:block;color:#123b5d;">${printablePoints.length} puntos</strong>
+              <span>${escapeHtml(dateLabel)}</span>
+            </div>
+          </header>
+          <img src="${image}" alt="Mapa de puntos GPS" style="display:block;width:100%;max-height:174mm;object-fit:contain;border:1px solid #bfd5e7;border-radius:10px;" />
+          <p style="margin:0;color:#587087;font-size:9px;">Capa: ${escapeHtml(MAP_LAYERS[layer].label)}. Cartografia: ${escapeHtml(MAP_LAYERS[layer].attribution)}.</p>
+        </section>
+      `, { bodyClassName: "map-print-document", showPageFooter: false });
     } catch {
       window.alert("No fue posible abrir la impresion del mapa.");
     } finally {
@@ -186,7 +259,7 @@ function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
               <span>Numerar los puntos</span>
             </label>
 
-            <p className="map-print-help">Puedes mover y acercar el mapa directamente para definir el encuadre que saldra impreso.</p>
+            <p className="map-print-help">Puedes mover y acercar el mapa directamente para definir el encuadre. En el cuadro de impresion desactiva Encabezados y pies de pagina para ocultar la fecha, URL y numeracion.</p>
           </aside>
 
           <section ref={printAreaRef} className="map-print-sheet">
