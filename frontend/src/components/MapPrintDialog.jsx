@@ -9,8 +9,6 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
-import { escapeHtml } from "../utils/html";
-import { printDocument } from "../utils/printDocument";
 
 const MAP_LAYERS = {
   imagery: { label: "Satelite", attribution: "Esri, Maxar, Earthstar Geographics" },
@@ -123,34 +121,11 @@ function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
     if (!printAreaRef.current || printing) return;
     setPrinting(true);
     try {
-      const { default: html2canvas } = await import("html2canvas");
       mapRef.current?.invalidateSize(false);
-      await new Promise((resolve) => window.setTimeout(resolve, 350));
-      const canvas = await html2canvas(printAreaRef.current, {
-        backgroundColor: "#ffffff",
-        logging: false,
-        scale: Math.min(2, window.devicePixelRatio || 1),
-        useCORS: true
-      });
-      const image = canvas.toDataURL("image/jpeg", 0.94);
-      await printDocument(title || "Mapa de puntos GPS", `
-        <section style="display:grid;gap:10px;">
-          <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:2px solid #0d4d86;padding-bottom:8px;">
-            <div>
-              <p style="margin:0 0 4px;color:#1576d1;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">Levantamiento GPS</p>
-              <h1 style="margin:0;color:#123b5d;font-size:20px;">${escapeHtml(title || "Mapa de puntos GPS")}</h1>
-            </div>
-            <div style="text-align:right;color:#45607a;font-size:10px;">
-              <strong style="display:block;color:#123b5d;">${printablePoints.length} puntos</strong>
-              <span>${escapeHtml(dateLabel)}</span>
-            </div>
-          </header>
-          <img src="${image}" alt="Mapa de puntos GPS" style="display:block;width:100%;max-height:174mm;object-fit:contain;border:1px solid #bfd5e7;border-radius:10px;" />
-          <p style="margin:0;color:#587087;font-size:9px;">Capa: ${escapeHtml(MAP_LAYERS[layer].label)}. La numeracion corresponde al orden de los puntos de la jornada.</p>
-        </section>
-      `, { bodyClassName: "map-print-document", showPageFooter: false });
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
+      window.print();
     } catch {
-      window.alert("No fue posible preparar el mapa para impresion. Espera a que cargue la capa y vuelve a intentar.");
+      window.alert("No fue posible abrir la impresion del mapa.");
     } finally {
       setPrinting(false);
     }
