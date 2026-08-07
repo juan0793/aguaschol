@@ -55,3 +55,50 @@ No quedan hallazgos P0, P1 ni P2. La diferencia de altura frente al panel de ref
 Después de autenticar, el dashboard existente registra errores de reconexión WebSocket cuando ese servicio no está disponible. No aparecen en la pantalla de login y no fueron introducidos por este cambio.
 
 final result: passed
+
+---
+
+# Design QA - Modal de mapa e impresion GPS
+
+## Evidencia
+
+- Source visual truth: `C:\Users\JR\AppData\Local\Temp\codex-clipboard-fa0b558d-cb8d-4d81-8667-f0b4d2f038e7.png` (977 x 567 px).
+- Implementacion: `docs/qa/map-print-modal.png` (1265 x 712 px).
+- Comparacion conjunta: `docs/qa/map-print-comparison.png` (1676 x 720 px).
+- Viewport: 1265 x 712 CSS px, densidad 1:1.
+- Estado: modal abierto, capa satelital cargada, titulo editado y jornada local sin puntos guardados.
+
+## Superficies revisadas
+
+- Tipografia: reutiliza Geist y la jerarquia institucional existente; titulo, metadatos y controles se leen sin solapamientos.
+- Espaciado: panel de ajustes de 280 px y hoja de mapa flexible; no hay desbordamiento horizontal ni controles ocultos.
+- Colores: conserva los azules de la aplicacion y permite seleccionar el color del remarcado.
+- Imagen: teselas satelitales reales con rotulos de lugares; la captura de impresion usa la composicion visible en alta resolucion.
+- Contenido: titulo, fecha, total de puntos, capa activa y accion de impresion estan presentes y son editables donde corresponde.
+- Iconos: se reutiliza el icono de impresion existente; no se agregaron dibujos o placeholders.
+
+## Interacciones verificadas
+
+- Apertura del modal desde Puntos GPS, incluso con una jornada vacia.
+- Edicion del titulo con actualizacion inmediata en la hoja.
+- Cambio entre Satelite y Relieve con carga de teselas del proxy.
+- Controles de tamano, grosor, color y numeracion expuestos mediante entradas accesibles.
+- La impresion permanece desactivada cuando no hay puntos validos.
+- Consola: no se introdujeron errores del modal o del mapa. Permanecen errores WebSocket preexistentes cuando ese servicio local no esta disponible.
+
+## Comparacion e historial
+
+### Iteracion 1
+
+- P1: el lienzo se montaba antes de que Radix expusiera el nodo del portal y quedaba sin mapa.
+  - Fix: inicializacion mediante callback ref y dependencias de efectos ligadas al nodo real.
+  - Evidencia posterior: `docs/qa/map-print-modal.png`, con 16 teselas cargadas y controles Leaflet visibles.
+- P2: el panel lateral cortaba etiquetas largas.
+  - Fix: ancho aumentado a 280 px y etiquetas con ajuste de linea.
+  - Evidencia posterior: `docs/qa/map-print-modal.png`.
+
+## Hallazgos finales
+
+No quedan hallazgos P0, P1 ni P2. La referencia muestra un encuadre mas cercano y puntos activos; la jornada disponible durante QA estaba vacia, por lo que la implementacion se verifico en el estado sin datos. El usuario puede acercar y mover el mapa para reproducir el encuadre de la referencia cuando existan puntos.
+
+final result: passed
