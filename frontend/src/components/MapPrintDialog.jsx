@@ -21,6 +21,19 @@ const MAP_LAYERS = {
 const validPoints = (points) =>
   points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)));
 
+const PRINT_MAP_RATIO = 267 / 178;
+
+const waitForMapTiles = async (mapNode, layers, timeout = 5000) => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeout) {
+    const tiles = Array.from(mapNode.querySelectorAll(".leaflet-tile"));
+    const tilesReady = tiles.length > 0 && tiles.every((tile) => tile.complete && tile.naturalWidth);
+    const layersReady = layers.every((layer) => !layer?.isLoading?.());
+    if (tilesReady && layersReady) return;
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+  }
+};
+
 const captureLeafletMap = (mapNode) => {
   const bounds = mapNode.getBoundingClientRect();
   const scale = 2;
@@ -177,11 +190,22 @@ function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
   const handlePrint = async () => {
     if (!printAreaRef.current || printing) return;
     setPrinting(true);
+    const previousHeight = mapNode.style.height;
     try {
-      mapRef.current?.invalidateSize(false);
-      await new Promise((resolve) => window.setTimeout(resolve, 300));
+      const map = mapRef.current;
+      mapNode.style.height = `${Math.round(mapNode.getBoundingClientRect().width / PRINT_MAP_RATIO)}px`;
+      map.invalidateSize(false);
+      if (printablePoints.length > 1) {
+        map.fitBounds(
+          L.latLngBounds(printablePoints.map((point) => [Number(point.latitude), Number(point.longitude)])),
+          { animate: false, padding: [70, 70], maxZoom: 19 }
+        );
+      } else if (printablePoints.length === 1) {
+        map.setView([Number(printablePoints[0].latitude), Number(printablePoints[0].longitude)], 19, { animate: false });
+      }
+      await waitForMapTiles(mapNode, [baseLayerRef.current, labelLayerRef.current]);
       const image = captureLeafletMap(mapNode);
-      await printDocument(title || "Mapa de puntos GPS", `
+      void printDocument(title || "Mapa de puntos GPS", `
         <section style="display:grid;gap:10px;">
           <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:2px solid #0d4d86;padding-bottom:8px;">
             <div>
@@ -193,13 +217,16 @@ function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
               <span>${escapeHtml(dateLabel)}</span>
             </div>
           </header>
-          <img src="${image}" alt="Mapa de puntos GPS" style="display:block;width:100%;max-height:174mm;object-fit:contain;border:1px solid #bfd5e7;border-radius:10px;" />
+          <img src="${image}" alt="Mapa de puntos GPS" style="display:block;width:100%;aspect-ratio:267/178;object-fit:cover;border:1px solid #bfd5e7;border-radius:10px;" />
           <p style="margin:0;color:#587087;font-size:9px;">Capa: ${escapeHtml(MAP_LAYERS[layer].label)}. Cartografia: ${escapeHtml(MAP_LAYERS[layer].attribution)}.</p>
         </section>
-      `, { bodyClassName: "map-print-document", showPageFooter: false });
+      `, { pageSize: "Letter landscape", pageMargin: "6mm", bodyClassName: "map-print-document", showPageFooter: false })
+        .catch(() => window.alert("No fue posible abrir la impresion del mapa."));
     } catch {
       window.alert("No fue posible abrir la impresion del mapa.");
     } finally {
+      mapNode.style.height = previousHeight;
+      mapRef.current?.invalidateSize(false);
       setPrinting(false);
     }
   };

@@ -1542,11 +1542,6 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
         await waitForPrintDocument(printDocumentRef);
         printWindow.focus();
         printWindow.print();
-        printButton.disabled = false;
-        printButton.textContent = "Imprimir ahora";
-      };
-
-      printWindow.onafterprint = () => {
         cleanup();
         resolve({ printed: true });
       };
@@ -1559,6 +1554,8 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   }
 
   window.addEventListener("keydown", handleKeydown);
+
+  const completion = finish();
 
   const printWindow = printFrame.contentWindow;
   const printDocumentRef = printFrame.contentDocument || printWindow?.document;
@@ -1582,5 +1579,5 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   printButton.textContent = "Imprimir ahora";
   printButton.focus();
 
-  return finish();
+  return completion;
 };
