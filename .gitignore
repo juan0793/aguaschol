@@ -16,6 +16,11 @@ frontend-dev.log
 frontend-dev.err.log
 .db/
 .tools/
+.codex/
+tmp/
+
+foxpro-reader/ControlAguasFoxProReader-win-x86*/
+foxpro-reader/ControlAguasFoxProReader-win-x86*.zip
 
 .DS_Store
 Thumbs.db

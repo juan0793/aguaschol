@@ -1,5 +1,13 @@
 import { MAP_POINT_TYPES } from "../constants/formsAndUi.js";
 
+export const isValidMapPointCoordinate = (point = {}) => {
+  const latitude = Number(point.latitude);
+  const longitude = Number(point.longitude);
+  return Number.isFinite(latitude) && Number.isFinite(longitude)
+    && latitude >= 12.8 && latitude <= 16.6
+    && longitude >= -89.4 && longitude <= -83;
+};
+
 export const deriveMapPointZone = (point = {}) => {
   const source = String(point.reference_note || point.reference || point.description || "").trim();
   if (!source) return "Zona no especificada";

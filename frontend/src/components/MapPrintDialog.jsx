@@ -10,6 +10,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { escapeHtml } from "../utils/html";
+import { isValidMapPointCoordinate } from "../utils/mapField";
 import { printDocument } from "../utils/printDocument";
 
 const MAP_LAYERS = {
@@ -17,9 +18,6 @@ const MAP_LAYERS = {
   streets: { label: "Calles", attribution: "OpenStreetMap contributors" },
   relief: { label: "Relieve", attribution: "Esri, USGS, NOAA" }
 };
-
-const validPoints = (points) =>
-  points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)));
 
 const PRINT_MAP_RATIO = 267 / 178;
 
@@ -103,7 +101,7 @@ function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
   const [showNumbers, setShowNumbers] = useState(true);
   const [printing, setPrinting] = useState(false);
   const [mapNode, setMapNode] = useState(null);
-  const printablePoints = useMemo(() => validPoints(points), [points]);
+  const printablePoints = useMemo(() => points.filter(isValidMapPointCoordinate), [points]);
 
   useEffect(() => {
     if (!open || !mapNode || mapRef.current) return undefined;
@@ -195,14 +193,6 @@ function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
       const map = mapRef.current;
       mapNode.style.height = `${Math.round(mapNode.getBoundingClientRect().width / PRINT_MAP_RATIO)}px`;
       map.invalidateSize(false);
-      if (printablePoints.length > 1) {
-        map.fitBounds(
-          L.latLngBounds(printablePoints.map((point) => [Number(point.latitude), Number(point.longitude)])),
-          { animate: false, padding: [70, 70], maxZoom: 19 }
-        );
-      } else if (printablePoints.length === 1) {
-        map.setView([Number(printablePoints[0].latitude), Number(printablePoints[0].longitude)], 19, { animate: false });
-      }
       await waitForMapTiles(mapNode, [baseLayerRef.current, labelLayerRef.current]);
       const image = captureLeafletMap(mapNode);
       void printDocument(title || "Mapa de puntos GPS", `
