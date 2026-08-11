@@ -10,6 +10,10 @@ import { changeOwnPassword, getSessionUser, loginUser, logoutAllSessions, logout
 
 const router = Router();
 
+router.get("/me", requireAuth, (req, res) => {
+  res.json({ user: req.authUser });
+});
+
 router.post("/login", limitLoginAttempts, async (req, res, next) => {
   try {
     const session = await loginUser(req.body ?? {});

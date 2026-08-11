@@ -1265,6 +1265,146 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             text-align: center;
             color: #557089;
           }
+          .lookup-chat-print-body {
+            padding: 5mm 0;
+            background: #eef3f8;
+            color: #17344d;
+          }
+          .lookup-chat-print-card {
+            width: min(180mm, 100%);
+            margin: 0 auto;
+            overflow: hidden;
+            border: 1px solid #cadbea;
+            border-top: 5px solid #0d4d86;
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 14px 36px rgba(13, 53, 88, 0.13);
+          }
+          .lookup-chat-print-header {
+            padding: 16px 18px 13px;
+            border-bottom: 1px solid #dbe7f1;
+            background: linear-gradient(145deg, #f9fcff, #edf6fd);
+          }
+          .lookup-chat-print-brand {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 9px;
+            margin-bottom: 12px;
+          }
+          .lookup-chat-print-monogram {
+            display: grid;
+            place-items: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: #0d4d86;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+          }
+          .lookup-chat-print-brand strong,
+          .lookup-chat-print-brand small {
+            display: block;
+          }
+          .lookup-chat-print-brand strong {
+            color: #123b5d;
+            font-size: 11px;
+          }
+          .lookup-chat-print-brand small {
+            margin-top: 2px;
+            color: #6a8296;
+            font-size: 8px;
+          }
+          .lookup-chat-print-brand b {
+            padding: 4px 8px;
+            border: 1px solid #c9dff1;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #0d4d86;
+            font-size: 8px;
+          }
+          .lookup-chat-print-header h1 {
+            margin: 0 0 4px;
+            color: #103a5d;
+            font-size: 19px;
+            line-height: 1.15;
+          }
+          .lookup-chat-print-header > p {
+            margin: 0;
+            color: #4d687f;
+            font-size: 9px;
+            line-height: 1.4;
+          }
+          .lookup-chat-print-results {
+            display: grid;
+            gap: 9px;
+            padding: 12px 14px;
+          }
+          .lookup-chat-print-result {
+            overflow: hidden;
+            border: 1px solid #d4e2ed;
+            border-radius: 12px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .lookup-chat-print-result-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 9px;
+            border-bottom: 1px solid #dce8f1;
+            background: #f1f7fc;
+          }
+          .lookup-chat-print-result-head span {
+            color: #0d4d86;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+          }
+          .lookup-chat-print-result-head small {
+            color: #70869a;
+            font-size: 8px;
+          }
+          .lookup-chat-print-fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+            padding: 8px;
+          }
+          .lookup-chat-print-fields div {
+            min-width: 0;
+            padding: 7px 8px;
+            border-radius: 8px;
+            background: #f7fafc;
+          }
+          .lookup-chat-print-fields strong,
+          .lookup-chat-print-fields span {
+            display: block;
+          }
+          .lookup-chat-print-fields strong {
+            margin-bottom: 3px;
+            color: #6a8195;
+            font-size: 7px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+          }
+          .lookup-chat-print-fields span {
+            overflow-wrap: anywhere;
+            color: #113b5d;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.25;
+          }
+          .lookup-chat-print-card > footer {
+            padding: 8px 14px;
+            border-top: 1px solid #e0e9f0;
+            color: #75899a;
+            font-size: 7px;
+            text-align: center;
+          }
           .lookup-report-body {
             background: #f7fbff;
             color: #16324a;
@@ -1391,6 +1531,8 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           ul { margin-top: 0; }
           @media print {
             body { margin: 0; }
+            .lookup-chat-print-body { padding: 0; background: #ffffff; }
+            .lookup-chat-print-card { box-shadow: none; }
           }
         </style>
       </head>
@@ -1542,11 +1684,6 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
         await waitForPrintDocument(printDocumentRef);
         printWindow.focus();
         printWindow.print();
-        printButton.disabled = false;
-        printButton.textContent = "Imprimir ahora";
-      };
-
-      printWindow.onafterprint = () => {
         cleanup();
         resolve({ printed: true });
       };
@@ -1559,6 +1696,8 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   }
 
   window.addEventListener("keydown", handleKeydown);
+
+  const completion = finish();
 
   const printWindow = printFrame.contentWindow;
   const printDocumentRef = printFrame.contentDocument || printWindow?.document;
@@ -1582,5 +1721,5 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   printButton.textContent = "Imprimir ahora";
   printButton.focus();
 
-  return finish();
+  return completion;
 };

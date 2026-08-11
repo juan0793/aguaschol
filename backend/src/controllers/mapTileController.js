@@ -1,4 +1,4 @@
-const TILE_PROVIDERS = [
+const STREET_TILE_PROVIDERS = [
   "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
   "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
   "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -10,6 +10,23 @@ const TILE_PROVIDERS = [
   "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
   "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
 ];
+
+const TILE_PROVIDERS_BY_LAYER = {
+  streets: STREET_TILE_PROVIDERS,
+  imagery: [
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    ...STREET_TILE_PROVIDERS
+  ],
+  relief: [
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    ...STREET_TILE_PROVIDERS
+  ],
+  labels: [
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+  ]
+};
+
+export const getTileProviders = (layer) => TILE_PROVIDERS_BY_LAYER[layer] || STREET_TILE_PROVIDERS;
 
 const buildTileUrl = (template, z, x, y) =>
   template.replace("{z}", encodeURIComponent(z)).replace("{x}", encodeURIComponent(x)).replace("{y}", encodeURIComponent(y));
@@ -23,7 +40,7 @@ export const getMapTileHandler = async (req, res, next) => {
     return res.status(400).json({ message: "Coordenadas de tile invalidas." });
   }
 
-  for (const provider of TILE_PROVIDERS) {
+  for (const provider of getTileProviders(req.query.layer)) {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 6000);

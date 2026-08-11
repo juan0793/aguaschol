@@ -243,6 +243,33 @@ Pruebas de seguridad y servicios backend:
 npm --prefix backend test
 ```
 
+## Integracion de usuarios
+
+Otro modulo puede usar las mismas cuentas sin conectarse directamente a MySQL.
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{"username":"usuario-o-correo","password":"contrasena"}
+```
+
+La respuesta contiene `token` y los datos seguros de `user`. Para validar la sesion y recuperar el usuario actual:
+
+```http
+GET /api/auth/me
+Authorization: Bearer TOKEN
+```
+
+La lista completa esta disponible solo para administradores:
+
+```http
+GET /api/users
+Authorization: Bearer TOKEN_DE_ADMIN
+```
+
+Si el modulo se ejecuta en otro dominio, agrega ese origen a `FRONTEND_URLS`. Nunca compartas `DATABASE_URL`, `DB_PASSWORD`, `password_hash` ni tokens de sesion.
+
 Opciones de base de datos:
 
 - si agregas un servicio MySQL en Railway, normalmente bastara con las variables `MYSQL*`

@@ -129,6 +129,7 @@ const lazyWithRetry = (loader) => lazy(async () => {
 });
 
 const FieldMap = lazyWithRetry(() => import("./components/FieldMap"));
+const MapPrintDialog = lazyWithRetry(() => import("./components/MapPrintDialog"));
 const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
@@ -986,6 +987,7 @@ function App() {
   const [loadingBarrioCodes, setLoadingBarrioCodes] = useState(false);
   const [savingBarrioCode, setSavingBarrioCode] = useState(false);
   const [mapPoints, setMapPoints] = useState([]);
+  const [showMapPrintDialog, setShowMapPrintDialog] = useState(false);
   const [mapDiaryGroupsSummary, setMapDiaryGroupsSummary] = useState([]);
   const [mapPointListLimit, setMapPointListLimit] = useState(MAP_POINT_LIST_INITIAL_LIMIT);
   const [isCompactMapView, setIsCompactMapView] = useState(false);
@@ -16550,6 +16552,14 @@ function App() {
                   <span>2. Describe</span>
                   <span>3. Guarda</span>
                 </div>
+                <button
+                  type="button"
+                  className="button-secondary map-print-open-button"
+                  onClick={() => setShowMapPrintDialog(true)}
+                >
+                  <Icon name="print" />
+                  Imprimir mapa
+                </button>
               </div>
               {mapLocationHelp ? (
                 <p className="map-location-help">
@@ -16605,6 +16615,17 @@ function App() {
                 <p className="helper-text map-mobile-limit-note">
                   En movil se muestran los {mapPointsForCanvas.length} puntos mas recientes en el mapa para mantenerlo fluido. La bitacora conserva {visibleMapPoints.length} puntos.
                 </p>
+              ) : null}
+              {showMapPrintDialog ? (
+                <Suspense fallback={null}>
+                  <MapPrintDialog
+                    apiUrl={API_URL}
+                    dateLabel={formatMapDiaryLabel(activeMapDiaryDateKey)}
+                    open={showMapPrintDialog}
+                    onOpenChange={setShowMapPrintDialog}
+                    points={visibleMapPoints}
+                  />
+                </Suspense>
               ) : null}
             </article>
 
