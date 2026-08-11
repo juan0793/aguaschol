@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BlossomCarousel } from "@blossom-carousel/react";
 import "@blossom-carousel/core/style.css";
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import LookupChatPanel from "./components/LookupChatPanel";
@@ -321,6 +322,89 @@ const MapDiaryCalendarCard = ({ activeDateKey, archivedCount = 0, groups, onOpen
         <span>{archivedCount ? "ver anteriores" : "dias trabajados"}</span>
       </button>
     </div>
+  );
+};
+
+const shiftMapDiaryMonth = (monthKey, amount) => {
+  const [year, month] = String(monthKey || "").split("-").map(Number);
+  const nextDate = new Date(year, month - 1 + amount, 1);
+  return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const MapDiaryArchiveCalendar = ({ groups, selectedDateKey, loading, onSelectDate }) => {
+  const monthKeys = useMemo(
+    () => Array.from(new Set(groups.map((group) => group.key.slice(0, 7)))).sort(),
+    [groups]
+  );
+  const selectedMonthKey = selectedDateKey?.slice(0, 7) || monthKeys.at(-1) || getTodayMapDiaryKey().slice(0, 7);
+  const [monthKey, setMonthKey] = useState(selectedMonthKey);
+
+  useEffect(() => {
+    if (selectedDateKey) setMonthKey(selectedDateKey.slice(0, 7));
+  }, [selectedDateKey]);
+
+  const monthGroups = groups.filter((group) => group.key.startsWith(`${monthKey}-`));
+  const monthPoints = monthGroups.reduce((total, group) => total + Number(group.total || 0), 0);
+  const rawMonthLabel = parseMapDiaryDate(`${monthKey}-01`)?.toLocaleDateString("es-HN", {
+    month: "long",
+    year: "numeric"
+  }) || "";
+  const monthLabel = `${rawMonthLabel.charAt(0).toUpperCase()}${rawMonthLabel.slice(1)}`;
+  const firstMonth = monthKeys[0];
+  const lastMonth = monthKeys.at(-1);
+
+  return (
+    <section className="map-diary-archive-calendar" aria-label="Calendario de jornadas trabajadas">
+      <div className="map-diary-archive-calendar-title">
+        <span><CalendarDays size={20} /></span>
+        <div><strong>Jornadas trabajadas</strong><small>{groups.length} fechas registradas</small></div>
+      </div>
+      <div className="map-diary-archive-month-nav">
+        <button
+          type="button"
+          onClick={() => setMonthKey((current) => shiftMapDiaryMonth(current, -1))}
+          disabled={!firstMonth || monthKey <= firstMonth}
+          aria-label="Mes anterior"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <strong>{monthLabel}</strong>
+        <button
+          type="button"
+          onClick={() => setMonthKey((current) => shiftMapDiaryMonth(current, 1))}
+          disabled={!lastMonth || monthKey >= lastMonth}
+          aria-label="Mes siguiente"
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+      <div className="map-diary-archive-calendar-grid" aria-hidden="true">
+        {MAP_DIARY_WEEKDAYS.map((day) => <span key={day}>{day}</span>)}
+      </div>
+      <div className="map-diary-archive-calendar-grid">
+        {getMapDiaryCalendarDays(`${monthKey}-01`, groups).map((day) =>
+          day.blank ? (
+            <span key={day.key} className="is-blank" />
+          ) : (
+            <button
+              key={day.key}
+              type="button"
+              className={`${day.total ? "has-work" : ""} ${selectedDateKey === day.key ? "is-active" : ""}`}
+              onClick={() => day.total && onSelectDate(day.key)}
+              disabled={!day.total || loading}
+              aria-label={day.total ? `${formatMapDiaryLabel(day.key)}, ${day.total} puntos` : formatMapDiaryLabel(day.key)}
+            >
+              <span>{day.day}</span>
+              {day.total ? <small>{day.total}</small> : null}
+            </button>
+          )
+        )}
+      </div>
+      <div className="map-diary-archive-calendar-summary">
+        <div><strong>{monthGroups.length}</strong><span>jornadas</span></div>
+        <div><strong>{monthPoints}</strong><span>puntos</span></div>
+      </div>
+    </section>
   );
 };
 
@@ -1000,7 +1084,6 @@ function App() {
   const [fieldDebtReport, setFieldDebtReport] = useState(null);
   const [showMapDiaryArchiveModal, setShowMapDiaryArchiveModal] = useState(false);
   const [selectedArchiveMapDiaryKey, setSelectedArchiveMapDiaryKey] = useState("");
-  const [archiveMapDiaryFilter, setArchiveMapDiaryFilter] = useState("");
   const [archiveMapDiaryPoints, setArchiveMapDiaryPoints] = useState([]);
   const [loadingArchiveMapDiaryPoints, setLoadingArchiveMapDiaryPoints] = useState(false);
   const [savingReportMapPoint, setSavingReportMapPoint] = useState(false);
@@ -1304,13 +1387,6 @@ function App() {
     const visibleKeys = new Set(primaryMapDiaryGroups.map((group) => group.key));
     return mapDiaryGroups.filter((group) => !visibleKeys.has(group.key));
   }, [mapDiaryGroups, primaryMapDiaryGroups]);
-  const filteredArchiveMapDiaryGroups = useMemo(() => {
-    const query = archiveMapDiaryFilter.trim().toLocaleLowerCase("es-HN");
-    if (!query) return archivedMapDiaryGroups;
-    return archivedMapDiaryGroups.filter((group) =>
-      `${group.key} ${formatMapDiaryLabel(group.key)}`.toLocaleLowerCase("es-HN").includes(query)
-    );
-  }, [archiveMapDiaryFilter, archivedMapDiaryGroups]);
   const regulatorReportDiaryOptions = useMemo(
     () => mapDiaryGroups.filter((group) => Number(group.total || 0) > 0).slice(0, 8),
     [mapDiaryGroups]
@@ -4654,7 +4730,6 @@ function App() {
   const openMapDiaryArchiveModal = () => {
     if (!archivedMapDiaryGroups.length) return;
     const nextKey = selectedArchiveMapDiaryGroup?.key || archivedMapDiaryGroups[0].key;
-    setArchiveMapDiaryFilter("");
     setShowMapDiaryArchiveModal(true);
     loadArchivedMapDiaryPoints(nextKey);
   };
@@ -12498,69 +12573,29 @@ function App() {
       </Dialog>
       <Dialog open={showMapDiaryArchiveModal} onOpenChange={setShowMapDiaryArchiveModal}>
         <DialogContent className="map-diary-archive-modal shadcn-print-dialog max-h-[calc(100vh-1rem)] overflow-hidden sm:max-w-none">
-          <DialogHeader className="password-modal-head">
-            <div className="map-diary-archive-title-row">
-              <div>
-                <p className="eyebrow">Bitácora histórica</p>
-                <DialogTitle>Seleccionar una jornada</DialogTitle>
-              </div>
-              <button type="button" className="button-secondary map-diary-sidebar-toggle" onClick={() => setSidebarCollapsed((current) => !current)}>
-                <Icon name="arrowLeft" />
-                {sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
-              </button>
-            </div>
-            <DialogDescription className="lead">
-              Busca una fecha, revisa sus puntos y ábrela en el mapa sin perder el contexto.
-            </DialogDescription>
+          <DialogHeader className="sr-only">
+            <DialogTitle>Calendario de jornadas trabajadas</DialogTitle>
+            <DialogDescription>Selecciona una fecha trabajada para revisar sus puntos.</DialogDescription>
           </DialogHeader>
+          <div className="map-diary-archive-toolbar">
+            <button type="button" className="button-secondary map-diary-sidebar-toggle" onClick={() => setSidebarCollapsed((current) => !current)}>
+              <Icon name="arrowLeft" />
+              {sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
+            </button>
+          </div>
           <div className="map-diary-archive-layout">
-            <section className="map-diary-archive-browser">
-              <div className="map-diary-archive-browser-head">
-                <div><strong>Jornadas</strong><span>{filteredArchiveMapDiaryGroups.length} de {archivedMapDiaryGroups.length}</span></div>
-                <label>
-                  <Icon name="search" />
-                  <input
-                    type="search"
-                    value={archiveMapDiaryFilter}
-                    onChange={(event) => setArchiveMapDiaryFilter(event.target.value)}
-                    placeholder="Buscar fecha…"
-                    aria-label="Buscar jornada por fecha"
-                  />
-                </label>
-              </div>
-              <aside className="map-diary-archive-list" aria-label="Jornadas anteriores">
-                {filteredArchiveMapDiaryGroups.length ? (
-                  filteredArchiveMapDiaryGroups.map((group) => {
-                    const active = selectedArchiveMapDiaryGroup?.key === group.key;
-                    return (
-                      <button
-                        key={group.key}
-                        type="button"
-                        className={`map-diary-archive-item ${active ? "is-active" : ""}`}
-                        onClick={() => loadArchivedMapDiaryPoints(group.key)}
-                        aria-pressed={active}
-                      >
-                        <Icon name={active ? "success" : "history"} />
-                        <span><strong>{formatMapDiaryLabel(group.key)}</strong><small>{group.total} puntos guardados</small></span>
-                        <b>{active ? "Seleccionada" : "Ver"}</b>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="map-diary-archive-empty"><Icon name="search" /><strong>Sin coincidencias</strong><span>Prueba otra fecha.</span></div>
-                )}
-              </aside>
-            </section>
+            <MapDiaryArchiveCalendar
+              groups={archivedMapDiaryGroups}
+              selectedDateKey={selectedArchiveMapDiaryGroup?.key}
+              loading={loadingArchiveMapDiaryPoints}
+              onSelectDate={loadArchivedMapDiaryPoints}
+            />
             <section className="map-diary-archive-detail">
               <div className="map-diary-archive-detail-head">
                 <div>
-                  <span className="sheet-kicker">Jornada seleccionada</span>
+                  <span className="sheet-kicker"><CalendarDays size={14} /> Jornada seleccionada</span>
                   <h3>{selectedArchiveMapDiaryGroup ? formatMapDiaryLabel(selectedArchiveMapDiaryGroup.key) : "Sin jornada"}</h3>
-                  <p className="helper-text">
-                    {selectedArchiveMapDiaryGroup
-                      ? `${selectedArchiveMapDiaryGroup.total} puntos guardados en esta fecha.`
-                      : "Selecciona una jornada para ver sus datos."}
-                  </p>
+                  <p className="map-diary-archive-points"><MapPin size={15} /> {selectedArchiveMapDiaryGroup?.total || 0} puntos guardados</p>
                 </div>
                 <button
                   type="button"
@@ -12612,11 +12647,6 @@ function App() {
               </div>
             </section>
           </div>
-          <DialogFooter className="password-form-actions print-batch-footer">
-            <button type="button" className="button-secondary" onClick={() => setShowMapDiaryArchiveModal(false)}>
-              Cerrar
-            </button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={showPrintBatchModal} onOpenChange={(open) => !batchPrinting && setShowPrintBatchModal(open)}>

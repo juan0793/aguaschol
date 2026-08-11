@@ -58,6 +58,56 @@ final result: passed
 
 ---
 
+# Design QA - Calendario de jornadas GPS
+
+Fecha: 11 de agosto de 2026
+
+## Evidencia
+
+- Fuente visual: `docs/qa/map-diary-calendar-reference.png`.
+- Implementación de escritorio: `docs/qa/map-diary-calendar-desktop.png`.
+- Implementación móvil: `docs/qa/map-diary-calendar-mobile.png`.
+- Comparación conjunta: `docs/qa/map-diary-calendar-comparison.png`.
+- Viewport de escritorio: 1429 x 696 CSS px, `deviceScaleFactor: 1`.
+- Fuente: 1429 x 696 px. Implementación: 1429 x 696 px. No se requirió normalización de densidad.
+- Viewport móvil adicional: 600 x 800 CSS px.
+- Estado: modal abierto, jornada seleccionada y detalle cargado.
+
+## Comparación visual
+
+- Tipografía: se conserva Geist y la jerarquía del producto; el calendario usa pesos más claros para mes, días y cantidades.
+- Espaciado: el modal incorpora margen exterior, separación entre calendario y detalle, y relleno alrededor de la tabla.
+- Color: el panel de calendario usa azul oscuro con contraste AA para fechas activas y navegación.
+- Iconos: se utilizaron iconos de `lucide-react` ya instalado para calendario, navegación y ubicación.
+- Contenido: se retiraron el rótulo, título y texto introductorio marcados por el usuario; permanecen solo las acciones y datos necesarios.
+- Imágenes: no existen activos raster propios de la interfaz; no se añadieron sustitutos gráficos.
+- La comparación completa es legible a resolución nativa, por lo que no fue necesaria una captura enfocada adicional.
+
+## Interacciones verificadas
+
+- Navegación al mes anterior y siguiente.
+- Selección de una fecha con jornada y recarga de sus puntos.
+- Fechas sin trabajo deshabilitadas.
+- Expansión y contracción del menú lateral sin cubrir el modal.
+- Tabla sin desplazamiento horizontal en escritorio (`clientWidth` y `scrollWidth`: 946 px).
+- Apilado responsive de calendario y detalle a 600 px.
+- Consola revisada: solo reconexiones WebSocket del servidor simulado y una advertencia preexistente de Radix; sin errores nuevos del calendario.
+
+## Historial de correcciones
+
+- P1 inicial: el encabezado repetía tres descripciones sin aportar una acción. Se ocultó visualmente y se dejó un título accesible para lectores de pantalla.
+- P1 inicial: la lista vertical no permitía reconocer rápidamente días trabajados. Se sustituyó por un calendario mensual navegable con conteos por fecha.
+- P2 inicial: tabla y paneles no tenían respiración visual. Se añadieron márgenes, tarjetas, contraste, estados hover/seleccionado y transición de entrada.
+- Evidencia posterior: `docs/qa/map-diary-calendar-comparison.png` muestra el nuevo calendario oscuro, el espacio interno y la eliminación del bloque superior.
+
+## Resultado
+
+No quedan hallazgos P0, P1 o P2 accionables para el alcance solicitado.
+
+final result: passed
+
+---
+
 # Design QA - Selector de jornadas GPS
 
 ## Evidencia

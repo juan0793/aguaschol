@@ -12905,6 +12905,313 @@ body.planos-focus-mode .page-shell > main {
   }
 }
 
+@keyframes mapDiaryArchiveEnter {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.shadcn-print-dialog.map-diary-archive-modal {
+  width: min(1360px, calc(100vw - 2rem));
+  max-width: min(1360px, calc(100vw - 2rem));
+  height: min(850px, calc(100dvh - 2rem));
+  padding: 1.25rem;
+  gap: 0.8rem;
+  border: 1px solid #c9d8e5;
+  border-radius: 22px;
+  background: #eef3f7;
+  box-shadow: 0 28px 80px rgba(5, 31, 53, 0.28);
+  animation: mapDiaryArchiveEnter 220ms ease-out;
+}
+
+.map-diary-archive-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 42px;
+  padding-right: 2.8rem;
+}
+
+.map-diary-archive-toolbar .button-secondary {
+  border-color: #b7cada;
+  background: rgba(255, 255, 255, 0.85);
+  color: #173f60;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.map-diary-archive-toolbar .button-secondary:hover {
+  transform: translateY(-1px);
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(19, 58, 88, 0.1);
+}
+
+.map-diary-archive-modal .map-diary-archive-layout {
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.map-diary-archive-calendar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1.15rem;
+  overflow: auto;
+  border: 1px solid rgba(126, 184, 225, 0.2);
+  border-radius: 18px;
+  background: #123b5c;
+  color: #f5fbff;
+  box-shadow: 0 18px 38px rgba(8, 42, 68, 0.2);
+}
+
+.map-diary-archive-calendar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.map-diary-archive-calendar-title > span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(113, 192, 245, 0.16);
+  color: #8ed0fb;
+}
+
+.map-diary-archive-calendar-title div {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.map-diary-archive-calendar-title strong {
+  font-size: 1rem;
+}
+
+.map-diary-archive-calendar-title small {
+  color: #a9c6d9;
+  font-size: 0.72rem;
+}
+
+.map-diary-archive-month-nav {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0 0.8rem;
+}
+
+.map-diary-archive-month-nav strong {
+  text-align: center;
+}
+
+.map-diary-archive-month-nav button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eaf7ff;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.map-diary-archive-month-nav button:hover:not(:disabled) {
+  transform: scale(1.06);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.map-diary-archive-month-nav button:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.map-diary-archive-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.map-diary-archive-calendar-grid > span {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  color: #91b5cc;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.map-diary-archive-calendar-grid button {
+  display: grid;
+  place-items: center;
+  gap: 0.05rem;
+  min-width: 0;
+  min-height: 43px;
+  padding: 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #789db5;
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.map-diary-archive-calendar-grid button small {
+  color: inherit;
+  font-size: 0.54rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.map-diary-archive-calendar-grid button.has-work {
+  border-color: rgba(107, 193, 247, 0.32);
+  background: rgba(69, 154, 211, 0.18);
+  color: #e8f7ff;
+  cursor: pointer;
+}
+
+.map-diary-archive-calendar-grid button.has-work:hover {
+  transform: translateY(-2px);
+  background: rgba(79, 174, 236, 0.32);
+  box-shadow: 0 8px 18px rgba(3, 24, 40, 0.2);
+}
+
+.map-diary-archive-calendar-grid button.is-active {
+  border-color: #a8ddff;
+  background: #2492da;
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(17, 142, 224, 0.38);
+}
+
+.map-diary-archive-calendar-grid button:disabled {
+  cursor: default;
+}
+
+.map-diary-archive-calendar-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.map-diary-archive-calendar-summary div {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.map-diary-archive-calendar-summary strong {
+  font-size: 1.1rem;
+}
+
+.map-diary-archive-calendar-summary span {
+  color: #a9c6d9;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.map-diary-archive-modal .map-diary-archive-detail {
+  border: 1px solid #d0dee9;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(18, 55, 82, 0.1);
+}
+
+.map-diary-archive-modal .map-diary-archive-detail-head {
+  padding: 1.1rem 1.2rem;
+  background: #e3edf5;
+}
+
+.map-diary-archive-modal .sheet-kicker,
+.map-diary-archive-points {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.map-diary-archive-points {
+  margin: 0;
+  color: #53728a;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.map-diary-archive-modal .map-diary-archive-table-wrap {
+  padding: 0.85rem;
+  background: #f5f8fb;
+}
+
+.map-diary-archive-modal .map-diary-archive-table {
+  overflow: hidden;
+  border: 1px solid #d7e3ec;
+  border-radius: 12px;
+  background: #fff;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.map-diary-archive-modal .map-diary-archive-table th {
+  background: #dce8f1;
+  color: #173f60;
+}
+
+.map-diary-archive-modal .map-diary-archive-table tbody tr {
+  transition: background 140ms ease;
+}
+
+.map-diary-archive-modal .map-diary-archive-table tbody tr:hover {
+  background: #f0f7fc;
+}
+
+@media (max-width: 900px) {
+  .shadcn-print-dialog.map-diary-archive-modal {
+    width: calc(100vw - 0.75rem);
+    max-width: calc(100vw - 0.75rem);
+    height: calc(100dvh - 0.75rem);
+    padding: 0.85rem;
+  }
+
+  .map-diary-archive-toolbar {
+    min-height: 36px;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-layout {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .map-diary-archive-calendar {
+    overflow: visible;
+  }
+
+  .map-diary-archive-calendar-summary {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .map-diary-archive-calendar {
+    padding: 0.85rem;
+  }
+
+  .map-diary-archive-calendar-grid {
+    gap: 0.22rem;
+  }
+
+  .map-diary-archive-calendar-grid button {
+    min-height: 39px;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-table-wrap {
+    padding: 0.55rem;
+  }
+}
+
 .map-diary-empty {
   color: var(--text-muted);
   font-size: 0.88rem;
