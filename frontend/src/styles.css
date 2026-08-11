@@ -12601,6 +12601,93 @@ body.planos-focus-mode .page-shell > main {
   min-height: 0;
 }
 
+.map-diary-archive-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-right: 2.75rem;
+}
+
+.map-diary-archive-title-row .eyebrow {
+  margin-bottom: 0.35rem;
+}
+
+.map-diary-sidebar-toggle {
+  flex: 0 0 auto;
+}
+
+.map-diary-sidebar-toggle .app-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.map-diary-archive-browser {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(21, 118, 209, 0.13);
+  border-radius: 14px;
+  background: #f5faff;
+}
+
+.map-diary-archive-browser-head {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(21, 118, 209, 0.1);
+  background: #fff;
+}
+
+.map-diary-archive-browser-head > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #173f60;
+}
+
+.map-diary-archive-browser-head > div span {
+  color: #698296;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.map-diary-archive-browser-head label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0 0.65rem;
+  border: 1px solid #d3e3ef;
+  border-radius: 10px;
+  background: #f8fbfe;
+}
+
+.map-diary-archive-browser-head label:focus-within {
+  border-color: #6bb7ec;
+  box-shadow: 0 0 0 3px rgba(21, 118, 209, 0.1);
+}
+
+.map-diary-archive-browser-head .app-icon {
+  width: 16px;
+  height: 16px;
+  color: #4e7898;
+}
+
+.map-diary-archive-browser-head input {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #173f60;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
 .map-diary-archive-modal .map-diary-archive-list,
 .map-diary-archive-modal .map-diary-archive-detail {
   border-radius: 12px;
@@ -12609,13 +12696,62 @@ body.planos-focus-mode .page-shell > main {
 .map-diary-archive-modal .map-diary-archive-list {
   gap: 0.42rem;
   padding: 0.7rem;
+  border: 0;
+  border-radius: 0;
 }
 
 .map-diary-archive-modal .map-diary-archive-item {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: stretch;
+  gap: 0.6rem;
   min-height: 52px;
   padding: 0.58rem 0.78rem;
   border-radius: 10px;
   box-shadow: none;
+}
+
+.map-diary-archive-modal .map-diary-archive-item > .app-icon {
+  width: 18px;
+  height: 18px;
+  color: #5c86a4;
+}
+
+.map-diary-archive-modal .map-diary-archive-item > span {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+}
+
+.map-diary-archive-modal .map-diary-archive-item b {
+  padding: 0.25rem 0.42rem;
+  border-radius: 999px;
+  background: #eef5fb;
+  color: #56738a;
+  font-size: 0.62rem;
+}
+
+.map-diary-archive-modal .map-diary-archive-item.is-active b {
+  background: #dff2ff;
+  color: #0d5b92;
+}
+
+.map-diary-archive-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 2rem 1rem;
+  color: #6b8497;
+  text-align: center;
+}
+
+.map-diary-archive-empty .app-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.map-diary-archive-empty strong {
+  color: #274d69;
 }
 
 .map-diary-archive-modal .map-diary-archive-item strong {
@@ -12644,7 +12780,7 @@ body.planos-focus-mode .page-shell > main {
 }
 
 .map-diary-archive-modal .map-diary-archive-table {
-  min-width: 900px;
+  min-width: 0;
 }
 
 .map-diary-archive-modal .map-diary-archive-table th,
@@ -12655,22 +12791,37 @@ body.planos-focus-mode .page-shell > main {
 
 .map-diary-archive-modal .map-diary-archive-table th:nth-child(1),
 .map-diary-archive-modal .map-diary-archive-table td:nth-child(1) {
-  width: 44px;
+  width: 5%;
 }
 
 .map-diary-archive-modal .map-diary-archive-table th:nth-child(2),
 .map-diary-archive-modal .map-diary-archive-table td:nth-child(2) {
-  width: 135px;
+  width: 14%;
 }
 
 .map-diary-archive-modal .map-diary-archive-table th:nth-child(3),
 .map-diary-archive-modal .map-diary-archive-table td:nth-child(3) {
-  width: 360px;
+  width: 15%;
 }
 
 .map-diary-archive-modal .map-diary-archive-table th:nth-child(4),
 .map-diary-archive-modal .map-diary-archive-table td:nth-child(4) {
-  width: 180px;
+  width: 27%;
+}
+
+.map-diary-archive-modal .map-diary-archive-table th:nth-child(5),
+.map-diary-archive-modal .map-diary-archive-table td:nth-child(5) {
+  width: 17%;
+}
+
+.map-diary-archive-modal .map-diary-archive-table th:nth-child(6),
+.map-diary-archive-modal .map-diary-archive-table td:nth-child(6) {
+  width: 9%;
+}
+
+.map-diary-archive-modal .map-diary-archive-table th:nth-child(7),
+.map-diary-archive-modal .map-diary-archive-table td:nth-child(7) {
+  width: 13%;
 }
 
 @media (max-width: 900px) {
@@ -12683,6 +12834,74 @@ body.planos-focus-mode .page-shell > main {
 
   .map-diary-archive-modal .map-diary-archive-layout {
     grid-template-columns: 1fr;
+  }
+
+  .map-diary-archive-browser {
+    max-height: 260px;
+  }
+
+  .map-diary-sidebar-toggle {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .map-diary-archive-title-row {
+    padding-right: 2.25rem;
+  }
+
+  .map-diary-archive-detail-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-detail-head .button-secondary {
+    width: 100%;
+  }
+
+  .map-diary-archive-table-wrap {
+    padding: 0.55rem;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-table {
+    min-width: 0;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-table thead {
+    display: none;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-table,
+  .map-diary-archive-modal .map-diary-archive-table tbody,
+  .map-diary-archive-modal .map-diary-archive-table tr,
+  .map-diary-archive-modal .map-diary-archive-table td {
+    display: block;
+    width: 100% !important;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-table tr {
+    margin-bottom: 0.55rem;
+    padding: 0.55rem;
+    border: 1px solid #d9e7f1;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-table td {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.28rem 0.35rem;
+    border: 0;
+    text-align: left;
+  }
+
+  .map-diary-archive-modal .map-diary-archive-table td::before {
+    content: attr(data-label);
+    color: #6a8194;
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
   }
 }
 

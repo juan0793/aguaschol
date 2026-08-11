@@ -1000,6 +1000,7 @@ function App() {
   const [fieldDebtReport, setFieldDebtReport] = useState(null);
   const [showMapDiaryArchiveModal, setShowMapDiaryArchiveModal] = useState(false);
   const [selectedArchiveMapDiaryKey, setSelectedArchiveMapDiaryKey] = useState("");
+  const [archiveMapDiaryFilter, setArchiveMapDiaryFilter] = useState("");
   const [archiveMapDiaryPoints, setArchiveMapDiaryPoints] = useState([]);
   const [loadingArchiveMapDiaryPoints, setLoadingArchiveMapDiaryPoints] = useState(false);
   const [savingReportMapPoint, setSavingReportMapPoint] = useState(false);
@@ -1303,6 +1304,13 @@ function App() {
     const visibleKeys = new Set(primaryMapDiaryGroups.map((group) => group.key));
     return mapDiaryGroups.filter((group) => !visibleKeys.has(group.key));
   }, [mapDiaryGroups, primaryMapDiaryGroups]);
+  const filteredArchiveMapDiaryGroups = useMemo(() => {
+    const query = archiveMapDiaryFilter.trim().toLocaleLowerCase("es-HN");
+    if (!query) return archivedMapDiaryGroups;
+    return archivedMapDiaryGroups.filter((group) =>
+      `${group.key} ${formatMapDiaryLabel(group.key)}`.toLocaleLowerCase("es-HN").includes(query)
+    );
+  }, [archiveMapDiaryFilter, archivedMapDiaryGroups]);
   const regulatorReportDiaryOptions = useMemo(
     () => mapDiaryGroups.filter((group) => Number(group.total || 0) > 0).slice(0, 8),
     [mapDiaryGroups]
@@ -4646,6 +4654,7 @@ function App() {
   const openMapDiaryArchiveModal = () => {
     if (!archivedMapDiaryGroups.length) return;
     const nextKey = selectedArchiveMapDiaryGroup?.key || archivedMapDiaryGroups[0].key;
+    setArchiveMapDiaryFilter("");
     setShowMapDiaryArchiveModal(true);
     loadArchivedMapDiaryPoints(nextKey);
   };
@@ -12490,30 +12499,58 @@ function App() {
       <Dialog open={showMapDiaryArchiveModal} onOpenChange={setShowMapDiaryArchiveModal}>
         <DialogContent className="map-diary-archive-modal shadcn-print-dialog max-h-[calc(100vh-1rem)] overflow-hidden sm:max-w-none">
           <DialogHeader className="password-modal-head">
-            <p className="eyebrow">Bitácora histórica</p>
-            <DialogTitle>Jornadas anteriores adjuntas</DialogTitle>
+            <div className="map-diary-archive-title-row">
+              <div>
+                <p className="eyebrow">Bitácora histórica</p>
+                <DialogTitle>Seleccionar una jornada</DialogTitle>
+              </div>
+              <button type="button" className="button-secondary map-diary-sidebar-toggle" onClick={() => setSidebarCollapsed((current) => !current)}>
+                <Icon name="arrowLeft" />
+                {sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
+              </button>
+            </div>
             <DialogDescription className="lead">
-              Días trabajados ordenados del más reciente al más antiguo, separados para mantener limpio el tablero principal.
+              Busca una fecha, revisa sus puntos y ábrela en el mapa sin perder el contexto.
             </DialogDescription>
           </DialogHeader>
           <div className="map-diary-archive-layout">
-            <aside className="map-diary-archive-list" aria-label="Jornadas anteriores">
-              {archivedMapDiaryGroups.length ? (
-                archivedMapDiaryGroups.map((group) => (
-                  <button
-                    key={group.key}
-                    type="button"
-                    className={`map-diary-archive-item ${selectedArchiveMapDiaryGroup?.key === group.key ? "is-active" : ""}`}
-                    onClick={() => loadArchivedMapDiaryPoints(group.key)}
-                  >
-                    <strong>{formatMapDiaryLabel(group.key)}</strong>
-                    <span>{group.total} puntos guardados</span>
-                  </button>
-                ))
-              ) : (
-                <p className="helper-text">No hay jornadas anteriores adjuntas.</p>
-              )}
-            </aside>
+            <section className="map-diary-archive-browser">
+              <div className="map-diary-archive-browser-head">
+                <div><strong>Jornadas</strong><span>{filteredArchiveMapDiaryGroups.length} de {archivedMapDiaryGroups.length}</span></div>
+                <label>
+                  <Icon name="search" />
+                  <input
+                    type="search"
+                    value={archiveMapDiaryFilter}
+                    onChange={(event) => setArchiveMapDiaryFilter(event.target.value)}
+                    placeholder="Buscar fecha…"
+                    aria-label="Buscar jornada por fecha"
+                  />
+                </label>
+              </div>
+              <aside className="map-diary-archive-list" aria-label="Jornadas anteriores">
+                {filteredArchiveMapDiaryGroups.length ? (
+                  filteredArchiveMapDiaryGroups.map((group) => {
+                    const active = selectedArchiveMapDiaryGroup?.key === group.key;
+                    return (
+                      <button
+                        key={group.key}
+                        type="button"
+                        className={`map-diary-archive-item ${active ? "is-active" : ""}`}
+                        onClick={() => loadArchivedMapDiaryPoints(group.key)}
+                        aria-pressed={active}
+                      >
+                        <Icon name={active ? "success" : "history"} />
+                        <span><strong>{formatMapDiaryLabel(group.key)}</strong><small>{group.total} puntos guardados</small></span>
+                        <b>{active ? "Seleccionada" : "Ver"}</b>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="map-diary-archive-empty"><Icon name="search" /><strong>Sin coincidencias</strong><span>Prueba otra fecha.</span></div>
+                )}
+              </aside>
+            </section>
             <section className="map-diary-archive-detail">
               <div className="map-diary-archive-detail-head">
                 <div>
@@ -12556,13 +12593,13 @@ function App() {
                     ) : archiveMapDiaryPoints.length ? (
                       archiveMapDiaryPoints.map((point, index) => (
                         <tr key={point.id || `${point.latitude}-${point.longitude}-${index}`}>
-                          <td>{index + 1}</td>
-                          <td>{getMapPointTypeLabel(point.point_type)}</td>
-                          <td>{getMapPointReferenceNote(point) || "--"}</td>
-                          <td>{getMapPointTechnicalDescription(point) || "--"}</td>
-                          <td>{formatCoordinate(point.latitude)}, {formatCoordinate(point.longitude)}</td>
-                          <td>{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
-                          <td>{formatDateTime(point.created_at)}</td>
+                          <td data-label="#">{index + 1}</td>
+                          <td data-label="Tipo">{getMapPointTypeLabel(point.point_type)}</td>
+                          <td data-label="Referencia">{getMapPointReferenceNote(point) || "--"}</td>
+                          <td data-label="Descripción">{getMapPointTechnicalDescription(point) || "--"}</td>
+                          <td data-label="Coordenadas">{formatCoordinate(point.latitude)}, {formatCoordinate(point.longitude)}</td>
+                          <td data-label="Precisión">{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
+                          <td data-label="Hora">{formatDateTime(point.created_at)}</td>
                         </tr>
                       ))
                     ) : (

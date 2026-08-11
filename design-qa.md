@@ -58,6 +58,54 @@ final result: passed
 
 ---
 
+# Design QA - Selector de jornadas GPS
+
+## Evidencia
+
+- Source visual truth: `C:\Users\JR\AppData\Local\Temp\codex-clipboard-eba332bc-79ff-4472-b127-8a83a7700caa.png` (1605 x 906 px) y `C:\Users\JR\AppData\Local\Temp\codex-clipboard-3057b987-b138-469f-a402-1d29e5fc386a.png` (1741 x 922 px).
+- Implementacion de escritorio: `docs/qa/map-diary-modal-desktop-final.png` (1600 x 900 px).
+- Implementacion movil: `docs/qa/map-diary-modal-mobile.png` (600 x 800 px).
+- Comparacion conjunta: `docs/qa/map-diary-comparison.png` (1624 x 495 px).
+- Viewports: 1600 x 900 y 600 x 800 CSS px, densidad 1:1.
+- Estado: modal abierto, jornada seleccionada, ocho puntos de prueba, menu lateral contraido y filtro de jornadas disponible.
+
+## Superficies revisadas
+
+- Tipografia: conserva Geist, la jerarquia institucional y pesos legibles en titulo, buscador, tarjetas y tabla.
+- Espaciado: el modal mantiene margenes uniformes; lista y detalle usan una proporcion equilibrada y en movil se apilan sin controles recortados.
+- Colores: conserva la paleta azul existente, con seleccion activa mas visible y contraste suficiente en controles y etiquetas.
+- Imagenes: no se requieren recursos nuevos; se conserva el logo real de la aplicacion y los iconos instalados.
+- Contenido: la nueva redaccion prioriza la tarea de buscar, revisar y abrir una jornada.
+- Tabla: todas las columnas caben en escritorio sin desplazamiento horizontal; en 600 px cada fila cambia a tarjeta etiquetada.
+
+## Interacciones verificadas
+
+- Buscar una jornada por fecha reduce correctamente el contador de 5 a 1.
+- Seleccionar otra jornada carga su detalle y actualiza el estado `Seleccionada`.
+- `Contraer menu` cambia el estado del shell y se transforma en `Expandir menu`.
+- El modal y su fondo quedan por encima del panel lateral; el panel ya no tapa la lista ni la cabecera.
+- `Abrir jornada` permanece disponible y el cierre conserva su boton visible.
+- Consola revisada: el entorno simulado registra reconexiones WebSocket y un aviso Leaflet preexistente porque no incluye esos servicios; no se observaron errores nuevos del filtro, seleccion, tabla o control lateral.
+
+## Comparacion e historial
+
+### Iteracion 1
+
+- P1: el panel lateral tenia `z-index: 120` y los dialogos `z-index: 50`, por lo que tapaba el modal y su control no era interactuable.
+  - Fix: capas compartidas de dialogo elevadas a 200/201 y control de contraer agregado dentro del modal.
+  - Evidencia posterior: `docs/qa/map-diary-modal-desktop-final.png`.
+- P2: la tabla heredaba anchos fijos que producian desplazamiento horizontal y dejaban la descripcion demasiado estrecha.
+  - Fix: columnas proporcionales al ancho disponible y filas en tarjetas bajo 620 px.
+  - Evidencia posterior: `docs/qa/map-diary-modal-desktop-final.png` y `docs/qa/map-diary-modal-mobile.png`.
+
+## Hallazgos finales
+
+No quedan hallazgos P0, P1 ni P2. El contenido de la implementacion usa datos simulados solo para la verificacion visual; la estructura y las interacciones evaluadas son las mismas que consumen las jornadas reales.
+
+final result: passed
+
+---
+
 # Design QA - Modal de mapa e impresion GPS
 
 ## Evidencia
