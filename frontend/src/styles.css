@@ -9205,45 +9205,68 @@ button.app-user-chip {
   box-shadow: 0 10px 24px rgba(18, 59, 93, 0.08);
 }
 
-.lookup-chat-print-tray-head {
+.lookup-chat-top-actions {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(21, 118, 209, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 28px rgba(18, 59, 93, 0.13);
+  backdrop-filter: blur(12px);
 }
 
-.lookup-chat-print-tray-head strong,
-.lookup-chat-print-tray-head span {
+.lookup-chat-top-actions strong,
+.lookup-chat-top-actions span {
   display: block;
 }
 
-.lookup-chat-print-tray-head strong {
+.lookup-chat-top-actions strong {
   color: #123b5d;
   font-size: 0.86rem;
 }
 
-.lookup-chat-print-tray-head span {
+.lookup-chat-top-actions span {
   margin-top: 0.12rem;
   color: #638098;
   font-size: 0.72rem;
 }
 
-.lookup-chat-print-tray-head > button {
+.lookup-chat-top-actions > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.lookup-chat-top-actions button {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   min-height: 36px;
   padding: 0.4rem 0.75rem;
-  border: 0;
+  border: 1px solid #d4e2ed;
   border-radius: 10px;
-  background: #0d5fa6;
-  color: #fff;
+  background: #f7fafc;
+  color: #315b7c;
   font: inherit;
   font-size: 0.78rem;
   font-weight: 800;
 }
 
-.lookup-chat-print-tray-head .app-icon {
+.lookup-chat-top-actions button.is-primary {
+  border-color: #0d5fa6;
+  background: #0d5fa6;
+  color: #fff;
+}
+
+.lookup-chat-top-actions .app-icon {
   width: 15px;
   height: 15px;
 }
@@ -9979,6 +10002,21 @@ button.app-user-chip {
 
   .lookup-chat-hero p {
     font-size: 0.9rem;
+  }
+
+  .lookup-chat-top-actions {
+    position: static;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lookup-chat-top-actions > div:last-child,
+  .lookup-chat-top-actions button {
+    width: 100%;
+  }
+
+  .lookup-chat-top-actions button {
+    justify-content: center;
   }
 
   .lookup-chat-input-row {

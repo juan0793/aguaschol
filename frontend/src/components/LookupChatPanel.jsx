@@ -243,6 +243,60 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
         </div>
 
         {messages.length ? (
+          <div className="lookup-chat-top-actions">
+            <div>
+              <strong>{printSelection.length ? `${printSelection.length} seleccionados` : "Resultados en pantalla"}</strong>
+              <span>{printSelection.length ? "Acomódalos abajo antes de imprimir" : "Usa + para preparar una hoja"}</span>
+            </div>
+            <div>
+              {printSelection.length ? (
+                <button type="button" className="is-primary" onClick={handlePrintSelection}><Icon name="print" /> Imprimir seleccionados</button>
+              ) : null}
+              <button type="button" onClick={startNewLookup}>× Limpiar pantalla</button>
+            </div>
+          </div>
+        ) : null}
+
+        {printSelection.length ? (
+          <section className="lookup-chat-print-tray" aria-label="Resultados seleccionados para imprimir">
+            <div className="lookup-chat-print-tray-list">
+              {printSelection.map((item, index) => {
+                const clave = item.fields.find((field) => field.label === "Clave catastral")?.value;
+                const abonado = item.fields.find((field) => field.label === "Número de abonado")?.value;
+                return (
+                  <article
+                    key={item.id}
+                    className={`lookup-chat-print-chip ${draggedPrintId === item.id ? "is-dragging" : ""}`}
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", item.id);
+                      setDraggedPrintId(item.id);
+                    }}
+                    onDragEnd={() => setDraggedPrintId(null)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const fromIndex = printSelection.findIndex(({ id }) => id === event.dataTransfer.getData("text/plain"));
+                      movePrintCard(fromIndex, index);
+                      setDraggedPrintId(null);
+                    }}
+                  >
+                    <span className="lookup-chat-print-chip-grip" aria-hidden="true">⋮⋮</span>
+                    <span><small>{item.status}</small><strong>{clave || abonado || `Resultado ${index + 1}`}</strong></span>
+                    <div>
+                      <button type="button" onClick={() => movePrintCard(index, index - 1)} disabled={!index} aria-label="Mover a la izquierda"><Icon name="arrowLeft" /></button>
+                      <button type="button" onClick={() => movePrintCard(index, index + 1)} disabled={index === printSelection.length - 1} aria-label="Mover a la derecha"><Icon name="arrowRight" /></button>
+                      <button type="button" onClick={() => setPrintSelection((current) => current.filter(({ id }) => id !== item.id))} aria-label="Quitar de la hoja">×</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {messages.length ? (
           <div ref={messagesRef} className="lookup-chat-messages" role="log" aria-live="polite">
             {messages.map((message) => (
               <article key={message.id} className={`lookup-chat-message is-${message.role}`}>
@@ -317,52 +371,6 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
             ))}
           </div>
         )}
-
-        {printSelection.length ? (
-          <section className="lookup-chat-print-tray" aria-label="Resultados seleccionados para imprimir">
-            <div className="lookup-chat-print-tray-head">
-              <div>
-                <strong>Hoja de impresión</strong>
-                <span>{printSelection.length} {printSelection.length === 1 ? "resultado" : "resultados"} · Arrastra para acomodar</span>
-              </div>
-              <button type="button" onClick={handlePrintSelection}><Icon name="print" /> Imprimir hoja</button>
-            </div>
-            <div className="lookup-chat-print-tray-list">
-              {printSelection.map((item, index) => {
-                const clave = item.fields.find((field) => field.label === "Clave catastral")?.value;
-                const abonado = item.fields.find((field) => field.label === "Número de abonado")?.value;
-                return (
-                  <article
-                    key={item.id}
-                    className={`lookup-chat-print-chip ${draggedPrintId === item.id ? "is-dragging" : ""}`}
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData("text/plain", item.id);
-                      setDraggedPrintId(item.id);
-                    }}
-                    onDragEnd={() => setDraggedPrintId(null)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      const fromIndex = printSelection.findIndex(({ id }) => id === event.dataTransfer.getData("text/plain"));
-                      movePrintCard(fromIndex, index);
-                      setDraggedPrintId(null);
-                    }}
-                  >
-                    <span className="lookup-chat-print-chip-grip" aria-hidden="true">⋮⋮</span>
-                    <span><small>{item.status}</small><strong>{clave || abonado || `Resultado ${index + 1}`}</strong></span>
-                    <div>
-                      <button type="button" onClick={() => movePrintCard(index, index - 1)} disabled={!index} aria-label="Mover a la izquierda"><Icon name="arrowLeft" /></button>
-                      <button type="button" onClick={() => movePrintCard(index, index + 1)} disabled={index === printSelection.length - 1} aria-label="Mover a la derecha"><Icon name="arrowRight" /></button>
-                      <button type="button" onClick={() => setPrintSelection((current) => current.filter(({ id }) => id !== item.id))} aria-label="Quitar de la hoja">×</button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
 
         {livePreview ? (
           <div className={`lookup-chat-live is-${livePreview.tone}`} aria-live="polite">
