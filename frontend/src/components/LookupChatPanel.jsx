@@ -189,7 +189,7 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
     await printDocument(
       message.title || "Resultados de búsqueda",
       buildLookupPrintMarkup(message),
-      { bodyClassName: "lookup-report-body", pageSize: "Letter portrait", pageMargin: "10mm" }
+      { bodyClassName: "lookup-chat-print-body", pageSize: "Letter portrait", pageMargin: "10mm" }
     );
   };
 

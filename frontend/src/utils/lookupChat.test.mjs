@@ -42,6 +42,7 @@ test("prepara todos los resultados para imprimir sin insertar HTML de los datos"
 
   assert.match(markup, /10-10-10-10/);
   assert.match(markup, /Solo Catastro/);
+  assert.match(markup, /lookup-chat-print-card/);
   assert.doesNotMatch(markup, /<script>/);
   assert.match(markup, /&lt;script&gt;riesgo&lt;\/script&gt;/);
 });

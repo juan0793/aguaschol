@@ -190,29 +190,37 @@ export const buildLookupPrintMarkup = (message = {}) => {
   const cards = message.cards || [];
   const cardMarkup = cards
     .map(
-      (card) => `
-        <section class="lookup-report-section">
-          <h2>${escapeHtml(card.status || "Resultado")}</h2>
-          <div class="lookup-report-grid">
+      (card, index) => `
+        <article class="lookup-chat-print-result">
+          <div class="lookup-chat-print-result-head">
+            <span>${escapeHtml(card.status || "Resultado")}</span>
+            <small>Registro ${index + 1}</small>
+          </div>
+          <div class="lookup-chat-print-fields">
             ${card.fields
               .map(
                 (field) => `<div><strong>${escapeHtml(field.label)}</strong><span>${escapeHtml(field.value || "--")}</span></div>`
               )
               .join("")}
           </div>
-        </section>
+        </article>
       `
     )
     .join("");
 
-  return `<div class="lookup-report-shell">
-    <header class="lookup-report-header">
-      <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+  return `<section class="lookup-chat-print-card">
+    <header class="lookup-chat-print-header">
+      <div class="lookup-chat-print-brand">
+        <span class="lookup-chat-print-monogram">AC</span>
+        <div><strong>Aguas de Choluteca</strong><small>Consulta de padrón y Catastro</small></div>
+        <b>${cards.length} ${cards.length === 1 ? "resultado" : "resultados"}</b>
+      </div>
       <h1>${escapeHtml(message.title || "Resultados de búsqueda")}</h1>
       <p>${escapeHtml(message.text || "Consulta del padrón maestro y Catastro.")}</p>
     </header>
-    ${cardMarkup}
-  </div>`;
+    <div class="lookup-chat-print-results">${cardMarkup}</div>
+    <footer>Documento de consulta · Aguas de Choluteca, S.A. de C.V.</footer>
+  </section>`;
 };
 
 export const buildLookupChatResponse = (result = {}, queryMeta = {}) => {
