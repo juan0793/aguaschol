@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLookupChatResponse, parseLookupChatMessage } from "./lookupChat.js";
+import { buildLookupChatResponse, buildLookupPrintMarkup, parseLookupChatMessage } from "./lookupChat.js";
 
 test("reconoce una clave historica con bloques de tres digitos", () => {
   assert.deepEqual(
@@ -29,4 +29,19 @@ test("mantiene consistente una vinculacion municipal con Aguas", () => {
   assert.equal(response.title, "Vinculación encontrada");
   assert.match(response.text, /figura vinculada al padrón de Aguas/);
   assert.equal(response.cards[0].fields.find(({ label }) => label === "Estado en Aguas")?.value, "Con registro asociado");
+});
+
+test("prepara todos los resultados para imprimir sin insertar HTML de los datos", () => {
+  const markup = buildLookupPrintMarkup({
+    title: "Dos resultados",
+    cards: [
+      { status: "En Aguas", fields: [{ label: "Clave", value: "10-10-10-10" }] },
+      { status: "Solo Catastro", fields: [{ label: "Nombre", value: "<script>riesgo</script>" }] }
+    ]
+  });
+
+  assert.match(markup, /10-10-10-10/);
+  assert.match(markup, /Solo Catastro/);
+  assert.doesNotMatch(markup, /<script>/);
+  assert.match(markup, /&lt;script&gt;riesgo&lt;\/script&gt;/);
 });

@@ -1,4 +1,5 @@
 import { formatClaveInput } from "./claveAndLookup.js";
+import { escapeHtml } from "./html.js";
 
 const CLAVE_WITH_DASHES_PATTERN = /\b\d{2,3}(?:-\d{2,3}){2}(?:-\d{2,3})?\b/;
 
@@ -184,6 +185,35 @@ export const buildLookupErrorResponse = (error, queryMeta = {}) => ({
   cards: [],
   actions: []
 });
+
+export const buildLookupPrintMarkup = (message = {}) => {
+  const cards = message.cards || [];
+  const cardMarkup = cards
+    .map(
+      (card) => `
+        <section class="lookup-report-section">
+          <h2>${escapeHtml(card.status || "Resultado")}</h2>
+          <div class="lookup-report-grid">
+            ${card.fields
+              .map(
+                (field) => `<div><strong>${escapeHtml(field.label)}</strong><span>${escapeHtml(field.value || "--")}</span></div>`
+              )
+              .join("")}
+          </div>
+        </section>
+      `
+    )
+    .join("");
+
+  return `<div class="lookup-report-shell">
+    <header class="lookup-report-header">
+      <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+      <h1>${escapeHtml(message.title || "Resultados de búsqueda")}</h1>
+      <p>${escapeHtml(message.text || "Consulta del padrón maestro y Catastro.")}</p>
+    </header>
+    ${cardMarkup}
+  </div>`;
+};
 
 export const buildLookupChatResponse = (result = {}, queryMeta = {}) => {
   const aguasMatches = result.aguas?.matches || [];

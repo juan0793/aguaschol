@@ -4,8 +4,10 @@ import { isLookupQueryReady } from "../utils/claveAndLookup";
 import {
   buildLookupChatResponse,
   buildLookupErrorResponse,
+  buildLookupPrintMarkup,
   parseLookupChatMessage
 } from "../utils/lookupChat";
+import { printDocument } from "../utils/printDocument";
 
 const suggestions = [
   { label: "Buscar una clave", example: "10-10-10-10", query: "buscar clave 10-10-10-10" },
@@ -180,6 +182,17 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
     setCopyStatus(action === "Copiar clave" ? "Clave copiada" : "Número de abonado copiado");
   };
 
+  const handlePrintResults = async (message) => {
+    const cards = message.cards || [];
+    if (!cards.length) return;
+
+    await printDocument(
+      message.title || "Resultados de búsqueda",
+      buildLookupPrintMarkup(message),
+      { bodyClassName: "lookup-report-body", pageSize: "Letter portrait", pageMargin: "10mm" }
+    );
+  };
+
   const startNewLookup = () => {
     setMessages([]);
     setInput("");
@@ -204,7 +217,16 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
             {messages.map((message) => (
               <article key={message.id} className={`lookup-chat-message is-${message.role}`}>
                 <div className={`lookup-chat-bubble ${message.tone ? `is-${message.tone}` : ""}`}>
-                  {message.title ? <strong className="lookup-chat-message-title">{message.title}</strong> : null}
+                  {message.title ? (
+                    <div className="lookup-chat-message-head">
+                      <strong className="lookup-chat-message-title">{message.title}</strong>
+                      {message.cards?.length ? (
+                        <button type="button" className="lookup-chat-print" onClick={() => handlePrintResults(message)}>
+                          <Icon name="print" /> Imprimir resultados
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <p>{message.text}</p>
                   {message.tone === "loading" ? <span className="lookup-chat-loading">Consultando<span>...</span></span> : null}
                   {message.cards?.length ? (
