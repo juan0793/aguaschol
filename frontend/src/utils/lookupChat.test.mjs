@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLookupChatResponse, buildLookupPrintMarkup, parseLookupChatMessage } from "./lookupChat.js";
+import { buildLookupChatResponse, buildLookupPrintMarkup, moveLookupPrintItem, parseLookupChatMessage } from "./lookupChat.js";
 
 test("reconoce una clave historica con bloques de tres digitos", () => {
   assert.deepEqual(
@@ -45,4 +45,10 @@ test("prepara todos los resultados para imprimir sin insertar HTML de los datos"
   assert.match(markup, /lookup-chat-print-card/);
   assert.doesNotMatch(markup, /<script>/);
   assert.match(markup, /&lt;script&gt;riesgo&lt;\/script&gt;/);
+});
+
+test("reordena los resultados seleccionados para imprimir", () => {
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  assert.deepEqual(moveLookupPrintItem(items, 2, 0).map(({ id }) => id), ["c", "a", "b"]);
+  assert.equal(moveLookupPrintItem(items, 0, 8), items);
 });

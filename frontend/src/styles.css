@@ -9160,6 +9160,169 @@ button.app-user-chip {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.lookup-chat-result-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.lookup-chat-add-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-height: 30px;
+  padding: 0.3rem 0.62rem;
+  border: 1px solid rgba(21, 118, 209, 0.22);
+  border-radius: 999px;
+  background: #eef7ff;
+  color: #0d4d86;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.lookup-chat-add-print.is-selected {
+  border-color: rgba(22, 112, 75, 0.25);
+  background: #e9f8f1;
+  color: #16704b;
+}
+
+.lookup-chat-add-print .app-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.lookup-chat-print-tray {
+  display: grid;
+  gap: 0.65rem;
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 0.8rem;
+  border: 1px solid rgba(21, 118, 209, 0.18);
+  border-radius: 16px;
+  background: #f7fbff;
+  box-shadow: 0 10px 24px rgba(18, 59, 93, 0.08);
+}
+
+.lookup-chat-print-tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.lookup-chat-print-tray-head strong,
+.lookup-chat-print-tray-head span {
+  display: block;
+}
+
+.lookup-chat-print-tray-head strong {
+  color: #123b5d;
+  font-size: 0.86rem;
+}
+
+.lookup-chat-print-tray-head span {
+  margin-top: 0.12rem;
+  color: #638098;
+  font-size: 0.72rem;
+}
+
+.lookup-chat-print-tray-head > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  border-radius: 10px;
+  background: #0d5fa6;
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.lookup-chat-print-tray-head .app-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.lookup-chat-print-tray-list {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.lookup-chat-print-chip {
+  display: grid;
+  grid-template-columns: auto minmax(105px, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  min-width: 260px;
+  padding: 0.5rem;
+  border: 1px solid #d5e4f0;
+  border-radius: 11px;
+  background: #fff;
+  cursor: grab;
+}
+
+.lookup-chat-print-chip.is-dragging {
+  opacity: 0.45;
+}
+
+.lookup-chat-print-chip-grip {
+  color: #8aa1b4;
+  font-weight: 900;
+  letter-spacing: -0.2em;
+}
+
+.lookup-chat-print-chip > span:nth-child(2) small,
+.lookup-chat-print-chip > span:nth-child(2) strong {
+  display: block;
+}
+
+.lookup-chat-print-chip small {
+  color: #6b8498;
+  font-size: 0.62rem;
+}
+
+.lookup-chat-print-chip strong {
+  margin-top: 0.1rem;
+  color: #123b5d;
+  font-size: 0.76rem;
+}
+
+.lookup-chat-print-chip > div {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.lookup-chat-print-chip button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #d8e5ef;
+  border-radius: 7px;
+  background: #f7fafc;
+  color: #315b7c;
+  font: inherit;
+  font-weight: 800;
+}
+
+.lookup-chat-print-chip button:disabled {
+  opacity: 0.35;
+}
+
+.lookup-chat-print-chip .app-icon {
+  width: 12px;
+  height: 12px;
+}
+
 .lookup-chat-result-card.is-success,
 .lookup-chat-success {
   border-color: rgba(22, 112, 75, 0.18);
