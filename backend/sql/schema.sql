@@ -670,3 +670,84 @@ ON DUPLICATE KEY UPDATE
   accion_inspeccion = VALUES(accion_inspeccion),
   comentarios = VALUES(comentarios),
   analista_datos = VALUES(analista_datos);
+
+CREATE TABLE IF NOT EXISTS inspecciones (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  numero_inspeccion VARCHAR(40) NOT NULL UNIQUE,
+  clave_catastral VARCHAR(30) NOT NULL DEFAULT '',
+  inspeccion_general TINYINT(1) NOT NULL DEFAULT 0,
+  abonado_numero VARCHAR(80) NOT NULL DEFAULT '',
+  abonado_nombre_snapshot VARCHAR(180) NOT NULL DEFAULT '',
+  barrio_snapshot VARCHAR(180) NOT NULL DEFAULT '',
+  direccion_snapshot VARCHAR(255) NOT NULL DEFAULT '',
+  motivo VARCHAR(180) NOT NULL DEFAULT '',
+  trabajo_solicitado TEXT NOT NULL,
+  informacion_encontrada TEXT NULL,
+  observaciones TEXT NULL,
+  estado ENUM('ASIGNADA', 'EN_PROCESO', 'SEGUIMIENTO', 'FINALIZADA') NOT NULL DEFAULT 'ASIGNADA',
+  requiere_seguimiento TINYINT(1) NOT NULL DEFAULT 0,
+  seguimiento_detalle TEXT NULL,
+  seguimiento_fecha_sugerida DATE NULL,
+  tecnico_responsable_id INT UNSIGNED NULL,
+  creada_por_usuario_id INT UNSIGNED NULL,
+  finalizada_por_usuario_id INT UNSIGNED NULL,
+  fecha_asignacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_inicio TIMESTAMP NULL DEFAULT NULL,
+  fecha_finalizacion TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_inspecciones_numero (numero_inspeccion),
+  KEY idx_inspecciones_clave (clave_catastral),
+  KEY idx_inspecciones_estado (estado),
+  KEY idx_inspecciones_responsable (tecnico_responsable_id),
+  KEY idx_inspecciones_fecha_asignacion (fecha_asignacion),
+  KEY idx_inspecciones_fecha_finalizacion (fecha_finalizacion),
+  KEY idx_inspecciones_estado_fecha (estado, fecha_asignacion),
+  CONSTRAINT fk_inspecciones_responsable FOREIGN KEY (tecnico_responsable_id) REFERENCES app_users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_inspecciones_creador FOREIGN KEY (creada_por_usuario_id) REFERENCES app_users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_inspecciones_finalizador FOREIGN KEY (finalizada_por_usuario_id) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS inspeccion_tecnicos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  inspeccion_id INT UNSIGNED NOT NULL,
+  tecnico_id INT UNSIGNED NOT NULL,
+  rol ENUM('RESPONSABLE', 'APOYO') NOT NULL,
+  agregado_por_usuario_id INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  removed_at TIMESTAMP NULL DEFAULT NULL,
+  KEY idx_inspeccion_tecnicos_inspeccion (inspeccion_id, tecnico_id),
+  KEY idx_inspeccion_tecnicos_tecnico (tecnico_id),
+  CONSTRAINT fk_inspeccion_tecnicos_inspeccion FOREIGN KEY (inspeccion_id) REFERENCES inspecciones(id) ON DELETE CASCADE,
+  CONSTRAINT fk_inspeccion_tecnicos_tecnico FOREIGN KEY (tecnico_id) REFERENCES app_users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_inspeccion_tecnicos_agregado_por FOREIGN KEY (agregado_por_usuario_id) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS inspeccion_gps (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  inspeccion_id INT UNSIGNED NOT NULL,
+  usuario_id INT UNSIGNED NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  accuracy_meters DECIMAL(8,2) NULL,
+  tipo_punto VARCHAR(60) NOT NULL DEFAULT 'observado',
+  descripcion VARCHAR(255) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_inspeccion_gps_inspeccion (inspeccion_id, created_at),
+  KEY idx_inspeccion_gps_usuario (usuario_id),
+  CONSTRAINT fk_inspeccion_gps_inspeccion FOREIGN KEY (inspeccion_id) REFERENCES inspecciones(id) ON DELETE CASCADE,
+  CONSTRAINT fk_inspeccion_gps_usuario FOREIGN KEY (usuario_id) REFERENCES app_users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS inspeccion_impresiones (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  inspeccion_id INT UNSIGNED NOT NULL,
+  tipo_documento ENUM('ORDEN', 'REPORTE') NOT NULL,
+  accion ENUM('PDF_GENERADO', 'IMPRESO', 'REIMPRESO') NOT NULL,
+  usuario_id INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_inspeccion_impresiones_inspeccion (inspeccion_id, created_at),
+  KEY idx_inspeccion_impresiones_tipo (inspeccion_id, tipo_documento, accion),
+  CONSTRAINT fk_inspeccion_impresiones_inspeccion FOREIGN KEY (inspeccion_id) REFERENCES inspecciones(id) ON DELETE CASCADE,
+  CONSTRAINT fk_inspeccion_impresiones_usuario FOREIGN KEY (usuario_id) REFERENCES app_users(id) ON DELETE SET NULL
+);

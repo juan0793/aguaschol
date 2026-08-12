@@ -13,6 +13,7 @@ import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader"
 import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections } from "./components/sidebar/sidebarConfig";
 import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
+import InspeccionesPage from "./modules/inspecciones/pages/InspeccionesPage";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import loginBridgeBackground from "./assets/login/login-bridge-background.webp";
 import loginDroplet from "./assets/login/control-aguas-droplet.png";
@@ -596,7 +597,7 @@ const normalizeDashboardWidgetPrefs = (value) => {
   return { order, hidden };
 };
 
-const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : role === "validadora_campo" ? "fieldValidation" : "records");
+const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "inspecciones" : "records");
 const getMapReportZoneOverrideKey = (zoneName) => String(zoneName || "Zona no especificada").trim() || "Zona no especificada";
 const getMapReportTechnicians = (staff) => {
   const names = Array.isArray(staff?.field_technician_names)
@@ -2172,6 +2173,7 @@ function App() {
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
             { key: "profile", section: "vision", label: "Mi perfil", icon: "users", meta: "Rendimiento personal", tone: "is-users" },
             { key: "executiveReport", section: "vision", label: "Operaciones realizadas", icon: "records", meta: "PDF general", tone: "is-report" },
+            { key: "inspecciones", section: "operacion", label: "Inspecciones", icon: "activity", meta: "Asignación y seguimiento", tone: "is-records" },
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
@@ -2228,6 +2230,7 @@ function App() {
       (isAdmin
         ? [
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
+            { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
@@ -2244,6 +2247,7 @@ function App() {
           ]
         : [
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
+            { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
@@ -2268,7 +2272,7 @@ function App() {
     ]
   );
   const mobilePrimaryModuleKeys = useMemo(
-    () => ["profile", "records", "lookup", "map"],
+    () => ["profile", "inspecciones", "records", "lookup", "map"],
     []
   );
   const primaryModuleNavigationItems = useMemo(
@@ -5004,8 +5008,8 @@ function App() {
 
   useEffect(() => {
     const allowedViews = isFieldValidator
-      ? ["profile", "records", "lookup", "map", "fieldValidation", "planos"]
-      : ["profile", "records", "lookup", "map", "planos"];
+      ? ["profile", "inspecciones", "records", "lookup", "map", "fieldValidation", "planos"]
+      : ["profile", "inspecciones", "records", "lookup", "map", "planos"];
     if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
       setWorkspaceView("records");
     }
@@ -14512,6 +14516,8 @@ function App() {
           </Suspense>
         </section>
       </main>
+      ) : workspaceView === "inspecciones" ? (
+      <InspeccionesPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
       ) : workspaceView === "records" ? (
       <ClandestinosPage
         apiFetch={apiFetch}

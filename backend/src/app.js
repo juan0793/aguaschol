@@ -20,6 +20,7 @@ import transportRoutes from "./routes/transportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import foxProImportRoutes from "./routes/foxProImportRoutes.js";
 import clandestinosRoutes from "./routes/clandestinosRoutes.js";
+import inspeccionesRoutes from "./routes/inspeccionesRoutes.js";
 import { readStoredFile } from "./services/fileStorageService.js";
 
 const app = express();
@@ -171,6 +172,7 @@ app.use("/api/claves", requireAuth, claveLookupRoutes);
 app.use("/api/inmuebles", requireAuth, inmuebleRoutes);
 app.use("/api/clandestinos", requireAuth, clandestinosRoutes);
 app.use("/api/field-validation", requireAuth, fieldValidationRoutes);
+app.use("/api/inspecciones", requireAuth, inspeccionesRoutes);
 app.use("/api/map-points", requireAuth, mapPointRoutes);
 app.use("/api/planos", requireAuth, planosRoutes);
 app.use("/api/profile", requireAuth, profileRoutes);
