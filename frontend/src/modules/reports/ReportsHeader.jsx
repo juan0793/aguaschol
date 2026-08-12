@@ -24,11 +24,11 @@ export default function ReportsHeader({ activeLabel, activeTotal, days, onSelect
               <button type="button" className="report-day-all" onClick={() => { setOpen(false); onOpenAllDays(); }}>Ver todas las jornadas</button>
             </div> : null}
           </div>
-          <span className={`ds-badge ${loading ? "is-warning" : "is-success"}`}>{loading ? "Actualizando" : "Listo para generar"}</span>
+          <span className={`ds-badge ${loading ? "is-warning" : "is-success is-live"}`}><span className="ds-badge-dot" />{loading ? "Actualizando" : "Listo para generar"}</span>
         </>
       }
       secondaryActions={<>
-        <button type="button" className="button-secondary" onClick={onRefresh} disabled={loading}><Icon name="refresh" />Actualizar</button>
+        <button type="button" className="button-secondary" onClick={onRefresh} disabled={loading}><Icon name="refresh" className={loading ? "ds-icon-spin" : ""} />Actualizar</button>
         <button type="button" className="button-secondary" onClick={onSettings} aria-label="Configurar reporte"><Icon name="auth" />Configurar</button>
         <button type="button" className="button-secondary" onClick={onPreview}><Icon name="search" />Vista previa</button>
       </>}

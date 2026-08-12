@@ -116,12 +116,31 @@
 .ds-section-header-title { margin: 0; font-size: 1.05rem; color: var(--ds-text); font-weight: 700; }
 
 /* ---------- StatusBadge ---------- */
-.ds-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.28rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 750; white-space: nowrap; }
+.ds-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.28rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 750; white-space: nowrap; transition: background-color 0.18s ease, color 0.18s ease; }
 .ds-badge.is-success { background: var(--ds-success-soft); color: var(--ds-success); }
 .ds-badge.is-warning { background: var(--ds-warning-soft); color: var(--ds-warning); }
 .ds-badge.is-danger { background: var(--ds-danger-soft); color: var(--ds-danger); }
 .ds-badge.is-neutral { background: var(--ds-neutral-soft); color: var(--ds-neutral); }
 .ds-badge.is-info { background: var(--ds-blue-soft); color: var(--ds-blue-deep); }
+
+/* Punto de estado "vivo": pulso sutil y continuo, igual al patrón ya usado en el
+   dashboard (.dashboard-live) para indicadores de sistema activo/en tiempo real. */
+.ds-badge-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ds-badge.is-live .ds-badge-dot { animation: ds-pulse 1.7s ease-in-out infinite; }
+
+/* Utilidad para iconos en estado de sincronización (ej. botón "Actualizar" mientras carga). */
+.ds-icon-spin { animation: ds-spin 0.85s linear infinite; }
+
+@keyframes ds-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.82); } }
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+@keyframes ds-fade-in { from { opacity: 0; transform: translateY(2px); } }
+@keyframes ds-pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+
+.ds-metric-value { animation: ds-fade-in 220ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-badge-dot, .ds-icon-spin, .ds-metric-value { animation: none !important; }
+}
 
 @media (max-width: 768px) {
   .ds-page-header { align-items: flex-start; flex-direction: column; }

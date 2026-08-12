@@ -27,7 +27,12 @@
   border-radius: var(--ds-radius-input);
   text-align: left;
   box-shadow: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
+.report-day-combobox > button:hover { border-color: var(--ds-blue); background: var(--ds-blue-soft); }
+.report-day-combobox > button[aria-expanded="true"] { border-color: var(--ds-blue); }
+.report-day-combobox > button b { transition: transform 0.18s ease; }
+.report-day-combobox > button[aria-expanded="true"] b { transform: rotate(180deg); }
 .report-day-combobox > button span { display: grid; flex: 1; }
 .report-day-combobox small { font-size: 0.66rem; color: var(--ds-text-muted); }
 .report-day-popover {
@@ -44,9 +49,11 @@
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-sm);
   box-shadow: var(--ds-shadow-md);
+  transform-origin: top;
+  animation: report-popover-in 140ms ease;
 }
 .report-day-popover > span { padding: 0.3rem 0.4rem; color: var(--ds-text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
-.report-day-popover button { display: flex; justify-content: space-between; background: transparent; color: var(--ds-text); box-shadow: none; }
+.report-day-popover button { display: flex; justify-content: space-between; background: transparent; color: var(--ds-text); box-shadow: none; transition: background-color 0.12s ease; border-radius: var(--ds-radius-input); }
 .report-day-popover button:hover { background: var(--ds-surface-subtle); transform: none; }
 .report-day-popover .report-day-all { border-top: 1px solid var(--ds-border); border-radius: 0; margin-top: 0.2rem; padding-top: 0.6rem; color: var(--ds-blue); }
 
@@ -68,11 +75,15 @@
 }
 .reports-tabs { display: flex; gap: 0.2rem; padding: 0.5rem 0.7rem 0; border-bottom: 1px solid var(--ds-border); overflow-x: auto; }
 .reports-tabs button {
+  display: inline-flex; align-items: center; gap: 0.45rem;
   border: 0; border-radius: 8px 8px 0 0; background: transparent; box-shadow: none;
   color: var(--ds-text-muted); font-weight: 650; padding: 0.6rem 0.9rem;
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.reports-tabs button:hover { transform: none; background: var(--ds-surface-subtle); }
+.reports-tabs button .app-icon { color: var(--ds-text-faint); transition: color 0.15s ease; }
+.reports-tabs button:hover { transform: none; background: var(--ds-surface-subtle); color: var(--ds-text); }
 .reports-tabs button.is-active { color: var(--ds-blue); background: var(--ds-blue-soft); box-shadow: inset 0 -2px var(--ds-blue); }
+.reports-tabs button.is-active .app-icon { color: var(--ds-blue); }
 .reports-tab-panel { padding: 0.9rem; animation: report-tab-in 160ms ease; }
 .reports-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.85rem; }
 .reports-panel-head span { color: var(--ds-text-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -85,6 +96,7 @@
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-sm);
   box-shadow: var(--ds-shadow-sm);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
   padding: 0.85rem;
 }
 
@@ -192,6 +204,7 @@
 @keyframes report-tab-in { from { opacity: 0; transform: translateY(3px); } }
 @keyframes report-modal-in { from { opacity: 0; transform: scale(0.98); } }
 @keyframes report-drawer-in { from { transform: translateX(20px); opacity: 0; } }
+@keyframes report-popover-in { from { opacity: 0; transform: translateY(-4px) scaleY(0.96); } }
 
 @media (max-width: 1100px) {
   .report-debt-kpis { grid-template-columns: repeat(3, 1fr); }
