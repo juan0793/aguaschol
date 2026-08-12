@@ -1,5 +1,15 @@
+import MetricRow from "../../components/ds/Metrics";
+
 export default function ReportSummaryBar({ total, zones, ready, pending }) {
-  return <section className="report-summary-bar reports-glass" aria-label="Métricas de la jornada">
-    {[['Puntos', total], ['Barrios', zones], ['Listos', ready], ['Pendientes', pending]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
-  </section>;
+  return (
+    <MetricRow
+      aria-label="Métricas de la jornada"
+      metrics={[
+        { label: "Puntos", value: total },
+        { label: "Barrios", value: zones },
+        { label: "Listos", value: ready },
+        { label: "Pendientes", value: pending }
+      ]}
+    />
+  );
 }

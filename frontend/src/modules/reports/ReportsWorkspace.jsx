@@ -12,6 +12,7 @@ import ReportRecordsTab from "./tabs/ReportRecordsTab";
 import ReportDebtTab from "./tabs/ReportDebtTab";
 import RegulatorReportTab from "./tabs/RegulatorReportTab";
 import { filterReportDays, flattenReportPoints } from "./utils/reportSelectors";
+import "../../components/ds/design-system.css";
 import "./reports.css";
 
 export default function ReportsWorkspace({ model }) {

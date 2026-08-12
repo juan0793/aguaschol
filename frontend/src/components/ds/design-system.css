@@ -1,0 +1,131 @@
+/*
+ * Sistema de diseño compartido (fase 1 — Tremor/SaaS admin como referencia).
+ * Se importa explícitamente en los módulos que lo adopten (por ahora, Reportes de
+ * levantamiento). No se inyecta globalmente en main.jsx para no afectar pantallas
+ * que aún no han migrado a este lenguaje visual.
+ *
+ * Variables con prefijo `--ds-` para evitar cualquier colisión con los tokens ya
+ * existentes en styles.css/dashboard.css/etc. Reutiliza los colores de marca
+ * (`--brand-blue`, ...) definidos en styles.css:root para no romper la identidad
+ * azul institucional.
+ */
+:root {
+  --ds-bg: #f8fafc;
+  --ds-surface: #ffffff;
+  --ds-surface-subtle: #f1f5f9;
+  --ds-border: #e2e8f0;
+  --ds-border-strong: #cbd5e1;
+
+  --ds-text: #0f2a43;
+  --ds-text-muted: #64748b;
+  --ds-text-faint: #94a3b8;
+
+  --ds-blue: var(--brand-blue, #1465d9);
+  --ds-blue-deep: var(--brand-blue-deep, #0b3f73);
+  --ds-blue-soft: #eaf2fd;
+
+  --ds-success: #16704b;
+  --ds-success-soft: #e7f6ee;
+  --ds-warning: #9a5a06;
+  --ds-warning-soft: #fff3da;
+  --ds-danger: #9b202d;
+  --ds-danger-soft: #fdeaec;
+  --ds-neutral: #587086;
+  --ds-neutral-soft: #eef2f6;
+
+  --ds-radius-input: 8px;
+  --ds-radius-button: 8px;
+  --ds-radius-sm: 10px;
+  --ds-radius-lg: 12px;
+
+  --ds-shadow-sm: 0 1px 2px rgba(15, 42, 67, 0.05);
+  --ds-shadow-md: 0 4px 16px rgba(15, 42, 67, 0.09);
+}
+
+/* ---------- PageHeader ---------- */
+.ds-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.85rem;
+  margin-bottom: 0.9rem;
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-page-header-copy { display: grid; gap: 0.2rem; min-width: 0; }
+.ds-page-header-kicker {
+  color: var(--ds-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ds-page-header-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  color: var(--ds-blue-deep);
+  font-weight: 750;
+}
+.ds-page-header-description {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: 0.88rem;
+  max-width: 56ch;
+}
+.ds-page-header-meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.35rem; }
+.ds-page-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.ds-page-header-actions .button-secondary { white-space: nowrap; }
+
+/* ---------- Metric / MetricRow (KPIs compactos) ---------- */
+.ds-metric-row {
+  display: flex;
+  align-items: stretch;
+  background: var(--ds-surface-subtle);
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
+}
+.ds-metric {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 0.15rem;
+  padding: 0.8rem 1.1rem;
+  border-right: 1px solid var(--ds-border);
+}
+.ds-metric:last-child { border-right: 0; }
+.ds-metric-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ds-text-muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+.ds-metric-value { font-size: 1.7rem; line-height: 1.15; font-weight: 750; color: var(--ds-text); }
+.ds-metric-trend { display: flex; align-items: center; gap: 0.2rem; font-size: 0.76rem; font-weight: 700; }
+.ds-metric-trend.is-up { color: var(--ds-success); }
+.ds-metric-trend.is-down { color: var(--ds-danger); }
+
+/* ---------- SectionHeader (sin card, solo tipografía + separación) ---------- */
+.ds-section-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.ds-section-header-copy { display: grid; gap: 0.1rem; }
+.ds-section-header-kicker { color: var(--ds-text-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.ds-section-header-title { margin: 0; font-size: 1.05rem; color: var(--ds-text); font-weight: 700; }
+
+/* ---------- StatusBadge ---------- */
+.ds-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.28rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 750; white-space: nowrap; }
+.ds-badge.is-success { background: var(--ds-success-soft); color: var(--ds-success); }
+.ds-badge.is-warning { background: var(--ds-warning-soft); color: var(--ds-warning); }
+.ds-badge.is-danger { background: var(--ds-danger-soft); color: var(--ds-danger); }
+.ds-badge.is-neutral { background: var(--ds-neutral-soft); color: var(--ds-neutral); }
+.ds-badge.is-info { background: var(--ds-blue-soft); color: var(--ds-blue-deep); }
+
+@media (max-width: 768px) {
+  .ds-page-header { align-items: flex-start; flex-direction: column; }
+  .ds-page-header-actions { width: 100%; }
+  .ds-metric-row { flex-wrap: wrap; }
+  .ds-metric { flex: 1 1 45%; border-bottom: 1px solid var(--ds-border); }
+}
