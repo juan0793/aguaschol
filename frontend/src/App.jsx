@@ -14,6 +14,10 @@ import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections } from "./components/sidebar/sidebarConfig";
 import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
 import InspeccionesPage from "./modules/inspecciones/pages/InspeccionesPage";
+import PageHeader from "./components/ds/PageHeader";
+import MetricRow from "./components/ds/Metrics";
+import "./components/ds/design-system.css";
+import "./styles/request-workspace.css";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
 import loginBridgeBackground from "./assets/login/login-bridge-background.webp";
 import loginDroplet from "./assets/login/control-aguas-droplet.png";
@@ -2172,7 +2176,6 @@ function App() {
         ? [
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
             { key: "profile", section: "vision", label: "Mi perfil", icon: "users", meta: "Rendimiento personal", tone: "is-users" },
-            { key: "executiveReport", section: "vision", label: "Operaciones realizadas", icon: "records", meta: "PDF general", tone: "is-report" },
             { key: "inspecciones", section: "operacion", label: "Inspecciones", icon: "activity", meta: "Asignación y seguimiento", tone: "is-records" },
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
@@ -2232,7 +2235,6 @@ function App() {
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
             { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
-            { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" },
@@ -2254,8 +2256,7 @@ function App() {
             ...(isFieldValidator
               ? [{ key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" }]
               : []),
-            { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
-            { key: "executiveReport", label: "Operaciones realizadas", icon: "records", group: "control", helper: "Informe general PDF" }
+            { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" }
           ]),
     [
       isAdmin,
@@ -18125,53 +18126,25 @@ function App() {
                 </div>
               </section>
             ) : workspaceView === "requests" ? (
-              <section className="preview-panel log-panel-full">
+              <section className="preview-panel log-panel-full request-workspace">
                 <div className="log-shell">
-                  <div className="log-hero">
-                    <div className="admin-section-head">
-                      <div>
-                        <p className="sheet-kicker">Peticiones al padron</p>
-                        <h2><Icon name="dashboard" className="title-icon" />Menu de peticiones</h2>
-                        <p className="workspace-title">
-                          Prepara reportes desde el padron maestro con una sola vista de trabajo: eliges la plantilla, ajustas criterios y generas el listado listo para imprimir o exportar.
-                        </p>
-                      </div>
-                      <span className="panel-pill">{padronRequestResult?.summary?.total_registros ?? 0} filas</span>
-                    </div>
-                    <div className="log-summary-strip map-report-summary-strip">
-                      <div className="log-summary-card">
-                        <span>Plantillas</span>
-                        <strong>{padronRequestTemplates.length || 0}</strong>
-                      </div>
-                      <div className="log-summary-card">
-                        <span>Registros</span>
-                        <strong>{padronRequestResult?.summary?.total_registros ?? 0}</strong>
-                      </div>
-                      <div className="log-summary-card">
-                        <span>Barrios</span>
-                        <strong>{padronRequestResult?.summary?.total_barrios ?? 0}</strong>
-                      </div>
-                      <div className="log-summary-card">
-                        <span>Estado</span>
-                        <strong>{loadingPadronRequest ? "Generando" : loadingPadronRequestMeta ? "Cargando" : "Listo"}</strong>
-                      </div>
-                    </div>
-                    <div className="request-helper-strip">
-                      <div className="request-helper-card">
-                        <span className="sheet-kicker">Flujo rapido</span>
-                        <strong>1. Plantilla  2. Ajuste  3. Generar</strong>
-                        <p>Todo el trabajo queda concentrado aqui para que el operador no tenga que navegar a otros modulos.</p>
-                      </div>
-                      <div className="request-helper-card">
-                        <span className="sheet-kicker">Ejemplos utiles</span>
-                        <div className="request-example-list">
-                          <span className="request-example-chip">apart, apto, aptos</span>
-                          <span className="request-example-chip">barrio:centro</span>
-                          <span className="request-example-chip">abonado:12345</span>
-                          <span className="request-example-chip">-hotel</span>
-                        </div>
-                      </div>
-                    </div>
+                  <PageHeader
+                    kicker="Peticiones al padrón"
+                    title="Menú de peticiones"
+                    description="Prepara reportes desde el padrón maestro con una sola vista de trabajo: elige la plantilla, ajusta criterios y genera el listado listo para imprimir o exportar."
+                  />
+                  <div className="request-status-row">
+                    <MetricRow
+                      metrics={[
+                        { label: "Plantillas", value: padronRequestTemplates.length || 0 },
+                        { label: "Registros", value: padronRequestResult?.summary?.total_registros ?? 0 },
+                        { label: "Barrios", value: padronRequestResult?.summary?.total_barrios ?? 0 }
+                      ]}
+                    />
+                    <span className={`ds-badge ${loadingPadronRequest || loadingPadronRequestMeta ? "is-warning" : "is-success is-live"}`}>
+                      <span className="ds-badge-dot" />
+                      {loadingPadronRequest ? "Generando" : loadingPadronRequestMeta ? "Cargando" : "Listo"}
+                    </span>
                   </div>
                   <article className="document-sheet log-sheet request-sheet">
                     <div className="map-report-office-head request-office-head">
@@ -18228,6 +18201,26 @@ function App() {
                         <b>{alcaldiaComparison?.summary?.candidate_clandestine ?? 0} candidatas</b>
                       </button>
                     </div>
+
+                    <details className="request-secondary">
+                      <summary><Icon name="arrowRight" />Flujo rápido y ejemplos útiles</summary>
+                      <div className="request-helper-strip">
+                        <div className="request-helper-card">
+                          <span className="sheet-kicker">Flujo rapido</span>
+                          <strong>1. Plantilla  2. Ajuste  3. Generar</strong>
+                          <p>Todo el trabajo queda concentrado aqui para que el operador no tenga que navegar a otros modulos.</p>
+                        </div>
+                        <div className="request-helper-card">
+                          <span className="sheet-kicker">Ejemplos utiles</span>
+                          <div className="request-example-list">
+                            <span className="request-example-chip">apart, apto, aptos</span>
+                            <span className="request-example-chip">barrio:centro</span>
+                            <span className="request-example-chip">abonado:12345</span>
+                            <span className="request-example-chip">-hotel</span>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
 
                     {false ? <section className="document-block request-statistics-panel">
                       <div className="admin-section-head">
@@ -18895,7 +18888,7 @@ function App() {
                             </div>
                             <div className="stats-modal-actions">
                               <button type="button" onClick={handleRunPadronRequest} disabled={loadingPadronRequest}>
-                                <Icon name="refresh" />
+                                <Icon name="refresh" className={loadingPadronRequest ? "ds-icon-spin" : ""} />
                                 {loadingPadronRequest ? "Generando..." : "Generar"}
                               </button>
                               <button type="button" className="button-secondary" onClick={handlePrintPadronRequest}>
@@ -19136,6 +19129,9 @@ function App() {
                         <p className="workspace-title">
                           Consola viva para seguir accesos, fichas, padrones y movimientos del trabajo operativo.
                         </p>
+                        <button type="button" className="ds-link-button" onClick={() => setWorkspaceView("executiveReport")}>
+                          <Icon name="records" />Informe de operaciones (PDF)
+                        </button>
                       </div>
                       <div className="log-hero-status">
                         <span className="log-live-dot" />

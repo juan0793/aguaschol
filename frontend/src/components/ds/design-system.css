@@ -142,6 +142,27 @@
   .ds-badge-dot, .ds-icon-spin, .ds-metric-value { animation: none !important; }
 }
 
+/* ---------- Link-button pequeño (acceso secundario, ej. dentro de Auditoría) ---------- */
+.ds-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  min-height: auto;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  background: var(--ds-surface);
+  color: var(--ds-text-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  box-shadow: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.ds-link-button:hover { border-color: var(--ds-blue); color: var(--ds-blue); transform: none; }
+.ds-link-button .app-icon { width: 0.85rem; height: 0.85rem; }
+
 @media (max-width: 768px) {
   .ds-page-header { align-items: flex-start; flex-direction: column; }
   .ds-page-header-actions { width: 100%; }

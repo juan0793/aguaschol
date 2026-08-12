@@ -1,0 +1,196 @@
+/*
+ * "Impresión e informes" (Constructor de peticiones) — rediseño con el mismo
+ * lenguaje visual que Reportes de levantamiento (frontend/src/components/ds/).
+ *
+ * Todo aquí está deliberadamente scoped bajo `.request-workspace` (agregada al
+ * <section> raíz en App.jsx) porque las clases que reutiliza este bloque
+ * (.admin-section-head, .sheet-kicker, .panel-pill, .document-sheet,
+ * .document-block, .helper-text, .stats-modal-*, .map-report-table, ...) son
+ * compartidas por Auditoría, Reportes GPS, Clandestinos y otros módulos.
+ * Sobrescribir esas clases de forma global rompería esas pantallas; aquí solo
+ * se afectan cuando están dentro de este contenedor.
+ */
+
+.request-workspace { padding: 0.25rem; }
+
+.request-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+.request-status-row .ds-metric-row { flex: 1; }
+
+/* ---------- Header de marca dentro del documento (logo + título) ---------- */
+.request-workspace .request-office-head {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  margin-bottom: 0.9rem;
+}
+.request-workspace .request-office-head .brand-logo { width: 44px; height: 44px; }
+.request-workspace .request-office-head h3 { margin: 0.1rem 0; font-size: 1.05rem; color: var(--ds-blue-deep); }
+.request-workspace .request-office-head .sheet-kicker { color: var(--ds-text-muted); font-size: 0.7rem; }
+.request-workspace .request-office-head .helper-text { margin: 0; }
+.request-workspace .panel-pill {
+  background: var(--ds-blue-soft);
+  color: var(--ds-blue-deep);
+  border: 0;
+  transition: background-color 0.15s ease;
+}
+
+/* ---------- Constructor: las 3 opciones son la acción principal ---------- */
+.request-workspace .request-option-grid { margin: 0 0 0.9rem; }
+.request-workspace .request-option-card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  box-shadow: var(--ds-shadow-sm);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  animation: request-card-in 220ms ease both;
+}
+.request-workspace .request-option-card:nth-child(2) { animation-delay: 40ms; }
+.request-workspace .request-option-card:nth-child(3) { animation-delay: 80ms; }
+.request-workspace .request-option-card:hover {
+  border-color: var(--ds-blue);
+  box-shadow: var(--ds-shadow-md);
+  transform: translateY(-2px);
+}
+.request-workspace .request-option-card .sheet-kicker { color: var(--ds-text-muted); }
+.request-workspace .request-option-card strong { color: var(--ds-text); }
+.request-workspace .request-option-card p { color: var(--ds-text-muted); }
+.request-workspace .request-option-card b {
+  background: var(--ds-surface-subtle);
+  color: var(--ds-blue-deep);
+}
+
+/* ---------- Bloque secundario plegable (Flujo rápido / Ejemplos) ---------- */
+.request-workspace .request-secondary {
+  margin-bottom: 0.9rem;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-surface-subtle);
+  overflow: hidden;
+}
+.request-workspace .request-secondary summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  color: var(--ds-text-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+.request-workspace .request-secondary summary::-webkit-details-marker { display: none; }
+.request-workspace .request-secondary summary .app-icon { transition: transform 0.18s ease; color: var(--ds-text-faint); }
+.request-workspace .request-secondary[open] summary .app-icon { transform: rotate(90deg); }
+.request-workspace .request-secondary summary:hover { color: var(--ds-text); }
+.request-workspace .request-secondary[open] summary { border-bottom: 1px solid var(--ds-border); background: var(--ds-surface); }
+.request-workspace .request-secondary .request-helper-strip {
+  padding: 0.85rem;
+  animation: request-fade-in 160ms ease;
+}
+.request-workspace .request-helper-card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  box-shadow: none;
+}
+.request-workspace .request-helper-card strong { color: var(--ds-text); }
+.request-workspace .request-helper-card p { color: var(--ds-text-muted); }
+
+/* ---------- Notas de ayuda (helper-text) como callout, no párrafo suelto ---------- */
+.request-workspace .helper-text {
+  position: relative;
+  padding: 0.55rem 0.7rem 0.55rem 1.9rem;
+  margin: 0.4rem 0;
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-blue-soft);
+  color: var(--ds-blue-deep);
+  font-size: 0.82rem;
+}
+.request-workspace .helper-text::before {
+  content: "i";
+  position: absolute;
+  top: 0.5rem;
+  left: 0.65rem;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ds-blue);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-style: normal;
+}
+.request-workspace .request-editor-card .helper-text { background: var(--ds-surface-subtle); color: var(--ds-text-muted); }
+.request-workspace .request-editor-card .helper-text::before { background: var(--ds-text-faint); }
+.request-workspace .request-keyword-line { background: transparent !important; padding-left: 0 !important; color: var(--ds-text-muted) !important; }
+.request-workspace .request-keyword-line::before { display: none; }
+
+/* ---------- document-sheet / document-block: aplanar ---------- */
+.request-workspace .document-sheet {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.request-workspace .document-block {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+}
+.request-workspace .document-block h4 {
+  background: var(--ds-surface-subtle);
+  border-bottom: 1px solid var(--ds-border);
+  color: var(--ds-text);
+}
+.request-workspace .request-editor-card,
+.request-workspace .request-preview-card,
+.request-workspace .request-zone-card {
+  background: var(--ds-surface);
+  padding: 0.9rem;
+}
+.request-workspace .admin-section-head { margin-bottom: 0.7rem; }
+.request-workspace .admin-section-head h3 { font-size: 0.98rem; }
+
+/* ---------- Chips de criterios ---------- */
+.request-workspace .request-example-chip {
+  border-radius: 999px;
+  border: 0;
+  background: var(--ds-neutral-soft);
+  color: var(--ds-neutral);
+}
+.request-workspace .request-example-chip.is-include { background: var(--ds-success-soft); color: var(--ds-success); }
+.request-workspace .request-example-chip.is-exclude { background: var(--ds-danger-soft); color: var(--ds-danger); }
+.request-workspace .request-example-chip.is-empty { background: var(--ds-neutral-soft); color: var(--ds-text-faint); }
+
+/* ---------- Tabla de resultados por barrio ---------- */
+.request-workspace .map-report-table th { background: var(--ds-surface-subtle); color: var(--ds-text-muted); }
+.request-workspace .map-report-table td, .request-workspace .map-report-table th { border-color: var(--ds-border); }
+.request-workspace .request-zone-card { animation: request-fade-in 200ms ease; }
+
+/* ---------- Modal del constructor (stats-modal-*) ---------- */
+.request-workspace .stats-modal-backdrop { background: rgba(15, 42, 67, 0.42); animation: request-fade-in 140ms ease; }
+.request-workspace .stats-modal-card {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  box-shadow: 0 24px 70px rgba(15, 42, 67, 0.22);
+  animation: request-modal-in 180ms ease;
+}
+.request-workspace .stats-modal-close { border-radius: var(--ds-radius-button); }
+
+@keyframes request-fade-in { from { opacity: 0; transform: translateY(3px); } }
+@keyframes request-card-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes request-modal-in { from { opacity: 0; transform: scale(0.97) translateY(6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .request-workspace * { animation: none !important; transition: none !important; }
+}
