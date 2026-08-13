@@ -15,6 +15,7 @@ export const createInspeccionesApi = (apiFetch) => ({
   detail: (id) => apiFetch(`/inspecciones/${id}`).then(json),
   create: (payload) => apiFetch("/inspecciones", { method: "POST", ...jsonBody(payload) }).then(json),
   update: (id, payload) => apiFetch(`/inspecciones/${id}`, { method: "PATCH", ...jsonBody(payload) }).then(json),
+  remove: (id) => apiFetch(`/inspecciones/${id}`, { method: "DELETE" }).then(json),
   changeEstado: (id, estado, motivo = "") => apiFetch(`/inspecciones/${id}/estado`, { method: "PATCH", ...jsonBody({ estado, motivo }) }).then(json),
   finalizar: (id, payload) => apiFetch(`/inspecciones/${id}/finalizar`, { method: "PATCH", ...jsonBody(payload) }).then(json),
   reasignar: (id, tecnico_responsable_id) => apiFetch(`/inspecciones/${id}/reasignar`, { method: "PATCH", ...jsonBody({ tecnico_responsable_id }) }).then(json),

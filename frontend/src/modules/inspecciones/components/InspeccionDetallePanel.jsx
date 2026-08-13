@@ -15,6 +15,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [printTipo, setPrintTipo] = useState(null);
   const [nuevoApoyoId, setNuevoApoyoId] = useState("");
   const [nuevoResponsableId, setNuevoResponsableId] = useState("");
@@ -45,6 +46,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const puedeGestionar = isAdmin || isResponsable;
   const puedeFinalizar = puedeGestionar || isApoyo;
   const finalizada = inspeccion?.estado === "FINALIZADA";
+  const bloqueadaParaTecnico = finalizada && !isAdmin;
 
   const cargar = async () => {
     if (!inspeccionRef.current) setLoading(true);
@@ -136,6 +138,20 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
     if (await guardarPendiente()) onClose();
   };
 
+  const eliminar = async () => {
+    if (!window.confirm(`¿Eliminar definitivamente la inspección ${inspeccion.numero_inspeccion}?`)) return;
+    if (deleting || !(await guardarPendiente())) return;
+    setDeleting(true);
+    try {
+      await api.remove(id);
+      notify("Inspección eliminada.");
+      onClose();
+    } catch (error) {
+      notify(error.message);
+      setDeleting(false);
+    }
+  };
+
   const agregarApoyo = async () => {
     if (!nuevoApoyoId) return;
     try {
@@ -205,14 +221,30 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
 
           <section className="ins-form-section">
             <h3>Trabajo solicitado</h3>
-            <p>{inspeccion.trabajo_solicitado}</p>
+            {isAdmin ? (
+              <textarea
+                rows={3}
+                value={inspeccion.trabajo_solicitado || ""}
+                onChange={(event) => guardarCampo({ trabajo_solicitado: event.target.value })}
+              />
+            ) : <p>{inspeccion.trabajo_solicitado}</p>}
           </section>
+
+          {isAdmin ? (
+            <section className="ins-form-section">
+              <h3>Motivo</h3>
+              <input
+                value={inspeccion.motivo || ""}
+                onChange={(event) => guardarCampo({ motivo: event.target.value })}
+              />
+            </section>
+          ) : null}
 
           <section className="ins-form-section">
             <h3>Información encontrada</h3>
             <textarea
               rows={4}
-              disabled={finalizada || (!isAdmin && !isResponsable && !isApoyo)}
+              disabled={bloqueadaParaTecnico || (!isAdmin && !isResponsable && !isApoyo)}
               defaultValue={inspeccion.informacion_encontrada}
               placeholder="Describe lo verificado en campo…"
               onChange={(event) => guardarCampo({ informacion_encontrada: event.target.value })}
@@ -220,7 +252,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
             <h3>Observaciones adicionales</h3>
             <textarea
               rows={2}
-              disabled={finalizada || (!isAdmin && !isResponsable && !isApoyo)}
+              disabled={bloqueadaParaTecnico || (!isAdmin && !isResponsable && !isApoyo)}
               defaultValue={inspeccion.observaciones}
               placeholder="Observaciones opcionales…"
               onChange={(event) => guardarCampo({ observaciones: event.target.value })}
@@ -245,7 +277,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
             <label className="ins-apoyo-chip">
               <input
                 type="checkbox"
-                disabled={finalizada || !puedeGestionar}
+                disabled={bloqueadaParaTecnico || !puedeGestionar}
                 checked={Boolean(inspeccion.requiere_seguimiento)}
                 onChange={(event) => guardarCampo({ requiere_seguimiento: event.target.checked })}
               />
@@ -255,11 +287,11 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
               <div className="cl-fields">
                 <label className="cl-field is-wide">
                   <span>Detalle del seguimiento</span>
-                  <textarea rows={2} disabled={finalizada || !puedeGestionar} value={seguimientoDetalle} onChange={(event) => { setSeguimientoDetalle(event.target.value); guardarCampo({ seguimiento_detalle: event.target.value }); }} />
+                  <textarea rows={2} disabled={bloqueadaParaTecnico || !puedeGestionar} value={seguimientoDetalle} onChange={(event) => { setSeguimientoDetalle(event.target.value); guardarCampo({ seguimiento_detalle: event.target.value }); }} />
                 </label>
                 <label className="cl-field">
                   <span>Fecha sugerida</span>
-                  <input type="date" disabled={finalizada || !puedeGestionar} value={seguimientoFecha || ""} onChange={(event) => { setSeguimientoFecha(event.target.value); guardarCampo({ seguimiento_fecha_sugerida: event.target.value }); }} />
+                  <input type="date" disabled={bloqueadaParaTecnico || !puedeGestionar} value={seguimientoFecha || ""} onChange={(event) => { setSeguimientoFecha(event.target.value); guardarCampo({ seguimiento_fecha_sugerida: event.target.value }); }} />
                 </label>
               </div>
             ) : null}
@@ -362,7 +394,8 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
         </div>
         <footer>
           <div className="cl-drawer-main-actions">
-            <button type="button" className="cl-secondary" onClick={cerrar} disabled={saving || finalizing}>Cerrar</button>
+            {isAdmin ? <button type="button" className="cl-danger" onClick={eliminar} disabled={saving || finalizing || deleting}>{deleting ? "Eliminando…" : "Eliminar inspección"}</button> : null}
+            <button type="button" className="cl-secondary" onClick={cerrar} disabled={saving || finalizing || deleting}>Cerrar</button>
           </div>
         </footer>
       </div>

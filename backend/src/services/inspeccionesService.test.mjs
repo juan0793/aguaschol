@@ -6,6 +6,7 @@ import {
   addParticipante,
   changeEstado,
   createInspeccion,
+  deleteInspeccion,
   finalizarInspeccion,
   getInspeccionDetail,
   listInspecciones,
@@ -166,6 +167,22 @@ test("una inspección finalizada no admite mas cambios de campo de un tecnico", 
     () => updateInspeccion(inspeccion.id, { observaciones: "tarde" }, responsable),
     (error) => error.status === 409
   );
+});
+
+test("administración puede corregir y eliminar una inspección finalizada", async () => {
+  const inspeccion = await crearInspeccionBase();
+  await finalizarInspeccion(inspeccion.id, {}, responsable);
+  const corregida = await updateInspeccion(inspeccion.id, {
+    motivo: "Revisión corregida",
+    informacion_encontrada: "Dato corregido por administración"
+  }, admin);
+  assert.equal(corregida.motivo, "Revisión corregida");
+  assert.equal(corregida.informacion_encontrada, "Dato corregido por administración");
+
+  await assert.rejects(() => deleteInspeccion(inspeccion.id, responsable), (error) => error.status === 403);
+  const deleted = await deleteInspeccion(inspeccion.id, admin);
+  assert.equal(deleted.id, inspeccion.id);
+  await assert.rejects(() => getInspeccionDetail(inspeccion.id, admin), (error) => error.status === 404);
 });
 
 test("listInspecciones pagina de a 10 por defecto y respeta el alcance por tecnico", async () => {

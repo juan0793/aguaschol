@@ -15,6 +15,7 @@ import {
   printEvent,
   printHistory,
   reasignar,
+  remove,
   removeTecnico,
   resumen,
   stats,
@@ -33,6 +34,7 @@ router.get("/", list);
 router.post("/", requireRoles("admin"), create);
 router.get("/:id", detail);
 router.patch("/:id", update);
+router.delete("/:id", requireRoles("admin"), remove);
 router.patch("/:id/estado", estado);
 router.patch("/:id/finalizar", finalizar);
 router.patch("/:id/reasignar", requireRoles("admin"), reasignar);

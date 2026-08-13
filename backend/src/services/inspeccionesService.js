@@ -529,8 +529,14 @@ export const updateInspeccion = async (id, payload = {}, user) => {
   if ("seguimiento_fecha_sugerida" in payload) patch.seguimiento_fecha_sugerida = clean(payload.seguimiento_fecha_sugerida) || null;
   if ("motivo" in payload || "trabajo_solicitado" in payload) {
     if (!isAdmin(user)) throw fail("Solo administración puede editar el motivo o el trabajo solicitado.", 403);
-    if ("motivo" in payload) patch.motivo = clean(payload.motivo);
-    if ("trabajo_solicitado" in payload) patch.trabajo_solicitado = clean(payload.trabajo_solicitado);
+    if ("motivo" in payload) {
+      patch.motivo = clean(payload.motivo);
+      if (!patch.motivo) throw fail("Indica el motivo de la inspección.");
+    }
+    if ("trabajo_solicitado" in payload) {
+      patch.trabajo_solicitado = clean(payload.trabajo_solicitado);
+      if (!patch.trabajo_solicitado) throw fail("Describe el trabajo solicitado al técnico.");
+    }
   }
 
   if (!Object.keys(patch).length) return getInspeccionDetail(id, user);
@@ -540,6 +546,32 @@ export const updateInspeccion = async (id, payload = {}, user) => {
   }
   await audit({ actorUserId: user.id, action: "inspeccion.details_updated", entityId: id, summary: `Datos de inspección ${inspeccion.numero_inspeccion} actualizados` });
   return getInspeccionDetail(id, user);
+};
+
+export const deleteInspeccion = async (id, user) => {
+  if (!isAdmin(user)) throw fail("Solo administración puede eliminar inspecciones.", 403);
+  const inspeccion = await findInspeccionRaw(id);
+  if (!inspeccion) throw fail("Inspección no encontrada.", 404);
+
+  if (env.useMemoryDb) {
+    memoryInspecciones.splice(memoryInspecciones.findIndex((item) => item.id === Number(id)), 1);
+    for (const records of [memoryParticipantes, memoryGps]) {
+      for (let index = records.length - 1; index >= 0; index -= 1) {
+        if (records[index].inspeccion_id === Number(id)) records.splice(index, 1);
+      }
+    }
+  } else {
+    await getPool().query("DELETE FROM inspecciones WHERE id = ?", [id]);
+  }
+
+  await audit({
+    actorUserId: user.id,
+    action: "inspeccion.deleted",
+    entityId: id,
+    summary: `Inspección ${inspeccion.numero_inspeccion} eliminada`
+  });
+
+  return { id: Number(id), numero_inspeccion: inspeccion.numero_inspeccion };
 };
 
 export const changeEstado = async (id, { estado, motivo = "" } = {}, user) => {

@@ -3,6 +3,7 @@ import {
   addParticipante,
   changeEstado,
   createInspeccion,
+  deleteInspeccion,
   finalizarInspeccion,
   getBitacora,
   getInspeccionDetail,
@@ -82,6 +83,14 @@ export const create = async (req, res, next) => {
 export const update = async (req, res, next) => {
   try {
     res.json(await updateInspeccion(req.params.id, req.body || {}, req.authUser));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const remove = async (req, res, next) => {
+  try {
+    res.json(await deleteInspeccion(req.params.id, req.authUser));
   } catch (error) {
     next(error);
   }
