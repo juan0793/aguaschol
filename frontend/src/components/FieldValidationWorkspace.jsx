@@ -1,688 +1,225 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "./Icon";
-import {
-  ALERT_MAP_POINT_COLOR,
-  ALERT_MAP_POINT_TYPE,
-  COMMERCIAL_MAP_POINT_COLOR,
-  COMMERCIAL_MAP_POINT_TYPE,
-  MAP_POINT_TYPES
-} from "../constants/formsAndUi";
-import { formatDateTime } from "../utils/datesAndBusiness";
+import { MAP_POINT_TYPES } from "../constants/formsAndUi";
+import { formatCurrency } from "../utils/formatting";
+import { formatDateTime, formatMapDiaryLabel } from "../utils/datesAndBusiness";
 import { buildExternalMapUrl, formatCoordinate, getMapPointTypeLabel } from "../utils/mapField";
 import { escapeHtml } from "../utils/html";
 import { printDocument } from "../utils/printDocument";
-import { extractClaveFromText } from "../utils/barrioCodes";
+import { buildFieldZoneGroups, getFieldPointClave, getFieldPointDate, getFieldPointZone, summarizeFieldPoints } from "./fieldControlUtils";
 
 const FieldMap = lazy(() => import("./FieldMap"));
 
-const SUSPICIOUS_FAST_SECONDS = 90;
-const CRITICAL_FAST_SECONDS = 45;
-
-const validationStatusMeta = {
-  pending: { label: "Pendiente", className: "is-pending" },
-  approved: { label: "Aprobado", className: "is-approved" },
-  needs_correction: { label: "Requiere correccion", className: "is-warning" },
-  corrected: { label: "Corregido", className: "is-corrected" }
-};
-
-const validationStatusFilters = [
-  { value: "all", label: "Todos" },
-  { value: "pending", label: "Pendientes" },
-  { value: "needs_correction", label: "Correccion" },
-  { value: "corrected", label: "Corregidos" },
-  { value: "approved", label: "Aprobados" }
-];
-
-const validationProcessSteps = [
-  { key: "received", label: "Recibidas", helper: "Capturadas", className: "is-received" },
-  { key: "validating", label: "Validando", helper: "En revision", className: "is-validating" },
-  { key: "validated", label: "Validadas", helper: "Aprobadas", className: "is-validated" }
-];
-const getValidationPointColor = (pointType = "", fallback = "#1576d1") => {
-  if (pointType === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
-  if (pointType === ALERT_MAP_POINT_TYPE) return ALERT_MAP_POINT_COLOR;
-  return fallback;
-};
-
-const normalizeSearchText = (value = "") =>
-  String(value)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-
-const buildDraftFromPoint = (value = {}) => {
-  const point = value || {};
-  return {
-    point_type: point.point_type || "caja_registro",
-    latitude: point.latitude ?? "",
-    longitude: point.longitude ?? "",
-    accuracy_meters: point.accuracy_meters ?? "",
-    reference: point.reference_note || "",
-    description: point.description || "",
-    housing_units: point.housing_units ?? "1",
-    marker_color: point.marker_color || "#1576d1",
-    is_terminal_point: Boolean(point.is_terminal_point),
-    validation_status: point.validation_status || "pending",
-    validation_notes: point.validation_notes || "",
-    correction_notes: point.correction_notes || ""
-  };
-};
-
-const formatDuration = (seconds = 0) => {
-  if (!Number.isFinite(seconds) || seconds < 0) return "--";
-  const rounded = Math.round(seconds);
-  const minutes = Math.floor(rounded / 60);
-  const remainingSeconds = rounded % 60;
-  if (minutes <= 0) return `${remainingSeconds}s`;
-  return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
-};
-
-const getPointTechnicianName = (point = {}) =>
-  point.created_by_name || point.created_by_username || point.created_by || "Tecnico sin nombre";
-const getPointCommentText = (point = {}) =>
-  [point.reference_note, point.description, point.validation_notes, point.correction_notes]
-    .filter(Boolean)
-    .join(" ");
-const getPointClaveFromComments = (point = {}) => extractClaveFromText(getPointCommentText(point)) || "--";
-
-const getCaptureTimeComment = (seconds = null) => {
-  if (!Number.isFinite(seconds)) return "Primer punto del tecnico; no hay punto anterior para comparar.";
-  if (seconds < CRITICAL_FAST_SECONDS) return "Sospechoso: tiempo extremadamente corto para un censo; conviene revisar evidencia y secuencia.";
-  if (seconds < SUSPICIOUS_FAST_SECONDS) return "Atencion: tiempo muy rapido para censo; validar que no sea captura repetida o incompleta.";
-  return "Tiempo dentro de un rango razonable para captura de censo.";
-};
-
-const buildTechnicianTimingReport = (points = []) => {
-  const technicianMap = new Map();
-  points.forEach((point) => {
-    const timestamp = Date.parse(point.created_at || "");
-    if (!Number.isFinite(timestamp)) return;
-    const technician = getPointTechnicianName(point);
-    const current = technicianMap.get(technician) ?? [];
-    current.push({ ...point, timestamp });
-    technicianMap.set(technician, current);
-  });
-
-  const technicians = Array.from(technicianMap.entries())
-    .map(([technician, technicianPoints]) => {
-      const orderedPoints = technicianPoints.sort((left, right) => left.timestamp - right.timestamp);
-      const rows = orderedPoints.map((point, index) => {
-        const previous = orderedPoints[index - 1] ?? null;
-        const secondsFromPrevious = previous ? (point.timestamp - previous.timestamp) / 1000 : null;
-        const isCritical = Number.isFinite(secondsFromPrevious) && secondsFromPrevious < CRITICAL_FAST_SECONDS;
-        const isSuspicious = Number.isFinite(secondsFromPrevious) && secondsFromPrevious < SUSPICIOUS_FAST_SECONDS;
-        return {
-          point,
-          index: index + 1,
-          clave: getPointClaveFromComments(point),
-          secondsFromPrevious,
-          isCritical,
-          isSuspicious,
-          comment: getCaptureTimeComment(secondsFromPrevious)
-        };
-      });
-      const intervalRows = rows.filter((row) => Number.isFinite(row.secondsFromPrevious));
-      const suspiciousRows = rows.filter((row) => row.isSuspicious);
-      const totalSeconds = intervalRows.reduce((sum, row) => sum + row.secondsFromPrevious, 0);
-
-      return {
-        technician,
-        rows,
-        totalPoints: rows.length,
-        intervals: intervalRows.length,
-        suspiciousRows,
-        averageSeconds: intervalRows.length ? totalSeconds / intervalRows.length : null,
-        minimumSeconds: intervalRows.length ? Math.min(...intervalRows.map((row) => row.secondsFromPrevious)) : null
-      };
-    })
-    .sort((left, right) => right.totalPoints - left.totalPoints || left.technician.localeCompare(right.technician));
-
-  const totalSuspicious = technicians.reduce((sum, technician) => sum + technician.suspiciousRows.length, 0);
-  return {
-    technicians,
-    totalPoints: points.length,
-    totalSuspicious
-  };
-};
+const normalizeSearchText = (value = "") => String(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+const buildDraftFromPoint = (point = {}) => ({
+  point_type: point.point_type || "caja_registro",
+  latitude: point.latitude ?? "",
+  longitude: point.longitude ?? "",
+  accuracy_meters: point.accuracy_meters ?? "",
+  reference: point.reference_note || "",
+  description: point.description || "",
+  housing_units: point.housing_units ?? "1",
+  marker_color: point.marker_color || "#1576d1",
+  is_terminal_point: Boolean(point.is_terminal_point),
+  validation_status: point.validation_status || "pending",
+  validation_notes: point.validation_notes || "",
+  correction_notes: point.correction_notes || ""
+});
 
 const FieldValidationWorkspace = ({
+  apiFetch,
   apiUrl,
-  activeDateLabel,
-  isActive,
-  loading,
-  mapPoints,
-  onCopyCoordinates,
-  onRefresh,
-  onSaveValidation,
-  onSelectPoint,
-  savingPointId,
-  selectedPointId,
-  setSelectedPointId
+  barrioCodes = [],
+  isActive
 }) => {
-  const selectedPoint = useMemo(
-    () => mapPoints.find((point) => point.id === selectedPointId) ?? mapPoints[0] ?? null,
-    [mapPoints, selectedPointId]
-  );
-  const [draft, setDraft] = useState(() => buildDraftFromPoint(selectedPoint));
-  const [mapStatus, setMapStatus] = useState("Revision");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [historyPoints, setHistoryPoints] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [query, setQuery] = useState("");
+  const [excludedZones, setExcludedZones] = useState([]);
+  const [zoneDialogOpen, setZoneDialogOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [draft, setDraft] = useState({});
+  const [mapStatus, setMapStatus] = useState("Revision");
+  const [analysis, setAnalysis] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [selectedPointId, setSelectedPointId] = useState(null);
+  const [savingPointId, setSavingPointId] = useState(null);
 
-  useEffect(() => {
-    setDraft(buildDraftFromPoint(selectedPoint));
-  }, [selectedPoint]);
+  const loadHistory = useCallback(async () => {
+    if (!apiFetch) return;
+    setLoadingHistory(true);
+    setHistoryError("");
+    try {
+      const response = await apiFetch("/field-validation");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "No fue posible cargar el historico GPS.");
+      setHistoryPoints(Array.isArray(data.points) ? data.points : Array.isArray(data) ? data : []);
+    } catch (error) {
+      setHistoryError(error.message || "No fue posible cargar el historico GPS.");
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [apiFetch]);
 
-  const counts = useMemo(
-    () =>
-      mapPoints.reduce(
-        (totals, point) => {
-          const status = point.validation_status || "pending";
-          totals[status] = (totals[status] || 0) + 1;
-          totals.total += 1;
-          return totals;
-        },
-        { total: 0, pending: 0, approved: 0, needs_correction: 0, corrected: 0 }
-      ),
-    [mapPoints]
+  useEffect(() => { if (isActive) loadHistory(); }, [isActive, loadHistory]);
+
+  const dates = useMemo(
+    () => Array.from(new Set(historyPoints.map(getFieldPointDate).filter(Boolean))).sort((left, right) => right.localeCompare(left)),
+    [historyPoints]
   );
-  const completionPercent = counts.total ? Math.round(((counts.approved + counts.corrected) / counts.total) * 100) : 0;
-  const processCounts = useMemo(
-    () => ({
-      received: counts.total,
-      validating: counts.pending + counts.needs_correction + counts.corrected,
-      validated: counts.approved
-    }),
-    [counts.approved, counts.corrected, counts.needs_correction, counts.pending, counts.total]
+  const pointsByDate = useMemo(
+    () => historyPoints.filter((point) => !dateFilter || getFieldPointDate(point) === dateFilter),
+    [dateFilter, historyPoints]
   );
-  const mapDraft = useMemo(
-    () => ({
-      point_type: draft.point_type,
-      latitude: draft.latitude,
-      longitude: draft.longitude,
-      accuracy_meters: draft.accuracy_meters,
-      marker_color: draft.marker_color
-    }),
-    [draft.accuracy_meters, draft.latitude, draft.longitude, draft.marker_color, draft.point_type]
-  );
-  const filteredPoints = useMemo(() => {
-    const search = normalizeSearchText(query);
-
-    return mapPoints.filter((point) => {
-      const status = point.validation_status || "pending";
-      if (statusFilter !== "all" && status !== statusFilter) return false;
-      if (!search) return true;
-
-      const haystack = normalizeSearchText(
-        [
-          getMapPointTypeLabel(point.point_type),
-          point.reference_note,
-          point.description,
-          point.created_by_name,
-          point.latitude,
-          point.longitude
-        ].join(" ")
-      );
-      return haystack.includes(search);
+  const zoneGroups = useMemo(() => buildFieldZoneGroups(pointsByDate, barrioCodes), [barrioCodes, pointsByDate]);
+  const analysisNamesByKey = useMemo(() => {
+    const names = new Map();
+    (analysis?.results || []).forEach((result) => {
+      names.set(result.key, (result.matches || []).map((match) => [match.abonado, match.inquilino || match.nombre].filter(Boolean).join(" ")).join(" "));
     });
-  }, [mapPoints, query, statusFilter]);
-  const nextPendingPoint = useMemo(
-    () => filteredPoints.find((point) => ["pending", "needs_correction"].includes(point.validation_status || "pending")) ?? filteredPoints[0] ?? null,
-    [filteredPoints]
+    return names;
+  }, [analysis]);
+  const selectedPoints = useMemo(() => {
+    const search = normalizeSearchText(query);
+    return pointsByDate.filter((point) => {
+      const zone = getFieldPointZone(point, barrioCodes);
+      if (excludedZones.includes(zone)) return false;
+      if (!search) return true;
+      const clave = getFieldPointClave(point);
+      return normalizeSearchText([
+        zone, clave, getMapPointTypeLabel(point.point_type), point.reference_note, point.description,
+        point.created_by_name, point.created_by_username, analysisNamesByKey.get(clave.split("-").slice(0, 3).join("-"))
+      ].filter(Boolean).join(" ")).includes(search);
+    });
+  }, [analysisNamesByKey, barrioCodes, excludedZones, pointsByDate, query]);
+  const summary = useMemo(() => summarizeFieldPoints(selectedPoints, barrioCodes), [barrioCodes, selectedPoints]);
+  const selectedPoint = useMemo(
+    () => selectedPoints.find((point) => point.id === selectedPointId) || selectedPoints[0] || null,
+    [selectedPointId, selectedPoints]
   );
+  const mapDraft = useMemo(() => ({
+    point_type: draft.point_type,
+    latitude: draft.latitude,
+    longitude: draft.longitude,
+    accuracy_meters: draft.accuracy_meters,
+    marker_color: draft.marker_color
+  }), [draft]);
 
+  useEffect(() => { setExcludedZones([]); }, [dateFilter]);
+  useEffect(() => { setAnalysis(null); }, [dateFilter, excludedZones]);
+  useEffect(() => { if (selectedPoint) setDraft(buildDraftFromPoint(selectedPoint)); }, [selectedPoint]);
+
+  const openPoint = (pointId) => {
+    setSelectedPointId(pointId);
+    setDetailOpen(true);
+  };
   const handleDraftChange = (event) => {
     const { name, value, type, checked } = event.target;
-    setDraft((current) => ({
-      ...current,
-      [name]: type === "checkbox" ? checked : value,
-      ...(name === "point_type" && [COMMERCIAL_MAP_POINT_TYPE, ALERT_MAP_POINT_TYPE].includes(value)
-        ? { marker_color: getValidationPointColor(value, current.marker_color) }
-        : {})
-    }));
+    setDraft((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }));
   };
-
-  const handleDraftFromMap = useCallback((updater) => {
-    setMapStatus("Ubicacion ajustada");
-    setDraft(updater);
-  }, []);
-
-  const handleMapSelectPoint = useCallback(
-    (pointId) => {
-      setSelectedPointId(pointId);
-      onSelectPoint?.(pointId);
-    },
-    [onSelectPoint, setSelectedPointId]
-  );
-
-  const handleSubmit = async (event) => {
+  const savePoint = async (event) => {
     event.preventDefault();
     if (!selectedPoint) return;
-    await onSaveValidation(selectedPoint.id, draft);
+    setSavingPointId(selectedPoint.id);
+    try {
+      const response = await apiFetch(`/field-validation/${selectedPoint.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });
+      const saved = await response.json();
+      if (!response.ok) throw new Error(saved.message || "No fue posible guardar el punto.");
+      setHistoryPoints((current) => current.map((point) => point.id === saved.id ? saved : point));
+      setDetailOpen(false);
+    } catch (error) {
+      setHistoryError(error.message || "No fue posible guardar el punto.");
+    } finally {
+      setSavingPointId(null);
+    }
   };
 
-  const handleDecisionSave = async (status) => {
-    if (!selectedPoint || savingPointId === selectedPoint.id) return;
-    const nextDraft = {
-      ...draft,
-      validation_status: status
-    };
-    setDraft(nextDraft);
-    await onSaveValidation(selectedPoint.id, nextDraft);
+  const analyzeSelection = async () => {
+    const keys = Array.from(new Set(selectedPoints.map(getFieldPointClave).filter(Boolean).map((key) => key.split("-").slice(0, 3).join("-"))));
+    if (!keys.length) { setAnalysis({ results: [], accounts: [], totalDebt: 0 }); return; }
+    setAnalyzing(true);
+    try {
+      const results = await Promise.all(keys.map(async (key) => {
+        const response = await apiFetch(`/claves/search?clave=${encodeURIComponent(key)}&field=clave`);
+        const data = await response.json();
+        return { key, matches: response.ok && Array.isArray(data.matches) ? data.matches : [] };
+      }));
+      const accounts = Array.from(results.reduce((rows, result) => {
+        result.matches.forEach((match) => {
+          const account = String(match.abonado || `${result.key}:${match.inquilino || match.nombre || ""}`);
+          if (!rows.has(account)) rows.set(account, {
+            clave: String(match.clave_base || match.clave_catastral || match.clave_aguas_formato || result.key),
+            abonado: String(match.abonado || "--"),
+            nombre: String(match.inquilino || match.nombre || "--"),
+            total: Number(match.total || 0)
+          });
+        });
+        return rows;
+      }, new Map()).values()).sort((left, right) => right.total - left.total);
+      setAnalysis({ results, accounts, totalDebt: accounts.reduce((total, row) => total + row.total, 0) });
+    } catch (error) {
+      setHistoryError(error.message || "No fue posible consultar las claves seleccionadas.");
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
-  const handlePrintTimingReport = async () => {
-    const report = buildTechnicianTimingReport(mapPoints);
-    const generatedAt = formatDateTime(new Date().toISOString());
-    const summaryMarkup = report.technicians
-      .map(
-        (technician) => `
-          <div class="field-validation-time-summary-card ${technician.suspiciousRows.length ? "is-warning" : ""}">
-            <strong>${escapeHtml(technician.technician)}</strong>
-            <span>${technician.totalPoints} puntos</span>
-            <span>Promedio: ${escapeHtml(formatDuration(technician.averageSeconds))}</span>
-            <span>Minimo: ${escapeHtml(formatDuration(technician.minimumSeconds))}</span>
-            <b>${technician.suspiciousRows.length} sospechosos</b>
-          </div>
-        `
-      )
-      .join("");
-    const technicianSections = report.technicians
-      .map((technician) => {
-        const rowsMarkup = technician.rows
-          .map(
-            (row) => `
-              <tr class="${row.isCritical ? "is-critical" : row.isSuspicious ? "is-suspicious" : ""}">
-                <td>${escapeHtml(technician.technician)}</td>
-                <td>${escapeHtml(row.clave)}</td>
-                <td>${escapeHtml(formatDateTime(row.point.created_at))}</td>
-                <td>${escapeHtml(formatDuration(row.secondsFromPrevious))}</td>
-                <td>${escapeHtml(row.comment)}</td>
-              </tr>
-            `
-          )
-          .join("");
-
-        return `
-          <section class="field-validation-time-section">
-            <div class="field-report-zone-head">
-              <div>
-                <span class="field-report-zone-kicker">Tecnico</span>
-                <h3>${escapeHtml(technician.technician)}</h3>
-              </div>
-              <div class="field-report-zone-meta">
-                <span>${technician.totalPoints} puntos</span>
-                <span>${technician.suspiciousRows.length} sospechosos</span>
-              </div>
-            </div>
-            <table class="field-report-table field-validation-time-table">
-              <thead>
-                <tr>
-                  <th>Tecnico</th>
-                  <th>Clave</th>
-                  <th>Hora</th>
-                  <th>Tiempo</th>
-                  <th>Comentario</th>
-                </tr>
-              </thead>
-              <tbody>${rowsMarkup}</tbody>
-            </table>
-          </section>
-        `;
-      })
-      .join("");
-
-    await printDocument(
-      "Reporte de tiempos de captura - Validacion de campo",
-      `
-        <div class="field-report-shell field-validation-time-report">
-          <header class="field-report-header">
-            <div>
-              <p class="field-report-kicker">Validacion de campo</p>
-              <h1>Reporte de tiempos de captura</h1>
-              <p>Evalua cuanto tarda cada tecnico entre un punto y el siguiente. Para censo, tiempos menores a ${SUSPICIOUS_FAST_SECONDS} segundos se marcan como sospechosos.</p>
-            </div>
-            <div class="field-report-meta">
-              <span>Generado: ${escapeHtml(generatedAt)}</span>
-              <span>${escapeHtml(activeDateLabel)}</span>
-              <span>Puntos evaluados: ${report.totalPoints}</span>
-              <span>Sospechosos: ${report.totalSuspicious}</span>
-            </div>
-          </header>
-          <section class="field-validation-time-summary">
-            ${summaryMarkup || '<p class="field-report-empty">No hay puntos con fecha valida para evaluar tiempos.</p>'}
-          </section>
-          ${technicianSections || '<p class="field-report-empty">No hay puntos registrados para generar el reporte.</p>'}
-        </div>
-      `,
-      {
-        pageSize: "Letter portrait",
-        pageMargin: "9mm",
-        bodyClassName: "field-report-body field-validation-time-report-body",
-        showPageFooter: true
-      }
-    );
+  const printSelection = async () => {
+    const groups = buildFieldZoneGroups(selectedPoints, barrioCodes);
+    const zoneMarkup = groups.map((group) => `
+      <section class="field-report-zone-section">
+        <div class="field-report-zone-head"><div><span class="field-report-zone-kicker">Barrio / zona</span><h3>${escapeHtml(group.zone)}</h3></div><strong>${group.total} puntos</strong></div>
+        <table class="field-report-table"><thead><tr><th>#</th><th>Fecha</th><th>Tipo</th><th>Clave</th><th>Referencia</th><th>Tecnico</th></tr></thead><tbody>
+          ${group.items.map((point, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(getFieldPointDate(point))}</td><td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td><td>${escapeHtml(getFieldPointClave(point) || "--")}</td><td>${escapeHtml(point.reference_note || point.description || "--")}</td><td>${escapeHtml(point.created_by_name || point.created_by_username || "--")}</td></tr>`).join("")}
+        </tbody></table>
+      </section>`).join("");
+    const accountMarkup = analysis?.accounts?.length ? `<section class="field-report-zone-section"><div class="field-report-zone-head"><div><span class="field-report-zone-kicker">Cartera consultada</span><h3>Abonados de la seleccion</h3></div><strong>${escapeHtml(formatCurrency(analysis.totalDebt))}</strong></div><table class="field-report-table"><thead><tr><th>Clave</th><th>Abonado</th><th>Nombre</th><th>Deuda</th></tr></thead><tbody>${analysis.accounts.map((row) => `<tr><td>${escapeHtml(row.clave)}</td><td>${escapeHtml(row.abonado)}</td><td>${escapeHtml(row.nombre)}</td><td>${escapeHtml(formatCurrency(row.total))}</td></tr>`).join("")}</tbody></table></section>` : "";
+    await printDocument("Control territorial GPS", `<div class="field-report-shell"><header class="field-report-header"><div><p class="field-report-kicker">Aguas de Choluteca</p><h1>Control territorial GPS</h1><p>Historico seleccionado para analisis, seguimiento y trabajo de campo.</p></div><div class="field-report-meta"><span>${dateFilter ? formatMapDiaryLabel(dateFilter) : "Todas las jornadas"}</span><span>${summary.points} puntos</span><span>${summary.zones} barrios</span><span>${summary.keys} claves</span></div></header>${zoneMarkup || '<p class="field-report-empty">No hay puntos seleccionados.</p>'}${accountMarkup}</div>`, { pageSize: "Letter landscape", pageMargin: "8mm", showPageFooter: true });
   };
 
-  const selectedMeta = validationStatusMeta[selectedPoint?.validation_status || "pending"] ?? validationStatusMeta.pending;
+  return <main className="field-control-layout no-print">
+    <section className="field-control-hero">
+      <div><p className="sheet-kicker">Control territorial</p><h2><Icon name="map" /> Histórico de puntos GPS</h2><p>Selecciona jornadas y barrios, cruza claves y genera información lista para trabajo de campo.</p></div>
+      <div className="field-control-actions">
+        <button type="button" className="button-secondary" onClick={loadHistory} disabled={loadingHistory}><Icon name="refresh" />{loadingHistory ? "Cargando..." : "Actualizar"}</button>
+        <button type="button" className="button-secondary" onClick={() => setZoneDialogOpen(true)}><Icon name="map" />Seleccionar barrios</button>
+        <button type="button" onClick={printSelection} disabled={!selectedPoints.length}><Icon name="records" />Generar reporte</button>
+      </div>
+    </section>
 
-  return (
-    <main className="field-validation-layout no-print">
-      <section className="field-validation-hero">
-        <div>
-          <p className="sheet-kicker">Validacion campo</p>
-          <h2><Icon name="success" className="title-icon" />Revision de puntos GPS</h2>
-          <p className="helper-text">
-            Revisa coordenadas capturadas por tecnicos, corrige datos y deja trazabilidad antes de aprobarlos.
-          </p>
-        </div>
-        <div className="field-validation-guide" aria-label="Flujo de validacion">
-          <span><strong>1</strong>Ubica</span>
-          <span><strong>2</strong>Corrige</span>
-          <span><strong>3</strong>Aprueba</span>
-        </div>
-        <div className="field-validation-hero-actions">
-          <button type="button" className="button-secondary" onClick={handlePrintTimingReport} disabled={!mapPoints.length}>
-            <Icon name="records" />
-            Reporte tiempos
-          </button>
-        </div>
-      </section>
+    <section className="field-control-toolbar">
+      <label><span>Jornada</span><select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}><option value="">Todo el histórico</option>{dates.map((date) => <option key={date} value={date}>{formatMapDiaryLabel(date)}</option>)}</select></label>
+      <label className="field-control-search"><span>Buscar</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Clave, abonado, nombre, técnico o referencia" /></label>
+      <button type="button" className="button-secondary" onClick={analyzeSelection} disabled={analyzing || !selectedPoints.length}><Icon name="search" />{analyzing ? "Consultando..." : "Analizar claves y cartera"}</button>
+    </section>
 
-      <section className="field-validation-command">
-        <div className="field-validation-process" aria-label="Proceso de validacion">
-          {validationProcessSteps.map((step, index) => (
-            <button
-              key={step.key}
-              type="button"
-              className={`${step.className} ${
-                step.key === "received" && statusFilter === "all"
-                  ? "is-active"
-                  : step.key === "validating" && ["pending", "needs_correction", "corrected"].includes(statusFilter)
-                    ? "is-active"
-                    : step.key === "validated" && statusFilter === "approved"
-                      ? "is-active"
-                      : ""
-              }`}
-              onClick={() => {
-                if (step.key === "received") setStatusFilter("all");
-                if (step.key === "validating") setStatusFilter("pending");
-                if (step.key === "validated") setStatusFilter("approved");
-              }}
-            >
-              <span>{index + 1}</span>
-              <strong>{step.label}</strong>
-              <small>{step.helper}</small>
-              <b>{processCounts[step.key]}</b>
-            </button>
-          ))}
-        </div>
-        <div className="field-validation-progress">
-          <div>
-            <span className="sheet-kicker">Avance de jornada</span>
-            <strong>{completionPercent}% validado</strong>
-          </div>
-          <div className="field-validation-progress-bar" aria-hidden="true">
-            <span style={{ width: `${completionPercent}%` }} />
-          </div>
-        </div>
-        <div className="field-validation-metrics">
-          <button type="button" className={statusFilter === "pending" ? "is-active" : ""} onClick={() => setStatusFilter("pending")}>
-            <strong>{counts.pending}</strong>Pendientes
-          </button>
-          <button type="button" className={statusFilter === "needs_correction" ? "is-active" : ""} onClick={() => setStatusFilter("needs_correction")}>
-            <strong>{counts.needs_correction}</strong>Correccion
-          </button>
-          <button type="button" className={statusFilter === "approved" ? "is-active" : ""} onClick={() => setStatusFilter("approved")}>
-            <strong>{counts.approved}</strong>Aprobados
-          </button>
-        </div>
-      </section>
+    {historyError ? <div className="field-control-error">{historyError}</div> : null}
+    <section className="field-control-metrics" aria-label="Resumen de la seleccion">
+      {[['Puntos visibles', summary.points], ['Barrios incluidos', summary.zones], ['Claves encontradas', summary.keys], ['Técnicos', summary.technicians], ['Abonados', analysis?.accounts?.length ?? '--'], ['Deuda asociada', analysis ? formatCurrency(analysis.totalDebt) : '--']].map(([label, value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}
+    </section>
 
-      <section className="field-validation-grid">
-        <aside className="field-validation-queue">
-          <div className="field-validation-toolbar">
-            <div>
-              <p className="sheet-kicker">Cola de revision</p>
-              <h3>{filteredPoints.length} puntos</h3>
-            </div>
-            <button type="button" className="button-secondary" onClick={onRefresh} disabled={loading}>
-              <Icon name="refresh" />
-              {loading ? "Cargando..." : "Actualizar"}
-            </button>
-          </div>
+    <section className="field-control-grid">
+      <article className="field-control-map-card">
+        <header><div><p className="sheet-kicker">Mapa consolidado</p><h3>{dateFilter ? `Jornada ${formatMapDiaryLabel(dateFilter)}` : "Todas las jornadas"}</h3></div><span className="panel-pill">{selectedPoints.length} visibles</span></header>
+        <Suspense fallback={<div className="map-canvas field-map-loading">Cargando mapa...</div>}><FieldMap apiUrl={apiUrl} isActive={isActive} mapDraft={mapDraft} mapPoints={selectedPoints} onDraftChange={setDraft} onSelectPoint={openPoint} onStatusChange={setMapStatus} selectedMapPointId={selectedPoint?.id} /></Suspense>
+        <small className="field-control-map-status">{mapStatus}. Selecciona un punto para revisar o editar su información.</small>
+      </article>
 
-          <label className="field-validation-search">
-            <span>Buscar punto</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tipo, tecnico, clave o coordenada" />
-          </label>
+      <aside className="field-control-sidebar">
+        <header><div><p className="sheet-kicker">Zonas seleccionadas</p><h3>{summary.zones} barrios</h3></div><button type="button" className="report-link" onClick={() => setZoneDialogOpen(true)}>Configurar</button></header>
+        <div className="field-control-zone-summary">{zoneGroups.filter((group) => !excludedZones.includes(group.zone)).map((group) => <button type="button" key={group.zone} onClick={() => { setQuery(group.zone); }}><span>{group.zone}</span><strong>{group.total}</strong></button>)}</div>
+        {analysis ? <><header><div><p className="sheet-kicker">Cartera consultada</p><h3>{analysis.accounts.length} abonados</h3></div><strong>{formatCurrency(analysis.totalDebt)}</strong></header><div className="field-control-account-list">{analysis.accounts.slice(0, 20).map((row) => <button type="button" key={`${row.abonado}-${row.clave}`} onClick={() => setQuery(row.abonado !== "--" ? row.abonado : row.nombre)}><span><strong>{row.nombre}</strong><small>{row.clave} · Abonado {row.abonado}</small></span><b>{formatCurrency(row.total)}</b></button>)}</div></> : null}
+        <header><div><p className="sheet-kicker">Puntos</p><h3>{selectedPoints.length} resultados</h3></div></header>
+        <div className="field-control-point-list">{selectedPoints.slice(0, 80).map((point) => <button type="button" key={point.id} onClick={() => openPoint(point.id)}><span><strong>{getFieldPointClave(point) || getMapPointTypeLabel(point.point_type)}</strong><small>{getFieldPointZone(point, barrioCodes)} · {formatDateTime(point.created_at)}</small></span><Icon name="arrowRight" /></button>)}</div>
+      </aside>
+    </section>
 
-          <div className="field-validation-filter-row">
-            {validationStatusFilters.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                className={statusFilter === filter.value ? "is-active" : ""}
-                onClick={() => setStatusFilter(filter.value)}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
+    {zoneDialogOpen ? <div className="field-control-dialog-backdrop" onMouseDown={() => setZoneDialogOpen(false)}><section className="field-control-dialog" role="dialog" aria-modal="true" aria-label="Seleccionar barrios" onMouseDown={(event) => event.stopPropagation()}><header><div><p className="sheet-kicker">Cobertura del mapa</p><h2>Seleccionar barrios</h2><p>Desmarca las zonas que no quieres incluir en el análisis ni en el reporte.</p></div><button type="button" className="reports-icon-button" onClick={() => setZoneDialogOpen(false)} aria-label="Cerrar">×</button></header><div className="field-control-dialog-tools"><span>{zoneGroups.filter((group) => !excludedZones.includes(group.zone)).length} de {zoneGroups.length} incluidos</span><button type="button" className="report-link" onClick={() => setExcludedZones([])}>Todos</button><button type="button" className="report-link" onClick={() => setExcludedZones(zoneGroups.map((group) => group.zone))}>Ninguno</button></div><div className="field-control-zone-grid">{zoneGroups.map((group) => <label key={group.zone} className={excludedZones.includes(group.zone) ? "is-excluded" : ""}><input type="checkbox" checked={!excludedZones.includes(group.zone)} onChange={() => setExcludedZones((current) => current.includes(group.zone) ? current.filter((zone) => zone !== group.zone) : [...current, group.zone])} /><span><strong>{group.zone}</strong><small>{group.total} puntos</small></span></label>)}</div><footer><button type="button" onClick={() => setZoneDialogOpen(false)}>Aplicar selección</button></footer></section></div> : null}
 
-          <div className="field-validation-queue-list">
-            {filteredPoints.length ? (
-              filteredPoints.map((point, index) => {
-                const meta = validationStatusMeta[point.validation_status || "pending"] ?? validationStatusMeta.pending;
-                return (
-                  <article
-                    key={point.id}
-                    className={`field-validation-queue-card ${selectedPoint?.id === point.id ? "is-active" : ""}`}
-                  >
-                    <button type="button" onClick={() => setSelectedPointId(point.id)}>
-                      <span className="field-validation-card-index">{index + 1}</span>
-                      <span>
-                        <strong>{getMapPointTypeLabel(point.point_type)}</strong>
-                        <small>{point.reference_note || point.description || "Sin referencia adicional."}</small>
-                        <em>{point.created_by_name || "Tecnico sin nombre"} · {formatDateTime(point.created_at)}</em>
-                      </span>
-                      <span className={`validation-status-chip ${meta.className}`}>{meta.label}</span>
-                    </button>
-                  </article>
-                );
-              })
-            ) : (
-              <div className="empty-state field-validation-empty">
-                <h3>Sin coincidencias</h3>
-                <p>Ajusta el filtro o busca otra referencia.</p>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <article className="map-stage-card field-validation-map-card">
-          <div className="lookup-card-head map-card-head">
-            <div>
-              <p className="sheet-kicker">Mapa de revision</p>
-              <h3>{activeDateLabel}</h3>
-            </div>
-            <div className="map-list-head-actions">
-              <span className="panel-pill">{filteredPoints.length} visibles</span>
-              <button type="button" className="button-secondary" onClick={() => nextPendingPoint && setSelectedPointId(nextPendingPoint.id)} disabled={!nextPendingPoint}>
-                <Icon name="arrowRight" />
-                Siguiente
-              </button>
-            </div>
-          </div>
-          <Suspense fallback={<div className="map-canvas field-map-loading">Cargando mapa...</div>}>
-            <FieldMap
-              apiUrl={apiUrl}
-              isActive={isActive}
-              mapDraft={mapDraft}
-              mapPoints={filteredPoints}
-              onDraftChange={handleDraftFromMap}
-              onSelectPoint={handleMapSelectPoint}
-              onStatusChange={setMapStatus}
-              selectedMapPointId={selectedPoint?.id}
-            />
-          </Suspense>
-          <div className="field-validation-map-hint">
-            <Icon name="map" />
-            <span>Estado del mapa: {mapStatus}. Toca el mapa para ajustar la ubicacion del punto seleccionado.</span>
-          </div>
-        </article>
-
-        <aside className="field-validation-panel">
-          {selectedPoint ? (
-            <form className="map-form-card field-validation-form" onSubmit={handleSubmit}>
-              <div className="lookup-card-head map-card-head">
-                <div>
-                  <p className="sheet-kicker">Punto #{selectedPoint.id}</p>
-                  <h3 className="map-point-title-with-dot">
-                    <span
-                      className={`map-report-point-dot ${selectedPoint.is_terminal_point ? "is-pin" : ""}`}
-                      style={{ "--point-color": selectedPoint.marker_color || "#1576d1" }}
-                    />
-                    {getMapPointTypeLabel(selectedPoint.point_type)}
-                  </h3>
-                </div>
-                <span className={`validation-status-chip ${selectedMeta.className}`}>{selectedMeta.label}</span>
-              </div>
-
-              <div className="field-validation-selected-summary">
-                <p>{selectedPoint.reference_note || selectedPoint.description || "Sin referencia capturada."}</p>
-                <div>
-                  <span>{formatCoordinate(selectedPoint.latitude)}</span>
-                  <span>{formatCoordinate(selectedPoint.longitude)}</span>
-                  <span>{selectedPoint.accuracy_meters ? `${selectedPoint.accuracy_meters} m` : "Sin precision"}</span>
-                </div>
-              </div>
-
-              <div className="field-validation-review-strip">
-                <div className="field-validation-review-steps">
-                  <div>
-                    <span>1</span>
-                    <strong>Confirma el punto</strong>
-                    <small>Usa el mapa si no coincide.</small>
-                  </div>
-                  <div>
-                    <span>2</span>
-                    <strong>Elige la decision</strong>
-                    <small>Se guarda al tocar.</small>
-                  </div>
-                  <div>
-                    <span>3</span>
-                    <strong>Nota opcional</strong>
-                    <small>Solo si ayuda al seguimiento.</small>
-                  </div>
-                </div>
-
-                <div className="field-validation-decision" role="group" aria-label="Decision de validacion">
-                  <button
-                    type="button"
-                    className={draft.validation_status === "pending" ? "is-active is-pending" : "is-pending"}
-                    onClick={() => handleDecisionSave("pending")}
-                    disabled={savingPointId === selectedPoint.id}
-                  >
-                    {savingPointId === selectedPoint.id && draft.validation_status === "pending" ? "Guardando..." : "Pendiente"}
-                  </button>
-                  <button
-                    type="button"
-                    className={draft.validation_status === "needs_correction" ? "is-active is-warning" : "is-warning"}
-                    onClick={() => handleDecisionSave("needs_correction")}
-                    disabled={savingPointId === selectedPoint.id}
-                  >
-                    {savingPointId === selectedPoint.id && draft.validation_status === "needs_correction" ? "Guardando..." : "Corregir"}
-                  </button>
-                  <button
-                    type="button"
-                    className={draft.validation_status === "approved" ? "is-active is-approved" : "is-approved"}
-                    onClick={() => handleDecisionSave("approved")}
-                    disabled={savingPointId === selectedPoint.id}
-                  >
-                    {savingPointId === selectedPoint.id && draft.validation_status === "approved" ? "Guardando..." : "Aprobar"}
-                  </button>
-                </div>
-
-                <label className="field-validation-note-field">
-                  <span>{draft.validation_status === "needs_correction" ? "Nota para correccion" : "Nota de validacion"}</span>
-                  <textarea
-                    name={draft.validation_status === "needs_correction" ? "correction_notes" : "validation_notes"}
-                    value={draft.validation_status === "needs_correction" ? draft.correction_notes : draft.validation_notes}
-                    onChange={handleDraftChange}
-                    rows="3"
-                    placeholder={
-                      draft.validation_status === "needs_correction"
-                        ? "Explica que debe corregir el tecnico."
-                        : "Agrega una observacion breve para esta revision."
-                    }
-                  />
-                </label>
-              </div>
-
-              <details className="field-validation-advanced">
-                <summary>Ajustes avanzados del punto</summary>
-                <div className="map-coordinates-grid">
-                  <label>
-                    <span>Latitud</span>
-                    <input name="latitude" value={draft.latitude} onChange={handleDraftChange} inputMode="decimal" />
-                  </label>
-                  <label>
-                    <span>Longitud</span>
-                    <input name="longitude" value={draft.longitude} onChange={handleDraftChange} inputMode="decimal" />
-                  </label>
-                  <label>
-                    <span>Precision (m)</span>
-                    <input name="accuracy_meters" value={draft.accuracy_meters} onChange={handleDraftChange} inputMode="decimal" />
-                  </label>
-                  <label>
-                    <span>Tipo</span>
-                    <select name="point_type" value={draft.point_type} onChange={handleDraftChange}>
-                      {MAP_POINT_TYPES.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label>
-                  <span>Referencia corregida</span>
-                  <input name="reference" value={draft.reference} onChange={handleDraftChange} />
-                </label>
-                <label>
-                  <span>Descripcion tecnica</span>
-                  <textarea name="description" value={draft.description} onChange={handleDraftChange} rows="3" />
-                </label>
-                <label>
-                  <span>Viviendas</span>
-                  <input name="housing_units" type="number" min="1" step="1" value={draft.housing_units} onChange={handleDraftChange} inputMode="numeric" />
-                </label>
-              </details>
-
-              <div className="field-validation-actions">
-                <button type="button" className="button-secondary field-validation-icon-action" onClick={() => window.open(buildExternalMapUrl(selectedPoint.latitude, selectedPoint.longitude), "_blank", "noopener,noreferrer")}>
-                  <Icon name="map" />
-                  Maps
-                </button>
-                <button type="button" className="button-secondary field-validation-icon-action" onClick={(event) => onCopyCoordinates(selectedPoint, event)}>
-                  <Icon name="copy" />
-                  Copiar
-                </button>
-                <button type="submit" disabled={savingPointId === selectedPoint.id}>
-                  <Icon name="records" />
-                  {savingPointId === selectedPoint.id ? "Guardando..." : "Guardar revision"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <article className="empty-state">
-              <h3>Sin puntos para revisar</h3>
-              <p>No hay capturas GPS en la jornada seleccionada.</p>
-            </article>
-          )}
-        </aside>
-      </section>
-    </main>
-  );
+    {detailOpen && selectedPoint ? <div className="field-control-dialog-backdrop" onMouseDown={() => setDetailOpen(false)}><form className="field-control-dialog field-control-point-dialog" onSubmit={savePoint} onMouseDown={(event) => event.stopPropagation()}><header><div><p className="sheet-kicker">Punto #{selectedPoint.id}</p><h2>{getMapPointTypeLabel(selectedPoint.point_type)}</h2><p>{getFieldPointZone(selectedPoint, barrioCodes)} · {formatCoordinate(selectedPoint.latitude)}, {formatCoordinate(selectedPoint.longitude)}</p></div><button type="button" className="reports-icon-button" onClick={() => setDetailOpen(false)} aria-label="Cerrar">×</button></header><div className="field-control-point-form"><label><span>Tipo</span><select name="point_type" value={draft.point_type} onChange={handleDraftChange}>{MAP_POINT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label><span>Clave / referencia</span><input name="reference" value={draft.reference} onChange={handleDraftChange} /></label><label className="is-wide"><span>Descripción técnica</span><textarea name="description" rows="4" value={draft.description} onChange={handleDraftChange} /></label><label><span>Latitud</span><input name="latitude" value={draft.latitude} onChange={handleDraftChange} /></label><label><span>Longitud</span><input name="longitude" value={draft.longitude} onChange={handleDraftChange} /></label><label><span>Precisión (m)</span><input name="accuracy_meters" value={draft.accuracy_meters} onChange={handleDraftChange} /></label><label><span>Viviendas</span><input type="number" name="housing_units" min="1" value={draft.housing_units} onChange={handleDraftChange} /></label></div><footer><button type="button" className="button-secondary" onClick={() => window.open(buildExternalMapUrl(selectedPoint.latitude, selectedPoint.longitude), "_blank", "noopener,noreferrer")}>Abrir en Maps</button><button type="button" className="button-secondary" onClick={() => navigator.clipboard?.writeText(`${selectedPoint.latitude}, ${selectedPoint.longitude}`)}>Copiar coordenadas</button><button type="submit" disabled={savingPointId === selectedPoint.id}>{savingPointId === selectedPoint.id ? "Guardando..." : "Guardar cambios"}</button></footer></form></div> : null}
+  </main>;
 };
 
 export default FieldValidationWorkspace;

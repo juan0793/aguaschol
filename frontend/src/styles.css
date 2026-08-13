@@ -22690,6 +22690,81 @@ body,
   }
 }
 
+/* Control territorial GPS */
+.field-control-layout { display: grid; gap: 14px; }
+.field-control-hero, .field-control-toolbar, .field-control-map-card, .field-control-sidebar, .field-control-metrics article { border: 1px solid rgba(21, 118, 209, 0.14); border-radius: 14px; background: rgba(255,255,255,.97); box-shadow: var(--shadow-card); }
+.field-control-hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px; }
+.field-control-hero h2 { display: flex; align-items: center; gap: 8px; margin: 3px 0 5px; color: #103a5d; }
+.field-control-hero p { margin: 0; color: #587087; }
+.field-control-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.field-control-toolbar { display: grid; grid-template-columns: minmax(190px,.45fr) minmax(280px,1fr) auto; gap: 10px; align-items: end; padding: 14px; }
+.field-control-toolbar label, .field-control-point-form label { display: grid; gap: 6px; min-width: 0; color: #405f78; font-size: .78rem; font-weight: 800; }
+.field-control-toolbar input, .field-control-toolbar select, .field-control-point-form input, .field-control-point-form select, .field-control-point-form textarea { width: 100%; min-height: 42px; border: 1px solid #cfe0ed; border-radius: 9px; background: #f9fcff; color: #183b5a; font: inherit; padding: .65rem .75rem; }
+.field-control-error { padding: 11px 14px; border: 1px solid #fecaca; border-radius: 10px; background: #fff1f2; color: #9f1239; font-weight: 750; }
+.field-control-metrics { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 8px; }
+.field-control-metrics article { display: grid; gap: 4px; min-width: 0; padding: 13px; }
+.field-control-metrics span { color: #60788e; font-size: .74rem; font-weight: 800; }
+.field-control-metrics strong { overflow: hidden; color: #103a5d; font-size: 1.28rem; text-overflow: ellipsis; }
+.field-control-grid { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(300px,.55fr); gap: 14px; align-items: start; }
+.field-control-map-card { min-width: 0; padding: 14px; }
+.field-control-map-card > header, .field-control-sidebar > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.field-control-map-card h3, .field-control-sidebar h3 { margin: 2px 0 0; color: #173e5e; }
+.field-control-map-card .map-canvas { min-height: 610px; border-radius: 12px; }
+.field-control-map-status { display: block; margin-top: 9px; color: #60788e; font-weight: 700; }
+.field-control-sidebar { display: grid; gap: 10px; padding: 14px; min-width: 0; }
+.field-control-zone-summary { display: grid; gap: 5px; max-height: 260px; overflow: auto; }
+.field-control-zone-summary button, .field-control-point-list button { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; border: 1px solid #dce8f1; border-radius: 9px; background: #f8fbfe; color: #21445f; box-shadow: none; text-align: left; }
+.field-control-zone-summary button:hover, .field-control-point-list button:hover { transform: none; border-color: #8fc4ed; background: #edf7ff; }
+.field-control-zone-summary strong { display: grid; place-items: center; min-width: 30px; height: 30px; border-radius: 8px; background: #e5f2fd; color: #0f63aa; }
+.field-control-point-list { display: grid; gap: 5px; max-height: 380px; overflow: auto; }
+.field-control-account-list { display: grid; gap: 5px; max-height: 300px; overflow: auto; }
+.field-control-account-list button { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 9px; border: 1px solid #dce8f1; border-radius: 9px; background: #f9fcff; color: #21445f; box-shadow: none; text-align: left; }
+.field-control-account-list button:hover { transform: none; border-color: #8fc4ed; background: #edf7ff; }
+.field-control-account-list span { display: grid; gap: 2px; min-width: 0; }
+.field-control-account-list strong, .field-control-account-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-control-account-list small { color: #718496; }
+.field-control-account-list b { flex: 0 0 auto; color: #0c5d9e; }
+.field-control-point-list button span { display: grid; gap: 2px; min-width: 0; }
+.field-control-point-list strong, .field-control-point-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-control-point-list small { color: #708396; font-weight: 650; }
+.field-control-dialog-backdrop { position: fixed; inset: 0; z-index: 1400; display: grid; place-items: center; padding: 18px; background: rgba(9,35,56,.48); backdrop-filter: blur(3px); }
+.field-control-dialog { width: min(760px,96vw); max-height: 90vh; overflow: auto; border: 1px solid #c9dfef; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px rgba(6,34,55,.3); }
+.field-control-dialog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px; border-bottom: 1px solid #dce8f1; }
+.field-control-dialog > header h2 { margin: 3px 0; color: #103a5d; }
+.field-control-dialog > header p { margin: 0; color: #60788e; }
+.field-control-dialog-tools { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 12px 18px 0; color: #60788e; font-weight: 750; }
+.field-control-dialog-tools span { margin-right: auto; }
+.field-control-zone-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 14px 18px 18px; }
+.field-control-zone-grid label { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 11px; border: 1px solid #d7e5ef; border-radius: 10px; background: #f9fcff; }
+.field-control-zone-grid label.is-excluded { opacity: .52; background: #f1f4f6; }
+.field-control-zone-grid input { width: 18px; height: 18px; flex: 0 0 18px; accent-color: #1576d1; }
+.field-control-zone-grid label span { display: grid; gap: 2px; min-width: 0; }
+.field-control-zone-grid strong { overflow: hidden; color: #173e5e; text-overflow: ellipsis; white-space: nowrap; }
+.field-control-zone-grid small { color: #718496; }
+.field-control-dialog > footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 13px 18px; border-top: 1px solid #dce8f1; background: #fff; }
+.field-control-point-dialog { width: min(820px,96vw); }
+.field-control-point-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 18px; }
+.field-control-point-form .is-wide { grid-column: 1/-1; }
+.field-control-point-form textarea { resize: vertical; }
+
+@media (max-width: 1120px) {
+  .field-control-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .field-control-grid { grid-template-columns: 1fr; }
+  .field-control-sidebar { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .field-control-sidebar > header { grid-column: 1/-1; }
+}
+@media (max-width: 760px) {
+  .field-control-hero { align-items: stretch; flex-direction: column; }
+  .field-control-actions, .field-control-actions button { width: 100%; }
+  .field-control-toolbar, .field-control-sidebar, .field-control-point-form { grid-template-columns: 1fr; }
+  .field-control-toolbar > button { width: 100%; }
+  .field-control-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .field-control-map-card .map-canvas { min-height: 400px; }
+  .field-control-zone-grid { grid-template-columns: 1fr; }
+  .field-control-point-form .is-wide { grid-column: auto; }
+  .field-control-dialog > footer { display: grid; grid-template-columns: 1fr; }
+}
+
 /* Mobile field fixes: avoid dashboard header overlap and make map pinning precise under touch. */
 .map-center-pin-button {
   position: absolute;

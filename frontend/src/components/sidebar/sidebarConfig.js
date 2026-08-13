@@ -1,7 +1,7 @@
 const itemLabels = {
   inspecciones: "Inspecciones",
   records: "Fichas clandestinas",
-  fieldValidation: "Validaciones pendientes",
+  fieldValidation: "Control territorial GPS",
   mapReports: "Reportes de levantamiento",
   planos: "Planos y croquis",
   executiveReport: "Operaciones",

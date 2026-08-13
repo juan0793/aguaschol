@@ -175,7 +175,6 @@ const MAP_POINT_LIST_STEP = 30;
 const MOBILE_MAP_POINT_LIMIT = 180;
 const MAP_AUTO_REFRESH_MS = 45000;
 const MOBILE_MAP_AUTO_REFRESH_MS = 90000;
-const FIELD_VALIDATION_AUTO_REFRESH_MS = 120000;
 const DEFAULT_DASHBOARD_WIDGET_ORDER = [
   "spotlight",
   "metrics",
@@ -1102,7 +1101,6 @@ function App() {
   const [regulatorReportDiaryKeys, setRegulatorReportDiaryKeys] = useState([]);
   const [generatingRegulatorReport, setGeneratingRegulatorReport] = useState(false);
   const [savingMapPoint, setSavingMapPoint] = useState(false);
-  const [savingFieldValidationPointId, setSavingFieldValidationPointId] = useState(null);
   const [locatingUser, setLocatingUser] = useState(false);
   const [selectedMapPointId, setSelectedMapPointId] = useState(null);
   const [editingMapPointId, setEditingMapPointId] = useState(null);
@@ -1521,10 +1519,10 @@ function App() {
           fieldValidation: {
             panelClass: "hero-panel-records",
             cardClass: "search-card-records",
-            toplineLabel: "Control de calidad GPS",
-            title: "Validacion de campo",
-            lead: "Revisa, corrige y aprueba puntos capturados por tecnicos antes de cerrar la jornada.",
-            kicker: "Revision tecnica"
+            toplineLabel: "Inteligencia territorial GPS",
+            title: "Control territorial GPS",
+            lead: "Consulta el historico, selecciona barrios y cruza claves, abonados y cartera para preparar nuevas jornadas.",
+            kicker: "Historico y zonas"
           },
           mapReports: {
             panelClass: "hero-panel-logs",
@@ -1772,18 +1770,18 @@ function App() {
       return [
         {
           icon: "map",
-          label: "Puntos",
-          value: String(visibleMapPoints.length)
+          label: "Cobertura",
+          value: "Historico GPS"
         },
         {
-          icon: "warning",
-          label: "Pendientes",
-          value: String(visibleMapPoints.filter((point) => (point.validation_status || "pending") === "pending").length)
+          icon: "records",
+          label: "Seleccion",
+          value: "Por barrios"
         },
         {
-          icon: "success",
-          label: "Aprobados",
-          value: String(visibleMapPoints.filter((point) => point.validation_status === "approved").length)
+          icon: "activity",
+          label: "Analisis",
+          value: "Claves y cartera"
         }
       ];
     }
@@ -2186,7 +2184,7 @@ function App() {
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
-            { key: "fieldValidation", section: "control", label: "Validacion campo", icon: "success", meta: "Revision GPS", tone: "is-map" },
+            { key: "fieldValidation", section: "control", label: "Control territorial GPS", icon: "success", meta: "Historico y zonas", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
             { key: "requests", section: "control", label: "Informes", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
             { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
@@ -2243,7 +2241,7 @@ function App() {
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
-            { key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" },
+            { key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" },
             { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
             { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
             { key: "requests", label: "Informes", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
@@ -2260,7 +2258,7 @@ function App() {
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
             ...(isFieldValidator
-              ? [{ key: "fieldValidation", label: "Validacion campo", icon: "success", group: "gps", helper: "Revision GPS" }]
+              ? [{ key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" }]
               : []),
             { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" }
           ]),
@@ -4992,9 +4990,9 @@ function App() {
   }, [isAuthenticated, isAdmin, refreshDashboard, workspaceView]);
 
   useEffect(() => {
-    if (isAuthenticated && ["map", "fieldValidation", "mapReports", "mapAnalytics"].includes(workspaceView)) {
+    if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
         loadMapDiaryGroups({ silent: true });
-        loadMapPoints({ date: ["map", "fieldValidation"].includes(workspaceView) ? activeMapDiaryDateKey : "" });
+        loadMapPoints({ date: workspaceView === "map" ? activeMapDiaryDateKey : "" });
       }
   }, [activeMapDiaryDateKey, isAuthenticated, workspaceView]);
 
@@ -5028,7 +5026,7 @@ function App() {
   }, [workspaceView]);
 
   useEffect(() => {
-    if (!isAuthenticated || !["map", "fieldValidation"].includes(workspaceView)) {
+    if (!isAuthenticated || workspaceView !== "map") {
       return undefined;
     }
 
@@ -5040,12 +5038,7 @@ function App() {
     };
 
     const handleWindowFocus = () => refreshMapPoints();
-    const refreshInterval =
-      workspaceView === "fieldValidation"
-        ? FIELD_VALIDATION_AUTO_REFRESH_MS
-        : isCompactMapView
-          ? MOBILE_MAP_AUTO_REFRESH_MS
-          : MAP_AUTO_REFRESH_MS;
+    const refreshInterval = isCompactMapView ? MOBILE_MAP_AUTO_REFRESH_MS : MAP_AUTO_REFRESH_MS;
     const intervalId = window.setInterval(refreshMapPoints, refreshInterval);
     document.addEventListener("visibilitychange", refreshMapPoints);
     window.addEventListener("focus", handleWindowFocus);
@@ -6661,63 +6654,6 @@ function App() {
       showAlert(error.message || "No fue posible guardar el punto.");
     } finally {
       setSavingMapPoint(false);
-    }
-  };
-
-  const handleSaveFieldValidation = async (pointId, payload = {}) => {
-    if (!pointId) return null;
-    const latitude = Number(payload.latitude);
-    const longitude = Number(payload.longitude);
-
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      showAlert("Define latitud y longitud validas antes de guardar la revision.");
-      return null;
-    }
-
-    setSavingFieldValidationPointId(pointId);
-
-    try {
-      const response = await apiFetch(`/field-validation/${pointId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          point_type: payload.point_type,
-          latitude,
-          longitude,
-          accuracy_meters: Number(payload.accuracy_meters) || null,
-          description: payload.description,
-          reference: payload.reference,
-          housing_units: payload.housing_units,
-          marker_color: payload.marker_color || "#1576d1",
-          is_terminal_point: Boolean(payload.is_terminal_point),
-          validation_status: payload.validation_status,
-          validation_notes: payload.validation_notes,
-          correction_notes: payload.correction_notes
-        })
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return null;
-        }
-
-        throw new Error(data.message || "No fue posible guardar la validacion.");
-      }
-
-      setMapPoints((current) => current.map((point) => (point.id === data.id ? data : point)));
-      setSelectedMapPointId(data.id);
-      showAlert("Revision de campo guardada.");
-      return data;
-    } catch (error) {
-      showAlert(error.message || "No fue posible guardar la validacion.");
-      return null;
-    } finally {
-      setSavingFieldValidationPointId(null);
     }
   };
 
@@ -16981,21 +16917,10 @@ function App() {
       ) : workspaceView === "fieldValidation" ? (
         <Suspense fallback={<div className="module-loading-state">Cargando validacion de campo...</div>}>
           <FieldValidationWorkspace
+            apiFetch={apiFetch}
             apiUrl={API_URL}
-            activeDateLabel={`Jornada ${formatMapDiaryLabel(activeMapDiaryDateKey)}`}
+            barrioCodes={safeBarrioCodes}
             isActive={workspaceView === "fieldValidation" && isAuthenticated}
-            loading={loadingMapPoints}
-            mapPoints={visibleMapPoints}
-            onCopyCoordinates={handleCopyCoordinates}
-            onRefresh={() => {
-              loadMapDiaryGroups({ silent: true });
-              loadMapPoints({ date: activeMapDiaryDateKey });
-            }}
-            onSaveValidation={handleSaveFieldValidation}
-            onSelectPoint={handleSelectMapPoint}
-            savingPointId={savingFieldValidationPointId}
-            selectedPointId={selectedMapPointId}
-            setSelectedPointId={setSelectedMapPointId}
           />
         </Suspense>
       ) : (
