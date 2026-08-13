@@ -6854,8 +6854,8 @@ function App() {
     }
   };
 
-  const buildFieldDebtReport = async () => {
-    const pointRows = buildFieldDebtPointRows(visibleMapPoints);
+  const buildFieldDebtReport = async (points = visibleMapPoints) => {
+    const pointRows = buildFieldDebtPointRows(points);
     const referencesByKey = new Map();
     pointRows.forEach((row) => {
       row.references.forEach((reference) => {
@@ -6931,8 +6931,9 @@ function App() {
     };
   };
 
-  const buildMapReportPadronData = async () => {
-    const results = (await buildFieldDebtReport()).results;
+  const buildMapReportPadronData = async (reportData) => {
+    const points = reportData?.zones?.flatMap((zone) => zone.items || []);
+    const results = (await buildFieldDebtReport(points)).results;
     return {
       padronNames: buildPadronNameIndex(results),
       sharedKeys: buildSharedCadastralKeys(results),
@@ -8318,7 +8319,7 @@ function App() {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = getSelectedMapReportData(includedZoneKeys);
     const reportCajaTotal = getSelectedCajaTotal(reportData);
-    const { padronNames } = await buildMapReportPadronData();
+    const { padronNames } = await buildMapReportPadronData(reportData);
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
@@ -8429,7 +8430,7 @@ function App() {
         compress: true
       });
       const reportData = getSelectedMapReportData(includedZoneKeys);
-      const { padronNames } = await buildMapReportPadronData();
+      const { padronNames } = await buildMapReportPadronData(reportData);
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
@@ -8603,7 +8604,7 @@ function App() {
     const generatedAt = formatDateTime(new Date().toISOString());
     const reportData = getSelectedMapReportData(includedZoneKeys);
     const reportCajaTotal = getSelectedCajaTotal(reportData);
-    const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData();
+    const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData(reportData);
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportNotes = mapReportSettings.report_notes.trim();
@@ -8741,7 +8742,7 @@ function App() {
       });
       const reportData = getSelectedMapReportData(includedZoneKeys);
       const reportCajaTotal = getSelectedCajaTotal(reportData);
-      const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData();
+      const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData(reportData);
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
