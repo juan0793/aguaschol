@@ -46,7 +46,7 @@ const PRINT_STYLES = `<style>
   .ins-key-value { display:grid; grid-template-columns:110px 1fr; gap:4px 8px; margin:0; }
   .ins-key-value dt { color:#6a8093; font-size:8px; }
   .ins-key-value dd { margin:0; color:#203e56; font-weight:700; }
-  .ins-signatures { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:18px; padding-top:12px; break-inside:avoid; }
+  .ins-signatures { width:72mm; margin:18px auto 0; padding-top:12px; break-inside:avoid; }
   .ins-signatures div { padding-top:6px; border-top:1px solid #45657c; color:#516b7f; font-size:8px; text-align:center; }
   .ins-doc-footer { display:flex; justify-content:space-between; gap:12px; margin-top:18px; padding-top:7px; border-top:1px solid #d6e2eb; color:#718599; font-size:7.5px; }
   .ins-notes-space { min-height:80px; border:1px dashed #bfcfdb; border-radius:6px; background:repeating-linear-gradient(#fff,#fff 23px,#e6edf3 24px); }
@@ -86,7 +86,7 @@ const buildOrdenBody = (inspeccion, opciones) => `
     <section class="ins-section"><div class="ins-section-title"><h2>Personal asignado</h2></div>${staff(inspeccion)}</section>
     ${opciones.mostrarAbonados && inspeccion.abonados_asociados?.length > 1 ? `<section class="ins-section"><div class="ins-section-title"><h2>Abonados asociados a la clave</h2><small>${inspeccion.abonados_asociados.length} cuentas</small></div><table class="ins-table"><thead><tr><th style="width:28%">Cuenta</th><th>Nombre</th></tr></thead><tbody>${inspeccion.abonados_asociados.map((item) => `<tr><td>${safe(item.abonado)}</td><td>${safe(item.nombre)}</td></tr>`).join("")}</tbody></table></section>` : ""}
     <section class="ins-section"><div class="ins-section-title"><h2>Anotaciones de campo</h2></div><div class="ins-notes-space"></div></section>
-    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma del técnico responsable</div><div>Firma de quien atendió</div><div>Vo. Bo. de supervisión</div></div>` : ""}
+    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma del técnico responsable</div></div>` : ""}
     ${footer(inspeccion)}
   </article>`;
 
@@ -109,7 +109,7 @@ const buildReporteBody = (inspeccion, gps, opciones) => `
       <section class="ins-section ins-close"><div class="ins-section-title"><h2>Cierre</h2></div><dl class="ins-key-value"><dt>Estado final</dt><dd>${safe(estadoLabel(inspeccion.estado))}</dd><dt>Finalizada por</dt><dd>${safe(inspeccion.finalizada_por_nombre || "No especificado")}</dd><dt>Fecha y hora</dt><dd>${safe(formatDateTime(inspeccion.fecha_finalizacion))}</dd></dl></section>
     </div>
     <section class="ins-section"><div class="ins-section-title"><h2>Personal participante</h2></div>${staff(inspeccion)}</section>
-    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma del técnico responsable</div><div>Firma de quien atendió</div><div>Vo. Bo. de supervisión</div></div>` : ""}
+    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma del técnico responsable</div></div>` : ""}
     ${footer(inspeccion)}
   </article>`;
 
