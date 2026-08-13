@@ -43,6 +43,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const isResponsable = responsable?.tecnico_id === userId;
   const isApoyo = apoyos.some((item) => item.tecnico_id === userId);
   const puedeGestionar = isAdmin || isResponsable;
+  const puedeFinalizar = puedeGestionar || isApoyo;
   const finalizada = inspeccion?.estado === "FINALIZADA";
 
   const cargar = async () => {
@@ -264,16 +265,16 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
             ) : null}
           </section>
 
-          {puedeGestionar && !finalizada ? (
+          {puedeFinalizar && !finalizada ? (
             <section className="ins-form-section">
               <h3>Estado</h3>
               <div className="cl-state-actions">
-                {ESTADO_SIGUIENTE[inspeccion.estado] ? (
+                {puedeGestionar && ESTADO_SIGUIENTE[inspeccion.estado] ? (
                   <button type="button" className="cl-secondary" onClick={() => cambiarEstado(ESTADO_SIGUIENTE[inspeccion.estado])}>
                     {ESTADO_SIGUIENTE_LABEL[inspeccion.estado]}
                   </button>
                 ) : null}
-                {inspeccion.estado === "SEGUIMIENTO" ? (
+                {puedeGestionar && inspeccion.estado === "SEGUIMIENTO" ? (
                   <button type="button" className="cl-secondary" onClick={() => cambiarEstado("EN_PROCESO")}>Retomar (en proceso)</button>
                 ) : null}
                 <button type="button" className="cl-primary" onClick={finalizar} disabled={saving || finalizing}>

@@ -150,6 +150,14 @@ test("el responsable puede finalizar directamente una inspección asignada", asy
   assert.ok(finalizada.fecha_finalizacion);
 });
 
+test("un técnico de apoyo asignado puede finalizar la inspección", async () => {
+  const inspeccion = await crearInspeccionBase({ apoyos: [apoyo.id] });
+  const finalizada = await finalizarInspeccion(inspeccion.id, {}, apoyo);
+
+  assert.equal(finalizada.estado, "FINALIZADA");
+  assert.equal(finalizada.finalizada_por_usuario_id, apoyo.id);
+});
+
 test("una inspección finalizada no admite mas cambios de campo de un tecnico", async () => {
   const inspeccion = await crearInspeccionBase();
   await changeEstado(inspeccion.id, { estado: "EN_PROCESO" }, responsable);

@@ -562,7 +562,7 @@ export const changeEstado = async (id, { estado, motivo = "" } = {}, user) => {
 export const finalizarInspeccion = async (id, payload = {}, user) => {
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
-  if (!isAdmin(user) && !isResponsable(participantes, user.id)) throw fail("Solo el técnico responsable o administración pueden finalizar la inspección.", 403);
+  if (!isAdmin(user) && !isActiveParticipant(participantes, user.id)) throw fail("Solo un técnico asignado o administración pueden finalizar la inspección.", 403);
   if (inspeccion.estado === "FINALIZADA") return getInspeccionDetail(id, user);
   if (!INSPECCION_TRANSITIONS[inspeccion.estado]?.includes("FINALIZADA")) {
     throw fail(`La transición ${inspeccion.estado} → FINALIZADA no está permitida.`, 409);
