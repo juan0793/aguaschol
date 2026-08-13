@@ -86,7 +86,7 @@ const buildOrdenBody = (inspeccion, opciones) => `
     <section class="ins-section"><div class="ins-section-title"><h2>Personal asignado</h2></div>${staff(inspeccion)}</section>
     ${opciones.mostrarAbonados && inspeccion.abonados_asociados?.length > 1 ? `<section class="ins-section"><div class="ins-section-title"><h2>Abonados asociados a la clave</h2><small>${inspeccion.abonados_asociados.length} cuentas</small></div><table class="ins-table"><thead><tr><th style="width:28%">Cuenta</th><th>Nombre</th></tr></thead><tbody>${inspeccion.abonados_asociados.map((item) => `<tr><td>${safe(item.abonado)}</td><td>${safe(item.nombre)}</td></tr>`).join("")}</tbody></table></section>` : ""}
     <section class="ins-section"><div class="ins-section-title"><h2>Anotaciones de campo</h2></div><div class="ins-notes-space"></div></section>
-    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma del técnico responsable</div></div>` : ""}
+    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma Supervisor</div></div>` : ""}
     ${footer(inspeccion)}
   </article>`;
 
@@ -109,7 +109,7 @@ const buildReporteBody = (inspeccion, gps, opciones) => `
       <section class="ins-section ins-close"><div class="ins-section-title"><h2>Cierre</h2></div><dl class="ins-key-value"><dt>Estado final</dt><dd>${safe(estadoLabel(inspeccion.estado))}</dd><dt>Finalizada por</dt><dd>${safe(inspeccion.finalizada_por_nombre || "No especificado")}</dd><dt>Fecha y hora</dt><dd>${safe(formatDateTime(inspeccion.fecha_finalizacion))}</dd></dl></section>
     </div>
     <section class="ins-section"><div class="ins-section-title"><h2>Personal participante</h2></div>${staff(inspeccion)}</section>
-    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma del técnico responsable</div></div>` : ""}
+    ${opciones.mostrarFirmas ? `<div class="ins-signatures"><div>Firma Supervisor</div></div>` : ""}
     ${footer(inspeccion)}
   </article>`;
 
