@@ -177,6 +177,7 @@
 .report-generator, .report-settings-form { display: grid; gap: 0.9rem; padding: 1rem 1.1rem; }
 .report-generator fieldset, .report-settings-form fieldset { display: grid; gap: 0.55rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-sm); padding: 0.85rem; }
 .report-generator label { display: flex; gap: 0.55rem; }
+.report-generator input[type="radio"], .report-generator input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; flex: 0 0 18px; margin: 1px 0 0; accent-color: var(--ds-blue); }
 .report-generator-heading label { display: grid; gap: 0.25rem; font-weight: 650; }
 .report-generator-heading input, .report-generator-heading textarea { width: 100%; }
 .report-generator-options label { align-items: flex-start; padding: 0.6rem; border-radius: var(--ds-radius-input); background: var(--ds-surface-subtle); }
