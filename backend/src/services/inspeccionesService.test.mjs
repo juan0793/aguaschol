@@ -12,6 +12,7 @@ import {
   listTecnicosElegibles,
   reasignarInspeccion,
   removeParticipante,
+  toMysqlDateTime,
   updateInspeccion
 } from "./inspeccionesService.js";
 
@@ -37,6 +38,10 @@ const crearInspeccionBase = (overrides = {}) =>
     },
     admin
   );
+
+test("convierte fechas ISO al formato DATETIME aceptado por MySQL", () => {
+  assert.equal(toMysqlDateTime("2026-08-13T15:54:08.761Z"), "2026-08-13 15:54:08");
+});
 
 test("solo administración puede crear inspecciones", async () => {
   await assert.rejects(

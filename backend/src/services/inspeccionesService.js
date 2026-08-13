@@ -23,6 +23,13 @@ const fail = (message, status = 400) => Object.assign(new Error(message), { stat
 const clean = (value) => String(value ?? "").trim();
 const isAdmin = (user) => user?.role === "admin";
 const nowIso = () => new Date().toISOString();
+const MYSQL_DATETIME_COLUMNS = new Set(["fecha_inicio", "fecha_finalizacion"]);
+
+export const toMysqlDateTime = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString().slice(0, 19).replace("T", " ");
+};
 
 // Estado en memoria (solo para USE_MEMORY_DB=true / pruebas). Cada modulo mantiene su propio
 // almacen privado, replicando el patron ya usado en clandestinosService.js.
@@ -489,9 +496,12 @@ const applyPatch = async (id, patch) => {
     return;
   }
   const columns = Object.keys(patch);
+  const values = columns.map((column) => (
+    MYSQL_DATETIME_COLUMNS.has(column) && patch[column] ? toMysqlDateTime(patch[column]) : patch[column]
+  ));
   await getPool().query(
     `UPDATE inspecciones SET ${columns.map((column) => `${column} = ?`).join(", ")} WHERE id = ?`,
-    [...columns.map((column) => patch[column]), id]
+    [...values, id]
   );
 };
 
