@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { printDocument } from "../../../utils/printDocument";
+import { escapeHtml } from "../../../utils/html";
 import { estadoLabel, formatDate, formatDateTime, printStatusLabel } from "../utils/inspeccionesFormatters";
+
+const safe = (value) => escapeHtml(value);
 
 const PRINT_STYLES = `<style>
   .ins-print-page { color: #111; font: 11px/1.35 Arial, sans-serif; }
@@ -22,27 +25,27 @@ const PRINT_STYLES = `<style>
 
 const buildOrdenBody = (inspeccion, opciones) => `
   <article class="ins-print-page">
-    <div class="ins-print-brand"><strong>CONTROL AGUAS</strong><span>ORDEN DE INSPECCIÓN<br/>${inspeccion.numero_inspeccion}</span></div>
+    <div class="ins-print-brand"><strong>CONTROL AGUAS</strong><span>ORDEN DE INSPECCIÓN<br/>${safe(inspeccion.numero_inspeccion)}</span></div>
     <div class="ins-print-grid">
-      <p><span>Fecha asignación</span><strong>${formatDate(inspeccion.fecha_asignacion)}</strong></p>
-      <p><span>Estado</span><strong>${estadoLabel(inspeccion.estado)}</strong></p>
-      <p><span>Clave catastral</span><strong>${inspeccion.clave_catastral}</strong></p>
-      <p><span>Barrio</span><strong>${inspeccion.barrio_snapshot || "—"}</strong></p>
-      <p><span>Abonado</span><strong>${inspeccion.abonado_nombre_snapshot || "General"}</strong></p>
-      <p><span>Cuenta</span><strong>${inspeccion.abonado_numero || "—"}</strong></p>
+      <p><span>Fecha asignación</span><strong>${safe(formatDate(inspeccion.fecha_asignacion))}</strong></p>
+      <p><span>Estado</span><strong>${safe(estadoLabel(inspeccion.estado))}</strong></p>
+      <p><span>Clave catastral</span><strong>${safe(inspeccion.clave_catastral)}</strong></p>
+      <p><span>Barrio</span><strong>${safe(inspeccion.barrio_snapshot || "—")}</strong></p>
+      <p><span>Abonado</span><strong>${safe(inspeccion.abonado_nombre_snapshot || "General")}</strong></p>
+      <p><span>Cuenta</span><strong>${safe(inspeccion.abonado_numero || "—")}</strong></p>
     </div>
-    <div class="ins-print-section"><h4>Motivo</h4><p>${inspeccion.motivo}</p></div>
-    <div class="ins-print-section"><h4>Trabajo solicitado</h4><p>${inspeccion.trabajo_solicitado}</p></div>
+    <div class="ins-print-section"><h4>Motivo</h4><p>${safe(inspeccion.motivo)}</p></div>
+    <div class="ins-print-section"><h4>Trabajo solicitado</h4><p>${safe(inspeccion.trabajo_solicitado)}</p></div>
     <div class="ins-print-section">
       <h4>Personal asignado</h4>
-      <p>Responsable: ${inspeccion.participantes.find((item) => item.rol === "RESPONSABLE")?.tecnico_nombre || "—"}</p>
-      <p>Apoyo: ${inspeccion.participantes.filter((item) => item.rol === "APOYO").map((item) => item.tecnico_nombre).join(", ") || "Sin apoyo asignado"}</p>
+      <p>Responsable: ${safe(inspeccion.participantes.find((item) => item.rol === "RESPONSABLE")?.tecnico_nombre || "—")}</p>
+      <p>Apoyo: ${safe(inspeccion.participantes.filter((item) => item.rol === "APOYO").map((item) => item.tecnico_nombre).join(", ") || "Sin apoyo asignado")}</p>
     </div>
     ${opciones.mostrarAbonados && inspeccion.abonados_asociados?.length > 1 ? `
     <div class="ins-print-section">
       <h4>Abonados asociados a la clave</h4>
       <table class="ins-print-table"><thead><tr><th>Cuenta</th><th>Nombre</th></tr></thead><tbody>
-        ${inspeccion.abonados_asociados.map((item) => `<tr><td>${item.abonado}</td><td>${item.nombre}</td></tr>`).join("")}
+        ${inspeccion.abonados_asociados.map((item) => `<tr><td>${safe(item.abonado)}</td><td>${safe(item.nombre)}</td></tr>`).join("")}
       </tbody></table>
     </div>` : ""}
     <div class="ins-print-section"><h4>Espacio para anotación de campo</h4><div class="ins-print-notes-space"></div></div>
@@ -52,38 +55,38 @@ const buildOrdenBody = (inspeccion, opciones) => `
 
 const buildReporteBody = (inspeccion, gps, opciones) => `
   <article class="ins-print-page">
-    <div class="ins-print-brand"><strong>CONTROL AGUAS</strong><span>REPORTE DE INSPECCIÓN<br/>${inspeccion.numero_inspeccion}</span></div>
+    <div class="ins-print-brand"><strong>CONTROL AGUAS</strong><span>REPORTE DE INSPECCIÓN<br/>${safe(inspeccion.numero_inspeccion)}</span></div>
     <div class="ins-print-grid">
-      <p><span>Clave catastral</span><strong>${inspeccion.clave_catastral}</strong></p>
-      <p><span>Abonado</span><strong>${inspeccion.abonado_nombre_snapshot || "General"}</strong></p>
-      <p><span>Barrio</span><strong>${inspeccion.barrio_snapshot || "—"}</strong></p>
-      <p><span>Estado</span><strong>${estadoLabel(inspeccion.estado)}</strong></p>
+      <p><span>Clave catastral</span><strong>${safe(inspeccion.clave_catastral)}</strong></p>
+      <p><span>Abonado</span><strong>${safe(inspeccion.abonado_nombre_snapshot || "General")}</strong></p>
+      <p><span>Barrio</span><strong>${safe(inspeccion.barrio_snapshot || "—")}</strong></p>
+      <p><span>Estado</span><strong>${safe(estadoLabel(inspeccion.estado))}</strong></p>
     </div>
-    <div class="ins-print-section"><h4>Trabajo solicitado</h4><p>${inspeccion.trabajo_solicitado}</p></div>
-    <div class="ins-print-section"><h4>Información encontrada</h4><p>${inspeccion.informacion_encontrada || "Sin información registrada."}</p></div>
-    ${inspeccion.observaciones ? `<div class="ins-print-section"><h4>Observaciones</h4><p>${inspeccion.observaciones}</p></div>` : ""}
+    <div class="ins-print-section"><h4>Trabajo solicitado</h4><p>${safe(inspeccion.trabajo_solicitado)}</p></div>
+    <div class="ins-print-section"><h4>Información encontrada</h4><p>${safe(inspeccion.informacion_encontrada || "Sin información registrada.")}</p></div>
+    ${inspeccion.observaciones ? `<div class="ins-print-section"><h4>Observaciones</h4><p>${safe(inspeccion.observaciones)}</p></div>` : ""}
     ${opciones.mostrarGps ? `
     <div class="ins-print-section">
       <h4>Ubicación / GPS</h4>
       ${gps.length ? `<table class="ins-print-table"><thead><tr><th>Tipo</th><th>Coordenadas</th><th>Precisión</th><th>Registrado por</th><th>Fecha</th></tr></thead><tbody>
-        ${gps.map((punto) => `<tr><td>${punto.tipo_punto}</td><td>${Number(punto.latitude).toFixed(6)}, ${Number(punto.longitude).toFixed(6)}</td><td>±${punto.accuracy_meters ? Math.round(punto.accuracy_meters) : "?"} m</td><td>${punto.usuario_nombre || "—"}</td><td>${formatDateTime(punto.created_at)}</td></tr>`).join("")}
+        ${gps.map((punto) => `<tr><td>${safe(punto.tipo_punto)}</td><td>${Number(punto.latitude).toFixed(6)}, ${Number(punto.longitude).toFixed(6)}</td><td>±${punto.accuracy_meters ? Math.round(punto.accuracy_meters) : "?"} m</td><td>${safe(punto.usuario_nombre || "—")}</td><td>${safe(formatDateTime(punto.created_at))}</td></tr>`).join("")}
       </tbody></table>` : "<p>Sin puntos GPS registrados.</p>"}
     </div>` : ""}
     <div class="ins-print-section">
       <h4>Personal participante</h4>
-      <p>Responsable: ${inspeccion.participantes.find((item) => item.rol === "RESPONSABLE")?.tecnico_nombre || "—"}</p>
-      <p>Apoyo: ${inspeccion.participantes.filter((item) => item.rol === "APOYO").map((item) => item.tecnico_nombre).join(", ") || "Sin apoyo asignado"}</p>
+      <p>Responsable: ${safe(inspeccion.participantes.find((item) => item.rol === "RESPONSABLE")?.tecnico_nombre || "—")}</p>
+      <p>Apoyo: ${safe(inspeccion.participantes.filter((item) => item.rol === "APOYO").map((item) => item.tecnico_nombre).join(", ") || "Sin apoyo asignado")}</p>
     </div>
     <div class="ins-print-section">
       <h4>Seguimiento</h4>
       <p>Requiere seguimiento: ${inspeccion.requiere_seguimiento ? "Sí" : "No"}</p>
-      ${inspeccion.requiere_seguimiento ? `<p>Detalle: ${inspeccion.seguimiento_detalle || "—"}</p>` : ""}
+      ${inspeccion.requiere_seguimiento ? `<p>Detalle: ${safe(inspeccion.seguimiento_detalle || "—")}</p>` : ""}
     </div>
     <div class="ins-print-section">
       <h4>Cierre</h4>
-      <p>Estado final: ${estadoLabel(inspeccion.estado)}</p>
-      <p>Finalizada por: ${inspeccion.finalizada_por_nombre || "—"}</p>
-      <p>Fecha/hora: ${formatDateTime(inspeccion.fecha_finalizacion)}</p>
+      <p>Estado final: ${safe(estadoLabel(inspeccion.estado))}</p>
+      <p>Finalizada por: ${safe(inspeccion.finalizada_por_nombre || "—")}</p>
+      <p>Fecha/hora: ${safe(formatDateTime(inspeccion.fecha_finalizacion))}</p>
     </div>
     ${opciones.mostrarFirmas ? `<div class="ins-print-signatures"><div>Firma técnico</div><div>Firma quien atendió</div><div>Vo.Bo. supervisor</div></div>` : ""}
     <footer>Documento generado desde Control Aguas · ${new Date().toLocaleDateString("es-HN")}</footer>
@@ -109,10 +112,11 @@ export default function InspeccionPrintPreview({ api, inspeccion, gpsPuntos = []
   }, [api, inspeccion.id, tipo]);
 
   const imprimir = async () => {
-    await printDocument(tipo === "orden" ? "Orden de inspección" : "Reporte de inspección", `${PRINT_STYLES}${bodyHtml}`, {
+    const result = await printDocument(tipo === "orden" ? "Orden de inspección" : "Reporte de inspección", `${PRINT_STYLES}${bodyHtml}`, {
       pageSize,
       pageMargin: "12mm"
     });
+    if (!result?.printed) return;
     try {
       await api.printEvent(inspeccion.id, tipo, "IMPRESO");
       notify("Impresión registrada.");

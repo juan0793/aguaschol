@@ -56,6 +56,7 @@ test("crear una inspección genera numero unico, participante responsable e hist
   const inspeccion = await crearInspeccionBase({ apoyos: [apoyo.id] });
   assert.match(inspeccion.numero_inspeccion, /^INS-\d{4}-\d{5}$/);
   assert.equal(inspeccion.estado, "ASIGNADA");
+  assert.notEqual(inspeccion.barrio_snapshot, "");
   assert.equal(inspeccion.participantes.length, 2);
   assert.equal(inspeccion.participantes.some((item) => item.tecnico_id === responsable.id && item.rol === "RESPONSABLE"), true);
   assert.equal(inspeccion.participantes.some((item) => item.tecnico_id === apoyo.id && item.rol === "APOYO"), true);
@@ -129,6 +130,19 @@ test("administrador o responsable pueden finalizar; un tercero no", async () => 
   assert.equal(finalizada.estado, "FINALIZADA");
   assert.equal(finalizada.finalizada_por_usuario_id, responsable.id);
   assert.equal(finalizada.requiere_seguimiento, true);
+});
+
+test("el responsable puede finalizar directamente una inspección asignada", async () => {
+  const inspeccion = await crearInspeccionBase();
+  const finalizada = await finalizarInspeccion(inspeccion.id, {
+    requiere_seguimiento: true,
+    seguimiento_detalle: "Volver la próxima semana."
+  }, responsable);
+
+  assert.equal(finalizada.estado, "FINALIZADA");
+  assert.equal(finalizada.seguimiento_detalle, "Volver la próxima semana.");
+  assert.ok(finalizada.fecha_inicio);
+  assert.ok(finalizada.fecha_finalizacion);
 });
 
 test("una inspección finalizada no admite mas cambios de campo de un tecnico", async () => {

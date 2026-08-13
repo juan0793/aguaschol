@@ -3,6 +3,7 @@ import { Icon } from "../../../components/Icon";
 import InspeccionGpsPanel from "./InspeccionGpsPanel";
 import InspeccionPrintPreview from "./InspeccionPrintPreview";
 import { estadoClass, estadoLabel, formatDateTime, printStatusLabel } from "../utils/inspeccionesFormatters";
+import { createInspectionAutosave } from "../utils/inspectionAutosave";
 
 const ESTADO_SIGUIENTE = { ASIGNADA: "EN_PROCESO", EN_PROCESO: "SEGUIMIENTO" };
 const ESTADO_SIGUIENTE_LABEL = { ASIGNADA: "Iniciar inspección", EN_PROCESO: "Marcar seguimiento" };
@@ -13,12 +14,26 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [printTipo, setPrintTipo] = useState(null);
   const [nuevoApoyoId, setNuevoApoyoId] = useState("");
   const [nuevoResponsableId, setNuevoResponsableId] = useState("");
   const [seguimientoDetalle, setSeguimientoDetalle] = useState("");
   const [seguimientoFecha, setSeguimientoFecha] = useState("");
   const debounceRef = useRef(null);
+  const inspeccionRef = useRef(null);
+  const autosaveRef = useRef(null);
+
+  if (!autosaveRef.current) {
+    autosaveRef.current = createInspectionAutosave(async (patch, getPending) => {
+      const current = inspeccionRef.current;
+      const updated = await api.update(id, { ...patch, expected_updated_at: current?.updated_at });
+      const visible = { ...updated, ...getPending() };
+      inspeccionRef.current = visible;
+      setInspeccion(visible);
+      onChanged();
+    });
+  }
 
   const userId = session?.user?.id;
   const isAdmin = session?.user?.role === "admin";
@@ -31,14 +46,16 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const finalizada = inspeccion?.estado === "FINALIZADA";
 
   const cargar = async () => {
-    setLoading(true);
+    if (!inspeccionRef.current) setLoading(true);
     try {
       const [detail, puntos, bitacora] = await Promise.all([api.detail(id), api.gps(id), api.historial(id)]);
-      setInspeccion(detail);
+      const visible = { ...detail, ...autosaveRef.current.getPending() };
+      inspeccionRef.current = visible;
+      setInspeccion(visible);
       setGpsPuntos(puntos);
       setHistorial(bitacora);
-      setSeguimientoDetalle(detail.seguimiento_detalle || "");
-      setSeguimientoFecha(detail.seguimiento_fecha_sugerida || "");
+      setSeguimientoDetalle(visible.seguimiento_detalle || "");
+      setSeguimientoFecha(visible.seguimiento_fecha_sugerida || "");
     } catch (error) {
       notify(error.message);
     } finally {
@@ -48,29 +65,37 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
 
   useEffect(() => {
     cargar();
+    return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const guardarCampo = (patch) => {
     if (!inspeccion) return;
+    autosaveRef.current.enqueue(patch);
+    const visible = { ...inspeccionRef.current, ...patch };
+    inspeccionRef.current = visible;
+    setInspeccion(visible);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
+    debounceRef.current = setTimeout(() => {
       setSaving(true);
-      try {
-        const updated = await api.update(id, { ...patch, expected_updated_at: inspeccion.updated_at });
-        setInspeccion(updated);
-        onChanged();
-      } catch (error) {
-        if (error.message.includes("modificada por otro usuario")) {
-          notify(error.message);
-          cargar();
-        } else {
-          notify(error.message);
-        }
-      } finally {
-        setSaving(false);
-      }
-    }, 600);
+      autosaveRef.current.flush()
+        .catch((error) => notify(`${error.message} El texto se conserva para reintentar.`))
+        .finally(() => setSaving(false));
+    }, 800);
+  };
+
+  const guardarPendiente = async () => {
+    clearTimeout(debounceRef.current);
+    setSaving(true);
+    try {
+      await autosaveRef.current.flush();
+      return true;
+    } catch (error) {
+      notify(`${error.message} El texto se conserva para reintentar.`);
+      return false;
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cambiarEstado = async (estado) => {
@@ -85,19 +110,29 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   };
 
   const finalizar = async () => {
+    if (finalizing || !(await guardarPendiente())) return;
+    setFinalizing(true);
     try {
+      const current = inspeccionRef.current;
       const updated = await api.finalizar(id, {
-        requiere_seguimiento: inspeccion.requiere_seguimiento,
+        requiere_seguimiento: current.requiere_seguimiento,
         seguimiento_detalle: seguimientoDetalle,
         seguimiento_fecha_sugerida: seguimientoFecha
       });
+      inspeccionRef.current = updated;
       setInspeccion(updated);
       cargar();
       onChanged();
       notify("Inspección finalizada.");
     } catch (error) {
       notify(error.message);
+    } finally {
+      setFinalizing(false);
     }
+  };
+
+  const cerrar = async () => {
+    if (await guardarPendiente()) onClose();
   };
 
   const agregarApoyo = async () => {
@@ -156,7 +191,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
             <h2>{inspeccion.abonado_nombre_snapshot || "Inspección general"}</h2>
             <span className={`cl-status ${estadoClass(inspeccion.estado)}`}><i />{estadoLabel(inspeccion.estado)}</span>
           </div>
-          <button type="button" className="cl-icon-button" onClick={onClose} aria-label="Cerrar"><Icon name="logout" /></button>
+          <button type="button" className="cl-icon-button" onClick={cerrar} aria-label="Cerrar"><Icon name="logout" /></button>
         </header>
         <div className="cl-drawer-scroll">
           <div className="cl-padron-result">
@@ -241,7 +276,9 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
                 {inspeccion.estado === "SEGUIMIENTO" ? (
                   <button type="button" className="cl-secondary" onClick={() => cambiarEstado("EN_PROCESO")}>Retomar (en proceso)</button>
                 ) : null}
-                <button type="button" className="cl-primary" onClick={finalizar}>Finalizar inspección</button>
+                <button type="button" className="cl-primary" onClick={finalizar} disabled={saving || finalizing}>
+                  {finalizing ? "Finalizando…" : "Finalizar inspección"}
+                </button>
               </div>
             </section>
           ) : null}
@@ -324,7 +361,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
         </div>
         <footer>
           <div className="cl-drawer-main-actions">
-            <button type="button" className="cl-secondary" onClick={onClose}>Cerrar</button>
+            <button type="button" className="cl-secondary" onClick={cerrar} disabled={saving || finalizing}>Cerrar</button>
           </div>
         </footer>
       </div>

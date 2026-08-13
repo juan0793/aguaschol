@@ -6,7 +6,7 @@ import { emitProfileMessage } from "./profileRealtimeService.js";
 
 export const INSPECCION_STATES = ["ASIGNADA", "EN_PROCESO", "SEGUIMIENTO", "FINALIZADA"];
 export const INSPECCION_TRANSITIONS = {
-  ASIGNADA: ["EN_PROCESO"],
+  ASIGNADA: ["EN_PROCESO", "FINALIZADA"],
   EN_PROCESO: ["SEGUIMIENTO", "FINALIZADA"],
   SEGUIMIENTO: ["EN_PROCESO", "FINALIZADA"],
   FINALIZADA: []
@@ -114,7 +114,8 @@ const buildSnapshotFromClave = async (claveCatastral, abonadoNumero, inspeccionG
   const abonadosAsociados = lookup.matches.map((match) => ({
     clave_catastral: match.clave_catastral,
     abonado: match.abonado,
-    nombre: match.inquilino || match.nombre || ""
+    nombre: match.inquilino || match.nombre || "",
+    barrio_colonia: match.barrio_colonia || ""
   }));
   let selected = null;
   if (!inspeccionGeneral) {
@@ -127,7 +128,7 @@ const buildSnapshotFromClave = async (claveCatastral, abonadoNumero, inspeccionG
     abonado_numero: selected?.abonado || "",
     abonado_nombre_snapshot: selected ? (selected.inquilino || selected.nombre || "") : "Inspección general de la clave",
     barrio_snapshot: selected?.barrio_colonia || abonadosAsociados[0]?.barrio_colonia || "",
-    direccion_snapshot: selected?.barrio_colonia || "",
+    direccion_snapshot: selected?.barrio_colonia || abonadosAsociados[0]?.barrio_colonia || "",
     abonados_asociados: abonadosAsociados
   };
 };
@@ -558,12 +559,14 @@ export const finalizarInspeccion = async (id, payload = {}, user) => {
   }
 
   const requiereSeguimiento = Boolean(payload.requiere_seguimiento);
+  const finalizedAt = nowIso();
   const patch = {
     estado: "FINALIZADA",
     finalizada_por_usuario_id: user.id,
-    fecha_finalizacion: nowIso(),
+    fecha_finalizacion: finalizedAt,
     requiere_seguimiento: requiereSeguimiento ? 1 : 0
   };
+  if (!inspeccion.fecha_inicio) patch.fecha_inicio = finalizedAt;
   if ("informacion_encontrada" in payload) patch.informacion_encontrada = clean(payload.informacion_encontrada);
   if ("observaciones" in payload) patch.observaciones = clean(payload.observaciones);
   if (requiereSeguimiento) {
