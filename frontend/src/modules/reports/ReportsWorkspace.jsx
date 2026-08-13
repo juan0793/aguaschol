@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../components/Icon";
 import logo from "../../assets/logo-aguas-choluteca.png";
 import { formatCurrency } from "../../utils/formatting";
@@ -27,6 +27,7 @@ export default function ReportsWorkspace({ model }) {
   const [documentType, setDocumentType] = useState("technical");
   const [documentFormat, setDocumentFormat] = useState("pdf");
   const [reportOptions, setReportOptions] = useState({ sharedKeys: false, debtSummary: false });
+  const [excludedZones, setExcludedZones] = useState([]);
   const [previewPage, setPreviewPage] = useState(1);
   const [previewZoom, setPreviewZoom] = useState(100);
 
@@ -42,18 +43,34 @@ export default function ReportsWorkspace({ model }) {
     totalDebtLabel: formatCurrency(model.debtChart.totalDebt || 0),
     topRows: (model.debtChart.topRows || []).map((row) => ({ ...row, totalLabel: formatCurrency(row.total || 0) }))
   };
-  const previewZones = model.data.zones.slice((previewPage - 1) * 5, previewPage * 5);
-  const previewTotalPages = Math.max(1, Math.ceil(model.data.zones.length / 5));
+  useEffect(() => { setExcludedZones([]); setPreviewPage(1); }, [model.activeDateKey]);
 
-  const generate = ({ preview = false } = {}) => {
+  const includedZones = useMemo(
+    () => model.data.zones.filter((zone) => !excludedZones.includes(zone.overrideKey)),
+    [excludedZones, model.data.zones]
+  );
+  const includedZoneKeys = includedZones.map((zone) => zone.overrideKey);
+  const includedPoints = includedZones.reduce((total, zone) => total + zone.items.length, 0);
+  const previewZones = includedZones.slice((previewPage - 1) * 5, previewPage * 5);
+  const previewTotalPages = Math.max(1, Math.ceil(includedZones.length / 5));
+
+  useEffect(() => {
+    setPreviewPage((current) => Math.min(current, previewTotalPages));
+  }, [previewTotalPages]);
+
+  const generate = ({ preview = false, format = documentFormat } = {}) => {
     if (preview) { setGeneratorOpen(false); setPreviewOpen(true); return; }
     const actions = {
-      technical: documentFormat === "pdf" ? model.onDownloadTechnical : model.onPrintTechnical,
-      brief: documentFormat === "pdf" ? model.onDownloadBrief : model.onPrintBrief,
-      census: documentFormat === "pdf" ? model.onDownloadCensus : model.onPrintCensus,
+      technical: format === "pdf" ? model.onDownloadTechnical : model.onPrintTechnical,
+      brief: format === "pdf" ? model.onDownloadBrief : model.onPrintBrief,
+      census: format === "pdf" ? model.onDownloadCensus : model.onPrintCensus,
       regulator: model.onDownloadRegulator
     };
-    actions[documentType]?.(documentType === "brief" ? reportOptions : {});
+    actions[documentType]?.({ ...reportOptions, includedZoneKeys });
+  };
+
+  const toggleZone = (zoneKey) => {
+    setExcludedZones((current) => current.includes(zoneKey) ? current.filter((key) => key !== zoneKey) : [...current, zoneKey]);
   };
 
   return <section className="reports-workspace">
@@ -74,8 +91,15 @@ export default function ReportsWorkspace({ model }) {
     </ReportDialog>
 
     <ReportDialog open={generatorOpen} onClose={() => setGeneratorOpen(false)} title="Generar documento" variant="drawer">
-      <div className="report-generator"><fieldset><legend>Tipo de reporte</legend>{[["technical", "Técnico con coordenadas"], ["brief", "Resumen ligero"], ["census", "Censo sin coordenadas"], ["regulator", "Ente regulador"]].map(([value, label]) => <label key={value}><input type="radio" name="documentType" value={value} checked={documentType === value} onChange={(event) => setDocumentType(event.target.value)} />{label}</label>)}</fieldset><fieldset disabled={documentType === "regulator"}><legend>Formato</legend><label><input type="radio" name="documentFormat" value="pdf" checked={documentFormat === "pdf"} onChange={(event) => setDocumentFormat(event.target.value)} />PDF</label><label><input type="radio" name="documentFormat" value="print" checked={documentFormat === "print"} onChange={(event) => setDocumentFormat(event.target.value)} />Imprimir</label></fieldset>{documentType === "brief" ? <fieldset className="report-generator-options"><legend>Agregar al final</legend><label><input type="checkbox" checked={reportOptions.sharedKeys} onChange={(event) => setReportOptions((current) => ({ ...current, sharedKeys: event.target.checked }))} /><span><strong>Claves compartidas</strong><small>Lista abonados agrupados por la misma clave catastral base.</small></span></label><label><input type="checkbox" checked={reportOptions.debtSummary} onChange={(event) => setReportOptions((current) => ({ ...current, debtSummary: event.target.checked }))} /><span><strong>Deuda de abonados</strong><small>Agrega un listado compacto y el total adeudado.</small></span></label></fieldset> : null}<div className="report-generator-summary"><strong>{model.data.totalPoints} puntos · {model.data.totalZones} barrios</strong><span>Jornada {formatMapDiaryLabel(model.activeDateKey)}</span></div></div>
-      <footer className="reports-dialog-actions"><button type="button" className="button-secondary" onClick={() => setGeneratorOpen(false)}>Cancelar</button><button type="button" className="button-secondary" onClick={() => generate({ preview: true })}>Vista previa</button><button type="button" onClick={() => generate()}>Generar</button></footer>
+      <div className="report-generator">
+        <fieldset className="report-generator-heading"><legend>Encabezado del documento</legend><label><span>Título</span><input name="title" value={model.settings.title} onChange={model.onSettingsChange} /></label><label><span>Institución o subtítulo</span><input name="subtitle" value={model.settings.subtitle} onChange={model.onSettingsChange} /></label><label><span>Descripción</span><textarea name="description" rows="2" value={model.settings.description} onChange={model.onSettingsChange} /></label></fieldset>
+        <fieldset><legend>Tipo de reporte</legend>{[["technical", "Técnico con coordenadas"], ["brief", "Resumen ligero"], ["census", "Censo sin coordenadas"], ["regulator", "Ente regulador"]].map(([value, label]) => <label key={value}><input type="radio" name="documentType" value={value} checked={documentType === value} onChange={(event) => setDocumentType(event.target.value)} />{label}</label>)}</fieldset>
+        <fieldset disabled={documentType === "regulator"}><legend>Formato</legend><label><input type="radio" name="documentFormat" value="pdf" checked={documentFormat === "pdf"} onChange={(event) => setDocumentFormat(event.target.value)} />PDF</label><label><input type="radio" name="documentFormat" value="print" checked={documentFormat === "print"} onChange={(event) => setDocumentFormat(event.target.value)} />Imprimir</label></fieldset>
+        {documentType !== "regulator" ? <fieldset className="report-zone-selector"><legend>Barrios incluidos</legend><div className="report-zone-selector-head"><span>{includedZones.length} de {model.data.zones.length} barrios · {includedPoints} puntos</span><div><button type="button" className="report-link" onClick={() => setExcludedZones([])}>Seleccionar todos</button><button type="button" className="report-link" onClick={() => setExcludedZones(model.data.zones.map((zone) => zone.overrideKey))}>Quitar todos</button></div></div><div className="report-zone-checklist">{model.data.zones.map((zone) => <label key={zone.overrideKey} className={excludedZones.includes(zone.overrideKey) ? "is-excluded" : ""}><input type="checkbox" checked={!excludedZones.includes(zone.overrideKey)} onChange={() => toggleZone(zone.overrideKey)} /><span><strong>{zone.displayName || zone.zone}</strong><small>{zone.items.length} puntos</small></span></label>)}</div><button type="button" className="button-secondary report-edit-points" onClick={() => { setGeneratorOpen(false); setTab("records"); }}>Editar datos de los puntos</button></fieldset> : null}
+        {documentType === "brief" ? <fieldset className="report-generator-options"><legend>Agregar al final</legend><label><input type="checkbox" checked={reportOptions.sharedKeys} onChange={(event) => setReportOptions((current) => ({ ...current, sharedKeys: event.target.checked }))} /><span><strong>Claves compartidas</strong><small>Lista abonados agrupados por la misma clave catastral base.</small></span></label><label><input type="checkbox" checked={reportOptions.debtSummary} onChange={(event) => setReportOptions((current) => ({ ...current, debtSummary: event.target.checked }))} /><span><strong>Deuda de abonados</strong><small>Agrega un listado compacto y el total adeudado.</small></span></label></fieldset> : null}
+        <div className="report-generator-summary"><strong>{includedPoints} puntos · {includedZones.length} barrios</strong><span>Jornada {formatMapDiaryLabel(model.activeDateKey)}</span></div>
+      </div>
+      <footer className="reports-dialog-actions"><button type="button" className="button-secondary" onClick={() => setGeneratorOpen(false)}>Cancelar</button><button type="button" className="button-secondary" onClick={() => generate({ preview: true })} disabled={!includedZones.length && documentType !== "regulator"}>Vista previa</button><button type="button" onClick={() => generate()} disabled={!includedZones.length && documentType !== "regulator"}>Generar</button></footer>
     </ReportDialog>
 
     <ReportDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Configuración del reporte" variant="drawer">
@@ -89,8 +113,8 @@ export default function ReportsWorkspace({ model }) {
 
     <ReportDialog open={previewOpen} onClose={() => setPreviewOpen(false)} title="Vista previa del reporte" variant="preview">
       <div className="report-preview-toolbar"><span>Página {previewPage} de {previewTotalPages}</span><div><button type="button" className="button-secondary" onClick={() => setPreviewZoom((value) => Math.max(70, value - 10))} aria-label="Reducir zoom">−</button><b>{previewZoom}%</b><button type="button" className="button-secondary" onClick={() => setPreviewZoom((value) => Math.min(130, value + 10))} aria-label="Aumentar zoom">+</button></div></div>
-      <div className="report-preview-stage"><article className="report-preview-page" style={{ transform: `scale(${previewZoom / 100})` }}><header><img src={logo} alt="Aguas de Choluteca" /><div><small>{model.settings.subtitle}</small><h1>{model.settings.title}</h1><p>{model.settings.description}</p></div></header><section><strong>Jornada: {formatMapDiaryLabel(model.activeDateKey)}</strong><span>Generado: {formatDateTime(new Date())}</span><span>{model.data.totalPoints} puntos · {model.data.totalZones} barrios</span></section>{previewZones.map((zone) => <div className="report-preview-zone" key={zone.zone}><h2>{zone.displayName || zone.zone}</h2><table><thead><tr><th>#</th><th>Tipo</th><th>Referencia</th>{documentType !== "census" ? <th>Coordenadas</th> : null}</tr></thead><tbody>{zone.items.slice(0, 8).map((point, index) => <tr key={point.id}><td>{index + 1}</td><td>{point.point_type}</td><td>{point.reference || point.description || "--"}</td>{documentType !== "census" ? <td>{point.latitude}, {point.longitude}</td> : null}</tr>)}</tbody></table></div>)}</article></div>
-      <footer className="reports-dialog-actions report-preview-actions"><button type="button" className="button-secondary" onClick={() => setPreviewPage((value) => Math.max(1, value - 1))} disabled={previewPage === 1}>Anterior</button><button type="button" className="button-secondary" onClick={() => setPreviewPage((value) => Math.min(previewTotalPages, value + 1))} disabled={previewPage === previewTotalPages}>Siguiente</button><span /><button type="button" className="button-secondary" onClick={() => { setDocumentFormat("pdf"); generate(); }}>Descargar PDF</button><button type="button" onClick={() => { setDocumentFormat("print"); generate(); }}>Imprimir</button></footer>
+      <div className="report-preview-stage"><article className="report-preview-page" style={{ transform: `scale(${previewZoom / 100})` }}><header><img src={logo} alt="Aguas de Choluteca" /><div><small>{model.settings.subtitle}</small><h1>{model.settings.title}</h1><p>{model.settings.description}</p></div><b>Informe de campo</b></header><section className="report-preview-meta"><span><small>Jornada</small><strong>{formatMapDiaryLabel(model.activeDateKey)}</strong></span><span><small>Puntos incluidos</small><strong>{includedPoints}</strong></span><span><small>Barrios incluidos</small><strong>{includedZones.length}</strong></span><span><small>Generado</small><strong>{formatDateTime(new Date())}</strong></span></section>{previewZones.map((zone) => <div className="report-preview-zone" key={zone.overrideKey}><div><span>Barrio / zona</span><h2>{zone.displayName || zone.zone}</h2><small>{zone.items.length} puntos incluidos</small></div><table><thead><tr><th>#</th><th>Tipo</th><th>Referencia</th>{documentType !== "census" ? <th>Coordenadas</th> : null}</tr></thead><tbody>{zone.items.slice(0, 8).map((point, index) => <tr key={point.id}><td>{index + 1}</td><td>{point.point_type}</td><td>{point.reference || point.description || "--"}</td>{documentType !== "census" ? <td>{point.latitude}, {point.longitude}</td> : null}</tr>)}</tbody></table></div>)}</article></div>
+      <footer className="reports-dialog-actions report-preview-actions"><button type="button" className="button-secondary" onClick={() => setPreviewPage((value) => Math.max(1, value - 1))} disabled={previewPage === 1}>Anterior</button><button type="button" className="button-secondary" onClick={() => setPreviewPage((value) => Math.min(previewTotalPages, value + 1))} disabled={previewPage === previewTotalPages}>Siguiente</button><span /><button type="button" className="button-secondary" onClick={() => { setDocumentFormat("pdf"); generate({ format: "pdf" }); }}>Descargar PDF</button><button type="button" onClick={() => { setDocumentFormat("print"); generate({ format: "print" }); }}>Imprimir</button></footer>
     </ReportDialog>
   </section>;
 }

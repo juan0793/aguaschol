@@ -976,18 +976,42 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             gap: 8px;
           }
           .map-brief-report-header {
-            padding: 9px 11px;
-            border-left: 5px solid #0d4d86;
+            padding: 13px 15px;
+            border: 1px solid #c7dcef;
+            border-top: 5px solid #0d4d86;
+            background: #ffffff;
           }
           .map-brief-report-header .field-report-brand {
-            grid-template-columns: 56px minmax(0, 1fr);
+            grid-template-columns: 64px minmax(0, 1fr);
+            gap: 13px;
           }
           .map-brief-report-header .print-logo {
-            width: 48px;
-            height: 48px;
+            width: 56px;
+            height: 56px;
           }
           .map-brief-report-header h1 {
-            font-size: 16px;
+            margin: 2px 0 4px;
+            color: #0d3f6a;
+            font-size: 20px;
+            line-height: 1.15;
+          }
+          .map-brief-report-header .field-report-brand p:last-child {
+            margin: 0;
+            color: #526d83;
+            font-size: 10px;
+          }
+          .map-brief-report-header .field-report-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr;
+            gap: 6px;
+            margin-top: 11px;
+          }
+          .map-brief-report-header .field-report-meta span {
+            border-radius: 7px;
+            padding: 6px 8px;
+            background: #f4f8fb;
+            color: #315b7d;
+            font-size: 9px;
           }
           .map-brief-report-metrics {
             display: grid;

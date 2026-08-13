@@ -8,6 +8,24 @@ export const flattenReportPoints = (zones = []) =>
     }))
   );
 
+export const selectReportZones = (data = {}, includedZoneKeys, typeLabel = (value) => value) => {
+  if (!Array.isArray(includedZoneKeys)) return data;
+  const included = new Set(includedZoneKeys);
+  const zones = (data.zones || []).filter((zone) => included.has(zone.overrideKey));
+  const totalsByType = zones.flatMap((zone) => zone.items || []).reduce((totals, point) => {
+    const label = typeLabel(point.point_type);
+    totals[label] = (totals[label] || 0) + 1;
+    return totals;
+  }, {});
+  return {
+    ...data,
+    zones,
+    totalZones: zones.length,
+    totalPoints: zones.reduce((total, zone) => total + (zone.items || []).length, 0),
+    totalsByType
+  };
+};
+
 export const filterReportDays = (groups = [], { query = "", year = "", month = "", withPoints = false } = {}) => {
   const needle = query.trim().toLowerCase();
   return groups.filter((group) => {

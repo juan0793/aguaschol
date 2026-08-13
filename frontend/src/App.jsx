@@ -88,7 +88,7 @@ import {
   getMapPointContextKey,
   getMapPointTypeLabel
 } from "./utils/mapField";
-import { buildPadronNameIndex, buildReportDebtRows, buildSharedCadastralKeys, stripServicesFromDescription } from "./modules/reports/utils/reportSelectors";
+import { buildPadronNameIndex, buildReportDebtRows, buildSharedCadastralKeys, selectReportZones, stripServicesFromDescription } from "./modules/reports/utils/reportSelectors";
 import {
   comparableFormShape,
   getRecordDeadlineMeta,
@@ -2170,6 +2170,12 @@ function App() {
 
     return applyZoneOverrides(mapReportData);
   }, [mapReportData, mapReportSettings.manual_barrio, mapReportSettings.manual_location, mapReportSettings.zone_overrides]);
+  const getSelectedMapReportData = (includedZoneKeys) =>
+    selectReportZones(mapReportPrintData, includedZoneKeys, getMapPointTypeLabel);
+  const getSelectedCajaTotal = (reportData) => reportData.zones.reduce(
+    (total, zone) => total + zone.items.filter((point) => point.point_type === "caja_registro").length,
+    0
+  );
   const adminWorkspaceItems = useMemo(
     () =>
       isAdmin
@@ -7432,10 +7438,11 @@ function App() {
     });
   };
 
-  const handlePrintMapFieldReport = async () => {
+  const handlePrintMapFieldReport = async ({ includedZoneKeys } = {}) => {
     const generatedAt = formatDateTime(new Date().toISOString());
     const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
-    const reportData = mapReportPrintData;
+    const reportData = getSelectedMapReportData(includedZoneKeys);
+    const reportCajaTotal = getSelectedCajaTotal(reportData);
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
@@ -7467,7 +7474,7 @@ function App() {
             </div>
             <div>
               <strong>Cajas de registro</strong>
-              <span>${totalCajaRegistro}</span>
+              <span>${reportCajaTotal}</span>
             </div>
           </div>
           ${buildMapReportStaffMarkup(mapReportStaff)}
@@ -7582,7 +7589,7 @@ function App() {
     );
   };
 
-  const handleDownloadMapFieldPdf = async () => {
+  const handleDownloadMapFieldPdf = async ({ includedZoneKeys } = {}) => {
     try {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
@@ -7594,7 +7601,8 @@ function App() {
       });
       const generatedAt = formatDateTime(new Date().toISOString());
       const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
-      const reportData = mapReportPrintData;
+      const reportData = getSelectedMapReportData(includedZoneKeys);
+      const reportCajaTotal = getSelectedCajaTotal(reportData);
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
       const reportNotes = mapReportSettings.report_notes.trim();
@@ -7629,7 +7637,7 @@ function App() {
       document.text(`Total de barrios: ${reportData.totalZones}`, 138, 36);
       document.text(document.splitTextToSize(`Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}`, 116), 14, 42);
       document.text(`Ingeniero de datos: ${mapReportStaff.data_engineer || "--"}`, 138, 42);
-      document.text(`Cajas de registro: ${totalCajaRegistro}`, 14, 56);
+      document.text(`Cajas de registro: ${reportCajaTotal}`, 14, 56);
 
       if (mapImageDataUrl) {
         const mapImageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
@@ -8306,9 +8314,10 @@ function App() {
     }
   };
 
-  const handlePrintMapCensusReport = async () => {
+  const handlePrintMapCensusReport = async ({ includedZoneKeys } = {}) => {
     const generatedAt = formatDateTime(new Date().toISOString());
-    const reportData = mapReportPrintData;
+    const reportData = getSelectedMapReportData(includedZoneKeys);
+    const reportCajaTotal = getSelectedCajaTotal(reportData);
     const { padronNames } = await buildMapReportPadronData();
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
@@ -8393,7 +8402,7 @@ function App() {
           <section class="field-report-summary">
             <div class="field-report-total-chip"><strong>Total de puntos</strong><span>${reportData.totalPoints}</span></div>
             <div class="field-report-total-chip"><strong>Zonas / manzanas</strong><span>${reportData.totalZones}</span></div>
-            <div class="field-report-total-chip"><strong>Cajas de registro</strong><span>${totalCajaRegistro}</span></div>
+            <div class="field-report-total-chip"><strong>Cajas de registro</strong><span>${reportCajaTotal}</span></div>
           </section>
           ${buildMapReportTypeChartMarkup(reportData)}
           ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones del censo</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
@@ -8409,7 +8418,7 @@ function App() {
     );
   };
 
-  const handleDownloadMapCensusPdf = async () => {
+  const handleDownloadMapCensusPdf = async ({ includedZoneKeys } = {}) => {
     try {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
@@ -8419,7 +8428,7 @@ function App() {
         format: "letter",
         compress: true
       });
-      const reportData = mapReportPrintData;
+      const reportData = getSelectedMapReportData(includedZoneKeys);
       const { padronNames } = await buildMapReportPadronData();
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
@@ -8590,9 +8599,10 @@ function App() {
     }
   };
 
-  const handlePrintMapBriefReport = async ({ sharedKeys: includeSharedKeys = false, debtSummary: includeDebtSummary = false } = {}) => {
+  const handlePrintMapBriefReport = async ({ sharedKeys: includeSharedKeys = false, debtSummary: includeDebtSummary = false, includedZoneKeys } = {}) => {
     const generatedAt = formatDateTime(new Date().toISOString());
-    const reportData = mapReportPrintData;
+    const reportData = getSelectedMapReportData(includedZoneKeys);
+    const reportCajaTotal = getSelectedCajaTotal(reportData);
     const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData();
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
@@ -8637,7 +8647,7 @@ function App() {
           <section class="map-brief-report-metrics">
             <div><strong>Total general</strong><span>${reportData.totalPoints}</span></div>
             <div><strong>Barrios / zonas</strong><span>${reportData.totalZones}</span></div>
-            <div><strong>Cajas de registro</strong><span>${totalCajaRegistro}</span></div>
+            <div><strong>Cajas de registro</strong><span>${reportCajaTotal}</span></div>
           </section>
           ${buildMapReportTypeChartMarkup(reportData)}
           ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
@@ -8719,7 +8729,7 @@ function App() {
     );
   };
 
-  const handleDownloadMapBriefPdf = async ({ sharedKeys: includeSharedKeys = false, debtSummary: includeDebtSummary = false } = {}) => {
+  const handleDownloadMapBriefPdf = async ({ sharedKeys: includeSharedKeys = false, debtSummary: includeDebtSummary = false, includedZoneKeys } = {}) => {
     try {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
@@ -8729,7 +8739,8 @@ function App() {
         format: "letter",
         compress: true
       });
-      const reportData = mapReportPrintData;
+      const reportData = getSelectedMapReportData(includedZoneKeys);
+      const reportCajaTotal = getSelectedCajaTotal(reportData);
       const { padronNames, sharedKeys, debtRows } = await buildMapReportPadronData();
       const generatedAt = formatDateTime(new Date().toISOString());
       const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
@@ -8777,7 +8788,7 @@ function App() {
       document.text(formatMapDiaryLabel(activeMapDiaryDateKey), 20, 55);
       document.text(String(reportData.totalPoints), 80, 55);
       document.text(String(reportData.totalZones), 122, 55);
-      document.text(String(totalCajaRegistro), 164, 55);
+      document.text(String(reportCajaTotal), 164, 55);
 
       const chartRows = getMapReportTypeChartRows(reportData);
       const maxChartValue = Math.max(1, ...chartRows.map(([, total]) => Number(total || 0)));

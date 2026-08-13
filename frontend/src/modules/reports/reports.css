@@ -177,10 +177,21 @@
 .report-generator, .report-settings-form { display: grid; gap: 0.9rem; padding: 1rem 1.1rem; }
 .report-generator fieldset, .report-settings-form fieldset { display: grid; gap: 0.55rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-sm); padding: 0.85rem; }
 .report-generator label { display: flex; gap: 0.55rem; }
+.report-generator-heading label { display: grid; gap: 0.25rem; font-weight: 650; }
+.report-generator-heading input, .report-generator-heading textarea { width: 100%; }
 .report-generator-options label { align-items: flex-start; padding: 0.6rem; border-radius: var(--ds-radius-input); background: var(--ds-surface-subtle); }
 .report-generator-options label > span { display: grid; gap: 0.1rem; }
 .report-generator-options small { color: var(--ds-text-muted); font-weight: 400; }
 .report-generator-summary { display: grid; padding: 0.85rem; background: var(--ds-blue-soft); border-radius: var(--ds-radius-sm); }
+.report-zone-selector-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; color: var(--ds-text-muted); font-size: 0.78rem; }
+.report-zone-selector-head > div { display: flex; gap: 0.75rem; }
+.report-zone-checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; max-height: 245px; overflow: auto; padding: 0.15rem; }
+.report-zone-checklist label { align-items: center; padding: 0.6rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-input); background: var(--ds-surface); }
+.report-zone-checklist label.is-excluded { opacity: 0.55; background: var(--ds-surface-subtle); }
+.report-zone-checklist label span { display: grid; gap: 0.05rem; min-width: 0; }
+.report-zone-checklist label strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report-zone-checklist label small { color: var(--ds-text-muted); font-weight: 500; }
+.report-edit-points { justify-self: start; }
 .report-settings-form > label, .report-settings-form fieldset > label { display: grid; gap: 0.3rem; font-weight: 650; }
 .report-settings-form label span { display: flex; gap: 0.3rem; }
 .report-settings-form label span input { flex: 1; }
@@ -191,11 +202,21 @@
 .report-preview-toolbar div { display: flex; align-items: center; gap: 0.5rem; }
 .report-preview-stage { height: calc(96vh - 150px); overflow: auto; background: var(--ds-border-strong); padding: 1.75rem; display: flex; justify-content: center; align-items: flex-start; }
 .report-preview-page { width: 816px; min-height: 1056px; padding: 48px; background: #fff; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2); transform-origin: top center; color: #1c3447; }
-.report-preview-page > header { display: flex; gap: 1rem; border-bottom: 2px solid var(--ds-blue); padding-bottom: 1rem; }
+.report-preview-page > header { display: grid; grid-template-columns: 72px 1fr auto; align-items: center; gap: 1rem; border-bottom: 3px solid var(--ds-blue); padding-bottom: 1rem; }
 .report-preview-page > header img { width: 72px; height: 72px; object-fit: contain; }
-.report-preview-page h1 { margin: 0.2rem 0; }
-.report-preview-page > section { display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 0; font-size: 0.8rem; }
-.report-preview-zone h2 { font-size: 1rem; }
+.report-preview-page > header small { color: #52708a; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.report-preview-page > header b { align-self: start; padding: 0.4rem 0.65rem; border-radius: 999px; background: #eaf4fd; color: #1268b5; font-size: 0.68rem; text-transform: uppercase; }
+.report-preview-page h1 { margin: 0.2rem 0; color: #103a5d; font-size: 1.55rem; }
+.report-preview-page > header p { margin: 0; color: #526d83; }
+.report-preview-page > section.report-preview-meta { display: grid; grid-template-columns: 1.4fr 0.8fr 0.8fr 1.2fr; gap: 0.55rem; padding: 0.8rem 0; }
+.report-preview-meta span { display: grid; gap: 0.18rem; padding: 0.65rem 0.75rem; border: 1px solid #d7e4ee; border-radius: 8px; background: #f7fafc; }
+.report-preview-meta small, .report-preview-zone > div > span { color: #6a8195; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.report-preview-meta strong { color: #163d5c; font-size: 0.76rem; }
+.report-preview-zone { margin-top: 0.75rem; padding: 0.8rem; border: 1px solid #d7e4ee; border-radius: 9px; break-inside: avoid; }
+.report-preview-zone > div { display: grid; grid-template-columns: 1fr auto; align-items: end; margin-bottom: 0.55rem; }
+.report-preview-zone > div > span { grid-column: 1 / -1; }
+.report-preview-zone h2 { margin: 0.15rem 0 0; color: #123b5d; font-size: 1rem; }
+.report-preview-zone > div > small { color: #6a8195; }
 .report-preview-zone table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
 .report-preview-zone th, .report-preview-zone td { border: 1px solid #cfdbe4; padding: 0.4rem; text-align: left; }
 .report-preview-zone th { background: #edf5fb; }
@@ -228,6 +249,7 @@
   .report-preview-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .report-preview-actions span { display: none; }
   .report-preview-page { transform-origin: top left; }
+  .report-zone-checklist { grid-template-columns: 1fr; }
   .report-debt-chart > div { grid-template-columns: 110px 1fr 90px; }
   .reports-tabs { padding-left: 0.3rem; }
 }
