@@ -51,7 +51,7 @@ const PRINT_STYLES = `<style>
   .ins-doc-footer { display:flex; justify-content:space-between; gap:12px; margin-top:18px; padding-top:7px; border-top:1px solid #d6e2eb; color:#718599; font-size:7.5px; }
   .ins-notes-space { min-height:80px; border:1px dashed #bfcfdb; border-radius:6px; background:repeating-linear-gradient(#fff,#fff 23px,#e6edf3 24px); }
   @media (max-width:700px) { .ins-print-page{padding:18px}.ins-meta-grid{grid-template-columns:1fr 1fr}.ins-two-column{grid-template-columns:1fr}.ins-map-image{height:auto;aspect-ratio:16/10} }
-  @media print { .ins-print-page{max-width:none;padding:0}.ins-section{break-inside:avoid}.ins-map-section{break-before:page;page-break-before:always}.ins-map-image{height:66mm} }
+  @media print { .ins-print-page{max-width:none;padding:0}.ins-section{break-inside:avoid}.ins-map-image{height:48mm} }
 </style>`;
 
 const header = (inspeccion, title) => `
