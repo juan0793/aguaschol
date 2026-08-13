@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { escapeHtml } from "../utils/html";
 import { isValidMapPointCoordinate } from "../utils/mapField";
+import { captureLeafletMap, waitForMapTiles } from "../utils/leafletPrint";
 import { printDocument } from "../utils/printDocument";
 
 const MAP_LAYERS = {
@@ -20,72 +21,6 @@ const MAP_LAYERS = {
 };
 
 const PRINT_MAP_RATIO = 267 / 178;
-
-const waitForMapTiles = async (mapNode, layers, timeout = 5000) => {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeout) {
-    const tiles = Array.from(mapNode.querySelectorAll(".leaflet-tile"));
-    const tilesReady = tiles.length > 0 && tiles.every((tile) => tile.complete && tile.naturalWidth);
-    const layersReady = layers.every((layer) => !layer?.isLoading?.());
-    if (tilesReady && layersReady) return;
-    await new Promise((resolve) => window.setTimeout(resolve, 100));
-  }
-};
-
-const captureLeafletMap = (mapNode) => {
-  const bounds = mapNode.getBoundingClientRect();
-  const scale = 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bounds.width * scale);
-  canvas.height = Math.round(bounds.height * scale);
-  const context = canvas.getContext("2d");
-  context.scale(scale, scale);
-  context.fillStyle = "#dce7f2";
-  context.fillRect(0, 0, bounds.width, bounds.height);
-
-  mapNode.querySelectorAll(".leaflet-tile-loaded").forEach((tile) => {
-    if (!tile.complete || !tile.naturalWidth) return;
-    const tileBounds = tile.getBoundingClientRect();
-    context.drawImage(
-      tile,
-      tileBounds.left - bounds.left,
-      tileBounds.top - bounds.top,
-      tileBounds.width,
-      tileBounds.height
-    );
-  });
-
-  mapNode.querySelectorAll(".map-print-marker").forEach((marker) => {
-    const markerBounds = marker.getBoundingClientRect();
-    const markerStyle = window.getComputedStyle(marker);
-    const centerX = markerBounds.left - bounds.left + markerBounds.width / 2;
-    const centerY = markerBounds.top - bounds.top + markerBounds.height / 2;
-    const radius = markerBounds.width / 2;
-    const outline = Number.parseFloat(markerStyle.getPropertyValue("--outline-width")) || 0;
-
-    context.beginPath();
-    context.arc(centerX, centerY, radius + outline, 0, Math.PI * 2);
-    context.fillStyle = markerStyle.getPropertyValue("--outline-color") || "#ffffff";
-    context.fill();
-    context.beginPath();
-    context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    context.fillStyle = markerStyle.backgroundColor || "#1576d1";
-    context.fill();
-    context.lineWidth = 2;
-    context.strokeStyle = "#ffffff";
-    context.stroke();
-
-    if (marker.textContent) {
-      context.fillStyle = "#ffffff";
-      context.font = "800 9px Arial";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.fillText(marker.textContent, centerX, centerY + 0.5);
-    }
-  });
-
-  return canvas.toDataURL("image/jpeg", 0.94);
-};
 
 function MapPrintDialog({ apiUrl, dateLabel, open, onOpenChange, points }) {
   const printAreaRef = useRef(null);

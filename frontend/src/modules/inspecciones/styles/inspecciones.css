@@ -31,7 +31,18 @@
 .ins-print-toggles { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 13px; }
 .ins-print-toggles label { display: flex; align-items: center; gap: 6px; min-height: auto; }
 .ins-print-drawer { width: min(900px, 100%); }
+.ins-print-tabs { display: flex; gap: 4px; }
+.ins-print-preview { padding: 22px; background: #dce5ed; }
+.ins-print-preview .ins-print-page { box-shadow: 0 10px 30px rgba(16, 42, 67, 0.16); }
+.ins-print-editor { padding: 10px 12px; border: 1px solid #d4e2ed; border-radius: 10px; background: #f8fbfd; }
+.ins-print-editor summary { color: var(--navy); font-weight: 750; cursor: pointer; }
+.ins-print-editor > p { margin: 6px 0 10px; color: var(--muted); font-size: 12px; }
+.ins-print-editor label { display: grid; gap: 4px; margin-top: 8px; color: var(--navy); font-size: 12px; font-weight: 700; }
+.ins-print-editor textarea { width: 100%; padding: 9px 10px; border: 1px solid #bfd4e5; border-radius: 8px; background: #fff; color: var(--text); font: inherit; resize: vertical; }
+.ins-print-map-capture { position: fixed; top: 0; left: -10000px; width: 900px; height: 480px; overflow: hidden; background: #dce7f2; }
 
 @media (max-width: 760px) {
   .ins-print-drawer { width: 100%; }
+  .ins-print-preview { padding: 8px; }
+  .ins-print-tabs { display: grid; grid-template-columns: 1fr 1fr; }
 }
