@@ -29052,6 +29052,7 @@ body {
 .field-control-zone-list,
 .field-control-point-list,
 .field-control-account-list { display: grid; align-content: start; gap: 5px; min-height: 0; max-height: none; overflow: auto; scrollbar-gutter: stable; }
+.field-control-point-list { flex: 1 1 auto; grid-auto-rows: minmax(62px,auto); }
 .field-control-zone-list label { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px; border: 1px solid var(--field-border); border-radius: 9px; background: #fff; cursor: pointer; transition: transform 160ms ease,border-color 160ms ease,background-color 160ms ease,box-shadow 160ms ease; }
 .field-control-zone-list label:hover { transform: translateY(-1px); border-color: #98c8ec; box-shadow: 0 7px 16px rgba(20,101,217,.08); }
 .field-control-zone-list label.is-selected { border-color: #9fc8ef; background: var(--field-soft); box-shadow: inset 3px 0 0 var(--field-blue); }
@@ -29060,7 +29061,7 @@ body {
 .field-control-zone-list strong { overflow: hidden; color: #244b68; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
 .field-control-zone-list small { color: var(--field-muted); font-size: .64rem; }
 .field-control-zone-list b { color: var(--field-blue); font-size: .72rem; }
-.field-control-point-list article { display: grid; grid-template-columns: minmax(0,1fr) 34px; min-width: 0; border: 1px solid var(--field-border); border-radius: 9px; background: #fff; overflow: hidden; transition: transform 120ms ease,border-color 120ms ease,background-color 120ms ease; }
+.field-control-point-list article { display: grid; grid-template-columns: minmax(0,1fr) 34px; min-width: 0; min-height: 62px; border: 1px solid var(--field-border); border-radius: 9px; background: #fff; overflow: hidden; transition: transform 120ms ease,border-color 120ms ease,background-color 120ms ease; }
 .field-control-point-list article:hover { transform: translateY(-1px); border-color: #98c8ec; }
 .field-control-point-list article.is-selected { border-color: #7bb6e8; background: var(--field-soft); box-shadow: inset 3px 0 0 var(--field-blue); }
 .field-control-point-main { display: block !important; min-width: 0; padding: 8px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; text-align: left; }
@@ -29108,7 +29109,6 @@ body {
 .field-control-point-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 18px; }
 .field-control-point-form .is-wide { grid-column: 1/-1; }
 .field-control-point-form textarea { resize: vertical; }
-.field-map-pin.is-hovered { filter: drop-shadow(0 7px 8px rgba(11,79,115,.4)); transform: scale(1.12); }
 @keyframes field-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1199px) {

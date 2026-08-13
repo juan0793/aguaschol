@@ -6,7 +6,7 @@ import { formatDateTime, formatMapDiaryLabel } from "../utils/datesAndBusiness";
 import { buildExternalMapUrl, formatCoordinate, getMapPointTypeLabel } from "../utils/mapField";
 import { escapeHtml } from "../utils/html";
 import { printDocument } from "../utils/printDocument";
-import { buildFieldZoneGroups, getFieldPointClave, getFieldPointDate, getFieldPointZone, summarizeFieldPoints } from "./fieldControlUtils";
+import { buildFieldZoneGroups, getFieldPointClave, getFieldPointDate, getFieldPointZone, mergeFieldBarrioCatalog, summarizeFieldPoints } from "./fieldControlUtils";
 
 const FieldMap = lazy(() => import("./FieldMap"));
 const normalizeSearchText = (value = "") => String(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -20,6 +20,7 @@ const buildDraftFromPoint = (point = {}) => ({
 
 const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive }) => {
   const [historyPoints, setHistoryPoints] = useState([]);
+  const [planosBarrios, setPlanosBarrios] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [dateFilter, setDateFilter] = useState("");
@@ -34,8 +35,6 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
   const [analysis, setAnalysis] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedPointId, setSelectedPointId] = useState(null);
-  const [hoveredPointId, setHoveredPointId] = useState(null);
-  const [hoveredZone, setHoveredZone] = useState("");
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
   const [savingPointId, setSavingPointId] = useState(null);
   const [pointLimit, setPointLimit] = useState(30);
@@ -44,18 +43,20 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
     if (!apiFetch) return;
     setLoadingHistory(true); setHistoryError("");
     try {
-      const response = await apiFetch("/field-validation");
-      const data = await response.json();
+      const [response, planosResponse] = await Promise.all([apiFetch("/field-validation"), apiFetch("/planos/barrios")]);
+      const [data, planosData] = await Promise.all([response.json(), planosResponse.json()]);
       if (!response.ok) throw new Error(data.message || "No fue posible cargar el histórico GPS.");
       setHistoryPoints(Array.isArray(data.points) ? data.points : Array.isArray(data) ? data : []);
+      setPlanosBarrios(planosResponse.ok && Array.isArray(planosData.barrios) ? planosData.barrios : []);
     } catch (error) { setHistoryError(error.message || "No fue posible cargar el histórico GPS."); }
     finally { setLoadingHistory(false); }
   }, [apiFetch]);
 
   useEffect(() => { if (isActive) loadHistory(); }, [isActive, loadHistory]);
   const dates = useMemo(() => Array.from(new Set(historyPoints.map(getFieldPointDate).filter(Boolean))).sort((a, b) => b.localeCompare(a)), [historyPoints]);
+  const barrios = useMemo(() => mergeFieldBarrioCatalog(barrioCodes, planosBarrios), [barrioCodes, planosBarrios]);
   const pointsByDate = useMemo(() => historyPoints.filter((point) => !dateFilter || getFieldPointDate(point) === dateFilter), [dateFilter, historyPoints]);
-  const zoneGroups = useMemo(() => buildFieldZoneGroups(pointsByDate, barrioCodes), [barrioCodes, pointsByDate]);
+  const zoneGroups = useMemo(() => buildFieldZoneGroups(pointsByDate, barrios), [barrios, pointsByDate]);
 
   useEffect(() => {
     setSelectedZones(new Set(zoneGroups.map((group) => group.zone)));
@@ -70,27 +71,26 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
   const selectedPoints = useMemo(() => {
     const search = normalizeSearchText(query);
     return pointsByDate.filter((point) => {
-      const zone = getFieldPointZone(point, barrioCodes);
+      const zone = getFieldPointZone(point, barrios);
       if (!selectedZones.has(zone) || (typeFilter && point.point_type !== typeFilter)) return false;
       if (!search) return true;
       const clave = getFieldPointClave(point);
       return normalizeSearchText([zone, clave, getMapPointTypeLabel(point.point_type), point.reference_note, point.description, point.created_by_name, point.created_by_username, analysisNamesByKey.get(clave.split("-").slice(0, 3).join("-"))].filter(Boolean).join(" ")).includes(search);
     });
-  }, [analysisNamesByKey, barrioCodes, pointsByDate, query, selectedZones, typeFilter]);
-  const mapPoints = useMemo(() => selectedPoints.map((point) => ({ ...point, __fieldZoneHovered: hoveredZone && getFieldPointZone(point, barrioCodes) === hoveredZone })), [barrioCodes, hoveredZone, selectedPoints]);
-  const summary = useMemo(() => summarizeFieldPoints(selectedPoints, barrioCodes), [barrioCodes, selectedPoints]);
+  }, [analysisNamesByKey, barrios, pointsByDate, query, selectedZones, typeFilter]);
+  const summary = useMemo(() => summarizeFieldPoints(selectedPoints, barrios), [barrios, selectedPoints]);
   const selectedPoint = useMemo(() => selectedPoints.find((point) => point.id === selectedPointId) || null, [selectedPointId, selectedPoints]);
   const mapDraft = useMemo(() => ({ point_type: draft.point_type, latitude: draft.latitude, longitude: draft.longitude, accuracy_meters: draft.accuracy_meters, marker_color: draft.marker_color }), [draft]);
 
   useEffect(() => { setAnalysis(null); }, [selectedZones, typeFilter]);
   useEffect(() => { if (selectedPoint) setDraft(buildDraftFromPoint(selectedPoint)); }, [selectedPoint]);
   const toggleZone = (zone) => setSelectedZones((current) => { const next = new Set(current); next.has(zone) ? next.delete(zone) : next.add(zone); return next; });
-  const selectPoint = (pointId) => {
+  const selectPoint = useCallback((pointId) => {
     const point = selectedPoints.find((item) => item.id === pointId);
     setSelectedPointId(pointId);
     if (point) setMapFocusRequest({ latitude: point.latitude, longitude: point.longitude, zoom: 17, requestId: Date.now() });
-  };
-  const editPoint = (pointId) => { selectPoint(pointId); setDetailOpen(true); };
+  }, [selectedPoints]);
+  const editPoint = useCallback((pointId) => { selectPoint(pointId); setDetailOpen(true); }, [selectPoint]);
   const handleDraftChange = (event) => { const { name, value, type, checked } = event.target; setDraft((current) => ({ ...current, [name]: type === "checkbox" ? checked : value })); };
   const savePoint = async (event) => {
     event.preventDefault(); if (!selectedPoint) return; setSavingPointId(selectedPoint.id);
@@ -116,7 +116,7 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
   };
 
   const printSelection = async () => {
-    const groups = buildFieldZoneGroups(selectedPoints, barrioCodes);
+    const groups = buildFieldZoneGroups(selectedPoints, barrios);
     const zoneMarkup = groups.map((group) => `<section class="field-report-zone-section"><div class="field-report-zone-head"><div><span class="field-report-zone-kicker">Barrio / zona</span><h3>${escapeHtml(group.zone)}</h3></div><strong>${group.total} puntos</strong></div><table class="field-report-table"><thead><tr><th>#</th><th>Fecha</th><th>Tipo</th><th>Clave</th><th>Referencia</th><th>Técnico</th></tr></thead><tbody>${group.items.map((point, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(getFieldPointDate(point))}</td><td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td><td>${escapeHtml(getFieldPointClave(point) || "--")}</td><td>${escapeHtml(point.reference_note || point.description || "--")}</td><td>${escapeHtml(point.created_by_name || point.created_by_username || "--")}</td></tr>`).join("")}</tbody></table></section>`).join("");
     const accountMarkup = analysis?.accounts?.length ? `<section class="field-report-zone-section"><div class="field-report-zone-head"><div><span class="field-report-zone-kicker">Cartera consultada</span><h3>Abonados de la selección</h3></div><strong>${escapeHtml(formatCurrency(analysis.totalDebt))}</strong></div><table class="field-report-table"><thead><tr><th>Clave</th><th>Abonado</th><th>Nombre</th><th>Deuda</th></tr></thead><tbody>${analysis.accounts.map((row) => `<tr><td>${escapeHtml(row.clave)}</td><td>${escapeHtml(row.abonado)}</td><td>${escapeHtml(row.nombre)}</td><td>${escapeHtml(formatCurrency(row.total))}</td></tr>`).join("")}</tbody></table></section>` : "";
     await printDocument("Control territorial GPS", `<div class="field-report-shell"><header class="field-report-header"><div><p class="field-report-kicker">Aguas de Choluteca</p><h1>Control territorial GPS</h1><p>Histórico seleccionado para análisis, seguimiento y trabajo de campo.</p></div><div class="field-report-meta"><span>${dateFilter ? formatMapDiaryLabel(dateFilter) : "Todas las jornadas"}</span><span>${summary.points} puntos</span><span>${summary.zones} barrios</span><span>${summary.keys} claves</span></div></header>${zoneMarkup || '<p class="field-report-empty">No hay puntos seleccionados.</p>'}${accountMarkup}</div>`, { pageSize: "Letter landscape", pageMargin: "8mm", showPageFooter: true });
@@ -141,7 +141,7 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
 
     <section className="field-control-map-shell">
       <header className="field-control-map-heading"><div><p className="sheet-kicker">Mapa consolidado</p><h2>{dateFilter ? formatMapDiaryLabel(dateFilter) : "Todas las jornadas"}</h2></div><div><span className="panel-pill">{selectedPoints.length} visibles</span><small>{mapStatus}</small></div></header>
-      <Suspense fallback={<div className="map-canvas field-map-loading"><span />Cargando mapa...</div>}><FieldMap apiUrl={apiUrl} isActive={isActive} mapDraft={mapDraft} mapFocusRequest={mapFocusRequest} mapPoints={mapPoints} onDraftChange={setDraft} onEditPoint={editPoint} onHoverPoint={setHoveredPointId} onSelectPoint={selectPoint} onStatusChange={setMapStatus} selectedMapPointId={selectedPointId} hoveredMapPointId={hoveredPointId} /></Suspense>
+      <Suspense fallback={<div className="map-canvas field-map-loading"><span />Cargando mapa...</div>}><FieldMap apiUrl={apiUrl} isActive={isActive} mapDraft={mapDraft} mapFocusRequest={mapFocusRequest} mapPoints={selectedPoints} onDraftChange={setDraft} onEditPoint={editPoint} onSelectPoint={selectPoint} onStatusChange={setMapStatus} selectedMapPointId={selectedPointId} /></Suspense>
 
       <aside className="field-control-floating-panel">
         <div className="field-control-tabs" role="tablist">
@@ -151,12 +151,12 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
         {activeTab === "zones" ? <div className="field-control-panel-body">
           <div className="field-control-panel-summary"><div><strong>{selectedZones.size} de {zoneGroups.length}</strong><span>zonas visibles</span></div><button type="button" onClick={() => setFiltersOpen(true)}>Selección avanzada</button></div>
           <div className="field-control-quick-actions"><button type="button" onClick={() => setSelectedZones(new Set(zoneGroups.map((group) => group.zone)))}>Todos</button><button type="button" onClick={() => setSelectedZones(new Set())}>Limpiar</button></div>
-          <div className="field-control-zone-list">{zoneGroups.length ? zoneGroups.map((group) => <label key={group.zone} className={selectedZones.has(group.zone) ? "is-selected" : ""} onMouseEnter={() => setHoveredZone(group.zone)} onMouseLeave={() => setHoveredZone("")}><input type="checkbox" checked={selectedZones.has(group.zone)} onChange={() => toggleZone(group.zone)} /><span><strong>{group.zone}</strong><small>{group.total} {group.total === 1 ? "punto" : "puntos"}</small></span><b>{selectedZones.has(group.zone) ? "✓" : "+"}</b></label>) : <div className="field-control-empty"><Icon name="map" /><strong>Sin zonas</strong><span>No hay puntos en esta jornada.</span></div>}</div>
+          <div className="field-control-zone-list">{zoneGroups.length ? zoneGroups.map((group) => <label key={group.zone} className={selectedZones.has(group.zone) ? "is-selected" : ""}><input type="checkbox" checked={selectedZones.has(group.zone)} onChange={() => toggleZone(group.zone)} /><span><strong>{group.zone}</strong><small>{group.total} {group.total === 1 ? "punto" : "puntos"}</small></span><b>{selectedZones.has(group.zone) ? "✓" : "+"}</b></label>) : <div className="field-control-empty"><Icon name="map" /><strong>Sin zonas</strong><span>No hay puntos en esta jornada.</span></div>}</div>
         </div> : null}
 
         {activeTab === "points" ? <div className="field-control-panel-body">
           <div className="field-control-panel-summary"><div><strong>{selectedPoints.length}</strong><span>puntos encontrados</span></div>{query ? <button type="button" onClick={() => setQuery("")}>Limpiar búsqueda</button> : null}</div>
-          <div className="field-control-point-list">{selectedPoints.slice(0, pointLimit).map((point) => <article key={point.id} className={selectedPointId === point.id ? "is-selected" : ""} onMouseEnter={() => setHoveredPointId(point.id)} onMouseLeave={() => setHoveredPointId(null)}><button type="button" className="field-control-point-main" onClick={() => selectPoint(point.id)}><span><strong>{getFieldPointClave(point) || getMapPointTypeLabel(point.point_type)}</strong><small>{getFieldPointZone(point, barrioCodes)}</small><small>{formatDateTime(point.created_at)} · {point.created_by_name || point.created_by_username || "Sin técnico"}</small></span></button><button type="button" className="field-control-point-edit" onClick={() => editPoint(point.id)} aria-label="Editar punto"><Icon name="records" /></button></article>)}</div>
+          <div className="field-control-point-list">{selectedPoints.slice(0, pointLimit).map((point) => <article key={point.id} className={selectedPointId === point.id ? "is-selected" : ""}><button type="button" className="field-control-point-main" onClick={() => selectPoint(point.id)}><span><strong>{getFieldPointClave(point) || getMapPointTypeLabel(point.point_type)}</strong><small>{getFieldPointZone(point, barrios)}</small><small>{formatDateTime(point.created_at)} · {point.created_by_name || point.created_by_username || "Sin técnico"}</small></span></button><button type="button" className="field-control-point-edit" onClick={() => editPoint(point.id)} aria-label="Editar punto"><Icon name="records" /></button></article>)}</div>
           {pointLimit < selectedPoints.length ? <button type="button" className="field-control-more" onClick={() => setPointLimit((current) => current + 30)}>Ver 30 puntos más</button> : null}
         </div> : null}
 
@@ -169,7 +169,7 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
 
     {filtersOpen ? <div className="field-control-dialog-backdrop" onMouseDown={() => setFiltersOpen(false)}><section className="field-control-dialog" role="dialog" aria-modal="true" aria-label="Filtros y selección" onMouseDown={(event) => event.stopPropagation()}><header><div><p className="sheet-kicker">Control del mapa</p><h2>Filtros y selección</h2><p>Define qué tipos y barrios participan en el mapa, el análisis y el reporte.</p></div><button type="button" className="reports-icon-button" onClick={() => setFiltersOpen(false)} aria-label="Cerrar">×</button></header><div className="field-control-filter-type"><label><span>Tipo de punto</span><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="">Todos los tipos</option>{MAP_POINT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label></div><div className="field-control-dialog-tools"><span>{selectedZones.size} de {zoneGroups.length} barrios incluidos</span><button type="button" className="report-link" onClick={() => setSelectedZones(new Set(zoneGroups.map((group) => group.zone)))}>Todos</button><button type="button" className="report-link" onClick={() => setSelectedZones(new Set())}>Ninguno</button></div><div className="field-control-zone-grid">{zoneGroups.map((group) => <label key={group.zone} className={!selectedZones.has(group.zone) ? "is-excluded" : ""}><input type="checkbox" checked={selectedZones.has(group.zone)} onChange={() => toggleZone(group.zone)} /><span><strong>{group.zone}</strong><small>{group.total} puntos</small></span></label>)}</div><footer><button type="button" onClick={() => setFiltersOpen(false)}>Aplicar filtros</button></footer></section></div> : null}
 
-    {detailOpen && selectedPoint ? <div className="field-control-dialog-backdrop" onMouseDown={() => setDetailOpen(false)}><form className="field-control-dialog field-control-point-dialog" onSubmit={savePoint} onMouseDown={(event) => event.stopPropagation()}><header><div><p className="sheet-kicker">Punto #{selectedPoint.id}</p><h2>{getMapPointTypeLabel(selectedPoint.point_type)}</h2><p>{getFieldPointZone(selectedPoint, barrioCodes)} · {formatCoordinate(selectedPoint.latitude)}, {formatCoordinate(selectedPoint.longitude)}</p></div><button type="button" className="reports-icon-button" onClick={() => setDetailOpen(false)} aria-label="Cerrar">×</button></header><div className="field-control-point-form"><label><span>Tipo</span><select name="point_type" value={draft.point_type} onChange={handleDraftChange}>{MAP_POINT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label><span>Clave / referencia</span><input name="reference" value={draft.reference} onChange={handleDraftChange} /></label><label className="is-wide"><span>Descripción técnica</span><textarea name="description" rows="4" value={draft.description} onChange={handleDraftChange} /></label><label><span>Latitud</span><input name="latitude" value={draft.latitude} onChange={handleDraftChange} /></label><label><span>Longitud</span><input name="longitude" value={draft.longitude} onChange={handleDraftChange} /></label><label><span>Precisión (m)</span><input name="accuracy_meters" value={draft.accuracy_meters} onChange={handleDraftChange} /></label><label><span>Viviendas</span><input type="number" name="housing_units" min="1" value={draft.housing_units} onChange={handleDraftChange} /></label></div><footer><button type="button" className="button-secondary" onClick={() => window.open(buildExternalMapUrl(selectedPoint.latitude, selectedPoint.longitude), "_blank", "noopener,noreferrer")}>Abrir en Maps</button><button type="button" className="button-secondary" onClick={() => navigator.clipboard?.writeText(`${selectedPoint.latitude}, ${selectedPoint.longitude}`)}>Copiar coordenadas</button><button type="submit" disabled={savingPointId === selectedPoint.id}>{savingPointId === selectedPoint.id ? "Guardando..." : "Guardar cambios"}</button></footer></form></div> : null}
+    {detailOpen && selectedPoint ? <div className="field-control-dialog-backdrop" onMouseDown={() => setDetailOpen(false)}><form className="field-control-dialog field-control-point-dialog" onSubmit={savePoint} onMouseDown={(event) => event.stopPropagation()}><header><div><p className="sheet-kicker">Punto #{selectedPoint.id}</p><h2>{getMapPointTypeLabel(selectedPoint.point_type)}</h2><p>{getFieldPointZone(selectedPoint, barrios)} · {formatCoordinate(selectedPoint.latitude)}, {formatCoordinate(selectedPoint.longitude)}</p></div><button type="button" className="reports-icon-button" onClick={() => setDetailOpen(false)} aria-label="Cerrar">×</button></header><div className="field-control-point-form"><label><span>Tipo</span><select name="point_type" value={draft.point_type} onChange={handleDraftChange}>{MAP_POINT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label><span>Clave / referencia</span><input name="reference" value={draft.reference} onChange={handleDraftChange} /></label><label className="is-wide"><span>Descripción técnica</span><textarea name="description" rows="4" value={draft.description} onChange={handleDraftChange} /></label><label><span>Latitud</span><input name="latitude" value={draft.latitude} onChange={handleDraftChange} /></label><label><span>Longitud</span><input name="longitude" value={draft.longitude} onChange={handleDraftChange} /></label><label><span>Precisión (m)</span><input name="accuracy_meters" value={draft.accuracy_meters} onChange={handleDraftChange} /></label><label><span>Viviendas</span><input type="number" name="housing_units" min="1" value={draft.housing_units} onChange={handleDraftChange} /></label></div><footer><button type="button" className="button-secondary" onClick={() => window.open(buildExternalMapUrl(selectedPoint.latitude, selectedPoint.longitude), "_blank", "noopener,noreferrer")}>Abrir en Maps</button><button type="button" className="button-secondary" onClick={() => navigator.clipboard?.writeText(`${selectedPoint.latitude}, ${selectedPoint.longitude}`)}>Copiar coordenadas</button><button type="submit" disabled={savingPointId === selectedPoint.id}>{savingPointId === selectedPoint.id ? "Guardando..." : "Guardar cambios"}</button></footer></form></div> : null}
   </main>;
 };
 

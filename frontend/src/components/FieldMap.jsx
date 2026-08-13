@@ -35,10 +35,8 @@ function FieldMap({
   mapPoints,
   onDraftChange,
   onEditPoint,
-  onHoverPoint,
   onSelectPoint,
   onStatusChange,
-  hoveredMapPointId,
   selectedMapPointId
 }) {
   const containerRef = useRef(null);
@@ -235,14 +233,13 @@ function FieldMap({
 
       const markerColor = String(point.marker_color || "#1576d1");
       const isSelected = point.id === selectedMapPointId;
-      const isHovered = point.id === hoveredMapPointId || Boolean(point.__fieldZoneHovered);
       const isTerminalPoint = Boolean(point.is_terminal_point);
       const marker = isTerminalPoint
         ? L.marker([Number(point.latitude), Number(point.longitude)], {
             icon: L.divIcon({
               className: "field-map-pin-shell",
               html: `
-                <div class="field-map-pin ${isSelected ? "is-selected" : ""} ${isHovered ? "is-hovered" : ""}" style="--pin-color:${markerColor}">
+                <div class="field-map-pin ${isSelected ? "is-selected" : ""}" style="--pin-color:${markerColor}">
                   <span></span>
                 </div>
               `,
@@ -251,7 +248,7 @@ function FieldMap({
             })
           })
         : L.circleMarker([Number(point.latitude), Number(point.longitude)], {
-            radius: isSelected ? 11 : isHovered ? 9.5 : 7.5,
+            radius: isSelected ? 11 : 7.5,
             color: "#ffffff",
             weight: 2,
             fillColor: markerColor,
@@ -264,12 +261,9 @@ function FieldMap({
       marker.on("dblclick", () => {
         onEditPoint?.(point.id);
       });
-      marker.on("mouseover", () => onHoverPoint?.(point.id));
-      marker.on("mouseout", () => onHoverPoint?.(null));
-
       marker.addTo(pointLayerRef.current);
     });
-  }, [hoveredMapPointId, mapPoints, onEditPoint, onHoverPoint, onSelectPoint, selectedMapPointId]);
+  }, [mapPoints, onEditPoint, onSelectPoint, selectedMapPointId]);
 
   useEffect(() => {
     if (!mapRef.current) {
