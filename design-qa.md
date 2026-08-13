@@ -58,6 +58,51 @@ final result: passed
 
 ---
 
+# Design QA - Control territorial GPS
+
+## Evidencia
+
+- Source visual truth: `C:\Users\JR\Downloads\Control_Territorial_GPS_Rediseno_UI_UX.pdf`, pagina 3, arquitectura recomendada.
+- Implementacion de escritorio: `docs/qa/control-territorial-desktop.png` (1366 x 768 px).
+- Implementacion movil: `docs/qa/control-territorial-mobile.png` (390 x 844 px).
+- Comparacion conjunta: `docs/qa/control-territorial-comparison.png`.
+- Estado: 48 puntos simulados, 5 zonas visibles y panel Zonas activo.
+
+## Superficies revisadas
+
+- Jerarquia: una sola barra de comandos y una franja compacta de metricas dejan al mapa como superficie principal.
+- Panel contextual: Zonas, Puntos y Cartera comparten un panel flotante de 360 px y no compiten simultaneamente.
+- Paleta: se aplicaron los tonos azul profundo, azul principal, superficies claras, bordes suaves y verde exclusivo para cartera.
+- Densidad: se eliminaron las seis tarjetas grandes y la columna lateral externa; la informacion cabe en el primer viewport de escritorio.
+- Responsividad: en movil la barra pasa a dos filas, las metricas se desplazan horizontalmente y el panel se convierte en hoja inferior.
+- Movimiento: hover, seleccion y tabs usan transiciones breves y respetan `prefers-reduced-motion`.
+
+## Interacciones verificadas
+
+- Al desmarcar Barrio Suyapa, los puntos visibles cambian de 48 a 38 y los barrios de 5 a 4.
+- La seleccion primaria con `Set` gobierna mapa, metricas, cartera y reporte.
+- Analizar cartera habilita y abre la pestaña Cartera con resumen de abonados y deuda.
+- Las pestañas, busqueda, filtros, seleccion rapida y edicion de puntos son accesibles por controles semanticos.
+- El mapa sincroniza seleccion y hover con la lista de puntos.
+- Consola revisada en el viewport final: sin errores.
+
+## Comparacion e historial
+
+### Iteracion 1
+
+- P1: en movil la accion fija de reporte se superponia con las pestañas de la hoja inferior.
+  - Fix: la hoja inferior se elevo 66 px y se ajusto a 38% de altura para conservar mapa, tabs y accion primaria visibles.
+- P2: la arquitectura anterior mostraba barra, seis tarjetas, mapa y panel externo como bloques con igual peso.
+  - Fix: barra unica, cuatro metricas base y panel flotante con contenido por pestañas, siguiendo la pagina 3 de la referencia.
+
+## Hallazgos finales
+
+No quedan hallazgos P0, P1 ni P2. La comparacion conjunta confirma la misma arquitectura del PDF: controles arriba, metricas compactas, mapa dominante y panel contextual a la derecha.
+
+final result: passed
+
+---
+
 # Design QA - Reportes de levantamiento
 
 ## Evidencia
