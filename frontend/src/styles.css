@@ -22745,7 +22745,7 @@ body,
 .field-control-point-dialog { width: min(820px,96vw); }
 .field-control-point-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 18px; }
 .field-control-point-form .is-wide { grid-column: 1/-1; }
-.field-control-point-form textarea { resize: vertical; }
+.field-control-point-form textarea { min-height: 138px; padding: 12px 13px; overflow-y: auto; line-height: 1.5; resize: vertical; }
 
 @media (max-width: 1120px) {
   .field-control-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); }
