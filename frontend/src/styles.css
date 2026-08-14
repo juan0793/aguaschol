@@ -29102,6 +29102,49 @@ body {
 .field-analytics-list strong { color: #244b68; font-size: .7rem; }
 .field-analytics-list small { color: var(--field-muted); font-size: .59rem; }
 .field-analytics-list b { color: #087966; font-size: .66rem; white-space: nowrap; }
+.field-control-tabs .is-warning { background: rgba(154,90,6,.14); color: var(--warning); }
+.field-ranking { display: grid; gap: 8px; }
+.field-ranking.is-slim .field-ranking-row { min-height: 0; padding: 6px 8px; }
+.field-ranking-row { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 8px; min-height: 44px; padding: 6px 8px; border: 1px solid transparent; border-radius: 9px; background: transparent; box-shadow: none; color: #244b68; text-align: left; }
+.field-ranking-row.has-rank { grid-template-columns: 18px minmax(0,1fr); }
+.field-ranking-row.is-static { cursor: default; }
+.field-ranking-row:not(.is-static):hover { transform: none; border-color: #98c8ec; background: var(--field-soft); }
+.field-ranking-row.is-active { border-color: var(--field-blue); background: var(--field-soft); }
+.field-ranking-row > b { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 6px; background: var(--field-soft); color: var(--field-blue); font-size: .58rem; font-weight: 800; }
+.field-ranking-row > span { display: grid; gap: 4px; min-width: 0; }
+.field-ranking-row em { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-style: normal; }
+.field-ranking-row em strong { overflow: hidden; color: var(--field-navy); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+.field-ranking-row em small { flex: 0 0 auto; color: var(--field-muted); font-size: .63rem; }
+.field-ranking-row > span > i { display: block; height: 6px; overflow: hidden; border-radius: 999px; background: var(--field-border); }
+.field-ranking-row > span > i > mark { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,#1682c4,var(--field-blue)); background-color: transparent; }
+.field-ranking-meta { color: var(--field-muted); font-size: .58rem; }
+.field-quality-strip-wrap { display: grid; gap: 6px; margin-bottom: 10px; }
+.field-quality-strip { display: flex; height: 12px; overflow: hidden; border-radius: 999px; background: var(--field-border); }
+.field-quality-strip span { display: block; height: 100%; }
+.field-quality-strip span.is-success { background: var(--success); }
+.field-quality-strip span.is-warning { background: var(--brand-gold); }
+.field-quality-strip span.is-danger { background: var(--danger); }
+.field-quality-strip span.is-muted { background: var(--field-muted); }
+.field-quality-strip-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .6rem; }
+.field-quality-strip-legend span.is-success { color: var(--success); }
+.field-quality-strip-legend span.is-warning { color: var(--brand-gold); }
+.field-quality-strip-legend span.is-danger { color: var(--danger); }
+.field-quality-strip-legend span.is-muted { color: var(--field-muted); }
+.field-tech-list { display: grid; gap: 6px; }
+.field-tech-list > button { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--field-border); border-radius: 9px; background: #fff; box-shadow: none; text-align: left; }
+.field-tech-list > button:hover { transform: none; border-color: #98c8ec; background: var(--field-soft); }
+.field-tech-extra { color: var(--field-muted); font-size: .58rem; }
+.field-tech-row { display: grid; gap: 4px; }
+.field-tech-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.field-tech-row-head strong { color: var(--field-navy); font-size: .7rem; }
+.field-tech-row-head span { color: var(--field-muted); font-size: .63rem; }
+.field-tech-row-bars { display: flex; gap: 5px; }
+.field-tech-row-bars i { display: block; height: 5px; flex: 1; overflow: hidden; border-radius: 999px; background: var(--field-border); }
+.field-tech-row-bars mark { display: block; height: 100%; border-radius: 999px; background-color: transparent; }
+.field-tech-row-bars mark.is-accent { background: var(--field-blue); }
+.field-tech-row-bars mark.is-success { background: var(--success); }
+.field-tech-row-labels { display: flex; justify-content: space-between; gap: 6px; }
+.field-tech-row-labels small { color: var(--field-muted); font-size: .58rem; }
 .field-map-mode { display: grid; gap: 1px; }
 .field-map-mode span { color: var(--field-muted); font-size: .55rem; font-weight: 800; text-transform: uppercase; }
 .field-map-mode select { min-height: 30px; max-width: 150px; border: 1px solid #cfe0ed; border-radius: 8px; background: #fff; color: #244d6b; font: inherit; font-size: .67rem; padding: .3rem .5rem; }
