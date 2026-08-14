@@ -28985,7 +28985,7 @@ body {
 }
 .field-control-commandbar {
   display: grid;
-  grid-template-columns: minmax(210px,1fr) minmax(165px,.65fr) minmax(190px,.9fr) auto auto auto 42px;
+  grid-template-columns: minmax(270px,1fr) minmax(185px,.55fr) minmax(250px,.8fr) auto;
   align-items: center;
   gap: 8px;
   padding: 10px;
@@ -29009,17 +29009,18 @@ body {
 .field-control-search:focus-within { border-color: var(--field-blue); box-shadow: 0 0 0 3px rgba(20,101,217,.11); }
 .field-control-search input { width: 100%; min-width: 0; height: 36px; padding: 0 6px; border: 0; outline: 0; background: transparent; color: #173b5a; font: inherit; font-size: .78rem; }
 .field-control-search > button { width: 25px; height: 25px; min-height: 0; padding: 0; border: 0; border-radius: 7px; background: transparent; box-shadow: none; color: #7990a4; font-size: 1rem; }
-.field-control-commandbar > button { min-height: 40px; padding: .55rem .72rem; border-radius: 9px; white-space: nowrap; }
-.field-control-commandbar > button:hover { transform: translateY(-1px); }
+.field-control-command-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.field-control-command-actions > button { min-height: 40px; padding: .55rem .72rem; border-radius: 9px; white-space: nowrap; }
+.field-control-command-actions > button:hover { transform: translateY(-1px); }
 .field-control-compact-button { border-color: #cfe0ed !important; background: #fff !important; color: #244d6b !important; box-shadow: none !important; }
 .field-control-compact-button b { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 999px; background: var(--field-blue); color: #fff; font-size: .62rem; }
 .field-control-report-button { border-color: var(--field-blue) !important; background: var(--field-blue) !important; color: #fff !important; }
 .field-control-refresh { width: 40px; padding: 0 !important; border: 1px solid var(--field-border) !important; background: var(--field-soft) !important; box-shadow: none !important; color: var(--field-blue) !important; }
 .field-control-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid #fecaca; border-radius: 10px; background: #fff1f2; color: #9f1239; font-size: .8rem; font-weight: 750; }
 .field-control-error button { min-height: 30px; padding: .3rem .6rem; background: #9f1239; }
-.field-control-metrics { display: flex; gap: 0; overflow: hidden; border: 1px solid var(--field-border); border-radius: 12px; background: #fff; box-shadow: 0 8px 22px rgba(11,79,115,.05); }
+.field-control-metrics { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 0; overflow: hidden; border: 1px solid var(--field-border); border-radius: 12px; background: #fff; box-shadow: 0 8px 22px rgba(11,79,115,.05); }
 .field-control-metrics article,
-.field-control-metrics > button { display: flex; align-items: baseline; justify-content: center; gap: 8px; min-width: 115px; flex: 1; padding: 9px 14px; border: 0; border-right: 1px solid var(--field-border); border-radius: 0; background: transparent; box-shadow: none; white-space: nowrap; }
+.field-control-metrics > button { display: grid; align-content: center; justify-items: start; gap: 5px; min-width: 0; min-height: 58px; padding: 9px 14px; border: 0; border-right: 1px solid var(--field-border); border-bottom: 1px solid var(--field-border); border-radius: 0; background: transparent; box-shadow: none; text-align: left; }
 .field-control-metrics article:last-child,
 .field-control-metrics > button:last-child { border-right: 0; }
 .field-control-metrics > button:disabled { opacity: 1; cursor: default; }
@@ -29027,21 +29028,21 @@ body {
 .field-control-metrics > button.is-filterable:hover,
 .field-control-metrics > button.is-active { transform: none; background: #e8f4ff; box-shadow: inset 0 -3px 0 var(--field-blue); }
 .field-control-metrics.is-loading { opacity: .58; }
-.field-control-metrics span { color: var(--field-muted); font-size: .67rem; font-weight: 800; text-transform: uppercase; }
-.field-control-metrics strong { color: var(--field-navy); font-size: 1.05rem; line-height: 1; }
+.field-control-metrics span { overflow: hidden; max-width: 100%; color: var(--field-muted); font-size: .64rem; font-weight: 800; line-height: 1.2; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.field-control-metrics strong { overflow: hidden; max-width: 100%; color: var(--field-navy); font-size: clamp(.92rem,1.15vw,1.14rem); line-height: 1.05; text-overflow: ellipsis; white-space: nowrap; }
 .field-control-metrics .is-analysis { background: #f2fbf8; }
 .field-control-metrics .is-analysis strong { color: #087966; }
 .field-control-map-shell { position: relative; min-width: 0; min-height: 660px; padding: 12px; overflow: hidden; border: 1px solid var(--field-border); border-radius: 15px; background: #fff; box-shadow: 0 14px 34px rgba(11,79,115,.08); }
-.field-control-map-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; margin-bottom: 8px; padding-right: 378px; }
+.field-control-map-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; margin-bottom: 8px; padding-right: 458px; }
 .field-control-map-heading h2 { margin: 1px 0 0; color: var(--field-navy); font-size: 1rem; }
 .field-control-map-heading > div:last-child { display: flex; align-items: center; gap: 8px; }
 .field-control-map-heading small { color: var(--field-muted); font-size: .67rem; }
 .field-control-map-shell > .map-canvas { min-height: 580px; border: 1px solid #c5dbe9; border-radius: 12px; background: #e8f1f7; }
 .field-map-loading { display: grid; place-items: center; gap: 8px; color: var(--field-muted); }
 .field-map-loading span { width: 34px; height: 34px; border: 3px solid #d6e8f6; border-top-color: var(--field-blue); border-radius: 999px; animation: field-spin .8s linear infinite; }
-.field-control-floating-panel { position: absolute; top: 12px; right: 12px; bottom: 12px; z-index: 500; display: grid; grid-template-rows: auto minmax(0,1fr); width: 360px; overflow: hidden; border: 1px solid rgba(191,215,232,.95); border-radius: 13px; background: rgba(255,255,255,.96); box-shadow: 0 18px 44px rgba(11,79,115,.19); backdrop-filter: blur(12px); }
+.field-control-floating-panel { position: absolute; top: 12px; right: 12px; bottom: 12px; z-index: 500; display: grid; grid-template-rows: auto minmax(0,1fr); width: 440px; overflow: hidden; border: 1px solid rgba(191,215,232,.95); border-radius: 13px; background: rgba(255,255,255,.96); box-shadow: 0 18px 44px rgba(11,79,115,.19); backdrop-filter: blur(12px); }
 .field-control-tabs { display: grid; grid-template-columns: repeat(5,1fr); gap: 2px; padding: 5px; border-bottom: 1px solid var(--field-border); background: #f8fbfe; }
-.field-control-tabs button { display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 36px; padding: .45rem .2rem; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: var(--field-muted); font-size: .6rem; font-weight: 850; transition: background-color 180ms ease,color 180ms ease; }
+.field-control-tabs button { display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 40px; padding: .5rem .35rem; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: var(--field-muted); font-size: .67rem; font-weight: 850; transition: background-color 180ms ease,color 180ms ease; }
 .field-control-tabs button:hover { transform: none; background: var(--field-soft); }
 .field-control-tabs button.is-active { background: var(--field-blue); color: #fff; }
 .field-control-tabs button:disabled { opacity: .42; }
@@ -29191,25 +29192,40 @@ body {
 .field-control-point-form textarea { resize: vertical; }
 @keyframes field-spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 1199px) {
-  .field-control-commandbar { grid-template-columns: minmax(190px,1fr) minmax(160px,.6fr) minmax(190px,.9fr) auto auto; }
-  .field-control-title { grid-column: span 2; }
-  .field-control-report-button { grid-column: auto; }
-  .field-control-floating-panel { width: 315px; }
-  .field-control-map-heading { padding-right: 333px; }
+@media (max-width: 1499px) {
+  .field-control-commandbar { grid-template-columns: minmax(270px,1fr) minmax(185px,.55fr) minmax(250px,.9fr); }
+  .field-control-command-actions { grid-column: 1/-1; padding-top: 2px; }
 }
-@media (max-width: 767px) {
-  .field-control-layout { padding-bottom: 74px; }
-  .field-control-commandbar { grid-template-columns: 1fr 1fr; gap: 7px; }
+@media (max-width: 1199px) {
+  .field-control-commandbar { grid-template-columns: minmax(250px,1fr) minmax(190px,.65fr); }
   .field-control-title { grid-column: 1/-1; }
   .field-control-date,
   .field-control-search { grid-column: 1/-1; }
-  .field-control-commandbar > button { width: 100%; min-width: 0; white-space: normal; }
+  .field-control-command-actions { grid-column: 1/-1; justify-content: flex-start; flex-wrap: wrap; }
+  .field-control-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .field-control-floating-panel { width: 380px; }
+  .field-control-map-heading { padding-right: 398px; }
+}
+@media (max-width: 949px) {
+  .field-control-map-shell { min-height: 850px; }
+  .field-control-map-heading { padding-right: 0; }
+  .field-control-map-shell > .map-canvas { min-height: 780px; }
+  .field-control-floating-panel { top: auto; right: 12px; bottom: 12px; left: 12px; width: auto; height: 44%; min-height: 310px; }
+  .field-map-legend { bottom: 46%; }
+}
+@media (max-width: 767px) {
+  .field-control-layout { padding-bottom: 74px; }
+  .field-control-commandbar { grid-template-columns: 1fr; gap: 7px; }
+  .field-control-title { grid-column: 1/-1; }
+  .field-control-date,
+  .field-control-search { grid-column: 1/-1; }
+  .field-control-command-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .field-control-command-actions > button { width: 100%; min-width: 0; white-space: normal; }
   .field-control-commandbar .field-control-report-button { position: fixed; right: 12px; bottom: 12px; left: 12px; z-index: 900; width: calc(100% - 24px); min-height: 48px; box-shadow: 0 12px 28px rgba(20,101,217,.28); }
   .field-control-refresh { display: none; }
-  .field-control-metrics { overflow-x: auto; }
+  .field-control-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); overflow: hidden; }
   .field-control-metrics article,
-  .field-control-metrics > button { min-width: 105px; flex: 0 0 auto; }
+  .field-control-metrics > button { min-width: 0; }
   .field-control-map-shell { min-height: 730px; padding: 8px; }
   .field-control-map-heading { min-height: 48px; padding-right: 0; }
   .field-control-map-heading > div:last-child small { display: none; }
@@ -29217,7 +29233,8 @@ body {
   .field-control-floating-panel { top: auto; right: 8px; bottom: 66px; left: 8px; width: auto; height: 38%; min-height: 255px; border-radius: 14px 14px 9px 9px; transition: height 220ms ease; }
   .field-control-floating-panel::before { content: ""; position: absolute; top: 3px; left: 50%; z-index: 2; width: 34px; height: 3px; border-radius: 999px; background: #bfd0dd; transform: translateX(-50%); }
   .field-control-tabs { padding-top: 9px; }
-  .field-control-tabs button { font-size: .56rem; }
+  .field-control-tabs { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .field-control-tabs button { min-height: 34px; font-size: .62rem; }
   .field-map-legend { bottom: 41%; left: 16px; max-height: 150px; overflow: auto; }
   .field-control-zone-grid,
   .field-control-point-form { grid-template-columns: 1fr; }
@@ -29225,7 +29242,7 @@ body {
   .field-control-dialog > footer { display: grid; grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .field-control-commandbar > button,
+  .field-control-command-actions > button,
   .field-control-tabs button,
   .field-control-zone-list label,
   .field-control-point-list article,

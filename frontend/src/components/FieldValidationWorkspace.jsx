@@ -189,10 +189,12 @@ const FieldValidationWorkspace = ({ apiFetch, apiUrl, barrioCodes = [], isActive
       <div className="field-control-title"><span className="field-control-title-icon"><Icon name="map" /></span><div><p>Control territorial GPS</p><span>Histórico, zonas y cartera en un solo mapa</span></div></div>
       <label className="field-control-date"><span>Jornada</span><select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}><option value="">Todo el histórico</option>{dates.map((date) => <option key={date} value={date}>{formatMapDiaryLabel(date)}</option>)}</select></label>
       <label className="field-control-search"><span className="sr-only">Buscar</span><Icon name="search" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Clave, barrio o técnico" /><button type="button" onClick={() => setQuery("")} aria-label="Limpiar búsqueda">×</button></label>
-      <button type="button" className="button-secondary field-control-compact-button" onClick={() => setFiltersOpen(true)}><Icon name="more" />Filtros{typeFilter || technicianFilter.size || validationFilter.size ? <b>{Number(Boolean(typeFilter)) + technicianFilter.size + validationFilter.size}</b> : null}</button>
-      <button type="button" className="button-secondary field-control-compact-button" onClick={fetchAnalytics} disabled={analyzing || !baseSelectedPoints.length}><Icon name="refresh" />{analyzing ? "Analizando..." : "Actualizar análisis"}</button>
-      <button type="button" className="field-control-report-button" onClick={printSelection} disabled={!selectedPoints.length}><Icon name="records" />Generar reporte</button>
-      <button type="button" className="field-control-refresh" onClick={loadHistory} disabled={loadingHistory} aria-label="Actualizar histórico"><Icon name="refresh" /></button>
+      <div className="field-control-command-actions">
+        <button type="button" className="button-secondary field-control-compact-button" onClick={() => setFiltersOpen(true)}><Icon name="more" />Filtros{typeFilter || technicianFilter.size || validationFilter.size ? <b>{Number(Boolean(typeFilter)) + technicianFilter.size + validationFilter.size}</b> : null}</button>
+        <button type="button" className="button-secondary field-control-compact-button" onClick={fetchAnalytics} disabled={analyzing || !baseSelectedPoints.length}><Icon name="refresh" />{analyzing ? "Analizando..." : "Actualizar análisis"}</button>
+        <button type="button" className="field-control-report-button" onClick={printSelection} disabled={!selectedPoints.length}><Icon name="records" />Generar reporte</button>
+        <button type="button" className="field-control-refresh" onClick={loadHistory} disabled={loadingHistory} aria-label="Actualizar histórico"><Icon name="refresh" /></button>
+      </div>
     </section>
 
     {historyError ? <div className="field-control-error">{historyError}<button type="button" onClick={loadHistory}>Reintentar</button></div> : null}

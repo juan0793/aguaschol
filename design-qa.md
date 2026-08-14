@@ -58,6 +58,51 @@ final result: passed
 
 ---
 
+# Design QA - Responsive del control territorial GPS
+
+## Evidencia
+
+- Referencia visual de estructura: `C:\Users\JR\AppData\Local\Temp\codex-clipboard-ab4e59dc-c9b4-4197-89b0-79835d472f34.png` (1403 x 547 px).
+- Problema reportado: `C:\Users\JR\AppData\Local\Temp\codex-clipboard-4cb00b0b-6a49-4b7f-91f6-4223d6cf2852.png` (1536 x 766 px).
+- Implementacion de escritorio: `.codex/field-responsive-qa/desktop-1536.png` (1536 x 766 CSS px, densidad 1:1).
+- Implementacion movil: `.codex/field-responsive-qa/mobile-390.png` (390 x 844 CSS px, densidad 1:1).
+- Estado: control territorial cargado con metricas, filtros, mapa y panel analitico visibles.
+
+## Superficies revisadas
+
+- Navegacion superior: titulo, jornada, busqueda y acciones se redistribuyen por filas segun el ancho, sin solaparse.
+- Metricas: la tira horizontal fija se reemplazo por una cuadricula de 7, 4 o 2 columnas; las 14 metricas permanecen dentro del viewport.
+- Panel analitico: gana ancho en escritorio y se convierte en panel inferior en tablet y movil.
+- Pestanas: conservan las cinco secciones legibles; en movil forman una cuadricula de tres columnas sin texto recortado.
+- Jerarquia visual: se conserva el lenguaje institucional claro existente y se recupera la estructura de resumen y ranking de la referencia de Claude.
+
+## Interacciones y viewports verificados
+
+- Escritorio 1536 x 766: barra superior en una fila, metricas en dos filas de siete y panel lateral de 440 px.
+- Tablet 1100 x 800: controles en filas, metricas en cuatro columnas y panel lateral compacto.
+- Tablet angosta 700 x 900: panel analitico inferior, metricas en dos columnas y pestanas sin recorte.
+- Movil 390 x 844: acciones principales en dos columnas, reporte fijo al pie y ausencia de desbordamiento horizontal.
+- Consola del navegador: cero errores durante la verificacion del arnes responsive.
+
+## Comparacion e historial
+
+### Iteracion 1
+
+- P1: la fila de metricas usaba `flex` con anchos minimos y ocultaba el ultimo texto al superar el viewport.
+  - Fix: cuadricula responsive con columnas fluidas y cortes en 1199 y 767 px.
+- P1: siete elementos independientes competian por el ancho de la barra superior.
+  - Fix: acciones agrupadas y redistribuidas con cortes en 1499, 1199 y 767 px.
+- P2: el panel analitico de 360 px comprimía pestanas y contenido.
+  - Fix: ancho de 440 px en escritorio y disposicion inferior para anchos menores de 950 px.
+
+## Hallazgos finales
+
+No quedan hallazgos P0, P1 ni P2. La referencia oscura de Claude se uso como guia de jerarquia y contenido; se mantuvo deliberadamente el sistema visual institucional ya integrado en la aplicacion para no introducir un segundo tema inconsistente.
+
+final result: passed
+
+---
+
 # Design QA - Control territorial GPS
 
 ## Evidencia
