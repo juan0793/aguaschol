@@ -33,6 +33,7 @@ function FieldMap({
   mapDraft,
   mapFocusRequest,
   mapPoints,
+  getMarkerColor,
   onDraftChange,
   onEditPoint,
   onSelectPoint,
@@ -231,7 +232,7 @@ function FieldMap({
         return;
       }
 
-      const markerColor = String(point.marker_color || "#1576d1");
+      const markerColor = String(getMarkerColor?.(point) || point.marker_color || "#1576d1");
       const isSelected = point.id === selectedMapPointId;
       const isTerminalPoint = Boolean(point.is_terminal_point);
       const marker = isTerminalPoint
@@ -263,7 +264,7 @@ function FieldMap({
       });
       marker.addTo(pointLayerRef.current);
     });
-  }, [mapPoints, onEditPoint, onSelectPoint, selectedMapPointId]);
+  }, [getMarkerColor, mapPoints, onEditPoint, onSelectPoint, selectedMapPointId]);
 
   useEffect(() => {
     if (!mapRef.current) {

@@ -100,6 +100,79 @@ export const listFieldValidationPoints = async ({ date = "", status = "" } = {})
   return rows;
 };
 
+// Proyeccion minima para la analitica: la clave y el barrio se derivan de reference_note /
+// description, asi que ambos textos son obligatorios; el resto de columnas largas no se traen.
+const SELECT_ANALYTICS_POINT = `
+  SELECT
+    map_points.id,
+    map_points.point_type,
+    map_points.latitude,
+    map_points.longitude,
+    map_points.accuracy_meters,
+    map_points.reference_note,
+    map_points.description,
+    map_points.marker_color,
+    map_points.is_terminal_point,
+    map_points.housing_units,
+    map_points.validation_status,
+    map_points.created_by,
+    map_points.created_at,
+    DATE_FORMAT(map_points.diary_date, '%Y-%m-%d') AS diary_date,
+    creator.full_name AS created_by_name,
+    creator.username AS created_by_username
+  FROM map_points
+  LEFT JOIN app_users creator ON creator.id = map_points.created_by
+`;
+
+// Filtros que si son columnas reales de map_points. Barrio, clave y busqueda se aplican despues,
+// en fieldAnalyticsService, porque no existen como columna.
+export const listFieldPointsForAnalytics = async ({
+  date = "",
+  technicians = [],
+  pointTypes = [],
+  validationStatuses = []
+} = {}) => {
+  if (env.useMemoryDb) {
+    return [];
+  }
+
+  const filters = [];
+  const params = [];
+
+  const diaryDate = normalizeDiaryDate(date);
+  if (diaryDate) {
+    filters.push("COALESCE(map_points.diary_date, DATE(map_points.created_at)) = ?");
+    params.push(diaryDate);
+  }
+
+  const technicianIds = technicians.map(Number).filter((value) => Number.isInteger(value) && value > 0);
+  if (technicianIds.length) {
+    filters.push(`map_points.created_by IN (${technicianIds.map(() => "?").join(", ")})`);
+    params.push(...technicianIds);
+  }
+
+  const types = pointTypes.filter(Boolean);
+  if (types.length) {
+    filters.push(`map_points.point_type IN (${types.map(() => "?").join(", ")})`);
+    params.push(...types);
+  }
+
+  const statuses = validationStatuses.filter((status) => VALIDATION_STATUSES.has(status));
+  if (statuses.length) {
+    filters.push(`map_points.validation_status IN (${statuses.map(() => "?").join(", ")})`);
+    params.push(...statuses);
+  }
+
+  const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `${SELECT_ANALYTICS_POINT} ${whereClause} ORDER BY map_points.created_at ASC`,
+    params
+  );
+
+  return rows;
+};
+
 export const validateFieldPoint = async (id, payload = {}, authUser) => {
   if (env.useMemoryDb) {
     const error = new Error("La validacion de campo requiere base de datos persistente.");

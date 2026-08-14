@@ -1,4 +1,5 @@
 import { listFieldValidationPoints, validateFieldPoint } from "../services/fieldValidationService.js";
+import { getFieldAnalytics } from "../services/fieldAnalyticsService.js";
 
 export const listFieldValidationPointsHandler = async (req, res, next) => {
   try {
@@ -7,6 +8,16 @@ export const listFieldValidationPointsHandler = async (req, res, next) => {
       status: req.query?.status
     });
     res.json(points);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fieldAnalyticsHandler = async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    const analytics = await getFieldAnalytics(req.body ?? {});
+    res.json(analytics);
   } catch (error) {
     next(error);
   }

@@ -868,6 +868,15 @@ export const getMasterRecordsForImport = () => {
   return masterRecords.map((record) => ({ ...record }));
 };
 
+// Acceso de solo lectura al padron en memoria. No clona: quien lo use no debe mutar los registros.
+// Se expone para que la analitica territorial cruce miles de claves en un solo pase,
+// en vez de llamar searchClaveCatastral una vez por clave.
+export const getMasterRecords = () => masterRecords;
+
+// Cambia cuando se importa o reprocesa el padron. Sirve para invalidar indices derivados.
+export const getMasterVersion = () =>
+  `${masterMeta.updated_at || "sin-fecha"}:${masterRecords.length}`;
+
 export const activateMasterRecordsInMemory = (records, { codigoLote = "" } = {}) => {
   const rows = normalizeMasterRecords(records);
   if (!rows.length) {
