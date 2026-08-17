@@ -1,4 +1,10 @@
-export const debtRanking = (barrios = [], metric = "total") => [...barrios].map((item) => ({ name: item.barrio_colonia || item.barrio || item.nombre || "Sin barrio", debt: item.deuda || {}, services: item.servicios || [], records: Number(item.total_registros || 0), value: metric === "accounts" ? Number(item.deuda?.deudores || 0) : metric === "critical" ? Number(item.deuda?.criticos || 0) : Number(item.deuda?.total || 0) })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
+export const debtRankingAll = (barrios = [], metric = "total") => [...barrios].map((item) => ({ name: item.barrio_colonia || item.barrio || item.nombre || "Sin barrio", debt: item.deuda || {}, services: item.servicios || [], records: Number(item.total_registros || 0), value: metric === "accounts" ? Number(item.deuda?.deudores || 0) : metric === "critical" ? Number(item.deuda?.criticos || 0) : Number(item.deuda?.total || 0) })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "es"));
+
+export const debtRanking = (barrios = [], metric = "total") => debtRankingAll(barrios, metric).slice(0, 5);
+
+export const sumDebtRows = (rows = []) => rows.reduce((sum, item) => ({ capital: sum.capital + Number(item.debt?.capital || 0), intereses: sum.intereses + Number(item.debt?.intereses || 0), total: sum.total + Number(item.debt?.total || 0), deudores: sum.deudores + Number(item.debt?.deudores || 0), criticos: sum.criticos + Number(item.debt?.criticos || 0), records: sum.records + Number(item.records || 0) }), { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0, records: 0 });
+
+export const debtMetricLabel = (metric = "total") => metric === "accounts" ? "Abonados con mora" : metric === "critical" ? "Casos criticos" : "Mora total";
 
 export const sumSelectedDebt = (rows = [], selected = []) => rows.filter((item) => selected.includes(item.name)).reduce((sum, item) => ({ capital: sum.capital + Number(item.debt.capital || 0), intereses: sum.intereses + Number(item.debt.intereses || 0), total: sum.total + Number(item.debt.total || 0), deudores: sum.deudores + Number(item.debt.deudores || 0), criticos: sum.criticos + Number(item.debt.criticos || 0) }), { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0 });
 

@@ -616,14 +616,14 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           .census-report-table td {
             font-size: 9px;
           }
-          .census-report-table th:nth-child(1),
-          .census-report-table td:nth-child(1) { width: 24px; text-align: center; }
-          .census-report-table th:nth-child(3),
-          .census-report-table td:nth-child(3) { width: 84px; }
-          .census-report-table th:nth-child(4),
-          .census-report-table td:nth-child(4) { width: 120px; }
-          .census-report-table th:nth-child(7),
-          .census-report-table td:nth-child(7) { width: 26%; }
+          .map-points-table th:nth-child(1),
+          .map-points-table td:nth-child(1) { width: 24px; text-align: center; }
+          .map-points-table th:nth-child(3),
+          .map-points-table td:nth-child(3) { width: 84px; }
+          .map-points-table th:nth-child(4),
+          .map-points-table td:nth-child(4) { width: 120px; }
+          .map-points-table th:nth-child(7),
+          .map-points-table td:nth-child(7) { width: 26%; }
           .field-report-table {
             width: 100%;
             border-collapse: collapse;
@@ -656,6 +656,126 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             border-color: #f59e0b;
             color: #92400e;
             font-weight: 700;
+          }
+          /* Tablas cuya primera columna es un nombre largo (servicio, barrio):
+             el ancho lo decide el contenido, no un reparto fijo en partes iguales.
+             Sin esto las etiquetas se parten letra por letra y las cifras quedan
+             separadas por columnas vacias. */
+          .data-report-table {
+            table-layout: auto;
+          }
+          .data-report-table th,
+          .data-report-table td {
+            word-break: normal;
+            overflow-wrap: break-word;
+            hyphens: none;
+          }
+          .data-report-table thead {
+            display: table-header-group;
+          }
+          .data-report-table tfoot {
+            display: table-row-group;
+          }
+          .data-report-table th:first-child,
+          .data-report-table td:first-child {
+            width: auto;
+            text-align: left;
+          }
+          .data-report-table th:not(:first-child),
+          .data-report-table td:not(:first-child) {
+            width: 1%;
+            text-align: right;
+            white-space: nowrap;
+          }
+          .data-report-table tfoot th {
+            background: #e3eefa;
+            font-size: 9px;
+            text-transform: none;
+            border-top: 2px solid #9bc4ec;
+          }
+          .data-report-table tfoot th:first-child {
+            text-align: left;
+          }
+          /* La tabla larga debe poder partirse entre paginas; si no, la seccion
+             completa salta a la hoja siguiente y deja la primera casi en blanco. */
+          .debt-rank-zone {
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          .debt-rank-table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .debt-rank-table th.col-rank,
+          .debt-rank-table td.col-rank {
+            width: 1%;
+            text-align: right;
+            white-space: nowrap;
+            color: #5a7791;
+          }
+          .debt-rank-table th.col-barrio,
+          .debt-rank-table td.col-barrio {
+            width: auto;
+            text-align: left;
+            white-space: normal;
+          }
+          .debt-rank-table td.col-strong {
+            font-weight: 700;
+          }
+          .debt-rank-table tr.is-selected-barrio td {
+            background: #eef6ff;
+          }
+          .debt-rank-table tbody tr:nth-child(even) td {
+            background: #f7fbff;
+          }
+          .debt-rank-table tbody tr.is-selected-barrio td {
+            background: #e4f0fd;
+          }
+          .debt-rank-top {
+            display: grid;
+            gap: 4px;
+            border: 1px solid #d2e4f3;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 8px 10px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .debt-rank-top article {
+            display: grid;
+            grid-template-columns: 16px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+          }
+          .debt-rank-top article b {
+            color: #1465d9;
+            text-align: center;
+          }
+          .debt-rank-top article span {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+          }
+          .debt-rank-top article i {
+            display: block;
+            height: 6px;
+            border-radius: 99px;
+            background: #edf3f7;
+            overflow: hidden;
+          }
+          .debt-rank-top article em {
+            display: block;
+            height: 100%;
+            background: #1465d9;
+          }
+          .debt-rank-top article small {
+            white-space: nowrap;
+            font-weight: 700;
+          }
+          .debt-rank-note {
+            margin-top: 6px;
+            font-size: 8.5px;
+            color: #4a6a86;
           }
           .field-debt-print-shell {
             gap: 6px;

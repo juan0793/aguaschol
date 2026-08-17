@@ -5694,7 +5694,7 @@ function App() {
                 <h3>Servicios activos e inactivos</h3>
               </div>
             </div>
-            <table class="field-report-table census-report-table">
+            <table class="field-report-table census-report-table data-report-table">
               <thead>
                 <tr>
                   <th>Servicio</th>
@@ -5717,7 +5717,7 @@ function App() {
                 <h3>${onlySelected ? "Desglose de barrios seleccionados" : "Desglose por barrio"}</h3>
               </div>
             </div>
-            <table class="field-report-table census-report-table">
+            <table class="field-report-table census-report-table data-report-table">
               <thead>
                 <tr>
                   <th>Barrio</th>
@@ -5739,7 +5739,7 @@ function App() {
                 <h3>Capital, intereses y deuda asociada a cada servicio activo</h3>
               </div>
             </div>
-            <table class="field-report-table census-report-table">
+            <table class="field-report-table census-report-table data-report-table">
               <thead>
                 <tr>
                   <th>Barrio</th>
@@ -8275,7 +8275,7 @@ function App() {
                 <span>Puntos: ${zone.total}</span>
               </div>
             </div>
-            <table class="field-report-table census-report-table">
+            <table class="field-report-table census-report-table map-points-table">
               <thead>
                 <tr>
                   <th>#</th>

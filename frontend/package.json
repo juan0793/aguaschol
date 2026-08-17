@@ -12,7 +12,8 @@
     "test:campo": "node --test src/components/fieldControlUtils.test.mjs src/modules/campo/fieldMapModes.test.mjs",
     "test:planos": "node --test src/modules/planos/planosEditorHistory.test.mjs src/modules/planos/planosVectorExport.test.mjs",
     "preview": "vite preview",
-    "start": "node ./server.js"
+    "start": "node ./server.js",
+    "test:dashboard": "node --test src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs"
   },
   "dependencies": {
     "@blossom-carousel/react": "^1.1.1",
