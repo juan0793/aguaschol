@@ -15,9 +15,10 @@ import { GraficoPorDia } from "../components/ReporteCharts";
 import { formatDate, formatNumber } from "../utils/entregasFormatters";
 import "../styles/entregas.css";
 
+// "Nuevo lote" no vive aqui: es una accion, no una vista a la que se vuelve, asi
+// que su unica entrada es el boton primario del header (ver mas abajo).
 const SUBVISTAS = [
   { key: "resumen", label: "Resumen", icon: "dashboard" },
-  { key: "nuevo", label: "Nuevo lote", icon: "plus" },
   { key: "lotes", label: "Lotes diarios", icon: "records" },
   { key: "pendientes", label: "No entregadas", icon: "warning" },
   { key: "personal", label: "Personal de campo", icon: "users" },
@@ -128,7 +129,6 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   }
 
   const subvistas = SUBVISTAS.filter((item) => {
-    if (item.key === "nuevo") return config.permissions.can_create_lote;
     if (item.key === "reportes") return config.permissions.can_generate_report;
     return true;
   });

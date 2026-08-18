@@ -35,6 +35,8 @@ const iconPaths = {
     "M9 5h6M4 7h16M8 7l.7 11.2A2 2 0 0 0 10.7 20h2.6a2 2 0 0 0 2-1.8L16 7M10 10v6M14 10v6M10 3h4l1 2H9z",
   copy:
     "M9 9h9v11H9zM6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1",
+  edit:
+    "M16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1 1-4z",
   plus:
     "M12 5v14M5 12h14",
   archive:
