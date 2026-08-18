@@ -231,8 +231,9 @@ export default function PersonalCampoTable({ config, personal, permissions, usua
                 <td className="ent-acciones-celda">
                   {permissions.can_manage_personal ? (
                     <>
-                      <button type="button" className="cl-icon-button" onClick={() => editar(persona)} aria-label="Editar">
-                        <Icon name="copy" />
+                      <button type="button" className="cl-secondary ent-boton-mini" onClick={() => editar(persona)}>
+                        <Icon name="edit" />
+                        Editar
                       </button>
                       <button
                         type="button"
