@@ -1,0 +1,141 @@
+/* Control de Entregas reutiliza la base visual de los módulos operativos
+   (.cl-module, .cl-table, .cl-drawer, .cl-status…) definida en clandestinos.css.
+   Aquí solo viven las clases propias del módulo y los estados que no existen
+   todavía en el sistema. Paleta institucional: azul, gris y blanco; ámbar y rojo
+   reservados para atención real. */
+@import "../../clandestinos/styles/clandestinos.css";
+
+.ent-module { --ent-borde: #dbe3ea; --ent-superficie: #fff; --ent-tenue: #f6f9fc; }
+
+/* ---------- Estados propios ---------- */
+.cl-status.is-abierto { background: #e9f2ff; color: var(--primary); }
+.cl-status.is-cerrado { background: #e7f7f0; color: var(--success); }
+.cl-status.is-revisado { background: #edf3f8; color: var(--navy); }
+.cl-status.is-pendiente { background: #fff7e8; color: var(--alert); }
+.cl-status.is-reentregada { background: #e7f7f0; color: var(--success); }
+.cl-status.is-no_localizada { background: #fff0f1; color: var(--danger); }
+.cl-status.is-cancelada { background: #eef1f4; color: var(--muted); }
+.cl-status.is-generado { background: #e9f2ff; color: var(--primary); }
+.cl-status.is-corregido { background: #fff7e8; color: var(--alert); }
+.cl-status.is-anulado { background: #eef1f4; color: var(--muted); }
+.cl-status.is-con-acceso { background: #e7f7f0; color: var(--success); }
+.cl-status.is-sin-acceso { background: #eef1f4; color: var(--muted); }
+
+/* ---------- KPIs ---------- */
+.ent-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.ent-kpi { display: grid; align-content: center; gap: 4px; min-height: 96px; padding: 14px 16px; border: 1px solid var(--ent-borde); border-radius: 14px; background: var(--ent-superficie); text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease; }
+.ent-kpi:hover { border-color: var(--primary); box-shadow: 0 6px 18px rgba(16, 42, 67, .07); }
+.ent-kpi span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.ent-kpi strong { color: var(--navy); font-size: 30px; line-height: 1.1; font-weight: 700; }
+.ent-kpi.is-atencion strong { color: var(--alert); }
+.ent-kpi.is-exito strong { color: var(--success); }
+.ent-kpi-efectividad { cursor: default; }
+.ent-kpi-efectividad i { display: block; height: 6px; margin-top: 4px; border-radius: 999px; background: #e1eff9; }
+.ent-kpi-efectividad em { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+
+/* ---------- Tarjetas y rejillas ---------- */
+.ent-card { padding: 16px; border: 1px solid var(--ent-borde); border-radius: 14px; background: var(--ent-superficie); }
+.ent-card + .ent-card { margin-top: 14px; }
+.ent-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.ent-card-head p { color: var(--muted); }
+.ent-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ent-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ent-grid-2 .is-wide, .ent-grid-3 .is-wide { grid-column: 1 / -1; }
+.ent-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.ent-boton-mini { min-height: 34px; padding: 0 10px; font-size: 12px; }
+.ent-acciones-celda { display: flex; align-items: center; gap: 6px; }
+.ent-check { display: flex !important; align-items: center; gap: 8px; }
+.ent-check input { width: 18px; min-height: 18px; height: 18px; accent-color: var(--primary); }
+
+/* ---------- Nuevo lote ---------- */
+.ent-nuevo-lote { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.ent-resumen-lateral dl { display: grid; gap: 10px; margin: 12px 0 0; }
+.ent-resumen-lateral dl > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--ent-borde); }
+.ent-resumen-lateral dt { color: var(--muted); font-size: 12px; font-weight: 700; }
+.ent-resumen-lateral dd { margin: 0; color: var(--navy); font-weight: 700; text-align: right; }
+
+/* ---------- Tablas ---------- */
+.ent-toolbar { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.ent-table td, .ent-table th { height: 48px; }
+.ent-table .is-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ent-table small { display: block; color: var(--muted); font-size: 11px; }
+.ent-table tbody tr.is-atencion { background: #fffaf0; }
+.ent-table tbody tr.is-critico { background: #fff5f5; }
+.ent-captura input, .ent-captura select { width: 100%; min-height: 38px; padding: 6px 8px; border: 1px solid #bfd5eb; border-radius: 8px; }
+.ent-detalle-guardado { margin-top: 14px; }
+.ent-agregar-fila { margin-bottom: 12px; }
+.ent-modo-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--ent-borde); border-radius: 12px; background: var(--ent-tenue); }
+.ent-modo-switch button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+.ent-modo-switch button.is-active { background: #fff; color: var(--primary); box-shadow: 0 3px 10px rgba(16, 42, 67, .08); }
+.ent-pegado { display: grid; gap: 10px; margin-bottom: 12px; }
+.ent-pegado textarea { width: 100%; padding: 10px 12px; border: 1px solid #bfd5eb; border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+.ent-diferencia { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: #eef4fa; color: var(--navy); font-weight: 650; }
+.ent-diferencia.is-atencion { background: #fff7e8; color: var(--alert); }
+.ent-diferencia.is-critico { background: #fff0f1; color: var(--danger); }
+
+/* ---------- Drawer ---------- */
+.ent-drawer { width: min(760px, 100%); }
+.ent-drawer-footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--ent-borde); background: rgba(255, 255, 255, .98); }
+.ent-resumen-documento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ent-resumen-documento > div { display: grid; gap: 4px; }
+.ent-resumen-documento span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.ent-resumen-documento strong { color: var(--navy); }
+.ent-timeline small { display: block; color: var(--muted); }
+
+/* ---------- Resumen ---------- */
+.ent-resumen-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.ent-lista-atencion { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.ent-lista-atencion li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--ent-borde); border-radius: 11px; background: var(--ent-tenue); }
+.ent-lista-atencion li.is-atencion { border-color: #f0dcb4; background: #fffaf0; }
+.ent-lista-atencion li.is-critico { border-color: #eec7c7; background: #fff5f5; }
+.ent-lista-atencion strong { color: var(--navy); font-size: 18px; }
+
+/* ---------- Gráficos ---------- */
+.ent-chart { margin: 0 0 16px; padding: 14px; border: 1px solid var(--ent-borde); border-radius: 14px; background: var(--ent-superficie); }
+.ent-chart figcaption { margin-bottom: 12px; color: var(--navy); font-size: 14px; font-weight: 700; }
+.ent-chart-bars { display: flex; align-items: flex-end; gap: 10px; min-height: 150px; }
+.ent-chart-col { display: grid; flex: 1; gap: 6px; justify-items: center; }
+.ent-chart-stack { display: flex; align-items: flex-end; gap: 3px; width: 100%; height: 130px; }
+.ent-bar { flex: 1; min-height: 2px; border-radius: 4px 4px 0 0; }
+.ent-bar.is-entregadas { background: #0e5f9e; }
+.ent-bar.is-no-entregadas { background: #c8d8e6; }
+.ent-chart-col small { color: var(--muted); font-size: 11px; text-transform: capitalize; }
+.ent-chart-legend { display: flex; gap: 16px; margin: 12px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 12px; }
+.ent-chart-legend li { display: flex; align-items: center; gap: 6px; }
+.ent-chart-legend i { width: 12px; height: 12px; border-radius: 3px; }
+.ent-chart-legend i.is-entregadas { background: #0e5f9e; }
+.ent-chart-legend i.is-no-entregadas { background: #c8d8e6; }
+.ent-chart-rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ent-chart-rows li { display: grid; grid-template-columns: minmax(120px, 1.1fr) minmax(0, 2fr) auto; gap: 10px; align-items: center; color: var(--navy); font-size: 13px; }
+.ent-chart-rows i { display: block; height: 10px; border-radius: 999px; background: #e1eff9; }
+.ent-chart-rows em { display: block; height: 100%; border-radius: 999px; background: #0e5f9e; }
+.ent-chart-empty { color: var(--muted); }
+
+/* ---------- Reportes ---------- */
+.ent-reportes { display: grid; gap: 16px; }
+.ent-print-preview { margin-top: 16px; padding: 20px; border-radius: 12px; background: #e7edf3; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1120px) {
+  .ent-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ent-nuevo-lote, .ent-resumen-grid { grid-template-columns: 1fr; }
+  .ent-resumen-documento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ent-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .ent-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ent-grid-2, .ent-grid-3 { grid-template-columns: 1fr; }
+  .ent-grid-2 .is-wide, .ent-grid-3 .is-wide { grid-column: auto; }
+  .ent-toolbar { grid-template-columns: 1fr; }
+  .ent-modo-switch { width: 100%; }
+  .ent-modo-switch button { flex: 1; }
+  .ent-acciones { justify-content: stretch; }
+  .ent-acciones > button { flex: 1; }
+  .ent-print-preview { padding: 8px; }
+  /* Sin scroll horizontal: se ocultan columnas secundarias en móvil. */
+  .ent-table { table-layout: fixed; width: 100%; }
+  .ent-table th:nth-child(n + 5), .ent-table td:nth-child(n + 5) { display: none; }
+  .ent-table th:last-child, .ent-table td:last-child { display: table-cell; width: 64px; }
+  .cl-table-wrap { overflow-x: hidden; }
+}

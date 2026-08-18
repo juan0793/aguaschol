@@ -1,0 +1,76 @@
+/* Hoja Letter vertical (8.5" x 11") del REPORTE SEMANAL DE CONTROL DE ENTREGAS.
+   Fondo blanco, encabezado azul institucional, tablas en gris tenue y buena
+   legibilidad en blanco y negro. No se imprime el sidebar ni controles web. */
+
+.ent-hojas { display: grid; gap: 18px; }
+
+.ent-hoja {
+  display: flex;
+  width: 816px;
+  min-height: 1056px;
+  max-width: 100%;
+  flex-direction: column;
+  padding: 48px 56px 40px;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(16, 42, 67, .16);
+  color: #141f29;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ent-hoja-head { display: flex; align-items: center; gap: 16px; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 3px solid #0e5f9e; }
+.ent-hoja-head img { width: 54px; height: auto; }
+.ent-hoja-head span { display: block; color: #616f7d; font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+.ent-hoja-head h1 { margin: 2px 0; color: #092e4f; font-size: 17px; font-weight: 700; letter-spacing: .01em; }
+.ent-hoja-head p { margin: 0; color: #0e5f9e; font-size: 12px; font-weight: 600; }
+
+.ent-hoja-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 18px; }
+.ent-hoja-kpis > div { padding: 10px; border: 1px solid #dbe3ea; border-radius: 10px; background: #f6f9fc; }
+.ent-hoja-kpis span { display: block; color: #616f7d; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.ent-hoja-kpis strong { color: #092e4f; font-size: 20px; font-weight: 700; }
+.ent-hoja-kpis .is-destacado { border-color: #0e5f9e; background: #e1eff9; }
+
+.ent-hoja-bloque { margin-bottom: 18px; break-inside: avoid; }
+.ent-hoja-bloque h2 { margin: 0 0 8px; color: #092e4f; font-size: 13px; font-weight: 700; }
+
+.ent-hoja-tabla { width: 100%; border-collapse: collapse; }
+.ent-hoja-tabla th { padding: 7px 8px; border: 1px solid #dbe3ea; background: #f0f4f8; color: #141f29; font-size: 10px; font-weight: 700; text-align: left; }
+.ent-hoja-tabla td { padding: 6px 8px; border: 1px solid #e6ecf1; font-size: 10.5px; }
+.ent-hoja-tabla .is-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ent-hoja-tabla tbody tr:nth-child(even) { background: #fbfcfe; }
+
+.ent-hoja-observaciones { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ent-hoja-observaciones li { padding: 9px 11px; border-left: 3px solid #0e5f9e; background: #f6f9fc; }
+.ent-hoja-observaciones strong { display: block; color: #092e4f; font-size: 10.5px; }
+.ent-hoja-observaciones p { margin: 3px 0 0; color: #38495a; font-style: italic; }
+
+.ent-hoja-nota { margin: 8px 0 0; color: #616f7d; font-size: 10px; }
+
+.ent-hoja-pie { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #dbe3ea; color: #616f7d; font-size: 9.5px; }
+
+/* Los gráficos dentro de la hoja se aplanan para imprimir bien. */
+.ent-hoja .ent-chart { border-color: #dbe3ea; box-shadow: none; }
+.ent-hoja .ent-chart-stack { height: 96px; }
+
+@media print {
+  @page { size: letter portrait; margin: 12mm; }
+
+  body * { visibility: hidden !important; }
+  .ent-print-preview, .ent-print-preview * { visibility: visible !important; }
+  .ent-print-preview { position: absolute; inset: 0; padding: 0 !important; background: #fff !important; }
+
+  .ent-hojas { display: block; gap: 0; }
+  .ent-hoja {
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    box-shadow: none;
+    break-after: page;
+  }
+  .ent-hoja:last-child { break-after: auto; }
+  .ent-hoja-head { position: running(encabezado); }
+  .ent-hoja-tabla thead { display: table-header-group; }
+  .ent-hoja-tabla tr { break-inside: avoid; }
+  .ent-bar, .ent-chart-rows em { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

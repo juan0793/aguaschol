@@ -14,6 +14,7 @@ import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections } from "./components/sidebar/sidebarConfig";
 import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
 import InspeccionesPage from "./modules/inspecciones/pages/InspeccionesPage";
+import EntregasPage from "./modules/entregas/pages/EntregasPage";
 import PageHeader from "./components/ds/PageHeader";
 import MetricRow from "./components/ds/Metrics";
 import "./components/ds/design-system.css";
@@ -2181,6 +2182,7 @@ function App() {
             { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
             { key: "profile", section: "vision", label: "Mi perfil", icon: "users", meta: "Rendimiento personal", tone: "is-users" },
             { key: "inspecciones", section: "operacion", label: "Inspecciones", icon: "activity", meta: "Asignación y seguimiento", tone: "is-records" },
+            { key: "entregas", section: "operacion", label: "Control de entregas", icon: "archive", meta: "Facturas y notas de cobro", tone: "is-report" },
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
@@ -2238,6 +2240,7 @@ function App() {
         ? [
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
             { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
+            { key: "entregas", label: "Control de entregas", icon: "archive", group: "operacion", helper: "Facturas y notas de cobro" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
@@ -2254,6 +2257,7 @@ function App() {
         : [
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
             { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
+            { key: "entregas", label: "Control de entregas", icon: "archive", group: "operacion", helper: "Facturas y notas de cobro" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
@@ -14467,6 +14471,8 @@ function App() {
       </main>
       ) : workspaceView === "inspecciones" ? (
       <InspeccionesPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
+      ) : workspaceView === "entregas" ? (
+      <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
       ) : workspaceView === "records" ? (
       <ClandestinosPage
         apiFetch={apiFetch}
