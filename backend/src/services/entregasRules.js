@@ -169,6 +169,23 @@ export const validarConsistenciaDetalle = ({ total_sobrantes = 0, detalle = [], 
   return { sobrantes, identificadas, diferencia };
 };
 
+// Regla critica: solo se capturan documentos no entregados mientras el lote esta
+// ABIERTO. Cerrado o revisado, la unica via es una correccion explicita de admin
+// (que el llamador debe ademas re-cuadrar contra total_sobrantes tras insertar).
+export const assertPuedeAgregarNoEntregadas = ({ estadoLote, esCorreccionAdmin = false } = {}) => {
+  if (estadoLote === "ABIERTO" || esCorreccionAdmin) return;
+  if (estadoLote === "REVISADO") {
+    throw fail("El lote ya fue revisado y no admite cambios. Solo un administrador puede registrar una corrección explícita.");
+  }
+  throw fail("El lote ya fue cerrado. Solo un administrador puede registrar una corrección explícita.");
+};
+
+// Solo los lotes CERRADOS del rango consolidado pasan a REVISADO al generar (o
+// corregir) un informe semanal. Uno ABIERTO se queda asi: sigue pendiente de
+// cierre y aparecera en el proximo informe.
+export const lotesParaRevisar = (lotes = []) =>
+  lotes.filter((lote) => lote.estado === "CERRADO").map((lote) => lote.id);
+
 export const detectarDuplicadosEnLote = (detalle = []) => {
   const vistos = new Map();
   const duplicados = [];

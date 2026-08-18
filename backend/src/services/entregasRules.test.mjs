@@ -4,14 +4,17 @@ import {
   agruparPorBarrio,
   agruparPorMotivo,
   agruparPorResponsable,
+  assertPuedeAgregarNoEntregadas,
   calcularEfectividad,
   calcularEntregadas,
   construirCorreccion,
   construirSnapshotSemanal,
+  contarNoEntregadasActivas,
   describirSemana,
   detectarDuplicadosEnLote,
   etiquetarVersion,
   listarDiasDelRango,
+  lotesParaRevisar,
   parsearPegadoNoEntregadas,
   semanaPorDefecto,
   validarConsistenciaDetalle,
@@ -215,6 +218,77 @@ test("una semana combinada separa factura y nota de cobro", () => {
   assert.deepEqual(tipos, ["FACTURA", "NOTA_COBRO"]);
   assert.equal(snapshot.por_tipo_documento[0].no_entregadas, 10);
   assert.equal(snapshot.por_tipo_documento[1].no_entregadas, 0);
+});
+
+test("no se pueden agregar no entregadas a un lote CERRADO sin una corrección admin", () => {
+  assert.throws(
+    () => assertPuedeAgregarNoEntregadas({ estadoLote: "CERRADO" }),
+    /ya fue cerrado.*administrador/
+  );
+  assert.doesNotThrow(() =>
+    assertPuedeAgregarNoEntregadas({ estadoLote: "CERRADO", esCorreccionAdmin: true })
+  );
+});
+
+test("no se pueden agregar no entregadas a un lote REVISADO sin una corrección admin", () => {
+  assert.throws(
+    () => assertPuedeAgregarNoEntregadas({ estadoLote: "REVISADO" }),
+    /ya fue revisado.*administrador/
+  );
+  assert.doesNotThrow(() =>
+    assertPuedeAgregarNoEntregadas({ estadoLote: "REVISADO", esCorreccionAdmin: true })
+  );
+});
+
+test("un lote ABIERTO admite altas normales sin marcar de corrección admin", () => {
+  assert.doesNotThrow(() => assertPuedeAgregarNoEntregadas({ estadoLote: "ABIERTO" }));
+  assert.doesNotThrow(() =>
+    assertPuedeAgregarNoEntregadas({ estadoLote: "ABIERTO", esCorreccionAdmin: false })
+  );
+});
+
+test("el lote se mantiene consistente después del cierre, incluso tras una corrección admin", () => {
+  // Al cerrar: 3 sobrantes identificados con 3 filas activas -> cuadra.
+  const detalleAlCerrar = [
+    { estado: "PENDIENTE" },
+    { estado: "PENDIENTE" },
+    { estado: "REENTREGADA" }
+  ];
+  const { sobrantes } = validarConsistenciaDetalle({ total_sobrantes: 3, detalle: detalleAlCerrar });
+  assert.equal(contarNoEntregadasActivas(detalleAlCerrar), sobrantes);
+
+  // Una corrección admin agrega un documento que se escapó del recorrido: el
+  // nuevo total_sobrantes debe recalcularse a partir del detalle activo real,
+  // no quedar pegado al valor declarado al momento del cierre.
+  const detalleTrasCorreccion = [...detalleAlCerrar, { estado: "PENDIENTE" }];
+  const nuevosSobrantes = contarNoEntregadasActivas(detalleTrasCorreccion);
+  assert.equal(nuevosSobrantes, 4);
+  assert.doesNotThrow(() =>
+    validarConsistenciaDetalle({ total_sobrantes: nuevosSobrantes, detalle: detalleTrasCorreccion })
+  );
+
+  // Cancelar una fila también debe reflejarse: la regla no se puede quedar
+  // apuntando a un total_sobrantes que ya no coincide con las filas activas.
+  const detalleTrasCancelacion = detalleTrasCorreccion.map((item, index) =>
+    index === 0 ? { ...item, estado: "CANCELADA" } : item
+  );
+  const sobrantesTrasCancelacion = contarNoEntregadasActivas(detalleTrasCancelacion);
+  assert.equal(sobrantesTrasCancelacion, 3);
+  assert.doesNotThrow(() =>
+    validarConsistenciaDetalle({ total_sobrantes: sobrantesTrasCancelacion, detalle: detalleTrasCancelacion })
+  );
+});
+
+test("lotesParaRevisar selecciona solo los lotes CERRADOS del rango al generar el informe", () => {
+  const lotesDelRango = [
+    { id: 1, estado: "CERRADO" },
+    { id: 2, estado: "ABIERTO" },
+    { id: 3, estado: "REVISADO" },
+    { id: 4, estado: "CERRADO" }
+  ];
+  assert.deepEqual(lotesParaRevisar(lotesDelRango), [1, 4]);
+  assert.deepEqual(lotesParaRevisar([]), []);
+  assert.deepEqual(lotesParaRevisar([{ id: 9, estado: "ABIERTO" }]), []);
 });
 
 test("una corrección crea una versión nueva encadenada al original", () => {

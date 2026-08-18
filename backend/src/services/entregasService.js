@@ -13,8 +13,10 @@ import {
   RESULTADOS_INTENTO,
   TIPOS_DOCUMENTO,
   TIPOS_PERSONAL,
+  assertPuedeAgregarNoEntregadas,
   calcularEfectividad,
   calcularEntregadas,
+  contarNoEntregadasActivas,
   detectarDuplicadosEnLote,
   fail,
   semanaPorDefecto,
@@ -583,6 +585,17 @@ const listNoEntregadasDeLote = async (loteId, executor = getPool(), { forUpdate 
   return rows.map(mapNoEntregadaRow);
 };
 
+// Recalcula total_sobrantes a partir del detalle activo real. Se usa cada vez que
+// el conteo de "no entregadas activas" de un lote ya cerrado/revisado cambia
+// (correccion admin, borrado, cancelacion), para que la regla
+// COUNT(activas) == total_sobrantes nunca quede desactualizada.
+const recalcularTotalSobrantes = async (executor, loteId) => {
+  const detalle = await listNoEntregadasDeLote(loteId, executor);
+  const total = contarNoEntregadasActivas(detalle);
+  await executor.query("UPDATE entrega_lotes SET total_sobrantes = ? WHERE id = ?", [total, loteId]);
+  return total;
+};
+
 const mapNoEntregadaRow = (row) => ({
   ...row,
   intentos: toEntero(row.intentos),
@@ -594,13 +607,11 @@ const mapNoEntregadaRow = (row) => ({
 export const createNoEntregadas = async (loteId, payload = {}, user) => {
   const lote = await cargarLote(loteId);
   assertPuedeVerLote(lote, user);
-  if (lote.estado === "REVISADO") throw fail("El lote ya fue revisado y no admite cambios.");
 
   const filas = Array.isArray(payload.items) ? payload.items : [payload];
   if (!filas.length) throw fail("No hay documentos para registrar.");
 
   const catalogo = await listMotivos();
-  const existentes = await listNoEntregadasDeLote(lote.id);
   const preparadas = filas.map((item) => {
     const numero = clean(item.numero_abonado);
     const clave = clean(item.clave_catastral);
@@ -614,38 +625,72 @@ export const createNoEntregadas = async (loteId, payload = {}, user) => {
     };
   });
 
-  const duplicados = detectarDuplicadosEnLote([...existentes, ...preparadas]);
-  if (duplicados.length && !payload.permitir_duplicados) {
-    throw fail(
-      `Hay ${duplicados.length} abonado(s)/clave(s) repetidos en este lote. Revísalos o confirma el registro duplicado.`
-    );
-  }
+  // La correccion administrativa es la unica via para agregar documentos a un
+  // lote que ya no esta ABIERTO; re-cuadra total_sobrantes al terminar.
+  const esCorreccionAdmin = Boolean(payload.correccion_admin) && isAdmin(user);
 
-  const pool = getPool();
-  await pool.query(
-    `INSERT INTO entrega_no_entregadas
-       (lote_id, numero_abonado, clave_catastral, abonado_nombre, motivo, observacion, estado, created_by)
-     VALUES ?`,
-    [
-      preparadas.map((item) => [
-        lote.id,
-        item.numero_abonado,
-        item.clave_catastral,
-        item.abonado_nombre,
-        item.motivo,
-        item.observacion,
-        "PENDIENTE",
-        user?.id ?? null
-      ])
-    ]
-  );
+  const connection = await getPool().getConnection();
+  let estadoActual;
+  let nuevosSobrantes = null;
+  try {
+    await connection.beginTransaction();
+    const [loteRows] = await connection.query("SELECT estado FROM entrega_lotes WHERE id = ? LIMIT 1 FOR UPDATE", [lote.id]);
+    if (!loteRows.length) throw fail("El lote indicado no existe.", 404);
+    estadoActual = loteRows[0].estado;
+    assertPuedeAgregarNoEntregadas({ estadoLote: estadoActual, esCorreccionAdmin });
+
+    const existentes = await listNoEntregadasDeLote(lote.id, connection, { forUpdate: true });
+    const duplicados = detectarDuplicadosEnLote([...existentes, ...preparadas]);
+    if (duplicados.length && !payload.permitir_duplicados) {
+      throw fail(
+        `Hay ${duplicados.length} abonado(s)/clave(s) repetidos en este lote. Revísalos o confirma el registro duplicado.`
+      );
+    }
+
+    await connection.query(
+      `INSERT INTO entrega_no_entregadas
+         (lote_id, numero_abonado, clave_catastral, abonado_nombre, motivo, observacion, estado, created_by)
+       VALUES ?`,
+      [
+        preparadas.map((item) => [
+          lote.id,
+          item.numero_abonado,
+          item.clave_catastral,
+          item.abonado_nombre,
+          item.motivo,
+          item.observacion,
+          "PENDIENTE",
+          user?.id ?? null
+        ])
+      ]
+    );
+
+    if (estadoActual !== "ABIERTO") {
+      nuevosSobrantes = await recalcularTotalSobrantes(connection, lote.id);
+    }
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 
   await audit({
     user,
-    action: "DOCUMENTO_PENDIENTE_CREADO",
+    action: estadoActual === "ABIERTO" ? "DOCUMENTO_PENDIENTE_CREADO" : "DOCUMENTO_PENDIENTE_CORREGIDO_ADMIN",
     entityId: lote.id,
-    summary: `${preparadas.length} documento(s) no entregado(s) registrados en el lote #${lote.id}`,
-    details: { lote_id: lote.id, total: preparadas.length }
+    summary:
+      estadoActual === "ABIERTO"
+        ? `${preparadas.length} documento(s) no entregado(s) registrados en el lote #${lote.id}`
+        : `Admin agregó ${preparadas.length} documento(s) a un lote ${estadoActual} (#${lote.id}) y ajustó sobrantes a ${nuevosSobrantes}`,
+    details: {
+      lote_id: lote.id,
+      total: preparadas.length,
+      estado_lote: estadoActual,
+      ...(nuevosSobrantes !== null ? { nuevos_sobrantes: nuevosSobrantes } : {})
+    }
   });
 
   return getLoteDetail(lote.id, user);
@@ -816,10 +861,26 @@ export const updateNoEntregada = async (id, payload = {}, user) => {
   const columnas = Object.keys(cambios);
   if (!columnas.length) return getNoEntregadaDetail(documento.id, user);
 
-  await getPool().query(
-    `UPDATE entrega_no_entregadas SET ${columnas.map((columna) => `${columna} = ?`).join(", ")} WHERE id = ?`,
-    [...columnas.map((columna) => cambios[columna]), documento.id]
-  );
+  // Un cambio de estado puede sacar (o meter) el documento del conteo de
+  // "activas" (p. ej. CANCELADA). Si el lote ya no esta ABIERTO, total_sobrantes
+  // ya quedo fijo al cerrar, asi que se recalcula en la misma transaccion.
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      `UPDATE entrega_no_entregadas SET ${columnas.map((columna) => `${columna} = ?`).join(", ")} WHERE id = ?`,
+      [...columnas.map((columna) => cambios[columna]), documento.id]
+    );
+    if (columnas.includes("estado") && documento.lote_estado !== "ABIERTO") {
+      await recalcularTotalSobrantes(connection, documento.lote_id);
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 
   if (cambios.estado === "REENTREGADA") {
     await audit({
@@ -837,12 +898,25 @@ export const updateNoEntregada = async (id, payload = {}, user) => {
 export const deleteNoEntregada = async (id, user) => {
   const documento = await cargarNoEntregada(id);
   assertPuedeVerLote(documento, user);
-  const [[lote]] = await getPool().query("SELECT estado FROM entrega_lotes WHERE id = ? LIMIT 1", [documento.lote_id]);
-  if (lote?.estado !== "ABIERTO" && !isAdmin(user)) {
+  if (documento.lote_estado !== "ABIERTO" && !isAdmin(user)) {
     throw fail("Solo un administrador puede eliminar filas de un lote cerrado.", 403);
   }
 
-  await getPool().query("DELETE FROM entrega_no_entregadas WHERE id = ?", [documento.id]);
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query("DELETE FROM entrega_no_entregadas WHERE id = ?", [documento.id]);
+    if (documento.lote_estado !== "ABIERTO") {
+      await recalcularTotalSobrantes(connection, documento.lote_id);
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
   await audit({
     user,
     action: "DOCUMENTO_PENDIENTE_ELIMINADO",

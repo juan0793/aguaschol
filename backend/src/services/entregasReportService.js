@@ -15,6 +15,7 @@ import {
   diffInDays,
   etiquetarVersion,
   fail,
+  lotesParaRevisar,
   semanaPorDefecto,
   toEntero,
   toIsoDate
@@ -110,11 +111,13 @@ const cargarDatosDelPeriodo = async ({ fecha_inicio, fecha_fin, tipo_documento =
   };
 };
 
+// Devuelve tambien los lotes crudos del periodo: generarReporteSemanal y
+// generarCorreccion los necesitan para decidir cuales pasan a REVISADO.
 const construirDesdeDatos = async (opciones, user) => {
   const { lotes, noEntregadas } = await cargarDatosDelPeriodo(opciones);
   const catalogoMotivos = await listMotivos({ soloActivos: false });
 
-  return construirSnapshotSemanal({
+  const snapshot = construirSnapshotSemanal({
     ...opciones,
     lotes,
     noEntregadas,
@@ -123,6 +126,22 @@ const construirDesdeDatos = async (opciones, user) => {
     generado_por_nombre: user?.full_name || user?.username || "",
     generado_en: new Date().toISOString()
   });
+
+  return { snapshot, lotes };
+};
+
+// Marca REVISADO solo los lotes CERRADOS del rango (ver lotesParaRevisar en
+// entregasRules.js): un ABIERTO se queda como esta y sigue pendiente de cierre.
+// Se re-verifica estado = 'CERRADO' en el UPDATE por si algo cambio entre la
+// lectura del snapshot y esta transaccion.
+const marcarLotesRevisados = async (executor, lotes) => {
+  const ids = lotesParaRevisar(lotes);
+  if (!ids.length) return 0;
+  const [result] = await executor.query(
+    `UPDATE entrega_lotes SET estado = 'REVISADO' WHERE id IN (${ids.map(() => "?").join(",")}) AND estado = 'CERRADO'`,
+    ids
+  );
+  return result.affectedRows;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -134,7 +153,7 @@ export const previewReporteSemanal = async (query = {}, user) => {
   const rango = resolverRango(query);
   const tipo = TIPOS_DOCUMENTO.includes(clean(query.tipo_documento)) ? clean(query.tipo_documento) : "";
 
-  const snapshot = await construirDesdeDatos(
+  const { snapshot } = await construirDesdeDatos(
     {
       ...rango,
       tipo_documento: tipo,
@@ -157,9 +176,19 @@ export const previewReporteSemanal = async (query = {}, user) => {
 /* Generacion oficial                                                          */
 /* -------------------------------------------------------------------------- */
 
-const insertarReporte = async ({ rango, tipo, snapshot, user, version = 1, origenId = null, estado = "GENERADO", motivoCorreccion = "" }) => {
+const insertarReporte = async ({
+  rango,
+  tipo,
+  snapshot,
+  user,
+  version = 1,
+  origenId = null,
+  estado = "GENERADO",
+  motivoCorreccion = "",
+  executor = getPool()
+}) => {
   const totales = snapshot.totales;
-  const [result] = await getPool().query(
+  const [result] = await executor.query(
     `INSERT INTO reportes_semanales_entregas
        (fecha_inicio, fecha_fin, generado_por, generado_por_nombre, tipo_documento,
         total_asignadas, total_entregadas, total_no_entregadas, total_reentregadas, total_pendientes,
@@ -207,18 +236,35 @@ export const generarReporteSemanal = async (payload = {}, user) => {
   }
 
   // Se recalcula dentro de la operacion de generacion, no se reutiliza el preview.
-  const snapshot = await construirDesdeDatos(
+  const { snapshot, lotes } = await construirDesdeDatos(
     { ...rango, tipo_documento: tipo, incluir_anexo_pendientes: Boolean(payload.incluir_anexo_pendientes) },
     user
   );
 
-  const id = await insertarReporte({ rango, tipo, snapshot, user });
+  // El snapshot ya quedo calculado (foto fija); insertarlo y pasar los lotes
+  // CERRADOS del rango a REVISADO ocurre en la misma transaccion, para que un
+  // informe nunca quede archivado con lotes que despues no se marcaron.
+  const connection = await getPool().getConnection();
+  let id;
+  let lotesRevisados = 0;
+  try {
+    await connection.beginTransaction();
+    id = await insertarReporte({ rango, tipo, snapshot, user, executor: connection });
+    lotesRevisados = await marcarLotesRevisados(connection, lotes);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
   await audit({
     user,
     action: "REPORTE_GENERADO",
     entityId: id,
     summary: `Informe semanal generado (${rango.fecha_inicio} a ${rango.fecha_fin})`,
-    details: { reporte_id: id, ...rango, tipo_documento: tipo, totales: snapshot.totales }
+    details: { reporte_id: id, ...rango, tipo_documento: tipo, totales: snapshot.totales, lotes_marcados_revisados: lotesRevisados }
   });
 
   return getReporteSemanal(id, user);
@@ -230,7 +276,7 @@ export const generarCorreccion = async (id, payload = {}, user) => {
   const correccion = construirCorreccion(original);
   const rango = { fecha_inicio: toIsoDate(original.fecha_inicio), fecha_fin: toIsoDate(original.fecha_fin) };
 
-  const snapshot = await construirDesdeDatos(
+  const { snapshot, lotes } = await construirDesdeDatos(
     {
       ...rango,
       tipo_documento: original.tipo_documento,
@@ -239,23 +285,44 @@ export const generarCorreccion = async (id, payload = {}, user) => {
     user
   );
 
-  const nuevoId = await insertarReporte({
-    rango,
-    tipo: original.tipo_documento,
-    snapshot,
-    user,
-    version: correccion.version,
-    origenId: correccion.reporte_origen_id,
-    estado: "CORREGIDO",
-    motivoCorreccion: clean(payload.motivo).slice(0, 255)
-  });
+  // Una correccion tambien puede encontrar lotes del rango que se cerraron
+  // despues del informe original: esos igual pasan a REVISADO aqui.
+  const connection = await getPool().getConnection();
+  let nuevoId;
+  let lotesRevisados = 0;
+  try {
+    await connection.beginTransaction();
+    nuevoId = await insertarReporte({
+      rango,
+      tipo: original.tipo_documento,
+      snapshot,
+      user,
+      version: correccion.version,
+      origenId: correccion.reporte_origen_id,
+      estado: "CORREGIDO",
+      motivoCorreccion: clean(payload.motivo).slice(0, 255),
+      executor: connection
+    });
+    lotesRevisados = await marcarLotesRevisados(connection, lotes);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 
   await audit({
     user,
     action: "REPORTE_CORREGIDO",
     entityId: nuevoId,
     summary: `Versión ${correccion.version} del informe ${original.id} emitida`,
-    details: { reporte_id: nuevoId, reporte_origen_id: correccion.reporte_origen_id, motivo: clean(payload.motivo) }
+    details: {
+      reporte_id: nuevoId,
+      reporte_origen_id: correccion.reporte_origen_id,
+      motivo: clean(payload.motivo),
+      lotes_marcados_revisados: lotesRevisados
+    }
   });
 
   return getReporteSemanal(nuevoId, user);

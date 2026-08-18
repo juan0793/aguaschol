@@ -110,6 +110,12 @@ POST   /api/entregas/reportes/semanales/:id/anular       (admin)
 - `0 ≤ sobrantes ≤ asignadas`; no se cierra un lote sin registrar sobrantes.
 - `COUNT(no entregadas activas) == total_sobrantes` antes de cerrar; si no cuadra se
   bloquea el cierre y se muestra la diferencia exacta. Solo un admin puede forzarlo.
+- La captura de no entregadas (alta) solo se permite mientras el lote está `ABIERTO`.
+  Sobre un lote `CERRADO` o `REVISADO` la única vía es una corrección explícita de
+  admin (`correccion_admin: true` en el payload), que además recalcula
+  `total_sobrantes` a partir del detalle activo real dentro de la misma transacción,
+  para que la regla anterior nunca quede desactualizada. Lo mismo aplica al borrar una
+  fila o cambiar su estado (p. ej. a `CANCELADA`) en un lote ya cerrado.
 - Aviso al repetir abonado/clave dentro del mismo lote; se permite en semanas distintas.
 - Motivo `OTRO` exige observación.
 - Rango semanal duplicado devuelve 409 y sugiere generar una corrección.
@@ -120,10 +126,15 @@ POST   /api/entregas/reportes/semanales/:id/anular       (admin)
 
 1. Vista previa con datos vivos (no escribe nada en la base).
 2. «Generar informe semanal» recalcula y guarda el snapshot.
-3. Desde ahí, pantalla, impresión y PDF salen del snapshot.
-4. Hoja Letter vertical, encabezado azul institucional repetido, pie con rango, fecha de
+3. En la misma transacción que archiva el snapshot, todos los lotes `CERRADO` del
+   rango pasan a `REVISADO` (un lote `ABIERTO` se queda así: sigue pendiente de cierre
+   y entra en el próximo informe). Una corrección repite este paso, por si hay lotes
+   que se cerraron después del informe original. El snapshot ya guardado nunca se
+   recalcula ni se altera por este cambio de estado.
+4. Desde ahí, pantalla, impresión y PDF salen del snapshot.
+5. Hoja Letter vertical, encabezado azul institucional repetido, pie con rango, fecha de
    generación y número de página, `thead` repetido en tablas largas.
-5. El PDF se arma en el navegador con jsPDF (dependencia ya presente). **No se guarda
+6. El PDF se arma en el navegador con jsPDF (dependencia ya presente). **No se guarda
    ningún PDF en el servidor ni en Railway.**
 
 ## 8. Cómo verificar
