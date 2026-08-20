@@ -94,7 +94,7 @@ export default function LotesTable({ model, config, personal, permissions, onOpe
       {error ? <p className="cl-alert">{error}</p> : null}
 
       <div className="cl-table-wrap">
-        <table className="cl-table ent-table">
+        <table className="cl-table ent-table ent-lotes-table">
           <thead>
             <tr>
               <th>Fecha</th>

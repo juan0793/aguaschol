@@ -173,7 +173,7 @@ export default function PersonalCampoTable({ config, personal, permissions, usua
       </div>
 
       <div className="cl-table-wrap">
-        <table className="cl-table ent-table">
+        <table className="cl-table ent-table ent-personal-table">
           <thead>
             <tr>
               <th>Nombre</th>

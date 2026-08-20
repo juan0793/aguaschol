@@ -6,6 +6,9 @@
 @import "../../clandestinos/styles/clandestinos.css";
 
 .ent-module { --ent-borde: #dbe3ea; --ent-superficie: #fff; --ent-tenue: #f6f9fc; }
+.ent-module .cl-inbox { padding: 18px; }
+.ent-module .cl-inbox-head { gap: 12px; margin-bottom: 14px; }
+.ent-module .cl-inbox-head h3, .ent-card h3 { line-height: 1.2; }
 
 /* ---------- Estados propios ---------- */
 .cl-status.is-abierto { background: #e9f2ff; color: var(--primary); }
@@ -22,11 +25,11 @@
 .cl-status.is-sin-acceso { background: #eef1f4; color: var(--muted); }
 
 /* ---------- KPIs ---------- */
-.ent-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
-.ent-kpi { display: grid; align-content: center; gap: 4px; min-height: 96px; padding: 14px 16px; border: 1px solid var(--ent-borde); border-radius: 14px; background: var(--ent-superficie); text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease; }
+.ent-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.ent-kpi { display: grid; align-content: center; gap: 4px; min-height: 86px; padding: 12px 14px; border: 1px solid var(--ent-borde); border-radius: 10px; background: var(--ent-superficie); text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease; }
 .ent-kpi:hover { border-color: var(--primary); box-shadow: 0 6px 18px rgba(16, 42, 67, .07); }
 .ent-kpi span { color: var(--muted); font-size: 12px; font-weight: 700; }
-.ent-kpi strong { color: var(--navy); font-size: 30px; line-height: 1.1; font-weight: 700; }
+.ent-kpi strong { color: var(--navy); font-size: 28px; line-height: 1.1; font-weight: 700; }
 .ent-kpi.is-atencion strong { color: var(--alert); }
 .ent-kpi.is-exito strong { color: var(--success); }
 .ent-kpi-efectividad { cursor: default; }
@@ -34,7 +37,7 @@
 .ent-kpi-efectividad em { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
 
 /* ---------- Tarjetas y rejillas ---------- */
-.ent-card { padding: 16px; border: 1px solid var(--ent-borde); border-radius: 14px; background: var(--ent-superficie); }
+.ent-card { padding: 14px; border: 1px solid var(--ent-borde); border-radius: 10px; background: var(--ent-superficie); }
 .ent-card + .ent-card { margin-top: 14px; }
 .ent-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .ent-card-head p { color: var(--muted); }
@@ -42,7 +45,7 @@
 .ent-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .ent-grid-2 .is-wide, .ent-grid-3 .is-wide { grid-column: 1 / -1; }
 .ent-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.ent-boton-mini { min-height: 34px; padding: 0 10px; font-size: 12px; }
+.ent-boton-mini { min-height: 34px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .ent-acciones-celda { display: flex; align-items: center; gap: 6px; }
 .ent-check { display: flex !important; align-items: center; gap: 8px; }
 .ent-check input { width: 18px; min-height: 18px; height: 18px; accent-color: var(--primary); }
@@ -55,10 +58,16 @@
 .ent-resumen-lateral dd { margin: 0; color: var(--navy); font-weight: 700; text-align: right; }
 
 /* ---------- Tablas ---------- */
-.ent-toolbar { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-.ent-table td, .ent-table th { height: 48px; }
+.ent-toolbar { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); padding: 12px; }
+.ent-module .cl-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ent-table { min-width: 920px; table-layout: auto; }
+.ent-table td, .ent-table th { height: 46px; }
+.ent-table th { font-size: 12px; }
 .ent-table .is-num { text-align: right; font-variant-numeric: tabular-nums; }
 .ent-table small { display: block; color: var(--muted); font-size: 11px; }
+.ent-table td { overflow-wrap: normal; word-break: normal; }
+.ent-table .cl-link { min-width: 170px; }
+.ent-table .cl-link span { overflow: hidden; max-width: 220px; text-overflow: ellipsis; white-space: nowrap; }
 .ent-table tbody tr.is-atencion { background: #fffaf0; }
 .ent-table tbody tr.is-critico { background: #fff5f5; }
 .ent-captura input, .ent-captura select { width: 100%; min-height: 38px; padding: 6px 8px; border: 1px solid #bfd5eb; border-radius: 8px; }
@@ -74,7 +83,7 @@
 .ent-diferencia.is-critico { background: #fff0f1; color: var(--danger); }
 
 /* ---------- Drawer ---------- */
-.ent-drawer { width: min(760px, 100%); }
+.ent-drawer { width: min(820px, 100%); }
 .ent-drawer-footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--ent-borde); background: rgba(255, 255, 255, .98); }
 .ent-resumen-documento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .ent-resumen-documento > div { display: grid; gap: 4px; }
@@ -121,21 +130,72 @@
   .ent-nuevo-lote, .ent-resumen-grid { grid-template-columns: 1fr; }
   .ent-resumen-documento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ent-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ent-module .ent-table th:nth-child(n), .ent-module .ent-table td:nth-child(n) { display: table-cell; }
 }
 
 @media (max-width: 760px) {
   .ent-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ent-kpi { min-height: 74px; padding: 10px 12px; }
+  .ent-kpi strong { font-size: 23px; }
   .ent-grid-2, .ent-grid-3 { grid-template-columns: 1fr; }
   .ent-grid-2 .is-wide, .ent-grid-3 .is-wide { grid-column: auto; }
-  .ent-toolbar { grid-template-columns: 1fr; }
+  .ent-module .cl-module-header nav { display: flex; overflow-x: auto; padding-bottom: 6px; }
+  .ent-module .cl-module-header nav button { flex: 0 0 auto; min-height: 42px; }
+  .ent-module .cl-inbox { padding: 12px; }
+  .ent-toolbar { grid-template-columns: 1fr; padding: 10px; }
   .ent-modo-switch { width: 100%; }
   .ent-modo-switch button { flex: 1; }
   .ent-acciones { justify-content: stretch; }
   .ent-acciones > button { flex: 1; }
   .ent-print-preview { padding: 8px; }
-  /* Sin scroll horizontal: se ocultan columnas secundarias en móvil. */
-  .ent-table { table-layout: fixed; width: 100%; }
-  .ent-table th:nth-child(n + 5), .ent-table td:nth-child(n + 5) { display: none; }
-  .ent-table th:last-child, .ent-table td:last-child { display: table-cell; width: 64px; }
-  .cl-table-wrap { overflow-x: hidden; }
+  .ent-module .cl-table-wrap { overflow: visible; border: 0; }
+  .ent-table { display: block; min-width: 0; width: 100%; }
+  .ent-table thead { display: none; }
+  .ent-table tbody { display: grid; gap: 10px; }
+  .ent-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; padding: 12px; border: 1px solid var(--ent-borde); border-radius: 10px; background: #fff; box-shadow: 0 5px 16px rgba(16, 42, 67, .05); }
+  .ent-module .ent-table td:nth-child(n) { display: grid; }
+  .ent-table td { gap: 2px; min-width: 0; height: auto; padding: 0; border: 0; overflow-wrap: break-word; }
+  .ent-table td::before { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; }
+  .ent-table td:last-child { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  .ent-table .is-num { text-align: left; }
+  .ent-table .cl-link { min-width: 0; min-height: 0; }
+  .ent-table .cl-link span { max-width: 100%; white-space: normal; }
+  .ent-lotes-table td:nth-child(1)::before { content: "Fecha"; }
+  .ent-lotes-table td:nth-child(2)::before { content: "Responsable"; }
+  .ent-lotes-table td:nth-child(3)::before { content: "Barrio"; }
+  .ent-lotes-table td:nth-child(4)::before { content: "Tipo"; }
+  .ent-lotes-table td:nth-child(5)::before { content: "Asignadas"; }
+  .ent-lotes-table td:nth-child(6)::before { content: "Entregadas"; }
+  .ent-lotes-table td:nth-child(7)::before { content: "Sobrantes"; }
+  .ent-lotes-table td:nth-child(8)::before { content: "Estado"; }
+  .ent-pendientes-table td:nth-child(1)::before { content: "Abonado"; }
+  .ent-pendientes-table td:nth-child(2)::before { content: "Clave catastral"; }
+  .ent-pendientes-table td:nth-child(3)::before { content: "Barrio"; }
+  .ent-pendientes-table td:nth-child(4)::before { content: "Responsable"; }
+  .ent-pendientes-table td:nth-child(5)::before { content: "Documento"; }
+  .ent-pendientes-table td:nth-child(6)::before { content: "Motivo"; }
+  .ent-pendientes-table td:nth-child(7)::before { content: "Desde"; }
+  .ent-pendientes-table td:nth-child(8)::before { content: "Días"; }
+  .ent-pendientes-table td:nth-child(9)::before { content: "Estado"; }
+  .ent-module .ent-pendientes-table td:nth-child(3), .ent-module .ent-pendientes-table td:nth-child(4), .ent-module .ent-pendientes-table td:nth-child(5), .ent-module .ent-pendientes-table td:nth-child(7) { display: none; }
+  .ent-module .ent-lotes-table td:nth-child(4), .ent-module .ent-lotes-table td:nth-child(6) { display: none; }
+  .ent-captura-table td:nth-child(1)::before { content: "Abonado"; }
+  .ent-captura-table td:nth-child(2)::before { content: "Clave"; }
+  .ent-captura-table td:nth-child(3)::before { content: "Motivo"; }
+  .ent-captura-table td:nth-child(4)::before { content: "Observación"; }
+  .ent-detalle-table td:nth-child(1)::before { content: "Abonado"; }
+  .ent-detalle-table td:nth-child(2)::before { content: "Clave"; }
+  .ent-detalle-table td:nth-child(3)::before { content: "Motivo"; }
+  .ent-detalle-table td:nth-child(4)::before { content: "Estado"; }
+  .ent-personal-table td:nth-child(1)::before { content: "Nombre"; }
+  .ent-personal-table td:nth-child(2)::before { content: "Tipo"; }
+  .ent-personal-table td:nth-child(3)::before { content: "Usuario"; }
+  .ent-personal-table td:nth-child(4)::before { content: "Estado"; }
+  .ent-personal-table td:nth-child(5)::before { content: "Lotes"; }
+  .ent-personal-table td:nth-child(6)::before { content: "Asignadas"; }
+  .ent-personal-table td:nth-child(7)::before { content: "Efectividad"; }
+  .ent-personal-table td:nth-child(8)::before { content: "Última actividad"; }
+  .ent-module .ent-personal-table td:nth-child(5), .ent-module .ent-personal-table td:nth-child(6), .ent-module .ent-personal-table td:nth-child(8) { display: none; }
+  .ent-acciones-celda { flex-wrap: wrap; }
+  .ent-drawer-footer { align-items: stretch; flex-direction: column; }
 }

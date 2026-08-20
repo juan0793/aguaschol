@@ -274,7 +274,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
             {nuevas.length ? (
               <div className="cl-table-wrap">
-                <table className="cl-table ent-table ent-captura">
+                <table className="cl-table ent-table ent-captura ent-captura-table">
                   <thead>
                     <tr>
                       <th>Abonado</th>
@@ -341,7 +341,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
             {detalle.length ? (
               <div className="cl-table-wrap ent-detalle-guardado">
-                <table className="cl-table ent-table">
+                <table className="cl-table ent-table ent-detalle-table">
                   <thead>
                     <tr>
                       <th>Abonado</th>

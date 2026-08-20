@@ -124,7 +124,7 @@ export default function NoEntregadasTable({ model, config, personal, onOpen }) {
       {error ? <p className="cl-alert">{error}</p> : null}
 
       <div className="cl-table-wrap">
-        <table className="cl-table ent-table">
+        <table className="cl-table ent-table ent-pendientes-table">
           <thead>
             <tr>
               <th>Abonado</th>
