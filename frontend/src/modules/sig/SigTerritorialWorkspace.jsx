@@ -14,32 +14,63 @@ const bboxFromMap = (map) => {
 };
 
 function SigSearch({ api, onPick }) {
+  const searchRef = useRef(null);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const text = query.trim();
     if (text.length < 2) {
       setResult(null);
+      setOpen(false);
       return;
     }
-    const timer = setTimeout(() => api.search(text).then(setResult).catch(() => setResult(null)), 250);
+    const timer = setTimeout(() => api.search(text).then((next) => {
+      setResult(next);
+      setOpen(Boolean(next?.groups?.length));
+    }).catch(() => {
+      setResult(null);
+      setOpen(false);
+    }), 250);
     return () => clearTimeout(timer);
   }, [api, query]);
 
+  useEffect(() => {
+    const closeIfOutside = (event) => {
+      if (!searchRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeIfOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeIfOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  const pick = (item) => {
+    setOpen(false);
+    setResult(null);
+    setQuery("");
+    onPick(item);
+  };
+
   return (
-    <div className="sig-search">
+    <div className="sig-search" ref={searchRef}>
       <label>
         <Icon name="search" />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Clave, abonado, barrio, manzana o lote" />
+        <input value={query} onFocus={() => result?.groups?.length && setOpen(true)} onChange={(event) => setQuery(event.target.value)} placeholder="Clave, abonado, barrio, manzana o lote" />
       </label>
-      {result?.groups?.length ? (
+      {open && result?.groups?.length ? (
         <div className="sig-search-results">
           {result.groups.map((group) => (
             <section key={group.key}>
               <strong>{group.key}</strong>
               {group.items.map((item) => (
-                <button key={`${item.type}-${item.id}`} type="button" onClick={() => onPick(item)}>
+                <button key={`${item.type}-${item.id}`} type="button" onClick={() => pick(item)}>
                   <span>{item.label}</span>
                   <small>{item.detail || item.type}</small>
                 </button>
@@ -119,16 +150,18 @@ function SigMap({ api, selected, onSelect }) {
         map.addSource("catastro", { type: "geojson", data: emptyFeatureCollection });
         map.addLayer({ id: "barrios-fill", type: "fill", source: "barrios", paint: { "fill-color": ["case", ["boolean", ["feature-state", "selected"], false], "#f59e0b", "#21a67a"], "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, 0.2] } });
         map.addLayer({ id: "barrios-line", type: "line", source: "barrios", paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#92400e", "#087a5a"], "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1.4] } });
-        map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": "#06b6d4", "fill-opacity": 0.18 } });
-        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": "#0891b2", "line-width": 1 } });
+        map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": "#06b6d4", "fill-opacity": 0.1 } });
+        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": "#0e7490", "line-opacity": 0.46, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.85, 21, 1.1] } });
         map.addLayer({ id: "numeros-lote", type: "symbol", source: "lotes", minzoom: 17, layout: { "text-field": ["coalesce", ["get", "numero_lote"], ""], "text-size": 11 }, paint: { "text-color": "#0f172a", "text-halo-color": "#fff", "text-halo-width": 1 } });
-        map.addLayer({ id: "catastro-clusters", type: "circle", source: "catastro", filter: ["==", ["get", "cluster"], true], paint: { "circle-color": "#1375f5", "circle-radius": ["min", 26, ["+", 10, ["*", 0.08, ["get", "total"]]]], "circle-opacity": 0.82 } });
+        map.addLayer({ id: "catastro-clusters", type: "circle", source: "catastro", filter: ["==", ["get", "cluster"], true], paint: { "circle-color": "#1375f5", "circle-radius": ["interpolate", ["linear"], ["get", "total"], 1, 8, 25, 11, 100, 15, 500, 21], "circle-opacity": 0.66, "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
+        map.addLayer({ id: "catastro-cluster-count", type: "symbol", source: "catastro", filter: ["==", ["get", "cluster"], true], layout: { "text-field": ["to-string", ["get", "total"]], "text-size": 11 }, paint: { "text-color": "#fff", "text-halo-color": "#0f172a", "text-halo-width": 0.4 } });
         map.addLayer({ id: "catastro-points", type: "circle", source: "catastro", filter: ["!=", ["get", "cluster"], true], minzoom: 17, paint: { "circle-color": "#ef4444", "circle-radius": 4.5, "circle-stroke-color": "#fff", "circle-stroke-width": 1.4 } });
 
         map.on("click", "barrios-fill", (event) => event.features?.[0]?.properties?.id && onSelect({ type: "barrio", data: event.features[0].properties }));
         map.on("click", "lotes-fill", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "lote", data: await api.lote(event.features[0].properties.id) }));
+        map.on("click", "catastro-clusters", (event) => map.easeTo({ center: event.lngLat, zoom: Math.min(map.getZoom() + 2, 17), duration: 450 }));
         map.on("click", "catastro-points", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "catastro", data: await api.catastroPunto(event.features[0].properties.id) }));
-        ["barrios-fill", "lotes-fill", "catastro-points"].forEach((id) => {
+        ["barrios-fill", "lotes-fill", "catastro-clusters", "catastro-points"].forEach((id) => {
           map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
           map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
         });

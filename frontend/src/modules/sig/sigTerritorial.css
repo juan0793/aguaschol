@@ -102,6 +102,8 @@
 }
 
 .sig-toolbar {
+  position: relative;
+  z-index: 10;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -145,15 +147,20 @@
 .sig-search {
   position: relative;
   flex: 1;
+  min-width: 220px;
+}
+
+.sig-search > label {
+  width: 100%;
 }
 
 .sig-search-results {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   left: 0;
-  z-index: 20;
-  width: min(520px, 92vw);
-  max-height: 360px;
+  z-index: 11;
+  width: min(520px, 100%);
+  max-height: min(320px, calc(100vh - 220px));
   overflow: auto;
   padding: 10px;
   border: 1px solid #dce3ea;

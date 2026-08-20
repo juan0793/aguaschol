@@ -218,6 +218,15 @@ npx --yes @railway/cli run npm run gis:import:catastro -- "C:\Users\JR\Downloads
 npx --yes @railway/cli run npm run gis:validate:catastro
 ```
 
+## Ajuste visual SIG actual
+
+- Problema corregido: el dropdown del buscador SIG se quedaba abierto/pegado y competia con el mapa; tambien se suavizaron clusters de abonados y bordes de lotes.
+- Archivos tocados: `frontend/src/modules/sig/SigTerritorialWorkspace.jsx`, `frontend/src/modules/sig/sigTerritorial.css`, `HANDOFF_CODEX_SIG_TERRITORIAL.md`.
+- Decisiones UX: dropdown anclado al input, cierra al seleccionar, click fuera y Escape; scroll interno con altura maxima; clusters mas pequenos con cantidad centrada, borde blanco y click para acercar; lotes con trazo menos dominante.
+- Tests ejecutados: `npm --prefix backend run test:gis`, `npm --prefix frontend run test:sig`, `npm run build`.
+- Estado del deploy: ajuste local validado; pendiente de commit/push/deploy si se decide publicar.
+- Pendiente: validacion visual en navegador/produccion despues del deploy.
+
 ## Siguiente trabajo recomendado
 
 Siguiente fase probable: Control Territorial dentro de SIG.
