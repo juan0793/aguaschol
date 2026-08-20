@@ -4,9 +4,13 @@ import { fileURLToPath } from "node:url";
 import { getGisPool } from "../../../config/gisDb.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const migrationPath = path.resolve(__dirname, "../migrations/001_territorio.sql");
+const migrationsDir = path.resolve(__dirname, "../migrations");
 
-const sql = await fs.readFile(migrationPath, "utf8");
-await getGisPool().query(sql);
-await getGisPool().end();
-console.log("Migracion territorio SIG aplicada.");
+const pool = getGisPool();
+const files = (await fs.readdir(migrationsDir)).filter((file) => file.endsWith(".sql")).sort();
+for (const file of files) {
+  const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
+  await pool.query(sql);
+  console.log(`Migracion aplicada: ${file}`);
+}
+await pool.end();

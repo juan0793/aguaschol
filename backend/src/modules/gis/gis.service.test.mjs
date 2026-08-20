@@ -9,6 +9,8 @@ test("config SIG expone SRID canonico y datasets verificados", () => {
   assert.equal(config.srid.web, 3857);
   assert.equal(config.srid.gps, 4326);
   assert.equal(GIS_DATASETS.some((item) => item.file === "Barrios.gpkg" && item.count === 82), true);
+  assert.equal(GIS_DATASETS.some((item) => item.layer === "lotes_choluteca" && item.count === 15304), true);
+  assert.equal(GIS_DATASETS.some((item) => item.layer === "numerolotes__texts" && item.count === 66443), true);
   assert.equal(GIS_DATASETS.some((item) => item.layer === "bd_catastrousuarios" && item.srid === 4326), true);
 });
 

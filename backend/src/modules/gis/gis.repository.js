@@ -1,4 +1,7 @@
 import { checkGisConnection, getGisPool } from "../../config/gisDb.js";
+import { getPool } from "../../config/db.js";
+import { buildClaveBase } from "./gisImportUtils.js";
+import { getMasterRecords } from "../../services/claveLookupService.js";
 
 export const getGisHealth = async () => checkGisConnection();
 
@@ -109,4 +112,232 @@ export const getImportReport = async () => {
       ) d) duplicados
   `);
   return rows[0];
+};
+
+const bboxSql = (alias = "geom") => `ST_Transform(ST_MakeEnvelope($1, $2, $3, $4, 4326), 32616) && ${alias}`;
+
+export const listLotesInBbox = async ({ bbox, limit = 800 }) => {
+  const { rows } = await getGisPool().query(`
+    SELECT json_build_object(
+      'type', 'FeatureCollection',
+      'features', COALESCE(json_agg(json_build_object(
+        'type', 'Feature',
+        'id', l.id,
+        'properties', json_build_object(
+          'id', l.id,
+          'barrio_id', l.barrio_id,
+          'manzana_id', l.manzana_id,
+          'numero_lote', l.numero_lote,
+          'clave_catastral', l.clave_catastral
+        ),
+        'geometry', ST_AsGeoJSON(ST_Transform(l.geom, 4326), 6)::json
+      ) ORDER BY l.id), '[]'::json)
+    ) geojson
+    FROM (
+      SELECT id, barrio_id, manzana_id, numero_lote, clave_catastral, geom
+      FROM gis_lotes
+      WHERE activo = TRUE AND ${bboxSql("geom")}
+      ORDER BY id
+      LIMIT $5
+    ) l
+  `, [...bbox, limit]);
+  return rows[0].geojson;
+};
+
+export const listCatastroInBbox = async ({ bbox, zoom = 15, limit = 1000 }) => {
+  if (Number(zoom) < 17) {
+    const grid = Number(zoom) < 15 ? 450 : 180;
+    const { rows } = await getGisPool().query(`
+      WITH clustered AS (
+        SELECT COUNT(*)::int total, ST_Centroid(ST_Collect(geom)) geom
+        FROM gis_catastro_puntos
+        WHERE ${bboxSql("geom")}
+        GROUP BY ST_SnapToGrid(geom, $5)
+        LIMIT $6
+      )
+      SELECT json_build_object(
+        'type', 'FeatureCollection',
+        'features', COALESCE(json_agg(json_build_object(
+          'type', 'Feature',
+          'properties', json_build_object('cluster', TRUE, 'total', total),
+          'geometry', ST_AsGeoJSON(ST_Transform(geom, 4326), 6)::json
+        )), '[]'::json)
+      ) geojson
+      FROM clustered
+    `, [...bbox, grid, limit]);
+    return rows[0].geojson;
+  }
+
+  const { rows } = await getGisPool().query(`
+    SELECT json_build_object(
+      'type', 'FeatureCollection',
+      'features', COALESCE(json_agg(json_build_object(
+        'type', 'Feature',
+        'id', id,
+        'properties', json_build_object(
+          'id', id,
+          'clave_catastral', clave_catastral,
+          'abonado', abonado,
+          'lote_id', lote_id
+        ),
+        'geometry', ST_AsGeoJSON(ST_Transform(geom, 4326), 6)::json
+      ) ORDER BY id), '[]'::json)
+    ) geojson
+    FROM (
+      SELECT id, clave_catastral, abonado, lote_id, geom
+      FROM gis_catastro_puntos
+      WHERE ${bboxSql("geom")}
+      ORDER BY id
+      LIMIT $5
+    ) p
+  `, [...bbox, limit]);
+  return rows[0].geojson;
+};
+
+const normalizeText = (value = "") =>
+  String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+export const searchGis = async (query = "") => {
+  const text = normalizeText(query);
+  if (text.length < 2) return { query, groups: [] };
+  const like = `%${text}%`;
+  const pg = getGisPool();
+  const [barrios, manzanas, lotes, catastro] = await Promise.all([
+    pg.query(`SELECT 'barrio' type, id, nombre label, clave detail FROM gis_barrios WHERE activo = TRUE AND (LOWER(nombre) LIKE $1 OR clave LIKE $2) ORDER BY clave NULLS LAST LIMIT 8`, [like, `%${query}%`]),
+    pg.query(`SELECT 'manzana' type, id, COALESCE(numero, source_fid::text) label, barrio_id::text detail FROM gis_manzanas WHERE activo = TRUE AND COALESCE(numero, source_fid::text) ILIKE $1 ORDER BY id LIMIT 8`, [`%${query}%`]),
+    pg.query(`SELECT 'lote' type, id, COALESCE(numero_lote, id::text) label, clave_catastral detail FROM gis_lotes WHERE activo = TRUE AND (COALESCE(numero_lote,'') ILIKE $1 OR COALESCE(clave_catastral,'') ILIKE $1) ORDER BY id LIMIT 8`, [`%${query}%`]),
+    pg.query(`SELECT 'abonado' type, id, COALESCE(inquilino, abonado, clave_catastral) label, clave_catastral detail FROM gis_catastro_puntos WHERE COALESCE(clave_catastral,'') ILIKE $1 OR COALESCE(abonado,'') ILIKE $1 OR LOWER(COALESCE(inquilino,'')) LIKE $2 ORDER BY id LIMIT 8`, [`%${query}%`, like])
+  ]);
+
+  const padron = getMasterRecords()
+    .filter((item) => item.search_target?.includes(text) || String(item.abonado || "").includes(query))
+    .slice(0, 8)
+    .map((item) => ({ type: "padron", id: item.clave_catastral || item.abonado, label: item.inquilino || item.nombre || item.abonado, detail: item.clave_catastral }));
+
+  const groups = [
+    ["barrios", barrios.rows],
+    ["manzanas", manzanas.rows],
+    ["lotes", lotes.rows],
+    ["abonados", catastro.rows],
+    ["padron", padron]
+  ].filter(([, items]) => items.length).map(([key, items]) => ({ key, items }));
+  return { query, groups };
+};
+
+const findPadron = (clave = "", abonado = "") => {
+  const base = buildClaveBase(clave);
+  return getMasterRecords().find((item) =>
+    (clave && item.clave_catastral === clave) ||
+    (base && item.clave_base === base) ||
+    (abonado && String(item.abonado || "") === String(abonado))
+  ) ?? null;
+};
+
+const relatedMysql = async ({ clave = "", base = "" }) => {
+  if (!clave && !base) return { puntos_control: [], inspecciones: [] };
+  const pool = getPool();
+  const like = `%${base || clave}%`;
+  const [points] = await pool.query(
+    `SELECT id, point_type, reference_note, description, latitude, longitude, created_at
+     FROM map_points
+     WHERE reference_note LIKE ? OR description LIKE ?
+     ORDER BY created_at DESC LIMIT 8`,
+    [like, like]
+  );
+  const [inspecciones] = await pool.query(
+    `SELECT id, numero_inspeccion, clave_catastral, estado, motivo, fecha_asignacion
+     FROM inspecciones
+     WHERE clave_catastral LIKE ?
+     ORDER BY fecha_asignacion DESC LIMIT 8`,
+    [like]
+  );
+  return { puntos_control: points, inspecciones };
+};
+
+export const getLoteDetail = async (id) => {
+  const { rows } = await getGisPool().query(`
+    SELECT l.id, l.numero_lote, l.clave_catastral, l.source_dataset, l.source_fid,
+           b.id barrio_id, b.nombre barrio, b.clave barrio_clave,
+           m.id manzana_id, COALESCE(m.numero, m.source_fid::text) manzana,
+           c.id catastro_id, c.clave_catastral catastro_clave, c.abonado, c.inquilino, c.direccion,
+           ARRAY[
+             ST_XMin(Box3D(ST_Transform(l.geom, 4326))),
+             ST_YMin(Box3D(ST_Transform(l.geom, 4326))),
+             ST_XMax(Box3D(ST_Transform(l.geom, 4326))),
+             ST_YMax(Box3D(ST_Transform(l.geom, 4326)))
+           ] bbox
+    FROM gis_lotes l
+    LEFT JOIN gis_barrios b ON b.id = l.barrio_id
+    LEFT JOIN gis_manzanas m ON m.id = l.manzana_id
+    LEFT JOIN LATERAL (
+      SELECT * FROM gis_catastro_puntos c WHERE c.lote_id = l.id ORDER BY c.source_fid LIMIT 1
+    ) c ON TRUE
+    WHERE l.id = $1 AND l.activo = TRUE
+  `, [id]);
+  const lote = rows[0];
+  if (!lote) return null;
+  const clave = lote.catastro_clave || lote.clave_catastral || "";
+  const padron = findPadron(clave, lote.abonado);
+  const related = await relatedMysql({ clave: padron?.clave_catastral || clave, base: padron?.clave_base || buildClaveBase(clave) });
+  return {
+    ...lote,
+    abonado_actual: padron ? {
+      clave_catastral: padron.clave_catastral,
+      abonado: padron.abonado,
+      nombre: padron.inquilino || padron.nombre,
+      servicios: {
+        agua: padron.agua,
+        alcantarillado: padron.alcantarillado,
+        barrido: padron.barrido,
+        recoleccion: padron.recoleccion,
+        desechos_peligrosos: padron.desechos_peligrosos
+      },
+      mora: { capital: padron.valor, intereses: padron.intereses, total: padron.total }
+    } : null,
+    ...related
+  };
+};
+
+export const getCatastroDetail = async (id) => {
+  const { rows } = await getGisPool().query(`
+    SELECT c.*, b.nombre barrio, b.clave barrio_clave, l.numero_lote, l.id lote_id,
+           ARRAY[ST_X(ST_Transform(c.geom, 4326)), ST_Y(ST_Transform(c.geom, 4326))] lnglat
+    FROM gis_catastro_puntos c
+    LEFT JOIN gis_barrios b ON b.id = c.barrio_id
+    LEFT JOIN gis_lotes l ON l.id = c.lote_id
+    WHERE c.id = $1
+  `, [id]);
+  const item = rows[0];
+  if (!item) return null;
+  const padron = findPadron(item.clave_catastral, item.abonado);
+  const related = await relatedMysql({ clave: padron?.clave_catastral || item.clave_catastral, base: padron?.clave_base || item.clave_base });
+  return { ...item, abonado_actual: padron, ...related };
+};
+
+export const getCatastroReport = async () => {
+  const { rows } = await getGisPool().query(`
+    SELECT json_build_object(
+      'lotes', (SELECT COUNT(*)::int FROM gis_lotes),
+      'lotes_con_barrio', (SELECT COUNT(*)::int FROM gis_lotes WHERE barrio_id IS NOT NULL),
+      'lotes_con_manzana', (SELECT COUNT(*)::int FROM gis_lotes WHERE manzana_id IS NOT NULL),
+      'lotes_con_numero', (SELECT COUNT(*)::int FROM gis_lotes WHERE numero_lote IS NOT NULL),
+      'lotes_con_clave', (SELECT COUNT(*)::int FROM gis_lotes WHERE clave_catastral IS NOT NULL),
+      'etiquetas_lote', (SELECT COUNT(*)::int FROM gis_lote_etiquetas),
+      'etiquetas_lote_emparejadas', (SELECT COUNT(*)::int FROM gis_lote_etiquetas WHERE lote_id IS NOT NULL),
+      'catastro_puntos', (SELECT COUNT(*)::int FROM gis_catastro_puntos),
+      'catastro_con_barrio', (SELECT COUNT(*)::int FROM gis_catastro_puntos WHERE barrio_id IS NOT NULL),
+      'catastro_con_manzana', (SELECT COUNT(*)::int FROM gis_catastro_puntos WHERE manzana_id IS NOT NULL),
+      'catastro_con_lote', (SELECT COUNT(*)::int FROM gis_catastro_puntos WHERE lote_id IS NOT NULL),
+      'catastro_con_clave', (SELECT COUNT(*)::int FROM gis_catastro_puntos WHERE clave_catastral IS NOT NULL),
+      'geometrias_invalidas', json_build_object(
+        'lotes', (SELECT COUNT(*)::int FROM gis_lotes WHERE NOT ST_IsValid(geom)),
+        'catastro', (SELECT COUNT(*)::int FROM gis_catastro_puntos WHERE NOT ST_IsValid(geom))
+      )
+    ) resumen
+  `);
+  return rows[0].resumen;
 };

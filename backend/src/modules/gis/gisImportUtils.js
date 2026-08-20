@@ -31,3 +31,32 @@ export const stripGpkgHeader = (value) => {
   const envelopeBytes = [0, 32, 48, 48, 64][envelopeIndicator] ?? 0;
   return buffer.subarray(8 + envelopeBytes);
 };
+
+export const quoteSqliteIdentifier = (value = "") =>
+  `"${String(value).replaceAll('"', '""')}"`;
+
+export const normalizeClaveText = (value = "") =>
+  String(value ?? "")
+    .trim()
+    .replace(/[^\d-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+export const buildClaveBase = (clave = "") => {
+  const parts = String(clave ?? "").split("-").filter(Boolean);
+  return parts.length >= 3 ? parts.slice(0, 3).join("-") : "";
+};
+
+export const cleanLoteNumber = (value = "") => {
+  const text = String(value ?? "").trim();
+  return /^[A-Za-z0-9-]{1,30}$/.test(text) ? text : "";
+};
+
+export const chooseCanonicalFeatureLayer = (layers = []) =>
+  [...layers]
+    .filter((layer) => layer.data_type === "features")
+    .sort((left, right) =>
+      Number(right.count || 0) - Number(left.count || 0) ||
+      Number(right.column_count || 0) - Number(left.column_count || 0) ||
+      String(left.table_name).localeCompare(String(right.table_name), "es")
+    )[0] ?? null;

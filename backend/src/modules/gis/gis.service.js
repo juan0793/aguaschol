@@ -4,9 +4,15 @@ import {
   getBarriosGeoJson,
   getGisHealth,
   getImportReport,
+  getCatastroDetail,
+  getCatastroReport,
+  getLoteDetail,
+  listCatastroInBbox,
+  listLotesInBbox,
   listBarrios,
   listManzanas,
-  listQuebradas
+  listQuebradas,
+  searchGis
 } from "./gis.repository.js";
 import { getGisPermissions } from "./gis.validation.js";
 
@@ -15,6 +21,9 @@ export const GIS_DATASETS = [
   { key: "texto_barrios", file: "Texto_Barrios.gpkg", layer: "texto_barrios", count: 72, geometry: "POINT", srid: 32616 },
   { key: "manzanas", file: "Manzanas.gpkg", layer: "manzanas_choluteca", count: 1723, geometry: "MULTIPOLYGON", srid: 32616 },
   { key: "lotes", file: "Lotes.gpkg", layer: "lotes_choluteca", count: 15304, geometry: "MULTIPOLYGON", srid: 32616 },
+  { key: "lotes_integrados", file: "Lotes.gpkg", layer: "Lotes_Integrados", count: 5275, geometry: "POLYGON", srid: 32616 },
+  { key: "lotesp_integrados", file: "Lotes.gpkg", layer: "Lotesp_Integrados", count: 3881, geometry: "POLYGON", srid: 32616 },
+  { key: "numeros_lote", file: "NumeroLotes.gpkg", layer: "numerolotes__texts", count: 66443, geometry: "POINT", srid: 32616 },
   { key: "catastro", file: "BD_CatastroUsuarios.gpkg", layer: "bd_catastrousuarios", count: 15674, geometry: "POINT", srid: 4326 },
   { key: "servicios", file: "BD_CatastroUsuarios.gpkg", layer: "Red_Servicios", count: 3829, geometry: "POINT", srid: 32616 },
   { key: "quebradas", file: "Quebradas.gpkg", layer: "quebradas", count: 47, geometry: "MULTILINESTRING", srid: 32616 },
@@ -43,3 +52,9 @@ export const getTerritoryBarrioSummary = (id) => getBarrioSummary(id);
 export const getTerritoryManzanas = (barrioId) => listManzanas(barrioId);
 export const getTerritoryQuebradas = () => listQuebradas();
 export const getTerritoryImportReport = () => getImportReport();
+export const getLotesBbox = (options) => listLotesInBbox(options);
+export const getCatastroBbox = (options) => listCatastroInBbox(options);
+export const searchTerritorialGis = (query) => searchGis(query);
+export const getTerritoryLote = (id) => getLoteDetail(id);
+export const getTerritoryCatastro = (id) => getCatastroDetail(id);
+export const getTerritoryCatastroReport = () => getCatastroReport();

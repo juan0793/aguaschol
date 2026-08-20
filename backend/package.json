@@ -13,7 +13,9 @@
     "test:gis": "set USE_MEMORY_DB=true&& node --test src/modules/gis/gis.service.test.mjs src/modules/gis/gisImportUtils.test.mjs",
     "gis:migrate:territorio": "node src/modules/gis/scripts/migrate-territorio.js",
     "gis:import:territorio": "node src/modules/gis/scripts/import-territorio.js",
+    "gis:import:catastro": "node src/modules/gis/scripts/import-catastro-lotes.js",
     "gis:validate:territorio": "node src/modules/gis/scripts/validate-territorio.js",
+    "gis:validate:catastro": "node src/modules/gis/scripts/validate-catastro-lotes.js",
     "gis:sanitize:territorio:preview": "node src/modules/gis/scripts/sanitize-territorio.js",
     "gis:sanitize:territorio:apply": "node src/modules/gis/scripts/sanitize-territorio.js --apply",
     "start": "node ./src/server.js"
