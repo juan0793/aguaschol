@@ -144,6 +144,7 @@ const ReportsWorkspace = lazy(() => import("./modules/reports/ReportsWorkspace")
 const DashboardWorkspace = lazy(() => import("./modules/dashboard/DashboardWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 const ImportacionWorkspace = lazy(() => import("./components/ImportacionWorkspace"));
+const SigTerritorialWorkspace = lazy(() => import("./modules/sig/SigTerritorialWorkspace"));
 
 class MapLoadBoundary extends Component {
   constructor(props) {
@@ -2185,6 +2186,7 @@ function App() {
             { key: "entregas", section: "operacion", label: "Control de entregas", icon: "archive", meta: "Facturas y notas de cobro", tone: "is-report" },
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
+            { key: "sigTerritorial", section: "operacion", label: "SIG Territorial", icon: "map", meta: "Cartografía operativa", tone: "is-map" },
             { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
             { key: "fieldValidation", section: "control", label: "Control territorial GPS", icon: "success", meta: "Historico y zonas", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
@@ -2243,6 +2245,7 @@ function App() {
             { key: "entregas", label: "Control de entregas", icon: "archive", group: "operacion", helper: "Facturas y notas de cobro" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
+            { key: "sigTerritorial", label: "SIG Territorial", icon: "map", group: "operacion", helper: "Cartografía operativa" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
             { key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" },
             { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
@@ -2260,6 +2263,7 @@ function App() {
             { key: "entregas", label: "Control de entregas", icon: "archive", group: "operacion", helper: "Facturas y notas de cobro" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
+            { key: "sigTerritorial", label: "SIG Territorial", icon: "map", group: "operacion", helper: "Cartografía operativa" },
             { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
             ...(isFieldValidator
               ? [{ key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" }]
@@ -5017,8 +5021,8 @@ function App() {
 
   useEffect(() => {
     const allowedViews = isFieldValidator
-      ? ["profile", "inspecciones", "entregas", "records", "lookup", "map", "fieldValidation", "planos"]
-      : ["profile", "inspecciones", "entregas", "records", "lookup", "map", "planos"];
+      ? ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "fieldValidation", "planos"]
+      : ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "planos"];
     if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
       setWorkspaceView("records");
     }
@@ -14473,6 +14477,10 @@ function App() {
       <InspeccionesPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
       ) : workspaceView === "entregas" ? (
       <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
+      ) : workspaceView === "sigTerritorial" ? (
+        <Suspense fallback={<div className="module-loading-state">Cargando SIG Territorial...</div>}>
+          <SigTerritorialWorkspace apiFetch={apiFetch} session={session} showAlert={showAlert} />
+        </Suspense>
       ) : workspaceView === "records" ? (
       <ClandestinosPage
         apiFetch={apiFetch}

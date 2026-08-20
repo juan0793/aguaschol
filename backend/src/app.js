@@ -22,6 +22,7 @@ import foxProImportRoutes from "./routes/foxProImportRoutes.js";
 import clandestinosRoutes from "./routes/clandestinosRoutes.js";
 import inspeccionesRoutes from "./routes/inspeccionesRoutes.js";
 import entregasRoutes from "./routes/entregasRoutes.js";
+import gisRoutes from "./modules/gis/gis.routes.js";
 import { readStoredFile } from "./services/fileStorageService.js";
 
 const app = express();
@@ -175,6 +176,7 @@ app.use("/api/clandestinos", requireAuth, clandestinosRoutes);
 app.use("/api/field-validation", requireAuth, fieldValidationRoutes);
 app.use("/api/inspecciones", requireAuth, inspeccionesRoutes);
 app.use("/api/entregas", requireAuth, entregasRoutes);
+app.use("/api/gis", requireAuth, gisRoutes);
 app.use("/api/map-points", requireAuth, mapPointRoutes);
 app.use("/api/planos", requireAuth, planosRoutes);
 app.use("/api/profile", requireAuth, profileRoutes);

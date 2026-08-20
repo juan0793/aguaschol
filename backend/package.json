@@ -10,6 +10,10 @@
     "dev": "node --watch src/server.js",
     "test": "set USE_MEMORY_DB=true&& node --test src/middleware/loginRateLimit.test.mjs src/utils/security.test.mjs src/utils/avisoTemplate.test.mjs src/services/mapPointService.test.mjs src/services/planosService.test.mjs src/services/telegramBotService.test.mjs src/services/telegramChatService.test.mjs src/services/claveLookupService.test.mjs src/services/foxProImportService.test.mjs src/services/padronSnapshotService.test.mjs src/services/r2PadronService.test.mjs src/services/fileStorageService.test.mjs src/services/clandestinosService.test.mjs src/services/inspeccionesService.test.mjs src/services/inspeccionesPrintService.test.mjs src/services/inspeccionesStatsService.test.mjs src/services/entregasRules.test.mjs src/utils/claveField.test.mjs src/services/fieldAnalyticsService.test.mjs",
     "test:planos": "set USE_MEMORY_DB=true&& node --test src/services/planosService.test.mjs",
+    "test:gis": "set USE_MEMORY_DB=true&& node --test src/modules/gis/gis.service.test.mjs src/modules/gis/gisImportUtils.test.mjs",
+    "gis:migrate:territorio": "node src/modules/gis/scripts/migrate-territorio.js",
+    "gis:import:territorio": "node src/modules/gis/scripts/import-territorio.js",
+    "gis:validate:territorio": "node src/modules/gis/scripts/validate-territorio.js",
     "start": "node ./src/server.js"
   },
   "dependencies": {
@@ -21,6 +25,8 @@
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.0",
+    "pg": "^8.13.1",
+    "sql.js": "^1.13.0",
     "ws": "^8.20.0",
     "xlsx": "^0.18.5"
   }
