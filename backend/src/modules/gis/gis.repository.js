@@ -4,7 +4,7 @@ export const getGisHealth = async () => checkGisConnection();
 
 export const listBarrios = async () => {
   const { rows } = await getGisPool().query(`
-    SELECT id, clave, nombre, tipo, area_m2, source_fid
+    SELECT id, clave, clave_sufijo, nombre, tipo, area_m2, source_fid
     FROM gis_barrios
     WHERE activo = TRUE
     ORDER BY COALESCE(clave, ''), nombre NULLS LAST, source_fid
@@ -22,6 +22,7 @@ export const getBarriosGeoJson = async () => {
         'properties', json_build_object(
           'id', id,
           'clave', clave,
+          'clave_sufijo', clave_sufijo,
           'nombre', nombre,
           'tipo', tipo,
           'area_m2', area_m2
@@ -37,7 +38,7 @@ export const getBarriosGeoJson = async () => {
 
 export const getBarrio = async (id) => {
   const { rows } = await getGisPool().query(`
-    SELECT id, clave, nombre, tipo, area_m2, source_fid,
+    SELECT id, clave, clave_sufijo, nombre, tipo, area_m2, source_fid,
            ST_AsGeoJSON(ST_Transform(geom, 4326), 6)::json geometry,
            ARRAY[
              ST_XMin(Box3D(ST_Transform(geom, 4326))),
@@ -53,7 +54,7 @@ export const getBarrio = async (id) => {
 
 export const getBarrioSummary = async (id) => {
   const { rows } = await getGisPool().query(`
-    SELECT b.id, b.clave, b.nombre, b.tipo, b.area_m2,
+    SELECT b.id, b.clave, b.clave_sufijo, b.nombre, b.tipo, b.area_m2,
            COUNT(DISTINCT m.id)::int manzanas,
            COUNT(DISTINCT q.id)::int quebradas
     FROM gis_barrios b

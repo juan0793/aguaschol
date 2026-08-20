@@ -14,6 +14,8 @@
     "gis:migrate:territorio": "node src/modules/gis/scripts/migrate-territorio.js",
     "gis:import:territorio": "node src/modules/gis/scripts/import-territorio.js",
     "gis:validate:territorio": "node src/modules/gis/scripts/validate-territorio.js",
+    "gis:sanitize:territorio:preview": "node src/modules/gis/scripts/sanitize-territorio.js",
+    "gis:sanitize:territorio:apply": "node src/modules/gis/scripts/sanitize-territorio.js --apply",
     "start": "node ./src/server.js"
   },
   "dependencies": {
