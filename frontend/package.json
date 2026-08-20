@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "start": "node ./server.js",
     "test:entregas": "node --test src/modules/entregas/selectors/entregasSelectors.test.mjs",
-    "test:dashboard": "node --test src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs"
+    "test:dashboard": "node --test src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs",
+    "test:sig": "node --test src/modules/sig/utils/sigZoomRules.test.mjs src/modules/sig/utils/sigGeojson.test.mjs"
   },
   "dependencies": {
     "@blossom-carousel/react": "^1.1.1",

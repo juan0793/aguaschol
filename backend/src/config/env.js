@@ -89,6 +89,7 @@ export const env = {
   llmTimeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 25000),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "",
   foxProSyncApiKey: process.env.FOXPRO_SYNC_API_KEY?.trim() ?? "",
+  gisDatabaseUrl: process.env.GIS_DATABASE_URL?.trim() ?? "",
   foxProSyncBatchSize: Number(process.env.FOXPRO_SYNC_BATCH_SIZE ?? 500),
   foxProSyncMaxRecords: Number(process.env.FOXPRO_SYNC_MAX_RECORDS ?? 50000),
   foxProSyncRetainBatches: Number(process.env.FOXPRO_SYNC_RETAIN_BATCHES ?? 5),
