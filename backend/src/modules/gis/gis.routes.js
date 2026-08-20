@@ -4,11 +4,17 @@ import {
   barrios,
   barriosGeoJson,
   barrioSummary,
+  catastro,
+  catastroPunto,
+  catastroReport,
   config,
   health,
   importReport,
+  lote,
+  lotes,
   manzanas,
-  quebradas
+  quebradas,
+  search
 } from "./gis.controller.js";
 
 const router = Router();
@@ -23,5 +29,11 @@ router.get("/barrios/:id", route(barrio));
 router.get("/barrios/:id/summary", route(barrioSummary));
 router.get("/manzanas", route(manzanas));
 router.get("/quebradas", route(quebradas));
+router.get("/lotes", route(lotes));
+router.get("/lotes/:id", route(lote));
+router.get("/catastro", route(catastro));
+router.get("/catastro/report", route(catastroReport));
+router.get("/catastro/:id", route(catastroPunto));
+router.get("/search", route(search));
 
 export default router;
