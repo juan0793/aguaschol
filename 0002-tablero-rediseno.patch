@@ -1,0 +1,1439 @@
+From 090b8f90f7995dd5edd50534c2b903eae76ace37 Mon Sep 17 00:00:00 2001
+From: juan0793 <juan0793@users.noreply.github.com>
+Date: Mon, 17 Aug 2026 20:15:32 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?Redise=C3=B1ar=20el=20tablero=20segun=20DES?=
+ =?UTF-8?q?IGN.md?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+El tablero habia derivado hacia una estetica de landing y se habia alejado de
+su propio estandar escrito. DESIGN.md pide "tablero ejecutivo y escaneable",
+"evitar secciones tipo hero comercial", "no usar letter spacing negativo" y
+"evitar efectos visuales excesivos". Lo que habia:
+
+- Saludo "Buenos dias, <usuario>" a 38px con letter-spacing -1.3px, ocupando
+  250px de alto sin aportar un dato operativo.
+- Carrusel animado de usuarios en linea que cortaba los nombres a media
+  palabra y mantenia 17 animaciones corriendo.
+- La mora total en una caja con gradiente azul, y capital, intereses, cuentas
+  y criticos como cuatro tarjetas sueltas sin relacion visible entre si.
+- Glassmorphism (backdrop-filter) sobre un fondo opaco.
+
+Cambios:
+
+- Banda de estado en lugar del saludo: de que corte del padron vienen las
+  cifras (cuentas, barrios, fecha) mas el estado de sincronizacion. Los
+  usuarios en linea quedan como grupo compacto de avatares, sin animacion.
+- Las cifras pasan a ser el material tipografico del tablero: cifras
+  tabulares en todo, montos alineados sobre el mismo eje decimal y el signo
+  de lempira en menor tamano y peso para que carguen los digitos.
+- Panel de cartera: una sola barra resuelve la mora en capital e intereses y
+  deja ver que el 48% de la cartera son intereses, no consumo. Debajo, la
+  mora por servicio, que antes solo aparecia tras seleccionar barrios.
+- Atencion requerida sube al inicio de la columna izquierda: es lo accionable.
+- Dos columnas apiladas en lugar de rejilla 2x2, que dejaba un hueco muerto a
+  media pagina entre paneles de distinta altura.
+
+Paleta y tipografia sin cambios: azul institucional y Plus Jakarta Sans, como
+manda DESIGN.md. El caracter lo carga el tratamiento de las cifras.
+
+Todo el CSS queda anidado bajo .dashboard-workspace: styles.css define
+.dashboard-panel y otras clases para las vistas antiguas de App.jsx y sin ese
+ambito las reglas se filtraban.
+
+Dos defectos de especificidad encontrados midiendo en el navegador:
+- .dw-services li > span tambien alcanzaba al monto (que es un span) y lo
+  volvia grid, partiendo "L" y los digitos en dos lineas. Ahora va por clase.
+- styles.css aplica button:hover:not(:disabled){box-shadow:...}, que le gana
+  a box-shadow:none puesto en una sola clase, y levantaba los botones planos.
+
+Verificado en Chromium a 1440, 900 y 390 px: sin desbordamiento horizontal,
+39 textos medidos sin fallas de contraste AA, foco visible en todos los
+controles, 0 animaciones. El alto de la pagina baja de 1530 a 1171 px con mas
+informacion a la vista.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0117VPhxDzRjshqxydVfG59k
+---
+ .../modules/dashboard/DashboardWorkspace.jsx  | 420 +++++++-
+ frontend/src/modules/dashboard/dashboard.css  | 916 +++++++++++++++++-
+ 2 files changed, 1308 insertions(+), 28 deletions(-)
+
+diff --git a/frontend/src/modules/dashboard/DashboardWorkspace.jsx b/frontend/src/modules/dashboard/DashboardWorkspace.jsx
+index 8a3565a..b1bfa01 100644
+--- a/frontend/src/modules/dashboard/DashboardWorkspace.jsx
++++ b/frontend/src/modules/dashboard/DashboardWorkspace.jsx
+@@ -1,6 +1,6 @@
+ import { useMemo, useState } from "react";
+ import { Icon } from "../../components/Icon";
+-import { formatCurrency } from "../../utils/formatting";
++import { formatCurrency } from "../../utils/currency.js";
+ import { formatSpanishDate } from "../../utils/datesAndBusiness";
+ import { escapeHtml } from "../../utils/html";
+ import { printDocument } from "../../utils/printDocument";
+@@ -9,36 +9,414 @@ import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
+ import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
+ import "./dashboard.css";
+ 
++const QUICK_ACTIONS = [
++  ["records", "plus", "Nueva ficha"],
++  ["lookup", "search", "Buscar clave"],
++  ["map", "map", "Registrar punto"],
++  ["mapReports", "records", "Ver reportes"],
++  ["importacion", "download", "Importar padrón"]
++];
++
++const SERVICE_ICONS = { agua: "water", alcantarillado: "sewer", barrido: "broom", recoleccion: "waste", desechos_peligrosos: "warning" };
++
++const whole = (value) => Number(value || 0).toLocaleString("es-HN");
++const percent = (part, total) => (total ? (Number(part || 0) / total) * 100 : 0);
++const oneDecimal = (value) => `${value.toFixed(1)}%`;
++
++// La cifra es el material tipografico de este tablero: el signo de lempira va
++// mas pequeno y liviano para que los digitos, en cifras tabulares, carguen el peso.
++function Amount({ value, className = "" }) {
++  const text = formatCurrency(Number(value || 0));
++  const match = text.match(/^(\D+)\s*(.+)$/);
++  const mark = match ? match[1].trim() : "";
++  const digits = match ? match[2] : text;
++  return (
++    <span className={`dw-amount ${className}`.trim()}>
++      {mark ? <i aria-hidden="true">{mark}</i> : null}
++      {digits}
++    </span>
++  );
++}
++
+ export default function DashboardWorkspace({ model }) {
+   const [debtMetric, setDebtMetric] = useState("total");
+   const [selectedBarrios, setSelectedBarrios] = useState([]);
+   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
++
+   const ranking = useMemo(() => debtRanking(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
+-  const railUsers = model.onlineUsers.length > 2 ? [...model.onlineUsers, ...model.onlineUsers] : model.onlineUsers;
++  // Mora consolidada por servicio en todo el padron: la otra descomposicion
++  // legitima del mismo total que ya muestra la barra de capital/intereses.
++  const serviceDebt = useMemo(() => {
++    const rows = debtRankingAll(model.debtBarrios, "total");
++    return sumSelectedServices(rows, rows.map((row) => row.name))
++      .filter((service) => service.debt > 0)
++      .sort((left, right) => right.debt - left.debt);
++  }, [model.debtBarrios]);
++  const maxServiceDebt = Math.max(1, ...serviceDebt.map((service) => service.debt));
+   const selectedDebt = useMemo(() => sumSelectedDebt(ranking, selectedBarrios), [ranking, selectedBarrios]);
+   const selectedServices = useMemo(() => sumSelectedServices(ranking, selectedBarrios), [ranking, selectedBarrios]);
+   const maxDebt = Math.max(1, ...ranking.map((item) => item.value));
+-  const toggleBarrio = (name) => setSelectedBarrios((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
+-  const navigate = (view, focus = "") => { if (focus) sessionStorage.setItem("aguas.clandestinos.focus", focus); model.navigate(view); };
+-  const serviceIcon = (field) => ({ agua: "water", alcantarillado: "sewer", barrido: "broom", recoleccion: "waste", desechos_peligrosos: "warning" }[field] || "records");
+-  const printSelection = () => printDocument("Sumatoria de barrios", `<section class="print-header"><h1>Sumatoria de barrios seleccionados</h1><p>${selectedBarrios.map(escapeHtml).join(" · ")}</p></section><section class="print-section"><h3>Resumen de mora</h3><div class="print-grid">${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${selectedDebt.deudores.toLocaleString("es-HN")}</span></div><div class="print-field"><strong>Casos críticos</strong><span>${selectedDebt.criticos.toLocaleString("es-HN")}</span></div></div></section><section class="print-section"><h3>Servicios consolidados</h3><table class="field-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${service.active.toLocaleString("es-HN")}</td><td>${service.inactive.toLocaleString("es-HN")}</td><td>${service.unknown.toLocaleString("es-HN")}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${selectedServices.reduce((sum, item) => sum + item.active, 0).toLocaleString("es-HN")}</th><th>${selectedServices.reduce((sum, item) => sum + item.inactive, 0).toLocaleString("es-HN")}</th><th>${selectedServices.reduce((sum, item) => sum + item.unknown, 0).toLocaleString("es-HN")}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`, { pageSize: "Letter portrait", showPageFooter: true });
++
++  const debt = model.debtSummary || {};
++  const debtTotal = Number(debt.total || 0);
++  const capitalShare = percent(debt.capital, debtTotal);
++  const interesShare = percent(debt.intereses, debtTotal);
++  const criticalShare = percent(debt.criticos, Number(debt.deudores || 0));
++
++  const toggleBarrio = (name) =>
++    setSelectedBarrios((current) => (current.includes(name) ? current.filter((item) => item !== name) : [...current, name]));
++  const navigate = (view, focus = "") => {
++    if (focus) sessionStorage.setItem("aguas.clandestinos.focus", focus);
++    model.navigate(view);
++  };
++
++  const printSelection = () =>
++    printDocument(
++      "Sumatoria de barrios",
++      `<section class="print-header"><h1>Sumatoria de barrios seleccionados</h1><p>${selectedBarrios.map(escapeHtml).join(" · ")}</p></section><section class="print-section"><h3>Resumen de mora</h3><div class="print-grid">${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section"><h3>Servicios consolidados</h3><table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
++      { pageSize: "Letter portrait", showPageFooter: true }
++    );
++
+   const printDebtRanking = () => {
+     const rows = debtRankingAll(model.debtBarrios, debtMetric);
+     if (!rows.length) return;
+-    printDocument("Mora por barrio", buildDebtRankingPrintMarkup({ rows, metric: debtMetric, selectedBarrios, logoSrc: logoAguasCholuteca, generatedAt: formatSpanishDate(new Date()) }), { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body", showPageFooter: true });
++    printDocument(
++      "Mora por barrio",
++      buildDebtRankingPrintMarkup({
++        rows,
++        metric: debtMetric,
++        selectedBarrios,
++        logoSrc: logoAguasCholuteca,
++        generatedAt: formatSpanishDate(new Date())
++      }),
++      { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body", showPageFooter: true }
++    );
+   };
+-  return <main className="dashboard-workspace">
+-    <header className="dashboard-new-header dashboard-glass"><div><span>Resumen operativo · {formatSpanishDate(new Date())}</span><h1>Buenos días, {model.userName}</h1><p>Información crítica, actividad y accesos del sistema en una sola vista.</p></div><div className="dashboard-live"><i /><strong>Sistema en vivo</strong><small>{model.syncLabel}</small></div></header>
+-    <section className="dashboard-quick-actions" aria-label="Acciones rápidas">
+-      {[["records", "plus", "Nueva ficha", "Registrar inmueble"], ["lookup", "search", "Buscar clave", "Consultar información"], ["map", "map", "Registrar punto", "Trabajo de campo"], ["mapReports", "records", "Ver reportes", "Levantamientos"], ["importacion", "download", "Importar datos", "Carga administrativa"]].map(([view, icon, label, helper]) => <button type="button" key={view} onClick={() => model.navigate(view)}><Icon name={icon} /><span><strong>{label}</strong><small>{helper}</small></span><b>→</b></button>)}
+-    </section>
+-    <section className={`dashboard-online-rail ${model.onlineUsers.length ? "has-users" : "is-empty"} ${model.onlineUsers.length <= 2 ? "is-static" : ""}`} aria-label="Usuarios en línea"><div className="dashboard-online-rail-head"><span className="dashboard-online-rail-kicker"><span className="dashboard-online-rail-dot" />Equipo en vivo</span><strong>{model.onlineUsers.length} usuarios en línea</strong></div>{model.onlineUsers.length ? <div className="dashboard-online-rail-window"><div className="dashboard-online-rail-track" style={{ "--rail-duration": `${Math.max(18, model.onlineUsers.length * 7)}s` }}>{railUsers.map((user, index) => <article key={`${user.id}-${index}`} className="dashboard-online-rail-card"><span className="dashboard-online-avatar">{(user.full_name || user.username || "U").trim().charAt(0).toUpperCase()}</span><span className="dashboard-online-rail-copy"><strong>{user.full_name || user.username}</strong><small>{user.roleLabel} · {user.active_sessions || 0} sesiones</small></span><span className="dashboard-online-rail-status">Activo</span></article>)}</div></div> : <div className="dashboard-online-rail-empty"><Icon name="users" /><span>Sin usuarios conectados ahora</span></div>}</section>
+-    <section className="dashboard-summary-bar" aria-label="Indicadores principales">{model.metrics.map((item) => <button type="button" className={item.tone} key={item.key} onClick={() => navigate(item.key === "gps" ? "map" : item.key === "records" || item.key === "alerts" ? "records" : "users", item.key === "alerts" ? "alerts" : "")} aria-label={`${item.label}: ${item.value}. ${item.helper}`}><span className="dashboard-summary-icon"><Icon name={item.icon} /></span><span className="dashboard-summary-copy"><span>{item.label}</span><strong>{item.value}</strong><small>{item.helper}</small></span><span className="dashboard-summary-progress" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }} /></span></button>)}</section>
+-    <section className="dashboard-new-grid">
+-      <article className="dashboard-panel dashboard-portfolio"><header><div><span>Situación financiera</span><h2>Resumen de cartera</h2></div><small>{model.padronTotals.barrios} barrios · {model.padronTotals.records.toLocaleString("es-HN")} cuentas</small></header><div className="dashboard-portfolio-total"><Icon name="activity" /><span>Mora total del padrón</span><strong>{formatCurrency(model.debtSummary.total || 0)}</strong></div><div className="dashboard-portfolio-kpis"><div><Icon name="records" /><span>Capital</span><strong>{formatCurrency(model.debtSummary.capital || 0)}</strong></div><div><Icon name="activity" /><span>Intereses</span><strong>{formatCurrency(model.debtSummary.intereses || 0)}</strong></div><div><Icon name="users" /><span>Cuentas con mora</span><strong>{Number(model.debtSummary.deudores || 0).toLocaleString("es-HN")}</strong></div><div><Icon name="warning" /><span>Casos críticos</span><strong>{Number(model.debtSummary.criticos || 0).toLocaleString("es-HN")}</strong></div></div><p>Casos críticos: cuentas con mora igual o mayor a L 1,000.</p></article>
+-      <article className="dashboard-panel dashboard-debt-panel"><header><div><span>Datos reales del padrón</span><h2>Barrios con mayor mora</h2></div><select value={debtMetric} onChange={(e) => setDebtMetric(e.target.value)}><option value="total">Mora total</option><option value="accounts">Abonados</option><option value="critical">Casos críticos</option></select></header>{ranking.length ? <div className="dashboard-ranking">{ranking.map((item, index) => <button type="button" aria-pressed={selectedBarrios.includes(item.name)} className={selectedBarrios.includes(item.name) ? "is-selected" : ""} key={item.name} onClick={() => toggleBarrio(item.name)}><b>{index + 1}</b><span><strong>{item.name}</strong><i><em style={{ width: `${item.value / maxDebt * 100}%` }} /></i></span><small>{debtMetric === "total" ? formatCurrency(item.value) : item.value.toLocaleString("es-HN")}</small></button>)}</div> : <p className="dashboard-empty">No hay desglose de mora por barrio disponible.</p>}{selectedBarrios.length ? <div className={`dashboard-debt-selection ${selectedDetailsOpen ? "is-open" : ""}`}><header><button type="button" className="dashboard-debt-disclosure" aria-expanded={selectedDetailsOpen} onClick={() => setSelectedDetailsOpen((value) => !value)}><Icon name="arrowRight" /><strong>{selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}</strong><small>Ver servicios y sumatoria</small></button><button type="button" onClick={() => { setSelectedBarrios([]); setSelectedDetailsOpen(false); }}>Limpiar</button></header><div><span>Capital <b>{formatCurrency(selectedDebt.capital)}</b></span><span>Intereses <b>{formatCurrency(selectedDebt.intereses)}</b></span><span>Mora total <b>{formatCurrency(selectedDebt.total)}</b></span><span>Cuentas <b>{selectedDebt.deudores.toLocaleString("es-HN")}</b></span><span>Críticos <b>{selectedDebt.criticos.toLocaleString("es-HN")}</b></span></div>{selectedDetailsOpen ? <section className="dashboard-service-detail"><header><div><strong>Servicios consolidados</strong><small>{selectedBarrios.join(" · ")}</small></div><button type="button" onClick={printSelection}><Icon name="print" />Imprimir sumatoria</button></header><div className="dashboard-service-grid">{selectedServices.map((service) => <article key={service.field}><Icon name={serviceIcon(service.field)} /><span><strong>{service.label}</strong><small>{service.active.toLocaleString("es-HN")} activos · {service.inactive.toLocaleString("es-HN")} inactivos</small></span><b>{formatCurrency(service.debt)}</b></article>)}</div><footer><span>Servicios activos <strong>{selectedServices.reduce((sum, item) => sum + item.active, 0).toLocaleString("es-HN")}</strong></span><span>Mora total barrios <strong>{formatCurrency(selectedDebt.total)}</strong></span></footer></section> : null}</div> : <p className="dashboard-debt-hint">Selecciona uno o varios barrios para ver el desglose y la sumatoria.</p>}<footer className="dashboard-debt-footer"><button type="button" className="dashboard-debt-print" onClick={printDebtRanking} disabled={!ranking.length}><Icon name="print" />Imprimir mora por barrio</button><button className="dashboard-link" onClick={() => model.navigate("mapReports")}>Ver informe</button></footer></article>
+-      <article className="dashboard-panel dashboard-attention"><header><div><span>Prioridades</span><h2>Atención requerida</h2></div></header>{model.attention.slice(0, 4).map((item) => <button key={item.title} onClick={() => navigate(item.actionView, item.filter || "")}><Icon name={item.icon} /><span><strong>{item.title}</strong><small>{item.detail}</small></span><b>→</b></button>)}</article>
+-      <article className="dashboard-panel dashboard-recent"><header><div><span>Aplicación viva</span><h2>Actividad reciente</h2></div></header>{model.feed.slice(0, 5).map((item, index) => <button key={item.key} onClick={() => model.navigate(item.targetView)}><Icon name={item.icon} /><span><strong>{item.title}{index === 0 ? <em>Nuevo</em> : null}</strong><small>{item.detail}</small></span></button>)}</article>
+-    </section>
+-  </main>;
++
++  return (
++    <main className="dashboard-workspace">
++      {/* Banda de estado: de que corte del padron provienen las cifras de abajo. */}
++      <header className="dw-status">
++        <div className="dw-status-source">
++          <span className="dw-eyebrow">Padrón maestro</span>
++          <p>
++            <strong className="dw-figure">{whole(model.padronTotals.records)}</strong> cuentas
++            <span className="dw-sep" aria-hidden="true" />
++            <strong className="dw-figure">{whole(model.padronTotals.barrios)}</strong> barrios
++            <span className="dw-sep" aria-hidden="true" />
++            <span className="dw-status-date">{formatSpanishDate(new Date())}</span>
++          </p>
++        </div>
++        <div className="dw-status-side">
++          {model.onlineUsers.length ? (
++            <div
++              className="dw-team"
++              title={model.onlineUsers.map((user) => `${user.full_name || user.username} · ${user.roleLabel}`).join("\n")}
++            >
++              <span className="dw-team-avatars" aria-hidden="true">
++                {model.onlineUsers.slice(0, 4).map((user) => (
++                  <i key={user.id}>{(user.full_name || user.username || "U").trim().charAt(0).toUpperCase()}</i>
++                ))}
++              </span>
++              <span>{model.onlineUsers.length} en línea</span>
++            </div>
++          ) : null}
++          <span className="dw-sync">
++            <i className="dw-sync-dot" aria-hidden="true" />
++            {model.syncLabel}
++          </span>
++        </div>
++      </header>
++
++      <nav className="dw-actions" aria-label="Acciones rápidas">
++        {QUICK_ACTIONS.map(([view, icon, label]) => (
++          <button type="button" key={view} onClick={() => model.navigate(view)}>
++            <Icon name={icon} />
++            {label}
++          </button>
++        ))}
++      </nav>
++
++      <section className="dw-kpis" aria-label="Indicadores principales">
++        {model.metrics.map((item) => (
++          <button
++            type="button"
++            className={`dw-kpi ${item.tone || ""}`.trim()}
++            key={item.key}
++            onClick={() =>
++              navigate(
++                item.key === "gps" ? "map" : item.key === "records" || item.key === "alerts" ? "records" : "users",
++                item.key === "alerts" ? "alerts" : ""
++              )
++            }
++          >
++            <span className="dw-eyebrow">{item.label}</span>
++            <strong className="dw-figure">{whole(item.value)}</strong>
++            <small>{item.helper}</small>
++          </button>
++        ))}
++      </section>
++
++      <div className="dw-grid">
++        {/* Columna izquierda: primero lo accionable, despues la cifra. */}
++        <div className="dw-col">
++          <article className="dw-panel dw-attention">
++                    <header className="dw-panel-head">
++                      <div>
++                        <span className="dw-eyebrow">Prioridades</span>
++                        <h2>Atención requerida</h2>
++                      </div>
++                    </header>
++                    <ul className="dw-list">
++                      {model.attention.slice(0, 4).map((item) => (
++                        <li key={item.title}>
++                          <button type="button" className={item.tone || ""} onClick={() => navigate(item.actionView, item.filter || "")}>
++                            <Icon name={item.icon} />
++                            <span>
++                              <strong>{item.title}</strong>
++                              <small>{item.detail}</small>
++                            </span>
++                            <Icon name="arrowRight" />
++                          </button>
++                        </li>
++                      ))}
++                    </ul>
++                  </article>
++          <article className="dw-panel dw-cartera">
++                    <header className="dw-panel-head">
++                      <div>
++                        <span className="dw-eyebrow">Situación financiera</span>
++                        <h2>Cartera en mora</h2>
++                      </div>
++                    </header>
++
++                    <p className="dw-cartera-total">
++                      <Amount value={debtTotal} className="is-hero" />
++                    </p>
++
++                    <div
++                      className="dw-cartera-bar"
++                      role="img"
++                      aria-label={`Capital ${oneDecimal(capitalShare)}, intereses ${oneDecimal(interesShare)} de la mora total`}
++                    >
++                      <span className="dw-seg is-capital" style={{ width: `${capitalShare}%` }} />
++                      <span className="dw-seg is-interes" style={{ width: `${interesShare}%` }} />
++                    </div>
++
++                    <dl className="dw-cartera-legend">
++                      <div>
++                        <dt>
++                          <i className="is-capital" aria-hidden="true" />
++                          Capital
++                        </dt>
++                        <dd>
++                          <Amount value={debt.capital} />
++                          <b className="dw-figure">{oneDecimal(capitalShare)}</b>
++                        </dd>
++                      </div>
++                      <div>
++                        <dt>
++                          <i className="is-interes" aria-hidden="true" />
++                          Intereses
++                        </dt>
++                        <dd>
++                          <Amount value={debt.intereses} />
++                          <b className="dw-figure">{oneDecimal(interesShare)}</b>
++                        </dd>
++                      </div>
++                    </dl>
++
++                    <div className="dw-cartera-foot">
++                      <p>
++                        <strong className="dw-figure">{whole(debt.criticos)}</strong> de{" "}
++                        <strong className="dw-figure">{whole(debt.deudores)}</strong> cuentas con mora son críticas
++                      </p>
++                      <div className="dw-meter" role="img" aria-label={`${oneDecimal(criticalShare)} de las cuentas con mora son críticas`}>
++                        <i style={{ width: `${criticalShare}%` }} />
++                      </div>
++                      <small className="dw-note">Crítica: mora igual o mayor a L 1,000.</small>
++                    </div>
++
++                    {serviceDebt.length ? (
++                      <section className="dw-service-debt">
++                        <span className="dw-eyebrow">Mora asociada por servicio</span>
++                        <ul>
++                          {serviceDebt.map((service) => (
++                            <li key={service.field}>
++                              <span className="dw-service-name">{service.label}</span>
++                              <Amount value={service.debt} />
++                              <i className="dw-service-track" aria-hidden="true">
++                                <em style={{ width: `${Math.max(2, (service.debt / maxServiceDebt) * 100)}%` }} />
++                              </i>
++                            </li>
++                          ))}
++                        </ul>
++                        <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
++                      </section>
++                    ) : null}
++                  </article>
++        </div>
++        <div className="dw-col">
++          <article className="dw-panel dw-mora">
++                    <header className="dw-panel-head">
++                      <div>
++                        <span className="dw-eyebrow">Datos reales del padrón</span>
++                        <h2>Barrios con mayor mora</h2>
++                      </div>
++                      <label className="dw-select">
++                        <span className="dw-sr">Ordenar por</span>
++                        <select value={debtMetric} onChange={(event) => setDebtMetric(event.target.value)}>
++                          <option value="total">Mora total</option>
++                          <option value="accounts">Abonados</option>
++                          <option value="critical">Casos críticos</option>
++                        </select>
++                      </label>
++                    </header>
++
++                    {ranking.length ? (
++                      <ol className="dw-ranking">
++                        {ranking.map((item, index) => (
++                          <li key={item.name}>
++                            <button
++                              type="button"
++                              aria-pressed={selectedBarrios.includes(item.name)}
++                              className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
++                              onClick={() => toggleBarrio(item.name)}
++                            >
++                              <b className="dw-figure">{index + 1}</b>
++                              <span className="dw-ranking-copy">
++                                <strong>{item.name}</strong>
++                                <i className="dw-ranking-track">
++                                  <em style={{ width: `${Math.max(2, (item.value / maxDebt) * 100)}%` }} />
++                                </i>
++                              </span>
++                              {debtMetric === "total" ? (
++                                <Amount value={item.value} />
++                              ) : (
++                                <span className="dw-amount dw-figure">{whole(item.value)}</span>
++                              )}
++                            </button>
++                          </li>
++                        ))}
++                      </ol>
++                    ) : (
++                      <p className="dw-empty">No hay desglose de mora por barrio disponible.</p>
++                    )}
++
++                    {selectedBarrios.length ? (
++                      <div className={`dw-selection ${selectedDetailsOpen ? "is-open" : ""}`.trim()}>
++                        <header>
++                          <button
++                            type="button"
++                            className="dw-disclosure"
++                            aria-expanded={selectedDetailsOpen}
++                            onClick={() => setSelectedDetailsOpen((value) => !value)}
++                          >
++                            <Icon name="arrowRight" />
++                            {selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}
++                          </button>
++                          <button
++                            type="button"
++                            className="dw-link"
++                            onClick={() => {
++                              setSelectedBarrios([]);
++                              setSelectedDetailsOpen(false);
++                            }}
++                          >
++                            Limpiar
++                          </button>
++                        </header>
++                        <dl className="dw-selection-figures">
++                          <div>
++                            <dt>Capital</dt>
++                            <dd>
++                              <Amount value={selectedDebt.capital} />
++                            </dd>
++                          </div>
++                          <div>
++                            <dt>Intereses</dt>
++                            <dd>
++                              <Amount value={selectedDebt.intereses} />
++                            </dd>
++                          </div>
++                          <div>
++                            <dt>Mora total</dt>
++                            <dd>
++                              <Amount value={selectedDebt.total} />
++                            </dd>
++                          </div>
++                          <div>
++                            <dt>Cuentas</dt>
++                            <dd className="dw-amount dw-figure">{whole(selectedDebt.deudores)}</dd>
++                          </div>
++                          <div>
++                            <dt>Críticas</dt>
++                            <dd className="dw-amount dw-figure">{whole(selectedDebt.criticos)}</dd>
++                          </div>
++                        </dl>
++                        {selectedDetailsOpen ? (
++                          <section className="dw-services">
++                            <header>
++                              <strong>Servicios consolidados</strong>
++                              <button type="button" className="dw-button-secondary" onClick={printSelection}>
++                                <Icon name="print" />
++                                Imprimir sumatoria
++                              </button>
++                            </header>
++                            <ul>
++                              {selectedServices.map((service) => (
++                                <li key={service.field}>
++                                  <Icon name={SERVICE_ICONS[service.field] || "records"} />
++                                  <span className="dw-service-copy">
++                                    <strong>{service.label}</strong>
++                                    <small>
++                                      {whole(service.active)} activos · {whole(service.inactive)} inactivos
++                                    </small>
++                                  </span>
++                                  <Amount value={service.debt} />
++                                </li>
++                              ))}
++                            </ul>
++                          </section>
++                        ) : null}
++                      </div>
++                    ) : (
++                      <p className="dw-hint">Seleccioná uno o varios barrios para ver el desglose y la sumatoria.</p>
++                    )}
++
++                    <footer className="dw-panel-foot">
++                      <button type="button" className="dw-button-secondary" onClick={printDebtRanking} disabled={!ranking.length}>
++                        <Icon name="print" />
++                        Imprimir mora por barrio
++                      </button>
++                      <button type="button" className="dw-link" onClick={() => model.navigate("mapReports")}>
++                        Ver informe
++                      </button>
++                    </footer>
++                  </article>
++          <article className="dw-panel dw-feed">
++                    <header className="dw-panel-head">
++                      <div>
++                        <span className="dw-eyebrow">Aplicación viva</span>
++                        <h2>Actividad reciente</h2>
++                      </div>
++                    </header>
++                    <ul className="dw-list is-quiet">
++                      {model.feed.slice(0, 5).map((item) => (
++                        <li key={item.key}>
++                          <button type="button" onClick={() => model.navigate(item.targetView)}>
++                            <Icon name={item.icon} />
++                            <span>
++                              <strong>{item.title}</strong>
++                              <small>{item.detail}</small>
++                            </span>
++                          </button>
++                        </li>
++                      ))}
++                    </ul>
++                  </article>
++        </div>
++      </div>
++    </main>
++  );
+ }
+diff --git a/frontend/src/modules/dashboard/dashboard.css b/frontend/src/modules/dashboard/dashboard.css
+index 392e857..0057c7e 100644
+--- a/frontend/src/modules/dashboard/dashboard.css
++++ b/frontend/src/modules/dashboard/dashboard.css
+@@ -1,13 +1,915 @@
+-.dashboard-refactor-mode .app-chrome .search-card{display:none}.dashboard-workspace{display:grid;gap:1rem;max-width:1500px;margin:0 auto;padding:.25rem;color:#183b5a}.dashboard-glass{background:rgba(255,255,255,.76);border:1px solid rgba(255,255,255,.84);backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(15,54,88,.08)}.dashboard-new-header{display:grid;grid-template-columns:1fr auto;gap:1rem;padding:1.2rem;border-radius:16px}.dashboard-new-header h1{margin:.25rem 0}.dashboard-new-header p,.dashboard-new-header span{color:#597087}.dashboard-live{display:grid;grid-template-columns:auto 1fr;align-content:center;gap:.1rem .5rem}.dashboard-live i{grid-row:1/3;width:10px;height:10px;margin-top:.3rem;border-radius:50%;background:#18a689;animation:dashboard-pulse 1.8s infinite}.dashboard-live small{color:#597087}.dashboard-new-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:.5rem}.dashboard-new-actions>div{position:relative}.dashboard-new-actions nav{position:absolute;right:0;z-index:5;display:grid;width:210px;padding:.4rem;background:#fff;border:1px solid #dfe9f2;border-radius:10px;box-shadow:0 12px 30px #0f365821}.dashboard-new-actions nav button{background:transparent;color:#183b5a;box-shadow:none;text-align:left}.dashboard-summary-bar{display:flex;border-radius:14px}.dashboard-summary-bar button{flex:1;display:flex;align-items:center;justify-content:center;gap:.6rem;padding:.8rem;background:transparent;color:#183b5a;border:0;border-right:1px solid #dfe9f2;box-shadow:none}.dashboard-summary-bar strong{font-size:1.25rem}.dashboard-new-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.dashboard-panel{min-height:270px;padding:1rem;background:#fff;border:1px solid #dfe9f2;border-radius:14px;box-shadow:0 5px 16px rgba(15,54,88,.05)}.dashboard-panel>header{display:flex;align-items:center;justify-content:space-between;gap:1rem}.dashboard-panel h2{margin:.2rem 0}.dashboard-panel header span{font-size:.72rem;text-transform:uppercase;color:#597087}.dashboard-panel header button{padding:.35rem .55rem;background:#edf3f7;color:#597087;box-shadow:none}.dashboard-panel header button.active{background:#1465d9;color:#fff}.dashboard-bars{height:190px;display:flex;align-items:flex-end;gap:.5rem;margin-top:1rem}.dashboard-bars>div{height:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:.25rem}.dashboard-bars span{width:min(30px,80%);background:#2bc6df;border-radius:6px 6px 2px 2px}.dashboard-bars small{font-size:.65rem}.dashboard-ranking{display:grid;gap:.65rem;margin-top:1rem}.dashboard-ranking>div{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:.6rem}.dashboard-ranking span{display:grid}.dashboard-ranking i{height:7px;background:#edf3f7;border-radius:99px;overflow:hidden}.dashboard-ranking em{display:block;height:100%;background:#1465d9}.dashboard-link{float:right;margin-top:1rem;background:transparent;color:#1465d9;box-shadow:none}.dashboard-attention,.dashboard-recent{min-height:230px}.dashboard-attention>button,.dashboard-recent>button{width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.7rem;padding:.7rem;background:transparent;color:#183b5a;border:0;border-bottom:1px solid #edf3f7;box-shadow:none;text-align:left}.dashboard-attention span,.dashboard-recent span{display:grid}.dashboard-attention small,.dashboard-recent small{color:#597087}.dashboard-recent em{margin-left:.5rem;padding:.15rem .35rem;border-radius:99px;background:#e5f7f2;color:#14856e;font-size:.65rem}.dashboard-empty{display:grid;place-items:center;min-height:160px;color:#597087}@keyframes dashboard-pulse{50%{box-shadow:0 0 0 6px rgba(24,166,137,0)}}@media(max-width:900px){.dashboard-new-grid{grid-template-columns:1fr}.dashboard-summary-bar{flex-wrap:wrap}.dashboard-summary-bar button{flex:1 1 45%}}@media(max-width:600px){.dashboard-new-header{grid-template-columns:1fr}.dashboard-new-actions{display:grid;grid-template-columns:1fr 1fr}.dashboard-new-actions>div{grid-column:1/-1}.dashboard-new-actions>div>button{width:100%}.dashboard-summary-bar button{flex-basis:45%}.dashboard-workspace{padding:0}}@media(prefers-reduced-motion:reduce){.dashboard-workspace *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
++/* Tablero operativo - Aguas de Choluteca
++ *
++ * Todo va anidado bajo .dashboard-workspace a proposito: styles.css define
++ * .dashboard-panel y otras clases para las vistas antiguas de App.jsx, y sin
++ * este ambito las reglas de aqui se filtrarian a esas pantallas.
++ *
++ * Criterio visual (DESIGN.md): institucional y denso, sin hero comercial, sin
++ * letter-spacing negativo, sin gradientes decorativos. El caracter del tablero
++ * lo carga el tratamiento de las cifras, no el color.
++ */
+ 
+-.dashboard-portfolio-total{display:grid;gap:.25rem;margin:1rem 0;padding:1rem;border-radius:12px;background:linear-gradient(135deg,#0d5f9a,#1682c4);color:#fff}.dashboard-portfolio-total strong{font-size:clamp(1.7rem,3vw,2.5rem)}.dashboard-portfolio-kpis{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.dashboard-portfolio-kpis>div{display:grid;gap:.25rem;padding:.8rem;border:1px solid #dfe9f2;border-radius:10px;background:#f7fafc}.dashboard-portfolio-kpis span,.dashboard-portfolio>p,.dashboard-debt-hint{color:#597087}.dashboard-portfolio>p{margin-bottom:0;font-size:.78rem}.dashboard-ranking>button{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:.6rem;width:100%;padding:.35rem;border:1px solid transparent;border-radius:9px;background:transparent;color:#183b5a;box-shadow:none;text-align:left}.dashboard-ranking>button:hover,.dashboard-ranking>button.is-selected{border-color:#9bc4ec;background:#edf6ff}.dashboard-ranking>button.is-selected i{background:#cfe4f8}.dashboard-debt-selection{margin-top:1rem;padding:.8rem;border:1px solid #9bc4ec;border-radius:10px;background:#f4f9ff}.dashboard-debt-selection>header{display:flex;align-items:center;justify-content:space-between}.dashboard-debt-selection>header button{padding:.2rem .45rem;background:transparent;color:#1465d9;box-shadow:none}.dashboard-debt-selection>div{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.6rem}.dashboard-debt-selection span{display:grid;font-size:.72rem;color:#597087}.dashboard-debt-selection b{font-size:.85rem;color:#183b5a}.dashboard-debt-hint{margin:.8rem 0 0;font-size:.78rem}.dashboard-debt-panel .dashboard-link{margin-top:.5rem}@media(max-width:600px){.dashboard-portfolio-kpis,.dashboard-debt-selection>div{grid-template-columns:1fr 1fr}.dashboard-panel>header{align-items:flex-start;flex-direction:column}.dashboard-panel>header select{width:100%}}
++.dashboard-refactor-mode .app-chrome .search-card {
++  display: none;
++}
+ 
+-.dashboard-panel,.dashboard-portfolio-kpis>div,.dashboard-ranking>button{transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease}.dashboard-panel:hover{box-shadow:0 18px 38px rgba(15,54,88,.12)}.dashboard-portfolio-total{grid-template-columns:auto 1fr;align-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 14px 28px rgba(13,95,154,.2)}.dashboard-portfolio-total>.app-icon{grid-row:1/3;width:34px;height:34px;padding:.45rem;border-radius:10px;background:rgba(255,255,255,.16)}.dashboard-portfolio-total strong{grid-column:1/-1;animation:dashboard-number-in .65s ease both}.dashboard-portfolio-kpis>div{grid-template-columns:auto 1fr;align-items:center}.dashboard-portfolio-kpis>div:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(15,54,88,.1)}.dashboard-portfolio-kpis .app-icon{grid-row:1/3;width:25px;height:25px;color:#1682c4}.dashboard-portfolio-kpis span,.dashboard-portfolio-kpis strong{grid-column:2}.dashboard-portfolio-kpis strong{animation:dashboard-number-in .65s ease both}.dashboard-ranking>button:hover{transform:translateX(4px)}.dashboard-ranking>button:active,.dashboard-summary-bar button:active{transform:scale(.98)}.dashboard-ranking em{transform-origin:left;animation:dashboard-bar-grow .65s ease both}.dashboard-debt-disclosure{display:grid!important;grid-template-columns:auto 1fr;align-items:center;gap:.1rem .45rem;text-align:left}.dashboard-debt-disclosure .app-icon{grid-row:1/3;transition:transform .2s ease}.dashboard-debt-disclosure small{grid-column:2;color:#597087}.dashboard-debt-selection.is-open .dashboard-debt-disclosure .app-icon{transform:rotate(90deg)}.dashboard-service-detail{display:grid!important;gap:.7rem;margin-top:.85rem;padding-top:.85rem;border-top:1px solid #cfe1f2;animation:dashboard-detail-in .22s ease both}.dashboard-service-detail>header{display:flex;align-items:center;justify-content:space-between;gap:.6rem}.dashboard-service-detail>header div{display:grid}.dashboard-service-detail>header button{display:flex;align-items:center;gap:.35rem;padding:.45rem .6rem;border:1px solid #9bc4ec;background:#fff;color:#1465d9;box-shadow:none}.dashboard-service-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:.55rem!important;margin:0!important}.dashboard-service-grid article{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.55rem;padding:.65rem;border:1px solid #d9e7f3;border-radius:9px;background:#fff;transition:transform .2s ease,box-shadow .2s ease}.dashboard-service-grid article:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(15,54,88,.08)}.dashboard-service-grid .app-icon{width:25px;height:25px;color:#1682c4}.dashboard-service-grid article>span{display:grid}.dashboard-service-grid article>b{font-size:.75rem;text-align:right}.dashboard-service-detail>footer{display:flex;justify-content:flex-end;gap:1rem;padding-top:.6rem;border-top:1px dashed #bfd3e5}.dashboard-service-detail>footer span{display:flex;gap:.35rem}@keyframes dashboard-number-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}@keyframes dashboard-bar-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}@keyframes dashboard-detail-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}@media(max-width:600px){.dashboard-service-grid{grid-template-columns:1fr!important}.dashboard-service-detail>header,.dashboard-service-detail>footer{align-items:stretch;flex-direction:column}.dashboard-service-detail>header button{justify-content:center}}
++.dashboard-workspace {
++  --dw-ink: #0b3f73;
++  --dw-body: #183b5a;
++  --dw-muted: #597087;
++  --dw-blue: #1465d9;
++  --dw-cyan: #2bc6df;
++  --dw-teal: #18a689;
++  --dw-gold: #9a5a06;
++  --dw-red: #9b202d;
++  --dw-line: rgba(20, 101, 217, 0.16);
++  --dw-line-soft: rgba(20, 101, 217, 0.09);
++  --dw-surface: #ffffff;
++  --dw-tint: #f3f8fd;
++  --dw-radius: 12px;
++  --dw-radius-sm: 9px;
+ 
+-.dashboard-summary-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.dashboard-summary-bar button{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.75rem;min-width:0;padding:1rem;overflow:hidden;border:1px solid #dce8f2;border-radius:14px;background:#fff;color:#183b5a;box-shadow:0 6px 18px rgba(15,54,88,.06);text-align:left;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}.dashboard-summary-bar button:hover{transform:translateY(-3px);border-color:#9bc4ec;box-shadow:0 14px 30px rgba(15,54,88,.12)}.dashboard-summary-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#eaf4ff;color:#1465d9}.dashboard-summary-copy{display:grid;min-width:0}.dashboard-summary-copy>span{color:#597087;font-size:.78rem;font-weight:700}.dashboard-summary-copy strong{font-size:1.45rem;line-height:1.15}.dashboard-summary-copy small{overflow:hidden;color:#6e8296;font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}.dashboard-summary-progress{position:absolute;inset:auto 0 0;height:4px;background:#edf3f7}.dashboard-summary-progress i{display:block;height:100%;border-radius:0 99px 99px 0;background:#1465d9;transform-origin:left;animation:dashboard-bar-grow .7s ease both}.dashboard-summary-bar button.is-map .dashboard-summary-icon,.dashboard-summary-bar button.is-map .dashboard-summary-progress i{background-color:#e6f8fb;color:#0d91a8}.dashboard-summary-bar button.is-map .dashboard-summary-progress i{background:#16a8bd}.dashboard-summary-bar button.is-live .dashboard-summary-icon,.dashboard-summary-bar button.is-calm .dashboard-summary-icon{background:#e8f8f2;color:#14856e}.dashboard-summary-bar button.is-live .dashboard-summary-progress i,.dashboard-summary-bar button.is-calm .dashboard-summary-progress i{background:#18a689}.dashboard-summary-bar button.is-critical .dashboard-summary-icon{background:#fff0ed;color:#c54c3c}.dashboard-summary-bar button.is-critical .dashboard-summary-progress i{background:#db5e4e}.dashboard-ranking i{height:9px}.dashboard-ranking em{background:linear-gradient(90deg,#1682c4,#1465d9)}.dashboard-ranking>button b{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:#eef5fb;color:#1465d9}.dashboard-ranking>button:first-child b{background:#1465d9;color:#fff}@media(max-width:1000px){.dashboard-summary-bar{grid-template-columns:1fr 1fr}}@media(max-width:600px){.dashboard-summary-bar{grid-template-columns:1fr}.dashboard-summary-bar button{padding:.85rem}.dashboard-summary-copy small{white-space:normal}}
++  display: grid;
++  gap: 0.85rem;
++  max-width: 1440px;
++  margin: 0 auto;
++  color: var(--dw-body);
++  font-size: 14px;
++}
+ 
+-.dashboard-online-rail.is-static .dashboard-online-rail-window{mask-image:none}.dashboard-online-rail.is-static .dashboard-online-rail-window::before,.dashboard-online-rail.is-static .dashboard-online-rail-window::after{display:none}.dashboard-online-rail.is-static .dashboard-online-rail-track{width:100%;animation:none}.dashboard-online-rail.is-static .dashboard-online-rail-card{flex:1;max-width:360px}
++/* Cifras tabulares en todo el tablero: los montos se comparan en columna,
++   asi que los digitos deben ocupar siempre el mismo ancho. */
++.dashboard-workspace .dw-figure,
++.dashboard-workspace .dw-amount {
++  font-variant-numeric: tabular-nums;
++  font-feature-settings: "tnum" 1;
++}
+ 
+-.dashboard-workspace{gap:1.1rem}.dashboard-glass,.dashboard-panel,.dashboard-summary-bar button,.dashboard-quick-actions button{border-color:rgba(25,80,115,.11);background:rgba(255,255,255,.84);box-shadow:0 12px 30px rgba(6,39,65,.08);backdrop-filter:blur(16px)}.dashboard-new-header{align-items:center;border-radius:20px}.dashboard-new-header h1{font-size:clamp(1.7rem,3vw,2.4rem);letter-spacing:-.035em}.dashboard-quick-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem}.dashboard-quick-actions button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.65rem;min-width:0;padding:.8rem;border:1px solid rgba(25,80,115,.11);border-radius:14px;color:#183b5a;text-align:left;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}.dashboard-quick-actions button:hover{transform:translateY(-2px);border-color:#8fc6e6;box-shadow:0 15px 32px rgba(6,39,65,.13)}.dashboard-quick-actions .app-icon{width:20px;height:20px;color:#1682c4}.dashboard-quick-actions span{display:grid;min-width:0}.dashboard-quick-actions strong{font-size:.82rem;line-height:1.2}.dashboard-quick-actions small{color:#6e8296;font-size:.68rem}.dashboard-quick-actions b{color:#1682c4}.dashboard-panel{border-radius:18px}.dashboard-summary-bar button{border-radius:16px}@media(max-width:1100px){.dashboard-quick-actions{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.dashboard-quick-actions{grid-template-columns:1fr 1fr}.dashboard-quick-actions button:last-child{grid-column:1/-1}.dashboard-new-header{padding:1rem}}@media(max-width:420px){.dashboard-quick-actions{grid-template-columns:1fr}.dashboard-quick-actions button:last-child{grid-column:auto}}
++.dashboard-workspace .dw-amount {
++  color: var(--dw-ink);
++  font-weight: 700;
++  letter-spacing: 0;
++  white-space: nowrap;
++}
+ 
+-.dashboard-debt-footer{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:1rem;padding-top:.75rem;border-top:1px solid #edf3f7}.dashboard-debt-footer .dashboard-link{float:none;margin-top:0}.dashboard-debt-print{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .7rem;border:1px solid #9bc4ec;border-radius:9px;background:#fff;color:#1465d9;box-shadow:none;font-size:.8rem;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}.dashboard-debt-print:hover:not(:disabled){transform:translateY(-1px);background:#edf6ff;box-shadow:0 8px 18px rgba(15,54,88,.1)}.dashboard-debt-print:disabled{opacity:.5;cursor:not-allowed}.dashboard-debt-print .app-icon{width:16px;height:16px}@media(max-width:600px){.dashboard-debt-footer{flex-direction:column;align-items:stretch}.dashboard-debt-print{justify-content:center}}
++.dashboard-workspace .dw-amount i {
++  margin-right: 0.34em;
++  color: var(--dw-muted);
++  font-size: 0.66em;
++  font-style: normal;
++  font-weight: 500;
++  letter-spacing: 0.02em;
++}
++
++.dashboard-workspace .dw-eyebrow {
++  color: var(--dw-muted);
++  font-size: 10.5px;
++  font-weight: 700;
++  letter-spacing: 0.085em;
++  text-transform: uppercase;
++}
++
++.dashboard-workspace .dw-sr {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  padding: 0;
++  overflow: hidden;
++  clip: rect(0 0 0 0);
++  white-space: nowrap;
++  border: 0;
++}
++
++/* ---------- Banda de estado ---------- */
++
++.dashboard-workspace .dw-status {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  justify-content: space-between;
++  gap: 0.6rem 1.25rem;
++  padding: 0.7rem 0.95rem;
++  border: 1px solid var(--dw-line);
++  border-left: 3px solid var(--dw-blue);
++  border-radius: var(--dw-radius);
++  background: var(--dw-surface);
++}
++
++.dashboard-workspace .dw-status-source {
++  display: grid;
++  gap: 0.15rem;
++  min-width: 0;
++}
++
++.dashboard-workspace .dw-status-source p {
++  margin: 0;
++  color: var(--dw-muted);
++  font-size: 13.5px;
++}
++
++.dashboard-workspace .dw-status-source strong {
++  color: var(--dw-ink);
++  font-weight: 700;
++}
++
++.dashboard-workspace .dw-sep {
++  display: inline-block;
++  width: 3px;
++  height: 3px;
++  margin: 0 0.5rem;
++  border-radius: 50%;
++  background: #b8cde4;
++  vertical-align: 0.22em;
++}
++
++.dashboard-workspace .dw-status-side {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  gap: 0.4rem 1rem;
++  color: var(--dw-muted);
++  font-size: 12.5px;
++}
++
++.dashboard-workspace .dw-team {
++  display: flex;
++  align-items: center;
++  gap: 0.55rem;
++}
++
++.dashboard-workspace .dw-team-avatars {
++  display: flex;
++  padding-right: 6px;
++}
++
++.dashboard-workspace .dw-team-avatars i {
++  display: grid;
++  place-items: center;
++  width: 22px;
++  height: 22px;
++  margin-right: -6px;
++  border: 1.5px solid var(--dw-surface);
++  border-radius: 50%;
++  background: #e7f0fb;
++  color: var(--dw-blue);
++  font-size: 10px;
++  font-style: normal;
++  font-weight: 700;
++}
++
++.dashboard-workspace .dw-sync {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.4rem;
++}
++
++.dashboard-workspace .dw-sync-dot {
++  width: 7px;
++  height: 7px;
++  border-radius: 50%;
++  background: var(--dw-teal);
++  box-shadow: 0 0 0 3px rgba(24, 166, 137, 0.16);
++}
++
++/* ---------- Acciones rapidas ---------- */
++
++.dashboard-workspace .dw-actions {
++  display: grid;
++  grid-template-columns: repeat(5, minmax(0, 1fr));
++  gap: 0.5rem;
++}
++
++.dashboard-workspace .dw-actions button {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 0.45rem;
++  min-width: 0;
++  padding: 0.6rem 0.7rem;
++  border: 1px solid var(--dw-line);
++  border-radius: var(--dw-radius-sm);
++  background: var(--dw-surface);
++  box-shadow: none;
++  color: var(--dw-ink);
++  font-size: 13px;
++  font-weight: 600;
++  white-space: nowrap;
++  transition: border-color 0.16s ease, background 0.16s ease;
++}
++
++.dashboard-workspace .dw-actions button:hover {
++  border-color: var(--dw-blue);
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-actions .app-icon {
++  width: 16px;
++  height: 16px;
++  color: var(--dw-blue);
++}
++
++/* ---------- KPIs ---------- */
++
++.dashboard-workspace .dw-kpis {
++  display: grid;
++  grid-template-columns: repeat(4, minmax(0, 1fr));
++  gap: 0.5rem;
++}
++
++.dashboard-workspace .dw-kpi {
++  display: grid;
++  gap: 0.1rem;
++  min-width: 0;
++  padding: 0.65rem 0.8rem;
++  border: 1px solid var(--dw-line);
++  border-left: 3px solid var(--dw-blue);
++  border-radius: var(--dw-radius-sm);
++  background: var(--dw-surface);
++  box-shadow: none;
++  color: var(--dw-body);
++  text-align: left;
++  transition: border-color 0.16s ease, background 0.16s ease;
++}
++
++.dashboard-workspace .dw-kpi:hover {
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-kpi strong {
++  color: var(--dw-ink);
++  font-size: 26px;
++  font-weight: 700;
++  line-height: 1.15;
++}
++
++.dashboard-workspace .dw-kpi small {
++  overflow: hidden;
++  color: var(--dw-muted);
++  font-size: 11.5px;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.dashboard-workspace .dw-kpi.is-map {
++  border-left-color: var(--dw-cyan);
++}
++.dashboard-workspace .dw-kpi.is-critical {
++  border-left-color: var(--dw-red);
++}
++.dashboard-workspace .dw-kpi.is-live,
++.dashboard-workspace .dw-kpi.is-calm {
++  border-left-color: var(--dw-teal);
++}
++.dashboard-workspace .dw-kpi.is-warning {
++  border-left-color: var(--dw-gold);
++}
++
++/* ---------- Rejilla de paneles ---------- */
++
++/* Dos columnas apiladas en lugar de una rejilla 2x2: con paneles de alturas
++   distintas, la rejilla dejaba un hueco muerto a media pagina. */
++.dashboard-workspace .dw-grid {
++  display: grid;
++  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
++  gap: 0.85rem;
++  align-items: start;
++}
++
++.dashboard-workspace .dw-col {
++  display: grid;
++  align-content: start;
++  gap: 0.85rem;
++  min-width: 0;
++}
++
++.dashboard-workspace .dw-panel {
++  display: grid;
++  align-content: start;
++  gap: 0.7rem;
++  padding: 0.95rem 1rem;
++  border: 1px solid var(--dw-line);
++  border-radius: var(--dw-radius);
++  background: var(--dw-surface);
++}
++
++.dashboard-workspace .dw-panel-head {
++  display: flex;
++  align-items: flex-start;
++  justify-content: space-between;
++  gap: 0.75rem;
++}
++
++.dashboard-workspace .dw-panel-head > div {
++  display: grid;
++  gap: 0.1rem;
++  min-width: 0;
++}
++
++.dashboard-workspace .dw-panel-head h2 {
++  margin: 0;
++  color: var(--dw-ink);
++  font-size: 17px;
++  font-weight: 700;
++  letter-spacing: 0;
++  line-height: 1.25;
++}
++
++.dashboard-workspace .dw-select select {
++  padding: 0.35rem 0.5rem;
++  border: 1px solid var(--dw-line);
++  border-radius: 8px;
++  background: var(--dw-surface);
++  color: var(--dw-ink);
++  font-family: inherit;
++  font-size: 12.5px;
++  font-weight: 600;
++}
++
++/* ---------- Panel firma: la cartera en una barra ---------- */
++
++.dashboard-workspace .dw-cartera-total {
++  margin: 0;
++}
++
++.dashboard-workspace .dw-amount.is-hero {
++  font-size: 30px;
++  line-height: 1.1;
++}
++
++.dashboard-workspace .dw-cartera-bar {
++  display: flex;
++  height: 14px;
++  overflow: hidden;
++  border-radius: 3px;
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-seg {
++  display: block;
++  height: 100%;
++}
++
++.dashboard-workspace .dw-seg.is-capital {
++  background: var(--dw-blue);
++}
++
++.dashboard-workspace .dw-seg.is-interes {
++  background: var(--dw-cyan);
++}
++
++.dashboard-workspace .dw-cartera-legend {
++  display: grid;
++  gap: 0.35rem;
++  margin: 0;
++}
++
++.dashboard-workspace .dw-cartera-legend > div {
++  display: flex;
++  align-items: baseline;
++  justify-content: space-between;
++  gap: 0.75rem;
++  padding-bottom: 0.35rem;
++  border-bottom: 1px solid var(--dw-line-soft);
++}
++
++.dashboard-workspace .dw-cartera-legend > div:last-child {
++  padding-bottom: 0;
++  border-bottom: 0;
++}
++
++.dashboard-workspace .dw-cartera-legend dt {
++  display: flex;
++  align-items: center;
++  gap: 0.45rem;
++  color: var(--dw-muted);
++  font-size: 12.5px;
++  font-weight: 600;
++}
++
++.dashboard-workspace .dw-cartera-legend dt i {
++  width: 9px;
++  height: 9px;
++  border-radius: 2px;
++}
++
++.dashboard-workspace .dw-cartera-legend dt i.is-capital {
++  background: var(--dw-blue);
++}
++
++.dashboard-workspace .dw-cartera-legend dt i.is-interes {
++  background: var(--dw-cyan);
++}
++
++.dashboard-workspace .dw-cartera-legend dd {
++  display: flex;
++  align-items: baseline;
++  gap: 0.6rem;
++  margin: 0;
++  font-size: 14px;
++}
++
++.dashboard-workspace .dw-cartera-legend dd b {
++  min-width: 46px;
++  color: var(--dw-muted);
++  font-size: 12px;
++  font-weight: 600;
++  text-align: right;
++}
++
++.dashboard-workspace .dw-cartera-foot {
++  display: grid;
++  gap: 0.4rem;
++  padding-top: 0.7rem;
++  border-top: 1px solid var(--dw-line-soft);
++}
++
++.dashboard-workspace .dw-cartera-foot p {
++  margin: 0;
++  color: var(--dw-muted);
++  font-size: 12.5px;
++}
++
++.dashboard-workspace .dw-cartera-foot strong {
++  color: var(--dw-ink);
++  font-weight: 700;
++}
++
++.dashboard-workspace .dw-meter {
++  height: 5px;
++  overflow: hidden;
++  border-radius: 99px;
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-meter i {
++  display: block;
++  height: 100%;
++  background: var(--dw-red);
++}
++
++.dashboard-workspace .dw-note {
++  color: var(--dw-muted);
++  font-size: 11.5px;
++}
++
++.dashboard-workspace .dw-service-debt {
++  display: grid;
++  gap: 0.4rem;
++  padding-top: 0.7rem;
++  border-top: 1px solid var(--dw-line-soft);
++}
++
++.dashboard-workspace .dw-service-debt ul {
++  display: grid;
++  gap: 0.3rem;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.dashboard-workspace .dw-service-debt li {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) auto;
++  align-items: baseline;
++  gap: 0.25rem 0.6rem;
++  padding-bottom: 0.15rem;
++}
++
++.dashboard-workspace .dw-service-name {
++  overflow: hidden;
++  color: var(--dw-body);
++  font-size: 12.5px;
++  font-weight: 600;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.dashboard-workspace .dw-service-debt li .dw-amount {
++  font-size: 12.5px;
++  text-align: right;
++}
++
++.dashboard-workspace .dw-service-track {
++  display: block;
++  grid-column: 1 / -1;
++  height: 4px;
++  overflow: hidden;
++  border-radius: 99px;
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-service-track em {
++  display: block;
++  height: 100%;
++  background: #7fb0e8;
++}
++
++/* ---------- Ranking de barrios ---------- */
++
++.dashboard-workspace .dw-ranking {
++  display: grid;
++  gap: 0.1rem;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.dashboard-workspace .dw-ranking button {
++  display: grid;
++  grid-template-columns: 20px minmax(0, 1fr) auto;
++  align-items: center;
++  gap: 0.7rem;
++  width: 100%;
++  padding: 0.4rem 0.45rem;
++  border: 1px solid transparent;
++  border-radius: 8px;
++  background: transparent;
++  box-shadow: none;
++  color: var(--dw-body);
++  text-align: left;
++  transition: background 0.16s ease, border-color 0.16s ease;
++}
++
++.dashboard-workspace .dw-ranking button:hover {
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-ranking button.is-selected {
++  border-color: var(--dw-blue);
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-ranking b {
++  color: var(--dw-muted);
++  font-size: 12px;
++  font-weight: 600;
++  text-align: right;
++}
++
++.dashboard-workspace .dw-ranking-copy {
++  display: grid;
++  gap: 0.3rem;
++  min-width: 0;
++}
++
++.dashboard-workspace .dw-ranking-copy strong {
++  overflow: hidden;
++  color: var(--dw-ink);
++  font-size: 13px;
++  font-weight: 600;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.dashboard-workspace .dw-ranking-track {
++  display: block;
++  height: 5px;
++  overflow: hidden;
++  border-radius: 99px;
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-ranking-track em {
++  display: block;
++  height: 100%;
++  background: var(--dw-blue);
++}
++
++.dashboard-workspace .dw-ranking .dw-amount {
++  font-size: 13px;
++}
++
++.dashboard-workspace .dw-hint,
++.dashboard-workspace .dw-empty {
++  margin: 0;
++  color: var(--dw-muted);
++  font-size: 12.5px;
++}
++
++.dashboard-workspace .dw-empty {
++  display: grid;
++  place-items: center;
++  min-height: 90px;
++}
++
++/* ---------- Seleccion de barrios ---------- */
++
++.dashboard-workspace .dw-selection {
++  display: grid;
++  gap: 0.6rem;
++  padding: 0.7rem 0.8rem;
++  border: 1px solid var(--dw-line);
++  border-radius: var(--dw-radius-sm);
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-selection > header {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 0.5rem;
++}
++
++.dashboard-workspace .dw-disclosure {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.35rem;
++  padding: 0;
++  background: transparent;
++  box-shadow: none;
++  color: var(--dw-ink);
++  font-size: 13px;
++  font-weight: 700;
++}
++
++.dashboard-workspace .dw-disclosure .app-icon {
++  width: 15px;
++  height: 15px;
++  transition: transform 0.18s ease;
++}
++
++.dashboard-workspace .dw-selection.is-open .dw-disclosure .app-icon {
++  transform: rotate(90deg);
++}
++
++.dashboard-workspace .dw-link {
++  padding: 0;
++  background: transparent;
++  box-shadow: none;
++  color: var(--dw-blue);
++  font-size: 12.5px;
++  font-weight: 600;
++}
++
++.dashboard-workspace .dw-link:hover {
++  text-decoration: underline;
++}
++
++.dashboard-workspace .dw-selection-figures {
++  display: grid;
++  grid-template-columns: repeat(5, minmax(0, 1fr));
++  gap: 0.5rem;
++  margin: 0;
++}
++
++.dashboard-workspace .dw-selection-figures dt {
++  color: var(--dw-muted);
++  font-size: 11px;
++  font-weight: 600;
++}
++
++.dashboard-workspace .dw-selection-figures dd {
++  margin: 0;
++  font-size: 12.5px;
++}
++
++.dashboard-workspace .dw-services {
++  display: grid;
++  gap: 0.5rem;
++  padding-top: 0.6rem;
++  border-top: 1px solid var(--dw-line);
++}
++
++.dashboard-workspace .dw-services > header {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 0.5rem;
++}
++
++.dashboard-workspace .dw-services > header strong {
++  color: var(--dw-ink);
++  font-size: 13px;
++}
++
++.dashboard-workspace .dw-services ul {
++  display: grid;
++  gap: 0.3rem;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.dashboard-workspace .dw-services li {
++  display: grid;
++  grid-template-columns: auto minmax(0, 1fr) auto;
++  align-items: center;
++  gap: 0.55rem;
++  padding: 0.4rem 0.5rem;
++  border: 1px solid var(--dw-line-soft);
++  border-radius: 8px;
++  background: var(--dw-surface);
++}
++
++.dashboard-workspace .dw-services li .app-icon {
++  width: 17px;
++  height: 17px;
++  color: var(--dw-blue);
++}
++
++/* Ojo: .dw-services li > span tambien alcanzaba al monto (que es un span) y lo
++   volvia grid, partiendo "L" y los digitos en dos lineas. Va por clase. */
++.dashboard-workspace .dw-service-copy {
++  display: grid;
++  min-width: 0;
++}
++
++.dashboard-workspace .dw-services li strong {
++  font-size: 12.5px;
++}
++
++.dashboard-workspace .dw-services li small {
++  color: var(--dw-muted);
++  font-size: 11px;
++}
++
++.dashboard-workspace .dw-services li .dw-amount {
++  font-size: 12.5px;
++}
++
++/* ---------- Listas de atencion y actividad ---------- */
++
++.dashboard-workspace .dw-list {
++  display: grid;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.dashboard-workspace .dw-list li + li {
++  border-top: 1px solid var(--dw-line-soft);
++}
++
++.dashboard-workspace .dw-list button {
++  display: grid;
++  grid-template-columns: auto minmax(0, 1fr) auto;
++  align-items: center;
++  gap: 0.65rem;
++  width: 100%;
++  padding: 0.6rem 0.4rem;
++  border: 0;
++  border-left: 2px solid transparent;
++  background: transparent;
++  box-shadow: none;
++  color: var(--dw-body);
++  text-align: left;
++  transition: background 0.16s ease, border-color 0.16s ease;
++}
++
++.dashboard-workspace .dw-list.is-quiet button {
++  grid-template-columns: auto minmax(0, 1fr);
++}
++
++.dashboard-workspace .dw-list button:hover {
++  border-left-color: var(--dw-blue);
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-list button > span {
++  display: grid;
++  gap: 0.1rem;
++  min-width: 0;
++}
++
++.dashboard-workspace .dw-list strong {
++  color: var(--dw-ink);
++  font-size: 13px;
++  font-weight: 600;
++}
++
++.dashboard-workspace .dw-list small {
++  color: var(--dw-muted);
++  font-size: 11.5px;
++  line-height: 1.4;
++}
++
++.dashboard-workspace .dw-list .app-icon {
++  width: 16px;
++  height: 16px;
++  color: var(--dw-muted);
++}
++
++.dashboard-workspace .dw-list button.is-critical > .app-icon:first-child {
++  color: var(--dw-red);
++}
++
++.dashboard-workspace .dw-list button.is-warning > .app-icon:first-child {
++  color: var(--dw-gold);
++}
++
++.dashboard-workspace .dw-list button.is-info > .app-icon:first-child {
++  color: var(--dw-blue);
++}
++
++/* ---------- Pie de panel ---------- */
++
++.dashboard-workspace .dw-panel-foot {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 0.6rem;
++  padding-top: 0.7rem;
++  border-top: 1px solid var(--dw-line-soft);
++}
++
++.dashboard-workspace .dw-button-secondary {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.4rem;
++  padding: 0.42rem 0.65rem;
++  border: 1px solid var(--dw-line);
++  border-radius: 8px;
++  background: var(--dw-surface);
++  box-shadow: none;
++  color: var(--dw-blue);
++  font-size: 12.5px;
++  font-weight: 600;
++  transition: border-color 0.16s ease, background 0.16s ease;
++}
++
++.dashboard-workspace .dw-button-secondary:hover:not(:disabled) {
++  border-color: var(--dw-blue);
++  background: var(--dw-tint);
++}
++
++.dashboard-workspace .dw-button-secondary:disabled {
++  cursor: not-allowed;
++  opacity: 0.5;
++}
++
++.dashboard-workspace .dw-button-secondary .app-icon {
++  width: 15px;
++  height: 15px;
++}
++
++/* styles.css aplica `button:hover:not(:disabled){box-shadow:0 6px 14px ...}`,
++   que por especificidad le gana a `box-shadow:none` puesto en una sola clase.
++   Los botones planos del tablero no deben levantarse al pasar el cursor. */
++.dashboard-workspace .dw-link:hover,
++.dashboard-workspace .dw-disclosure:hover,
++.dashboard-workspace .dw-ranking button:hover,
++.dashboard-workspace .dw-list button:hover,
++.dashboard-workspace .dw-kpi:hover {
++  box-shadow: none;
++}
++
++/* ---------- Foco visible ---------- */
++
++.dashboard-workspace button:focus-visible,
++.dashboard-workspace select:focus-visible {
++  outline: 2px solid var(--dw-blue);
++  outline-offset: 2px;
++}
++
++/* ---------- Adaptable ---------- */
++
++@media (max-width: 1100px) {
++  .dashboard-workspace .dw-grid {
++    grid-template-columns: minmax(0, 1fr);
++  }
++  .dashboard-workspace .dw-actions {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
++  }
++}
++
++@media (max-width: 860px) {
++  .dashboard-workspace .dw-kpis {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++  .dashboard-workspace .dw-selection-figures {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
++  }
++}
++
++@media (max-width: 620px) {
++  .dashboard-workspace .dw-actions {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++  .dashboard-workspace .dw-actions button:last-child {
++    grid-column: 1 / -1;
++  }
++  .dashboard-workspace .dw-panel-head {
++    flex-direction: column;
++    align-items: stretch;
++  }
++  .dashboard-workspace .dw-select select {
++    width: 100%;
++  }
++  .dashboard-workspace .dw-selection-figures {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++  .dashboard-workspace .dw-panel-foot {
++    flex-direction: column;
++    align-items: stretch;
++  }
++  .dashboard-workspace .dw-button-secondary {
++    justify-content: center;
++  }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .dashboard-workspace * {
++    transition-duration: 0.01ms !important;
++    animation-duration: 0.01ms !important;
++  }
++}
+-- 
+2.43.0
+

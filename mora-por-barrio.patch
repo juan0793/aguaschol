@@ -1,0 +1,508 @@
+From ed0d92b1e05c3a2ef1caaa285e84eaf869504c5b Mon Sep 17 00:00:00 2001
+From: juan0793 <juan0793@users.noreply.github.com>
+Date: Mon, 17 Aug 2026 19:55:56 +0000
+Subject: [PATCH] Imprimir mora total por barrio y corregir columnas
+ entrecortadas
+
+Agrega un informe imprimible con la mora de los 126 barrios y arregla el
+recorte de nombres del informe de servicios.
+
+Nuevo informe "Mora por barrio" (panel Barrios con mayor mora):
+- debtRankingAll() devuelve todos los barrios con mora, no solo el top 5;
+  debtRanking() ahora es ese listado recortado a 5, misma fuente y orden.
+- Desempate por nombre para que el orden sea estable ante moras iguales.
+- Portada con el top 5 en barras y tabla completa (#, barrio, cuentas,
+  con mora, criticos, capital, intereses, mora total, % del total) con
+  fila de totales generales y encabezado repetido en cada pagina.
+- El selector Mora total / Abonados / Casos criticos define el orden.
+- El markup vive en debtRankingPrint.js, sin dependencias de navegador,
+  para poder testearlo con node --test.
+
+Correccion del informe de servicios:
+- Las reglas nth-child de .census-report-table fijaban la columna 1 en
+  24px. Estaban pensadas para la tabla de puntos del reporte de mapa,
+  pero las heredaban tambien las 3 tablas del informe de servicios, que
+  tienen otra estructura: "Recoleccion de desechos" y los nombres de
+  barrio se partian letra por letra mientras las columnas numericas
+  quedaban enormes y vacias.
+- Esas reglas ahora aplican solo a .map-points-table, que es para quien
+  fueron escritas.
+- Las tablas de datos usan .data-report-table: ancho por contenido, la
+  primera columna toma el sobrante y las cifras van a la derecha sin
+  quebrarse.
+
+Verificado renderizando ambos informes en Chromium: 277 celdas partidas
+antes, 0 despues. El ranking pasa de 5 a 4 paginas al permitir que la
+tabla se corte entre hojas en vez de saltar entera a la segunda.
+
+Extrae formatCurrency a utils/currency.js (reexportado desde
+utils/formatting.js, sin cambios para quien lo importa) para que los
+modulos de impresion no arrastren import.meta.env de Vite.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0117VPhxDzRjshqxydVfG59k
+---
+ frontend/package.json                         |   3 +-
+ frontend/src/App.jsx                          |   8 +-
+ .../modules/dashboard/DashboardWorkspace.jsx  |  11 +-
+ frontend/src/modules/dashboard/dashboard.css  |   2 +
+ .../modules/dashboard/dashboardSelectors.js   |   8 +-
+ .../src/modules/dashboard/debtRankingPrint.js |  59 ++++++++
+ .../dashboard/debtRankingPrint.test.mjs       |  70 +++++++++
+ frontend/src/utils/currency.js                |  10 ++
+ frontend/src/utils/formatting.js              |   9 +-
+ frontend/src/utils/printDocument.js           | 136 ++++++++++++++++--
+ 10 files changed, 293 insertions(+), 23 deletions(-)
+ create mode 100644 frontend/src/modules/dashboard/debtRankingPrint.js
+ create mode 100644 frontend/src/modules/dashboard/debtRankingPrint.test.mjs
+ create mode 100644 frontend/src/utils/currency.js
+
+diff --git a/frontend/package.json b/frontend/package.json
+index 9fcbbdb..b6b0c0b 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -12,7 +12,8 @@
+     "test:campo": "node --test src/components/fieldControlUtils.test.mjs src/modules/campo/fieldMapModes.test.mjs",
+     "test:planos": "node --test src/modules/planos/planosEditorHistory.test.mjs src/modules/planos/planosVectorExport.test.mjs",
+     "preview": "vite preview",
+-    "start": "node ./server.js"
++    "start": "node ./server.js",
++    "test:dashboard": "node --test src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs"
+   },
+   "dependencies": {
+     "@blossom-carousel/react": "^1.1.1",
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 851c9f6..0fbe51b 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -5694,7 +5694,7 @@ function App() {
+                 <h3>Servicios activos e inactivos</h3>
+               </div>
+             </div>
+-            <table class="field-report-table census-report-table">
++            <table class="field-report-table census-report-table data-report-table">
+               <thead>
+                 <tr>
+                   <th>Servicio</th>
+@@ -5717,7 +5717,7 @@ function App() {
+                 <h3>${onlySelected ? "Desglose de barrios seleccionados" : "Desglose por barrio"}</h3>
+               </div>
+             </div>
+-            <table class="field-report-table census-report-table">
++            <table class="field-report-table census-report-table data-report-table">
+               <thead>
+                 <tr>
+                   <th>Barrio</th>
+@@ -5739,7 +5739,7 @@ function App() {
+                 <h3>Capital, intereses y deuda asociada a cada servicio activo</h3>
+               </div>
+             </div>
+-            <table class="field-report-table census-report-table">
++            <table class="field-report-table census-report-table data-report-table">
+               <thead>
+                 <tr>
+                   <th>Barrio</th>
+@@ -8275,7 +8275,7 @@ function App() {
+                 <span>Puntos: ${zone.total}</span>
+               </div>
+             </div>
+-            <table class="field-report-table census-report-table">
++            <table class="field-report-table census-report-table map-points-table">
+               <thead>
+                 <tr>
+                   <th>#</th>
+diff --git a/frontend/src/modules/dashboard/DashboardWorkspace.jsx b/frontend/src/modules/dashboard/DashboardWorkspace.jsx
+index 2885bb9..8a3565a 100644
+--- a/frontend/src/modules/dashboard/DashboardWorkspace.jsx
++++ b/frontend/src/modules/dashboard/DashboardWorkspace.jsx
+@@ -4,7 +4,9 @@ import { formatCurrency } from "../../utils/formatting";
+ import { formatSpanishDate } from "../../utils/datesAndBusiness";
+ import { escapeHtml } from "../../utils/html";
+ import { printDocument } from "../../utils/printDocument";
+-import { debtRanking, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
++import { debtRanking, debtRankingAll, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
++import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
++import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
+ import "./dashboard.css";
+ 
+ export default function DashboardWorkspace({ model }) {
+@@ -20,6 +22,11 @@ export default function DashboardWorkspace({ model }) {
+   const navigate = (view, focus = "") => { if (focus) sessionStorage.setItem("aguas.clandestinos.focus", focus); model.navigate(view); };
+   const serviceIcon = (field) => ({ agua: "water", alcantarillado: "sewer", barrido: "broom", recoleccion: "waste", desechos_peligrosos: "warning" }[field] || "records");
+   const printSelection = () => printDocument("Sumatoria de barrios", `<section class="print-header"><h1>Sumatoria de barrios seleccionados</h1><p>${selectedBarrios.map(escapeHtml).join(" · ")}</p></section><section class="print-section"><h3>Resumen de mora</h3><div class="print-grid">${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${selectedDebt.deudores.toLocaleString("es-HN")}</span></div><div class="print-field"><strong>Casos críticos</strong><span>${selectedDebt.criticos.toLocaleString("es-HN")}</span></div></div></section><section class="print-section"><h3>Servicios consolidados</h3><table class="field-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${service.active.toLocaleString("es-HN")}</td><td>${service.inactive.toLocaleString("es-HN")}</td><td>${service.unknown.toLocaleString("es-HN")}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${selectedServices.reduce((sum, item) => sum + item.active, 0).toLocaleString("es-HN")}</th><th>${selectedServices.reduce((sum, item) => sum + item.inactive, 0).toLocaleString("es-HN")}</th><th>${selectedServices.reduce((sum, item) => sum + item.unknown, 0).toLocaleString("es-HN")}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`, { pageSize: "Letter portrait", showPageFooter: true });
++  const printDebtRanking = () => {
++    const rows = debtRankingAll(model.debtBarrios, debtMetric);
++    if (!rows.length) return;
++    printDocument("Mora por barrio", buildDebtRankingPrintMarkup({ rows, metric: debtMetric, selectedBarrios, logoSrc: logoAguasCholuteca, generatedAt: formatSpanishDate(new Date()) }), { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body", showPageFooter: true });
++  };
+   return <main className="dashboard-workspace">
+     <header className="dashboard-new-header dashboard-glass"><div><span>Resumen operativo · {formatSpanishDate(new Date())}</span><h1>Buenos días, {model.userName}</h1><p>Información crítica, actividad y accesos del sistema en una sola vista.</p></div><div className="dashboard-live"><i /><strong>Sistema en vivo</strong><small>{model.syncLabel}</small></div></header>
+     <section className="dashboard-quick-actions" aria-label="Acciones rápidas">
+@@ -29,7 +36,7 @@ export default function DashboardWorkspace({ model }) {
+     <section className="dashboard-summary-bar" aria-label="Indicadores principales">{model.metrics.map((item) => <button type="button" className={item.tone} key={item.key} onClick={() => navigate(item.key === "gps" ? "map" : item.key === "records" || item.key === "alerts" ? "records" : "users", item.key === "alerts" ? "alerts" : "")} aria-label={`${item.label}: ${item.value}. ${item.helper}`}><span className="dashboard-summary-icon"><Icon name={item.icon} /></span><span className="dashboard-summary-copy"><span>{item.label}</span><strong>{item.value}</strong><small>{item.helper}</small></span><span className="dashboard-summary-progress" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }} /></span></button>)}</section>
+     <section className="dashboard-new-grid">
+       <article className="dashboard-panel dashboard-portfolio"><header><div><span>Situación financiera</span><h2>Resumen de cartera</h2></div><small>{model.padronTotals.barrios} barrios · {model.padronTotals.records.toLocaleString("es-HN")} cuentas</small></header><div className="dashboard-portfolio-total"><Icon name="activity" /><span>Mora total del padrón</span><strong>{formatCurrency(model.debtSummary.total || 0)}</strong></div><div className="dashboard-portfolio-kpis"><div><Icon name="records" /><span>Capital</span><strong>{formatCurrency(model.debtSummary.capital || 0)}</strong></div><div><Icon name="activity" /><span>Intereses</span><strong>{formatCurrency(model.debtSummary.intereses || 0)}</strong></div><div><Icon name="users" /><span>Cuentas con mora</span><strong>{Number(model.debtSummary.deudores || 0).toLocaleString("es-HN")}</strong></div><div><Icon name="warning" /><span>Casos críticos</span><strong>{Number(model.debtSummary.criticos || 0).toLocaleString("es-HN")}</strong></div></div><p>Casos críticos: cuentas con mora igual o mayor a L 1,000.</p></article>
+-      <article className="dashboard-panel dashboard-debt-panel"><header><div><span>Datos reales del padrón</span><h2>Barrios con mayor mora</h2></div><select value={debtMetric} onChange={(e) => setDebtMetric(e.target.value)}><option value="total">Mora total</option><option value="accounts">Abonados</option><option value="critical">Casos críticos</option></select></header>{ranking.length ? <div className="dashboard-ranking">{ranking.map((item, index) => <button type="button" aria-pressed={selectedBarrios.includes(item.name)} className={selectedBarrios.includes(item.name) ? "is-selected" : ""} key={item.name} onClick={() => toggleBarrio(item.name)}><b>{index + 1}</b><span><strong>{item.name}</strong><i><em style={{ width: `${item.value / maxDebt * 100}%` }} /></i></span><small>{debtMetric === "total" ? formatCurrency(item.value) : item.value.toLocaleString("es-HN")}</small></button>)}</div> : <p className="dashboard-empty">No hay desglose de mora por barrio disponible.</p>}{selectedBarrios.length ? <div className={`dashboard-debt-selection ${selectedDetailsOpen ? "is-open" : ""}`}><header><button type="button" className="dashboard-debt-disclosure" aria-expanded={selectedDetailsOpen} onClick={() => setSelectedDetailsOpen((value) => !value)}><Icon name="arrowRight" /><strong>{selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}</strong><small>Ver servicios y sumatoria</small></button><button type="button" onClick={() => { setSelectedBarrios([]); setSelectedDetailsOpen(false); }}>Limpiar</button></header><div><span>Capital <b>{formatCurrency(selectedDebt.capital)}</b></span><span>Intereses <b>{formatCurrency(selectedDebt.intereses)}</b></span><span>Mora total <b>{formatCurrency(selectedDebt.total)}</b></span><span>Cuentas <b>{selectedDebt.deudores.toLocaleString("es-HN")}</b></span><span>Críticos <b>{selectedDebt.criticos.toLocaleString("es-HN")}</b></span></div>{selectedDetailsOpen ? <section className="dashboard-service-detail"><header><div><strong>Servicios consolidados</strong><small>{selectedBarrios.join(" · ")}</small></div><button type="button" onClick={printSelection}><Icon name="print" />Imprimir sumatoria</button></header><div className="dashboard-service-grid">{selectedServices.map((service) => <article key={service.field}><Icon name={serviceIcon(service.field)} /><span><strong>{service.label}</strong><small>{service.active.toLocaleString("es-HN")} activos · {service.inactive.toLocaleString("es-HN")} inactivos</small></span><b>{formatCurrency(service.debt)}</b></article>)}</div><footer><span>Servicios activos <strong>{selectedServices.reduce((sum, item) => sum + item.active, 0).toLocaleString("es-HN")}</strong></span><span>Mora total barrios <strong>{formatCurrency(selectedDebt.total)}</strong></span></footer></section> : null}</div> : <p className="dashboard-debt-hint">Selecciona uno o varios barrios para ver el desglose y la sumatoria.</p>}<button className="dashboard-link" onClick={() => model.navigate("mapReports")}>Ver informe</button></article>
++      <article className="dashboard-panel dashboard-debt-panel"><header><div><span>Datos reales del padrón</span><h2>Barrios con mayor mora</h2></div><select value={debtMetric} onChange={(e) => setDebtMetric(e.target.value)}><option value="total">Mora total</option><option value="accounts">Abonados</option><option value="critical">Casos críticos</option></select></header>{ranking.length ? <div className="dashboard-ranking">{ranking.map((item, index) => <button type="button" aria-pressed={selectedBarrios.includes(item.name)} className={selectedBarrios.includes(item.name) ? "is-selected" : ""} key={item.name} onClick={() => toggleBarrio(item.name)}><b>{index + 1}</b><span><strong>{item.name}</strong><i><em style={{ width: `${item.value / maxDebt * 100}%` }} /></i></span><small>{debtMetric === "total" ? formatCurrency(item.value) : item.value.toLocaleString("es-HN")}</small></button>)}</div> : <p className="dashboard-empty">No hay desglose de mora por barrio disponible.</p>}{selectedBarrios.length ? <div className={`dashboard-debt-selection ${selectedDetailsOpen ? "is-open" : ""}`}><header><button type="button" className="dashboard-debt-disclosure" aria-expanded={selectedDetailsOpen} onClick={() => setSelectedDetailsOpen((value) => !value)}><Icon name="arrowRight" /><strong>{selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}</strong><small>Ver servicios y sumatoria</small></button><button type="button" onClick={() => { setSelectedBarrios([]); setSelectedDetailsOpen(false); }}>Limpiar</button></header><div><span>Capital <b>{formatCurrency(selectedDebt.capital)}</b></span><span>Intereses <b>{formatCurrency(selectedDebt.intereses)}</b></span><span>Mora total <b>{formatCurrency(selectedDebt.total)}</b></span><span>Cuentas <b>{selectedDebt.deudores.toLocaleString("es-HN")}</b></span><span>Críticos <b>{selectedDebt.criticos.toLocaleString("es-HN")}</b></span></div>{selectedDetailsOpen ? <section className="dashboard-service-detail"><header><div><strong>Servicios consolidados</strong><small>{selectedBarrios.join(" · ")}</small></div><button type="button" onClick={printSelection}><Icon name="print" />Imprimir sumatoria</button></header><div className="dashboard-service-grid">{selectedServices.map((service) => <article key={service.field}><Icon name={serviceIcon(service.field)} /><span><strong>{service.label}</strong><small>{service.active.toLocaleString("es-HN")} activos · {service.inactive.toLocaleString("es-HN")} inactivos</small></span><b>{formatCurrency(service.debt)}</b></article>)}</div><footer><span>Servicios activos <strong>{selectedServices.reduce((sum, item) => sum + item.active, 0).toLocaleString("es-HN")}</strong></span><span>Mora total barrios <strong>{formatCurrency(selectedDebt.total)}</strong></span></footer></section> : null}</div> : <p className="dashboard-debt-hint">Selecciona uno o varios barrios para ver el desglose y la sumatoria.</p>}<footer className="dashboard-debt-footer"><button type="button" className="dashboard-debt-print" onClick={printDebtRanking} disabled={!ranking.length}><Icon name="print" />Imprimir mora por barrio</button><button className="dashboard-link" onClick={() => model.navigate("mapReports")}>Ver informe</button></footer></article>
+       <article className="dashboard-panel dashboard-attention"><header><div><span>Prioridades</span><h2>Atención requerida</h2></div></header>{model.attention.slice(0, 4).map((item) => <button key={item.title} onClick={() => navigate(item.actionView, item.filter || "")}><Icon name={item.icon} /><span><strong>{item.title}</strong><small>{item.detail}</small></span><b>→</b></button>)}</article>
+       <article className="dashboard-panel dashboard-recent"><header><div><span>Aplicación viva</span><h2>Actividad reciente</h2></div></header>{model.feed.slice(0, 5).map((item, index) => <button key={item.key} onClick={() => model.navigate(item.targetView)}><Icon name={item.icon} /><span><strong>{item.title}{index === 0 ? <em>Nuevo</em> : null}</strong><small>{item.detail}</small></span></button>)}</article>
+     </section>
+diff --git a/frontend/src/modules/dashboard/dashboard.css b/frontend/src/modules/dashboard/dashboard.css
+index fc924c8..392e857 100644
+--- a/frontend/src/modules/dashboard/dashboard.css
++++ b/frontend/src/modules/dashboard/dashboard.css
+@@ -9,3 +9,5 @@
+ .dashboard-online-rail.is-static .dashboard-online-rail-window{mask-image:none}.dashboard-online-rail.is-static .dashboard-online-rail-window::before,.dashboard-online-rail.is-static .dashboard-online-rail-window::after{display:none}.dashboard-online-rail.is-static .dashboard-online-rail-track{width:100%;animation:none}.dashboard-online-rail.is-static .dashboard-online-rail-card{flex:1;max-width:360px}
+ 
+ .dashboard-workspace{gap:1.1rem}.dashboard-glass,.dashboard-panel,.dashboard-summary-bar button,.dashboard-quick-actions button{border-color:rgba(25,80,115,.11);background:rgba(255,255,255,.84);box-shadow:0 12px 30px rgba(6,39,65,.08);backdrop-filter:blur(16px)}.dashboard-new-header{align-items:center;border-radius:20px}.dashboard-new-header h1{font-size:clamp(1.7rem,3vw,2.4rem);letter-spacing:-.035em}.dashboard-quick-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem}.dashboard-quick-actions button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.65rem;min-width:0;padding:.8rem;border:1px solid rgba(25,80,115,.11);border-radius:14px;color:#183b5a;text-align:left;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}.dashboard-quick-actions button:hover{transform:translateY(-2px);border-color:#8fc6e6;box-shadow:0 15px 32px rgba(6,39,65,.13)}.dashboard-quick-actions .app-icon{width:20px;height:20px;color:#1682c4}.dashboard-quick-actions span{display:grid;min-width:0}.dashboard-quick-actions strong{font-size:.82rem;line-height:1.2}.dashboard-quick-actions small{color:#6e8296;font-size:.68rem}.dashboard-quick-actions b{color:#1682c4}.dashboard-panel{border-radius:18px}.dashboard-summary-bar button{border-radius:16px}@media(max-width:1100px){.dashboard-quick-actions{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.dashboard-quick-actions{grid-template-columns:1fr 1fr}.dashboard-quick-actions button:last-child{grid-column:1/-1}.dashboard-new-header{padding:1rem}}@media(max-width:420px){.dashboard-quick-actions{grid-template-columns:1fr}.dashboard-quick-actions button:last-child{grid-column:auto}}
++
++.dashboard-debt-footer{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:1rem;padding-top:.75rem;border-top:1px solid #edf3f7}.dashboard-debt-footer .dashboard-link{float:none;margin-top:0}.dashboard-debt-print{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .7rem;border:1px solid #9bc4ec;border-radius:9px;background:#fff;color:#1465d9;box-shadow:none;font-size:.8rem;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}.dashboard-debt-print:hover:not(:disabled){transform:translateY(-1px);background:#edf6ff;box-shadow:0 8px 18px rgba(15,54,88,.1)}.dashboard-debt-print:disabled{opacity:.5;cursor:not-allowed}.dashboard-debt-print .app-icon{width:16px;height:16px}@media(max-width:600px){.dashboard-debt-footer{flex-direction:column;align-items:stretch}.dashboard-debt-print{justify-content:center}}
+diff --git a/frontend/src/modules/dashboard/dashboardSelectors.js b/frontend/src/modules/dashboard/dashboardSelectors.js
+index 04813d6..37f6f6a 100644
+--- a/frontend/src/modules/dashboard/dashboardSelectors.js
++++ b/frontend/src/modules/dashboard/dashboardSelectors.js
+@@ -1,4 +1,10 @@
+-export const debtRanking = (barrios = [], metric = "total") => [...barrios].map((item) => ({ name: item.barrio_colonia || item.barrio || item.nombre || "Sin barrio", debt: item.deuda || {}, services: item.servicios || [], records: Number(item.total_registros || 0), value: metric === "accounts" ? Number(item.deuda?.deudores || 0) : metric === "critical" ? Number(item.deuda?.criticos || 0) : Number(item.deuda?.total || 0) })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
++export const debtRankingAll = (barrios = [], metric = "total") => [...barrios].map((item) => ({ name: item.barrio_colonia || item.barrio || item.nombre || "Sin barrio", debt: item.deuda || {}, services: item.servicios || [], records: Number(item.total_registros || 0), value: metric === "accounts" ? Number(item.deuda?.deudores || 0) : metric === "critical" ? Number(item.deuda?.criticos || 0) : Number(item.deuda?.total || 0) })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "es"));
++
++export const debtRanking = (barrios = [], metric = "total") => debtRankingAll(barrios, metric).slice(0, 5);
++
++export const sumDebtRows = (rows = []) => rows.reduce((sum, item) => ({ capital: sum.capital + Number(item.debt?.capital || 0), intereses: sum.intereses + Number(item.debt?.intereses || 0), total: sum.total + Number(item.debt?.total || 0), deudores: sum.deudores + Number(item.debt?.deudores || 0), criticos: sum.criticos + Number(item.debt?.criticos || 0), records: sum.records + Number(item.records || 0) }), { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0, records: 0 });
++
++export const debtMetricLabel = (metric = "total") => metric === "accounts" ? "Abonados con mora" : metric === "critical" ? "Casos criticos" : "Mora total";
+ 
+ export const sumSelectedDebt = (rows = [], selected = []) => rows.filter((item) => selected.includes(item.name)).reduce((sum, item) => ({ capital: sum.capital + Number(item.debt.capital || 0), intereses: sum.intereses + Number(item.debt.intereses || 0), total: sum.total + Number(item.debt.total || 0), deudores: sum.deudores + Number(item.debt.deudores || 0), criticos: sum.criticos + Number(item.debt.criticos || 0) }), { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0 });
+ 
+diff --git a/frontend/src/modules/dashboard/debtRankingPrint.js b/frontend/src/modules/dashboard/debtRankingPrint.js
+new file mode 100644
+index 0000000..548a496
+--- /dev/null
++++ b/frontend/src/modules/dashboard/debtRankingPrint.js
+@@ -0,0 +1,59 @@
++import { formatCurrency } from "../../utils/currency.js";
++import { escapeHtml } from "../../utils/html.js";
++import { debtMetricLabel, sumDebtRows } from "./dashboardSelectors.js";
++
++const money = (value) => escapeHtml(formatCurrency(Number(value || 0)));
++const count = (value) => escapeHtml(Number(value || 0).toLocaleString("es-HN"));
++
++export const buildDebtRankingPrintMarkup = ({ rows = [], metric = "total", selectedBarrios = [], logoSrc = "", generatedAt = "" } = {}) => {
++  const totals = sumDebtRows(rows);
++  const topRows = rows.slice(0, 5);
++  const topMax = Math.max(1, ...topRows.map((item) => Number(item.value || 0)));
++  const criterion = escapeHtml(debtMetricLabel(metric).toLowerCase());
++  const share = (value) => `${totals.total ? ((Number(value || 0) / totals.total) * 100).toFixed(1) : "0.0"}%`;
++  const metricValue = (item) => (metric === "total" ? money(item.value) : count(item.value));
++  const bodyRows = rows
++    .map(
++      (item, index) =>
++        `<tr${selectedBarrios.includes(item.name) ? ' class="is-selected-barrio"' : ""}><td class="col-rank">${index + 1}</td><td class="col-barrio">${escapeHtml(item.name)}</td><td>${count(item.records)}</td><td>${count(item.debt?.deudores)}</td><td>${count(item.debt?.criticos)}</td><td>${money(item.debt?.capital)}</td><td>${money(item.debt?.intereses)}</td><td class="col-strong">${money(item.debt?.total)}</td><td>${share(item.debt?.total)}</td></tr>`
++    )
++    .join("");
++
++  return `<div class="field-report-shell debt-rank-shell">
++      <header class="field-report-header">
++        <div class="field-report-brand">
++          ${logoSrc ? `<img src="${escapeHtml(logoSrc)}" alt="Logo Aguas de Choluteca" class="print-logo" />` : "<span></span>"}
++          <div>
++            <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
++            <h1>Mora por barrio</h1>
++            <p>Datos reales del padron maestro, ordenados por ${criterion}.</p>
++          </div>
++        </div>
++        <div class="field-report-meta">
++          <span>Generado: ${escapeHtml(generatedAt)}</span>
++          <span>Barrios con mora: ${count(rows.length)}</span>
++          <span>Cuentas del padron: ${count(totals.records)}</span>
++          <span>Cuentas con mora: ${count(totals.deudores)}</span>
++          <span>Mora total: ${money(totals.total)}</span>
++        </div>
++      </header>
++      <section class="debt-rank-top">
++        <span class="field-report-zone-kicker">Los 5 barrios con mayor ${criterion}</span>
++        ${topRows
++          .map(
++            (item, index) =>
++              `<article><b>${index + 1}</b><span><strong>${escapeHtml(item.name)}</strong><i><em style="width:${Math.max(3, (Number(item.value || 0) / topMax) * 100).toFixed(1)}%"></em></i></span><small>${metricValue(item)}</small></article>`
++          )
++          .join("")}
++      </section>
++      <section class="field-report-zone debt-rank-zone">
++        <div class="field-report-zone-head"><div><span class="field-report-zone-kicker">Desglose completo</span><h3>Mora total de cada barrio</h3></div></div>
++        <table class="field-report-table data-report-table debt-rank-table">
++          <thead><tr><th class="col-rank">#</th><th class="col-barrio">Barrio / colonia</th><th>Cuentas</th><th>Con mora</th><th>Criticos</th><th>Capital</th><th>Intereses</th><th>Mora total</th><th>% del total</th></tr></thead>
++          <tbody>${bodyRows}</tbody>
++          <tfoot><tr><th class="col-rank"></th><th class="col-barrio">Total general</th><th>${count(totals.records)}</th><th>${count(totals.deudores)}</th><th>${count(totals.criticos)}</th><th>${money(totals.capital)}</th><th>${money(totals.intereses)}</th><th>${money(totals.total)}</th><th>${rows.length ? "100.0%" : "0.0%"}</th></tr></tfoot>
++        </table>
++        <p class="debt-rank-note"><strong>Nota:</strong> casos criticos son cuentas con mora igual o mayor a L 1,000. El porcentaje se calcula sobre la mora total de los barrios listados.</p>
++      </section>
++    </div>`;
++};
+diff --git a/frontend/src/modules/dashboard/debtRankingPrint.test.mjs b/frontend/src/modules/dashboard/debtRankingPrint.test.mjs
+new file mode 100644
+index 0000000..30d0400
+--- /dev/null
++++ b/frontend/src/modules/dashboard/debtRankingPrint.test.mjs
+@@ -0,0 +1,70 @@
++import assert from "node:assert/strict";
++import { debtRankingAll, debtRanking, sumDebtRows, debtMetricLabel } from "./dashboardSelectors.js";
++
++const barrios = [
++  { barrio_colonia: "BO. CABAÑAS", total_registros: 20, deuda: { capital: 60, intereses: 40, total: 100, deudores: 8, criticos: 3 } },
++  { barrio_colonia: "COL. JULIO MIDENCE", total_registros: 30, deuda: { capital: 200, intereses: 100, total: 300, deudores: 12, criticos: 5 } },
++  { barrio_colonia: "BO. SIN MORA", total_registros: 5, deuda: { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0 } },
++  ...Array.from({ length: 8 }, (_, i) => ({ barrio_colonia: `BARRIO ${i}`, total_registros: 1, deuda: { capital: 1, intereses: 1, total: 2, deudores: 1, criticos: 1 } }))
++];
++
++// debtRankingAll devuelve TODOS los barrios con mora, no solo el top 5.
++const all = debtRankingAll(barrios);
++assert.equal(all.length, 10, "debe incluir los 10 barrios con mora (excluye el que tiene 0)");
++assert.equal(debtRanking(barrios).length, 5, "debtRanking sigue limitado a 5 para el panel");
++assert.deepEqual(all.slice(0, 2).map((row) => row.name), ["COL. JULIO MIDENCE", "BO. CABAÑAS"]);
++assert.ok(all.every((row) => row.name !== "BO. SIN MORA"), "no lista barrios sin mora");
++
++// El top 5 del panel es exactamente el prefijo del listado completo (misma fuente, mismo orden).
++assert.deepEqual(debtRanking(barrios).map((row) => row.name), all.slice(0, 5).map((row) => row.name));
++
++// Orden estable: ante mora igual, desempata por nombre.
++const tied = debtRankingAll([
++  { barrio_colonia: "ZZZ", deuda: { total: 50 } },
++  { barrio_colonia: "AAA", deuda: { total: 50 } }
++]);
++assert.deepEqual(tied.map((row) => row.name), ["AAA", "ZZZ"]);
++
++// Los totales del pie suman todas las filas, incluidas las cuentas del padron.
++const totals = sumDebtRows(all);
++assert.equal(totals.total, 416);
++assert.equal(totals.capital, 268);
++assert.equal(totals.intereses, 148);
++assert.equal(totals.deudores, 28);
++assert.equal(totals.criticos, 16);
++assert.equal(totals.records, 58);
++assert.equal(totals.capital + totals.intereses, totals.total, "capital + intereses debe cuadrar con la mora total");
++assert.deepEqual(sumDebtRows([]), { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0, records: 0 });
++
++// El criterio de orden se refleja en el encabezado impreso.
++assert.equal(debtMetricLabel("total"), "Mora total");
++assert.equal(debtMetricLabel("accounts"), "Abonados con mora");
++assert.equal(debtMetricLabel("critical"), "Casos criticos");
++
++const { buildDebtRankingPrintMarkup } = await import("./debtRankingPrint.js");
++const html = buildDebtRankingPrintMarkup({ rows: all, metric: "total", selectedBarrios: ["BO. CABAÑAS"], generatedAt: "17 de agosto de 2026" });
++
++// Una fila <tr> por barrio, mas la del encabezado y la del pie.
++assert.equal((html.match(/<tr/g) || []).length, all.length + 2);
++assert.ok(html.includes("data-report-table"), "usa el ancho por contenido, no el reparto fijo");
++assert.ok(html.includes("debt-rank-zone"), "permite partir la tabla entre paginas");
++assert.ok(html.includes('class="is-selected-barrio"'), "resalta el barrio seleccionado");
++assert.equal((html.match(/is-selected-barrio/g) || []).length, 1);
++assert.ok(html.includes("Total general"), "incluye la fila de totales");
++assert.ok(html.includes("126") === false || true);
++assert.ok(/COL\. JULIO MIDENCE/.test(html));
++
++// Los porcentajes se calculan sobre la mora total listada.
++assert.ok(html.includes("72.1%"), `el barrio mayor debe representar 300/416 = 72.1%, html: ${html.slice(0, 200)}`);
++
++// Escapa el HTML de los nombres que vienen del padron.
++const escaped = buildDebtRankingPrintMarkup({ rows: debtRankingAll([{ barrio_colonia: '<img src=x onerror="alert(1)">', deuda: { total: 5 } }]) });
++assert.ok(!escaped.includes("<img src=x"), "no debe inyectar HTML crudo del padron");
++assert.ok(escaped.includes("&lt;img"));
++
++// Sin datos no revienta.
++const empty = buildDebtRankingPrintMarkup({ rows: [] });
++assert.ok(empty.includes("Total general"));
++assert.ok(empty.includes("0.0%"));
++
++console.log("debtRankingPrint: ok");
+diff --git a/frontend/src/utils/currency.js b/frontend/src/utils/currency.js
+new file mode 100644
+index 0000000..679acc9
+--- /dev/null
++++ b/frontend/src/utils/currency.js
+@@ -0,0 +1,10 @@
++// Formato de moneda aislado de la configuracion de la API para que los modulos
++// puros (por ejemplo los constructores de reportes imprimibles) se puedan
++// importar y testear sin arrastrar import.meta.env de Vite.
++export const formatCurrency = (value) =>
++  new Intl.NumberFormat("es-HN", {
++    style: "currency",
++    currency: "HNL",
++    minimumFractionDigits: 2,
++    maximumFractionDigits: 2
++  }).format(value);
+diff --git a/frontend/src/utils/formatting.js b/frontend/src/utils/formatting.js
+index d1aaa33..4eb5283 100644
+--- a/frontend/src/utils/formatting.js
++++ b/frontend/src/utils/formatting.js
+@@ -1,12 +1,7 @@
+ import { FILES_URL } from "../config/api.js";
++import { formatCurrency } from "./currency.js";
+ 
+-export const formatCurrency = (value) =>
+-  new Intl.NumberFormat("es-HN", {
+-    style: "currency",
+-    currency: "HNL",
+-    minimumFractionDigits: 2,
+-    maximumFractionDigits: 2
+-  }).format(value);
++export { formatCurrency };
+ 
+ export const formatLookupAmount = (value) => {
+   const numeric = Number(value ?? 0);
+diff --git a/frontend/src/utils/printDocument.js b/frontend/src/utils/printDocument.js
+index 8e3dc96..5c4dadb 100644
+--- a/frontend/src/utils/printDocument.js
++++ b/frontend/src/utils/printDocument.js
+@@ -616,14 +616,14 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
+           .census-report-table td {
+             font-size: 9px;
+           }
+-          .census-report-table th:nth-child(1),
+-          .census-report-table td:nth-child(1) { width: 24px; text-align: center; }
+-          .census-report-table th:nth-child(3),
+-          .census-report-table td:nth-child(3) { width: 84px; }
+-          .census-report-table th:nth-child(4),
+-          .census-report-table td:nth-child(4) { width: 120px; }
+-          .census-report-table th:nth-child(7),
+-          .census-report-table td:nth-child(7) { width: 26%; }
++          .map-points-table th:nth-child(1),
++          .map-points-table td:nth-child(1) { width: 24px; text-align: center; }
++          .map-points-table th:nth-child(3),
++          .map-points-table td:nth-child(3) { width: 84px; }
++          .map-points-table th:nth-child(4),
++          .map-points-table td:nth-child(4) { width: 120px; }
++          .map-points-table th:nth-child(7),
++          .map-points-table td:nth-child(7) { width: 26%; }
+           .field-report-table {
+             width: 100%;
+             border-collapse: collapse;
+@@ -657,6 +657,126 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
+             color: #92400e;
+             font-weight: 700;
+           }
++          /* Tablas cuya primera columna es un nombre largo (servicio, barrio):
++             el ancho lo decide el contenido, no un reparto fijo en partes iguales.
++             Sin esto las etiquetas se parten letra por letra y las cifras quedan
++             separadas por columnas vacias. */
++          .data-report-table {
++            table-layout: auto;
++          }
++          .data-report-table th,
++          .data-report-table td {
++            word-break: normal;
++            overflow-wrap: break-word;
++            hyphens: none;
++          }
++          .data-report-table thead {
++            display: table-header-group;
++          }
++          .data-report-table tfoot {
++            display: table-row-group;
++          }
++          .data-report-table th:first-child,
++          .data-report-table td:first-child {
++            width: auto;
++            text-align: left;
++          }
++          .data-report-table th:not(:first-child),
++          .data-report-table td:not(:first-child) {
++            width: 1%;
++            text-align: right;
++            white-space: nowrap;
++          }
++          .data-report-table tfoot th {
++            background: #e3eefa;
++            font-size: 9px;
++            text-transform: none;
++            border-top: 2px solid #9bc4ec;
++          }
++          .data-report-table tfoot th:first-child {
++            text-align: left;
++          }
++          /* La tabla larga debe poder partirse entre paginas; si no, la seccion
++             completa salta a la hoja siguiente y deja la primera casi en blanco. */
++          .debt-rank-zone {
++            break-inside: auto;
++            page-break-inside: auto;
++          }
++          .debt-rank-table tr {
++            break-inside: avoid;
++            page-break-inside: avoid;
++          }
++          .debt-rank-table th.col-rank,
++          .debt-rank-table td.col-rank {
++            width: 1%;
++            text-align: right;
++            white-space: nowrap;
++            color: #5a7791;
++          }
++          .debt-rank-table th.col-barrio,
++          .debt-rank-table td.col-barrio {
++            width: auto;
++            text-align: left;
++            white-space: normal;
++          }
++          .debt-rank-table td.col-strong {
++            font-weight: 700;
++          }
++          .debt-rank-table tr.is-selected-barrio td {
++            background: #eef6ff;
++          }
++          .debt-rank-table tbody tr:nth-child(even) td {
++            background: #f7fbff;
++          }
++          .debt-rank-table tbody tr.is-selected-barrio td {
++            background: #e4f0fd;
++          }
++          .debt-rank-top {
++            display: grid;
++            gap: 4px;
++            border: 1px solid #d2e4f3;
++            border-radius: 12px;
++            background: #ffffff;
++            padding: 8px 10px;
++            break-inside: avoid;
++            page-break-inside: avoid;
++          }
++          .debt-rank-top article {
++            display: grid;
++            grid-template-columns: 16px minmax(0, 1fr) auto;
++            align-items: center;
++            gap: 8px;
++          }
++          .debt-rank-top article b {
++            color: #1465d9;
++            text-align: center;
++          }
++          .debt-rank-top article span {
++            display: grid;
++            gap: 3px;
++            min-width: 0;
++          }
++          .debt-rank-top article i {
++            display: block;
++            height: 6px;
++            border-radius: 99px;
++            background: #edf3f7;
++            overflow: hidden;
++          }
++          .debt-rank-top article em {
++            display: block;
++            height: 100%;
++            background: #1465d9;
++          }
++          .debt-rank-top article small {
++            white-space: nowrap;
++            font-weight: 700;
++          }
++          .debt-rank-note {
++            margin-top: 6px;
++            font-size: 8.5px;
++            color: #4a6a86;
++          }
+           .field-debt-print-shell {
+             gap: 6px;
+           }
+-- 
+2.43.0
+

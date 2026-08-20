@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  __seedMemoryInspeccionesForTests,
   __seedMemoryUsersForTests,
   addGps,
   addParticipante,
@@ -200,6 +201,43 @@ test("listInspecciones pagina de a 10 por defecto y respeta el alcance por tecni
   const ajenas = await listInspecciones({ page: 1, limit: 5 }, sinTecnico);
   assert.ok(propias.total > 0);
   assert.equal(ajenas.total, 0);
+});
+
+test("un responsable ve inspecciones legacy aunque no exista participante", async () => {
+  const legacyId = 9001;
+  __seedMemoryInspeccionesForTests({
+    inspecciones: [{
+      id: legacyId,
+      numero_inspeccion: "INS-2026-LEGACY",
+      clave_catastral: CLAVE_VALIDA,
+      inspeccion_general: 1,
+      abonado_numero: "",
+      abonado_nombre_snapshot: "Inspección general de la clave",
+      barrio_snapshot: "Centro",
+      direccion_snapshot: "Centro",
+      motivo: "Registro anterior",
+      trabajo_solicitado: "Verificar registro anterior.",
+      informacion_encontrada: "",
+      observaciones: "",
+      estado: "FINALIZADA",
+      requiere_seguimiento: 0,
+      seguimiento_detalle: "",
+      seguimiento_fecha_sugerida: null,
+      tecnico_responsable_id: otroTecnico.id,
+      creada_por_usuario_id: admin.id,
+      finalizada_por_usuario_id: otroTecnico.id,
+      fecha_asignacion: "2026-08-01T10:00:00.000Z",
+      fecha_inicio: "2026-08-01T10:30:00.000Z",
+      fecha_finalizacion: "2026-08-01T11:00:00.000Z",
+      created_at: "2026-08-01T10:00:00.000Z",
+      updated_at: "2026-08-01T11:00:00.000Z"
+    }]
+  });
+
+  const propias = await listInspecciones({ q: "LEGACY" }, otroTecnico);
+  assert.equal(propias.total, 1);
+  const detalle = await getInspeccionDetail(legacyId, otroTecnico);
+  assert.equal(detalle.id, legacyId);
 });
 
 test("listTecnicosElegibles excluye transporte y administracion", async () => {

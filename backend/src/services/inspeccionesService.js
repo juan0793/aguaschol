@@ -47,6 +47,12 @@ export const __seedMemoryUsersForTests = (users = []) => {
   memoryUsers.push(...users);
 };
 
+export const __seedMemoryInspeccionesForTests = ({ inspecciones = [], participantes = [] } = {}) => {
+  memoryInspecciones.push(...inspecciones);
+  memoryParticipantes.push(...participantes);
+  memoryAutoId = Math.max(memoryAutoId, ...inspecciones.map((item) => Number(item.id) || 0), ...participantes.map((item) => Number(item.id) || 0)) + 1;
+};
+
 const addHistory = async ({ entidadId, previous = "", next, reason = "", user }) => {
   if (env.useMemoryDb) {
     memoryHistory.unshift({
@@ -180,6 +186,9 @@ const isActiveParticipant = (participantes, userId) =>
 const isResponsable = (participantes, userId) =>
   participantes.some((item) => Number(item.tecnico_id) === Number(userId) && item.rol === "RESPONSABLE");
 
+const isResponsableDirecto = (inspeccion, userId) =>
+  Number(inspeccion?.tecnico_responsable_id) === Number(userId);
+
 const insertParticipante = async (inspeccionId, tecnicoId, rol, actorUser) => {
   const participantes = await loadParticipantes(inspeccionId);
   if (isActiveParticipant(participantes, tecnicoId)) throw fail("El técnico ya participa en esta inspección.", 409);
@@ -236,7 +245,9 @@ const loadWithParticipantes = async (id) => {
 
 const assertViewAccess = (inspeccion, participantes, user) => {
   if (isAdmin(user)) return;
-  if (!isActiveParticipant(participantes, user?.id)) throw fail("No participas en esta inspección.", 403);
+  if (!isActiveParticipant(participantes, user?.id) && !isResponsableDirecto(inspeccion, user?.id)) {
+    throw fail("No participas en esta inspección.", 403);
+  }
 };
 
 export const getInspeccionesConfig = (user) => ({
@@ -311,8 +322,8 @@ export const queryInspecciones = async (filters = {}, user) => {
         const activeParticipantIds = memoryParticipantes
           .filter((participante) => participante.inspeccion_id === item.id && !participante.removed_at)
           .map((participante) => participante.tecnico_id);
-        if (tecnicoId && !activeParticipantIds.includes(tecnicoId)) return false;
-        if (scopedUserId && !activeParticipantIds.includes(scopedUserId)) return false;
+        if (tecnicoId && !activeParticipantIds.includes(tecnicoId) && !isResponsableDirecto(item, tecnicoId)) return false;
+        if (scopedUserId && !activeParticipantIds.includes(scopedUserId) && !isResponsableDirecto(item, scopedUserId)) return false;
         return true;
       })
       .map((item) => ({
@@ -336,12 +347,12 @@ export const queryInspecciones = async (filters = {}, user) => {
     params.push(`%${term}%`, `%${term}%`, `%${term}%`, `%${term}%`);
   }
   if (tecnicoId) {
-    clauses.push("EXISTS (SELECT 1 FROM inspeccion_tecnicos it WHERE it.inspeccion_id = inspecciones.id AND it.tecnico_id = ? AND it.removed_at IS NULL)");
-    params.push(tecnicoId);
+    clauses.push("(inspecciones.tecnico_responsable_id = ? OR EXISTS (SELECT 1 FROM inspeccion_tecnicos it WHERE it.inspeccion_id = inspecciones.id AND it.tecnico_id = ? AND it.removed_at IS NULL))");
+    params.push(tecnicoId, tecnicoId);
   }
   if (scopedUserId) {
-    clauses.push("EXISTS (SELECT 1 FROM inspeccion_tecnicos it WHERE it.inspeccion_id = inspecciones.id AND it.tecnico_id = ? AND it.removed_at IS NULL)");
-    params.push(scopedUserId);
+    clauses.push("(inspecciones.tecnico_responsable_id = ? OR EXISTS (SELECT 1 FROM inspeccion_tecnicos it WHERE it.inspeccion_id = inspecciones.id AND it.tecnico_id = ? AND it.removed_at IS NULL))");
+    params.push(scopedUserId, scopedUserId);
   }
 
   const [rows] = await getPool().query(
