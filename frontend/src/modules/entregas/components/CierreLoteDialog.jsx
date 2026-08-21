@@ -45,7 +45,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const motivos = config.motivos;
   const motivoPorDefecto = motivos[0]?.codigo || "CASA_CERRADA";
   const [detalle, setDetalle] = useState(lote.no_entregadas || []);
-  const [sobrantes, setSobrantes] = useState(String(lote.total_sobrantes || ""));
+  const [sobrantes, setSobrantes] = useState(String(lote.total_sobrantes ?? ""));
   const [observacion, setObservacion] = useState(lote.observacion_responsable || "");
   const [nuevas, setNuevas] = useState([]);
   const [pegado, setPegado] = useState("");
@@ -388,15 +388,26 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
           <button type="button" className="cl-secondary" onClick={guardarDetalle} disabled={guardando || !nuevas.length}>
             Guardar detalle
           </button>
-          <button
-            type="button"
-            className="cl-primary"
-            onClick={cerrar}
-            disabled={guardando || sobrantesInvalidos || diferencia !== 0}
-          >
-            <Icon name={guardando ? "refresh" : "success"} />
-            {guardando ? "Cerrando…" : "Cerrar lote"}
-          </button>
+          <div className="ent-cerrar-wrap">
+            {!guardando && sobrantesInvalidos ? (
+              <p className="cl-alert ent-cerrar-motivo">Escribe los sobrantes (usa 0 si entregaste todo) para poder cerrar.</p>
+            ) : !guardando && diferencia !== 0 ? (
+              <p className="cl-alert ent-cerrar-motivo">
+                {diferencia > 0
+                  ? `Identifica ${formatNumber(diferencia)} documento(s) más antes de cerrar.`
+                  : `Quita ${formatNumber(Math.abs(diferencia))} documento(s) de más antes de cerrar.`}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="cl-primary"
+              onClick={cerrar}
+              disabled={guardando || sobrantesInvalidos || diferencia !== 0}
+            >
+              <Icon name={guardando ? "refresh" : "success"} />
+              {guardando ? "Cerrando…" : "Cerrar lote"}
+            </button>
+          </div>
         </footer>
       </aside>
     </div>
