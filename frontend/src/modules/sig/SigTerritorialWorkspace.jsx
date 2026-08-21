@@ -217,6 +217,16 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed }) {
     const barrioFeature = selected?.type === "barrio" ? barriosRef.current.features.find((item) => item.properties.id === selected.data?.id) : null;
     if (barrioFeature) map.fitBounds(geometryBounds(barrioFeature.geometry), { padding: 56, duration: 650 });
     if (selected?.data?.bbox) map.fitBounds(selected.data.bbox, { padding: 72, duration: 650 });
+
+    if (selected?.type === "catastro" && Array.isArray(selected.data?.lnglat)) {
+      const [lng, lat] = selected.data.lnglat.map(Number);
+      if (Number.isFinite(lng) && Number.isFinite(lat)) map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 18), duration: 650 });
+    }
+    if (selected?.type === "levantamiento") {
+      const lng = Number(selected.data?.longitude);
+      const lat = Number(selected.data?.latitude);
+      if (Number.isFinite(lng) && Number.isFinite(lat)) map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 18), duration: 650 });
+    }
   }, [ready, selected]);
 
   useEffect(() => {
