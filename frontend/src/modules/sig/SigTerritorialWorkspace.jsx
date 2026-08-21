@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
+import { getMapPointTypeLabel } from "../../utils/mapField";
 import { createSigApi } from "./services/sigApi";
 import { emptyFeatureCollection, geometryBounds } from "./utils/sigGeojson";
 import { sigVisibleLayerGroups } from "./utils/sigZoomRules";
@@ -8,6 +9,13 @@ import "./sigTerritorial.css";
 const TABS = [["mapa", "Mapa"], ["barrios", "Barrios"], ["analisis", "Análisis"], ["reportes", "Reportes"]];
 const initialCenter = [-87.1908, 13.3003];
 const money = (value) => `L ${Number(value || 0).toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const VALIDATION_STATUS = {
+  approved: { label: "Aprobado", color: "#16a34a" },
+  corrected: { label: "Corregido", color: "#0891b2" },
+  needs_correction: { label: "Necesita corrección", color: "#f97316" },
+  pending: { label: "Pendiente", color: "#64748b" }
+};
+const GPS_ACCURACY_LABEL = { excelente: "Excelente", buena: "Buena", aceptable: "Aceptable", baja: "Baja", deficiente: "Deficiente", sin_dato: "Sin dato" };
 const bboxFromMap = (map) => {
   const b = map.getBounds();
   return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((value) => Number(value.toFixed(6)));
@@ -83,7 +91,7 @@ function SigSearch({ api, onPick }) {
   );
 }
 
-function SigMap({ api, selected, onSelect }) {
+function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const barriosRef = useRef(emptyFeatureCollection);
@@ -91,7 +99,7 @@ function SigMap({ api, selected, onSelect }) {
   const refreshRef = useRef(() => {});
   const [zoom, setZoom] = useState(12);
   const [ready, setReady] = useState(false);
-  const [layers, setLayers] = useState({ barrios: true, lotes: true, abonados: true });
+  const [layers, setLayers] = useState({ barrios: true, lotes: true, abonados: true, levantamientos: false });
   const visibleGroups = useMemo(() => sigVisibleLayerGroups(zoom), [zoom]);
 
   const refreshBboxLayers = useCallback(async () => {
@@ -110,6 +118,12 @@ function SigMap({ api, selected, onSelect }) {
       map.getSource("catastro")?.setData(catastro);
     } else {
       map.getSource("catastro")?.setData(emptyFeatureCollection);
+    }
+    if (layers.levantamientos && currentZoom >= 15) {
+      const levantamientos = await api.levantamientos({ bbox });
+      map.getSource("levantamientos")?.setData(levantamientos);
+    } else {
+      map.getSource("levantamientos")?.setData(emptyFeatureCollection);
     }
   }, [api, layers]);
 
@@ -148,6 +162,7 @@ function SigMap({ api, selected, onSelect }) {
         map.addSource("barrios", { type: "geojson", data: barrios });
         map.addSource("lotes", { type: "geojson", data: emptyFeatureCollection });
         map.addSource("catastro", { type: "geojson", data: emptyFeatureCollection });
+        map.addSource("levantamientos", { type: "geojson", data: emptyFeatureCollection });
         map.addLayer({ id: "barrios-fill", type: "fill", source: "barrios", paint: { "fill-color": ["case", ["boolean", ["feature-state", "selected"], false], "#f59e0b", "#21a67a"], "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, 0.2] } });
         map.addLayer({ id: "barrios-line", type: "line", source: "barrios", paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#92400e", "#087a5a"], "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1.4] } });
         map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": "#06b6d4", "fill-opacity": 0.1 } });
@@ -156,12 +171,24 @@ function SigMap({ api, selected, onSelect }) {
         map.addLayer({ id: "catastro-clusters", type: "circle", source: "catastro", filter: ["==", ["get", "cluster"], true], paint: { "circle-color": "#1375f5", "circle-radius": ["interpolate", ["linear"], ["get", "total"], 1, 8, 25, 11, 100, 15, 500, 21], "circle-opacity": 0.66, "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
         map.addLayer({ id: "catastro-cluster-count", type: "symbol", source: "catastro", filter: ["==", ["get", "cluster"], true], layout: { "text-field": ["to-string", ["get", "total"]], "text-size": 11 }, paint: { "text-color": "#fff", "text-halo-color": "#0f172a", "text-halo-width": 0.4 } });
         map.addLayer({ id: "catastro-points", type: "circle", source: "catastro", filter: ["!=", ["get", "cluster"], true], minzoom: 17, paint: { "circle-color": "#ef4444", "circle-radius": 4.5, "circle-stroke-color": "#fff", "circle-stroke-width": 1.4 } });
+        map.addLayer({ id: "levantamientos-halo", type: "circle", source: "levantamientos", minzoom: 15, paint: {
+          "circle-radius": ["match", ["get", "gps_accuracy"], "excelente", 6, "buena", 6, "aceptable", 10, 15],
+          "circle-opacity": ["match", ["get", "gps_accuracy"], "excelente", 0.12, "buena", 0.12, "aceptable", 0.16, 0.22],
+          "circle-color": "#0f172a"
+        } });
+        map.addLayer({ id: "levantamientos-points", type: "circle", source: "levantamientos", minzoom: 15, paint: {
+          "circle-radius": 5,
+          "circle-color": ["match", ["get", "validation_status"], "approved", "#16a34a", "corrected", "#0891b2", "needs_correction", "#f97316", "#64748b"],
+          "circle-stroke-color": "#fff",
+          "circle-stroke-width": 1.4
+        } });
 
         map.on("click", "barrios-fill", (event) => event.features?.[0]?.properties?.id && onSelect({ type: "barrio", data: event.features[0].properties }));
         map.on("click", "lotes-fill", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "lote", data: await api.lote(event.features[0].properties.id) }));
         map.on("click", "catastro-clusters", (event) => map.easeTo({ center: event.lngLat, zoom: Math.min(map.getZoom() + 2, 17), duration: 450 }));
         map.on("click", "catastro-points", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "catastro", data: await api.catastroPunto(event.features[0].properties.id) }));
-        ["barrios-fill", "lotes-fill", "catastro-clusters", "catastro-points"].forEach((id) => {
+        map.on("click", "levantamientos-points", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "levantamiento", data: await api.levantamiento(event.features[0].properties.id) }));
+        ["barrios-fill", "lotes-fill", "catastro-clusters", "catastro-points", "levantamientos-points"].forEach((id) => {
           map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
           map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
         });
@@ -192,6 +219,24 @@ function SigMap({ api, selected, onSelect }) {
     if (selected?.data?.bbox) map.fitBounds(selected.data.bbox, { padding: 72, duration: 650 });
   }, [ready, selected]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !focusRequest) return;
+    setLayers((prev) => ({ ...prev, levantamientos: true }));
+    if (Number.isFinite(focusRequest.longitude) && Number.isFinite(focusRequest.latitude)) {
+      map.flyTo({ center: [focusRequest.longitude, focusRequest.latitude], zoom: Math.max(map.getZoom(), 17), duration: 650 });
+    }
+    (async () => {
+      if (focusRequest.pointId) {
+        try {
+          const data = await api.levantamiento(focusRequest.pointId);
+          if (data) onSelect({ type: "levantamiento", data });
+        } catch { /* ignore */ }
+      }
+      onFocusConsumed?.();
+    })();
+  }, [focusRequest, ready]);
+
   return (
     <section className="sig-map-shell">
       <aside className="sig-layer-panel">
@@ -201,7 +246,7 @@ function SigMap({ api, selected, onSelect }) {
             <summary>{group}</summary>
             {items.map(([key, label]) => (
               <label key={key}>
-                <input type="checkbox" checked={Boolean(layers[key])} disabled={!["barrios", "lotes", "abonados"].includes(key)} onChange={(event) => setLayers((prev) => ({ ...prev, [key]: event.target.checked }))} />
+                <input type="checkbox" checked={Boolean(layers[key])} disabled={!["barrios", "lotes", "abonados", "levantamientos"].includes(key)} onChange={(event) => setLayers((prev) => ({ ...prev, [key]: event.target.checked }))} />
                 {label}
               </label>
             ))}
@@ -230,9 +275,56 @@ function SigMap({ api, selected, onSelect }) {
   );
 }
 
-function Drawer({ selected, summary, onClose }) {
+function Drawer({ selected, summary, onClose, onOpenFieldValidation }) {
   if (!selected) return null;
   const data = selected.data || {};
+
+  if (selected.type === "levantamiento") {
+    const status = VALIDATION_STATUS[data.validation_status] || VALIDATION_STATUS.pending;
+    const geo = data.barrio_geografico;
+    const match = data.barrio_coincide;
+    const matchGlyph = match === true ? "✓" : match === false ? "⚠" : "—";
+    const matchClass = match === true ? "is-match" : match === false ? "is-mismatch" : "is-unknown";
+    return (
+      <aside className="sig-drawer">
+        <button type="button" onClick={onClose}>Cerrar</button>
+        <span>levantamiento</span>
+        <h2>{getMapPointTypeLabel(data.point_type)}</h2>
+        <span className="sig-status-pill"><i style={{ background: status.color }} />{status.label}</span>
+
+        <div className="sig-accuracy-row">
+          <span className="sig-halo" data-bucket={data.gps_accuracy} />
+          <span className="sig-mono">{data.accuracy_meters ? `${data.accuracy_meters} m` : "Sin dato"}</span>
+          <small>{GPS_ACCURACY_LABEL[data.gps_accuracy] || "Sin dato"}</small>
+        </div>
+
+        <div className="sig-verify">
+          <p className="sig-verify-title">Coincidencia territorial</p>
+          <div className="sig-verify-row">
+            <div className="sig-verify-chip">
+              <small>Declarado</small>
+              <strong>{data.barrio_declarado?.label || "Sin dato"}</strong>
+            </div>
+            <span className={`sig-verify-glyph ${matchClass}`}>{matchGlyph}</span>
+            <div className="sig-verify-chip">
+              <small>Geográfico</small>
+              <strong>{geo ? `${geo.clave || "--"} · ${geo.nombre}` : "Sin PostGIS"}</strong>
+            </div>
+          </div>
+        </div>
+
+        <dl>
+          <div><dt>Manzana geográfica</dt><dd>{data.manzana_geografico?.numero || "Sin dato"}</dd></div>
+          <div><dt>Lote geográfico</dt><dd>{data.lote_geografico?.numero_lote || "Sin dato"}</dd></div>
+          <div><dt>Referencia</dt><dd>{data.reference_note || data.description || "Sin dato"}</dd></div>
+        </dl>
+        <div className="sig-drawer-actions">
+          <button type="button" onClick={() => onOpenFieldValidation?.({ pointId: data.id })}>Ver en Control Territorial</button>
+        </div>
+      </aside>
+    );
+  }
+
   const padron = data.abonado_actual;
   const title = selected.type === "lote" ? `Lote ${data.numero_lote || data.id}` : selected.type === "catastro" ? data.inquilino || data.abonado || data.clave_catastral : data.nombre || "Sin nombre";
   return (
@@ -254,13 +346,13 @@ function Drawer({ selected, summary, onClose }) {
       <div className="sig-drawer-actions">
         <button type="button">Ver ficha</button>
         <button type="button">Crear inspección</button>
-        <button type="button">Ver levantamientos</button>
+        <button type="button" disabled={!data.puntos_control?.length} onClick={() => onOpenFieldValidation?.(data.puntos_control?.length === 1 ? { pointId: data.puntos_control[0].id } : {})}>Ver levantamientos</button>
       </div>
     </aside>
   );
 }
 
-export default function SigTerritorialWorkspace({ apiFetch, showAlert }) {
+export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequest, onFocusConsumed, onOpenFieldValidation }) {
   const api = useMemo(() => createSigApi(apiFetch), [apiFetch]);
   const [tab, setTab] = useState("mapa");
   const [config, setConfig] = useState(null);
@@ -287,6 +379,10 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert }) {
     api.barrioSummary(selected.data.id).then(setSummary).catch(() => setSummary(null));
   }, [api, selected]);
 
+  useEffect(() => {
+    if (focusRequest) setTab("mapa");
+  }, [focusRequest]);
+
   return (
     <main className="sig-workspace">
       <header className="sig-header">
@@ -307,8 +403,8 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert }) {
 
       {tab === "mapa" ? (
         <>
-          <SigMap api={api} selected={selected} onSelect={setSelected} />
-          <Drawer selected={selected} summary={summary} onClose={() => setSelected(null)} />
+          <SigMap api={api} selected={selected} onSelect={setSelected} focusRequest={focusRequest} onFocusConsumed={onFocusConsumed} />
+          <Drawer selected={selected} summary={summary} onClose={() => setSelected(null)} onOpenFieldValidation={onOpenFieldValidation} />
         </>
       ) : tab === "barrios" ? (
         <section className="sig-placeholder">

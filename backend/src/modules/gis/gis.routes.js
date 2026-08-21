@@ -10,6 +10,8 @@ import {
   config,
   health,
   importReport,
+  levantamiento,
+  levantamientos,
   lote,
   lotes,
   manzanas,
@@ -35,5 +37,7 @@ router.get("/catastro", route(catastro));
 router.get("/catastro/report", route(catastroReport));
 router.get("/catastro/:id", route(catastroPunto));
 router.get("/search", route(search));
+router.get("/levantamientos", route(levantamientos));
+router.get("/levantamientos/:id", route(levantamiento));
 
 export default router;

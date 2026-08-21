@@ -6,8 +6,10 @@ import {
   getImportReport,
   getCatastroDetail,
   getCatastroReport,
+  getLevantamientoDetail,
   getLoteDetail,
   listCatastroInBbox,
+  listLevantamientosInBbox,
   listLotesInBbox,
   listBarrios,
   listManzanas,
@@ -58,3 +60,5 @@ export const searchTerritorialGis = (query) => searchGis(query);
 export const getTerritoryLote = (id) => getLoteDetail(id);
 export const getTerritoryCatastro = (id) => getCatastroDetail(id);
 export const getTerritoryCatastroReport = () => getCatastroReport();
+export const getLevantamientosBbox = (options) => listLevantamientosInBbox(options);
+export const getTerritoryLevantamiento = (id) => getLevantamientoDetail(id);

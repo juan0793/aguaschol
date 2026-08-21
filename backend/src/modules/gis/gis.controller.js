@@ -2,6 +2,7 @@ import {
   getGisConfig,
   getGisStatus,
   getCatastroBbox,
+  getLevantamientosBbox,
   getTerritoryBarrio,
   getTerritoryBarrioSummary,
   getTerritoryBarrios,
@@ -9,6 +10,7 @@ import {
   getTerritoryCatastro,
   getTerritoryCatastroReport,
   getTerritoryImportReport,
+  getTerritoryLevantamiento,
   getTerritoryLote,
   getLotesBbox,
   getTerritoryManzanas,
@@ -61,3 +63,8 @@ export const search = async (req, res) => res.json(await searchTerritorialGis(re
 export const lote = async (req, res) => sendMaybe(res, await getTerritoryLote(req.params.id));
 export const catastroPunto = async (req, res) => sendMaybe(res, await getTerritoryCatastro(req.params.id));
 export const catastroReport = async (_req, res) => res.json(await getTerritoryCatastroReport());
+export const levantamientos = async (req, res) => res.json(await getLevantamientosBbox({
+  bbox: parseBbox(req.query.bbox),
+  limit: clamp(req.query.limit, 50, 1000, 500)
+}));
+export const levantamiento = async (req, res) => sendMaybe(res, await getTerritoryLevantamiento(req.params.id));

@@ -2,6 +2,8 @@ import { checkGisConnection, getGisPool } from "../../config/gisDb.js";
 import { getPool } from "../../config/db.js";
 import { buildClaveBase } from "./gisImportUtils.js";
 import { getMasterRecords } from "../../services/claveLookupService.js";
+import { classifyGpsAccuracy, getPointClave, matchesBarrioCode, resolveFieldZone } from "../../utils/claveField.js";
+import { listBarrioCodes } from "../../services/barrioCodeService.js";
 
 export const getGisHealth = async () => checkGisConnection();
 
@@ -340,4 +342,94 @@ export const getCatastroReport = async () => {
     ) resumen
   `);
   return rows[0].resumen;
+};
+
+// Adaptador de solo lectura sobre map_points (MySQL) para SIG. No duplica el dato: cada request
+// consulta map_points en vivo, igual que relatedMysql() de arriba.
+export const listLevantamientosInBbox = async ({ bbox, limit = 500 }) => {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT id, point_type, latitude, longitude, accuracy_meters, reference_note, description,
+            validation_status, diary_date, created_at
+     FROM map_points
+     WHERE latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?
+     ORDER BY id DESC LIMIT ?`,
+    [minLat, maxLat, minLng, maxLng, limit]
+  );
+  return {
+    type: "FeatureCollection",
+    features: rows.map((row) => ({
+      type: "Feature",
+      id: row.id,
+      properties: {
+        id: row.id,
+        point_type: row.point_type,
+        validation_status: row.validation_status,
+        accuracy_meters: row.accuracy_meters,
+        gps_accuracy: classifyGpsAccuracy(row.accuracy_meters),
+        clave: getPointClave(row),
+        diary_date: row.diary_date
+      },
+      geometry: { type: "Point", coordinates: [Number(row.longitude), Number(row.latitude)] }
+    }))
+  };
+};
+
+export const getLevantamientoDetail = async (id) => {
+  const pool = getPool();
+  const [rows] = await pool.query(`SELECT * FROM map_points WHERE id = ?`, [id]);
+  const point = rows[0];
+  if (!point) return null;
+
+  const catalog = await listBarrioCodes();
+  const declarado = resolveFieldZone(point, catalog);
+
+  let barrio_geografico = null;
+  let manzana_geografico = null;
+  let lote_geografico = null;
+  const lng = Number(point.longitude);
+  const lat = Number(point.latitude);
+  const gis = getGisPool();
+  if (gis && Number.isFinite(lng) && Number.isFinite(lat)) {
+    try {
+      const { rows: geoRows } = await gis.query(`
+        SELECT b.barrio_id, b.barrio_nombre, b.barrio_clave,
+               m.manzana_id, m.manzana,
+               l.lote_id, l.numero_lote, l.clave_catastral
+        FROM (SELECT ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 32616) AS pt) p
+        LEFT JOIN LATERAL (
+          SELECT id barrio_id, nombre barrio_nombre, clave barrio_clave
+          FROM gis_barrios WHERE activo = TRUE AND ST_Intersects(geom, p.pt) LIMIT 1
+        ) b ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT id manzana_id, COALESCE(numero, source_fid::text) manzana
+          FROM gis_manzanas WHERE activo = TRUE AND ST_Intersects(geom, p.pt) LIMIT 1
+        ) m ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT id lote_id, numero_lote, clave_catastral
+          FROM gis_lotes WHERE activo = TRUE AND ST_Intersects(geom, p.pt) LIMIT 1
+        ) l ON TRUE
+      `, [lng, lat]);
+      const row = geoRows[0];
+      if (row?.barrio_id) barrio_geografico = { id: row.barrio_id, nombre: row.barrio_nombre, clave: row.barrio_clave };
+      if (row?.manzana_id) manzana_geografico = { id: row.manzana_id, numero: row.manzana };
+      if (row?.lote_id) lote_geografico = { id: row.lote_id, numero_lote: row.numero_lote, clave_catastral: row.clave_catastral };
+    } catch {
+      // Geometria invalida u otro error GEOS: se degrada a "sin dato geografico" en vez de romper el endpoint.
+    }
+  }
+
+  const barrio_coincide = matchesBarrioCode(declarado.code, barrio_geografico?.clave);
+
+  return {
+    ...point,
+    clave: getPointClave(point),
+    gps_accuracy: classifyGpsAccuracy(point.accuracy_meters),
+    barrio_declarado: declarado,
+    barrio_geografico,
+    manzana_geografico,
+    lote_geografico,
+    barrio_coincide
+  };
 };

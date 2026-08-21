@@ -312,6 +312,113 @@
 .sig-drawer dt { color: #687386; }
 .sig-drawer dd { margin: 0; font-weight: 850; text-align: right; }
 
+.sig-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  clear: both;
+  margin-top: 6px;
+  padding: 4px 9px;
+  border: 1px solid #dce3ea;
+  border-radius: 999px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: none;
+}
+
+.sig-status-pill i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sig-accuracy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #edf1f5;
+  color: #687386;
+  font-size: 12px;
+}
+
+.sig-mono {
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  color: #152033;
+  font-weight: 750;
+}
+
+.sig-halo {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0f172a;
+}
+
+.sig-halo::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: #0f172a;
+  opacity: 0.14;
+}
+
+.sig-halo[data-bucket="aceptable"]::after { inset: -9px; opacity: 0.18; }
+.sig-halo[data-bucket="baja"]::after,
+.sig-halo[data-bucket="deficiente"]::after,
+.sig-halo[data-bucket="sin_dato"]::after { inset: -13px; opacity: 0.24; }
+
+.sig-verify {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f5;
+}
+
+.sig-verify-title {
+  margin: 0 0 8px;
+  color: #687386;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sig-verify-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.sig-verify-chip {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #dce3ea;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.sig-verify-chip small { color: #687386; font-size: 11px; }
+.sig-verify-chip strong { font-size: 13px; }
+
+.sig-verify-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-weight: 900;
+}
+
+.sig-verify-glyph.is-match { background: rgba(8, 122, 90, 0.14); color: #087a5a; }
+.sig-verify-glyph.is-mismatch { background: rgba(217, 119, 6, 0.16); color: #b45309; }
+.sig-verify-glyph.is-unknown { background: #f1f5f9; color: #94a3b8; }
+
 @media (max-width: 900px) {
   .sig-header,
   .sig-toolbar,

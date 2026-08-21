@@ -16,5 +16,7 @@ export const createSigApi = (apiFetch) => ({
   catastro: ({ bbox, zoom, limit = 1000 }) => apiFetch(`/gis/catastro?bbox=${bbox.join(",")}&zoom=${zoom}&limit=${limit}`).then(json),
   lote: (id) => apiFetch(`/gis/lotes/${id}`).then(json),
   catastroPunto: (id) => apiFetch(`/gis/catastro/${id}`).then(json),
-  search: (query) => apiFetch(`/gis/search?q=${encodeURIComponent(query)}`).then(json)
+  search: (query) => apiFetch(`/gis/search?q=${encodeURIComponent(query)}`).then(json),
+  levantamientos: ({ bbox, limit = 500 }) => apiFetch(`/gis/levantamientos?bbox=${bbox.join(",")}&limit=${limit}`).then(json),
+  levantamiento: (id) => apiFetch(`/gis/levantamientos/${id}`).then(json)
 });

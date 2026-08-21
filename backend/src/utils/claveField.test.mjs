@@ -8,6 +8,7 @@ import {
   getBarrioCodeFromClave,
   getPointClave,
   haversineMeters,
+  matchesBarrioCode,
   median,
   resolveFieldZone
 } from "./claveField.js";
@@ -59,6 +60,14 @@ test("la distancia entre dos coordenadas es correcta", () => {
   const distance = haversineMeters(13.3017, -87.1889, 13.3043, -87.1889);
   assert.ok(distance > 285 && distance < 292, `distancia inesperada: ${distance}`);
   assert.equal(haversineMeters(13.3, null, 13.3, -87.1), null);
+});
+
+test("compara barrio declarado vs geografico sin autocorregir", () => {
+  assert.equal(matchesBarrioCode("24", "24"), true);
+  assert.equal(matchesBarrioCode("24", "05"), false);
+  assert.equal(matchesBarrioCode("24", ""), null);
+  assert.equal(matchesBarrioCode("", "24"), null);
+  assert.equal(matchesBarrioCode(null, null), null);
 });
 
 test("la mediana soporta listas pares, impares y vacias", () => {

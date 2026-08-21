@@ -99,6 +99,15 @@ export const resolveFieldZone = (point = {}, catalog = []) => {
   return { code: "", name: "", label: "Sin barrio" };
 };
 
+// Compara el codigo de barrio declarado (derivado de texto libre) contra el codigo de barrio
+// geografico (derivado espacialmente contra PostGIS), sin autocorregir ninguno de los dos.
+export const matchesBarrioCode = (declaredCode, geoClave) => {
+  const declared = normalizeBarrioCode(declaredCode || "");
+  const geo = normalizeBarrioCode(geoClave || "");
+  if (!declared || !geo) return null;
+  return declared === geo;
+};
+
 export const classifyGpsAccuracy = (value) => {
   const meters = Number(value);
   if (!Number.isFinite(meters) || meters <= 0) return "sin_dato";

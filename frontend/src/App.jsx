@@ -1025,6 +1025,8 @@ function App() {
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [notificationUserId, setNotificationUserId] = useState(null);
   const [workspaceView, setWorkspaceView] = useState(() => getWorkspaceViewByRole(session?.user?.role));
+  const [crossModuleFocus, setCrossModuleFocus] = useState(null);
+  const navigateWithFocus = (view, focus) => { setCrossModuleFocus(focus ? { view, requestId: Date.now(), ...focus } : null); setWorkspaceView(view); };
   const [dashboardWidgetPrefs, setDashboardWidgetPrefs] = useState(() => {
     try {
       const saved = window.localStorage.getItem(DASHBOARD_WIDGET_STORAGE_KEY);
@@ -14479,7 +14481,14 @@ function App() {
       <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
       ) : workspaceView === "sigTerritorial" ? (
         <Suspense fallback={<div className="module-loading-state">Cargando SIG Territorial...</div>}>
-          <SigTerritorialWorkspace apiFetch={apiFetch} session={session} showAlert={showAlert} />
+          <SigTerritorialWorkspace
+            apiFetch={apiFetch}
+            session={session}
+            showAlert={showAlert}
+            focusRequest={crossModuleFocus?.view === "sigTerritorial" ? crossModuleFocus : null}
+            onFocusConsumed={() => setCrossModuleFocus(null)}
+            onOpenFieldValidation={(payload) => navigateWithFocus("fieldValidation", payload)}
+          />
         </Suspense>
       ) : workspaceView === "records" ? (
       <ClandestinosPage
@@ -16935,6 +16944,9 @@ function App() {
             apiUrl={API_URL}
             barrioCodes={safeBarrioCodes}
             isActive={workspaceView === "fieldValidation" && isAuthenticated}
+            focusRequest={crossModuleFocus?.view === "fieldValidation" ? crossModuleFocus : null}
+            onFocusConsumed={() => setCrossModuleFocus(null)}
+            onOpenSig={(payload) => navigateWithFocus("sigTerritorial", payload)}
           />
         </Suspense>
       ) : (
