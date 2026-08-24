@@ -66,6 +66,8 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const diferencia = sobrantesNum - identificadas;
   const sobrantesInvalidos =
     sobrantes === "" || sobrantesNum < 0 || sobrantesNum > Number(lote.total_asignadas);
+  const progreso = sobrantesNum > 0 ? Math.min((identificadas / sobrantesNum) * 100, 100) : 100;
+  const puedeCerrar = !guardando && !sobrantesInvalidos && diferencia === 0;
 
   const patchNueva = (index, cambios) =>
     setNuevas((filas) => filas.map((fila, posicion) => (posicion === index ? { ...fila, ...cambios } : fila)));
@@ -181,20 +183,59 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
         </header>
 
         <div className="cl-drawer-scroll">
-          <section className="ent-card">
+          <div className="ent-cierre-pasos" aria-label="Progreso del cierre">
+            <span className={sobrantes === "" ? "is-active" : "is-done"}>1<small>Sobrantes</small></span>
+            <span className={diferencia === 0 && sobrantes !== "" ? "is-done" : "is-active"}>2<small>No entregadas</small></span>
+            <span className={puedeCerrar ? "is-done" : ""}>3<small>Confirmar</small></span>
+          </div>
+
+          <section className="ent-card ent-cierre-resumen">
             <h3>Resultado del recorrido</h3>
+            <div className="ent-cierre-kpis">
+              <div>
+                <span>Recibidas</span>
+                <strong>{formatNumber(lote.total_asignadas)}</strong>
+              </div>
+              <div>
+                <span>Entregadas</span>
+                <strong>{formatNumber(entregadas)}</strong>
+              </div>
+              <div className={diferencia === 0 && sobrantes !== "" ? "is-ok" : "is-alert"}>
+                <span>Por registrar</span>
+                <strong>{formatNumber(Math.max(diferencia, 0))}</strong>
+              </div>
+            </div>
+
             <div className="ent-grid-2">
               <label className="cl-field">
                 Sobrantes / no entregadas
-                <input
-                  type="number"
-                  min="0"
-                  max={lote.total_asignadas}
-                  step="1"
-                  inputMode="numeric"
-                  value={sobrantes}
-                  onChange={(event) => setSobrantes(event.target.value)}
-                />
+                <div className="ent-stepper">
+                  <button
+                    type="button"
+                    aria-label="Restar sobrante"
+                    onClick={() => setSobrantes(String(Math.max(sobrantesNum - 1, 0)))}
+                    disabled={sobrantesInvalidos && sobrantes !== ""}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    max={lote.total_asignadas}
+                    step="1"
+                    inputMode="numeric"
+                    value={sobrantes}
+                    onChange={(event) => setSobrantes(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Sumar sobrante"
+                    onClick={() => setSobrantes(String(Math.min(sobrantesNum + 1, Number(lote.total_asignadas))))}
+                    disabled={sobrantesNum >= Number(lote.total_asignadas)}
+                  >
+                    +
+                  </button>
+                </div>
               </label>
               <label className="cl-field">
                 Entregadas (calculado)
@@ -244,6 +285,10 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                   : `Hay ${formatNumber(Math.abs(diferencia))} documento(s) de más respecto a los sobrantes declarados.`}
               </p>
             ) : null}
+            <div className="ent-cierre-progress">
+              <span>{formatNumber(identificadas)} / {formatNumber(sobrantesNum)} registradas</span>
+              <i><em style={{ width: `${progreso}%` }} /></i>
+            </div>
 
             {modo === "pegar" ? (
               <div className="ent-pegado">
@@ -402,7 +447,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               type="button"
               className="cl-primary"
               onClick={cerrar}
-              disabled={guardando || sobrantesInvalidos || diferencia !== 0}
+              disabled={!puedeCerrar}
             >
               <Icon name={guardando ? "refresh" : "success"} />
               {guardando ? "Cerrando…" : "Cerrar lote"}

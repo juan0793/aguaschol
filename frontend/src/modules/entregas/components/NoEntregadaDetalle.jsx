@@ -125,7 +125,7 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
 
               {permissions.can_manage_seguimiento ? (
                 <>
-                  <form className="ent-card" onSubmit={registrarIntento}>
+                  <form id="ent-intento-form" className="ent-card ent-intento-form" onSubmit={registrarIntento}>
                     <h3>Registrar intento</h3>
                     <div className="ent-grid-2">
                       <label className="cl-field">
@@ -173,21 +173,6 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
                         />
                       </label>
                     </div>
-                    <div className="ent-acciones">
-                      <button type="submit" className="cl-secondary" disabled={guardando}>
-                        <Icon name="plus" />
-                        Registrar intento
-                      </button>
-                      <button
-                        type="button"
-                        className="cl-primary"
-                        disabled={guardando || documento.estado === "REENTREGADA"}
-                        onClick={() => actualizar({ estado: "REENTREGADA" })}
-                      >
-                        <Icon name="success" />
-                        Marcar reentregada
-                      </button>
-                    </div>
                   </form>
 
                   <section className="ent-card">
@@ -220,6 +205,24 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
             </>
           )}
         </div>
+
+        {!cargando && documento && permissions.can_manage_seguimiento ? (
+          <footer className="ent-drawer-footer ent-seguimiento-footer">
+            <button type="submit" form="ent-intento-form" className="cl-secondary" disabled={guardando}>
+              <Icon name="plus" />
+              Registrar intento
+            </button>
+            <button
+              type="button"
+              className="cl-primary"
+              disabled={guardando || documento.estado === "REENTREGADA"}
+              onClick={() => actualizar({ estado: "REENTREGADA" })}
+            >
+              <Icon name="success" />
+              Marcar reentregada
+            </button>
+          </footer>
+        ) : null}
       </aside>
     </div>
   );

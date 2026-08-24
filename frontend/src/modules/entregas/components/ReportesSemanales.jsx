@@ -180,6 +180,27 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
           </label>
         </div>
 
+        {vista?.snapshot ? (
+          <div className="ent-report-summary" aria-label="Resumen actual del informe">
+            <article>
+              <span>Recibidas</span>
+              <strong>{formatNumber(vista.snapshot.totales?.asignadas)}</strong>
+            </article>
+            <article>
+              <span>Entregadas</span>
+              <strong>{formatNumber(vista.snapshot.totales?.entregadas)}</strong>
+            </article>
+            <article>
+              <span>No entregadas</span>
+              <strong>{formatNumber(vista.snapshot.totales?.no_entregadas ?? vista.snapshot.totales?.pendientes)}</strong>
+            </article>
+            <article>
+              <span>Efectividad</span>
+              <strong>{formatPercent(vista.snapshot.totales?.efectividad)}</strong>
+            </article>
+          </div>
+        ) : null}
+
         {vista?.existentes?.length ? (
           <p className="ent-diferencia is-atencion">
             Ya existe un informe emitido para esta semana ({vista.existentes.map((item) => item.version_etiqueta).join(", ")}).
@@ -215,14 +236,15 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
         </div>
       </div>
 
-      <div className="cl-inbox ent-historico">
-        <div className="cl-inbox-head">
+      <details className="cl-inbox ent-historico">
+        <summary>
           <div>
             <span className="cl-kicker">Histórico</span>
             <h3>Informes emitidos</h3>
             <p>Cada informe conserva la foto cerrada de su semana.</p>
           </div>
-        </div>
+          <Icon name="history" />
+        </summary>
 
         {historico.error ? <p className="cl-alert">{historico.error}</p> : null}
 
@@ -286,7 +308,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
             </tbody>
           </table>
         </div>
-      </div>
+      </details>
     </section>
   );
 }

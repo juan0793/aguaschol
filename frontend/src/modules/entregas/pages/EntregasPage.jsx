@@ -18,11 +18,11 @@ import "../styles/entregas.css";
 // "Nuevo lote" no vive aqui: es una accion, no una vista a la que se vuelve, asi
 // que su unica entrada es el boton primario del header (ver mas abajo).
 const SUBVISTAS = [
-  { key: "resumen", label: "Resumen", icon: "dashboard" },
-  { key: "lotes", label: "Lotes diarios", icon: "records" },
-  { key: "pendientes", label: "No entregadas", icon: "warning" },
-  { key: "personal", label: "Personal de campo", icon: "users" },
-  { key: "reportes", label: "Reportes semanales", icon: "archive" }
+  { key: "resumen", label: "Resumen", hint: "Efectividad", icon: "dashboard" },
+  { key: "lotes", label: "Lotes diarios", hint: "Reparto y cierre", icon: "records" },
+  { key: "pendientes", label: "No entregadas", hint: "Seguimiento", icon: "warning" },
+  { key: "personal", label: "Personal de campo", hint: "Técnicos", icon: "users" },
+  { key: "reportes", label: "Reportes semanales", hint: "Informes", icon: "archive" }
 ];
 
 const vistaDesdeHash = () => window.location.hash.match(/^#entregas\/([\w-]+)/)?.[1] || "resumen";
@@ -141,20 +141,23 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           <h1>Control de entregas</h1>
           <p>Seguimiento diario de facturas y notas de cobro.</p>
         </div>
-        <nav aria-label="Secciones de Control de entregas">
+        <nav className="ent-menu" aria-label="Secciones de Control de entregas">
           {subvistas.map((item) => (
             <button
               key={item.key}
               type="button"
-              className={vista === item.key ? "is-active" : ""}
+              className={`ent-menu-card ${vista === item.key ? "is-active" : ""}`}
               onClick={() => ir(item.key)}
             >
               <Icon name={item.icon} />
-              {item.label}
+              <span>
+                {item.label}
+                <small>{item.hint}</small>
+              </span>
             </button>
           ))}
         </nav>
-        <div className="cl-drawer-main-actions" style={{ justifyContent: "flex-end" }}>
+        <div className="cl-drawer-main-actions ent-header-action">
           {config.permissions.can_create_lote ? (
             <button type="button" className="cl-primary" onClick={() => ir("nuevo")}>
               <Icon name="plus" />
@@ -163,6 +166,15 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           ) : null}
         </div>
       </header>
+
+      <nav className="ent-mobile-tabs" aria-label="Navegación móvil de Control de entregas">
+        {subvistas.map((item) => (
+          <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} onClick={() => ir(item.key)}>
+            <Icon name={item.icon} />
+            <span>{item.label.replace(" semanales", "").replace(" de campo", "")}</span>
+          </button>
+        ))}
+      </nav>
 
       {vista === "resumen" ? (
         <section className="cl-inbox">
