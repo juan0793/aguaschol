@@ -13,6 +13,7 @@ import PersonalCampoTable from "../components/PersonalCampoTable";
 import ReportesSemanales from "../components/ReportesSemanales";
 import { GraficoPorDia } from "../components/ReporteCharts";
 import { formatDate, formatNumber } from "../utils/entregasFormatters";
+import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
 import "../styles/entregas.css";
 
 // "Nuevo lote" no vive aqui: es una accion, no una vista a la que se vuelve, asi
@@ -36,6 +37,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const [personal, setPersonal] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [resumen, setResumen] = useState(null);
+  const [lotesAbiertosPrevios, setLotesAbiertosPrevios] = useState({ items: [], total: 0 });
   const [loteEnCierre, setLoteEnCierre] = useState(null);
   const [documentoAbierto, setDocumentoAbierto] = useState(null);
 
@@ -58,6 +60,15 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     }
   }, [api, notify]);
 
+  const cargarLotesAbiertosPrevios = useCallback(async () => {
+    try {
+      const ayer = addDaysIso(toLocalIsoDate(), -1);
+      setLotesAbiertosPrevios(await api.lotes({ estado: "ABIERTO", fecha_hasta: ayer, limit: 6 }));
+    } catch (error) {
+      notify(error.message);
+    }
+  }, [api, notify]);
+
   useEffect(() => {
     api.config().then(setConfig).catch((error) => notify(error.message));
   }, [api, notify]);
@@ -66,7 +77,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     if (!config) return;
     cargarPersonal();
     cargarResumen();
-  }, [cargarPersonal, cargarResumen, config]);
+    cargarLotesAbiertosPrevios();
+  }, [cargarLotesAbiertosPrevios, cargarPersonal, cargarResumen, config]);
 
   // Los usuarios solo se piden cuando el administrador entra a Personal de campo.
   useEffect(() => {
@@ -91,6 +103,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const refrescar = () => {
     cargarResumen();
     cargarPersonal();
+    cargarLotesAbiertosPrevios();
     lotes.reload();
   };
 
@@ -100,6 +113,17 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     refrescar();
     ir("lotes");
     return creado;
+  };
+
+  const verHoy = () => {
+    const hoy = toLocalIsoDate();
+    lotes.setFilters({ estado: "", fecha_desde: hoy, fecha_hasta: hoy });
+    ir("lotes");
+  };
+
+  const verAbiertosPrevios = () => {
+    lotes.setFilters({ estado: "ABIERTO", fecha_desde: "", fecha_hasta: addDaysIso(toLocalIsoDate(), -1) });
+    ir("lotes");
   };
 
   const abrirCierre = async (lote) => {
@@ -213,6 +237,12 @@ export default function EntregasPage({ apiFetch, showAlert }) {
                   <span>Lotes abiertos</span>
                   <strong>{formatNumber(resumen?.lotes_abiertos)}</strong>
                 </li>
+                {lotesAbiertosPrevios.total ? (
+                  <li className="is-atencion">
+                    <span>Abiertos anteriores</span>
+                    <strong>{formatNumber(lotesAbiertosPrevios.total)}</strong>
+                  </li>
+                ) : null}
                 <li className="is-atencion">
                   <span>Pendientes con más de 3 días</span>
                   <strong>{formatNumber(resumen?.pendientes_mas_3_dias)}</strong>
@@ -229,6 +259,12 @@ export default function EntregasPage({ apiFetch, showAlert }) {
               <button type="button" className="cl-secondary" onClick={() => ir("pendientes")}>
                 Ver documentos pendientes
               </button>
+              {lotesAbiertosPrevios.total ? (
+                <button type="button" className="cl-secondary" onClick={verAbiertosPrevios}>
+                  <Icon name="history" />
+                  Volver a jornadas anteriores
+                </button>
+              ) : null}
             </div>
           </div>
         </section>
@@ -250,6 +286,9 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           config={config}
           personal={personal}
           permissions={config.permissions}
+          abiertosPrevios={lotesAbiertosPrevios}
+          onToday={verHoy}
+          onPreviousOpen={verAbiertosPrevios}
           onOpen={abrirCierre}
           onCerrar={abrirCierre}
         />

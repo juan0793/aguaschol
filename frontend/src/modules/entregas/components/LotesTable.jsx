@@ -5,25 +5,85 @@ import {
   formatDate,
   formatNumber,
   formatPercent,
+  tipoPersonalLabel,
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
+import { toLocalIsoDate } from "../utils/entregasDate";
 
-export default function LotesTable({ model, config, personal, permissions, onOpen, onCerrar }) {
+export default function LotesTable({ model, config, personal, permissions, abiertosPrevios, onToday, onPreviousOpen, onOpen, onCerrar }) {
   const { items, loading, error, filters, setFilters, clearFilters, page, setPage, total, total_pages: totalPages } = model;
+  const hoy = toLocalIsoDate();
+  const viendoHoy = filters.fecha_desde === hoy && filters.fecha_hasta === hoy && !filters.estado;
+  const resumenDia = items.reduce(
+    (acc, lote) => {
+      acc.asignadas += Number(lote.total_asignadas) || 0;
+      acc.abiertos += lote.estado === "ABIERTO" ? 1 : 0;
+      acc.cerrados += lote.estado === "CERRADO" ? 1 : 0;
+      if (lote.responsable_nombre) acc.tecnicos.add(lote.responsable_nombre);
+      return acc;
+    },
+    { asignadas: 0, abiertos: 0, cerrados: 0, tecnicos: new Set() }
+  );
 
   return (
     <section className="cl-inbox">
       <div className="cl-inbox-head">
         <div>
           <span className="cl-kicker">Operación diaria</span>
-          <h3>Lotes registrados</h3>
-          <p>{formatNumber(total)} lote(s) según los filtros aplicados.</p>
+          <h3>{viendoHoy ? "Lotes de hoy" : "Lotes registrados"}</h3>
+          <p>
+            {viendoHoy ? formatDate(hoy) : `${formatNumber(total)} lote(s) según los filtros aplicados.`}
+          </p>
         </div>
-        <button type="button" className="cl-quiet" onClick={clearFilters}>
-          <Icon name="refresh" />
-          Limpiar filtros
-        </button>
+        <div className="ent-lotes-head-actions">
+          <button type="button" className={viendoHoy ? "cl-primary" : "cl-secondary"} onClick={onToday}>
+            <Icon name="activity" />
+            Hoy
+          </button>
+          <button type="button" className="cl-quiet" onClick={clearFilters}>
+            <Icon name="refresh" />
+            Limpiar filtros
+          </button>
+        </div>
       </div>
+
+      <div className="ent-jornada-strip">
+        <article>
+          <Icon name="records" />
+          <span>Lotes</span>
+          <strong>{formatNumber(total)}</strong>
+        </article>
+        <article>
+          <Icon name="users" />
+          <span>Técnicos</span>
+          <strong>{formatNumber(resumenDia.tecnicos.size)}</strong>
+        </article>
+        <article>
+          <Icon name="archive" />
+          <span>Asignadas</span>
+          <strong>{formatNumber(resumenDia.asignadas)}</strong>
+        </article>
+        <article className={resumenDia.abiertos ? "is-atencion" : "is-ok"}>
+          <Icon name={resumenDia.abiertos ? "warning" : "success"} />
+          <span>Abiertos</span>
+          <strong>{formatNumber(resumenDia.abiertos)}</strong>
+        </article>
+      </div>
+
+      {abiertosPrevios?.total ? (
+        <div className="ent-lotes-alert">
+          <Icon name="history" />
+          <div>
+            <strong>{formatNumber(abiertosPrevios.total)} lote(s) abierto(s) de jornadas anteriores</strong>
+            <span>
+              {abiertosPrevios.items?.slice(0, 3).map((lote) => `${lote.responsable_nombre || "Sin responsable"} · ${formatDate(lote.fecha)}`).join(" · ")}
+            </span>
+          </div>
+          <button type="button" className="cl-secondary" onClick={onPreviousOpen}>
+            Ver anteriores
+          </button>
+        </div>
+      ) : null}
 
       <div className="cl-toolbar ent-toolbar">
         <label className="cl-search">
@@ -129,7 +189,10 @@ export default function LotesTable({ model, config, personal, permissions, onOpe
                 <td>
                   <button type="button" className="cl-link" onClick={() => onOpen(lote)}>
                     <strong>{lote.responsable_nombre || "—"}</strong>
-                    <span>Lote #{lote.id}</span>
+                    <span>
+                      <Icon name="users" />
+                      {tipoPersonalLabel(lote.tipo_personal)} · Lote #{lote.id}
+                    </span>
                   </button>
                 </td>
                 <td>{lote.barrio_nombre || "—"}</td>
