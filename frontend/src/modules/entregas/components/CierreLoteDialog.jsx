@@ -7,39 +7,9 @@ import {
   formatNumber,
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
+import { filaVacia, parsearPegado } from "../utils/cierreLoteUtils";
 
 const ESTADOS_ACTIVOS = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA"];
-
-const filaVacia = (motivoPorDefecto) => ({
-  numero_abonado: "",
-  clave_catastral: "",
-  abonado_nombre: "",
-  motivo: motivoPorDefecto,
-  observacion: ""
-});
-
-// Interpreta el pegado masivo: "abonado  clave  motivo" por línea.
-const parsearPegado = (texto, motivos) => {
-  const porEtiqueta = new Map(motivos.map((item) => [item.etiqueta.toLowerCase(), item.codigo]));
-  const codigos = new Set(motivos.map((item) => item.codigo));
-
-  return String(texto || "")
-    .split(/\r?\n/)
-    .map((linea) => linea.trim())
-    .filter(Boolean)
-    .map((linea) => {
-      const partes = linea.split(/\t+|\s{2,}|;/).map((parte) => parte.trim()).filter(Boolean);
-      const [abonado = "", clave = "", motivoTexto = "", ...resto] = partes;
-      const directo = motivoTexto.toUpperCase().replace(/\s+/g, "_");
-      return {
-        numero_abonado: abonado,
-        clave_catastral: clave,
-        abonado_nombre: "",
-        motivo: codigos.has(directo) ? directo : porEtiqueta.get(motivoTexto.toLowerCase()) || motivos[0]?.codigo || "OTRO",
-        observacion: resto.join(" ")
-      };
-    });
-};
 
 export default function CierreLoteDialog({ api, config, lote, notify, onClose, onSaved }) {
   const motivos = config.motivos;
@@ -68,6 +38,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     sobrantes === "" || sobrantesNum < 0 || sobrantesNum > Number(lote.total_asignadas);
   const progreso = sobrantesNum > 0 ? Math.min((identificadas / sobrantesNum) * 100, 100) : 100;
   const puedeCerrar = !guardando && !sobrantesInvalidos && diferencia === 0;
+  const faltantes = Math.max(diferencia, 0);
 
   const patchNueva = (index, cambios) =>
     setNuevas((filas) => filas.map((fila, posicion) => (posicion === index ? { ...fila, ...cambios } : fila)));
@@ -102,8 +73,25 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
       return;
     }
     setNuevas((actuales) => [...actuales, ...filas]);
+    const totalPegado = identificadas + filas.length;
+    if (sobrantes === "" || sobrantesNum < totalPegado) setSobrantes(String(totalPegado));
     setPegado("");
     setModo("manual");
+  };
+
+  const agregarFaltantes = () => {
+    const total = faltantes || 1;
+    setNuevas((filas) => [...filas, ...Array.from({ length: total }, () => filaVacia(motivoPorDefecto))]);
+    if (sobrantes === "" || faltantes === 0) setSobrantes(String(identificadas + total));
+  };
+
+  const marcarTodoEntregado = () => {
+    if (identificadas > 0) {
+      notify("Ya hay no entregadas registradas. Quita esas filas si el lote realmente cerró en cero.");
+      return;
+    }
+    setSobrantes("0");
+    setNuevas([]);
   };
 
   const guardarNuevas = async () => {
@@ -236,6 +224,9 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                     +
                   </button>
                 </div>
+                <button type="button" className="cl-secondary ent-quick-zero" onClick={marcarTodoEntregado}>
+                  Todo entregado, cerrar en 0
+                </button>
               </label>
               <label className="cl-field">
                 Entregadas (calculado)
@@ -290,6 +281,17 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               <i><em style={{ width: `${progreso}%` }} /></i>
             </div>
 
+            <div className="ent-captura-actions">
+              <button type="button" className="cl-secondary" onClick={agregarFaltantes}>
+                <Icon name="plus" />
+                {faltantes > 0 ? `Crear ${formatNumber(faltantes)} fila(s) faltante(s)` : "Agregar documento"}
+              </button>
+              <button type="button" className="cl-secondary" onClick={() => setModo("pegar")}>
+                <Icon name="copy" />
+                Pegar listado
+              </button>
+            </div>
+
             {modo === "pegar" ? (
               <div className="ent-pegado">
                 <label className="cl-field">
@@ -306,16 +308,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                   Agregar filas
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                className="cl-secondary ent-agregar-fila"
-                onClick={() => setNuevas((filas) => [...filas, filaVacia(motivoPorDefecto)])}
-              >
-                <Icon name="plus" />
-                Agregar documento
-              </button>
-            )}
+            ) : null}
 
             {nuevas.length ? (
               <div className="cl-table-wrap">

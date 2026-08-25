@@ -110,9 +110,12 @@
 .ent-stepper button { display: grid; min-height: 52px; place-items: center; border: 1px solid #bfd5eb; border-radius: 10px; background: #fff; color: var(--primary); font-size: 24px; font-weight: 850; cursor: pointer; }
 .ent-stepper button:disabled { cursor: not-allowed; opacity: .45; }
 .ent-stepper input { min-height: 52px !important; text-align: center; font-size: 24px; font-weight: 850; }
+.ent-quick-zero { width: 100%; margin-top: 8px; }
 .ent-cierre-progress { display: grid; gap: 7px; margin-bottom: 12px; color: var(--muted); font-size: 12px; font-weight: 800; }
 .ent-cierre-progress i { display: block; height: 8px; overflow: hidden; border-radius: 999px; background: #dce7f1; }
 .ent-cierre-progress em { display: block; height: 100%; border-radius: 999px; background: var(--success); }
+.ent-captura-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.ent-captura-actions button { justify-content: center; }
 .ent-resumen-documento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .ent-resumen-documento > div { display: grid; gap: 4px; }
 .ent-resumen-documento span { color: var(--muted); font-size: 12px; font-weight: 700; }
@@ -251,10 +254,13 @@
   .ent-module .ent-personal-table td:nth-child(5), .ent-module .ent-personal-table td:nth-child(6), .ent-module .ent-personal-table td:nth-child(8) { display: none; }
   .ent-acciones-celda { flex-wrap: wrap; }
   .ent-drawer-footer { align-items: stretch; flex-direction: column; }
-  .ent-drawer .cl-drawer-scroll { padding: 12px 14px 96px; }
-  .ent-cierre-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ent-drawer .cl-drawer-scroll { padding: 12px 14px 118px; }
+  .ent-cierre-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ent-cierre-kpis .is-ok, .ent-cierre-kpis .is-alert { grid-column: 1 / -1; }
   .ent-cierre-kpis strong { font-size: 20px; }
   .ent-cierre-pasos span { min-height: 48px; }
+  .ent-captura-actions { grid-template-columns: 1fr; }
+  .ent-captura-actions button { min-height: 46px; }
   .ent-cerrar-wrap { align-items: stretch; }
   .ent-cerrar-motivo { white-space: normal; }
   .ent-seguimiento-footer { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr; }
