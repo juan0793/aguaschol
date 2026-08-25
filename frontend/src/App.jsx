@@ -3844,12 +3844,17 @@ function App() {
       headers.set("Authorization", `Bearer ${session.token}`);
     }
 
-    return fetch(`${API_URL}${path}`, {
+    const response = await fetch(`${API_URL}${path}`, {
       ...options,
       cache: options.cache ?? "no-store",
       credentials: options.credentials ?? "include",
       headers
     });
+    if (response.status === 401 && session?.token) {
+      clearSession();
+      if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
+    }
+    return response;
   }, [session?.token]);
 
   const persistLookupHistory = (nextHistory) => {
