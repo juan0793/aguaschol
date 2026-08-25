@@ -44,10 +44,12 @@
 
 .sig-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 12px;
   padding: 4px;
-  width: fit-content;
+  width: max-content;
+  max-width: 100%;
   border: 1px solid #dce3ea;
   border-radius: 12px;
   background: #fff;
@@ -199,6 +201,52 @@
 
 .sig-map { min-height: 560px; }
 
+.sig-offline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  min-height: 360px;
+  padding: 24px;
+  border: 1px solid #dce3ea;
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(19, 117, 245, 0.08), transparent 46%),
+    #fff;
+}
+
+.sig-offline h2 {
+  margin: 4px 0 8px;
+}
+
+.sig-offline p {
+  max-width: 560px;
+  margin: 0;
+  color: #687386;
+}
+
+.sig-offline-metrics {
+  display: grid;
+  gap: 8px;
+  min-width: 190px;
+}
+
+.sig-offline-metrics span {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid #dce3ea;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #687386;
+  font-size: 12px;
+}
+
+.sig-offline-metrics strong {
+  color: #152033;
+  font-size: 14px;
+}
+
 .sig-map-stage footer {
   display: flex;
   gap: 14px;
@@ -231,6 +279,16 @@
 }
 
 .sig-placeholder span { color: #687386; }
+
+.sig-empty-note {
+  max-width: 620px;
+  margin: 0 0 14px;
+  color: #687386;
+}
+
+.sig-report-empty {
+  min-height: 220px;
+}
 
 .sig-placeholder li button,
 .sig-drawer button {
@@ -428,10 +486,49 @@
     flex-direction: column;
   }
 
-  .sig-tabs { width: 100%; overflow-x: auto; }
-  .sig-tabs button { flex: 1 0 auto; }
+  .sig-workspace { padding: 12px; }
+  .sig-header { gap: 12px; }
+  .sig-status { width: 100%; justify-content: center; }
+  .sig-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    overflow: visible;
+  }
+  .sig-tabs button {
+    min-width: 0;
+    min-height: 42px;
+    padding: 0 8px;
+  }
   .sig-map-shell { grid-template-columns: 1fr; min-height: 0; }
-  .sig-layer-panel { max-height: 260px; }
+  .sig-layer-panel { max-height: none; }
+  .sig-layer-panel details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+  .sig-layer-panel summary { grid-column: 1 / -1; }
+  .sig-layer-panel label {
+    min-height: 36px;
+    margin-top: 0;
+    font-size: 14px;
+  }
+  .sig-layer-panel input {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+  }
+  .sig-toolbar button {
+    justify-content: center;
+    width: 100%;
+  }
+  .sig-search { min-width: 0; width: 100%; }
   .sig-map { min-height: 520px; }
   .sig-drawer { inset: auto 12px 12px; width: auto; }
+  .sig-offline {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 18px;
+  }
+  .sig-offline-metrics { min-width: 0; }
 }

@@ -16,10 +16,30 @@ const VALIDATION_STATUS = {
   pending: { label: "Pendiente", color: "#64748b" }
 };
 const GPS_ACCURACY_LABEL = { excelente: "Excelente", buena: "Buena", aceptable: "Aceptable", baja: "Baja", deficiente: "Deficiente", sin_dato: "Sin dato" };
+const isGisReady = (health) => Boolean(health?.ready);
 const bboxFromMap = (map) => {
   const b = map.getBounds();
   return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((value) => Number(value.toFixed(6)));
 };
+
+function SigOfflineState({ health, datasets = [] }) {
+  const checking = health == null;
+  const configured = Boolean(health?.configured);
+  return (
+    <section className="sig-offline" role="status">
+      <div>
+        <span className="cl-kicker">Estado GIS</span>
+        <h2>{checking ? "Verificando conexión GIS" : configured ? "PostGIS no responde" : "GIS_DATABASE_URL pendiente"}</h2>
+        <p>{checking ? "Consultando el estado de la base territorial." : configured ? "La base territorial está configurada, pero no se pudo consultar en este momento." : "Conecta la base GIS para activar mapa, búsqueda, barrios y catastro."}</p>
+      </div>
+      <div className="sig-offline-metrics" aria-label="Capas esperadas">
+        <span><strong>{datasets.length}</strong> capas previstas</span>
+        <span><strong>EPSG:32616</strong> territorio</span>
+        <span><strong>EPSG:4326</strong> GPS</span>
+      </div>
+    </section>
+  );
+}
 
 function SigSearch({ api, onPick }) {
   const searchRef = useRef(null);
@@ -372,13 +392,32 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
   const [catastroReport, setCatastroReport] = useState(null);
   const [selected, setSelected] = useState(null);
   const [summary, setSummary] = useState(null);
+  const ready = isGisReady(health);
 
   useEffect(() => {
-    api.config().then(setConfig).catch((error) => showAlert?.(error.message));
-    api.health().then(setHealth).catch(() => setHealth({ ready: false }));
-    api.barrios().then(setBarrios).catch(() => setBarrios([]));
-    api.barrioReport().then(setReport).catch(() => setReport(null));
-    api.catastroReport().then(setCatastroReport).catch(() => setCatastroReport(null));
+    let cancelled = false;
+    api.config().then((nextConfig) => !cancelled && setConfig(nextConfig)).catch((error) => showAlert?.(error.message));
+    api.health().then(async (nextHealth) => {
+      if (cancelled) return;
+      setHealth(nextHealth);
+      if (!isGisReady(nextHealth)) {
+        setBarrios([]);
+        setReport(null);
+        setCatastroReport(null);
+        return;
+      }
+      const [nextBarrios, nextReport, nextCatastroReport] = await Promise.all([
+        api.barrios().catch(() => []),
+        api.barrioReport().catch(() => null),
+        api.catastroReport().catch(() => null)
+      ]);
+      if (!cancelled) {
+        setBarrios(nextBarrios);
+        setReport(nextReport);
+        setCatastroReport(nextCatastroReport);
+      }
+    }).catch(() => setHealth({ configured: false, ready: false }));
+    return () => { cancelled = true; };
   }, [api, showAlert]);
 
   useEffect(() => {
@@ -401,9 +440,9 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
           <h1>SIG Territorial</h1>
           <p>Infraestructura y análisis territorial.</p>
         </div>
-        <div className={`sig-status ${health?.ready ? "is-ready" : ""}`}>
+        <div className={`sig-status ${ready ? "is-ready" : ""}`}>
           <i />
-          <span>{health?.ready ? "PostGIS conectado" : health?.configured ? "PostGIS no disponible" : "GIS_DATABASE_URL pendiente"}</span>
+          <span>{health == null ? "Verificando GIS..." : ready ? "PostGIS conectado" : health?.configured ? "PostGIS no disponible" : "GIS_DATABASE_URL pendiente"}</span>
         </div>
       </header>
 
@@ -412,10 +451,10 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
       </nav>
 
       {tab === "mapa" ? (
-        <>
+        ready ? <>
           <SigMap api={api} selected={selected} onSelect={setSelected} focusRequest={focusRequest} onFocusConsumed={onFocusConsumed} />
           <Drawer selected={selected} summary={summary} onClose={() => setSelected(null)} onOpenFieldValidation={onOpenFieldValidation} />
-        </>
+        </> : <SigOfflineState health={health} datasets={config?.datasets} />
       ) : tab === "barrios" ? (
         <section className="sig-placeholder">
           <h2>Barrios y catastro</h2>
@@ -425,6 +464,7 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
             <span>{catastroReport?.catastro_puntos?.toLocaleString("es-HN") || 0} abonados GIS</span>
             <span>Sin clave: {report?.sin_clave ?? 0}</span>
           </div>
+          {!ready ? <p className="sig-empty-note">La conexión GIS no está activa. Cuando PostGIS responda, aquí aparecerá el listado de barrios para abrirlos en el mapa.</p> : null}
           <ul>
             {barrios.map((item) => (
               <li key={item.id}>
@@ -434,15 +474,25 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
             ))}
           </ul>
         </section>
-      ) : (
+      ) : tab === "analisis" ? (
         <section className="sig-placeholder">
-          <h2>{TABS.find(([key]) => key === tab)?.[1]}</h2>
-          <p>Fase 3 deja búsqueda, lotes y catastro operativos; reportes avanzados quedan fuera de alcance.</p>
+          <h2>Análisis de capas</h2>
+          <p>Inventario técnico disponible para validar cobertura, geometría y referencia espacial.</p>
           <ul>
             {(config?.datasets || []).slice(0, 8).map((item) => (
               <li key={item.key}><strong>{item.layer}</strong><span>{item.count.toLocaleString("es-HN")} · {item.geometry} · EPSG:{item.srid}</span></li>
             ))}
           </ul>
+        </section>
+      ) : (
+        <section className="sig-placeholder sig-report-empty">
+          <h2>Reportes</h2>
+          <p>Los reportes avanzados todavía no están habilitados.</p>
+          <div className="sig-report-strip">
+            <span>{(config?.datasets || []).length} capas catalogadas</span>
+            <span>{ready ? "GIS listo" : "GIS pendiente"}</span>
+            <span>Exportación por definir</span>
+          </div>
         </section>
       )}
     </main>
