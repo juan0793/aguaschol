@@ -230,6 +230,31 @@ export const searchGis = async (query = "") => {
   return { query, groups };
 };
 
+export const resolveClaveGis = async (clave = "") => {
+  const trimmed = String(clave ?? "").trim();
+  if (!trimmed) return null;
+  const base = buildClaveBase(trimmed);
+  const pg = getGisPool();
+
+  const catastro = await pg.query(
+    `SELECT id FROM gis_catastro_puntos
+     WHERE clave_catastral = $1 OR ($2 <> '' AND clave_catastral LIKE $2 || '-%')
+     ORDER BY clave_catastral = $1 DESC, id LIMIT 1`,
+    [trimmed, base]
+  );
+  if (catastro.rows[0]) return { type: "catastro", id: catastro.rows[0].id };
+
+  const lote = await pg.query(
+    `SELECT id FROM gis_lotes
+     WHERE activo = TRUE AND (clave_catastral = $1 OR ($2 <> '' AND clave_catastral LIKE $2 || '-%'))
+     ORDER BY clave_catastral = $1 DESC, id LIMIT 1`,
+    [trimmed, base]
+  );
+  if (lote.rows[0]) return { type: "lote", id: lote.rows[0].id };
+
+  return null;
+};
+
 const findPadron = (clave = "", abonado = "") => {
   const base = buildClaveBase(clave);
   return getMasterRecords().find((item) =>

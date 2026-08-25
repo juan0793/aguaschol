@@ -15,6 +15,7 @@ import {
   getLotesBbox,
   getTerritoryManzanas,
   getTerritoryQuebradas,
+  resolveTerritorialClave,
   searchTerritorialGis
 } from "./gis.service.js";
 
@@ -60,6 +61,7 @@ export const catastro = async (req, res) => res.json(await getCatastroBbox({
   limit: clamp(req.query.limit, 50, 1500, 1000)
 }));
 export const search = async (req, res) => res.json(await searchTerritorialGis(req.query.q));
+export const resolveClave = async (req, res) => sendMaybe(res, await resolveTerritorialClave(req.query.clave));
 export const lote = async (req, res) => sendMaybe(res, await getTerritoryLote(req.params.id));
 export const catastroPunto = async (req, res) => sendMaybe(res, await getTerritoryCatastro(req.params.id));
 export const catastroReport = async (_req, res) => res.json(await getTerritoryCatastroReport());

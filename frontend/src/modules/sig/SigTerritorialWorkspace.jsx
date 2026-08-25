@@ -111,7 +111,7 @@ function SigSearch({ api, onPick }) {
   );
 }
 
-function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed }) {
+function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAlert }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const barriosRef = useRef(emptyFeatureCollection);
@@ -289,6 +289,15 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed }) {
             if (item.type === "barrio") onSelect({ type: "barrio", data: { id: item.id, nombre: item.label, clave: item.detail } });
             if (item.type === "lote") onSelect({ type: "lote", data: await api.lote(item.id) });
             if (item.type === "abonado") onSelect({ type: "catastro", data: await api.catastroPunto(item.id) });
+            if (item.type === "padron") {
+              try {
+                const match = await api.resolveClave(item.id);
+                if (match.type === "lote") onSelect({ type: "lote", data: await api.lote(match.id) });
+                if (match.type === "catastro") onSelect({ type: "catastro", data: await api.catastroPunto(match.id) });
+              } catch (error) {
+                showAlert?.(`${item.label}: sin punto georreferenciado en el mapa todavia.`);
+              }
+            }
           }} />
           <button type="button" disabled><Icon name="plus" /> Punto</button>
           <button type="button" disabled><Icon name="print" /> Imprimir</button>
@@ -452,7 +461,7 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
 
       {tab === "mapa" ? (
         ready ? <>
-          <SigMap api={api} selected={selected} onSelect={setSelected} focusRequest={focusRequest} onFocusConsumed={onFocusConsumed} />
+          <SigMap api={api} selected={selected} onSelect={setSelected} focusRequest={focusRequest} onFocusConsumed={onFocusConsumed} showAlert={showAlert} />
           <Drawer selected={selected} summary={summary} onClose={() => setSelected(null)} onOpenFieldValidation={onOpenFieldValidation} />
         </> : <SigOfflineState health={health} datasets={config?.datasets} />
       ) : tab === "barrios" ? (

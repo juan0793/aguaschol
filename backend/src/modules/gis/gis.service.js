@@ -14,6 +14,7 @@ import {
   listBarrios,
   listManzanas,
   listQuebradas,
+  resolveClaveGis,
   searchGis
 } from "./gis.repository.js";
 import { getGisPermissions } from "./gis.validation.js";
@@ -57,6 +58,7 @@ export const getTerritoryImportReport = () => getImportReport();
 export const getLotesBbox = (options) => listLotesInBbox(options);
 export const getCatastroBbox = (options) => listCatastroInBbox(options);
 export const searchTerritorialGis = (query) => searchGis(query);
+export const resolveTerritorialClave = (clave) => resolveClaveGis(clave);
 export const getTerritoryLote = (id) => getLoteDetail(id);
 export const getTerritoryCatastro = (id) => getCatastroDetail(id);
 export const getTerritoryCatastroReport = () => getCatastroReport();
