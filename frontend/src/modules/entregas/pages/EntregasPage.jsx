@@ -41,6 +41,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const [loteEnCierre, setLoteEnCierre] = useState(null);
   const [loteEnEdicion, setLoteEnEdicion] = useState(null);
   const [documentoAbierto, setDocumentoAbierto] = useState(null);
+  const [cargandoResumen, setCargandoResumen] = useState(false);
 
   const lotes = useLotes(api, Boolean(config) && ["lotes", "resumen"].includes(vista));
   const pendientes = useNoEntregadas(api, Boolean(config) && vista === "pendientes");
@@ -54,10 +55,13 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   }, [api, notify]);
 
   const cargarResumen = useCallback(async () => {
+    setCargandoResumen(true);
     try {
       setResumen(await api.resumen());
     } catch (error) {
       notify(error.message);
+    } finally {
+      setCargandoResumen(false);
     }
   }, [api, notify]);
 
@@ -145,6 +149,13 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     ir("lotes");
   };
 
+  // Cada renglon de "Requiere atencion" salta directo a Pendientes con su propio filtro
+  // (dias_minimos, estado), en vez de solo mostrar el numero.
+  const irAPendientes = (filtros) => {
+    pendientes.setFilters({ estado: "PENDIENTE", dias_minimos: "", ...filtros });
+    ir("pendientes");
+  };
+
   const abrirCierre = async (lote) => {
     try {
       setLoteEnCierre(await api.lote(lote.id));
@@ -229,9 +240,9 @@ export default function EntregasPage({ apiFetch, showAlert }) {
               <h3>Resultado de la semana</h3>
               <p>Los indicadores muestran la operación viva; el informe semanal congela la foto del viernes.</p>
             </div>
-            <button type="button" className="cl-quiet" onClick={cargarResumen}>
-              <Icon name="refresh" />
-              Actualizar
+            <button type="button" className="cl-quiet" onClick={cargarResumen} disabled={cargandoResumen}>
+              <Icon name="refresh" className={cargandoResumen ? "ent-refresh-icon is-spinning" : "ent-refresh-icon"} />
+              {cargandoResumen ? "Actualizando…" : "Actualizar"}
             </button>
           </div>
 
@@ -252,30 +263,45 @@ export default function EntregasPage({ apiFetch, showAlert }) {
             <div className="ent-card">
               <h3>Requiere atención</h3>
               <ul className="ent-lista-plana">
-                <li>
-                  <span>Lotes abiertos</span>
+                <li className="is-clickable" onClick={verHoy}>
+                  <span className="ent-fila-etiqueta">
+                    <i />
+                    Lotes abiertos
+                  </span>
                   <strong>{formatNumber(resumen?.lotes_abiertos)}</strong>
                 </li>
                 {lotesAbiertosPrevios.total ? (
-                  <li className="is-atencion">
-                    <span>Abiertos anteriores</span>
+                  <li className="is-atencion is-clickable" onClick={verAbiertosPrevios}>
+                    <span className="ent-fila-etiqueta">
+                      <i />
+                      Abiertos anteriores
+                    </span>
                     <strong>{formatNumber(lotesAbiertosPrevios.total)}</strong>
                   </li>
                 ) : null}
-                <li className="is-atencion">
-                  <span>Pendientes con más de 3 días</span>
+                <li className="is-atencion is-clickable" onClick={() => irAPendientes({ dias_minimos: "3" })}>
+                  <span className="ent-fila-etiqueta">
+                    <i />
+                    Pendientes con más de 3 días
+                  </span>
                   <strong>{formatNumber(resumen?.pendientes_mas_3_dias)}</strong>
                 </li>
-                <li className="is-critico">
-                  <span>Pendientes con más de 7 días</span>
+                <li className="is-critico is-clickable" onClick={() => irAPendientes({ dias_minimos: "7" })}>
+                  <span className="ent-fila-etiqueta">
+                    <i />
+                    Pendientes con más de 7 días
+                  </span>
                   <strong>{formatNumber(resumen?.pendientes_mas_7_dias)}</strong>
                 </li>
-                <li>
-                  <span>No localizadas</span>
+                <li className="is-clickable" onClick={() => irAPendientes({ estado: "NO_LOCALIZADA", dias_minimos: "" })}>
+                  <span className="ent-fila-etiqueta">
+                    <i />
+                    No localizadas
+                  </span>
                   <strong>{formatNumber(resumen?.no_localizadas)}</strong>
                 </li>
               </ul>
-              <button type="button" className="cl-secondary" onClick={() => ir("pendientes")}>
+              <button type="button" className="cl-secondary" onClick={() => irAPendientes({ dias_minimos: "" })}>
                 Ver documentos pendientes
               </button>
               {lotesAbiertosPrevios.total ? (

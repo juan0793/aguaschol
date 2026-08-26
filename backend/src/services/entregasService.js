@@ -13,12 +13,15 @@ import {
   RESULTADOS_INTENTO,
   TIPOS_DOCUMENTO,
   TIPOS_PERSONAL,
+  addDays,
   assertPuedeAgregarNoEntregadas,
   calcularEfectividad,
   calcularEntregadas,
   contarNoEntregadasActivas,
   detectarDuplicadosEnLote,
+  diffInDays,
   fail,
+  listarDiasDelRango,
   semanaPorDefecto,
   toEntero,
   toIsoDate,
@@ -1013,18 +1016,14 @@ export const getResumen = async (query = {}, user) => {
   const where = `WHERE ${filtros.join(" AND ")}`;
   const pool = getPool();
 
-  const [[totales]] = await pool.query(
-    `SELECT
+  const totalesSql = `SELECT
        COUNT(*) AS lotes,
        COALESCE(SUM(total_asignadas), 0) AS asignadas,
        COALESCE(SUM(total_sobrantes), 0) AS sobrantes,
        COALESCE(SUM(estado = 'ABIERTO'), 0) AS lotes_abiertos
-     FROM entrega_lotes ${where}`,
-    params
-  );
+     FROM entrega_lotes ${where}`;
 
-  const [[detalle]] = await pool.query(
-    `SELECT
+  const detalleSql = `SELECT
        COALESCE(SUM(documento.estado = 'PENDIENTE'), 0) AS pendientes,
        COALESCE(SUM(documento.estado = 'REENTREGADA'), 0) AS reentregadas,
        COALESCE(SUM(documento.estado = 'NO_LOCALIZADA'), 0) AS no_localizadas,
@@ -1032,9 +1031,10 @@ export const getResumen = async (query = {}, user) => {
        COALESCE(SUM(documento.estado = 'PENDIENTE' AND DATEDIFF(CURDATE(), entrega_lotes.fecha) > 7), 0) AS pendientes_7
      FROM entrega_no_entregadas AS documento
      INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
-     ${where}`,
-    params
-  );
+     ${where}`;
+
+  const [[totales]] = await pool.query(totalesSql, params);
+  const [[detalle]] = await pool.query(detalleSql, params);
 
   const [porDia] = await pool.query(
     `SELECT entrega_lotes.fecha,
@@ -1047,11 +1047,25 @@ export const getResumen = async (query = {}, user) => {
     params
   );
 
+  // Periodo previo de igual longitud, inmediatamente anterior al seleccionado,
+  // para poder mostrar una tendencia (▲/▼) junto a cada indicador.
+  const duracionDias = diffInDays(desde, hasta) + 1;
+  const desdeAnterior = addDays(desde, -duracionDias);
+  const hastaAnterior = addDays(desde, -1);
+  const paramsAnterior = [desdeAnterior, hastaAnterior, ...params.slice(2)];
+  const [[totalesAnterior]] = await pool.query(totalesSql, paramsAnterior);
+  const [[detalleAnterior]] = await pool.query(detalleSql, paramsAnterior);
+
   const asignadas = toEntero(totales.asignadas);
   const entregadas = Math.max(asignadas - toEntero(totales.sobrantes), 0);
+  const asignadasAnterior = toEntero(totalesAnterior.asignadas);
+  const entregadasAnterior = Math.max(asignadasAnterior - toEntero(totalesAnterior.sobrantes), 0);
+
+  const porDiaMapa = new Map(porDia.map((row) => [toIsoDate(row.fecha), row]));
 
   return {
     periodo: { fecha_inicio: desde, fecha_fin: hasta },
+    periodo_anterior: { fecha_inicio: desdeAnterior, fecha_fin: hastaAnterior },
     lotes: toEntero(totales.lotes),
     lotes_abiertos: toEntero(totales.lotes_abiertos),
     asignadas,
@@ -1063,12 +1077,22 @@ export const getResumen = async (query = {}, user) => {
     pendientes_mas_3_dias: toEntero(detalle.pendientes_3),
     pendientes_mas_7_dias: toEntero(detalle.pendientes_7),
     efectividad: calcularEfectividad(entregadas, asignadas),
-    por_dia: porDia.map((row) => ({
-      fecha: toIsoDate(row.fecha),
-      asignadas: toEntero(row.asignadas),
-      entregadas: toEntero(row.entregadas),
-      no_entregadas: toEntero(row.no_entregadas)
-    }))
+    comparativo: {
+      asignadas: asignadasAnterior,
+      entregadas: entregadasAnterior,
+      pendientes: toEntero(detalleAnterior.pendientes),
+      reentregadas: toEntero(detalleAnterior.reentregadas),
+      efectividad: calcularEfectividad(entregadasAnterior, asignadasAnterior)
+    },
+    por_dia: listarDiasDelRango(desde, hasta).map((fecha) => {
+      const row = porDiaMapa.get(fecha);
+      return {
+        fecha,
+        asignadas: row ? toEntero(row.asignadas) : 0,
+        entregadas: row ? toEntero(row.entregadas) : 0,
+        no_entregadas: row ? toEntero(row.no_entregadas) : 0
+      };
+    })
   };
 };
 

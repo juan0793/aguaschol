@@ -1,34 +1,53 @@
 import { scaleSeries } from "../selectors/entregasSelectors";
+import { toLocalIsoDate } from "../utils/entregasDate";
 import { formatDayLabel, formatNumber, formatPercent } from "../utils/entregasFormatters";
 
 // Gráficos sobrios en HTML/CSS: se imprimen bien en blanco y negro, no dependen
 // de canvas ni de librerías externas y no llevan animación.
 
 export function GraficoPorDia({ rows = [] }) {
-  const datos = scaleSeries(rows, ["entregadas", "no_entregadas"]);
+  // El backend ya rellena con ceros cada dia del rango (incluye los que aun no
+  // ocurren). La escala de las barras solo debe considerar dias que ya pasaron:
+  // si no, un dia futuro en 0 no distorsiona el maximo, pero tampoco queremos
+  // dibujarle una barra — se marca aparte como "sin datos aun".
+  const hoy = toLocalIsoDate();
+  const ocurridos = rows.filter((fila) => fila.fecha <= hoy);
+  const escalaPorFecha = new Map(
+    scaleSeries(ocurridos, ["entregadas", "no_entregadas"]).map((fila) => [fila.fecha, fila._escala])
+  );
 
   return (
     <figure className="ent-chart">
       <figcaption>Entregadas vs no entregadas por día</figcaption>
       <div className="ent-chart-bars">
-        {datos.map((fila) => (
-          <div key={fila.fecha} className="ent-chart-col">
-            <div className="ent-chart-stack">
-              <span
-                className="ent-bar is-entregadas"
-                style={{ height: `${fila._escala.entregadas}%` }}
-                title={`Entregadas: ${formatNumber(fila.entregadas)}`}
-              />
-              <span
-                className="ent-bar is-no-entregadas"
-                style={{ height: `${fila._escala.no_entregadas}%` }}
-                title={`No entregadas: ${formatNumber(fila.no_entregadas)}`}
-              />
+        {rows.map((fila) => {
+          const esFuturo = fila.fecha > hoy;
+          const esHoy = fila.fecha === hoy;
+          const escala = escalaPorFecha.get(fila.fecha);
+          return (
+            <div key={fila.fecha} className={`ent-chart-col${esHoy ? " is-hoy" : ""}`}>
+              {esFuturo ? (
+                <div className="ent-chart-stack is-vacio" title="Todavía no ocurre" />
+              ) : (
+                <div className="ent-chart-stack">
+                  <span
+                    className="ent-bar is-entregadas"
+                    style={{ height: `${escala?.entregadas || 0}%` }}
+                    title={`Entregadas: ${formatNumber(fila.entregadas)}`}
+                  />
+                  <span
+                    className="ent-bar is-no-entregadas"
+                    style={{ height: `${escala?.no_entregadas || 0}%` }}
+                    title={`No entregadas: ${formatNumber(fila.no_entregadas)}`}
+                  />
+                </div>
+              )}
+              <small>{formatDayLabel(fila.fecha)}</small>
+              {esHoy ? <span className="ent-chart-hoy">Hoy · parcial</span> : null}
             </div>
-            <small>{formatDayLabel(fila.fecha)}</small>
-          </div>
-        ))}
-        {!datos.length ? <p className="ent-chart-empty">Sin movimientos en el período.</p> : null}
+          );
+        })}
+        {!rows.length ? <p className="ent-chart-empty">Sin movimientos en el período.</p> : null}
       </div>
       <ul className="ent-chart-legend">
         <li>
@@ -38,6 +57,10 @@ export function GraficoPorDia({ rows = [] }) {
         <li>
           <i className="is-no-entregadas" />
           No entregadas
+        </li>
+        <li>
+          <i className="is-vacio" />
+          Sin datos aún
         </li>
       </ul>
     </figure>

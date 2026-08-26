@@ -7,7 +7,8 @@ import {
   groupByReason,
   groupByResponsible,
   scaleSeries,
-  sumLotes
+  sumLotes,
+  trendDelta
 } from "./entregasSelectors.js";
 
 const lotes = [
@@ -69,4 +70,15 @@ test("scaleSeries normaliza las barras a porcentaje del máximo", () => {
   assert.equal(filas[0]._escala.b, 100);
   assert.equal(filas[0]._escala.a, 50);
   assert.equal(filas[1]._escala.a, 0);
+});
+
+test("trendDelta calcula el porcentaje de cambio frente al periodo anterior", () => {
+  assert.deepEqual(trendDelta(110, 100), { direction: "up", label: "+10%" });
+  assert.deepEqual(trendDelta(90, 100), { direction: "down", label: "-10%" });
+  assert.deepEqual(trendDelta(50, 50), { direction: "flat", label: "sin cambio" });
+});
+
+test("trendDelta reporta 'nuevo' cuando el periodo anterior estaba en cero", () => {
+  assert.deepEqual(trendDelta(5, 0), { direction: "up", label: "nuevo" });
+  assert.deepEqual(trendDelta(0, 0), { direction: "flat", label: "sin cambio" });
 });

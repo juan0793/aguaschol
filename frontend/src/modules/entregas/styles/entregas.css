@@ -59,6 +59,13 @@
 .ent-kpi-efectividad i { display: block; height: 6px; margin-top: 4px; border-radius: 999px; background: #e1eff9; }
 .ent-kpi-efectividad em { display: block; height: 100%; border-radius: 999px; background: var(--primary); transition: width .15s ease; }
 
+/* Tendencia por KPI, frente al periodo anterior de igual longitud (resumen.comparativo). */
+.ent-kpi-value-row { display: flex; align-items: baseline; gap: 8px; }
+.ent-kpi-trend { font-size: 11px; font-weight: 800; white-space: nowrap; }
+.ent-kpi-trend.is-up { color: var(--success); }
+.ent-kpi-trend.is-down { color: var(--danger); }
+.ent-kpi-trend.is-flat { color: var(--muted); }
+
 /* ---------- Tarjetas y rejillas ---------- */
 .ent-card { padding: 14px; border: 1px solid var(--ent-borde); border-radius: 12px; background: var(--ent-superficie); }
 .ent-card + .ent-card { margin-top: 14px; }
@@ -182,6 +189,14 @@
 .ent-lista-plana strong { color: var(--navy); font-size: 18px; }
 .ent-lista-plana li.is-atencion strong { color: var(--alert); }
 .ent-lista-plana li.is-critico strong { color: var(--danger); }
+/* Fila clicable: cada indicador de "Requiere atencion" salta a su lista filtrada.
+   El punto de color reproduce el estado sin depender solo del color del texto. */
+.ent-lista-plana li.is-clickable { margin: 0 -8px; padding-left: 10px; padding-right: 10px; border-radius: 8px; cursor: pointer; transition: background-color .13s ease; }
+.ent-lista-plana li.is-clickable:hover { background: #f8fbff; }
+.ent-fila-etiqueta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.ent-fila-etiqueta i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--ent-borde); }
+.ent-lista-plana li.is-atencion .ent-fila-etiqueta i { background: var(--alert); }
+.ent-lista-plana li.is-critico .ent-fila-etiqueta i { background: var(--danger); }
 
 /* "Responsables de hoy" (Lotes) — colapsable en movil, mismo patron que .ent-historico */
 .ent-responsables { margin-bottom: 12px; }
@@ -215,6 +230,13 @@
 .ent-chart-legend i { width: 12px; height: 12px; border-radius: 3px; }
 .ent-chart-legend i.is-entregadas { background: var(--primary); }
 .ent-chart-legend i.is-no-entregadas { background: #c8d8e6; }
+.ent-chart-legend i.is-vacio { border: 1.5px dashed #b9cbdd; background: var(--ent-tenue); }
+
+/* Dias sin ocurrir aun: antes el grafico simplemente los omitia, dejando huecos
+   y una columna cortada al borde del contenedor. Ahora se dibujan como placeholder. */
+.ent-chart-stack.is-vacio { border: 1.5px dashed #b9cbdd; border-radius: 6px; background: repeating-linear-gradient(135deg, var(--ent-tenue) 0 6px, #e7edf3 6px 12px); }
+.ent-chart-col.is-hoy .ent-chart-stack { box-shadow: 0 0 0 2px var(--primary), 0 0 0 5px var(--icon-bg); border-radius: 5px 5px 2px 2px; }
+.ent-chart-hoy { display: inline-block; margin-top: 2px; padding: 1px 7px; border-radius: 999px; background: var(--icon-bg); color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
 .ent-chart-rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .ent-chart-rows li { display: grid; grid-template-columns: minmax(120px, 1.1fr) minmax(0, 2fr) auto; gap: 10px; align-items: center; color: var(--navy); font-size: 13px; }
 .ent-chart-rows i { display: block; height: 10px; border-radius: 999px; background: #e1eff9; }
@@ -365,6 +387,13 @@
   .ent-seguimiento-footer { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr; }
 }
 
+.ent-refresh-icon.is-spinning { animation: entRefreshSpin .8s linear infinite; }
+
+@keyframes entRefreshSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @keyframes entSlideIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -381,5 +410,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ent-table tbody tr, .ent-jornada-strip article, .ent-lotes-alert, .ent-lotes-head-fade, .ent-skeleton-texto span { transition: none; animation: none; }
+  .ent-table tbody tr, .ent-jornada-strip article, .ent-lotes-alert, .ent-lotes-head-fade, .ent-skeleton-texto span, .ent-refresh-icon { transition: none; animation: none; }
 }

@@ -93,6 +93,17 @@ export const getAttentionIndicators = (noEntregadas = [], lotes = []) => {
   };
 };
 
+// Tendencia de un indicador frente al periodo anterior de igual longitud.
+// prev=0 y current>0 se reporta como "nuevo" en vez de un porcentaje sin sentido (÷0).
+export const trendDelta = (current = 0, previous = 0) => {
+  const cur = Number(current) || 0;
+  const prev = Number(previous) || 0;
+  if (cur === prev) return { direction: "flat", label: "sin cambio" };
+  if (prev === 0) return { direction: "up", label: "nuevo" };
+  const pct = Math.round(((cur - prev) / prev) * 1000) / 10;
+  return { direction: pct > 0 ? "up" : "down", label: `${pct > 0 ? "+" : ""}${pct}%` };
+};
+
 // Escala util para las barras del grafico "entregadas vs no entregadas por día".
 export const scaleSeries = (rows = [], keys = []) => {
   const max = Math.max(1, ...rows.flatMap((row) => keys.map((key) => Number(row[key]) || 0)));
