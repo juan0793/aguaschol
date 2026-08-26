@@ -6,9 +6,10 @@
 @import "../../clandestinos/styles/clandestinos.css";
 
 .ent-module {
-  --ent-borde: #d8e5f2; --ent-superficie: #fff; --ent-tenue: #f6fafe;
-  --primary: #146be8; --primary-hover: #0f57bd; --navy: #0b2e4f; --muted: #5e7895;
-  --success: #1f9d68; --alert: #e48a00; --danger: #d64545; --page-bg: #f6fafe;
+  --ent-borde: #e2e8f0; --ent-superficie: #fff; --ent-tenue: #f1f5f9;
+  --primary: #2563eb; --primary-hover: #1d4ed8; --navy: #0f172a; --muted: #64748b;
+  --success: #10b981; --alert: #f59e0b; --danger: #ef4444; --page-bg: #f8fafc;
+  --icon-accent: #3b82f6; --icon-bg: #dbeafe;
 }
 .ent-module input, .ent-module select, .ent-module textarea { border-radius: 12px; }
 .ent-module .cl-primary { min-height: 48px; }
@@ -50,7 +51,7 @@
 .ent-kpi.is-atencion strong { color: var(--alert); }
 .ent-kpi.is-exito strong { color: var(--success); }
 .ent-kpi-label { display: flex !important; align-items: center; gap: 6px; }
-.ent-kpi-label .app-icon { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 7px; background: #eaf3ff; color: var(--primary); }
+.ent-kpi-label .app-icon { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 7px; background: var(--icon-bg); color: var(--icon-accent); }
 .ent-kpi-label .app-icon svg { width: 13px; height: 13px; }
 .ent-kpi.is-atencion .ent-kpi-label .app-icon { background: #fdecd2; color: var(--alert); }
 .ent-kpi.is-exito .ent-kpi-label .app-icon { background: #dcf1e6; color: var(--success); }
@@ -97,10 +98,18 @@
 .ent-table tbody tr.is-atencion { background: #fffaf0; }
 .ent-table tbody tr.is-critico { background: #fff5f5; }
 .ent-lotes-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.ent-lotes-head-titulo { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.ent-lotes-head-icono { display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; margin-top: 2px; border-radius: 12px; background: var(--icon-bg); color: var(--icon-accent); }
+.ent-lotes-head-icono .app-icon svg { width: 20px; height: 20px; }
+.ent-lotes-head-fade { min-width: 0; animation: entHeaderFade .16s ease-out both; }
+.ent-skeleton-texto { display: grid; gap: 6px; min-width: 160px; padding-top: 4px; }
+.ent-skeleton-texto span { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--ent-tenue) 25%, var(--ent-borde) 50%, var(--ent-tenue) 75%); background-size: 200% 100%; animation: entSkeletonShimmer 1.2s ease-in-out infinite; }
+.ent-skeleton-texto span:first-child { width: 70%; height: 16px; }
+.ent-skeleton-texto span:last-child { width: 45%; }
 .ent-jornada-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 12px; }
 .ent-jornada-strip article { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 2px 10px; align-items: center; min-height: 66px; padding: 10px 12px; border: 1px solid var(--ent-borde); border-radius: 12px; background: #fff; transition: transform .13s ease, border-color .13s ease, box-shadow .13s ease; }
 .ent-jornada-strip article:hover { transform: translateY(-1px); border-color: #bfd5eb; box-shadow: 0 8px 18px rgba(16, 42, 67, .07); }
-.ent-jornada-strip .app-icon { display: grid; grid-row: 1 / span 2; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: #eaf3ff; color: var(--primary); }
+.ent-jornada-strip .app-icon { display: grid; grid-row: 1 / span 2; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: var(--icon-bg); color: var(--icon-accent); }
 .ent-jornada-strip .app-icon svg { width: 18px; height: 18px; }
 .ent-jornada-strip span { color: var(--muted); font-size: 11px; font-weight: 750; }
 .ent-jornada-strip strong { color: var(--navy); font-size: 22px; line-height: 1; }
@@ -361,6 +370,16 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes entHeaderFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes entSkeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ent-table tbody tr, .ent-jornada-strip article, .ent-lotes-alert { transition: none; animation: none; }
+  .ent-table tbody tr, .ent-jornada-strip article, .ent-lotes-alert, .ent-lotes-head-fade, .ent-skeleton-texto span { transition: none; animation: none; }
 }

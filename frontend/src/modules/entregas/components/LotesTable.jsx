@@ -4,6 +4,7 @@ import {
   estadoClass,
   estadoLoteLabel,
   formatDate,
+  formatFullDate,
   formatNumber,
   formatPercent,
   tipoPersonalLabel,
@@ -49,12 +50,24 @@ export default function LotesTable({ model, config, personal, permissions, abier
   return (
     <section className="cl-inbox">
       <div className="cl-inbox-head">
-        <div>
-          <span className="cl-kicker">Operación diaria</span>
-          <h3>{viendoHoy ? "Lotes de hoy" : "Lotes registrados"}</h3>
-          <p>
-            {viendoHoy ? formatDate(hoy) : `${formatNumber(total)} lote(s) según los filtros aplicados.`}
-          </p>
+        <div className="ent-lotes-head-titulo">
+          <span className="ent-lotes-head-icono">
+            <Icon name="calendar" />
+          </span>
+          {loading && !items.length ? (
+            <div className="ent-skeleton-texto" aria-hidden="true">
+              <span />
+              <span />
+            </div>
+          ) : (
+            <div key={`${filters.fecha_desde}|${filters.fecha_hasta}`} className="ent-lotes-head-fade">
+              <span className="cl-kicker">Operación diaria</span>
+              <h3>{viendoHoy ? "Lotes de hoy" : "Lotes registrados"}</h3>
+              <p>
+                {viendoHoy ? formatFullDate(hoy) : `${formatNumber(total)} lote(s) según los filtros aplicados.`}
+              </p>
+            </div>
+          )}
         </div>
         <div className="ent-lotes-head-actions">
           <button type="button" className={viendoHoy ? "cl-primary" : "cl-secondary"} onClick={onToday}>

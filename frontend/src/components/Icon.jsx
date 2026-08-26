@@ -65,7 +65,9 @@ const iconPaths = {
   filter:
     "M4 5h16M7 12h10M10 19h4",
   chevronDown:
-    "M6 9l6 6 6-6"
+    "M6 9l6 6 6-6",
+  calendar:
+    "M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5zM4 9.5h16M8 3v3M16 3v3"
 };
 
 export const Icon = ({ name, className = "" }) => (

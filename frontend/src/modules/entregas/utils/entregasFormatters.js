@@ -73,6 +73,18 @@ export const formatDateTime = (value) => {
   });
 };
 
+// "Miércoles 26 de agosto" — dia de la semana + fecha completa para el encabezado de Lotes.
+export const formatFullDate = (value) => {
+  const iso = String(value || "").slice(0, 10);
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year) return "—";
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const texto = date
+    .toLocaleDateString("es-HN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
+    .replace(",", "");
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+};
+
 export const formatDayLabel = (value) => {
   const iso = String(value || "").slice(0, 10);
   const [year, month, day] = iso.split("-").map(Number);
