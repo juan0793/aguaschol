@@ -37,7 +37,7 @@ router.patch("/personal/:id", requireRoles("admin"), personalUpdate);
 router.get("/lotes", lotesList);
 router.post("/lotes", requireRoles("admin", "operator"), loteCreate);
 router.get("/lotes/:id", loteDetail);
-router.patch("/lotes/:id", requireRoles("admin", "operator"), loteUpdate);
+router.patch("/lotes/:id", loteUpdate);
 router.post("/lotes/:id/cerrar", loteCerrar);
 router.post("/lotes/:id/no-entregadas", loteNoEntregadasCreate);
 

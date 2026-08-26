@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
-import { formatNumber, tipoDocumentoLabel, tipoPersonalLabel } from "../utils/entregasFormatters";
+import { estadoLoteLabel, formatNumber, tipoDocumentoLabel, tipoPersonalLabel } from "../utils/entregasFormatters";
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 
@@ -14,12 +14,27 @@ const FORM_INICIAL = {
 };
 
 // Al crear el lote NO se registra factura por factura: solo el total asignado.
-export default function LoteForm({ config, personal, notify, onCreated, onCancel }) {
-  const [form, setForm] = useState(FORM_INICIAL);
+export default function LoteForm({ config, personal, notify, lote, onSaved, onCancel }) {
+  const formDesdeLote = (item) => item ? {
+    fecha: String(item.fecha || "").slice(0, 10),
+    responsable_id: item.responsable_id || "",
+    barrio_codigo: item.barrio_codigo || "",
+    tipo_documento: item.tipo_documento || "FACTURA",
+    total_asignadas: item.total_asignadas || "",
+    observacion_inicial: item.observacion_inicial || ""
+  } : FORM_INICIAL;
+
+  const editando = Boolean(lote?.id);
+  const [form, setForm] = useState(() => formDesdeLote(lote));
   const [guardando, setGuardando] = useState(false);
 
-  const activos = useMemo(() => personal.filter((persona) => persona.activo), [personal]);
-  const responsable = activos.find((persona) => String(persona.id) === String(form.responsable_id));
+  useEffect(() => setForm(formDesdeLote(lote)), [lote]);
+
+  const activos = useMemo(
+    () => personal.filter((persona) => persona.activo || String(persona.id) === String(form.responsable_id)),
+    [form.responsable_id, personal]
+  );
+  const responsable = personal.find((persona) => String(persona.id) === String(form.responsable_id));
   const barrio = config.barrios.find((item) => item.codigo === form.barrio_codigo);
   const patch = (cambios) => setForm((actual) => ({ ...actual, ...cambios }));
 
@@ -28,11 +43,11 @@ export default function LoteForm({ config, personal, notify, onCreated, onCancel
     if (guardando) return;
     setGuardando(true);
     try {
-      const creado = await onCreated({
+      const guardado = await onSaved({
         ...form,
         total_asignadas: Number(form.total_asignadas)
       });
-      if (creado) setForm({ ...FORM_INICIAL, fecha: form.fecha, tipo_documento: form.tipo_documento });
+      if (guardado && !editando) setForm({ ...FORM_INICIAL, fecha: form.fecha, tipo_documento: form.tipo_documento });
     } catch (error) {
       notify(error.message);
     } finally {
@@ -46,8 +61,8 @@ export default function LoteForm({ config, personal, notify, onCreated, onCancel
         <header className="ent-card-head">
           <div>
             <span className="cl-kicker">Paso 1</span>
-            <h3>Datos del lote</h3>
-            <p>Registra el lote que sale a campo. El detalle de sobrantes se captura al cerrarlo.</p>
+            <h3>{editando ? `Editar lote #${lote.id}` : "Datos del lote"}</h3>
+            <p>{editando ? "Corrige los datos del lote antes de cerrarlo." : "Registra el lote que sale a campo. El detalle de sobrantes se captura al cerrarlo."}</p>
           </div>
         </header>
 
@@ -61,6 +76,7 @@ export default function LoteForm({ config, personal, notify, onCreated, onCancel
             <select
               value={form.responsable_id}
               onChange={(event) => patch({ responsable_id: event.target.value })}
+              disabled={editando && !config.permissions.can_view_all}
               required
             >
               <option value="">Selecciona una persona registrada</option>
@@ -128,14 +144,14 @@ export default function LoteForm({ config, personal, notify, onCreated, onCancel
 
       <aside className="ent-card ent-resumen-lateral">
         <span className="cl-kicker">Resumen</span>
-        <h3>Antes de guardar</h3>
+        <h3>{editando ? "Cambios" : "Antes de guardar"}</h3>
         <dl>
           <div>
             <dt>Estado</dt>
             <dd>
-              <span className="cl-status is-abierto">
+              <span className={`cl-status is-${String(lote?.estado || "ABIERTO").toLowerCase()}`}>
                 <i />
-                Abierto
+                {estadoLoteLabel(lote?.estado || "ABIERTO")}
               </span>
             </dd>
           </div>
@@ -161,8 +177,8 @@ export default function LoteForm({ config, personal, notify, onCreated, onCancel
             Cancelar
           </button>
           <button type="submit" className="cl-primary" disabled={guardando}>
-            <Icon name={guardando ? "refresh" : "plus"} />
-            {guardando ? "Guardando…" : "Crear lote"}
+            <Icon name={guardando ? "refresh" : editando ? "edit" : "plus"} />
+            {guardando ? "Guardando…" : editando ? "Guardar cambios" : "Crear lote"}
           </button>
         </div>
       </aside>

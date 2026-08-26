@@ -10,7 +10,7 @@ import {
 } from "../utils/entregasFormatters";
 import { toLocalIsoDate } from "../utils/entregasDate";
 
-export default function LotesTable({ model, config, personal, permissions, abiertosPrevios, onToday, onPreviousOpen, onOpen, onCerrar }) {
+export default function LotesTable({ model, config, personal, permissions, abiertosPrevios, onToday, onPreviousOpen, onOpen, onEdit, onCerrar }) {
   const { items, loading, error, filters, setFilters, clearFilters, page, setPage, total, total_pages: totalPages } = model;
   const hoy = toLocalIsoDate();
   const viendoHoy = filters.fecha_desde === hoy && filters.fecha_hasta === hoy && !filters.estado;
@@ -219,6 +219,11 @@ export default function LotesTable({ model, config, personal, permissions, abier
                   <button type="button" className="cl-icon-button" title="Ver lote" onClick={() => onOpen(lote)}>
                     <Icon name="search" />
                   </button>
+                  {permissions.can_edit_lote ? (
+                    <button type="button" className="cl-icon-button" title="Editar lote" onClick={() => onEdit(lote)}>
+                      <Icon name="edit" />
+                    </button>
+                  ) : null}
                   {lote.estado === "ABIERTO" && permissions.can_close_own_lote ? (
                     <button type="button" className="cl-secondary ent-boton-mini" onClick={() => onCerrar(lote)}>
                       Cerrar lote

@@ -39,6 +39,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const [resumen, setResumen] = useState(null);
   const [lotesAbiertosPrevios, setLotesAbiertosPrevios] = useState({ items: [], total: 0 });
   const [loteEnCierre, setLoteEnCierre] = useState(null);
+  const [loteEnEdicion, setLoteEnEdicion] = useState(null);
   const [documentoAbierto, setDocumentoAbierto] = useState(null);
 
   const lotes = useLotes(api, Boolean(config) && ["lotes", "resumen"].includes(vista));
@@ -113,6 +114,24 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     refrescar();
     ir("lotes");
     return creado;
+  };
+
+  const editarLote = async (payload) => {
+    const actualizado = await api.actualizarLote(loteEnEdicion.id, payload);
+    notify(`Lote #${actualizado.id} actualizado.`);
+    setLoteEnEdicion(null);
+    refrescar();
+    ir("lotes");
+    return actualizado;
+  };
+
+  const abrirEdicion = async (lote) => {
+    try {
+      setLoteEnEdicion(await api.lote(lote.id));
+      ir("editar");
+    } catch (error) {
+      notify(error.message);
+    }
   };
 
   const verHoy = () => {
@@ -275,8 +294,22 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           config={config}
           personal={personal}
           notify={notify}
-          onCreated={crearLote}
+          onSaved={crearLote}
           onCancel={() => ir("lotes")}
+        />
+      ) : null}
+
+      {vista === "editar" && loteEnEdicion && config.permissions.can_edit_lote ? (
+        <LoteForm
+          config={config}
+          personal={personal}
+          notify={notify}
+          lote={loteEnEdicion}
+          onSaved={editarLote}
+          onCancel={() => {
+            setLoteEnEdicion(null);
+            ir("lotes");
+          }}
         />
       ) : null}
 
@@ -290,6 +323,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           onToday={verHoy}
           onPreviousOpen={verAbiertosPrevios}
           onOpen={abrirCierre}
+          onEdit={abrirEdicion}
           onCerrar={abrirCierre}
         />
       ) : null}

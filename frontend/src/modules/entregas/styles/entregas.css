@@ -260,7 +260,7 @@
   .ent-module .ent-pendientes-table td:nth-child(3), .ent-module .ent-pendientes-table td:nth-child(4), .ent-module .ent-pendientes-table td:nth-child(5), .ent-module .ent-pendientes-table td:nth-child(7) { display: none; }
   .ent-module .ent-lotes-table td:nth-child(4), .ent-module .ent-lotes-table td:nth-child(6) { display: none; }
   .ent-lotes-table td:nth-child(2) strong { font-size: 15px; }
-  .ent-lotes-table .ent-acciones-celda { display: grid !important; grid-template-columns: 46px minmax(0, 1fr); }
+  .ent-lotes-table .ent-acciones-celda { display: grid !important; grid-template-columns: repeat(2, 46px) minmax(0, 1fr); }
   .ent-lotes-table .ent-acciones-celda .cl-icon-button { min-height: 44px; }
   .ent-lotes-table .ent-acciones-celda .ent-boton-mini { min-height: 44px; }
   .ent-captura-table td:nth-child(1)::before { content: "Abonado"; }

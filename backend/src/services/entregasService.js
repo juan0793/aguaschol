@@ -102,7 +102,7 @@ export const getEntregasConfig = async (user) => {
     permissions: {
       can_manage_personal: isAdmin(user),
       can_create_lote: isGestor(user),
-      can_edit_lote: isGestor(user),
+      can_edit_lote: Boolean(personalPropio) || isGestor(user),
       can_close_own_lote: Boolean(personalPropio) || isGestor(user),
       can_force_close: isAdmin(user),
       can_manage_seguimiento: isGestor(user) || Boolean(personalPropio),
@@ -462,7 +462,7 @@ export const createLote = async (payload = {}, user) => {
 
 export const updateLote = async (id, payload = {}, user) => {
   const lote = await cargarLote(id);
-  if (!isGestor(user)) throw fail("No tienes permiso para editar lotes.", 403);
+  assertPuedeVerLote(lote, user);
   if (lote.estado !== "ABIERTO" && !isAdmin(user)) {
     throw fail("Solo un administrador puede editar un lote ya cerrado.", 403);
   }
@@ -475,7 +475,20 @@ export const updateLote = async (id, payload = {}, user) => {
     if (!TIPOS_DOCUMENTO.includes(tipo)) throw fail("El tipo de documento no es válido.");
     cambios.tipo_documento = tipo;
   }
-  if (payload.responsable_id !== undefined) cambios.responsable_id = toEntero(payload.responsable_id);
+  if (payload.responsable_id !== undefined) {
+    const responsableId = toEntero(payload.responsable_id);
+    if (!responsableId) throw fail("Selecciona el responsable del lote.");
+    if (!isGestor(user) && responsableId !== toEntero(lote.responsable_id)) {
+      throw fail("No tienes permiso para cambiar el responsable del lote.", 403);
+    }
+    const [[responsable]] = await getPool().query(
+      "SELECT id, activo FROM personal_campo WHERE id = ? LIMIT 1",
+      [responsableId]
+    );
+    if (!responsable) throw fail("El responsable indicado no existe.", 404);
+    if (!responsable.activo) throw fail("El responsable seleccionado está inactivo.");
+    cambios.responsable_id = responsableId;
+  }
   if (payload.barrio_codigo !== undefined || payload.barrio_nombre !== undefined) {
     Object.assign(cambios, await resolverBarrio(payload));
   }
