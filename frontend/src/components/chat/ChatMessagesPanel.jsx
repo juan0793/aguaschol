@@ -496,7 +496,7 @@ export function ChatMessagesPanel({
           <div className="chat-room-tools">
             <label title="Cambiar fuente del chat">
               <Type size={14} />
-              <select value={chatFont} onChange={(event) => setChatFont(event.target.value)}>
+              <select id="chat-font" name="chat_font" value={chatFont} onChange={(event) => setChatFont(event.target.value)}>
                 {CHAT_FONTS.map((font) => (
                   <option key={font.key} value={font.key}>{font.label}</option>
                 ))}
@@ -651,21 +651,29 @@ export function ChatMessagesPanel({
               </div>
               <div className="chat-share-grid">
                 <input
+                  id="chat-share-title"
+                  name="share_title"
                   value={shareDraft.title}
                   onChange={(event) => updateShareDraft("title", event.target.value)}
                   placeholder={shareDraft.type === "punto" ? "Referencia del punto" : shareDraft.type === "ficha" ? "Titulo de la ficha" : "Nombre o referencia"}
                 />
                 <input
+                  id="chat-share-clave"
+                  name="share_clave"
                   value={shareDraft.clave}
                   onChange={(event) => updateShareDraft("clave", event.target.value)}
                   placeholder="Clave catastral o codigo"
                 />
                 <input
+                  id="chat-share-detail"
+                  name="share_detail"
                   value={shareDraft.detail}
                   onChange={(event) => updateShareDraft("detail", event.target.value)}
                   placeholder="Resumen breve"
                 />
                 <input
+                  id="chat-share-extra"
+                  name="share_extra"
                   value={shareDraft.extra}
                   onChange={(event) => updateShareDraft("extra", event.target.value)}
                   placeholder={shareDraft.type === "punto" ? "Coordenadas o zona" : "Estado, deuda o nota"}
@@ -683,6 +691,8 @@ export function ChatMessagesPanel({
           ) : null}
           <div className="chat-composer-row">
             <input
+              id="chat-image-file"
+              name="chat_image"
               ref={fileInputRef}
               type="file"
               accept="image/*"
@@ -697,6 +707,8 @@ export function ChatMessagesPanel({
             </button>
             <div className="chat-textarea-shell">
               <textarea
+                id="chat-message-body"
+                name="message_body"
                 value={messageBody}
                 onChange={(event) => handleTypingChange(event.target.value)}
                 onKeyDown={handleComposerKeyDown}
