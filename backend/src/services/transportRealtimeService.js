@@ -49,7 +49,7 @@ export const broadcastTransportEvent = ({ type, route, position = null }) => {
 };
 
 export const initializeTransportRealtime = ({ server }) => {
-  websocketServer = new WebSocketServer({ server, path: "/ws/transport" });
+  websocketServer = new WebSocketServer({ noServer: true });
 
   websocketServer.on("connection", async (socket, request) => {
     try {

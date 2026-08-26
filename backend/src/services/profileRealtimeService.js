@@ -34,7 +34,7 @@ const getUniqueOnlineUsers = () => {
 };
 
 export const initializeProfileRealtime = ({ server }) => {
-  websocketServer = new WebSocketServer({ server, path: "/ws/profile" });
+  websocketServer = new WebSocketServer({ noServer: true });
 
   websocketServer.on("connection", async (socket, request) => {
     try {
@@ -133,6 +133,8 @@ export const initializeProfileRealtime = ({ server }) => {
       socket.close(1011, "Error interno");
     }
   });
+
+  return websocketServer;
 };
 
 export const emitProfileMessage = (message) => {
