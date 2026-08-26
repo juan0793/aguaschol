@@ -11,6 +11,21 @@ export default function PersonalCampoTable({ config, personal, permissions, usua
   const [filtros, setFiltros] = useState({ q: "", tipo_personal: "", acceso: "", activo: "" });
   const [editandoId, setEditandoId] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [formAbierto, setFormAbierto] = useState(false);
+
+  const resumen = useMemo(
+    () =>
+      personal.reduce(
+        (acc, persona) => {
+          if (persona.activo) acc.activos += 1;
+          else acc.inactivos += 1;
+          if (!persona.tiene_acceso) acc.sinAcceso += 1;
+          return acc;
+        },
+        { activos: 0, inactivos: 0, sinAcceso: 0 }
+      ),
+    [personal]
+  );
 
   const visibles = useMemo(
     () =>
@@ -34,11 +49,18 @@ export default function PersonalCampoTable({ config, personal, permissions, usua
       await onSubmit(editandoId, { ...form, user_id: form.user_id || null });
       setForm(FORM_INICIAL);
       setEditandoId(null);
+      setFormAbierto(false);
     } catch (error) {
       notify(error.message);
     } finally {
       setGuardando(false);
     }
+  };
+
+  const abrirNuevo = () => {
+    setEditandoId(null);
+    setForm(FORM_INICIAL);
+    setFormAbierto(true);
   };
 
   const editar = (persona) => {
@@ -50,6 +72,13 @@ export default function PersonalCampoTable({ config, personal, permissions, usua
       user_id: persona.user_id || "",
       activo: persona.activo
     });
+    setFormAbierto(true);
+  };
+
+  const cerrarForm = () => {
+    setFormAbierto(false);
+    setEditandoId(null);
+    setForm(FORM_INICIAL);
   };
 
   return (
@@ -60,77 +89,31 @@ export default function PersonalCampoTable({ config, personal, permissions, usua
           <h3>Personal de campo</h3>
           <p>Todo responsable de lote debe estar registrado aquí. No se aceptan nombres libres.</p>
         </div>
+        {permissions.can_manage_personal ? (
+          <button type="button" className="cl-primary" onClick={abrirNuevo}>
+            <Icon name="plus" />
+            Registrar persona
+          </button>
+        ) : null}
       </div>
 
-      {permissions.can_manage_personal ? (
-        <form className="ent-card ent-personal-form" onSubmit={submit}>
-          <h3>{editandoId ? "Editar persona" : "Registrar persona"}</h3>
-          <div className="ent-grid-3">
-            <label className="cl-field">
-              Nombre completo
-              <input
-                value={form.nombre_completo}
-                onChange={(event) => setForm({ ...form, nombre_completo: event.target.value })}
-                required
-              />
-            </label>
-            <label className="cl-field">
-              Tipo
-              <select
-                value={form.tipo_personal}
-                onChange={(event) => setForm({ ...form, tipo_personal: event.target.value })}
-              >
-                {config.tipos_personal.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {tipoPersonalLabel(tipo)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="cl-field">
-              Teléfono (opcional)
-              <input value={form.telefono} onChange={(event) => setForm({ ...form, telefono: event.target.value })} />
-            </label>
-            <label className="cl-field">
-              Usuario del sistema (opcional)
-              <select value={form.user_id} onChange={(event) => setForm({ ...form, user_id: event.target.value })}>
-                <option value="">Sin acceso a la aplicación</option>
-                {usuarios.map((usuario) => (
-                  <option key={usuario.id} value={usuario.id}>
-                    {usuario.full_name || usuario.username}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="cl-field ent-check">
-              <input
-                type="checkbox"
-                checked={form.activo}
-                onChange={(event) => setForm({ ...form, activo: event.target.checked })}
-              />
-              Activo
-            </label>
-            <div className="ent-acciones">
-              {editandoId ? (
-                <button
-                  type="button"
-                  className="cl-quiet"
-                  onClick={() => {
-                    setEditandoId(null);
-                    setForm(FORM_INICIAL);
-                  }}
-                >
-                  Cancelar
-                </button>
-              ) : null}
-              <button type="submit" className="cl-primary" disabled={guardando}>
-                <Icon name={editandoId ? "success" : "plus"} />
-                {editandoId ? "Guardar cambios" : "Registrar"}
-              </button>
-            </div>
-          </div>
-        </form>
-      ) : null}
+      <div className="ent-jornada-strip">
+        <article className="is-ok">
+          <Icon name="success" />
+          <span>Activos</span>
+          <strong>{formatNumber(resumen.activos)}</strong>
+        </article>
+        <article>
+          <Icon name="auth" />
+          <span>Sin acceso</span>
+          <strong>{formatNumber(resumen.sinAcceso)}</strong>
+        </article>
+        <article>
+          <Icon name="archive" />
+          <span>Inactivos</span>
+          <strong>{formatNumber(resumen.inactivos)}</strong>
+        </article>
+      </div>
 
       <div className="cl-toolbar ent-toolbar">
         <label className="cl-search">
@@ -250,6 +233,87 @@ export default function PersonalCampoTable({ config, personal, permissions, usua
           </tbody>
         </table>
       </div>
+
+      {formAbierto ? (
+        <div className="cl-drawer-backdrop" role="dialog" aria-modal="true">
+          <aside className="cl-drawer ent-drawer">
+            <header>
+              <div>
+                <span className="cl-kicker">Personal de campo</span>
+                <h2>{editandoId ? "Editar persona" : "Registrar persona"}</h2>
+                <p>Todo responsable de lote debe estar registrado aquí.</p>
+              </div>
+              <button type="button" className="cl-icon-button" onClick={cerrarForm} aria-label="Cerrar">
+                ✕
+              </button>
+            </header>
+
+            <div className="cl-drawer-scroll">
+              <form id="personal-form" onSubmit={submit}>
+                <div className="ent-grid-2">
+                  <label className="cl-field">
+                    Nombre completo
+                    <input
+                      value={form.nombre_completo}
+                      onChange={(event) => setForm({ ...form, nombre_completo: event.target.value })}
+                      required
+                    />
+                  </label>
+                  <label className="cl-field">
+                    Tipo
+                    <select
+                      value={form.tipo_personal}
+                      onChange={(event) => setForm({ ...form, tipo_personal: event.target.value })}
+                    >
+                      {config.tipos_personal.map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                          {tipoPersonalLabel(tipo)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="cl-field">
+                    Teléfono (opcional)
+                    <input
+                      value={form.telefono}
+                      onChange={(event) => setForm({ ...form, telefono: event.target.value })}
+                    />
+                  </label>
+                  <label className="cl-field">
+                    Usuario del sistema (opcional)
+                    <select value={form.user_id} onChange={(event) => setForm({ ...form, user_id: event.target.value })}>
+                      <option value="">Sin acceso a la aplicación</option>
+                      {usuarios.map((usuario) => (
+                        <option key={usuario.id} value={usuario.id}>
+                          {usuario.full_name || usuario.username}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="cl-field ent-check is-wide">
+                    <input
+                      type="checkbox"
+                      checked={form.activo}
+                      onChange={(event) => setForm({ ...form, activo: event.target.checked })}
+                    />
+                    Activo
+                  </label>
+                </div>
+              </form>
+            </div>
+
+            <footer className="ent-drawer-footer">
+              <button type="button" className="cl-quiet" onClick={cerrarForm}>
+                Cancelar
+              </button>
+              <button type="submit" form="personal-form" className="cl-primary" disabled={guardando}>
+                <Icon name={editandoId ? "success" : "plus"} />
+                {editandoId ? "Guardar cambios" : "Registrar"}
+              </button>
+            </footer>
+          </aside>
+        </div>
+      ) : null}
     </section>
   );
 }

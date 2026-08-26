@@ -23,13 +23,28 @@ export default function LotesTable({ model, config, personal, permissions, abier
   const resumenDia = items.reduce(
     (acc, lote) => {
       acc.asignadas += Number(lote.total_asignadas) || 0;
+      acc.entregadas += lote.estado === "ABIERTO" ? 0 : Number(lote.total_entregadas) || 0;
+      acc.sobrantes += lote.estado === "ABIERTO" ? 0 : Number(lote.total_sobrantes) || 0;
       acc.abiertos += lote.estado === "ABIERTO" ? 1 : 0;
       acc.cerrados += lote.estado === "CERRADO" ? 1 : 0;
       if (lote.responsable_nombre) acc.tecnicos.add(lote.responsable_nombre);
       return acc;
     },
-    { asignadas: 0, abiertos: 0, cerrados: 0, tecnicos: new Set() }
+    { asignadas: 0, entregadas: 0, sobrantes: 0, abiertos: 0, cerrados: 0, tecnicos: new Set() }
   );
+  const efectividadDia = resumenDia.asignadas ? (resumenDia.entregadas / resumenDia.asignadas) * 100 : 0;
+
+  // Agrupado solo para lectura rapida (mismos lotes ya cargados, ningun dato nuevo).
+  const responsablesMapa = items.reduce((mapa, lote) => {
+    const nombre = lote.responsable_nombre || "Sin responsable";
+    const fila = mapa.get(nombre) || { nombre, lotes: 0, asignadas: 0, entregadas: 0 };
+    fila.lotes += 1;
+    fila.asignadas += Number(lote.total_asignadas) || 0;
+    fila.entregadas += lote.estado === "ABIERTO" ? 0 : Number(lote.total_entregadas) || 0;
+    mapa.set(nombre, fila);
+    return mapa;
+  }, new Map());
+  const responsables = Array.from(responsablesMapa.values()).sort((a, b) => b.asignadas - a.asignadas);
 
   return (
     <section className="cl-inbox">
@@ -89,6 +104,43 @@ export default function LotesTable({ model, config, personal, permissions, abier
             Ver anteriores
           </button>
         </div>
+      ) : null}
+
+      {items.length ? (
+        <div className="ent-efectividad-dia">
+          <div className="ent-efectividad-dia-head">
+            <span>Efectividad del día</span>
+            <strong>{formatPercent(efectividadDia)}</strong>
+          </div>
+          <i>
+            <em style={{ width: `${Math.min(efectividadDia, 100)}%` }} />
+          </i>
+          <small>
+            {formatNumber(resumenDia.entregadas)} entregadas · {formatNumber(resumenDia.sobrantes)} no entregadas
+          </small>
+        </div>
+      ) : null}
+
+      {responsables.length ? (
+        <details className="ent-responsables">
+          <summary>
+            Responsables de hoy
+            <small>{formatNumber(responsables.length)}</small>
+          </summary>
+          <ul className="ent-lista-plana">
+            {responsables.map((fila) => (
+              <li key={fila.nombre}>
+                <div>
+                  <span>{fila.nombre}</span>
+                  <small>
+                    {formatNumber(fila.lotes)} lote(s) · {formatNumber(fila.entregadas)} entregadas
+                  </small>
+                </div>
+                <strong>{formatPercent(fila.asignadas ? (fila.entregadas / fila.asignadas) * 100 : 0)}</strong>
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
 
       <div className="cl-toolbar ent-toolbar">

@@ -251,7 +251,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
             <GraficoPorDia rows={resumen?.por_dia || []} />
             <div className="ent-card">
               <h3>Requiere atención</h3>
-              <ul className="ent-lista-atencion">
+              <ul className="ent-lista-plana">
                 <li>
                   <span>Lotes abiertos</span>
                   <strong>{formatNumber(resumen?.lotes_abiertos)}</strong>
