@@ -61,7 +61,11 @@ const iconPaths = {
   download:
     "M12 3v12m0 0 5-5m-5 5-5-5M5 21h14",
   print:
-    "M19 8h-14v6h3v4h8v-4h3V8zM7 2h10v4H7z"
+    "M19 8h-14v6h3v4h8v-4h3V8zM7 2h10v4H7z",
+  filter:
+    "M4 5h16M7 12h10M10 19h4",
+  chevronDown:
+    "M6 9l6 6 6-6"
 };
 
 export const Icon = ({ name, className = "" }) => (

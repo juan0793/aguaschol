@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Icon } from "../../../components/Icon";
 import {
   estadoClass,
@@ -12,8 +13,13 @@ import { toLocalIsoDate } from "../utils/entregasDate";
 
 export default function LotesTable({ model, config, personal, permissions, abiertosPrevios, onToday, onPreviousOpen, onOpen, onEdit, onCerrar }) {
   const { items, loading, error, filters, setFilters, clearFilters, page, setPage, total, total_pages: totalPages } = model;
+  const [masFiltros, setMasFiltros] = useState(false);
   const hoy = toLocalIsoDate();
   const viendoHoy = filters.fecha_desde === hoy && filters.fecha_hasta === hoy && !filters.estado;
+  const rangoFechaPersonalizado = filters.fecha_desde !== hoy || filters.fecha_hasta !== hoy;
+  const filtrosAvanzadosActivos =
+    [filters.tipo_documento, filters.barrio_codigo, filters.responsable_id].filter(Boolean).length +
+    (rangoFechaPersonalizado ? 1 : 0);
   const resumenDia = items.reduce(
     (acc, lote) => {
       acc.asignadas += Number(lote.total_asignadas) || 0;
@@ -108,47 +114,60 @@ export default function LotesTable({ model, config, personal, permissions, abier
             ))}
           </select>
         </label>
-        <label>
-          Tipo
-          <select value={filters.tipo_documento} onChange={(event) => setFilters({ tipo_documento: event.target.value })}>
-            <option value="">Ambos</option>
-            {config.tipos_documento.map((tipo) => (
-              <option key={tipo} value={tipo}>
-                {tipoDocumentoLabel(tipo)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Barrio
-          <select value={filters.barrio_codigo} onChange={(event) => setFilters({ barrio_codigo: event.target.value })}>
-            <option value="">Todos</option>
-            {config.barrios.map((item) => (
-              <option key={item.codigo} value={item.codigo}>
-                {item.barrio}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Responsable
-          <select value={filters.responsable_id} onChange={(event) => setFilters({ responsable_id: event.target.value })}>
-            <option value="">Todos</option>
-            {personal.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.nombre_completo}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Desde
-          <input type="date" value={filters.fecha_desde} onChange={(event) => setFilters({ fecha_desde: event.target.value })} />
-        </label>
-        <label>
-          Hasta
-          <input type="date" value={filters.fecha_hasta} onChange={(event) => setFilters({ fecha_hasta: event.target.value })} />
-        </label>
+        <button
+          type="button"
+          className={`ent-filtros-toggle ${masFiltros ? "is-open" : ""}`}
+          onClick={() => setMasFiltros((v) => !v)}
+          aria-expanded={masFiltros}
+        >
+          <Icon name="filter" />
+          Más filtros
+          {filtrosAvanzadosActivos ? <span className="ent-filtros-badge">{filtrosAvanzadosActivos}</span> : null}
+          <Icon name="chevronDown" className="ent-filtros-chevron" />
+        </button>
+        <div className={`ent-filtros-extra ${masFiltros ? "is-open" : ""}`}>
+          <label>
+            Tipo
+            <select value={filters.tipo_documento} onChange={(event) => setFilters({ tipo_documento: event.target.value })}>
+              <option value="">Ambos</option>
+              {config.tipos_documento.map((tipo) => (
+                <option key={tipo} value={tipo}>
+                  {tipoDocumentoLabel(tipo)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Barrio
+            <select value={filters.barrio_codigo} onChange={(event) => setFilters({ barrio_codigo: event.target.value })}>
+              <option value="">Todos</option>
+              {config.barrios.map((item) => (
+                <option key={item.codigo} value={item.codigo}>
+                  {item.barrio}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Responsable
+            <select value={filters.responsable_id} onChange={(event) => setFilters({ responsable_id: event.target.value })}>
+              <option value="">Todos</option>
+              {personal.map((persona) => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.nombre_completo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Desde
+            <input type="date" value={filters.fecha_desde} onChange={(event) => setFilters({ fecha_desde: event.target.value })} />
+          </label>
+          <label>
+            Hasta
+            <input type="date" value={filters.fecha_hasta} onChange={(event) => setFilters({ fecha_hasta: event.target.value })} />
+          </label>
+        </div>
       </div>
 
       {error ? <p className="cl-alert">{error}</p> : null}
@@ -184,7 +203,7 @@ export default function LotesTable({ model, config, personal, permissions, abier
               </tr>
             ) : null}
             {items.map((lote) => (
-              <tr key={lote.id}>
+              <tr key={lote.id} className={`ent-lote-fila ${estadoClass(lote.estado)}`}>
                 <td>{formatDate(lote.fecha)}</td>
                 <td>
                   <button type="button" className="cl-link" onClick={() => onOpen(lote)}>
@@ -225,7 +244,8 @@ export default function LotesTable({ model, config, personal, permissions, abier
                     </button>
                   ) : null}
                   {lote.estado === "ABIERTO" && permissions.can_close_own_lote ? (
-                    <button type="button" className="cl-secondary ent-boton-mini" onClick={() => onCerrar(lote)}>
+                    <button type="button" className="cl-primary ent-boton-mini ent-boton-cerrar" onClick={() => onCerrar(lote)}>
+                      <Icon name="success" />
                       Cerrar lote
                     </button>
                   ) : null}

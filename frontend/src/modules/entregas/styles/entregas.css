@@ -67,6 +67,8 @@
 
 /* ---------- Tablas ---------- */
 .ent-toolbar { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); padding: 12px; }
+.ent-filtros-toggle { display: none; }
+.ent-filtros-extra { display: contents; }
 .ent-module .cl-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .ent-table { min-width: 920px; table-layout: auto; }
 .ent-table td, .ent-table th { height: 46px; }
@@ -82,15 +84,19 @@
 .ent-table tbody tr.is-critico { background: #fff5f5; }
 .ent-lotes-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .ent-jornada-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
-.ent-jornada-strip article { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 2px 8px; align-items: center; min-height: 64px; padding: 10px 12px; border: 1px solid var(--ent-borde); border-radius: 10px; background: #fff; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.ent-jornada-strip article { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 2px 10px; align-items: center; min-height: 66px; padding: 10px 12px; border: 1px solid var(--ent-borde); border-radius: 12px; background: #fff; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
 .ent-jornada-strip article:hover { transform: translateY(-1px); border-color: #bfd5eb; box-shadow: 0 8px 18px rgba(16, 42, 67, .07); }
-.ent-jornada-strip .app-icon { grid-row: 1 / span 2; color: var(--primary); }
+.ent-jornada-strip .app-icon { display: grid; grid-row: 1 / span 2; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: #eaf3ff; color: var(--primary); }
+.ent-jornada-strip .app-icon svg { width: 18px; height: 18px; }
 .ent-jornada-strip span { color: var(--muted); font-size: 11px; font-weight: 750; }
 .ent-jornada-strip strong { color: var(--navy); font-size: 21px; line-height: 1; }
-.ent-jornada-strip .is-atencion strong, .ent-jornada-strip .is-atencion .app-icon { color: var(--alert); }
-.ent-jornada-strip .is-ok strong, .ent-jornada-strip .is-ok .app-icon { color: var(--success); }
+.ent-jornada-strip .is-atencion strong { color: var(--alert); }
+.ent-jornada-strip .is-atencion .app-icon { background: #fff3da; color: var(--alert); }
+.ent-jornada-strip .is-ok strong { color: var(--success); }
+.ent-jornada-strip .is-ok .app-icon { background: #e3f6ec; color: var(--success); }
 .ent-lotes-alert { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-bottom: 12px; padding: 12px; border: 1px solid #f0dcb4; border-radius: 10px; background: #fffaf0; color: var(--navy); animation: entSlideIn .22s ease both; }
-.ent-lotes-alert > .app-icon { color: var(--alert); }
+.ent-lotes-alert > .app-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #fff3da; color: var(--alert); }
+.ent-lotes-alert > .app-icon svg { width: 17px; height: 17px; }
 .ent-lotes-alert div { display: grid; gap: 2px; min-width: 0; }
 .ent-lotes-alert strong { font-size: 13px; }
 .ent-lotes-alert span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -210,6 +216,12 @@
   .ent-mobile-tabs button.is-active { background: #eaf3ff; color: var(--primary); }
   .ent-module .cl-inbox { padding: 12px; }
   .ent-toolbar { grid-template-columns: 1fr; padding: 10px; }
+  .ent-filtros-toggle { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid #c9ddf4; border-radius: 10px; background: #fff; color: var(--primary); font-size: 13px; font-weight: 750; cursor: pointer; }
+  .ent-filtros-toggle .ent-filtros-chevron { margin-left: -2px; transition: transform .16s ease; }
+  .ent-filtros-toggle.is-open .ent-filtros-chevron { transform: rotate(180deg); }
+  .ent-filtros-badge { display: grid; min-width: 18px; height: 18px; place-items: center; padding: 0 5px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 11px; font-weight: 800; }
+  .ent-filtros-extra { display: none; grid-template-columns: 1fr; gap: 12px; margin-top: 2px; }
+  .ent-filtros-extra.is-open { display: grid; animation: entSlideIn .18s ease both; }
   .ent-lotes-head-actions { width: 100%; justify-content: stretch; }
   .ent-lotes-head-actions button { flex: 1; }
   .ent-jornada-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -260,9 +272,22 @@
   .ent-module .ent-pendientes-table td:nth-child(3), .ent-module .ent-pendientes-table td:nth-child(4), .ent-module .ent-pendientes-table td:nth-child(5), .ent-module .ent-pendientes-table td:nth-child(7) { display: none; }
   .ent-module .ent-lotes-table td:nth-child(4), .ent-module .ent-lotes-table td:nth-child(6) { display: none; }
   .ent-lotes-table td:nth-child(2) strong { font-size: 15px; }
+  .ent-lotes-table tr.ent-lote-fila { grid-template-columns: 1fr 1fr; padding-left: 11px; border-left: 4px solid var(--ent-borde); }
+  .ent-lotes-table tr.ent-lote-fila.is-abierto { border-left-color: var(--primary); }
+  .ent-lotes-table tr.ent-lote-fila.is-cerrado { border-left-color: var(--success); }
+  .ent-lotes-table tr.ent-lote-fila.is-revisado { border-left-color: var(--navy); }
+  .ent-lotes-table .cl-status { padding: 6px 10px; font-size: 12px; }
+  /* Orden fijo de la tarjeta: fecha+estado, responsable, barrio, cifras, acciones. */
+  .ent-lotes-table td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .ent-lotes-table td:nth-child(8) { grid-column: 2; grid-row: 1; justify-self: end; }
+  .ent-lotes-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .ent-lotes-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; }
+  .ent-lotes-table td:nth-child(5) { grid-column: 1; grid-row: 4; }
+  .ent-lotes-table td:nth-child(7) { grid-column: 2; grid-row: 4; }
+  .ent-lotes-table td:last-child { grid-column: 1 / -1 !important; grid-row: 5 !important; align-self: stretch; margin-top: 4px; padding-top: 10px !important; border-top: 1px dashed var(--ent-borde); }
   .ent-lotes-table .ent-acciones-celda { display: grid !important; grid-template-columns: repeat(2, 46px) minmax(0, 1fr); }
   .ent-lotes-table .ent-acciones-celda .cl-icon-button { min-height: 44px; }
-  .ent-lotes-table .ent-acciones-celda .ent-boton-mini { min-height: 44px; }
+  .ent-lotes-table .ent-acciones-celda .ent-boton-cerrar { grid-column: 1 / -1; min-height: 46px; margin-top: 4px; font-size: 13px; }
   .ent-captura-table td:nth-child(1)::before { content: "Abonado"; }
   .ent-captura-table td:nth-child(2)::before { content: "Clave"; }
   .ent-captura-table td:nth-child(3)::before { content: "Motivo"; }
