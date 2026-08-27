@@ -3857,6 +3857,48 @@ function App() {
     return response;
   }, [session?.token]);
 
+  useEffect(() => {
+    if (!session?.token) return undefined;
+
+    let cancelled = false;
+    const refreshStoredSession = async () => {
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, {
+          cache: "no-store",
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${session.token}`
+          }
+        });
+
+        if (cancelled) return;
+        if (response.status === 401) {
+          clearSession();
+          if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
+          return;
+        }
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data?.user) return;
+
+        setSession((current) => {
+          if (current?.token !== session.token) return current;
+          const nextSession = { ...current, user: data.user };
+          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
+          return nextSession;
+        });
+      } catch {
+        // Keep the stored session if the API is temporarily unreachable.
+      }
+    };
+
+    refreshStoredSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.token, showAlert]);
+
   const persistLookupHistory = (nextHistory) => {
     window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
     setLookupHistory(nextHistory);
