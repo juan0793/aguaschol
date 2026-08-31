@@ -267,6 +267,14 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
     })();
   }, [focusRequest, ready]);
 
+  const printMap = () => {
+    const cleanup = () => document.body.classList.remove("sig-printing");
+    document.body.classList.add("sig-printing");
+    window.addEventListener("afterprint", cleanup, { once: true });
+    window.print();
+    window.setTimeout(cleanup, 2000);
+  };
+
   return (
     <section className="sig-map-shell">
       <aside className="sig-layer-panel">
@@ -300,7 +308,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
             }
           }} />
           <button type="button" disabled><Icon name="plus" /> Punto</button>
-          <button type="button" disabled><Icon name="print" /> Imprimir</button>
+          <button type="button" onClick={printMap}><Icon name="print" /> Imprimir</button>
         </div>
         <div ref={containerRef} className="sig-map" />
         <footer>
