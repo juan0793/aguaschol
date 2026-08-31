@@ -17,6 +17,15 @@ const VALIDATION_STATUS = {
 };
 const GPS_ACCURACY_LABEL = { excelente: "Excelente", buena: "Buena", aceptable: "Aceptable", baja: "Baja", deficiente: "Deficiente", sin_dato: "Sin dato" };
 const isGisReady = (health) => Boolean(health?.ready);
+const collectionFromRows = (rows = [], geometryKey = "geometry") => ({
+  type: "FeatureCollection",
+  features: rows.filter((row) => row?.[geometryKey]).map((row) => ({
+    type: "Feature",
+    id: row.id,
+    properties: Object.fromEntries(Object.entries(row).filter(([key]) => key !== geometryKey)),
+    geometry: row[geometryKey]
+  }))
+});
 const bboxFromMap = (map) => {
   const b = map.getBounds();
   return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((value) => Number(value.toFixed(6)));
@@ -180,11 +189,18 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         if (cancelled) return;
         barriosRef.current = barrios;
         map.addSource("barrios", { type: "geojson", data: barrios });
+        map.addSource("manzanas", { type: "geojson", data: emptyFeatureCollection });
+        map.addSource("quebradas", { type: "geojson", data: emptyFeatureCollection });
         map.addSource("lotes", { type: "geojson", data: emptyFeatureCollection });
         map.addSource("catastro", { type: "geojson", data: emptyFeatureCollection });
         map.addSource("levantamientos", { type: "geojson", data: emptyFeatureCollection });
         map.addLayer({ id: "barrios-fill", type: "fill", source: "barrios", paint: { "fill-color": ["case", ["boolean", ["feature-state", "selected"], false], "#f59e0b", "#21a67a"], "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, 0.2] } });
         map.addLayer({ id: "barrios-line", type: "line", source: "barrios", paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#92400e", "#087a5a"], "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1.4] } });
+        map.addLayer({ id: "barrios-label", type: "symbol", source: "barrios", minzoom: 11, maxzoom: 15, layout: { "text-field": ["coalesce", ["get", "nombre"], ""], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 14, 12], "text-transform": "uppercase" }, paint: { "text-color": "#0f513f", "text-halo-color": "#fff", "text-halo-width": 1.4 } });
+        map.addLayer({ id: "quebradas-line", type: "line", source: "quebradas", minzoom: 12, paint: { "line-color": "#38bdf8", "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 17, 2.4] } });
+        map.addLayer({ id: "manzanas-fill", type: "fill", source: "manzanas", minzoom: 14, paint: { "fill-color": "#eab308", "fill-opacity": 0.04 } });
+        map.addLayer({ id: "manzanas-line", type: "line", source: "manzanas", minzoom: 14, paint: { "line-color": "#a16207", "line-opacity": 0.28, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.9] } });
+        map.addLayer({ id: "manzanas-label", type: "symbol", source: "manzanas", minzoom: 16, layout: { "text-field": ["coalesce", ["get", "numero"], ""], "text-size": 10 }, paint: { "text-color": "#713f12", "text-halo-color": "#fff", "text-halo-width": 1 } });
         map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": "#06b6d4", "fill-opacity": 0.1 } });
         map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": "#0e7490", "line-opacity": 0.46, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.85, 21, 1.1] } });
         map.addLayer({ id: "numeros-lote", type: "symbol", source: "lotes", minzoom: 17, layout: { "text-field": ["coalesce", ["get", "numero_lote"], ""], "text-size": 11 }, paint: { "text-color": "#0f172a", "text-halo-color": "#fff", "text-halo-width": 1 } });
@@ -202,6 +218,12 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
           "circle-stroke-color": "#fff",
           "circle-stroke-width": 1.4
         } });
+
+        const [manzanas, quebradas] = await Promise.all([api.manzanas().catch(() => []), api.quebradas().catch(() => [])]);
+        if (!cancelled) {
+          map.getSource("manzanas")?.setData(collectionFromRows(manzanas));
+          map.getSource("quebradas")?.setData(collectionFromRows(quebradas));
+        }
 
         map.on("click", "barrios-fill", (event) => event.features?.[0]?.properties?.id && onSelect({ type: "barrio", data: event.features[0].properties }));
         map.on("click", "lotes-fill", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "lote", data: await api.lote(event.features[0].properties.id) }));
@@ -226,6 +248,23 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
   }, [api, onSelect]);
 
   useEffect(() => { refreshBboxLayers().catch(() => {}); }, [refreshBboxLayers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const groups = {
+      barrios: ["barrios-fill", "barrios-line", "barrios-label"],
+      manzanas: ["manzanas-fill", "manzanas-line", "manzanas-label"],
+      quebradas: ["quebradas-line"],
+      lotes: ["lotes-fill", "lotes-line"],
+      numeros: ["numeros-lote"],
+      abonados: ["catastro-clusters", "catastro-cluster-count", "catastro-points"],
+      levantamientos: ["levantamientos-halo", "levantamientos-points"]
+    };
+    Object.entries(groups).forEach(([key, ids]) => ids.forEach((id) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", layers[key] ? "visible" : "none");
+    }));
+  }, [layers, ready]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -267,10 +306,21 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
     })();
   }, [focusRequest, ready]);
 
-  const printMap = () => {
+  const printMap = async () => {
     const cleanup = () => document.body.classList.remove("sig-printing");
+    const waitForIdle = () => new Promise((resolve) => {
+      const map = mapRef.current;
+      const timer = window.setTimeout(resolve, 900);
+      map?.once?.("idle", () => {
+        window.clearTimeout(timer);
+        resolve();
+      });
+    });
     document.body.classList.add("sig-printing");
     window.addEventListener("afterprint", cleanup, { once: true });
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    mapRef.current?.resize();
+    await waitForIdle();
     window.print();
     window.setTimeout(cleanup, 2000);
   };
@@ -284,7 +334,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
             <summary>{group}</summary>
             {items.map(([key, label]) => (
               <label key={key}>
-                <input type="checkbox" checked={Boolean(layers[key])} disabled={!["barrios", "lotes", "abonados", "levantamientos"].includes(key)} onChange={(event) => setLayers((prev) => ({ ...prev, [key]: event.target.checked }))} />
+                <input type="checkbox" checked={Boolean(layers[key])} disabled={!["barrios", "manzanas", "quebradas", "lotes", "numeros", "abonados", "levantamientos"].includes(key)} onChange={(event) => setLayers((prev) => ({ ...prev, [key]: event.target.checked }))} />
                 {label}
               </label>
             ))}
@@ -311,6 +361,14 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
           <button type="button" onClick={printMap}><Icon name="print" /> Imprimir</button>
         </div>
         <div ref={containerRef} className="sig-map" />
+        <div className="sig-map-legend" aria-label="Leyenda del mapa">
+          {layers.barrios ? <span><i className="is-barrio" />Barrios</span> : null}
+          {layers.manzanas ? <span><i className="is-manzana" />Manzanas</span> : null}
+          {layers.quebradas ? <span><i className="is-quebrada" />Quebradas</span> : null}
+          {layers.lotes ? <span><i className="is-lote" />Lotes</span> : null}
+          {layers.abonados ? <span><i className="is-abonado" />Abonados</span> : null}
+          {layers.levantamientos ? <span><i className="is-levantamiento" />Levantamientos</span> : null}
+        </div>
         <footer>
           <span>Zoom {zoom}</span>
           <span>UTM 16N · EPSG:32616</span>

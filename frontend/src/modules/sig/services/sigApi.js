@@ -10,6 +10,8 @@ export const createSigApi = (apiFetch) => ({
   barrios: () => apiFetch("/gis/barrios").then(json),
   barriosGeoJson: () => apiFetch("/gis/barrios.geojson").then(json),
   barrioSummary: (id) => apiFetch(`/gis/barrios/${id}/summary`).then(json),
+  manzanas: () => apiFetch("/gis/manzanas").then(json),
+  quebradas: () => apiFetch("/gis/quebradas").then(json),
   barrioReport: () => apiFetch("/gis/barrios/report").then(json),
   catastroReport: () => apiFetch("/gis/catastro/report").then(json),
   lotes: ({ bbox, limit = 800 }) => apiFetch(`/gis/lotes?bbox=${bbox.join(",")}&limit=${limit}`).then(json),

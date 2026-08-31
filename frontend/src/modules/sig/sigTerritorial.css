@@ -201,6 +201,45 @@
 
 .sig-map { min-height: 560px; }
 
+.sig-map-legend {
+  position: absolute;
+  left: 16px;
+  bottom: 46px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: min(560px, calc(100% - 32px));
+  padding: 8px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 28px rgba(21, 32, 51, 0.12);
+}
+
+.sig-map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sig-map-legend i {
+  width: 12px;
+  height: 8px;
+  border-radius: 999px;
+  background: #1375f5;
+}
+
+.sig-map-legend .is-barrio { background: #21a67a; }
+.sig-map-legend .is-manzana { background: #eab308; }
+.sig-map-legend .is-quebrada { background: #38bdf8; }
+.sig-map-legend .is-lote { background: #06b6d4; }
+.sig-map-legend .is-abonado { background: #1375f5; }
+.sig-map-legend .is-levantamiento { background: #16a34a; }
+
 .sig-offline {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -524,6 +563,12 @@
   }
   .sig-search { min-width: 0; width: 100%; }
   .sig-map { min-height: 520px; }
+  .sig-map-legend {
+    left: 10px;
+    right: 10px;
+    bottom: 42px;
+    max-width: none;
+  }
   .sig-drawer { inset: auto 12px 12px; width: auto; }
   .sig-offline {
     grid-template-columns: 1fr;
@@ -544,8 +589,9 @@
   }
 
   body.sig-printing .sig-map-stage,
-  body.sig-printing .sig-map-stage * {
-    visibility: visible;
+  body.sig-printing .sig-map-stage *,
+  body.sig-printing .maplibregl-canvas {
+    visibility: visible !important;
   }
 
   body.sig-printing .sig-workspace,
@@ -555,6 +601,7 @@
     padding: 0;
     margin: 0;
     border: 0;
+    border-radius: 0;
     background: #fff;
   }
 
@@ -566,7 +613,10 @@
   }
 
   body.sig-printing .sig-toolbar,
-  body.sig-printing .sig-map-stage footer {
+  body.sig-printing .sig-map-stage footer,
+  body.sig-printing .maplibregl-ctrl-top-left,
+  body.sig-printing .maplibregl-ctrl-top-right,
+  body.sig-printing .maplibregl-ctrl-bottom-left {
     display: none;
   }
 
@@ -574,5 +624,12 @@
     width: 100vw;
     height: 100vh;
     min-height: 100vh;
+  }
+
+  body.sig-printing .sig-map-legend {
+    left: 10mm;
+    bottom: 10mm;
+    box-shadow: none;
+    visibility: visible !important;
   }
 }
