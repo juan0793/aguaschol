@@ -10,10 +10,10 @@ const TABS = [["mapa", "Mapa"], ["barrios", "Barrios"], ["analisis", "Análisis"
 const initialCenter = [-87.1908, 13.3003];
 const money = (value) => `L ${Number(value || 0).toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const VALIDATION_STATUS = {
-  approved: { label: "Aprobado", color: "#16a34a" },
-  corrected: { label: "Corregido", color: "#0891b2" },
-  needs_correction: { label: "Necesita corrección", color: "#f97316" },
-  pending: { label: "Pendiente", color: "#64748b" }
+  approved: { label: "Aprobado", color: "#18a689" },
+  corrected: { label: "Corregido", color: "#2bc6df" },
+  needs_correction: { label: "Necesita corrección", color: "#9a5a06" },
+  pending: { label: "Pendiente", color: "#597087" }
 };
 const GPS_ACCURACY_LABEL = { excelente: "Excelente", buena: "Buena", aceptable: "Aceptable", baja: "Baja", deficiente: "Deficiente", sin_dato: "Sin dato" };
 const isGisReady = (health) => Boolean(health?.ready);
@@ -194,27 +194,27 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         map.addSource("lotes", { type: "geojson", data: emptyFeatureCollection });
         map.addSource("catastro", { type: "geojson", data: emptyFeatureCollection });
         map.addSource("levantamientos", { type: "geojson", data: emptyFeatureCollection });
-        map.addLayer({ id: "barrios-fill", type: "fill", source: "barrios", paint: { "fill-color": ["case", ["boolean", ["feature-state", "selected"], false], "#f59e0b", "#21a67a"], "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, 0.2] } });
-        map.addLayer({ id: "barrios-line", type: "line", source: "barrios", paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#92400e", "#087a5a"], "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1.4] } });
-        map.addLayer({ id: "barrios-label", type: "symbol", source: "barrios", minzoom: 11, maxzoom: 15, layout: { "text-field": ["coalesce", ["get", "nombre"], ""], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 14, 12], "text-transform": "uppercase" }, paint: { "text-color": "#0f513f", "text-halo-color": "#fff", "text-halo-width": 1.4 } });
-        map.addLayer({ id: "quebradas-line", type: "line", source: "quebradas", minzoom: 12, paint: { "line-color": "#38bdf8", "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 17, 2.4] } });
-        map.addLayer({ id: "manzanas-fill", type: "fill", source: "manzanas", minzoom: 14, paint: { "fill-color": "#eab308", "fill-opacity": 0.04 } });
-        map.addLayer({ id: "manzanas-line", type: "line", source: "manzanas", minzoom: 14, paint: { "line-color": "#a16207", "line-opacity": 0.28, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.9] } });
-        map.addLayer({ id: "manzanas-label", type: "symbol", source: "manzanas", minzoom: 16, layout: { "text-field": ["coalesce", ["get", "numero"], ""], "text-size": 10 }, paint: { "text-color": "#713f12", "text-halo-color": "#fff", "text-halo-width": 1 } });
-        map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": "#06b6d4", "fill-opacity": 0.1 } });
-        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": "#0e7490", "line-opacity": 0.46, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.85, 21, 1.1] } });
-        map.addLayer({ id: "numeros-lote", type: "symbol", source: "lotes", minzoom: 17, layout: { "text-field": ["coalesce", ["get", "numero_lote"], ""], "text-size": 11 }, paint: { "text-color": "#0f172a", "text-halo-color": "#fff", "text-halo-width": 1 } });
-        map.addLayer({ id: "catastro-clusters", type: "circle", source: "catastro", filter: ["==", ["get", "cluster"], true], paint: { "circle-color": "#1375f5", "circle-radius": ["interpolate", ["linear"], ["get", "total"], 1, 8, 25, 11, 100, 15, 500, 21], "circle-opacity": 0.66, "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
-        map.addLayer({ id: "catastro-cluster-count", type: "symbol", source: "catastro", filter: ["==", ["get", "cluster"], true], layout: { "text-field": ["to-string", ["get", "total"]], "text-size": 11 }, paint: { "text-color": "#fff", "text-halo-color": "#0f172a", "text-halo-width": 0.4 } });
-        map.addLayer({ id: "catastro-points", type: "circle", source: "catastro", filter: ["!=", ["get", "cluster"], true], minzoom: 17, paint: { "circle-color": "#ef4444", "circle-radius": 4.5, "circle-stroke-color": "#fff", "circle-stroke-width": 1.4 } });
+        map.addLayer({ id: "barrios-fill", type: "fill", source: "barrios", paint: { "fill-color": ["case", ["boolean", ["feature-state", "selected"], false], "#1465d9", "#18a689"], "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.38, 0.16] } });
+        map.addLayer({ id: "barrios-line", type: "line", source: "barrios", paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#0b3f73", "#127b62"], "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 3, 1.4] } });
+        map.addLayer({ id: "barrios-label", type: "symbol", source: "barrios", minzoom: 11, maxzoom: 15, layout: { "text-field": ["coalesce", ["get", "nombre"], ""], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 14, 12], "text-transform": "uppercase" }, paint: { "text-color": "#0b3f73", "text-halo-color": "#fff", "text-halo-width": 1.4 } });
+        map.addLayer({ id: "quebradas-line", type: "line", source: "quebradas", minzoom: 12, paint: { "line-color": "#2bc6df", "line-opacity": 0.75, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 17, 2.4] } });
+        map.addLayer({ id: "manzanas-fill", type: "fill", source: "manzanas", minzoom: 14, paint: { "fill-color": "#f2b64a", "fill-opacity": 0.05 } });
+        map.addLayer({ id: "manzanas-line", type: "line", source: "manzanas", minzoom: 14, paint: { "line-color": "#9a5a06", "line-opacity": 0.3, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.9] } });
+        map.addLayer({ id: "manzanas-label", type: "symbol", source: "manzanas", minzoom: 16, layout: { "text-field": ["coalesce", ["get", "numero"], ""], "text-size": 10 }, paint: { "text-color": "#9a5a06", "text-halo-color": "#fff", "text-halo-width": 1 } });
+        map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": "#315bff", "fill-opacity": 0.08 } });
+        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": "#315bff", "line-opacity": 0.5, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.85, 21, 1.1] } });
+        map.addLayer({ id: "numeros-lote", type: "symbol", source: "lotes", minzoom: 17, layout: { "text-field": ["coalesce", ["get", "numero_lote"], ""], "text-size": 11 }, paint: { "text-color": "#0b3f73", "text-halo-color": "#fff", "text-halo-width": 1 } });
+        map.addLayer({ id: "catastro-clusters", type: "circle", source: "catastro", filter: ["==", ["get", "cluster"], true], paint: { "circle-color": "#1465d9", "circle-radius": ["interpolate", ["linear"], ["get", "total"], 1, 8, 25, 11, 100, 15, 500, 21], "circle-opacity": 0.68, "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
+        map.addLayer({ id: "catastro-cluster-count", type: "symbol", source: "catastro", filter: ["==", ["get", "cluster"], true], layout: { "text-field": ["to-string", ["get", "total"]], "text-size": 11 }, paint: { "text-color": "#fff", "text-halo-color": "#0b3f73", "text-halo-width": 0.4 } });
+        map.addLayer({ id: "catastro-points", type: "circle", source: "catastro", filter: ["!=", ["get", "cluster"], true], minzoom: 17, paint: { "circle-color": "#315bff", "circle-radius": 4.5, "circle-stroke-color": "#fff", "circle-stroke-width": 1.4 } });
         map.addLayer({ id: "levantamientos-halo", type: "circle", source: "levantamientos", minzoom: 15, paint: {
           "circle-radius": ["match", ["get", "gps_accuracy"], "excelente", 6, "buena", 6, "aceptable", 10, 15],
           "circle-opacity": ["match", ["get", "gps_accuracy"], "excelente", 0.12, "buena", 0.12, "aceptable", 0.16, 0.22],
-          "circle-color": "#0f172a"
+          "circle-color": "#0b3f73"
         } });
         map.addLayer({ id: "levantamientos-points", type: "circle", source: "levantamientos", minzoom: 15, paint: {
           "circle-radius": 5,
-          "circle-color": ["match", ["get", "validation_status"], "approved", "#16a34a", "corrected", "#0891b2", "needs_correction", "#f97316", "#64748b"],
+          "circle-color": ["match", ["get", "validation_status"], "approved", "#18a689", "corrected", "#2bc6df", "needs_correction", "#9a5a06", "#597087"],
           "circle-stroke-color": "#fff",
           "circle-stroke-width": 1.4
         } });

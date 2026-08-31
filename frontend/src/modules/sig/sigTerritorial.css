@@ -1,8 +1,26 @@
+/* SIG Territorial reutiliza la paleta institucional definida en
+   frontend/src/styles.css (--brand-*, --shadow-*, --radius-*) en vez de
+   colores propios, para sentirse parte del mismo sistema que Tablero y
+   Control de entregas. Ver DESIGN.md. */
+
 .sig-workspace {
+  --sig-line: rgba(20, 101, 217, 0.14);
+  --sig-line-soft: rgba(20, 101, 217, 0.09);
+  --sig-tint: var(--surface-tinted, #eef6ff);
+  --sig-ink: var(--brand-blue-deep, #0b3f73);
+  --sig-body: #183b5a;
+  --sig-muted: var(--text-muted, #597087);
+  --primary: var(--brand-blue, #1465d9);
+  --primary-hover: var(--brand-blue-deep, #0b3f73);
+  --navy: var(--brand-blue-deep, #0b3f73);
+  --muted: var(--text-muted, #597087);
+  --success: var(--brand-teal, #18a689);
+  --alert: #9a5a06;
+  --danger: var(--danger, #9b202d);
+
   min-height: 70vh;
   padding: 18px;
-  background: #f6f8fb;
-  color: #152033;
+  color: var(--sig-body);
 }
 
 .sig-header {
@@ -11,65 +29,74 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 12px;
-  padding: 16px;
-  border: 1px solid #dce3ea;
-  border-radius: 12px;
-  background: #fff;
+  padding: 16px 18px;
+  border: 1px solid var(--sig-line);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow-xs);
 }
 
-.sig-header h1 { margin: 2px 0 4px; }
-.sig-header p { margin: 0; color: #687386; }
+.sig-header h1 { margin: 2px 0 4px; color: var(--sig-ink); }
+.sig-header p { margin: 0; color: var(--sig-muted); }
 
 .sig-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid #dce3ea;
+  padding: 8px 12px;
+  border: 1px solid var(--sig-line);
   border-radius: 999px;
-  background: #f8fafc;
-  color: #687386;
+  background: var(--sig-tint);
+  color: var(--sig-muted);
   font-size: 13px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .sig-status i {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: var(--alert);
 }
 
-.sig-status.is-ready i { background: #14b8a6; }
+.sig-status.is-ready i { background: var(--success); }
+.sig-status.is-ready { color: var(--sig-ink); }
 
 .sig-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 12px;
   padding: 4px;
   width: max-content;
   max-width: 100%;
-  border: 1px solid #dce3ea;
-  border-radius: 12px;
-  background: #fff;
+  border: 1px solid var(--sig-line);
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface, #fff);
 }
 
 .sig-tabs button {
   min-height: 36px;
-  padding: 0 13px;
+  padding: 0 14px;
   border: 0;
   border-radius: 9px;
   background: transparent;
-  color: #687386;
+  color: var(--sig-muted);
   font-weight: 750;
   cursor: pointer;
+  transition: background .13s ease, color .13s ease;
 }
 
+.sig-tabs button:hover { background: var(--sig-tint); color: var(--sig-ink); }
+
 .sig-tabs button.is-active {
-  background: #1375f5;
+  background: var(--primary);
   color: #fff;
 }
+
+.sig-tabs button.is-active:hover { background: var(--primary); }
 
 .sig-map-shell {
   display: grid;
@@ -81,9 +108,10 @@
 .sig-layer-panel,
 .sig-map-stage,
 .sig-placeholder {
-  border: 1px solid #dce3ea;
-  border-radius: 12px;
-  background: #fff;
+  border: 1px solid var(--sig-line);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow-xs);
 }
 
 .sig-layer-panel {
@@ -91,10 +119,25 @@
   overflow: auto;
 }
 
-.sig-layer-panel h3 { margin: 0 0 12px; }
-.sig-layer-panel details { padding: 10px 0; border-top: 1px solid #edf1f5; }
-.sig-layer-panel summary { cursor: pointer; font-weight: 800; }
-.sig-layer-panel label { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #334155; }
+.sig-layer-panel h3 {
+  margin: 0 0 10px;
+  color: var(--sig-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.sig-layer-panel details { padding: 10px 0; border-top: 1px solid var(--sig-line-soft); }
+.sig-layer-panel details:first-of-type { border-top: 0; padding-top: 0; }
+.sig-layer-panel summary {
+  cursor: pointer;
+  color: var(--sig-ink);
+  font-weight: 800;
+  transition: color .13s ease;
+}
+.sig-layer-panel summary:hover { color: var(--primary); }
+.sig-layer-panel label { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--sig-body); }
+.sig-layer-panel input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
 
 .sig-map-stage {
   position: relative;
@@ -110,7 +153,8 @@
   gap: 8px;
   align-items: center;
   padding: 10px;
-  border-bottom: 1px solid #dce3ea;
+  border-bottom: 1px solid var(--sig-line);
+  background: var(--sig-tint);
 }
 
 .sig-toolbar label {
@@ -120,10 +164,19 @@
   gap: 8px;
   min-width: 180px;
   padding: 0 10px;
-  border: 1px solid #dce3ea;
+  border: 1px solid var(--sig-line);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--surface, #fff);
+  transition: border-color .13s ease, box-shadow .13s ease;
 }
+
+.sig-toolbar label:focus-within {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.sig-toolbar label .app-icon,
+.sig-toolbar label svg { color: var(--sig-muted); }
 
 .sig-toolbar input {
   width: 100%;
@@ -131,6 +184,7 @@
   border: 0;
   background: transparent;
   outline: 0;
+  color: var(--sig-body);
 }
 
 .sig-toolbar button {
@@ -138,12 +192,20 @@
   align-items: center;
   gap: 6px;
   min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid #c9d7e5;
+  padding: 0 14px;
+  border: 1px solid rgba(20, 101, 217, 0.28);
   border-radius: 10px;
-  background: #fff;
-  color: #152033;
+  background: var(--surface, #fff);
+  color: var(--sig-ink);
   font-weight: 750;
+  cursor: pointer;
+  transition: border-color .13s ease, color .13s ease, background .13s ease;
+}
+
+.sig-toolbar button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--sig-tint);
 }
 
 .sig-search {
@@ -165,10 +227,10 @@
   max-height: min(320px, calc(100vh - 220px));
   overflow: auto;
   padding: 10px;
-  border: 1px solid #dce3ea;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 16px 38px rgba(21, 32, 51, 0.16);
+  border: 1px solid var(--sig-line);
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .sig-search-results section {
@@ -177,9 +239,13 @@
   padding: 6px 0;
 }
 
+.sig-search-results section + section { border-top: 1px solid var(--sig-line-soft); }
+
 .sig-search-results strong {
-  color: #687386;
+  color: var(--sig-muted);
   font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
   text-transform: uppercase;
 }
 
@@ -187,15 +253,23 @@
   justify-content: space-between;
   width: 100%;
   text-align: left;
+  border-color: transparent;
+  background: transparent;
+}
+
+.sig-search-results button:hover:not(:disabled) {
+  background: var(--sig-tint);
+  border-color: transparent;
+  color: var(--sig-ink);
 }
 
 .sig-search-results small {
-  color: #687386;
+  color: var(--sig-muted);
 }
 
 .sig-toolbar button:disabled,
 .sig-layer-panel input:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -211,17 +285,18 @@
   gap: 6px;
   max-width: min(560px, calc(100% - 32px));
   padding: 8px;
-  border: 1px solid rgba(203, 213, 225, 0.9);
+  border: 1px solid var(--sig-line);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 10px 28px rgba(21, 32, 51, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-card);
 }
 
 .sig-map-legend span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #334155;
+  padding: 2px 6px;
+  color: var(--sig-ink);
   font-size: 11px;
   font-weight: 800;
 }
@@ -230,15 +305,15 @@
   width: 12px;
   height: 8px;
   border-radius: 999px;
-  background: #1375f5;
+  background: var(--primary);
 }
 
-.sig-map-legend .is-barrio { background: #21a67a; }
-.sig-map-legend .is-manzana { background: #eab308; }
-.sig-map-legend .is-quebrada { background: #38bdf8; }
-.sig-map-legend .is-lote { background: #06b6d4; }
-.sig-map-legend .is-abonado { background: #1375f5; }
-.sig-map-legend .is-levantamiento { background: #16a34a; }
+.sig-map-legend .is-barrio { background: #18a689; }
+.sig-map-legend .is-manzana { background: #9a5a06; }
+.sig-map-legend .is-quebrada { background: #2bc6df; }
+.sig-map-legend .is-lote { background: #315bff; }
+.sig-map-legend .is-abonado { background: #1465d9; }
+.sig-map-legend .is-levantamiento { background: #18a689; }
 
 .sig-offline {
   display: grid;
@@ -247,21 +322,22 @@
   align-items: center;
   min-height: 360px;
   padding: 24px;
-  border: 1px solid #dce3ea;
-  border-radius: 12px;
+  border: 1px solid var(--sig-line);
+  border-radius: var(--radius-lg, 14px);
   background:
-    linear-gradient(135deg, rgba(19, 117, 245, 0.08), transparent 46%),
-    #fff;
+    linear-gradient(135deg, rgba(20, 101, 217, 0.07), transparent 46%),
+    var(--surface, #fff);
 }
 
 .sig-offline h2 {
   margin: 4px 0 8px;
+  color: var(--sig-ink);
 }
 
 .sig-offline p {
   max-width: 560px;
   margin: 0;
-  color: #687386;
+  color: var(--sig-muted);
 }
 
 .sig-offline-metrics {
@@ -274,15 +350,15 @@
   display: grid;
   gap: 2px;
   padding: 10px 12px;
-  border: 1px solid #dce3ea;
+  border: 1px solid var(--sig-line);
   border-radius: 10px;
-  background: #f8fafc;
-  color: #687386;
+  background: var(--sig-tint);
+  color: var(--sig-muted);
   font-size: 12px;
 }
 
 .sig-offline-metrics strong {
-  color: #152033;
+  color: var(--sig-ink);
   font-size: 14px;
 }
 
@@ -291,14 +367,17 @@
   gap: 14px;
   align-items: center;
   padding: 9px 12px;
-  border-top: 1px solid #dce3ea;
-  color: #687386;
+  border-top: 1px solid var(--sig-line-soft);
+  color: var(--sig-muted);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .sig-placeholder {
   padding: 18px;
 }
+
+.sig-placeholder h2 { margin: 0 0 4px; color: var(--sig-ink); }
 
 .sig-placeholder ul {
   display: grid;
@@ -310,19 +389,25 @@
 
 .sig-placeholder li {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid #dce3ea;
+  border: 1px solid var(--sig-line-soft);
   border-radius: 10px;
+  transition: border-color .13s ease, background .13s ease;
 }
 
-.sig-placeholder span { color: #687386; }
+.sig-placeholder li:hover { border-color: var(--sig-line); background: var(--sig-tint); }
+
+.sig-placeholder li strong { color: var(--sig-body); }
+
+.sig-placeholder span { color: var(--sig-muted); }
 
 .sig-empty-note {
   max-width: 620px;
   margin: 0 0 14px;
-  color: #687386;
+  color: var(--sig-muted);
 }
 
 .sig-report-empty {
@@ -331,12 +416,17 @@
 
 .sig-placeholder li button,
 .sig-drawer button {
-  border: 1px solid #c9d7e5;
-  border-radius: 8px;
-  background: #fff;
-  color: #152033;
+  border: 1px solid rgba(20, 101, 217, 0.28);
+  border-radius: 9px;
+  background: var(--surface, #fff);
+  color: var(--sig-ink);
   font-weight: 750;
+  cursor: pointer;
+  transition: border-color .13s ease, color .13s ease, background .13s ease;
 }
+
+.sig-placeholder li button:hover,
+.sig-drawer button:hover { border-color: var(--primary); color: var(--primary); background: var(--sig-tint); }
 
 .sig-report-strip {
   display: flex;
@@ -346,10 +436,11 @@
 }
 
 .sig-report-strip span {
-  padding: 7px 9px;
-  border: 1px solid #dce3ea;
+  padding: 7px 10px;
+  border: 1px solid var(--sig-line);
   border-radius: 999px;
-  background: #f8fafc;
+  background: var(--sig-tint);
+  color: var(--sig-ink);
   font-size: 12px;
   font-weight: 800;
 }
@@ -361,10 +452,11 @@
   z-index: 15;
   width: min(340px, calc(100vw - 32px));
   padding: 16px;
-  border: 1px solid #dce3ea;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 18px 44px rgba(21, 32, 51, 0.16);
+  border: 1px solid var(--sig-line);
+  border-top: 3px solid var(--primary);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .sig-drawer button {
@@ -373,16 +465,18 @@
   padding: 0 10px;
 }
 
-.sig-drawer span {
-  color: #087a5a;
+.sig-drawer > span {
+  color: var(--primary);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
 
 .sig-drawer h2 {
   clear: both;
   margin: 8px 0 14px;
+  color: var(--sig-ink);
 }
 
 .sig-drawer dl {
@@ -403,11 +497,11 @@
   justify-content: space-between;
   gap: 12px;
   padding-top: 8px;
-  border-top: 1px solid #edf1f5;
+  border-top: 1px solid var(--sig-line-soft);
 }
 
-.sig-drawer dt { color: #687386; }
-.sig-drawer dd { margin: 0; font-weight: 850; text-align: right; }
+.sig-drawer dt { color: var(--sig-muted); }
+.sig-drawer dd { margin: 0; font-weight: 800; color: var(--sig-body); text-align: right; overflow-wrap: anywhere; }
 
 .sig-status-pill {
   display: inline-flex;
@@ -415,10 +509,11 @@
   gap: 6px;
   clear: both;
   margin-top: 6px;
-  padding: 4px 9px;
-  border: 1px solid #dce3ea;
+  padding: 4px 10px;
+  border: 1px solid var(--sig-line);
   border-radius: 999px;
-  color: #334155;
+  background: var(--sig-tint);
+  color: var(--sig-body);
   font-size: 12px;
   font-weight: 750;
   text-transform: none;
@@ -436,14 +531,14 @@
   gap: 8px;
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid #edf1f5;
-  color: #687386;
+  border-top: 1px solid var(--sig-line-soft);
+  color: var(--sig-muted);
   font-size: 12px;
 }
 
 .sig-mono {
   font-family: Consolas, "SFMono-Regular", Menlo, monospace;
-  color: #152033;
+  color: var(--sig-body);
   font-weight: 750;
 }
 
@@ -452,7 +547,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #0f172a;
+  background: var(--sig-ink);
 }
 
 .sig-halo::after {
@@ -460,7 +555,7 @@
   position: absolute;
   inset: -6px;
   border-radius: 50%;
-  background: #0f172a;
+  background: var(--sig-ink);
   opacity: 0.14;
 }
 
@@ -472,14 +567,15 @@
 .sig-verify {
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid #edf1f5;
+  border-top: 1px solid var(--sig-line-soft);
 }
 
 .sig-verify-title {
   margin: 0 0 8px;
-  color: #687386;
+  color: var(--sig-muted);
   font-size: 11px;
   font-weight: 800;
+  letter-spacing: .06em;
   text-transform: uppercase;
 }
 
@@ -494,13 +590,13 @@
   display: grid;
   gap: 2px;
   padding: 8px 10px;
-  border: 1px solid #dce3ea;
+  border: 1px solid var(--sig-line);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--sig-tint);
 }
 
-.sig-verify-chip small { color: #687386; font-size: 11px; }
-.sig-verify-chip strong { font-size: 13px; }
+.sig-verify-chip small { color: var(--sig-muted); font-size: 11px; }
+.sig-verify-chip strong { color: var(--sig-body); font-size: 13px; }
 
 .sig-verify-glyph {
   display: flex;
@@ -512,9 +608,9 @@
   font-weight: 900;
 }
 
-.sig-verify-glyph.is-match { background: rgba(8, 122, 90, 0.14); color: #087a5a; }
-.sig-verify-glyph.is-mismatch { background: rgba(217, 119, 6, 0.16); color: #b45309; }
-.sig-verify-glyph.is-unknown { background: #f1f5f9; color: #94a3b8; }
+.sig-verify-glyph.is-match { background: rgba(24, 166, 137, 0.16); color: #0f6650; }
+.sig-verify-glyph.is-mismatch { background: rgba(154, 90, 6, 0.16); color: var(--alert); }
+.sig-verify-glyph.is-unknown { background: var(--sig-tint); color: var(--sig-muted); }
 
 @media (max-width: 900px) {
   .sig-header,
