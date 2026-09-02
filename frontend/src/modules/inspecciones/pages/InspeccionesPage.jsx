@@ -11,13 +11,14 @@ import "../styles/inspecciones.css";
 
 const tabFromHash = () => location.hash.match(/^#inspecciones\/(\w+)/)?.[1] || "resumen";
 
-export default function InspeccionesPage({ apiFetch, session, showAlert }) {
+export default function InspeccionesPage({ apiFetch, session, showAlert, focusRequest, onFocusConsumed }) {
   const api = useMemo(() => createInspeccionesApi(apiFetch), [apiFetch]);
   const [tab, setTab] = useState(tabFromHash);
   const [config, setConfig] = useState(null);
   const [tecnicos, setTecnicos] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [showNueva, setShowNueva] = useState(false);
+  const [initialNueva, setInitialNueva] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
 
   const model = useInspecciones(api, Boolean(config));
@@ -39,6 +40,20 @@ export default function InspeccionesPage({ apiFetch, session, showAlert }) {
     addEventListener("hashchange", change);
     return () => removeEventListener("hashchange", change);
   }, []);
+
+  useEffect(() => {
+    if (!focusRequest || !config) return;
+    if (!config.permissions?.can_create) {
+      showAlert("Tu rol no puede crear inspecciones.");
+      onFocusConsumed?.();
+      return;
+    }
+    history.replaceState(null, "", "#inspecciones/ver");
+    setTab("ver");
+    setInitialNueva(focusRequest);
+    setShowNueva(true);
+    onFocusConsumed?.();
+  }, [config, focusRequest, onFocusConsumed, showAlert]);
 
   const go = (key) => {
     history.replaceState(null, "", `#inspecciones/${key}`);
@@ -70,7 +85,7 @@ export default function InspeccionesPage({ apiFetch, session, showAlert }) {
         </nav>
         <div className="cl-drawer-main-actions" style={{ justifyContent: "flex-end" }}>
           {config.permissions.can_create ? (
-            <button type="button" className="cl-primary" onClick={() => setShowNueva(true)}><Icon name="plus" />Nueva inspección</button>
+            <button type="button" className="cl-primary" onClick={() => { setInitialNueva(null); setShowNueva(true); }}><Icon name="plus" />Nueva inspección</button>
           ) : null}
         </div>
       </header>
@@ -113,10 +128,12 @@ export default function InspeccionesPage({ apiFetch, session, showAlert }) {
         <NuevaInspeccionModal
           api={api}
           tecnicos={tecnicos}
+          initialData={initialNueva}
           notify={showAlert}
-          onClose={() => setShowNueva(false)}
+          onClose={() => { setShowNueva(false); setInitialNueva(null); }}
           onCreated={(created) => {
             setShowNueva(false);
+            setInitialNueva(null);
             refreshAll();
             setSelectedId(created.id);
           }}

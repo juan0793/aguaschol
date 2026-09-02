@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { getMapPointTypeLabel } from "../../utils/mapField";
+import LoteTerritorialDrawer from "./components/LoteTerritorialDrawer";
 import { createSigApi } from "./services/sigApi";
 import { emptyFeatureCollection, geometryBounds } from "./utils/sigGeojson";
 import { sigVisibleLayerGroups } from "./utils/sigZoomRules";
+import { money } from "./utils/loteTerritorial";
 import "./sigTerritorial.css";
 
 const TABS = [["mapa", "Mapa"], ["barrios", "Barrios"], ["analisis", "Análisis"], ["reportes", "Reportes"]];
 const initialCenter = [-87.1908, 13.3003];
-const money = (value) => `L ${Number(value || 0).toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const VALIDATION_STATUS = {
   approved: { label: "Aprobado", color: "#18a689" },
   corrected: { label: "Corregido", color: "#2bc6df" },
@@ -120,16 +121,38 @@ function SigSearch({ api, onPick }) {
   );
 }
 
+const mapContainsBbox = (map, bbox) => {
+  const bounds = map.getBounds();
+  return bounds.contains([bbox[0], bbox[1]]) && bounds.contains([bbox[2], bbox[3]]);
+};
+
 function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAlert }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const barriosRef = useRef(emptyFeatureCollection);
   const selectedRef = useRef(null);
   const refreshRef = useRef(() => {});
+  const loteCacheRef = useRef(new Map());
+  const loteRequestRef = useRef(0);
   const [zoom, setZoom] = useState(12);
   const [ready, setReady] = useState(false);
   const [layers, setLayers] = useState({ barrios: true, lotes: true, abonados: true, levantamientos: false });
   const visibleGroups = useMemo(() => sigVisibleLayerGroups(zoom), [zoom]);
+
+  const loadLote = useCallback(async (id, fallback = {}) => {
+    const key = Number(id);
+    const requestId = ++loteRequestRef.current;
+    const cached = loteCacheRef.current.get(key);
+    onSelect({ type: "lote", data: cached || { ...fallback, id: key }, loading: !cached, error: "" });
+    if (cached) return;
+    try {
+      const detail = await api.lote(key);
+      loteCacheRef.current.set(key, detail);
+      if (requestId === loteRequestRef.current) onSelect({ type: "lote", data: detail, loading: false, error: "" });
+    } catch (error) {
+      if (requestId === loteRequestRef.current) onSelect({ type: "lote", data: { ...fallback, id: key }, loading: false, error: error.message });
+    }
+  }, [api, onSelect]);
 
   const refreshBboxLayers = useCallback(async () => {
     const map = mapRef.current;
@@ -139,6 +162,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
     if (layers.lotes && currentZoom >= 14) {
       const lotes = await api.lotes({ bbox });
       map.getSource("lotes")?.setData(lotes);
+      if (selectedRef.current?.type === "lote") map.setFeatureState({ source: "lotes", id: selectedRef.current.data?.id }, { selected: true });
     } else {
       map.getSource("lotes")?.setData(emptyFeatureCollection);
     }
@@ -201,8 +225,8 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         map.addLayer({ id: "manzanas-fill", type: "fill", source: "manzanas", minzoom: 14, paint: { "fill-color": "#f2b64a", "fill-opacity": 0.05 } });
         map.addLayer({ id: "manzanas-line", type: "line", source: "manzanas", minzoom: 14, paint: { "line-color": "#9a5a06", "line-opacity": 0.3, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.9] } });
         map.addLayer({ id: "manzanas-label", type: "symbol", source: "manzanas", minzoom: 16, layout: { "text-field": ["coalesce", ["get", "numero"], ""], "text-size": 10 }, paint: { "text-color": "#9a5a06", "text-halo-color": "#fff", "text-halo-width": 1 } });
-        map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": "#315bff", "fill-opacity": 0.08 } });
-        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": "#315bff", "line-opacity": 0.5, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.85, 21, 1.1] } });
+        map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": ["case", ["boolean", ["feature-state", "selected"], false], "#f2b64a", "#315bff"], "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.36, 0.08] } });
+        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#0b3f73", "#315bff"], "line-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.92, 0.5], "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 2.2, ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.85, 21, 1.1]] } });
         map.addLayer({ id: "numeros-lote", type: "symbol", source: "lotes", minzoom: 17, layout: { "text-field": ["coalesce", ["get", "numero_lote"], ""], "text-size": 11 }, paint: { "text-color": "#0b3f73", "text-halo-color": "#fff", "text-halo-width": 1 } });
         map.addLayer({ id: "catastro-clusters", type: "circle", source: "catastro", filter: ["==", ["get", "cluster"], true], paint: { "circle-color": "#1465d9", "circle-radius": ["interpolate", ["linear"], ["get", "total"], 1, 8, 25, 11, 100, 15, 500, 21], "circle-opacity": 0.68, "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
         map.addLayer({ id: "catastro-cluster-count", type: "symbol", source: "catastro", filter: ["==", ["get", "cluster"], true], layout: { "text-field": ["to-string", ["get", "total"]], "text-size": 11 }, paint: { "text-color": "#fff", "text-halo-color": "#0b3f73", "text-halo-width": 0.4 } });
@@ -226,7 +250,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         }
 
         map.on("click", "barrios-fill", (event) => event.features?.[0]?.properties?.id && onSelect({ type: "barrio", data: event.features[0].properties }));
-        map.on("click", "lotes-fill", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "lote", data: await api.lote(event.features[0].properties.id) }));
+        map.on("click", "lotes-fill", (event) => event.features?.[0]?.properties?.id && loadLote(event.features[0].properties.id, event.features[0].properties));
         map.on("click", "catastro-clusters", (event) => map.easeTo({ center: event.lngLat, zoom: Math.min(map.getZoom() + 2, 17), duration: 450 }));
         map.on("click", "catastro-points", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "catastro", data: await api.catastroPunto(event.features[0].properties.id) }));
         map.on("click", "levantamientos-points", async (event) => event.features?.[0]?.properties?.id && onSelect({ type: "levantamiento", data: await api.levantamiento(event.features[0].properties.id) }));
@@ -245,7 +269,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
       cleanup();
       mapRef.current = null;
     };
-  }, [api, onSelect]);
+  }, [api, loadLote, onSelect]);
 
   useEffect(() => { refreshBboxLayers().catch(() => {}); }, [refreshBboxLayers]);
 
@@ -272,10 +296,14 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
     for (const feature of barriosRef.current.features) {
       map.setFeatureState({ source: "barrios", id: feature.id }, { selected: selected?.type === "barrio" && feature.properties.id === selected.data?.id });
     }
+    if (selectedRef.current?.type === "lote" && selectedRef.current.data?.id !== selected?.data?.id) {
+      map.setFeatureState({ source: "lotes", id: selectedRef.current.data.id }, { selected: false });
+    }
     selectedRef.current = selected;
+    if (selected?.type === "lote" && selected.data?.id) map.setFeatureState({ source: "lotes", id: selected.data.id }, { selected: true });
     const barrioFeature = selected?.type === "barrio" ? barriosRef.current.features.find((item) => item.properties.id === selected.data?.id) : null;
     if (barrioFeature) map.fitBounds(geometryBounds(barrioFeature.geometry), { padding: 56, duration: 650 });
-    if (selected?.data?.bbox) map.fitBounds(selected.data.bbox, { padding: 72, duration: 650 });
+    if (selected?.data?.bbox && !mapContainsBbox(map, selected.data.bbox)) map.fitBounds(selected.data.bbox, { padding: 72, duration: 650 });
 
     if (selected?.type === "catastro" && Array.isArray(selected.data?.lnglat)) {
       const [lng, lat] = selected.data.lnglat.map(Number);
@@ -345,12 +373,12 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         <div className="sig-toolbar">
           <SigSearch api={api} onPick={async (item) => {
             if (item.type === "barrio") onSelect({ type: "barrio", data: { id: item.id, nombre: item.label, clave: item.detail } });
-            if (item.type === "lote") onSelect({ type: "lote", data: await api.lote(item.id) });
+            if (item.type === "lote") loadLote(item.id, { id: item.id, numero_lote: item.label, clave_catastral: item.detail });
             if (item.type === "abonado") onSelect({ type: "catastro", data: await api.catastroPunto(item.id) });
             if (item.type === "padron") {
               try {
                 const match = await api.resolveClave(item.id);
-                if (match.type === "lote") onSelect({ type: "lote", data: await api.lote(match.id) });
+                if (match.type === "lote") loadLote(match.id);
                 if (match.type === "catastro") onSelect({ type: "catastro", data: await api.catastroPunto(match.id) });
               } catch (error) {
                 showAlert?.(`${item.label}: sin punto georreferenciado en el mapa todavia.`);
@@ -380,9 +408,24 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
   );
 }
 
-function Drawer({ selected, summary, onClose, onOpenFieldValidation }) {
+function Drawer({ selected, summary, session, onClose, onOpenFieldValidation, onCreateInspection, onOpenFicha }) {
   if (!selected) return null;
   const data = selected.data || {};
+
+  if (selected.type === "lote") {
+    return (
+      <LoteTerritorialDrawer
+        data={data}
+        loading={selected.loading}
+        error={selected.error}
+        session={session}
+        onClose={onClose}
+        onCreateInspection={onCreateInspection}
+        onOpenFicha={onOpenFicha}
+        onOpenFieldValidation={onOpenFieldValidation}
+      />
+    );
+  }
 
   if (selected.type === "levantamiento") {
     const status = VALIDATION_STATUS[data.validation_status] || VALIDATION_STATUS.pending;
@@ -457,7 +500,7 @@ function Drawer({ selected, summary, onClose, onOpenFieldValidation }) {
   );
 }
 
-export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequest, onFocusConsumed, onOpenFieldValidation }) {
+export default function SigTerritorialWorkspace({ apiFetch, session, showAlert, focusRequest, onFocusConsumed, onOpenFieldValidation, onCreateInspection, onOpenFicha }) {
   const api = useMemo(() => createSigApi(apiFetch), [apiFetch]);
   const [tab, setTab] = useState("mapa");
   const [config, setConfig] = useState(null);
@@ -507,6 +550,14 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
     if (focusRequest) setTab("mapa");
   }, [focusRequest]);
 
+  useEffect(() => {
+    const close = (event) => {
+      if (event.key === "Escape") setSelected(null);
+    };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, []);
+
   return (
     <main className="sig-workspace">
       <header className="sig-header">
@@ -528,7 +579,15 @@ export default function SigTerritorialWorkspace({ apiFetch, showAlert, focusRequ
       {tab === "mapa" ? (
         ready ? <>
           <SigMap api={api} selected={selected} onSelect={setSelected} focusRequest={focusRequest} onFocusConsumed={onFocusConsumed} showAlert={showAlert} />
-          <Drawer selected={selected} summary={summary} onClose={() => setSelected(null)} onOpenFieldValidation={onOpenFieldValidation} />
+          <Drawer
+            selected={selected}
+            summary={summary}
+            session={session}
+            onClose={() => setSelected(null)}
+            onOpenFieldValidation={onOpenFieldValidation}
+            onCreateInspection={onCreateInspection}
+            onOpenFicha={onOpenFicha}
+          />
         </> : <SigOfflineState health={health} datasets={config?.datasets} />
       ) : tab === "barrios" ? (
         <section className="sig-placeholder">

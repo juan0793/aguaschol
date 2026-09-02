@@ -4,6 +4,7 @@ import { buildClaveBase } from "./gisImportUtils.js";
 import { getMasterRecords } from "../../services/claveLookupService.js";
 import { classifyGpsAccuracy, getPointClave, matchesBarrioCode, resolveFieldZone } from "../../utils/claveField.js";
 import { listBarrioCodes } from "../../services/barrioCodeService.js";
+import { deriveLoteVinculo } from "./gis.lote.js";
 
 export const getGisHealth = async () => checkGisConnection();
 
@@ -265,24 +266,33 @@ const findPadron = (clave = "", abonado = "") => {
 };
 
 const relatedMysql = async ({ clave = "", base = "" }) => {
-  if (!clave && !base) return { puntos_control: [], inspecciones: [] };
+  if (!clave && !base) return { puntos_control: [], inspecciones: [], fichas_relacionadas: [] };
   const pool = getPool();
   const like = `%${base || clave}%`;
-  const [points] = await pool.query(
-    `SELECT id, point_type, reference_note, description, latitude, longitude, created_at
-     FROM map_points
-     WHERE reference_note LIKE ? OR description LIKE ?
-     ORDER BY created_at DESC LIMIT 8`,
-    [like, like]
-  );
-  const [inspecciones] = await pool.query(
-    `SELECT id, numero_inspeccion, clave_catastral, estado, motivo, fecha_asignacion
-     FROM inspecciones
-     WHERE clave_catastral LIKE ?
-     ORDER BY fecha_asignacion DESC LIMIT 8`,
-    [like]
-  );
-  return { puntos_control: points, inspecciones };
+  const [points, inspecciones, fichas] = await Promise.all([
+    pool.query(
+      `SELECT id, point_type, reference_note, description, latitude, longitude, created_at
+       FROM map_points
+       WHERE reference_note LIKE ? OR description LIKE ?
+       ORDER BY created_at DESC LIMIT 8`,
+      [like, like]
+    ).then(([rows]) => rows),
+    pool.query(
+      `SELECT id, numero_inspeccion, clave_catastral, estado, motivo, fecha_asignacion
+       FROM inspecciones
+       WHERE clave_catastral LIKE ?
+       ORDER BY fecha_asignacion DESC LIMIT 8`,
+      [like]
+    ).then(([rows]) => rows),
+    pool.query(
+      `SELECT id, clave_catastral, abonado, nombre_catastral, inquilino, barrio_colonia, estado_operativo
+       FROM inmuebles_clandestinos
+       WHERE archived_at IS NULL AND clave_catastral LIKE ?
+       ORDER BY id DESC LIMIT 8`,
+      [like]
+    ).then(([rows]) => rows).catch(() => [])
+  ]);
+  return { puntos_control: points, inspecciones, fichas_relacionadas: fichas };
 };
 
 export const getLoteDetail = async (id) => {
@@ -290,7 +300,6 @@ export const getLoteDetail = async (id) => {
     SELECT l.id, l.numero_lote, l.clave_catastral, l.source_dataset, l.source_fid,
            b.id barrio_id, b.nombre barrio, b.clave barrio_clave,
            m.id manzana_id, COALESCE(m.numero, m.source_fid::text) manzana,
-           c.id catastro_id, c.clave_catastral catastro_clave, c.abonado, c.inquilino, c.direccion,
            ARRAY[
              ST_XMin(Box3D(ST_Transform(l.geom, 4326))),
              ST_YMin(Box3D(ST_Transform(l.geom, 4326))),
@@ -300,18 +309,30 @@ export const getLoteDetail = async (id) => {
     FROM gis_lotes l
     LEFT JOIN gis_barrios b ON b.id = l.barrio_id
     LEFT JOIN gis_manzanas m ON m.id = l.manzana_id
-    LEFT JOIN LATERAL (
-      SELECT * FROM gis_catastro_puntos c WHERE c.lote_id = l.id ORDER BY c.source_fid LIMIT 1
-    ) c ON TRUE
     WHERE l.id = $1 AND l.activo = TRUE
   `, [id]);
   const lote = rows[0];
   if (!lote) return null;
-  const clave = lote.catastro_clave || lote.clave_catastral || "";
-  const padron = findPadron(clave, lote.abonado);
+  const { rows: catastro } = await getGisPool().query(`
+    SELECT id, clave_catastral, abonado, inquilino, direccion
+    FROM gis_catastro_puntos
+    WHERE lote_id = $1
+    ORDER BY source_fid
+    LIMIT 20
+  `, [id]);
+  const unico = catastro.length === 1 ? catastro[0] : null;
+  const clave = unico?.clave_catastral || lote.clave_catastral || "";
+  const padron = findPadron(clave, unico?.abonado);
   const related = await relatedMysql({ clave: padron?.clave_catastral || clave, base: padron?.clave_base || buildClaveBase(clave) });
   return {
     ...lote,
+    catastro_id: unico?.id || null,
+    catastro_clave: unico?.clave_catastral || null,
+    abonado: unico?.abonado || null,
+    inquilino: unico?.inquilino || null,
+    direccion: unico?.direccion || null,
+    catastro_relacionados: catastro,
+    vinculo: deriveLoteVinculo({ lote, catastro, padron }),
     abonado_actual: padron ? {
       clave_catastral: padron.clave_catastral,
       abonado: padron.abonado,

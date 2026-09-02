@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getGisConfig, GIS_DATASETS } from "./gis.service.js";
 import { getGisPermissions } from "./gis.validation.js";
+import { deriveLoteVinculo } from "./gis.lote.js";
 
 test("config SIG expone SRID canonico y datasets verificados", () => {
   const config = getGisConfig({ role: "admin" });
@@ -18,4 +19,10 @@ test("permisos SIG son por rol y backend decide", () => {
   assert.equal(getGisPermissions({ role: "admin" }).includes("import"), true);
   assert.equal(getGisPermissions({ role: "operator" }).includes("deletePoint"), false);
   assert.deepEqual(getGisPermissions({ role: "unknown" }), []);
+});
+
+test("vinculo de lote no confirma claves ambiguas", () => {
+  assert.equal(deriveLoteVinculo({ catastro: [{ id: 1 }, { id: 2 }] }).estado, "ambiguous");
+  assert.equal(deriveLoteVinculo({ lote: { clave_catastral: "25-10" }, catastro: [], padron: null }).estado, "partial");
+  assert.equal(deriveLoteVinculo({ lote: {}, catastro: [], padron: null }).estado, "unlinked");
 });

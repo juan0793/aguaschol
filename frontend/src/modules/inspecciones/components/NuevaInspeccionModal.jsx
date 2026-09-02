@@ -3,15 +3,15 @@ import { Icon } from "../../../components/Icon";
 import TecnicosApoyoSelector from "./TecnicosApoyoSelector";
 import { MOTIVOS_SUGERIDOS } from "../utils/inspeccionesFormatters";
 
-export default function NuevaInspeccionModal({ api, tecnicos, notify, onClose, onCreated }) {
-  const [claveInput, setClaveInput] = useState("");
+export default function NuevaInspeccionModal({ api, tecnicos, initialData, notify, onClose, onCreated }) {
+  const [claveInput, setClaveInput] = useState(initialData?.clave_catastral || "");
   const [searching, setSearching] = useState(false);
   const [lookup, setLookup] = useState(null);
   const [abonadoSeleccionado, setAbonadoSeleccionado] = useState("");
   const [inspeccionGeneral, setInspeccionGeneral] = useState(false);
   const [motivo, setMotivo] = useState(MOTIVOS_SUGERIDOS[0]);
   const [motivoOtro, setMotivoOtro] = useState("");
-  const [trabajoSolicitado, setTrabajoSolicitado] = useState("");
+  const [trabajoSolicitado, setTrabajoSolicitado] = useState(initialData?.referencia ? `Verificar inmueble desde ${initialData.referencia}.` : "");
   const [responsableId, setResponsableId] = useState("");
   const [apoyos, setApoyos] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -31,6 +31,25 @@ export default function NuevaInspeccionModal({ api, tecnicos, notify, onClose, o
       setSearching(false);
     }
   };
+
+  useEffect(() => {
+    if (!initialData?.clave_catastral) return;
+    setClaveInput(initialData.clave_catastral);
+    setTrabajoSolicitado((current) => current || `Verificar inmueble desde ${initialData.referencia || "SIG Territorial"}.`);
+    (async () => {
+      setSearching(true);
+      try {
+        const result = await api.searchClave(initialData.clave_catastral, "clave");
+        setLookup(result);
+        const abonado = initialData.abonado || result.matches?.[0]?.abonado;
+        if (abonado) setAbonadoSeleccionado(String(abonado));
+      } catch (error) {
+        notify(error.message);
+      } finally {
+        setSearching(false);
+      }
+    })();
+  }, [api, initialData, notify]);
 
   const toggleApoyo = (id) => setApoyos((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
 

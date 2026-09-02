@@ -11,11 +11,21 @@ import "../styles/clandestinos.css";
 const tabs = [["resumen","Resumen","dashboard"],["fichas","Fichas","records"],["reportes","Reportes técnicos","activity"],["impresiones","Impresiones","print"],["configuracion","Configuración","more"]];
 const tabFromHash = () => location.hash.match(/^#clandestinos\/(\w+)/)?.[1] || "fichas";
 
-export default function ClandestinosPage({ apiFetch, session, showAlert, navigate, onPrintFicha, onPrintAviso }) {
+export default function ClandestinosPage({ apiFetch, session, showAlert, navigate, focusRequest, onFocusConsumed, onPrintFicha, onPrintAviso }) {
   const api = useMemo(() => createClandestinosApi(apiFetch), [apiFetch]); const [tab, setTab] = useState(tabFromHash); const [config, setConfig] = useState(null); const [drawer, setDrawer] = useState(undefined); const [selected, setSelected] = useState(new Map()); const [comparison, setComparison] = useState(null); const [bulkLoading, setBulkLoading] = useState(false);
   const fichas = useFichas(api, Boolean(config));
   useEffect(() => { api.config().then(setConfig).catch((error) => showAlert(error.message)); }, [api]);
   useEffect(() => { const change = () => setTab(tabFromHash()); addEventListener("hashchange", change); return () => removeEventListener("hashchange", change); }, []);
+  useEffect(() => {
+    if (!focusRequest || !config) return;
+    history.replaceState(null, "", "#clandestinos/fichas");
+    setTab("fichas");
+    api.fichas({ q: focusRequest.clave_catastral || "", limit: 8 }).then((data) => {
+      const found = data.items.find((item) => String(item.id) === String(focusRequest.fichaId)) || data.items[0];
+      if (found) setDrawer(found);
+      else showAlert("Sin ficha relacionada.");
+    }).catch((error) => showAlert(error.message)).finally(() => onFocusConsumed?.());
+  }, [api, config, focusRequest, onFocusConsumed, showAlert]);
   const go = (key) => { if (key === "resumen") { navigate("dashboard"); return; } history.replaceState(null, "", `#clandestinos/${key}`); setTab(key); };
   const toggle = (record) => setSelected((current) => { const next = new Map(current); const key = String(record.id); next.has(key) ? next.delete(key) : next.set(key, record); return next; });
   const toggleVisible = (records) => setSelected((current) => { const next = new Map(current); const remove = records.every((record) => next.has(String(record.id))); records.forEach((record) => remove ? next.delete(String(record.id)) : next.set(String(record.id), record)); return next; });

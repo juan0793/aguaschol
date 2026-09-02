@@ -503,6 +503,142 @@
 .sig-drawer dt { color: var(--sig-muted); }
 .sig-drawer dd { margin: 0; font-weight: 800; color: var(--sig-body); text-align: right; overflow-wrap: anywhere; }
 
+.sig-lote-drawer {
+  width: min(430px, calc(100vw - 32px));
+  max-height: calc(100vh - 116px);
+  overflow: auto;
+  padding: 0;
+}
+
+.sig-lote-drawer header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sig-line);
+  background: var(--surface, #fff);
+}
+
+.sig-lote-drawer header div,
+.sig-lote-drawer .sig-vinculo,
+.sig-lote-drawer .sig-lote-counts,
+.sig-lote-drawer section,
+.sig-lote-drawer .sig-drawer-actions {
+  display: initial;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sig-lote-drawer header button {
+  float: none;
+  flex: 0 0 auto;
+}
+
+.sig-lote-drawer header span {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.sig-lote-drawer header h2 {
+  clear: none;
+  margin: 4px 0 2px;
+  font-size: 21px;
+}
+
+.sig-lote-drawer header p {
+  margin: 0;
+  color: var(--sig-muted);
+  font-weight: 750;
+}
+
+.sig-vinculo {
+  display: grid !important;
+  gap: 2px;
+  margin: 14px 16px 10px;
+  padding: 10px 12px !important;
+  border: 1px solid var(--sig-line) !important;
+  border-radius: 8px;
+  background: var(--sig-tint);
+}
+
+.sig-vinculo strong { color: var(--sig-ink); }
+.sig-vinculo span { color: var(--sig-muted); font-size: 12px; }
+.sig-vinculo.is-linked { border-left: 3px solid var(--success) !important; }
+.sig-vinculo.is-partial,
+.sig-vinculo.is-ambiguous { border-left: 3px solid var(--alert) !important; }
+.sig-vinculo.is-unlinked { border-left: 3px solid var(--sig-muted) !important; }
+
+.sig-lote-counts {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 16px 12px;
+}
+
+.sig-lote-counts span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 6px;
+  border: 1px solid var(--sig-line-soft);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--sig-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.sig-lote-counts strong {
+  color: var(--sig-ink);
+  font-size: 16px;
+}
+
+.sig-lote-drawer section {
+  display: block !important;
+  margin: 0 16px 12px;
+  padding: 12px 0 0 !important;
+  border-top: 1px solid var(--sig-line-soft) !important;
+}
+
+.sig-lote-drawer section h3 {
+  margin: 0 0 8px;
+  color: var(--sig-ink);
+  font-size: 13px;
+}
+
+.sig-lote-drawer .sig-drawer-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 16px 16px;
+}
+
+.sig-lote-drawer .sig-drawer-actions button {
+  float: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+}
+
+.sig-drawer-error,
+.sig-drawer-warning {
+  margin: 12px 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(154, 90, 6, 0.24);
+  border-radius: 8px;
+  background: rgba(242, 182, 74, 0.14);
+  color: var(--alert);
+  font-weight: 750;
+}
+
 .sig-status-pill {
   display: inline-flex;
   align-items: center;
@@ -666,12 +802,41 @@
     max-width: none;
   }
   .sig-drawer { inset: auto 12px 12px; width: auto; }
+  .sig-lote-drawer { max-height: min(78vh, 640px); }
+  .sig-lote-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sig-offline {
     grid-template-columns: 1fr;
     min-height: 0;
     padding: 18px;
   }
   .sig-offline-metrics { min-width: 0; }
+}
+
+@media print {
+  body.sig-printing-lote * {
+    visibility: hidden;
+  }
+
+  body.sig-printing-lote .sig-lote-drawer,
+  body.sig-printing-lote .sig-lote-drawer * {
+    visibility: visible !important;
+  }
+
+  body.sig-printing-lote .sig-lote-drawer {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  body.sig-printing-lote .sig-lote-drawer header button,
+  body.sig-printing-lote .sig-lote-drawer .sig-drawer-actions {
+    display: none !important;
+  }
 }
 
 @media print {

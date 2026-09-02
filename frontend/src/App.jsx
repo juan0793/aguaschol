@@ -14523,7 +14523,13 @@ function App() {
         </section>
       </main>
       ) : workspaceView === "inspecciones" ? (
-      <InspeccionesPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
+      <InspeccionesPage
+        apiFetch={apiFetch}
+        session={session}
+        showAlert={showAlert}
+        focusRequest={crossModuleFocus?.view === "inspecciones" ? crossModuleFocus : null}
+        onFocusConsumed={() => setCrossModuleFocus(null)}
+      />
       ) : workspaceView === "entregas" ? (
       <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
       ) : workspaceView === "sigTerritorial" ? (
@@ -14535,6 +14541,14 @@ function App() {
             focusRequest={crossModuleFocus?.view === "sigTerritorial" ? crossModuleFocus : null}
             onFocusConsumed={() => setCrossModuleFocus(null)}
             onOpenFieldValidation={(payload) => navigateWithFocus("fieldValidation", payload)}
+            onCreateInspection={(payload) => navigateWithFocus("inspecciones", {
+              clave_catastral: payload?.clave_catastral || payload?.catastro_clave || "",
+              abonado: payload?.abonado_actual?.abonado || payload?.abonado || "",
+              abonado_nombre: payload?.abonado_actual?.nombre || payload?.inquilino || "",
+              barrio: payload?.barrio || "",
+              referencia: `SIG Territorial · lote ${payload?.numero_lote || payload?.id || ""}`.trim()
+            })}
+            onOpenFicha={(payload) => navigateWithFocus("records", { fichaId: payload?.id, clave_catastral: payload?.clave_catastral })}
           />
         </Suspense>
       ) : workspaceView === "records" ? (
@@ -14543,6 +14557,8 @@ function App() {
         session={session}
         showAlert={showAlert}
         navigate={setWorkspaceView}
+        focusRequest={crossModuleFocus?.view === "records" ? crossModuleFocus : null}
+        onFocusConsumed={() => setCrossModuleFocus(null)}
         onPrintFicha={handlePrintFicha}
         onPrintAviso={handlePrintAviso}
       />
