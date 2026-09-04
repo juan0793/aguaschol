@@ -16,7 +16,7 @@
   --muted: var(--text-muted, #597087);
   --success: var(--brand-teal, #18a689);
   --alert: #9a5a06;
-  --danger: var(--danger, #9b202d);
+  --danger: #9b202d;
 
   min-height: 70vh;
   padding: 18px;
@@ -29,15 +29,11 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 12px;
-  padding: 16px 18px;
-  border: 1px solid var(--sig-line);
-  border-left: 3px solid var(--primary);
-  border-radius: var(--radius-lg, 14px);
-  background: var(--surface, #fff);
-  box-shadow: var(--shadow-xs);
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--sig-line);
 }
 
-.sig-header h1 { margin: 2px 0 4px; color: var(--sig-ink); }
+.sig-header h1 { margin: 4px 0 6px; color: var(--sig-ink); font-size: 26px; font-weight: 750; letter-spacing: -.035em; }
 .sig-header p { margin: 0; color: var(--sig-muted); }
 
 .sig-status {
@@ -100,9 +96,13 @@
 
 .sig-map-shell {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 12px;
-  min-height: 680px;
+  grid-template-columns: 238px minmax(0, 1fr);
+  gap: 0;
+  min-height: 600px;
+  height: max(600px, calc(100dvh - 245px));
+  border: 1px solid var(--sig-line);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .sig-layer-panel,
@@ -115,8 +115,12 @@
 }
 
 .sig-layer-panel {
-  padding: 14px;
+  padding: 18px 12px;
   overflow: auto;
+  border: 0;
+  border-right: 1px solid var(--sig-line);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .sig-layer-panel h3 {
@@ -144,6 +148,9 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .sig-toolbar {
@@ -154,7 +161,7 @@
   align-items: center;
   padding: 10px;
   border-bottom: 1px solid var(--sig-line);
-  background: var(--sig-tint);
+  background: var(--surface, #fff);
 }
 
 .sig-toolbar label {
@@ -273,7 +280,7 @@
   cursor: not-allowed;
 }
 
-.sig-map { min-height: 560px; }
+.sig-map { min-height: 0; background: #e8eee9; }
 
 .sig-map-legend {
   position: absolute;
@@ -382,7 +389,7 @@
 .sig-placeholder ul {
   display: grid;
   gap: 8px;
-  max-width: 720px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   padding: 0;
   list-style: none;
 }
@@ -450,7 +457,9 @@
   top: 88px;
   right: 18px;
   z-index: 15;
-  width: min(340px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100dvh - 110px);
+  overflow-y: auto;
   padding: 16px;
   border: 1px solid var(--sig-line);
   border-top: 3px solid var(--primary);
@@ -461,7 +470,7 @@
 
 .sig-drawer button {
   float: right;
-  min-height: 32px;
+  min-height: 44px;
   padding: 0 10px;
 }
 
@@ -748,68 +757,80 @@
 .sig-verify-glyph.is-mismatch { background: rgba(154, 90, 6, 0.16); color: var(--alert); }
 .sig-verify-glyph.is-unknown { background: var(--sig-tint); color: var(--sig-muted); }
 
-@media (max-width: 900px) {
-  .sig-header,
-  .sig-toolbar,
-  .sig-map-stage footer,
-  .sig-placeholder li {
-    align-items: stretch;
-    flex-direction: column;
-  }
+/* Map tools use the same compact control rhythm as the rest of SIG. */
+.sig-workspace button:focus-visible,
+.sig-workspace summary:focus-visible,
+.sig-workspace input:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.sig-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
+.sig-tabs .app-icon, .sig-toolbar .app-icon, .sig-layer-tip .app-icon { width: 18px; height: 18px; flex: 0 0 18px; }
+.sig-tabs { margin-bottom: 16px; }
+.sig-toolbar button { min-height: 44px; flex-shrink: 0; }
+.sig-map .maplibregl-ctrl-group { border: 1px solid var(--sig-line); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px #183b5a18; }
+.sig-map .maplibregl-ctrl-group button { width: 38px; height: 38px; padding: 0; border-radius: 0; background: #fff; }
+.sig-map .maplibregl-ctrl-group button:hover { background: var(--sig-tint); }
+.sig-toolbar .sig-layers-toggle { display: none; }
+.sig-layer-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sig-layer-heading h3 { margin: 0; color: var(--sig-ink); font-size: 13px; letter-spacing: 0; text-transform: none; }
+.sig-layer-heading > span { font-size: 11px; color: var(--sig-muted); }
+.sig-layer-intro { margin: 6px 0 20px; font-size: 12px; color: var(--sig-muted); }
+.sig-layer-panel details { padding: 14px 0; }
+.sig-layer-panel summary { padding: 4px 6px; font-size: 12px; letter-spacing: .04em; }
+.sig-layer-panel label { min-height: 50px; padding: 7px 8px; margin-top: 4px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+.sig-layer-panel label:hover { background: #f5f8fb; }
+.sig-layer-panel label.is-selected { background: var(--sig-tint); }
+.sig-layer-panel label span { display: grid; gap: 3px; }
+.sig-layer-panel label small { color: var(--sig-muted); font-size: 10px; font-weight: 400; }
+.sig-layer-panel input[type="checkbox"] { flex: 0 0 16px; margin: 0 3px 0 0; }
+.sig-layer-tip { display: flex; gap: 8px; margin: 12px 4px 0; padding-top: 16px; border-top: 1px solid var(--sig-line); color: var(--sig-muted); font-size: 12px; line-height: 1.6; }
+.sig-map-stage footer { flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; font-size: 11px; }
+.sig-placeholder li button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; min-height: 44px; flex-shrink: 0; }
+.sig-placeholder li strong { font-size: 14px; overflow-wrap: anywhere; }
+.sig-placeholder li > span { font-size: 12px; }
+.sig-placeholder h2 { font-size: 20px; }
+.sig-placeholder > p { color: var(--sig-muted); }
 
+@media (max-width: 1100px) {
+  .sig-map-shell { grid-template-columns: 214px minmax(0, 1fr); }
+  .sig-toolbar { flex-wrap: wrap; }
+  .sig-search { flex-basis: 100%; min-width: 0; }
+}
+
+@media (max-width: 900px) {
   .sig-workspace { padding: 12px; }
-  .sig-header { gap: 12px; }
-  .sig-status { width: 100%; justify-content: center; }
-  .sig-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-    overflow: visible;
-  }
-  .sig-tabs button {
-    min-width: 0;
-    min-height: 42px;
-    padding: 0 8px;
-  }
-  .sig-map-shell { grid-template-columns: 1fr; min-height: 0; }
-  .sig-layer-panel { max-height: none; }
-  .sig-layer-panel details {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 12px;
-  }
-  .sig-layer-panel summary { grid-column: 1 / -1; }
-  .sig-layer-panel label {
-    min-height: 36px;
-    margin-top: 0;
-    font-size: 14px;
-  }
-  .sig-layer-panel input {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 auto;
-  }
-  .sig-toolbar button {
-    justify-content: center;
-    width: 100%;
-  }
-  .sig-search { min-width: 0; width: 100%; }
-  .sig-map { min-height: 520px; }
-  .sig-map-legend {
-    left: 10px;
-    right: 10px;
-    bottom: 42px;
-    max-width: none;
-  }
-  .sig-drawer { inset: auto 12px 12px; width: auto; }
-  .sig-lote-drawer { max-height: min(78vh, 640px); }
+  .sig-header { align-items: flex-start; gap: 12px; }
+  .sig-header h1 { font-size: 23px; }
+  .sig-header p { font-size: 13px; }
+  .sig-status { font-size: 11px; padding: 7px 9px; }
+  .sig-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
+  .sig-tabs button { min-width: 0; padding: 0 6px; font-size: 12px; gap: 5px; }
+  .sig-map-shell { position: relative; display: flex; flex-direction: column; height: auto; min-height: 0; }
+  .sig-layer-panel { display: none; order: 1; border: 0; border-top: 1px solid var(--sig-line); }
+  .is-layers-open .sig-layer-panel { display: block; position: absolute; z-index: 9; inset: 118px 0 36px; overflow-y: auto; }
+  .sig-layer-panel details { padding: 8px 0; }
+  .sig-layer-panel label { min-height: 48px; }
+  .sig-layer-panel input[type="checkbox"] { width: 18px; height: 18px; flex-basis: 18px; }
+  .sig-map-stage { height: 560px; }
+  .sig-map .maplibregl-ctrl-group button { width: 44px; height: 44px; }
+  .sig-toolbar .sig-layers-toggle { display: inline-flex; }
+  .sig-toolbar button { flex: 1; justify-content: center; padding: 0 8px; font-size: 12px; }
+  .sig-search { order: -1; width: 100%; }
+  .sig-map-legend { left: 10px; bottom: 64px; max-width: calc(100% - 20px); padding: 5px; gap: 2px; }
+  .sig-drawer { inset: auto 12px 12px; width: auto; max-height: 78dvh; }
   .sig-lote-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .sig-offline {
-    grid-template-columns: 1fr;
-    min-height: 0;
-    padding: 18px;
-  }
+  .sig-offline { grid-template-columns: 1fr; min-height: 0; padding: 18px; }
   .sig-offline-metrics { min-width: 0; }
+}
+
+@media (max-width: 540px) {
+  .sig-header { flex-direction: column; }
+  .sig-tabs .app-icon { display: none; }
+  .sig-placeholder { padding: 14px; }
+  .sig-placeholder li { align-items: flex-start; flex-direction: column; }
+  .sig-map-stage { height: 510px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sig-workspace *, .sig-workspace *::before, .sig-workspace *::after { transition: none !important; scroll-behavior: auto !important; }
 }
 
 @media print {

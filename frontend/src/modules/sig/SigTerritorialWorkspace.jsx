@@ -4,11 +4,16 @@ import { getMapPointTypeLabel } from "../../utils/mapField";
 import LoteTerritorialDrawer from "./components/LoteTerritorialDrawer";
 import { createSigApi } from "./services/sigApi";
 import { emptyFeatureCollection, geometryBounds } from "./utils/sigGeojson";
-import { sigVisibleLayerGroups } from "./utils/sigZoomRules";
+import { loteLineWidth } from "./utils/sigZoomRules";
 import { money } from "./utils/loteTerritorial";
 import "./sigTerritorial.css";
 
 const TABS = [["mapa", "Mapa"], ["barrios", "Barrios"], ["analisis", "Análisis"], ["reportes", "Reportes"]];
+const LAYER_GROUPS = [
+  ["Territorio", [["barrios", "Barrios", 0], ["manzanas", "Manzanas", 14], ["quebradas", "Quebradas", 12]]],
+  ["Catastro", [["lotes", "Lotes", 14], ["numeros", "Números de lote", 17], ["abonados", "Abonados", 13]]],
+  ["Trabajo de campo", [["levantamientos", "Levantamientos", 15]]]
+];
 const initialCenter = [-87.1908, 13.3003];
 const VALIDATION_STATUS = {
   approved: { label: "Aprobado", color: "#18a689" },
@@ -100,7 +105,7 @@ function SigSearch({ api, onPick }) {
     <div className="sig-search" ref={searchRef}>
       <label>
         <Icon name="search" />
-        <input value={query} onFocus={() => result?.groups?.length && setOpen(true)} onChange={(event) => setQuery(event.target.value)} placeholder="Clave, abonado, barrio, manzana o lote" />
+        <input aria-label="Buscar en el territorio" type="search" value={query} onFocus={() => result?.groups?.length && setOpen(true)} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar clave, abonado o barrio…" />
       </label>
       {open && result?.groups?.length ? (
         <div className="sig-search-results">
@@ -136,8 +141,8 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
   const loteRequestRef = useRef(0);
   const [zoom, setZoom] = useState(12);
   const [ready, setReady] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(false);
   const [layers, setLayers] = useState({ barrios: true, lotes: true, abonados: true, levantamientos: false });
-  const visibleGroups = useMemo(() => sigVisibleLayerGroups(zoom), [zoom]);
 
   const loadLote = useCallback(async (id, fallback = {}) => {
     const key = Number(id);
@@ -226,7 +231,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         map.addLayer({ id: "manzanas-line", type: "line", source: "manzanas", minzoom: 14, paint: { "line-color": "#9a5a06", "line-opacity": 0.3, "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.9] } });
         map.addLayer({ id: "manzanas-label", type: "symbol", source: "manzanas", minzoom: 16, layout: { "text-field": ["coalesce", ["get", "numero"], ""], "text-size": 10 }, paint: { "text-color": "#9a5a06", "text-halo-color": "#fff", "text-halo-width": 1 } });
         map.addLayer({ id: "lotes-fill", type: "fill", source: "lotes", minzoom: 14, paint: { "fill-color": ["case", ["boolean", ["feature-state", "selected"], false], "#f2b64a", "#315bff"], "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.36, 0.08] } });
-        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#0b3f73", "#315bff"], "line-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.92, 0.5], "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 2.2, ["interpolate", ["linear"], ["zoom"], 14, 0.45, 18, 0.85, 21, 1.1]] } });
+        map.addLayer({ id: "lotes-line", type: "line", source: "lotes", minzoom: 14, paint: { "line-color": ["case", ["boolean", ["feature-state", "selected"], false], "#0b3f73", "#315bff"], "line-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.92, 0.5], "line-width": loteLineWidth } });
         map.addLayer({ id: "numeros-lote", type: "symbol", source: "lotes", minzoom: 17, layout: { "text-field": ["coalesce", ["get", "numero_lote"], ""], "text-size": 11 }, paint: { "text-color": "#0b3f73", "text-halo-color": "#fff", "text-halo-width": 1 } });
         map.addLayer({ id: "catastro-clusters", type: "circle", source: "catastro", filter: ["==", ["get", "cluster"], true], paint: { "circle-color": "#1465d9", "circle-radius": ["interpolate", ["linear"], ["get", "total"], 1, 8, 25, 11, 100, 15, 500, 21], "circle-opacity": 0.68, "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
         map.addLayer({ id: "catastro-cluster-count", type: "symbol", source: "catastro", filter: ["==", ["get", "cluster"], true], layout: { "text-field": ["to-string", ["get", "total"]], "text-size": 11 }, paint: { "text-color": "#fff", "text-halo-color": "#0b3f73", "text-halo-width": 0.4 } });
@@ -262,7 +267,9 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         refreshRef.current().catch(() => {});
       });
       mapRef.current = map;
-      cleanup = () => map.remove();
+      const observer = new ResizeObserver(() => map.resize());
+      observer.observe(containerRef.current);
+      cleanup = () => { observer.disconnect(); map.remove(); };
     })();
     return () => {
       cancelled = true;
@@ -354,23 +361,26 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
   };
 
   return (
-    <section className="sig-map-shell">
-      <aside className="sig-layer-panel">
-        <h3>Capas</h3>
-        {[["Territorio", [["barrios", "Barrios"], ["manzanas", "Manzanas"], ["quebradas", "Quebradas"]]], ["Catastro", [["lotes", "Lotes"], ["numeros", "Números de lote"], ["abonados", "Abonados"]]], ["Operativo", [["levantamientos", "Levantamientos"], ["inspecciones", "Inspecciones"]]]].map(([group, items]) => (
+    <section className={`sig-map-shell ${layersOpen ? "is-layers-open" : ""}`}>
+      <aside className="sig-layer-panel" id="sig-layers" aria-label="Capas del mapa">
+        <div className="sig-layer-heading"><h3>Capas del mapa</h3><span>{Object.values(layers).filter(Boolean).length} activas</span></div>
+        <p className="sig-layer-intro">Elige qué información explorar.</p>
+        {LAYER_GROUPS.map(([group, items]) => (
           <details key={group} open>
             <summary>{group}</summary>
-            {items.map(([key, label]) => (
-              <label key={key}>
-                <input type="checkbox" checked={Boolean(layers[key])} disabled={!["barrios", "manzanas", "quebradas", "lotes", "numeros", "abonados", "levantamientos"].includes(key)} onChange={(event) => setLayers((prev) => ({ ...prev, [key]: event.target.checked }))} />
-                {label}
+            {items.map(([key, label, minZoom]) => (
+              <label key={key} className={layers[key] ? "is-selected" : ""}>
+                <input type="checkbox" checked={Boolean(layers[key])} onChange={(event) => setLayers((prev) => ({ ...prev, [key]: event.target.checked }))} />
+                <span>{label}<small>{zoom < minZoom ? `Acércate a zoom ${minZoom}` : "Disponible en esta escala"}</small></span>
               </label>
             ))}
           </details>
         ))}
+        <p className="sig-layer-tip"><Icon name="map" /> Selecciona un elemento del mapa para consultar su ficha.</p>
       </aside>
       <div className="sig-map-stage">
         <div className="sig-toolbar">
+          <button className="sig-layers-toggle" type="button" aria-expanded={layersOpen} aria-controls="sig-layers" onClick={() => setLayersOpen(!layersOpen)}><Icon name="filter" /> Capas</button>
           <SigSearch api={api} onPick={async (item) => {
             if (item.type === "barrio") onSelect({ type: "barrio", data: { id: item.id, nombre: item.label, clave: item.detail } });
             if (item.type === "lote") loadLote(item.id, { id: item.id, numero_lote: item.label, clave_catastral: item.detail });
@@ -385,7 +395,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
               }
             }
           }} />
-          <button type="button" disabled><Icon name="plus" /> Punto</button>
+          <button type="button" title="Volver a la vista de Choluteca" onClick={() => mapRef.current?.flyTo({ center: initialCenter, zoom: 12 })}><Icon name="map" /> <span>Vista inicial</span></button>
           <button type="button" onClick={printMap}><Icon name="print" /> Imprimir</button>
         </div>
         <div ref={containerRef} className="sig-map" />
@@ -400,8 +410,7 @@ function SigMap({ api, selected, onSelect, focusRequest, onFocusConsumed, showAl
         <footer>
           <span>Zoom {zoom}</span>
           <span>UTM 16N · EPSG:32616</span>
-          <span>Barrios: {ready ? "cargados" : "cargando"}</span>
-          <span>Reglas: {visibleGroups.join(", ")}</span>
+          <span role="status">{ready ? "Cartografía lista" : "Cargando cartografía…"}</span>
         </footer>
       </div>
     </section>
@@ -564,16 +573,16 @@ export default function SigTerritorialWorkspace({ apiFetch, session, showAlert, 
         <div>
           <span className="cl-kicker">Control Aguas</span>
           <h1>SIG Territorial</h1>
-          <p>Infraestructura y análisis territorial.</p>
+          <p>Consulta barrios, lotes y abonados en el mapa.</p>
         </div>
         <div className={`sig-status ${ready ? "is-ready" : ""}`}>
           <i />
-          <span>{health == null ? "Verificando GIS..." : ready ? "PostGIS conectado" : health?.configured ? "PostGIS no disponible" : "GIS_DATABASE_URL pendiente"}</span>
+          <span>{health == null ? "Conectando…" : ready ? "Conexión territorial activa" : "Conexión territorial no disponible"}</span>
         </div>
       </header>
 
       <nav className="sig-tabs" aria-label="Vistas SIG Territorial">
-        {TABS.map(([key, label]) => <button key={key} type="button" className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}>{label}</button>)}
+        {TABS.map(([key, label]) => <button key={key} type="button" aria-current={tab === key ? "page" : undefined} className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}><Icon name={{ mapa: "map", barrios: "home", analisis: "activity", reportes: "records" }[key]} />{label}</button>)}
       </nav>
 
       {tab === "mapa" ? (
@@ -603,7 +612,7 @@ export default function SigTerritorialWorkspace({ apiFetch, session, showAlert, 
             {barrios.map((item) => (
               <li key={item.id}>
                 <strong>{item.clave || "--"} · {item.nombre || "Sin nombre"}</strong>
-                <button type="button" onClick={() => { setSelected({ type: "barrio", data: item }); setTab("mapa"); }}>Ver</button>
+                <button type="button" onClick={() => { setSelected({ type: "barrio", data: item }); setTab("mapa"); }}>Ver en mapa <Icon name="arrowRight" /></button>
               </li>
             ))}
           </ul>
