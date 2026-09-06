@@ -16,8 +16,8 @@ function QA() {
   const [selected, setSelected] = useState(users[0]);
   const [form, setForm] = useState({ full_name: "", email: "", role: "operator" });
   return <main className="admin-layout">
-    <UsersSidebar loadingUsers={false} safeUsers={users} selectedUser={selected} session={{ user: users[0] }} setPendingDeleteUser={() => {}} setSelectedUserId={(id) => setSelected(users.find((user) => user.id === id))} formatDateTime={format} roleLabel={role} />
-    <section className="admin-content"><UsersContent apiFetch={apiFetch} creatingUser={false} handleCreateUser={(event) => event.preventDefault()} handleResetUserPassword={() => {}} handleUpdateUserRole={() => {}} handleUserFormChange={(event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }))} latestUserResult={null} savingUserRoleId={null} selectedUser={selected} session={{ user: users[0] }} setUserForm={setForm} userForm={form} formatDateTime={format} roleLabel={role} safeUsers={users} showAlert={() => {}} /></section>
+    <UsersSidebar loadingUsers={false} safeUsers={users} selectedUser={selected} setSelectedUserId={(id) => setSelected(users.find((user) => user.id === id))} roleLabel={role} />
+    <section className="admin-content"><UsersContent apiFetch={apiFetch} creatingUser={false} handleCreateUser={(event) => event.preventDefault()} handleResetUserPassword={() => {}} handleUpdateUserRole={() => {}} handleUserFormChange={(event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }))} latestUserResult={null} savingUserRoleId={null} selectedUser={selected} session={{ user: users[0] }} setPendingDeleteUser={(user) => alert(`Eliminar: ${user.full_name}`)} setUserForm={setForm} userForm={form} formatDateTime={format} roleLabel={role} safeUsers={users} showAlert={() => {}} /></section>
   </main>;
 }
 

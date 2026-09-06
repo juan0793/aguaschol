@@ -17022,10 +17022,7 @@ function App() {
               loadingUsers={loadingUsers}
               safeUsers={safeUsers}
               selectedUser={selectedUser}
-              session={session}
-              setPendingDeleteUser={setPendingDeleteUser}
               setSelectedUserId={setSelectedUserId}
-              formatDateTime={formatDateTime}
               roleLabel={roleLabel}
             />
           ) : null}
@@ -19140,6 +19137,7 @@ function App() {
                 savingUserRoleId={savingUserRoleId}
                 selectedUser={selectedUser}
                 session={session}
+                setPendingDeleteUser={setPendingDeleteUser}
                 setUserForm={setUserForm}
                 userForm={userForm}
                 formatDateTime={formatDateTime}

@@ -180,22 +180,44 @@ function TelegramAccessPanel({ apiFetch, formatDateTime, showAlert }) {
   );
 }
 
+const AVATAR_TONES = ["blue", "teal", "gold", "indigo", "cyan"];
+
+function avatarTone(user) {
+  const key = String(user.id ?? user.username ?? user.full_name ?? "");
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  return AVATAR_TONES[hash % AVATAR_TONES.length];
+}
+
+const USER_FILTERS = [
+  { key: "all", label: "Todos" },
+  { key: "online", label: "En línea" },
+  { key: "admin", label: "Administradores" },
+  { key: "operator", label: "Operadores" }
+];
+
 export function UsersSidebar({
   loadingUsers,
   safeUsers,
   selectedUser,
-  session,
-  setPendingDeleteUser,
   setSelectedUserId,
-  formatDateTime,
   roleLabel
 }) {
   const [query, setQuery] = useState("");
-  const visibleUsers = safeUsers.filter((user) =>
-    [user.full_name, user.email, user.username].some((value) =>
-      String(value || "").toLocaleLowerCase("es").includes(query.trim().toLocaleLowerCase("es"))
-    )
-  );
+  const [activeFilter, setActiveFilter] = useState("all");
+
+  const visibleUsers = safeUsers
+    .filter((user) => {
+      if (activeFilter === "online") return user.is_online;
+      if (activeFilter === "admin") return user.role === "admin";
+      if (activeFilter === "operator") return user.role === "operator";
+      return true;
+    })
+    .filter((user) =>
+      [user.full_name, user.email, user.username].some((value) =>
+        String(value || "").toLocaleLowerCase("es").includes(query.trim().toLocaleLowerCase("es"))
+      )
+    );
 
   return (
     <aside className="sidebar no-print users-sidebar-panel">
@@ -215,7 +237,33 @@ export function UsersSidebar({
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Buscar nombre, correo o usuario"
         />
+        <button
+          type="button"
+          className="users-search-reset"
+          onClick={() => {
+            setQuery("");
+            setActiveFilter("all");
+          }}
+          aria-label="Limpiar busqueda y filtros"
+          title="Limpiar busqueda y filtros"
+        >
+          <Icon name="filter" />
+        </button>
       </label>
+      <div className="users-filter-row" role="tablist" aria-label="Filtrar usuarios">
+        {USER_FILTERS.map((filter) => (
+          <button
+            key={filter.key}
+            type="button"
+            role="tab"
+            aria-selected={activeFilter === filter.key}
+            className={`users-filter-chip ${activeFilter === filter.key ? "is-active" : ""}`}
+            onClick={() => setActiveFilter(filter.key)}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
       {loadingUsers ? <p className="helper-text">Cargando usuarios...</p> : null}
       <div className="record-list users-list">
         {visibleUsers.length ? (
@@ -225,38 +273,19 @@ export function UsersSidebar({
               className={`record-card info-card user-list-card ${selectedUser?.id === user.id ? "is-selected" : ""}`}
             >
               <button type="button" className="user-list-main" onClick={() => setSelectedUserId(user.id)}>
-                <span className="user-list-avatar" aria-hidden="true">
+                <span className={`user-list-avatar users-avatar-tone-${avatarTone(user)}`} aria-hidden="true">
                   {String(user.full_name || user.username || "U").trim().charAt(0).toUpperCase()}
                 </span>
                 <div className="record-card-top user-card-top">
                   <strong className="user-name">{user.full_name}</strong>
-                  <div className="user-badge-stack">
-                    <span className={`record-badge user-presence ${user.is_online ? "is-online" : ""}`}>
-                      {user.is_online ? "En línea" : "Sin conexión"}
-                    </span>
-                    <span className="user-role-text"><Icon name="auth" />{roleLabel(user.role)}</span>
-                  </div>
+                  <span className="record-badge user-role-badge">{roleLabel(user.role)}</span>
                 </div>
                 <span className="user-email"><Icon name="mail" /><span>{user.email}</span></span>
-                <small className="user-meta" title={`Usuario: ${user.username} - Ultimo acceso: ${formatDateTime(user.last_login_at)}`}>
-                  <Icon name="history" /><span>{user.username} · {formatDateTime(user.last_login_at)}</span>
-                </small>
+                <span className={`user-status-line ${user.is_online ? "is-online" : ""}`}>
+                  <i className="user-status-dot" aria-hidden="true" />
+                  {user.is_online ? "En línea" : "Desconectado"}
+                </span>
               </button>
-              <div className="user-card-actions">
-                <span className="user-role-text"><Icon name="activity" />{user.active_sessions || 0} sesiones</span>
-                {session?.user?.id !== user.id ? (
-                  <button
-                    type="button"
-                    className="button-danger"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setPendingDeleteUser(user);
-                    }}
-                  >
-                    <Icon name="trash" />Eliminar
-                  </button>
-                ) : null}
-              </div>
             </article>
           ))
         ) : (
@@ -270,6 +299,13 @@ export function UsersSidebar({
   );
 }
 
+const ROLE_DESCRIPTIONS = {
+  admin: "Control total: gestiona usuarios, padrones y configuraciones del sistema.",
+  operator: "Puede gestionar operaciones diarias del sistema.",
+  validadora_campo: "Valida y confirma la informacion levantada en campo.",
+  transport: "Registra rutas y recolecciones de transporte."
+};
+
 export function UsersContent({
   apiFetch,
   creatingUser,
@@ -281,6 +317,7 @@ export function UsersContent({
   savingUserRoleId,
   selectedUser,
   session,
+  setPendingDeleteUser,
   setUserForm,
   userForm,
   formatDateTime,
@@ -294,15 +331,15 @@ export function UsersContent({
     <>
       <section className="users-workspace-shell">
         <div className="users-hero-strip no-print">
+          <span className="users-hero-icon" aria-hidden="true"><Icon name="users" /></span>
           <div>
             <p className="sheet-kicker">Administracion de usuarios</p>
-            <h2><Icon name="users" className="title-icon" />Accesos del equipo</h2>
+            <h2>Accesos del equipo</h2>
             <p className="workspace-title">
-              Administra cuentas, perfiles, sesiones activas y accesos al bot desde un solo lugar.
+              Administra cuentas, perfiles, sesiones activas y accesos al sistema desde un solo lugar.
             </p>
           </div>
           <div className="users-hero-actions">
-            <span className="panel-pill">Correo transaccional</span>
             {selectedUser ? (
               <button type="button" className="button-secondary" onClick={() => setDetailOpen(true)}>
                 <Icon name="records" />
@@ -310,26 +347,39 @@ export function UsersContent({
               </button>
             ) : null}
           </div>
+          <div className="users-hero-motif" aria-hidden="true">
+            <p className="users-hero-tagline">
+              Agua que nos une
+              <small>Personas que la hacen posible</small>
+            </p>
+            <svg viewBox="0 0 220 100" className="users-hero-illustration">
+              <path d="M0 78 20 60 38 74 58 48 82 70 104 40 128 66 152 46 176 68 200 52 220 66V100H0Z" className="users-hero-mountain" />
+              <path d="M0 88q20-8 40 0t40 0 40 0 40 0 40 0 40 0V100H0Z" className="users-hero-water" />
+            </svg>
+          </div>
         </div>
 
         <div className="users-metric-grid no-print">
           <article>
             <span className="users-metric-icon"><Icon name="users" /></span>
-            <span>Usuarios</span>
-            <strong>{safeUsers.length}</strong>
-            <small>Cuentas registradas</small>
+            <div className="users-metric-copy">
+              <p className="users-metric-value"><strong>{safeUsers.length}</strong> usuarios</p>
+              <small>Cuentas registradas</small>
+            </div>
           </article>
           <article className="is-live">
             <span className="users-metric-icon"><Icon name="activity" /></span>
-            <span>En línea</span>
-            <strong>{safeUsers.filter((user) => user.is_online).length}</strong>
-            <small>Sesiones activas ahora</small>
+            <div className="users-metric-copy">
+              <p className="users-metric-value"><strong>{safeUsers.filter((user) => user.is_online).length}</strong> en línea</p>
+              <small>Sesiones activas ahora</small>
+            </div>
           </article>
           <article className="is-admin">
             <span className="users-metric-icon"><Icon name="auth" /></span>
-            <span>Administradores</span>
-            <strong>{safeUsers.filter((user) => user.role === "admin").length}</strong>
-            <small>Con control total</small>
+            <div className="users-metric-copy">
+              <p className="users-metric-value"><strong>{safeUsers.filter((user) => user.role === "admin").length}</strong> administradores</p>
+              <small>Con control total</small>
+            </div>
           </article>
         </div>
 
@@ -343,34 +393,43 @@ export function UsersContent({
               <span className="panel-pill">Perfil inicial</span>
             </div>
             <div className="users-create-guide" aria-label="Flujo de creacion de usuario">
-              <span><Icon name="users" /> Datos</span>
-              <span><Icon name="auth" /> Perfil</span>
-              <span><Icon name="success" /> Entrega</span>
+              <span className="is-active"><i>1</i> Datos</span>
+              <span><i>2</i> Perfil</span>
+              <span><i>3</i> Entrega</span>
             </div>
             <section className="sheet-section users-form-section">
               <div className="users-form-section-head">
                 <div>
                   <h3>Datos del usuario</h3>
-                  <p>El sistema genera credenciales temporales y prepara el correo de bienvenida.</p>
+                  <p>El sistema genera usuario y contrasena temporal y prepara el correo de bienvenida.</p>
                 </div>
               </div>
               <div className="form-grid users-form-grid">
-                <label>
+                <label className="users-input-icon">
                   <span>Nombre completo</span>
-                  <input name="full_name" value={userForm.full_name} onChange={handleUserFormChange} required />
+                  <span className="users-input-wrap">
+                    <Icon name="users" />
+                    <input name="full_name" value={userForm.full_name} onChange={handleUserFormChange} required />
+                  </span>
                 </label>
-                <label>
+                <label className="users-input-icon">
                   <span>Correo electronico</span>
-                  <input name="email" type="email" value={userForm.email} onChange={handleUserFormChange} required />
+                  <span className="users-input-wrap">
+                    <Icon name="mail" />
+                    <input name="email" type="email" value={userForm.email} onChange={handleUserFormChange} required />
+                  </span>
                 </label>
-                <label>
+                <label className="users-input-icon">
                   <span>Perfil</span>
-                  <select name="role" value={userForm.role} onChange={handleUserFormChange}>
-                    <option value="operator">Operador</option>
-                    <option value="validadora_campo">Validacion campo</option>
-                    <option value="transport">Transporte</option>
-                    <option value="admin">Administrador</option>
-                  </select>
+                  <span className="users-input-wrap">
+                    <Icon name="auth" />
+                    <select name="role" value={userForm.role} onChange={handleUserFormChange}>
+                      <option value="operator">Operador</option>
+                      <option value="validadora_campo">Validacion campo</option>
+                      <option value="transport">Transporte</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </span>
                 </label>
               </div>
               <div className="users-role-hint">
@@ -404,26 +463,75 @@ export function UsersContent({
             <div className="admin-section-head">
               <div>
                 <p className="sheet-kicker">Detalle del usuario</p>
-                <h2><Icon name="success" className="title-icon" />Informacion del acceso</h2>
+                <h2>Informacion del acceso</h2>
               </div>
-              {selectedUser ? <span className="panel-pill">{selectedUser.username}</span> : null}
+              {selectedUser ? (
+                <button
+                  type="button"
+                  className="users-detail-more"
+                  onClick={() => setDetailOpen(true)}
+                  aria-label="Ver detalle completo"
+                  title="Ver detalle completo"
+                >
+                  <Icon name="more" />
+                </button>
+              ) : null}
             </div>
             <article className="document-sheet users-summary-sheet">
               {selectedUser ? (
                 <>
                   <div className="users-selected-profile">
+                    <span className={`user-list-avatar users-avatar-tone-${avatarTone(selectedUser)}`} aria-hidden="true">
+                      {String(selectedUser.full_name || selectedUser.username || "U").trim().charAt(0).toUpperCase()}
+                    </span>
                     <div>
-                      <span className={`users-status-dot ${selectedUser.is_online ? "is-online" : ""}`} />
                       <strong className="user-name">{selectedUser.full_name}</strong>
                       <p className="user-email">{selectedUser.email}</p>
                     </div>
-                    <span className="record-badge">{roleLabel(selectedUser.role)}</span>
+                    <span className="record-badge user-role-badge">{roleLabel(selectedUser.role)}</span>
                   </div>
-                  <div className="users-summary-grid">
-                    <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{selectedUser.username}</span></p>
-                    <p><strong>Ultimo acceso:</strong> {formatDateTime(selectedUser.last_login_at)}</p>
-                    <p><strong>Estado en linea:</strong> {selectedUser.is_online ? "Conectado" : "Sin conexion activa"}</p>
-                    <p><strong>Sesiones activas:</strong> {selectedUser.active_sessions || 0}</p>
+                  <div className="users-info-tiles">
+                    <div className="users-info-tile">
+                      <Icon name="users" />
+                      <div>
+                        <span>Usuario</span>
+                        <strong>{selectedUser.username}</strong>
+                      </div>
+                    </div>
+                    <div className="users-info-tile">
+                      <Icon name="history" />
+                      <div>
+                        <span>Ultimo acceso</span>
+                        <strong>{formatDateTime(selectedUser.last_login_at)}</strong>
+                      </div>
+                    </div>
+                    <div className="users-info-tile">
+                      <Icon name="wifi" />
+                      <div>
+                        <span>Estado en linea</span>
+                        <strong className={`user-status-line ${selectedUser.is_online ? "is-online" : ""}`}>
+                          <i className="user-status-dot" aria-hidden="true" />
+                          {selectedUser.is_online ? "Conectado" : "Sin conexion"}
+                        </strong>
+                      </div>
+                    </div>
+                    <div className="users-info-tile">
+                      <Icon name="activity" />
+                      <div>
+                        <span>Sesiones activas</span>
+                        <strong>{selectedUser.active_sessions || 0}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="users-permissions-block">
+                    <Icon name="auth" />
+                    <div>
+                      <p className="users-permissions-title">Permisos y rol</p>
+                      <span className="record-badge user-role-badge">{roleLabel(selectedUser.role)}</span>
+                      <p className="users-permissions-copy">
+                        {ROLE_DESCRIPTIONS[selectedUser.role] || "Permisos asignados para este perfil."}
+                      </p>
+                    </div>
                   </div>
                   <div className="users-role-editor no-print">
                     <label>
@@ -447,11 +555,23 @@ export function UsersContent({
                           : "El cambio aplica incluso si el usuario esta en linea."}
                     </small>
                   </div>
-                  <div className="users-card-footer">
+                  <div className="users-detail-actions-row no-print">
                     <button type="button" className="button-secondary" onClick={() => setDetailOpen(true)}>
-                      <Icon name="records" />
-                      Abrir detalle completo
+                      <Icon name="edit" />
+                      Editar usuario
                     </button>
+                    {session?.user?.id !== selectedUser.id ? (
+                      <button type="button" className="button-secondary" onClick={() => handleResetUserPassword(selectedUser)}>
+                        <Icon name="refresh" />
+                        Restablecer contrasena
+                      </button>
+                    ) : null}
+                    {session?.user?.id !== selectedUser.id ? (
+                      <button type="button" className="button-danger" onClick={() => setPendingDeleteUser(selectedUser)}>
+                        <Icon name="trash" />
+                        Eliminar
+                      </button>
+                    ) : null}
                   </div>
                 </>
               ) : (
