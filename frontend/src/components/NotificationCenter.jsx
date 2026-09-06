@@ -17,6 +17,7 @@ export function NotificationCenter({
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [soundMuted, setSoundMuted] = useState(
     () => typeof window !== "undefined" && window.localStorage.getItem(NOTIFICATION_SOUND_MUTED_STORAGE_KEY) === "1"
   );
@@ -55,7 +56,9 @@ export function NotificationCenter({
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      const escape = (event) => { if (event.key === "Escape") { setIsOpen(false); dropdownRef.current?.querySelector(".notification-bell")?.focus(); } };
+      document.addEventListener("keydown", escape);
+      return () => { document.removeEventListener("mousedown", handleClickOutside); document.removeEventListener("keydown", escape); };
     }
   }, [isOpen]);
 
@@ -65,18 +68,20 @@ export function NotificationCenter({
 
     const loadNotifications = async () => {
       setLoading(true);
+      setError("");
       try {
         const response = await apiFetch("/profile");
         const data = await response.json();
+        if (!response.ok) throw new Error("No se pudieron cargar los mensajes.");
         if (response.ok && data.messages) {
           const unread = data.messages.filter(
-            (m) => m.recipient_user_id === session?.user?.id && !m.read_at
+            (m) => Number(m.recipient_user_id) === Number(session?.user?.id) && !m.read_at
           );
           setNotifications(unread);
           onUnreadCountChange?.(unread.length);
         }
       } catch (error) {
-        console.error("Error cargando notificaciones:", error);
+        setError("No se pudieron cargar las notificaciones. Cierra y vuelve a abrir para reintentar.");
       } finally {
         setLoading(false);
       }
@@ -117,13 +122,14 @@ export function NotificationCenter({
 
   const handleMarkAsRead = async (messageId) => {
     try {
-      await apiFetch(`/profile/messages/${messageId}/read`, {
+      const response = await apiFetch(`/profile/messages/${messageId}/read`, {
         method: "PATCH"
       });
+      if (!response.ok) throw new Error("No se pudo marcar como leído.");
       setNotifications((prev) => prev.filter((n) => n.id !== messageId));
       onUnreadCountChange?.((current) => Math.max(0, Number(current || 0) - 1));
     } catch (error) {
-      console.error("Error marcando como leído:", error);
+      setError("No se pudo marcar como leído. Inténtalo nuevamente.");
     }
   };
 
@@ -141,7 +147,7 @@ export function NotificationCenter({
       .filter((n) => !n.read_at)
       .map((n) => n.id);
 
-    await Promise.all(
+    const results = await Promise.all(
       unreadIds.map((id) =>
         apiFetch(`/profile/messages/${id}/read`, {
           method: "PATCH"
@@ -149,9 +155,10 @@ export function NotificationCenter({
       )
     );
 
-    setNotifications([]);
-    onUnreadCountChange?.(0);
-    setIsOpen(false);
+    const successfulIds = unreadIds.filter((id, index) => results[index]?.ok);
+    setNotifications((current) => current.filter((item) => !successfulIds.includes(item.id)));
+    onUnreadCountChange?.((current) => Math.max(0, Number(current || 0) - successfulIds.length));
+    if (successfulIds.length !== unreadIds.length) setError("Algunos mensajes no se pudieron marcar como leídos. Inténtalo nuevamente.");
   };
 
   const handleToggleSound = () => {
@@ -180,6 +187,9 @@ export function NotificationCenter({
         onClick={() => setIsOpen(!isOpen)}
         title="Notificaciones"
         aria-label="Abrir notificaciones"
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls="notification-dropdown"
       >
         <Bell size={20} />
         <AnimatePresence>
@@ -200,6 +210,9 @@ export function NotificationCenter({
         {isOpen && (
           <motion.div
             className="notification-dropdown"
+            id="notification-dropdown"
+            role="region"
+            aria-label="Notificaciones"
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -219,6 +232,7 @@ export function NotificationCenter({
             </div>
 
             <div className="notification-dropdown-list">
+              {error ? <p className="notification-error" role="alert">{error}</p> : null}
               {loading ? (
                 <div className="notification-loading">Cargando...</div>
               ) : notifications.length > 0 ? (
@@ -248,7 +262,7 @@ export function NotificationCenter({
                           <span className="notification-unread-dot" title="Sin leer" />
                         )}
                       </div>
-                      <p className="notification-item-body">{notification.body.slice(0, 80)}</p>
+                      <p className="notification-item-body">{String(notification.body || "").slice(0, 80)}</p>
                       <small className="notification-item-time">
                         {formatRelativeTime(notification.created_at)}
                       </small>
@@ -265,12 +279,12 @@ export function NotificationCenter({
                     </button>
                   </motion.div>
                 ))
-              ) : (
+              ) : !error ? (
                 <div className="notification-empty">
                   <MessageSquare size={24} />
                   <span>Sin notificaciones</span>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {notifications.length > 8 && (

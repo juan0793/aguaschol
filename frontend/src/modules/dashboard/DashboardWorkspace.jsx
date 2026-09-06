@@ -42,6 +42,7 @@ export default function DashboardWorkspace({ model }) {
   const [debtMetric, setDebtMetric] = useState("total");
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
+  const [attentionLevel, setAttentionLevel] = useState("");
 
   const ranking = useMemo(() => debtRanking(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
   // Mora consolidada por servicio en todo el padron: la otra descomposicion
@@ -121,10 +122,13 @@ export default function DashboardWorkspace({ model }) {
               <span>{model.onlineUsers.length} en línea</span>
             </div>
           ) : null}
-          <span className="dw-sync">
+          <span className={`dw-sync is-${model.connectionStatus || "idle"}`} role="status">
             <i className="dw-sync-dot" aria-hidden="true" />
             {model.syncLabel}
           </span>
+          <button type="button" className="dw-button-secondary" onClick={model.refresh} disabled={model.refreshing}>
+            <Icon name="refresh" />{model.refreshing ? "Actualizando…" : "Actualizar"}
+          </button>
         </div>
       </header>
 
@@ -150,8 +154,9 @@ export default function DashboardWorkspace({ model }) {
               )
             }
           >
+            <span className="dw-kpi-icon"><Icon name={item.icon} /></span>
             <span className="dw-eyebrow">{item.label}</span>
-            <strong className="dw-figure">{whole(item.value)}</strong>
+            <strong className="dw-figure" key={item.value}>{whole(item.value)}</strong>
             <small>{item.helper}</small>
           </button>
         ))}
@@ -167,8 +172,13 @@ export default function DashboardWorkspace({ model }) {
                         <h2>Atención requerida</h2>
                       </div>
                     </header>
+                    <div className="dw-filters" role="group" aria-label="Filtrar prioridades">
+                      {[["", "Todas"], ["Crítico", "Críticas"], ["Atención", "Pendientes"]].map(([value, label]) => (
+                        <button type="button" key={value} aria-pressed={attentionLevel === value} onClick={() => setAttentionLevel(value)}>{label}</button>
+                      ))}
+                    </div>
                     <ul className="dw-list">
-                      {model.attention.slice(0, 4).map((item) => (
+                      {model.attention.filter((item) => !attentionLevel || item.level === attentionLevel).map((item) => (
                         <li key={item.title}>
                           <button type="button" className={item.tone || ""} onClick={() => navigate(item.actionView, item.filter || "")}>
                             <Icon name={item.icon} />
@@ -181,6 +191,7 @@ export default function DashboardWorkspace({ model }) {
                         </li>
                       ))}
                     </ul>
+                    {!model.attention.some((item) => !attentionLevel || item.level === attentionLevel) ? <p className="dw-empty">No hay prioridades en esta categoría.</p> : null}
                   </article>
           <article className="dw-panel dw-cartera">
                     <header className="dw-panel-head">
@@ -397,7 +408,7 @@ export default function DashboardWorkspace({ model }) {
           <article className="dw-panel dw-feed">
                     <header className="dw-panel-head">
                       <div>
-                        <span className="dw-eyebrow">Aplicación viva</span>
+                        <span className="dw-eyebrow">Últimos movimientos</span>
                         <h2>Actividad reciente</h2>
                       </div>
                     </header>
@@ -414,6 +425,7 @@ export default function DashboardWorkspace({ model }) {
                         </li>
                       ))}
                     </ul>
+                    {!model.feed.length ? <p className="dw-empty">Aún no hay actividad reciente.</p> : null}
                   </article>
         </div>
       </div>

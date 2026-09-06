@@ -13837,7 +13837,10 @@ function App() {
         <Suspense fallback={<div className="module-loading-state" role="status">Cargando tablero...</div>}>
           <DashboardWorkspace model={{
             userName: session?.user?.full_name || session?.user?.username || "admin",
-            syncLabel: dashboardRefreshing ? "Actualizando..." : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
+            connectionStatus: dashboardConnectionStatus,
+            refreshing: dashboardRefreshing,
+            refresh: () => refreshDashboard({ force: true }),
+            syncLabel: dashboardConnectionStatus === "retrying" ? "Reintentando conexión…" : dashboardRefreshing ? "Actualizando..." : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
             metrics: dashboardLiveMetrics,
             debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
             debtSummary: padronServiceReport?.summary?.deuda || {},
