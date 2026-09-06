@@ -227,6 +227,54 @@ npx --yes @railway/cli run npm run gis:validate:catastro
 - Estado del deploy: ajuste local validado; pendiente de commit/push/deploy si se decide publicar.
 - Pendiente: validacion visual en navegador/produccion despues del deploy.
 
+## Avance SIG mapa e impresion - 2026-08-31
+
+Commits ya subidos a `origin/main`:
+
+- `ce7beb0` - `Activar impresion del mapa SIG`
+- `b6daa68` - `Mejorar capas y leyenda del mapa SIG`
+
+Mejoras realizadas:
+
+- Boton `Imprimir` activado en `SIG Territorial`.
+- CSS de impresion para mostrar solo el mapa en horizontal.
+- Impresion corregida para ejecutar `map.resize()` y esperar render estable (`idle` con fallback) antes de abrir `window.print()`.
+- Controles de MapLibre ocultos en impresion; la leyenda queda visible.
+- Frontend consume `GET /api/gis/manzanas` y `GET /api/gis/quebradas`.
+- Capas nuevas en MapLibre:
+  - etiquetas de barrios por zoom;
+  - manzanas con relleno tenue, borde fino y etiqueta de numero desde zoom alto;
+  - quebradas con linea azul;
+  - leyenda dinamica segun capas activas.
+- Toggles funcionales para `barrios`, `manzanas`, `quebradas`, `lotes`, `numeros`, `abonados` y `levantamientos`.
+
+Archivos modificados:
+
+- `frontend/src/modules/sig/SigTerritorialWorkspace.jsx`
+- `frontend/src/modules/sig/services/sigApi.js`
+- `frontend/src/modules/sig/sigTerritorial.css`
+
+Evidencia QA agregada:
+
+- `docs/qa/sig-territorial-mejoras/desktop-final.png`
+- `docs/qa/sig-territorial-mejoras/mobile-final.png`
+- `docs/qa/sig-territorial-mejoras/print-button-flow.png`
+
+Verificacion ejecutada:
+
+- `npm --prefix frontend run test:sig`: pass.
+- `npm --prefix frontend run build`: pass, con warning conocido de chunks grandes.
+- Navegador local con Playwright + Chrome:
+  - login local `admin / abcd123`;
+  - backend local sin `GIS_DATABASE_URL` muestra offline correctamente;
+  - endpoints GIS mockeados para verificar mapa, toggles, leyenda, responsive movil e impresion sin tocar produccion.
+
+Pendiente despues del deploy:
+
+- Validar en produccion con PostGIS real y usuario autenticado.
+- Probar impresion desde Chrome/Edge con datos reales y zoom alto.
+- Si impresion formal sigue siendo requerida, siguiente corte minimo: compositor con titulo, fecha, logo, leyenda, norte y salida PDF.
+
 ## Siguiente trabajo recomendado
 
 Siguiente fase probable: Control Territorial dentro de SIG.
