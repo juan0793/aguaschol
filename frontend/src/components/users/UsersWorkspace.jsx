@@ -190,6 +190,13 @@ export function UsersSidebar({
   formatDateTime,
   roleLabel
 }) {
+  const [query, setQuery] = useState("");
+  const visibleUsers = safeUsers.filter((user) =>
+    [user.full_name, user.email, user.username].some((value) =>
+      String(value || "").toLocaleLowerCase("es").includes(query.trim().toLocaleLowerCase("es"))
+    )
+  );
+
   return (
     <aside className="sidebar no-print users-sidebar-panel">
       <div className="panel-header users-sidebar-head">
@@ -199,31 +206,44 @@ export function UsersSidebar({
         </div>
         <span className="panel-pill">{safeUsers.length}</span>
       </div>
+      <label className="users-search">
+        <span className="sr-only">Buscar usuarios</span>
+        <Icon name="search" />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Buscar nombre, correo o usuario"
+        />
+      </label>
       {loadingUsers ? <p className="helper-text">Cargando usuarios...</p> : null}
       <div className="record-list users-list">
-        {safeUsers.length ? (
-          safeUsers.map((user) => (
+        {visibleUsers.length ? (
+          visibleUsers.map((user) => (
             <article
               key={user.id}
               className={`record-card info-card user-list-card ${selectedUser?.id === user.id ? "is-selected" : ""}`}
             >
               <button type="button" className="user-list-main" onClick={() => setSelectedUserId(user.id)}>
+                <span className="user-list-avatar" aria-hidden="true">
+                  {String(user.full_name || user.username || "U").trim().charAt(0).toUpperCase()}
+                </span>
                 <div className="record-card-top user-card-top">
                   <strong className="user-name">{user.full_name}</strong>
                   <div className="user-badge-stack">
-                    <span className={`record-badge ${user.is_online ? "is-online" : ""}`}>
-                      {user.is_online ? "En linea" : roleLabel(user.role)}
+                    <span className={`record-badge user-presence ${user.is_online ? "is-online" : ""}`}>
+                      {user.is_online ? "En línea" : "Sin conexión"}
                     </span>
-                    <span className="record-badge">{roleLabel(user.role)}</span>
+                    <span className="user-role-text"><Icon name="auth" />{roleLabel(user.role)}</span>
                   </div>
                 </div>
-                <span className="user-email">{user.email}</span>
-                <small className="user-meta">
-                  Usuario: {user.username} - Ultimo acceso: {formatDateTime(user.last_login_at)}
+                <span className="user-email"><Icon name="mail" /><span>{user.email}</span></span>
+                <small className="user-meta" title={`Usuario: ${user.username} - Ultimo acceso: ${formatDateTime(user.last_login_at)}`}>
+                  <Icon name="history" /><span>{user.username} · {formatDateTime(user.last_login_at)}</span>
                 </small>
               </button>
               <div className="user-card-actions">
-                <span className="record-badge">{user.active_sessions || 0} sesiones</span>
+                <span className="user-role-text"><Icon name="activity" />{user.active_sessions || 0} sesiones</span>
                 {session?.user?.id !== user.id ? (
                   <button
                     type="button"
@@ -233,7 +253,7 @@ export function UsersSidebar({
                       setPendingDeleteUser(user);
                     }}
                   >
-                    Eliminar
+                    <Icon name="trash" />Eliminar
                   </button>
                 ) : null}
               </div>
@@ -241,8 +261,8 @@ export function UsersSidebar({
           ))
         ) : (
           <div className="empty-state">
-            <h3>Sin usuarios registrados</h3>
-            <p>Crea el primer acceso para habilitar el trabajo del equipo.</p>
+            <h3>{query ? "Sin coincidencias" : "Sin usuarios registrados"}</h3>
+            <p>{query ? "Prueba con otro nombre, correo o usuario." : "Crea el primer acceso para habilitar el trabajo del equipo."}</p>
           </div>
         )}
       </div>
@@ -293,9 +313,24 @@ export function UsersContent({
         </div>
 
         <div className="users-metric-grid no-print">
-          <article><span>Usuarios</span><strong>{safeUsers.length}</strong><small>Cuentas registradas</small></article>
-          <article><span>En línea</span><strong>{safeUsers.filter((user) => user.is_online).length}</strong><small>Sesiones activas ahora</small></article>
-          <article><span>Administradores</span><strong>{safeUsers.filter((user) => user.role === "admin").length}</strong><small>Con control total</small></article>
+          <article>
+            <span className="users-metric-icon"><Icon name="users" /></span>
+            <span>Usuarios</span>
+            <strong>{safeUsers.length}</strong>
+            <small>Cuentas registradas</small>
+          </article>
+          <article className="is-live">
+            <span className="users-metric-icon"><Icon name="activity" /></span>
+            <span>En línea</span>
+            <strong>{safeUsers.filter((user) => user.is_online).length}</strong>
+            <small>Sesiones activas ahora</small>
+          </article>
+          <article className="is-admin">
+            <span className="users-metric-icon"><Icon name="auth" /></span>
+            <span>Administradores</span>
+            <strong>{safeUsers.filter((user) => user.role === "admin").length}</strong>
+            <small>Con control total</small>
+          </article>
         </div>
 
         <div className="users-workspace-grid">
