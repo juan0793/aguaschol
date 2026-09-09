@@ -42,20 +42,25 @@ export default function DashboardWorkspace({ model }) {
   const [debtMetric, setDebtMetric] = useState("total");
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
+  const [barrioAbierto, setBarrioAbierto] = useState("");
   const [attentionLevel, setAttentionLevel] = useState("");
 
   const ranking = useMemo(() => debtRanking(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
+  // Padron completo, independiente de la metrica: el ranking visible es solo el
+  // top 5, pero la seleccion sobrevive al cambio de metrica y tiene que seguir
+  // sumando aunque un barrio elegido ya no aparezca en pantalla.
+  const barriosCompletos = useMemo(() => debtRankingAll(model.debtBarrios, "total"), [model.debtBarrios]);
   // Mora consolidada por servicio en todo el padron: la otra descomposicion
   // legitima del mismo total que ya muestra la barra de capital/intereses.
-  const serviceDebt = useMemo(() => {
-    const rows = debtRankingAll(model.debtBarrios, "total");
-    return sumSelectedServices(rows, rows.map((row) => row.name))
+  const serviceDebt = useMemo(
+    () => sumSelectedServices(barriosCompletos, barriosCompletos.map((row) => row.name))
       .filter((service) => service.debt > 0)
-      .sort((left, right) => right.debt - left.debt);
-  }, [model.debtBarrios]);
+      .sort((left, right) => right.debt - left.debt),
+    [barriosCompletos]
+  );
   const maxServiceDebt = Math.max(1, ...serviceDebt.map((service) => service.debt));
-  const selectedDebt = useMemo(() => sumSelectedDebt(ranking, selectedBarrios), [ranking, selectedBarrios]);
-  const selectedServices = useMemo(() => sumSelectedServices(ranking, selectedBarrios), [ranking, selectedBarrios]);
+  const selectedDebt = useMemo(() => sumSelectedDebt(barriosCompletos, selectedBarrios), [barriosCompletos, selectedBarrios]);
+  const selectedServices = useMemo(() => sumSelectedServices(barriosCompletos, selectedBarrios), [barriosCompletos, selectedBarrios]);
   const maxDebt = Math.max(1, ...ranking.map((item) => item.value));
 
   const debt = model.debtSummary || {};
@@ -63,6 +68,15 @@ export default function DashboardWorkspace({ model }) {
   const capitalShare = percent(debt.capital, debtTotal);
   const interesShare = percent(debt.intereses, debtTotal);
   const criticalShare = percent(debt.criticos, Number(debt.deudores || 0));
+  // El peso relativo se mide contra el total del padron de la MISMA magnitud que
+  // se esta ordenando: dinero contra dinero, cuentas contra cuentas.
+  const metricTotal = debtMetric === "accounts"
+    ? Number(debt.deudores || 0)
+    : debtMetric === "critical" ? Number(debt.criticos || 0) : debtTotal;
+  const selectedShare = percent(
+    debtMetric === "accounts" ? selectedDebt.deudores : debtMetric === "critical" ? selectedDebt.criticos : selectedDebt.total,
+    metricTotal
+  );
 
   const toggleBarrio = (name) =>
     setSelectedBarrios((current) => (current.includes(name) ? current.filter((item) => item !== name) : [...current, name]));
@@ -287,26 +301,49 @@ export default function DashboardWorkspace({ model }) {
                     {ranking.length ? (
                       <ol className="dw-ranking">
                         {ranking.map((item, index) => (
-                          <li key={item.name}>
-                            <button
-                              type="button"
-                              aria-pressed={selectedBarrios.includes(item.name)}
-                              className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
-                              onClick={() => toggleBarrio(item.name)}
-                            >
-                              <b className="dw-figure">{index + 1}</b>
-                              <span className="dw-ranking-copy">
-                                <strong>{item.name}</strong>
-                                <i className="dw-ranking-track">
-                                  <em style={{ width: `${Math.max(2, (item.value / maxDebt) * 100)}%` }} />
-                                </i>
-                              </span>
-                              {debtMetric === "total" ? (
-                                <Amount value={item.value} />
-                              ) : (
-                                <span className="dw-amount dw-figure">{whole(item.value)}</span>
-                              )}
-                            </button>
+                          <li key={item.name} className={barrioAbierto === item.name ? "is-expanded" : ""}>
+                            <div className="dw-ranking-row">
+                              <button
+                                type="button"
+                                aria-pressed={selectedBarrios.includes(item.name)}
+                                className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
+                                onClick={() => toggleBarrio(item.name)}
+                              >
+                                <b className="dw-figure">{index + 1}</b>
+                                <span className="dw-ranking-copy">
+                                  <strong>{item.name}</strong>
+                                  <i className="dw-ranking-track">
+                                    <em style={{ width: `${Math.max(2, (item.value / maxDebt) * 100)}%` }} />
+                                  </i>
+                                </span>
+                                <span className="dw-ranking-value">
+                                  {debtMetric === "total" ? (
+                                    <Amount value={item.value} />
+                                  ) : (
+                                    <span className="dw-amount dw-figure">{whole(item.value)}</span>
+                                  )}
+                                  <small className="dw-figure">{oneDecimal(percent(item.value, metricTotal))} del padrón</small>
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                className="dw-ranking-more"
+                                aria-expanded={barrioAbierto === item.name}
+                                aria-label={`Ver desglose de ${item.name}`}
+                                onClick={() => setBarrioAbierto((actual) => (actual === item.name ? "" : item.name))}
+                              >
+                                <Icon name="arrowRight" />
+                              </button>
+                            </div>
+                            {barrioAbierto === item.name ? (
+                              <dl className="dw-ranking-detail">
+                                <div><dt>Capital</dt><dd><Amount value={item.debt.capital} /></dd></div>
+                                <div><dt>Intereses</dt><dd><Amount value={item.debt.intereses} /></dd></div>
+                                <div><dt>Cuentas con mora</dt><dd className="dw-amount dw-figure">{whole(item.debt.deudores)}</dd></div>
+                                <div><dt>Casos críticos</dt><dd className="dw-amount dw-figure">{whole(item.debt.criticos)}</dd></div>
+                                <div><dt>Promedio por cuenta</dt><dd><Amount value={Number(item.debt.deudores || 0) ? Number(item.debt.total || 0) / Number(item.debt.deudores) : 0} /></dd></div>
+                              </dl>
+                            ) : null}
                           </li>
                         ))}
                       </ol>
@@ -337,6 +374,20 @@ export default function DashboardWorkspace({ model }) {
                             Limpiar
                           </button>
                         </header>
+                        <ul className="dw-selection-chips">
+                          {selectedBarrios.map((name) => (
+                            <li key={name}>
+                              <button type="button" onClick={() => toggleBarrio(name)} aria-label={`Quitar ${name} de la selección`}>
+                                {name}
+                                <span aria-hidden="true">✕</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="dw-selection-share">
+                          Concentran el <strong className="dw-figure">{oneDecimal(selectedShare)}</strong>
+                          {debtMetric === "accounts" ? " de los abonados con mora del padrón." : debtMetric === "critical" ? " de los casos críticos del padrón." : " de la mora del padrón."}
+                        </p>
                         <dl className="dw-selection-figures">
                           <div>
                             <dt>Capital</dt>
