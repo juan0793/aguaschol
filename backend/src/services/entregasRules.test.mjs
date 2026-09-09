@@ -108,8 +108,8 @@ test("exige que el detalle identificado cuadre con el total de sobrantes", () =>
   );
 });
 
-test("un administrador puede forzar el cierre con diferencia", () => {
-  assert.doesNotThrow(() =>
+test("ni un cierre forzado permite cantidades inconsistentes", () => {
+  assert.throws(() =>
     validarConsistenciaDetalle({ total_sobrantes: 5, detalle: [], permitirDiferencia: true })
   );
 });
@@ -161,7 +161,7 @@ test("agrupa por responsable, barrio y motivo", () => {
   assert.equal(porResponsable[0].pendientes, 9);
 
   const porBarrio = agruparPorBarrio(lotes, noEntregadas);
-  assert.equal(porBarrio.find((fila) => fila.barrio_codigo === "10").efectividad, 100);
+  assert.equal(porBarrio.find((fila) => fila.barrio_codigo === "10").efectividad, 0);
 
   const porMotivo = agruparPorMotivo(noEntregadas);
   assert.equal(porMotivo[0].motivo, "CASA_CERRADA");
@@ -181,7 +181,7 @@ test("el snapshot semanal es una foto completa e independiente de los datos vivo
   });
 
   assert.equal(snapshot.totales.asignadas, 150);
-  assert.equal(snapshot.totales.entregadas, 140);
+  assert.equal(snapshot.totales.entregadas, 90);
   assert.equal(snapshot.totales.pendientes, 9);
   assert.equal(snapshot.totales.reentregadas, 1);
   assert.equal(snapshot.periodo.etiqueta, "Semana del 17 al 21 de agosto de 2026");

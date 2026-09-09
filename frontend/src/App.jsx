@@ -13224,6 +13224,10 @@ function App() {
               onUnreadCountChange={setUnreadMessagesCount}
               showAlert={showAlert}
               onNotificationClick={() => setWorkspaceView("profile")}
+              onEntregaNotification={(loteId) => {
+                window.location.hash = `entregas/lotes?lote=${Number(loteId)}`;
+                setWorkspaceView("entregas");
+              }}
               onNotificationSelect={(userId) => {
                 setWorkspaceView("profile");
                 setNotificationUserId(userId);

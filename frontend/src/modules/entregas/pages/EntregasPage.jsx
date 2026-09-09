@@ -7,6 +7,8 @@ import EntregasStats from "../components/EntregasStats";
 import LoteForm from "../components/LoteForm";
 import LotesTable from "../components/LotesTable";
 import CierreLoteDialog from "../components/CierreLoteDialog";
+import LoteDetalle from "../components/LoteDetalle";
+import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
 import NoEntregadasTable from "../components/NoEntregadasTable";
 import NoEntregadaDetalle from "../components/NoEntregadaDetalle";
 import PersonalCampoTable from "../components/PersonalCampoTable";
@@ -34,6 +36,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
   const [vista, setVista] = useState(vistaDesdeHash);
   const [config, setConfig] = useState(null);
+  const [configError, setConfigError] = useState("");
+  const [loteDetalle, setLoteDetalle] = useState(null);
   const [personal, setPersonal] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -75,7 +79,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   }, [api, notify]);
 
   useEffect(() => {
-    api.config().then(setConfig).catch((error) => notify(error.message));
+    api.config().then(setConfig).catch((error) => setConfigError(error.message));
   }, [api, notify]);
 
   useEffect(() => {
@@ -84,6 +88,38 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     cargarResumen();
     cargarLotesAbiertosPrevios();
   }, [cargarLotesAbiertosPrevios, cargarPersonal, cargarResumen, config]);
+
+  useEffect(() => {
+    if (!config) return;
+    const actualizar = () => {
+      if (document.visibilityState !== "visible") return;
+      cargarLotesAbiertosPrevios();
+      api.config().then(setConfig).catch(() => {});
+    };
+    const timer = setInterval(actualizar, 60_000);
+    window.addEventListener("focus", actualizar);
+    return () => { clearInterval(timer); window.removeEventListener("focus", actualizar); };
+  }, [api, Boolean(config), cargarLotesAbiertosPrevios]);
+
+  const abrirDetalle = useCallback(async (lote) => {
+    try { setLoteDetalle(await api.lote(lote.id)); }
+    catch (error) { notify(error.message); }
+  }, [api, notify]);
+
+  useEffect(() => {
+    const abrirEnlace = () => {
+      const id = new URLSearchParams(window.location.hash.split("?")[1]).get("lote");
+      if (config && /^\d+$/.test(id || "")) abrirDetalle({ id });
+    };
+    abrirEnlace();
+    window.addEventListener("hashchange", abrirEnlace);
+    return () => window.removeEventListener("hashchange", abrirEnlace);
+  }, [abrirDetalle, Boolean(config)]);
+
+  const cerrarDetalle = () => {
+    setLoteDetalle(null);
+    if (window.location.hash.includes("?lote=")) window.history.replaceState(null, "", "#entregas/lotes");
+  };
 
   // Los usuarios solo se piden cuando el administrador entra a Personal de campo.
   useEffect(() => {
@@ -131,6 +167,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
   const abrirEdicion = async (lote) => {
     try {
+      cerrarDetalle();
       setLoteEnEdicion(await api.lote(lote.id));
       ir("editar");
     } catch (error) {
@@ -139,26 +176,29 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   };
 
   const verHoy = () => {
-    const hoy = toLocalIsoDate();
-    lotes.setFilters({ estado: "", fecha_desde: hoy, fecha_hasta: hoy });
+    const hoy = config.jornada?.fecha || toLocalIsoDate();
+    lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "", fecha_desde: hoy, fecha_hasta: hoy });
     ir("lotes");
   };
 
   const verAbiertosPrevios = () => {
-    lotes.setFilters({ estado: "ABIERTO", fecha_desde: "", fecha_hasta: addDaysIso(toLocalIsoDate(), -1) });
+    lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "ABIERTO", fecha_desde: "", fecha_hasta: addDaysIso(config.jornada?.fecha || toLocalIsoDate(), -1) });
     ir("lotes");
   };
 
   // Cada renglon de "Requiere atencion" salta directo a Pendientes con su propio filtro
   // (dias_minimos, estado), en vez de solo mostrar el numero.
   const irAPendientes = (filtros) => {
-    pendientes.setFilters({ estado: "PENDIENTE", dias_minimos: "", ...filtros });
+    pendientes.setFilters({ ...NO_ENTREGADAS_FILTROS_INICIALES, ...filtros });
     ir("pendientes");
   };
 
   const abrirCierre = async (lote) => {
     try {
-      setLoteEnCierre(await api.lote(lote.id));
+      const actual = await api.lote(lote.id);
+      if (actual.estado !== "ABIERTO") { setLoteDetalle(actual); return; }
+      cerrarDetalle();
+      setLoteEnCierre(actual);
     } catch (error) {
       notify(error.message);
     }
@@ -176,7 +216,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
       <main className="cl-module ent-module">
         <div className="cl-module-loading">
           <Icon name="refresh" />
-          Cargando Control de entregas…
+          {configError || "Cargando Control de entregas…"}
+          {configError ? <button type="button" onClick={() => { setConfigError(""); api.config().then(setConfig).catch((error) => setConfigError(error.message)); }}>Reintentar</button> : null}
         </div>
       </main>
     );
@@ -201,12 +242,13 @@ export default function EntregasPage({ apiFetch, showAlert }) {
               key={item.key}
               type="button"
               className={`ent-menu-card ${vista === item.key ? "is-active" : ""}`}
+              aria-current={vista === item.key ? "page" : undefined}
+              data-group={["personal", "reportes"].includes(item.key) ? "gestion" : "operacion"}
               onClick={() => ir(item.key)}
             >
               <Icon name={item.icon} />
               <span>
                 {item.label}
-                <small>{item.hint}</small>
               </span>
             </button>
           ))}
@@ -230,6 +272,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
         ))}
       </nav>
 
+      {lotesAbiertosPrevios.total > 0 ? <div className="ent-critical-banner" role="status"><Icon name="warning" /><div><strong>{formatNumber(lotesAbiertosPrevios.total)} lotes de jornadas anteriores siguen abiertos</strong><span>Prioridad de cierre · la justificación no elimina el pendiente.</span></div><button type="button" className="cl-secondary" onClick={verAbiertosPrevios}>Resolver cierres →</button></div> : null}
+
       {vista === "resumen" ? (
         <section className="cl-inbox">
           <div className="cl-inbox-head">
@@ -238,7 +282,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
                 {resumen ? `${formatDate(resumen.periodo.fecha_inicio)} — ${formatDate(resumen.periodo.fecha_fin)}` : "Semana en curso"}
               </span>
               <h3>Resultado de la semana</h3>
-              <p>Los indicadores muestran la operación viva; el informe semanal congela la foto del viernes.</p>
+              <p>Entregas confirmadas al cerrar. La efectividad sobre lo asignado es parcial mientras existan lotes abiertos.</p>
             </div>
             <button type="button" className="cl-quiet" onClick={cargarResumen} disabled={cargandoResumen}>
               <Icon name="refresh" className={cargandoResumen ? "ent-refresh-icon is-spinning" : "ent-refresh-icon"} />
@@ -249,11 +293,11 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           <EntregasStats
             resumen={resumen}
             onSelect={(clave) => {
-              if (clave === "pendientes" || clave === "reentregadas") {
-                pendientes.setFilters({ estado: clave === "pendientes" ? "PENDIENTE" : "REENTREGADA" });
-                ir("pendientes");
+              if (["pendientes", "reentregadas", "no_localizadas"].includes(clave)) {
+                irAPendientes({ estado: { pendientes: "PENDIENTE", reentregadas: "REENTREGADA", no_localizadas: "NO_LOCALIZADA" }[clave], fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" });
                 return;
               }
+              lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" });
               ir("lotes");
             }}
           />
@@ -262,8 +306,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
             <GraficoPorDia rows={resumen?.por_dia || []} />
             <div className="ent-card">
               <h3>Requiere atención</h3>
-              <ul className="ent-lista-plana">
-                <li className="is-clickable" onClick={verHoy}>
+              <ul className="ent-lista-plana" onKeyDown={(event) => { if (["Enter", " "].includes(event.key) && event.target.getAttribute("role") === "button") { event.preventDefault(); event.target.click(); } }}>
+                <li className="is-clickable" role="button" tabIndex={0} onClick={() => { lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "ABIERTO", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" }); ir("lotes"); }}>
                   <span className="ent-fila-etiqueta">
                     <i />
                     Lotes abiertos
@@ -271,7 +315,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
                   <strong>{formatNumber(resumen?.lotes_abiertos)}</strong>
                 </li>
                 {lotesAbiertosPrevios.total ? (
-                  <li className="is-atencion is-clickable" onClick={verAbiertosPrevios}>
+                  <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={verAbiertosPrevios}>
                     <span className="ent-fila-etiqueta">
                       <i />
                       Abiertos anteriores
@@ -279,21 +323,21 @@ export default function EntregasPage({ apiFetch, showAlert }) {
                     <strong>{formatNumber(lotesAbiertosPrevios.total)}</strong>
                   </li>
                 ) : null}
-                <li className="is-atencion is-clickable" onClick={() => irAPendientes({ dias_minimos: "3" })}>
+                <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ dias_minimos: "3", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" })}>
                   <span className="ent-fila-etiqueta">
                     <i />
                     Pendientes con más de 3 días
                   </span>
                   <strong>{formatNumber(resumen?.pendientes_mas_3_dias)}</strong>
                 </li>
-                <li className="is-critico is-clickable" onClick={() => irAPendientes({ dias_minimos: "7" })}>
+                <li className="is-critico is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ dias_minimos: "7", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" })}>
                   <span className="ent-fila-etiqueta">
                     <i />
                     Pendientes con más de 7 días
                   </span>
                   <strong>{formatNumber(resumen?.pendientes_mas_7_dias)}</strong>
                 </li>
-                <li className="is-clickable" onClick={() => irAPendientes({ estado: "NO_LOCALIZADA", dias_minimos: "" })}>
+                <li className="is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ estado: "NO_LOCALIZADA", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" })}>
                   <span className="ent-fila-etiqueta">
                     <i />
                     No localizadas
@@ -348,7 +392,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           abiertosPrevios={lotesAbiertosPrevios}
           onToday={verHoy}
           onPreviousOpen={verAbiertosPrevios}
-          onOpen={abrirCierre}
+          onOpen={abrirDetalle}
           onEdit={abrirEdicion}
           onCerrar={abrirCierre}
         />
@@ -393,6 +437,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           }}
         />
       ) : null}
+
+      {loteDetalle ? <LoteDetalle key={loteDetalle.id} lote={loteDetalle} permissions={config.permissions} api={api} notify={notify} onClose={cerrarDetalle} onEdit={abrirEdicion} onCerrar={abrirCierre} onChanged={() => { abrirDetalle(loteDetalle); refrescar(); }} onDeleted={() => { cerrarDetalle(); refrescar(); }} /> : null}
 
       {documentoAbierto ? (
         <NoEntregadaDetalle

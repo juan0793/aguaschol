@@ -43,6 +43,8 @@ export function GraficoPorDia({ rows = [] }) {
                 </div>
               )}
               <small>{formatDayLabel(fila.fecha)}</small>
+              {!esFuturo ? <small aria-label={`Efectividad ${formatDayLabel(fila.fecha)}`}>{fila.asignadas ? formatPercent(fila.entregadas / fila.asignadas * 100) : "—"}</small> : null}
+              {!esFuturo ? <span className="sr-only">{formatNumber(fila.entregadas)} entregadas; {formatNumber(fila.no_entregadas)} no entregadas.</span> : null}
               {esHoy ? <span className="ent-chart-hoy">Hoy · parcial</span> : null}
             </div>
           );

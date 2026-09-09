@@ -38,11 +38,11 @@ export const useEntregasList = ({ fetcher, storageKey, defaultFilters = {}, acti
 
   useEffect(() => {
     const timer = setTimeout(load, 180);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); requestId.current += 1; };
   }, [load]);
 
   useEffect(() => {
-    sessionStorage.setItem(storageKey, JSON.stringify({ filters, page }));
+    try { sessionStorage.setItem(storageKey, JSON.stringify({ filters, page })); } catch { /* Almacenamiento deshabilitado: conserva estado en memoria. */ }
   }, [filters, page, storageKey]);
 
   const setFilters = useCallback((patch) => {

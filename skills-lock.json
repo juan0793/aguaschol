@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "security-review": {
+      "source": "oktsec/security-review",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "9e12ef1b639ad5e59410c00f465590a2924499c1616862c0db67d28a94663e8d"
+    }
+  }
+}

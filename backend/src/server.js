@@ -6,6 +6,7 @@ import { env, validateRuntimeEnv } from "./config/env.js";
 import { initializeTransportRealtime } from "./services/transportRealtimeService.js";
 import { initializeProfileRealtime } from "./services/profileRealtimeService.js";
 import { startTelegramBot } from "./services/telegramBotService.js";
+import { startEntregasReminders } from "./services/entregasReminderService.js";
 
 try {
   validateRuntimeEnv();
@@ -28,6 +29,7 @@ try {
     });
   });
   startTelegramBot();
+  startEntregasReminders();
   server.listen(env.port, () => {
     console.log(`Backend ejecutandose en puerto ${env.port}`);
   });

@@ -6,6 +6,7 @@ import {
   createLote,
   createNoEntregadas,
   createPersonal,
+  deleteLote,
   deleteNoEntregada,
   getEntregasConfig,
   getLoteDetail,
@@ -14,6 +15,7 @@ import {
   listLotes,
   listNoEntregadas,
   listPersonal,
+  reabrirLote,
   registrarIntento,
   updateLote,
   updateNoEntregada,
@@ -57,6 +59,12 @@ export const loteUpdate = handle(async (req, res) =>
 );
 export const loteCerrar = handle(async (req, res) =>
   res.json(await cerrarLote(req.params.id, req.body || {}, req.authUser))
+);
+export const loteReabrir = handle(async (req, res) =>
+  res.json(await reabrirLote(req.params.id, req.body || {}, req.authUser))
+);
+export const loteRemove = handle(async (req, res) =>
+  res.json(await deleteLote(req.params.id, req.body || {}, req.authUser))
 );
 export const loteNoEntregadasCreate = handle(async (req, res) =>
   res.status(201).json(await createNoEntregadas(req.params.id, req.body || {}, req.authUser))

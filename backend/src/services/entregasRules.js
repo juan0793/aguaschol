@@ -118,8 +118,8 @@ export const toEntero = (value) => {
   return Number.isFinite(numero) ? Math.trunc(numero) : 0;
 };
 
-export const calcularEntregadas = ({ total_asignadas = 0, total_sobrantes = 0 } = {}) =>
-  Math.max(toEntero(total_asignadas) - toEntero(total_sobrantes), 0);
+export const calcularEntregadas = ({ total_asignadas = 0, total_sobrantes = 0, estado } = {}) =>
+  estado === "ABIERTO" ? 0 : Math.max(toEntero(total_asignadas) - toEntero(total_sobrantes), 0);
 
 // efectividad = entregadas / asignadas * 100, protegida contra division entre cero.
 export const calcularEfectividad = (entregadas = 0, asignadas = 0) => {
@@ -133,17 +133,18 @@ export const calcularEfectividad = (entregadas = 0, asignadas = 0) => {
 /* -------------------------------------------------------------------------- */
 
 export const validarTotalAsignado = (value) => {
-  const total = toEntero(value);
-  if (total <= 0) throw fail("El total asignado debe ser un número entero mayor que cero.");
+  const total = Number(value);
+  if (typeof value === "boolean" || !Number.isSafeInteger(total) || total <= 0 || total > 4294967295) throw fail("El total asignado debe ser un número entero mayor que cero.");
   return total;
 };
 
 export const validarSobrantes = (sobrantes, asignadas) => {
-  const total = toEntero(sobrantes);
+  const total = Number(sobrantes);
   const base = toEntero(asignadas);
   if (!Number.isFinite(Number(sobrantes)) || String(sobrantes ?? "").trim() === "") {
     throw fail("Debes registrar el total de sobrantes para cerrar el lote.");
   }
+  if (typeof sobrantes === "boolean" || !Number.isSafeInteger(total)) throw fail("Los sobrantes deben ser un número entero.");
   if (total < 0) throw fail("Los sobrantes no pueden ser negativos.");
   if (total > base) throw fail(`Los sobrantes (${total}) no pueden superar las asignadas (${base}).`);
   return total;
@@ -153,12 +154,12 @@ export const contarNoEntregadasActivas = (detalle = []) =>
   detalle.filter((item) => ESTADOS_NO_ENTREGADA_ACTIVOS.includes(String(item?.estado || "PENDIENTE"))).length;
 
 // Regla critica: el detalle identificado debe cuadrar con el total de sobrantes.
-export const validarConsistenciaDetalle = ({ total_sobrantes = 0, detalle = [], permitirDiferencia = false } = {}) => {
+export const validarConsistenciaDetalle = ({ total_sobrantes = 0, detalle = [] } = {}) => {
   const sobrantes = toEntero(total_sobrantes);
   const identificadas = contarNoEntregadasActivas(detalle);
   const diferencia = sobrantes - identificadas;
 
-  if (diferencia !== 0 && !permitirDiferencia) {
+  if (diferencia !== 0) {
     throw fail(
       diferencia > 0
         ? `Faltan ${diferencia} documento(s) por identificar: declaraste ${sobrantes} sobrantes y registraste ${identificadas}.`

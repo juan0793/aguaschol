@@ -8,9 +8,10 @@ export const createAuditLog = async ({
   entityType,
   entityId = "",
   summary = "",
-  details = null
+  details = null,
+  executor
 }) => {
-  const pool = getPool();
+  const pool = executor || getPool();
   let snapshotName = actorName?.trim?.() ?? "";
   let snapshotEmail = actorEmail?.trim?.() ?? "";
 

@@ -3,6 +3,8 @@
 // entregados y seguimiento. Toda la aritmetica vive en entregasRules.js.
 
 import { getPool } from "../config/db.js";
+import { env } from "../config/env.js";
+import { jornadaEntregas } from "./entregasReminderService.js";
 import { createAuditLog } from "./auditService.js";
 import { listBarrioCodes } from "./barrioCodeService.js";
 import {
@@ -37,7 +39,7 @@ const isAdmin = (user) => user?.role === "admin";
 const isGestor = (user) => ["admin", "operator"].includes(user?.role);
 const PAGE_SIZE = 12;
 
-const audit = async ({ user, action, entityId, summary, details }) => {
+const audit = async ({ user, action, entityId, summary, details, executor }) => {
   try {
     await createAuditLog({
       actorUserId: user?.id ?? null,
@@ -46,10 +48,13 @@ const audit = async ({ user, action, entityId, summary, details }) => {
       entityType: "entrega",
       entityId,
       summary,
-      details
+      details,
+      executor
     });
-  } catch {
-    // La auditoria nunca debe tumbar la operacion principal.
+  } catch (error) {
+    // La auditoria nunca debe tumbar la operacion principal, ni siquiera cuando
+    // se escribe dentro de la transaccion del llamador: se deja rastro y se sigue.
+    console.error(`Auditoria de entregas (${action}) fallida:`, error.message);
   }
 };
 
@@ -94,13 +99,14 @@ export const getEntregasConfig = async (user) => {
 
   return {
     tipos_documento: TIPOS_DOCUMENTO,
+    jornada: { ...jornadaEntregas(), zona_horaria: env.entregasTimezone, fin: env.entregasFin, recordatorios: env.entregasRecordatoriosEnabled },
     estados_lote: ESTADOS_LOTE,
     estados_no_entregada: ESTADOS_NO_ENTREGADA,
     resultados_intento: RESULTADOS_INTENTO,
     tipos_personal: TIPOS_PERSONAL,
     motivos,
     barrios: barrios.map((item) => ({ codigo: item.codigo, barrio: item.barrio })),
-    semana_actual: semanaPorDefecto(),
+    semana_actual: semanaPorDefecto(jornadaEntregas().fecha),
     personal_vinculado: personalPropio,
     permissions: {
       can_manage_personal: isAdmin(user),
@@ -108,6 +114,8 @@ export const getEntregasConfig = async (user) => {
       can_edit_lote: Boolean(personalPropio) || isGestor(user),
       can_close_own_lote: Boolean(personalPropio) || isGestor(user),
       can_force_close: isAdmin(user),
+      can_reopen_lote: isAdmin(user),
+      can_delete_lote: isAdmin(user),
       can_manage_seguimiento: isGestor(user) || Boolean(personalPropio),
       can_generate_report: isGestor(user),
       can_correct_report: isAdmin(user),
@@ -340,7 +348,11 @@ export const listLotes = async (query = {}, user) => {
   const pool = getPool();
 
   const [[conteo]] = await pool.query(
-    `SELECT COUNT(*) AS total
+    `SELECT COUNT(*) AS total, COUNT(DISTINCT entrega_lotes.responsable_id) AS responsables,
+       COALESCE(SUM(entrega_lotes.total_asignadas), 0) AS asignadas,
+       COALESCE(SUM(entrega_lotes.estado = 'ABIERTO'), 0) AS abiertos,
+       COALESCE(SUM(CASE WHEN entrega_lotes.estado <> 'ABIERTO' THEN entrega_lotes.total_asignadas - entrega_lotes.total_sobrantes ELSE 0 END), 0) AS entregadas,
+       COALESCE(SUM(CASE WHEN entrega_lotes.estado <> 'ABIERTO' THEN entrega_lotes.total_sobrantes ELSE 0 END), 0) AS sobrantes
      FROM entrega_lotes
      LEFT JOIN personal_campo ON personal_campo.id = entrega_lotes.responsable_id
      ${where}`,
@@ -372,6 +384,7 @@ export const listLotes = async (query = {}, user) => {
   const total = toEntero(conteo.total);
   return {
     items: rows.map(mapLoteRow),
+    resumen: { ...Object.fromEntries(Object.entries(conteo).map(([key, value]) => [key, Number(value)])), efectividad: calcularEfectividad(conteo.entregadas, conteo.asignadas) },
     total,
     page,
     limit,
@@ -390,13 +403,15 @@ const mapLoteRow = (row) => ({
   pendientes: toEntero(row.pendientes)
 });
 
-const cargarLote = async (id) => {
-  const [rows] = await getPool().query(
+const cargarLote = async (id, executor = getPool(), forUpdate = false) => {
+  const [rows] = await executor.query(
     `SELECT entrega_lotes.*, personal_campo.nombre_completo AS responsable_nombre, personal_campo.tipo_personal,
-            personal_campo.user_id AS responsable_user_id
+            personal_campo.user_id AS responsable_user_id,
+            cierre.full_name AS closed_by_nombre
      FROM entrega_lotes
      LEFT JOIN personal_campo ON personal_campo.id = entrega_lotes.responsable_id
-     WHERE entrega_lotes.id = ? LIMIT 1`,
+     LEFT JOIN app_users AS cierre ON cierre.id = entrega_lotes.closed_by
+     WHERE entrega_lotes.id = ? LIMIT 1 ${forUpdate ? "FOR UPDATE" : ""}`,
     [toEntero(id)]
   );
   if (!rows.length) throw fail("El lote indicado no existe.", 404);
@@ -405,7 +420,7 @@ const cargarLote = async (id) => {
 
 const assertPuedeVerLote = (lote, user) => {
   if (isGestor(user)) return;
-  if (Number(lote.responsable_user_id) !== Number(user?.id)) {
+  if (!user?.id || !lote.responsable_user_id || Number(lote.responsable_user_id) !== Number(user.id)) {
     throw fail("No tienes acceso a este lote.", 403);
   }
 };
@@ -432,7 +447,7 @@ export const createLote = async (payload = {}, user) => {
   const tipo = clean(payload.tipo_documento).toUpperCase();
   if (!TIPOS_DOCUMENTO.includes(tipo)) throw fail("Selecciona el tipo de documento.");
 
-  const fecha = toIsoDate(payload.fecha) || new Date().toISOString().slice(0, 10);
+  const fecha = toIsoDate(payload.fecha) || jornadaEntregas().fecha;
   const totalAsignadas = validarTotalAsignado(payload.total_asignadas);
   const barrio = await resolverBarrio(payload);
 
@@ -499,27 +514,35 @@ export const updateLote = async (id, payload = {}, user) => {
   if (payload.observacion_responsable !== undefined) {
     cambios.observacion_responsable = clean(payload.observacion_responsable) || null;
   }
-  if (payload.estado !== undefined && isAdmin(user)) {
-    const estado = clean(payload.estado).toUpperCase();
-    if (!ESTADOS_LOTE.includes(estado)) throw fail("El estado del lote no es válido.");
-    cambios.estado = estado;
+  if (payload.estado !== undefined && clean(payload.estado).toUpperCase() !== lote.estado) {
+    throw fail("Usa el cierre de lote, la reapertura administrativa o la emisión del informe para cambiar el estado.");
   }
 
   const columnas = Object.keys(cambios);
   if (!columnas.length) return getLoteDetail(lote.id, user);
 
-  await getPool().query(
-    `UPDATE entrega_lotes SET ${columnas.map((columna) => `${columna} = ?`).join(", ")} WHERE id = ?`,
-    [...columnas.map((columna) => cambios[columna]), lote.id]
-  );
-
-  await audit({
-    user,
-    action: "LOTE_EDITADO",
-    entityId: lote.id,
-    summary: `Lote #${lote.id} actualizado`,
-    details: { lote_id: lote.id, cambios }
-  });
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const actual = await cargarLote(id, connection, true);
+    assertPuedeVerLote(actual, user);
+    if (actual.estado !== "ABIERTO" && !isAdmin(user)) {
+      throw fail("El lote ya está cerrado. Pide a un administrador que lo reabra para corregirlo.", 409);
+    }
+    const detalle = await listNoEntregadasDeLote(id, connection);
+    const asignadas = cambios.total_asignadas ?? actual.total_asignadas;
+    validarSobrantes(contarNoEntregadasActivas(detalle), asignadas);
+    validarSobrantes(actual.total_sobrantes, asignadas);
+    await connection.query(
+      `UPDATE entrega_lotes SET ${columnas.map((columna) => `${columna} = ?`).join(", ")} WHERE id = ?`,
+      [...columnas.map((columna) => cambios[columna]), lote.id]
+    );
+    await audit({ user, action: "LOTE_EDITADO", entityId: lote.id, summary: `Lote #${lote.id} actualizado`, details: { lote_id: lote.id, cambios }, executor: connection });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
 
   return getLoteDetail(lote.id, user);
 };
@@ -529,26 +552,23 @@ export const updateLote = async (id, payload = {}, user) => {
 // transaccion con bloqueo de filas, para que un alta/baja de no-entregadas
 // concurrente no deje el lote cerrado con un total_sobrantes desactualizado.
 export const cerrarLote = async (id, payload = {}, user) => {
-  const lote = await cargarLote(id);
-  assertPuedeVerLote(lote, user);
-  if (lote.estado === "REVISADO") throw fail("El lote ya fue revisado y no admite cambios.");
-
-  const sobrantes = validarSobrantes(payload.total_sobrantes, lote.total_asignadas);
+  let lote, sobrantes;
   const observacion = clean(payload.observacion_responsable);
-  const forzar = Boolean(payload.forzar_cierre) && isAdmin(user);
 
   const connection = await getPool().getConnection();
   try {
     await connection.beginTransaction();
-    const [loteRows] = await connection.query("SELECT estado FROM entrega_lotes WHERE id = ? LIMIT 1 FOR UPDATE", [lote.id]);
-    if (!loteRows.length) throw fail("El lote indicado no existe.", 404);
-    if (loteRows[0].estado === "REVISADO") throw fail("El lote ya fue revisado y no admite cambios.");
+    lote = await cargarLote(id, connection, true);
+    assertPuedeVerLote(lote, user);
+    if (lote.estado !== "ABIERTO") {
+      throw fail("El lote ya está cerrado o revisado. Un administrador debe reabrirlo para corregir el cierre.", 409);
+    }
+    sobrantes = validarSobrantes(payload.total_sobrantes, lote.total_asignadas);
 
     const detalle = await listNoEntregadasDeLote(lote.id, connection, { forUpdate: true });
     validarConsistenciaDetalle({
       total_sobrantes: sobrantes,
-      detalle,
-      permitirDiferencia: forzar
+      detalle
     });
 
     await connection.query(
@@ -557,6 +577,10 @@ export const cerrarLote = async (id, payload = {}, user) => {
        WHERE id = ?`,
       [sobrantes, observacion || null, user?.id ?? null, lote.id]
     );
+    await connection.query(
+      `UPDATE user_profile_messages messages INNER JOIN entrega_recordatorios aviso ON aviso.message_id = messages.id
+       SET messages.read_at = COALESCE(messages.read_at, CURRENT_TIMESTAMP) WHERE aviso.lote_id = ?`, [lote.id]);
+    await audit({ user, action: "LOTE_CERRADO", entityId: lote.id, summary: `Lote #${lote.id} cerrado`, details: { lote_id: lote.id, total_asignadas: lote.total_asignadas, total_sobrantes: sobrantes, closed_by: user.id }, executor: connection });
     await connection.commit();
   } catch (error) {
     await connection.rollback();
@@ -565,21 +589,105 @@ export const cerrarLote = async (id, payload = {}, user) => {
     connection.release();
   }
 
-  await audit({
-    user,
-    action: "LOTE_CERRADO",
-    entityId: lote.id,
-    summary: `Lote #${lote.id} cerrado con ${sobrantes} sobrantes de ${lote.total_asignadas}`,
-    details: {
-      lote_id: lote.id,
-      total_asignadas: toEntero(lote.total_asignadas),
-      total_sobrantes: sobrantes,
-      total_entregadas: calcularEntregadas({ total_asignadas: lote.total_asignadas, total_sobrantes: sobrantes }),
-      forzado: forzar
-    }
-  });
-
   return getLoteDetail(lote.id, user);
+};
+
+// Toda marcha atras administrativa exige un motivo: es lo unico que queda en la
+// auditoria para explicar por que se revirtio un cierre o se borro un lote.
+const exigirMotivo = (payload, mensaje) => {
+  const motivo = clean(payload.motivo);
+  if (motivo.length < 5) throw fail(mensaje);
+  if (motivo.length > 255) throw fail("El motivo no puede superar los 255 caracteres.");
+  return motivo;
+};
+
+// Reapertura administrativa: la unica via de vuelta cuando un lote se cerro por
+// error. El detalle y total_sobrantes se conservan, asi que la invariante
+// COUNT(activas) == total_sobrantes sigue firme y el lote vuelve a admitir
+// edicion, altas de no entregadas y un cierre corregido.
+export const reabrirLote = async (id, payload = {}, user) => {
+  if (!isAdmin(user)) throw fail("Solo un administrador puede reabrir un lote.", 403);
+  const motivo = exigirMotivo(payload, "Explica por qué se reabre el lote (mínimo 5 caracteres).");
+
+  let loteId;
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const lote = await cargarLote(id, connection, true);
+    if (lote.estado === "ABIERTO") throw fail("El lote ya está abierto.", 409);
+    loteId = lote.id;
+    await connection.query(
+      "UPDATE entrega_lotes SET estado = 'ABIERTO', closed_by = NULL, closed_at = NULL WHERE id = ?",
+      [lote.id]
+    );
+    await audit({
+      user,
+      action: "LOTE_REABIERTO",
+      entityId: lote.id,
+      summary: `Lote #${lote.id} reabierto desde ${lote.estado}: ${motivo}`.slice(0, 250),
+      details: {
+        lote_id: lote.id,
+        estado_anterior: lote.estado,
+        closed_by: lote.closed_by,
+        closed_at: lote.closed_at,
+        total_sobrantes: toEntero(lote.total_sobrantes),
+        motivo
+      },
+      executor: connection
+    });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  return getLoteDetail(loteId, user);
+};
+
+// Borrado definitivo, para lotes cargados por error. Un lote cerrado o revisado
+// hay que reabrirlo primero: son dos pasos deliberados y cada uno deja su motivo
+// en la auditoria. El FK en cascada arrastra detalle, intentos y recordatorios;
+// los avisos ya enviados se limpian antes para no dejar mensajes huerfanos en el
+// centro de notificaciones. La auditoria guarda el lote completo por si hay que
+// reconstruirlo.
+export const deleteLote = async (id, payload = {}, user) => {
+  if (!isAdmin(user)) throw fail("Solo un administrador puede eliminar un lote.", 403);
+  const motivo = exigirMotivo(payload, "Explica por qué se elimina el lote (mínimo 5 caracteres).");
+
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const lote = await cargarLote(id, connection, true);
+    if (lote.estado !== "ABIERTO") {
+      throw fail("Reabre el lote antes de eliminarlo, para dejar constancia de por qué se revierte el cierre.", 409);
+    }
+    const detalle = await listNoEntregadasDeLote(lote.id, connection, { forUpdate: true });
+    await connection.query(
+      `DELETE messages FROM user_profile_messages messages
+       INNER JOIN entrega_recordatorios aviso ON aviso.message_id = messages.id
+       WHERE aviso.lote_id = ?`,
+      [lote.id]
+    );
+    await connection.query("DELETE FROM entrega_lotes WHERE id = ?", [lote.id]);
+    await audit({
+      user,
+      action: "LOTE_ELIMINADO",
+      entityId: lote.id,
+      summary: `Lote #${lote.id} (${lote.barrio_nombre}, ${toIsoDate(lote.fecha)}) eliminado: ${motivo}`.slice(0, 250),
+      details: { motivo, lote: mapLoteRow(lote), no_entregadas: detalle },
+      executor: connection
+    });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  return { deleted: true, id: toEntero(id) };
 };
 
 /* -------------------------------------------------------------------------- */
@@ -606,8 +714,10 @@ const listNoEntregadasDeLote = async (loteId, executor = getPool(), { forUpdate 
 // (correccion admin, borrado, cancelacion), para que la regla
 // COUNT(activas) == total_sobrantes nunca quede desactualizada.
 const recalcularTotalSobrantes = async (executor, loteId) => {
+  const lote = await cargarLote(loteId, executor, true);
   const detalle = await listNoEntregadasDeLote(loteId, executor);
   const total = contarNoEntregadasActivas(detalle);
+  validarSobrantes(total, lote.total_asignadas);
   await executor.query("UPDATE entrega_lotes SET total_sobrantes = ? WHERE id = ?", [total, loteId]);
   return total;
 };
@@ -650,12 +760,13 @@ export const createNoEntregadas = async (loteId, payload = {}, user) => {
   let nuevosSobrantes = null;
   try {
     await connection.beginTransaction();
-    const [loteRows] = await connection.query("SELECT estado FROM entrega_lotes WHERE id = ? LIMIT 1 FOR UPDATE", [lote.id]);
-    if (!loteRows.length) throw fail("El lote indicado no existe.", 404);
-    estadoActual = loteRows[0].estado;
+    const actual = await cargarLote(lote.id, connection, true);
+    assertPuedeVerLote(actual, user);
+    estadoActual = actual.estado;
     assertPuedeAgregarNoEntregadas({ estadoLote: estadoActual, esCorreccionAdmin });
 
     const existentes = await listNoEntregadasDeLote(lote.id, connection, { forUpdate: true });
+    validarSobrantes(contarNoEntregadasActivas(existentes) + preparadas.length, actual.total_asignadas);
     const duplicados = detectarDuplicadosEnLote([...existentes, ...preparadas]);
     if (duplicados.length && !payload.permitir_duplicados) {
       throw fail(
@@ -713,9 +824,15 @@ export const createNoEntregadas = async (loteId, payload = {}, user) => {
 };
 
 export const listNoEntregadas = async (query = {}, user) => {
+  const hoy = jornadaEntregas().fecha;
   const alcance = await alcanceLotes(user);
   const filtros = alcance.filtro ? [alcance.filtro] : [];
   const params = [...alcance.params];
+  if (clean(query.q)) {
+    filtros.push("(documento.numero_abonado LIKE ? OR documento.clave_catastral LIKE ? OR documento.abonado_nombre LIKE ?)");
+    params.push(...Array(3).fill(`%${clean(query.q)}%`));
+  }
+  if (clean(query.sin_intentos) === "1") filtros.push("NOT EXISTS (SELECT 1 FROM entrega_intentos WHERE no_entregada_id = documento.id)");
 
   if (clean(query.numero_abonado)) {
     filtros.push("documento.numero_abonado LIKE ?");
@@ -754,8 +871,8 @@ export const listNoEntregadas = async (query = {}, user) => {
     params.push(toIsoDate(query.fecha_hasta));
   }
   if (toEntero(query.dias_minimos) > 0) {
-    filtros.push("DATEDIFF(CURDATE(), entrega_lotes.fecha) >= ?");
-    params.push(toEntero(query.dias_minimos));
+    filtros.push("DATEDIFF(?, entrega_lotes.fecha) > ?");
+    params.push(hoy, toEntero(query.dias_minimos));
   }
 
   const where = filtros.length ? `WHERE ${filtros.join(" AND ")}` : "";
@@ -781,7 +898,7 @@ export const listNoEntregadas = async (query = {}, user) => {
        entrega_lotes.barrio_nombre,
        entrega_lotes.responsable_id,
        personal_campo.nombre_completo AS responsable_nombre,
-       DATEDIFF(CURDATE(), entrega_lotes.fecha) AS dias_pendiente,
+       DATEDIFF(?, entrega_lotes.fecha) AS dias_pendiente,
        COALESCE(intentos.total, 0) AS intentos
      FROM entrega_no_entregadas AS documento
      INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
@@ -792,7 +909,7 @@ export const listNoEntregadas = async (query = {}, user) => {
      ${where}
      ORDER BY entrega_lotes.fecha ASC, documento.id ASC
      LIMIT ? OFFSET ?`,
-    [...params, limit, offset]
+    [hoy, ...params, limit, offset]
   );
 
   const total = toEntero(conteo.total);
@@ -870,12 +987,16 @@ export const updateNoEntregada = async (id, payload = {}, user) => {
     if (!ESTADOS_NO_ENTREGADA.includes(estado)) throw fail("El estado del documento no es válido.");
     cambios.estado = estado;
     cambios.fecha_entrega_final = estado === "REENTREGADA"
-      ? toIsoDate(payload.fecha_entrega_final) || new Date().toISOString().slice(0, 10)
+      ? toIsoDate(payload.fecha_entrega_final) || jornadaEntregas().fecha
       : null;
   }
 
   const columnas = Object.keys(cambios);
   if (!columnas.length) return getNoEntregadaDetail(documento.id, user);
+  if (!clean(cambios.numero_abonado ?? documento.numero_abonado) && !clean(cambios.clave_catastral ?? documento.clave_catastral)) {
+    throw fail("El documento necesita número de abonado o clave catastral.");
+  }
+  validarMotivo({ motivo: cambios.motivo ?? documento.motivo, observacion: cambios.observacion ?? documento.observacion, catalogo });
 
   // Un cambio de estado puede sacar (o meter) el documento del conteo de
   // "activas" (p. ej. CANCELADA). Si el lote ya no esta ABIERTO, total_sobrantes
@@ -883,12 +1004,17 @@ export const updateNoEntregada = async (id, payload = {}, user) => {
   const connection = await getPool().getConnection();
   try {
     await connection.beginTransaction();
+    const actual = await cargarLote(documento.lote_id, connection, true);
+    assertPuedeVerLote(actual, user);
+    assertLoteEditable({ lote_estado: actual.estado }, user);
     await connection.query(
       `UPDATE entrega_no_entregadas SET ${columnas.map((columna) => `${columna} = ?`).join(", ")} WHERE id = ?`,
       [...columnas.map((columna) => cambios[columna]), documento.id]
     );
-    if (columnas.includes("estado") && documento.lote_estado !== "ABIERTO") {
-      await recalcularTotalSobrantes(connection, documento.lote_id);
+    if (columnas.includes("estado")) {
+      const detalle = await listNoEntregadasDeLote(documento.lote_id, connection);
+      validarSobrantes(contarNoEntregadasActivas(detalle), actual.total_asignadas);
+      if (actual.estado !== "ABIERTO") await recalcularTotalSobrantes(connection, documento.lote_id);
     }
     await connection.commit();
   } catch (error) {
@@ -921,8 +1047,13 @@ export const deleteNoEntregada = async (id, user) => {
   const connection = await getPool().getConnection();
   try {
     await connection.beginTransaction();
+    const actual = await cargarLote(documento.lote_id, connection, true);
+    assertPuedeVerLote(actual, user);
+    if (actual.estado !== "ABIERTO" && !isAdmin(user)) {
+      throw fail("El lote ya está cerrado. Pide a un administrador que lo reabra para corregirlo.", 409);
+    }
     await connection.query("DELETE FROM entrega_no_entregadas WHERE id = ?", [documento.id]);
-    if (documento.lote_estado !== "ABIERTO") {
+    if (actual.estado !== "ABIERTO") {
       await recalcularTotalSobrantes(connection, documento.lote_id);
     }
     await connection.commit();
@@ -955,13 +1086,24 @@ export const registrarIntento = async (id, payload = {}, user) => {
 
   const resultado = clean(payload.resultado).toUpperCase();
   if (!RESULTADOS_INTENTO.includes(resultado)) throw fail("El resultado del intento no es válido.");
-  const fecha = toIsoDate(payload.fecha) || new Date().toISOString().slice(0, 10);
+  const fecha = toIsoDate(payload.fecha) || jornadaEntregas().fecha;
   const responsableId = toEntero(payload.responsable_id) || documento.responsable_id || null;
   const observacion = clean(payload.observacion) || null;
   if (resultado === "OTRO" && !observacion) throw fail('El resultado "Otro" exige una observación.');
 
-  const pool = getPool();
-  const [result] = await pool.query(
+  const connection = await getPool().getConnection();
+  let result;
+  try {
+  await connection.beginTransaction();
+  const actual = await cargarLote(documento.lote_id, connection, true);
+  assertPuedeVerLote(actual, user);
+  assertLoteEditable({ lote_estado: actual.estado }, user);
+  const [[vigente]] = await connection.query("SELECT * FROM entrega_no_entregadas WHERE id = ? FOR UPDATE", [documento.id]);
+  if (!vigente) throw fail("El documento ya no existe.", 404);
+  if (vigente.estado === "CANCELADA") throw fail("El seguimiento está cancelado.");
+  const [[responsable]] = await connection.query("SELECT id FROM personal_campo WHERE id = ? AND activo = 1", [responsableId]);
+  if (!responsable) throw fail("El responsable del intento no está activo.");
+  [result] = await connection.query(
     `INSERT INTO entrega_intentos (no_entregada_id, fecha, responsable_id, resultado, observacion, created_by)
      VALUES (?, ?, ?, ?, ?, ?)`,
     [documento.id, fecha, responsableId, resultado, observacion, user?.id ?? null]
@@ -972,14 +1114,19 @@ export const registrarIntento = async (id, payload = {}, user) => {
     ? "REENTREGADA"
     : resultado === "NO_LOCALIZADO"
       ? "NO_LOCALIZADA"
-      : documento.estado === "PENDIENTE" ? "PENDIENTE" : documento.estado;
+      : vigente.estado;
 
-  await pool.query(
+  await connection.query(
     `UPDATE entrega_no_entregadas
      SET estado = ?, fecha_ultimo_intento = ?, fecha_entrega_final = ?
      WHERE id = ?`,
-    [nuevoEstado, fecha, resultado === "ENTREGADO" ? fecha : documento.fecha_entrega_final, documento.id]
+    [nuevoEstado, fecha, nuevoEstado === "REENTREGADA" ? (vigente.fecha_entrega_final || fecha) : null, documento.id]
   );
+  await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
 
   await audit({
     user,
@@ -997,8 +1144,9 @@ export const registrarIntento = async (id, payload = {}, user) => {
 /* -------------------------------------------------------------------------- */
 
 export const getResumen = async (query = {}, user) => {
+  const hoy = jornadaEntregas().fecha;
   const alcance = await alcanceLotes(user);
-  const semana = semanaPorDefecto();
+  const semana = semanaPorDefecto(hoy);
   const desde = toIsoDate(query.fecha_desde) || semana.fecha_inicio;
   const hasta = toIsoDate(query.fecha_hasta) || semana.fecha_fin;
   const filtros = ["entrega_lotes.fecha BETWEEN ? AND ?"];
@@ -1020,6 +1168,7 @@ export const getResumen = async (query = {}, user) => {
        COUNT(*) AS lotes,
        COALESCE(SUM(total_asignadas), 0) AS asignadas,
        COALESCE(SUM(total_sobrantes), 0) AS sobrantes,
+       COALESCE(SUM(CASE WHEN estado <> 'ABIERTO' THEN total_asignadas - total_sobrantes ELSE 0 END), 0) AS entregadas,
        COALESCE(SUM(estado = 'ABIERTO'), 0) AS lotes_abiertos
      FROM entrega_lotes ${where}`;
 
@@ -1027,19 +1176,19 @@ export const getResumen = async (query = {}, user) => {
        COALESCE(SUM(documento.estado = 'PENDIENTE'), 0) AS pendientes,
        COALESCE(SUM(documento.estado = 'REENTREGADA'), 0) AS reentregadas,
        COALESCE(SUM(documento.estado = 'NO_LOCALIZADA'), 0) AS no_localizadas,
-       COALESCE(SUM(documento.estado = 'PENDIENTE' AND DATEDIFF(CURDATE(), entrega_lotes.fecha) > 3), 0) AS pendientes_3,
-       COALESCE(SUM(documento.estado = 'PENDIENTE' AND DATEDIFF(CURDATE(), entrega_lotes.fecha) > 7), 0) AS pendientes_7
+       COALESCE(SUM(documento.estado = 'PENDIENTE' AND DATEDIFF(?, entrega_lotes.fecha) > 3), 0) AS pendientes_3,
+       COALESCE(SUM(documento.estado = 'PENDIENTE' AND DATEDIFF(?, entrega_lotes.fecha) > 7), 0) AS pendientes_7
      FROM entrega_no_entregadas AS documento
      INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
      ${where}`;
 
   const [[totales]] = await pool.query(totalesSql, params);
-  const [[detalle]] = await pool.query(detalleSql, params);
+  const [[detalle]] = await pool.query(detalleSql, [hoy, hoy, ...params]);
 
   const [porDia] = await pool.query(
     `SELECT entrega_lotes.fecha,
             COALESCE(SUM(total_asignadas), 0) AS asignadas,
-            COALESCE(SUM(total_asignadas - total_sobrantes), 0) AS entregadas,
+            COALESCE(SUM(CASE WHEN estado <> 'ABIERTO' THEN total_asignadas - total_sobrantes ELSE 0 END), 0) AS entregadas,
             COALESCE(SUM(total_sobrantes), 0) AS no_entregadas
      FROM entrega_lotes ${where}
      GROUP BY entrega_lotes.fecha
@@ -1054,12 +1203,12 @@ export const getResumen = async (query = {}, user) => {
   const hastaAnterior = addDays(desde, -1);
   const paramsAnterior = [desdeAnterior, hastaAnterior, ...params.slice(2)];
   const [[totalesAnterior]] = await pool.query(totalesSql, paramsAnterior);
-  const [[detalleAnterior]] = await pool.query(detalleSql, paramsAnterior);
+  const [[detalleAnterior]] = await pool.query(detalleSql, [hoy, hoy, ...paramsAnterior]);
 
   const asignadas = toEntero(totales.asignadas);
-  const entregadas = Math.max(asignadas - toEntero(totales.sobrantes), 0);
+  const entregadas = toEntero(totales.entregadas);
   const asignadasAnterior = toEntero(totalesAnterior.asignadas);
-  const entregadasAnterior = Math.max(asignadasAnterior - toEntero(totalesAnterior.sobrantes), 0);
+  const entregadasAnterior = toEntero(totalesAnterior.entregadas);
 
   const porDiaMapa = new Map(porDia.map((row) => [toIsoDate(row.fecha), row]));
 
@@ -1082,6 +1231,7 @@ export const getResumen = async (query = {}, user) => {
       entregadas: entregadasAnterior,
       pendientes: toEntero(detalleAnterior.pendientes),
       reentregadas: toEntero(detalleAnterior.reentregadas),
+      no_localizadas: toEntero(detalleAnterior.no_localizadas),
       efectividad: calcularEfectividad(entregadasAnterior, asignadasAnterior)
     },
     por_dia: listarDiasDelRango(desde, hasta).map((fecha) => {

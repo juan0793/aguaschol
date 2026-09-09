@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { estadoLoteLabel, formatNumber, tipoDocumentoLabel, tipoPersonalLabel } from "../utils/entregasFormatters";
+import { toLocalIsoDate } from "../utils/entregasDate";
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = toLocalIsoDate;
 const OTRO_BARRIO = "__otro__";
 
 const FORM_INICIAL = {
@@ -155,6 +156,8 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
           </label>
           <label className="cl-field is-wide">
             Total asignado
+            <div className="ent-stepper">
+            <button type="button" aria-label="Restar documento asignado" onClick={() => patch({ total_asignadas: String(Math.max(1, (Number(form.total_asignadas) || 1) - 1)) })} disabled={Number(form.total_asignadas) <= 1}>−</button>
             <input
               type="number"
               min="1"
@@ -165,6 +168,8 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
               onChange={(event) => patch({ total_asignadas: event.target.value })}
               required
             />
+            <button type="button" aria-label="Sumar documento asignado" onClick={() => patch({ total_asignadas: String((Number(form.total_asignadas) || 0) + 1) })}>+</button>
+            </div>
           </label>
           <label className="cl-field is-wide">
             Observaciones iniciales (opcional)

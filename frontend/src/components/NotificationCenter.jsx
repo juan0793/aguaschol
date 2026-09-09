@@ -11,6 +11,7 @@ export function NotificationCenter({
   unreadCount = 0,
   onNotificationClick,
   onNotificationSelect,
+  onEntregaNotification,
   onUnreadCountChange,
   showAlert
 }) {
@@ -134,7 +135,10 @@ export function NotificationCenter({
   };
 
   const handleOpenNotification = (notification) => {
-    if (notification?.sender_user_id) {
+    if (notification?.entrega_lote_id) {
+      onEntregaNotification?.(notification.entrega_lote_id);
+      handleMarkAsRead(notification.id);
+    } else if (notification?.sender_user_id) {
       onNotificationSelect?.(notification.sender_user_id);
     } else {
       onNotificationClick?.();

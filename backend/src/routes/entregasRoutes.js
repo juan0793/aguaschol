@@ -7,6 +7,8 @@ import {
   loteCreate,
   loteDetail,
   loteNoEntregadasCreate,
+  loteReabrir,
+  loteRemove,
   loteUpdate,
   lotesList,
   noEntregadaDetail,
@@ -39,6 +41,8 @@ router.post("/lotes", requireRoles("admin", "operator"), loteCreate);
 router.get("/lotes/:id", loteDetail);
 router.patch("/lotes/:id", loteUpdate);
 router.post("/lotes/:id/cerrar", loteCerrar);
+router.post("/lotes/:id/reabrir", requireRoles("admin"), loteReabrir);
+router.delete("/lotes/:id", requireRoles("admin"), loteRemove);
 router.post("/lotes/:id/no-entregadas", loteNoEntregadasCreate);
 
 router.get("/no-entregadas", noEntregadasList);

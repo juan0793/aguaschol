@@ -885,3 +885,17 @@ CREATE TABLE IF NOT EXISTS reportes_semanales_entregas (
   KEY idx_reportes_semanales_origen (reporte_origen_id),
   CONSTRAINT fk_reportes_semanales_generador FOREIGN KEY (generado_por) REFERENCES app_users(id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS entrega_recordatorios (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  lote_id INT UNSIGNED NOT NULL,
+  recipient_user_id INT UNSIGNED NOT NULL,
+  jornada DATE NOT NULL,
+  fase VARCHAR(20) NOT NULL,
+  message_id INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_entrega_recordatorio (lote_id, recipient_user_id, jornada, fase),
+  UNIQUE KEY uq_entrega_recordatorio_message (message_id),
+  CONSTRAINT fk_recordatorio_lote FOREIGN KEY (lote_id) REFERENCES entrega_lotes(id) ON DELETE CASCADE,
+  CONSTRAINT fk_recordatorio_usuario FOREIGN KEY (recipient_user_id) REFERENCES app_users(id) ON DELETE CASCADE
+);

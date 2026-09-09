@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import IntentosTimeline from "./IntentosTimeline";
+import EntregasDrawer from "./EntregasDrawer";
+import { toLocalIsoDate } from "../utils/entregasDate";
 import {
   estadoClass,
   estadoDocumentoLabel,
@@ -8,7 +10,7 @@ import {
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = toLocalIsoDate;
 
 export default function NoEntregadaDetalle({ api, config, id, personal, permissions, notify, onClose, onChanged }) {
   const [documento, setDocumento] = useState(null);
@@ -16,6 +18,7 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
   const [intento, setIntento] = useState({ fecha: hoy(), resultado: "CASA_CERRADA", responsable_id: "", observacion: "" });
   const [observacion, setObservacion] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const puedeGestionar = permissions.can_manage_seguimiento && (documento?.lote_estado !== "REVISADO" || permissions.can_force_close) && documento?.estado !== "CANCELADA";
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -64,8 +67,7 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
   };
 
   return (
-    <div className="cl-drawer-backdrop" role="dialog" aria-modal="true">
-      <aside className="cl-drawer ent-drawer">
+    <EntregasDrawer title="Seguimiento del documento" onClose={onClose} busy={guardando}>
         <header>
           <div>
             <span className="cl-kicker">Documento no entregado</span>
@@ -75,7 +77,7 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
               {tipoDocumentoLabel(documento?.tipo_documento)}
             </p>
           </div>
-          <button type="button" className="cl-icon-button" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="cl-icon-button" onClick={onClose} disabled={guardando} aria-label="Cerrar">
             ✕
           </button>
         </header>
@@ -123,7 +125,7 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
                 />
               </section>
 
-              {permissions.can_manage_seguimiento ? (
+              {puedeGestionar ? (
                 <>
                   <form id="ent-intento-form" className="ent-card ent-intento-form" onSubmit={registrarIntento}>
                     <h3>Registrar intento</h3>
@@ -206,7 +208,7 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
           )}
         </div>
 
-        {!cargando && documento && permissions.can_manage_seguimiento ? (
+        {!cargando && documento && puedeGestionar ? (
           <footer className="ent-drawer-footer ent-seguimiento-footer">
             <button type="submit" form="ent-intento-form" className="cl-secondary" disabled={guardando}>
               <Icon name="plus" />
@@ -223,7 +225,6 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
             </button>
           </footer>
         ) : null}
-      </aside>
-    </div>
+    </EntregasDrawer>
   );
 }

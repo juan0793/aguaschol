@@ -35,6 +35,8 @@ export const createEntregasApi = (apiFetch) => ({
   crearLote: (payload) => apiFetch("/entregas/lotes", { method: "POST", ...jsonBody(payload) }).then(json),
   actualizarLote: (id, payload) => apiFetch(`/entregas/lotes/${id}`, { method: "PATCH", ...jsonBody(payload) }).then(json),
   cerrarLote: (id, payload) => apiFetch(`/entregas/lotes/${id}/cerrar`, { method: "POST", ...jsonBody(payload) }).then(json),
+  reabrirLote: (id, payload) => apiFetch(`/entregas/lotes/${id}/reabrir`, { method: "POST", ...jsonBody(payload) }).then(json),
+  eliminarLote: (id, payload) => apiFetch(`/entregas/lotes/${id}`, { method: "DELETE", ...jsonBody(payload) }).then(json),
   agregarNoEntregadas: (id, payload) =>
     apiFetch(`/entregas/lotes/${id}/no-entregadas`, { method: "POST", ...jsonBody(payload) }).then(json),
 

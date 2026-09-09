@@ -10,7 +10,7 @@ const flechaTendencia = (direction) => (direction === "up" ? "▲" : direction =
 export default function EntregasStats({ resumen, onSelect }) {
   const comparativo = resumen?.comparativo;
   const tarjetas = [
-    { key: "asignadas", label: "Asignadas", value: resumen?.asignadas, previo: comparativo?.asignadas, icon: "archive" },
+    { key: "no_localizadas", label: "No localizadas", value: resumen?.no_localizadas, previo: comparativo?.no_localizadas, icon: "search", tono: "is-atencion" },
     { key: "entregadas", label: "Entregadas", value: resumen?.entregadas, previo: comparativo?.entregadas, icon: "success" },
     {
       key: "pendientes",

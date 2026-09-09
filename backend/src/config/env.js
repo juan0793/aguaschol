@@ -41,6 +41,11 @@ const frontendUrls = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? f
   .filter(Boolean);
 
 export const env = {
+  entregasRecordatoriosEnabled: process.env.ENTREGAS_RECORDATORIOS_ENABLED !== "false",
+  entregasTimezone: process.env.ENTREGAS_TIMEZONE || "America/Tegucigalpa",
+  entregasRecordatorio: process.env.ENTREGAS_RECORDATORIO_HORA || "12:00",
+  entregasPreaviso: process.env.ENTREGAS_PREAVISO_HORA || "16:30",
+  entregasFin: process.env.ENTREGAS_FIN_JORNADA || "17:00",
   port: Number(process.env.PORT ?? 4000),
   isRailway,
   isProduction,
@@ -110,6 +115,12 @@ env.useCloudinary = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && e
 env.useR2 = Boolean(env.r2AccessKeyId && env.r2SecretAccessKey && env.r2Endpoint && env.r2Bucket);
 
 export const validateRuntimeEnv = (config = env) => {
+  config = { ...env, ...config };
+  new Intl.DateTimeFormat("en", { timeZone: config.entregasTimezone });
+  const horarios = [config.entregasRecordatorio, config.entregasPreaviso, config.entregasFin];
+  if (horarios.some((hora) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) || horarios[0] >= horarios[1] || horarios[1] >= horarios[2]) {
+    throw new Error("Horarios de entregas inválidos: usa HH:mm y recordatorio < preaviso < fin de jornada.");
+  }
   if (config.isProduction && !String(config.authPassword || "").trim()) {
     throw new Error("AUTH_PASSWORD es obligatoria en produccion.");
   }

@@ -293,6 +293,7 @@ const normalizeGeneralMessage = (message) => ({
   reply_to_message_id: message.reply_to_message_id,
   channel: normalizeChatChannel(message.channel),
   body: message.body,
+  entrega_lote_id: message.entrega_lote_id || null,
   attachment_url: message.attachment_url ?? "",
   attachment_type: message.attachment_type ?? "",
   pinned_at: message.pinned_at,
@@ -473,6 +474,11 @@ export const getProfile = async ({ authUser, userId }) => {
     `,
     [targetId, targetId]
   );
+  if (messages.length) {
+    const [avisos] = await pool.query("SELECT message_id, lote_id FROM entrega_recordatorios WHERE message_id IN (?)", [messages.map((item) => item.id)]);
+    const lotes = new Map(avisos.map((item) => [Number(item.message_id), item.lote_id]));
+    messages.forEach((item) => { item.entrega_lote_id = lotes.get(Number(item.id)) || null; });
+  }
   const [generalMessages] = await pool.query(
     `
       SELECT

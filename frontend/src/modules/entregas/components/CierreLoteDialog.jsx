@@ -8,6 +8,7 @@ import {
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
 import { filaVacia, parsearPegado } from "../utils/cierreLoteUtils";
+import EntregasDrawer from "./EntregasDrawer";
 
 const ESTADOS_ACTIVOS = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA"];
 
@@ -15,7 +16,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const motivos = config.motivos;
   const motivoPorDefecto = motivos[0]?.codigo || "CASA_CERRADA";
   const [detalle, setDetalle] = useState(lote.no_entregadas || []);
-  const [sobrantes, setSobrantes] = useState(String(lote.total_sobrantes ?? ""));
+  const [sobrantes, setSobrantes] = useState("");
   const [observacion, setObservacion] = useState(lote.observacion_responsable || "");
   const [nuevas, setNuevas] = useState([]);
   const [pegado, setPegado] = useState("");
@@ -35,9 +36,9 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const entregadas = Math.max(Number(lote.total_asignadas) - (Number.isFinite(sobrantesNum) ? sobrantesNum : 0), 0);
   const diferencia = sobrantesNum - identificadas;
   const sobrantesInvalidos =
-    sobrantes === "" || sobrantesNum < 0 || sobrantesNum > Number(lote.total_asignadas);
+    sobrantes === "" || !Number.isSafeInteger(sobrantesNum) || sobrantesNum < 0 || sobrantesNum > Number(lote.total_asignadas);
   const progreso = sobrantesNum > 0 ? Math.min((identificadas / sobrantesNum) * 100, 100) : 100;
-  const puedeCerrar = !guardando && !sobrantesInvalidos && diferencia === 0;
+  const puedeCerrar = lote.estado === "ABIERTO" && config.permissions.can_close_own_lote && !guardando && buscando === -1 && !sobrantesInvalidos && diferencia === 0;
   const faltantes = Math.max(diferencia, 0);
 
   const patchNueva = (index, cambios) =>
@@ -68,6 +69,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
   const agregarPegado = () => {
     const filas = parsearPegado(pegado, motivos);
+    if (identificadas + filas.length > lote.total_asignadas) { notify("El detalle no puede superar las asignadas."); return; }
     if (!filas.length) {
       notify("No se reconoció ninguna fila en el texto pegado.");
       return;
@@ -80,7 +82,8 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   };
 
   const agregarFaltantes = () => {
-    const total = faltantes || 1;
+    const total = Math.min(Number.isSafeInteger(faltantes) ? faltantes || 1 : 1, 100, Number(lote.total_asignadas) - identificadas);
+    if (total <= 0) return;
     setNuevas((filas) => [...filas, ...Array.from({ length: total }, () => filaVacia(motivoPorDefecto))]);
     if (sobrantes === "" || faltantes === 0) setSobrantes(String(identificadas + total));
   };
@@ -125,7 +128,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   };
 
   const cerrar = async () => {
-    if (guardando) return;
+    if (!puedeCerrar) return;
     setGuardando(true);
     try {
       const ok = await guardarNuevas();
@@ -154,8 +157,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   };
 
   return (
-    <div className="cl-drawer-backdrop" role="dialog" aria-modal="true">
-      <aside className="cl-drawer ent-drawer">
+    <EntregasDrawer title={`Cerrar lote ${lote.id}`} busy={guardando} onClose={() => { if (!nuevas.length || window.confirm("Hay documentos sin guardar. ¿Descartar y salir?")) onClose(); }}>
         <header>
           <div>
             <span className="cl-kicker">Cierre de lote</span>
@@ -165,7 +167,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               {formatNumber(lote.total_asignadas)} asignadas
             </p>
           </div>
-          <button type="button" className="cl-icon-button" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="cl-icon-button" disabled={guardando} onClick={() => { if (!nuevas.length || window.confirm("Hay documentos sin guardar. ¿Descartar y salir?")) onClose(); }} aria-label="Cerrar">
             ✕
           </button>
         </header>
@@ -208,6 +210,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                   </button>
                   <input
                     type="number"
+                    aria-label="Sobrantes / no entregadas"
                     min="0"
                     max={lote.total_asignadas}
                     step="1"
@@ -284,7 +287,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
             <div className="ent-captura-actions">
               <button type="button" className="cl-secondary" onClick={agregarFaltantes}>
                 <Icon name="plus" />
-                {faltantes > 0 ? `Crear ${formatNumber(faltantes)} fila(s) faltante(s)` : "Agregar documento"}
+                {faltantes > 0 ? `Crear ${formatNumber(Math.min(faltantes, 100))} fila(s) faltante(s)` : "Agregar documento"}
               </button>
               <button type="button" className="cl-secondary" onClick={() => setModo("pegar")}>
                 <Icon name="copy" />
@@ -329,6 +332,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                         <td>
                           <input
                             value={fila.numero_abonado}
+                            aria-label={`Abonado, fila ${index + 1}`}
                             onChange={(event) => patchNueva(index, { numero_abonado: event.target.value })}
                             onBlur={(event) => buscarAbonado(index, event.target.value, "abonado")}
                             placeholder="10245"
@@ -338,6 +342,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                         <td>
                           <input
                             value={fila.clave_catastral}
+                            aria-label={`Clave catastral, fila ${index + 1}`}
                             onChange={(event) => patchNueva(index, { clave_catastral: event.target.value })}
                             onBlur={(event) => buscarAbonado(index, event.target.value, "clave")}
                             placeholder="10-20-03-04"
@@ -447,7 +452,6 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
             </button>
           </div>
         </footer>
-      </aside>
-    </div>
+    </EntregasDrawer>
   );
 }

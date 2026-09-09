@@ -2,6 +2,8 @@ import { useCallback, useMemo } from "react";
 import { useEntregasList } from "./useEntregasList.js";
 
 const FILTROS_INICIALES = {
+  q: "",
+  sin_intentos: "",
   numero_abonado: "",
   clave_catastral: "",
   barrio_codigo: "",
