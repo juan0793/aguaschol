@@ -91,6 +91,41 @@ export function GraficoEfectividadResponsable({ rows = [] }) {
   );
 }
 
+// Ordenado por sobrante absoluto, que es lo que se pregunta ("donde hubo mas"),
+// pero con la tasa al lado: un barrio grande siempre suma mas en terminos brutos.
+export function GraficoBarriosSobrantes({ rows = [], onSelect }) {
+  const datos = rows.filter((fila) => fila.sobrantes > 0);
+  const maximo = Math.max(1, ...datos.map((fila) => fila.sobrantes));
+
+  return (
+    <figure className="ent-chart">
+      <figcaption>Barrios con más sobrantes</figcaption>
+      <ul className="ent-chart-rows">
+        {datos.map((fila) => (
+          <li
+            key={fila.barrio_codigo || fila.barrio_nombre}
+            className={onSelect ? "is-clickable" : ""}
+            role={onSelect ? "button" : undefined}
+            tabIndex={onSelect ? 0 : undefined}
+            title={`${formatNumber(fila.asignadas)} asignadas · ${formatNumber(fila.pendientes)} aún pendientes`}
+            onClick={() => onSelect?.(fila)}
+            onKeyDown={(event) => { if (onSelect && ["Enter", " "].includes(event.key)) { event.preventDefault(); onSelect(fila); } }}
+          >
+            <span>{fila.barrio_nombre}</span>
+            <i>
+              <em style={{ width: `${(fila.sobrantes / maximo) * 100}%` }} />
+            </i>
+            <strong>
+              {formatNumber(fila.sobrantes)} · {formatPercent(fila.tasa_sobrante)}
+            </strong>
+          </li>
+        ))}
+        {!datos.length ? <li className="ent-chart-empty">Sin sobrantes registrados en el período.</li> : null}
+      </ul>
+    </figure>
+  );
+}
+
 export function GraficoMotivos({ rows = [] }) {
   const datos = rows.slice(0, 6);
   const maximo = Math.max(1, ...datos.map((fila) => fila.total));

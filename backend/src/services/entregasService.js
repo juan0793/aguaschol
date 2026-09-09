@@ -1277,6 +1277,33 @@ export const getResumen = async (query = {}, user) => {
   const [[totales]] = await pool.query(totalesSql, params);
   const [[detalle]] = await pool.query(detalleSql, [hoy, hoy, ...params]);
 
+  // Barrios ordenados por sobrante: se cruzan dos consultas porque las asignadas
+  // viven en el lote y los sobrantes en el detalle. Contar documentos activos (en
+  // vez de leer total_sobrantes) tambien cubre los lotes todavia abiertos, donde
+  // esa columna aun no se escribio.
+  const [porBarrioLotes] = await pool.query(
+    `SELECT entrega_lotes.barrio_codigo, entrega_lotes.barrio_nombre,
+            COUNT(*) AS lotes,
+            COALESCE(SUM(estado = 'ABIERTO'), 0) AS lotes_abiertos,
+            COALESCE(SUM(total_asignadas), 0) AS asignadas,
+            COALESCE(SUM(CASE WHEN estado <> 'ABIERTO' THEN total_asignadas - total_sobrantes ELSE 0 END), 0) AS entregadas
+     FROM entrega_lotes ${where}
+     GROUP BY entrega_lotes.barrio_codigo, entrega_lotes.barrio_nombre`,
+    params
+  );
+
+  const [porBarrioDocs] = await pool.query(
+    `SELECT entrega_lotes.barrio_codigo, entrega_lotes.barrio_nombre,
+            COUNT(*) AS sobrantes,
+            COALESCE(SUM(documento.estado = 'PENDIENTE'), 0) AS pendientes,
+            COALESCE(SUM(documento.estado = 'REENTREGADA'), 0) AS reentregadas
+     FROM entrega_no_entregadas AS documento
+     INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
+     ${where} AND documento.estado IN (?)
+     GROUP BY entrega_lotes.barrio_codigo, entrega_lotes.barrio_nombre`,
+    [...params, ESTADOS_NO_ENTREGADA_ACTIVOS]
+  );
+
   const [porDia] = await pool.query(
     `SELECT entrega_lotes.fecha,
             COALESCE(SUM(total_asignadas), 0) AS asignadas,
@@ -1304,6 +1331,27 @@ export const getResumen = async (query = {}, user) => {
 
   const porDiaMapa = new Map(porDia.map((row) => [toIsoDate(row.fecha), row]));
 
+  const barrios = new Map();
+  const claveBarrio = (row) => String(row.barrio_codigo || row.barrio_nombre || "");
+  porBarrioLotes.forEach((row) => barrios.set(claveBarrio(row), {
+    barrio_codigo: row.barrio_codigo || "",
+    barrio_nombre: row.barrio_nombre || "Sin barrio",
+    lotes: toEntero(row.lotes),
+    lotes_abiertos: toEntero(row.lotes_abiertos),
+    asignadas: toEntero(row.asignadas),
+    entregadas: toEntero(row.entregadas),
+    sobrantes: 0,
+    pendientes: 0,
+    reentregadas: 0
+  }));
+  porBarrioDocs.forEach((row) => {
+    const fila = barrios.get(claveBarrio(row));
+    if (!fila) return;
+    fila.sobrantes = toEntero(row.sobrantes);
+    fila.pendientes = toEntero(row.pendientes);
+    fila.reentregadas = toEntero(row.reentregadas);
+  });
+
   return {
     periodo: { fecha_inicio: desde, fecha_fin: hasta },
     periodo_anterior: { fecha_inicio: desdeAnterior, fecha_fin: hastaAnterior },
@@ -1328,6 +1376,16 @@ export const getResumen = async (query = {}, user) => {
       vencidas: toEntero(detalleAnterior.vencidas),
       efectividad: calcularEfectividad(entregadasAnterior, asignadasAnterior)
     },
+    // El conteo absoluto responde "donde hubo mas sobrante"; la tasa dice donde
+    // esta el problema real, porque un barrio grande siempre suma mas.
+    por_barrio: [...barrios.values()]
+      .map((fila) => ({
+        ...fila,
+        efectividad: calcularEfectividad(fila.entregadas, fila.asignadas),
+        tasa_sobrante: calcularEfectividad(fila.sobrantes, fila.asignadas)
+      }))
+      .sort((izquierda, derecha) => derecha.sobrantes - izquierda.sobrantes || derecha.asignadas - izquierda.asignadas)
+      .slice(0, 8),
     por_dia: listarDiasDelRango(desde, hasta).map((fecha) => {
       const row = porDiaMapa.get(fecha);
       return {

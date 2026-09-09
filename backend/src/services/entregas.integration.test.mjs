@@ -111,6 +111,19 @@ test("MySQL real: permisos, cierre concurrente, correcciones, recordatorios y re
     assert.equal(JSON.stringify((await reports.getReporteSemanal(report.id, admin)).snapshot), snapshot);
     const [[trazas]] = await pool.query("SELECT COUNT(*) AS total FROM audit_logs WHERE entity_type = 'entrega' AND action IN ('LOTE_REABIERTO', 'LOTE_ELIMINADO')");
     assert.equal(trazas.total, 3);
+    // Barrios ordenados por sobrante, con la tasa sobre lo asignado.
+    const conBarrios = await service.getResumen({ fecha_desde: addDays(hoy, -7), fecha_hasta: hoy }, admin);
+    assert.ok(conBarrios.por_barrio.length >= 2);
+    assert.ok(conBarrios.por_barrio[0].sobrantes >= conBarrios.por_barrio[1].sobrantes);
+    const centro = conBarrios.por_barrio.find((fila) => fila.barrio_nombre === "BO. EL CENTRO");
+    assert.equal(centro.sobrantes, 3);
+    assert.equal(centro.asignadas, 10);
+    assert.equal(centro.tasa_sobrante, 30);
+    // Un barrio sin sobrantes aparece igual, en cero, no desaparece del ranking.
+    const libertad = conBarrios.por_barrio.find((fila) => fila.barrio_nombre === "BO. LA LIBERTAD");
+    assert.equal(libertad.sobrantes, 0);
+    assert.ok(libertad.asignadas > 0);
+
     // Ciclo mensual: al emitirse las facturas nuevas, los pendientes del ciclo
     // anterior quedan sin efecto, pero las cifras del lote cerrado NO se mueven.
     const previo = await service.createLote({ responsable_id: persona.id, fecha: addDays(hoy, -20), barrio_nombre: "BO. EL CENTRO", tipo_documento: "FACTURA", total_asignadas: 6 }, admin);

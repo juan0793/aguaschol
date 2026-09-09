@@ -179,6 +179,7 @@
 
 /* ---------- Resumen ---------- */
 .ent-resumen-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.ent-resumen-wide { grid-column: 1 / -1; min-width: 0; }
 
 /* Lista plana con divisores sutiles: reemplaza una tarjeta por fila (spec UI/UX) */
 .ent-lista-plana { display: grid; gap: 0; margin: 10px 0 0; padding: 0; list-style: none; }

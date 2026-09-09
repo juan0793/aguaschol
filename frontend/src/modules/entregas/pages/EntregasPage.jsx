@@ -13,7 +13,7 @@ import NoEntregadasTable from "../components/NoEntregadasTable";
 import NoEntregadaDetalle from "../components/NoEntregadaDetalle";
 import PersonalCampoTable from "../components/PersonalCampoTable";
 import ReportesSemanales from "../components/ReportesSemanales";
-import { GraficoPorDia } from "../components/ReporteCharts";
+import { GraficoBarriosSobrantes, GraficoPorDia } from "../components/ReporteCharts";
 import { formatDate, formatNumber } from "../utils/entregasFormatters";
 import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
 import "../styles/entregas.css";
@@ -354,6 +354,15 @@ export default function EntregasPage({ apiFetch, showAlert }) {
                   Volver a jornadas anteriores
                 </button>
               ) : null}
+            </div>
+            <div className="ent-resumen-wide">
+              <GraficoBarriosSobrantes
+                rows={resumen?.por_barrio || []}
+                onSelect={(fila) => {
+                  lotes.setFilters({ q: "", responsable_id: "", tipo_documento: "", estado: "", barrio_codigo: fila.barrio_codigo, fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" });
+                  ir("lotes");
+                }}
+              />
             </div>
           </div>
         </section>
