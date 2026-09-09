@@ -3,27 +3,40 @@ import { Icon } from "../../../components/Icon";
 import { estadoClass, estadoLoteLabel, formatDate, formatNumber, formatPercent, tipoDocumentoLabel } from "../utils/entregasFormatters";
 import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
 
-export default function LotesTable({ model, config, personal, permissions, onToday, onOpen, onCerrar }) {
+export default function LotesTable({ model, config, personal, permissions, historial = false, onToday, onOpen, onCerrar }) {
   const { items, loading, error, filters, setFilters, clearFilters, page, setPage, total, total_pages: totalPages, resumen } = model;
   const [advanced, setAdvanced] = useState(false);
   const hoy = config.jornada?.fecha || toLocalIsoDate();
-  // La bandeja abre en el dia de hoy; sin estos atajos, ver un lote de la semana
-  // pasada obligaba a abrir Filtros y escribir dos fechas a mano.
-  const rangos = [
-    ["Hoy", { fecha_desde: hoy, fecha_hasta: hoy }],
-    ["Últimos 7 días", { fecha_desde: addDaysIso(hoy, -6), fecha_hasta: hoy }],
-    ["Últimos 30 días", { fecha_desde: addDaysIso(hoy, -29), fecha_hasta: hoy }],
-    ...(config.ciclo?.fecha_inicio ? [["Ciclo actual", { fecha_desde: config.ciclo.fecha_inicio, fecha_hasta: hoy }]] : []),
-    ["Todo el historial", { fecha_desde: "", fecha_hasta: "" }]
-  ];
+  const ayer = addDaysIso(hoy, -1);
+  // Sin estos atajos, mover el rango obligaba a abrir Filtros y escribir dos
+  // fechas a mano. En el historial el tope siempre es ayer: hoy es la otra bandeja.
+  const rangos = historial
+    ? [
+      ["Ayer", { fecha_desde: ayer, fecha_hasta: ayer }],
+      ["Últimos 7 días", { fecha_desde: addDaysIso(hoy, -7), fecha_hasta: ayer }],
+      ["Últimos 30 días", { fecha_desde: addDaysIso(hoy, -30), fecha_hasta: ayer }],
+      ...(config.ciclo?.fecha_inicio && config.ciclo.fecha_inicio <= ayer ? [["Ciclo actual", { fecha_desde: config.ciclo.fecha_inicio, fecha_hasta: ayer }]] : []),
+      ["Todo lo anterior", { fecha_desde: "", fecha_hasta: ayer }]
+    ]
+    : [
+      ["Hoy", { fecha_desde: hoy, fecha_hasta: hoy }],
+      ["Últimos 7 días", { fecha_desde: addDaysIso(hoy, -6), fecha_hasta: hoy }],
+      ["Últimos 30 días", { fecha_desde: addDaysIso(hoy, -29), fecha_hasta: hoy }],
+      ...(config.ciclo?.fecha_inicio ? [["Ciclo actual", { fecha_desde: config.ciclo.fecha_inicio, fecha_hasta: hoy }]] : []),
+      ["Todo el historial", { fecha_desde: "", fecha_hasta: "" }]
+    ];
   const rangoActivo = (patch) => filters.fecha_desde === patch.fecha_desde && filters.fecha_hasta === patch.fecha_hasta;
-  const extraCount = [filters.tipo_documento, filters.barrio_codigo, filters.responsable_id].filter(Boolean).length + (filters.fecha_desde !== hoy || filters.fecha_hasta !== hoy ? 1 : 0);
+  const baseRango = historial ? { fecha_desde: "", fecha_hasta: ayer } : { fecha_desde: hoy, fecha_hasta: hoy };
+  const extraCount = [filters.tipo_documento, filters.barrio_codigo, filters.responsable_id].filter(Boolean).length
+    + (filters.fecha_desde !== baseRango.fecha_desde || filters.fecha_hasta !== baseRango.fecha_hasta ? 1 : 0);
   const metrics = [["Lotes", total], ["Responsables", resumen?.responsables], ["Asignadas", resumen?.asignadas], ["Por cerrar", resumen?.abiertos], ["Efectividad", resumen ? formatPercent(resumen.efectividad) : "—"]];
   return (
     <section className="cl-inbox ent-operational-inbox" aria-busy={loading}>
       <div className="cl-inbox-head">
-        <div><span className="cl-kicker">Operación diaria</span><h3>Lotes diarios</h3><p>Registra el resultado y cierra cada lote al terminar el recorrido.</p></div>
-        <button type="button" className="cl-secondary" onClick={onToday}><Icon name="calendar" />Hoy</button>
+        {historial
+          ? <div><span className="cl-kicker">Historial</span><h3>Lotes anteriores</h3><p>Todo lo repartido antes de hoy. Los que sigan abiertos necesitan cierre.</p></div>
+          : <div><span className="cl-kicker">Operación diaria</span><h3>Lotes diarios</h3><p>Registra el resultado y cierra cada lote al terminar el recorrido.</p></div>}
+        {historial ? null : <button type="button" className="cl-secondary" onClick={onToday}><Icon name="calendar" />Hoy</button>}
       </div>
       <dl className="ent-metrics" aria-label="Totales de todos los resultados filtrados">
         {metrics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{loading ? "…" : typeof value === "string" ? value : value == null ? "—" : formatNumber(value)}</dd></div>)}
@@ -62,7 +75,7 @@ export default function LotesTable({ model, config, personal, permissions, onTod
           </tr>;
         })}</tbody>
       </table>
-      {!items.length && !error ? <p className="cl-empty">{loading ? "Cargando lotes…" : "No hay lotes con estos filtros."}</p> : null}
+      {!items.length && !error ? <p className="cl-empty">{loading ? "Cargando lotes…" : historial ? "No hay lotes anteriores con estos filtros." : "No hay lotes con estos filtros."}</p> : null}
       <div className="cl-pagination"><span>Página {page} de {totalPages}</span><div><button type="button" disabled={loading || page <= 1} onClick={() => setPage(page - 1)}>Anterior</button><button type="button" disabled={loading || page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button></div></div>
     </section>
   );

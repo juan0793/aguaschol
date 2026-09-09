@@ -21,11 +21,12 @@ import "../styles/entregas.css";
 // "Nuevo lote" no vive aqui: es una accion, no una vista a la que se vuelve, asi
 // que su unica entrada es el boton primario del header (ver mas abajo).
 const SUBVISTAS = [
-  { key: "resumen", label: "Resumen", hint: "Efectividad", icon: "dashboard" },
-  { key: "lotes", label: "Lotes diarios", hint: "Reparto y cierre", icon: "records" },
-  { key: "pendientes", label: "No entregadas", hint: "Seguimiento", icon: "warning" },
-  { key: "personal", label: "Personal de campo", hint: "Técnicos", icon: "users" },
-  { key: "reportes", label: "Reportes semanales", hint: "Informes", icon: "archive" }
+  { key: "resumen", label: "Resumen", corto: "Resumen", hint: "Efectividad", icon: "dashboard" },
+  { key: "lotes", label: "Lotes diarios", corto: "Hoy", hint: "Reparto y cierre", icon: "records" },
+  { key: "historial", label: "Lotes anteriores", corto: "Anteriores", hint: "Historial", icon: "history" },
+  { key: "pendientes", label: "No entregadas", corto: "Pendientes", hint: "Seguimiento", icon: "warning" },
+  { key: "personal", label: "Personal de campo", corto: "Personal", hint: "Técnicos", icon: "users" },
+  { key: "reportes", label: "Reportes semanales", corto: "Reportes", hint: "Informes", icon: "archive" }
 ];
 
 const vistaDesdeHash = () => window.location.hash.match(/^#entregas\/([\w-]+)/)?.[1] || "resumen";
@@ -48,6 +49,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const [cargandoResumen, setCargandoResumen] = useState(false);
 
   const lotes = useLotes(api, Boolean(config) && ["lotes", "resumen"].includes(vista));
+  const historial = useLotes(api, Boolean(config) && vista === "historial", { historial: true });
   const pendientes = useNoEntregadas(api, Boolean(config) && vista === "pendientes");
 
   const cargarPersonal = useCallback(async () => {
@@ -182,8 +184,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   };
 
   const verAbiertosPrevios = () => {
-    lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "ABIERTO", fecha_desde: "", fecha_hasta: addDaysIso(config.jornada?.fecha || toLocalIsoDate(), -1) });
-    ir("lotes");
+    historial.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "ABIERTO", fecha_desde: "", fecha_hasta: addDaysIso(config.jornada?.fecha || toLocalIsoDate(), -1) });
+    ir("historial");
   };
 
   // Cada renglon de "Requiere atencion" salta directo a Pendientes con su propio filtro
@@ -248,7 +250,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
             >
               <Icon name={item.icon} />
               <span>
-                {item.label}
+                {item.corto}
               </span>
             </button>
           ))}
@@ -267,7 +269,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
         {subvistas.map((item) => (
           <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} onClick={() => ir(item.key)}>
             <Icon name={item.icon} />
-            <span>{item.label.replace(" semanales", "").replace(" de campo", "")}</span>
+            <span>{item.corto}</span>
           </button>
         ))}
       </nav>
@@ -398,11 +400,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           config={config}
           personal={personal}
           permissions={config.permissions}
-          abiertosPrevios={lotesAbiertosPrevios}
           onToday={verHoy}
-          onPreviousOpen={verAbiertosPrevios}
           onOpen={abrirDetalle}
-          onEdit={abrirEdicion}
           onCerrar={abrirCierre}
         />
       ) : null}
@@ -416,6 +415,18 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           notify={notify}
           onOpen={(documento) => setDocumentoAbierto(documento.id)}
           onCicloCerrado={() => { api.config().then(setConfig).catch(() => {}); pendientes.reload(); refrescar(); }}
+        />
+      ) : null}
+
+      {vista === "historial" ? (
+        <LotesTable
+          historial
+          model={historial}
+          config={config}
+          personal={personal}
+          permissions={config.permissions}
+          onOpen={abrirDetalle}
+          onCerrar={abrirCierre}
         />
       ) : null}
 
