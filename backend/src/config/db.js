@@ -184,6 +184,17 @@ const ensurePlanoElementTypeEnum = async (connection) => {
   );
 };
 
+// El estado VENCIDA se agrego con el ciclo mensual de facturacion; las bases ya
+// creadas no lo reciben por schema.sql (CREATE TABLE IF NOT EXISTS).
+const ensureEntregaEstadoEnum = async (connection) => {
+  await connection.query(
+    `
+      ALTER TABLE ${escapeIdentifier("entrega_no_entregadas")}
+      MODIFY COLUMN ${escapeIdentifier("estado")} ENUM('PENDIENTE', 'REENTREGADA', 'NO_LOCALIZADA', 'CANCELADA', 'VENCIDA') NOT NULL DEFAULT 'PENDIENTE'
+    `
+  );
+};
+
 const findLocalMariaDbBin = async () => {
   try {
     const entries = await fs.readdir(path.resolve(env.dbWorkspaceDir, "mariadb"), {
@@ -310,6 +321,7 @@ const ensureSchema = async () => {
     await seedPlanosBarrios(admin);
     await ensureRoleEnum(admin);
     await ensurePlanoElementTypeEnum(admin);
+    await ensureEntregaEstadoEnum(admin);
     await ensureColumn(admin, {
       tableName: "app_users",
       columnName: "full_name",

@@ -111,6 +111,35 @@ test("MySQL real: permisos, cierre concurrente, correcciones, recordatorios y re
     assert.equal(JSON.stringify((await reports.getReporteSemanal(report.id, admin)).snapshot), snapshot);
     const [[trazas]] = await pool.query("SELECT COUNT(*) AS total FROM audit_logs WHERE entity_type = 'entrega' AND action IN ('LOTE_REABIERTO', 'LOTE_ELIMINADO')");
     assert.equal(trazas.total, 3);
+    // Ciclo mensual: al emitirse las facturas nuevas, los pendientes del ciclo
+    // anterior quedan sin efecto, pero las cifras del lote cerrado NO se mueven.
+    const previo = await service.createLote({ responsable_id: persona.id, fecha: addDays(hoy, -20), barrio_nombre: "BO. EL CENTRO", tipo_documento: "FACTURA", total_asignadas: 6 }, admin);
+    await service.createNoEntregadas(previo.id, { items: [{ numero_abonado: "20001", motivo: "CASA_CERRADA" }, { numero_abonado: "20002", motivo: "CASA_CERRADA" }] }, admin);
+    await service.cerrarLote(previo.id, { total_sobrantes: 2 }, admin);
+    const antes = await service.getLoteDetail(previo.id, admin);
+    assert.equal(antes.total_entregadas, 4);
+    assert.equal(antes.total_sobrantes, 2);
+
+    await assert.rejects(service.cerrarCicloEntregas({ motivo: "Emisión de octubre" }, gestor), { status: 403 });
+    await assert.rejects(service.cerrarCicloEntregas({ motivo: "no" }, admin));
+    await assert.rejects(service.cerrarCicloEntregas({ motivo: "Emisión futura", fecha_corte: addDays(hoy, 1) }, admin));
+    const ciclo = await service.cerrarCicloEntregas({ motivo: "Emisión de facturas del mes nuevo", fecha_corte: addDays(hoy, -1) }, admin);
+    assert.ok(ciclo.documentos_vencidos >= 2);
+    assert.equal(ciclo.fecha_inicio, hoy);
+    await assert.rejects(service.cerrarCicloEntregas({ motivo: "Corte repetido", fecha_corte: addDays(hoy, -1) }, admin), { status: 409 });
+
+    // La foto del lote cerrado es exactamente la misma despues del corte.
+    const despues = await service.getLoteDetail(previo.id, admin);
+    assert.equal(despues.total_entregadas, antes.total_entregadas);
+    assert.equal(despues.total_sobrantes, antes.total_sobrantes);
+    assert.equal(despues.no_entregadas.every((item) => item.estado === "VENCIDA"), true);
+    // Y salen de la cola de seguimiento, sin admitir nuevos intentos.
+    assert.equal((await service.listNoEntregadas({ estado: "PENDIENTE", fecha_hasta: addDays(hoy, -1) }, admin)).total, 0);
+    assert.equal((await service.listNoEntregadas({ estado: "VENCIDA" }, admin)).total, ciclo.documentos_vencidos);
+    await assert.rejects(service.registrarIntento(despues.no_entregadas[0].id, { resultado: "ENTREGADO" }, admin));
+    // El informe ya emitido tampoco se movio.
+    assert.equal(JSON.stringify((await reports.getReporteSemanal(report.id, admin)).snapshot), snapshot);
+    assert.equal((await service.getEntregasConfig(admin)).ciclo.ultimo_corte.fecha_corte, addDays(hoy, -1));
     console.log(`QA MySQL verificado: ${database}`);
   } finally {
     if (pool) await pool.end();

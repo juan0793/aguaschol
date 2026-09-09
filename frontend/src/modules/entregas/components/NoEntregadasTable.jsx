@@ -1,13 +1,57 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { estadoClass, estadoDocumentoLabel, formatDate, formatNumber, prioridadPendiente, tipoDocumentoLabel } from "../utils/entregasFormatters";
 import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
+import { addDaysIso } from "../utils/entregasDate";
 
-export default function NoEntregadasTable({ model, config, personal, onOpen }) {
+// La cola de trabajo es solo lo PENDIENTE: al cerrar el ciclo los documentos del
+// mes anterior pasan a "sin efecto" y salen de aqui sin alterar las cifras de sus
+// lotes, que siguen contandolos como no entregados de ese dia.
+const QUICK = [
+  ["Pendientes", { estado: "PENDIENTE" }],
+  ["Más de 3 días", { estado: "PENDIENTE", dias_minimos: "3" }],
+  ["Críticos · +7 días", { estado: "PENDIENTE", dias_minimos: "7" }],
+  ["Sin intentos", { estado: "PENDIENTE", sin_intentos: "1" }],
+  ["Sin efecto", { estado: "VENCIDA" }]
+];
+
+export default function NoEntregadasTable({ model, config, personal, api, notify, onOpen, onCicloCerrado }) {
   const { items, loading, error, filters, setFilters, clearFilters, page, setPage, total, total_pages: totalPages } = model;
   const [advanced, setAdvanced] = useState(false);
+  const [corte, setCorte] = useState(null);
+  const [cerrando, setCerrando] = useState(false);
+  const [afectados, setAfectados] = useState(null);
+  const ciclo = config.ciclo || {};
+  // El corte cubre hasta su fecha inclusive, asi que por defecto va al dia
+  // anterior: declararlo el mismo dia en que ya se reparten las facturas nuevas
+  // se llevaria por delante los pendientes de esa jornada.
+  const abrirCorte = () => setCorte({ fecha_corte: addDaysIso(config.jornada?.fecha || "", -1), motivo: "" });
+  const confirmarCorte = async () => {
+    if (corte.motivo.trim().length < 5) { notify("Indica de qué emisión se trata (mínimo 5 caracteres)."); return; }
+    setCerrando(true);
+    try {
+      const resultado = await api.cerrarCiclo({ fecha_corte: corte.fecha_corte, motivo: corte.motivo.trim() });
+      notify(`Ciclo cerrado: ${resultado.documentos_vencidos} documento(s) quedaron sin efecto.`);
+      setCorte(null);
+      onCicloCerrado();
+    } catch (error) { notify(error.message); }
+    finally { setCerrando(false); }
+  };
   const count = Object.entries(filters).filter(([key, value]) => !["estado", "q"].includes(key) && value).length;
+  // Cuenta en vivo lo que el corte dejaria sin efecto, para poder verlo antes de
+  // confirmar en vez de despues.
+  useEffect(() => {
+    if (!corte?.fecha_corte) { setAfectados(null); return; }
+    let vigente = true;
+    setAfectados(null);
+    api.noEntregadas({ estado: "PENDIENTE", fecha_hasta: corte.fecha_corte, limit: 1 })
+      .then((data) => { if (vigente) setAfectados(data.total); })
+      .catch(() => { if (vigente) setAfectados(null); });
+    return () => { vigente = false; };
+  }, [api, corte?.fecha_corte]);
+
   const quick = (patch) => setFilters({ ...NO_ENTREGADAS_FILTROS_INICIALES, ...patch });
+  const quickActivo = (patch) => ["estado", "dias_minimos", "sin_intentos"].every((key) => (filters[key] || "") === (patch[key] || ""));
   const selects = [
     ["barrio_codigo", "Barrio", config.barrios.map((item) => [item.codigo, item.barrio])],
     ["responsable_id", "Responsable", personal.map((item) => [item.id, item.nombre_completo])],
@@ -16,6 +60,28 @@ export default function NoEntregadasTable({ model, config, personal, onOpen }) {
   ];
   return <section className="cl-inbox ent-operational-inbox" aria-busy={loading}>
     <div className="cl-inbox-head"><div><span className="cl-kicker">Bandeja operativa</span><h3>No entregadas</h3><p>Atiende primero los documentos más antiguos. Abre una fila para registrar el siguiente intento.</p></div></div>
+    <div className={`ent-ciclo-strip${ciclo.dias_abierto > 35 ? " is-largo" : ""}`}>
+      <Icon name="calendar" />
+      <span className="ent-ciclo-texto">
+        {ciclo.fecha_inicio
+          ? <>Ciclo de facturación abierto desde <strong>{formatDate(ciclo.fecha_inicio)}</strong> · {formatNumber(ciclo.dias_abierto)} días.</>
+          : <>Todavía no se ha declarado ningún corte: la bandeja acumula todos los pendientes registrados.</>}
+        {ciclo.ultimo_corte ? <> Último corte el {formatDate(ciclo.ultimo_corte.fecha_corte)}: {formatNumber(ciclo.ultimo_corte.documentos_vencidos)} sin efecto.</> : null}
+      </span>
+      {config.permissions.can_close_ciclo && !corte ? <button type="button" className="cl-secondary" onClick={abrirCorte}>Cerrar ciclo</button> : null}
+    </div>
+    {corte ? <section className="ent-card ent-danger-zone">
+      <h3>Cerrar ciclo de facturación</h3>
+      <p>Marca que facturación ya emitió los documentos del mes nuevo. Los pendientes hasta la fecha de corte quedan sin efecto y salen de la cola de seguimiento; las cifras de los lotes ya cerrados y los informes emitidos no cambian.</p>
+      <label className="cl-field">Fecha de corte (inclusive)<input type="date" value={corte.fecha_corte} max={config.jornada?.fecha} min={ciclo.fecha_inicio || undefined} onChange={(event) => setCorte({ ...corte, fecha_corte: event.target.value })} /></label>
+      <p className="ent-corte-preview" role="status">{afectados === null ? "Calculando cuántos documentos quedarían sin efecto…" : afectados === 0 ? "No hay pendientes hasta esa fecha: el corte solo abrirá el ciclo nuevo." : `${formatNumber(afectados)} documento(s) pendientes hasta el ${formatDate(corte.fecha_corte)} quedarán sin efecto.`}</p>
+      {corte.fecha_corte === config.jornada?.fecha ? <p className="cl-alert">Estás cortando en la jornada de hoy: los pendientes registrados hoy también quedarán sin efecto.</p> : null}
+      <label className="cl-field">Emisión que abre el ciclo nuevo<textarea rows={2} maxLength={255} value={corte.motivo} onChange={(event) => setCorte({ ...corte, motivo: event.target.value })} placeholder="Ej.: emisión de facturas de octubre" /></label>
+      <div className="ent-danger-actions">
+        <button type="button" className="cl-quiet" disabled={cerrando} onClick={() => setCorte(null)}>Cancelar</button>
+        <button type="button" className="cl-primary" disabled={cerrando || corte.motivo.trim().length < 5} onClick={confirmarCorte}>{cerrando ? "Cerrando…" : "Confirmar cierre de ciclo"}</button>
+      </div>
+    </section> : null}
     <div className="ent-sticky-tools">
       <div className="ent-search-row">
         <label className="cl-field ent-search-field">Buscar documento<input type="search" value={filters.q || ""} onChange={(event) => setFilters({ q: event.target.value })} placeholder="Abonado, nombre o clave catastral" /></label>
@@ -32,7 +98,7 @@ export default function NoEntregadasTable({ model, config, personal, onOpen }) {
         <label className="cl-field">Más de (días)<input type="number" min="0" step="1" value={filters.dias_minimos} onChange={(event) => setFilters({ dias_minimos: event.target.value })} /></label>
       </div> : null}
       <div className="ent-quick-filters" aria-label="Prioridad de seguimiento">
-        {[ ["Pendientes", {}], ["Más de 3 días", { dias_minimos: "3" }], ["Críticos · +7 días", { dias_minimos: "7" }], ["Sin intentos", { sin_intentos: "1" }] ].map(([label, patch]) => <button key={label} type="button" aria-pressed={filters.estado === "PENDIENTE" && (filters.dias_minimos || "") === (patch.dias_minimos || "") && (filters.sin_intentos || "") === (patch.sin_intentos || "")} onClick={() => quick(patch)}>{label}</button>)}
+        {QUICK.map(([label, patch]) => <button key={label} type="button" aria-pressed={quickActivo(patch)} onClick={() => quick(patch)}>{label}</button>)}
       </div>
       <p className="ent-list-caption" role="status">{loading ? "Actualizando…" : `${formatNumber(total)} documentos · más antiguos primero`}</p>
     </div>

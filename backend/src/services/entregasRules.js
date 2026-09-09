@@ -5,14 +5,21 @@
 
 export const TIPOS_DOCUMENTO = ["FACTURA", "NOTA_COBRO"];
 export const ESTADOS_LOTE = ["ABIERTO", "CERRADO", "REVISADO"];
-export const ESTADOS_NO_ENTREGADA = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA", "CANCELADA"];
+export const ESTADOS_NO_ENTREGADA = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA", "CANCELADA", "VENCIDA"];
 export const RESULTADOS_INTENTO = ["SIN_RESPUESTA", "CASA_CERRADA", "NO_LOCALIZADO", "ENTREGADO", "OTRO"];
 export const TIPOS_PERSONAL = ["TECNICO", "COBRADOR", "ENTREGA_FACTURAS", "OTRO"];
 export const ESTADOS_REPORTE = ["GENERADO", "CORREGIDO", "ANULADO"];
 
 // Estados que siguen "ocupando" un documento del lote. Una fila CANCELADA se
 // descarta al comparar el detalle contra el total de sobrantes.
-export const ESTADOS_NO_ENTREGADA_ACTIVOS = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA"];
+// Dos conjuntos distintos que antes se confundian en uno solo:
+// - ACTIVOS: cuenta como no entregada del lote. Es la foto de ese dia y no puede
+//   cambiar al cerrar un ciclo, o las cifras historicas de lotes ya cerrados se
+//   reescribirian solas (recalcularTotalSobrantes usa este conjunto).
+// - EN_SEGUIMIENTO: sigue en la cola de trabajo. Es lo unico que el cierre de
+//   ciclo saca de circulacion cuando la factura nueva reemplaza a la vieja.
+export const ESTADOS_NO_ENTREGADA_ACTIVOS = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA", "VENCIDA"];
+export const ESTADOS_EN_SEGUIMIENTO = ["PENDIENTE"];
 
 export const MOTIVOS_BASE = [
   { codigo: "CASA_CERRADA", etiqueta: "Casa cerrada", requiere_observacion: false, orden: 1 },

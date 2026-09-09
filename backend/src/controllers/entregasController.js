@@ -2,6 +2,7 @@
 // llamadas del servicio. Ninguna regla de negocio vive aqui.
 
 import {
+  cerrarCicloEntregas,
   cerrarLote,
   createLote,
   createNoEntregadas,
@@ -47,6 +48,10 @@ export const personalCreate = handle(async (req, res) =>
 );
 export const personalUpdate = handle(async (req, res) =>
   res.json(await updatePersonal(req.params.id, req.body || {}, req.authUser))
+);
+
+export const cicloCerrar = handle(async (req, res) =>
+  res.json(await cerrarCicloEntregas(req.body || {}, req.authUser))
 );
 
 export const lotesList = handle(async (req, res) => res.json(await listLotes(req.query, req.authUser)));

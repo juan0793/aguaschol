@@ -25,6 +25,8 @@ export const createEntregasApi = (apiFetch) => ({
   config: () => apiFetch("/entregas/config").then(json),
   resumen: (params = {}) => apiFetch(`/entregas/resumen${query(params)}`).then(json),
 
+  cerrarCiclo: (payload) => apiFetch("/entregas/ciclos/cerrar", { method: "POST", ...jsonBody(payload) }).then(json),
+
   personal: (params = {}) => apiFetch(`/entregas/personal${query(params)}`).then(json),
   crearPersonal: (payload) => apiFetch("/entregas/personal", { method: "POST", ...jsonBody(payload) }).then(json),
   actualizarPersonal: (id, payload) =>

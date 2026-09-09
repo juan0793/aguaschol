@@ -36,6 +36,7 @@
 .cl-status.is-reentregada { background: #e7f7f0; color: var(--success); }
 .cl-status.is-no_localizada { background: #fff0f1; color: var(--danger); }
 .cl-status.is-cancelada { background: #eef1f4; color: var(--muted); }
+.cl-status.is-vencida { background: #eef1f4; color: var(--muted); }
 .cl-status.is-generado { background: #e9f2ff; color: var(--primary); }
 .cl-status.is-corregido { background: #fff7e8; color: var(--alert); }
 .cl-status.is-anulado { background: #eef1f4; color: var(--muted); }
@@ -259,6 +260,12 @@
 .ent-historico > .cl-alert, .ent-historico > .cl-table-wrap { margin: 0 18px 18px; }
 
 /* ---------- Responsive ---------- */
+/* ---------- Ciclo de facturación ---------- */
+.ent-ciclo-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border: 1px solid #d7e3ee; border-left: 4px solid var(--primary); border-radius: 8px; background: #f5f9fd; font-size: 12px; color: #38536b; }
+.ent-ciclo-strip strong { color: #153b60; }
+.ent-ciclo-strip .ent-ciclo-texto { flex: 1; min-width: 0; }
+.ent-ciclo-strip.is-largo { border-left-color: var(--alert); background: #fffaf0; }
+
 /* ---------- Corrección administrativa: reabrir / eliminar ---------- */
 .ent-danger-zone { border-color: #fcd9c9; background: #fffaf7; }
 .ent-danger-zone.is-critical { border-color: #f3b7b7; background: #fff6f6; }
@@ -266,6 +273,7 @@
 .ent-danger-zone.is-critical h3 { color: #b42332; }
 .ent-danger-zone p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .ent-danger-zone .cl-field { margin-top: 12px; }
+.ent-corte-preview { margin: 10px 0 0; padding: 9px 12px; border-radius: 7px; background: #eef4fb; color: #153b60; font-size: 12px; font-weight: 600; }
 .ent-danger-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .ent-module .cl-danger, .ent-dialog-content .cl-danger { min-height: 44px; padding: 0 16px; border: 1px solid #b42332; border-radius: 8px; background: #b42332; color: #fff; font: inherit; font-weight: 600; }
 .ent-module .cl-danger:hover:not(:disabled), .ent-dialog-content .cl-danger:hover:not(:disabled) { background: #96202d; }

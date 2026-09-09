@@ -403,7 +403,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           model={pendientes}
           config={config}
           personal={personal}
+          api={api}
+          notify={notify}
           onOpen={(documento) => setDocumentoAbierto(documento.id)}
+          onCicloCerrado={() => { api.config().then(setConfig).catch(() => {}); pendientes.reload(); refrescar(); }}
         />
       ) : null}
 

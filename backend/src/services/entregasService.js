@@ -10,6 +10,7 @@ import { listBarrioCodes } from "./barrioCodeService.js";
 import {
   ESTADOS_LOTE,
   ESTADOS_NO_ENTREGADA,
+  ESTADOS_EN_SEGUIMIENTO,
   ESTADOS_NO_ENTREGADA_ACTIVOS,
   MOTIVOS_BASE,
   RESULTADOS_INTENTO,
@@ -91,10 +92,11 @@ const getPersonalDelUsuario = async (user) => {
 };
 
 export const getEntregasConfig = async (user) => {
-  const [motivos, personalPropio, barrios] = await Promise.all([
+  const [motivos, personalPropio, barrios, ciclo] = await Promise.all([
     listMotivos(),
     getPersonalDelUsuario(user),
-    listBarrioCodes().catch(() => [])
+    listBarrioCodes().catch(() => []),
+    getCicloVigente()
   ]);
 
   return {
@@ -102,11 +104,13 @@ export const getEntregasConfig = async (user) => {
     jornada: { ...jornadaEntregas(), zona_horaria: env.entregasTimezone, fin: env.entregasFin, recordatorios: env.entregasRecordatoriosEnabled },
     estados_lote: ESTADOS_LOTE,
     estados_no_entregada: ESTADOS_NO_ENTREGADA,
+    estados_en_seguimiento: ESTADOS_EN_SEGUIMIENTO,
     resultados_intento: RESULTADOS_INTENTO,
     tipos_personal: TIPOS_PERSONAL,
     motivos,
     barrios: barrios.map((item) => ({ codigo: item.codigo, barrio: item.barrio })),
     semana_actual: semanaPorDefecto(jornadaEntregas().fecha),
+    ciclo,
     personal_vinculado: personalPropio,
     permissions: {
       can_manage_personal: isAdmin(user),
@@ -116,6 +120,7 @@ export const getEntregasConfig = async (user) => {
       can_force_close: isAdmin(user),
       can_reopen_lote: isAdmin(user),
       can_delete_lote: isAdmin(user),
+      can_close_ciclo: isAdmin(user),
       can_manage_seguimiento: isGestor(user) || Boolean(personalPropio),
       can_generate_report: isGestor(user),
       can_correct_report: isAdmin(user),
@@ -691,6 +696,89 @@ export const deleteLote = async (id, payload = {}, user) => {
 };
 
 /* -------------------------------------------------------------------------- */
+/* Ciclo de facturacion                                                        */
+/* -------------------------------------------------------------------------- */
+
+// El ciclo vigente arranca el dia siguiente al ultimo corte declarado. Mientras
+// no haya cortes, corre desde siempre: es el estado inicial de una instalacion.
+export const getCicloVigente = async (executor = getPool()) => {
+  const [filas] = await executor.query(
+    `SELECT fecha_corte, motivo, documentos_vencidos, declarado_por_nombre, created_at
+     FROM entrega_ciclos ORDER BY fecha_corte DESC, id DESC LIMIT 1`
+  );
+  const ultimo = filas[0];
+  const inicio = ultimo ? addDays(toIsoDate(ultimo.fecha_corte), 1) : "";
+  return {
+    fecha_inicio: inicio,
+    dias_abierto: inicio ? Math.max(diffInDays(inicio, jornadaEntregas().fecha) + 1, 0) : 0,
+    ultimo_corte: ultimo
+      ? {
+        fecha_corte: toIsoDate(ultimo.fecha_corte),
+        motivo: ultimo.motivo,
+        documentos_vencidos: toEntero(ultimo.documentos_vencidos),
+        declarado_por_nombre: ultimo.declarado_por_nombre,
+        created_at: ultimo.created_at
+      }
+      : null
+  };
+};
+
+// Cuando facturacion emite los documentos del mes nuevo, los pendientes del ciclo
+// anterior quedan sin efecto: la factura nueva reemplaza a la vieja y ya no tiene
+// sentido seguir persiguiendo la entrega de la anterior. Pasan a VENCIDA, que
+// sigue contando como no entregada del lote -asi las cifras de lotes ya cerrados
+// no se mueven- pero sale de la cola de seguimiento.
+export const cerrarCicloEntregas = async (payload = {}, user) => {
+  if (!isAdmin(user)) throw fail("Solo un administrador puede cerrar el ciclo de facturación.", 403);
+  const motivo = exigirMotivo(payload, "Indica de qué emisión se trata (mínimo 5 caracteres).");
+  const hoy = jornadaEntregas().fecha;
+  const corte = toIsoDate(payload.fecha_corte) || hoy;
+  if (corte > hoy) throw fail("El corte no puede ser una fecha futura.");
+
+  let vencidos = 0;
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [previos] = await connection.query(
+      "SELECT fecha_corte FROM entrega_ciclos ORDER BY fecha_corte DESC, id DESC LIMIT 1 FOR UPDATE"
+    );
+    const anterior = previos[0] && toIsoDate(previos[0].fecha_corte);
+    if (anterior && anterior >= corte) {
+      throw fail(`El último corte ya cubre hasta el ${anterior}. Elige una fecha posterior.`, 409);
+    }
+    const [result] = await connection.query(
+      `UPDATE entrega_no_entregadas AS documento
+       INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
+       SET documento.estado = 'VENCIDA'
+       WHERE documento.estado = 'PENDIENTE' AND entrega_lotes.fecha <= ?`,
+      [corte]
+    );
+    vencidos = toEntero(result.affectedRows);
+    await connection.query(
+      `INSERT INTO entrega_ciclos (fecha_corte, motivo, documentos_vencidos, declarado_por, declarado_por_nombre)
+       VALUES (?, ?, ?, ?, ?)`,
+      [corte, motivo, vencidos, user?.id ?? null, user?.full_name || user?.username || ""]
+    );
+    await audit({
+      user,
+      action: "CICLO_CERRADO",
+      entityId: corte,
+      summary: `Ciclo cerrado al ${corte}: ${vencidos} documento(s) sin efecto. ${motivo}`.slice(0, 250),
+      details: { fecha_corte: corte, corte_anterior: anterior || null, documentos_vencidos: vencidos, motivo },
+      executor: connection
+    });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  return { ...(await getCicloVigente()), documentos_vencidos: vencidos };
+};
+
+/* -------------------------------------------------------------------------- */
 /* Documentos no entregados                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -1101,6 +1189,9 @@ export const registrarIntento = async (id, payload = {}, user) => {
   const [[vigente]] = await connection.query("SELECT * FROM entrega_no_entregadas WHERE id = ? FOR UPDATE", [documento.id]);
   if (!vigente) throw fail("El documento ya no existe.", 404);
   if (vigente.estado === "CANCELADA") throw fail("El seguimiento está cancelado.");
+  if (vigente.estado === "VENCIDA") {
+    throw fail("El documento venció con el cierre de ciclo: la factura nueva lo reemplaza.");
+  }
   const [[responsable]] = await connection.query("SELECT id FROM personal_campo WHERE id = ? AND activo = 1", [responsableId]);
   if (!responsable) throw fail("El responsable del intento no está activo.");
   [result] = await connection.query(
@@ -1176,6 +1267,7 @@ export const getResumen = async (query = {}, user) => {
        COALESCE(SUM(documento.estado = 'PENDIENTE'), 0) AS pendientes,
        COALESCE(SUM(documento.estado = 'REENTREGADA'), 0) AS reentregadas,
        COALESCE(SUM(documento.estado = 'NO_LOCALIZADA'), 0) AS no_localizadas,
+       COALESCE(SUM(documento.estado = 'VENCIDA'), 0) AS vencidas,
        COALESCE(SUM(documento.estado = 'PENDIENTE' AND DATEDIFF(?, entrega_lotes.fecha) > 3), 0) AS pendientes_3,
        COALESCE(SUM(documento.estado = 'PENDIENTE' AND DATEDIFF(?, entrega_lotes.fecha) > 7), 0) AS pendientes_7
      FROM entrega_no_entregadas AS documento
@@ -1223,6 +1315,7 @@ export const getResumen = async (query = {}, user) => {
     pendientes: toEntero(detalle.pendientes),
     reentregadas: toEntero(detalle.reentregadas),
     no_localizadas: toEntero(detalle.no_localizadas),
+    vencidas: toEntero(detalle.vencidas),
     pendientes_mas_3_dias: toEntero(detalle.pendientes_3),
     pendientes_mas_7_dias: toEntero(detalle.pendientes_7),
     efectividad: calcularEfectividad(entregadas, asignadas),
@@ -1232,6 +1325,7 @@ export const getResumen = async (query = {}, user) => {
       pendientes: toEntero(detalleAnterior.pendientes),
       reentregadas: toEntero(detalleAnterior.reentregadas),
       no_localizadas: toEntero(detalleAnterior.no_localizadas),
+      vencidas: toEntero(detalleAnterior.vencidas),
       efectividad: calcularEfectividad(entregadasAnterior, asignadasAnterior)
     },
     por_dia: listarDiasDelRango(desde, hasta).map((fecha) => {

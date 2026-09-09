@@ -828,7 +828,7 @@ CREATE TABLE IF NOT EXISTS entrega_no_entregadas (
   abonado_nombre VARCHAR(180) NOT NULL DEFAULT '',
   motivo VARCHAR(40) NOT NULL,
   observacion TEXT NULL,
-  estado ENUM('PENDIENTE', 'REENTREGADA', 'NO_LOCALIZADA', 'CANCELADA') NOT NULL DEFAULT 'PENDIENTE',
+  estado ENUM('PENDIENTE', 'REENTREGADA', 'NO_LOCALIZADA', 'CANCELADA', 'VENCIDA') NOT NULL DEFAULT 'PENDIENTE',
   fecha_ultimo_intento DATE NULL DEFAULT NULL,
   fecha_entrega_final DATE NULL DEFAULT NULL,
   created_by INT UNSIGNED NULL,
@@ -898,4 +898,19 @@ CREATE TABLE IF NOT EXISTS entrega_recordatorios (
   UNIQUE KEY uq_entrega_recordatorio_message (message_id),
   CONSTRAINT fk_recordatorio_lote FOREIGN KEY (lote_id) REFERENCES entrega_lotes(id) ON DELETE CASCADE,
   CONSTRAINT fk_recordatorio_usuario FOREIGN KEY (recipient_user_id) REFERENCES app_users(id) ON DELETE CASCADE
+);
+
+-- Corte del ciclo de facturacion: lo declara un administrador cuando facturacion
+-- emite los documentos del mes nuevo. El ultimo corte define desde donde corre el
+-- ciclo vigente.
+CREATE TABLE IF NOT EXISTS entrega_ciclos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  fecha_corte DATE NOT NULL,
+  motivo VARCHAR(255) NOT NULL DEFAULT '',
+  documentos_vencidos INT UNSIGNED NOT NULL DEFAULT 0,
+  declarado_por INT UNSIGNED NULL,
+  declarado_por_nombre VARCHAR(180) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_entrega_ciclos_corte (fecha_corte),
+  CONSTRAINT fk_entrega_ciclos_usuario FOREIGN KEY (declarado_por) REFERENCES app_users(id) ON DELETE SET NULL
 );

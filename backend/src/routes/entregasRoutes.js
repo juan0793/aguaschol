@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRoles } from "../middleware/authMiddleware.js";
 import {
+  cicloCerrar,
   config,
   intentoCreate,
   loteCerrar,
@@ -31,6 +32,7 @@ const router = Router();
 
 router.get("/config", config);
 router.get("/resumen", resumen);
+router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);
 
 router.get("/personal", personalList);
 router.post("/personal", requireRoles("admin"), personalCreate);

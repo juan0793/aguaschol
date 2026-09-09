@@ -15,7 +15,8 @@ export const ESTADO_NO_ENTREGADA_LABELS = {
   PENDIENTE: "Pendiente",
   REENTREGADA: "Reentregada",
   NO_LOCALIZADA: "No localizada",
-  CANCELADA: "Cancelada"
+  CANCELADA: "Cancelada",
+  VENCIDA: "Sin efecto"
 };
 
 export const RESULTADO_INTENTO_LABELS = {
