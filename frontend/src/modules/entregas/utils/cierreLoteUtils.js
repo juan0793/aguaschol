@@ -28,3 +28,27 @@ export const parsearPegado = (texto, motivos) => {
       };
     });
 };
+
+const llaveDocumento = (fila) =>
+  `${String(fila?.numero_abonado || "").trim().toUpperCase()}|${String(fila?.clave_catastral || "").trim().toUpperCase()}`;
+
+// Misma regla que el backend (detectarDuplicadosEnLote): un documento repite a
+// otro cuando coinciden abonado y clave. Devuelve las posiciones de `filas` que
+// chocan contra el detalle ya guardado o contra una fila anterior de la captura,
+// para poder marcarlas antes de mandar el cierre.
+export const posicionesDuplicadas = (filas = [], existentes = []) => {
+  const vistos = new Set();
+  existentes.forEach((fila) => {
+    const llave = llaveDocumento(fila);
+    if (llave !== "|") vistos.add(llave);
+  });
+
+  const posiciones = [];
+  filas.forEach((fila, indice) => {
+    const llave = llaveDocumento(fila);
+    if (llave === "|") return;
+    if (vistos.has(llave)) posiciones.push(indice);
+    else vistos.add(llave);
+  });
+  return posiciones;
+};

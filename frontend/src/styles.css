@@ -1854,7 +1854,9 @@ textarea:focus {
   top: 0.9rem;
   right: 1rem;
   left: auto;
-  z-index: 80;
+  /* Por encima de los drawers modales (z-index 201): si el aviso queda debajo,
+     un error del backend se pierde y la accion parece no hacer nada. */
+  z-index: 400;
   max-width: min(420px, calc(100vw - 2rem));
   margin: 0;
   border-radius: 12px;

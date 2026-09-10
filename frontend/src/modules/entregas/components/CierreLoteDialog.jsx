@@ -7,7 +7,7 @@ import {
   formatNumber,
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
-import { filaVacia, parsearPegado } from "../utils/cierreLoteUtils";
+import { filaVacia, parsearPegado, posicionesDuplicadas } from "../utils/cierreLoteUtils";
 import EntregasDrawer from "./EntregasDrawer";
 
 const ESTADOS_ACTIVOS = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA"];
@@ -23,6 +23,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const [modo, setModo] = useState("manual");
   const [guardando, setGuardando] = useState(false);
   const [buscando, setBuscando] = useState(-1);
+  const [duplicadosConfirmados, setDuplicadosConfirmados] = useState(false);
 
   useEffect(() => {
     setDetalle(lote.no_entregadas || []);
@@ -32,13 +33,57 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     () => detalle.filter((item) => ESTADOS_ACTIVOS.includes(item.estado)).length + nuevas.length,
     [detalle, nuevas]
   );
+  // El backend rechaza el alta si un abonado/clave se repite dentro del lote, y
+  // ese rechazo ocurre justo al pulsar "Cerrar lote": lo detectamos antes para
+  // que la fila conflictiva se vea y el cierre no falle sin explicacion.
+  const duplicados = useMemo(() => posicionesDuplicadas(nuevas, detalle), [nuevas, detalle]);
+  const hayDuplicados = duplicados.length > 0;
+
   const sobrantesNum = Number(sobrantes || 0);
   const entregadas = Math.max(Number(lote.total_asignadas) - (Number.isFinite(sobrantesNum) ? sobrantesNum : 0), 0);
   const diferencia = sobrantesNum - identificadas;
   const sobrantesInvalidos =
     sobrantes === "" || !Number.isSafeInteger(sobrantesNum) || sobrantesNum < 0 || sobrantesNum > Number(lote.total_asignadas);
   const progreso = sobrantesNum > 0 ? Math.min((identificadas / sobrantesNum) * 100, 100) : 100;
-  const puedeCerrar = lote.estado === "ABIERTO" && config.permissions.can_close_own_lote && !guardando && buscando === -1 && !sobrantesInvalidos && diferencia === 0;
+  // Un unico lugar decide si el lote puede cerrarse y, sobre todo, por que no.
+  // El motivo se muestra siempre junto al boton: un boton apagado sin
+  // explicacion es lo que hacia parecer que el cierre "no hace nada".
+  const motivoBloqueo = useMemo(() => {
+    if (lote.estado !== "ABIERTO") {
+      return "Este lote ya está cerrado o revisado. Un administrador debe reabrirlo para corregir el cierre.";
+    }
+    if (!config.permissions.can_close_own_lote) {
+      return "Tu usuario no tiene permiso para cerrar lotes. Pídeselo a un administrador.";
+    }
+    if (buscando !== -1) return "Espera a que termine la búsqueda en el padrón.";
+    if (sobrantesInvalidos) {
+      return `Escribe cuántos sobrantes trajiste (usa 0 si entregaste todo), entre 0 y ${formatNumber(lote.total_asignadas)}.`;
+    }
+    if (diferencia > 0) {
+      return `Declaraste ${formatNumber(sobrantesNum)} sobrante(s) y llevas ${formatNumber(identificadas)} identificado(s): falta(n) ${formatNumber(diferencia)} documento(s) por registrar.`;
+    }
+    if (diferencia < 0) {
+      return `Declaraste ${formatNumber(sobrantesNum)} sobrante(s) pero hay ${formatNumber(identificadas)} documento(s) registrados: quita ${formatNumber(Math.abs(diferencia))} o sube los sobrantes.`;
+    }
+    if (hayDuplicados && !duplicadosConfirmados) {
+      return `Hay ${formatNumber(duplicados.length)} documento(s) repetidos (mismo abonado y clave). Corrige la fila marcada o confirma que el duplicado es real.`;
+    }
+    return null;
+  }, [
+    lote.estado,
+    lote.total_asignadas,
+    config.permissions.can_close_own_lote,
+    buscando,
+    sobrantesInvalidos,
+    diferencia,
+    sobrantesNum,
+    identificadas,
+    hayDuplicados,
+    duplicadosConfirmados,
+    duplicados.length
+  ]);
+
+  const puedeCerrar = !guardando && !motivoBloqueo;
   const faltantes = Math.max(diferencia, 0);
 
   const patchNueva = (index, cambios) =>
@@ -112,9 +157,18 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
       return false;
     }
 
-    const actualizado = await api.agregarNoEntregadas(lote.id, { items: nuevas });
+    if (hayDuplicados && !duplicadosConfirmados) {
+      notify("Hay documentos repetidos (mismo abonado y clave). Corrígelos o confirma que van duplicados.");
+      return false;
+    }
+
+    const actualizado = await api.agregarNoEntregadas(lote.id, {
+      items: nuevas,
+      ...(hayDuplicados ? { permitir_duplicados: true } : {})
+    });
     setDetalle(actualizado.no_entregadas || []);
     setNuevas([]);
+    setDuplicadosConfirmados(false);
     return true;
   };
 
@@ -128,7 +182,11 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   };
 
   const cerrar = async () => {
-    if (!puedeCerrar) return;
+    if (guardando) return;
+    if (motivoBloqueo) {
+      notify(motivoBloqueo);
+      return;
+    }
     setGuardando(true);
     try {
       const ok = await guardarNuevas();
@@ -313,6 +371,23 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               </div>
             ) : null}
 
+            {hayDuplicados ? (
+              <div className="ent-duplicados-aviso">
+                <p>
+                  {formatNumber(duplicados.length)} documento(s) repiten un abonado y clave ya capturados en este lote.
+                  Corrige la fila marcada o confirma que el duplicado es real.
+                </p>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={duplicadosConfirmados}
+                    onChange={(event) => setDuplicadosConfirmados(event.target.checked)}
+                  />
+                  Sí, este lote lleva documentos repetidos
+                </label>
+              </div>
+            ) : null}
+
             {nuevas.length ? (
               <div className="cl-table-wrap">
                 <table className="cl-table ent-table ent-captura ent-captura-table">
@@ -328,7 +403,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                   <tbody>
                     {nuevas.map((fila, index) => (
                       // eslint-disable-next-line react/no-array-index-key
-                      <tr key={`nueva-${index}`}>
+                      <tr key={`nueva-${index}`} className={duplicados.includes(index) ? "is-duplicada" : ""}>
                         <td>
                           <input
                             value={fila.numero_abonado}
@@ -338,6 +413,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                             placeholder="10245"
                           />
                           {fila.abonado_nombre ? <small>{fila.abonado_nombre}</small> : null}
+                          {duplicados.includes(index) ? <small className="ent-dup-hint">Repetido en este lote</small> : null}
                         </td>
                         <td>
                           <input
@@ -432,13 +508,9 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
             Guardar detalle
           </button>
           <div className="ent-cerrar-wrap">
-            {!guardando && sobrantesInvalidos ? (
-              <p className="cl-alert ent-cerrar-motivo">Escribe los sobrantes (usa 0 si entregaste todo) para poder cerrar.</p>
-            ) : !guardando && diferencia !== 0 ? (
-              <p className="cl-alert ent-cerrar-motivo">
-                {diferencia > 0
-                  ? `Identifica ${formatNumber(diferencia)} documento(s) más antes de cerrar.`
-                  : `Quita ${formatNumber(Math.abs(diferencia))} documento(s) de más antes de cerrar.`}
+            {!guardando && motivoBloqueo ? (
+              <p className="cl-alert ent-cerrar-motivo" id="ent-cerrar-motivo" role="status">
+                No se puede cerrar todavía: {motivoBloqueo}
               </p>
             ) : null}
             <button
@@ -446,6 +518,8 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               className="cl-primary"
               onClick={cerrar}
               disabled={!puedeCerrar}
+              title={motivoBloqueo || undefined}
+              aria-describedby={motivoBloqueo ? "ent-cerrar-motivo" : undefined}
             >
               <Icon name={guardando ? "refresh" : "success"} />
               {guardando ? "Cerrando…" : "Cerrar lote"}
