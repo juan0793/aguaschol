@@ -51,7 +51,7 @@ export default function InspeccionesTable({ model, tecnicos = [], isAdmin, onOpe
       {error ? <p className="cl-alert">{error}</p> : null}
 
       <div className="cl-table-wrap">
-        <table className="cl-table">
+        <table className="cl-table ins-table">
           <thead>
             <tr>
               <th>#</th>

@@ -41,6 +41,36 @@
 .ins-print-editor textarea { width: 100%; padding: 9px 10px; border: 1px solid #bfd4e5; border-radius: 8px; background: #fff; color: var(--text); font: inherit; resize: vertical; }
 .ins-print-map-capture { position: fixed; top: 0; left: -10000px; width: 900px; height: 480px; overflow: hidden; background: #dce7f2; }
 
+/* --- Columnas responsivas de la tabla de inspecciones ---------------------- */
+/* clandestinos.css oculta columnas por POSICION (nth-child 5, 7 y 8 a 1120px;
+   ademas 3 y 4 a 760px) pensando en el orden de la tabla de Clandestinos. La
+   tabla de Inspecciones tiene otro orden
+   -- 1 # | 2 Inspeccion | 3 Clave | 4 Abonado | 5 Barrio | 6 Tecnico |
+      7 Estado | 8 Fecha | 9 Impresion | 10 accion --
+   asi que esa herencia escondia Estado y Fecha en tablet, y Clave y Abonado en
+   movil. Aqui se reponen y se decide que cae en cada corte, priorizando lo que
+   DESIGN.md pide en un listado: clave, abonado, barrio, estado y accion. */
+
+@media (max-width: 1120px) {
+  .ins-table th:nth-child(5), .ins-table td:nth-child(5),
+  .ins-table th:nth-child(7), .ins-table td:nth-child(7),
+  .ins-table th:nth-child(8), .ins-table td:nth-child(8) { display: table-cell; }
+  /* Se va el correlativo, el tecnico y el detalle de impresion. */
+  .ins-table th:nth-child(1), .ins-table td:nth-child(1),
+  .ins-table th:nth-child(6), .ins-table td:nth-child(6),
+  .ins-table th:nth-child(9), .ins-table td:nth-child(9) { display: none; }
+}
+
+@media (max-width: 760px) {
+  /* Quedan numero de inspeccion, abonado, estado y la accion de abrir. */
+  .ins-table th:nth-child(3), .ins-table td:nth-child(3),
+  .ins-table th:nth-child(5), .ins-table td:nth-child(5),
+  .ins-table th:nth-child(8), .ins-table td:nth-child(8) { display: none; }
+  .ins-table th:nth-child(4), .ins-table td:nth-child(4),
+  .ins-table th:nth-child(7), .ins-table td:nth-child(7) { display: table-cell; }
+  .ins-table th:last-child, .ins-table td:last-child { width: 50px; }
+}
+
 /* --- Tablero anual de estadisticas ---------------------------------------- */
 /* Un solo periodo gobierna la pantalla: el anio del select y el mes que se elige
    en la grafica. Todo lo que va debajo de las barras pertenece a ese mes. */

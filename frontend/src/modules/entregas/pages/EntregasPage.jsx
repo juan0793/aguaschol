@@ -461,7 +461,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
         />
       ) : null}
 
-      {loteDetalle ? <LoteDetalle key={loteDetalle.id} lote={loteDetalle} permissions={config.permissions} api={api} notify={notify} onClose={cerrarDetalle} onEdit={abrirEdicion} onCerrar={abrirCierre} onChanged={() => { abrirDetalle(loteDetalle); refrescar(); }} onDeleted={() => { cerrarDetalle(); refrescar(); }} /> : null}
+      {loteDetalle ? <LoteDetalle key={loteDetalle.id} lote={loteDetalle} permissions={config.permissions} motivos={config.motivos} api={api} notify={notify} onClose={cerrarDetalle} onEdit={abrirEdicion} onCerrar={abrirCierre} onChanged={() => { abrirDetalle(loteDetalle); refrescar(); }} onDeleted={() => { cerrarDetalle(); refrescar(); }} /> : null}
 
       {documentoAbierto ? (
         <NoEntregadaDetalle
