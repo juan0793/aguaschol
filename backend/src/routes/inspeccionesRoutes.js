@@ -19,6 +19,7 @@ import {
   removeTecnico,
   resumen,
   stats,
+  tablero,
   tecnicos,
   tecnicosDeInspeccion,
   update
@@ -30,6 +31,7 @@ router.get("/config", config);
 router.get("/tecnicos", tecnicos);
 router.get("/resumen", resumen);
 router.get("/stats", requireRoles("admin"), stats);
+router.get("/stats/tablero", requireRoles("admin"), tablero);
 router.get("/", list);
 router.post("/", requireRoles("admin"), create);
 router.get("/:id", detail);

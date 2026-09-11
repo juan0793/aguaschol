@@ -11,6 +11,7 @@ export const createInspeccionesApi = (apiFetch) => ({
   tecnicos: () => apiFetch("/inspecciones/tecnicos").then(json),
   resumen: () => apiFetch("/inspecciones/resumen").then(json),
   stats: (params = {}) => apiFetch(`/inspecciones/stats?${new URLSearchParams(params)}`).then(json),
+  tablero: (params = {}) => apiFetch(`/inspecciones/stats/tablero?${new URLSearchParams(params)}`).then(json),
   list: (params = {}) => apiFetch(`/inspecciones?${new URLSearchParams(params)}`).then(json),
   detail: (id) => apiFetch(`/inspecciones/${id}`).then(json),
   create: (payload) => apiFetch("/inspecciones", { method: "POST", ...jsonBody(payload) }).then(json),

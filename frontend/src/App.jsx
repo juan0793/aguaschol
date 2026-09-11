@@ -936,6 +936,7 @@ function App() {
   const padronStatsChartRef = useRef(null);
   const mapPointsRequestRef = useRef({ id: 0, controller: null });
   const intentionalLogoutRef = useRef(false);
+  const sessionInvalidatingRef = useRef(false);
   const [session, setSession] = useState(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!saved) return null;
@@ -947,6 +948,11 @@ function App() {
       return null;
     }
   });
+  // Valida la sesión guardada antes de montar los módulos protegidos; una sesión
+  // vencida no debe disparar todas las consultas del tablero en paralelo.
+  const [sessionVerified, setSessionVerified] = useState(
+    () => !window.localStorage.getItem(AUTH_STORAGE_KEY)
+  );
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [loginLoading, setLoginLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -1314,7 +1320,7 @@ function App() {
       chips: ["Formato correcto", "Consultar ahora"]
     };
   }, [lookupFeedback, lookupLoading, lookupQuery, lookupResult, lookupSearchMode]);
-  const isAuthenticated = Boolean(session?.token);
+  const isAuthenticated = Boolean(session?.token) && sessionVerified;
   const isAdmin = session?.user?.role === "admin";
   const isTransport = session?.user?.role === "transport";
   const isFieldValidator = session?.user?.role === "validadora_campo";
@@ -1463,6 +1469,14 @@ function App() {
             title: "Gestión de usuarios",
             lead: "Creación de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
             kicker: "Control de acceso"
+          },
+          entregas: {
+            panelClass: "hero-panel-records",
+            cardClass: "search-card-records",
+            toplineLabel: "Operación de reparto",
+            title: "Control de entregas",
+            lead: "Seguimiento de lotes, cierres diarios y documentos pendientes.",
+            kicker: "Cierre diario"
           },
           dashboard: {
             panelClass: "hero-panel-dashboard",
@@ -3795,6 +3809,7 @@ function App() {
     window.localStorage.removeItem(DRAFT_STORAGE_KEY);
     window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
     setSession(null);
+    setSessionVerified(true);
     setLoginForm({ username: "", password: "" });
     setShowLoginPassword(false);
     setShowPasswordModal(false);
@@ -3850,7 +3865,8 @@ function App() {
       credentials: options.credentials ?? "include",
       headers
     });
-    if (response.status === 401 && session?.token) {
+    if (response.status === 401 && session?.token && !sessionInvalidatingRef.current) {
+      sessionInvalidatingRef.current = true;
       clearSession();
       if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
     }
@@ -3873,11 +3889,15 @@ function App() {
 
         if (cancelled) return;
         if (response.status === 401) {
+          sessionInvalidatingRef.current = true;
           clearSession();
           if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
           return;
         }
-        if (!response.ok) return;
+        if (!response.ok) {
+          setSessionVerified(true);
+          return;
+        }
 
         const data = await response.json();
         if (!data?.user) return;
@@ -3888,8 +3908,11 @@ function App() {
           window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
           return nextSession;
         });
+        sessionInvalidatingRef.current = false;
+        setSessionVerified(true);
       } catch {
         // Keep the stored session if the API is temporarily unreachable.
+        setSessionVerified(true);
       }
     };
 
@@ -9420,6 +9443,8 @@ function App() {
       }
 
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+      sessionInvalidatingRef.current = false;
+      setSessionVerified(true);
       setAuthFx({ mode: "login", text: "Abriendo sesión..." });
       await pause(550);
       setSession(data);
@@ -11835,6 +11860,16 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showPadronStatsModal]);
 
+  if (session?.token && !sessionVerified) {
+    return (
+      <div className="login-shell login-scene" role="status" aria-live="polite">
+        <div className="auth-fx auth-fx-login">
+          <div className="auth-fx-card"><span className="auth-fx-dot" /><strong>Validando sesión…</strong></div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div
@@ -13376,6 +13411,20 @@ function App() {
                 </div>
               </>
             )
+          ) : workspaceView === "entregas" ? (
+            <div className="workspace-summary">
+              <p className="workspace-title">Cierre diario, seguimiento de pendientes y trazabilidad de cada lote.</p>
+              <div className="search-actions">
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesión
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contraseña
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="module-nav-wrap">
               <div className="module-topbar">
@@ -13792,7 +13841,7 @@ function App() {
                 </button>
               </div>
             </div>
-          ) : (
+          ) : workspaceView === "entregas" ? null : (
             <div className="workspace-summary">
               <p className="workspace-title">
                 {workspaceView === "users"

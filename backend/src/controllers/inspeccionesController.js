@@ -17,7 +17,7 @@ import {
   removeParticipante,
   updateInspeccion
 } from "../services/inspeccionesService.js";
-import { getInspeccionesStats } from "../services/inspeccionesStatsService.js";
+import { getInspeccionesStats, getInspeccionesTablero } from "../services/inspeccionesStatsService.js";
 import {
   attachPrintStatus,
   getPrintData,
@@ -47,6 +47,14 @@ export const resumen = async (req, res, next) => {
 export const stats = async (req, res, next) => {
   try {
     res.json(await getInspeccionesStats(req.query, req.authUser));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const tablero = async (req, res, next) => {
+  try {
+    res.json(await getInspeccionesTablero(req.query, req.authUser));
   } catch (error) {
     next(error);
   }

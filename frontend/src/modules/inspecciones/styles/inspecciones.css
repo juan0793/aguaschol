@@ -41,8 +41,87 @@
 .ins-print-editor textarea { width: 100%; padding: 9px 10px; border: 1px solid #bfd4e5; border-radius: 8px; background: #fff; color: var(--text); font: inherit; resize: vertical; }
 .ins-print-map-capture { position: fixed; top: 0; left: -10000px; width: 900px; height: 480px; overflow: hidden; background: #dce7f2; }
 
+/* --- Tablero anual de estadisticas ---------------------------------------- */
+/* Un solo periodo gobierna la pantalla: el anio del select y el mes que se elige
+   en la grafica. Todo lo que va debajo de las barras pertenece a ese mes. */
+
+.ins-tablero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.ins-tablero-head p { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.ins-tablero-head label { display: grid; gap: 6px; color: var(--navy); font-size: 12px; font-weight: 750; }
+
+.ins-chart { padding: 14px 14px 10px; border: 1px solid #d8e5f1; border-radius: 14px; background: #fbfdff; }
+.ins-chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 160px; padding-bottom: 6px; border-bottom: 1px solid #dce8f3; }
+.ins-chart-col { display: grid; flex: 1; height: 100%; align-content: end; justify-items: center; gap: 5px; }
+.ins-chart-valor { color: var(--muted); font-size: 11px; font-weight: 800; }
+.ins-chart-valor.is-sel { color: var(--primary); }
+/* min-height explicito: .cl-module button impone 44px y aplastaria las barras. */
+.ins-chart-bars .ins-chart-bar { width: 100%; min-height: 3px; padding: 0; border: 0; border-radius: 4px 4px 0 0; background: #c8d8e6; cursor: pointer; transition: background .16s ease; }
+.ins-chart-bars .ins-chart-bar:hover:not(:disabled) { background: #9fc0de; }
+.ins-chart-bars .ins-chart-bar.is-sel { background: var(--primary); }
+.ins-chart-bars .ins-chart-bar.is-futuro { border: 1px dashed #c8d8e6; background: transparent; cursor: default; }
+.ins-chart-labels { display: flex; gap: 8px; margin-top: 6px; }
+.ins-chart-labels small { flex: 1; color: var(--muted); font-size: 11px; text-align: center; }
+.ins-chart-labels small.is-sel { color: var(--primary); font-weight: 800; }
+
+.ins-tablero-mes { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 20px 0 10px; }
+.ins-tablero-mes span { color: var(--muted); font-size: 12px; }
+
+.ins-composicion { margin-top: 14px; padding: 14px; border: 1px solid #d8e5f1; border-radius: 14px; background: #fff; }
+.ins-composicion-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.ins-composicion-head strong { color: var(--navy); }
+.ins-composicion-head span { color: var(--muted); font-size: 12px; }
+.ins-composicion-bar { display: flex; gap: 3px; height: 16px; margin-bottom: 10px; }
+.ins-composicion-bar span { border-radius: 3px; }
+.ins-composicion-legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 12px; }
+.ins-composicion-legend li { display: inline-flex; align-items: center; gap: 7px; }
+.ins-composicion-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.ins-composicion-legend strong { color: var(--navy); font-weight: 750; }
+/* Rellenos solidos de estado: los .cl-status son pastillas de fondo suave y no
+   sirven para una barra apilada que ademas debe leerse impresa en blanco y negro. */
+.ins-composicion-bar .is-asignada, .ins-composicion-legend .is-asignada { background: var(--muted); }
+.ins-composicion-bar .is-en_proceso, .ins-composicion-legend .is-en_proceso { background: var(--primary); }
+.ins-composicion-bar .is-seguimiento, .ins-composicion-legend .is-seguimiento { background: var(--alert); }
+.ins-composicion-bar .is-finalizada, .ins-composicion-legend .is-finalizada { background: var(--success); }
+
+.ins-tablero-grid { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 14px; margin-top: 14px; }
+.ins-tablero-grid h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--navy); font-size: 14px; }
+.ins-tablero-grid ul { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+
+.ins-atencion { padding: 14px; border: 1px solid #ecd9b4; border-radius: 14px; background: #fffaf1; }
+.ins-atencion h4 { color: var(--alert); }
+.ins-atencion li:not(:last-child) { padding-bottom: 9px; border-bottom: 1px solid #f0e3cc; }
+.ins-atencion-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.ins-atencion-row strong { color: var(--alert); font-weight: 750; text-align: right; white-space: nowrap; }
+.ins-atencion li:last-child .ins-atencion-row strong { color: var(--navy); }
+button.ins-atencion-row { min-height: 0; color: var(--text); cursor: pointer; }
+button.ins-atencion-row:hover span { color: var(--primary); text-decoration: underline; }
+
+.ins-tecnicos { padding: 14px; border: 1px solid #d8e5f1; border-radius: 14px; background: #fff; }
+.ins-tecnicos li { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.ins-tecnicos strong { color: var(--navy); font-weight: 750; }
+.ins-tecnicos i { grid-column: 1 / -1; display: block; height: 6px; border-radius: 999px; background: #e1eff9; }
+.ins-tecnicos em { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+
+.ins-tablero-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e4edf5; }
+.ins-tablero-footer span { color: var(--muted); font-size: 12px; }
+.ins-tablero-footer button { white-space: nowrap; }
+
+.ins-cruzada { margin-top: 18px; border-top: 1px solid #e4edf5; padding-top: 14px; }
+.ins-cruzada summary { color: var(--navy); font-weight: 750; cursor: pointer; }
+.ins-cruzada-toolbar { grid-template-columns: minmax(150px,220px) minmax(150px,220px); margin-top: 12px; }
+
+@media (max-width: 1120px) {
+  .ins-tablero-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 760px) {
   .ins-print-drawer { width: 100%; }
   .ins-print-preview { padding: 8px; }
   .ins-print-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+  .ins-tablero-head, .ins-tablero-mes, .ins-composicion-head, .ins-tablero-footer { flex-direction: column; align-items: stretch; }
+  .ins-chart-bars { gap: 3px; }
+  .ins-chart-labels { gap: 3px; }
+  .ins-chart-labels small { font-size: 10px; }
+  .ins-chart-valor { font-size: 10px; }
+  .ins-cruzada-toolbar { grid-template-columns: 1fr; }
 }

@@ -20,6 +20,7 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
   const [showNueva, setShowNueva] = useState(false);
   const [initialNueva, setInitialNueva] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [statsRefreshToken, setStatsRefreshToken] = useState(0);
 
   const model = useInspecciones(api, Boolean(config));
   const isAdmin = session?.user?.role === "admin";
@@ -64,6 +65,7 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
     model.reload();
     api.resumen().then(setResumen).catch(() => {});
     api.tecnicos().then(setTecnicos).catch(() => {});
+    setStatsRefreshToken((value) => value + 1);
   };
 
   if (!config) return <main className="cl-module"><div className="cl-module-loading"><Icon name="refresh" />Cargando módulo Inspecciones…</div></main>;
@@ -122,7 +124,17 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
 
       {tab === "ver" ? <InspeccionesTable model={model} tecnicos={tecnicos} isAdmin={isAdmin} onOpen={(item) => setSelectedId(item.id)} /> : null}
 
-      {tab === "estadisticas" && config.permissions.can_view_stats ? <InspeccionesStatsPage api={api} notify={showAlert} /> : null}
+      {tab === "estadisticas" && config.permissions.can_view_stats ? (
+        <InspeccionesStatsPage
+          api={api}
+          notify={showAlert}
+          refreshToken={statsRefreshToken}
+          onDrill={(filters) => {
+            go("ver");
+            model.setFilters(filters);
+          }}
+        />
+      ) : null}
 
       {showNueva ? (
         <NuevaInspeccionModal

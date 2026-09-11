@@ -4,7 +4,7 @@
   "scripts": {
     "start": "npm --prefix backend start",
     "build": "npm --prefix frontend run build",
-    "lint": "eslint frontend/src/modules/entregas frontend/src/components/NotificationCenter.jsx backend/src/services/entregas*.js backend/src/services/entregas*.mjs backend/src/services/auditService.js backend/src/services/profileService.js backend/src/config/env.js backend/src/server.js",
+    "lint": "eslint --quiet frontend/src/App.jsx frontend/src/modules/entregas frontend/src/components/NotificationCenter.jsx backend/src/services/entregas*.js backend/src/services/entregas*.mjs backend/src/services/auditService.js backend/src/services/profileService.js backend/src/config/env.js backend/src/server.js",
     "test": "npm --prefix backend test",
     "test:entregas": "npm --prefix backend run test:entregas",
     "postinstall": "npm --prefix backend install && npm --prefix frontend install",
