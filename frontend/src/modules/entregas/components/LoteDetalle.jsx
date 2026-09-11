@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import EntregasDrawer from "./EntregasDrawer";
 import LoteSobrantesPrint from "../print/LoteSobrantesPrint";
 import { estadoLoteLabel, formatDate, formatNumber, tipoDocumentoLabel } from "../utils/entregasFormatters";
@@ -41,7 +42,27 @@ export default function LoteDetalle({ lote, permissions, motivos = [], api, noti
     return () => clearTimeout(temporizador);
   }, [impresion]);
 
-  const imprimirSobrantes = () => setImpresion((actual) => ({ en: new Date().toISOString(), intento: actual.intento + 1 }));
+  // La marca en <body> es la que saca la aplicacion del flujo al imprimir. Va
+  // por eventos para que Ctrl+P con el cajon abierto se comporte igual que el
+  // boton, y se limpia siempre al desmontar.
+  useEffect(() => {
+    if (!sobrantes.length) return undefined;
+    const marcar = () => document.body.classList.add("ent-imprimiendo-acta");
+    const limpiar = () => document.body.classList.remove("ent-imprimiendo-acta");
+    window.addEventListener("beforeprint", marcar);
+    window.addEventListener("afterprint", limpiar);
+    return () => {
+      window.removeEventListener("beforeprint", marcar);
+      window.removeEventListener("afterprint", limpiar);
+      limpiar();
+    };
+  }, [sobrantes.length]);
+
+  const imprimirSobrantes = () => {
+    // beforeprint no es universal; marcar aqui tambien es idempotente.
+    document.body.classList.add("ent-imprimiendo-acta");
+    setImpresion((actual) => ({ en: new Date().toISOString(), intento: actual.intento + 1 }));
+  };
   const dialogo = ACCIONES[accion];
   const guardarNota = async () => {
     if (!nota.trim()) return;
@@ -75,8 +96,17 @@ export default function LoteDetalle({ lote, permissions, motivos = [], api, noti
     </div>
     <footer className="ent-drawer-footer">{sobrantes.length ? <button type="button" className="cl-secondary" onClick={imprimirSobrantes}>Imprimir sobrantes</button> : null}{permissions.can_edit_lote && (abierto || permissions.can_force_close) ? <button type="button" className="cl-secondary" onClick={() => onEdit(lote)}>Editar lote</button> : null}{abierto && permissions.can_close_own_lote ? <button type="button" className="cl-primary" onClick={() => onCerrar(lote)}>Cerrar lote</button> : null}</footer>
   </EntregasDrawer>
-  {/* Fuera del cajon a proposito: el cajon es position:fixed y el acta debe
-      quedar en el flujo normal para que la impresion la pagine bien. */}
-  {sobrantes.length ? <div className="ent-print-preview ent-print-solo-impresion"><LoteSobrantesPrint lote={lote} motivos={motivos} generadoEn={impresion.en} /></div> : null}
+  {/* Hija directa de <body> a proposito. Al imprimir se oculta #root con
+      display:none y el acta queda como unico contenido en el flujo: si se
+      dejara dentro del arbol de la app, el alto de la pagina completa se
+      seguiria paginando como hojas en blanco. */}
+  {sobrantes.length
+    ? createPortal(
+        <div className="ent-acta-portal">
+          <LoteSobrantesPrint lote={lote} motivos={motivos} generadoEn={impresion.en} />
+        </div>,
+        document.body
+      )
+    : null}
   </>;
 }

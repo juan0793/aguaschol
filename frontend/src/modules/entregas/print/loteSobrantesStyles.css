@@ -3,13 +3,9 @@
    piezas propias de esta acta. */
 @import "./weeklyReportStyles.css";
 
-/* La hoja vive montada pero fuera de pantalla: el @media print heredado ya hace
-   visible .ent-print-preview y oculta el resto de la aplicacion, asi que basta
-   con apartarla mientras se mira en pantalla. Va en @media screen para no pelear
-   por especificidad con la regla de impresion. */
-@media screen {
-  .ent-print-solo-impresion { position: fixed; top: 0; left: -10000px; width: 816px; }
-}
+/* El acta se monta como hija directa de <body> (portal) y espera fuera de la
+   vista, para que el logo ya este descargado cuando se dispare la impresion. */
+.ent-acta-portal { position: absolute; top: 0; left: -10000px; width: 816px; }
 
 .ent-hoja-datos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid #dbe3ea; border-radius: 10px; background: #f6f9fc; }
 .ent-hoja-datos span { display: block; color: #616f7d; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
@@ -27,8 +23,20 @@
 .ent-hoja-firmas span { display: block; padding-top: 5px; color: #38495a; font-size: 9.5px; text-align: center; }
 
 @media print {
-  /* La hoja se imprime desde un cajon superpuesto: hay que anular el
-     desplazamiento de pantalla para que caiga en el area imprimible. */
-  .ent-print-solo-impresion { position: absolute; top: 0; left: 0; width: auto; }
+  /* Esta es la regla que evita las hojas en blanco. La regla heredada solo hace
+     `body * { visibility: hidden }`, que oculta la aplicacion pero le deja su
+     hueco: el documento sigue midiendo lo que mide la pagina entera de Entregas
+     y todo ese alto se pagina vacio. Con display:none el arbol de la app sale
+     del FLUJO y el acta queda como unico contenido. */
+  body.ent-imprimiendo-acta > #root { display: none !important; }
+
+  body.ent-imprimiendo-acta .ent-acta-portal {
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+  }
+  body.ent-imprimiendo-acta .ent-acta-portal,
+  body.ent-imprimiendo-acta .ent-acta-portal * { visibility: visible !important; }
+
   .ent-hoja-datos { background: #f6f9fc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

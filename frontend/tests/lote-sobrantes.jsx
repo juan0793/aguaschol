@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import LoteSobrantesPrint from '../src/modules/entregas/print/LoteSobrantesPrint.jsx';
 import InspeccionesTable from '../src/modules/inspecciones/components/InspeccionesTable.jsx';
@@ -24,8 +25,6 @@ const NOMBRES = [
   'DISTRIBUIDORA CHOLUTECA LTDA'
 ];
 
-// 13 documentos, como el lote #55 de la captura. Uno lleva observacion larga
-// para comprobar que la celda no rompe la fila ni desborda la hoja.
 const documentos = NOMBRES.map((nombre, indice) => ({
   id: indice + 1,
   numero_abonado: String(1479 - indice * 13),
@@ -54,7 +53,6 @@ const lote = {
   no_entregadas: documentos
 };
 
-// Tabla de inspecciones, para comprobar que columnas sobreviven en cada corte.
 const inspecciones = [
   { id: 1, numero_inspeccion: 'INS-0042', motivo: 'Posible irregularidad', clave_catastral: '06-01-02-0011', abonado_nombre_snapshot: 'Juan Martínez', barrio_snapshot: 'El Centro', tecnico_responsable_nombre: 'Carlos Gómez', estado: 'FINALIZADA', fecha_asignacion: '2026-09-12', print_status: { ORDEN: { impreso: true }, REPORTE: { impreso: false } } },
   { id: 2, numero_inspeccion: 'INS-0041', motivo: 'Verificación de conexión', clave_catastral: '06-01-02-0012', abonado_nombre_snapshot: 'Ana López', barrio_snapshot: 'San José', tecnico_responsable_nombre: 'María Flores', estado: 'SEGUIMIENTO', fecha_asignacion: '2026-09-12', print_status: { ORDEN: { impreso: false }, REPORTE: { impreso: false } } },
@@ -68,58 +66,114 @@ const model = {
 };
 
 function QA() {
-  // Sin .page-shell a proposito: esta pagina es una previsualizacion de
-  // impresion y el hueco de la barra lateral solo recortaria la hoja.
   return (
-    <div>
+    <div className="page-shell">
       <main className="cl-module">
         <p role="status" style={{ marginBottom: 12, color: '#627d98' }}>
           Datos de prueba — sin conexión al servidor.{' '}
-          <button type="button" className="cl-secondary" onClick={() => window.print()}>Imprimir acta</button>
+          <button type="button" className="cl-secondary" onClick={() => { document.body.classList.add('ent-imprimiendo-acta'); window.print(); }}>
+            Imprimir acta
+          </button>
         </p>
 
-        <h2 style={{ margin: '18px 0 8px' }}>Acta de sobrantes (vista previa de impresión)</h2>
+        <h2 style={{ margin: '18px 0 8px' }}>Acta de sobrantes (vista previa)</h2>
         <div className="ent-print-preview">
           <LoteSobrantesPrint lote={lote} motivos={MOTIVOS} generadoEn="2026-09-11T22:10:00.000Z" />
         </div>
 
         <h2 style={{ margin: '26px 0 8px' }}>Tabla de inspecciones (columnas responsivas)</h2>
         <InspeccionesTable model={model} tecnicos={[]} isAdmin onOpen={() => {}} />
+
+        {/* Hace de "resto de la pantalla de Entregas" (indicadores, lotes,
+            filtros): contenido normal, alto y en flujo. Sin el arreglo, todo
+            ese alto se paginaba como hojas en blanco detrás del acta. */}
+        <div style={{ height: 2400 }} aria-hidden="true" />
       </main>
+
+      {/* Misma estructura que en produccion: el acta real va en un portal a
+          <body>, fuera de #root, para que la impresion no arrastre el alto de
+          la aplicacion. */}
+      {createPortal(
+        <div className="ent-acta-portal">
+          <LoteSobrantesPrint lote={lote} motivos={MOTIVOS} generadoEn="2026-09-11T22:10:00.000Z" />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
 
 createRoot(document.getElementById('root')).render(<QA />);
 
-// Prueba de regresion ejecutable: solo componentes locales, sin red.
+// --- Prueba de regresion ejecutable ----------------------------------------
+// Solo componentes locales, sin red.
+
 const VISIBLE = (el) => el && getComputedStyle(el).display !== 'none';
-const columnas = () => {
-  const ths = [...document.querySelectorAll('.ins-table thead th')];
-  return ths.map((th, i) => ({ i: i + 1, texto: th.textContent.trim(), visible: VISIBLE(th) }));
+const columnas = () => [...document.querySelectorAll('.ins-table thead th')]
+  .map((th, i) => ({ n: i + 1, txt: th.textContent.trim() || '(acción)', ok: VISIBLE(th) }));
+
+// Fuerza las reglas @media print a aplicarse en pantalla, para poder medir como
+// quedaria el documento impreso sin depender del dialogo del navegador.
+const conMediaDeImpresion = (fn) => {
+  const reglas = [];
+  for (const hoja of document.styleSheets) {
+    let lista;
+    try { lista = hoja.cssRules; } catch { continue; }
+    for (const regla of lista) {
+      if (regla.media && String(regla.media.mediaText).includes('print')) {
+        reglas.push([regla, regla.media.mediaText]);
+      }
+    }
+  }
+  reglas.forEach(([regla]) => { regla.media.mediaText = 'screen'; });
+  try { return fn(); } finally { reglas.forEach(([regla, original]) => { regla.media.mediaText = original; }); }
 };
 
 const check = async () => {
   await new Promise((r) => setTimeout(r, 400));
 
-  // El acta debe listar los 13 documentos con su etiqueta de motivo legible.
-  const filas = document.querySelectorAll('.ent-hoja-tabla tbody tr');
+  const filas = document.querySelectorAll('.ent-acta-portal .ent-hoja-tabla tbody tr');
   if (filas.length !== 13) throw Error(`El acta lista ${filas.length} documentos, no 13`);
   if (!document.body.textContent.includes('Casa cerrada')) throw Error('El motivo no usa la etiqueta del catálogo');
   if (document.body.textContent.includes('CASA_CERRADA')) throw Error('Quedó el código crudo del motivo');
 
-  // La hoja no puede desbordar el ancho Letter (816px).
-  const hoja = document.querySelector('.ent-hoja');
+  const hoja = document.querySelector('.ent-acta-portal .ent-hoja');
   if (hoja.scrollWidth > hoja.clientWidth + 1) throw Error(`La hoja desborda: ${hoja.scrollWidth} > ${hoja.clientWidth}`);
 
-  // Los KPI del acta deben cuadrar: asignadas = entregadas + no entregadas.
-  const kpis = [...document.querySelectorAll('.ent-hoja-kpis strong')].map((e) => Number(e.textContent.replace(/\D/g, '')));
+  const kpis = [...document.querySelectorAll('.ent-acta-portal .ent-hoja-kpis strong')].map((e) => Number(e.textContent.replace(/\D/g, '')));
   if (kpis[1] + kpis[2] !== kpis[0]) throw Error(`Los KPI no cuadran: ${kpis[1]}+${kpis[2]} != ${kpis[0]}`);
+  if (document.querySelectorAll('.ent-acta-portal .ent-hoja-firmas i').length !== 3) throw Error('Faltan líneas de firma');
 
-  // Y el bloque de firmas no debe faltar.
-  if (document.querySelectorAll('.ent-hoja-firmas i').length !== 3) throw Error('Faltan líneas de firma');
+  // El fallo de las hojas en blanco: al imprimir, el documento debe medir lo que
+  // mide el acta y no lo que mide la aplicacion que quedo detras.
+  // Se mide body.scrollHeight y no documentElement.scrollHeight: este ultimo
+  // nunca baja del alto del viewport y taparia el resultado.
+  const sinMarca = conMediaDeImpresion(() => document.body.scrollHeight);
 
-  return { ok: true, columnas: columnas() };
+  document.body.classList.add('ent-imprimiendo-acta');
+  const medida = conMediaDeImpresion(() => ({
+    alto: document.body.scrollHeight,
+    altoActa: document.querySelector('.ent-acta-portal').getBoundingClientRect().height,
+    rootOculto: !VISIBLE(document.getElementById('root'))
+  }));
+  document.body.classList.remove('ent-imprimiendo-acta');
+
+  if (!medida.rootOculto) throw Error('#root sigue ocupando espacio al imprimir');
+  const sobra = medida.alto - medida.altoActa;
+  if (sobra > 4) throw Error(`Sobran ${Math.round(sobra)}px de documento sobre el acta: saldrán hojas en blanco`);
+  // Y la prueba debe seguir siendo capaz de detectar la regresion.
+  if (sinMarca <= medida.alto * 1.5) throw Error('La prueba ya no distingue el caso roto del arreglado');
+
+  // Letter a 96dpi son 1056px, menos 12mm de margen arriba y abajo (~45px c/u).
+  const paginas = Math.max(1, Math.ceil(medida.alto / 966));
+  return {
+    ok: true,
+    altoSinArreglo: Math.round(sinMarca),
+    altoImpreso: Math.round(medida.alto),
+    altoActa: Math.round(medida.altoActa),
+    paginasEstimadas: paginas,
+    columnasVisibles: columnas().filter((c) => c.ok).map((c) => c.n)
+  };
 };
 
 check()
