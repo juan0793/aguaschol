@@ -73,6 +73,8 @@ export default function DashboardWorkspace({ model }) {
   const metricTotal = debtMetric === "accounts"
     ? Number(debt.deudores || 0)
     : debtMetric === "critical" ? Number(debt.criticos || 0) : debtTotal;
+  const metricDescription = debtMetric === "accounts" ? "de los abonados con mora" : debtMetric === "critical" ? "de los casos críticos" : "de la mora total";
+  const rankingTotal = ranking.reduce((sum, item) => sum + item.value, 0);
   const selectedShare = percent(
     debtMetric === "accounts" ? selectedDebt.deudores : debtMetric === "critical" ? selectedDebt.criticos : selectedDebt.total,
     metricTotal
@@ -267,11 +269,11 @@ export default function DashboardWorkspace({ model }) {
                         <span className="dw-eyebrow">Mora asociada por servicio</span>
                         <ul>
                           {serviceDebt.map((service) => (
-                            <li key={service.field}>
-                              <span className="dw-service-name">{service.label}</span>
+                            <li key={service.field} data-service={service.field}>
+                              <span className="dw-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
                               <Amount value={service.debt} />
                               <i className="dw-service-track" aria-hidden="true">
-                                <em style={{ width: `${Math.max(2, (service.debt / maxServiceDebt) * 100)}%` }} />
+                                <em style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} />
                               </i>
                             </li>
                           ))}
@@ -282,21 +284,28 @@ export default function DashboardWorkspace({ model }) {
                   </article>
         </div>
         <div className="dw-col">
-          <article className="dw-panel dw-mora">
+          <article className="dw-panel dw-mora" data-metric={debtMetric}>
                     <header className="dw-panel-head">
                       <div>
                         <span className="dw-eyebrow">Datos reales del padrón</span>
                         <h2>Barrios con mayor mora</h2>
                       </div>
-                      <label className="dw-select">
-                        <span className="dw-sr">Ordenar por</span>
-                        <select value={debtMetric} onChange={(event) => setDebtMetric(event.target.value)}>
-                          <option value="total">Mora total</option>
-                          <option value="accounts">Abonados</option>
-                          <option value="critical">Casos críticos</option>
-                        </select>
-                      </label>
+                      {ranking.length ? <span className="dw-ranking-count">Top {ranking.length}</span> : null}
                     </header>
+                    <div className="dw-metric-switch" role="group" aria-label="Ordenar barrios por">
+                      {[["total", "Mora total", "records"], ["accounts", "Abonados", "users"], ["critical", "Casos críticos", "warning"]].map(([metric, label, icon]) => (
+                        <button type="button" key={metric} aria-pressed={debtMetric === metric} onClick={() => setDebtMetric(metric)}>
+                          <Icon name={icon} />{label}
+                        </button>
+                      ))}
+                    </div>
+                    {ranking.length ? <div className="dw-ranking-summary" role="status">
+                      <span><strong className="dw-figure">{oneDecimal(percent(rankingTotal, metricTotal))}</strong><span>{metricDescription} se concentra en estos {ranking.length} barrios.</span></span>
+                      <div><small>{debtMetric === "total" ? "Mora acumulada" : debtMetric === "accounts" ? "Abonados con mora" : "Casos críticos"}</small>
+                        {debtMetric === "total" ? <Amount value={rankingTotal} /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
+                      </div>
+                    </div> : null}
+                    {ranking.length ? <p className="dw-chart-caption">De mayor a menor · Barras comparadas con el primer lugar.</p> : null}
 
                     {ranking.length ? (
                       <ol className="dw-ranking">
@@ -309,21 +318,19 @@ export default function DashboardWorkspace({ model }) {
                                 className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
                                 onClick={() => toggleBarrio(item.name)}
                               >
-                                <b className="dw-figure">{index + 1}</b>
-                                <span className="dw-ranking-copy">
-                                  <strong>{item.name}</strong>
-                                  <i className="dw-ranking-track">
-                                    <em style={{ width: `${Math.max(2, (item.value / maxDebt) * 100)}%` }} />
-                                  </i>
-                                </span>
+                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(index + 1).padStart(2, "0")}</b>
+                                <strong className="dw-ranking-name">{item.name}</strong>
                                 <span className="dw-ranking-value">
                                   {debtMetric === "total" ? (
                                     <Amount value={item.value} />
                                   ) : (
                                     <span className="dw-amount dw-figure">{whole(item.value)}</span>
                                   )}
-                                  <small className="dw-figure">{oneDecimal(percent(item.value, metricTotal))} del padrón</small>
+                                  <small className="dw-figure">{oneDecimal(percent(item.value, metricTotal))} {metricDescription}</small>
                                 </span>
+                                <i className="dw-ranking-track" aria-hidden="true">
+                                  <em style={{ transform: `scaleX(${item.value / maxDebt})` }} />
+                                </i>
                               </button>
                               <button
                                 type="button"
@@ -332,7 +339,7 @@ export default function DashboardWorkspace({ model }) {
                                 aria-label={`Ver desglose de ${item.name}`}
                                 onClick={() => setBarrioAbierto((actual) => (actual === item.name ? "" : item.name))}
                               >
-                                <Icon name="arrowRight" />
+                                <Icon name="chevronDown" />
                               </button>
                             </div>
                             {barrioAbierto === item.name ? (
@@ -443,7 +450,7 @@ export default function DashboardWorkspace({ model }) {
                         ) : null}
                       </div>
                     ) : (
-                      <p className="dw-hint">Seleccioná uno o varios barrios para ver el desglose y la sumatoria.</p>
+                      ranking.length ? <p className="dw-hint">Seleccioná barrios para sumar su mora. Abrí la flecha para ver el desglose.</p> : null
                     )}
 
                     <footer className="dw-panel-foot">

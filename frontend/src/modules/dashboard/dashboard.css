@@ -6,7 +6,7 @@
  *
  * Criterio visual (DESIGN.md): institucional y denso, sin hero comercial, sin
  * letter-spacing negativo, sin gradientes decorativos. El caracter del tablero
- * lo carga el tratamiento de las cifras, no el color.
+ * lo cargan las cifras y los colores asociados a cada metrica.
  */
 
 .dashboard-refactor-mode .app-chrome .search-card {
@@ -338,9 +338,9 @@
 
 .dashboard-workspace .dw-cartera-bar {
   display: flex;
-  height: 14px;
+  height: 22px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: 6px;
   background: var(--dw-tint);
 }
 
@@ -354,7 +354,7 @@
 }
 
 .dashboard-workspace .dw-seg.is-interes {
-  background: var(--dw-cyan);
+  background: #d59124;
 }
 
 .dashboard-workspace .dw-cartera-legend {
@@ -397,7 +397,7 @@
 }
 
 .dashboard-workspace .dw-cartera-legend dt i.is-interes {
-  background: var(--dw-cyan);
+  background: #d59124;
 }
 
 .dashboard-workspace .dw-cartera-legend dd {
@@ -468,21 +468,30 @@
 }
 
 .dashboard-workspace .dw-service-debt li {
+  --service-color: #1465d9;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 0.25rem 0.6rem;
-  padding-bottom: 0.15rem;
+  gap: 0.4rem 0.6rem;
+  padding: 0.4rem 0;
 }
 
+.dashboard-workspace .dw-service-debt [data-service="alcantarillado"] { --service-color: #087f8c; }
+.dashboard-workspace .dw-service-debt [data-service="barrido"] { --service-color: #8c6419; }
+.dashboard-workspace .dw-service-debt [data-service="recoleccion"] { --service-color: #657a41; }
+.dashboard-workspace .dw-service-debt [data-service="desechos_peligrosos"] { --service-color: #a43c59; }
+
 .dashboard-workspace .dw-service-name {
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--dw-body);
   font-size: 12.5px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
+
+.dashboard-workspace .dw-service-name .app-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--service-color); }
 
 .dashboard-workspace .dw-service-debt li .dw-amount {
   font-size: 12.5px;
@@ -492,7 +501,7 @@
 .dashboard-workspace .dw-service-track {
   display: block;
   grid-column: 1 / -1;
-  height: 4px;
+  height: 8px;
   overflow: hidden;
   border-radius: 99px;
   background: var(--dw-tint);
@@ -501,14 +510,96 @@
 .dashboard-workspace .dw-service-track em {
   display: block;
   height: 100%;
-  background: #7fb0e8;
+  background: var(--service-color);
+  border-radius: inherit;
+  transform-origin: left;
+  transition: transform 350ms ease;
 }
 
 /* ---------- Ranking de barrios ---------- */
 
+.dashboard-workspace .dw-mora {
+  --chart-color: #1465d9;
+  --chart-tint: #edf4ff;
+  --chart-border: #bcd3f5;
+  container-type: inline-size;
+}
+
+.dashboard-workspace .dw-mora[data-metric="accounts"] {
+  --chart-color: #087f80;
+  --chart-tint: #edf8f7;
+  --chart-border: #afd9d5;
+}
+
+.dashboard-workspace .dw-mora[data-metric="critical"] {
+  --chart-color: #b43d50;
+  --chart-tint: #fff1f3;
+  --chart-border: #efc1ca;
+}
+
+.dashboard-workspace .dw-ranking-count {
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--chart-tint);
+  color: var(--chart-color);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-workspace .dw-mora > .dw-panel-head { flex-direction: row; align-items: center; }
+
+.dashboard-workspace .dw-metric-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f4f8;
+}
+
+.dashboard-workspace .dw-metric-switch button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dw-muted);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-workspace .dw-metric-switch button:hover { color: var(--dw-ink); background: white; }
+.dashboard-workspace .dw-metric-switch button[aria-pressed="true"] { color: var(--chart-color); background: white; border-color: var(--chart-border); }
+.dashboard-workspace .dw-metric-switch .app-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+.dashboard-workspace .dw-ranking-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border-left: 3px solid var(--chart-color);
+  border-radius: 0 8px 8px 0;
+  background: var(--chart-tint);
+}
+
+.dashboard-workspace .dw-ranking-summary > span { display: flex; align-items: center; gap: 12px; }
+.dashboard-workspace .dw-ranking-summary > span > strong { color: var(--chart-color); font-size: 26px; }
+.dashboard-workspace .dw-ranking-summary > span > span { max-width: 24ch; font-size: 12px; line-height: 1.5; }
+.dashboard-workspace .dw-ranking-summary > div { display: grid; gap: 4px; text-align: right; }
+.dashboard-workspace .dw-ranking-summary small { color: var(--dw-muted); font-size: 11px; }
+.dashboard-workspace .dw-ranking-summary > div > strong { font-size: 18px; color: var(--dw-ink); }
+.dashboard-workspace .dw-chart-caption { margin: 2px 0 0; font-size: 11px; color: var(--dw-muted); }
+
 .dashboard-workspace .dw-ranking {
   display: grid;
-  gap: 0.1rem;
+  gap: 0.35rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -523,11 +614,11 @@
 
 .dashboard-workspace .dw-ranking-row > button:first-child {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.7rem;
+  gap: 8px 10px;
   width: 100%;
-  padding: 0.4rem 0.45rem;
+  padding: 12px 10px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -538,52 +629,58 @@
 }
 
 .dashboard-workspace .dw-ranking-row > button:first-child:hover {
-  background: var(--dw-tint);
+  background: var(--chart-tint);
 }
 
 .dashboard-workspace .dw-ranking-row > button:first-child.is-selected {
-  border-color: var(--dw-blue);
-  background: var(--dw-tint);
+  border-color: var(--chart-color);
+  background: var(--chart-tint);
 }
 
-.dashboard-workspace .dw-ranking b {
-  color: var(--dw-muted);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: right;
-}
-
-.dashboard-workspace .dw-ranking-copy {
+.dashboard-workspace .dw-rank-number {
   display: grid;
-  gap: 0.3rem;
-  min-width: 0;
+  place-items: center;
+  grid-row: 1 / 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--chart-tint);
+  color: var(--chart-color);
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.dashboard-workspace .dw-ranking-copy strong {
-  overflow: hidden;
+.dashboard-workspace .is-selected .dw-rank-number { background: var(--chart-color); color: white; }
+.dashboard-workspace .dw-rank-number .app-icon { width: 16px; height: 16px; }
+
+.dashboard-workspace .dw-ranking-name {
   color: var(--dw-ink);
   font-size: 13px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-workspace .dw-ranking-track {
   display: block;
-  height: 5px;
+  grid-column: 2 / -1;
+  height: 12px;
   overflow: hidden;
   border-radius: 99px;
-  background: var(--dw-tint);
+  background: #e9eef4;
 }
 
 .dashboard-workspace .dw-ranking-track em {
   display: block;
   height: 100%;
-  background: var(--dw-blue);
+  border-radius: inherit;
+  background: var(--chart-color);
+  transform-origin: left;
+  transition: transform 400ms ease, background-color 200ms ease;
 }
 
 .dashboard-workspace .dw-ranking .dw-amount {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .dashboard-workspace .dw-ranking-value {
@@ -601,8 +698,8 @@
 .dashboard-workspace .dw-ranking-more {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -622,7 +719,7 @@
 }
 
 .dashboard-workspace .dw-ranking-more[aria-expanded="true"] .app-icon {
-  transform: rotate(90deg);
+  transform: rotate(180deg);
 }
 
 .dashboard-workspace .dw-ranking-more .app-icon {
@@ -1058,6 +1155,15 @@
   .dashboard-workspace .dw-kpi strong { font-size: 28px; }
   .dashboard-workspace .dw-amount.is-hero { font-size: clamp(22px,6vw,30px); }
   .dashboard-workspace .dw-cartera-legend > div { flex-wrap: wrap; gap: 4px; }
-  .dashboard-workspace .dw-ranking button { gap: 8px; grid-template-columns: 16px minmax(0,1fr); }
-  .dashboard-workspace .dw-ranking button > .dw-amount { grid-column: 2; }
+}
+
+@container (max-width: 540px) {
+  .dashboard-workspace .dw-ranking-row > button:first-child { grid-template-columns: 28px minmax(0, 1fr); }
+  .dashboard-workspace .dw-ranking-value { grid-column: 2; justify-items: start; }
+  .dashboard-workspace .dw-rank-number { grid-row: 1 / 4; align-self: start; }
+  .dashboard-workspace .dw-ranking-summary { flex-wrap: wrap; gap: 10px; }
+  .dashboard-workspace .dw-ranking-summary > div { text-align: left; }
+  .dashboard-workspace .dw-metric-switch button { flex-direction: column; gap: 4px; padding: 6px 3px; }
+  .dashboard-workspace .dw-selection-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-workspace .dw-selection > header, .dashboard-workspace .dw-services > header { flex-wrap: wrap; }
 }
