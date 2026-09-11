@@ -69,6 +69,20 @@ test("crear una inspección genera numero unico, participante responsable e hist
   assert.equal(inspeccion.participantes.some((item) => item.tecnico_id === apoyo.id && item.rol === "APOYO"), true);
 });
 
+test("asignaciones en paralelo generan números de inspección únicos", async () => {
+  const inspecciones = await Promise.all(
+    Array.from({ length: 4 }, (_, index) => crearInspeccionBase({ motivo: `Asignación paralela ${index}` }))
+  );
+  assert.equal(new Set(inspecciones.map((item) => item.numero_inspeccion)).size, inspecciones.length);
+});
+
+test("la secuencia continúa después del mayor número aunque existan huecos", async () => {
+  const year = new Date().getFullYear();
+  __seedMemoryInspeccionesForTests({ inspecciones: [{ id: 9100, numero_inspeccion: `INS-${year}-00050` }] });
+  const inspeccion = await crearInspeccionBase({ motivo: "Después de un hueco" });
+  assert.equal(inspeccion.numero_inspeccion, `INS-${year}-00051`);
+});
+
 test("un técnico que no participa no puede ver el detalle", async () => {
   const inspeccion = await crearInspeccionBase();
   await assert.rejects(() => getInspeccionDetail(inspeccion.id, otroTecnico), (error) => error.status === 403);

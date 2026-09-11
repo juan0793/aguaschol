@@ -146,16 +146,22 @@ const buildSnapshotFromClave = async (claveCatastral, abonadoNumero, inspeccionG
   };
 };
 
+const generateMemoryNumero = () => {
+  const year = new Date().getFullYear();
+  const prefix = `INS-${year}-`;
+  const last = memoryInspecciones.reduce((highest, item) => {
+    const match = String(item.numero_inspeccion || "").match(new RegExp(`^${prefix}(\\d+)$`));
+    return Math.max(highest, match ? Number(match[1]) : 0);
+  }, 0);
+  return `${prefix}${String(last + 1).padStart(5, "0")}`;
+};
+
 const generateNumero = async () => {
   const year = new Date().getFullYear();
   const prefix = `INS-${year}-`;
-  if (env.useMemoryDb) {
-    const total = memoryInspecciones.filter((item) => item.numero_inspeccion.startsWith(prefix)).length;
-    return `${prefix}${String(total + 1).padStart(5, "0")}`;
-  }
   const [[row]] = await getPool().query(
-    "SELECT COUNT(*) AS total FROM inspecciones WHERE numero_inspeccion LIKE ?",
-    [`${prefix}%`]
+    "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_inspeccion, ?) AS UNSIGNED)), 0) AS total FROM inspecciones WHERE numero_inspeccion LIKE ?",
+    [prefix.length + 1, `${prefix}%`]
   );
   return `${prefix}${String(Number(row.total) + 1).padStart(5, "0")}`;
 };
@@ -431,11 +437,14 @@ export const createInspeccion = async (payload = {}, user) => {
 
   const inspeccionGeneral = Boolean(payload.inspeccion_general);
   const snapshot = await buildSnapshotFromClave(claveCatastral, clean(payload.abonado_numero), inspeccionGeneral);
-  const numero = await generateNumero();
   const now = nowIso();
 
+  let numero;
   let record;
   if (env.useMemoryDb) {
+    // Sin await: este tramo síncrono reserva el siguiente número antes de que
+    // otra creación en memoria pueda entrar al mismo bloque.
+    numero = generateMemoryNumero();
     record = {
       id: memoryAutoId++,
       numero_inspeccion: numero,
@@ -465,17 +474,25 @@ export const createInspeccion = async (payload = {}, user) => {
     memoryInspecciones.push(record);
   } else {
     const pool = getPool();
-    const [result] = await pool.query(
-      `INSERT INTO inspecciones (
-        numero_inspeccion, clave_catastral, inspeccion_general, abonado_numero, abonado_nombre_snapshot,
-        barrio_snapshot, direccion_snapshot, motivo, trabajo_solicitado, tecnico_responsable_id, creada_por_usuario_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        numero, snapshot.clave_catastral, inspeccionGeneral ? 1 : 0, snapshot.abonado_numero, snapshot.abonado_nombre_snapshot,
-        snapshot.barrio_snapshot, snapshot.direccion_snapshot, motivo, trabajoSolicitado, responsableId, user.id
-      ]
-    );
-    record = await findInspeccionRaw(result.insertId);
+    for (let intento = 0; intento < 5; intento += 1) {
+      numero = await generateNumero();
+      try {
+        const [result] = await pool.query(
+          `INSERT INTO inspecciones (
+            numero_inspeccion, clave_catastral, inspeccion_general, abonado_numero, abonado_nombre_snapshot,
+            barrio_snapshot, direccion_snapshot, motivo, trabajo_solicitado, tecnico_responsable_id, creada_por_usuario_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            numero, snapshot.clave_catastral, inspeccionGeneral ? 1 : 0, snapshot.abonado_numero, snapshot.abonado_nombre_snapshot,
+            snapshot.barrio_snapshot, snapshot.direccion_snapshot, motivo, trabajoSolicitado, responsableId, user.id
+          ]
+        );
+        record = await findInspeccionRaw(result.insertId);
+        break;
+      } catch (error) {
+        if (error?.code !== "ER_DUP_ENTRY" || intento === 4) throw error;
+      }
+    }
   }
 
   await insertParticipante(record.id, responsableId, "RESPONSABLE", user);
