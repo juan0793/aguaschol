@@ -86,6 +86,38 @@ const buildProviderHeaders = (config) => {
   return headers;
 };
 
+const fail = (message, status) => Object.assign(new Error(message), { status });
+
+// Llamada comun al endpoint /chat/completions (Cerebras u OpenRouter, ambos compatibles con OpenAI).
+const requestChatCompletion = async ({ messages, temperature, maxTokens, emptyMessage }) => {
+  const llmConfig = resolveLlmConfig();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), env.llmTimeoutMs);
+
+  try {
+    const response = await fetch(`${llmConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: buildProviderHeaders(llmConfig),
+      body: JSON.stringify({ model: llmConfig.model, temperature, max_tokens: maxTokens, messages })
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw fail(payload?.error?.message || payload?.message || emptyMessage, response.status);
+    }
+
+    const text = extractContent(payload);
+    if (!text) throw fail("El proveedor de IA no devolvio contenido.", 502);
+    return text;
+  } catch (error) {
+    if (error.name === "AbortError") throw fail("La API de IA tardo demasiado en responder.", 504);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 export const getLlmStatus = () => {
   const config = resolveLlmConfig();
   return {
@@ -111,63 +143,71 @@ export const generateRecordAssistance = async ({ action, record }) => {
     throw error;
   }
 
+  const text = await requestChatCompletion({
+    temperature: 0.25,
+    maxTokens: action === "notice" ? 380 : action === "quality" || action === "followup" ? 260 : 220,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Eres asistente tecnico de Aguas de Choluteca. Responde solo en espanol, sin markdown, sin datos inventados y sin exponer informacion sensible innecesaria."
+      },
+      {
+        role: "user",
+        content: `${config.instruction}\n\nFicha:\n${JSON.stringify(compactRecord(record), null, 2)}`
+      }
+    ],
+    emptyMessage: "No fue posible generar la asistencia con IA."
+  });
   const llmConfig = resolveLlmConfig();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), env.llmTimeoutMs);
 
-  try {
-    const response = await fetch(`${llmConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
-      method: "POST",
-      signal: controller.signal,
-      headers: buildProviderHeaders(llmConfig),
-      body: JSON.stringify({
-        model: llmConfig.model,
-        temperature: 0.25,
-        max_tokens: action === "notice" ? 380 : action === "quality" || action === "followup" ? 260 : 220,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Eres asistente tecnico de Aguas de Choluteca. Responde solo en espanol, sin markdown, sin datos inventados y sin exponer informacion sensible innecesaria."
-          },
-          {
-            role: "user",
-            content: `${config.instruction}\n\nFicha:\n${JSON.stringify(compactRecord(record), null, 2)}`
-          }
-        ]
-      })
-    });
+  return {
+    action,
+    label: config.label,
+    provider: llmConfig.provider,
+    model: llmConfig.model,
+    text
+  };
+};
 
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(payload?.error?.message || payload?.message || "No fue posible generar la asistencia con IA.");
-      error.status = response.status;
-      throw error;
-    }
+const SPELLING_MAX_CHARS = 4000;
 
-    const text = extractContent(payload);
-    if (!text) {
-      const error = new Error("El proveedor de IA no devolvio contenido.");
-      error.status = 502;
-      throw error;
-    }
+const SPELLING_INSTRUCTION = [
+  "Corrige la ortografia de un texto escrito por un tecnico de campo de Aguas de Choluteca (Honduras).",
+  "Corrige solo: faltas de ortografia, tildes, signos de puntuacion, mayusculas al inicio de oracion y abreviaturas de mensajeria (q, xq, pq, x, tmb) escritas en palabras completas.",
+  "Si el texto viene todo en mayusculas, conservalo en mayusculas.",
+  "No cambies el significado, no agregues ni quites informacion, no resumas, no cambies el orden ni el estilo de redaccion.",
+  "Conserva exactamente numeros, fechas, telefonos, claves catastrales, codigos, medidas, nombres propios y saltos de linea.",
+  "Devuelve unicamente el texto corregido, sin comillas, sin explicaciones y sin markdown."
+].join(" ");
 
-    return {
-      action,
-      label: config.label,
-      provider: llmConfig.provider,
-      model: llmConfig.model,
-      text
-    };
-  } catch (error) {
-    if (error.name === "AbortError") {
-      const timeoutError = new Error("La API de IA tardo demasiado en responder.");
-      timeoutError.status = 504;
-      throw timeoutError;
-    }
+/**
+ * Corrige ortografia de un texto libre. Lanza 503 si la IA no esta configurada, para que el
+ * frontend use la correccion basica local.
+ */
+export const correctSpelling = async (value) => {
+  const original = String(value ?? "").replace(/\r\n?/g, "\n").trim();
+  if (!original) return { text: "", changed: false, provider: "none" };
+  if (original.length > SPELLING_MAX_CHARS) throw fail(`El texto supera ${SPELLING_MAX_CHARS} caracteres.`, 413);
+  if (!isLlmConfigured()) throw fail("La corrección con IA no está configurada.", 503);
 
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
+  const text = (await requestChatCompletion({
+    temperature: 0,
+    maxTokens: Math.min(2000, Math.ceil(original.length / 2) + 200),
+    messages: [
+      { role: "system", content: SPELLING_INSTRUCTION },
+      { role: "user", content: original }
+    ],
+    emptyMessage: "No fue posible corregir el texto."
+  }))
+    .replace(/^["'`\s]+|["'`\s]+$/g, "")
+    .trim();
+
+  // Salvaguarda: una "correccion" que cambia mucho la longitud ya no es ortografia.
+  // En textos cortos ("q" -> "que") se tolera una diferencia fija de caracteres.
+  const tolerance = Math.max(20, original.length * 0.35);
+  if (!text || Math.abs(text.length - original.length) > tolerance) throw fail("La corrección con IA cambió demasiado el texto; se descartó.", 422);
+
+  const { model, provider } = resolveLlmConfig();
+  return { text, changed: text !== original, provider, model };
 };

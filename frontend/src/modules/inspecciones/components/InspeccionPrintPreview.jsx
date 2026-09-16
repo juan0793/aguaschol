@@ -57,7 +57,7 @@ const PRINT_STYLES = `<style>
 const header = (inspeccion, title) => `
   <header class="ins-doc-header">
     <img class="ins-doc-logo" src="${logoAguas}" alt="Aguas de Choluteca" />
-    <div><p class="ins-doc-org">Servicio Autónomo Nacional de Acueductos y Alcantarillados</p><h1>${title}</h1><span class="ins-doc-number">${safe(inspeccion.numero_inspeccion)}</span></div>
+    <div><p class="ins-doc-org">Empresa Aguas de Choluteca</p><h1>${title}</h1><span class="ins-doc-number">${safe(inspeccion.numero_inspeccion)}</span></div>
     <span class="ins-doc-status">${safe(estadoLabel(inspeccion.estado))}</span>
   </header>`;
 

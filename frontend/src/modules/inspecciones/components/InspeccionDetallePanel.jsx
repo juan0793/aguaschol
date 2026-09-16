@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import InspeccionGpsPanel from "./InspeccionGpsPanel";
 import InspeccionPrintPreview from "./InspeccionPrintPreview";
+import CorregirOrtografia, { SPELLCHECK_PROPS } from "./CorregirOrtografia";
 import { estadoClass, estadoLabel, formatDateTime, printStatusLabel } from "../utils/inspeccionesFormatters";
 import { createInspectionAutosave } from "../utils/inspectionAutosave";
 
@@ -24,6 +25,8 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const debounceRef = useRef(null);
   const inspeccionRef = useRef(null);
   const autosaveRef = useRef(null);
+  const informacionRef = useRef(null);
+  const observacionesRef = useRef(null);
 
   if (!autosaveRef.current) {
     autosaveRef.current = createInspectionAutosave(async (patch, getPending) => {
@@ -47,6 +50,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const puedeFinalizar = puedeGestionar || isApoyo;
   const finalizada = inspeccion?.estado === "FINALIZADA";
   const bloqueadaParaTecnico = finalizada && !isAdmin;
+  const textoLibreBloqueado = bloqueadaParaTecnico || (!isAdmin && !isResponsable && !isApoyo);
 
   const cargar = async () => {
     if (!inspeccionRef.current) setLoading(true);
@@ -222,11 +226,15 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
           <section className="ins-form-section">
             <h3>Trabajo solicitado</h3>
             {isAdmin ? (
-              <textarea
-                rows={3}
-                value={inspeccion.trabajo_solicitado || ""}
-                onChange={(event) => guardarCampo({ trabajo_solicitado: event.target.value })}
-              />
+              <>
+                <textarea
+                  rows={3}
+                  {...SPELLCHECK_PROPS}
+                  value={inspeccion.trabajo_solicitado || ""}
+                  onChange={(event) => guardarCampo({ trabajo_solicitado: event.target.value })}
+                />
+                <CorregirOrtografia api={api} value={inspeccion.trabajo_solicitado} onApply={(texto) => guardarCampo({ trabajo_solicitado: texto })} />
+              </>
             ) : <p>{inspeccion.trabajo_solicitado}</p>}
           </section>
 
@@ -243,19 +251,35 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
           <section className="ins-form-section">
             <h3>Información encontrada</h3>
             <textarea
+              ref={informacionRef}
               rows={4}
-              disabled={bloqueadaParaTecnico || (!isAdmin && !isResponsable && !isApoyo)}
+              {...SPELLCHECK_PROPS}
+              disabled={textoLibreBloqueado}
               defaultValue={inspeccion.informacion_encontrada}
               placeholder="Describe lo verificado en campo…"
               onChange={(event) => guardarCampo({ informacion_encontrada: event.target.value })}
             />
+            <CorregirOrtografia
+              api={api}
+              value={inspeccion.informacion_encontrada}
+              disabled={textoLibreBloqueado}
+              onApply={(texto) => { informacionRef.current.value = texto; guardarCampo({ informacion_encontrada: texto }); }}
+            />
             <h3>Observaciones adicionales</h3>
             <textarea
+              ref={observacionesRef}
               rows={2}
-              disabled={bloqueadaParaTecnico || (!isAdmin && !isResponsable && !isApoyo)}
+              {...SPELLCHECK_PROPS}
+              disabled={textoLibreBloqueado}
               defaultValue={inspeccion.observaciones}
               placeholder="Observaciones opcionales…"
               onChange={(event) => guardarCampo({ observaciones: event.target.value })}
+            />
+            <CorregirOrtografia
+              api={api}
+              value={inspeccion.observaciones}
+              disabled={textoLibreBloqueado}
+              onApply={(texto) => { observacionesRef.current.value = texto; guardarCampo({ observaciones: texto }); }}
             />
             {saving ? <small className="cl-muted">Guardando…</small> : null}
           </section>
@@ -287,7 +311,8 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
               <div className="cl-fields">
                 <label className="cl-field is-wide">
                   <span>Detalle del seguimiento</span>
-                  <textarea rows={2} disabled={bloqueadaParaTecnico || !puedeGestionar} value={seguimientoDetalle} onChange={(event) => { setSeguimientoDetalle(event.target.value); guardarCampo({ seguimiento_detalle: event.target.value }); }} />
+                  <textarea rows={2} {...SPELLCHECK_PROPS} disabled={bloqueadaParaTecnico || !puedeGestionar} value={seguimientoDetalle} onChange={(event) => { setSeguimientoDetalle(event.target.value); guardarCampo({ seguimiento_detalle: event.target.value }); }} />
+                  <CorregirOrtografia api={api} value={seguimientoDetalle} disabled={bloqueadaParaTecnico || !puedeGestionar} onApply={(texto) => { setSeguimientoDetalle(texto); guardarCampo({ seguimiento_detalle: texto }); }} />
                 </label>
                 <label className="cl-field">
                   <span>Fecha sugerida</span>

@@ -15,3 +15,17 @@ test("normaliza espacios, acentos frecuentes y puntuación final", () => {
     "Verificar cómo está la conexión al día y dos abonados más."
   );
 });
+
+test("respeta mayúsculas del técnico al corregir acentos", () => {
+  assert.equal(
+    polishInspectionText("VERIFICAR CONEXION DE ALCANTARILLADO Y AGUA POTABLE"),
+    "VERIFICAR CONEXIÓN DE ALCANTARILLADO Y AGUA POTABLE."
+  );
+});
+
+test("expande abreviaturas de mensajería sin tocar letras de referencia", () => {
+  assert.equal(
+    polishInspectionText("Disen los vecinos q no hay coneccion xq falta tubo en Bloque Q"),
+    "Dicen los vecinos que no hay conexión porque falta tubo en Bloque Q."
+  );
+});

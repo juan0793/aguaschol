@@ -91,7 +91,9 @@ const iconPaths = {
   trendUp:
     "M4 16.5l5.5-5.5 3.5 3.5L20 7.5M15 7.5h5v5",
   trendDown:
-    "M4 7.5l5.5 5.5 3.5-3.5 7 7M15 16.5h5v-5"
+    "M4 7.5l5.5 5.5 3.5-3.5 7 7M15 16.5h5v-5",
+  spellCheck:
+    "M3.5 14.5 7 5.5l3.5 9M4.8 11.5h4.4M13 5.5h3a2.25 2.25 0 0 1 0 4.5h-3zm0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H13zM12.5 19l2.5 2.5 6-6"
 };
 
 export const Icon = ({ name, className = "" }) => (

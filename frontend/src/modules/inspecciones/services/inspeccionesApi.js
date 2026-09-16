@@ -28,5 +28,6 @@ export const createInspeccionesApi = (apiFetch) => ({
   historial: (id) => apiFetch(`/inspecciones/${id}/historial`).then(json),
   printData: (id, tipo) => apiFetch(`/inspecciones/${id}/print-data?tipo=${tipo}`).then(json),
   printEvent: (id, tipo_documento, accion) => apiFetch(`/inspecciones/${id}/print-events`, { method: "POST", ...jsonBody({ tipo_documento, accion }) }).then(json),
+  corregirTexto: (texto) => apiFetch("/inspecciones/corregir-texto", { method: "POST", ...jsonBody({ texto }) }).then(json),
   searchClave: (value, field = "clave") => apiFetch(`/claves/search?field=${field}&clave=${encodeURIComponent(value)}`).then(json)
 });

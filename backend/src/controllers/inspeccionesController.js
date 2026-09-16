@@ -25,6 +25,7 @@ import {
   listPrintHistory,
   registerPrintEvent
 } from "../services/inspeccionesPrintService.js";
+import { correctSpelling } from "../services/llmService.js";
 
 export const config = async (req, res) => res.json(getInspeccionesConfig(req.authUser));
 
@@ -195,6 +196,14 @@ export const printEvent = async (req, res, next) => {
 export const printHistory = async (req, res, next) => {
   try {
     res.json(await listPrintHistory(req.params.id, req.authUser));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const corregirTexto = async (req, res, next) => {
+  try {
+    res.json(await correctSpelling(req.body?.texto));
   } catch (error) {
     next(error);
   }

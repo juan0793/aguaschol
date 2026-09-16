@@ -95,6 +95,13 @@
 .cl-drawer-backdrop { align-items:center; justify-content:center; padding:24px; }
 .cl-drawer { width:min(1120px,calc(100vw - 48px)); height:min(92vh,860px); border:1px solid rgba(255,255,255,.7); border-radius:18px; box-shadow:0 28px 80px rgba(16,42,67,.32); overflow:hidden; }
 .cl-drawer > header { padding:16px 20px; }.cl-drawer-scroll { padding:14px 20px 22px; }
+/* El sidebar fijo (z-index 120) queda encima del fondo del modal: se centra el modal en el area
+   visible a su derecha para que no quede pegado ni debajo de el. --current-sidebar-width lo
+   define sidebar.css (expandido, colapsado o 0 en movil). */
+@media (min-width: 769px) {
+  .cl-drawer-backdrop { padding-left:calc(var(--current-sidebar-width, 0px) + 24px); }
+  .cl-drawer { width:min(1120px,calc(100vw - var(--current-sidebar-width, 0px) - 48px)); }
+}
 .cl-sections { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
 .cl-next-step { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:14px 20px 0; padding:13px 14px; border:1px solid #a9cdf5; border-radius:13px; background:#eff6ff; }
 .cl-next-step > div:first-child { display:grid; gap:2px; }.cl-next-step > div:first-child span { color:#1769e0; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }.cl-next-step > div:first-child strong { color:var(--navy); font-size:15px; }.cl-next-step > div:first-child small { color:var(--muted); }.cl-next-step > div:last-child { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }.cl-next-step.is-complete { border-color:#abdcc7; background:#effaf5; }.cl-next-step.is-complete > div:first-child span { color:var(--success); }

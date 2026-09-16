@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import TecnicosApoyoSelector from "./TecnicosApoyoSelector";
+import CorregirOrtografia, { SPELLCHECK_PROPS } from "./CorregirOrtografia";
 import { MOTIVOS_SUGERIDOS } from "../utils/inspeccionesFormatters";
 
 export default function NuevaInspeccionModal({ api, tecnicos, initialData, notify, onClose, onCreated }) {
@@ -181,10 +182,12 @@ export default function NuevaInspeccionModal({ api, tecnicos, initialData, notif
                   <span>Trabajo solicitado</span>
                   <textarea
                     rows={3}
+                    {...SPELLCHECK_PROPS}
                     placeholder="Ej. Verificar acometida y medidor, y confirmar si existen derivaciones adicionales."
                     value={trabajoSolicitado}
                     onChange={(event) => setTrabajoSolicitado(event.target.value)}
                   />
+                  <CorregirOrtografia api={api} value={trabajoSolicitado} onApply={setTrabajoSolicitado} />
                 </label>
               </div>
             </section>

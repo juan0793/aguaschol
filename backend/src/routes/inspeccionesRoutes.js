@@ -3,6 +3,7 @@ import { requireRoles } from "../middleware/authMiddleware.js";
 import {
   addTecnico,
   config,
+  corregirTexto,
   create,
   createGps,
   detail,
@@ -34,6 +35,7 @@ router.get("/stats", requireRoles("admin"), stats);
 router.get("/stats/tablero", requireRoles("admin"), tablero);
 router.get("/", list);
 router.post("/", requireRoles("admin"), create);
+router.post("/corregir-texto", corregirTexto);
 router.get("/:id", detail);
 router.patch("/:id", update);
 router.delete("/:id", requireRoles("admin"), remove);

@@ -15,6 +15,18 @@
 .ins-form-section h3 { margin-bottom: 8px; }
 .ins-form-section textarea { width: 100%; min-height: 70px; padding: 10px 12px; border: 1px solid #bfd5eb; border-radius: 10px; resize: vertical; }
 
+/* Corregir ortografia: accion secundaria pegada al campo que corrige. */
+.ins-spell { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 12px; }
+.ins-spell small { color: var(--muted); font-size: 12px; }
+button.ins-spell-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid #c9dbec; border-radius: 9px; background: #f5f9fd; color: var(--navy); font-size: 13px; font-weight: 650; cursor: pointer; }
+button.ins-spell-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+button.ins-spell-btn:disabled { cursor: default; opacity: .55; }
+@media (max-width: 767px) { button.ins-spell-btn, button.ins-spell-undo { min-height: 44px; } }
+button.ins-spell-btn .app-icon { width: 16px; height: 16px; margin-right: 0; }
+button.ins-spell-btn .is-spinning svg { animation: spin .8s linear infinite; }
+button.ins-spell-undo { min-height: 36px; padding: 0 4px; border: 0; background: none; color: var(--primary); font-size: 13px; font-weight: 650; cursor: pointer; }
+button.ins-spell-undo:hover { text-decoration: underline; }
+
 .ins-clave-search { display: flex; gap: 8px; margin-bottom: 10px; }
 .ins-clave-search input, .ins-clave-search select { flex: 1; }
 
