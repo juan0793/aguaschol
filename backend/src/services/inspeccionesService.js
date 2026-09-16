@@ -381,20 +381,156 @@ export const listInspecciones = async (filters = {}, user) => {
   return { items: all.slice(start, start + safeLimit), total: all.length, page, limit: safeLimit, total_pages: totalPages };
 };
 
-export const getResumenInspecciones = async (user) => {
+// --- Resumen de la pantalla principal ------------------------------------------------
+// Las fechas se agrupan por dia calendario de Honduras (UTC-6, sin horario de verano) para
+// que "este mes" y "hace N dias" no cambien segun la zona horaria del servidor.
+const HONDURAS_TIME_ZONE = "America/Tegucigalpa";
+const hondurasDayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: HONDURAS_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
+const BANDEJA_STATES = ["ASIGNADA", "EN_PROCESO", "SEGUIMIENTO"];
+const ACTIVIDAD_LIMIT = 5;
+
+const dayKey = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : hondurasDayFormatter.format(date);
+};
+const daysBetween = (fromKey, toKey) =>
+  fromKey && toKey ? Math.max(0, Math.round((Date.parse(`${toKey}T00:00:00Z`) - Date.parse(`${fromKey}T00:00:00Z`)) / 86400000)) : null;
+const shiftMonth = (mes, delta) => {
+  const [year, month] = mes.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+// Limites del mes como instantes reales: medianoche de Honduras = 06:00 UTC.
+const monthBounds = (mes) => [new Date(`${mes}-01T06:00:00Z`), new Date(`${shiftMonth(mes, 1)}-01T06:00:00Z`)];
+const lastDayOfMonth = (mes) => {
+  const [year, month] = mes.split("-").map(Number);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+};
+
+// Ultima vez que cada inspeccion entro a su estado actual, segun historial_estados.
+const loadFechaEstadoActual = async (items) => {
+  if (!items.length) return new Map();
+  const ids = items.map((item) => Number(item.id));
+  let rows;
+  if (env.useMemoryDb) {
+    rows = memoryHistory.filter((row) => ids.includes(Number(row.entidad_id)));
+  } else {
+    [rows] = await getPool().query(
+      `SELECT entidad_id, estado_nuevo, MAX(created_at) AS created_at
+       FROM historial_estados
+       WHERE entidad_tipo = 'inspeccion' AND entidad_id IN (?)
+       GROUP BY entidad_id, estado_nuevo`,
+      [ids]
+    );
+  }
+  const estadoById = new Map(items.map((item) => [Number(item.id), item.estado]));
+  const result = new Map();
+  for (const row of rows) {
+    const id = Number(row.entidad_id);
+    if (estadoById.get(id) !== row.estado_nuevo) continue;
+    const current = result.get(id);
+    if (!current || new Date(row.created_at) > new Date(current)) result.set(id, row.created_at);
+  }
+  return result;
+};
+
+const loadActividadMes = async (mes, visibleItems, user) => {
+  const [desde, hasta] = monthBounds(mes);
+  const byId = new Map(visibleItems.map((item) => [Number(item.id), item]));
+  if (env.useMemoryDb) {
+    return memoryHistory
+      .filter((row) => byId.has(Number(row.entidad_id)) && new Date(row.created_at) >= desde && new Date(row.created_at) < hasta)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at) || b.id - a.id)
+      .slice(0, ACTIVIDAD_LIMIT)
+      .map((row) => {
+        const item = byId.get(Number(row.entidad_id));
+        return { id: row.id, inspeccion_id: item.id, numero_inspeccion: item.numero_inspeccion, estado_anterior: row.estado_anterior, estado_nuevo: row.estado_nuevo, created_at: row.created_at, tecnico_responsable_nombre: item.tecnico_responsable_nombre || "" };
+      });
+  }
+  if (!isAdmin(user) && !byId.size) return [];
+  const scope = isAdmin(user) ? "" : "AND historial_estados.entidad_id IN (?)";
+  const [rows] = await getPool().query(
+    `SELECT historial_estados.id, historial_estados.entidad_id AS inspeccion_id, historial_estados.estado_anterior,
+        historial_estados.estado_nuevo, historial_estados.created_at, inspecciones.numero_inspeccion,
+        COALESCE(responsable.full_name, '') AS tecnico_responsable_nombre
+     FROM historial_estados
+     JOIN inspecciones ON inspecciones.id = historial_estados.entidad_id
+     LEFT JOIN app_users responsable ON responsable.id = inspecciones.tecnico_responsable_id
+     WHERE historial_estados.entidad_tipo = 'inspeccion' AND historial_estados.created_at >= ? AND historial_estados.created_at < ? ${scope}
+     ORDER BY historial_estados.created_at DESC, historial_estados.id DESC
+     LIMIT ${ACTIVIDAD_LIMIT}`,
+    isAdmin(user) ? [desde, hasta] : [desde, hasta, [...byId.keys()]]
+  );
+  return rows;
+};
+
+// Conteos actuales (Asignadas / En proceso / Seguimiento) no dependen del mes; Finalizadas,
+// el resumen del mes y la actividad si. `now` solo se inyecta en pruebas.
+export const getResumenInspecciones = async (user, { mes = "", now = new Date() } = {}) => {
+  const hoy = dayKey(now);
+  const mesActual = hoy.slice(0, 7);
+  const mesSeleccionado = /^\d{4}-(0[1-9]|1[0-2])$/.test(mes) && mes <= mesActual ? mes : mesActual;
+  const mesAnterior = shiftMonth(mesSeleccionado, -1);
+  const inMonth = (value, target) => dayKey(value).slice(0, 7) === target;
+
   const all = await queryInspecciones({}, user);
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-  const finalizadasEsteMes = all.filter(
-    (item) => item.estado === "FINALIZADA" && item.fecha_finalizacion && new Date(item.fecha_finalizacion) >= startOfMonth
-  ).length;
+  const pendientes = all.filter((item) => BANDEJA_STATES.includes(item.estado));
+  const fechaEstado = await loadFechaEstadoActual(pendientes);
+  const bandeja = pendientes
+    .map((item) => {
+      const desde = fechaEstado.get(Number(item.id)) || item.fecha_asignacion;
+      return {
+        id: item.id,
+        numero_inspeccion: item.numero_inspeccion,
+        abonado_nombre_snapshot: item.abonado_nombre_snapshot,
+        motivo: item.motivo,
+        estado: item.estado,
+        tecnico_responsable_nombre: item.tecnico_responsable_nombre || "",
+        fecha_asignacion: item.fecha_asignacion,
+        fecha_estado: desde,
+        antiguedad_dias: daysBetween(dayKey(desde), hoy)
+      };
+    })
+    .sort((a, b) => new Date(a.fecha_estado) - new Date(b.fecha_estado) || a.id - b.id);
+
+  const finalizadasEn = (target) => all.filter((item) => item.estado === "FINALIZADA" && inMonth(item.fecha_finalizacion, target)).length;
+  const creadasEn = (target) => all.filter((item) => inMonth(item.created_at || item.fecha_asignacion, target));
+  const creadas = creadasEn(mesSeleccionado);
+  const distribucion = Object.fromEntries(INSPECCION_STATES.map((estado) => [estado, creadas.filter((item) => item.estado === estado).length]));
+
+  const carga = new Map();
+  for (const item of pendientes) {
+    if (!item.tecnico_responsable_id) continue;
+    const key = Number(item.tecnico_responsable_id);
+    const entry = carga.get(key) || { tecnico_id: key, nombre: item.tecnico_responsable_nombre || "", activas: 0 };
+    entry.activas += 1;
+    carga.set(key, entry);
+  }
+
+  const asignadasDias = bandeja.filter((item) => item.estado === "ASIGNADA").map((item) => item.antiguedad_dias ?? 0);
+  const esMesActual = mesSeleccionado === mesActual;
+
   return {
-    asignadas: all.filter((item) => item.estado === "ASIGNADA").length,
-    en_proceso: all.filter((item) => item.estado === "EN_PROCESO").length,
-    seguimiento: all.filter((item) => item.estado === "SEGUIMIENTO").length,
-    finalizadas_mes: finalizadasEsteMes,
-    total: all.length
+    asignadas: pendientes.filter((item) => item.estado === "ASIGNADA").length,
+    en_proceso: pendientes.filter((item) => item.estado === "EN_PROCESO").length,
+    seguimiento: pendientes.filter((item) => item.estado === "SEGUIMIENTO").length,
+    finalizadas_mes: finalizadasEn(mesSeleccionado),
+    finalizadas_mes_anterior: finalizadasEn(mesAnterior),
+    total: all.length,
+    mas_antigua_asignada_dias: asignadasDias.length ? Math.max(...asignadasDias) : null,
+    hoy,
+    mes: mesSeleccionado,
+    mes_actual: mesActual,
+    mes_anterior: mesAnterior,
+    rango: { desde: `${mesSeleccionado}-01`, hasta: esMesActual ? hoy : `${mesSeleccionado}-${lastDayOfMonth(mesSeleccionado)}` },
+    creadas_mes: creadas.length,
+    creadas_mes_anterior: creadasEn(mesAnterior).length,
+    creadas_finalizadas: distribucion.FINALIZADA,
+    distribucion_creadas: distribucion,
+    carga_tecnicos: isAdmin(user) ? [...carga.values()].sort((a, b) => b.activas - a.activas || a.nombre.localeCompare(b.nombre, "es")) : [],
+    bandeja,
+    actividad: await loadActividadMes(mesSeleccionado, all, user)
   };
 };
 

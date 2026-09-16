@@ -38,7 +38,7 @@ export const tecnicos = async (req, res, next) => {
 
 export const resumen = async (req, res, next) => {
   try {
-    res.json(await getResumenInspecciones(req.authUser));
+    res.json(await getResumenInspecciones(req.authUser, { mes: String(req.query.mes || "") }));
   } catch (error) {
     next(error);
   }

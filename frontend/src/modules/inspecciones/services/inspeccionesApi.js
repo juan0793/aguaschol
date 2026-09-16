@@ -9,7 +9,7 @@ const jsonBody = (payload) => ({ headers: { "Content-Type": "application/json" }
 export const createInspeccionesApi = (apiFetch) => ({
   config: () => apiFetch("/inspecciones/config").then(json),
   tecnicos: () => apiFetch("/inspecciones/tecnicos").then(json),
-  resumen: () => apiFetch("/inspecciones/resumen").then(json),
+  resumen: (params = {}) => apiFetch(`/inspecciones/resumen?${new URLSearchParams(params)}`).then(json),
   stats: (params = {}) => apiFetch(`/inspecciones/stats?${new URLSearchParams(params)}`).then(json),
   tablero: (params = {}) => apiFetch(`/inspecciones/stats/tablero?${new URLSearchParams(params)}`).then(json),
   list: (params = {}) => apiFetch(`/inspecciones?${new URLSearchParams(params)}`).then(json),

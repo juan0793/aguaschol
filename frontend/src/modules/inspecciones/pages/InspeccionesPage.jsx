@@ -6,24 +6,46 @@ import InspeccionesTable from "../components/InspeccionesTable";
 import NuevaInspeccionModal from "../components/NuevaInspeccionModal";
 import InspeccionDetallePanel from "../components/InspeccionDetallePanel";
 import InspeccionesStatsPage from "./InspeccionesStatsPage";
-import { estadoClass, estadoLabel, formatDate } from "../utils/inspeccionesFormatters";
+import InspeccionesResumen from "../components/InspeccionesResumen";
+import { useResumenInspecciones } from "../hooks/useResumenInspecciones";
+import { BANDEJA_FILTROS, lastMonths, monthLabel } from "../utils/inspeccionesFormatters";
 import "../styles/inspecciones.css";
 
-const tabFromHash = () => location.hash.match(/^#inspecciones\/(\w+)/)?.[1] || "resumen";
+// La ruta vive en el hash: #inspecciones/resumen?estado=proceso&mes=2026-08
+const parseHash = () => {
+  const match = location.hash.match(/^#inspecciones\/(\w+)(?:\?(.*))?/);
+  const params = new URLSearchParams(match?.[2] || "");
+  const estado = params.get("estado") || "";
+  const mes = params.get("mes") || "";
+  return {
+    tab: match?.[1] || "resumen",
+    filtro: BANDEJA_FILTROS.some((f) => f.key === estado) ? estado : "",
+    mes: /^\d{4}-\d{2}$/.test(mes) ? mes : ""
+  };
+};
+const tabFromHash = () => parseHash().tab;
+
+const TABS = [
+  { key: "resumen", label: "Resumen", icon: "dashboard" },
+  { key: "ver", label: "Ver inspecciones", icon: "records" },
+  { key: "estadisticas", label: "Estadísticas", icon: "activity", adminOnly: true }
+];
 
 export default function InspeccionesPage({ apiFetch, session, showAlert, focusRequest, onFocusConsumed }) {
   const api = useMemo(() => createInspeccionesApi(apiFetch), [apiFetch]);
   const [tab, setTab] = useState(tabFromHash);
   const [config, setConfig] = useState(null);
   const [tecnicos, setTecnicos] = useState([]);
-  const [resumen, setResumen] = useState(null);
   const [showNueva, setShowNueva] = useState(false);
   const [initialNueva, setInitialNueva] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [statsRefreshToken, setStatsRefreshToken] = useState(0);
+  const [filtro, setFiltro] = useState(() => parseHash().filtro);
+  const [mes, setMes] = useState(() => parseHash().mes);
 
   const model = useInspecciones(api, Boolean(config));
   const isAdmin = session?.user?.role === "admin";
+  const resumen = useResumenInspecciones(api, { mes, active: Boolean(config) && tab === "resumen" });
 
   useEffect(() => {
     api.config().then(setConfig).catch((error) => showAlert(error.message));
@@ -32,12 +54,14 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
   }, [api]);
 
   useEffect(() => {
-    if (tab !== "resumen") return;
-    api.resumen().then(setResumen).catch(() => {});
-  }, [api, tab]);
-
-  useEffect(() => {
-    const change = () => setTab(tabFromHash());
+    const change = () => {
+      const route = parseHash();
+      setTab(route.tab);
+      if (route.tab === "resumen") {
+        setFiltro(route.filtro);
+        setMes(route.mes);
+      }
+    };
     addEventListener("hashchange", change);
     return () => removeEventListener("hashchange", change);
   }, []);
@@ -61,65 +85,86 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
     setTab(key);
   };
 
+  // Filtro y mes se guardan en la URL (sin crear entradas de historial) para que se
+  // conserven al volver atrás desde otra pestaña o desde el detalle.
+  const syncResumenUrl = (next) => {
+    const params = new URLSearchParams();
+    if (next.filtro) params.set("estado", next.filtro);
+    if (next.mes) params.set("mes", next.mes);
+    const query = params.toString();
+    history.replaceState(null, "", `#inspecciones/resumen${query ? `?${query}` : ""}`);
+  };
+  const changeFiltro = (value) => {
+    setFiltro(value);
+    syncResumenUrl({ filtro: value, mes });
+  };
+  const changeMes = (value) => {
+    const next = value === resumen.data?.mes_actual ? "" : value;
+    setMes(next);
+    syncResumenUrl({ filtro, mes: next });
+  };
+
   const refreshAll = () => {
     model.reload();
-    api.resumen().then(setResumen).catch(() => {});
+    resumen.reload();
     api.tecnicos().then(setTecnicos).catch(() => {});
     setStatsRefreshToken((value) => value + 1);
   };
 
   if (!config) return <main className="cl-module"><div className="cl-module-loading"><Icon name="refresh" />Cargando módulo Inspecciones…</div></main>;
 
+  const openNueva = () => { setInitialNueva(null); setShowNueva(true); };
+  const mesActual = resumen.data?.mes_actual || "";
+  const mesSeleccionado = mes || mesActual;
+
   return (
-    <main className="cl-module">
-      <header className="cl-module-header">
-        <div>
-          <span className="cl-kicker">Control Aguas</span>
+    <main className={`cl-module ins-module ${config.permissions.can_create ? "has-cta" : ""}`}>
+      <header className="ins-header">
+        <div className="ins-header-title">
+          <span className="ins-eyebrow">Control Aguas</span>
           <h1>Inspecciones</h1>
           <p>Asignación, seguimiento en campo e impresión en un mismo flujo.</p>
         </div>
-        <nav aria-label="Secciones de Inspecciones">
-          <button type="button" className={tab === "resumen" ? "is-active" : ""} onClick={() => go("resumen")}><Icon name="dashboard" />Resumen</button>
-          <button type="button" className={tab === "ver" ? "is-active" : ""} onClick={() => go("ver")}><Icon name="records" />Ver inspecciones</button>
-          {config.permissions.can_view_stats ? (
-            <button type="button" className={tab === "estadisticas" ? "is-active" : ""} onClick={() => go("estadisticas")}><Icon name="activity" />Estadísticas</button>
+        <div className="ins-header-actions">
+          {tab === "resumen" && mesActual ? (
+            <label className="ins-month">
+              <Icon name="calendar" />
+              <span className="is-long">{monthLabel(mesSeleccionado)}</span>
+              <span className="is-short">{monthLabel(mesSeleccionado, { short: true })}</span>
+              <Icon name="chevronDown" />
+              <select aria-label="Mes del resumen" value={mesSeleccionado} onChange={(event) => changeMes(event.target.value)}>
+                {lastMonths(mesActual).map((value) => <option key={value} value={value}>{monthLabel(value)}</option>)}
+              </select>
+            </label>
           ) : null}
-        </nav>
-        <div className="cl-drawer-main-actions" style={{ justifyContent: "flex-end" }}>
           {config.permissions.can_create ? (
-            <button type="button" className="cl-primary" onClick={() => { setInitialNueva(null); setShowNueva(true); }}><Icon name="plus" />Nueva inspección</button>
+            <button type="button" className="ins-primary ins-header-cta" onClick={openNueva}><Icon name="plus" />Nueva inspección</button>
           ) : null}
         </div>
+        <nav className="ins-tabs" aria-label="Secciones de Inspecciones">
+          {TABS.filter((item) => !item.adminOnly || config.permissions.can_view_stats).map((item) => (
+            <a key={item.key} href={`#inspecciones/${item.key}`} aria-current={tab === item.key ? "page" : undefined}>
+              <Icon name={item.icon} />{item.label}
+            </a>
+          ))}
+        </nav>
       </header>
 
       {tab === "resumen" ? (
-        <section className="cl-inbox">
-          <div className="cl-indicators" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
-            <button type="button" onClick={() => { go("ver"); model.setFilters({ estado: "ASIGNADA" }); }}>Asignadas<strong>{resumen?.asignadas ?? "—"}</strong></button>
-            <button type="button" onClick={() => { go("ver"); model.setFilters({ estado: "EN_PROCESO" }); }}>En proceso<strong>{resumen?.en_proceso ?? "—"}</strong></button>
-            <button type="button" onClick={() => { go("ver"); model.setFilters({ estado: "SEGUIMIENTO" }); }}>Seguimiento<strong>{resumen?.seguimiento ?? "—"}</strong></button>
-            <button type="button" onClick={() => go("ver")}>Finalizadas este mes<strong>{resumen?.finalizadas_mes ?? "—"}</strong></button>
-          </div>
-          <h3>Inspecciones que requieren acción</h3>
-          <ul className="cl-history">
-            {!model.items.filter((item) => item.estado !== "FINALIZADA").length ? (
-              <li className="is-empty">No hay inspecciones pendientes por ahora.</li>
-            ) : (
-              model.items.filter((item) => item.estado !== "FINALIZADA").slice(0, 5).map((item) => (
-                <li key={item.id}>
-                  <i />
-                  <div>
-                    <button type="button" className="cl-link" onClick={() => setSelectedId(item.id)}>
-                      <strong>{item.numero_inspeccion} · {item.abonado_nombre_snapshot || "General"}</strong>
-                    </button>
-                    <span className={`cl-status ${estadoClass(item.estado)}`}><i />{estadoLabel(item.estado)}</span>
-                    <span> · {item.tecnico_responsable_nombre || "—"} · {formatDate(item.fecha_asignacion)}</span>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
+        <InspeccionesResumen
+          data={resumen.data}
+          loading={resumen.loading}
+          error={resumen.error}
+          filtro={filtro}
+          onFiltro={changeFiltro}
+          onOpen={(item) => setSelectedId(item.id)}
+          onVerTodas={() => {
+            // go() reemplaza la entrada actual; se empuja una nueva para que "atrás" regrese al Resumen filtrado.
+            history.pushState(null, "", "#inspecciones/ver");
+            setTab("ver");
+          }}
+          isAdmin={isAdmin}
+        />
       ) : null}
 
       {tab === "ver" ? <InspeccionesTable model={model} tecnicos={tecnicos} isAdmin={isAdmin} onOpen={(item) => setSelectedId(item.id)} /> : null}
@@ -162,6 +207,11 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
           onClose={() => { setSelectedId(null); refreshAll(); }}
           onChanged={refreshAll}
         />
+      ) : null}
+      {config.permissions.can_create && !showNueva && !selectedId ? (
+        <div className="ins-cta-bar">
+          <button type="button" className="ins-primary" onClick={openNueva}><Icon name="plus" />Nueva inspección</button>
+        </div>
       ) : null}
     </main>
   );

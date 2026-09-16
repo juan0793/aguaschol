@@ -3,10 +3,13 @@
    propias de este módulo y los estados que no existen en Clandestinos. */
 @import "../../clandestinos/styles/clandestinos.css";
 
-.cl-status.is-en_proceso { background: #e9f2ff; color: var(--primary); }
-.cl-status.is-seguimiento { background: #fff7e8; color: var(--alert); }
-.cl-status.is-finalizada { background: #e7f7f0; color: var(--success); }
-.cl-status.is-asignada { background: #edf3f8; color: var(--navy); }
+/* Colores de estado de la especificacion del rediseño (texto sobre fondo >= 4.5:1). Se usan en
+   todo el modulo -- Resumen, listado, detalle y tablero -- para que un estado se vea igual en
+   todas las pestañas. */
+.cl-status.is-asignada { background: #e9f0fb; color: #1d4fa3; }
+.cl-status.is-en_proceso { background: #fbf1dd; color: #7a4e00; }
+.cl-status.is-seguimiento { background: #f1eafa; color: #5b3494; }
+.cl-status.is-finalizada { background: #e5f3eb; color: #176541; }
 
 .ins-form-section { margin-bottom: 16px; padding: 14px; border: 1px solid #d8e6f2; border-radius: 13px; background: #fff; }
 .ins-form-section h3 { margin-bottom: 8px; }
@@ -108,10 +111,10 @@
 .ins-composicion-legend strong { color: var(--navy); font-weight: 750; }
 /* Rellenos solidos de estado: los .cl-status son pastillas de fondo suave y no
    sirven para una barra apilada que ademas debe leerse impresa en blanco y negro. */
-.ins-composicion-bar .is-asignada, .ins-composicion-legend .is-asignada { background: var(--muted); }
-.ins-composicion-bar .is-en_proceso, .ins-composicion-legend .is-en_proceso { background: var(--primary); }
-.ins-composicion-bar .is-seguimiento, .ins-composicion-legend .is-seguimiento { background: var(--alert); }
-.ins-composicion-bar .is-finalizada, .ins-composicion-legend .is-finalizada { background: var(--success); }
+.ins-composicion-bar .is-asignada, .ins-composicion-legend .is-asignada { background: #2563c9; }
+.ins-composicion-bar .is-en_proceso, .ins-composicion-legend .is-en_proceso { background: #c98a12; }
+.ins-composicion-bar .is-seguimiento, .ins-composicion-legend .is-seguimiento { background: #7c4dbf; }
+.ins-composicion-bar .is-finalizada, .ins-composicion-legend .is-finalizada { background: #1f8a55; }
 
 .ins-tablero-grid { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 14px; margin-top: 14px; }
 .ins-tablero-grid h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--navy); font-size: 14px; }
@@ -154,4 +157,313 @@ button.ins-atencion-row:hover span { color: var(--primary); text-decoration: und
   .ins-chart-labels small { font-size: 10px; }
   .ins-chart-valor { font-size: 10px; }
   .ins-cruzada-toolbar { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   Pantalla principal (Resumen) -- rediseño 2026-09
+   Tokens de la especificacion "Inspecciones_Rediseno_Especificacion.pdf". Donde el
+   modulo ya tiene variable (clandestinos.css) se mapea a ella en lugar de duplicar el
+   valor; solo se agregan los que no existen (estados, gris de ceros, separadores).
+   El diseño se adapta con container queries: la barra lateral de la app cambia el
+   ancho util sin cambiar el viewport, asi que se mide el contenido, no la pantalla.
+   ========================================================================== */
+
+.ins-module {
+  --ins-bg: var(--page-bg);
+  --ins-surface: var(--surface);
+  --ins-border: #dbe5ee;
+  --ins-divider: #e9eff5;
+  --ins-head-bg: #f7fafc;
+  --ins-row-hover: #f3f7fb;
+  --ins-text: var(--navy);
+  --ins-text-2: var(--text);
+  --ins-text-3: #52677d; /* 5.6:1 sobre blanco; --muted no llega a 4.5:1 */
+  --ins-text-zero: #9fb0c0; /* solo cifras grandes en 0 */
+  --ins-primary: var(--primary);
+  --ins-primary-hover: var(--primary-hover);
+  --ins-primary-soft: #e8f1fd;
+  --ins-warn-text: #9a3412;
+  --ins-warn-bg: #fcede4;
+  --ins-late-text: #a61b29;
+  --ins-late-bg: #fdecee;
+  --ins-up: #176541;
+  --ins-down: #a61b29;
+  --ins-mono: "IBM Plex Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+  --ins-asignada: #2563c9; --ins-asignada-text: #1d4fa3; --ins-asignada-bg: #e9f0fb;
+  --ins-en_proceso: #c98a12; --ins-en_proceso-text: #7a4e00; --ins-en_proceso-bg: #fbf1dd;
+  --ins-seguimiento: #7c4dbf; --ins-seguimiento-text: #5b3494; --ins-seguimiento-bg: #f1eafa;
+  --ins-finalizada: #1f8a55; --ins-finalizada-text: #176541; --ins-finalizada-bg: #e5f3eb;
+  padding: 28px 32px;
+}
+
+.ins-module .is-asignada { --ins-state: var(--ins-asignada); --ins-state-text: var(--ins-asignada-text); --ins-state-bg: var(--ins-asignada-bg); }
+.ins-module .is-en_proceso { --ins-state: var(--ins-en_proceso); --ins-state-text: var(--ins-en_proceso-text); --ins-state-bg: var(--ins-en_proceso-bg); }
+.ins-module .is-seguimiento { --ins-state: var(--ins-seguimiento); --ins-state-text: var(--ins-seguimiento-text); --ins-state-bg: var(--ins-seguimiento-bg); }
+.ins-module .is-finalizada { --ins-state: var(--ins-finalizada); --ins-state-text: var(--ins-finalizada-text); --ins-state-bg: var(--ins-finalizada-bg); }
+
+/* styles.css agrega margen derecho a todo icono dentro de un boton; aqui se espacia con gap. */
+.ins-header .app-icon, .ins-resumen .app-icon, .ins-cta-bar .app-icon { margin-right: 0; }
+
+.ins-row-name, .ins-row-motivo, .ins-row-tecnico-name, .ins-carga-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ins-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 1px solid var(--ins-primary); border-radius: 10px; background: var(--ins-primary); color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .16s ease; }
+.ins-primary:hover { background: var(--ins-primary-hover); border-color: var(--ins-primary-hover); }
+.ins-primary .app-icon { width: 18px; height: 18px; }
+.ins-module .ins-primary:focus-visible, .ins-module .ins-link:focus-visible, .ins-tabs a:focus-visible { outline: 2px solid var(--ins-primary); outline-offset: 2px; }
+
+.ins-link { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--ins-primary); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.ins-link:hover { color: var(--ins-primary-hover); text-decoration: underline; }
+.ins-muted { margin: 0; color: var(--ins-text-3); font-size: 13px; }
+
+/* --- A. Encabezado y B. pestañas ------------------------------------------- */
+
+.ins-header { display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-areas: "title actions" "tabs tabs"; gap: 20px; max-width: 1440px; margin: 0 auto 24px; }
+.ins-header-title { grid-area: title; min-width: 0; }
+.ins-eyebrow { display: block; color: var(--ins-primary); font-size: 12px; font-weight: 600; letter-spacing: .08em; line-height: 1.3; text-transform: uppercase; }
+.ins-header h1 { margin: 4px 0 0; color: var(--ins-text); font-size: 30px; font-weight: 600; line-height: 1.2; }
+.ins-header p { margin: 4px 0 0; color: var(--ins-text-3); font-size: 14px; }
+.ins-header-actions { grid-area: actions; display: flex; align-items: center; gap: 10px; }
+
+.ins-month { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px 0 14px; border: 1px solid var(--ins-border); border-radius: 10px; background: var(--ins-surface); color: var(--ins-text); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.ins-month:hover { border-color: #c3d3e2; }
+.ins-month:focus-within { outline: 2px solid var(--ins-primary); outline-offset: 2px; }
+.ins-month .app-icon { color: var(--ins-text-3); }
+/* El select nativo cubre el boton: teclado, lector de pantalla y selector del movil incluidos. */
+.ins-module .ins-month select { position: absolute; inset: 0; width: 100%; min-height: 0; margin: 0; border: 0; opacity: 0; cursor: pointer; }
+.ins-month .is-short { display: none; }
+
+.ins-tabs { grid-area: tabs; display: flex; gap: 28px; border-bottom: 1px solid var(--ins-border); }
+.ins-tabs a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: -1px; padding: 0 2px; border-bottom: 2px solid transparent; color: var(--ins-text-3); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.ins-tabs a:hover { color: var(--ins-text); }
+.ins-tabs a[aria-current="page"] { border-bottom-color: var(--ins-primary); color: var(--ins-text); font-weight: 600; }
+.ins-tabs a[aria-current="page"] .app-icon { color: var(--ins-primary); }
+
+.ins-cta-bar { display: none; }
+
+/* --- Contenedor del Resumen -------------------------------------------------- */
+
+.ins-resumen { container: ins-resumen / inline-size; max-width: 1440px; margin: 0 auto; }
+.ins-resumen-grid { display: grid; grid-template-columns: minmax(0,1fr); grid-template-areas: "bandeja" "mes" "actividad"; gap: 16px; align-items: start; }
+.ins-card { min-width: 0; border: 1px solid var(--ins-border); border-radius: 14px; background: var(--ins-surface); }
+.ins-card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 12px 24px; }
+.ins-card-head h2, .ins-mes-head h2 { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ins-text); font-size: 17px; font-weight: 600; line-height: 1.3; }
+.ins-card-icon { display: inline-grid; flex: 0 0 auto; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--ins-primary-soft); color: var(--ins-primary); }
+.ins-card-icon .app-icon { width: 18px; height: 18px; }
+.ins-count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--ins-text); color: #fff; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --- C. Barra de estados ------------------------------------------------------ */
+
+.ins-estados { display: grid; grid-template-columns: minmax(0,1fr) 1px minmax(0,1fr) 1px minmax(0,1fr) 1px minmax(0,1fr); margin-bottom: 24px; overflow: hidden; border: 1px solid var(--ins-border); border-radius: 14px; background: var(--ins-surface); }
+.ins-module .ins-estado { display: grid; grid-template-areas: "label" "num" "ctx"; align-content: start; gap: 6px; min-width: 0; padding: 18px 24px; border: 0; border-radius: 0; background: var(--ins-surface); color: inherit; text-align: left; }
+.ins-module button.ins-estado { cursor: pointer; transition: background .16s ease; }
+.ins-module button.ins-estado:hover { background: var(--ins-head-bg); }
+.ins-module button.ins-estado:focus-visible { outline: 2px solid var(--ins-primary); outline-offset: -2px; }
+.ins-module button.ins-estado.is-active { background: var(--ins-state-bg); box-shadow: inset 0 -3px 0 var(--ins-state); }
+.ins-estado-label { grid-area: label; display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--ins-text); font-size: 14px; font-weight: 600; line-height: 1.3; }
+.ins-estado-icon { display: inline-grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--ins-state-bg); color: var(--ins-state); }
+.ins-estado.is-active .ins-estado-icon { background: var(--ins-surface); }
+.ins-estado-icon .app-icon { width: 15px; height: 15px; }
+.ins-estado-num { grid-area: num; color: var(--ins-text); font-size: 36px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ins-estado-num.is-zero { color: var(--ins-text-zero); }
+.ins-estado-context { grid-area: ctx; min-height: 17px; color: var(--ins-text-3); font-size: 13px; line-height: 1.3; }
+/* Flecha del flujo: un circulo centrado sobre el divisor de 1px, dentro de la grilla. */
+.ins-estado-flow { position: relative; z-index: 1; display: grid; place-items: center; background: var(--ins-divider); }
+.ins-estado-flow > span { display: grid; place-items: center; width: 24px; height: 24px; margin-inline: -12px; border: 1px solid var(--ins-border); border-radius: 50%; background: var(--ins-surface); color: var(--ins-text-3); }
+.ins-estado-flow .app-icon { width: 14px; height: 14px; }
+
+/* --- D. Bandeja --------------------------------------------------------------- */
+
+.ins-bandeja { grid-area: bandeja; container: ins-bandeja / inline-size; }
+.ins-segmented { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--ins-border); border-radius: 10px; background: var(--ins-head-bg); }
+.ins-module .ins-segmented button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ins-text-3); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.ins-module .ins-segmented button:hover { color: var(--ins-text); }
+.ins-module .ins-segmented button:focus-visible { outline: 2px solid var(--ins-primary); outline-offset: 0; }
+.ins-segmented button span { color: var(--ins-text-3); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ins-module .ins-segmented button.is-active { background: var(--ins-surface); color: var(--ins-text); box-shadow: 0 1px 2px rgba(16,42,67,.14), 0 0 0 1px var(--ins-border); }
+.ins-bandeja-all-top { display: none; }
+
+.ins-cols, .ins-module .ins-row { grid-template-columns: 150px minmax(0,1fr) 140px 104px 112px 20px; column-gap: 20px; }
+.ins-cols { display: grid; padding: 8px 24px; border-block: 1px solid var(--ins-divider); background: var(--ins-head-bg); color: var(--ins-text-3); font-size: 12px; font-weight: 600; line-height: 1.3; }
+.ins-rows { margin: 0; padding: 0; list-style: none; }
+.ins-rows > li + li { border-top: 1px solid var(--ins-divider); }
+
+.ins-module .ins-row { display: grid; grid-template-areas: "id name tec age estado chev" "id motivo tec age estado chev"; align-items: center; row-gap: 2px; width: 100%; min-height: 72px; padding: 12px 24px; border: 0; border-radius: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; transition: background .12s ease; }
+.ins-module .ins-row:hover { background: var(--ins-row-hover); }
+.ins-module .ins-row:focus-visible { outline: 2px solid var(--ins-primary); outline-offset: -2px; }
+.ins-row-id { grid-area: id; color: var(--ins-primary); font-family: var(--ins-mono); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.ins-row-name { grid-area: name; align-self: end; color: var(--ins-text); font-size: 15px; font-weight: 600; line-height: 1.3; }
+.ins-row-motivo { grid-area: motivo; align-self: start; color: var(--ins-text-3); font-size: 13px; line-height: 1.3; }
+.ins-row-tecnico { grid-area: tec; display: grid; grid-template-columns: 24px minmax(0,1fr); grid-template-areas: "av name" "av date"; column-gap: 8px; align-items: center; min-width: 0; }
+.ins-avatar { display: inline-grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ins-primary-soft); color: var(--ins-primary); font-size: 12px; font-weight: 600; }
+.ins-row-tecnico .ins-avatar { grid-area: av; }
+.ins-row-tecnico-name { grid-area: name; color: var(--ins-text-2); font-size: 14px; font-weight: 500; line-height: 1.3; }
+.ins-row-date { grid-area: date; color: var(--ins-text-3); font-size: 12px; line-height: 1.3; white-space: nowrap; }
+.ins-row-date .is-short { display: none; }
+.ins-row-estado { grid-area: estado; justify-self: start; }
+.ins-row-chev { grid-area: chev; display: grid; place-items: center; color: var(--ins-text-3); }
+.ins-row-chev .app-icon { width: 18px; height: 18px; }
+
+.ins-age, .ins-badge { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.ins-age { grid-area: age; justify-self: start; }
+.ins-age .app-icon, .ins-badge .app-icon { width: 14px; height: 14px; }
+.ins-age.is-reciente { background: #eef2f6; color: var(--ins-text-3); }
+.ins-age.is-atencion { background: var(--ins-warn-bg); color: var(--ins-warn-text); }
+.ins-age.is-atrasada { background: var(--ins-late-bg); color: var(--ins-late-text); }
+.ins-badge { background: var(--ins-state-bg); color: var(--ins-state-text); }
+
+.ins-row-skeleton { display: grid; grid-template-columns: 150px minmax(0,1fr) 140px; align-items: center; gap: 20px; height: 72px; padding: 0 24px; }
+.ins-row-skeleton span, .ins-mes-skeleton { background: linear-gradient(90deg, #edf2f7 0%, #f7fafc 50%, #edf2f7 100%) 0 0 / 200% 100%; animation: ins-skeleton 1.2s ease-in-out infinite; }
+.ins-row-skeleton span { height: 12px; border-radius: 6px; }
+@keyframes ins-skeleton { to { background-position: -200% 0; } }
+
+.ins-empty { display: grid; justify-items: center; gap: 6px; padding: 36px 24px; text-align: center; }
+.ins-empty-icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 4px; border-radius: 50%; background: var(--ins-state-bg); color: var(--ins-state); }
+.ins-empty-icon .app-icon { width: 24px; height: 24px; }
+.ins-empty strong { color: var(--ins-text); font-size: 15px; font-weight: 600; }
+.ins-empty p { max-width: 38ch; margin: 0; color: var(--ins-text-3); font-size: 13px; }
+
+.ins-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 6px 24px; border-top: 1px solid var(--ins-divider); color: var(--ins-text-3); font-size: 12px; }
+.ins-module .ins-card-foot .ins-link { min-height: 36px; }
+.ins-card-foot .app-icon { width: 15px; height: 15px; }
+
+/* --- E. Resumen del mes -------------------------------------------------------- */
+
+.ins-mes { grid-area: mes; display: grid; align-content: start; gap: 18px; padding: 18px 24px 22px; }
+.ins-mes-head { display: flex; align-items: center; gap: 12px; }
+.ins-mes-head p { margin: 2px 0 0; color: var(--ins-text-3); font-size: 13px; }
+.ins-mes-skeleton { height: 260px; border-radius: 10px; }
+.ins-tasa { display: flex; align-items: center; gap: 14px; }
+.ins-tasa strong { color: var(--ins-text); font-size: 44px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.ins-tasa strong.is-zero { color: var(--ins-text-zero); }
+.ins-tasa > span { display: grid; gap: 2px; color: var(--ins-text-2); font-size: 14px; font-weight: 600; line-height: 1.3; }
+.ins-tasa small { color: var(--ins-text-3); font-size: 13px; font-weight: 400; }
+.ins-stack { display: flex; gap: 3px; height: 10px; overflow: hidden; border-radius: 999px; background: var(--ins-divider); }
+.ins-stack span { min-width: 6px; background: var(--ins-state); }
+.ins-legend { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 24px; margin: 0; padding: 0; list-style: none; color: var(--ins-text-2); font-size: 13px; }
+.ins-legend li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ins-legend i { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--ins-state); }
+.ins-legend strong { margin-left: auto; color: var(--ins-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ins-legend li.is-empty strong { color: var(--ins-text-3); font-weight: 500; }
+.ins-minis { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.ins-minis > div { display: grid; gap: 6px; min-width: 0; padding: 12px 14px; border: 1px solid var(--ins-divider); border-radius: 12px; background: var(--ins-head-bg); }
+.ins-minis span { display: flex; align-items: center; gap: 6px; color: var(--ins-text-3); font-size: 12px; font-weight: 500; line-height: 1.3; }
+.ins-minis span .app-icon { width: 14px; height: 14px; }
+.ins-minis strong { display: flex; align-items: baseline; gap: 8px; color: var(--ins-text); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ins-minis em { display: inline-flex; align-items: center; gap: 3px; color: var(--ins-text-3); font-size: 12px; font-style: normal; font-weight: 600; }
+.ins-minis em .app-icon { width: 14px; height: 14px; }
+.ins-minis em.is-up { color: var(--ins-up); }
+.ins-minis em.is-down { color: var(--ins-down); }
+.ins-carga { padding-top: 16px; border-top: 1px solid var(--ins-divider); }
+.ins-carga h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--ins-text); font-size: 14px; font-weight: 600; }
+.ins-carga h3 .app-icon { color: var(--ins-text-3); }
+.ins-carga ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ins-carga li { display: grid; grid-template-columns: 24px minmax(0,9rem) minmax(40px,1fr) auto; align-items: center; gap: 10px; }
+.ins-carga-name { color: var(--ins-text-2); font-size: 14px; font-weight: 500; }
+.ins-carga i { height: 6px; overflow: hidden; border-radius: 999px; background: var(--ins-divider); }
+.ins-carga em { display: block; height: 100%; border-radius: 999px; background: var(--ins-primary); }
+.ins-carga small { color: var(--ins-text-3); font-size: 12px; white-space: nowrap; }
+
+/* --- F. Actividad reciente ------------------------------------------------------ */
+
+.ins-actividad { grid-area: actividad; }
+.ins-actividad ul { margin: 0; padding: 0 12px 12px; list-style: none; }
+.ins-actividad li + li { border-top: 1px solid var(--ins-divider); }
+.ins-module .ins-actividad li button { display: grid; grid-template-columns: 48px 24px minmax(0,1fr); grid-template-areas: "time icon text"; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ins-text-2); font-size: 13px; text-align: left; cursor: pointer; }
+.ins-module .ins-actividad li button:hover { background: var(--ins-row-hover); }
+.ins-module .ins-actividad li button:focus-visible { outline: 2px solid var(--ins-primary); outline-offset: -2px; }
+.ins-actividad time { grid-area: time; color: var(--ins-text-3); font-size: 12px; white-space: nowrap; }
+.ins-actividad-icon { grid-area: icon; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ins-state-bg); color: var(--ins-state); }
+.ins-actividad-icon .app-icon { width: 14px; height: 14px; }
+.ins-actividad-text { grid-area: text; min-width: 0; line-height: 1.35; }
+.ins-actividad code { color: var(--ins-primary); font-family: var(--ins-mono); font-size: 12.5px; font-weight: 600; }
+.ins-actividad-empty { display: flex; align-items: center; gap: 8px; padding: 4px 24px 22px; }
+
+/* --- Responsive ------------------------------------------------------------------ */
+
+/* Escritorio: principal flexible + columna lateral de 420px. */
+@container ins-resumen (min-width: 1180px) {
+  .ins-resumen-grid { grid-template-columns: minmax(0,1fr) 420px; grid-template-rows: auto 1fr; grid-template-areas: "bandeja mes" "actividad mes"; gap: 24px; }
+}
+
+/* Tablet: una columna; resumen del mes y actividad lado a lado; sin flechas ni mini tarjetas. */
+@container ins-resumen (min-width: 700px) and (max-width: 1179px) {
+  .ins-resumen-grid { grid-template-columns: repeat(2, minmax(0,1fr)); grid-template-areas: "bandeja bandeja" "mes actividad"; gap: 20px; }
+  .ins-estados { margin-bottom: 20px; }
+  .ins-estado-flow > span, .ins-minis { display: none; }
+  .ins-module .ins-estado { padding: 16px 18px; }
+  .ins-estado-num { font-size: 30px; }
+}
+
+/* Movil: estados 2x2 compactos (siempre los 4), resumen reducido. */
+@container ins-resumen (max-width: 699px) {
+  .ins-estados { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1px; margin-bottom: 16px; background: var(--ins-divider); }
+  .ins-estado-flow, .ins-minis, .ins-carga { display: none; }
+  .ins-module .ins-estado { grid-template-columns: minmax(0,1fr) auto; grid-template-areas: "label num" "ctx num"; align-items: center; column-gap: 8px; row-gap: 2px; min-height: 64px; padding: 10px 12px; }
+  .ins-estado-label { font-size: 13px; }
+  .ins-estado-icon { width: 22px; height: 22px; }
+  .ins-estado-num { font-size: 26px; }
+  .ins-estado-context { min-height: 0; font-size: 12px; }
+  .ins-mes { gap: 14px; padding: 16px; }
+  .ins-tasa strong { font-size: 36px; }
+  .ins-legend li.is-empty { display: none; }
+  .ins-card-head { min-height: 56px; padding: 10px 16px; }
+  .ins-actividad ul { padding: 0 6px 8px; }
+  .ins-module .ins-actividad li button { grid-template-columns: 24px minmax(0,1fr); grid-template-areas: "icon text" "icon time"; row-gap: 2px; padding: 8px 10px; }
+  .ins-actividad-empty { padding: 4px 16px 18px; }
+}
+
+/* Filas en 3 lineas cuando la bandeja no alcanza para la grilla de 6 columnas. La barra de
+   estados ya filtra, asi que el control segmentado se oculta. */
+@container ins-bandeja (max-width: 779px) {
+  .ins-segmented, .ins-cols { display: none; }
+  .ins-module .ins-bandeja-all-top { display: inline-flex; min-height: 44px; }
+  .ins-module .ins-row { grid-template-columns: auto minmax(0,1fr) auto 20px; grid-template-areas: "id motivo age chev" "name name age chev" "estado tec age chev"; column-gap: 10px; row-gap: 4px; padding: 12px 20px; }
+  .ins-row-name, .ins-row-motivo { align-self: center; }
+  .ins-row-motivo::before { content: "· "; }
+  .ins-row-tecnico { display: flex; align-items: center; gap: 6px; }
+  .ins-row-tecnico .ins-avatar { display: none; }
+  .ins-row-tecnico-name { font-size: 13px; }
+  .ins-row-date::before { content: "· "; }
+  .ins-row-skeleton { grid-template-columns: 1fr 80px; padding: 0 20px; }
+  .ins-row-skeleton span:last-child { display: none; }
+}
+
+/* Movil: tarjetas apiladas, toda la tarjeta es tocable. */
+@container ins-bandeja (max-width: 519px) {
+  .ins-module .ins-bandeja { border: 0; background: transparent; }
+  .ins-bandeja .ins-card-head { min-height: 48px; padding: 0 0 8px; }
+  .ins-rows { display: grid; gap: 10px; }
+  .ins-rows > li + li { border-top: 0; }
+  .ins-module .ins-row { grid-template-columns: auto minmax(0,1fr) auto; grid-template-areas: "id id age" "name name chev" "motivo motivo chev" "estado tec tec"; padding: 12px 14px; border: 1px solid var(--ins-border); border-radius: 12px; background: var(--ins-surface); }
+  .ins-row-motivo::before { content: none; }
+  .ins-row-date .is-long { display: none; }
+  .ins-row-date .is-short { display: inline; }
+  .ins-rows .ins-row-skeleton { border: 1px solid var(--ins-border); border-radius: 12px; background: var(--ins-surface); }
+  .ins-empty { border: 1px solid var(--ins-border); border-radius: 12px; background: var(--ins-surface); }
+  .ins-card-foot { display: none; }
+}
+
+@media (max-width: 1199px) {
+  .ins-module { padding: 24px; }
+  .ins-header { margin-bottom: 20px; }
+  .ins-header h1 { font-size: 28px; }
+  .ins-header p { display: none; }
+}
+
+@media (max-width: 767px) {
+  .ins-module { padding: 16px 6px; }
+  .ins-module.has-cta { padding-bottom: 92px; }
+  .ins-header { gap: 12px; margin-bottom: 16px; }
+  .ins-header h1 { font-size: 26px; }
+  .ins-header-cta { display: none; }
+  .ins-month .is-long { display: none; }
+  .ins-month .is-short { display: inline; }
+  .ins-tabs { gap: 18px; }
+  .ins-tabs .app-icon { display: none; }
+  .ins-cta-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 60; display: block; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--ins-border); background: var(--ins-surface); }
+  .ins-cta-bar .ins-primary { width: 100%; min-height: 52px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ins-row-skeleton span, .ins-mes-skeleton { animation: none; }
 }
