@@ -15,6 +15,7 @@ import { buildSidebarSections, getPathForWorkspaceView, getWorkspaceViewFromPath
 import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
 import InspeccionesPage from "./modules/inspecciones/pages/InspeccionesPage";
 import EntregasPage from "./modules/entregas/pages/EntregasPage";
+import NotesPage from "./modules/notes/pages/NotesPage";
 import PageHeader from "./components/ds/PageHeader";
 import MetricRow from "./components/ds/Metrics";
 import "./components/ds/design-system.css";
@@ -1595,9 +1596,9 @@ function App() {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
             toplineLabel: "Uso administrativo",
-            title: "Apuntes internos",
-            lead: "Acceso reservado para organizar notas de trabajo del equipo administrativo.",
-            kicker: "Módulo preparado"
+            title: "Apuntes",
+            lead: "Tablero personal para anotar cualquier cosa en segundos y organizarla después.",
+            kicker: "Privado del administrador"
           }
         }[workspaceView] ?? {
           panelClass: "hero-panel-records",
@@ -14611,6 +14612,14 @@ function App() {
       />
       ) : workspaceView === "entregas" ? (
       <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
+      ) : workspaceView === "notes" && isAdmin ? (
+      <NotesPage
+        apiFetch={apiFetch}
+        onSendToInspeccion={(note) => navigateWithFocus("inspecciones", {
+          from_note_id: note.id,
+          trabajo_solicitado: [note.title, note.content].map((part) => String(part || "").trim()).filter(Boolean).join("\n")
+        })}
+      />
       ) : workspaceView === "sigTerritorial" ? (
         <Suspense fallback={<div className="module-loading-state">Cargando SIG Territorial...</div>}>
           <SigTerritorialWorkspace
@@ -17104,15 +17113,7 @@ function App() {
           ) : null}
 
           <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
-            {workspaceView === "notes" ? (
-              <section className="preview-panel sidebar-notes-placeholder">
-                <div className="empty-state">
-                  <Icon name="notes" />
-                  <h2>Apuntes</h2>
-                  <p>El acceso administrativo ya está preparado. La pantalla de notas se incorporará cuando se defina su flujo de trabajo.</p>
-                </div>
-              </section>
-            ) : workspaceView === "mapReports" ? (
+            {workspaceView === "mapReports" ? (
               <Suspense fallback={<div className="module-loading-state" role="status" aria-live="polite">Cargando reportes...</div>}>
                 <ReportsWorkspace
                   model={{

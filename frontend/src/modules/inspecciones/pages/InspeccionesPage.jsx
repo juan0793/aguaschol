@@ -189,6 +189,17 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
           notify={showAlert}
           onClose={() => { setShowNueva(false); setInitialNueva(null); }}
           onCreated={(created) => {
+            // Si la inspeccion nacio de un apunte, queda la trazabilidad en el apunte. La nota
+            // original no se archiva ni se borra.
+            if (initialNueva?.from_note_id) {
+              apiFetch(`/admin/notes/${initialNueva.from_note_id}/links`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ target_type: "inspeccion", target_id: String(created.id) })
+              }).then((response) => {
+                if (!response.ok) showAlert("La inspección se creó, pero no se pudo registrar el vínculo con el apunte.");
+              }).catch(() => showAlert("La inspección se creó, pero no se pudo registrar el vínculo con el apunte."));
+            }
             setShowNueva(false);
             setInitialNueva(null);
             refreshAll();

@@ -12,7 +12,7 @@ export default function NuevaInspeccionModal({ api, tecnicos, initialData, notif
   const [inspeccionGeneral, setInspeccionGeneral] = useState(false);
   const [motivo, setMotivo] = useState(MOTIVOS_SUGERIDOS[0]);
   const [motivoOtro, setMotivoOtro] = useState("");
-  const [trabajoSolicitado, setTrabajoSolicitado] = useState(initialData?.referencia ? `Verificar inmueble desde ${initialData.referencia}.` : "");
+  const [trabajoSolicitado, setTrabajoSolicitado] = useState(initialData?.trabajo_solicitado || (initialData?.referencia ? `Verificar inmueble desde ${initialData.referencia}.` : ""));
   const [responsableId, setResponsableId] = useState("");
   const [apoyos, setApoyos] = useState([]);
   const [saving, setSaving] = useState(false);

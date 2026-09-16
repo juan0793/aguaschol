@@ -914,3 +914,36 @@ CREATE TABLE IF NOT EXISTS entrega_ciclos (
   UNIQUE KEY uq_entrega_ciclos_corte (fecha_corte),
   CONSTRAINT fk_entrega_ciclos_usuario FOREIGN KEY (declarado_por) REFERENCES app_users(id) ON DELETE SET NULL
 );
+
+-- Apuntes: tablero personal del administrador. Todo se filtra por user_id del usuario
+-- autenticado. sort_order es fraccionario para que reordenar actualice una sola fila;
+-- deleted_at permite deshacer y una tarea purga lo borrado hace mas de 30 dias.
+CREATE TABLE IF NOT EXISTS admin_notes (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  title VARCHAR(200) NULL,
+  content TEXT NOT NULL,
+  color ENUM('default', 'azul', 'crema', 'verde', 'violeta', 'gris') NOT NULL DEFAULT 'default',
+  category VARCHAR(60) NULL,
+  is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+  is_archived TINYINT(1) NOT NULL DEFAULT 0,
+  sort_order DECIMAL(20, 10) NOT NULL DEFAULT 0,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  KEY idx_admin_notes_listado (user_id, is_archived, deleted_at, is_pinned, sort_order),
+  KEY idx_admin_notes_deleted (deleted_at),
+  CONSTRAINT fk_admin_notes_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+);
+
+-- Destinos de "Enviar a...": una nota puede generar varios elementos en otros modulos.
+CREATE TABLE IF NOT EXISTS note_links (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  note_id INT UNSIGNED NOT NULL,
+  target_type VARCHAR(30) NOT NULL,
+  target_id VARCHAR(64) NOT NULL,
+  target_label VARCHAR(120) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_note_links_note (note_id),
+  CONSTRAINT fk_note_links_note FOREIGN KEY (note_id) REFERENCES admin_notes(id) ON DELETE CASCADE
+);

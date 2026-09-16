@@ -427,7 +427,6 @@
 }
 
 .control-sidebar.is-collapsed .control-sidebar-flyout .control-sidebar-item-copy { display: grid; max-width: 190px; visibility: visible; opacity: 1; transform: none; }
-.sidebar-notes-placeholder .empty-state > .app-icon { width: 32px; height: 32px; color: #0b78b5; }
 
 @media (max-width: 768px) {
   .page-shell,
