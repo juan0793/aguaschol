@@ -3,11 +3,13 @@ import { Icon } from "../Icon";
 
 const GROUPS_STORAGE_KEY = "controlAguas.sidebarGroups";
 
-const loadGroups = () => {
+const loadOpenGroup = () => {
   try {
-    return JSON.parse(window.localStorage.getItem(GROUPS_STORAGE_KEY) || "{}");
+    const saved = JSON.parse(window.localStorage.getItem(GROUPS_STORAGE_KEY) || "null");
+    if (typeof saved === "string") return saved;
+    return Object.keys(saved || {}).find((key) => saved[key]) || "";
   } catch {
-    return {};
+    return "";
   }
 };
 
@@ -26,10 +28,10 @@ export default function AppSidebar({
 }) {
   const sidebarRef = useRef(null);
   const previousFocusRef = useRef(null);
-  const [openGroups, setOpenGroups] = useState(loadGroups);
+  const [openGroupKey, setOpenGroupKey] = useState(loadOpenGroup);
   const [flyoutKey, setFlyoutKey] = useState("");
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
-  const effectiveCollapsed = collapsed && !mobileOpen;
+  const effectiveCollapsed = collapsed && !mobileOpen && !isMobile;
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 768px)");
@@ -40,14 +42,12 @@ export default function AppSidebar({
 
   useEffect(() => {
     const activeSection = sections.find((section) => section.items.some((item) => item.key === activeKey));
-    if (activeSection?.collapsible) {
-      setOpenGroups((current) => current[activeSection.key] ? current : { ...current, [activeSection.key]: true });
-    }
+    if (activeSection?.collapsible) setOpenGroupKey(activeSection.key);
   }, [activeKey, sections]);
 
   useEffect(() => {
-    window.localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(openGroups));
-  }, [openGroups]);
+    window.localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(openGroupKey));
+  }, [openGroupKey]);
 
   useEffect(() => {
     if (!mobileOpen) return undefined;
@@ -101,7 +101,7 @@ export default function AppSidebar({
       setFlyoutKey((current) => current === section.key ? "" : section.key);
       return;
     }
-    setOpenGroups((current) => ({ ...current, [section.key]: !current[section.key] }));
+    setOpenGroupKey((current) => current === section.key ? "" : section.key);
   };
   const renderItem = (item, flyout = false) => {
     const active = activeKey === item.key;
@@ -132,7 +132,7 @@ export default function AppSidebar({
         </header>
         <nav className="control-sidebar-navigation">
           {sections.map((section) => {
-            const open = Boolean(openGroups[section.key]);
+            const open = openGroupKey === section.key;
             const activeGroup = section.items.some((item) => item.key === activeKey);
             if (!section.collapsible) {
               return <section className="control-sidebar-section" key={section.key}><span className="control-sidebar-section-label">{section.title}</span>{section.items.map((item) => renderItem(item))}</section>;
@@ -140,9 +140,11 @@ export default function AppSidebar({
             return (
               <section className={`control-sidebar-section is-group ${activeGroup ? "has-active" : ""}`} key={section.key}>
                 <button type="button" className="control-sidebar-group" aria-expanded={effectiveCollapsed ? flyoutKey === section.key : open} aria-controls={`sidebar-group-${section.key}`} data-tooltip={effectiveCollapsed ? section.title : undefined} onClick={() => toggleGroup(section)}>
-                  <Icon name={section.icon} /><span>{section.title}</span><Icon name="arrowRight" className="control-sidebar-chevron" />
+                  <Icon name={section.icon} />
+                  <span className="control-sidebar-group-copy"><strong>{section.title}</strong>{section.helper ? <small>{section.helper}</small> : null}</span>
+                  <Icon name="arrowRight" className="control-sidebar-chevron" />
                 </button>
-                {!effectiveCollapsed && open ? <div id={`sidebar-group-${section.key}`} className="control-sidebar-group-items">{section.items.map((item) => renderItem(item))}</div> : null}
+                {!effectiveCollapsed ? <div id={`sidebar-group-${section.key}`} className={`control-sidebar-group-panel ${open ? "is-open" : ""}`} aria-hidden={!open} inert={open ? undefined : ""}><div className="control-sidebar-group-items">{section.items.map((item) => renderItem(item))}</div></div> : null}
                 {effectiveCollapsed && flyoutKey === section.key ? <div id={`sidebar-group-${section.key}`} className="control-sidebar-flyout" role="menu"><strong>{section.title}</strong>{section.items.map((item) => renderItem(item, true))}</div> : null}
               </section>
             );

@@ -11,7 +11,7 @@ import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader";
 import AppSidebar from "./components/sidebar/AppSidebar";
-import { buildSidebarSections } from "./components/sidebar/sidebarConfig";
+import { buildSidebarSections, getPathForWorkspaceView, getWorkspaceViewFromPath } from "./components/sidebar/sidebarConfig";
 import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
 import InspeccionesPage from "./modules/inspecciones/pages/InspeccionesPage";
 import EntregasPage from "./modules/entregas/pages/EntregasPage";
@@ -602,7 +602,8 @@ const normalizeDashboardWidgetPrefs = (value) => {
   return { order, hidden };
 };
 
-const getWorkspaceViewByRole = (role) => (role === "admin" ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "inspecciones" : "records");
+const getDefaultWorkspaceView = (role) => (role === "admin" ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "inspecciones" : "records");
+const getWorkspaceViewByRole = (role) => getWorkspaceViewFromPath(window.location.pathname) ?? getDefaultWorkspaceView(role);
 const getMapReportZoneOverrideKey = (zoneName) => String(zoneName || "Zona no especificada").trim() || "Zona no especificada";
 const getMapReportTechnicians = (staff) => {
   const names = Array.isArray(staff?.field_technician_names)
@@ -1589,6 +1590,14 @@ function App() {
             title: "Historial de actividad",
             lead: "Seguimiento continuo de movimientos relevantes con una lectura más limpia y trazable.",
             kicker: "Trazabilidad"
+          },
+          notes: {
+            panelClass: "hero-panel-users",
+            cardClass: "search-card-users",
+            toplineLabel: "Uso administrativo",
+            title: "Apuntes internos",
+            lead: "Acceso reservado para organizar notas de trabajo del equipo administrativo.",
+            kicker: "Módulo preparado"
           }
         }[workspaceView] ?? {
           panelClass: "hero-panel-records",
@@ -2271,7 +2280,8 @@ function App() {
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "importacion", label: "Importación", icon: "refresh", group: "control", helper: "Lotes FoxPro" },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
-            { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` }
+            { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` },
+            { key: "notes", label: "Apuntes", icon: "notes", group: "administracion", helper: "Notas internas" }
           ]
         : [
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
@@ -5096,9 +5106,20 @@ function App() {
       ? ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "fieldValidation", "planos"]
       : ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "planos"];
     if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
-      setWorkspaceView("records");
+      const defaultView = getDefaultWorkspaceView(session?.user?.role);
+      setWorkspaceView(allowedViews.includes(defaultView) ? defaultView : "records");
     }
-  }, [isAuthenticated, isAdmin, isFieldValidator, workspaceView]);
+  }, [isAuthenticated, isAdmin, isFieldValidator, session?.user?.role, workspaceView]);
+
+  // La direccion refleja la vista abierta: recargar o compartir el enlace lleva al mismo
+  // lugar. replaceState porque la app no escucha popstate; el hash de cada modulo se conserva.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const path = getPathForWorkspaceView(workspaceView);
+    if (window.location.pathname !== path) {
+      window.history.replaceState(window.history.state, "", `${path}${window.location.search}${window.location.hash}`);
+    }
+  }, [isAuthenticated, workspaceView]);
 
   useEffect(() => {
     setShowMobileModuleMenu(false);
@@ -9476,6 +9497,8 @@ function App() {
     } finally {
       await pause(450);
       clearSession();
+      // Quien entre despues no debe caer en la ultima vista de esta sesion.
+      window.history.replaceState(null, "", "/");
       setAuthFx(null);
     }
   };
@@ -17081,7 +17104,15 @@ function App() {
           ) : null}
 
           <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
-            {workspaceView === "mapReports" ? (
+            {workspaceView === "notes" ? (
+              <section className="preview-panel sidebar-notes-placeholder">
+                <div className="empty-state">
+                  <Icon name="notes" />
+                  <h2>Apuntes</h2>
+                  <p>El acceso administrativo ya está preparado. La pantalla de notas se incorporará cuando se defina su flujo de trabajo.</p>
+                </div>
+              </section>
+            ) : workspaceView === "mapReports" ? (
               <Suspense fallback={<div className="module-loading-state" role="status" aria-live="polite">Cargando reportes...</div>}>
                 <ReportsWorkspace
                   model={{
