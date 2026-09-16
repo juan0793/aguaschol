@@ -46,9 +46,9 @@ export const buildSidebarSections = (items = [], dashboardItem = null) => {
   const take = (keys) => keys.map((key) => byKey.get(key)).filter(Boolean);
 
   return [
-    { key: "dashboard", title: "Dashboard", helper: "Vista general", icon: "home", collapsible: true, items: [dashboardItem].filter(Boolean) },
+    { key: "dashboard", title: "Dashboard", helper: "Vista general", icon: "home", collapsible: true, items: [dashboardItem, ...take(["notes"])].filter(Boolean) },
     { key: "operacion", title: "Operación", helper: "Procesos diarios", icon: "activity", collapsible: true, items: take(["inspecciones", "entregas", "records", "lookup"]) },
-    { key: "gestion", title: "Gestión", helper: "Datos y administración", icon: "records", collapsible: true, items: take(["requests", "barrioCodes", "padron", "importacion", "logs", "users", "notes"]) },
+    { key: "gestion", title: "Gestión", helper: "Datos y administración", icon: "records", collapsible: true, items: take(["requests", "barrioCodes", "padron", "importacion", "logs", "users"]) },
     { key: "territorio", title: "Territorio", helper: "Mapas y zonas", icon: "map", collapsible: true, items: take(["sigTerritorial", "map", "fieldValidation", "mapReports", "planos"]) },
     { key: "sistema", title: "Sistema", helper: "Cuenta y configuración", icon: "settings", collapsible: true, items: take(["profile"]) }
   ].filter((section) => section.items.length);

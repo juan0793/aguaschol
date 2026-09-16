@@ -13,7 +13,8 @@ const sections = buildSidebarSections(items, { key: "dashboard", label: "Tablero
 const flattened = sections.flatMap((section) => section.items);
 
 assert.deepEqual(sections.map((section) => section.key), ["dashboard", "operacion", "gestion", "territorio"]);
-assert.deepEqual(flattened.map((item) => item.key), ["dashboard", "records", "requests", "users", "notes", "map", "mapReports"]);
+assert.deepEqual(flattened.map((item) => item.key), ["dashboard", "notes", "records", "requests", "users", "map", "mapReports"]);
+assert.deepEqual(sections[0].items.map((item) => item.key), ["dashboard", "notes"]);
 assert.equal(flattened.find((item) => item.key === "records").label, "Fichas clandestinas");
 assert.equal(flattened.find((item) => item.key === "notes").label, "Apuntes");
 assert.equal(new Set(flattened.map((item) => item.key)).size, flattened.length);
