@@ -414,7 +414,10 @@
 
 .control-sidebar.is-collapsed .control-sidebar-section.has-active > .control-sidebar-group { background: rgba(8, 115, 184, 0.4); box-shadow: inset 3px 0 var(--sidebar-active-border); }
 .control-sidebar.is-collapsed .control-sidebar-footer { grid-template-columns: 1fr; justify-items: center; padding-inline: 8px; }
-.control-sidebar.is-collapsed .control-sidebar-user { grid-template-columns: 1fr; padding: 0; }
+/* El nombre oculto seguia ocupando una fila: separaba avatar y boton de salir y restaba alto
+   al menu en pantallas bajas. */
+.control-sidebar.is-collapsed .control-sidebar-user { grid-template-columns: 1fr; grid-template-rows: auto 0; gap: 0; padding: 0; }
+.control-sidebar.is-collapsed .control-sidebar-user div { overflow: hidden; }
 
 .control-sidebar.is-collapsed .control-sidebar-flyout .control-sidebar-item {
   width: 100%;

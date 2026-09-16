@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "../Icon";
 
 const GROUPS_STORAGE_KEY = "controlAguas.sidebarGroups";
@@ -30,6 +30,7 @@ export default function AppSidebar({
   const previousFocusRef = useRef(null);
   const [openGroupKey, setOpenGroupKey] = useState(loadOpenGroup);
   const [flyoutKey, setFlyoutKey] = useState("");
+  const flyoutRef = useRef(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
   const effectiveCollapsed = collapsed && !mobileOpen && !isMobile;
 
@@ -91,6 +92,22 @@ export default function AppSidebar({
     };
   }, [flyoutKey, mobileOpen, onCloseMobile]);
 
+  // El menu flotante del modo colapsado nace a la altura de su grupo; en pantallas bajas los
+  // grupos inferiores lo empujaban fuera de la ventana y sus ultimas opciones no se alcanzaban.
+  // Se sube lo necesario para que quepa (su max-height ya es 100vh - 24px).
+  useLayoutEffect(() => {
+    const flyout = flyoutRef.current;
+    if (!flyout) return undefined;
+    const fit = () => {
+      flyout.style.top = "0px";
+      const overflow = flyout.getBoundingClientRect().bottom - (window.innerHeight - 12);
+      if (overflow > 0) flyout.style.top = `${-overflow}px`;
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [flyoutKey]);
+
   const navigate = (key) => {
     onNavigate(key);
     setFlyoutKey("");
@@ -145,7 +162,7 @@ export default function AppSidebar({
                   <Icon name="arrowRight" className="control-sidebar-chevron" />
                 </button>
                 {!effectiveCollapsed ? <div id={`sidebar-group-${section.key}`} className={`control-sidebar-group-panel ${open ? "is-open" : ""}`} aria-hidden={!open} inert={open ? undefined : ""}><div className="control-sidebar-group-items">{section.items.map((item) => renderItem(item))}</div></div> : null}
-                {effectiveCollapsed && flyoutKey === section.key ? <div id={`sidebar-group-${section.key}`} className="control-sidebar-flyout" role="menu"><strong>{section.title}</strong>{section.items.map((item) => renderItem(item, true))}</div> : null}
+                {effectiveCollapsed && flyoutKey === section.key ? <div id={`sidebar-group-${section.key}`} ref={flyoutRef} className="control-sidebar-flyout" role="menu"><strong>{section.title}</strong>{section.items.map((item) => renderItem(item, true))}</div> : null}
               </section>
             );
           })}
