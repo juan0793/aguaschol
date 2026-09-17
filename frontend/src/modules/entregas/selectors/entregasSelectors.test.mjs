@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  avanceDeResumen,
+  avancePorResponsable,
   calculateDeliveryRate,
   getAttentionIndicators,
   groupByNeighborhood,
@@ -81,4 +83,54 @@ test("trendDelta calcula el porcentaje de cambio frente al periodo anterior", ()
 test("trendDelta reporta 'nuevo' cuando el periodo anterior estaba en cero", () => {
   assert.deepEqual(trendDelta(5, 0), { direction: "up", label: "nuevo" });
   assert.deepEqual(trendDelta(0, 0), { direction: "flat", label: "sin cambio" });
+});
+
+const lotesDeHoy = [
+  { responsable_id: 1, responsable_nombre: "Sayma Lorena", barrio_nombre: "El Hospital", total_asignadas: 82, total_sobrantes: 0, estado: "ABIERTO" },
+  { responsable_id: 2, responsable_nombre: "Luis Herrera", barrio_nombre: "El Hospital", total_asignadas: 100, total_sobrantes: 20, estado: "CERRADO" },
+  { responsable_id: 2, responsable_nombre: "Luis Herrera", barrio_nombre: "San Juan", total_asignadas: 50, total_sobrantes: 5, estado: "REVISADO" }
+];
+
+test("avancePorResponsable no da por entregado lo que sigue en un lote abierto", () => {
+  const filas = avancePorResponsable(lotesDeHoy);
+  assert.equal(filas.length, 2);
+
+  // Primero quien sigue en ruta, aunque tenga menos asignadas.
+  assert.equal(filas[0].responsable_nombre, "Sayma Lorena");
+  assert.deepEqual(
+    { confirmadas: filas[0].confirmadas, en_ruta: filas[0].en_ruta, avance: filas[0].avance, abiertos: filas[0].abiertos },
+    { confirmadas: 0, en_ruta: 82, avance: 0, abiertos: 1 }
+  );
+
+  const luis = filas[1];
+  assert.equal(luis.lotes, 2);
+  assert.equal(luis.abiertos, 0);
+  assert.equal(luis.cerrados, 2);
+  assert.equal(luis.asignadas, 150);
+  assert.equal(luis.confirmadas, 125);
+  assert.equal(luis.no_entregadas, 25);
+  assert.equal(luis.en_ruta, 0);
+  assert.deepEqual(luis.barrios, ["El Hospital", "San Juan"]);
+  assert.equal(luis.avance, 83.33);
+});
+
+test("avancePorResponsable reparte la barra en tres tramos que suman el total", () => {
+  const [sayma, luis] = avancePorResponsable(lotesDeHoy);
+  assert.deepEqual(sayma.tramos, { confirmadas: 0, no_entregadas: 0, en_ruta: 100 });
+  assert.deepEqual(luis.tramos, { confirmadas: 83.33, no_entregadas: 16.67, en_ruta: 0 });
+});
+
+test("avanceDeResumen normaliza el resumen del backend y deduce lo que sigue en ruta", () => {
+  const avance = avanceDeResumen({ total: 5, abiertos: 4, asignadas: 745, entregadas: 120, sobrantes: 10 });
+  assert.equal(avance.lotes, 5);
+  assert.equal(avance.cerrados, 1);
+  assert.equal(avance.en_ruta, 615);
+  assert.equal(avance.avance, 16.11);
+});
+
+test("avanceDeResumen tolera que todavia no haya datos cargados", () => {
+  const vacio = avanceDeResumen(null);
+  assert.equal(vacio.asignadas, 0);
+  assert.equal(vacio.avance, 0);
+  assert.deepEqual(vacio.tramos, { confirmadas: 0, no_entregadas: 0, en_ruta: 0 });
 });

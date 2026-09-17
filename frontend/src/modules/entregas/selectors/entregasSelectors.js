@@ -93,6 +93,94 @@ export const getAttentionIndicators = (noEntregadas = [], lotes = []) => {
   };
 };
 
+/* -------------------------------------------------------------------------- */
+/* Avance de la jornada                                                        */
+/* -------------------------------------------------------------------------- */
+
+// Un lote aporta tres tramos excluyentes a la barra de avance:
+//  - confirmadas: solo lotes ya cerrados (asignadas - sobrantes).
+//  - no_entregadas: sobrantes de lotes cerrados.
+//  - en_ruta: todo lo de un lote abierto, porque nada esta confirmado hasta el cierre.
+// Contar un lote abierto como entregado (asignadas - 0 sobrantes) inflaria el avance
+// justo cuando el tecnico todavia anda en la calle.
+export const splitLoteAvance = (lote = {}) => {
+  const asignadas = Math.max(Number(lote.total_asignadas) || 0, 0);
+  if (lote.estado === "ABIERTO") return { asignadas, confirmadas: 0, no_entregadas: 0, en_ruta: asignadas };
+  const sobrantes = Math.min(Math.max(Number(lote.total_sobrantes) || 0, 0), asignadas);
+  return { asignadas, confirmadas: asignadas - sobrantes, no_entregadas: sobrantes, en_ruta: 0 };
+};
+
+const conAvance = (fila) => {
+  const asignadas = Math.max(Number(fila.asignadas) || 0, 0);
+  const confirmadas = Math.max(Number(fila.confirmadas) || 0, 0);
+  const noEntregadas = Math.max(Number(fila.no_entregadas) || 0, 0);
+  const enRuta = Math.max(asignadas - confirmadas - noEntregadas, 0);
+  const lotes = Math.max(Number(fila.lotes) || 0, 0);
+  const abiertos = Math.min(Math.max(Number(fila.abiertos) || 0, 0), lotes);
+  return {
+    ...fila,
+    lotes,
+    abiertos,
+    cerrados: lotes - abiertos,
+    asignadas,
+    confirmadas,
+    no_entregadas: noEntregadas,
+    en_ruta: enRuta,
+    avance: calculateDeliveryRate(confirmadas, asignadas),
+    // Anchos de la barra apilada: siempre suman 100 cuando hay asignadas.
+    tramos: {
+      confirmadas: calculateDeliveryRate(confirmadas, asignadas),
+      no_entregadas: calculateDeliveryRate(noEntregadas, asignadas),
+      en_ruta: calculateDeliveryRate(enRuta, asignadas)
+    }
+  };
+};
+
+// Normaliza el `resumen` que devuelve /entregas/lotes (ya sumado en el servidor,
+// asi no depende de la pagina que se este viendo) a la forma de la barra.
+export const avanceDeResumen = (resumen, lotes = null) => {
+  const datos = resumen || {};
+  return conAvance({
+    lotes: Number(lotes ?? datos.total ?? datos.lotes) || 0,
+    abiertos: Number(datos.abiertos ?? datos.lotes_abiertos) || 0,
+    asignadas: Number(datos.asignadas) || 0,
+    confirmadas: Number(datos.entregadas) || 0,
+    no_entregadas: Number(datos.sobrantes) || 0
+  });
+};
+
+// Una fila por tecnico con los lotes de un solo dia. Primero quienes siguen en
+// ruta -son los que hay que mirar- y dentro de cada grupo, por volumen asignado.
+export const avancePorResponsable = (lotes = []) => {
+  const mapa = new Map();
+  lotes.forEach((lote) => {
+    const key = String(lote.responsable_id ?? lote.responsable_nombre ?? "");
+    if (!mapa.has(key)) {
+      mapa.set(key, {
+        responsable_id: lote.responsable_id ?? null,
+        responsable_nombre: lote.responsable_nombre || "Sin responsable",
+        barrios: [],
+        lotes: 0,
+        abiertos: 0,
+        asignadas: 0,
+        confirmadas: 0,
+        no_entregadas: 0
+      });
+    }
+    const fila = mapa.get(key);
+    const tramos = splitLoteAvance(lote);
+    fila.lotes += 1;
+    fila.abiertos += lote.estado === "ABIERTO" ? 1 : 0;
+    fila.asignadas += tramos.asignadas;
+    fila.confirmadas += tramos.confirmadas;
+    fila.no_entregadas += tramos.no_entregadas;
+    if (lote.barrio_nombre && !fila.barrios.includes(lote.barrio_nombre)) fila.barrios.push(lote.barrio_nombre);
+  });
+  return [...mapa.values()]
+    .map(conAvance)
+    .sort((left, right) => (right.abiertos > 0) - (left.abiertos > 0) || right.asignadas - left.asignadas);
+};
+
 // Tendencia de un indicador frente al periodo anterior de igual longitud.
 // prev=0 y current>0 se reporta como "nuevo" en vez de un porcentaje sin sentido (÷0).
 export const trendDelta = (current = 0, previous = 0) => {

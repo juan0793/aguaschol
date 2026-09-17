@@ -3,7 +3,9 @@ import { Icon } from "../../../components/Icon";
 import { createEntregasApi } from "../services/entregasApi";
 import { useLotes } from "../hooks/useLotes";
 import { useNoEntregadas } from "../hooks/useNoEntregadas";
+import { useAvanceJornada } from "../hooks/useAvanceJornada";
 import EntregasStats from "../components/EntregasStats";
+import AvanceJornada from "../components/AvanceJornada";
 import LoteForm from "../components/LoteForm";
 import LotesTable from "../components/LotesTable";
 import CierreLoteDialog from "../components/CierreLoteDialog";
@@ -49,6 +51,13 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const [cargandoResumen, setCargandoResumen] = useState(false);
 
   const lotes = useLotes(api, Boolean(config) && ["lotes", "resumen"].includes(vista));
+  // La barra de avance no sigue los filtros de la tabla: siempre mira la jornada
+  // de hoy y, de lo anterior, solo el acumulado del ciclo vigente.
+  const avance = useAvanceJornada(api, {
+    activo: Boolean(config) && vista === "lotes",
+    fecha: config?.jornada?.fecha || toLocalIsoDate(),
+    desdeAnterior: config?.ciclo?.fecha_inicio || ""
+  });
   const historial = useLotes(api, Boolean(config) && vista === "historial", { historial: true });
   const pendientes = useNoEntregadas(api, Boolean(config) && vista === "pendientes");
 
@@ -148,6 +157,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     cargarPersonal();
     cargarLotesAbiertosPrevios();
     lotes.reload();
+    avance.reload();
   };
 
   const crearLote = async (payload) => {
@@ -392,6 +402,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
             ir("lotes");
           }}
         />
+      ) : null}
+
+      {vista === "lotes" ? (
+        <AvanceJornada model={avance} fecha={config.jornada?.fecha || toLocalIsoDate()} onVerAnteriores={() => ir("historial")} />
       ) : null}
 
       {vista === "lotes" ? (
