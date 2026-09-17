@@ -396,7 +396,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                       <th>Abonado</th>
                       <th>Clave catastral</th>
                       <th>Motivo</th>
-                      <th>Observación</th>
+                      <th>¿Por qué no se entregó?</th>
                       <th aria-label="Quitar" />
                     </tr>
                   </thead>
@@ -435,10 +435,12 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                           </select>
                         </td>
                         <td>
-                          <input
+                          <textarea
+                            rows={2}
+                            aria-label={`Por qué no se entregó, fila ${index + 1}`}
                             value={fila.observacion}
                             onChange={(event) => patchNueva(index, { observacion: event.target.value })}
-                            placeholder="Detalle específico del caso"
+                            placeholder="Describe qué ocurrió en esta entrega"
                           />
                         </td>
                         <td>

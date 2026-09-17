@@ -131,7 +131,14 @@
 .ent-lotes-alert div { display: grid; gap: 2px; min-width: 0; }
 .ent-lotes-alert strong { font-size: 13px; }
 .ent-lotes-alert span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.ent-captura input, .ent-captura select { width: 100%; min-height: 38px; padding: 6px 8px; border: 1px solid #bfd5eb; border-radius: 8px; }
+.ent-captura-table { min-width: 0; table-layout: fixed; }
+.ent-captura-table th:nth-child(1) { width: 16%; }
+.ent-captura-table th:nth-child(2) { width: 21%; }
+.ent-captura-table th:nth-child(3) { width: 22%; }
+.ent-captura-table th:nth-child(4) { width: 35%; }
+.ent-captura-table th:nth-child(5) { width: 60px; }
+.ent-captura input, .ent-captura select, .ent-captura textarea { width: 100%; min-height: 38px; padding: 6px 8px; border: 1px solid #bfd5eb; border-radius: 8px; }
+.ent-captura textarea { resize: vertical; }
 .ent-detalle-guardado { margin-top: 14px; }
 .ent-agregar-fila { margin-bottom: 12px; }
 .ent-modo-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--ent-borde); border-radius: 12px; background: var(--ent-tenue); }
@@ -293,6 +300,7 @@
   .ent-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ent-menu { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ent-module .ent-table th:nth-child(n), .ent-module .ent-table td:nth-child(n) { display: table-cell; }
+  .ent-dialog-content .ent-captura-table th:nth-child(n), .ent-dialog-content .ent-captura-table td:nth-child(n) { display: table-cell; }
 }
 
 @media (max-width: 760px) {
@@ -336,7 +344,7 @@
   .ent-table tbody { display: grid; gap: 10px; }
   .ent-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; padding: 12px; border: 1px solid var(--ent-borde); border-radius: 10px; background: #fff; box-shadow: 0 5px 16px rgba(16, 42, 67, .05); }
   .ent-table tr:active { transform: scale(.995); }
-  .ent-module .ent-table td:nth-child(n) { display: grid; }
+  .ent-module .ent-table td:nth-child(n), .ent-dialog-content .ent-table td:nth-child(n) { display: grid; }
   .ent-table td { gap: 2px; min-width: 0; height: auto; padding: 0; border: 0; overflow-wrap: break-word; }
   .ent-table td::before { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; }
   .ent-table td:last-child { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
@@ -386,7 +394,7 @@
   .ent-captura-table td:nth-child(1)::before { content: "Abonado"; }
   .ent-captura-table td:nth-child(2)::before { content: "Clave"; }
   .ent-captura-table td:nth-child(3)::before { content: "Motivo"; }
-  .ent-captura-table td:nth-child(4)::before { content: "Observación"; }
+  .ent-captura-table td:nth-child(4)::before { content: "¿Por qué no se entregó?"; }
   .ent-detalle-table td:nth-child(1)::before { content: "Abonado"; }
   .ent-detalle-table td:nth-child(2)::before { content: "Clave"; }
   .ent-detalle-table td:nth-child(3)::before { content: "Motivo"; }
