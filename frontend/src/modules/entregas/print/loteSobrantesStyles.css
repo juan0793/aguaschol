@@ -27,6 +27,8 @@
      y todo ese alto se pagina vacio. Con display:none el arbol de la app sale
      del FLUJO y el acta queda como unico contenido. */
   body.ent-imprimiendo-acta > #root { display: none !important; }
+  /* Sin el margen por defecto del body, que empujaba el acta a una segunda hoja. */
+  body.ent-imprimiendo-acta { margin: 0 !important; padding: 0 !important; }
 
   body.ent-imprimiendo-acta .ent-acta-portal {
     position: static !important;

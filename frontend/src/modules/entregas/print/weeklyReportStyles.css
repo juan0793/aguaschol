@@ -14,19 +14,29 @@
   --hoja-borde-suave: #e9eef4;
   --hoja-fondo: #f6f9fc;
   display: grid;
-  gap: 20px;
+  gap: 24mm;
+  padding: 10mm 0;
 }
 
+/* La hoja ES el área útil del papel, medida en milímetros, no la página entera:
+   196mm x 245mm entra en Letter y en A4 con los márgenes normales de impresión.
+   Antes se dimensionaba con `100vh`, que al imprimir no siempre resuelve al área
+   útil: cuando resolvía al alto del papel, cada hoja sobraba ~2cm, se partía en
+   dos páginas y la segunda salía recortada y pegada al borde superior.
+   El margen del papel se simula en pantalla con el anillo blanco del box-shadow,
+   así la vista previa enseña exactamente lo que cabe. */
 .ent-hoja {
-  display: flex;
-  width: 816px;
-  min-height: 1056px;
+  position: relative;
+  display: block;
+  width: 196mm;
+  min-height: 241mm;
   max-width: 100%;
-  flex-direction: column;
-  padding: 45px 38px;
+  /* El respiro superior es de la hoja, no del papel: si alguien imprime con
+     margenes «Ninguno», el encabezado no queda pegado al borde. */
+  padding: 4mm 0 12mm;
   margin: 0 auto;
   background: #fff;
-  box-shadow: 0 10px 30px rgba(16, 42, 67, .16);
+  box-shadow: 0 0 0 10mm #fff, 0 12px 30px rgba(16, 42, 67, .18);
   color: var(--hoja-tinta);
   font-size: 10.5px;
   line-height: 1.5;
@@ -42,11 +52,11 @@
 .ent-hoja-head p { color: var(--hoja-azul); font-size: 11px; font-weight: 650; }
 .ent-hoja-seccion-actual { position: absolute; top: 0; right: 0; padding: 3px 9px; border-radius: 999px; background: var(--hoja-fondo); color: var(--hoja-azul-profundo); font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 
-.ent-hoja-pie { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--hoja-borde); color: var(--hoja-tinta-suave); font-size: 9px; }
+.ent-hoja-pie { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; border-top: 1px solid var(--hoja-borde); color: var(--hoja-tinta-suave); font-size: 9px; }
 
 /* ---------- Ficha del documento ---------- */
-.ent-hoja-ficha { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-bottom: 14px; border: 1px solid var(--hoja-borde); border-radius: 6px; background: var(--hoja-borde-suave); overflow: hidden; }
-.ent-hoja-ficha > div { padding: 5px 10px; background: #fff; }
+.ent-hoja-ficha { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-bottom: 12px; border: 1px solid var(--hoja-borde); border-radius: 6px; background: var(--hoja-borde-suave); overflow: hidden; }
+.ent-hoja-ficha > div { padding: 4px 10px; background: #fff; }
 .ent-hoja-ficha span { display: block; color: var(--hoja-tinta-suave); font-size: 8.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .ent-hoja-ficha strong { display: block; margin-top: 1px; color: var(--hoja-tinta); font-size: 11px; font-weight: 650; }
 .ent-hoja-ficha.is-preview { border-color: #f0c98a; background: #f5e3c6; }
@@ -54,13 +64,13 @@
 .ent-hoja-ficha.is-preview > div:nth-child(n+5) strong { color: #8a5308; }
 
 /* ---------- Resumen ejecutivo ---------- */
-.ent-hoja-resumen { padding: 9px 13px; margin-bottom: 12px; border-left: 3px solid var(--hoja-azul); background: var(--hoja-fondo); break-inside: avoid; }
+.ent-hoja-resumen { padding: 8px 12px; margin-bottom: 10px; border-left: 3px solid var(--hoja-azul); background: var(--hoja-fondo); break-inside: avoid; }
 .ent-hoja-resumen h2 { margin: 0 0 5px; color: var(--hoja-azul-profundo); font-size: 11.5px; font-weight: 750; letter-spacing: .02em; text-transform: uppercase; }
-.ent-hoja-resumen p { color: #2a3a48; font-size: 10.5px; line-height: 1.45; }
+.ent-hoja-resumen p { color: #2a3a48; font-size: 10px; line-height: 1.4; }
 .ent-hoja-resumen p + p { margin-top: 4px; }
 
 /* ---------- Secciones ---------- */
-.ent-hoja-bloque { margin-bottom: 13px; break-inside: avoid; }
+.ent-hoja-bloque { margin-bottom: 11px; break-inside: avoid; }
 .ent-hoja-bloque.is-ancha { break-inside: auto; }
 .ent-hoja-bloque:last-of-type { margin-bottom: 0; }
 .ent-hoja-bloque-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding-bottom: 5px; margin-bottom: 9px; border-bottom: 1px solid var(--hoja-borde); }
@@ -72,7 +82,7 @@
 .ent-hoja-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 0; }
 .ent-hoja-kpis > div { padding: 8px 9px; border: 1px solid var(--hoja-borde); border-radius: 7px; background: #fff; }
 .ent-hoja-kpis dt { color: var(--hoja-tinta-suave); font-size: 8.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.ent-hoja-kpis dd { margin: 2px 0 0; color: var(--hoja-azul-profundo); font-size: 18px; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ent-hoja-kpis dd { margin: 1px 0 0; color: var(--hoja-azul-profundo); font-size: 16px; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .ent-hoja-kpis .is-destacado { border-color: var(--hoja-azul); background: #eef5ff; }
 .ent-kpi-delta { display: block; margin-top: 2px; font-size: 8.5px; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ent-kpi-delta.is-bueno { color: #0f6b4f; }
@@ -80,10 +90,10 @@
 .ent-kpi-delta.is-neutro, .ent-kpi-delta.is-igual { color: var(--hoja-tinta-suave); }
 
 /* ---------- Gráfico diario ---------- */
-.ent-hoja-grafico { margin: 0 0 10px; padding: 10px 12px 6px; border: 1px solid var(--hoja-borde); border-radius: 7px; }
+.ent-hoja-grafico { margin: 0 0 8px; padding: 8px 12px 5px; border: 1px solid var(--hoja-borde); border-radius: 7px; }
 .ent-hoja-grafico-bars { display: flex; align-items: flex-end; gap: 12px; padding-bottom: 5px; border-bottom: 1px solid var(--hoja-borde); }
 .ent-hoja-grafico-col { display: grid; flex: 1; justify-items: center; gap: 3px; min-width: 0; }
-.ent-hoja-grafico-plot { display: flex; width: 100%; height: 96px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
+.ent-hoja-grafico-plot { display: flex; width: 100%; height: 68px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
 .ent-hoja-grafico-valor { color: var(--hoja-azul-profundo); font-size: 9.5px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .ent-hoja-grafico-stack { display: flex; width: 100%; max-width: 74px; flex: 0 0 auto; flex-direction: column; justify-content: flex-end; gap: 2px; }
 .ent-hoja-grafico-stack i { display: block; width: 100%; }
@@ -105,7 +115,7 @@
 /* ---------- Tablas ---------- */
 .ent-hoja-tabla { width: 100%; border-collapse: collapse; }
 .ent-hoja-tabla th { padding: 5px 8px; border-bottom: 1.5px solid var(--hoja-azul-profundo); color: var(--hoja-azul-profundo); font-size: 9px; font-weight: 750; letter-spacing: .03em; text-align: left; text-transform: uppercase; }
-.ent-hoja-tabla td { padding: 4.5px 8px; border-bottom: 1px solid var(--hoja-borde-suave); font-size: 10px; }
+.ent-hoja-tabla td { padding: 4px 8px; border-bottom: 1px solid var(--hoja-borde-suave); font-size: 9.5px; }
 .ent-hoja-tabla tbody tr:nth-child(even) td { background: #fafcfe; }
 .ent-hoja-tabla .is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ent-hoja-tabla tr.is-tenue td { color: var(--hoja-tinta-suave); }
@@ -151,17 +161,18 @@
 .ent-hoja-nota { margin-top: 7px; color: var(--hoja-tinta-suave); font-size: 9.5px; }
 
 /* ---------- Firmas ---------- */
-.ent-hoja-firmas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; margin-top: 16px; padding-top: 4px; break-inside: avoid; }
+.ent-hoja-firmas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; margin-top: 12px; padding-top: 4px; break-inside: avoid; }
 .ent-hoja-firmas > div { text-align: center; }
-.ent-hoja-firmas i { display: block; height: 34px; border-bottom: 1px solid var(--hoja-tinta); }
+.ent-hoja-firmas i { display: block; height: 26px; border-bottom: 1px solid var(--hoja-tinta); }
 .ent-hoja-firmas span { display: block; padding-top: 5px; color: var(--hoja-tinta); font-size: 10px; font-weight: 700; }
 .ent-hoja-firmas small { display: block; color: var(--hoja-tinta-suave); font-size: 9px; }
 
 @media print {
-  /* El margen del papel lo fija styles.css (@page { margin: 12mm 10mm }) para
-     toda la aplicacion; aqui solo se declara el tamano. La hoja imprime sin
-     padding propio porque ese margen ya lo aporta la pagina. */
-  @page { size: letter portrait; }
+  /* Margen del papel declarado aqui mismo, sin depender del orden del bundle
+     frente al @page global de styles.css. No se fuerza el tamano: se respeta el
+     papel que tenga la impresora (Letter o A4); la hoja mide 196mm y entra en
+     los dos. */
+  @page { size: portrait; margin: 12mm 10mm; }
 
   /* Aislar el informe del resto de la aplicacion. `inset: 0` recortaba la hoja a
      la altura de una pagina: el informe salia impreso sin encabezado, sin
@@ -184,18 +195,16 @@
      informe o la hoja sale en blanco. */
   .ent-print-preview, .ent-print-preview * { visibility: visible !important; }
 
-  .ent-hojas { display: block; gap: 0; }
+  .ent-hojas { display: block; gap: 0; padding: 0; }
   /* En bloque, no en flex: Chrome fragmenta mal un contenedor flex entre paginas
      y se perdia el encabezado de la hoja. El pie se ancla abajo con posicion
      absoluta, que es lo que antes hacia `margin-top: auto`. */
+  /* Mismas medidas que en la vista previa: la hoja no se estira ni se encoge con
+     los margenes que elija el dialogo de impresion, asi el corte de pagina cae
+     siempre donde se veia en pantalla. */
   .ent-hoja {
-    position: relative;
-    display: block;
     width: auto;
-    /* Unos pixeles menos que la pagina: si la hoja mide exactamente 100vh, un
-       redondeo sub-pixel empuja una pagina extra casi en blanco. */
-    min-height: calc(100vh - 6px);
-    padding: 0 0 34px;
+    max-width: 196mm;
     box-shadow: none;
     break-after: page;
   }
@@ -204,7 +213,7 @@
      aplicacion). El encabezado y el pie de la hoja son justamente eso, un
      <header> y un <footer>, y salian invisibles: hay que devolverlos. */
   .ent-hoja-head { display: flex !important; }
-  .ent-hoja-pie { display: flex !important; position: absolute; left: 0; right: 0; bottom: 4px; margin-top: 0; }
+  .ent-hoja-pie { display: flex !important; }
   .ent-hoja-tabla thead { display: table-header-group; }
   .ent-hoja-tabla tr { break-inside: avoid; }
 
