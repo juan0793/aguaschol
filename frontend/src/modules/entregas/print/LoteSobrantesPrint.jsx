@@ -1,4 +1,5 @@
 import logoAguasCholuteca from "../../../assets/logo-aguas-choluteca.png";
+import { Seccion } from "./WeeklyReportBlocks";
 import {
   estadoDocumentoLabel,
   estadoLoteLabel,
@@ -24,9 +25,9 @@ export default function LoteSobrantesPrint({ lote, motivos = [], generadoEn }) {
       <article className="ent-hoja">
         <header className="ent-hoja-head">
           <img src={logoAguasCholuteca} alt="Aguas de Choluteca" />
-          <div>
-            <span>AGUAS DE CHOLUTECA</span>
-            <h1>ACTA DE DOCUMENTOS SOBRANTES</h1>
+          <div className="ent-hoja-head-texto">
+            <span>Aguas de Choluteca · Control de entregas</span>
+            <h1>Acta de documentos sobrantes</h1>
             <p>
               Lote #{lote.id} · {tipoDocumentoLabel(lote.tipo_documento)} · {formatDate(lote.fecha)}
             </p>
@@ -60,23 +61,27 @@ export default function LoteSobrantesPrint({ lote, motivos = [], generadoEn }) {
           </div>
         </section>
 
-        <section className="ent-hoja-kpis ent-hoja-kpis-3">
+        <dl className="ent-hoja-kpis ent-hoja-kpis-3">
           <div>
-            <span>Asignadas</span>
-            <strong>{formatNumber(lote.total_asignadas)}</strong>
+            <dt>Asignadas</dt>
+            <dd>{formatNumber(lote.total_asignadas)}</dd>
           </div>
           <div>
-            <span>Entregadas</span>
-            <strong>{formatNumber(lote.total_entregadas)}</strong>
+            <dt>Entregadas</dt>
+            <dd>{formatNumber(lote.total_entregadas)}</dd>
           </div>
           <div className="is-destacado">
-            <span>No entregadas</span>
-            <strong>{formatNumber(lote.total_sobrantes)}</strong>
+            <dt>No entregadas</dt>
+            <dd>{formatNumber(lote.total_sobrantes)}</dd>
           </div>
-        </section>
+        </dl>
 
-        <section className="ent-hoja-bloque ent-hoja-listado">
-          <h2>Detalle de documentos no entregados</h2>
+        <Seccion
+          ancha
+          titulo="Detalle de documentos no entregados"
+          descripcion="Documentos que regresan a la oficina junto con esta acta."
+          aside={`${formatNumber(documentos.length)} documentos`}
+        >
           {documentos.length ? (
             <table className="ent-hoja-tabla">
               <thead>
@@ -105,11 +110,10 @@ export default function LoteSobrantesPrint({ lote, motivos = [], generadoEn }) {
           ) : (
             <p className="ent-hoja-nota">Este lote no registra documentos sobrantes.</p>
           )}
-        </section>
+        </Seccion>
 
         {lote.observacion_inicial || lote.observacion_responsable ? (
-          <section className="ent-hoja-bloque">
-            <h2>Observaciones</h2>
+          <Seccion titulo="Observaciones">
             <ul className="ent-hoja-observaciones">
               {lote.observacion_inicial ? (
                 <li>
@@ -124,21 +128,24 @@ export default function LoteSobrantesPrint({ lote, motivos = [], generadoEn }) {
                 </li>
               ) : null}
             </ul>
-          </section>
+          </Seccion>
         ) : null}
 
         <section className="ent-hoja-firmas">
           <div>
             <i />
-            <span>Entrega — {lote.responsable_nombre || "responsable del recorrido"}</span>
+            <span>Entrega</span>
+            <small>{lote.responsable_nombre || "Responsable del recorrido"}</small>
           </div>
           <div>
             <i />
-            <span>Recibe — oficina de Control de Entregas</span>
+            <span>Recibe</span>
+            <small>Oficina de Control de Entregas</small>
           </div>
           <div>
             <i />
             <span>Fecha de recepción</span>
+            <small>Día / mes / año</small>
           </div>
         </section>
 

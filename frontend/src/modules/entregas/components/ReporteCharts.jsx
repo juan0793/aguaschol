@@ -69,27 +69,6 @@ export function GraficoPorDia({ rows = [] }) {
   );
 }
 
-export function GraficoEfectividadResponsable({ rows = [] }) {
-  const datos = rows.slice(0, 8);
-
-  return (
-    <figure className="ent-chart">
-      <figcaption>Efectividad por responsable</figcaption>
-      <ul className="ent-chart-rows">
-        {datos.map((fila) => (
-          <li key={fila.responsable_id || fila.responsable_nombre}>
-            <span>{fila.responsable_nombre}</span>
-            <i>
-              <em style={{ width: `${Math.min(fila.efectividad, 100)}%` }} />
-            </i>
-            <strong>{formatPercent(fila.efectividad)}</strong>
-          </li>
-        ))}
-        {!datos.length ? <li className="ent-chart-empty">Sin lotes en el período.</li> : null}
-      </ul>
-    </figure>
-  );
-}
 
 // Ordenado por sobrante absoluto, que es lo que se pregunta ("donde hubo mas"),
 // pero con la tasa al lado: un barrio grande siempre suma mas en terminos brutos.
@@ -121,31 +100,6 @@ export function GraficoBarriosSobrantes({ rows = [], onSelect }) {
           </li>
         ))}
         {!datos.length ? <li className="ent-chart-empty">Sin sobrantes registrados en el período.</li> : null}
-      </ul>
-    </figure>
-  );
-}
-
-export function GraficoMotivos({ rows = [] }) {
-  const datos = rows.slice(0, 6);
-  const maximo = Math.max(1, ...datos.map((fila) => fila.total));
-
-  return (
-    <figure className="ent-chart">
-      <figcaption>Principales motivos de no entrega</figcaption>
-      <ul className="ent-chart-rows">
-        {datos.map((fila) => (
-          <li key={fila.motivo}>
-            <span>{fila.motivo_etiqueta}</span>
-            <i>
-              <em style={{ width: `${(fila.total / maximo) * 100}%` }} />
-            </i>
-            <strong>
-              {formatNumber(fila.total)} · {formatPercent(fila.porcentaje)}
-            </strong>
-          </li>
-        ))}
-        {!datos.length ? <li className="ent-chart-empty">Sin documentos no entregados.</li> : null}
       </ul>
     </figure>
   );

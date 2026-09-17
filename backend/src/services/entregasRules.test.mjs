@@ -5,8 +5,11 @@ import {
   agruparPorMotivo,
   agruparPorResponsable,
   assertPuedeAgregarNoEntregadas,
+  calcularDestacados,
   calcularEfectividad,
   calcularEntregadas,
+  compararIndicador,
+  compararPeriodos,
   construirCorreccion,
   construirSnapshotSemanal,
   contarNoEntregadasActivas,
@@ -16,6 +19,7 @@ import {
   listarDiasDelRango,
   lotesParaRevisar,
   parsearPegadoNoEntregadas,
+  periodoAnterior,
   semanaPorDefecto,
   validarConsistenciaDetalle,
   validarMotivo,
@@ -302,4 +306,132 @@ test("una corrección crea una versión nueva encadenada al original", () => {
   assert.throws(() => construirCorreccion({ id: 9, estado: "ANULADO" }), /anulado/);
   assert.equal(etiquetarVersion({ version: 1 }), "Versión 1");
   assert.equal(etiquetarVersion({ version: 2 }), "Versión 2 - corregida");
+});
+
+test("el comparativo lee la efectividad en puntos y el volumen en porcentaje", () => {
+  const entregadas = compararIndicador("entregadas", 1330, 1100);
+  assert.equal(entregadas.diferencia, 230);
+  assert.equal(entregadas.variacion, 20.9);
+  assert.equal(entregadas.direccion, "sube");
+  assert.equal(entregadas.mejora, true);
+
+  // La efectividad no se compara como "% de un %": son puntos porcentuales.
+  const efectividad = compararIndicador("efectividad", 72.8, 78);
+  assert.equal(efectividad.unidad, "puntos");
+  assert.equal(efectividad.diferencia, -5.2);
+  assert.equal(efectividad.variacion, null);
+  assert.equal(efectividad.mejora, false);
+
+  // Más pendientes nunca es una mejora, aunque el número suba.
+  assert.equal(compararIndicador("pendientes", 63, 40).mejora, false);
+  assert.equal(compararIndicador("pendientes", 20, 40).mejora, true);
+  // Las asignadas no son buenas ni malas por sí solas.
+  assert.equal(compararIndicador("asignadas", 1827, 1500).mejora, null);
+  assert.equal(compararIndicador("entregadas", 100, 100).direccion, "igual");
+  // Sin base anterior no se inventa un porcentaje de variación.
+  assert.equal(compararIndicador("entregadas", 100, 0).variacion, null);
+});
+
+test("sin datos del periodo anterior el comparativo no se dibuja", () => {
+  assert.equal(compararPeriodos({ totales: { asignadas: 10 } }), null);
+  const vacio = compararPeriodos({
+    totales: { asignadas: 10, efectividad: 50 },
+    totalesAnteriores: { asignadas: 0, lotes: 0, efectividad: 0 },
+    periodoAnterior: { fecha_inicio: "2026-08-10", fecha_fin: "2026-08-14" }
+  });
+  assert.equal(vacio.con_datos, false);
+  assert.equal(vacio.periodo.fecha_inicio, "2026-08-10");
+});
+
+test("los destacados señalan a quién felicitar y dónde apoyar", () => {
+  const destacados = calcularDestacados({
+    por_responsable: [
+      { responsable_nombre: "Carlos", asignadas: 100, entregadas: 95, pendientes: 5, efectividad: 95 },
+      { responsable_nombre: "José", asignadas: 80, entregadas: 40, pendientes: 40, efectividad: 50 },
+      { responsable_nombre: "Sin lotes", asignadas: 0, entregadas: 0, pendientes: 0, efectividad: 0 }
+    ],
+    por_barrio: [
+      { barrio_nombre: "Campo Sol", asignadas: 100, pendientes: 5, efectividad: 95 },
+      { barrio_nombre: "San Juan", asignadas: 80, pendientes: 40, efectividad: 50 }
+    ],
+    por_dia: [
+      { fecha: "2026-08-17", asignadas: 100, efectividad: 95 },
+      { fecha: "2026-08-18", asignadas: 80, efectividad: 50 },
+      { fecha: "2026-08-19", asignadas: 0, efectividad: 0 }
+    ],
+    totales: { pendientes: 45 }
+  });
+
+  assert.equal(destacados.mejor_responsable.responsable_nombre, "Carlos");
+  assert.equal(destacados.responsable_a_reforzar.responsable_nombre, "José");
+  assert.equal(destacados.barrio_critico.barrio_nombre, "San Juan");
+  assert.equal(destacados.mejor_dia.fecha, "2026-08-17");
+  assert.equal(destacados.dia_mas_bajo.fecha, "2026-08-18");
+  // Un día sin reparto no cuenta como el peor día.
+  assert.equal(destacados.dias_trabajados, 2);
+  assert.equal(destacados.barrios_bajo_umbral, 1);
+  assert.deepEqual(destacados.concentracion_pendientes, {
+    barrio_nombre: "San Juan",
+    pendientes: 40,
+    porcentaje: 88.9
+  });
+});
+
+test("con un solo responsable no se inventa a quién reforzar", () => {
+  const destacados = calcularDestacados({
+    por_responsable: [{ responsable_nombre: "Carlos", asignadas: 100, entregadas: 95, pendientes: 0, efectividad: 95 }],
+    por_barrio: [],
+    por_dia: [],
+    totales: { pendientes: 0 }
+  });
+  assert.equal(destacados.mejor_responsable.responsable_nombre, "Carlos");
+  assert.equal(destacados.responsable_a_reforzar, null);
+  assert.equal(destacados.barrio_critico, null);
+  assert.equal(destacados.mejor_dia, null);
+  assert.equal(destacados.concentracion_pendientes, null);
+});
+
+test("el snapshot v2 incluye comparativo con la semana previa y destacados", () => {
+  const snapshot = construirSnapshotSemanal({
+    fecha_inicio: "2026-08-17",
+    fecha_fin: "2026-08-21",
+    lotes,
+    noEntregadas,
+    lotes_anteriores: [{ ...lotes[0], id: 90, fecha: "2026-08-10", total_asignadas: 100, total_sobrantes: 30, estado: "CERRADO" }],
+    no_entregadas_anteriores: [],
+    periodo_anterior: { fecha_inicio: "2026-08-10", fecha_fin: "2026-08-14" }
+  });
+
+  assert.equal(snapshot.snapshot_version, 2);
+  assert.equal(snapshot.comparativo.con_datos, true);
+  assert.equal(snapshot.comparativo.totales.asignadas, 100);
+  const efectividad = snapshot.comparativo.indicadores.find((item) => item.clave === "efectividad");
+  assert.equal(efectividad.anterior, 70);
+  assert.equal(efectividad.actual, 60);
+  assert.equal(efectividad.mejora, false);
+  assert.equal(snapshot.destacados.mejor_responsable.responsable_nombre, "Carlos Martínez");
+
+  // Un informe sin periodo previo cargado sigue siendo válido: solo no compara.
+  const solo = construirSnapshotSemanal({ fecha_inicio: "2026-08-17", fecha_fin: "2026-08-21", lotes, noEntregadas });
+  assert.equal(solo.comparativo, null);
+  assert.ok(solo.destacados);
+});
+
+test("el informe se compara contra la misma semana laboral anterior, no contra el fin de semana", () => {
+  // Lunes 14 a viernes 18 -> lunes 7 a viernes 11, no miércoles 9 a domingo 13.
+  assert.deepEqual(periodoAnterior({ fecha_inicio: "2026-09-14", fecha_fin: "2026-09-18" }), {
+    fecha_inicio: "2026-09-07",
+    fecha_fin: "2026-09-11"
+  });
+  // Una semana completa cae en la semana completa anterior.
+  assert.deepEqual(periodoAnterior({ fecha_inicio: "2026-09-14", fecha_fin: "2026-09-20" }), {
+    fecha_inicio: "2026-09-07",
+    fecha_fin: "2026-09-13"
+  });
+  // Un rango largo sí se corre su propio largo (quincena contra quincena).
+  assert.deepEqual(periodoAnterior({ fecha_inicio: "2026-09-01", fecha_fin: "2026-09-15" }), {
+    fecha_inicio: "2026-08-17",
+    fecha_fin: "2026-08-31"
+  });
+  assert.equal(periodoAnterior({}), null);
 });

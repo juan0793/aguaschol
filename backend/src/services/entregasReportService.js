@@ -16,6 +16,7 @@ import {
   etiquetarVersion,
   fail,
   lotesParaRevisar,
+  periodoAnterior,
   semanaPorDefecto,
   toEntero,
   toIsoDate
@@ -114,13 +115,20 @@ const cargarDatosDelPeriodo = async ({ fecha_inicio, fecha_fin, tipo_documento =
 // Devuelve tambien los lotes crudos del periodo: generarReporteSemanal y
 // generarCorreccion los necesitan para decidir cuales pasan a REVISADO.
 const construirDesdeDatos = async (opciones, user) => {
-  const { lotes, noEntregadas } = await cargarDatosDelPeriodo(opciones);
-  const catalogoMotivos = await listMotivos({ soloActivos: false });
+  const anterior = periodoAnterior(opciones);
+  const [{ lotes, noEntregadas }, previos, catalogoMotivos] = await Promise.all([
+    cargarDatosDelPeriodo(opciones),
+    cargarDatosDelPeriodo({ ...anterior, tipo_documento: opciones.tipo_documento }),
+    listMotivos({ soloActivos: false })
+  ]);
 
   const snapshot = construirSnapshotSemanal({
     ...opciones,
     lotes,
     noEntregadas,
+    lotes_anteriores: previos.lotes,
+    no_entregadas_anteriores: previos.noEntregadas,
+    periodo_anterior: anterior,
     catalogoMotivos,
     generado_por: user?.id ?? null,
     generado_por_nombre: user?.full_name || user?.username || "",

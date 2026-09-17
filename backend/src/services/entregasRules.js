@@ -526,11 +526,126 @@ export const calcularTotales = (lotes = [], noEntregadas = []) => {
   };
 };
 
+// Contra qué período se compara el informe. Un informe semanal de lunes a
+// viernes debe medirse contra el mismo lunes a viernes de la semana pasada, no
+// contra los cinco días calendario anteriores: eso caería sobre el fin de
+// semana, donde no hay reparto, y haría ver cualquier semana como un salto.
+// Para rangos más largos (una quincena, un mes) sí se corre el largo del rango.
+export const periodoAnterior = ({ fecha_inicio, fecha_fin } = {}) => {
+  const inicio = toIsoDate(fecha_inicio);
+  const fin = toIsoDate(fecha_fin);
+  if (!inicio || !fin) return null;
+  const dias = diffInDays(inicio, fin) + 1;
+  const corrimiento = dias <= 7 ? 7 : dias;
+  return { fecha_inicio: addDays(inicio, -corrimiento), fecha_fin: addDays(fin, -corrimiento) };
+};
+
+/* -------------------------------------------------------------------------- */
+/* Comparativo y destacados del informe                                        */
+/* -------------------------------------------------------------------------- */
+
+// Que significa "mejorar" en cada indicador: subir las entregas es bueno, subir
+// los pendientes no. El informe lo usa para pintar la flecha del lado correcto.
+const METRICAS_COMPARADAS = [
+  { clave: "asignadas", etiqueta: "Asignadas", subirEsBueno: null, unidad: "documentos" },
+  { clave: "entregadas", etiqueta: "Entregadas", subirEsBueno: true, unidad: "documentos" },
+  { clave: "no_entregadas", etiqueta: "No entregadas", subirEsBueno: false, unidad: "documentos" },
+  { clave: "pendientes", etiqueta: "Pendientes", subirEsBueno: false, unidad: "documentos" },
+  { clave: "efectividad", etiqueta: "Efectividad", subirEsBueno: true, unidad: "puntos" }
+];
+
+const redondearUno = (valor) => Math.round((Number(valor) || 0) * 10) / 10;
+
+// Variacion de un indicador frente al mismo indicador del periodo anterior.
+// La efectividad se compara en puntos porcentuales (no en % de un %), que es
+// como se lee un informe: "subio 5.2 puntos", no "subio 7.6%".
+export const compararIndicador = (clave, actual, anterior) => {
+  const meta = METRICAS_COMPARADAS.find((item) => item.clave === clave) || { clave, subirEsBueno: null, unidad: "documentos" };
+  const valorActual = redondearUno(actual);
+  const valorAnterior = redondearUno(anterior);
+  const diferencia = redondearUno(valorActual - valorAnterior);
+  const direccion = diferencia > 0 ? "sube" : diferencia < 0 ? "baja" : "igual";
+  const variacion = meta.unidad === "puntos" || !valorAnterior
+    ? null
+    : redondearUno(((valorActual - valorAnterior) / valorAnterior) * 100);
+
+  return {
+    clave,
+    etiqueta: meta.etiqueta || clave,
+    unidad: meta.unidad,
+    actual: valorActual,
+    anterior: valorAnterior,
+    diferencia,
+    variacion,
+    direccion,
+    // null cuando el indicador no es "bueno" ni "malo" por si solo (asignadas).
+    mejora: meta.subirEsBueno === null || diferencia === 0 ? null : diferencia > 0 === meta.subirEsBueno
+  };
+};
+
+// Sin datos del periodo anterior devuelve null: el informe simplemente no dibuja
+// la comparacion, en vez de inventar un cero como punto de partida.
+export const compararPeriodos = ({ totales, totalesAnteriores, periodoAnterior } = {}) => {
+  if (!totales || !totalesAnteriores) return null;
+  return {
+    periodo: {
+      fecha_inicio: toIsoDate(periodoAnterior?.fecha_inicio),
+      fecha_fin: toIsoDate(periodoAnterior?.fecha_fin)
+    },
+    con_datos: toEntero(totalesAnteriores.asignadas) > 0 || toEntero(totalesAnteriores.lotes) > 0,
+    totales: totalesAnteriores,
+    indicadores: METRICAS_COMPARADAS.map((meta) =>
+      compararIndicador(meta.clave, totales[meta.clave], totalesAnteriores[meta.clave])
+    )
+  };
+};
+
+// Lecturas que un jefe busca primero y que hoy habia que deducir leyendo tablas:
+// quien rindio mejor, quien necesita apoyo, que barrio se atoro y como se movio
+// la semana dia a dia. Todo sale de las agrupaciones ya calculadas.
+export const calcularDestacados = ({ por_responsable = [], por_barrio = [], por_dia = [], totales = {} } = {}) => {
+  const responsables = por_responsable.filter((fila) => toEntero(fila.asignadas) > 0);
+  const barrios = por_barrio.filter((fila) => toEntero(fila.asignadas) > 0);
+  const dias = por_dia.filter((fila) => toEntero(fila.asignadas) > 0);
+  const porEfectividad = (lista) => [...lista].sort((left, right) => right.efectividad - left.efectividad);
+
+  const responsablesOrdenados = porEfectividad(responsables);
+  const diasOrdenados = porEfectividad(dias);
+  const barriosPorPendiente = [...barrios].sort(
+    (left, right) => right.pendientes - left.pendientes || left.efectividad - right.efectividad
+  );
+  const pendientesTotales = toEntero(totales.pendientes);
+  const barrioConcentrado = barriosPorPendiente[0];
+
+  return {
+    mejor_responsable: responsablesOrdenados[0] || null,
+    responsable_a_reforzar: responsablesOrdenados.length > 1 ? responsablesOrdenados[responsablesOrdenados.length - 1] : null,
+    mejor_dia: diasOrdenados[0] || null,
+    dia_mas_bajo: diasOrdenados.length > 1 ? diasOrdenados[diasOrdenados.length - 1] : null,
+    barrio_critico: barrios.length
+      ? [...barrios].sort((left, right) => left.efectividad - right.efectividad)[0]
+      : null,
+    concentracion_pendientes:
+      barrioConcentrado && pendientesTotales > 0 && toEntero(barrioConcentrado.pendientes) > 0
+        ? {
+          barrio_nombre: barrioConcentrado.barrio_nombre,
+          pendientes: toEntero(barrioConcentrado.pendientes),
+          porcentaje: redondearUno((toEntero(barrioConcentrado.pendientes) / pendientesTotales) * 100)
+        }
+        : null,
+    barrios_bajo_umbral: barrios.filter((fila) => fila.efectividad < UMBRAL_EFECTIVIDAD_BAJA).length,
+    dias_trabajados: dias.length
+  };
+};
+
 /* -------------------------------------------------------------------------- */
 /* Snapshot semanal                                                            */
 /* -------------------------------------------------------------------------- */
 
-export const SNAPSHOT_VERSION = 1;
+// v2 agrega `comparativo` (periodo anterior de igual longitud) y `destacados`.
+// Los informes archivados con v1 no los traen: quien los lea debe tolerar su
+// ausencia en vez de recalcularlos, porque un snapshot no se reescribe.
+export const SNAPSHOT_VERSION = 2;
 
 // Construye la "foto cerrada" de la semana. Guarda nombres ademas de IDs para que
 // un cambio posterior de responsable o barrio no altere el historico.
@@ -544,12 +659,24 @@ export const construirSnapshotSemanal = ({
   generado_por = null,
   generado_por_nombre = "",
   generado_en = "",
-  incluir_anexo_pendientes = false
+  incluir_anexo_pendientes = false,
+  lotes_anteriores = null,
+  no_entregadas_anteriores = null,
+  periodo_anterior = null
 } = {}) => {
   const fechaCorte = toIsoDate(fecha_fin);
   const totales = calcularTotales(lotes, noEntregadas);
   const por_barrio = agruparPorBarrio(lotes, noEntregadas);
+  const por_responsable = agruparPorResponsable(lotes, noEntregadas);
+  const por_dia = agruparPorDia(lotes, noEntregadas, fecha_inicio, fecha_fin);
   const pendientesPrioritarios = calcularPendientesPrioritarios(noEntregadas, fechaCorte, catalogoMotivos);
+  const comparativo = Array.isArray(lotes_anteriores)
+    ? compararPeriodos({
+      totales,
+      totalesAnteriores: calcularTotales(lotes_anteriores, no_entregadas_anteriores || []),
+      periodoAnterior: periodo_anterior
+    })
+    : null;
 
   return {
     snapshot_version: SNAPSHOT_VERSION,
@@ -565,11 +692,13 @@ export const construirSnapshotSemanal = ({
       generado_en: generado_en || new Date().toISOString()
     },
     totales,
+    comparativo,
+    destacados: calcularDestacados({ por_responsable, por_barrio, por_dia, totales }),
     por_tipo_documento: agruparPorTipoDocumento(lotes, noEntregadas),
-    por_responsable: agruparPorResponsable(lotes, noEntregadas),
+    por_responsable,
     por_barrio,
     por_motivo: agruparPorMotivo(noEntregadas, catalogoMotivos),
-    por_dia: agruparPorDia(lotes, noEntregadas, fecha_inicio, fecha_fin),
+    por_dia,
     observaciones: recolectarObservaciones(lotes),
     indicadores_atencion: calcularIndicadoresAtencion({
       lotes,

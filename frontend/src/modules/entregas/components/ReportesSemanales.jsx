@@ -97,7 +97,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
 
   const descargarPdf = async () => {
     try {
-      await descargarReporteSemanalPdf(vista?.snapshot, { incluirAnexo });
+      await descargarReporteSemanalPdf(vista?.snapshot, { incluirAnexo, meta: vista?.meta });
     } catch (error) {
       notify(`No fue posible generar el PDF: ${error.message}`);
     }
@@ -231,7 +231,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
               Calculando informe…
             </p>
           ) : (
-            <WeeklyReportPrint snapshot={vista?.snapshot} incluirAnexo={incluirAnexo} />
+            <WeeklyReportPrint snapshot={vista?.snapshot} meta={vista?.meta} incluirAnexo={incluirAnexo} />
           )}
         </div>
       </div>
