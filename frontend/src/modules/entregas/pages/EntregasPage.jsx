@@ -105,12 +105,15 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     const actualizar = () => {
       if (document.visibilityState !== "visible") return;
       cargarLotesAbiertosPrevios();
+      // La barra de avance se mueve mientras los tecnicos cierran: entra al
+      // mismo pulso (no hace nada si la vista Hoy no esta abierta).
+      avance.reload();
       api.config().then(setConfig).catch(() => {});
     };
     const timer = setInterval(actualizar, 60_000);
     window.addEventListener("focus", actualizar);
     return () => { clearInterval(timer); window.removeEventListener("focus", actualizar); };
-  }, [api, Boolean(config), cargarLotesAbiertosPrevios]);
+  }, [api, avance.reload, Boolean(config), cargarLotesAbiertosPrevios]);
 
   const abrirDetalle = useCallback(async (lote) => {
     try { setLoteDetalle(await api.lote(lote.id)); }

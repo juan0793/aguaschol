@@ -79,7 +79,7 @@ export default function AvanceJornada({ model, fecha, onVerAnteriores }) {
         <BarraAvance avance={previo} etiqueta="Acumulado anterior" />
         <div className="ent-avance-cifra">
           <strong>{formatPercent(previo.avance)}</strong>
-          <span>{previo.abiertos ? `${formatNumber(previo.abiertos)} sin cerrar` : "Todo cerrado"}</span>
+          <span>{previo.lotes ? (previo.abiertos ? `${formatNumber(previo.abiertos)} sin cerrar` : "Todo cerrado") : "Sin lotes anteriores"}</span>
         </div>
         {onVerAnteriores ? (
           <button type="button" className="cl-quiet ent-avance-ver" onClick={onVerAnteriores}>
