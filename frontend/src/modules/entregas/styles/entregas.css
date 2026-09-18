@@ -224,6 +224,9 @@
 .ent-resumen-documento span { color: var(--muted); font-size: 12px; font-weight: 700; }
 .ent-resumen-documento strong { color: var(--navy); }
 .ent-timeline small { display: block; color: var(--muted); }
+/* El punto de .cl-history se sustituye por el glifo de estado (StatusMark). */
+.cl-history.ent-timeline li:not(.is-empty) { grid-template-columns: 18px 1fr; align-items: start; }
+.ent-timeline .status-mark { margin-top: 2px; color: var(--muted); }
 .ent-seguimiento-footer { justify-content: stretch; }
 .ent-seguimiento-footer button { flex: 1; }
 

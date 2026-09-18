@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
+import HoldButton from "../../../components/micro/HoldButton";
 import InspeccionGpsPanel from "./InspeccionGpsPanel";
 import InspeccionPrintPreview from "./InspeccionPrintPreview";
 import CorregirOrtografia, { SPELLCHECK_PROPS } from "./CorregirOrtografia";
@@ -142,8 +143,8 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
     if (await guardarPendiente()) onClose();
   };
 
+  // La confirmación es el gesto sostenido del HoldButton, no un window.confirm.
   const eliminar = async () => {
-    if (!window.confirm(`¿Eliminar definitivamente la inspección ${inspeccion.numero_inspeccion}?`)) return;
     if (deleting || !(await guardarPendiente())) return;
     setDeleting(true);
     try {
@@ -419,7 +420,18 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
         </div>
         <footer>
           <div className="cl-drawer-main-actions">
-            {isAdmin ? <button type="button" className="cl-danger" onClick={eliminar} disabled={saving || finalizing || deleting}>{deleting ? "Eliminando…" : "Eliminar inspección"}</button> : null}
+            {isAdmin ? (
+              <HoldButton
+                icon={<Icon name="trash" />}
+                size="md"
+                doneLabel="Eliminando…"
+                disabled={saving || finalizing || deleting}
+                onHold={eliminar}
+                onTap={() => notify(`Mantén presionado para eliminar la inspección ${inspeccion.numero_inspeccion}.`)}
+              >
+                {deleting ? "Eliminando…" : "Mantener para eliminar"}
+              </HoldButton>
+            ) : null}
             <button type="button" className="cl-secondary" onClick={cerrar} disabled={saving || finalizing || deleting}>Cerrar</button>
           </div>
         </footer>

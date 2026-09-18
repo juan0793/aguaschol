@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../Icon";
+import HoldButton from "../micro/HoldButton";
 import {
   Dialog,
   DialogContent,
@@ -72,8 +73,8 @@ function TelegramAccessPanel({ apiFetch, formatDateTime, showAlert }) {
     }
   };
 
+  // La confirmación es el gesto sostenido del HoldButton, no un window.confirm.
   const removeChat = async (chat) => {
-    if (!window.confirm(`¿Eliminar el chat ${chat.display_name || chat.chat_id}?`)) return;
     setSavingId(chat.id);
     try {
       const response = await apiFetch(`/users/telegram-chats/${chat.id}`, { method: "DELETE" });
@@ -169,9 +170,16 @@ function TelegramAccessPanel({ apiFetch, formatDateTime, showAlert }) {
                   <Icon name="auth" />Revocar
                 </button>
               )}
-              <button type="button" className="button-danger" onClick={() => removeChat(chat)} disabled={savingId === chat.id}>
-                Eliminar
-              </button>
+              <HoldButton
+                icon={<Icon name="trash" />}
+                size="md"
+                doneLabel="Eliminando…"
+                disabled={savingId === chat.id}
+                onHold={() => removeChat(chat)}
+                onTap={() => showAlert(`Mantén presionado para eliminar el chat ${chat.display_name || chat.chat_id}.`)}
+              >
+                Mantener para eliminar
+              </HoldButton>
             </div>
           </article>
         ))}
