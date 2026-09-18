@@ -8,6 +8,7 @@ Componentes de gesto y estado adaptados de [React Bits](https://reactbits.dev)
 | Componente | Para que sirve | Donde se usa hoy |
 | --- | --- | --- |
 | `HoldButton` | Confirmar una accion irreversible manteniendo presionado, en lugar de `window.confirm` | Eliminar inspeccion, eliminar chat de Telegram |
+| `SlideCommit` | Confirmar con un deslizamiento completo y reflejar el resultado de la promesa (pendiente, hecho, fallo) | Cierre de lote en Control de Entregas |
 | `SpringCheck` | Casilla de seleccion con respuesta visible en listados densos | Bandeja de fichas clandestinas |
 | `StatusMark` | Glifo de estado (espera, proceso, exito, fallo) para bitacoras | Linea de tiempo de intentos de entrega |
 
@@ -17,6 +18,8 @@ Componentes de gesto y estado adaptados de [React Bits](https://reactbits.dev)
 usan solo donde el gesto o el glifo cumplen una funcion:
 
 - Confirmacion deliberada de algo que no se puede deshacer.
+- Acciones largas cuyo resultado el usuario necesita ver (el cierre de lote
+  guarda el detalle y luego cierra: la promesa mueve el control).
 - Lectura rapida de estado en una lista larga.
 - Feedback de seleccion en tablas densas.
 
@@ -41,6 +44,12 @@ no los deforman. Fuente: `src/qa/microPreview.jsx`.
   `components/Icon.jsx`.
 - Textos de lector de pantalla y etiquetas por defecto en espanol.
 - `HoldButton` sin brillo ni cresta de ola por defecto, radio de 8px.
+- `SlideCommit` con pista clara y radio de 10px en lugar de la pastilla oscura
+  del original; `width="fill"` mide el hueco real con ResizeObserver para
+  funcionar igual en el cajon de escritorio (280px) y en movil (a lo ancho), y
+  la etiqueta se centra en el espacio libre para no chocar con la capsula.
+  Acepta `describedBy` y `title` para conservar la explicacion de por que el
+  cierre esta bloqueado.
 - Reglas `@media print` para que nada quede a medio animar en papel.
 - Se conservan intactas las rutas de accesibilidad del original: teclado,
   `prefers-reduced-motion`, `prefers-contrast` y textos para lector de pantalla.

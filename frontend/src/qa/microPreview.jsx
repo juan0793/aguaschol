@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import HoldButton from "../components/micro/HoldButton";
 import SpringCheck from "../components/micro/SpringCheck";
+import SlideCommit from "../components/micro/SlideCommit";
 import StatusMark from "../components/micro/StatusMark";
 import { Icon } from "../components/Icon";
 import "../styles.css";
@@ -93,6 +94,51 @@ function Preview() {
           <HoldButton size="md" disabled>
             Deshabilitado
           </HoldButton>
+        </div>
+      </section>
+
+      <section>
+        <h2>SlideCommit: confirmación, fallo y bloqueo</h2>
+        <div style={{ display: "grid", gap: 14, maxWidth: 420 }}>
+          <SlideCommit
+            label="Desliza para cerrar el lote"
+            doneLabel="Lote cerrado"
+            width="fill"
+            onConfirm={() => new Promise((resolve) => setTimeout(resolve, 900))}
+          />
+          <SlideCommit
+            label="Desliza (este falla)"
+            errorLabel="No se pudo cerrar el lote"
+            width="fill"
+            onConfirm={() => new Promise((_, reject) => setTimeout(() => reject(new Error("fallo")), 900))}
+          />
+          <SlideCommit label="Bloqueado por el motivo de arriba" width="fill" disabled />
+        </div>
+      </section>
+
+      <section>
+        <h2>Pie real del cierre de lote (.ent-drawer-footer)</h2>
+        <div className="ent-module" style={{ display: "grid", gap: 16 }}>
+          <footer className="ent-drawer-footer" style={{ position: "static", border: "1px solid #dce6ef" }}>
+            <button type="button" className="cl-secondary">
+              Guardar detalle
+            </button>
+            <div className="ent-cerrar-wrap">
+              <SlideCommit label="Desliza para cerrar el lote" doneLabel="Lote cerrado" width="fill" onConfirm={() => {}} />
+            </div>
+          </footer>
+          <footer className="ent-drawer-footer" style={{ position: "static", border: "1px solid #dce6ef" }}>
+            <button type="button" className="cl-secondary">
+              Guardar detalle
+            </button>
+            <div className="ent-cerrar-wrap">
+              <p className="cl-alert ent-cerrar-motivo" role="status">
+                No se puede cerrar todavía: Declaraste 3 sobrante(s) y llevas 1 identificado(s): falta(n) 2 documento(s)
+                por registrar.
+              </p>
+              <SlideCommit label="Desliza para cerrar el lote" width="fill" disabled />
+            </div>
+          </footer>
         </div>
       </section>
 

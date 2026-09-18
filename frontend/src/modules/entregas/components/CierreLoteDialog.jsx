@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
+import SlideCommit from "../../../components/micro/SlideCommit";
 import {
   estadoClass,
   estadoDocumentoLabel,
@@ -22,6 +23,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const [pegado, setPegado] = useState("");
   const [modo, setModo] = useState("manual");
   const [guardando, setGuardando] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
   const [buscando, setBuscando] = useState(-1);
   const [duplicadosConfirmados, setDuplicadosConfirmados] = useState(false);
 
@@ -181,25 +183,34 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     }
   };
 
+  // El cierre lo dispara un deslizador que refleja el resultado: si la promesa
+  // falla, el control marca el error y regresa solo. Por eso `cerrar` propaga
+  // la excepcion en lugar de tragarsela, y marca las que ya fueron avisadas
+  // para no mostrar dos veces el mismo motivo.
+  const yaAvisado = (mensaje) => Object.assign(new Error(mensaje), { avisado: true });
+
   const cerrar = async () => {
-    if (guardando) return;
+    if (guardando) throw yaAvisado("Espera a que termine la operación en curso.");
     if (motivoBloqueo) {
       notify(motivoBloqueo);
-      return;
+      throw yaAvisado(motivoBloqueo);
     }
     setGuardando(true);
+    setCerrando(true);
     try {
-      const ok = await guardarNuevas();
-      if (!ok) return;
+      // guardarNuevas ya explica el motivo cuando devuelve false.
+      if (!(await guardarNuevas())) throw yaAvisado("Revisa el detalle antes de cerrar.");
       const actualizado = await api.cerrarLote(lote.id, {
         total_sobrantes: Number(sobrantes),
         observacion_responsable: observacion
       });
       onSaved(actualizado);
     } catch (error) {
-      notify(error.message);
+      if (!error.avisado) notify(error.message);
+      throw error;
     } finally {
       setGuardando(false);
+      setCerrando(false);
     }
   };
 
@@ -515,17 +526,16 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                 No se puede cerrar todavía: {motivoBloqueo}
               </p>
             ) : null}
-            <button
-              type="button"
-              className="cl-primary"
-              onClick={cerrar}
-              disabled={!puedeCerrar}
+            <SlideCommit
+              label="Desliza para cerrar el lote"
+              doneLabel="Lote cerrado"
+              errorLabel="No se pudo cerrar el lote"
+              width="fill"
+              onConfirm={cerrar}
+              disabled={Boolean(motivoBloqueo) || (guardando && !cerrando)}
               title={motivoBloqueo || undefined}
-              aria-describedby={motivoBloqueo ? "ent-cerrar-motivo" : undefined}
-            >
-              <Icon name={guardando ? "refresh" : "success"} />
-              {guardando ? "Cerrando…" : "Cerrar lote"}
-            </button>
+              describedBy={motivoBloqueo ? "ent-cerrar-motivo" : undefined}
+            />
           </div>
         </footer>
     </EntregasDrawer>
