@@ -6,6 +6,7 @@ import { useFichas } from "../hooks/useFichas";
 import { createClandestinosApi } from "../services/clandestinosApi";
 import ReportesTecnicosPage from "./ReportesTecnicosPage";
 import ImpresionesPage from "./ImpresionesPage";
+import LatticeLoader from "../../../components/micro/LatticeLoader";
 import "../styles/clandestinos.css";
 
 const tabs = [["resumen","Resumen","dashboard"],["fichas","Fichas","records"],["reportes","Reportes técnicos","activity"],["impresiones","Impresiones","print"],["configuracion","Configuración","more"]];
@@ -31,7 +32,7 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   const toggleVisible = (records) => setSelected((current) => { const next = new Map(current); const remove = records.every((record) => next.has(String(record.id))); records.forEach((record) => remove ? next.delete(String(record.id)) : next.set(String(record.id), record)); return next; });
   const selectAll = async () => { setBulkLoading(true); try { const data = await api.fichas({ q: fichas.filters.query, state: fichas.filters.state, barrio: fichas.filters.barrio, page: 1, limit: 500 }); setSelected(new Map(data.items.map((item) => [String(item.id), item]))); showAlert(`${data.items.length} fichas seleccionadas.`); } catch (error) { showAlert(error.message); } finally { setBulkLoading(false); } };
   const compareSelected = async () => { if (!selected.size) return; setBulkLoading(true); try { const data = await api.compareFichas([...selected.keys()]); setComparison(data); showAlert(`Comparacion lista: ${data.summary.alcaldia_only} posibles clandestinas aparecen en Alcaldia y no en Aguas.`); } catch (error) { showAlert(error.message); } finally { setBulkLoading(false); } };
-  if (!config) return <main className="cl-module"><div className="cl-module-loading"><Icon name="refresh" />Cargando módulo Clandestinos…</div></main>;
+  if (!config) return <main className="cl-module"><div className="cl-module-loading"><LatticeLoader label="Cargando módulo Clandestinos…" showTimer /></div></main>;
   return <main className="cl-module"><header className="cl-module-header"><div><span className="cl-kicker">Control Aguas</span><h1>Inmuebles clandestinos</h1><p>Expedientes, campo e impresión en un flujo controlado.</p></div><nav aria-label="Secciones de Clandestinos">{tabs.filter(([key]) => key !== "configuracion" || config.permissions.can_manage_configuration).map(([key,label,icon]) => <button type="button" key={key} className={tab === key ? "is-active" : ""} onClick={() => go(key)}><Icon name={icon} />{label}</button>)}</nav><div className="cl-role"><Icon name="users" /><span>{session?.user?.full_name || session?.user?.username}<small>{session?.user?.role}</small></span></div></header>
     {tab === "fichas" ? <FichasInbox model={fichas} selectedIds={new Set(selected.keys())} onToggle={toggle} onToggleVisible={toggleVisible} onSelectAll={selectAll} onClearSelection={() => setSelected(new Map())} onCompare={compareSelected} onPrintSummary={() => { sessionStorage.setItem("aguas.clandestinos.printTemplate", "batch_list"); go("impresiones"); }} comparison={comparison} bulkLoading={bulkLoading} onOpen={setDrawer} onNew={() => setDrawer(null)} canCreate={config.permissions.can_manage_ficha_state} /> : null}
     {tab === "reportes" ? <ReportesTecnicosPage api={api} config={config} notify={showAlert} /> : null}

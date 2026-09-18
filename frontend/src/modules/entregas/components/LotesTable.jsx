@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { estadoClass, estadoLoteLabel, formatDate, formatNumber, formatPercent, tipoDocumentoLabel } from "../utils/entregasFormatters";
 import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
+import LatticeLoader from "../../../components/micro/LatticeLoader";
 
 export default function LotesTable({ model, config, personal, permissions, historial = false, onToday, onOpen, onCerrar }) {
   const { items, loading, error, filters, setFilters, clearFilters, page, setPage, total, total_pages: totalPages, resumen } = model;
@@ -75,7 +76,7 @@ export default function LotesTable({ model, config, personal, permissions, histo
           </tr>;
         })}</tbody>
       </table>
-      {!items.length && !error ? <p className="cl-empty">{loading ? "Cargando lotes…" : historial ? "No hay lotes anteriores con estos filtros." : "No hay lotes con estos filtros."}</p> : null}
+      {!items.length && !error ? <p className="cl-empty">{loading ? <LatticeLoader label="Cargando lotes…" /> : historial ? "No hay lotes anteriores con estos filtros." : "No hay lotes con estos filtros."}</p> : null}
       <div className="cl-pagination"><span>Página {page} de {totalPages}</span><div><button type="button" disabled={loading || page <= 1} onClick={() => setPage(page - 1)}>Anterior</button><button type="button" disabled={loading || page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button></div></div>
     </section>
   );

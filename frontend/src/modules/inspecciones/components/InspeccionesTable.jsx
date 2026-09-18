@@ -1,5 +1,6 @@
 import { Icon } from "../../../components/Icon";
 import { ESTADO_LABELS, estadoClass, estadoLabel, formatDate, printStatusLabel } from "../utils/inspeccionesFormatters";
+import LatticeLoader from "../../../components/micro/LatticeLoader";
 
 export default function InspeccionesTable({ model, tecnicos = [], isAdmin, onOpen }) {
   const { items, total, page, total_pages: totalPages, loading, error, filters, setFilters, clearFilters, setPage } = model;
@@ -68,7 +69,7 @@ export default function InspeccionesTable({ model, tecnicos = [], isAdmin, onOpe
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="cl-empty">Cargando inspecciones…</td></tr>
+              <tr><td colSpan={10} className="cl-empty"><LatticeLoader label="Cargando inspecciones…" /></td></tr>
             ) : !items.length ? (
               <tr><td colSpan={10} className="cl-empty">Sin inspecciones para los filtros actuales.</td></tr>
             ) : (

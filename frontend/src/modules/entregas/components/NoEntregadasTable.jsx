@@ -3,6 +3,7 @@ import { Icon } from "../../../components/Icon";
 import { estadoClass, estadoDocumentoLabel, formatDate, formatNumber, prioridadPendiente, tipoDocumentoLabel } from "../utils/entregasFormatters";
 import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
 import { addDaysIso } from "../utils/entregasDate";
+import LatticeLoader from "../../../components/micro/LatticeLoader";
 
 // La cola de trabajo es solo lo PENDIENTE: al cerrar el ciclo los documentos del
 // mes anterior pasan a "sin efecto" y salen de aqui sin alterar las cifras de sus
@@ -112,7 +113,7 @@ export default function NoEntregadasTable({ model, config, personal, api, notify
         <td data-label="Estado"><span className={`cl-status ${estadoClass(item.estado)}`}>{estadoDocumentoLabel(item.estado)}</span></td>
       </tr>)}
     </tbody></table>
-    {!items.length && !error ? <p className="cl-empty">{loading ? "Cargando documentos…" : "No hay documentos con estos filtros."}</p> : null}
+    {!items.length && !error ? <p className="cl-empty">{loading ? <LatticeLoader label="Cargando documentos…" /> : "No hay documentos con estos filtros."}</p> : null}
     <div className="cl-pagination"><span>Página {page} de {totalPages}</span><div><button type="button" disabled={loading || page <= 1} onClick={() => setPage(page - 1)}>Anterior</button><button type="button" disabled={loading || page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button></div></div>
   </section>;
 }

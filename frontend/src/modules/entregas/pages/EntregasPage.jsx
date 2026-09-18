@@ -18,6 +18,7 @@ import ReportesSemanales from "../components/ReportesSemanales";
 import { GraficoBarriosSobrantes, GraficoPorDia } from "../components/ReporteCharts";
 import { formatDate, formatNumber } from "../utils/entregasFormatters";
 import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
+import LatticeLoader from "../../../components/micro/LatticeLoader";
 import "../styles/entregas.css";
 
 // "Nuevo lote" no vive aqui: es una accion, no una vista a la que se vuelve, asi
@@ -230,9 +231,15 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     return (
       <main className="cl-module ent-module">
         <div className="cl-module-loading">
-          <Icon name="refresh" />
-          {configError || "Cargando Control de entregas…"}
-          {configError ? <button type="button" onClick={() => { setConfigError(""); api.config().then(setConfig).catch((error) => setConfigError(error.message)); }}>Reintentar</button> : null}
+          {configError ? (
+            <>
+              <Icon name="refresh" />
+              {configError}
+              <button type="button" onClick={() => { setConfigError(""); api.config().then(setConfig).catch((error) => setConfigError(error.message)); }}>Reintentar</button>
+            </>
+          ) : (
+            <LatticeLoader label="Cargando Control de entregas…" showTimer />
+          )}
         </div>
       </main>
     );

@@ -9,6 +9,7 @@ import InspeccionesStatsPage from "./InspeccionesStatsPage";
 import InspeccionesResumen from "../components/InspeccionesResumen";
 import { useResumenInspecciones } from "../hooks/useResumenInspecciones";
 import { BANDEJA_FILTROS, lastMonths, monthLabel } from "../utils/inspeccionesFormatters";
+import LatticeLoader from "../../../components/micro/LatticeLoader";
 import "../styles/inspecciones.css";
 
 // La ruta vive en el hash: #inspecciones/resumen?estado=proceso&mes=2026-08
@@ -111,7 +112,7 @@ export default function InspeccionesPage({ apiFetch, session, showAlert, focusRe
     setStatsRefreshToken((value) => value + 1);
   };
 
-  if (!config) return <main className="cl-module"><div className="cl-module-loading"><Icon name="refresh" />Cargando módulo Inspecciones…</div></main>;
+  if (!config) return <main className="cl-module"><div className="cl-module-loading"><LatticeLoader label="Cargando módulo Inspecciones…" showTimer /></div></main>;
 
   const openNueva = () => { setInitialNueva(null); setShowNueva(true); };
   const mesActual = resumen.data?.mes_actual || "";

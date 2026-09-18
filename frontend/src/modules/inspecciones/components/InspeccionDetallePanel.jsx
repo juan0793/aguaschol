@@ -6,6 +6,7 @@ import InspeccionPrintPreview from "./InspeccionPrintPreview";
 import CorregirOrtografia, { SPELLCHECK_PROPS } from "./CorregirOrtografia";
 import { estadoClass, estadoLabel, formatDateTime, printStatusLabel } from "../utils/inspeccionesFormatters";
 import { createInspectionAutosave } from "../utils/inspectionAutosave";
+import LatticeLoader from "../../../components/micro/LatticeLoader";
 
 const ESTADO_SIGUIENTE = { ASIGNADA: "EN_PROCESO", EN_PROCESO: "SEGUIMIENTO" };
 const ESTADO_SIGUIENTE_LABEL = { ASIGNADA: "Iniciar inspección", EN_PROCESO: "Marcar seguimiento" };
@@ -199,7 +200,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   if (loading || !inspeccion) {
     return (
       <div className="cl-drawer-backdrop">
-        <div className="cl-drawer"><div className="cl-module-loading"><Icon name="refresh" />Cargando inspección…</div></div>
+        <div className="cl-drawer"><div className="cl-module-loading"><LatticeLoader label="Cargando inspección…" showTimer /></div></div>
       </div>
     );
   }

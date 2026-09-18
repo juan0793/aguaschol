@@ -8,6 +8,7 @@ Componentes de gesto y estado adaptados de [React Bits](https://reactbits.dev)
 | Componente | Para que sirve | Donde se usa hoy |
 | --- | --- | --- |
 | `HoldButton` | Confirmar una accion irreversible manteniendo presionado, en lugar de `window.confirm` | Eliminar inspeccion, eliminar chat de Telegram |
+| `LatticeLoader` | Estado de carga con retícula de puntos, etiqueta y cronómetro opcional | Arranque de los módulos y placeholders de las tablas |
 | `SlideCommit` | Confirmar con un deslizamiento completo y reflejar el resultado de la promesa (pendiente, hecho, fallo) | Cierre de lote en Control de Entregas |
 | `SpringCheck` | Casilla de seleccion con respuesta visible en listados densos | Bandeja de fichas clandestinas |
 | `StatusMark` | Glifo de estado (espera, proceso, exito, fallo) para bitacoras | Linea de tiempo de intentos de entrega |
@@ -22,6 +23,8 @@ usan solo donde el gesto o el glifo cumplen una funcion:
   guarda el detalle y luego cierra: la promesa mueve el control).
 - Lectura rapida de estado en una lista larga.
 - Feedback de seleccion en tablas densas.
+- Espera con senal de vida: el arranque de un modulo mostraba un icono
+  estatico que no distinguia "cargando" de "colgado".
 
 No se adoptan los componentes decorativos de la misma categoria (Pulse Heart,
 Peek Rating, Comet Dial, Voice Pill, Fuse Button, Sling Button). Tampoco
@@ -50,6 +53,9 @@ no los deforman. Fuente: `src/qa/microPreview.jsx`.
   la etiqueta se centra en el espacio libre para no chocar con la capsula.
   Acepta `describedBy` y `title` para conservar la explicacion de por que el
   cierre esta bloqueado.
+- `LatticeLoader` hereda el color del contenedor (los estados vacios ya son
+  grises) y trae el cronometro apagado por defecto: solo se enciende donde la
+  espera es larga, como el arranque de un modulo. En las tablas iria de mas.
 - Reglas `@media print` para que nada quede a medio animar en papel.
 - Se conservan intactas las rutas de accesibilidad del original: teclado,
   `prefers-reduced-motion`, `prefers-contrast` y textos para lector de pantalla.

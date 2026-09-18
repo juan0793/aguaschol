@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import HoldButton from "../components/micro/HoldButton";
+import LatticeLoader from "../components/micro/LatticeLoader";
 import SpringCheck from "../components/micro/SpringCheck";
 import SlideCommit from "../components/micro/SlideCommit";
 import StatusMark from "../components/micro/StatusMark";
@@ -113,6 +114,31 @@ function Preview() {
             onConfirm={() => new Promise((_, reject) => setTimeout(() => reject(new Error("fallo")), 900))}
           />
           <SlideCommit label="Bloqueado por el motivo de arriba" width="fill" disabled />
+        </div>
+      </section>
+
+      <section>
+        <h2>LatticeLoader en sus contenedores reales</h2>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div className="cl-module-loading" style={{ minHeight: 120, border: "1px solid #dce6ef", borderRadius: 12, background: "#fff" }}>
+            <LatticeLoader label="Cargando módulo Clandestinos…" showTimer />
+          </div>
+          <div className="cl-table-wrap" style={{ background: "#fff" }}>
+            <table className="cl-table">
+              <tbody>
+                <tr>
+                  <td colSpan="3" className="cl-empty">
+                    <LatticeLoader label="Cargando fichas…" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="cl-empty" style={{ display: "flex", gap: 24, justifyContent: "center", background: "#fff", borderRadius: 12 }}>
+            <LatticeLoader label="Sin cronómetro" />
+            <LatticeLoader label="Terminó" doneLabel="Listo en" status="done" showTimer elapsed={4.2} />
+            <LatticeLoader label="Falló" errorLabel="Falló tras" status="error" showTimer elapsed={12.7} />
+          </p>
         </div>
       </section>
 
