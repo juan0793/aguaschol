@@ -6,7 +6,7 @@
 }
 .cl-module *, .cl-module *::before, .cl-module *::after { box-sizing: border-box; }
 .cl-module button, .cl-module input, .cl-module select, .cl-module textarea { font: inherit; }
-.cl-module button, .cl-module input, .cl-module select { min-height: 44px; }
+.cl-module button, .cl-module input:not([type="checkbox"]):not([type="radio"]), .cl-module select { min-height: 44px; }
 .cl-module button:focus-visible, .cl-module input:focus-visible, .cl-module select:focus-visible, .cl-module textarea:focus-visible, .cl-module summary:focus-visible { outline: 3px solid rgba(23,105,224,.25); outline-offset: 2px; }
 .cl-module-header { position: sticky; top: 8px; z-index: 15; display: grid; grid-template-columns: minmax(240px,1fr) auto auto; gap: 20px; align-items: center; margin-bottom: 20px; padding: 18px 20px; border: 1px solid var(--glass-border); border-radius: var(--radius-card); background: var(--glass-bg); box-shadow: var(--glass-shadow); backdrop-filter: blur(var(--glass-blur)); }
 .cl-module h1, .cl-module h2, .cl-module h3, .cl-module p { margin: 0; }

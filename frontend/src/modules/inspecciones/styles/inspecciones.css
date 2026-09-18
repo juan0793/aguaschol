@@ -581,8 +581,6 @@ button.ins-atencion-row:hover span { color: var(--primary); text-decoration: und
 .ins-drawer .ins-apoyo-quitar:hover:not(:disabled) { transform: none; border-color: var(--danger); background: #fdf2f3; box-shadow: none; }
 .ins-apoyo-quitar .app-icon { width: 13px; height: 13px; margin-right: 0; }
 
-/* La hoja global estira todo input a width:100%, así que la casilla de
-   "Requiere seguimiento" ocupaba la fila entera y empujaba su etiqueta al
-   borde derecho. Aquí recupera su tamaño y se queda junto al texto. */
+/* El tamaño de la casilla ya lo resuelve la hoja global; aquí solo se evita que
+   el chip se estire a lo ancho de la sección. */
 .ins-drawer .ins-apoyo-chip { width: max-content; max-width: 100%; }
-.ins-drawer .ins-apoyo-chip input[type="checkbox"] { width: 18px; min-width: 18px; height: 18px; min-height: 18px; margin: 0; accent-color: var(--primary); }
