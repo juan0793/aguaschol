@@ -29832,3 +29832,59 @@ button.control-sidebar-home:focus-visible {
     opacity: 0.4;
   }
 }
+
+/* ===========================================================================
+   Barra de actividad
+   Ocupa el hueco que dejó la barra de auditoría: una línea fina que recorre el
+   ancho mientras hay peticiones en curso. No empuja el contenido: cuando no
+   hay nada pendiente mide 2px y queda transparente.
+   =========================================================================== */
+
+.app-activity {
+  position: relative;
+  height: 2px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 0.25s ease;
+}
+
+.app-activity span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 36%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, var(--brand-blue, #1465d9) 45%, #2bc6df 100%);
+  opacity: 0;
+  transform: translateX(-100%);
+}
+
+.app-activity[data-activa] {
+  background: rgba(20, 101, 217, 0.1);
+}
+
+.app-activity[data-activa] span {
+  opacity: 1;
+  animation: app-activity-run 1.15s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes app-activity-run {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(320%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-activity[data-activa] span {
+    animation: none;
+    width: 100%;
+    opacity: 0.55;
+    transform: none;
+  }
+}
+
+@media print {
+  .app-activity { display: none; }
+}

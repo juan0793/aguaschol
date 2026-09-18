@@ -5,6 +5,7 @@ import {
   getAlcaldiaMeta,
   getPadronMeta,
   getPadronRequestMeta,
+  getPadronServiceAccounts,
   getPadronServiceReport,
   reprocessPadron,
   runPadronRequest,
@@ -28,6 +29,7 @@ router.post("/alcaldia/upload", requireAdmin, padronUpload.single("padron"), upl
 router.get("/requests/meta", requireAdmin, getPadronRequestMeta);
 router.post("/requests/run", requireAdmin, runPadronRequest);
 router.get("/services/report", requireAdmin, getPadronServiceReport);
+router.get("/services/accounts", requireAdmin, getPadronServiceAccounts);
 router.get("/download", requireAuth, downloadPadron);
 router.post("/reprocess", requireAdmin, reprocessPadron);
 router.post("/sync", requireAdmin, syncPadron);

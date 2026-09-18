@@ -1322,3 +1322,116 @@
     font-size: 22px;
   }
 }
+
+/* ---------- Desglose de un servicio por barrio ---------- */
+
+.dashboard-workspace .dw-service-debt li { display: block; padding: 0; }
+
+.dashboard-workspace .dw-service-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 0.35rem 0.6rem;
+  min-height: 0;
+  padding: 0.45rem 0.35rem;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.dashboard-workspace .dw-service-row:hover {
+  transform: none;
+  background: var(--dw-tint);
+  box-shadow: none;
+}
+
+.dashboard-workspace .dw-service-row .dw-service-track { grid-column: 1 / -1; }
+
+.dashboard-workspace .dw-service-chevron {
+  width: 15px;
+  height: 15px;
+  align-self: center;
+  color: var(--dw-muted);
+  transition: transform 0.26s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dashboard-workspace .dw-service-debt li[data-abierto] .dw-service-chevron { transform: rotate(180deg); }
+.dashboard-workspace .dw-service-debt li[data-abierto] .dw-service-row { background: var(--dw-tint); }
+
+.dashboard-workspace .dw-service-drill {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.15rem 0 0.5rem;
+  padding: 0.7rem 0.75rem;
+  border-left: 3px solid var(--service-color);
+  border-radius: 0 10px 10px 0;
+  background: #f8fbff;
+  animation: dw-drill-in 0.28s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.dashboard-workspace .dw-service-drill-head {
+  margin: 0;
+  color: var(--dw-muted);
+  font-size: 12px;
+}
+
+.dashboard-workspace .dw-drill-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.dashboard-workspace .dw-drill-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.15rem 0.6rem;
+  padding: 0;
+}
+
+.dashboard-workspace .dw-drill-name {
+  color: var(--dw-ink);
+  font-size: 12.5px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-workspace .dw-drill-meta {
+  grid-row: 2;
+  color: var(--dw-muted);
+  font-size: 11.5px;
+}
+
+/* Las filas del desglose también son `.dw-service-debt li`, así que la regla
+   base les reponía el azul por defecto y perdían el color del servicio. */
+.dashboard-workspace .dw-drill-list li { --service-color: inherit; }
+.dashboard-workspace .dw-drill-list .dw-amount { font-size: 12.5px; text-align: right; }
+.dashboard-workspace .dw-drill-list .dw-service-track { grid-column: 1 / -1; height: 6px; background: #e8eff8; }
+
+@keyframes dw-drill-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-service-drill { animation: none; }
+  .dashboard-workspace .dw-service-chevron { transition: none; }
+}
+
+.dashboard-workspace .dw-drill-cuentas {
+  display: grid;
+  gap: 0.4rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--dw-line);
+}

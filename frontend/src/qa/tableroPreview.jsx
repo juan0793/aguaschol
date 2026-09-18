@@ -48,6 +48,24 @@ const model = {
     barrio("RESIDENCIAL MONTELIMAR 1 Y 2", 10683188.14, 655, 480, 700),
     barrio("BO. EL CENTRO", 10105923.67, 640, 455, 690)
   ],
+  // Responde como el endpoint /claves/services/accounts.
+  fetchServiceAccounts: async (field) =>
+    new Promise((resolve) =>
+      setTimeout(
+        () =>
+          resolve({
+            ok: true,
+            field,
+            total_cuentas: 42,
+            cuentas: [
+              { clave_catastral: "14-02-06-03", abonado: "10233", nombre: "INDUSTRIAS DEL SUR S. DE R.L.", barrio_colonia: "BO. EL CENTRO", deuda: 184320.55 },
+              { clave_catastral: "43-19-06", abonado: "20981", nombre: "HOSPITAL DEL VALLE", barrio_colonia: "COL. VENECIA", deuda: 96210.1 },
+              { clave_catastral: "21-08-11", abonado: "30114", nombre: "TALLER MECÁNICO LA ESPERANZA", barrio_colonia: "BO. CABAÑAS", deuda: 45980.33 }
+            ]
+          }),
+        250
+      )
+    ),
   feed: [
     { key: 1, title: "Ficha 0301-0012-0045 actualizada", detail: "admin · hace 4 minutos", icon: "records" },
     { key: 2, title: "Punto GPS registrado en COL. VENECIA", detail: "Melisa maradiaga · hace 12 minutos", icon: "map" }

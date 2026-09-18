@@ -1058,6 +1058,9 @@ function App() {
   const [notificationUserId, setNotificationUserId] = useState(null);
   const [workspaceView, setWorkspaceView] = useState(() => getWorkspaceViewByRole(session?.user?.role));
   const [crossModuleFocus, setCrossModuleFocus] = useState(null);
+  const [cargandoDatos, setCargandoDatos] = useState(false);
+  const peticionesEnCursoRef = useRef(0);
+  const actividadTimerRef = useRef(0);
   const navigateWithFocus = (view, focus) => { setCrossModuleFocus(focus ? { view, requestId: Date.now(), ...focus } : null); setWorkspaceView(view); };
   const [dashboardWidgetPrefs, setDashboardWidgetPrefs] = useState(() => {
     try {
@@ -3887,6 +3890,26 @@ function App() {
     resetForm();
   };
 
+  // La barra de actividad cuenta peticiones en curso, no renderiza por cada una:
+  // el contador vive en una ref y el estado solo cambia al empezar y al terminar
+  // una tanda. Espera 180 ms antes de mostrarse para que una consulta rápida no
+  // dispare un parpadeo.
+  const marcarPeticionInicio = useCallback(() => {
+    peticionesEnCursoRef.current += 1;
+    if (peticionesEnCursoRef.current === 1) {
+      window.clearTimeout(actividadTimerRef.current);
+      actividadTimerRef.current = window.setTimeout(() => setCargandoDatos(true), 180);
+    }
+  }, []);
+
+  const marcarPeticionFin = useCallback(() => {
+    peticionesEnCursoRef.current = Math.max(0, peticionesEnCursoRef.current - 1);
+    if (peticionesEnCursoRef.current === 0) {
+      window.clearTimeout(actividadTimerRef.current);
+      setCargandoDatos(false);
+    }
+  }, []);
+
   const apiFetch = useCallback(async (path, options = {}) => {
     const headers = new Headers(options.headers ?? {});
 
@@ -3894,19 +3917,24 @@ function App() {
       headers.set("Authorization", `Bearer ${session.token}`);
     }
 
-    const response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      cache: options.cache ?? "no-store",
-      credentials: options.credentials ?? "include",
-      headers
-    });
-    if (response.status === 401 && session?.token && !sessionInvalidatingRef.current) {
-      sessionInvalidatingRef.current = true;
-      clearSession();
-      if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
+    marcarPeticionInicio();
+    try {
+      const response = await fetch(`${API_URL}${path}`, {
+        ...options,
+        cache: options.cache ?? "no-store",
+        credentials: options.credentials ?? "include",
+        headers
+      });
+      if (response.status === 401 && session?.token && !sessionInvalidatingRef.current) {
+        sessionInvalidatingRef.current = true;
+        clearSession();
+        if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
+      }
+      return response;
+    } finally {
+      marcarPeticionFin();
     }
-    return response;
-  }, [session?.token]);
+  }, [session?.token, marcarPeticionInicio, marcarPeticionFin]);
 
   useEffect(() => {
     if (!session?.token) return undefined;
@@ -13898,7 +13926,10 @@ function App() {
                 </button>
               </div>
             </div>
-          ) : workspaceView === "entregas" ? null : (
+          ) : ["users", "logs"].includes(workspaceView) ? (
+            /* Esta barra pertenece a Usuarios y Auditoría. Antes era el tramo
+               comodín del encadenado, así que asomaba en cualquier pantalla que
+               no estuviera contemplada arriba. */
             <div className="workspace-summary">
               <p className="workspace-title">
                 {workspaceView === "users"
@@ -13927,7 +13958,12 @@ function App() {
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
+        </div>
+        {/* El hueco que dejó esa barra ahora avisa cuando la app está pidiendo
+            datos: una línea fina en vez de tres botones repetidos. */}
+        <div className="app-activity" data-activa={cargandoDatos ? "" : undefined} role="presentation">
+          <span />
         </div>
       </header>
       <AppSidebar
@@ -13955,6 +13991,14 @@ function App() {
             syncLabel: dashboardConnectionStatus === "retrying" ? "Reintentando conexión…" : dashboardRefreshing ? "Actualizando..." : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
             metrics: dashboardLiveMetrics,
             debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
+            // El informe de servicios llega agregado por barrio; las cuentas de
+            // un servicio se piden aparte, solo cuando alguien abre el desglose.
+            fetchServiceAccounts: async (field) => {
+              const response = await apiFetch(`/claves/services/accounts?field=${encodeURIComponent(field)}&limit=25`);
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.message || "No fue posible cargar las cuentas del servicio.");
+              return data;
+            },
             debtSummary: padronServiceReport?.summary?.deuda || {},
             padronTotals: { records: Number(padronServiceReport?.summary?.total_records || 0), barrios: Number(padronServiceReport?.summary?.total_barrios || 0) },
             onlineUsers: onlineUsers.map((user) => ({ ...user, roleLabel: roleLabel(user.role) })),

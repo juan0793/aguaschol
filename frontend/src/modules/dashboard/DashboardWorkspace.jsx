@@ -29,6 +29,54 @@ const leerPlegados = () => {
   }
 };
 
+// El gráfico de mora por servicio respondía "cuánto" pero no "dónde". Cada
+// servicio se abre y lista los barrios que lo tienen activo, de mayor a menor
+// mora, con las cuentas que lo reciben.
+const barriosDeServicio = (barrios = [], field = "") =>
+  barrios
+    .map((barrio) => {
+      const servicio = (barrio.servicios || []).find((item) => item.field === field);
+      return servicio && Number(servicio.active) > 0
+        ? {
+            barrio: barrio.barrio_colonia || "Sin barrio",
+            cuentas: Number(servicio.active || 0),
+            criticos: Number(servicio.deuda?.criticos || 0),
+            deuda: Number(servicio.deuda?.total || 0)
+          }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.deuda - left.deuda || left.barrio.localeCompare(right.barrio, "es"));
+
+// Quién tiene el servicio. En desechos peligrosos son comercios e industrias,
+// que es justo lo que no se podía ver desde el agregado por barrio.
+function CuentasDelServicio({ estado }) {
+  if (!estado) return null;
+  if (estado.cargando) return <p className="dw-empty">Cargando cuentas…</p>;
+  if (estado.error) return <p className="dw-empty">{estado.error}</p>;
+
+  const { cuentas = [], total_cuentas: total = 0 } = estado.datos || {};
+  if (!cuentas.length) return <p className="dw-empty">Ninguna cuenta tiene este servicio activo.</p>;
+
+  return (
+    <div className="dw-drill-cuentas">
+      <p className="dw-service-drill-head">
+        <strong className="dw-figure">{whole(total)}</strong> cuentas con el servicio
+        {total > cuentas.length ? <span> · se muestran las {cuentas.length} de mayor mora</span> : null}
+      </p>
+      <ul className="dw-drill-list">
+        {cuentas.map((cuenta) => (
+          <li key={`${cuenta.clave_catastral}-${cuenta.abonado}`}>
+            <span className="dw-drill-name">{cuenta.nombre}</span>
+            <span className="dw-drill-meta">{cuenta.barrio_colonia} · {cuenta.clave_catastral || cuenta.abonado}</span>
+            <Amount value={cuenta.deuda} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function BotonPlegar({ plegado, titulo, onToggle }) {
   return (
     <button
@@ -66,6 +114,11 @@ function Amount({ value, className = "" }) {
 }
 
 export default function DashboardWorkspace({ model }) {
+  const [servicioAbierto, setServicioAbierto] = useState("");
+  const [barriosVisibles, setBarriosVisibles] = useState(6);
+  // Las cuentas de un servicio se piden al abrirlo y se guardan por servicio,
+  // para no repetir la consulta si el usuario vuelve a abrirlo.
+  const [cuentasPorServicio, setCuentasPorServicio] = useState({});
   const [plegados, setPlegados] = useState(leerPlegados);
   const alternarPanel = (clave) =>
     setPlegados((actuales) => {
@@ -314,15 +367,70 @@ export default function DashboardWorkspace({ model }) {
                       <section className="dw-service-debt">
                         <span className="dw-eyebrow">Mora asociada por servicio</span>
                         <ul>
-                          {serviceDebt.map((service) => (
-                            <li key={service.field} data-service={service.field}>
-                              <span className="dw-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
-                              <Amount value={service.debt} />
-                              <i className="dw-service-track" aria-hidden="true">
-                                <em style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} />
-                              </i>
-                            </li>
-                          ))}
+                          {serviceDebt.map((service) => {
+                            const abierto = servicioAbierto === service.field;
+                            const filas = abierto ? barriosDeServicio(model.debtBarrios, service.field) : [];
+                            const mayor = Math.max(1, ...filas.map((fila) => fila.deuda));
+                            const cuentas = filas.reduce((suma, fila) => suma + fila.cuentas, 0);
+                            return (
+                              <li key={service.field} data-service={service.field} data-abierto={abierto ? "" : undefined}>
+                                <button
+                                  type="button"
+                                  className="dw-service-row"
+                                  aria-expanded={abierto}
+                                  onClick={() => {
+                                    setBarriosVisibles(6);
+                                    setServicioAbierto(abierto ? "" : service.field);
+                                    if (!abierto && model.fetchServiceAccounts && !cuentasPorServicio[service.field]) {
+                                      setCuentasPorServicio((actuales) => ({ ...actuales, [service.field]: { cargando: true } }));
+                                      model
+                                        .fetchServiceAccounts(service.field)
+                                        .then((datos) => setCuentasPorServicio((actuales) => ({ ...actuales, [service.field]: { datos } })))
+                                        .catch((error) => setCuentasPorServicio((actuales) => ({ ...actuales, [service.field]: { error: error.message } })));
+                                    }
+                                  }}
+                                >
+                                  <span className="dw-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
+                                  <Amount value={service.debt} />
+                                  <Icon name="chevronDown" className="dw-service-chevron" />
+                                  <i className="dw-service-track" aria-hidden="true">
+                                    <em style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} />
+                                  </i>
+                                </button>
+                                {abierto ? (
+                                  <div className="dw-service-drill">
+                                    <p className="dw-service-drill-head">
+                                      <strong className="dw-figure">{whole(filas.length)}</strong> barrios con el servicio activo
+                                      <span className="dw-sep" aria-hidden="true" />
+                                      <strong className="dw-figure">{whole(cuentas)}</strong> cuentas
+                                    </p>
+                                    {filas.length ? (
+                                      <ul className="dw-drill-list">
+                                        {filas.slice(0, barriosVisibles).map((fila) => (
+                                          <li key={fila.barrio}>
+                                            <span className="dw-drill-name">{fila.barrio}</span>
+                                            <span className="dw-drill-meta">{whole(fila.cuentas)} cuentas · {whole(fila.criticos)} críticas</span>
+                                            <Amount value={fila.deuda} />
+                                            <i className="dw-service-track" aria-hidden="true">
+                                              <em style={{ transform: `scaleX(${fila.deuda / mayor})` }} />
+                                            </i>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="dw-empty">Ningún barrio tiene este servicio activo.</p>
+                                    )}
+                                    {filas.length > barriosVisibles ? (
+                                      <button type="button" className="dw-link" onClick={() => setBarriosVisibles(filas.length)}>
+                                        Ver los {whole(filas.length)} barrios
+                                      </button>
+                                    ) : null}
+                                    <CuentasDelServicio estado={cuentasPorServicio[service.field]} />
+                                  </div>
+                                ) : null}
+                              </li>
+                            );
+                          })}
                         </ul>
                         <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
                       </section>

@@ -1115,6 +1115,49 @@ export const getAguasServiceReport = async () => {
   };
 };
 
+// El reporte de servicios agrega por barrio y responde "cuánto y dónde". Esta
+// consulta responde la otra mitad: quién tiene el servicio. Para desechos
+// peligrosos, que es un servicio de comercios e industrias, es la lista de
+// establecimientos; para el resto, las cuentas con más mora.
+export const getServiceAccounts = async ({ field = "", barrio = "", limit = 25 } = {}) => {
+  const definicion = MASTER_SERVICE_FIELDS.find(([campo]) => campo === field);
+  if (!definicion) {
+    const error = new Error("Servicio no reconocido.");
+    error.status = 400;
+    throw error;
+  }
+
+  const [campo, etiqueta] = definicion;
+  const barrioBuscado = normalizeLookupText(barrio);
+  const tope = Math.min(Math.max(Number(limit) || 25, 1), 200);
+
+  const coincidencias = masterRecords.filter(
+    (record) =>
+      isActiveServiceFlag(record[campo]) && (!barrioBuscado || record.search_barrio.includes(barrioBuscado))
+  );
+
+  const deudaTotal = coincidencias.reduce((suma, record) => suma + Number(record.total || 0), 0);
+  const cuentas = [...coincidencias]
+    .sort((izquierda, derecha) => Number(derecha.total || 0) - Number(izquierda.total || 0))
+    .slice(0, tope)
+    .map((record) => ({
+      clave_catastral: record.clave_catastral,
+      abonado: record.abonado,
+      nombre: record.inquilino || record.nombre || "Sin nombre",
+      barrio_colonia: record.barrio_colonia || "Sin barrio",
+      deuda: Number(Number(record.total || 0).toFixed(2))
+    }));
+
+  return {
+    ok: true,
+    field: campo,
+    label: etiqueta,
+    total_cuentas: coincidencias.length,
+    deuda_total: Number(deudaTotal.toFixed(2)),
+    cuentas
+  };
+};
+
 export const uploadClavePadron = async ({ buffer, originalName = "" }, options = {}) => {
   if (!buffer || !buffer.length) {
     const error = new Error("Debes seleccionar un archivo de padron maestro.");
