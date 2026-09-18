@@ -23,6 +23,7 @@ export default function AppSidebar({
   userRole,
   onToggleCollapsed,
   onNavigate,
+  onPrefetch,
   onCloseMobile,
   onLogout
 }) {
@@ -131,6 +132,8 @@ export default function AppSidebar({
         aria-label={effectiveCollapsed || flyout ? item.label : undefined}
         data-tooltip={effectiveCollapsed && !flyout ? item.label : undefined}
         onClick={() => navigate(item.key)}
+        onPointerEnter={() => onPrefetch?.(item.key)}
+        onFocus={() => onPrefetch?.(item.key)}
       >
         <Icon name={item.icon} />
         <span className="control-sidebar-item-copy"><strong>{item.label}</strong>{item.helper ? <small>{item.helper}</small> : null}</span>

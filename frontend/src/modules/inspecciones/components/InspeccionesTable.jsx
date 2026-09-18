@@ -1,6 +1,23 @@
 import { Icon } from "../../../components/Icon";
 import { ESTADO_LABELS, estadoClass, estadoLabel, formatDate, printStatusLabel } from "../utils/inspeccionesFormatters";
-import LatticeLoader from "../../../components/micro/LatticeLoader";
+import { TableSkeleton } from "../../../components/ds/Skeleton";
+
+// La columna de impresión repetía "NO IMPRESA" en mayúsculas dos veces por fila
+// y se comía la atención. El ícono distingue impreso de pendiente y el texto
+// completo queda en el nombre accesible, no en la pantalla.
+function PrintBadge({ etiqueta, estado }) {
+  const impreso = Boolean(estado?.impreso);
+  return (
+    <span
+      className={`cl-print-state ${impreso ? "is-printed" : ""}`}
+      title={`${etiqueta}: ${printStatusLabel(estado).toLowerCase()}`}
+    >
+      <Icon name={impreso ? "success" : "print"} />
+      <span className="ins-print-label">{etiqueta}</span>
+      <span className="ins-sr">{printStatusLabel(estado).toLowerCase()}</span>
+    </span>
+  );
+}
 
 export default function InspeccionesTable({ model, tecnicos = [], isAdmin, onOpen }) {
   const { items, total, page, total_pages: totalPages, loading, error, filters, setFilters, clearFilters, setPage } = model;
@@ -69,7 +86,7 @@ export default function InspeccionesTable({ model, tecnicos = [], isAdmin, onOpe
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="cl-empty"><LatticeLoader label="Cargando inspecciones…" /></td></tr>
+              <TableSkeleton columns={10} label="Cargando inspecciones…" />
             ) : !items.length ? (
               <tr><td colSpan={10} className="cl-empty">Sin inspecciones para los filtros actuales.</td></tr>
             ) : (
@@ -92,13 +109,13 @@ export default function InspeccionesTable({ model, tecnicos = [], isAdmin, onOpe
                   <td>{formatDate(item.fecha_asignacion)}</td>
                   <td>
                     <div className="ins-print-badges">
-                      <span className={`cl-print-state ${item.print_status?.ORDEN?.impreso ? "is-printed" : ""}`}>Orden: {printStatusLabel(item.print_status?.ORDEN)}</span>
-                      <span className={`cl-print-state ${item.print_status?.REPORTE?.impreso ? "is-printed" : ""}`}>Reporte: {printStatusLabel(item.print_status?.REPORTE)}</span>
+                      <PrintBadge etiqueta="Orden" estado={item.print_status?.ORDEN} />
+                      <PrintBadge etiqueta="Reporte" estado={item.print_status?.REPORTE} />
                     </div>
                   </td>
                   <td>
-                    <button type="button" className="cl-icon-button" onClick={() => onOpen(item)} aria-label="Ver inspección">
-                      <Icon name="search" />
+                    <button type="button" className="cl-icon-button" onClick={() => onOpen(item)} aria-label={`Abrir inspección ${item.numero_inspeccion}`}>
+                      <Icon name="arrowRight" />
                     </button>
                   </td>
                 </tr>

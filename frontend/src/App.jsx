@@ -12,12 +12,9 @@ import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader";
 import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections, getPathForWorkspaceView, getWorkspaceViewFromPath } from "./components/sidebar/sidebarConfig";
-import ClandestinosPage from "./modules/clandestinos/pages/ClandestinosPage";
-import InspeccionesPage from "./modules/inspecciones/pages/InspeccionesPage";
-import EntregasPage from "./modules/entregas/pages/EntregasPage";
-import NotesPage from "./modules/notes/pages/NotesPage";
 import PageHeader from "./components/ds/PageHeader";
 import MetricRow from "./components/ds/Metrics";
+import { ModuleSkeleton } from "./components/ds/Skeleton";
 import "./components/ds/design-system.css";
 import "./styles/request-workspace.css";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
@@ -146,6 +143,33 @@ const DashboardWorkspace = lazy(() => import("./modules/dashboard/DashboardWorks
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 const ImportacionWorkspace = lazy(() => import("./components/ImportacionWorkspace"));
 const SigTerritorialWorkspace = lazy(() => import("./modules/sig/SigTerritorialWorkspace"));
+const ClandestinosPage = lazyWithRetry(() => import("./modules/clandestinos/pages/ClandestinosPage"));
+const InspeccionesPage = lazyWithRetry(() => import("./modules/inspecciones/pages/InspeccionesPage"));
+const EntregasPage = lazyWithRetry(() => import("./modules/entregas/pages/EntregasPage"));
+const NotesPage = lazyWithRetry(() => import("./modules/notes/pages/NotesPage"));
+
+// Los módulos viajan en su propio archivo, así que la primera visita cuesta una
+// descarga. Se adelanta en cuanto el puntero (o el foco del teclado) toca su
+// ítem del menú: para cuando llega el clic, el código ya está en caché.
+const MODULE_LOADERS = {
+  dashboard: () => import("./modules/dashboard/DashboardWorkspace"),
+  notes: () => import("./modules/notes/pages/NotesPage"),
+  inspecciones: () => import("./modules/inspecciones/pages/InspeccionesPage"),
+  entregas: () => import("./modules/entregas/pages/EntregasPage"),
+  records: () => import("./modules/clandestinos/pages/ClandestinosPage"),
+  importacion: () => import("./components/ImportacionWorkspace"),
+  sigTerritorial: () => import("./modules/sig/SigTerritorialWorkspace"),
+  map: () => import("./components/FieldMap"),
+  fieldValidation: () => import("./components/FieldValidationWorkspace"),
+  mapReports: () => import("./modules/reports/ReportsWorkspace"),
+  planos: () => import("./modules/planos/PlanosWorkspace"),
+  profile: () => import("./components/profile/MyProfileWorkspace")
+};
+
+// Un fallo aquí no es un error de la app: el módulo se volverá a pedir al entrar.
+const prefetchModule = (key) => {
+  MODULE_LOADERS[key]?.().catch(() => {});
+};
 
 class MapLoadBoundary extends Component {
   constructor(props) {
@@ -13907,11 +13931,12 @@ function App() {
         userRole={roleLabel(session?.user?.role)}
         onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         onNavigate={setWorkspaceView}
+        onPrefetch={prefetchModule}
         onCloseMobile={closeMobileModuleMenu}
         onLogout={handleLogout}
       />
       {workspaceView === "dashboard" ? (
-        <Suspense fallback={<div className="module-loading-state" role="status">Cargando tablero...</div>}>
+        <Suspense fallback={<ModuleSkeleton title="el tablero" />}>
           <DashboardWorkspace model={{
             userName: session?.user?.full_name || session?.user?.username || "admin",
             connectionStatus: dashboardConnectionStatus,
@@ -14391,7 +14416,7 @@ function App() {
       </main>
       ) : workspaceView === "profile" ? (
         <main className="profile-layout">
-          <Suspense fallback={<div className="module-loading-state">Cargando mi perfil...</div>}>
+          <Suspense fallback={<ModuleSkeleton title="mi perfil" toolbar={false} rows={5} />}>
             <MyProfileWorkspace
               apiFetch={apiFetch}
               isAdmin={isAdmin}
@@ -14590,7 +14615,7 @@ function App() {
       ) : workspaceView === "transport" ? (
       <main className="layout transport-layout-page">
         <section className="preview-panel transport-preview-panel">
-          <Suspense fallback={<div className="module-loading-state">Cargando transporte...</div>}>
+          <Suspense fallback={<ModuleSkeleton title="transporte" />}>
             <TransportWorkspace
               apiFetch={apiFetch}
               clearSession={clearSession}
@@ -14603,25 +14628,31 @@ function App() {
         </section>
       </main>
       ) : workspaceView === "inspecciones" ? (
-      <InspeccionesPage
-        apiFetch={apiFetch}
-        session={session}
-        showAlert={showAlert}
-        focusRequest={crossModuleFocus?.view === "inspecciones" ? crossModuleFocus : null}
-        onFocusConsumed={() => setCrossModuleFocus(null)}
-      />
+      <Suspense fallback={<ModuleSkeleton title="Inspecciones" />}>
+        <InspeccionesPage
+          apiFetch={apiFetch}
+          session={session}
+          showAlert={showAlert}
+          focusRequest={crossModuleFocus?.view === "inspecciones" ? crossModuleFocus : null}
+          onFocusConsumed={() => setCrossModuleFocus(null)}
+        />
+      </Suspense>
       ) : workspaceView === "entregas" ? (
-      <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
+      <Suspense fallback={<ModuleSkeleton title="Control de entregas" />}>
+        <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
+      </Suspense>
       ) : workspaceView === "notes" && isAdmin ? (
-      <NotesPage
-        apiFetch={apiFetch}
-        onSendToInspeccion={(note) => navigateWithFocus("inspecciones", {
-          from_note_id: note.id,
-          trabajo_solicitado: [note.title, note.content].map((part) => String(part || "").trim()).filter(Boolean).join("\n")
-        })}
-      />
+      <Suspense fallback={<ModuleSkeleton title="Apuntes" />}>
+        <NotesPage
+          apiFetch={apiFetch}
+          onSendToInspeccion={(note) => navigateWithFocus("inspecciones", {
+            from_note_id: note.id,
+            trabajo_solicitado: [note.title, note.content].map((part) => String(part || "").trim()).filter(Boolean).join("\n")
+          })}
+        />
+      </Suspense>
       ) : workspaceView === "sigTerritorial" ? (
-        <Suspense fallback={<div className="module-loading-state">Cargando SIG Territorial...</div>}>
+        <Suspense fallback={<ModuleSkeleton title="SIG Territorial" toolbar={false} rows={4} />}>
           <SigTerritorialWorkspace
             apiFetch={apiFetch}
             session={session}
@@ -14640,16 +14671,18 @@ function App() {
           />
         </Suspense>
       ) : workspaceView === "records" ? (
-      <ClandestinosPage
-        apiFetch={apiFetch}
-        session={session}
-        showAlert={showAlert}
-        navigate={setWorkspaceView}
-        focusRequest={crossModuleFocus?.view === "records" ? crossModuleFocus : null}
-        onFocusConsumed={() => setCrossModuleFocus(null)}
-        onPrintFicha={handlePrintFicha}
-        onPrintAviso={handlePrintAviso}
-      />
+      <Suspense fallback={<ModuleSkeleton title="Clandestinos" />}>
+        <ClandestinosPage
+          apiFetch={apiFetch}
+          session={session}
+          showAlert={showAlert}
+          navigate={setWorkspaceView}
+          focusRequest={crossModuleFocus?.view === "records" ? crossModuleFocus : null}
+          onFocusConsumed={() => setCrossModuleFocus(null)}
+          onPrintFicha={handlePrintFicha}
+          onPrintAviso={handlePrintAviso}
+        />
+      </Suspense>
       ) : workspaceView === "recordsLegacyDisabled" ? (
       <main className="layout records-view shadcn-records-module">
         <Card className="sidebar no-print shadcn-records-sidebar" size="sm">
@@ -16270,7 +16303,7 @@ function App() {
           </section>
         </main>
       ) : workspaceView === "importacion" ? (
-        <Suspense fallback={<main className="import-workspace"><div className="empty-state">Cargando importacion...</div></main>}>
+        <Suspense fallback={<main className="import-workspace"><ModuleSkeleton title="la importación" /></main>}>
           <ImportacionWorkspace apiFetch={apiFetch} showAlert={showAlert} />
         </Suspense>
       ) : workspaceView === "padron" ? (
@@ -17085,11 +17118,11 @@ function App() {
           </section>
         </main>
       ) : workspaceView === "planos" ? (
-        <Suspense fallback={<div className="module-loading-state">Cargando planos y croquis...</div>}>
+        <Suspense fallback={<ModuleSkeleton title="planos y croquis" toolbar={false} rows={4} />}>
           <PlanosWorkspace apiFetch={apiFetch} isAdmin={isAdmin} users={safeUsers} />
         </Suspense>
       ) : workspaceView === "fieldValidation" ? (
-        <Suspense fallback={<div className="module-loading-state">Cargando validacion de campo...</div>}>
+        <Suspense fallback={<ModuleSkeleton title="la validación de campo" />}>
           <FieldValidationWorkspace
             apiFetch={apiFetch}
             apiUrl={API_URL}
@@ -17114,7 +17147,7 @@ function App() {
 
           <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
             {workspaceView === "mapReports" ? (
-              <Suspense fallback={<div className="module-loading-state" role="status" aria-live="polite">Cargando reportes...</div>}>
+              <Suspense fallback={<ModuleSkeleton title="reportes" />}>
                 <ReportsWorkspace
                   model={{
                     activeDateKey: activeMapDiaryDateKey,

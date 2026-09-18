@@ -1,0 +1,130 @@
+/* Siluetas de carga. Grises del sistema, sin destellos fuertes: la idea es
+   sostener el layout, no llamar la atención. */
+
+.ds-skeleton {
+  --ds-sk-base: #e8eef5;
+  --ds-sk-shine: #f4f8fc;
+  --ds-sk-surface: #ffffff;
+  --ds-sk-border: #e2ebf3;
+
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.ds-skeleton__head {
+  display: grid;
+  gap: 10px;
+}
+
+.ds-skeleton__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--ds-sk-border);
+  border-radius: 12px;
+  background: var(--ds-sk-surface);
+}
+
+.ds-skeleton__field {
+  height: 38px;
+  min-width: 140px;
+  flex: 1 1 160px;
+  border-radius: 8px;
+  background: var(--ds-sk-base);
+}
+
+.ds-skeleton__panel {
+  display: grid;
+  border: 1px solid var(--ds-sk-border);
+  border-radius: 12px;
+  background: var(--ds-sk-surface);
+  overflow: hidden;
+}
+
+.ds-skeleton__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 15px 18px;
+  border-top: 1px solid var(--ds-sk-border);
+}
+
+.ds-skeleton__row:first-child {
+  border-top: 0;
+}
+
+.ds-skeleton__bar,
+.ds-skeleton-row .ds-skeleton__bar {
+  display: block;
+  height: 12px;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ds-sk-base) 0%, var(--ds-sk-shine) 50%, var(--ds-sk-base) 100%);
+  background-size: 240% 100%;
+  animation: ds-skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+.ds-skeleton__bar--title {
+  height: 22px;
+  max-width: 260px;
+}
+
+.ds-skeleton__bar--sub {
+  height: 12px;
+  max-width: 420px;
+}
+
+.ds-skeleton__bar--short {
+  width: 84px;
+  flex: none;
+}
+
+/* Filas fantasma dentro de una tabla real. */
+.ds-skeleton-row td {
+  --ds-sk-base: #e8eef5;
+  --ds-sk-shine: #f4f8fc;
+}
+
+.ds-skeleton-row td .ds-skeleton__bar {
+  height: 11px;
+}
+
+.ds-skeleton__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@keyframes ds-skeleton-sweep {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -40% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-skeleton__bar,
+  .ds-skeleton-row .ds-skeleton__bar {
+    animation: none;
+    background: var(--ds-sk-base);
+  }
+}
+
+/* Nunca debe llegar al papel: si se imprime durante una carga, no deja rastro. */
+@media print {
+  .ds-skeleton,
+  .ds-skeleton-row {
+    display: none;
+  }
+}
