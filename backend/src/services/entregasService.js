@@ -6,6 +6,7 @@ import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
 import { jornadaEntregas } from "./entregasReminderService.js";
 import { createAuditLog } from "./auditService.js";
+import { emitProfileMessage } from "./profileRealtimeService.js";
 import { listBarrioCodes } from "./barrioCodeService.js";
 import {
   ESTADOS_LOTE,
@@ -56,6 +57,44 @@ const audit = async ({ user, action, entityId, summary, details, executor }) => 
     // La auditoria nunca debe tumbar la operacion principal, ni siquiera cuando
     // se escribe dentro de la transaccion del llamador: se deja rastro y se sigue.
     console.error(`Auditoria de entregas (${action}) fallida:`, error.message);
+  }
+};
+
+const notificarCambioDeLote = async ({ lote, user, tipo }) => {
+  if (env.useMemoryDb || user?.role !== "operator") return;
+
+  try {
+    const pool = getPool();
+    const [administradores] = await pool.query(
+      "SELECT id FROM app_users WHERE role = 'admin' AND is_active = 1 AND id <> ?",
+      [user.id]
+    );
+    const fase = tipo === "APERTURA" ? "APERTURA" : "CIERRE";
+    const body = `${tipo === "APERTURA" ? "Lote aperturado" : "Lote cerrado"} por ${user.full_name || user.username || "un técnico"}. Lote #${lote.id} · ${toIsoDate(lote.fecha)} · ${lote.responsable_nombre || "Sin responsable"} · ${lote.barrio_nombre}.`;
+
+    for (const administrador of administradores) {
+      const [result] = await pool.query(
+        "INSERT INTO user_profile_messages (sender_user_id, recipient_user_id, body) VALUES (?, ?, ?)",
+        [user.id, administrador.id, body]
+      );
+      await pool.query(
+        "INSERT INTO entrega_recordatorios (lote_id, recipient_user_id, jornada, fase, message_id) VALUES (?, ?, ?, ?, ?)",
+        [lote.id, administrador.id, toIsoDate(lote.fecha), fase, result.insertId]
+      );
+      emitProfileMessage({
+        id: result.insertId,
+        sender_user_id: user.id,
+        sender_name: user.full_name || user.username || "Técnico",
+        recipient_user_id: administrador.id,
+        body,
+        entrega_lote_id: lote.id,
+        read_at: null,
+        created_at: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    // El aviso no debe bloquear la apertura o el cierre ya confirmado.
+    console.error(`Notificación de lote (${tipo}) fallida:`, error.message);
   }
 };
 
@@ -480,7 +519,9 @@ export const createLote = async (payload = {}, user) => {
     details: { lote_id: result.insertId, fecha, responsable_id: responsableId, tipo_documento: tipo, total_asignadas: totalAsignadas }
   });
 
-  return getLoteDetail(result.insertId, user);
+  const creado = await getLoteDetail(result.insertId, user);
+  await notificarCambioDeLote({ lote: creado, user, tipo: "APERTURA" });
+  return creado;
 };
 
 export const updateLote = async (id, payload = {}, user) => {
@@ -594,7 +635,9 @@ export const cerrarLote = async (id, payload = {}, user) => {
     connection.release();
   }
 
-  return getLoteDetail(lote.id, user);
+  const cerrado = await getLoteDetail(lote.id, user);
+  await notificarCambioDeLote({ lote: cerrado, user, tipo: "CIERRE" });
+  return cerrado;
 };
 
 // Toda marcha atras administrativa exige un motivo: es lo unico que queda en la
