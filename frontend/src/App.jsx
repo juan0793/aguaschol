@@ -13269,13 +13269,22 @@ function App() {
           >
             <Icon name="menu" />
           </button>
-          <div className="app-topbar-brand">
-            <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="app-topbar-logo" />
+          {/* La marca es el atajo al inicio: el logo lleva siempre al tablero
+              (o a la vista de entrada del rol, si no es administrador). */}
+          <button
+            type="button"
+            className="app-topbar-brand"
+            onClick={() => setWorkspaceView(getDefaultWorkspaceView(session?.user?.role))}
+            aria-label="Ir al inicio"
+          >
+            <span className="app-brand-mark" aria-hidden="true">
+              <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
+            </span>
             <div>
               <strong>Aguas de Choluteca</strong>
               <span>{headerMeta.title}</span>
             </div>
-          </div>
+          </button>
           <div className="app-topbar-kpis">
             {headerStats.map((stat) => (
               <span className="app-topbar-kpi" key={stat.label}>
@@ -13932,6 +13941,7 @@ function App() {
         onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         onNavigate={setWorkspaceView}
         onPrefetch={prefetchModule}
+        homeKey={getDefaultWorkspaceView(session?.user?.role)}
         onCloseMobile={closeMobileModuleMenu}
         onLogout={handleLogout}
       />

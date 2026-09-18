@@ -24,6 +24,7 @@ export default function AppSidebar({
   onToggleCollapsed,
   onNavigate,
   onPrefetch,
+  homeKey = "dashboard",
   onCloseMobile,
   onLogout
 }) {
@@ -146,7 +147,9 @@ export default function AppSidebar({
     <>
       <aside id="control-sidebar" ref={sidebarRef} className={`control-sidebar no-print ${effectiveCollapsed ? "is-collapsed" : ""} ${mobileOpen ? "is-mobile-open" : ""}`} aria-label="Navegación principal" aria-hidden={isMobile && !mobileOpen ? "true" : undefined} inert={isMobile && !mobileOpen ? "" : undefined}>
         <header className="control-sidebar-header">
-          <img src={logo} alt="Aguas de Choluteca" />
+          <button type="button" className="control-sidebar-home" onClick={() => navigate(homeKey)} aria-label="Ir al inicio">
+            <span className="app-brand-mark" aria-hidden="true"><img src={logo} alt="" /></span>
+          </button>
           <div><strong>Aguas de Choluteca</strong><span>Panel ejecutivo</span></div>
           <button type="button" className="control-sidebar-toggle" onClick={onToggleCollapsed} aria-label={effectiveCollapsed ? "Expandir menú lateral" : "Contraer menú lateral"} aria-pressed={effectiveCollapsed}><Icon name="arrowLeft" /></button>
         </header>

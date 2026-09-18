@@ -29710,3 +29710,125 @@ body {
 /* El encabezado debe dejar salir sus menús también en el breakpoint móvil. */
 .app-chrome { overflow: visible !important; }
 @media (max-width: 620px) { .notification-dropdown { width: min(360px, 100%); } }
+
+/* ===========================================================================
+   Marca: el logo como atajo al inicio
+   La microanimación viene del oficio — una gota que cae sobre el agua y deja
+   su onda. Solo aparece al pasar el puntero o al enfocar; en reposo, quieta.
+   =========================================================================== */
+
+.app-brand-mark {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+}
+
+.app-brand-mark img {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.38s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* La onda: un anillo que nace del logo y se apaga hacia afuera. */
+.app-brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 2px solid var(--brand-blue, #1465d9);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+button.app-topbar-brand,
+button.control-sidebar-home {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+button.app-topbar-brand:hover:not(:disabled),
+button.control-sidebar-home:hover:not(:disabled) {
+  transform: none;
+  background: none;
+  box-shadow: none;
+  filter: none;
+}
+
+button.app-topbar-brand:active .app-brand-mark img,
+button.control-sidebar-home:active .app-brand-mark img {
+  transform: scale(0.92);
+}
+
+button.app-topbar-brand:hover .app-brand-mark img,
+button.app-topbar-brand:focus-visible .app-brand-mark img,
+button.control-sidebar-home:hover .app-brand-mark img,
+button.control-sidebar-home:focus-visible .app-brand-mark img {
+  transform: scale(1.05);
+}
+
+button.app-topbar-brand:hover .app-brand-mark::after,
+button.app-topbar-brand:focus-visible .app-brand-mark::after,
+button.control-sidebar-home:hover .app-brand-mark::after,
+button.control-sidebar-home:focus-visible .app-brand-mark::after {
+  animation: brand-ripple 1.9s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+button.app-topbar-brand:focus-visible,
+button.control-sidebar-home:focus-visible {
+  outline: 2px solid var(--brand-blue, #1465d9);
+  outline-offset: 4px;
+}
+
+.control-sidebar-home {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+}
+
+@keyframes brand-ripple {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.28);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-brand-mark img {
+    transition: none;
+  }
+
+  button.app-topbar-brand:hover .app-brand-mark img,
+  button.control-sidebar-home:hover .app-brand-mark img,
+  button.app-topbar-brand:active .app-brand-mark img,
+  button.control-sidebar-home:active .app-brand-mark img {
+    transform: none;
+  }
+
+  .app-brand-mark::after {
+    animation: none !important;
+  }
+
+  button.app-topbar-brand:hover .app-brand-mark::after,
+  button.control-sidebar-home:hover .app-brand-mark::after {
+    opacity: 0.4;
+  }
+}

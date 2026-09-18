@@ -1167,3 +1167,158 @@
   .dashboard-workspace .dw-selection-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-workspace .dw-selection > header, .dashboard-workspace .dw-services > header { flex-wrap: wrap; }
 }
+
+/* ===========================================================================
+   Tarjetas compactas, pulsación en las acciones y paneles plegables
+   =========================================================================== */
+
+/* La tarjeta pasa de bloque alto a fila: el ícono al costado en vez de arriba.
+   Gana la mitad del alto y la cifra sigue siendo lo primero que se lee. */
+.dashboard-workspace .dw-kpi {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icono etiqueta cifra"
+    "icono ayuda cifra";
+  align-items: center;
+  column-gap: 0.7rem;
+  row-gap: 0;
+  padding: 0.45rem 0.75rem;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dashboard-workspace .dw-kpi-icon {
+  grid-area: icono;
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dashboard-workspace .dw-kpi .dw-eyebrow { grid-area: etiqueta; }
+.dashboard-workspace .dw-kpi strong { grid-area: cifra; align-self: center; justify-self: end; font-size: 23px; line-height: 1; }
+.dashboard-workspace .dw-kpi small { grid-area: ayuda; }
+
+.dashboard-workspace .dw-kpi:hover .dw-kpi-icon { transform: translateY(-1px) scale(1.06); }
+.dashboard-workspace .dw-kpi:active { transform: scale(0.985); }
+
+/* Late solo la tarjeta que pide atención y solo mientras tenga casos. */
+.dashboard-workspace .dw-kpi[data-alerta] .dw-kpi-icon {
+  animation: dw-kpi-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes dw-kpi-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 18%, transparent); }
+}
+
+/* Acciones rápidas: la pulsación se siente antes de que cambie la pantalla. */
+.dashboard-workspace .dw-actions button {
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dashboard-workspace .dw-actions button:active { transform: scale(0.97); }
+.dashboard-workspace .dw-actions button .app-icon { transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1); }
+.dashboard-workspace .dw-actions button:hover .app-icon { transform: scale(1.12); }
+
+/* --- Plegar y desplegar un panel --- */
+
+.dashboard-workspace .dw-collapse {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--dw-line);
+  border-radius: 9px;
+  background: var(--dw-surface);
+  box-shadow: none;
+  color: var(--dw-muted);
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+}
+
+.dashboard-workspace .dw-collapse:hover {
+  transform: none;
+  border-color: var(--dw-blue);
+  background: var(--dw-tint);
+  box-shadow: none;
+  color: var(--dw-blue);
+}
+
+.dashboard-workspace .dw-collapse .app-icon {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  transition: transform 0.28s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* El alto se anima con la rejilla: 1fr a 0fr recorre el alto real del panel,
+   sin tener que fijar un máximo a mano. */
+.dashboard-workspace .dw-panel-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 0.22s ease;
+}
+
+.dashboard-workspace .dw-panel-body-inner {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-workspace .dw-panel[data-plegado="true"] .dw-panel-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.dashboard-workspace .dw-panel[data-plegado="true"] .dw-collapse .app-icon {
+  transform: rotate(-90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-kpi,
+  .dashboard-workspace .dw-kpi-icon,
+  .dashboard-workspace .dw-actions button,
+  .dashboard-workspace .dw-actions button .app-icon,
+  .dashboard-workspace .dw-panel-body,
+  .dashboard-workspace .dw-collapse .app-icon {
+    transition: none;
+  }
+
+  .dashboard-workspace .dw-kpi[data-alerta] .dw-kpi-icon { animation: none; }
+  .dashboard-workspace .dw-kpi:hover .dw-kpi-icon,
+  .dashboard-workspace .dw-kpi:active,
+  .dashboard-workspace .dw-actions button:active,
+  .dashboard-workspace .dw-actions button:hover .app-icon { transform: none; }
+}
+
+/* En pantallas angostas la fila de tres columnas aprieta la etiqueta contra la
+   cifra: ahí el texto vuelve a apilarse al costado del ícono. */
+@media (max-width: 720px) {
+  .dashboard-workspace .dw-kpi {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icono etiqueta"
+      "icono cifra"
+      "icono ayuda";
+    padding: 0.55rem 0.7rem;
+  }
+
+  .dashboard-workspace .dw-kpi strong {
+    justify-self: start;
+    font-size: 22px;
+  }
+}

@@ -17,6 +17,33 @@ const QUICK_ACTIONS = [
   ["importacion", "download", "Importar padrón"]
 ];
 
+const PANELES_KEY = "aguas.dashboard.paneles-plegados";
+
+// En una pantalla larga, poder reducir un gráfico que hoy no se mira vale más
+// que cualquier animación. La elección se recuerda entre visitas.
+const leerPlegados = () => {
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(PANELES_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+};
+
+function BotonPlegar({ plegado, titulo, onToggle }) {
+  return (
+    <button
+      type="button"
+      className="dw-collapse"
+      aria-expanded={!plegado}
+      onClick={onToggle}
+      title={plegado ? `Expandir ${titulo}` : `Reducir ${titulo}`}
+      aria-label={plegado ? `Expandir ${titulo}` : `Reducir ${titulo}`}
+    >
+      <Icon name="chevronDown" />
+    </button>
+  );
+}
+
 const SERVICE_ICONS = { agua: "water", alcantarillado: "sewer", barrido: "broom", recoleccion: "waste", desechos_peligrosos: "warning" };
 
 const whole = (value) => Number(value || 0).toLocaleString("es-HN");
@@ -39,6 +66,20 @@ function Amount({ value, className = "" }) {
 }
 
 export default function DashboardWorkspace({ model }) {
+  const [plegados, setPlegados] = useState(leerPlegados);
+  const alternarPanel = (clave) =>
+    setPlegados((actuales) => {
+      const siguiente = new Set(actuales);
+      if (siguiente.has(clave)) siguiente.delete(clave);
+      else siguiente.add(clave);
+      try {
+        window.localStorage.setItem(PANELES_KEY, JSON.stringify([...siguiente]));
+      } catch {
+        // Sin almacenamiento el panel igual se pliega, solo no se recuerda.
+      }
+      return siguiente;
+    });
+
   const [debtMetric, setDebtMetric] = useState("total");
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
@@ -163,6 +204,9 @@ export default function DashboardWorkspace({ model }) {
             type="button"
             className={`dw-kpi ${item.tone || ""}`.trim()}
             key={item.key}
+            // El ícono late solo cuando hay algo que atender: un pulso
+            // permanente en las cuatro tarjetas sería ruido, no aviso.
+            data-alerta={["is-critical", "is-warning"].includes(item.tone) && Number(item.value) > 0 ? "" : undefined}
             onClick={() =>
               navigate(
                 item.key === "gps" ? "map" : item.key === "records" || item.key === "alerts" ? "records" : "users",
@@ -209,13 +253,15 @@ export default function DashboardWorkspace({ model }) {
                     </ul>
                     {!model.attention.some((item) => !attentionLevel || item.level === attentionLevel) ? <p className="dw-empty">No hay prioridades en esta categoría.</p> : null}
                   </article>
-          <article className="dw-panel dw-cartera">
+          <article className="dw-panel dw-cartera" data-plegado={plegados.has("cartera")}>
                     <header className="dw-panel-head">
                       <div>
                         <span className="dw-eyebrow">Situación financiera</span>
                         <h2>Cartera en mora</h2>
                       </div>
+                      <BotonPlegar plegado={plegados.has("cartera")} titulo="la cartera en mora" onToggle={() => alternarPanel("cartera")} />
                     </header>
+                    <div className="dw-panel-body"><div className="dw-panel-body-inner">
 
                     <p className="dw-cartera-total">
                       <Amount value={debtTotal} className="is-hero" />
@@ -281,17 +327,20 @@ export default function DashboardWorkspace({ model }) {
                         <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
                       </section>
                     ) : null}
+                    </div></div>
                   </article>
         </div>
         <div className="dw-col">
-          <article className="dw-panel dw-mora" data-metric={debtMetric}>
+          <article className="dw-panel dw-mora" data-metric={debtMetric} data-plegado={plegados.has("mora")}>
                     <header className="dw-panel-head">
                       <div>
                         <span className="dw-eyebrow">Datos reales del padrón</span>
                         <h2>Barrios con mayor mora</h2>
                       </div>
                       {ranking.length ? <span className="dw-ranking-count">Top {ranking.length}</span> : null}
+                      <BotonPlegar plegado={plegados.has("mora")} titulo="los barrios con mayor mora" onToggle={() => alternarPanel("mora")} />
                     </header>
+                    <div className="dw-panel-body"><div className="dw-panel-body-inner">
                     <div className="dw-metric-switch" role="group" aria-label="Ordenar barrios por">
                       {[["total", "Mora total", "records"], ["accounts", "Abonados", "users"], ["critical", "Casos críticos", "warning"]].map(([metric, label, icon]) => (
                         <button type="button" key={metric} aria-pressed={debtMetric === metric} onClick={() => setDebtMetric(metric)}>
@@ -462,6 +511,7 @@ export default function DashboardWorkspace({ model }) {
                         Ver informe
                       </button>
                     </footer>
+                    </div></div>
                   </article>
           <article className="dw-panel dw-feed">
                     <header className="dw-panel-head">

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import InspeccionesTable from "../modules/inspecciones/components/InspeccionesTable";
 import { ModuleSkeleton } from "../components/ds/Skeleton";
 import AppSidebar from "../components/sidebar/AppSidebar";
+import logoAguasCholuteca from "../assets/logo-aguas-choluteca.png";
 import "../styles.css";
 import "../modules/clandestinos/styles/clandestinos.css";
 import "../modules/inspecciones/styles/inspecciones.css";
@@ -47,9 +48,25 @@ const SECCIONES = [
 function Preview() {
   // Registra qué módulo se pidió adelantar, para comprobar que el menú avisa.
   const [adelantados, setAdelantados] = React.useState([]);
+  const [navegado, setNavegado] = React.useState("");
 
   return (
     <main className="cl-module" style={{ display: "grid", gap: 28, padding: 24 }}>
+      <section>
+        <h2>Marca de la barra superior (botón de inicio)</h2>
+        <div className="app-topbar" style={{ marginLeft: 330, background: "#fff", border: "1px solid #dce6ef", borderRadius: 14, padding: 12 }}>
+          <button type="button" className="app-topbar-brand" onClick={() => setNavegado("dashboard")} aria-label="Ir al inicio">
+            <span className="app-brand-mark" aria-hidden="true">
+              <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
+            </span>
+            <div>
+              <strong>Aguas de Choluteca</strong>
+              <span>Tablero de control</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
       <section>
         <h2>Adelanto del módulo al pasar el puntero por el menú</h2>
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
@@ -59,13 +76,16 @@ function Preview() {
             userName="QA"
             userRole="Administrador"
             onToggleCollapsed={() => {}}
-            onNavigate={() => {}}
+            onNavigate={(key) => setNavegado(key)}
+            homeKey="dashboard"
             onPrefetch={(key) => setAdelantados((actuales) => (actuales.includes(key) ? actuales : [...actuales, key]))}
             onCloseMobile={() => {}}
             onLogout={() => {}}
           />
           <p id="qa-prefetch" className="cl-empty" style={{ background: "#fff", borderRadius: 12, flex: 1 }}>
             Adelantados: {adelantados.join(", ") || "ninguno todavía"}
+            <br />
+            <span id="qa-navegado">Última navegación: {navegado || "ninguna"}</span>
           </p>
         </div>
       </section>
