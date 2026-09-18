@@ -1,23 +1,7 @@
 import { Icon } from "../../../components/Icon";
-import { ESTADO_LABELS, estadoClass, estadoLabel, formatDate, printStatusLabel } from "../utils/inspeccionesFormatters";
+import { ESTADO_LABELS, estadoClass, estadoLabel, formatDate } from "../utils/inspeccionesFormatters";
 import { TableSkeleton } from "../../../components/ds/Skeleton";
-
-// La columna de impresión repetía "NO IMPRESA" en mayúsculas dos veces por fila
-// y se comía la atención. El ícono distingue impreso de pendiente y el texto
-// completo queda en el nombre accesible, no en la pantalla.
-function PrintBadge({ etiqueta, estado }) {
-  const impreso = Boolean(estado?.impreso);
-  return (
-    <span
-      className={`cl-print-state ${impreso ? "is-printed" : ""}`}
-      title={`${etiqueta}: ${printStatusLabel(estado).toLowerCase()}`}
-    >
-      <Icon name={impreso ? "success" : "print"} />
-      <span className="ins-print-label">{etiqueta}</span>
-      <span className="ins-sr">{printStatusLabel(estado).toLowerCase()}</span>
-    </span>
-  );
-}
+import PrintBadge from "./PrintBadge";
 
 export default function InspeccionesTable({ model, tecnicos = [], isAdmin, onOpen }) {
   const { items, total, page, total_pages: totalPages, loading, error, filters, setFilters, clearFilters, setPage } = model;
