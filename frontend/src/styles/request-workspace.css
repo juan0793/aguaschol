@@ -232,3 +232,45 @@
 @media (prefers-reduced-motion: reduce) {
   .request-workspace * { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Aviso de carga fallida ---------- */
+/* El toast de error desaparece solo y dejaba la pantalla mostrando ceros como si
+   fueran datos reales; este bloque permanece mientras la carga siga fallando. */
+.request-workspace .request-load-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ds-danger, #b8323e);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-danger-soft, #fdf2f3);
+}
+.request-workspace .request-load-error > .app-icon { flex: none; width: 1.15rem; height: 1.15rem; color: var(--ds-danger, #b8323e); }
+.request-workspace .request-load-error > div { display: grid; gap: 0.1rem; min-width: 0; }
+.request-workspace .request-load-error strong { color: var(--ds-danger, #b8323e); font-size: 0.9rem; }
+.request-workspace .request-load-error p { margin: 0; color: var(--ds-text-muted); font-size: 0.82rem; }
+.request-workspace .request-load-error button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+  margin-left: auto;
+  min-height: 2.1rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ds-danger, #b8323e);
+  border-radius: var(--ds-radius-button, 8px);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-danger, #b8323e);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+.request-workspace .request-load-error button:disabled { cursor: progress; opacity: 0.65; }
+.request-workspace .request-load-error .app-icon { width: 1rem; height: 1rem; }
+
+@media (max-width: 620px) {
+  .request-workspace .request-load-error { flex-wrap: wrap; }
+  .request-workspace .request-load-error button { margin-left: 0; }
+}

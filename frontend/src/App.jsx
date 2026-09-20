@@ -1198,6 +1198,9 @@ function App() {
   const [lookupFeedback, setLookupFeedback] = useState("");
   const [lookupHistory, setLookupHistory] = useState(() => loadStoredLookupHistory());
   const [padronRequestTemplates, setPadronRequestTemplates] = useState([]);
+  // Sin esto, un 500 del backend se veia igual que "no hay datos": los contadores
+  // quedaban en 0 y la insignia seguia diciendo "Listo" en cuanto pasaba el aviso.
+  const [padronRequestLoadError, setPadronRequestLoadError] = useState("");
   const [padronRequestForm, setPadronRequestForm] = useState(defaultPadronRequestForm);
   const [padronRequestResult, setPadronRequestResult] = useState(null);
   const [loadingPadronRequest, setLoadingPadronRequest] = useState(false);
@@ -4711,6 +4714,7 @@ function App() {
       }
 
       const templates = Array.isArray(data.templates) ? data.templates : [];
+      setPadronRequestLoadError("");
       setPadronRequestTemplates(templates);
       if (templates.length) {
         const currentTemplate =
@@ -4725,6 +4729,7 @@ function App() {
         }));
       }
     } catch (error) {
+      setPadronRequestLoadError(error.message || "No fue posible cargar las plantillas de peticiones.");
       if (!silent) {
         showAlert(error.message || "No fue posible cargar las plantillas de peticiones.");
       }
@@ -4754,10 +4759,12 @@ function App() {
       }
 
       setPadronServiceReport(data);
+      setPadronRequestLoadError("");
       if (!silent) {
         showAlert(`Informe actualizado: ${data.summary?.total_records ?? 0} registros del padron maestro.`);
       }
     } catch (error) {
+      setPadronRequestLoadError(error.message || "No fue posible cargar el informe de servicios del padron.");
       if (!silent) {
         showAlert(error.message || "No fue posible cargar el informe de servicios del padron.");
       }
@@ -18575,11 +18582,46 @@ function App() {
                         { label: "Barrios", value: padronRequestResult?.summary?.total_barrios ?? 0 }
                       ]}
                     />
-                    <span className={`ds-badge ${loadingPadronRequest || loadingPadronRequestMeta ? "is-warning" : "is-success is-live"}`}>
+                    <span
+                      className={`ds-badge ${
+                        padronRequestLoadError
+                          ? "is-danger"
+                          : loadingPadronRequest || loadingPadronRequestMeta
+                            ? "is-warning"
+                            : "is-success is-live"
+                      }`}
+                      title={padronRequestLoadError || undefined}
+                    >
                       <span className="ds-badge-dot" />
-                      {loadingPadronRequest ? "Generando" : loadingPadronRequestMeta ? "Cargando" : "Listo"}
+                      {padronRequestLoadError
+                        ? "Sin datos"
+                        : loadingPadronRequest
+                          ? "Generando"
+                          : loadingPadronRequestMeta
+                            ? "Cargando"
+                            : "Listo"}
                     </span>
                   </div>
+                  {padronRequestLoadError ? (
+                    <div className="request-load-error" role="alert">
+                      <Icon name="warning" />
+                      <div>
+                        <strong>No se pudo leer el padrón maestro</strong>
+                        <p>{padronRequestLoadError.replace(/\.?$/, ".")} Los totales de abajo no reflejan la base de datos.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          loadPadronRequestMeta();
+                          loadPadronServiceReport({ silent: true });
+                        }}
+                        disabled={loadingPadronRequestMeta || loadingPadronServiceReport}
+                      >
+                        <Icon name="refresh" />
+                        {loadingPadronRequestMeta || loadingPadronServiceReport ? "Reintentando…" : "Reintentar"}
+                      </button>
+                    </div>
+                  ) : null}
                   <article className="document-sheet log-sheet request-sheet">
                     <div className="map-report-office-head request-office-head">
                       <div className="map-report-brand">
