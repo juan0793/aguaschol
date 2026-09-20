@@ -818,6 +818,42 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
             font-size: 10px;
             margin: 0;
           }
+          .dashboard-report-body .print-report-service-flag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px 0 5px;
+            padding: 5px 8px;
+            border: 1px solid #c7dff3;
+            border-radius: 7px;
+            background: #f2f8ff;
+            color: #0b4d88;
+          }
+          .dashboard-report-body .print-report-service-flag .print-report-icon {
+            width: 16px;
+            height: 16px;
+            color: currentColor;
+          }
+          .dashboard-report-body .print-report-service-flag span {
+            display: grid;
+            gap: 1px;
+          }
+          .dashboard-report-body .print-report-service-flag small {
+            font-size: 7px;
+            font-weight: 800;
+            letter-spacing: 0.09em;
+            line-height: 1;
+            text-transform: uppercase;
+          }
+          .dashboard-report-body .print-report-service-flag strong {
+            font-size: 11px;
+            line-height: 1.15;
+          }
+          .dashboard-report-body .print-report-service-flag.is-hazardous {
+            border-color: #efb5b0;
+            background: #fff1ef;
+            color: #a3292b;
+          }
           .dashboard-report-body .print-section h3 {
             display: flex;
             align-items: center;
