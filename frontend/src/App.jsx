@@ -148,27 +148,104 @@ const InspeccionesPage = lazyWithRetry(() => import("./modules/inspecciones/page
 const EntregasPage = lazyWithRetry(() => import("./modules/entregas/pages/EntregasPage"));
 const NotesPage = lazyWithRetry(() => import("./modules/notes/pages/NotesPage"));
 
+// La auditoria se lee siempre en hora de Honduras: agrupar por la fecha local del
+// navegador movia eventos de la noche al dia siguiente y desalineaba la hora del
+// evento con la marca completa que imprime formatDateTime.
+const AUDIT_TIME_ZONE = "America/Tegucigalpa";
+
+const auditDayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: AUDIT_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+
+const auditDayLabelFormatter = new Intl.DateTimeFormat("es-HN", {
+  timeZone: AUDIT_TIME_ZONE,
+  day: "numeric",
+  month: "long",
+  year: "numeric"
+});
+
+const auditTimeFormatter = new Intl.DateTimeFormat("es-HN", {
+  timeZone: AUDIT_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
+
 const groupAuditLogsByDay = (logs) => {
   const groups = new Map();
   logs.forEach((log) => {
     const date = new Date(log.created_at);
-    const key = Number.isNaN(date.getTime())
-      ? "sin-fecha"
-      : [date.getFullYear(), date.getMonth() + 1, date.getDate()]
-        .map((part) => String(part).padStart(2, "0"))
-        .join("-");
+    const key = Number.isNaN(date.getTime()) ? "sin-fecha" : auditDayKeyFormatter.format(date);
     if (!groups.has(key)) {
       groups.set(key, {
         key,
-        label: key === "sin-fecha"
-          ? "Sin fecha"
-          : new Intl.DateTimeFormat("es-HN", { day: "numeric", month: "long", year: "numeric" }).format(date),
+        label: key === "sin-fecha" ? "Sin fecha" : auditDayLabelFormatter.format(date),
         logs: []
       });
     }
     groups.get(key).logs.push(log);
   });
   return [...groups.values()];
+};
+
+const EMPTY_AUDIT_FILTERS = {
+  action: "",
+  entity_type: "",
+  actor: "",
+  search: "",
+  date_from: "",
+  date_to: ""
+};
+
+const AUDIT_FILTER_KEYS = Object.keys(EMPTY_AUDIT_FILTERS);
+
+const AUDIT_ACTION_OPTIONS = [
+  { value: "auth.login", label: "Inicio de sesion" },
+  { value: "auth.logout", label: "Cierre de sesion" },
+  { value: "user.created", label: "Usuario creado" },
+  { value: "padron.updated", label: "Padron actualizado" },
+  { value: "inmueble.created", label: "Ficha creada" },
+  { value: "inmueble.updated", label: "Ficha actualizada" },
+  { value: "inmueble.archived", label: "Ficha archivada" },
+  { value: "inmueble.restored", label: "Ficha restaurada" },
+  { value: "inmueble.deleted", label: "Ficha eliminada" },
+  { value: "report.generated", label: "Reporte generado" }
+];
+
+const AUDIT_ENTITY_OPTIONS = [
+  { value: "user", label: "Usuario" },
+  { value: "inmueble", label: "Ficha" },
+  { value: "padron", label: "Padron" },
+  { value: "report", label: "Reporte" }
+];
+
+// Cada familia de eventos toma un acento propio para leer el stream de un vistazo
+// sin tener que detenerse a leer la etiqueta.
+const auditActionTone = (action = "") => {
+  if (action.startsWith("auth.")) return "auth";
+  if (action.startsWith("user.")) return "user";
+  if (action.startsWith("padron.")) return "padron";
+  if (action.startsWith("report.")) return "report";
+  if (action.startsWith("map_point.") || action.startsWith("transport.")) return "field";
+  if (action.startsWith("inmueble.")) return "record";
+  return "system";
+};
+
+const formatAuditTime = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "--:--" : auditTimeFormatter.format(date);
+};
+
+// El encabezado del dia gana un "Hoy"/"Ayer" para ubicarse sin leer la fecha completa.
+const auditRelativeDayLabel = (key) => {
+  if (key === "sin-fecha") return "";
+  const today = new Date();
+  if (key === auditDayKeyFormatter.format(today)) return "Hoy";
+  const yesterday = new Date(today.getTime() - 86400000);
+  return key === auditDayKeyFormatter.format(yesterday) ? "Ayer" : "";
 };
 
 // Los módulos viajan en su propio archivo, así que la primera visita cuesta una
@@ -1233,14 +1310,12 @@ function App() {
   const [loadingAuditReportId, setLoadingAuditReportId] = useState("");
   const [recordHistory, setRecordHistory] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
-  const [auditFilters, setAuditFilters] = useState({
-    action: "",
-    entity_type: "",
-    actor: "",
-    search: "",
-    date_from: "",
-    date_to: ""
-  });
+  const [auditFilters, setAuditFilters] = useState(EMPTY_AUDIT_FILTERS);
+  // Los campos de texto escriben en `auditFilters` al instante (la UI responde) pero
+  // la consulta al backend viaja sobre la copia retrasada: antes cada tecla disparaba
+  // un fetch del historial completo.
+  const [auditFiltersQuery, setAuditFiltersQuery] = useState(EMPTY_AUDIT_FILTERS);
+  const [auditFiltersOpen, setAuditFiltersOpen] = useState(false);
   const lookupModeConfig =
     LOOKUP_SEARCH_MODES.find((mode) => mode.value === lookupSearchMode) ?? LOOKUP_SEARCH_MODES[0];
   const lookupInputLabel =
@@ -1386,6 +1461,22 @@ function App() {
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
   const auditDayGroups = useMemo(() => groupAuditLogsByDay(safeAuditLogs), [safeAuditLogs]);
+  const auditFilterChips = useMemo(() => {
+    const labelFor = (options, value) => options.find((option) => option.value === value)?.label || value;
+    const chips = [];
+    if (auditFilters.search) chips.push({ key: "search", label: "Búsqueda", value: auditFilters.search });
+    if (auditFilters.action) chips.push({ key: "action", label: "Acción", value: labelFor(AUDIT_ACTION_OPTIONS, auditFilters.action) });
+    if (auditFilters.entity_type) chips.push({ key: "entity_type", label: "Entidad", value: labelFor(AUDIT_ENTITY_OPTIONS, auditFilters.entity_type) });
+    if (auditFilters.actor) chips.push({ key: "actor", label: "Actor", value: auditFilters.actor });
+    if (auditFilters.date_from) chips.push({ key: "date_from", label: "Desde", value: auditFilters.date_from });
+    if (auditFilters.date_to) chips.push({ key: "date_to", label: "Hasta", value: auditFilters.date_to });
+    return chips;
+  }, [auditFilters]);
+  const auditRangeLabel = auditFilters.date_from || auditFilters.date_to
+    ? `${auditFilters.date_from || "inicio"} → ${auditFilters.date_to || "hoy"}`
+    : "Historial completo";
+  const auditSyncing = loadingLogs
+    || AUDIT_FILTER_KEYS.some((key) => auditFilters[key] !== auditFiltersQuery[key]);
   const safeBarrioCodes = Array.isArray(barrioCodes) ? barrioCodes : [];
   const getRecordBarrioName = useCallback(
     (record = {}, fallback = "Sin barrio") =>
@@ -4974,7 +5065,7 @@ function App() {
 
     try {
       const params = new URLSearchParams({ limit: "120" });
-      Object.entries(auditFilters).forEach(([key, value]) => {
+      Object.entries(auditFiltersQuery).forEach(([key, value]) => {
         if (String(value ?? "").trim()) {
           params.set(key, String(value).trim());
         }
@@ -5130,7 +5221,12 @@ function App() {
     if (workspaceView === "logs") {
       loadAuditLogs();
     }
-  }, [auditFilters, isAuthenticated, isAdmin, workspaceView]);
+  }, [auditFiltersQuery, isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setAuditFiltersQuery(auditFilters), 320);
+    return () => window.clearTimeout(timeoutId);
+  }, [auditFilters]);
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin || !["dashboard", "requests"].includes(workspaceView)) {
@@ -9580,6 +9676,19 @@ function App() {
   const handleAuditFilterChange = (event) => {
     const { name, value } = event.target;
     setAuditFilters((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleAuditFilterClear = (key) => {
+    setAuditFilters((current) => ({ ...current, [key]: "" }));
+  };
+
+  const handleAuditFiltersReset = () => {
+    setAuditFilters(EMPTY_AUDIT_FILTERS);
+  };
+
+  const handleAuditReportArchiveShortcut = () => {
+    setAuditFilters((current) => ({ ...current, action: "report.generated", entity_type: "report" }));
+    setAuditFiltersOpen(true);
   };
 
   const handlePasswordFormChange = (event) => {
@@ -19445,203 +19554,255 @@ function App() {
                 showAlert={showAlert}
               />
             ) : (
-              <section className="preview-panel log-panel-full log-terminal-view">
-                <div className="log-shell">
-                  <div className="log-hero">
-                    <div className="admin-section-head">
-                      <div>
-                        <p className="sheet-kicker">Terminal de auditoria</p>
-                        <h2><Icon name="history" className="title-icon" />Historial de actividad</h2>
-                        <p className="workspace-title">
-                          Consola viva para seguir accesos, fichas, padrones y movimientos del trabajo operativo.
-                        </p>
-                        <button type="button" className="ds-link-button" onClick={() => setWorkspaceView("executiveReport")}>
-                          <Icon name="records" />Informe de operaciones (PDF)
-                        </button>
-                        <button
-                          type="button"
-                          className="ds-link-button"
-                          onClick={() => setAuditFilters((current) => ({ ...current, action: "report.generated", entity_type: "report" }))}
-                        >
-                          <Icon name="print" />Archivo de reportes
-                        </button>
-                      </div>
-                      <div className="log-hero-status">
-                        <span className="log-live-dot" />
+              <section className="preview-panel log-panel-full log-terminal-view audit-console">
+                <div className="log-shell audit-shell">
+                  <header className="audit-masthead">
+                    <div className="audit-masthead-copy">
+                      <span className="audit-kicker">
+                        <span className={`audit-kicker-dot ${auditSyncing ? "is-syncing" : ""}`.trim()} />
+                        Terminal de auditoría
+                      </span>
+                      <h2>Historial de actividad</h2>
+                      <p>Consola viva para seguir accesos, fichas, padrones y movimientos del trabajo operativo.</p>
+                    </div>
+                    <div className="audit-masthead-side">
+                      <div className="audit-counter">
                         <strong>{safeAuditLogs.length}</strong>
-                        <small>eventos indexados</small>
+                        <small>eventos<br />indexados</small>
                       </div>
-                    </div>
-                    <div className="log-terminal-bar" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                      <strong>aguaschol://audit-stream</strong>
-                      <small>{loadingLogs ? "stream:syncing" : "stream:online"}</small>
-                    </div>
-                    <form className="log-filters" onSubmit={(event) => event.preventDefault()}>
-                      <label>
-                        <span>Accion</span>
-                        <select name="action" value={auditFilters.action} onChange={handleAuditFilterChange}>
-                          <option value="">Todas</option>
-                          <option value="auth.login">Inicio de sesion</option>
-                          <option value="auth.logout">Cierre de sesion</option>
-                          <option value="user.created">Usuario creado</option>
-                          <option value="padron.updated">Padron actualizado</option>
-                          <option value="inmueble.created">Ficha creada</option>
-                          <option value="inmueble.updated">Ficha actualizada</option>
-                          <option value="inmueble.archived">Ficha archivada</option>
-                          <option value="inmueble.restored">Ficha restaurada</option>
-                          <option value="inmueble.deleted">Ficha eliminada</option>
-                          <option value="report.generated">Reporte generado</option>
-                        </select>
-                      </label>
-                      <label>
-                        <span>Entidad</span>
-                        <select name="entity_type" value={auditFilters.entity_type} onChange={handleAuditFilterChange}>
-                          <option value="">Todas</option>
-                          <option value="user">Usuario</option>
-                          <option value="inmueble">Ficha</option>
-                          <option value="padron">Padron</option>
-                          <option value="report">Reporte</option>
-                        </select>
-                      </label>
-                      <label>
-                        <span>Actor</span>
-                        <input name="actor" value={auditFilters.actor} onChange={handleAuditFilterChange} placeholder="Nombre o correo" />
-                      </label>
-                      <label>
-                        <span>Buscar</span>
-                        <input name="search" value={auditFilters.search} onChange={handleAuditFilterChange} placeholder="ID RPT-... o detalle" />
-                      </label>
-                      <label>
-                        <span>Desde</span>
-                        <input type="date" name="date_from" value={auditFilters.date_from} onChange={handleAuditFilterChange} />
-                      </label>
-                      <label>
-                        <span>Hasta</span>
-                        <input type="date" name="date_to" value={auditFilters.date_to} onChange={handleAuditFilterChange} />
-                      </label>
-                      <div className="log-filter-actions">
-                        <button type="button" className="button-secondary" onClick={handleExportAuditLogs}>
+                      <div className="audit-masthead-actions">
+                        <button type="button" className="audit-action" onClick={() => setWorkspaceView("executiveReport")}>
                           <Icon name="records" />
-                          Exportar CSV
+                          Informe de operaciones
                         </button>
-                        <button
-                          type="button"
-                          className="button-secondary"
-                          onClick={() =>
-                            setAuditFilters({
-                              action: "",
-                              entity_type: "",
-                              actor: "",
-                              search: "",
-                              date_from: "",
-                              date_to: ""
-                            })
-                          }
-                        >
+                        <button type="button" className="audit-action" onClick={handleAuditReportArchiveShortcut}>
+                          <Icon name="print" />
+                          Archivo de reportes
+                        </button>
+                      </div>
+                    </div>
+                  </header>
+
+                  <form className="audit-searchbar" onSubmit={(event) => event.preventDefault()}>
+                    <div className="audit-search-row">
+                      <div className="audit-search-field">
+                        <Icon name="search" />
+                        <input
+                          name="search"
+                          value={auditFilters.search}
+                          onChange={handleAuditFilterChange}
+                          placeholder="Buscar por ID de reporte, actor o detalle del evento"
+                          aria-label="Buscar en el historial"
+                        />
+                        {auditFilters.search ? (
+                          <button
+                            type="button"
+                            className="audit-search-clear"
+                            onClick={() => handleAuditFilterClear("search")}
+                            aria-label="Limpiar búsqueda"
+                          >
+                            <Icon name="close" />
+                          </button>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className={`audit-filter-toggle ${auditFiltersOpen ? "is-open" : ""}`.trim()}
+                        onClick={() => setAuditFiltersOpen((current) => !current)}
+                        aria-expanded={auditFiltersOpen}
+                      >
+                        <Icon name="filter" />
+                        Filtros
+                        {auditFilterChips.length ? <em>{auditFilterChips.length}</em> : null}
+                        <Icon name="chevronDown" className="audit-filter-caret" />
+                      </button>
+                      <button type="button" className="audit-action is-ghost" onClick={handleExportAuditLogs}>
+                        <Icon name="download" />
+                        Exportar CSV
+                      </button>
+                    </div>
+
+                    {auditFiltersOpen ? (
+                      <div className="audit-filter-grid">
+                        <label>
+                          <span>Acción</span>
+                          <select name="action" value={auditFilters.action} onChange={handleAuditFilterChange}>
+                            <option value="">Todas las acciones</option>
+                            {AUDIT_ACTION_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Entidad</span>
+                          <select name="entity_type" value={auditFilters.entity_type} onChange={handleAuditFilterChange}>
+                            <option value="">Todas las entidades</option>
+                            {AUDIT_ENTITY_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Actor</span>
+                          <input name="actor" value={auditFilters.actor} onChange={handleAuditFilterChange} placeholder="Nombre o correo" />
+                        </label>
+                        <div className="audit-filter-range">
+                          <span>Rango de fechas</span>
+                          <div>
+                            <input type="date" name="date_from" value={auditFilters.date_from} onChange={handleAuditFilterChange} aria-label="Desde" />
+                            <em>→</em>
+                            <input type="date" name="date_to" value={auditFilters.date_to} onChange={handleAuditFilterChange} aria-label="Hasta" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {auditFilterChips.length ? (
+                      <div className="audit-chip-row">
+                        {auditFilterChips.map((chip) => (
+                          <button
+                            key={chip.key}
+                            type="button"
+                            className="audit-active-chip"
+                            onClick={() => handleAuditFilterClear(chip.key)}
+                            title={`Quitar filtro ${chip.label}`}
+                          >
+                            <span>{chip.label}</span>
+                            <strong>{chip.value}</strong>
+                            <Icon name="close" />
+                          </button>
+                        ))}
+                        <button type="button" className="audit-chip-reset" onClick={handleAuditFiltersReset}>
                           <Icon name="refresh" />
-                          Limpiar filtros
+                          Limpiar todo
                         </button>
                       </div>
-                    </form>
-                    <div className="log-summary-strip">
-                      <div className="log-summary-card">
-                        <span>Stream</span>
-                        <strong>{loadingLogs ? "Sincronizando" : "Online"}</strong>
-                      </div>
-                      <div className="log-summary-card">
-                        <span>Paquetes</span>
-                        <strong>{safeAuditLogs.length}</strong>
-                      </div>
-                      <div className="log-summary-card">
-                        <span>Integridad</span>
-                        <strong>Trazabilidad activa</strong>
-                      </div>
+                    ) : null}
+                  </form>
+
+                  <div className="audit-stat-row">
+                    <div className={`audit-stat ${auditSyncing ? "is-syncing" : "is-live"}`}>
+                      <span>Stream</span>
+                      <strong>{auditSyncing ? "Sincronizando" : "En línea"}</strong>
+                      <small>{formatDateTime(new Date().toISOString())}</small>
+                    </div>
+                    <div className="audit-stat">
+                      <span>Eventos visibles</span>
+                      <strong>{safeAuditLogs.length}</strong>
+                      <small>{auditFilterChips.length ? "Con filtros aplicados" : "Sin filtros"}</small>
+                    </div>
+                    <div className="audit-stat">
+                      <span>Rango</span>
+                      <strong>{auditRangeLabel}</strong>
+                      <small>{auditDayGroups.length} {auditDayGroups.length === 1 ? "jornada" : "jornadas"}</small>
+                    </div>
+                    <div className="audit-stat">
+                      <span>Integridad</span>
+                      <strong>Trazabilidad activa</strong>
+                      <small>Registro inmutable</small>
                     </div>
                   </div>
-                  <article className="document-sheet log-sheet log-sheet-minimal">
-                    <aside className="log-ops-panel">
-                      <div className="log-ops-card is-live">
-                        <span>Estado</span>
-                        <strong>{loadingLogs ? "Leyendo logs" : "Canal estable"}</strong>
-                        <small>{formatDateTime(new Date().toISOString())}</small>
-                      </div>
-                      <div className="log-ops-card">
-                        <span>Actor filtro</span>
-                        <strong>{auditFilters.actor || "Todos"}</strong>
-                        <small>Usuarios y sistema</small>
-                      </div>
-                      <div className="log-ops-card">
-                        <span>Entidad</span>
-                        <strong>{auditFilters.entity_type || "Global"}</strong>
-                        <small>Trabajo operativo</small>
-                      </div>
-                    </aside>
+
+                  <article className="audit-stream-panel">
                     {safeAuditLogs.length ? (
-                      <div className="log-stream-list">
-                        {auditDayGroups.map((group) => (
-                          <section className="log-day-group" key={group.key}>
-                            <header className="log-day-heading">
-                              <div><Icon name="calendar" /><strong>{group.label}</strong></div>
-                              <span>{group.logs.length} {group.logs.length === 1 ? "evento" : "eventos"}</span>
-                            </header>
-                            <div className="log-day-events">
-                              {group.logs.map((log, index) => {
-                                const isReport = log.action === "report.generated";
-                                const archiveAvailable = Boolean(log.details_json?.archive_available);
-                                return (
-                                  <div key={`${group.key}-${log.id}`} className={`log-row ${isReport ? "is-report-log" : ""}`.trim()} style={{ "--log-delay": `${Math.min(index, 10) * 35}ms` }}>
-                                    <div className="log-pin">
-                                      <Icon name={actionIconName(log.action)} />
-                                    </div>
-                                    <div className="log-meta">
-                                      <div className="log-topline">
-                                        <span className="record-badge">{actionLabel(log.action)}</span>
-                                        <small>{formatDateTime(log.created_at)}</small>
+                      <div className="audit-stream">
+                        {auditDayGroups.map((group) => {
+                          const relative = auditRelativeDayLabel(group.key);
+                          return (
+                            <section className="audit-day" key={group.key}>
+                              <header className="audit-day-heading">
+                                <Icon name="calendar" />
+                                {relative ? <strong>{relative}</strong> : null}
+                                <span>{group.label}</span>
+                                <small>{group.logs.length} {group.logs.length === 1 ? "evento" : "eventos"}</small>
+                              </header>
+                              <div className="audit-day-events">
+                                {group.logs.map((log, index) => {
+                                  const isReport = log.action === "report.generated";
+                                  const archiveAvailable = Boolean(log.details_json?.archive_available);
+                                  return (
+                                    <div
+                                      key={`${group.key}-${log.id}`}
+                                      className={`audit-event ${isReport ? "is-report" : ""}`.trim()}
+                                      data-tone={auditActionTone(log.action)}
+                                      style={{ "--log-delay": `${Math.min(index, 10) * 35}ms` }}
+                                    >
+                                      <div className="audit-event-rail">
+                                        <time dateTime={log.created_at} title={formatDateTime(log.created_at)}>
+                                          {formatAuditTime(log.created_at)}
+                                        </time>
+                                        <span className="audit-event-icon">
+                                          <Icon name={actionIconName(log.action)} />
+                                        </span>
                                       </div>
-                                      <strong>{log.summary || "Movimiento registrado"}</strong>
-                                      {isReport ? <span className="log-report-id">{log.entity_id}</span> : null}
-                                    </div>
-                                    <div className="log-detail">
-                                      <div className="log-chips">
-                                        <span className="log-chip">Actor: {log.actor_name || log.actor_email || "Sistema"}</span>
-                                        <span className="log-chip">Entidad: {log.entity_type} #{log.entity_id || "--"}</span>
-                                        <span className="log-chip">Evento: {log.action || "audit.event"}</span>
-                                      </div>
-                                      {isReport ? (
-                                        <div className="log-report-actions">
-                                          <span className={archiveAvailable ? "log-archive-status is-ready" : "log-archive-status"}>
-                                            <Icon name={archiveAvailable ? "success" : "records"} />
-                                            {archiveAvailable ? "Copia visual archivada" : "Solo metadata disponible"}
-                                          </span>
-                                          {archiveAvailable ? (
-                                            <button type="button" className="log-report-open" onClick={() => handleOpenAuditReport(log)} disabled={loadingAuditReportId === log.entity_id}>
-                                              <Icon name="eye" />{loadingAuditReportId === log.entity_id ? "Abriendo…" : "Ver e imprimir reporte"}
-                                            </button>
-                                          ) : null}
+                                      <div className="audit-event-body">
+                                        <div className="audit-event-head">
+                                          <span className="audit-event-badge">{actionLabel(log.action)}</span>
+                                          {isReport && log.entity_id ? <span className="audit-event-id">{log.entity_id}</span> : null}
                                         </div>
-                                      ) : log.details_json ? (
-                                        <details className="log-json-details">
-                                          <summary>Ver detalle técnico</summary>
-                                          <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
-                                        </details>
-                                      ) : (
-                                        <p>Sin detalle adicional.</p>
-                                      )}
+                                        <p className="audit-event-summary">{log.summary || "Movimiento registrado"}</p>
+                                        <div className="audit-event-chips">
+                                          <span className="audit-meta-chip">
+                                            <i>Actor</i>{log.actor_name || log.actor_email || "Sistema"}
+                                          </span>
+                                          <span className="audit-meta-chip">
+                                            <i>Entidad</i>{log.entity_type || "--"}{log.entity_id ? ` #${log.entity_id}` : ""}
+                                          </span>
+                                          <span className="audit-meta-chip">
+                                            <i>Evento</i>{log.action || "audit.event"}
+                                          </span>
+                                        </div>
+                                        {isReport ? (
+                                          <div className="audit-event-actions">
+                                            <span className={archiveAvailable ? "audit-archive-status is-ready" : "audit-archive-status"}>
+                                              <Icon name={archiveAvailable ? "success" : "records"} />
+                                              {archiveAvailable ? "Copia visual archivada" : "Solo metadata disponible"}
+                                            </span>
+                                            {archiveAvailable ? (
+                                              <button
+                                                type="button"
+                                                className="audit-open-report"
+                                                onClick={() => handleOpenAuditReport(log)}
+                                                disabled={loadingAuditReportId === log.entity_id}
+                                              >
+                                                <Icon name="eye" />
+                                                {loadingAuditReportId === log.entity_id ? "Abriendo…" : "Ver e imprimir"}
+                                              </button>
+                                            ) : null}
+                                          </div>
+                                        ) : log.details_json ? (
+                                          <details className="audit-json">
+                                            <summary>
+                                              <Icon name="chevronRight" />
+                                              Ver detalle técnico
+                                            </summary>
+                                            <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
+                                          </details>
+                                        ) : null}
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </section>
-                        ))}
+                                  );
+                                })}
+                              </div>
+                            </section>
+                          );
+                        })}
                       </div>
                     ) : (
-                      <div className="empty-state">
-                        <h3>Sin eventos registrados</h3>
-                        <p>Las altas de usuarios, accesos y cambios de fichas apareceran aqui automaticamente.</p>
+                      <div className="audit-empty">
+                        <span className="audit-empty-icon"><Icon name="history" /></span>
+                        <h3>{auditFilterChips.length ? "Sin coincidencias" : "Sin eventos registrados"}</h3>
+                        <p>
+                          {auditFilterChips.length
+                            ? "Ningún evento coincide con los filtros activos. Ajusta la búsqueda o límpialos para ver todo el historial."
+                            : "Las altas de usuarios, accesos y cambios de fichas apareceran aqui automaticamente."}
+                        </p>
+                        {auditFilterChips.length ? (
+                          <button type="button" className="audit-action" onClick={handleAuditFiltersReset}>
+                            <Icon name="refresh" />
+                            Limpiar filtros
+                          </button>
+                        ) : null}
                       </div>
                     )}
                   </article>
