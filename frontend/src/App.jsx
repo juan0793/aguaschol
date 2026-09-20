@@ -99,7 +99,7 @@ import {
 import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/localStorage";
 import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
-import { pause, printDocument } from "./utils/printDocument";
+import { pause, printDocument, saveReportPdf } from "./utils/printDocument";
 import {
   extractClaveFromText,
   getBarrioNameFromClave,
@@ -5089,6 +5089,40 @@ function App() {
   }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
+    if (!isAuthenticated || !isAdmin) return undefined;
+
+    const handleReportGenerated = async (event) => {
+      const detail = event.detail || {};
+      if (!detail.reportId) return;
+
+      try {
+        const response = await apiFetch("/users/audit-logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            report_id: detail.reportId,
+            summary: `Reporte generado: ${detail.title || detail.reportId}`,
+            details: {
+              title: detail.title || "Reporte",
+              report_type: detail.reportType || "print-report",
+              generated_at: detail.createdAt || new Date().toISOString()
+            }
+          })
+        });
+
+        if (response.ok && workspaceView === "logs") {
+          loadAuditLogs({ silent: true });
+        }
+      } catch {
+        // La auditoria no debe interrumpir la vista previa ni la impresion.
+      }
+    };
+
+    window.addEventListener("aguaschol:report-generated", handleReportGenerated);
+    return () => window.removeEventListener("aguaschol:report-generated", handleReportGenerated);
+  }, [apiFetch, isAuthenticated, isAdmin, workspaceView]);
+
+  useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
       return undefined;
     }
@@ -5699,7 +5733,7 @@ function App() {
         currentY = (document.lastAutoTable?.finalY ?? currentY + 30) + 6;
       });
 
-      document.save(`peticion-padron-${new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `peticion-padron-${new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Peticion descargada en PDF.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar la peticion en PDF.");
@@ -6232,7 +6266,7 @@ function App() {
         didDrawPage: addFooter
       });
 
-      document.save(`informe-servicios-padron-${new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `informe-servicios-padron-${new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Informe de servicios descargado en PDF.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el informe de servicios.");
@@ -6413,7 +6447,7 @@ function App() {
       }
 
       addFooter();
-      document.save(`reporte-estadistico-padrones-${new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `reporte-estadistico-padrones-${new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Reporte estadistico guardado en PDF.");
     } catch (error) {
       showAlert(error.message || "No fue posible guardar el reporte estadistico en PDF.");
@@ -7337,7 +7371,7 @@ function App() {
       document.line(174, signatureY + 31, 250, signatureY + 31);
       document.text("Firma", 212, signatureY + 38, { align: "center" });
 
-      document.save(`verificacion-deuda-gps-${fieldDebtReport.dateKey || new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `verificacion-deuda-gps-${fieldDebtReport.dateKey || new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("PDF de verificacion de deuda descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el PDF de deuda.");
@@ -7885,7 +7919,7 @@ function App() {
         addPdfPageFooter();
       }
 
-      document.save(`reporte-campo-${new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `reporte-campo-${new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Reporte PDF descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el reporte PDF.");
@@ -8396,7 +8430,7 @@ function App() {
         document.deletePage(document.getNumberOfPages());
       }
 
-      document.save(`resumen-trabajo-realizado-${selectedDateKeys[0] || generatedAtIso.slice(0, 10)}.pdf`);
+      saveReportPdf(document, `resumen-trabajo-realizado-${selectedDateKeys[0] || generatedAtIso.slice(0, 10)}.pdf`);
       showAlert("Resumen de trabajo realizado descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible generar el PDF para ente regulador.");
@@ -8683,7 +8717,7 @@ function App() {
         addPageFooter();
       }
 
-      document.save(`reporte-censo-sin-coordenadas-${new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `reporte-censo-sin-coordenadas-${new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Reporte de censo sin coordenadas descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el reporte de censo.");
@@ -9029,7 +9063,7 @@ function App() {
         addPageFooter();
       }
 
-      document.save(`resumen-ligero-gps-${activeMapDiaryDateKey || new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `resumen-ligero-gps-${activeMapDiaryDateKey || new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Resumen ligero GPS descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el resumen ligero.");
@@ -11840,7 +11874,7 @@ function App() {
       });
 
       addFooter();
-      document.save(`resumen-operaciones-realizadas-${new Date().toISOString().slice(0, 10)}.pdf`);
+      saveReportPdf(document, `resumen-operaciones-realizadas-${new Date().toISOString().slice(0, 10)}.pdf`);
       showAlert("Resumen de operaciones descargado en PDF.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el resumen de operaciones.");
@@ -13993,8 +14027,8 @@ function App() {
             debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
             // El informe de servicios llega agregado por barrio; las cuentas de
             // un servicio se piden aparte, solo cuando alguien abre el desglose.
-            fetchServiceAccounts: async (field) => {
-              const response = await apiFetch(`/claves/services/accounts?field=${encodeURIComponent(field)}&limit=25`);
+            fetchServiceAccounts: async (field, limit = 25) => {
+              const response = await apiFetch(`/claves/services/accounts?field=${encodeURIComponent(field)}&limit=${encodeURIComponent(limit)}`);
               const data = await response.json();
               if (!response.ok) throw new Error(data.message || "No fue posible cargar las cuentas del servicio.");
               return data;
@@ -19359,6 +19393,7 @@ function App() {
                           <option value="inmueble.archived">Ficha archivada</option>
                           <option value="inmueble.restored">Ficha restaurada</option>
                           <option value="inmueble.deleted">Ficha eliminada</option>
+                          <option value="report.generated">Reporte generado</option>
                         </select>
                       </label>
                       <label>
@@ -19368,6 +19403,7 @@ function App() {
                           <option value="user">Usuario</option>
                           <option value="inmueble">Ficha</option>
                           <option value="padron">Padron</option>
+                          <option value="report">Reporte</option>
                         </select>
                       </label>
                       <label>

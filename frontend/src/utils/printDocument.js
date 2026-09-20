@@ -6,13 +6,48 @@ const escapeTitle = (value) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
+const padReportPart = (value) => String(value).padStart(2, "0");
+
+export const createReportId = (date = new Date()) => {
+  const randomPart = typeof globalThis?.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()
+    : Math.random().toString(16).slice(2, 10).toUpperCase();
+  return `RPT-${date.getFullYear()}${padReportPart(date.getMonth() + 1)}${padReportPart(date.getDate())}-${padReportPart(date.getHours())}${padReportPart(date.getMinutes())}${padReportPart(date.getSeconds())}-${randomPart}`;
+};
+
+export const announceReportGenerated = ({ reportId, title, reportType = "", createdAt = new Date().toISOString() }) => {
+  if (typeof window === "undefined" || !reportId) return;
+  window.dispatchEvent(
+    new CustomEvent("aguaschol:report-generated", {
+      detail: { reportId, title: String(title || "Reporte"), reportType, createdAt }
+    })
+  );
+};
+
+export const saveReportPdf = (documentRef, filename, options = {}) => {
+  const reportId = options.reportId || createReportId();
+  const baseFilename = String(filename || "reporte.pdf").replace(/\.pdf$/i, "");
+  const title = options.title || baseFilename;
+  documentRef.setProperties?.({ title, subject: `ID de reporte: ${reportId}` });
+  documentRef.save(`${baseFilename}-${reportId}.pdf`);
+  announceReportGenerated({ reportId, title, reportType: options.reportType || "pdf-download" });
+  return reportId;
+};
+
 const buildPrintHtml = (title, bodyMarkup, options) => {
   const {
     pageSize = "Letter portrait",
     pageMargin = "10mm",
     bodyClassName = "",
-    showPageFooter = false
+    showPageFooter = false,
+    reportId = ""
   } = options;
+  const footerMarkup = showPageFooter ? '<div class="field-report-page"></div>' : "";
+  const reportIdMarkup = reportId ? `<div class="print-document-id">ID de reporte: ${escapeTitle(reportId)}</div>` : "";
+  const isDashboardReport = bodyClassName.split(/\s+/).includes("dashboard-report-body");
+  const documentMarkup = isDashboardReport
+    ? `<div class="dashboard-report-page">${bodyMarkup}${footerMarkup}${reportIdMarkup}</div>`
+    : `${bodyMarkup}${footerMarkup}${reportIdMarkup}`;
 
   return `
     <html lang="es">
@@ -696,6 +731,235 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           .data-report-table tfoot th:first-child {
             text-align: left;
           }
+          .dashboard-report-body {
+            box-sizing: border-box;
+            min-height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #dfe9f2;
+            color: #173d62;
+            font-size: 10px;
+          }
+          .dashboard-report-body .dashboard-report-page {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 196mm;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 7mm 0 12mm;
+            background: #ffffff;
+          }
+          .dashboard-report-body .print-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            text-align: left;
+            border: 1px solid #c8def2;
+            border-top: 5px solid #1769d1;
+            border-radius: 13px;
+            background: linear-gradient(135deg, #ffffff 0%, #eaf4ff 100%);
+            padding: 12px 14px;
+            margin-bottom: 10px;
+          }
+          .dashboard-report-body .print-report-brand {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: 10px;
+          }
+          .dashboard-report-body .print-report-logo {
+            width: 42px;
+            height: 42px;
+            flex: 0 0 42px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 1px solid #c4ddf2;
+            padding: 3px;
+          }
+          .dashboard-report-body .print-report-kicker {
+            display: block;
+            margin-bottom: 2px;
+            color: #1e78b7;
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+          .dashboard-report-body .print-report-meta {
+            display: grid;
+            justify-items: end;
+            gap: 5px;
+            flex: 0 0 auto;
+            color: #52718e;
+            font-size: 9px;
+            text-align: right;
+          }
+          .dashboard-report-body .print-report-meta strong {
+            border: 1px solid #b7d3ed;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #1769d1;
+            padding: 5px 8px;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            white-space: nowrap;
+          }
+          .dashboard-report-body .print-header h1 {
+            color: #0b4d88;
+            font-size: 19px;
+            letter-spacing: -0.02em;
+            margin-bottom: 3px;
+          }
+          .dashboard-report-body .print-header p {
+            color: #52718e;
+            font-size: 10px;
+            margin: 0;
+          }
+          .dashboard-report-body .print-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .dashboard-report-body .print-report-icon {
+            width: 15px;
+            height: 15px;
+            flex: 0 0 15px;
+            color: #1e8fc4;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+          }
+          .dashboard-report-body .print-section {
+            border: 1px solid #c8def2;
+            border-left: 4px solid #1769d1;
+            border-radius: 11px;
+            background: #ffffff;
+            padding: 10px 11px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(28, 79, 125, 0.06);
+          }
+          .dashboard-report-body .print-section h3 {
+            color: #0b4d88;
+            border-bottom: 1px solid #d7e8f7;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            font-size: 10px;
+            letter-spacing: 0.08em;
+          }
+          .dashboard-report-body .print-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7px;
+          }
+          .dashboard-report-body .print-grid-five {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .dashboard-report-body .print-grid-four {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+          .dashboard-report-body .print-field {
+            min-height: 42px;
+            border: 1px solid #d3e4f2;
+            border-top: 3px solid #36a4dc;
+            border-radius: 8px;
+            background: #f7fbff;
+            padding: 7px 8px;
+          }
+          .dashboard-report-body .print-field strong {
+            color: #5b7892;
+            font-size: 8px;
+            letter-spacing: 0.04em;
+          }
+          .dashboard-report-body .print-field span {
+            display: block;
+            color: #0b4d88;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.15;
+          }
+          .dashboard-report-body .field-report-table,
+          .dashboard-report-body .data-report-table {
+            border: 1px solid #c8def2;
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .dashboard-report-body .field-report-table th,
+          .dashboard-report-body .data-report-table th {
+            background: #dcecff;
+            border-color: #c1daf0;
+            color: #0b4d88;
+            padding: 7px 8px;
+            font-size: 8px;
+            letter-spacing: 0.04em;
+          }
+          .dashboard-report-body .field-report-table td,
+          .dashboard-report-body .data-report-table td {
+            border-color: #dceaf5;
+            padding: 7px 8px;
+            color: #254e70;
+            font-size: 9px;
+          }
+          .dashboard-report-body .data-report-table tbody tr:nth-child(even) td {
+            background: #f7fbff;
+          }
+          .dashboard-report-body .data-report-table tbody tr:hover td {
+            background: #eef7ff;
+          }
+          .dashboard-report-body .data-report-table td:last-child {
+            color: #0b4d88;
+            font-weight: 700;
+          }
+          .dashboard-report-body .print-account-section {
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          .dashboard-report-body .print-account-section tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .dashboard-report-body .field-report-page::after {
+            content: "Vista previa · listo para imprimir";
+          }
+          @media print {
+            .dashboard-report-body {
+              background: #ffffff;
+            }
+            .dashboard-report-body .dashboard-report-page {
+              max-width: none;
+              min-height: auto;
+              padding: 0;
+            }
+            .dashboard-report-body .print-section {
+              box-shadow: none;
+            }
+            .dashboard-report-body .field-report-page::after {
+              content: "Página " counter(page);
+            }
+          }
+          @media (max-width: 700px) {
+            .dashboard-report-body {
+              background: #dfe9f2;
+            }
+            .dashboard-report-body .dashboard-report-page {
+              padding: 12px;
+            }
+            .dashboard-report-body .print-header {
+              align-items: flex-start;
+              flex-direction: column;
+            }
+            .dashboard-report-body .print-report-meta {
+              justify-items: start;
+              text-align: left;
+            }
+            .dashboard-report-body .print-grid,
+            .dashboard-report-body .print-grid-five,
+            .dashboard-report-body .print-grid-four {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+          }
           /* La tabla larga debe poder partirse entre paginas; si no, la seccion
              completa salta a la hoja siguiente y deja la primera casi en blanco. */
           .debt-rank-zone {
@@ -1305,6 +1569,14 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           .field-report-page::after {
             content: "Pagina " counter(page);
           }
+          .print-document-id {
+            position: fixed;
+            left: 8mm;
+            bottom: 2mm;
+            color: #557089;
+            font-size: 8px;
+            letter-spacing: 0.03em;
+          }
           .request-report-shell {
             display: grid;
             gap: 10px;
@@ -1662,7 +1934,7 @@ const buildPrintHtml = (title, bodyMarkup, options) => {
           }
         </style>
       </head>
-      <body class="${bodyClassName}">${bodyMarkup}${showPageFooter ? '<div class="field-report-page"></div>' : ""}</body>
+      <body class="${bodyClassName}">${documentMarkup}</body>
     </html>
   `;
 };
@@ -1689,7 +1961,9 @@ const waitForPrintDocument = async (documentRef) => {
 };
 
 export const printDocument = async (title, bodyMarkup, options = {}) => {
-  const printHtml = buildPrintHtml(title, bodyMarkup, options);
+  const reportId = options.reportId || createReportId();
+  const reportType = options.reportType || options.bodyClassName || "print-report";
+  const printHtml = buildPrintHtml(title, bodyMarkup, { ...options, reportId });
   const previousOverflow = window.document.body.style.overflow;
   const previewModal = window.document.createElement("div");
   previewModal.setAttribute("role", "dialog");
@@ -1846,6 +2120,7 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   printButton.disabled = false;
   printButton.textContent = "Imprimir ahora";
   printButton.focus();
+  announceReportGenerated({ reportId, title, reportType });
 
   return completion;
 };

@@ -1129,12 +1129,16 @@ export const getServiceAccounts = async ({ field = "", barrio = "", limit = 25 }
 
   const [campo, etiqueta] = definicion;
   const barrioBuscado = normalizeLookupText(barrio);
-  const tope = Math.min(Math.max(Number(limit) || 25, 1), 200);
 
   const coincidencias = masterRecords.filter(
     (record) =>
       isActiveServiceFlag(record[campo]) && (!barrioBuscado || record.search_barrio.includes(barrioBuscado))
   );
+
+  const limiteSolicitado = String(limit ?? "").trim().toLowerCase();
+  const tope = limiteSolicitado === "all"
+    ? coincidencias.length
+    : Math.min(Math.max(Number(limit) || 25, 1), 200);
 
   const deudaTotal = coincidencias.reduce((suma, record) => suma + Number(record.total || 0), 0);
   const cuentas = [...coincidencias]

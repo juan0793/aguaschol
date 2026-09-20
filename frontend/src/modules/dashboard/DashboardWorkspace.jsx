@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
@@ -50,7 +50,7 @@ const barriosDeServicio = (barrios = [], field = "") =>
 
 // Quién tiene el servicio. En desechos peligrosos son comercios e industrias,
 // que es justo lo que no se podía ver desde el agregado por barrio.
-function CuentasDelServicio({ estado }) {
+function CuentasDelServicio({ estado, onLoadAll }) {
   if (!estado) return null;
   if (estado.cargando) return <p className="dw-empty">Cargando cuentas…</p>;
   if (estado.error) return <p className="dw-empty">{estado.error}</p>;
@@ -73,6 +73,11 @@ function CuentasDelServicio({ estado }) {
           </li>
         ))}
       </ul>
+      {total > cuentas.length && onLoadAll ? (
+        <button type="button" className="dw-link" onClick={onLoadAll}>
+          Ver todas las cuentas
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -98,6 +103,20 @@ const whole = (value) => Number(value || 0).toLocaleString("es-HN");
 const percent = (part, total) => (total ? (Number(part || 0) / total) * 100 : 0);
 const oneDecimal = (value) => `${value.toFixed(1)}%`;
 
+const reportIcon = (name = "file") => {
+  const paths = {
+    file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+    water: '<path d="M12 2.69 5.5 10a4.5 4.5 0 1 0 13 0L12 2.69Z"/><path d="M8 16.5c.7.7 1.4 1 2.3 1"/>',
+    chart: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>'
+  };
+  return `<svg class="print-report-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.file}</svg>`;
+};
+
+const reportSectionTitle = (icon, title) => `<h3>${reportIcon(icon)}<span>${escapeHtml(title)}</span></h3>`;
+const dashboardReportHeader = (title, subtitle) => `<header class="print-header"><div class="print-report-brand"><img src="${escapeHtml(logoAguasCholuteca)}" alt="Logo Aguas de Choluteca" class="print-report-logo" /><div><span class="print-report-kicker">Aguas de Choluteca · Reporte de control</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></div><div class="print-report-meta"><span>${escapeHtml(formatSpanishDate(new Date()))}</span><strong>REPORTE OPERATIVO</strong></div></header>`;
+
 // La cifra es el material tipografico de este tablero: el signo de lempira va
 // mas pequeno y liviano para que los digitos, en cifras tabulares, carguen el peso.
 function Amount({ value, className = "" }) {
@@ -114,6 +133,9 @@ function Amount({ value, className = "" }) {
 }
 
 export default function DashboardWorkspace({ model }) {
+  const gridRef = useRef(null);
+  const [splitPercent, setSplitPercent] = useState(42);
+  const [isResizing, setIsResizing] = useState(false);
   const [servicioAbierto, setServicioAbierto] = useState("");
   const [barriosVisibles, setBarriosVisibles] = useState(6);
   // Las cuentas de un servicio se piden al abrirlo y se guardan por servicio,
@@ -138,6 +160,29 @@ export default function DashboardWorkspace({ model }) {
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
   const [barrioAbierto, setBarrioAbierto] = useState("");
   const [attentionLevel, setAttentionLevel] = useState("");
+
+  useEffect(() => {
+    if (!isResizing) return undefined;
+
+    const move = (event) => {
+      const bounds = gridRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      const nextPercent = ((event.clientX - bounds.left) / bounds.width) * 100;
+      setSplitPercent(Math.min(62, Math.max(30, nextPercent)));
+    };
+    const stop = () => setIsResizing(false);
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+  }, [isResizing]);
+
+  const adjustSplit = (direction) => {
+    setSplitPercent((current) => Math.min(62, Math.max(30, current + direction)));
+  };
 
   const ranking = useMemo(() => debtRanking(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
   // Padron completo, independiente de la metrica: el ranking visible es solo el
@@ -184,8 +229,8 @@ export default function DashboardWorkspace({ model }) {
   const printSelection = () =>
     printDocument(
       "Sumatoria de barrios",
-      `<section class="print-header"><h1>Sumatoria de barrios seleccionados</h1><p>${selectedBarrios.map(escapeHtml).join(" · ")}</p></section><section class="print-section"><h3>Resumen de mora</h3><div class="print-grid">${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section"><h3>Servicios consolidados</h3><table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
-      { pageSize: "Letter portrait", showPageFooter: true }
+      `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five">${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
+      { pageSize: "Letter portrait", bodyClassName: "dashboard-report-body", showPageFooter: true }
     );
 
   const printDebtRanking = () => {
@@ -200,7 +245,43 @@ export default function DashboardWorkspace({ model }) {
         logoSrc: logoAguasCholuteca,
         generatedAt: formatSpanishDate(new Date())
       }),
-      { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body", showPageFooter: true }
+      { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body dashboard-report-body", showPageFooter: true }
+    );
+  };
+
+  const cargarCuentasServicio = (field, limit = 25) => {
+    if (!model.fetchServiceAccounts) return;
+    setCuentasPorServicio((actuales) => ({ ...actuales, [field]: { cargando: true } }));
+    model
+      .fetchServiceAccounts(field, limit)
+      .then((datos) => setCuentasPorServicio((actuales) => ({ ...actuales, [field]: { datos } })))
+      .catch((error) => setCuentasPorServicio((actuales) => ({ ...actuales, [field]: { error: error.message } })));
+  };
+
+  const printDebtSummary = () =>
+    printDocument(
+      "Resumen de mora",
+      `${dashboardReportHeader("Resumen de mora", "Situación financiera y mora asociada por servicio")}<section class="print-section">${reportSectionTitle("chart", "Situación financiera")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Mora total</strong><span>${escapeHtml(formatCurrency(debtTotal))}</span></div><div class="print-field"><strong>Capital</strong><span>${escapeHtml(formatCurrency(debt.capital))}</span></div><div class="print-field"><strong>Intereses</strong><span>${escapeHtml(formatCurrency(debt.intereses))}</span></div><div class="print-field"><strong>Cuentas con mora</strong><span>${whole(debt.deudores)}</span></div><div class="print-field"><strong>Casos críticos</strong><span>${whole(debt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("water", "Mora asociada por servicio")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${serviceDebt.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody></table></section>`,
+      { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body dashboard-report-body", showPageFooter: true }
+    );
+
+  const printServiceDebt = async (service) => {
+    const rows = barriosDeServicio(model.debtBarrios, service.field);
+    const accountRows = cuentasPorServicio[service.field]?.datos?.cuentas || [];
+    let detailedAccounts = accountRows;
+    if (model.fetchServiceAccounts) {
+      try {
+        const result = await model.fetchServiceAccounts(service.field, "all");
+        detailedAccounts = result?.cuentas || accountRows;
+      } catch {
+        // La vista previa todavía puede abrirse con las cuentas ya cargadas.
+      }
+    }
+    detailedAccounts = detailedAccounts.filter((account) => Number(account.deuda || 0) > 0);
+    printDocument(
+      `Mora asociada por servicio: ${service.label}`,
+      `${dashboardReportHeader("Mora asociada por servicio", service.label)}<section class="print-section">${reportSectionTitle("water", "Resumen")}<div class="print-grid print-grid-four"><div class="print-field"><strong>Mora asociada</strong><span>${escapeHtml(formatCurrency(service.debt))}</span></div><div class="print-field"><strong>Activos</strong><span>${whole(service.active)}</span></div><div class="print-field"><strong>Inactivos</strong><span>${whole(service.inactive)}</span></div><div class="print-field"><strong>Sin dato</strong><span>${whole(service.unknown)}</span></div></div></section><section class="print-section">${reportSectionTitle("chart", "Mora por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Cuentas</th><th>Críticas</th><th>Mora</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.barrio)}</td><td>${whole(row.cuentas)}</td><td>${whole(row.criticos)}</td><td>${escapeHtml(formatCurrency(row.deuda))}</td></tr>`).join("")}</tbody></table></section>${detailedAccounts.length ? `<section class="print-section print-account-section">${reportSectionTitle("users", `Cuentas con mora (${whole(detailedAccounts.length)})`)}<table class="field-report-table data-report-table"><thead><tr><th>Nombre</th><th>Barrio</th><th>Clave / abonado</th><th>Mora</th></tr></thead><tbody>${detailedAccounts.map((account) => `<tr><td>${escapeHtml(account.nombre)}</td><td>${escapeHtml(account.barrio_colonia)}</td><td>${escapeHtml(account.clave_catastral || account.abonado)}</td><td>${escapeHtml(formatCurrency(account.deuda))}</td></tr>`).join("")}</tbody></table></section>` : ""}`,
+      { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body dashboard-report-body", showPageFooter: true }
     );
   };
 
@@ -275,7 +356,11 @@ export default function DashboardWorkspace({ model }) {
         ))}
       </section>
 
-      <div className="dw-grid">
+      <div
+        ref={gridRef}
+        className={`dw-grid ${isResizing ? "is-resizing" : ""}`.trim()}
+        style={{ "--dw-split": `${splitPercent}%` }}
+      >
         {/* Columna izquierda: primero lo accionable, despues la cifra. */}
         <div className="dw-col">
           <article className="dw-panel dw-attention">
@@ -382,11 +467,7 @@ export default function DashboardWorkspace({ model }) {
                                     setBarriosVisibles(6);
                                     setServicioAbierto(abierto ? "" : service.field);
                                     if (!abierto && model.fetchServiceAccounts && !cuentasPorServicio[service.field]) {
-                                      setCuentasPorServicio((actuales) => ({ ...actuales, [service.field]: { cargando: true } }));
-                                      model
-                                        .fetchServiceAccounts(service.field)
-                                        .then((datos) => setCuentasPorServicio((actuales) => ({ ...actuales, [service.field]: { datos } })))
-                                        .catch((error) => setCuentasPorServicio((actuales) => ({ ...actuales, [service.field]: { error: error.message } })));
+                                      cargarCuentasServicio(service.field);
                                     }
                                   }}
                                 >
@@ -425,7 +506,16 @@ export default function DashboardWorkspace({ model }) {
                                         Ver los {whole(filas.length)} barrios
                                       </button>
                                     ) : null}
-                                    <CuentasDelServicio estado={cuentasPorServicio[service.field]} />
+                                    <div className="dw-service-drill-actions">
+                                      <button type="button" className="dw-button-secondary" onClick={() => printServiceDebt(service)}>
+                                        <Icon name="print" />
+                                        Ver / imprimir PDF
+                                      </button>
+                                    </div>
+                                    <CuentasDelServicio
+                                      estado={cuentasPorServicio[service.field]}
+                                      onLoadAll={() => cargarCuentasServicio(service.field, "all")}
+                                    />
                                   </div>
                                 ) : null}
                               </li>
@@ -433,10 +523,41 @@ export default function DashboardWorkspace({ model }) {
                           })}
                         </ul>
                         <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
-                      </section>
+                    </section>
                     ) : null}
+                    <footer className="dw-panel-foot">
+                      <button type="button" className="dw-button-secondary" onClick={printDebtSummary}>
+                        <Icon name="print" />
+                        Ver / imprimir resumen PDF
+                      </button>
+                    </footer>
                     </div></div>
-                  </article>
+          </article>
+        </div>
+        <div
+          className="dw-resize-handle"
+          role="separator"
+          tabIndex="0"
+          aria-label="Ajustar ancho de los paneles"
+          aria-orientation="vertical"
+          aria-valuemin="30"
+          aria-valuemax="62"
+          aria-valuenow={Math.round(splitPercent)}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            setIsResizing(true);
+          }}
+          onDoubleClick={() => setSplitPercent(42)}
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            if (event.key === "ArrowLeft") adjustSplit(-2);
+            if (event.key === "ArrowRight") adjustSplit(2);
+            if (event.key === "Home") setSplitPercent(30);
+            if (event.key === "End") setSplitPercent(62);
+          }}
+        >
+          <span aria-hidden="true" />
         </div>
         <div className="dw-col">
           <article className="dw-panel dw-mora" data-metric={debtMetric} data-plegado={plegados.has("mora")}>

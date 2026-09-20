@@ -1,4 +1,4 @@
-import { exportAuditLogsCsv, listAuditLogs } from "../services/auditService.js";
+import { createAuditLog, exportAuditLogsCsv, listAuditLogs } from "../services/auditService.js";
 import { createUser, deleteUser, listUsers, resetUserPassword, updateUserRole } from "../services/userService.js";
 import {
   createTelegramChat,
@@ -103,6 +103,29 @@ export const listAuditLogsHandler = async (req, res, next) => {
     res.json(logs);
   } catch (error) {
     next(error);
+  }
+};
+
+export const createReportAuditLogHandler = async (req, res, next) => {
+  try {
+    const reportId = String(req.body?.report_id || "").trim();
+    if (!/^RPT-\d{8}-\d{6}-[A-F0-9]{8}$/i.test(reportId)) {
+      return res.status(400).json({ message: "El identificador del reporte no es valido." });
+    }
+
+    const details = req.body?.details && typeof req.body.details === "object" ? req.body.details : {};
+    await createAuditLog({
+      actorUserId: req.authUser?.id,
+      action: "report.generated",
+      entityType: "report",
+      entityId: reportId,
+      summary: String(req.body?.summary || `Reporte generado: ${reportId}`).slice(0, 255),
+      details: { ...details, report_id: reportId }
+    });
+
+    return res.status(201).json({ ok: true, report_id: reportId });
+  } catch (error) {
+    return next(error);
   }
 };
 

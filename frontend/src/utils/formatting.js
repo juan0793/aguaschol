@@ -78,6 +78,7 @@ export const actionLabel = (action) =>
       "user.created": "Usuario creado",
       "user.role_updated": "Perfil actualizado",
       "padron.updated": "Padron actualizado",
+      "report.generated": "Reporte generado",
       "map_point.created": "Punto de campo creado",
       "map_point.validated": "Punto de campo validado",
       "map_point.deleted": "Punto de campo eliminado",

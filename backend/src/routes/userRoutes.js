@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createUserHandler,
+  createReportAuditLogHandler,
   createTelegramChatHandler,
   deleteTelegramChatHandler,
   deleteUserHandler,
@@ -25,6 +26,7 @@ router.patch("/:id/role", updateUserRoleHandler);
 router.post("/:id/reset-password", resetUserPasswordHandler);
 router.delete("/:id", deleteUserHandler);
 router.get("/audit-logs", listAuditLogsHandler);
+router.post("/audit-logs", createReportAuditLogHandler);
 router.get("/audit-logs/export", exportAuditLogsHandler);
 
 export default router;
