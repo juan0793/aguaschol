@@ -187,6 +187,44 @@
 }
 .request-workspace .stats-modal-close { border-radius: var(--ds-radius-button); }
 
+/*
+ * El modal se centraba contra el viewport completo (`inset: 0` + anchos sobre
+ * `100vw`), asi que su mitad izquierda caia sobre la franja del sidebar fijo.
+ * Y no podia taparlo: `.log-shell` (su ancestro) declara `position: relative;
+ * z-index: 1`, un contexto de apilamiento que encierra al backdrop por mucho
+ * z-index que se le ponga, mientras `.control-sidebar` vive fuera con z-index
+ * 120. Resultado: titulos, labels y campos cortados bajo el menu.
+ *
+ * En vez de pelear el z-index, se reserva la franja del sidebar igual que ya lo
+ * hace la ficha de Clandestinos (modules/clandestinos/styles/clandestinos.css):
+ * `--current-sidebar-width` la define sidebar.css y vale 292px expandido, 76px
+ * colapsado y 0 en movil, asi que el modal se centra solo en el area util y
+ * nunca se solapa. Debajo de 769px el sidebar es off-canvas y no se reserva nada.
+ */
+/*
+ * La otra mitad del problema: encerrado en ese contexto, el modal tambien queda
+ * por debajo de la barra superior y de los botones de la pagina, asi que su
+ * boton de cerrar no recibia el clic (elementFromPoint devolvia .app-topbar-session
+ * o .button-secondary). Un elemento posicionado con `z-index: auto` no abre
+ * contexto de apilamiento: soltando el de `.log-shell` solo mientras hay un modal
+ * dentro, el z-index del backdrop vuelve a contar contra el resto de la pagina.
+ */
+.request-workspace .log-shell:has(.stats-modal-backdrop) {
+  z-index: auto;
+}
+
+@media (min-width: 769px) {
+  .request-workspace .stats-modal-backdrop {
+    padding-left: calc(var(--current-sidebar-width, 0px) + 1rem);
+  }
+
+  .request-workspace .stats-modal-card,
+  .page-shell.reports-layout-mode .request-workspace .stats-modal-card {
+    width: min(1180px, calc(100vw - var(--current-sidebar-width, 0px) - 2rem));
+    max-width: 100%;
+  }
+}
+
 @keyframes request-fade-in { from { opacity: 0; transform: translateY(3px); } }
 @keyframes request-card-in { from { opacity: 0; transform: translateY(6px); } }
 @keyframes request-modal-in { from { opacity: 0; transform: scale(0.97) translateY(6px); } }
