@@ -174,7 +174,8 @@ export const getBarrioByClave = async (clave = "") => {
 };
 
 export const saveBarrioCode = async (payload = {}, options = {}) => {
-  const codigo = normalizeCode(payload.codigo);
+  const rawCodigo = String(payload.codigo ?? "").trim();
+  const codigo = normalizeCode(rawCodigo);
   const barrio = normalizeBarrio(payload.barrio);
 
   if (!codigo || !barrio) {
@@ -183,8 +184,28 @@ export const saveBarrioCode = async (payload = {}, options = {}) => {
     throw error;
   }
 
+  // normalizeCode descarta lo que no sea digito, asi que "QA1" se convertia en "01"
+  // y el alta terminaba pisando el nombre del barrio 01 sin avisar. Al leer datos
+  // historicos se sigue tolerando, pero al guardar se rechaza en vez de coercionar.
+  if (!/^\d+$/.test(rawCodigo)) {
+    const error = new Error("El codigo de barrio solo admite digitos.");
+    error.status = 400;
+    throw error;
+  }
+
   const current = getMergedCodes();
   const existing = current.find((item) => item.codigo === codigo);
+
+  // Dos codigos con el mismo nombre rompen la lectura por barrio de los informes.
+  const duplicateName = current.find(
+    (item) => item.codigo !== codigo && item.barrio.trim().toLowerCase() === barrio.toLowerCase()
+  );
+
+  if (duplicateName) {
+    const error = new Error(`El barrio "${barrio}" ya esta registrado con el codigo ${duplicateName.codigo}.`);
+    error.status = 409;
+    throw error;
+  }
   const nextItem = {
     codigo,
     barrio,
