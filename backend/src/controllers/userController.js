@@ -1,4 +1,4 @@
-import { createAuditLog, exportAuditLogsCsv, listAuditLogs } from "../services/auditService.js";
+import { createAuditLog, createReportArchive, exportAuditLogsCsv, getReportArchive, listAuditLogs } from "../services/auditService.js";
 import { createUser, deleteUser, listUsers, resetUserPassword, updateUserRole } from "../services/userService.js";
 import {
   createTelegramChat,
@@ -114,16 +114,52 @@ export const createReportAuditLogHandler = async (req, res, next) => {
     }
 
     const details = req.body?.details && typeof req.body.details === "object" ? req.body.details : {};
+    const bodyMarkup = String(req.body?.body_markup || "");
+    if (bodyMarkup.length > 8_000_000) {
+      return res.status(413).json({ message: "El reporte supera el limite de archivo permitido." });
+    }
+
+    if (bodyMarkup) {
+      await createReportArchive({
+        reportId,
+        title: String(req.body?.title || details.title || "Reporte").slice(0, 255),
+        reportType: String(req.body?.report_type || details.report_type || "print-report").slice(0, 120),
+        pageSize: String(req.body?.page_size || "Letter portrait").slice(0, 80),
+        pageMargin: String(req.body?.page_margin || "10mm").slice(0, 40),
+        bodyClassName: String(req.body?.body_class_name || "").slice(0, 255),
+        bodyMarkup,
+        actorUserId: req.authUser?.id
+      });
+    }
+
     await createAuditLog({
       actorUserId: req.authUser?.id,
       action: "report.generated",
       entityType: "report",
       entityId: reportId,
       summary: String(req.body?.summary || `Reporte generado: ${reportId}`).slice(0, 255),
-      details: { ...details, report_id: reportId }
+      details: { ...details, report_id: reportId, archive_available: Boolean(bodyMarkup) }
     });
 
-    return res.status(201).json({ ok: true, report_id: reportId });
+    return res.status(201).json({ ok: true, report_id: reportId, archive_available: Boolean(bodyMarkup) });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getReportArchiveHandler = async (req, res, next) => {
+  try {
+    const reportId = String(req.params.reportId || "").trim();
+    if (!/^RPT-\d{8}-\d{6}-[A-F0-9]{8}$/i.test(reportId)) {
+      return res.status(400).json({ message: "El identificador del reporte no es valido." });
+    }
+
+    const archive = await getReportArchive(reportId);
+    if (!archive) {
+      return res.status(404).json({ message: "No hay una copia visual archivada para este reporte." });
+    }
+
+    return res.json(archive);
   } catch (error) {
     return next(error);
   }

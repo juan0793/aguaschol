@@ -130,6 +130,51 @@ export const listEntityAuditLogs = async ({ entityType, entityId, limit = 50 } =
   return mapAuditRows(rows);
 };
 
+export const createReportArchive = async ({
+  reportId,
+  title,
+  reportType = "",
+  pageSize = "Letter portrait",
+  pageMargin = "10mm",
+  bodyClassName = "",
+  bodyMarkup,
+  actorUserId = null
+} = {}) => {
+  const pool = getPool();
+  await pool.query(
+    `
+      INSERT INTO report_archives (
+        report_id, title, report_type, page_size, page_margin, body_class_name, body_markup, actor_user_id
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        title = VALUES(title),
+        report_type = VALUES(report_type),
+        page_size = VALUES(page_size),
+        page_margin = VALUES(page_margin),
+        body_class_name = VALUES(body_class_name),
+        body_markup = VALUES(body_markup),
+        actor_user_id = VALUES(actor_user_id),
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [reportId, title, reportType, pageSize, pageMargin, bodyClassName, bodyMarkup, actorUserId]
+  );
+};
+
+export const getReportArchive = async (reportId) => {
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `
+      SELECT report_id, title, report_type, page_size, page_margin, body_class_name, body_markup, actor_user_id, created_at, updated_at
+      FROM report_archives
+      WHERE report_id = ?
+      LIMIT 1
+    `,
+    [String(reportId ?? "")]
+  );
+  return rows[0] ?? null;
+};
+
 const escapeCsvValue = (value) => {
   const text = value == null ? "" : String(value);
   if (!/[",\n]/.test(text)) {

@@ -87,7 +87,7 @@ app.use(
   })
 );
 app.use("/api/integracion/foxpro", foxProImportRoutes);
-app.use(express.json());
+app.use(express.json({ limit: "8mb" }));
 const privateAssetHeaders = (res) => res.setHeader("Cache-Control", "private, max-age=300");
 const serveUpload = async (req, res, next) => {
   try {

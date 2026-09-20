@@ -99,7 +99,7 @@ import {
 import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/localStorage";
 import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
-import { pause, printDocument, saveReportPdf } from "./utils/printDocument";
+import { buildPrintHtml, pause, printDocument, saveReportPdf } from "./utils/printDocument";
 import {
   extractClaveFromText,
   getBarrioNameFromClave,
@@ -147,6 +147,29 @@ const ClandestinosPage = lazyWithRetry(() => import("./modules/clandestinos/page
 const InspeccionesPage = lazyWithRetry(() => import("./modules/inspecciones/pages/InspeccionesPage"));
 const EntregasPage = lazyWithRetry(() => import("./modules/entregas/pages/EntregasPage"));
 const NotesPage = lazyWithRetry(() => import("./modules/notes/pages/NotesPage"));
+
+const groupAuditLogsByDay = (logs) => {
+  const groups = new Map();
+  logs.forEach((log) => {
+    const date = new Date(log.created_at);
+    const key = Number.isNaN(date.getTime())
+      ? "sin-fecha"
+      : [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+        .map((part) => String(part).padStart(2, "0"))
+        .join("-");
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label: key === "sin-fecha"
+          ? "Sin fecha"
+          : new Intl.DateTimeFormat("es-HN", { day: "numeric", month: "long", year: "numeric" }).format(date),
+        logs: []
+      });
+    }
+    groups.get(key).logs.push(log);
+  });
+  return [...groups.values()];
+};
 
 // Los módulos viajan en su propio archivo, así que la primera visita cuesta una
 // descarga. Se adelanta en cuanto el puntero (o el foco del teclado) toca su
@@ -1206,6 +1229,8 @@ function App() {
   });
   const [latestUserResult, setLatestUserResult] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [selectedAuditReport, setSelectedAuditReport] = useState(null);
+  const [loadingAuditReportId, setLoadingAuditReportId] = useState("");
   const [recordHistory, setRecordHistory] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [auditFilters, setAuditFilters] = useState({
@@ -1360,6 +1385,7 @@ function App() {
   const safeMapDiaryGroupsSummary = Array.isArray(mapDiaryGroupsSummary) ? mapDiaryGroupsSummary : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
+  const auditDayGroups = useMemo(() => groupAuditLogsByDay(safeAuditLogs), [safeAuditLogs]);
   const safeBarrioCodes = Array.isArray(barrioCodes) ? barrioCodes : [];
   const getRecordBarrioName = useCallback(
     (record = {}, fallback = "Sin barrio") =>
@@ -4980,6 +5006,36 @@ function App() {
     }
   };
 
+  const handleOpenAuditReport = async (log) => {
+    const reportId = String(log?.entity_id || "").trim();
+    if (!reportId) return;
+    setLoadingAuditReportId(reportId);
+    try {
+      const response = await apiFetch(`/users/audit-logs/reports/${encodeURIComponent(reportId)}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "No fue posible abrir el reporte archivado.");
+      }
+      setSelectedAuditReport(data);
+    } catch (error) {
+      showAlert(error.message || "No fue posible abrir el reporte archivado.");
+    } finally {
+      setLoadingAuditReportId("");
+    }
+  };
+
+  const handleReprintAuditReport = async () => {
+    if (!selectedAuditReport?.body_markup) return;
+    await printDocument(selectedAuditReport.title, selectedAuditReport.body_markup, {
+      reportId: selectedAuditReport.report_id,
+      pageSize: selectedAuditReport.page_size || "Letter portrait",
+      pageMargin: selectedAuditReport.page_margin || "10mm",
+      bodyClassName: selectedAuditReport.body_class_name || "",
+      skipAudit: true,
+      reportType: selectedAuditReport.report_type || "print-report"
+    });
+  };
+
   const refreshDashboard = useCallback(
     async ({ force = false } = {}) => {
       if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") return;
@@ -5101,11 +5157,18 @@ function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             report_id: detail.reportId,
+            title: detail.title || detail.reportId,
+            report_type: detail.reportType || "print-report",
+            page_size: detail.pageSize || "Letter portrait",
+            page_margin: detail.pageMargin || "10mm",
+            body_class_name: detail.bodyClassName || "",
+            body_markup: detail.bodyMarkup || "",
             summary: `Reporte generado: ${detail.title || detail.reportId}`,
             details: {
               title: detail.title || "Reporte",
               report_type: detail.reportType || "print-report",
-              generated_at: detail.createdAt || new Date().toISOString()
+              generated_at: detail.createdAt || new Date().toISOString(),
+              archive_available: Boolean(detail.bodyMarkup)
             }
           })
         });
@@ -13319,6 +13382,36 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={Boolean(selectedAuditReport)} onOpenChange={(open) => !open && setSelectedAuditReport(null)}>
+        <DialogContent className="audit-report-viewer-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-6xl">
+          <DialogHeader className="password-modal-head audit-report-viewer-head">
+            <DialogTitle><Icon name="print" className="title-icon" />{selectedAuditReport?.title || "Reporte archivado"}</DialogTitle>
+            <DialogDescription className="lead">
+              ID {selectedAuditReport?.report_id || "--"} · Archivado {selectedAuditReport?.created_at ? formatDateTime(selectedAuditReport.created_at) : "sin fecha"}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAuditReport ? (
+            <div className="audit-report-viewer-frame">
+              <iframe
+                title={`Vista archivada ${selectedAuditReport.report_id}`}
+                sandbox=""
+                srcDoc={buildPrintHtml(selectedAuditReport.title, selectedAuditReport.body_markup, {
+                  reportId: selectedAuditReport.report_id,
+                  pageSize: selectedAuditReport.page_size || "Letter portrait",
+                  pageMargin: selectedAuditReport.page_margin || "10mm",
+                  bodyClassName: selectedAuditReport.body_class_name || ""
+                })}
+              />
+            </div>
+          ) : null}
+          <DialogFooter className="password-form-actions print-batch-footer">
+            <button type="button" className="button-secondary" onClick={() => setSelectedAuditReport(null)}>Cerrar</button>
+            <button type="button" className="button-primary" onClick={handleReprintAuditReport} disabled={!selectedAuditReport?.body_markup}>
+              <Icon name="print" /> Imprimir nuevamente
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <header className={`hero app-chrome no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""} ${workspaceView === "logs" ? "hero-logs-terminal" : ""}`}>
         <div className="app-topbar">
           <button
@@ -19365,6 +19458,13 @@ function App() {
                         <button type="button" className="ds-link-button" onClick={() => setWorkspaceView("executiveReport")}>
                           <Icon name="records" />Informe de operaciones (PDF)
                         </button>
+                        <button
+                          type="button"
+                          className="ds-link-button"
+                          onClick={() => setAuditFilters((current) => ({ ...current, action: "report.generated", entity_type: "report" }))}
+                        >
+                          <Icon name="print" />Archivo de reportes
+                        </button>
                       </div>
                       <div className="log-hero-status">
                         <span className="log-live-dot" />
@@ -19412,7 +19512,7 @@ function App() {
                       </label>
                       <label>
                         <span>Buscar</span>
-                        <input name="search" value={auditFilters.search} onChange={handleAuditFilterChange} placeholder="Resumen, id o detalle" />
+                        <input name="search" value={auditFilters.search} onChange={handleAuditFilterChange} placeholder="ID RPT-... o detalle" />
                       </label>
                       <label>
                         <span>Desde</span>
@@ -19481,31 +19581,61 @@ function App() {
                     </aside>
                     {safeAuditLogs.length ? (
                       <div className="log-stream-list">
-                        {safeAuditLogs.map((log, index) => (
-                          <div key={log.id} className="log-row" style={{ "--log-delay": `${Math.min(index, 10) * 35}ms` }}>
-                            <div className="log-pin">
-                              <Icon name={actionIconName(log.action)} />
+                        {auditDayGroups.map((group) => (
+                          <section className="log-day-group" key={group.key}>
+                            <header className="log-day-heading">
+                              <div><Icon name="calendar" /><strong>{group.label}</strong></div>
+                              <span>{group.logs.length} {group.logs.length === 1 ? "evento" : "eventos"}</span>
+                            </header>
+                            <div className="log-day-events">
+                              {group.logs.map((log, index) => {
+                                const isReport = log.action === "report.generated";
+                                const archiveAvailable = Boolean(log.details_json?.archive_available);
+                                return (
+                                  <div key={`${group.key}-${log.id}`} className={`log-row ${isReport ? "is-report-log" : ""}`.trim()} style={{ "--log-delay": `${Math.min(index, 10) * 35}ms` }}>
+                                    <div className="log-pin">
+                                      <Icon name={actionIconName(log.action)} />
+                                    </div>
+                                    <div className="log-meta">
+                                      <div className="log-topline">
+                                        <span className="record-badge">{actionLabel(log.action)}</span>
+                                        <small>{formatDateTime(log.created_at)}</small>
+                                      </div>
+                                      <strong>{log.summary || "Movimiento registrado"}</strong>
+                                      {isReport ? <span className="log-report-id">{log.entity_id}</span> : null}
+                                    </div>
+                                    <div className="log-detail">
+                                      <div className="log-chips">
+                                        <span className="log-chip">Actor: {log.actor_name || log.actor_email || "Sistema"}</span>
+                                        <span className="log-chip">Entidad: {log.entity_type} #{log.entity_id || "--"}</span>
+                                        <span className="log-chip">Evento: {log.action || "audit.event"}</span>
+                                      </div>
+                                      {isReport ? (
+                                        <div className="log-report-actions">
+                                          <span className={archiveAvailable ? "log-archive-status is-ready" : "log-archive-status"}>
+                                            <Icon name={archiveAvailable ? "success" : "records"} />
+                                            {archiveAvailable ? "Copia visual archivada" : "Solo metadata disponible"}
+                                          </span>
+                                          {archiveAvailable ? (
+                                            <button type="button" className="log-report-open" onClick={() => handleOpenAuditReport(log)} disabled={loadingAuditReportId === log.entity_id}>
+                                              <Icon name="eye" />{loadingAuditReportId === log.entity_id ? "Abriendo…" : "Ver e imprimir reporte"}
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      ) : log.details_json ? (
+                                        <details className="log-json-details">
+                                          <summary>Ver detalle técnico</summary>
+                                          <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
+                                        </details>
+                                      ) : (
+                                        <p>Sin detalle adicional.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                            <div className="log-meta">
-                              <div className="log-topline">
-                                <span className="record-badge">{actionLabel(log.action)}</span>
-                                <small>{formatDateTime(log.created_at)}</small>
-                              </div>
-                              <strong>{log.summary || "Movimiento registrado"}</strong>
-                            </div>
-                            <div className="log-detail">
-                              <div className="log-chips">
-                                <span className="log-chip">Actor: {log.actor_name || log.actor_email || "Sistema"}</span>
-                                <span className="log-chip">Entidad: {log.entity_type} #{log.entity_id || "--"}</span>
-                                <span className="log-chip">Evento: {log.action || "audit.event"}</span>
-                              </div>
-                              {log.details_json ? (
-                                <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
-                              ) : (
-                                <p>Sin detalle adicional.</p>
-                              )}
-                            </div>
-                          </div>
+                          </section>
                         ))}
                       </div>
                     ) : (

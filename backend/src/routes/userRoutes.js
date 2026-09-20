@@ -6,6 +6,7 @@ import {
   deleteTelegramChatHandler,
   deleteUserHandler,
   exportAuditLogsHandler,
+  getReportArchiveHandler,
   listAuditLogsHandler,
   listUsersHandler,
   listTelegramChatsHandler,
@@ -27,6 +28,7 @@ router.post("/:id/reset-password", resetUserPasswordHandler);
 router.delete("/:id", deleteUserHandler);
 router.get("/audit-logs", listAuditLogsHandler);
 router.post("/audit-logs", createReportAuditLogHandler);
+router.get("/audit-logs/reports/:reportId", getReportArchiveHandler);
 router.get("/audit-logs/export", exportAuditLogsHandler);
 
 export default router;

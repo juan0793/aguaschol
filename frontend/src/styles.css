@@ -20067,6 +20067,146 @@ button,
   scrollbar-color: rgba(103, 232, 249, 0.45) transparent;
 }
 
+.log-day-group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.log-day-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0.25rem;
+  color: #c6e8ff;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+}
+
+.log-day-heading > div,
+.log-day-heading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.log-day-heading svg {
+  width: 1rem;
+  height: 1rem;
+  color: #67e8f9;
+}
+
+.log-day-heading > span {
+  color: #7ea7c6;
+  font-size: 0.7rem;
+  text-transform: none;
+}
+
+.log-day-events {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.log-terminal-view .log-row.is-report-log {
+  border-color: rgba(103, 232, 249, 0.3);
+  background: linear-gradient(135deg, rgba(9, 42, 65, 0.94), rgba(8, 20, 35, 0.86)) !important;
+}
+
+.log-report-id {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.42rem;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: 6px;
+  color: #67e8f9;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+}
+
+.log-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.log-archive-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #91a9bd;
+  font-size: 0.74rem;
+}
+
+.log-archive-status.is-ready {
+  color: #86efac;
+}
+
+.log-archive-status .app-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.log-report-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-height: 2rem;
+  padding: 0.38rem 0.65rem;
+  border: 1px solid rgba(103, 232, 249, 0.35);
+  border-radius: 8px;
+  background: rgba(14, 165, 233, 0.14);
+  color: #dffbff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.log-report-open:hover:not(:disabled) {
+  border-color: rgba(103, 232, 249, 0.7);
+  background: rgba(14, 165, 233, 0.24);
+}
+
+.log-report-open:disabled {
+  cursor: progress;
+  opacity: 0.62;
+}
+
+.log-json-details summary {
+  cursor: pointer;
+  color: #9bdaf2;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.audit-report-viewer-modal {
+  width: min(94vw, 1120px);
+}
+
+.audit-report-viewer-head .title-icon {
+  color: #0d75b8;
+}
+
+.audit-report-viewer-frame {
+  min-height: min(68vh, 760px);
+  overflow: hidden;
+  border: 1px solid #c7dced;
+  border-radius: 14px;
+  background: #dfe9f2;
+}
+
+.audit-report-viewer-frame iframe {
+  display: block;
+  width: 100%;
+  height: min(68vh, 760px);
+  border: 0;
+  background: #dfe9f2;
+}
+
 .log-terminal-view .log-filters::-webkit-scrollbar,
 .log-terminal-view .log-stream-list::-webkit-scrollbar {
   width: 7px;

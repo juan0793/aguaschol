@@ -15,11 +15,29 @@ export const createReportId = (date = new Date()) => {
   return `RPT-${date.getFullYear()}${padReportPart(date.getMonth() + 1)}${padReportPart(date.getDate())}-${padReportPart(date.getHours())}${padReportPart(date.getMinutes())}${padReportPart(date.getSeconds())}-${randomPart}`;
 };
 
-export const announceReportGenerated = ({ reportId, title, reportType = "", createdAt = new Date().toISOString() }) => {
+export const announceReportGenerated = ({
+  reportId,
+  title,
+  reportType = "",
+  createdAt = new Date().toISOString(),
+  bodyMarkup = "",
+  pageSize = "Letter portrait",
+  pageMargin = "10mm",
+  bodyClassName = ""
+}) => {
   if (typeof window === "undefined" || !reportId) return;
   window.dispatchEvent(
     new CustomEvent("aguaschol:report-generated", {
-      detail: { reportId, title: String(title || "Reporte"), reportType, createdAt }
+      detail: {
+        reportId,
+        title: String(title || "Reporte"),
+        reportType,
+        createdAt,
+        bodyMarkup,
+        pageSize,
+        pageMargin,
+        bodyClassName
+      }
     })
   );
 };
@@ -34,7 +52,7 @@ export const saveReportPdf = (documentRef, filename, options = {}) => {
   return reportId;
 };
 
-const buildPrintHtml = (title, bodyMarkup, options) => {
+export const buildPrintHtml = (title, bodyMarkup, options) => {
   const {
     pageSize = "Letter portrait",
     pageMargin = "10mm",
@@ -1999,6 +2017,7 @@ const waitForPrintDocument = async (documentRef) => {
 export const printDocument = async (title, bodyMarkup, options = {}) => {
   const reportId = options.reportId || createReportId();
   const reportType = options.reportType || options.bodyClassName || "print-report";
+  const shouldAnnounce = options.skipAudit !== true;
   const printHtml = buildPrintHtml(title, bodyMarkup, { ...options, reportId });
   const previousOverflow = window.document.body.style.overflow;
   const previewModal = window.document.createElement("div");
@@ -2156,7 +2175,17 @@ export const printDocument = async (title, bodyMarkup, options = {}) => {
   printButton.disabled = false;
   printButton.textContent = "Imprimir ahora";
   printButton.focus();
-  announceReportGenerated({ reportId, title, reportType });
+  if (shouldAnnounce) {
+    announceReportGenerated({
+      reportId,
+      title,
+      reportType,
+      bodyMarkup,
+      pageSize: options.pageSize || "Letter portrait",
+      pageMargin: options.pageMargin || "10mm",
+      bodyClassName: options.bodyClassName || ""
+    });
+  }
 
   return completion;
 };

@@ -34,6 +34,23 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_audit_logs_actor
     FOREIGN KEY (actor_user_id) REFERENCES app_users(id)
+  ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS report_archives (
+  report_id VARCHAR(80) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  report_type VARCHAR(120) NOT NULL DEFAULT '',
+  page_size VARCHAR(80) NOT NULL DEFAULT 'Letter portrait',
+  page_margin VARCHAR(40) NOT NULL DEFAULT '10mm',
+  body_class_name VARCHAR(255) NOT NULL DEFAULT '',
+  body_markup LONGTEXT NOT NULL,
+  actor_user_id INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_report_archives_created_at (created_at),
+  CONSTRAINT fk_report_archives_actor
+    FOREIGN KEY (actor_user_id) REFERENCES app_users(id)
     ON DELETE SET NULL
 );
 
