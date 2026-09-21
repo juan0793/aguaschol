@@ -160,6 +160,9 @@ export const avancePorResponsable = (lotes = []) => {
         responsable_id: lote.responsable_id ?? null,
         responsable_nombre: lote.responsable_nombre || "Sin responsable",
         barrios: [],
+        // El detalle de cada lote viaja con la fila para que el avance se pueda
+        // abrir en su sitio, en vez de mandar a buscarlos a la tabla de abajo.
+        detalle: [],
         lotes: 0,
         abiertos: 0,
         asignadas: 0,
@@ -169,6 +172,7 @@ export const avancePorResponsable = (lotes = []) => {
     }
     const fila = mapa.get(key);
     const tramos = splitLoteAvance(lote);
+    fila.detalle.push({ ...lote, avance: conAvance({ lotes: 1, abiertos: lote.estado === "ABIERTO" ? 1 : 0, ...tramos }) });
     fila.lotes += 1;
     fila.abiertos += lote.estado === "ABIERTO" ? 1 : 0;
     fila.asignadas += tramos.asignadas;
@@ -177,7 +181,16 @@ export const avancePorResponsable = (lotes = []) => {
     if (lote.barrio_nombre && !fila.barrios.includes(lote.barrio_nombre)) fila.barrios.push(lote.barrio_nombre);
   });
   return [...mapa.values()]
-    .map(conAvance)
+    .map((fila) => ({
+      ...conAvance(fila),
+      // Dentro de una persona: primero lo que sigue abierto, que es lo que
+      // reclama accion; despues por lote mas reciente.
+      detalle: fila.detalle.sort((left, right) =>
+        (right.estado === "ABIERTO") - (left.estado === "ABIERTO") ||
+        String(right.fecha || "").localeCompare(String(left.fecha || "")) ||
+        Number(right.id || 0) - Number(left.id || 0)
+      )
+    }))
     .sort((left, right) => (right.abiertos > 0) - (left.abiertos > 0) || right.asignadas - left.asignadas);
 };
 

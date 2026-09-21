@@ -163,3 +163,26 @@ test("avanceDeResumen tolera que todavia no haya datos cargados", () => {
   ]);
   assert.deepEqual(grupos[0].documentos.map((d) => d.id), [3, 2, 1]);
 }
+
+// --- Detalle de lotes por responsable (avance de la jornada) ----------------
+{
+  const lotes = [
+    { id: 85, responsable_id: 3, responsable_nombre: "Alfredo Carranza", barrio_nombre: "Col. Marcelo Gerin", estado: "REVISADO", fecha: "2026-09-21", total_asignadas: 101, total_entregadas: 96, total_sobrantes: 5 },
+    { id: 83, responsable_id: 3, responsable_nombre: "Alfredo Carranza", barrio_nombre: "Col. Iberia", estado: "REVISADO", fecha: "2026-09-20", total_asignadas: 94, total_entregadas: 90, total_sobrantes: 4 },
+    { id: 84, responsable_id: 1, responsable_nombre: "Luis Herrera", barrio_nombre: "Bo. El Porvenir", estado: "ABIERTO", fecha: "2026-09-21", total_asignadas: 540 }
+  ];
+  const filas = avancePorResponsable(lotes);
+  const alfredo = filas.find((f) => f.responsable_id === 3);
+  assert.equal(alfredo.lotes, 2, "la fila sigue sumando sus dos lotes");
+  assert.deepEqual(alfredo.detalle.map((d) => d.id), [85, 83], "el detalle va del lote mas reciente al mas viejo");
+  assert.equal(alfredo.detalle[0].barrio_nombre, "Col. Marcelo Gerin", "cada lote conserva su recorrido");
+  assert.equal(alfredo.asignadas, 195, "la suma no cambia al guardar el detalle");
+
+  // Un lote abierto encabeza el detalle de su persona: es lo que reclama accion.
+  const mixto = avancePorResponsable([
+    { id: 10, responsable_id: 9, responsable_nombre: "Ana", estado: "CERRADO", fecha: "2026-09-21", total_asignadas: 10, total_sobrantes: 1 },
+    { id: 11, responsable_id: 9, responsable_nombre: "Ana", estado: "ABIERTO", fecha: "2026-09-19", total_asignadas: 5 }
+  ]);
+  assert.deepEqual(mixto[0].detalle.map((d) => d.id), [11, 10]);
+  assert.equal(mixto[0].abiertos, 1);
+}

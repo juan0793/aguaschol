@@ -84,6 +84,60 @@
 .ent-avance-lista { display: grid; gap: 0; margin: 6px 0 0; padding: 0; list-style: none; }
 .ent-avance-lista li { display: grid; grid-template-columns: minmax(140px, 1.1fr) minmax(0, 2fr) minmax(96px, auto); gap: 14px; align-items: center; padding: 11px 2px; border-bottom: 1px solid var(--ent-borde); }
 .ent-avance-lista li:last-child { border-bottom: 0; }
+/* La fila pasa a ser un boton: la grilla de tres columnas se muda del <li> al
+   boton y el <li> queda de contenedor, para colgarle debajo los lotes de esa
+   persona sin alterar la alineacion de la lista. */
+.ent-avance-lista li { display: block; padding: 0; }
+.ent-avance-fila {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.1fr) minmax(0, 2fr) minmax(96px, auto) auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  padding: 11px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ent-avance-fila:hover { background: var(--ent-tenue); }
+.ent-avance-fila:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 8px; }
+.ent-avance-chevron { width: 16px; height: 16px; color: var(--muted); transition: transform .16s ease; }
+.ent-avance-fila[aria-expanded="true"] .ent-avance-chevron { transform: rotate(180deg); color: var(--primary); }
+
+/* Los lotes de la persona, con el mismo orden de lectura que la tabla de
+   abajo: numero y fecha, recorrido, resultado y estado. */
+.ent-avance-lotes { display: grid; gap: 4px; margin: 0 0 10px; padding: 0 0 0 10px; border-left: 2px solid var(--primary); list-style: none; }
+.ent-avance-lotes button {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) minmax(0, 1.4fr) minmax(120px, auto) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ent-borde);
+  border-radius: 9px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ent-avance-lotes button:hover:not(:disabled) { border-color: var(--primary); background: var(--ent-tenue); }
+.ent-avance-lotes button:disabled { cursor: default; }
+.ent-avance-lotes button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.ent-avance-lote-id, .ent-avance-lote-ruta, .ent-avance-lote-cifra { display: grid; gap: 1px; min-width: 0; }
+.ent-avance-lote-cifra { text-align: right; }
+.ent-avance-lotes strong { color: var(--navy); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.ent-avance-lotes small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.ent-avance-lote-ruta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .ent-avance-fila { grid-template-columns: 1fr auto; gap: 8px; }
+  .ent-avance-fila .ent-avance-track { grid-column: 1 / -1; }
+  .ent-avance-lotes button { grid-template-columns: 1fr auto; }
+  .ent-avance-lote-cifra { text-align: left; }
+}
 .ent-avance-quien { display: grid; gap: 2px; min-width: 0; }
 .ent-avance-quien strong { color: var(--navy); font-size: 13px; }
 .ent-avance-quien small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
