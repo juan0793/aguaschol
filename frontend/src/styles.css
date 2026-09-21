@@ -1473,14 +1473,6 @@ body::after {
   margin-bottom: 0.7rem;
 }
 
-.login-alert {
-  position: fixed;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(680px, calc(100% - 2rem));
-}
-
 .login-card {
   width: 100%;
   background: rgba(255, 255, 255, 0.56);
@@ -1829,44 +1821,6 @@ textarea:focus {
   width: min(1480px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 1.35rem 0 2.25rem;
-}
-
-.app-alert {
-  position: sticky;
-  top: 0.85rem;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  margin-bottom: 1rem;
-  padding: 1rem 1.15rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(193, 39, 45, 0.18);
-  background: linear-gradient(135deg, rgba(255, 240, 242, 0.98) 0%, rgba(255, 228, 232, 0.99) 100%);
-  color: #7a1b24;
-  box-shadow:
-    0 4px 12px rgba(193, 39, 45, 0.08),
-    0 12px 32px rgba(193, 39, 45, 0.12);
-}
-
-.app-toast {
-  position: fixed;
-  top: 0.9rem;
-  right: 1rem;
-  left: auto;
-  /* Por encima de los drawers modales (z-index 201): si el aviso queda debajo,
-     un error del backend se pierde y la accion parece no hacer nada. */
-  z-index: 400;
-  max-width: min(420px, calc(100vw - 2rem));
-  margin: 0;
-  border-radius: 12px;
-  animation: toastSlideIn 180ms ease-out;
-}
-
-.app-alert strong {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.76rem;
 }
 
 .hero {
@@ -28877,22 +28831,6 @@ body {
   color: var(--login-muted);
   font-size: 0.82rem;
   text-align: center;
-}
-
-.login-scene .login-alert {
-  position: fixed !important;
-  top: 1rem !important;
-  right: auto !important;
-  left: 50% !important;
-  z-index: 130;
-  width: min(480px, calc(100vw - 2rem)) !important;
-  margin: 0 !important;
-  border: 1px solid rgba(196, 71, 71, 0.28);
-  background: rgba(255, 247, 247, 0.94);
-  color: #8f3030;
-  box-sizing: border-box;
-  transform: translateX(-50%) !important;
-  backdrop-filter: blur(12px);
 }
 
 .login-scene .auth-fx {

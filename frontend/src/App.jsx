@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, use
 import { BlossomCarousel } from "@blossom-carousel/react";
 import "@blossom-carousel/core/style.css";
 import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { toast, Toaster } from "sonner";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
 import LookupChatPanel from "./components/LookupChatPanel";
@@ -1056,6 +1057,20 @@ const sectionIconNames = {
   foto: "activity"
 };
 
+const getAlertDetails = (text) => {
+  const value = String(text || "").toLowerCase();
+  if (/no fue posible|no se pudo|error|fall[oó]|ses[ií]on venc/i.test(value)) {
+    return { tone: "error", label: "No se pudo completar" };
+  }
+  if (/guardad|actualizad|generad|descargad|registrad|impres|cread|eliminad|enviad|validad|correctamente|completad|listo|comparaci[oó]n lista/i.test(value)) {
+    return { tone: "success", label: "Listo" };
+  }
+  if (/atenci[oó]n|vencid|alerta|pendiente|selecciona|debes|primero|no concuerda|no se encontr[oó]/i.test(value)) {
+    return { tone: "warning", label: "Atención" };
+  }
+  return { tone: "info", label: "Actualización" };
+};
+
 function App() {
   const sheetRef = useRef(null);
   const recordHistoryRef = useRef(null);
@@ -1108,7 +1123,6 @@ function App() {
   const [draftSaveState, setDraftSaveState] = useState(() => (draftForm ? "saved" : "idle"));
   const [search, setSearch] = useState("");
   const [emptyRecordsMessage, setEmptyRecordsMessage] = useState("Cargando registros...");
-  const [alert, setAlert] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveIntent, setSaveIntent] = useState(saveIntentOptions.stay);
   const [loading, setLoading] = useState(true);
@@ -3970,7 +3984,12 @@ function App() {
 
   const showAlert = useCallback((text) => {
     if (!text || (intentionalLogoutRef.current && /la sesi[oó]n venci[oó]/i.test(text))) return;
-    setAlert({ text, id: Date.now() });
+    const details = getAlertDetails(text);
+    toast[details.tone](details.label, {
+      description: text,
+      duration: 5000,
+      closeButton: true
+    });
   }, []);
 
   const clearSession = () => {
@@ -4382,16 +4401,6 @@ function App() {
       }
     };
   }, [localSelectedPhotoUrl]);
-
-  useEffect(() => {
-    if (!alert) return undefined;
-
-    const timer = window.setTimeout(() => {
-      setAlert(null);
-    }, 5000);
-
-    return () => window.clearTimeout(timer);
-  }, [alert]);
 
   useEffect(() => {
     if (workspaceView === "records") return undefined;
@@ -9825,7 +9834,6 @@ function App() {
         confirm_password: ""
       });
       setWorkspaceView(getWorkspaceViewByRole(data?.user?.role));
-      setAlert(null);
     } catch (error) {
       showAlert(error.message);
     } finally {
@@ -9836,7 +9844,6 @@ function App() {
 
   const handleLogout = async () => {
     intentionalLogoutRef.current = true;
-    setAlert(null);
     try {
       setAuthFx({ mode: "logout", text: "Cerrando sesión..." });
       await apiFetch("/auth/logout", { method: "POST" });
@@ -12255,12 +12262,7 @@ function App() {
             </div>
           </div>
         ) : null}
-        {alert ? (
-          <div className="app-alert login-alert" role="alert">
-            <strong>Atención</strong>
-            <span>{alert.text}</span>
-          </div>
-        ) : null}
+        <Toaster position="top-right" richColors closeButton duration={5000} visibleToasts={3} />
         <div className="login-droplet-sequence" aria-hidden="true">
           <img className="login-droplet-fall" src={loginDroplet} alt="" />
           <img className="login-droplet-splash" src={loginSplash} alt="" />
@@ -12734,12 +12736,7 @@ function App() {
           </div>
         </div>
       ) : null}
-      {alert ? (
-        <div className="app-alert app-toast no-print" role="alert">
-          <strong>Atención</strong>
-          <span>{alert.text}</span>
-        </div>
-      ) : null}
+      <Toaster position="top-right" richColors closeButton duration={5000} visibleToasts={3} />
       {passwordModalVisible ? (
         <div className={`password-modal-backdrop ${mustChangePassword ? "is-forced" : ""}`}>
           <div className="password-modal-card">
