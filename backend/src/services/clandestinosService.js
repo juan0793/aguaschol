@@ -4,6 +4,7 @@ import { createAuditLog } from "./auditService.js";
 import { getById, listInmuebles } from "./inmuebleService.js";
 import { saveUploadedPhoto } from "./fileStorageService.js";
 import { compareAlcaldiaWithAguas, getMasterRecordsForImport } from "./claveLookupService.js";
+import { likeValue } from "../utils/normalize.js";
 
 export const FICHA_STATES = ["draft", "pending", "visit", "confirmed", "regularization", "regularized", "discarded"];
 export const REPORT_STATES = ["new", "review", "info_requested", "approved", "linked", "duplicate", "discarded"];
