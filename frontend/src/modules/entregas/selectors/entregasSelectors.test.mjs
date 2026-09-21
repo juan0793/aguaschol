@@ -8,6 +8,7 @@ import {
   groupByNeighborhood,
   groupByReason,
   groupByResponsible,
+  groupSobrantesByLote,
   scaleSeries,
   sumLotes,
   trendDelta
@@ -134,3 +135,31 @@ test("avanceDeResumen tolera que todavia no haya datos cargados", () => {
   assert.equal(vacio.avance, 0);
   assert.deepEqual(vacio.tramos, { confirmadas: 0, no_entregadas: 0, en_ruta: 0 });
 });
+
+// --- Acta consolidada de sobrantes -----------------------------------------
+{
+  const filas = [
+    { id: 3, lote_id: 57, fecha_lote: "2026-09-16", abonado_nombre: "Ana Paz", barrio_nombre: "Santa Lucia", responsable_nombre: "Ana Flores" },
+    { id: 2, lote_id: 55, fecha_lote: "2026-09-15", abonado_nombre: "Zoila Reyes", barrio_nombre: "Porvenir", responsable_nombre: "Juan Mendoza" },
+    { id: 1, lote_id: 55, fecha_lote: "2026-09-15", abonado_nombre: "Ana Flores", barrio_nombre: "Porvenir", responsable_nombre: "Juan Mendoza" }
+  ];
+  const grupos = groupSobrantesByLote(filas);
+  assert.equal(grupos.length, 2, "un grupo por lote");
+  assert.deepEqual(grupos.map((g) => g.lote_id), [55, 57], "los lotes van por fecha");
+  assert.deepEqual(grupos[0].documentos.map((d) => d.id), [1, 2], "dentro del lote, por nombre");
+  assert.equal(grupos[0].responsable_nombre, "Juan Mendoza");
+  assert.equal(grupos[1].barrio_nombre, "Santa Lucia");
+  // Una fila sin lote no puede romper el acta.
+  assert.equal(groupSobrantesByLote([{ id: 9 }]).length, 0);
+  assert.deepEqual(groupSobrantesByLote(), []);
+}
+
+// Un sobrante sin nombre capturado cierra la lista del lote, no la abre.
+{
+  const grupos = groupSobrantesByLote([
+    { id: 1, lote_id: 55, fecha_lote: "2026-09-15", abonado_nombre: "" },
+    { id: 2, lote_id: 55, fecha_lote: "2026-09-15", abonado_nombre: "Zoila Reyes" },
+    { id: 3, lote_id: 55, fecha_lote: "2026-09-15", abonado_nombre: "Ana Flores" }
+  ]);
+  assert.deepEqual(grupos[0].documentos.map((d) => d.id), [3, 2, 1]);
+}

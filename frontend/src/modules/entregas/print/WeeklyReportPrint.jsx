@@ -9,6 +9,7 @@ import {
   TablaDiaria,
   TablaMotivos,
   TablaPendientes,
+  TablaSobrantes,
   TablaResponsables,
   TablaTipoDocumento,
   TarjetasKpi
@@ -77,13 +78,15 @@ const FichaDocumento = ({ snapshot, meta }) => {
 
 // Hoja Letter vertical. Cada página repite encabezado y pie, y las tablas
 // arrastran su cabecera si se cortan entre páginas.
-export default function WeeklyReportPrint({ snapshot, meta = null, incluirAnexo = false }) {
+export default function WeeklyReportPrint({ snapshot, meta = null, incluirAnexo = false, incluirSobrantes = false }) {
   if (!snapshot) return null;
   const anexo = incluirAnexo && snapshot.anexo_pendientes?.length ? snapshot.anexo_pendientes : [];
+  const sobrantes = incluirSobrantes && snapshot.anexo_sobrantes?.length ? snapshot.anexo_sobrantes : [];
+  const resumenSobrantes = snapshot.sobrantes_resumen || null;
   // Cada hoja es una sección cerrada. Los pendientes viven en su propia hoja
   // porque son la lista más larga y, mezclados con las observaciones, empujaban
   // el pie de página a una hoja de más al imprimir.
-  const totalPaginas = 5 + (anexo.length ? 1 : 0);
+  const totalPaginas = 5 + (anexo.length ? 1 : 0) + (sobrantes.length ? 1 : 0);
   const totales = snapshot.totales;
   const resumen = construirResumenEjecutivo(snapshot);
   const filtrado = snapshot.periodo.tipo_documento && snapshot.periodo.tipo_documento !== "TODOS";
@@ -233,6 +236,29 @@ export default function WeeklyReportPrint({ snapshot, meta = null, incluirAnexo 
             descripcion={`${formatNumber(anexo.length)} documentos pendientes de seguimiento al cierre del período.`}
           >
             <TablaPendientes rows={anexo} />
+          </Seccion>
+        </Hoja>
+      ) : null}
+
+      {sobrantes.length ? (
+        <Hoja
+          snapshot={snapshot}
+          numero={5 + (anexo.length ? 1 : 0) + 1}
+          total={totalPaginas}
+          titulo="Anexo"
+          paginacion={`Sobrantes · ${formatNumber(sobrantes.length)} documentos`}
+        >
+          <Seccion
+            ancha
+            titulo="Anexo · sobrantes de lotes cerrados"
+            descripcion={`Personas que quedaron sin recibir su documento en los lotes cerrados del período. ${
+              resumenSobrantes
+                ? `${formatNumber(resumenSobrantes.personas)} persona(s) en ${formatNumber(resumenSobrantes.lotes)} lote(s).`
+                : ""
+            }`}
+            aside={`${formatNumber(sobrantes.length)} documentos`}
+          >
+            <TablaSobrantes rows={sobrantes} />
           </Seccion>
         </Hoja>
       ) : null}

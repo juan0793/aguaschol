@@ -38,7 +38,7 @@ const textoTendencia = (indicador) => {
   return `${flecha} ${signo}${magnitud}${variacion}`;
 };
 
-export const descargarReporteSemanalPdf = async (snapshot, { incluirAnexo = false, meta = null } = {}) => {
+export const descargarReporteSemanalPdf = async (snapshot, { incluirAnexo = false, incluirSobrantes = false, meta = null } = {}) => {
   if (!snapshot) return;
   const { jsPDF, autoTable } = await cargarJsPdf();
   const doc = new jsPDF({ unit: "pt", format: "letter", orientation: "portrait" });
@@ -311,7 +311,7 @@ export const descargarReporteSemanalPdf = async (snapshot, { incluirAnexo = fals
     : snapshot.pendientes_prioritarios;
 
   y = titulo(incluirAnexo && snapshot.anexo_pendientes?.length ? "Anexo · pendientes completos" : "Pendientes prioritarios", y);
-  tabla(
+  y = tabla(
     ["Abonado", "Clave catastral", "Barrio", "Responsable", "Motivo", "Días", "Intentos"],
     pendientes.map((fila) => [
       fila.numero_abonado || "—",
@@ -325,6 +325,27 @@ export const descargarReporteSemanalPdf = async (snapshot, { incluirAnexo = fals
     y + 8,
     { columnStyles: { 5: { halign: "right", cellWidth: 40 }, 6: { halign: "right", cellWidth: 50 } } }
   );
+
+  // Las personas que quedaron sin su documento en los lotes ya cerrados. Va al
+  // final porque es un anexo y su largo depende del periodo.
+  const sobrantes = incluirSobrantes && snapshot.anexo_sobrantes?.length ? snapshot.anexo_sobrantes : [];
+  if (sobrantes.length) {
+    y = titulo("Anexo · sobrantes de lotes cerrados", y);
+    tabla(
+      ["Persona", "Abonado", "Clave catastral", "Barrio", "Motivo", "Lote", "Responsable"],
+      sobrantes.map((fila) => [
+        fila.abonado_nombre || "Sin nombre registrado",
+        fila.numero_abonado || "—",
+        fila.clave_catastral || "—",
+        fila.barrio_nombre || "—",
+        fila.motivo_etiqueta || "—",
+        `#${fila.lote_id}`,
+        fila.responsable_nombre || "—"
+      ]),
+      y + 8,
+      { columnStyles: { 5: { halign: "right", cellWidth: 40 } } }
+    );
+  }
 
   pie();
   doc.save(`reporte-entregas-${snapshot.periodo.fecha_inicio}-a-${snapshot.periodo.fecha_fin}.pdf`);

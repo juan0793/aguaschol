@@ -200,3 +200,37 @@ export const scaleSeries = (rows = [], keys = []) => {
     _escala: Object.fromEntries(keys.map((key) => [key, Math.round(((Number(row[key]) || 0) / max) * 1000) / 10]))
   }));
 };
+
+// Agrupa por lote los documentos sobrantes que devuelve /entregas/no-entregadas,
+// para armar el acta consolidada. El backend ya filtra a lotes cerrados; aca
+// solo se ordena y se arma la cabecera de cada recorrido.
+export const groupSobrantesByLote = (rows = []) => {
+  const grupos = new Map();
+  for (const fila of rows) {
+    const clave = Number(fila?.lote_id || 0);
+    if (!clave) continue;
+    if (!grupos.has(clave)) {
+      grupos.set(clave, {
+        lote_id: clave,
+        fecha: fila.fecha_lote || "",
+        tipo_documento: fila.tipo_documento || "",
+        barrio_codigo: fila.barrio_codigo || "",
+        barrio_nombre: fila.barrio_nombre || "",
+        responsable_nombre: fila.responsable_nombre || "",
+        documentos: []
+      });
+    }
+    grupos.get(clave).documentos.push(fila);
+  }
+  for (const grupo of grupos.values()) {
+    grupo.documentos.sort((a, b) =>
+      // Los sin nombre capturado cierran la lista, no la abren.
+      (a.abonado_nombre ? 0 : 1) - (b.abonado_nombre ? 0 : 1) ||
+      String(a.abonado_nombre || "").localeCompare(String(b.abonado_nombre || ""), "es") ||
+      Number(a.id || 0) - Number(b.id || 0)
+    );
+  }
+  return [...grupos.values()].sort((a, b) =>
+    String(a.fecha).localeCompare(String(b.fecha)) || a.lote_id - b.lote_id
+  );
+};
