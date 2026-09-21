@@ -115,6 +115,19 @@
 .ent-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .ent-boton-mini { min-height: 34px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .ent-acciones-celda { display: flex; align-items: center; gap: 6px; }
+/* Las casillas van en su propia fila, no como una columna mas de la grilla:
+   .cl-toolbar define cuatro columnas fijas y la cuarta es `auto`, asi que meter
+   una segunda casilla ahi estrangulaba la columna y partia la etiqueta en
+   vertical. Ocupando la fila completa el ancho deja de depender de cuantas
+   casillas haya. */
+.ent-toolbar-checks {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px 22px;
+}
+
 .ent-check { display: flex !important; align-items: center; gap: 8px; }
 .ent-check input { width: 18px; min-height: 18px; height: 18px; accent-color: var(--primary); }
 

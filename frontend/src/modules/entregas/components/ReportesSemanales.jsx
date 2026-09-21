@@ -177,14 +177,16 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
               ))}
             </select>
           </label>
-          <label className="ent-check">
-            <input type="checkbox" checked={incluirAnexo} onChange={(event) => setIncluirAnexo(event.target.checked)} />
-            Incluir anexo completo de pendientes
-          </label>
-          <label>
-            <input type="checkbox" checked={incluirSobrantes} onChange={(event) => setIncluirSobrantes(event.target.checked)} />
-            Incluir anexo de sobrantes de lotes cerrados
-          </label>
+          <div className="ent-toolbar-checks">
+            <label className="ent-check">
+              <input type="checkbox" checked={incluirAnexo} onChange={(event) => setIncluirAnexo(event.target.checked)} />
+              Incluir anexo completo de pendientes
+            </label>
+            <label className="ent-check">
+              <input type="checkbox" checked={incluirSobrantes} onChange={(event) => setIncluirSobrantes(event.target.checked)} />
+              Incluir anexo de sobrantes de lotes cerrados
+            </label>
+          </div>
         </div>
 
         {vista?.snapshot ? (
