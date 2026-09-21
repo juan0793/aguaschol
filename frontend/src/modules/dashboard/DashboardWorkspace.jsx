@@ -4,7 +4,7 @@ import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
 import { escapeHtml } from "../../utils/html";
 import { printDocument } from "../../utils/printDocument";
-import { debtRanking, debtRankingAll, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
+import { debtRankingAll, filterBarriosByQuery, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
@@ -138,6 +138,7 @@ function Amount({ value, className = "" }) {
 
 export default function DashboardWorkspace({ model }) {
   const gridRef = useRef(null);
+  const buscadorRef = useRef(null);
   const [splitPercent, setSplitPercent] = useState(42);
   const [isResizing, setIsResizing] = useState(false);
   const [servicioAbierto, setServicioAbierto] = useState("");
@@ -160,6 +161,8 @@ export default function DashboardWorkspace({ model }) {
     });
 
   const [debtMetric, setDebtMetric] = useState("total");
+  const [barrioQuery, setBarrioQuery] = useState("");
+  const [resaltada, setResaltada] = useState(0);
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
   const [barrioAbierto, setBarrioAbierto] = useState("");
@@ -188,7 +191,22 @@ export default function DashboardWorkspace({ model }) {
     setSplitPercent((current) => Math.min(62, Math.max(30, current + direction)));
   };
 
-  const ranking = useMemo(() => debtRanking(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
+  // El padron entero ordenado por la metrica activa. El top 5 sale de aca, pero
+  // la busqueda necesita la lista completa para encontrar barrios que no entran
+  // al ranking visible.
+  const rankingAll = useMemo(() => debtRankingAll(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
+  const ranking = useMemo(() => rankingAll.slice(0, 5), [rankingAll]);
+  const searchHits = useMemo(() => filterBarriosByQuery(rankingAll, barrioQuery, 40), [rankingAll, barrioQuery]);
+  const buscando = Boolean(barrioQuery.trim());
+  // La posicion real en el padron, para que la sugerencia diga de que puesto
+  // viene el barrio y no solo su nombre.
+  const posiciones = useMemo(() => new Map(rankingAll.map((item, index) => [item.name, index + 1])), [rankingAll]);
+  // Lo ya elegido sale de las sugerencias: el chip de abajo lo muestra y el
+  // campo queda libre para escribir el siguiente barrio.
+  const sugerencias = useMemo(
+    () => searchHits.filter((item) => !selectedBarrios.includes(item.name)).slice(0, 8),
+    [searchHits, selectedBarrios]
+  );
   // Padron completo, independiente de la metrica: el ranking visible es solo el
   // top 5, pero la seleccion sobrevive al cambio de metrica y tiene que seguir
   // sumando aunque un barrio elegido ya no aparezca en pantalla.
@@ -204,6 +222,14 @@ export default function DashboardWorkspace({ model }) {
   const maxServiceDebt = Math.max(1, ...serviceDebt.map((service) => service.debt));
   const selectedDebt = useMemo(() => sumSelectedDebt(barriosCompletos, selectedBarrios), [barriosCompletos, selectedBarrios]);
   const selectedServices = useMemo(() => sumSelectedServices(barriosCompletos, selectedBarrios), [barriosCompletos, selectedBarrios]);
+  // Filas de la seleccion, ordenadas por la metrica activa: alimentan el grafico
+  // que se rearma cada vez que se agrega o se quita un barrio.
+  const selectedRows = useMemo(
+    () => selectedRankedRows(barriosCompletos, selectedBarrios, debtMetric),
+    [barriosCompletos, selectedBarrios, debtMetric]
+  );
+  const maxSelected = Math.max(1, ...selectedRows.map((item) => item.value));
+  const selectedTotal = selectedRows.reduce((sum, item) => sum + item.value, 0);
   const maxDebt = Math.max(1, ...ranking.map((item) => item.value));
 
   const debt = model.debtSummary || {};
@@ -225,6 +251,38 @@ export default function DashboardWorkspace({ model }) {
 
   const toggleBarrio = (name) =>
     setSelectedBarrios((current) => (current.includes(name) ? current.filter((item) => item !== name) : [...current, name]));
+
+  // Agregar deja el campo vacio y el foco adentro: asi se encadena un barrio
+  // tras otro sin tocar el mouse.
+  const agregarBarrio = (name) => {
+    setSelectedBarrios((current) => (current.includes(name) ? current : [...current, name]));
+    setBarrioQuery("");
+    setResaltada(0);
+    buscadorRef.current?.focus();
+  };
+  const limpiarBusqueda = () => {
+    setBarrioQuery("");
+    setResaltada(0);
+    buscadorRef.current?.focus();
+  };
+  const manejarTeclas = (event) => {
+    if (event.key === "Escape" && barrioQuery) {
+      event.preventDefault();
+      limpiarBusqueda();
+      return;
+    }
+    if (!sugerencias.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const paso = event.key === "ArrowDown" ? 1 : -1;
+      setResaltada((actual) => (actual + paso + sugerencias.length) % sugerencias.length);
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      agregarBarrio((sugerencias[resaltada] || sugerencias[0]).name);
+    }
+  };
   const navigate = (view, focus = "") => {
     if (focus) sessionStorage.setItem("aguas.clandestinos.focus", focus);
     model.navigate(view);
@@ -233,7 +291,7 @@ export default function DashboardWorkspace({ model }) {
   const printSelection = () =>
     printDocument(
       "Sumatoria de barrios",
-      `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five">${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
+      `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Abonados</strong><span>${whole(selectedDebt.records)}</span></div>${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("records", "Detalle por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Abonados</th><th>Cuentas con mora</th><th>Casos criticos</th><th>Capital</th><th>Intereses</th><th>Mora total</th></tr></thead><tbody>${selectedRows.map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${whole(row.records)}</td><td>${whole(row.debt?.deudores)}</td><td>${whole(row.debt?.criticos)}</td><td>${escapeHtml(formatCurrency(row.debt?.capital))}</td><td>${escapeHtml(formatCurrency(row.debt?.intereses))}</td><td>${escapeHtml(formatCurrency(row.debt?.total))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedDebt.records)}</th><th>${whole(selectedDebt.deudores)}</th><th>${whole(selectedDebt.criticos)}</th><th>${escapeHtml(formatCurrency(selectedDebt.capital))}</th><th>${escapeHtml(formatCurrency(selectedDebt.intereses))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
       { pageSize: "Letter portrait", bodyClassName: "dashboard-report-body", showPageFooter: true }
     );
 
@@ -587,11 +645,188 @@ export default function DashboardWorkspace({ model }) {
                         {debtMetric === "total" ? <Amount value={rankingTotal} /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
                       </div>
                     </div> : null}
-                    {ranking.length ? <p className="dw-chart-caption">De mayor a menor · Barras comparadas con el primer lugar.</p> : null}
+                    <div className="dw-barrio-picker">
+                      <div className="dw-barrio-search">
+                        <Icon name="search" />
+                        <input
+                          id="dw-barrio-search"
+                          ref={buscadorRef}
+                          type="text"
+                          role="combobox"
+                          value={barrioQuery}
+                          placeholder={`Agregar barrio · ${whole(rankingAll.length)} con mora`}
+                          aria-label="Buscar barrios para agregar a la selección"
+                          aria-expanded={sugerencias.length > 0}
+                          aria-controls="dw-barrio-sugerencias"
+                          aria-autocomplete="list"
+                          aria-activedescendant={sugerencias[resaltada] ? `dw-sug-${resaltada}` : undefined}
+                          autoComplete="off"
+                          onChange={(event) => { setBarrioQuery(event.target.value); setResaltada(0); }}
+                          onKeyDown={manejarTeclas}
+                        />
+                        {buscando ? (
+                          <button type="button" className="dw-link" onClick={limpiarBusqueda}>Limpiar</button>
+                        ) : null}
+                      </div>
+
+                      {buscando ? (
+                        sugerencias.length ? (
+                          <ul className="dw-suggestions" role="listbox" id="dw-barrio-sugerencias" aria-label="Barrios que coinciden">
+                            {sugerencias.map((item, index) => (
+                              <li key={item.name}>
+                                <button
+                                  type="button"
+                                  id={`dw-sug-${index}`}
+                                  role="option"
+                                  aria-selected={index === resaltada}
+                                  className={index === resaltada ? "is-active" : ""}
+                                  onMouseEnter={() => setResaltada(index)}
+                                  onClick={() => agregarBarrio(item.name)}
+                                >
+                                  <span className="dw-sug-rank dw-figure">#{posiciones.get(item.name) || "—"}</span>
+                                  <span className="dw-sug-name">{item.name}</span>
+                                  <span className="dw-sug-value">
+                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
+                                  </span>
+                                  <Icon name="plus" />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="dw-empty">
+                            {searchHits.length ? "Ya agregaste todos los barrios que coinciden." : `Ningún barrio coincide con “${barrioQuery.trim()}”.`}
+                          </p>
+                        )
+                      ) : null}
+                    </div>
+
+                    {selectedBarrios.length ? (
+                      <div className={`dw-selection ${selectedDetailsOpen ? "is-open" : ""}`.trim()}>
+                        <header>
+                          <button
+                            type="button"
+                            className="dw-disclosure"
+                            aria-expanded={selectedDetailsOpen}
+                            onClick={() => setSelectedDetailsOpen((value) => !value)}
+                          >
+                            <Icon name="arrowRight" />
+                            {selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}
+                          </button>
+                          <button
+                            type="button"
+                            className="dw-link"
+                            onClick={() => {
+                              setSelectedBarrios([]);
+                              setSelectedDetailsOpen(false);
+                            }}
+                          >
+                            Quitar todos
+                          </button>
+                        </header>
+                        <ul className="dw-selection-chips">
+                          {selectedBarrios.map((name) => (
+                            <li key={name}>
+                              <button type="button" onClick={() => toggleBarrio(name)} aria-label={`Quitar ${name} de la selección`}>
+                                {name}
+                                <span aria-hidden="true">✕</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="dw-selection-share">
+                          Concentran el <strong className="dw-figure">{oneDecimal(selectedShare)}</strong>
+                          {debtMetric === "accounts" ? " de los abonados con mora del padrón." : debtMetric === "critical" ? " de los casos críticos del padrón." : " de la mora del padrón."}
+                        </p>
+                        <dl className="dw-selection-figures">
+                          <div>
+                            <dt>Abonados</dt>
+                            <dd className="dw-amount dw-figure">{whole(selectedDebt.records)}</dd>
+                          </div>
+                          <div>
+                            <dt>Capital</dt>
+                            <dd>
+                              <Amount value={selectedDebt.capital} />
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Intereses</dt>
+                            <dd>
+                              <Amount value={selectedDebt.intereses} />
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Mora total</dt>
+                            <dd>
+                              <Amount value={selectedDebt.total} />
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Cuentas</dt>
+                            <dd className="dw-amount dw-figure">{whole(selectedDebt.deudores)}</dd>
+                          </div>
+                          <div>
+                            <dt>Críticas</dt>
+                            <dd className="dw-amount dw-figure">{whole(selectedDebt.criticos)}</dd>
+                          </div>
+                        </dl>
+                        {selectedRows.length > 1 ? (
+                          <section className="dw-selection-chart">
+                            <header>
+                              <strong>{debtMetric === "total" ? "Mora" : debtMetric === "accounts" ? "Abonados con mora" : "Casos críticos"} de los barrios elegidos</strong>
+                              <small>Se rearma al agregar o quitar un barrio.</small>
+                            </header>
+                            <ol>
+                              {selectedRows.map((item) => (
+                                <li key={item.name}>
+                                  <span className="dw-sel-name" title={item.name}>{item.name}</span>
+                                  <span className="dw-sel-value">
+                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
+                                    <small className="dw-figure">{oneDecimal(percent(item.value, selectedTotal))} de la selección</small>
+                                  </span>
+                                  <i className="dw-sel-track" aria-hidden="true">
+                                    <em style={{ transform: `scaleX(${item.value / maxSelected})` }} />
+                                  </i>
+                                </li>
+                              ))}
+                            </ol>
+                          </section>
+                        ) : null}
+                        {selectedDetailsOpen ? (
+                          <section className="dw-services">
+                            <header>
+                              <strong>Servicios consolidados</strong>
+                              <button type="button" className="dw-button-secondary" onClick={printSelection}>
+                                <Icon name="print" />
+                                Imprimir sumatoria
+                              </button>
+                            </header>
+                            <ul>
+                              {selectedServices.map((service) => (
+                                <li key={service.field}>
+                                  <Icon name={SERVICE_ICONS[service.field] || "records"} />
+                                  <span className="dw-service-copy">
+                                    <strong>{service.label}</strong>
+                                    <small>
+                                      {whole(service.active)} activos · {whole(service.inactive)} inactivos
+                                    </small>
+                                  </span>
+                                  <Amount value={service.debt} />
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        ) : null}
+                      </div>
+                    ) : (
+                      ranking.length ? <p className="dw-hint">Seleccioná barrios para sumar su mora. Abrí la flecha para ver el desglose.</p> : null
+                    )}
+
+                    {ranking.length ? <p className="dw-chart-caption">Top 5 de mayor a menor · Tocá un barrio para agregarlo a la selección.</p> : null}
 
                     {ranking.length ? (
                       <ol className="dw-ranking">
-                        {ranking.map((item, index) => (
+                        {ranking.map((item) => (
                           <li key={item.name} className={barrioAbierto === item.name ? "is-expanded" : ""}>
                             <div className="dw-ranking-row">
                               <button
@@ -600,7 +835,7 @@ export default function DashboardWorkspace({ model }) {
                                 className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
                                 onClick={() => toggleBarrio(item.name)}
                               >
-                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(index + 1).padStart(2, "0")}</b>
+                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(posiciones.get(item.name) || 0).padStart(2, "0")}</b>
                                 <strong className="dw-ranking-name">{item.name}</strong>
                                 <span className="dw-ranking-value">
                                   {debtMetric === "total" ? (
@@ -637,103 +872,11 @@ export default function DashboardWorkspace({ model }) {
                         ))}
                       </ol>
                     ) : (
-                      <p className="dw-empty">No hay desglose de mora por barrio disponible.</p>
+                      <p className="dw-empty">
+                        No hay desglose de mora por barrio disponible.
+                      </p>
                     )}
 
-                    {selectedBarrios.length ? (
-                      <div className={`dw-selection ${selectedDetailsOpen ? "is-open" : ""}`.trim()}>
-                        <header>
-                          <button
-                            type="button"
-                            className="dw-disclosure"
-                            aria-expanded={selectedDetailsOpen}
-                            onClick={() => setSelectedDetailsOpen((value) => !value)}
-                          >
-                            <Icon name="arrowRight" />
-                            {selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}
-                          </button>
-                          <button
-                            type="button"
-                            className="dw-link"
-                            onClick={() => {
-                              setSelectedBarrios([]);
-                              setSelectedDetailsOpen(false);
-                            }}
-                          >
-                            Limpiar
-                          </button>
-                        </header>
-                        <ul className="dw-selection-chips">
-                          {selectedBarrios.map((name) => (
-                            <li key={name}>
-                              <button type="button" onClick={() => toggleBarrio(name)} aria-label={`Quitar ${name} de la selección`}>
-                                {name}
-                                <span aria-hidden="true">✕</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                        <p className="dw-selection-share">
-                          Concentran el <strong className="dw-figure">{oneDecimal(selectedShare)}</strong>
-                          {debtMetric === "accounts" ? " de los abonados con mora del padrón." : debtMetric === "critical" ? " de los casos críticos del padrón." : " de la mora del padrón."}
-                        </p>
-                        <dl className="dw-selection-figures">
-                          <div>
-                            <dt>Capital</dt>
-                            <dd>
-                              <Amount value={selectedDebt.capital} />
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Intereses</dt>
-                            <dd>
-                              <Amount value={selectedDebt.intereses} />
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Mora total</dt>
-                            <dd>
-                              <Amount value={selectedDebt.total} />
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Cuentas</dt>
-                            <dd className="dw-amount dw-figure">{whole(selectedDebt.deudores)}</dd>
-                          </div>
-                          <div>
-                            <dt>Críticas</dt>
-                            <dd className="dw-amount dw-figure">{whole(selectedDebt.criticos)}</dd>
-                          </div>
-                        </dl>
-                        {selectedDetailsOpen ? (
-                          <section className="dw-services">
-                            <header>
-                              <strong>Servicios consolidados</strong>
-                              <button type="button" className="dw-button-secondary" onClick={printSelection}>
-                                <Icon name="print" />
-                                Imprimir sumatoria
-                              </button>
-                            </header>
-                            <ul>
-                              {selectedServices.map((service) => (
-                                <li key={service.field}>
-                                  <Icon name={SERVICE_ICONS[service.field] || "records"} />
-                                  <span className="dw-service-copy">
-                                    <strong>{service.label}</strong>
-                                    <small>
-                                      {whole(service.active)} activos · {whole(service.inactive)} inactivos
-                                    </small>
-                                  </span>
-                                  <Amount value={service.debt} />
-                                </li>
-                              ))}
-                            </ul>
-                          </section>
-                        ) : null}
-                      </div>
-                    ) : (
-                      ranking.length ? <p className="dw-hint">Seleccioná barrios para sumar su mora. Abrí la flecha para ver el desglose.</p> : null
-                    )}
 
                     <footer className="dw-panel-foot">
                       <button type="button" className="dw-button-secondary" onClick={printDebtRanking} disabled={!ranking.length}>
