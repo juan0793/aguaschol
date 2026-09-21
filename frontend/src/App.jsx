@@ -4030,6 +4030,15 @@ function App() {
     }
   }, []);
 
+  // Revalidacion por ETag hecha a mano. Express ya envia ETag en cada GET, pero
+  // Chrome no guarda respuestas cross-origin que llevan Authorization, asi que
+  // nunca mandaba If-None-Match: cada sondeo del tablero rebajaba la respuesta
+  // entera. Aqui se guarda el ETag y el ultimo cuerpo por ruta y se revalida a
+  // mano: el servidor sigue consultandose siempre (los datos nunca se sirven sin
+  // preguntar), pero cuando nada cambio responde 304 sin cuerpo y se reutiliza
+  // lo ya recibido. Solo para las rutas que se sondean, via `revalidate: true`.
+  const apiRevalidateCacheRef = useRef(new Map());
+
   const apiFetch = useCallback(async (path, options = {}) => {
     const headers = new Headers(options.headers ?? {});
 
@@ -4037,14 +4046,43 @@ function App() {
       headers.set("Authorization", `Bearer ${session.token}`);
     }
 
+    const { revalidate, ...fetchOptions } = options;
+    const cacheKey = revalidate ? `${fetchOptions.method ?? "GET"} ${path}` : "";
+    const cached = cacheKey ? apiRevalidateCacheRef.current.get(cacheKey) : null;
+
+    if (cached?.etag) {
+      headers.set("If-None-Match", cached.etag);
+    }
+
     marcarPeticionInicio();
     try {
       const response = await fetch(`${API_URL}${path}`, {
-        ...options,
-        cache: options.cache ?? "no-store",
-        credentials: options.credentials ?? "include",
+        ...fetchOptions,
+        cache: fetchOptions.cache ?? "no-store",
+        credentials: fetchOptions.credentials ?? "include",
         headers
       });
+
+      if (cacheKey) {
+        if (response.status === 304 && cached) {
+          // Se devuelve una respuesta equivalente para que quien llama siga
+          // haciendo `await response.json()` sin enterarse del 304.
+          return new Response(cached.body, {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+
+        if (response.ok) {
+          const etag = response.headers.get("ETag");
+          if (etag) {
+            const body = await response.clone().text();
+            apiRevalidateCacheRef.current.set(cacheKey, { etag, body });
+          } else {
+            apiRevalidateCacheRef.current.delete(cacheKey);
+          }
+        }
+      }
       if (response.status === 401 && session?.token && !sessionInvalidatingRef.current) {
         sessionInvalidatingRef.current = true;
         clearSession();
@@ -4376,7 +4414,8 @@ function App() {
     }
     try {
       const response = await apiFetch(
-        `/inmuebles?q=${encodeURIComponent(query)}&archived=${view === "archived"}`
+        `/inmuebles?q=${encodeURIComponent(query)}&archived=${view === "archived"}`,
+        { revalidate: true }
       );
       const data = await response.json();
 
@@ -4545,7 +4584,7 @@ function App() {
     }
 
     try {
-      const response = await apiFetch("/users");
+      const response = await apiFetch("/users", { revalidate: true });
       const data = await response.json();
 
       if (!response.ok) {
@@ -4935,7 +4974,7 @@ function App() {
 
     try {
       const query = date ? `?date=${encodeURIComponent(date)}` : "";
-      const response = await apiFetch(`/map-points${query}`, { signal: controller.signal });
+      const response = await apiFetch(`/map-points${query}`, { signal: controller.signal, revalidate: true });
       const data = await response.json();
 
       if (mapPointsRequestRef.current.id !== requestId) {
@@ -5078,7 +5117,7 @@ function App() {
         }
       });
 
-      const response = await apiFetch(`/users/audit-logs?${params.toString()}`);
+      const response = await apiFetch(`/users/audit-logs?${params.toString()}`, { revalidate: true });
       const data = await response.json();
 
       if (!response.ok) {

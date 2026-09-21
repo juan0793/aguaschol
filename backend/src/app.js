@@ -79,7 +79,10 @@ app.use(
     const allowByRailwayFallback = env.isRailway && (allowedOrigins.size === 0 || sameHost);
 
     if (!origin || allowedOrigins.has(origin) || sameHost || allowByRailwayFallback) {
-      callback(null, { origin: true, credentials: true });
+      // ETag no es un encabezado de respuesta expuesto por defecto en CORS: sin
+      // esto el frontend lo leia como null y no podia revalidar (If-None-Match).
+      // Solo se expone ese encabezado; los origenes permitidos no cambian.
+      callback(null, { origin: true, credentials: true, exposedHeaders: ["ETag"] });
       return;
     }
 
