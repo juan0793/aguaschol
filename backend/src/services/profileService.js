@@ -274,12 +274,16 @@ const getTargetUser = async (pool, authUser, requestedUserId) => {
   return sanitizeUser(rows[0]);
 };
 
-const normalizeMessage = (message) => ({
+// El aviso de un lote se enlaza con su lote antes de mapear (ver getProfile).
+// Si este campo no viaja, la campana no sabe que la notificacion es de
+// entregas y termina abriendo el perfil de quien la envio.
+export const normalizeMessage = (message) => ({
   id: message.id,
   sender_user_id: message.sender_user_id,
   recipient_user_id: message.recipient_user_id,
   parent_message_id: message.parent_message_id,
   body: message.body,
+  entrega_lote_id: message.entrega_lote_id ?? null,
   read_at: message.read_at,
   created_at: message.created_at,
   sender_name: message.sender_name ?? "Sistema",
