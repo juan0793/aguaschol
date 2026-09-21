@@ -5182,10 +5182,13 @@ function App() {
       setDashboardRefreshing(true);
       setDashboardConnectionStatus("updating");
       try {
+        // `loadUsers` no va aqui: el efecto de usuarios en linea ya es su dueño
+        // unico y lo refresca cada 20 s, ademas de al enfocar la ventana y al
+        // volver a la pestaña. Teniendolo tambien en este ciclo de 10 s, /users
+        // salia dos veces al abrir el tablero y nueve veces por minuto.
         await Promise.all([
           loadRecords("", "active", { silent: true }),
           loadMapPoints({ silent: true }),
-          loadUsers({ silent: true }),
           loadAuditLogs({ silent: true })
         ]);
         setDashboardLastUpdatedAt(Date.now());
