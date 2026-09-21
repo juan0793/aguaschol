@@ -7,6 +7,7 @@ import {
   deleteArchivedInmueble,
   getByClave,
   listInmuebles,
+  listInmuebleSummary,
   markInmueblePrinted,
   restoreInmueble,
   updateInmueble
@@ -65,6 +66,14 @@ export const archive = async (req, res, next) => {
   try {
     const inmueble = await archiveInmueble(req.params.id, req.body, { actorUserId: req.authUser?.id });
     res.json(inmueble);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listSummary = async (_req, res, next) => {
+  try {
+    res.json(await listInmuebleSummary());
   } catch (error) {
     next(error);
   }

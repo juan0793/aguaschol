@@ -7,6 +7,7 @@ import {
   getByClaveHandler,
   getHistory,
   list,
+  listSummary,
   markPrinted,
   previewAviso,
   restore,
@@ -19,6 +20,7 @@ import { imageUpload } from "../middleware/upload.js";
 const router = Router();
 
 router.get("/", list);
+router.get("/summary", listSummary);
 router.get("/clave/:clave", getByClaveHandler);
 router.get("/:id/history", getHistory);
 router.get("/:id/aviso", getAviso);

@@ -61,6 +61,27 @@ export const getMapDiaryDateKey = (value) => {
   return formatter.format(date);
 };
 
+export const syncMapDiaryGroups = (groups = [], nextPoint = null, previousPoint = null) => {
+  const totals = new Map(
+    (Array.isArray(groups) ? groups : [])
+      .filter((group) => group?.key)
+      .map((group) => [group.key, Number(group.total || 0)])
+  );
+  const previousKey = getMapDiaryDateKey(previousPoint);
+  const nextKey = getMapDiaryDateKey(nextPoint);
+
+  if (previousKey && previousKey !== nextKey) {
+    totals.set(previousKey, Math.max(0, (totals.get(previousKey) || 0) - 1));
+  }
+  if (nextKey && (!previousPoint || previousKey !== nextKey)) {
+    totals.set(nextKey, (totals.get(nextKey) || 0) + 1);
+  }
+
+  return Array.from(totals, ([key, total]) => ({ key, total }))
+    .filter((group) => group.total > 0)
+    .sort((left, right) => right.key.localeCompare(left.key));
+};
+
 export const formatMapDiaryLabel = (dateKey) => {
   if (!dateKey) return "Sin fecha";
   const date = new Date(`${dateKey}T12:00:00`);

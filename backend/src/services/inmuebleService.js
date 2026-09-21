@@ -127,6 +127,35 @@ export const listInmuebles = async ({ query = "", archived = false } = {}) => {
   return rows;
 };
 
+export const listInmuebleSummary = async () => {
+  const fields = [
+    "id",
+    "clave_catastral",
+    "barrio_colonia",
+    "estado_padron",
+    "foto_path",
+    "fecha_aviso",
+    "levantamiento_datos",
+    "analista_datos",
+    "created_at",
+    "updated_at"
+  ];
+
+  if (env.useMemoryDb) {
+    return sortByUpdatedAt(memoryRecords.filter((item) => !item.archived_at))
+      .map((item) => Object.fromEntries(fields.map((field) => [field, item[field] ?? null])));
+  }
+
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT ${fields.join(", ")}
+     FROM inmuebles_clandestinos
+     WHERE archived_at IS NULL
+     ORDER BY updated_at DESC`
+  );
+  return rows;
+};
+
 export const getByClave = async (clave) => {
   const normalized = normalizeKey(clave);
 

@@ -77,7 +77,8 @@ import {
   formatSpanishDate,
   getMapDiaryDateKey,
   normalizeDateField,
-  normalizeRecord
+  normalizeRecord,
+  syncMapDiaryGroups
 } from "./utils/datesAndBusiness";
 import {
   buildExternalMapUrl,
@@ -1528,6 +1529,10 @@ function App() {
 
     return Array.from(groups.values()).sort((left, right) => right.key.localeCompare(left.key));
   }, [safeMapDiaryGroupsSummary, safeMapPoints]);
+  const mapPointsTotal = useMemo(
+    () => mapDiaryGroups.reduce((total, group) => total + Number(group.total || 0), 0),
+    [mapDiaryGroups]
+  );
   const activeMapDiaryDateKey = useMemo(
     () => {
       return mapDiaryGroups.some((group) => group.key === mapDiaryDateKey)
@@ -1784,7 +1789,7 @@ function App() {
         {
           icon: "map",
           label: "Puntos GPS",
-          value: String(safeMapPoints.length)
+          value: String(mapPointsTotal)
         },
         {
           icon: "users",
@@ -1809,7 +1814,7 @@ function App() {
         {
           icon: "map",
           label: "Puntos GPS",
-          value: String(safeMapPoints.length)
+          value: String(mapPointsTotal)
         },
         {
           icon: "logs",
@@ -2051,7 +2056,7 @@ function App() {
     loadingMapPoints,
     visibleMapPoints.length,
     safeRecords.length,
-    safeMapPoints.length,
+    mapPointsTotal,
     safeBarrioCodes,
     safeAuditLogs.length,
     selectedMapPoint,
@@ -2360,7 +2365,7 @@ function App() {
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "sigTerritorial", section: "operacion", label: "SIG Territorial", icon: "map", meta: "Cartografía operativa", tone: "is-map" },
-            { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
+            { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${mapPointsTotal} puntos`, tone: "is-map" },
             { key: "fieldValidation", section: "control", label: "Control territorial GPS", icon: "success", meta: "Historico y zonas", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
             { key: "requests", section: "control", label: "Informes", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
@@ -2380,7 +2385,7 @@ function App() {
       padronMeta?.total_records,
       safeAuditLogs.length,
       safeBarrioCodes.length,
-      safeMapPoints.length,
+      mapPointsTotal,
       safeRecords.length,
       safeUsers.length
     ]
@@ -2633,8 +2638,10 @@ function App() {
     [safeRecords, todayDateKey]
   );
   const mapPointsToday = useMemo(
-    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === todayDateKey).length,
-    [safeMapPoints, todayDateKey]
+    () => safeMapDiaryGroupsSummary.length
+      ? Number(mapDiaryGroups.find((group) => group.key === todayDateKey)?.total || 0)
+      : safeMapPoints.filter((point) => getMapDiaryDateKey(point) === todayDateKey).length,
+    [mapDiaryGroups, safeMapDiaryGroupsSummary.length, safeMapPoints, todayDateKey]
   );
   const pendingPhotoRecords = useMemo(
     () => safeRecords.filter((record) => !String(record.foto_path || "").trim()).length,
@@ -3110,12 +3117,14 @@ function App() {
       {
         key: "gps",
         label: "Puntos GPS",
-        value: safeMapPoints.length,
+        value: mapPointsTotal,
         helper: `${mapPointsToday} puntos registrados hoy`,
         icon: "map",
         badge: "Hoy",
         detail: "Levantamiento de campo acumulado",
-        trend: mapPointsToday ? `Ultimo movimiento ${formatRelativeTime(safeMapPoints[0]?.created_at || safeMapPoints[0]?.updated_at, dashboardNow)}` : "Sin puntos hoy",
+        trend: mapPointsToday
+          ? `Ultimo movimiento ${safeMapPoints[0] ? formatRelativeTime(safeMapPoints[0].created_at || safeMapPoints[0].updated_at, dashboardNow) : formatMapDiaryLabel(mapDiaryGroups[0]?.key)}`
+          : "Sin puntos hoy",
         micro: `${mapPointsToday} puntos registrados hoy`,
         progressLabel: `${mapPointsToday} puntos de la jornada`,
         progress: Math.min(100, Math.max(mapPointsToday ? 14 : 0, Math.round((mapPointsToday / Math.max(1, mapPointsToday, 50)) * 100))),
@@ -3158,6 +3167,8 @@ function App() {
     [
       alertRecords.length,
       dashboardNow,
+      mapDiaryGroups,
+      mapPointsTotal,
       mapPointsToday,
       onlineUsers.length,
       padronMeta?.total_records,
@@ -3525,10 +3536,10 @@ function App() {
       const stamp = Date.parse(record.updated_at || record.created_at || "");
       return Number.isFinite(stamp) && stamp >= weekAgo;
     }).length;
-    const weekMapPoints = safeMapPoints.filter((point) => {
-      const stamp = Date.parse(point.created_at || point.updated_at || "");
-      return Number.isFinite(stamp) && stamp >= weekAgo;
-    }).length;
+    const weekMapPoints = mapDiaryGroups.reduce((total, group) => {
+      const stamp = Date.parse(`${group.key}T12:00:00`);
+      return Number.isFinite(stamp) && stamp >= weekAgo ? total + Number(group.total || 0) : total;
+    }, 0);
     const weekLookups = lookupHistory.filter((item) => {
       const stamp = Date.parse(item.searched_at || "");
       return Number.isFinite(stamp) && stamp >= weekAgo;
@@ -3560,7 +3571,7 @@ function App() {
         tone: recentLookupCountToday ? "is-warning" : "is-calm"
       }
     ];
-  }, [lookupHistory, mapPointsToday, recentLookupCountToday, safeMapPoints, safeRecords, todayDateKey]);
+  }, [lookupHistory, mapDiaryGroups, mapPointsToday, recentLookupCountToday, safeRecords, todayDateKey]);
   const dashboardTechnicianSummary = useMemo(() => {
     const grouped = safeRecords.reduce((acc, record) => {
       const owner = String(record.levantamiento_datos || record.analista_datos || "Sin asignar").trim() || "Sin asignar";
@@ -5143,6 +5154,31 @@ function App() {
     }
   };
 
+  const loadRecordSummary = async ({ silent = false } = {}) => {
+    if (!isAuthenticated || !isAdmin) return;
+    if (!silent) setLoading(true);
+
+    try {
+      const response = await apiFetch("/inmuebles/summary");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+        throw new Error(data.message || "No fue posible cargar el resumen de fichas.");
+      }
+
+      setRecords(Array.isArray(data) ? data.map(normalizeRecord) : []);
+    } catch (error) {
+      if (!silent) showAlert(error.message || "No fue posible cargar el resumen de fichas.");
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
   const handleOpenAuditReport = async (log) => {
     const reportId = String(log?.entity_id || "").trim();
     if (!reportId) return;
@@ -5187,8 +5223,8 @@ function App() {
         // volver a la pestaña. Teniendolo tambien en este ciclo de 10 s, /users
         // salia dos veces al abrir el tablero y nueve veces por minuto.
         await Promise.all([
-          loadRecords("", "active", { silent: true }),
-          loadMapPoints({ silent: true }),
+          loadRecordSummary({ silent: true }),
+          loadMapDiaryGroups({ silent: true }),
           loadAuditLogs({ silent: true })
         ]);
         setDashboardLastUpdatedAt(Date.now());
@@ -5373,6 +5409,17 @@ function App() {
       window.removeEventListener("focus", refreshDashboard);
     };
   }, [isAuthenticated, isAdmin, refreshDashboard, workspaceView]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin || workspaceView !== "executiveReport") {
+      return undefined;
+    }
+
+    loadRecords("", "active", { silent: true });
+    loadMapDiaryGroups({ silent: true });
+    loadMapPoints({ silent: true });
+    return undefined;
+  }, [isAuthenticated, isAdmin, workspaceView]);
 
   useEffect(() => {
     if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
@@ -7020,24 +7067,12 @@ function App() {
       setMapPoints((current) =>
         isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
       );
+      setMapDiaryGroupsSummary((current) => syncMapDiaryGroups(current, data, editingPoint));
       const savedDateKey = getMapDiaryDateKey(data.diary_date || data.created_at) || getTodayMapDiaryKey();
-      setMapDiaryGroupsSummary((current) => {
-        const groups = Array.isArray(current) ? current : [];
-        const existing = groups.find((group) => group.key === savedDateKey);
-        if (existing) {
-          return groups.map((group) =>
-            group.key === savedDateKey
-              ? { ...group, total: isEditing ? Number(group.total || 0) : Number(group.total || 0) + 1 }
-              : group
-          );
-        }
-        return [{ key: savedDateKey, total: 1 }, ...groups].sort((left, right) => right.key.localeCompare(left.key));
-      });
       setMapDiaryDateKey(savedDateKey);
       setSelectedMapPointId(data.id);
       setEditingMapPointId(null);
       setMapStatus(isEditing ? "Punto actualizado" : "Punto guardado");
-      loadMapDiaryGroups({ silent: true });
       setMapFocusRequest({
         latitude: Number(data.latitude),
         longitude: Number(data.longitude),
@@ -7662,9 +7697,11 @@ function App() {
         throw new Error(data.message || "No fue posible guardar el punto del reporte.");
       }
 
+      const previousPoint = safeMapPoints.find((point) => point.id === editingReportMapPointId) ?? null;
       setMapPoints((current) =>
         isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
       );
+      setMapDiaryGroupsSummary((current) => syncMapDiaryGroups(current, data, previousPoint));
       setMapDiaryDateKey(getMapDiaryDateKey(data.created_at) || getMapDiaryDateKey(new Date()));
       setSelectedReportMapPointId(data.id);
       setEditingReportMapPointId(null);
@@ -7714,6 +7751,7 @@ function App() {
       return;
     }
 
+    const deletedPoint = safeMapPoints.find((point) => point.id === pointId) ?? null;
     try {
       const response = await apiFetch(`/map-points/${pointId}`, {
         method: "DELETE"
@@ -7725,6 +7763,7 @@ function App() {
       }
 
       setMapPoints((current) => current.filter((point) => point.id !== pointId));
+      setMapDiaryGroupsSummary((current) => syncMapDiaryGroups(current, null, deletedPoint));
       setSelectedMapPointId((current) => (current === pointId ? null : current));
       showAlert("Punto eliminado del mapa.");
     } catch (error) {
