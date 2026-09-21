@@ -138,6 +138,7 @@ function Amount({ value, className = "" }) {
 
 export default function DashboardWorkspace({ model }) {
   const gridRef = useRef(null);
+  const buscadorRef = useRef(null);
   const [splitPercent, setSplitPercent] = useState(42);
   const [isResizing, setIsResizing] = useState(false);
   const [servicioAbierto, setServicioAbierto] = useState("");
@@ -161,6 +162,7 @@ export default function DashboardWorkspace({ model }) {
 
   const [debtMetric, setDebtMetric] = useState("total");
   const [barrioQuery, setBarrioQuery] = useState("");
+  const [resaltada, setResaltada] = useState(0);
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
   const [barrioAbierto, setBarrioAbierto] = useState("");
@@ -194,12 +196,17 @@ export default function DashboardWorkspace({ model }) {
   // al ranking visible.
   const rankingAll = useMemo(() => debtRankingAll(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
   const ranking = useMemo(() => rankingAll.slice(0, 5), [rankingAll]);
-  const searchHits = useMemo(() => filterBarriosByQuery(rankingAll, barrioQuery, 25), [rankingAll, barrioQuery]);
+  const searchHits = useMemo(() => filterBarriosByQuery(rankingAll, barrioQuery, 40), [rankingAll, barrioQuery]);
   const buscando = Boolean(barrioQuery.trim());
-  // Con busqueda activa la lista muestra las coincidencias; sin ella, el top 5.
-  const listaBarrios = buscando ? searchHits : ranking;
-  // La posicion real en el padron, para que al buscar no se renumere desde 1.
+  // La posicion real en el padron, para que la sugerencia diga de que puesto
+  // viene el barrio y no solo su nombre.
   const posiciones = useMemo(() => new Map(rankingAll.map((item, index) => [item.name, index + 1])), [rankingAll]);
+  // Lo ya elegido sale de las sugerencias: el chip de abajo lo muestra y el
+  // campo queda libre para escribir el siguiente barrio.
+  const sugerencias = useMemo(
+    () => searchHits.filter((item) => !selectedBarrios.includes(item.name)).slice(0, 8),
+    [searchHits, selectedBarrios]
+  );
   // Padron completo, independiente de la metrica: el ranking visible es solo el
   // top 5, pero la seleccion sobrevive al cambio de metrica y tiene que seguir
   // sumando aunque un barrio elegido ya no aparezca en pantalla.
@@ -223,7 +230,7 @@ export default function DashboardWorkspace({ model }) {
   );
   const maxSelected = Math.max(1, ...selectedRows.map((item) => item.value));
   const selectedTotal = selectedRows.reduce((sum, item) => sum + item.value, 0);
-  const maxDebt = Math.max(1, ...listaBarrios.map((item) => item.value));
+  const maxDebt = Math.max(1, ...ranking.map((item) => item.value));
 
   const debt = model.debtSummary || {};
   const debtTotal = Number(debt.total || 0);
@@ -244,6 +251,38 @@ export default function DashboardWorkspace({ model }) {
 
   const toggleBarrio = (name) =>
     setSelectedBarrios((current) => (current.includes(name) ? current.filter((item) => item !== name) : [...current, name]));
+
+  // Agregar deja el campo vacio y el foco adentro: asi se encadena un barrio
+  // tras otro sin tocar el mouse.
+  const agregarBarrio = (name) => {
+    setSelectedBarrios((current) => (current.includes(name) ? current : [...current, name]));
+    setBarrioQuery("");
+    setResaltada(0);
+    buscadorRef.current?.focus();
+  };
+  const limpiarBusqueda = () => {
+    setBarrioQuery("");
+    setResaltada(0);
+    buscadorRef.current?.focus();
+  };
+  const manejarTeclas = (event) => {
+    if (event.key === "Escape" && barrioQuery) {
+      event.preventDefault();
+      limpiarBusqueda();
+      return;
+    }
+    if (!sugerencias.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const paso = event.key === "ArrowDown" ? 1 : -1;
+      setResaltada((actual) => (actual + paso + sugerencias.length) % sugerencias.length);
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      agregarBarrio((sugerencias[resaltada] || sugerencias[0]).name);
+    }
+  };
   const navigate = (view, focus = "") => {
     if (focus) sessionStorage.setItem("aguas.clandestinos.focus", focus);
     model.navigate(view);
@@ -606,87 +645,61 @@ export default function DashboardWorkspace({ model }) {
                         {debtMetric === "total" ? <Amount value={rankingTotal} /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
                       </div>
                     </div> : null}
-                    <div className="dw-barrio-search">
-                      <Icon name="search" />
-                      <input
-                        id="dw-barrio-search"
-                        type="search"
-                        value={barrioQuery}
-                        placeholder={`Buscar entre ${whole(rankingAll.length)} barrios con mora`}
-                        aria-label="Buscar barrios para sumar"
-                        autoComplete="off"
-                        onChange={(event) => setBarrioQuery(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Escape" || !barrioQuery) return;
-                          event.preventDefault();
-                          setBarrioQuery("");
-                        }}
-                      />
+                    <div className="dw-barrio-picker">
+                      <div className="dw-barrio-search">
+                        <Icon name="search" />
+                        <input
+                          id="dw-barrio-search"
+                          ref={buscadorRef}
+                          type="text"
+                          role="combobox"
+                          value={barrioQuery}
+                          placeholder={`Agregar barrio · ${whole(rankingAll.length)} con mora`}
+                          aria-label="Buscar barrios para agregar a la selección"
+                          aria-expanded={sugerencias.length > 0}
+                          aria-controls="dw-barrio-sugerencias"
+                          aria-autocomplete="list"
+                          aria-activedescendant={sugerencias[resaltada] ? `dw-sug-${resaltada}` : undefined}
+                          autoComplete="off"
+                          onChange={(event) => { setBarrioQuery(event.target.value); setResaltada(0); }}
+                          onKeyDown={manejarTeclas}
+                        />
+                        {buscando ? (
+                          <button type="button" className="dw-link" onClick={limpiarBusqueda}>Limpiar</button>
+                        ) : null}
+                      </div>
+
                       {buscando ? (
-                        <button type="button" className="dw-link" onClick={() => setBarrioQuery("")}>Limpiar</button>
+                        sugerencias.length ? (
+                          <ul className="dw-suggestions" role="listbox" id="dw-barrio-sugerencias" aria-label="Barrios que coinciden">
+                            {sugerencias.map((item, index) => (
+                              <li key={item.name}>
+                                <button
+                                  type="button"
+                                  id={`dw-sug-${index}`}
+                                  role="option"
+                                  aria-selected={index === resaltada}
+                                  className={index === resaltada ? "is-active" : ""}
+                                  onMouseEnter={() => setResaltada(index)}
+                                  onClick={() => agregarBarrio(item.name)}
+                                >
+                                  <span className="dw-sug-rank dw-figure">#{posiciones.get(item.name) || "—"}</span>
+                                  <span className="dw-sug-name">{item.name}</span>
+                                  <span className="dw-sug-value">
+                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
+                                  </span>
+                                  <Icon name="plus" />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="dw-empty">
+                            {searchHits.length ? "Ya agregaste todos los barrios que coinciden." : `Ningún barrio coincide con “${barrioQuery.trim()}”.`}
+                          </p>
+                        )
                       ) : null}
                     </div>
-
-                    {listaBarrios.length ? (
-                      <p className="dw-chart-caption">
-                        {buscando
-                          ? `${whole(searchHits.length)} ${searchHits.length === 1 ? "coincidencia" : "coincidencias"} · Tocá un barrio para sumarlo.`
-                          : "De mayor a menor · Barras comparadas con el primer lugar."}
-                      </p>
-                    ) : null}
-
-                    {listaBarrios.length ? (
-                      <ol className="dw-ranking">
-                        {listaBarrios.map((item) => (
-                          <li key={item.name} className={barrioAbierto === item.name ? "is-expanded" : ""}>
-                            <div className="dw-ranking-row">
-                              <button
-                                type="button"
-                                aria-pressed={selectedBarrios.includes(item.name)}
-                                className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
-                                onClick={() => toggleBarrio(item.name)}
-                              >
-                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(posiciones.get(item.name) || 0).padStart(2, "0")}</b>
-                                <strong className="dw-ranking-name">{item.name}</strong>
-                                <span className="dw-ranking-value">
-                                  {debtMetric === "total" ? (
-                                    <Amount value={item.value} />
-                                  ) : (
-                                    <span className="dw-amount dw-figure">{whole(item.value)}</span>
-                                  )}
-                                  <small className="dw-figure">{oneDecimal(percent(item.value, metricTotal))} {metricDescription}</small>
-                                </span>
-                                <i className="dw-ranking-track" aria-hidden="true">
-                                  <em style={{ transform: `scaleX(${item.value / maxDebt})` }} />
-                                </i>
-                              </button>
-                              <button
-                                type="button"
-                                className="dw-ranking-more"
-                                aria-expanded={barrioAbierto === item.name}
-                                aria-label={`Ver desglose de ${item.name}`}
-                                onClick={() => setBarrioAbierto((actual) => (actual === item.name ? "" : item.name))}
-                              >
-                                <Icon name="chevronDown" />
-                              </button>
-                            </div>
-                            {barrioAbierto === item.name ? (
-                              <dl className="dw-ranking-detail">
-                                <div><dt>Capital</dt><dd><Amount value={item.debt.capital} /></dd></div>
-                                <div><dt>Intereses</dt><dd><Amount value={item.debt.intereses} /></dd></div>
-                                <div><dt>Cuentas con mora</dt><dd className="dw-amount dw-figure">{whole(item.debt.deudores)}</dd></div>
-                                <div><dt>Casos críticos</dt><dd className="dw-amount dw-figure">{whole(item.debt.criticos)}</dd></div>
-                                <div><dt>Promedio por cuenta</dt><dd><Amount value={Number(item.debt.deudores || 0) ? Number(item.debt.total || 0) / Number(item.debt.deudores) : 0} /></dd></div>
-                              </dl>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="dw-empty">
-                        {buscando ? `Ningún barrio coincide con “${barrioQuery.trim()}”.` : "No hay desglose de mora por barrio disponible."}
-                      </p>
-                    )}
 
                     {selectedBarrios.length ? (
                       <div className={`dw-selection ${selectedDetailsOpen ? "is-open" : ""}`.trim()}>
@@ -708,7 +721,7 @@ export default function DashboardWorkspace({ model }) {
                               setSelectedDetailsOpen(false);
                             }}
                           >
-                            Limpiar
+                            Quitar todos
                           </button>
                         </header>
                         <ul className="dw-selection-chips">
@@ -808,6 +821,62 @@ export default function DashboardWorkspace({ model }) {
                     ) : (
                       ranking.length ? <p className="dw-hint">Seleccioná barrios para sumar su mora. Abrí la flecha para ver el desglose.</p> : null
                     )}
+
+                    {ranking.length ? <p className="dw-chart-caption">Top 5 de mayor a menor · Tocá un barrio para agregarlo a la selección.</p> : null}
+
+                    {ranking.length ? (
+                      <ol className="dw-ranking">
+                        {ranking.map((item) => (
+                          <li key={item.name} className={barrioAbierto === item.name ? "is-expanded" : ""}>
+                            <div className="dw-ranking-row">
+                              <button
+                                type="button"
+                                aria-pressed={selectedBarrios.includes(item.name)}
+                                className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
+                                onClick={() => toggleBarrio(item.name)}
+                              >
+                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(posiciones.get(item.name) || 0).padStart(2, "0")}</b>
+                                <strong className="dw-ranking-name">{item.name}</strong>
+                                <span className="dw-ranking-value">
+                                  {debtMetric === "total" ? (
+                                    <Amount value={item.value} />
+                                  ) : (
+                                    <span className="dw-amount dw-figure">{whole(item.value)}</span>
+                                  )}
+                                  <small className="dw-figure">{oneDecimal(percent(item.value, metricTotal))} {metricDescription}</small>
+                                </span>
+                                <i className="dw-ranking-track" aria-hidden="true">
+                                  <em style={{ transform: `scaleX(${item.value / maxDebt})` }} />
+                                </i>
+                              </button>
+                              <button
+                                type="button"
+                                className="dw-ranking-more"
+                                aria-expanded={barrioAbierto === item.name}
+                                aria-label={`Ver desglose de ${item.name}`}
+                                onClick={() => setBarrioAbierto((actual) => (actual === item.name ? "" : item.name))}
+                              >
+                                <Icon name="chevronDown" />
+                              </button>
+                            </div>
+                            {barrioAbierto === item.name ? (
+                              <dl className="dw-ranking-detail">
+                                <div><dt>Capital</dt><dd><Amount value={item.debt.capital} /></dd></div>
+                                <div><dt>Intereses</dt><dd><Amount value={item.debt.intereses} /></dd></div>
+                                <div><dt>Cuentas con mora</dt><dd className="dw-amount dw-figure">{whole(item.debt.deudores)}</dd></div>
+                                <div><dt>Casos críticos</dt><dd className="dw-amount dw-figure">{whole(item.debt.criticos)}</dd></div>
+                                <div><dt>Promedio por cuenta</dt><dd><Amount value={Number(item.debt.deudores || 0) ? Number(item.debt.total || 0) / Number(item.debt.deudores) : 0} /></dd></div>
+                              </dl>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="dw-empty">
+                        No hay desglose de mora por barrio disponible.
+                      </p>
+                    )}
+
 
                     <footer className="dw-panel-foot">
                       <button type="button" className="dw-button-secondary" onClick={printDebtRanking} disabled={!ranking.length}>

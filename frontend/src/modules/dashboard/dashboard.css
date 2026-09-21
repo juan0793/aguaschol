@@ -1485,11 +1485,21 @@
 
 /* El ranking mostraba solo el top 5, asi que un barrio chico era inalcanzable
    para sumarlo. La busqueda corre sobre el padron completo. */
+/* El campo y sus sugerencias son una sola pieza: lo que se escribe arriba se
+   elige abajo y pasa a la seleccion, sin tocar la lista del top 5. */
+.dashboard-workspace .dw-barrio-picker {
+  position: relative;
+  margin-top: 0.6rem;
+}
+
+.dashboard-workspace .dw-barrio-picker .dw-empty {
+  margin: 0.4rem 0 0;
+}
+
 .dashboard-workspace .dw-barrio-search {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.6rem;
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--dw-line);
   border-radius: 9px;
@@ -1609,4 +1619,73 @@
   background: var(--chart-color);
   transform-origin: left;
   transition: transform 320ms ease;
+}
+
+.dashboard-workspace .dw-suggestions {
+  display: grid;
+  gap: 2px;
+  margin: 0.35rem 0 0;
+  padding: 0.25rem;
+  border: 1px solid var(--dw-line);
+  border-radius: 9px;
+  background: var(--dw-surface);
+  box-shadow: 0 6px 18px rgb(15 23 42 / 0.08);
+  list-style: none;
+}
+
+.dashboard-workspace .dw-suggestions button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-workspace .dw-suggestions button.is-active,
+.dashboard-workspace .dw-suggestions button:hover {
+  background: var(--chart-tint);
+}
+
+.dashboard-workspace .dw-suggestions button:focus-visible {
+  outline: 2px solid var(--chart-color);
+  outline-offset: -2px;
+}
+
+.dashboard-workspace .dw-sug-rank {
+  min-width: 2.1rem;
+  color: var(--dw-muted);
+  font-size: 11px;
+}
+
+.dashboard-workspace .dw-sug-name {
+  overflow: hidden;
+  color: var(--dw-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-workspace .dw-sug-value .dw-amount {
+  font-size: 12.5px;
+}
+
+.dashboard-workspace .dw-suggestions .app-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--chart-color);
+}
+
+/* La seleccion va antes del top 5 para que los totales no se pierdan de vista
+   mientras se agregan barrios. */
+.dashboard-workspace .dw-selection {
+  margin-top: 0.7rem;
 }
