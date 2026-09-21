@@ -5,6 +5,7 @@ import {
   exportMapPointsHandler,
   listMapPointDiaryGroupsHandler,
   listMapPointsHandler,
+  mapPointsSummaryHandler,
   mapPointContextsHandler,
   updateMapPointHandler
 } from "../controllers/mapPointController.js";
@@ -13,6 +14,7 @@ import { requireAdmin } from "../middleware/authMiddleware.js";
 const router = Router();
 
 router.get("/", listMapPointsHandler);
+router.get("/summary", mapPointsSummaryHandler);
 router.get("/diary-groups", listMapPointDiaryGroupsHandler);
 router.get("/export", exportMapPointsHandler);
 router.post("/context", requireAdmin, mapPointContextsHandler);

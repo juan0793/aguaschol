@@ -193,6 +193,93 @@ export const listMapPointDiaryGroups = async () => {
   }));
 };
 
+/*
+ * Resumen para el tablero. El tablero solo necesita cifras agregadas y los
+ * ultimos movimientos, pero cargaba la tabla entera (~5400 filas, ~3 MB) cada
+ * diez segundos. Aqui los conteos salen de agregados en SQL y solo viajan
+ * completas las filas recientes que alimentan la bitacora en vivo.
+ *
+ * `today` usa la misma regla que el resto del modulo: la fecha de jornada si
+ * existe y, si no, la de creacion, siempre en hora de Honduras.
+ */
+export const RECENT_MAP_POINTS_LIMIT = 6;
+
+export const summarizeMapPoints = async ({ recentLimit = RECENT_MAP_POINTS_LIMIT } = {}) => {
+  const limit = Math.max(0, Math.min(50, Math.round(Number(recentLimit) || 0)));
+  const todayKey = getLocalDiaryDateKey(new Date());
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  if (env.useMemoryDb) {
+    const ordered = [...memoryPoints].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const byType = {};
+    let today = 0;
+    let week = 0;
+    ordered.forEach((point) => {
+      const type = point.point_type || "caja_registro";
+      byType[type] = (byType[type] ?? 0) + 1;
+      if ((point.diary_date || getLocalDiaryDateKey(point.created_at)) === todayKey) today += 1;
+      const stamp = Date.parse(point.created_at || point.updated_at || "");
+      if (Number.isFinite(stamp) && stamp >= weekAgo.getTime()) week += 1;
+    });
+    return {
+      total: ordered.length,
+      today,
+      week,
+      by_type: byType,
+      last_activity_at: ordered[0]?.created_at ?? null,
+      recent: ordered.slice(0, limit)
+    };
+  }
+
+  const pool = getPool();
+  const [[totals]] = await pool.query(
+    `
+      SELECT
+        COUNT(*) AS total,
+        SUM(COALESCE(map_points.diary_date, DATE(map_points.created_at)) = ?) AS today,
+        SUM(COALESCE(map_points.created_at, map_points.updated_at) >= ?) AS week,
+        MAX(map_points.created_at) AS last_activity_at
+      FROM map_points
+    `,
+    [todayKey, weekAgo]
+  );
+
+  const [typeRows] = await pool.query(
+    `
+      SELECT map_points.point_type AS point_type, COUNT(*) AS total
+      FROM map_points
+      GROUP BY map_points.point_type
+    `
+  );
+
+  const [recent] = limit
+    ? await pool.query(
+        `
+          SELECT
+            ${MAP_POINT_SELECT_FIELDS},
+            app_users.full_name AS created_by_name
+          FROM map_points
+          LEFT JOIN app_users ON app_users.id = map_points.created_by
+          ORDER BY map_points.created_at DESC
+          LIMIT ?
+        `,
+        [limit]
+      )
+    : [[]];
+
+  return {
+    total: Number(totals?.total || 0),
+    today: Number(totals?.today || 0),
+    week: Number(totals?.week || 0),
+    by_type: typeRows.reduce((acc, row) => {
+      acc[row.point_type || "caja_registro"] = Number(row.total || 0);
+      return acc;
+    }, {}),
+    last_activity_at: totals?.last_activity_at ?? null,
+    recent
+  };
+};
+
 const getSortedMapPoints = async (options = {}) =>
   (await listMapPoints(options)).sort((left, right) => {
     const dateDiff = new Date(left.created_at) - new Date(right.created_at);

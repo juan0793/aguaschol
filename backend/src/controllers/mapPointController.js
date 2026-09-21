@@ -4,6 +4,7 @@ import {
   exportMapPointsWorkbook,
   listMapPointDiaryGroups,
   listMapPoints,
+  summarizeMapPoints,
   updateMapPoint
 } from "../services/mapPointService.js";
 import { fetchMapPointContexts } from "../services/mapPointContextService.js";
@@ -12,6 +13,15 @@ export const listMapPointsHandler = async (req, res, next) => {
   try {
     const points = await listMapPoints({ date: req.query?.date });
     res.json(points);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const mapPointsSummaryHandler = async (req, res, next) => {
+  try {
+    const summary = await summarizeMapPoints({ recentLimit: req.query?.recent });
+    res.json(summary);
   } catch (error) {
     next(error);
   }

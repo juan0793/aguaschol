@@ -1217,6 +1217,10 @@ function App() {
   const [loadingBarrioCodes, setLoadingBarrioCodes] = useState(false);
   const [savingBarrioCode, setSavingBarrioCode] = useState(false);
   const [mapPoints, setMapPoints] = useState([]);
+  // El tablero solo necesita cifras y los ultimos movimientos, no las ~5400
+  // coordenadas. Cuando este resumen esta cargado manda sobre la lista completa;
+  // si no lo esta (mapa, informe ejecutivo), todo sigue derivandose de mapPoints.
+  const [mapPointsSummary, setMapPointsSummary] = useState(null);
   const [showMapPrintDialog, setShowMapPrintDialog] = useState(false);
   const [mapDiaryGroupsSummary, setMapDiaryGroupsSummary] = useState([]);
   const [mapPointListLimit, setMapPointListLimit] = useState(MAP_POINT_LIST_INITIAL_LIMIT);
@@ -1460,6 +1464,13 @@ function App() {
   const passwordModalVisible = isAuthenticated && (mustChangePassword || showPasswordModal);
   const safeRecords = Array.isArray(records) ? records : [];
   const safeMapPoints = Array.isArray(mapPoints) ? mapPoints : [];
+  // Cifras de puntos GPS: el resumen manda si esta cargado, si no se derivan de
+  // la lista completa. Asi el mapa y el informe ejecutivo siguen funcionando
+  // igual que antes y el tablero deja de necesitar las coordenadas.
+  const mapPointsTotal = mapPointsSummary ? Number(mapPointsSummary.total || 0) : safeMapPoints.length;
+  const safeMapPointsRecent = Array.isArray(mapPointsSummary?.recent) && mapPointsSummary.recent.length
+    ? mapPointsSummary.recent
+    : safeMapPoints;
   const safeMapDiaryGroupsSummary = Array.isArray(mapDiaryGroupsSummary) ? mapDiaryGroupsSummary : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
@@ -1784,7 +1795,7 @@ function App() {
         {
           icon: "map",
           label: "Puntos GPS",
-          value: String(safeMapPoints.length)
+          value: String(mapPointsTotal)
         },
         {
           icon: "users",
@@ -1809,7 +1820,7 @@ function App() {
         {
           icon: "map",
           label: "Puntos GPS",
-          value: String(safeMapPoints.length)
+          value: String(mapPointsTotal)
         },
         {
           icon: "logs",
@@ -2051,7 +2062,7 @@ function App() {
     loadingMapPoints,
     visibleMapPoints.length,
     safeRecords.length,
-    safeMapPoints.length,
+    mapPointsTotal,
     safeBarrioCodes,
     safeAuditLogs.length,
     selectedMapPoint,
@@ -2360,7 +2371,7 @@ function App() {
             { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
             { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
             { key: "sigTerritorial", section: "operacion", label: "SIG Territorial", icon: "map", meta: "Cartografía operativa", tone: "is-map" },
-            { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${safeMapPoints.length} puntos`, tone: "is-map" },
+            { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${mapPointsTotal} puntos`, tone: "is-map" },
             { key: "fieldValidation", section: "control", label: "Control territorial GPS", icon: "success", meta: "Historico y zonas", tone: "is-map" },
             { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
             { key: "requests", section: "control", label: "Informes", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
@@ -2380,7 +2391,7 @@ function App() {
       padronMeta?.total_records,
       safeAuditLogs.length,
       safeBarrioCodes.length,
-      safeMapPoints.length,
+      mapPointsTotal,
       safeRecords.length,
       safeUsers.length
     ]
@@ -2633,8 +2644,11 @@ function App() {
     [safeRecords, todayDateKey]
   );
   const mapPointsToday = useMemo(
-    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === todayDateKey).length,
-    [safeMapPoints, todayDateKey]
+    () =>
+      mapPointsSummary
+        ? Number(mapPointsSummary.today || 0)
+        : safeMapPoints.filter((point) => getMapDiaryDateKey(point) === todayDateKey).length,
+    [mapPointsSummary, safeMapPoints, todayDateKey]
   );
   const pendingPhotoRecords = useMemo(
     () => safeRecords.filter((record) => !String(record.foto_path || "").trim()).length,
@@ -3110,12 +3124,14 @@ function App() {
       {
         key: "gps",
         label: "Puntos GPS",
-        value: safeMapPoints.length,
+        value: mapPointsTotal,
         helper: `${mapPointsToday} puntos registrados hoy`,
         icon: "map",
         badge: "Hoy",
         detail: "Levantamiento de campo acumulado",
-        trend: mapPointsToday ? `Ultimo movimiento ${formatRelativeTime(safeMapPoints[0]?.created_at || safeMapPoints[0]?.updated_at, dashboardNow)}` : "Sin puntos hoy",
+        trend: mapPointsToday
+          ? `Ultimo movimiento ${formatRelativeTime(mapPointsSummary?.last_activity_at || safeMapPointsRecent[0]?.created_at || safeMapPointsRecent[0]?.updated_at, dashboardNow)}`
+          : "Sin puntos hoy",
         micro: `${mapPointsToday} puntos registrados hoy`,
         progressLabel: `${mapPointsToday} puntos de la jornada`,
         progress: Math.min(100, Math.max(mapPointsToday ? 14 : 0, Math.round((mapPointsToday / Math.max(1, mapPointsToday, 50)) * 100))),
@@ -3163,8 +3179,9 @@ function App() {
       padronMeta?.total_records,
       recordDeadlineMetaById,
       recordsUpdatedToday,
-      safeMapPoints.length,
-      safeMapPoints,
+      mapPointsTotal,
+      mapPointsSummary,
+      safeMapPointsRecent,
       safeRecords.length,
       safeUsers.length
     ]
@@ -3224,7 +3241,7 @@ function App() {
       });
     });
 
-    safeMapPoints.slice(0, 6).forEach((point) => {
+    safeMapPointsRecent.slice(0, 6).forEach((point) => {
       pushFeedItem({
         key: `point-${point.id}`,
         title: "GPS registrado",
@@ -3271,7 +3288,7 @@ function App() {
       .filter((item) => Number.isFinite(item.timestamp))
       .sort((left, right) => right.timestamp - left.timestamp)
       .slice(0, 8);
-  }, [alertRecords, mapPointContexts, recordDeadlineMetaById, safeAuditLogs, safeBarrioCodes, safeMapPoints, safeRecords]);
+  }, [alertRecords, mapPointContexts, recordDeadlineMetaById, safeAuditLogs, safeBarrioCodes, safeMapPointsRecent, safeRecords]);
   const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
   const dashboardFocusCards = useMemo(
     () => [
@@ -3525,10 +3542,12 @@ function App() {
       const stamp = Date.parse(record.updated_at || record.created_at || "");
       return Number.isFinite(stamp) && stamp >= weekAgo;
     }).length;
-    const weekMapPoints = safeMapPoints.filter((point) => {
-      const stamp = Date.parse(point.created_at || point.updated_at || "");
-      return Number.isFinite(stamp) && stamp >= weekAgo;
-    }).length;
+    const weekMapPoints = mapPointsSummary
+      ? Number(mapPointsSummary.week || 0)
+      : safeMapPoints.filter((point) => {
+          const stamp = Date.parse(point.created_at || point.updated_at || "");
+          return Number.isFinite(stamp) && stamp >= weekAgo;
+        }).length;
     const weekLookups = lookupHistory.filter((item) => {
       const stamp = Date.parse(item.searched_at || "");
       return Number.isFinite(stamp) && stamp >= weekAgo;
@@ -3560,7 +3579,7 @@ function App() {
         tone: recentLookupCountToday ? "is-warning" : "is-calm"
       }
     ];
-  }, [lookupHistory, mapPointsToday, recentLookupCountToday, safeMapPoints, safeRecords, todayDateKey]);
+  }, [lookupHistory, mapPointsSummary, mapPointsToday, recentLookupCountToday, safeMapPoints, safeRecords, todayDateKey]);
   const dashboardTechnicianSummary = useMemo(() => {
     const grouped = safeRecords.reduce((acc, record) => {
       const owner = String(record.levantamiento_datos || record.analista_datos || "Sin asignar").trim() || "Sin asignar";
@@ -4960,6 +4979,35 @@ function App() {
     }
   };
 
+  const loadMapPointsSummary = async ({ silent = false } = {}) => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await apiFetch("/map-points/summary", { revalidate: true });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return;
+        }
+
+        throw new Error(data.message || "No fue posible cargar el resumen de puntos del mapa.");
+      }
+
+      setMapPointsSummary(data && typeof data === "object" ? data : null);
+      setMapStatus("Sincronizado");
+    } catch (error) {
+      // Se deja el resumen anterior en pie: ponerlo a null haria que las tarjetas
+      // cayeran al listado vacio y mostraran ceros como si no hubiera puntos.
+      if (!silent) {
+        showAlert(error.message || "No fue posible cargar el resumen de puntos del mapa.");
+      }
+      setMapStatus("Sin conexion");
+    }
+  };
+
   const loadMapPoints = async ({ silent = false, date = "" } = {}) => {
     if (!isAuthenticated) return;
 
@@ -5188,7 +5236,10 @@ function App() {
         // salia dos veces al abrir el tablero y nueve veces por minuto.
         await Promise.all([
           loadRecords("", "active", { silent: true }),
-          loadMapPoints({ silent: true }),
+          // Resumen, no las ~5400 coordenadas: el tablero solo muestra cifras y
+          // los ultimos movimientos. El listado completo se carga en el mapa y
+          // en el informe ejecutivo, que si lo necesitan.
+          loadMapPointsSummary({ silent: true }),
           loadAuditLogs({ silent: true })
         ]);
         setDashboardLastUpdatedAt(Date.now());
@@ -5375,7 +5426,7 @@ function App() {
   }, [isAuthenticated, isAdmin, refreshDashboard, workspaceView]);
 
   useEffect(() => {
-    if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
+    if (isAuthenticated && ["map", "mapReports", "mapAnalytics", "executiveReport"].includes(workspaceView)) {
         loadMapDiaryGroups({ silent: true });
         loadMapPoints({ date: workspaceView === "map" ? activeMapDiaryDateKey : "" });
       }
@@ -7020,6 +7071,9 @@ function App() {
       setMapPoints((current) =>
         isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
       );
+      // El resumen es la fuente de las cifras: sin esto el contador seguiria
+      // mostrando el total anterior al alta o la baja.
+      loadMapPointsSummary({ silent: true });
       const savedDateKey = getMapDiaryDateKey(data.diary_date || data.created_at) || getTodayMapDiaryKey();
       setMapDiaryGroupsSummary((current) => {
         const groups = Array.isArray(current) ? current : [];
@@ -7665,6 +7719,9 @@ function App() {
       setMapPoints((current) =>
         isEditing ? current.map((point) => (point.id === data.id ? data : point)) : [data, ...current]
       );
+      // El resumen es la fuente de las cifras: sin esto el contador seguiria
+      // mostrando el total anterior al alta o la baja.
+      loadMapPointsSummary({ silent: true });
       setMapDiaryDateKey(getMapDiaryDateKey(data.created_at) || getMapDiaryDateKey(new Date()));
       setSelectedReportMapPointId(data.id);
       setEditingReportMapPointId(null);
@@ -7725,6 +7782,9 @@ function App() {
       }
 
       setMapPoints((current) => current.filter((point) => point.id !== pointId));
+      // El resumen es la fuente de las cifras: sin esto el contador seguiria
+      // mostrando el total anterior al alta o la baja.
+      loadMapPointsSummary({ silent: true });
       setSelectedMapPointId((current) => (current === pointId ? null : current));
       showAlert("Punto eliminado del mapa.");
     } catch (error) {
