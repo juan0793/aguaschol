@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { avanceDeResumen, avancePorResponsable } from "../selectors/entregasSelectors";
-import { formatDate, formatFullDate, formatNumber, formatPercent } from "../utils/entregasFormatters";
+import { estadoClass, estadoLoteLabel, formatDate, formatFullDate, formatNumber, formatPercent, tipoDocumentoLabel } from "../utils/entregasFormatters";
+
+const clave = (fila) => String(fila.responsable_id ?? fila.responsable_nombre ?? "");
 
 // Barra apilada: confirmado (cerrado), no entregado (cerrado) y lo que sigue en
 // ruta (lote abierto, todavia sin confirmar). Los anchos ya vienen calculados.
@@ -17,12 +20,60 @@ function BarraAvance({ avance, etiqueta }) {
   );
 }
 
-export default function AvanceJornada({ model, fecha, onVerAnteriores }) {
+// Los lotes de una persona, con lo mismo que muestra la tabla de abajo: numero
+// y fecha, recorrido, resultado y estado. Tocar uno abre su detalle, asi el
+// avance deja de ser solo lectura.
+function LotesDelResponsable({ lotes = [], onAbrirLote }) {
+  return (
+    <ul className="ent-avance-lotes">
+      {lotes.map((lote) => {
+        const abierto = lote.estado === "ABIERTO";
+        return (
+          <li key={lote.id}>
+            <button
+              type="button"
+              onClick={() => onAbrirLote?.(lote)}
+              disabled={!onAbrirLote}
+              aria-label={`Abrir el lote ${lote.id} de ${lote.barrio_nombre || "sin barrio"}`}
+            >
+              <span className="ent-avance-lote-id">
+                <strong>#{lote.id}</strong>
+                <small>{formatDate(lote.fecha)}</small>
+              </span>
+              <span className="ent-avance-lote-ruta">
+                <strong>{lote.barrio_nombre || "Sin barrio"}</strong>
+                <small>{tipoDocumentoLabel(lote.tipo_documento)}</small>
+              </span>
+              <span className="ent-avance-lote-cifra">
+                <strong>
+                  {abierto
+                    ? `${formatNumber(lote.total_asignadas)} asignadas`
+                    : `${formatNumber(lote.total_entregadas)} / ${formatNumber(lote.total_asignadas)}`}
+                </strong>
+                <small>
+                  {abierto
+                    ? "Por confirmar"
+                    : `${formatNumber(lote.total_sobrantes)} no entregadas · ${formatNumber(lote.pendientes)} pendientes`}
+                </small>
+              </span>
+              <span className={`cl-status ${estadoClass(lote.estado)}`}>{estadoLoteLabel(lote.estado)}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export default function AvanceJornada({ model, fecha, onVerAnteriores, onAbrirLote }) {
   const { lotesHoy, resumenHoy, totalHoy, anterior, totalAnterior, desdeAnterior, loading, error, reload } = model;
   const hoy = avanceDeResumen(resumenHoy, totalHoy);
   const previo = avanceDeResumen(anterior, totalAnterior);
   const filas = avancePorResponsable(lotesHoy);
   const parciales = totalHoy > lotesHoy.length;
+  // Solo una persona abierta a la vez: la lista es corta y dos desplegadas
+  // devuelven el scroll que este cambio justamente viene a quitar.
+  const [abierta, setAbierta] = useState("");
 
   return (
     <section className="ent-avance" aria-labelledby="ent-avance-titulo" aria-busy={loading}>
@@ -56,15 +107,29 @@ export default function AvanceJornada({ model, fecha, onVerAnteriores }) {
       <ul className="ent-avance-lista">
         {filas.map((fila) => (
           <li key={fila.responsable_id ?? fila.responsable_nombre} className={fila.abiertos ? "is-en-ruta" : ""}>
-            <div className="ent-avance-quien">
-              <strong>{fila.responsable_nombre}</strong>
-              <small>{`${formatNumber(fila.lotes)} ${fila.lotes === 1 ? "lote" : "lotes"}`}{fila.barrios.length ? ` · ${fila.barrios.join(", ")}` : ""}</small>
-            </div>
-            <BarraAvance avance={fila} etiqueta={fila.responsable_nombre} />
-            <div className="ent-avance-cifra">
-              <strong>{formatNumber(fila.confirmadas)} / {formatNumber(fila.asignadas)}</strong>
-              <span>{fila.abiertos ? `${formatNumber(fila.abiertos)} por cerrar` : formatPercent(fila.avance)}</span>
-            </div>
+            <button
+              type="button"
+              className="ent-avance-fila"
+              aria-expanded={clave(fila) === abierta}
+              aria-controls={`ent-avance-lotes-${clave(fila)}`}
+              onClick={() => setAbierta((actual) => (actual === clave(fila) ? "" : clave(fila)))}
+            >
+              <div className="ent-avance-quien">
+                <strong>{fila.responsable_nombre}</strong>
+                <small>{`${formatNumber(fila.lotes)} ${fila.lotes === 1 ? "lote" : "lotes"}`}{fila.barrios.length ? ` · ${fila.barrios.join(", ")}` : ""}</small>
+              </div>
+              <BarraAvance avance={fila} etiqueta={fila.responsable_nombre} />
+              <div className="ent-avance-cifra">
+                <strong>{formatNumber(fila.confirmadas)} / {formatNumber(fila.asignadas)}</strong>
+                <span>{fila.abiertos ? `${formatNumber(fila.abiertos)} por cerrar` : formatPercent(fila.avance)}</span>
+              </div>
+              <Icon name="chevronDown" className="ent-avance-chevron" />
+            </button>
+            {clave(fila) === abierta ? (
+              <div id={`ent-avance-lotes-${clave(fila)}`}>
+                <LotesDelResponsable lotes={fila.detalle} onAbrirLote={onAbrirLote} />
+              </div>
+            ) : null}
           </li>
         ))}
         {!filas.length ? <li className="ent-avance-vacio">{loading ? "Cargando la jornada…" : "Todavía no hay lotes repartidos hoy."}</li> : null}

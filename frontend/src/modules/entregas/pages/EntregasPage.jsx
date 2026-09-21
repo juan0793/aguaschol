@@ -416,7 +416,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
       ) : null}
 
       {vista === "lotes" ? (
-        <AvanceJornada model={avance} fecha={config.jornada?.fecha || toLocalIsoDate()} onVerAnteriores={() => ir("historial")} />
+        <AvanceJornada model={avance} fecha={config.jornada?.fecha || toLocalIsoDate()} onVerAnteriores={() => ir("historial")} onAbrirLote={abrirDetalle} />
       ) : null}
 
       {vista === "lotes" ? (
