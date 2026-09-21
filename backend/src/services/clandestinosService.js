@@ -38,19 +38,127 @@ export const getClandestinosConfig = (user) => ({
   }
 });
 
+const FICHA_LIST_FIELDS = [
+  "id",
+  "clave_catastral",
+  "abonado",
+  "nombre_catastral",
+  "inquilino",
+  "barrio_colonia",
+  "identidad",
+  "telefono",
+  "accion_inspeccion",
+  "situacion_inmueble",
+  "tendencia_inmueble",
+  "uso_suelo",
+  "actividad",
+  "codigo_sector",
+  "comentarios",
+  "estado_padron",
+  "clave_alcaldia",
+  "nombre_alcaldia",
+  "barrio_alcaldia",
+  "conexion_agua",
+  "conexion_alcantarillado",
+  "recoleccion_desechos",
+  "foto_path",
+  "fecha_aviso",
+  "firmante_aviso",
+  "cargo_firmante",
+  "levantamiento_datos",
+  "analista_datos",
+  "estado_operativo",
+  "printed_at",
+  "observaciones_internas",
+  "created_at",
+  "updated_at"
+];
+
+const serviceStatsFromRows = (rows = []) => rows.reduce((stats, item) => {
+  const agua = item.conexion_agua === "Si";
+  const alcantarillado = item.conexion_alcantarillado === "Si";
+  stats.total += 1;
+  if (agua) stats.agua_potable += 1;
+  if (alcantarillado) stats.aguas_residuales += 1;
+  if (agua && alcantarillado) stats.ambos += 1;
+  else if (agua) stats.solo_agua += 1;
+  else if (alcantarillado) stats.solo_aguas_residuales += 1;
+  else stats.ninguno += 1;
+  return stats;
+}, { total: 0, agua_potable: 0, aguas_residuales: 0, ambos: 0, solo_agua: 0, solo_aguas_residuales: 0, ninguno: 0 });
+
 export const listClandestinosFichas = async ({ query = "", state = "", barrio = "", page = 1, limit = 15 } = {}) => {
   query = clean(query); state = clean(state); barrio = clean(barrio);
-  const all = await listInmuebles({ query, archived: false });
-  const filtered = all.filter((item) =>
-    (!state || (item.estado_operativo || "pending") === state) &&
-    (!barrio || clean(item.barrio_colonia).toLowerCase() === clean(barrio).toLowerCase())
-  );
   const safeLimit = Math.min(Math.max(Number(limit) || 15, 5), 500);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / safeLimit));
-  const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
-  const start = (currentPage - 1) * safeLimit;
-  const counts = FICHA_STATES.reduce((result, key) => ({ ...result, [key]: all.filter((item) => (item.estado_operativo || "pending") === key).length }), {});
-  return { items: filtered.slice(start, start + safeLimit), total: filtered.length, page: currentPage, total_pages: totalPages, counts };
+  const requestedPage = Math.max(Number(page) || 1, 1);
+
+  if (env.useMemoryDb) {
+    const all = await listInmuebles({ query, archived: false });
+    const filtered = all.filter((item) =>
+      (!state || (item.estado_operativo || "pending") === state) &&
+      (!barrio || clean(item.barrio_colonia).toLowerCase() === barrio.toLowerCase())
+    );
+    const totalPages = Math.max(1, Math.ceil(filtered.length / safeLimit));
+    const currentPage = Math.min(requestedPage, totalPages);
+    const start = (currentPage - 1) * safeLimit;
+    const counts = FICHA_STATES.reduce((result, key) => {
+      result[key] = all.filter((item) => (item.estado_operativo || "pending") === key).length;
+      return result;
+    }, {});
+    return { items: filtered.slice(start, start + safeLimit), total: filtered.length, page: currentPage, total_pages: totalPages, counts, service_stats: serviceStatsFromRows(filtered) };
+  }
+
+  const pool = getPool();
+  const searchWhere = "archived_at IS NULL AND (? = '' OR clave_catastral LIKE ? OR abonado LIKE ? OR barrio_colonia LIKE ?)";
+  const searchParams = [query, likeValue(query), likeValue(query), likeValue(query)];
+  const filteredWhere = `${searchWhere} AND (? = '' OR COALESCE(estado_operativo, 'pending') = ?) AND (? = '' OR barrio_colonia = ?)`;
+  const filteredParams = [...searchParams, state, state, barrio, barrio];
+  const [[countRows], [totalRows], [items], [serviceStatsRows]] = await Promise.all([
+    pool.query(`SELECT COALESCE(estado_operativo, 'pending') AS estado_operativo, COUNT(*) AS total FROM inmuebles_clandestinos WHERE ${searchWhere} GROUP BY COALESCE(estado_operativo, 'pending')`, searchParams),
+    pool.query(`SELECT COUNT(*) AS total FROM inmuebles_clandestinos WHERE ${filteredWhere}`, filteredParams),
+    pool.query(
+      `SELECT ${FICHA_LIST_FIELDS.join(", ")} FROM inmuebles_clandestinos WHERE ${filteredWhere} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      [...filteredParams, safeLimit, (requestedPage - 1) * safeLimit]
+    ),
+    pool.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN conexion_agua = 'Si' THEN 1 ELSE 0 END) AS agua_potable,
+         SUM(CASE WHEN conexion_alcantarillado = 'Si' THEN 1 ELSE 0 END) AS aguas_residuales,
+         SUM(CASE WHEN conexion_agua = 'Si' AND conexion_alcantarillado = 'Si' THEN 1 ELSE 0 END) AS ambos,
+         SUM(CASE WHEN conexion_agua = 'Si' AND conexion_alcantarillado <> 'Si' THEN 1 ELSE 0 END) AS solo_agua,
+         SUM(CASE WHEN conexion_agua <> 'Si' AND conexion_alcantarillado = 'Si' THEN 1 ELSE 0 END) AS solo_aguas_residuales,
+         SUM(CASE WHEN conexion_agua <> 'Si' AND conexion_alcantarillado <> 'Si' THEN 1 ELSE 0 END) AS ninguno
+       FROM inmuebles_clandestinos WHERE ${filteredWhere}`,
+      filteredParams
+    )
+  ]);
+  const service_stats = Object.fromEntries(Object.entries(serviceStatsRows[0] || {}).map(([key, value]) => [key, Number(value || 0)]));
+  const total = Number(totalRows[0]?.total || 0);
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const currentPage = Math.min(requestedPage, totalPages);
+  if (currentPage !== requestedPage && total) {
+    const [pageRows] = await pool.query(
+      `SELECT ${FICHA_LIST_FIELDS.join(", ")} FROM inmuebles_clandestinos WHERE ${filteredWhere} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      [...filteredParams, safeLimit, (currentPage - 1) * safeLimit]
+    );
+    return {
+      items: pageRows,
+      total,
+      page: currentPage,
+      total_pages: totalPages,
+      counts: Object.fromEntries(FICHA_STATES.map((key) => [key, Number(countRows.find((row) => (row.estado_operativo || "pending") === key)?.total || 0)])),
+      service_stats
+    };
+  }
+  return {
+    items,
+    total,
+    page: currentPage,
+    total_pages: totalPages,
+    counts: Object.fromEntries(FICHA_STATES.map((key) => [key, Number(countRows.find((row) => (row.estado_operativo || "pending") === key)?.total || 0)])),
+    service_stats
+  };
 };
 
 export const summarizePadronComparison = (rows = []) => ({

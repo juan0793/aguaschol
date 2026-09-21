@@ -4394,12 +4394,13 @@ function App() {
   }, [alert]);
 
   useEffect(() => {
+    if (workspaceView === "records") return undefined;
     const timer = window.setInterval(() => {
       setDashboardNow(Date.now());
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [workspaceView]);
 
   useEffect(() => {
     if (!isAuthenticated) {

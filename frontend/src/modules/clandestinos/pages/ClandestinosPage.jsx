@@ -14,7 +14,7 @@ const tabFromHash = () => location.hash.match(/^#clandestinos\/(\w+)/)?.[1] || "
 
 export default function ClandestinosPage({ apiFetch, session, showAlert, navigate, focusRequest, onFocusConsumed, onPrintFicha, onPrintAviso }) {
   const api = useMemo(() => createClandestinosApi(apiFetch), [apiFetch]); const [tab, setTab] = useState(tabFromHash); const [config, setConfig] = useState(null); const [drawer, setDrawer] = useState(undefined); const [selected, setSelected] = useState(new Map()); const [comparison, setComparison] = useState(null); const [bulkLoading, setBulkLoading] = useState(false);
-  const fichas = useFichas(api, Boolean(config));
+  const fichas = useFichas(api, true);
   useEffect(() => { api.config().then(setConfig).catch((error) => showAlert(error.message)); }, [api]);
   useEffect(() => { const change = () => setTab(tabFromHash()); addEventListener("hashchange", change); return () => removeEventListener("hashchange", change); }, []);
   useEffect(() => {

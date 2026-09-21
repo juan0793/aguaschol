@@ -41,3 +41,12 @@ test("resume una comparacion masiva de padrones", () => {
   ]);
   assert.deepEqual(summary, { total: 3, both: 1, alcaldia_only: 1, aguas_only: 0, neither: 1 });
 });
+
+test("resume agua potable y aguas residuales dentro del filtro actual", async () => {
+  const result = await listClandestinosFichas({ limit: 100 });
+  const services = result.service_stats;
+  assert.equal(services.total, result.total);
+  assert.equal(services.ambos + services.solo_agua + services.solo_aguas_residuales + services.ninguno, services.total);
+  assert.equal(services.agua_potable >= services.ambos, true);
+  assert.equal(services.aguas_residuales >= services.ambos, true);
+});
