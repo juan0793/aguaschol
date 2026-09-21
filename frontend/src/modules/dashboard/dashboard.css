@@ -1482,3 +1482,131 @@
   padding-top: 0.55rem;
   border-top: 1px dashed var(--dw-line);
 }
+
+/* El ranking mostraba solo el top 5, asi que un barrio chico era inalcanzable
+   para sumarlo. La busqueda corre sobre el padron completo. */
+.dashboard-workspace .dw-barrio-search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--dw-line);
+  border-radius: 9px;
+  background: var(--dw-surface);
+}
+
+.dashboard-workspace .dw-barrio-search:focus-within {
+  border-color: var(--dw-blue);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
+}
+
+.dashboard-workspace .dw-barrio-search .app-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--dw-muted);
+}
+
+.dashboard-workspace .dw-barrio-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--dw-ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 0.15rem 0;
+}
+
+.dashboard-workspace .dw-barrio-search input:focus {
+  outline: none;
+}
+
+.dashboard-workspace .dw-barrio-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* La sumatoria daba totales pero no dejaba ver el peso de cada barrio dentro
+   de la seleccion. Estas barras se recalculan en cada toque. */
+.dashboard-workspace .dw-selection-chart {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--dw-line);
+}
+
+.dashboard-workspace .dw-selection-chart > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-workspace .dw-selection-chart > header strong {
+  color: var(--dw-ink);
+  font-size: 13px;
+}
+
+.dashboard-workspace .dw-selection-chart > header small {
+  color: var(--dw-muted);
+  font-size: 11px;
+}
+
+.dashboard-workspace .dw-selection-chart ol {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard-workspace .dw-selection-chart li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+}
+
+.dashboard-workspace .dw-sel-name {
+  overflow: hidden;
+  color: var(--dw-ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-workspace .dw-sel-value {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+
+.dashboard-workspace .dw-sel-value .dw-amount {
+  font-size: 13px;
+}
+
+.dashboard-workspace .dw-sel-value small {
+  color: var(--dw-muted);
+  font-size: 10px;
+}
+
+.dashboard-workspace .dw-sel-track {
+  display: block;
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #e9eef4;
+}
+
+.dashboard-workspace .dw-sel-track em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--chart-color);
+  transform-origin: left;
+  transition: transform 320ms ease;
+}

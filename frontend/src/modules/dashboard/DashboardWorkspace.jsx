@@ -4,7 +4,7 @@ import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
 import { escapeHtml } from "../../utils/html";
 import { printDocument } from "../../utils/printDocument";
-import { debtRanking, debtRankingAll, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
+import { debtRankingAll, filterBarriosByQuery, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
@@ -160,6 +160,7 @@ export default function DashboardWorkspace({ model }) {
     });
 
   const [debtMetric, setDebtMetric] = useState("total");
+  const [barrioQuery, setBarrioQuery] = useState("");
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
   const [barrioAbierto, setBarrioAbierto] = useState("");
@@ -188,7 +189,17 @@ export default function DashboardWorkspace({ model }) {
     setSplitPercent((current) => Math.min(62, Math.max(30, current + direction)));
   };
 
-  const ranking = useMemo(() => debtRanking(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
+  // El padron entero ordenado por la metrica activa. El top 5 sale de aca, pero
+  // la busqueda necesita la lista completa para encontrar barrios que no entran
+  // al ranking visible.
+  const rankingAll = useMemo(() => debtRankingAll(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
+  const ranking = useMemo(() => rankingAll.slice(0, 5), [rankingAll]);
+  const searchHits = useMemo(() => filterBarriosByQuery(rankingAll, barrioQuery, 25), [rankingAll, barrioQuery]);
+  const buscando = Boolean(barrioQuery.trim());
+  // Con busqueda activa la lista muestra las coincidencias; sin ella, el top 5.
+  const listaBarrios = buscando ? searchHits : ranking;
+  // La posicion real en el padron, para que al buscar no se renumere desde 1.
+  const posiciones = useMemo(() => new Map(rankingAll.map((item, index) => [item.name, index + 1])), [rankingAll]);
   // Padron completo, independiente de la metrica: el ranking visible es solo el
   // top 5, pero la seleccion sobrevive al cambio de metrica y tiene que seguir
   // sumando aunque un barrio elegido ya no aparezca en pantalla.
@@ -204,7 +215,14 @@ export default function DashboardWorkspace({ model }) {
   const maxServiceDebt = Math.max(1, ...serviceDebt.map((service) => service.debt));
   const selectedDebt = useMemo(() => sumSelectedDebt(barriosCompletos, selectedBarrios), [barriosCompletos, selectedBarrios]);
   const selectedServices = useMemo(() => sumSelectedServices(barriosCompletos, selectedBarrios), [barriosCompletos, selectedBarrios]);
-  const maxDebt = Math.max(1, ...ranking.map((item) => item.value));
+  // Filas de la seleccion, ordenadas por la metrica activa: alimentan el grafico
+  // que se rearma cada vez que se agrega o se quita un barrio.
+  const selectedRows = useMemo(
+    () => selectedRankedRows(barriosCompletos, selectedBarrios, debtMetric),
+    [barriosCompletos, selectedBarrios, debtMetric]
+  );
+  const maxSelected = Math.max(1, ...selectedRows.map((item) => item.value));
+  const maxDebt = Math.max(1, ...listaBarrios.map((item) => item.value));
 
   const debt = model.debtSummary || {};
   const debtTotal = Number(debt.total || 0);
@@ -233,7 +251,7 @@ export default function DashboardWorkspace({ model }) {
   const printSelection = () =>
     printDocument(
       "Sumatoria de barrios",
-      `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five">${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
+      `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Abonados</strong><span>${whole(selectedDebt.records)}</span></div>${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("records", "Detalle por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Abonados</th><th>Cuentas con mora</th><th>Casos criticos</th><th>Capital</th><th>Intereses</th><th>Mora total</th></tr></thead><tbody>${selectedRows.map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${whole(row.records)}</td><td>${whole(row.debt?.deudores)}</td><td>${whole(row.debt?.criticos)}</td><td>${escapeHtml(formatCurrency(row.debt?.capital))}</td><td>${escapeHtml(formatCurrency(row.debt?.intereses))}</td><td>${escapeHtml(formatCurrency(row.debt?.total))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedDebt.records)}</th><th>${whole(selectedDebt.deudores)}</th><th>${whole(selectedDebt.criticos)}</th><th>${escapeHtml(formatCurrency(selectedDebt.capital))}</th><th>${escapeHtml(formatCurrency(selectedDebt.intereses))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
       { pageSize: "Letter portrait", bodyClassName: "dashboard-report-body", showPageFooter: true }
     );
 
@@ -587,11 +605,38 @@ export default function DashboardWorkspace({ model }) {
                         {debtMetric === "total" ? <Amount value={rankingTotal} /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
                       </div>
                     </div> : null}
-                    {ranking.length ? <p className="dw-chart-caption">De mayor a menor · Barras comparadas con el primer lugar.</p> : null}
+                    <div className="dw-barrio-search">
+                      <Icon name="search" />
+                      <input
+                        id="dw-barrio-search"
+                        type="search"
+                        value={barrioQuery}
+                        placeholder={`Buscar entre ${whole(rankingAll.length)} barrios del padrón`}
+                        aria-label="Buscar barrios para sumar"
+                        autoComplete="off"
+                        onChange={(event) => setBarrioQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Escape" || !barrioQuery) return;
+                          event.preventDefault();
+                          setBarrioQuery("");
+                        }}
+                      />
+                      {buscando ? (
+                        <button type="button" className="dw-link" onClick={() => setBarrioQuery("")}>Limpiar</button>
+                      ) : null}
+                    </div>
 
-                    {ranking.length ? (
+                    {listaBarrios.length ? (
+                      <p className="dw-chart-caption">
+                        {buscando
+                          ? `${whole(searchHits.length)} ${searchHits.length === 1 ? "coincidencia" : "coincidencias"} · Tocá un barrio para sumarlo.`
+                          : "De mayor a menor · Barras comparadas con el primer lugar."}
+                      </p>
+                    ) : null}
+
+                    {listaBarrios.length ? (
                       <ol className="dw-ranking">
-                        {ranking.map((item, index) => (
+                        {listaBarrios.map((item) => (
                           <li key={item.name} className={barrioAbierto === item.name ? "is-expanded" : ""}>
                             <div className="dw-ranking-row">
                               <button
@@ -600,7 +645,7 @@ export default function DashboardWorkspace({ model }) {
                                 className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
                                 onClick={() => toggleBarrio(item.name)}
                               >
-                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(index + 1).padStart(2, "0")}</b>
+                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(posiciones.get(item.name) || 0).padStart(2, "0")}</b>
                                 <strong className="dw-ranking-name">{item.name}</strong>
                                 <span className="dw-ranking-value">
                                   {debtMetric === "total" ? (
@@ -637,7 +682,9 @@ export default function DashboardWorkspace({ model }) {
                         ))}
                       </ol>
                     ) : (
-                      <p className="dw-empty">No hay desglose de mora por barrio disponible.</p>
+                      <p className="dw-empty">
+                        {buscando ? `Ningún barrio coincide con “${barrioQuery.trim()}”.` : "No hay desglose de mora por barrio disponible."}
+                      </p>
                     )}
 
                     {selectedBarrios.length ? (
@@ -679,6 +726,10 @@ export default function DashboardWorkspace({ model }) {
                         </p>
                         <dl className="dw-selection-figures">
                           <div>
+                            <dt>Abonados</dt>
+                            <dd className="dw-amount dw-figure">{whole(selectedDebt.records)}</dd>
+                          </div>
+                          <div>
                             <dt>Capital</dt>
                             <dd>
                               <Amount value={selectedDebt.capital} />
@@ -705,6 +756,28 @@ export default function DashboardWorkspace({ model }) {
                             <dd className="dw-amount dw-figure">{whole(selectedDebt.criticos)}</dd>
                           </div>
                         </dl>
+                        {selectedRows.length > 1 ? (
+                          <section className="dw-selection-chart">
+                            <header>
+                              <strong>{debtMetric === "total" ? "Mora" : debtMetric === "accounts" ? "Abonados con mora" : "Casos críticos"} de los barrios elegidos</strong>
+                              <small>Se rearma al agregar o quitar un barrio.</small>
+                            </header>
+                            <ol>
+                              {selectedRows.map((item) => (
+                                <li key={item.name}>
+                                  <span className="dw-sel-name" title={item.name}>{item.name}</span>
+                                  <i className="dw-sel-track" aria-hidden="true">
+                                    <em style={{ transform: `scaleX(${item.value / maxSelected})` }} />
+                                  </i>
+                                  <span className="dw-sel-value">
+                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
+                                    <small className="dw-figure">{oneDecimal(percent(item.value, selectedRows.reduce((sum, row) => sum + row.value, 0)))} de la selección</small>
+                                  </span>
+                                </li>
+                              ))}
+                            </ol>
+                          </section>
+                        ) : null}
                         {selectedDetailsOpen ? (
                           <section className="dw-services">
                             <header>
