@@ -638,6 +638,76 @@ export const calcularDestacados = ({ por_responsable = [], por_barrio = [], por_
   };
 };
 
+// Un lote ABIERTO todavia puede recibir documentos, asi que sus sobrantes no
+// son definitivos. CERRADO ya cuadro contra total_sobrantes, y REVISADO es un
+// CERRADO que ademas entro en un informe: los dos cuentan como lote cerrado.
+export const ESTADOS_LOTE_CERRADO = ["CERRADO", "REVISADO"];
+
+export const esLoteCerrado = (estado = "") => ESTADOS_LOTE_CERRADO.includes(String(estado || "").toUpperCase());
+
+// Los sobrantes de los lotes cerrados del periodo, uno por documento, con el
+// nombre de la persona al frente: es la lista que se anexa al informe y la que
+// arma el acta consolidada.
+export const listarSobrantesDeLotesCerrados = (noEntregadas = [], catalogoMotivos = MOTIVOS_BASE) => {
+  const etiqueta = new Map((catalogoMotivos || []).map((item) => [item.codigo, item.etiqueta]));
+  return (noEntregadas || [])
+    .filter((item) => esLoteCerrado(item?.lote_estado))
+    .map((item) => ({
+      id: item.id,
+      lote_id: item.lote_id,
+      fecha_lote: toIsoDate(item.fecha_lote),
+      abonado_nombre: item.abonado_nombre || "",
+      numero_abonado: item.numero_abonado || "",
+      clave_catastral: item.clave_catastral || "",
+      motivo: item.motivo || "",
+      motivo_etiqueta: etiqueta.get(item.motivo) || String(item.motivo || "").replaceAll("_", " "),
+      estado: item.estado || "PENDIENTE",
+      observacion: item.observacion || "",
+      tipo_documento: item.tipo_documento || "",
+      barrio_codigo: item.barrio_codigo || "",
+      barrio_nombre: item.barrio_nombre || "",
+      responsable_id: item.responsable_id ?? null,
+      responsable_nombre: item.responsable_nombre || "",
+      intentos: toEntero(item.intentos)
+    }))
+    .sort((a, b) =>
+      String(a.fecha_lote).localeCompare(String(b.fecha_lote)) ||
+      toEntero(a.lote_id) - toEntero(b.lote_id) ||
+      // Un documento sin nombre capturado va al final de su lote: arriba se
+      // leen las personas identificadas, que son las que se buscan en el acta.
+      (a.abonado_nombre ? 0 : 1) - (b.abonado_nombre ? 0 : 1) ||
+      a.abonado_nombre.localeCompare(b.abonado_nombre, "es") ||
+      toEntero(a.id) - toEntero(b.id)
+    );
+};
+
+// El acta se lee lote por lote, con su responsable y su barrio en la cabecera.
+export const agruparSobrantesPorLote = (sobrantes = [], lotes = []) => {
+  const datosLote = new Map((lotes || []).map((lote) => [toEntero(lote.id), lote]));
+  const grupos = new Map();
+  for (const doc of sobrantes) {
+    const clave = toEntero(doc.lote_id);
+    if (!grupos.has(clave)) {
+      const lote = datosLote.get(clave) || {};
+      grupos.set(clave, {
+        lote_id: clave,
+        fecha: doc.fecha_lote,
+        estado: lote.estado || "CERRADO",
+        tipo_documento: doc.tipo_documento || lote.tipo_documento || "",
+        barrio_codigo: doc.barrio_codigo || lote.barrio_codigo || "",
+        barrio_nombre: doc.barrio_nombre || lote.barrio_nombre || "",
+        responsable_nombre: doc.responsable_nombre || lote.responsable_nombre || "",
+        total_sobrantes_declarados: toEntero(lote.total_sobrantes),
+        documentos: []
+      });
+    }
+    grupos.get(clave).documentos.push(doc);
+  }
+  return [...grupos.values()].sort((a, b) =>
+    String(a.fecha).localeCompare(String(b.fecha)) || a.lote_id - b.lote_id
+  );
+};
+
 /* -------------------------------------------------------------------------- */
 /* Snapshot semanal                                                            */
 /* -------------------------------------------------------------------------- */
@@ -660,6 +730,7 @@ export const construirSnapshotSemanal = ({
   generado_por_nombre = "",
   generado_en = "",
   incluir_anexo_pendientes = false,
+  incluir_anexo_sobrantes = false,
   lotes_anteriores = null,
   no_entregadas_anteriores = null,
   periodo_anterior = null
@@ -670,6 +741,7 @@ export const construirSnapshotSemanal = ({
   const por_responsable = agruparPorResponsable(lotes, noEntregadas);
   const por_dia = agruparPorDia(lotes, noEntregadas, fecha_inicio, fecha_fin);
   const pendientesPrioritarios = calcularPendientesPrioritarios(noEntregadas, fechaCorte, catalogoMotivos);
+  const sobrantesCerrados = listarSobrantesDeLotesCerrados(noEntregadas, catalogoMotivos);
   const comparativo = Array.isArray(lotes_anteriores)
     ? compararPeriodos({
       totales,
@@ -708,7 +780,15 @@ export const construirSnapshotSemanal = ({
     }),
     pendientes_prioritarios: pendientesPrioritarios.slice(0, LIMITE_PENDIENTES_PRIORITARIOS),
     anexo_pendientes: incluir_anexo_pendientes ? pendientesPrioritarios : [],
-    pendientes_prioritarios_omitidos: Math.max(pendientesPrioritarios.length - LIMITE_PENDIENTES_PRIORITARIOS, 0)
+    pendientes_prioritarios_omitidos: Math.max(pendientesPrioritarios.length - LIMITE_PENDIENTES_PRIORITARIOS, 0),
+    // El resumen viaja siempre (es barato y el informe cita el total aunque no
+    // se anexe el detalle); la lista completa solo si la pidieron.
+    sobrantes_resumen: {
+      documentos: sobrantesCerrados.length,
+      lotes: new Set(sobrantesCerrados.map((item) => item.lote_id)).size,
+      personas: new Set(sobrantesCerrados.map((item) => item.numero_abonado || item.clave_catastral || `#${item.id}`)).size
+    },
+    anexo_sobrantes: incluir_anexo_sobrantes ? sobrantesCerrados : []
   };
 };
 

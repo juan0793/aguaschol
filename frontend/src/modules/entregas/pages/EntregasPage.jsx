@@ -7,6 +7,7 @@ import { useAvanceJornada } from "../hooks/useAvanceJornada";
 import EntregasStats from "../components/EntregasStats";
 import AvanceJornada from "../components/AvanceJornada";
 import LoteForm from "../components/LoteForm";
+import ActaSobrantesConsolidada from "../components/ActaSobrantesConsolidada";
 import LotesTable from "../components/LotesTable";
 import CierreLoteDialog from "../components/CierreLoteDialog";
 import LoteDetalle from "../components/LoteDetalle";
@@ -440,6 +441,12 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           onOpen={(documento) => setDocumentoAbierto(documento.id)}
           onCicloCerrado={() => { api.config().then(setConfig).catch(() => {}); pendientes.reload(); refrescar(); }}
         />
+      ) : null}
+
+      {vista === "historial" ? (
+        <div className="ent-historial-acciones">
+          <ActaSobrantesConsolidada api={api} filtros={historial.filters} motivos={config.motivos} notify={notify} />
+        </div>
       ) : null}
 
       {vista === "historial" ? (

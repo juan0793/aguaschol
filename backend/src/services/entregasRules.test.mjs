@@ -4,6 +4,7 @@ import {
   agruparPorBarrio,
   agruparPorMotivo,
   agruparPorResponsable,
+  agruparSobrantesPorLote,
   assertPuedeAgregarNoEntregadas,
   calcularDestacados,
   calcularEfectividad,
@@ -17,6 +18,7 @@ import {
   detectarDuplicadosEnLote,
   etiquetarVersion,
   listarDiasDelRango,
+  listarSobrantesDeLotesCerrados,
   lotesParaRevisar,
   parsearPegadoNoEntregadas,
   periodoAnterior,
@@ -434,4 +436,93 @@ test("el informe se compara contra la misma semana laboral anterior, no contra e
     fecha_fin: "2026-08-31"
   });
   assert.equal(periodoAnterior({}), null);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Sobrantes de lotes cerrados                                                 */
+/* -------------------------------------------------------------------------- */
+
+const docSobrante = (extra = {}) => ({
+  id: 1, lote_id: 55, lote_estado: "CERRADO", fecha_lote: "2026-09-15",
+  abonado_nombre: "Maria Sierra", numero_abonado: "1201", clave_catastral: "28-01-01-01",
+  motivo: "CASA_SOLA", estado: "PENDIENTE", observacion: "", tipo_documento: "FACTURA",
+  barrio_codigo: "28", barrio_nombre: "Bo. Porvenir", responsable_id: 3,
+  responsable_nombre: "Juan Mendoza", intentos: 1, ...extra
+});
+
+test("un lote abierto no aporta sobrantes: todavia puede recibir documentos", () => {
+  const salida = listarSobrantesDeLotesCerrados([
+    docSobrante({ id: 1, lote_estado: "ABIERTO" }),
+    docSobrante({ id: 2, lote_estado: "CERRADO" }),
+    docSobrante({ id: 3, lote_estado: "REVISADO" })
+  ]);
+  assert.deepEqual(salida.map((item) => item.id), [2, 3]);
+});
+
+test("el sobrante lleva el nombre de la persona y la etiqueta del motivo", () => {
+  const [salida] = listarSobrantesDeLotesCerrados(
+    [docSobrante()],
+    [{ codigo: "CASA_SOLA", etiqueta: "Casa sola" }]
+  );
+  assert.equal(salida.abonado_nombre, "Maria Sierra");
+  assert.equal(salida.motivo_etiqueta, "Casa sola");
+  assert.equal(salida.responsable_nombre, "Juan Mendoza");
+});
+
+test("un motivo fuera del catalogo se muestra legible, no crudo", () => {
+  const [salida] = listarSobrantesDeLotesCerrados([docSobrante({ motivo: "SIN_ACCESO" })], []);
+  assert.equal(salida.motivo_etiqueta, "SIN ACCESO");
+});
+
+test("los sobrantes se ordenan por fecha, lote y persona", () => {
+  const salida = listarSobrantesDeLotesCerrados([
+    docSobrante({ id: 3, lote_id: 57, fecha_lote: "2026-09-16", abonado_nombre: "Ana Paz" }),
+    docSobrante({ id: 2, lote_id: 55, fecha_lote: "2026-09-15", abonado_nombre: "Zoila Reyes" }),
+    docSobrante({ id: 1, lote_id: 55, fecha_lote: "2026-09-15", abonado_nombre: "Ana Flores" })
+  ]);
+  assert.deepEqual(salida.map((item) => item.id), [1, 2, 3]);
+});
+
+test("el acta agrupa por lote y conserva la cabecera del recorrido", () => {
+  const sobrantes = listarSobrantesDeLotesCerrados([
+    docSobrante({ id: 1, lote_id: 55 }),
+    docSobrante({ id: 2, lote_id: 55, abonado_nombre: "Jose Amador" }),
+    docSobrante({ id: 3, lote_id: 57, fecha_lote: "2026-09-16", barrio_nombre: "Bo. Santa Lucia" })
+  ]);
+  const grupos = agruparSobrantesPorLote(sobrantes, [{ id: 55, total_sobrantes: 2, estado: "CERRADO" }]);
+  assert.equal(grupos.length, 2);
+  assert.equal(grupos[0].lote_id, 55);
+  assert.equal(grupos[0].documentos.length, 2);
+  assert.equal(grupos[0].total_sobrantes_declarados, 2);
+  assert.equal(grupos[0].responsable_nombre, "Juan Mendoza");
+  assert.equal(grupos[1].lote_id, 57);
+  assert.equal(grupos[1].barrio_nombre, "Bo. Santa Lucia");
+});
+
+test("el snapshot resume siempre y anexa solo si lo piden", () => {
+  const noEntregadas = [
+    docSobrante({ id: 1, lote_id: 55 }),
+    docSobrante({ id: 2, lote_id: 55, numero_abonado: "1202" }),
+    docSobrante({ id: 3, lote_id: 99, lote_estado: "ABIERTO", numero_abonado: "1203" })
+  ];
+  const base = { fecha_inicio: "2026-09-15", fecha_fin: "2026-09-19", lotes: [], noEntregadas };
+
+  const sinAnexo = construirSnapshotSemanal(base);
+  assert.deepEqual(sinAnexo.anexo_sobrantes, []);
+  assert.equal(sinAnexo.sobrantes_resumen.documentos, 2);
+  assert.equal(sinAnexo.sobrantes_resumen.lotes, 1);
+  assert.equal(sinAnexo.sobrantes_resumen.personas, 2);
+
+  const conAnexo = construirSnapshotSemanal({ ...base, incluir_anexo_sobrantes: true });
+  assert.equal(conAnexo.anexo_sobrantes.length, 2);
+  assert.deepEqual(conAnexo.anexo_sobrantes.map((item) => item.id), [1, 2]);
+});
+
+test("un sobrante sin nombre capturado va al final de su lote", () => {
+  const salida = listarSobrantesDeLotesCerrados([
+    docSobrante({ id: 1, abonado_nombre: "" }),
+    docSobrante({ id: 2, abonado_nombre: "Zoila Reyes" }),
+    docSobrante({ id: 3, abonado_nombre: "Ana Flores" })
+  ]);
+  assert.deepEqual(salida.map((item) => item.id), [3, 2, 1]);
 });

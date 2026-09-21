@@ -85,9 +85,11 @@ const cargarDatosDelPeriodo = async ({ fecha_inicio, fecha_fin, tipo_documento =
        documento.lote_id,
        documento.numero_abonado,
        documento.clave_catastral,
+       documento.abonado_nombre,
        documento.motivo,
        documento.estado,
        documento.observacion,
+       entrega_lotes.estado AS lote_estado,
        entrega_lotes.fecha AS fecha_lote,
        entrega_lotes.tipo_documento,
        entrega_lotes.barrio_codigo,
@@ -165,7 +167,8 @@ export const previewReporteSemanal = async (query = {}, user) => {
     {
       ...rango,
       tipo_documento: tipo,
-      incluir_anexo_pendientes: clean(query.incluir_anexo) === "1"
+      incluir_anexo_pendientes: clean(query.incluir_anexo) === "1",
+      incluir_anexo_sobrantes: clean(query.incluir_sobrantes) === "1"
     },
     user
   );
@@ -245,7 +248,7 @@ export const generarReporteSemanal = async (payload = {}, user) => {
 
   // Se recalcula dentro de la operacion de generacion, no se reutiliza el preview.
   const { snapshot, lotes } = await construirDesdeDatos(
-    { ...rango, tipo_documento: tipo, incluir_anexo_pendientes: Boolean(payload.incluir_anexo_pendientes) },
+    { ...rango, tipo_documento: tipo, incluir_anexo_pendientes: Boolean(payload.incluir_anexo_pendientes), incluir_anexo_sobrantes: Boolean(payload.incluir_anexo_sobrantes) },
     user
   );
 
@@ -288,7 +291,8 @@ export const generarCorreccion = async (id, payload = {}, user) => {
     {
       ...rango,
       tipo_documento: original.tipo_documento,
-      incluir_anexo_pendientes: Boolean(payload.incluir_anexo_pendientes)
+      incluir_anexo_pendientes: Boolean(payload.incluir_anexo_pendientes),
+      incluir_anexo_sobrantes: Boolean(payload.incluir_anexo_sobrantes)
     },
     user
   );

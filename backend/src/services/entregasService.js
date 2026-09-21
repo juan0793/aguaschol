@@ -356,6 +356,11 @@ export const listLotes = async (query = {}, user) => {
   const filtros = alcance.filtro ? [alcance.filtro] : [];
   const params = [...alcance.params];
 
+  // El acta de sobrantes solo tiene sentido sobre lotes ya cerrados: uno
+  // ABIERTO todavia puede recibir documentos.
+  if (clean(query.solo_lotes_cerrados) === "1") {
+    filtros.push("entrega_lotes.estado IN ('CERRADO', 'REVISADO')");
+  }
   if (toIsoDate(query.fecha_desde)) {
     filtros.push("entrega_lotes.fecha >= ?");
     params.push(toIsoDate(query.fecha_desde));

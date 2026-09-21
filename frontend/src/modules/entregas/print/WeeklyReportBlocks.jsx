@@ -344,6 +344,41 @@ export const TablaPendientes = ({ rows = [] }) => (
   </table>
 );
 
+// El anexo de sobrantes se lee persona por persona: es la lista de quienes
+// quedaron sin recibir su documento en los lotes ya cerrados del periodo. Va
+// agrupado por lote porque el acta fisica se arma con el mismo corte.
+export const TablaSobrantes = ({ rows = [] }) => (
+  <table className="ent-hoja-tabla">
+    <thead>
+      <tr>
+        <th>Persona</th>
+        <th>Abonado</th>
+        <th>Clave catastral</th>
+        <th>Barrio</th>
+        <th>Motivo</th>
+        <th className="is-num">Lote</th>
+        <th>Responsable</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((fila) => (
+        <tr key={fila.id}>
+          <td>{fila.abonado_nombre || "Sin nombre registrado"}</td>
+          <td>{fila.numero_abonado || "—"}</td>
+          <td>{fila.clave_catastral || "—"}</td>
+          <td>{fila.barrio_nombre || "—"}</td>
+          <td>{fila.motivo_etiqueta || "—"}</td>
+          <td className="is-num">#{fila.lote_id}</td>
+          <td>{fila.responsable_nombre || "—"}</td>
+        </tr>
+      ))}
+      {!rows.length ? (
+        <tr><td colSpan={7}>Los lotes cerrados del período no dejaron documentos sobrantes.</td></tr>
+      ) : null}
+    </tbody>
+  </table>
+);
+
 export const Destacados = ({ destacados }) => {
   if (!destacados) return null;
   const fichas = [

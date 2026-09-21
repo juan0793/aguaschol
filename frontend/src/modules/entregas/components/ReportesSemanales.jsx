@@ -18,6 +18,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
   const [rango, setRango] = useState(config.semana_actual);
   const [tipoDocumento, setTipoDocumento] = useState("");
   const [incluirAnexo, setIncluirAnexo] = useState(false);
+  const [incluirSobrantes, setIncluirSobrantes] = useState(false);
   const [vista, setVista] = useState(null); // { snapshot, meta }
   const [cargando, setCargando] = useState(false);
   const [generando, setGenerando] = useState(false);
@@ -30,7 +31,8 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
         fecha_inicio: rango.fecha_inicio,
         fecha_fin: rango.fecha_fin,
         tipo_documento: tipoDocumento,
-        incluir_anexo: incluirAnexo ? "1" : ""
+        incluir_anexo: incluirAnexo ? "1" : "",
+        incluir_sobrantes: incluirSobrantes ? "1" : ""
       });
       setVista({ snapshot: data, meta: null, existentes: data.reportes_existentes || [] });
     } catch (error) {
@@ -38,7 +40,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
     } finally {
       setCargando(false);
     }
-  }, [api, incluirAnexo, notify, rango, tipoDocumento]);
+  }, [api, incluirAnexo, incluirSobrantes, notify, rango, tipoDocumento]);
 
   useEffect(() => {
     if (permissions.can_generate_report) cargarPreview();
@@ -66,6 +68,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
         fecha_fin: rango.fecha_fin,
         tipo_documento: tipoDocumento,
         incluir_anexo_pendientes: incluirAnexo,
+        incluir_anexo_sobrantes: incluirSobrantes,
         confirmar_duplicado: confirmarDuplicado
       });
       setVista({ snapshot: data.snapshot, meta: data, existentes: [] });
@@ -86,7 +89,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
     const motivo = window.prompt("Motivo de la corrección:");
     if (motivo === null) return;
     try {
-      const data = await api.generarCorreccion(reporte.id, { motivo, incluir_anexo_pendientes: incluirAnexo });
+      const data = await api.generarCorreccion(reporte.id, { motivo, incluir_anexo_pendientes: incluirAnexo, incluir_anexo_sobrantes: incluirSobrantes });
       setVista({ snapshot: data.snapshot, meta: data, existentes: [] });
       historico.reload();
       notify(`Versión ${data.version} emitida.`);
@@ -97,7 +100,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
 
   const descargarPdf = async () => {
     try {
-      await descargarReporteSemanalPdf(vista?.snapshot, { incluirAnexo, meta: vista?.meta });
+      await descargarReporteSemanalPdf(vista?.snapshot, { incluirAnexo, incluirSobrantes, meta: vista?.meta });
     } catch (error) {
       notify(`No fue posible generar el PDF: ${error.message}`);
     }
@@ -178,6 +181,10 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
             <input type="checkbox" checked={incluirAnexo} onChange={(event) => setIncluirAnexo(event.target.checked)} />
             Incluir anexo completo de pendientes
           </label>
+          <label>
+            <input type="checkbox" checked={incluirSobrantes} onChange={(event) => setIncluirSobrantes(event.target.checked)} />
+            Incluir anexo de sobrantes de lotes cerrados
+          </label>
         </div>
 
         {vista?.snapshot ? (
@@ -231,7 +238,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
               Calculando informe…
             </p>
           ) : (
-            <WeeklyReportPrint snapshot={vista?.snapshot} meta={vista?.meta} incluirAnexo={incluirAnexo} />
+            <WeeklyReportPrint snapshot={vista?.snapshot} meta={vista?.meta} incluirAnexo={incluirAnexo} incluirSobrantes={incluirSobrantes} />
           )}
         </div>
       </div>

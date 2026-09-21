@@ -627,3 +627,16 @@
 @media (prefers-reduced-motion: reduce) {
   .ent-module *, .ent-dialog-content, .ent-dialog-content *, .ent-dialog-overlay { animation: none !important; transition: none !important; }
 }
+
+/* Barra de acciones del historial: el acta consolidada de sobrantes vive aca
+   porque es la vista de lotes ya cerrados. */
+.ent-historial-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+@media print {
+  .ent-historial-acciones { display: none; }
+}
