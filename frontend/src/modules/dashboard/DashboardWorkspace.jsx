@@ -222,6 +222,7 @@ export default function DashboardWorkspace({ model }) {
     [barriosCompletos, selectedBarrios, debtMetric]
   );
   const maxSelected = Math.max(1, ...selectedRows.map((item) => item.value));
+  const selectedTotal = selectedRows.reduce((sum, item) => sum + item.value, 0);
   const maxDebt = Math.max(1, ...listaBarrios.map((item) => item.value));
 
   const debt = model.debtSummary || {};
@@ -611,7 +612,7 @@ export default function DashboardWorkspace({ model }) {
                         id="dw-barrio-search"
                         type="search"
                         value={barrioQuery}
-                        placeholder={`Buscar entre ${whole(rankingAll.length)} barrios del padrón`}
+                        placeholder={`Buscar entre ${whole(rankingAll.length)} barrios con mora`}
                         aria-label="Buscar barrios para sumar"
                         autoComplete="off"
                         onChange={(event) => setBarrioQuery(event.target.value)}
@@ -766,13 +767,13 @@ export default function DashboardWorkspace({ model }) {
                               {selectedRows.map((item) => (
                                 <li key={item.name}>
                                   <span className="dw-sel-name" title={item.name}>{item.name}</span>
+                                  <span className="dw-sel-value">
+                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
+                                    <small className="dw-figure">{oneDecimal(percent(item.value, selectedTotal))} de la selección</small>
+                                  </span>
                                   <i className="dw-sel-track" aria-hidden="true">
                                     <em style={{ transform: `scaleX(${item.value / maxSelected})` }} />
                                   </i>
-                                  <span className="dw-sel-value">
-                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
-                                    <small className="dw-figure">{oneDecimal(percent(item.value, selectedRows.reduce((sum, row) => sum + row.value, 0)))} de la selección</small>
-                                  </span>
                                 </li>
                               ))}
                             </ol>
