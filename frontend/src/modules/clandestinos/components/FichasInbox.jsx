@@ -54,14 +54,37 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
     return () => removeEventListener("resize", medir);
   }, [model.filters.state, model.counts]);
   const hayFiltros = Boolean(model.filters.query || model.filters.state || model.filters.barrio || alertsOnly);
+  const [guia, setGuia] = useState(false);
+  // Total de expedientes en todas las etapas (con la busqueda y el barrio
+  // aplicados): es la referencia del "7 de 55" del encabezado.
+  const totalExpedientes = Object.values(model.counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+  const etapaActiva = ETAPAS.find(([key]) => key === model.filters.state);
+  const quitarTodo = () => { model.filters.clear(); setAlertsOnly(false); };
   return <section className="cl-inbox" aria-label="Bandeja de trabajo de fichas">
-    <header className="cl-inbox-head"><div><span className="cl-kicker">Bandeja de trabajo</span><h2>Fichas clandestinas</h2><p>{alertsOnly ? `${alertItems.length} ${alertItems.length === 1 ? "ficha que requiere" : "fichas que requieren"} atención en esta página` : `${model.total} ${model.total === 1 ? "expediente" : "expedientes"} en el resultado actual`}</p></div>{canCreate ? <button type="button" className="cl-primary" onClick={onNew}><Icon name="plus" />Nueva ficha</button> : null}</header>
-    <details className="cl-workflow-help"><summary><Icon name="clipboard" />Guía del proceso<Icon name="chevronDown" /></summary><section className="cl-workflow-guide" aria-label="Proceso recomendado para una ficha clandestina">{FLOW_GUIDE.map(([number, title, detail]) => <article key={number}><span>{number}</span><div><strong>{title}</strong><small>{detail}</small></div></article>)}</section></details>
+    {/* El encabezado dice que se esta viendo: la etapa (con su icono), cuantas
+        fichas de cuantas, y los filtros activos, cada uno removible. */}
+    <header className="cl-inbox-head">
+      <span className="cl-inbox-emblem" aria-hidden="true" key={etapaActiva?.[0] || "todas"}><Icon name={alertsOnly ? "warning" : etapaActiva?.[2] || "records"} /></span>
+      <div className="cl-inbox-title">
+        <h2>Fichas clandestinas</h2>
+        <p className="cl-inbox-scope" aria-live="polite">
+          <strong>{alertsOnly ? "Con plazo crítico" : etapaActiva ? etapaActiva[1] : "Todas las etapas"}</strong>
+          <span className="cl-scope-count">{alertsOnly ? `${alertItems.length} en esta página` : etapaActiva ? `${model.total} de ${totalExpedientes} expedientes` : `${model.total} ${model.total === 1 ? "expediente" : "expedientes"}`}</span>
+          {model.filters.barrio ? <span className="cl-scope-chip">{model.filters.barrio}<button type="button" onClick={() => model.filters.setBarrio("")} aria-label={`Quitar el barrio ${model.filters.barrio}`}><Icon name="close" /></button></span> : null}
+          {model.filters.query.trim() ? <span className="cl-scope-chip">“{model.filters.query.trim()}”<button type="button" onClick={() => model.filters.setQuery("")} aria-label="Quitar la búsqueda"><Icon name="close" /></button></span> : null}
+          {hayFiltros ? <button type="button" className="cl-scope-clear" onClick={quitarTodo}>Ver todas</button> : null}
+        </p>
+      </div>
+      <div className="cl-inbox-actions">
+        <button type="button" className="cl-quiet" aria-expanded={guia} aria-controls="cl-guia-proceso" onClick={() => setGuia((actual) => !actual)}><Icon name="clipboard" /><span>Guía<span className="cl-hide-sm"> del proceso</span></span></button>
+        {canCreate ? <button type="button" className="cl-primary" onClick={onNew}><Icon name="plus" />Nueva ficha</button> : null}
+      </div>
+    </header>
+    {guia ? <div className="cl-workflow-help" id="cl-guia-proceso"><section className="cl-workflow-guide" aria-label="Proceso recomendado para una ficha clandestina">{FLOW_GUIDE.map(([number, title, detail]) => <article key={number}><span>{number}</span><div><strong>{title}</strong><small>{detail}</small></div></article>)}</section></div> : null}
     {alertItems.length ? <section className={`cl-deadline-banner ${alertsOnly ? "is-filtered" : ""}`} role="status"><span className="cl-deadline-icon"><Icon name="warning" /></span><div className="cl-deadline-copy"><small>Atención prioritaria</small><strong>{alertsOnly ? `Mostrando ${alertTitle.toLowerCase()}` : alertTitle}</strong><span>{overdueCount ? `Revisa el plazo y registra la siguiente acción para poner${alertItems.length === 1 ? "la" : "las"} al día.` : `Quedan dos días hábiles o menos para atender${alertItems.length === 1 ? "la" : "las"}.`}</span></div><button type="button" className="cl-deadline-action" onClick={() => setAlertsOnly((current) => !current)}>{alertsOnly ? "Ver todas" : "Revisar ahora"}<Icon name={alertsOnly ? "refresh" : "arrowRight"} /></button></section> : null}
     <div className="cl-toolbar">
       <label className="cl-search"><span>Buscar ficha</span><div><Icon name="search" /><input value={model.filters.query} onChange={(event) => model.filters.setQuery(event.target.value)} placeholder="Clave, abonado o barrio" /></div></label>
       <label><span>Barrio</span><select value={model.filters.barrio} onChange={(event) => model.filters.setBarrio(event.target.value)}><option value="">Todos</option>{barrios.map((item) => <option key={item}>{item}</option>)}</select></label>
-      {hayFiltros ? <button type="button" className="cl-quiet" onClick={() => { model.filters.clear(); setAlertsOnly(false); }}><Icon name="close" />Quitar filtros</button> : null}
     </div>
     {/* La etapa se elige solo aqui (antes tambien habia un selector con lo
         mismo). Al pasar el cursor o enfocar se adelanta la consulta. */}

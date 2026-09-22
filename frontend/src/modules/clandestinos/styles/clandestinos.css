@@ -185,3 +185,35 @@
 .cl-inbox .cl-search > div input { padding-left: 40px; }
 @media (max-width: 1120px) { .cl-inbox .cl-toolbar { grid-template-columns: minmax(0,1fr) auto; }.cl-inbox .cl-toolbar .cl-search { grid-column: 1/-1; } }
 @media (max-width: 760px) { .cl-inbox .cl-toolbar { grid-template-columns: minmax(0,1fr); } }
+
+/* --- Encabezado de la bandeja ---
+   Sin rotulo generico: el titulo con el total, un emblema con el icono de la
+   etapa activa y una linea que dice que se esta viendo y con que filtros. */
+.cl-inbox .cl-inbox-head { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 4px 14px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e1ebf5; }
+.cl-inbox-emblem { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #cfe0f3; border-radius: 12px; background: #edf4fd; color: var(--primary); animation: cl-emblem-in .24s cubic-bezier(.23,1,.32,1); }
+.cl-inbox-emblem .app-icon { width: 22px; height: 22px; }
+@keyframes cl-emblem-in { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+.cl-inbox-title { display: grid; gap: 4px; min-width: 0; }
+.cl-inbox-title h2 { display: flex; align-items: center; gap: 10px; margin: 0; color: #0b3f73; font-size: 21px; font-weight: 750; line-height: 1.2; }
+.cl-inbox .cl-inbox-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; color: var(--muted); font-size: 13px; }
+.cl-inbox-scope strong { color: #0b3f73; font-weight: 700; }
+.cl-scope-count { font-variant-numeric: tabular-nums; }
+.cl-scope-count::before { content: "·"; margin-right: 10px; color: #b8cbe0; }
+.cl-scope-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 4px 0 10px; border: 1px solid #cfe0f3; border-radius: 999px; background: #f5f9fe; color: #0b3f73; font-size: 12px; font-weight: 600; animation: cl-rows-in .18s ease-out; }
+.cl-scope-chip button { display: grid; place-items: center; width: 20px; height: 20px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.cl-scope-chip button:hover:not(:disabled) { background: #e1eaf4; box-shadow: none; transform: none; color: #0b3f73; }
+.cl-scope-chip .app-icon { width: 12px; height: 12px; }
+.cl-scope-clear { min-height: 0; padding: 0; border: 0; background: transparent; color: var(--primary); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.cl-scope-clear:hover:not(:disabled) { box-shadow: none; transform: none; text-decoration: underline; }
+.cl-inbox-actions { display: flex; align-items: center; gap: 8px; }
+.cl-inbox-actions button { display: inline-flex; align-items: center; gap: 7px; }
+.cl-inbox-actions .cl-quiet[aria-expanded="true"] { border-color: var(--primary); color: var(--primary); }
+.cl-inbox #cl-guia-proceso { margin-bottom: 14px; animation: cl-rows-in .2s ease-out; }
+@media (max-width: 760px) {
+  .cl-inbox .cl-inbox-head { grid-template-columns: auto minmax(0,1fr); align-items: start; }
+  .cl-inbox-actions { grid-column: 1/-1; }
+  .cl-inbox-actions button { flex: 1 1 0; justify-content: center; }
+  .cl-inbox-title h2 { font-size: 19px; }
+  .cl-hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .cl-inbox-emblem, .cl-scope-chip, .cl-inbox #cl-guia-proceso { animation: none; } }
