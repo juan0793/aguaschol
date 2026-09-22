@@ -873,6 +873,13 @@ export const getMasterRecordsForImport = () => {
 // en vez de llamar searchClaveCatastral una vez por clave.
 export const getMasterRecords = () => masterRecords;
 
+// Igual que getMasterRecords, para el padron de Alcaldia. `reload` relee el archivo (29 MB),
+// asi que solo conviene pedirlo en verificaciones por lote, no por cada clic.
+export const getAlcaldiaRecords = ({ reload = false } = {}) => {
+  if (reload) reloadAlcaldiaRecords();
+  return alcaldiaRecords;
+};
+
 // Cambia cuando se importa o reprocesa el padron. Sirve para invalidar indices derivados.
 export const getMasterVersion = () =>
   `${masterMeta.updated_at || "sin-fecha"}:${masterRecords.length}`;

@@ -30,7 +30,7 @@
 .cl-toolbar { display: grid; grid-template-columns: minmax(260px,1fr) minmax(150px,220px) minmax(150px,220px) auto; gap: 12px; align-items: end; margin-bottom: 14px; padding: 14px; border: 1px solid var(--glass-border); border-radius: 14px; background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); }
 .cl-toolbar label, .cl-field, .cl-report-form label, .cl-report-list footer label, .cl-reason { display: grid; gap: 6px; color: var(--navy); font-size: 12px; font-weight: 750; }
 .cl-toolbar input, .cl-toolbar select, .cl-fields input, .cl-fields select, .cl-fields textarea, .cl-report-form input, .cl-report-form select, .cl-report-form textarea, .cl-report-list footer input, .cl-reason input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #bfd5eb; border-radius: 10px; background: #fff; color: var(--navy); }
-.cl-search > div { position: relative; }.cl-search > div .app-icon { position: absolute; top: 12px; left: 12px; color: var(--muted); }.cl-search input { padding-left: 40px; }
+.cl-search > div { position: relative; }.cl-search > div .app-icon { position: absolute; top: 12px; left: 12px; color: var(--muted); }.cl-search input:not([type="checkbox"]):not([type="radio"]) { padding-left: 40px; }
 .cl-table-wrap { position: relative; overflow: auto; border: 1px solid #d8e5f1; border-radius: 13px; }.cl-table { width: 100%; border-collapse: collapse; }.cl-table th { padding: 12px; background: #edf4fa; color: var(--navy); text-align: left; white-space: nowrap; }.cl-table td { padding: 11px 12px; border-top: 1px solid #e4edf5; vertical-align: middle; }.cl-table tbody tr { transition: background .16s ease; }.cl-table tbody tr:hover, .cl-table tbody tr.is-selected { background: #f1f7ff; }.cl-table-wrap.is-refreshing .cl-table { opacity: .62; transition: opacity .16s ease; }
 .cl-table input[type="checkbox"], .cl-check input, .cl-report-services input { width: 18px; min-height: 18px; height: 18px; accent-color: var(--primary); }
 .cl-link { display: grid; gap: 2px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--navy); text-align: left; cursor: pointer; }.cl-link span { color: var(--muted); font-size: 12px; }
@@ -217,3 +217,37 @@
   .cl-hide-sm { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .cl-inbox-emblem, .cl-scope-chip, .cl-inbox #cl-guia-proceso { animation: none; } }
+
+/* Banco de clandestinos: candidatos de campo antes de ser ficha */
+.cl-banco { min-height: 620px; padding: 22px; border: 1px solid #d7e5f2; border-radius: var(--radius-card); background: var(--surface); box-shadow: 0 8px 24px rgba(16,42,67,.06); }
+.cl-banco-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* La marca deslizante de los indicadores vive en la bandeja de Fichas; aqui la etapa activa se subraya. */
+.cl-banco .cl-indicators button.is-active { border-bottom-color: var(--primary); }
+.cl-banco-list { display: grid; gap: 12px; }.cl-banco-list.is-refreshing { opacity: .62; transition: opacity .16s ease; }
+.cl-banco-card { padding: 16px; border: 1px solid #d7e4ef; border-left: 4px solid #c9d7e4; border-radius: 14px; background: #fff; }
+.cl-banco-card.is-clandestino { border-left-color: var(--danger); }.cl-banco-card.is-probable { border-left-color: #d08a1f; }.cl-banco-card.is-registrado { border-left-color: var(--success); }
+.cl-banco-card > header { display: flex; justify-content: space-between; gap: 12px; }.cl-banco-card > header > div:first-child { display: grid; gap: 4px; }
+.cl-banco-card h3 { margin: 0; color: var(--navy); font-size: 18px; font-variant-numeric: tabular-nums; }.cl-banco-card header p { margin: 0; color: var(--muted); }
+.cl-banco-dictamen { display: inline-flex; align-items: center; gap: 7px; width: max-content; padding: 4px 9px; border-radius: 999px; background: #edf3f8; color: var(--navy); font-size: 12px; font-weight: 750; }.cl-banco-dictamen i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.cl-banco-dictamen.is-clandestino { background: #fff0f1; color: var(--danger); }.cl-banco-dictamen.is-probable { background: #fff7e8; color: var(--alert); }.cl-banco-dictamen.is-registrado { background: #e7f7f0; color: var(--success); }
+.cl-banco-services { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: 6px; }
+.cl-banco-services > span { display: inline-grid; width: 32px; height: 32px; place-items: center; border: 1px solid #dfe8f1; border-radius: 9px; color: #b3c2d1; }.cl-banco-services > span.is-on { border-color: #bcd6f5; background: #eef5ff; color: var(--primary); }
+.cl-banco-services > .cl-banco-tag { width: auto; padding: 0 9px; color: var(--alert); background: #fff7e8; border-color: #f0dcb4; font-size: 12px; font-weight: 750; }
+.cl-banco-padrones { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin: 14px 0 0; }
+.cl-banco-padrones > div { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: #f5f9fd; }
+.cl-banco-padrones dt { color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.cl-banco-padrones dd { display: grid; gap: 2px; margin: 0; color: var(--navy); }.cl-banco-padrones dd small, .cl-banco-padrones dd > span { color: var(--muted); }
+.cl-banco-motivo, .cl-banco-nota { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; color: var(--text); }.cl-banco-motivo .app-icon { color: var(--muted); }
+.cl-banco-nota { padding: 9px 12px; border-radius: 10px; background: #fff7e8; color: var(--alert); font-weight: 650; }
+.cl-banco-card > footer { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #e0eaf2; }
+.cl-banco-card .cl-report-meta a { display: flex; align-items: center; gap: 6px; color: var(--primary); font-weight: 650; text-decoration: none; }.cl-banco-card .cl-report-meta a:hover { text-decoration: underline; }
+.cl-banco-actions { display: flex; flex-wrap: wrap; align-items: end; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.cl-banco-actions label { display: grid; gap: 6px; color: var(--navy); font-size: 12px; font-weight: 750; }
+.cl-banco-actions input { min-width: 220px; min-height: 44px; padding: 10px 12px; border: 1px solid #bfd5eb; border-radius: 10px; background: #fff; color: var(--navy); }
+@media (max-width: 760px) {
+  .cl-banco { padding: 14px; }
+  .cl-banco-card > header { flex-direction: column; }.cl-banco-services { justify-content: flex-start; }
+  .cl-banco-padrones { grid-template-columns: 1fr; }
+  .cl-banco-actions { width: 100%; justify-content: stretch; }.cl-banco-actions > * { flex: 1 1 100%; }.cl-banco-actions input { min-width: 0; width: 100%; }
+  .cl-banco-head-actions { width: 100%; }.cl-banco-head-actions > button { flex: 1 1 auto; }
+}

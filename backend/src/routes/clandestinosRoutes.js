@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { compareFichas, config, createReport, evidence, fichaInternalNotes, fichaState, fichas, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
+import { banco, bancoDiscard, bancoImport, bancoRestore, bancoSend, bancoVerify, compareFichas, config, createReport, evidence, fichaInternalNotes, fichaState, fichas, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
 import { imageUpload } from "../middleware/upload.js";
 
 const router = Router();
@@ -13,5 +13,11 @@ router.get("/reportes", reports);
 router.post("/reportes", createReport);
 router.patch("/reportes/:id/state", reportState);
 router.post("/reportes/:id/link", linkReport);
+router.get("/banco", banco);
+router.post("/banco/importar", bancoImport);
+router.post("/banco/verificar", bancoVerify);
+router.post("/banco/:id/enviar", bancoSend);
+router.post("/banco/:id/descartar", bancoDiscard);
+router.post("/banco/:id/restaurar", bancoRestore);
 router.post("/reportes/:id/evidencias", imageUpload.single("evidence"), evidence);
 export default router;

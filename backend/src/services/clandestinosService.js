@@ -35,7 +35,9 @@ export const getClandestinosConfig = (user) => ({
     can_manage_ficha_state: canReview(user),
     can_confirm_or_regularize: user?.role === "admin",
     can_discard: user?.role === "admin",
-    can_manage_configuration: user?.role === "admin"
+    can_manage_configuration: user?.role === "admin",
+    can_process_banco: canReview(user),
+    can_import_banco: user?.role === "admin"
   }
 });
 

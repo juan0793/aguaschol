@@ -236,13 +236,6 @@ export const createInmueble = async (payload, options = {}) => {
       updated_at: new Date().toISOString()
     };
     memoryRecords.unshift(record);
-    await createAuditLog({
-      actorUserId: options.actorUserId ?? null,
-      action: "inmueble.created",
-      entityType: "inmueble",
-      entityId: record.id,
-      summary: `Ficha ${record.clave_catastral} creada`
-    });
     return record;
   }
 

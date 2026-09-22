@@ -18,5 +18,11 @@ export const createClandestinosApi = (apiFetch) => ({
   createReport: (payload) => apiFetch("/clandestinos/reportes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(json),
   reportState: (id, state, reason = "") => apiFetch(`/clandestinos/reportes/${id}/state`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, reason }) }).then(json),
   linkReport: (id, inmueble_id) => apiFetch(`/clandestinos/reportes/${id}/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inmueble_id }) }).then(json),
+  banco: (params = {}) => apiFetch(`/clandestinos/banco?${new URLSearchParams(params)}`).then(json),
+  bancoImport: (csv, lote) => apiFetch("/clandestinos/banco/importar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv, lote, origen: "qfield" }) }).then(json),
+  bancoVerify: () => apiFetch("/clandestinos/banco/verificar", { method: "POST" }).then(json),
+  bancoSend: (id, clave_catastral = "") => apiFetch(`/clandestinos/banco/${id}/enviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clave_catastral }) }).then(json),
+  bancoDiscard: (id, motivo) => apiFetch(`/clandestinos/banco/${id}/descartar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ motivo }) }).then(json),
+  bancoRestore: (id) => apiFetch(`/clandestinos/banco/${id}/restaurar`, { method: "POST" }).then(json),
   evidence: (id, file, description = "") => { const body = new FormData(); body.append("evidence", file); body.append("description", description); return apiFetch(`/clandestinos/reportes/${id}/evidencias`, { method: "POST", body }).then(json); }
 });

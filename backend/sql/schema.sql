@@ -285,6 +285,49 @@ CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Candidatos a clandestino levantados en campo (QField u otra fuente). No son fichas:
+-- se verifican contra los padrones y solo pasan a inmuebles_clandestinos cuando un tecnico los envia.
+CREATE TABLE IF NOT EXISTS banco_clandestinos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  origen VARCHAR(40) NOT NULL DEFAULT 'qfield',
+  origen_ref VARCHAR(80) NOT NULL,
+  lote_importacion VARCHAR(120) NOT NULL DEFAULT '',
+  clave_catastral VARCHAR(30) NOT NULL DEFAULT '',
+  clave_origen VARCHAR(20) NOT NULL DEFAULT '',
+  comentario_campo TEXT NULL,
+  abonado_campo VARCHAR(80) NOT NULL DEFAULT '',
+  barrio_colonia VARCHAR(180) NOT NULL DEFAULT '',
+  agua TINYINT(1) NOT NULL DEFAULT 0,
+  alcantarillado TINYINT(1) NOT NULL DEFAULT 0,
+  desechos TINYINT(1) NOT NULL DEFAULT 0,
+  lote_baldio TINYINT(1) NOT NULL DEFAULT 0,
+  latitude DECIMAL(10,7) NULL,
+  longitude DECIMAL(10,7) NULL,
+  dictamen VARCHAR(30) NOT NULL DEFAULT 'sin_determinar',
+  motivo_dictamen VARCHAR(255) NOT NULL DEFAULT '',
+  aguas_clave VARCHAR(40) NOT NULL DEFAULT '',
+  aguas_abonado VARCHAR(80) NOT NULL DEFAULT '',
+  aguas_inquilino VARCHAR(180) NOT NULL DEFAULT '',
+  alcaldia_clave VARCHAR(40) NOT NULL DEFAULT '',
+  alcaldia_propietario VARCHAR(180) NOT NULL DEFAULT '',
+  alcaldia_caserio VARCHAR(180) NOT NULL DEFAULT '',
+  alcaldia_direccion VARCHAR(255) NOT NULL DEFAULT '',
+  verificado_at TIMESTAMP NULL DEFAULT NULL,
+  nota_revision VARCHAR(255) NOT NULL DEFAULT '',
+  estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+  inmueble_id INT UNSIGNED NULL,
+  motivo_descarte VARCHAR(255) NOT NULL DEFAULT '',
+  procesado_por INT UNSIGNED NULL,
+  procesado_at TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_banco_clandestinos_origen (origen, origen_ref),
+  KEY idx_banco_clandestinos_estado (estado, dictamen),
+  KEY idx_banco_clandestinos_clave (clave_catastral),
+  CONSTRAINT fk_banco_clandestinos_inmueble FOREIGN KEY (inmueble_id) REFERENCES inmuebles_clandestinos(id) ON DELETE SET NULL,
+  CONSTRAINT fk_banco_clandestinos_procesador FOREIGN KEY (procesado_por) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS barrio_codigo_catalogo (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   codigo VARCHAR(10) NOT NULL UNIQUE,
