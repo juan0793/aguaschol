@@ -3175,6 +3175,12 @@ function App() {
         icon: alertRecords.length ? "warning" : "success",
         badge: alertRecords.length ? "Critico" : "Normal",
         detail: "Fichas vencidas o proximas",
+        // Desglose por estado del plazo: la tarjeta del tablero lo dibuja por tramos.
+        breakdown: {
+          overdue: alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length,
+          due: alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "due").length,
+          upcoming: alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "warning").length
+        },
         trend: `${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length} vencidas / ${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "due").length} vencen hoy`,
         micro: `${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length} vencidas o criticas`,
         progressLabel: "Vencidas y por vencer",

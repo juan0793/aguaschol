@@ -42,7 +42,7 @@ const model = {
     { key: "records", label: "Fichas activas", value: 55, helper: "3 movimientos hoy · 6 ayer", series: serie([4, 7, 0, 5, 9, 6, 3]), icon: "records", tone: "" },
     { key: "gps", label: "Puntos GPS", value: 5394, helper: "18 hoy · promedio 31 por día", series: serie([42, 38, 0, 0, 51, 67, 18]), icon: "map", tone: "is-map" },
     { key: "online", label: "Usuarios en línea", value: 7, helper: "10 usuarios registrados", icon: "users", tone: "is-live" },
-    { key: "alerts", label: "Alertas", value: 10, helper: "Pendientes con plazo crítico", trend: "4 vencidas / 2 vencen hoy", icon: "warning", tone: "is-critical" }
+    { key: "alerts", label: "Alertas", value: 10, helper: "Pendientes con plazo crítico", trend: "4 vencidas / 2 vencen hoy", breakdown: { overdue: 4, due: 2, upcoming: 4 }, icon: "warning", tone: "is-critical" }
   ],
   attention: [
     { key: "c", level: "Informativo", tone: "is-info", title: "Jornada activa", detail: "Hoy: puntos listos para revisar.", count: 18, icon: "map", actionView: "mapReports" },

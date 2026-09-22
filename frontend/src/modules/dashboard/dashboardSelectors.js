@@ -63,3 +63,32 @@ export const lastDaysSeries = (totals = new Map(), todayKey = "", days = 7) => {
     return { key, total: Number(totals.get(key) || 0) };
   });
 };
+
+// Reparto de ancho entre la columna de analisis y la lateral. El limite va en
+// pixeles y no en porcentaje: lo que importa es que ninguna columna quede tan
+// angosta que el ranking o la lista de pendientes se rompan.
+export const SPLIT_DEFAULT = 62;
+export const clampSplit = (percent, availableWidth = 0, minMain = 420, minSide = 300) => {
+  const value = Number.isFinite(Number(percent)) ? Number(percent) : SPLIT_DEFAULT;
+  const width = Number(availableWidth) || 0;
+  // Sin espacio para ambos minimos (o sin medida) se acota a un rango sensato.
+  if (width < minMain + minSide) return Math.min(75, Math.max(40, value));
+  const min = (minMain / width) * 100;
+  const max = 100 - (minSide / width) * 100;
+  return Math.round(Math.min(max, Math.max(min, value)) * 10) / 10;
+};
+
+// "7 de cada 10": una proporcion dicha como la diria una persona. Se redondea
+// a decimos; con total cero no hay lectura posible.
+export const ofEachTen = (part, total) => {
+  const denominator = Number(total || 0);
+  if (!denominator) return "";
+  const tenths = Math.round((Number(part || 0) / denominator) * 10);
+  return `${tenths} de cada 10`;
+};
+
+// Cuantos lempiras de interes se deben por cada lempira de capital.
+export const interestPerCapital = (intereses, capital) => {
+  const base = Number(capital || 0);
+  return base ? Number(intereses || 0) / base : 0;
+};
