@@ -637,7 +637,8 @@ const formatDashboardSyncRelativeTime = (value, now = Date.now()) => {
   if (!Number.isFinite(timestamp)) return "hace segundos";
 
   const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
-  if (seconds < 60) return `hace ${seconds || 1} segundos`;
+  if (seconds < 10) return "hace un momento";
+  if (seconds < 60) return `hace ${seconds} segundos`;
 
   return formatRelativeTime(value, now);
 };
@@ -1793,29 +1794,10 @@ function App() {
     [recordDeadlineMetaById, safeRecords]
   );
   const headerStats = useMemo(() => {
+    // El tablero ya muestra estas cifras en su propio cuerpo; repetirlas en la
+    // barra superior solo duplicaba lectura.
     if (workspaceView === "dashboard") {
-      return [
-        {
-          icon: "records",
-          label: "Fichas activas",
-          value: String(safeRecords.length)
-        },
-        {
-          icon: "map",
-          label: "Puntos GPS",
-          value: String(mapPointsTotal)
-        },
-        {
-          icon: "users",
-          label: "Usuarios en línea",
-          value: String(onlineUsers.length)
-        },
-        {
-          icon: "warning",
-          label: "Alertas",
-          value: String(alertRecords.length)
-        }
-      ];
+      return [];
     }
 
     if (workspaceView === "executiveReport") {
@@ -3147,7 +3129,7 @@ function App() {
       },
       {
         key: "online",
-        label: "Usuarios en linea",
+        label: "Usuarios en línea",
         value: onlineUsers.length,
         helper: `${safeUsers.length} usuarios registrados`,
         icon: "users",
@@ -3366,7 +3348,8 @@ function App() {
       items.push({
         tone: "is-warning",
         title: "Fichas con plazo crítico",
-        detail: `${alertRecords.length} fichas están en alerta o vencidas por regla de 7 días hábiles.`,
+        detail: "En alerta o vencidas por la regla de 7 días hábiles.",
+        count: alertRecords.length,
         icon: "warning",
         actionView: "records",
         filter: "alerts",
@@ -3380,7 +3363,8 @@ function App() {
       items.push({
         tone: "is-warning",
         title: "Fichas sin foto",
-        detail: `${pendingPhotoRecords} fichas visibles aún no tienen evidencia fotográfica asociada.`,
+        detail: "Fichas visibles que aún no tienen evidencia fotográfica.",
+        count: pendingPhotoRecords,
         icon: "records",
         actionView: "records",
         actionLabel: "Completar fichas",
@@ -3389,24 +3373,14 @@ function App() {
       });
     }
 
-    if (onlineUsers.length >= 4) {
-      items.push({
-        tone: "is-live",
-        title: "Operación intensiva",
-        detail: `${onlineUsers.length} usuarios conectados al mismo tiempo. Conviene vigilar actividad y jornadas de campo.`,
-        icon: "users",
-        actionView: "logs",
-        actionLabel: "Ver actividad",
-        level: "Informativo",
-        badge: "En vivo"
-      });
-    }
-
+    // Cuántos usuarios hay conectados ya se ve en la banda de estado del
+    // tablero: no es un asunto pendiente y no compite con las alertas reales.
     if (dashboardJourneys[0]) {
       items.push({
         tone: "is-info",
         title: "Jornada activa",
-        detail: `${formatMapDiaryLabel(dashboardJourneys[0].key)} registra ${dashboardJourneys[0].total} puntos listos para revisar.`,
+        detail: `${formatMapDiaryLabel(dashboardJourneys[0].key)}: puntos listos para revisar.`,
+        count: dashboardJourneys[0].total,
         icon: "map",
         actionView: "mapReports",
         actionLabel: "Abrir reportes",
@@ -3429,7 +3403,7 @@ function App() {
     }
 
     return items.slice(0, 3);
-  }, [alertRecords.length, dashboardJourneys, onlineUsers.length, padronMeta?.total_records, pendingPhotoRecords]);
+  }, [alertRecords.length, dashboardJourneys, padronMeta?.total_records, pendingPhotoRecords]);
   const dashboardAlertRecords = useMemo(() => {
     const recordsWithoutPhoto = safeRecords
       .filter((record) => !getRecordPhotoPath(record))
@@ -13644,7 +13618,7 @@ function App() {
             ))}
           </div>
           <div className="app-topbar-session">
-            <span className={`app-save-state ${isDirty ? "is-live" : ""}`}>
+            {workspaceView !== "dashboard" ? <span className={`app-save-state ${isDirty ? "is-live" : ""}`}>
               {["lookup", "padron"].includes(workspaceView)
                 ? workspaceView === "padron"
                   ? uploadingPadron
@@ -13658,7 +13632,7 @@ function App() {
                 : isDirty
                   ? "Cambios sin guardar"
                   : "Todo guardado"}
-            </span>
+            </span> : null}
             <NotificationCenter
               apiFetch={apiFetch}
               session={session}
@@ -14322,7 +14296,12 @@ function App() {
               return data;
             },
             debtSummary: padronServiceReport?.summary?.deuda || {},
-            padronTotals: { records: Number(padronServiceReport?.summary?.total_records || 0), barrios: Number(padronServiceReport?.summary?.total_barrios || 0) },
+            padronTotals: {
+              records: Number(padronServiceReport?.summary?.total_records || 0),
+              barrios: Number(padronServiceReport?.summary?.total_barrios || 0),
+              // Fecha de la ultima carga del padron: de ese corte salen las cifras.
+              updatedAt: padronMeta?.updated_at || null
+            },
             onlineUsers: onlineUsers.map((user) => ({ ...user, roleLabel: roleLabel(user.role) })),
             attention: dashboardPriorityItems,
             feed: dashboardLiveFeed,

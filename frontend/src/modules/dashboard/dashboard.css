@@ -208,102 +208,16 @@
   color: var(--dw-blue);
 }
 
-/* ---------- KPIs ---------- */
-
-.dashboard-workspace .dw-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
-}
-
-.dashboard-workspace .dw-kpi {
-  display: grid;
-  gap: 0.1rem;
-  min-width: 0;
-  padding: 0.65rem 0.8rem;
-  border: 1px solid var(--dw-line);
-  border-left: 3px solid var(--dw-blue);
-  border-radius: var(--dw-radius-sm);
-  background: var(--dw-surface);
-  box-shadow: none;
-  color: var(--dw-body);
-  text-align: left;
-  transition: border-color 0.16s ease, background 0.16s ease;
-}
-
-.dashboard-workspace .dw-kpi:hover {
-  background: var(--dw-tint);
-}
-
-.dashboard-workspace .dw-kpi strong {
-  color: var(--dw-ink);
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.15;
-}
-
-.dashboard-workspace .dw-kpi small {
-  overflow: hidden;
-  color: var(--dw-muted);
-  font-size: 11.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dashboard-workspace .dw-kpi.is-map {
-  border-left-color: var(--dw-cyan);
-}
-.dashboard-workspace .dw-kpi.is-critical {
-  border-left-color: var(--dw-red);
-}
-.dashboard-workspace .dw-kpi.is-live,
-.dashboard-workspace .dw-kpi.is-calm {
-  border-left-color: var(--dw-teal);
-}
-.dashboard-workspace .dw-kpi.is-warning {
-  border-left-color: var(--dw-gold);
-}
-
 /* ---------- Rejilla de paneles ---------- */
 
 /* Dos columnas apiladas en lugar de una rejilla 2x2: con paneles de alturas
-   distintas, la rejilla dejaba un hueco muerto a media pagina. */
+   distintas, la rejilla dejaba un hueco muerto a media pagina. La ancha lleva
+   el analisis de la mora; la angosta, lo que se atiende hoy. */
 .dashboard-workspace .dw-grid {
   display: grid;
-  grid-template-columns: minmax(280px, var(--dw-split, 42%)) 44px minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
   gap: 0.85rem;
   align-items: start;
-}
-
-.dashboard-workspace .dw-resize-handle {
-  display: grid;
-  min-height: 160px;
-  margin-inline: -0.85rem;
-  place-items: center;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  cursor: col-resize;
-  outline: none;
-  touch-action: none;
-  z-index: 1;
-}
-
-.dashboard-workspace .dw-resize-handle::before {
-  content: "";
-  width: 3px;
-  height: 72px;
-  border-radius: 999px;
-  background: var(--dw-line);
-  transition: height 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
-}
-
-.dashboard-workspace .dw-resize-handle:hover::before,
-.dashboard-workspace .dw-resize-handle:focus-visible::before,
-.dashboard-workspace .dw-grid.is-resizing .dw-resize-handle::before {
-  height: 104px;
-  background: var(--dw-blue);
-  box-shadow: 0 0 0 5px rgba(20, 101, 217, 0.1);
 }
 
 .dashboard-workspace .dw-col {
@@ -1082,7 +996,7 @@
 .dashboard-workspace .dw-disclosure:hover,
 .dashboard-workspace .dw-ranking button:hover,
 .dashboard-workspace .dw-list button:hover,
-.dashboard-workspace .dw-kpi:hover {
+.dashboard-workspace .dw-stat:hover {
   box-shadow: none;
 }
 
@@ -1100,30 +1014,15 @@
   .dashboard-workspace .dw-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .dashboard-workspace .dw-resize-handle {
-    display: none;
-  }
-  .dashboard-workspace .dw-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 860px) {
-  .dashboard-workspace .dw-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .dashboard-workspace .dw-selection-figures {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 620px) {
-  .dashboard-workspace .dw-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .dashboard-workspace .dw-actions button:last-child {
-    grid-column: 1 / -1;
-  }
   .dashboard-workspace .dw-panel-head {
     flex-direction: column;
     align-items: stretch;
@@ -1152,41 +1051,20 @@
 
 /* Referencia institucional: cifras protagonistas y controles con respuesta breve. */
 .dashboard-workspace { max-width: none; width: 100%; gap: 16px; }
-.dashboard-workspace .dw-status { padding: 16px; }
-.dashboard-workspace .dw-status-source > .dw-eyebrow { color: var(--dw-ink); font-size: 16px; letter-spacing: 0; text-transform: none; }
-.dashboard-workspace .dw-status-source { gap: 5px; }
 .dashboard-workspace .dw-sync.is-retrying { color: var(--dw-gold); }
 .dashboard-workspace .dw-sync.is-retrying .dw-sync-dot { background: var(--dw-gold); }
-.dashboard-workspace .dw-actions button { min-height: 44px; }
 .dashboard-workspace .dw-actions button:first-child { background: var(--dw-blue); border-color: var(--dw-blue); color: #fff; }
 .dashboard-workspace .dw-actions button:first-child .app-icon { color: #fff; }
-.dashboard-workspace .dw-kpis { gap: 12px; }
-.dashboard-workspace .dw-kpi { position: relative; padding: 16px 14px; gap: 5px; grid-template-columns: minmax(0,1fr) 36px; }
-.dashboard-workspace .dw-kpi > .dw-eyebrow { grid-column: 1; grid-row: 1; letter-spacing: 0; text-transform: none; font-size: 13px; }
-.dashboard-workspace .dw-kpi strong { grid-column: 1; font-size: 32px; animation: dw-value-in 240ms ease-out; }
-.dashboard-workspace .dw-kpi small { grid-column: 1 / -1; white-space: normal; line-height: 1.4; }
-.dashboard-workspace .dw-kpi-icon { grid-column: 2; grid-row: 1 / 3; align-self: start; display: grid; place-items: center; width: 36px; height: 40px; background: #edf5ff; border-radius: 9px; color: var(--dw-blue); }
-.dashboard-workspace .dw-kpi.is-map .dw-kpi-icon { background: #e7f9fc; color: #087e96; }
-.dashboard-workspace .dw-kpi.is-live .dw-kpi-icon { background: #e8f8ef; color: #087c57; }
-.dashboard-workspace .dw-kpi.is-critical .dw-kpi-icon { background: #fff0f0; color: var(--dw-red); }
 .dashboard-workspace .dw-panel { padding: 20px; }
 .dashboard-workspace .dw-panel-head { padding-bottom: 10px; border-bottom: 1px solid var(--dw-line-soft); }
 .dashboard-workspace .dw-list button { min-height: 64px; }
 .dashboard-workspace .dw-ranking button { min-height: 52px; }
-.dashboard-workspace .dw-filters { display: flex; gap: 6px; flex-wrap: wrap; }
-.dashboard-workspace .dw-filters button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--dw-line); border-radius: 8px; background: #fff; color: var(--dw-ink); box-shadow: none; font-size: 12px; }
-.dashboard-workspace .dw-filters button[aria-pressed="true"] { background: var(--dw-blue); border-color: var(--dw-blue); color: white; }
 .dashboard-workspace .dw-seg,.dashboard-workspace .dw-ranking-track em,.dashboard-workspace .dw-meter i { transition: width 300ms ease; }
 .dashboard-workspace .dw-button-secondary,.dashboard-workspace .dw-select select { min-height: 44px; }
 @keyframes dw-value-in { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-@media (min-width: 1800px) { .dashboard-workspace .dw-grid { grid-template-columns: minmax(320px, var(--dw-split, 42%)) 44px minmax(420px, 1fr); } }
 @media (max-width: 620px) {
   .dashboard-workspace .dw-panel { padding: 14px; }
   .dashboard-workspace .dw-status-side { width: 100%; }
-  .dashboard-workspace .dw-kpi { padding: 12px 10px; grid-template-columns: minmax(0,1fr) 28px; }
-  .dashboard-workspace .dw-kpi-icon { width: 28px; height: 32px; }
-  .dashboard-workspace .dw-kpi-icon .app-icon { width: 18px; height: 18px; }
-  .dashboard-workspace .dw-kpi strong { font-size: 28px; }
   .dashboard-workspace .dw-amount.is-hero { font-size: clamp(22px,6vw,30px); }
   .dashboard-workspace .dw-cartera-legend > div { flex-wrap: wrap; gap: 4px; }
 }
@@ -1205,49 +1083,6 @@
 /* ===========================================================================
    Tarjetas compactas, pulsación en las acciones y paneles plegables
    =========================================================================== */
-
-/* La tarjeta pasa de bloque alto a fila: el ícono al costado en vez de arriba.
-   Gana la mitad del alto y la cifra sigue siendo lo primero que se lee. */
-.dashboard-workspace .dw-kpi {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    "icono etiqueta cifra"
-    "icono ayuda cifra";
-  align-items: center;
-  column-gap: 0.7rem;
-  row-gap: 0;
-  padding: 0.45rem 0.75rem;
-  transition:
-    border-color 0.16s ease,
-    background 0.16s ease,
-    transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.dashboard-workspace .dw-kpi-icon {
-  grid-area: icono;
-  align-self: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.dashboard-workspace .dw-kpi .dw-eyebrow { grid-area: etiqueta; }
-.dashboard-workspace .dw-kpi strong { grid-area: cifra; align-self: center; justify-self: end; font-size: 23px; line-height: 1; }
-.dashboard-workspace .dw-kpi small { grid-area: ayuda; }
-
-.dashboard-workspace .dw-kpi:hover .dw-kpi-icon { transform: translateY(-1px) scale(1.06); }
-.dashboard-workspace .dw-kpi:active { transform: scale(0.985); }
-
-/* Late solo la tarjeta que pide atención y solo mientras tenga casos. */
-.dashboard-workspace .dw-kpi[data-alerta] .dw-kpi-icon {
-  animation: dw-kpi-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes dw-kpi-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 transparent; }
-  50% { box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 18%, transparent); }
-}
 
 /* Acciones rápidas: la pulsación se siente antes de que cambie la pantalla. */
 .dashboard-workspace .dw-actions button {
@@ -1323,8 +1158,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-workspace .dw-kpi,
-  .dashboard-workspace .dw-kpi-icon,
+  .dashboard-workspace .dw-stat,
   .dashboard-workspace .dw-actions button,
   .dashboard-workspace .dw-actions button .app-icon,
   .dashboard-workspace .dw-panel-body,
@@ -1332,29 +1166,10 @@
     transition: none;
   }
 
-  .dashboard-workspace .dw-kpi[data-alerta] .dw-kpi-icon { animation: none; }
-  .dashboard-workspace .dw-kpi:hover .dw-kpi-icon,
-  .dashboard-workspace .dw-kpi:active,
+  .dashboard-workspace .dw-stat[data-alerta] strong { animation: none; }
+  .dashboard-workspace .dw-stat:active,
   .dashboard-workspace .dw-actions button:active,
   .dashboard-workspace .dw-actions button:hover .app-icon { transform: none; }
-}
-
-/* En pantallas angostas la fila de tres columnas aprieta la etiqueta contra la
-   cifra: ahí el texto vuelve a apilarse al costado del ícono. */
-@media (max-width: 720px) {
-  .dashboard-workspace .dw-kpi {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      "icono etiqueta"
-      "icono cifra"
-      "icono ayuda";
-    padding: 0.55rem 0.7rem;
-  }
-
-  .dashboard-workspace .dw-kpi strong {
-    justify-self: start;
-    font-size: 22px;
-  }
 }
 
 /* ---------- Desglose de un servicio por barrio ---------- */
@@ -1688,4 +1503,312 @@
    mientras se agregan barrios. */
 .dashboard-workspace .dw-selection {
   margin-top: 0.7rem;
+}
+
+/* ===========================================================================
+   Jerarquia: estado en una linea, la cartera primero, acciones compactas
+   =========================================================================== */
+
+/* La banda de estado es contexto, no contenido: una sola linea, sin tarjeta
+   alta. Las cifras operativas ya no se repiten en la barra superior. */
+.dashboard-workspace .dw-status {
+  padding: 0.55rem 0.95rem;
+  border-left-width: 1px;
+  background: var(--dw-tint);
+}
+
+.dashboard-workspace .dw-status-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  color: var(--dw-muted);
+  font-size: 13px;
+}
+
+.dashboard-workspace .dw-status-source .dw-eyebrow {
+  color: var(--dw-ink);
+}
+
+.dashboard-workspace .dw-status .dw-button-secondary {
+  min-height: 36px;
+}
+
+/* --- Resumen de cartera --- */
+
+.dashboard-workspace .dw-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-workspace .dw-hero,
+.dashboard-workspace .dw-stat {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--dw-line);
+  border-radius: var(--dw-radius);
+  background: var(--dw-surface);
+}
+
+.dashboard-workspace .dw-hero {
+  border-top: 3px solid var(--dw-blue);
+}
+
+.dashboard-workspace .dw-hero > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dashboard-workspace .dw-hero .dw-amount.is-hero {
+  font-size: clamp(28px, 2.6vw, 38px);
+}
+
+.dashboard-workspace .dw-hero .dw-cartera-bar {
+  height: 12px;
+}
+
+/* En el resumen la leyenda va en fila: capital e intereses se comparan de un
+   vistazo, sin ocupar dos renglones. */
+.dashboard-workspace .dw-hero .dw-cartera-legend {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-workspace .dw-hero .dw-cartera-legend > div {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0;
+  border: 0;
+}
+
+.dashboard-workspace .dw-hero .dw-cartera-legend dd b {
+  min-width: 0;
+  text-align: left;
+}
+
+.dashboard-workspace .dw-icon-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--dw-line);
+  border-radius: 9px;
+  background: var(--dw-surface);
+  box-shadow: none;
+  color: var(--dw-muted);
+  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+}
+
+.dashboard-workspace .dw-icon-button:hover {
+  border-color: var(--dw-blue);
+  background: var(--dw-tint);
+  box-shadow: none;
+  color: var(--dw-blue);
+}
+
+.dashboard-workspace .dw-icon-button .app-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.dashboard-workspace .dw-stat {
+  border-top: 3px solid #8fb4e6;
+  color: var(--dw-body);
+  text-align: left;
+}
+
+.dashboard-workspace .dw-stat > strong {
+  color: var(--dw-ink);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  animation: dw-value-in 240ms ease-out;
+}
+
+.dashboard-workspace .dw-stat > small {
+  color: var(--dw-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dashboard-workspace .dw-meter.is-blue i {
+  background: var(--dw-blue);
+}
+
+.dashboard-workspace .dw-stat.is-critical {
+  border-top-color: var(--dw-red);
+}
+
+.dashboard-workspace .dw-stat.is-alert {
+  border-top-color: var(--dw-teal);
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dashboard-workspace .dw-stat.is-alert.has-alerts {
+  border-top-color: var(--dw-gold);
+}
+
+.dashboard-workspace .dw-stat.is-alert.has-alerts > strong {
+  color: var(--dw-gold);
+}
+
+.dashboard-workspace .dw-stat.is-alert:hover {
+  background: var(--dw-tint);
+}
+
+.dashboard-workspace .dw-stat.is-alert:active {
+  transform: scale(0.985);
+}
+
+.dashboard-workspace .dw-stat-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: auto;
+  color: var(--dw-blue);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.dashboard-workspace .dw-stat-link .app-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Late solo mientras haya fichas por atender. */
+.dashboard-workspace .dw-stat[data-alerta] > strong {
+  animation: dw-value-in 240ms ease-out, dw-stat-pulse 2.4s ease-in-out 240ms infinite;
+}
+
+@keyframes dw-stat-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+/* --- Acciones rapidas: una barra de herramientas, no una fila de tarjetas --- */
+
+.dashboard-workspace .dw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dashboard-workspace .dw-actions button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0.45rem 0.9rem;
+}
+
+/* --- Insignia con la cifra de cada pendiente --- */
+
+.dashboard-workspace .dw-attention .dw-list button,
+.dashboard-workspace .dw-campo .dw-list button {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  min-height: 56px;
+}
+
+.dashboard-workspace .dw-count {
+  min-width: 2.2em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #fdf1dc;
+  color: var(--dw-gold);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.dashboard-workspace .dw-list button.is-critical .dw-count {
+  background: #fdecee;
+  color: var(--dw-red);
+}
+
+.dashboard-workspace .dw-list button.is-info .dw-count,
+.dashboard-workspace .dw-count.is-neutral {
+  background: #edf5ff;
+  color: var(--dw-ink);
+}
+
+.dashboard-workspace .dw-campo .dw-list button > .app-icon:first-child {
+  color: var(--dw-blue);
+}
+
+/* La mora por servicio ahora tiene su propio panel: el encabezado ya separa. */
+.dashboard-workspace .dw-servicios .dw-service-debt {
+  padding-top: 0;
+  border-top: 0;
+}
+
+@media (max-width: 1280px) {
+  .dashboard-workspace .dw-overview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dashboard-workspace .dw-hero {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-workspace .dw-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-workspace .dw-actions button {
+    flex: 1 1 calc(50% - 0.5rem);
+    justify-content: center;
+  }
+  .dashboard-workspace .dw-hero .dw-cartera-legend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-stat > strong,
+  .dashboard-workspace .dw-stat[data-alerta] > strong {
+    animation: none;
+  }
+}
+
+/* En una sola columna los pendientes no pueden quedar debajo de todo el
+   analisis de mora: las columnas se disuelven y la atencion sube primero. */
+@media (max-width: 1100px) {
+  .dashboard-workspace .dw-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dashboard-workspace .dw-col {
+    display: contents;
+  }
+  .dashboard-workspace .dw-attention {
+    order: -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-workspace .dw-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-workspace .dw-hero,
+  .dashboard-workspace .dw-stat.is-alert {
+    grid-column: 1 / -1;
+  }
+  .dashboard-workspace .dw-stat {
+    padding: 0.85rem;
+  }
+  .dashboard-workspace .dw-stat > strong {
+    font-size: 24px;
+  }
 }

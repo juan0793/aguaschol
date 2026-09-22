@@ -22,8 +22,8 @@ const model = {
   refresh: () => {},
   refreshing: false,
   connectionStatus: "live",
-  syncLabel: "Sincronizado hace 2 segundos",
-  padronTotals: { records: 25158, barrios: 127 },
+  syncLabel: "Sincronizado hace un momento",
+  padronTotals: { records: 25158, barrios: 127, updatedAt: "2026-09-18T14:05:00Z" },
   onlineUsers: [
     { id: 1, full_name: "Ana Díaz", roleLabel: "Administradora" },
     { id: 2, full_name: "Diego Andino", roleLabel: "Técnico" },
@@ -33,12 +33,13 @@ const model = {
   metrics: [
     { key: "records", label: "Fichas activas", value: 55, helper: "0 movimientos hoy", icon: "records", tone: "" },
     { key: "gps", label: "Puntos GPS", value: 5394, helper: "0 puntos registrados hoy", icon: "map", tone: "is-map" },
-    { key: "users", label: "Usuarios en línea", value: 7, helper: "10 usuarios registrados", icon: "users", tone: "is-live" },
-    { key: "alerts", label: "Alertas", value: 10, helper: "Pendientes con plazo crítico", icon: "warning", tone: "is-critical" }
+    { key: "online", label: "Usuarios en línea", value: 7, helper: "10 usuarios registrados", icon: "users", tone: "is-live" },
+    { key: "alerts", label: "Alertas", value: 10, helper: "Pendientes con plazo crítico", trend: "4 vencidas / 2 vencen hoy", icon: "warning", tone: "is-critical" }
   ],
   attention: [
-    { key: "a", level: "critical", title: "Fichas con plazo crítico", detail: "10 fichas están en alerta o vencidas por regla de 7 días hábiles.", icon: "warning", action: () => {} },
-    { key: "b", level: "pending", title: "Fichas sin foto", detail: "36 fichas visibles aún no tienen evidencia fotográfica asociada.", icon: "records", action: () => {} }
+    { key: "c", level: "Informativo", tone: "is-info", title: "Jornada activa", detail: "Hoy: puntos listos para revisar.", count: 18, icon: "map", actionView: "mapReports" },
+    { key: "b", level: "Atención", tone: "is-warning", title: "Fichas sin foto", detail: "Fichas visibles que aún no tienen evidencia fotográfica.", count: 36, icon: "records", actionView: "records" },
+    { key: "a", level: "Crítico", tone: "is-warning", title: "Fichas con plazo crítico", detail: "En alerta o vencidas por la regla de 7 días hábiles.", count: 10, icon: "warning", actionView: "records", filter: "alerts" }
   ],
   debtSummary: { capital: 115357814.1, intereses: 116561243.32, total: 231919057.42, deudores: 19106, criticos: 12925 },
   debtBarrios: [

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
@@ -16,6 +16,12 @@ const QUICK_ACTIONS = [
   ["mapReports", "records", "Ver reportes"],
   ["importacion", "download", "Importar padrón"]
 ];
+
+// Cada indicador de campo abre el módulo donde se trabaja esa cifra.
+const FIELD_VIEWS = { records: "records", gps: "map", online: "users", users: "users" };
+
+// Lo crítico primero: el orden de la lista es el orden en que conviene atender.
+const LEVEL_ORDER = { Crítico: 0, critical: 0, Atención: 1, pending: 1, Informativo: 2 };
 
 const PANELES_KEY = "aguas.dashboard.paneles-plegados";
 
@@ -137,10 +143,7 @@ function Amount({ value, className = "" }) {
 }
 
 export default function DashboardWorkspace({ model }) {
-  const gridRef = useRef(null);
   const buscadorRef = useRef(null);
-  const [splitPercent, setSplitPercent] = useState(42);
-  const [isResizing, setIsResizing] = useState(false);
   const [servicioAbierto, setServicioAbierto] = useState("");
   const [barriosVisibles, setBarriosVisibles] = useState(6);
   // Las cuentas de un servicio se piden al abrirlo y se guardan por servicio,
@@ -166,30 +169,6 @@ export default function DashboardWorkspace({ model }) {
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
   const [barrioAbierto, setBarrioAbierto] = useState("");
-  const [attentionLevel, setAttentionLevel] = useState("");
-
-  useEffect(() => {
-    if (!isResizing) return undefined;
-
-    const move = (event) => {
-      const bounds = gridRef.current?.getBoundingClientRect();
-      if (!bounds) return;
-      const nextPercent = ((event.clientX - bounds.left) / bounds.width) * 100;
-      setSplitPercent(Math.min(62, Math.max(30, nextPercent)));
-    };
-    const stop = () => setIsResizing(false);
-
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop, { once: true });
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-  }, [isResizing]);
-
-  const adjustSplit = (direction) => {
-    setSplitPercent((current) => Math.min(62, Math.max(30, current + direction)));
-  };
 
   // El padron entero ordenado por la metrica activa. El top 5 sale de aca, pero
   // la busqueda necesita la lista completa para encontrar barrios que no entran
@@ -237,6 +216,16 @@ export default function DashboardWorkspace({ model }) {
   const capitalShare = percent(debt.capital, debtTotal);
   const interesShare = percent(debt.intereses, debtTotal);
   const criticalShare = percent(debt.criticos, Number(debt.deudores || 0));
+  const debtorShare = percent(debt.deudores, model.padronTotals.records);
+  const padronDate = model.padronTotals.updatedAt ? formatSpanishDate(model.padronTotals.updatedAt) : "";
+
+  const metricByKey = Object.fromEntries((model.metrics || []).map((item) => [item.key, item]));
+  const alertMetric = metricByKey.alerts || { value: 0 };
+  const alertCount = Number(alertMetric.value || 0);
+  const fieldMetrics = ["records", "gps", "online", "users"].map((key) => metricByKey[key]).filter(Boolean);
+  const attentionItems = [...(model.attention || [])].sort(
+    (left, right) => (LEVEL_ORDER[left.level] ?? 3) - (LEVEL_ORDER[right.level] ?? 3)
+  );
   // El peso relativo se mide contra el total del padron de la MISMA magnitud que
   // se esta ordenando: dinero contra dinero, cuentas contra cuentas.
   const metricTotal = debtMetric === "accounts"
@@ -351,16 +340,20 @@ export default function DashboardWorkspace({ model }) {
     <main className="dashboard-workspace">
       {/* Banda de estado: de que corte del padron provienen las cifras de abajo. */}
       <header className="dw-status">
-        <div className="dw-status-source">
+        <p className="dw-status-source">
           <span className="dw-eyebrow">Padrón maestro</span>
-          <p>
+          <span>
             <strong className="dw-figure">{whole(model.padronTotals.records)}</strong> cuentas
             <span className="dw-sep" aria-hidden="true" />
             <strong className="dw-figure">{whole(model.padronTotals.barrios)}</strong> barrios
-            <span className="dw-sep" aria-hidden="true" />
-            <span className="dw-status-date">{formatSpanishDate(new Date())}</span>
-          </p>
-        </div>
+            {padronDate ? (
+              <>
+                <span className="dw-sep" aria-hidden="true" />
+                <span className="dw-status-date">Corte del {padronDate}</span>
+              </>
+            ) : null}
+          </span>
+        </p>
         <div className="dw-status-side">
           {model.onlineUsers.length ? (
             <div
@@ -385,6 +378,86 @@ export default function DashboardWorkspace({ model }) {
         </div>
       </header>
 
+      {/* La cartera es la cifra que define el dia: va primero y con mas peso.
+          Las tres tarjetas de al lado la explican o piden accion. */}
+      <section className="dw-overview" aria-label="Resumen de cartera">
+        <article className="dw-hero">
+          <header>
+            <span className="dw-eyebrow">Cartera en mora</span>
+            <button type="button" className="dw-icon-button" onClick={printDebtSummary} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
+              <Icon name="print" />
+            </button>
+          </header>
+          <p className="dw-cartera-total">
+            <Amount value={debtTotal} className="is-hero" />
+          </p>
+          <div
+            className="dw-cartera-bar"
+            role="img"
+            aria-label={`Capital ${oneDecimal(capitalShare)}, intereses ${oneDecimal(interesShare)} de la mora total`}
+          >
+            <span className="dw-seg is-capital" style={{ width: `${capitalShare}%` }} />
+            <span className="dw-seg is-interes" style={{ width: `${interesShare}%` }} />
+          </div>
+          <dl className="dw-cartera-legend">
+            <div>
+              <dt>
+                <i className="is-capital" aria-hidden="true" />
+                Capital
+              </dt>
+              <dd>
+                <Amount value={debt.capital} />
+                <b className="dw-figure">{oneDecimal(capitalShare)}</b>
+              </dd>
+            </div>
+            <div>
+              <dt>
+                <i className="is-interes" aria-hidden="true" />
+                Intereses
+              </dt>
+              <dd>
+                <Amount value={debt.intereses} />
+                <b className="dw-figure">{oneDecimal(interesShare)}</b>
+              </dd>
+            </div>
+          </dl>
+        </article>
+
+        <div className="dw-stat">
+          <span className="dw-eyebrow">Cuentas con mora</span>
+          <strong className="dw-figure">{whole(debt.deudores)}</strong>
+          <div className="dw-meter is-blue" role="img" aria-label={`${oneDecimal(debtorShare)} de las cuentas del padrón tienen mora`}>
+            <i style={{ width: `${debtorShare}%` }} />
+          </div>
+          <small>{oneDecimal(debtorShare)} de las {whole(model.padronTotals.records)} cuentas del padrón</small>
+        </div>
+
+        <div className="dw-stat is-critical">
+          <span className="dw-eyebrow">Casos críticos</span>
+          <strong className="dw-figure">{whole(debt.criticos)}</strong>
+          <div className="dw-meter" role="img" aria-label={`${oneDecimal(criticalShare)} de las cuentas con mora son críticas`}>
+            <i style={{ width: `${criticalShare}%` }} />
+          </div>
+          <small>{oneDecimal(criticalShare)} de las cuentas con mora · mora de {"L\u00a01,000"} o más</small>
+        </div>
+
+        <button
+          type="button"
+          className={`dw-stat is-alert ${alertCount ? "has-alerts" : ""}`.trim()}
+          // Late solo cuando hay algo que atender: un pulso permanente seria ruido.
+          data-alerta={alertCount ? "" : undefined}
+          onClick={() => navigate("records", "alerts")}
+        >
+          <span className="dw-eyebrow">Fichas con plazo crítico</span>
+          <strong className="dw-figure">{whole(alertCount)}</strong>
+          <small>{alertCount ? alertMetric.trend || alertMetric.helper : "Sin fichas vencidas ni por vencer"}</small>
+          <span className="dw-stat-link">
+            Ver alertas
+            <Icon name="arrowRight" />
+          </span>
+        </button>
+      </section>
+
       <nav className="dw-actions" aria-label="Acciones rápidas">
         {QUICK_ACTIONS.map(([view, icon, label]) => (
           <button type="button" key={view} onClick={() => model.navigate(view)}>
@@ -394,234 +467,11 @@ export default function DashboardWorkspace({ model }) {
         ))}
       </nav>
 
-      <section className="dw-kpis" aria-label="Indicadores principales">
-        {model.metrics.map((item) => (
-          <button
-            type="button"
-            className={`dw-kpi ${item.tone || ""}`.trim()}
-            key={item.key}
-            // El ícono late solo cuando hay algo que atender: un pulso
-            // permanente en las cuatro tarjetas sería ruido, no aviso.
-            data-alerta={["is-critical", "is-warning"].includes(item.tone) && Number(item.value) > 0 ? "" : undefined}
-            onClick={() =>
-              navigate(
-                item.key === "gps" ? "map" : item.key === "records" || item.key === "alerts" ? "records" : "users",
-                item.key === "alerts" ? "alerts" : ""
-              )
-            }
-          >
-            <span className="dw-kpi-icon"><Icon name={item.icon} /></span>
-            <span className="dw-eyebrow">{item.label}</span>
-            <strong className="dw-figure" key={item.value}>{whole(item.value)}</strong>
-            <small>{item.helper}</small>
-          </button>
-        ))}
-      </section>
-
-      <div
-        ref={gridRef}
-        className={`dw-grid ${isResizing ? "is-resizing" : ""}`.trim()}
-        style={{ "--dw-split": `${splitPercent}%` }}
-      >
-        {/* Columna izquierda: primero lo accionable, despues la cifra. */}
-        <div className="dw-col">
-          <article className="dw-panel dw-attention">
-                    <header className="dw-panel-head">
-                      <div>
-                        <span className="dw-eyebrow">Prioridades</span>
-                        <h2>Atención requerida</h2>
-                      </div>
-                    </header>
-                    <div className="dw-filters" role="group" aria-label="Filtrar prioridades">
-                      {[["", "Todas"], ["Crítico", "Críticas"], ["Atención", "Pendientes"]].map(([value, label]) => (
-                        <button type="button" key={value} aria-pressed={attentionLevel === value} onClick={() => setAttentionLevel(value)}>{label}</button>
-                      ))}
-                    </div>
-                    <ul className="dw-list">
-                      {model.attention.filter((item) => !attentionLevel || item.level === attentionLevel).map((item) => (
-                        <li key={item.title}>
-                          <button type="button" className={item.tone || ""} onClick={() => navigate(item.actionView, item.filter || "")}>
-                            <Icon name={item.icon} />
-                            <span>
-                              <strong>{item.title}</strong>
-                              <small>{item.detail}</small>
-                            </span>
-                            <Icon name="arrowRight" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    {!model.attention.some((item) => !attentionLevel || item.level === attentionLevel) ? <p className="dw-empty">No hay prioridades en esta categoría.</p> : null}
-                  </article>
-          <article className="dw-panel dw-cartera" data-plegado={plegados.has("cartera")}>
-                    <header className="dw-panel-head">
-                      <div>
-                        <span className="dw-eyebrow">Situación financiera</span>
-                        <h2>Cartera en mora</h2>
-                      </div>
-                      <BotonPlegar plegado={plegados.has("cartera")} titulo="la cartera en mora" onToggle={() => alternarPanel("cartera")} />
-                    </header>
-                    <div className="dw-panel-body"><div className="dw-panel-body-inner">
-
-                    <p className="dw-cartera-total">
-                      <Amount value={debtTotal} className="is-hero" />
-                    </p>
-
-                    <div
-                      className="dw-cartera-bar"
-                      role="img"
-                      aria-label={`Capital ${oneDecimal(capitalShare)}, intereses ${oneDecimal(interesShare)} de la mora total`}
-                    >
-                      <span className="dw-seg is-capital" style={{ width: `${capitalShare}%` }} />
-                      <span className="dw-seg is-interes" style={{ width: `${interesShare}%` }} />
-                    </div>
-
-                    <dl className="dw-cartera-legend">
-                      <div>
-                        <dt>
-                          <i className="is-capital" aria-hidden="true" />
-                          Capital
-                        </dt>
-                        <dd>
-                          <Amount value={debt.capital} />
-                          <b className="dw-figure">{oneDecimal(capitalShare)}</b>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>
-                          <i className="is-interes" aria-hidden="true" />
-                          Intereses
-                        </dt>
-                        <dd>
-                          <Amount value={debt.intereses} />
-                          <b className="dw-figure">{oneDecimal(interesShare)}</b>
-                        </dd>
-                      </div>
-                    </dl>
-
-                    <div className="dw-cartera-foot">
-                      <p>
-                        <strong className="dw-figure">{whole(debt.criticos)}</strong> de{" "}
-                        <strong className="dw-figure">{whole(debt.deudores)}</strong> cuentas con mora son críticas
-                      </p>
-                      <div className="dw-meter" role="img" aria-label={`${oneDecimal(criticalShare)} de las cuentas con mora son críticas`}>
-                        <i style={{ width: `${criticalShare}%` }} />
-                      </div>
-                      <small className="dw-note">Crítica: mora igual o mayor a L 1,000.</small>
-                    </div>
-
-                    {serviceDebt.length ? (
-                      <section className="dw-service-debt">
-                        <span className="dw-eyebrow">Mora asociada por servicio</span>
-                        <ul>
-                          {serviceDebt.map((service) => {
-                            const abierto = servicioAbierto === service.field;
-                            const filas = abierto ? barriosDeServicio(model.debtBarrios, service.field) : [];
-                            const mayor = Math.max(1, ...filas.map((fila) => fila.deuda));
-                            const cuentas = filas.reduce((suma, fila) => suma + fila.cuentas, 0);
-                            return (
-                              <li key={service.field} data-service={service.field} data-abierto={abierto ? "" : undefined}>
-                                <button
-                                  type="button"
-                                  className="dw-service-row"
-                                  aria-expanded={abierto}
-                                  onClick={() => {
-                                    setBarriosVisibles(6);
-                                    setServicioAbierto(abierto ? "" : service.field);
-                                    if (!abierto && model.fetchServiceAccounts && !cuentasPorServicio[service.field]) {
-                                      cargarCuentasServicio(service.field);
-                                    }
-                                  }}
-                                >
-                                  <span className="dw-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
-                                  <Amount value={service.debt} />
-                                  <Icon name="chevronDown" className="dw-service-chevron" />
-                                  <i className="dw-service-track" aria-hidden="true">
-                                    <em style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} />
-                                  </i>
-                                </button>
-                                {abierto ? (
-                                  <div className="dw-service-drill">
-                                    <p className="dw-service-drill-head">
-                                      <strong className="dw-figure">{whole(filas.length)}</strong> barrios con el servicio activo
-                                      <span className="dw-sep" aria-hidden="true" />
-                                      <strong className="dw-figure">{whole(cuentas)}</strong> cuentas
-                                    </p>
-                                    {filas.length ? (
-                                      <ul className="dw-drill-list">
-                                        {filas.slice(0, barriosVisibles).map((fila) => (
-                                          <li key={fila.barrio}>
-                                            <span className="dw-drill-name">{fila.barrio}</span>
-                                            <span className="dw-drill-meta">{whole(fila.cuentas)} cuentas · {whole(fila.criticos)} críticas</span>
-                                            <Amount value={fila.deuda} />
-                                            <i className="dw-service-track" aria-hidden="true">
-                                              <em style={{ transform: `scaleX(${fila.deuda / mayor})` }} />
-                                            </i>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    ) : (
-                                      <p className="dw-empty">Ningún barrio tiene este servicio activo.</p>
-                                    )}
-                                    {filas.length > barriosVisibles ? (
-                                      <button type="button" className="dw-link" onClick={() => setBarriosVisibles(filas.length)}>
-                                        Ver los {whole(filas.length)} barrios
-                                      </button>
-                                    ) : null}
-                                    <div className="dw-service-drill-actions">
-                                      <button type="button" className="dw-button-secondary" onClick={() => printServiceDebt(service)}>
-                                        <Icon name="print" />
-                                        Ver / imprimir PDF
-                                      </button>
-                                    </div>
-                                    <CuentasDelServicio
-                                      estado={cuentasPorServicio[service.field]}
-                                      onLoadAll={() => cargarCuentasServicio(service.field, "all")}
-                                    />
-                                  </div>
-                                ) : null}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
-                    </section>
-                    ) : null}
-                    <footer className="dw-panel-foot">
-                      <button type="button" className="dw-button-secondary" onClick={printDebtSummary}>
-                        <Icon name="print" />
-                        Ver / imprimir resumen PDF
-                      </button>
-                    </footer>
-                    </div></div>
-          </article>
-        </div>
-        <div
-          className="dw-resize-handle"
-          role="separator"
-          tabIndex="0"
-          aria-label="Ajustar ancho de los paneles"
-          aria-orientation="vertical"
-          aria-valuemin="30"
-          aria-valuemax="62"
-          aria-valuenow={Math.round(splitPercent)}
-          onPointerDown={(event) => {
-            event.preventDefault();
-            setIsResizing(true);
-          }}
-          onDoubleClick={() => setSplitPercent(42)}
-          onKeyDown={(event) => {
-            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-            event.preventDefault();
-            if (event.key === "ArrowLeft") adjustSplit(-2);
-            if (event.key === "ArrowRight") adjustSplit(2);
-            if (event.key === "Home") setSplitPercent(30);
-            if (event.key === "End") setSplitPercent(62);
-          }}
-        >
-          <span aria-hidden="true" />
-        </div>
-        <div className="dw-col">
+      {/* Columna ancha para el analisis de la mora; la angosta para lo que se
+          atiende hoy. Rejilla fija: el divisor arrastrable parecia una barra
+          de desplazamiento suelta y nadie lo usaba. */}
+      <div className="dw-grid">
+        <div className="dw-col dw-col-main">
           <article className="dw-panel dw-mora" data-metric={debtMetric} data-plegado={plegados.has("mora")}>
                     <header className="dw-panel-head">
                       <div>
@@ -889,6 +739,156 @@ export default function DashboardWorkspace({ model }) {
                     </footer>
                     </div></div>
                   </article>
+          {serviceDebt.length ? (
+            <article className="dw-panel dw-servicios" data-plegado={plegados.has("servicios")}>
+              <header className="dw-panel-head">
+                <div>
+                  <span className="dw-eyebrow">Composición de la mora</span>
+                  <h2>Mora por servicio</h2>
+                </div>
+                <BotonPlegar plegado={plegados.has("servicios")} titulo="la mora por servicio" onToggle={() => alternarPanel("servicios")} />
+              </header>
+              <div className="dw-panel-body"><div className="dw-panel-body-inner">
+                <section className="dw-service-debt">
+                        <ul>
+                          {serviceDebt.map((service) => {
+                            const abierto = servicioAbierto === service.field;
+                            const filas = abierto ? barriosDeServicio(model.debtBarrios, service.field) : [];
+                            const mayor = Math.max(1, ...filas.map((fila) => fila.deuda));
+                            const cuentas = filas.reduce((suma, fila) => suma + fila.cuentas, 0);
+                            return (
+                              <li key={service.field} data-service={service.field} data-abierto={abierto ? "" : undefined}>
+                                <button
+                                  type="button"
+                                  className="dw-service-row"
+                                  aria-expanded={abierto}
+                                  onClick={() => {
+                                    setBarriosVisibles(6);
+                                    setServicioAbierto(abierto ? "" : service.field);
+                                    if (!abierto && model.fetchServiceAccounts && !cuentasPorServicio[service.field]) {
+                                      cargarCuentasServicio(service.field);
+                                    }
+                                  }}
+                                >
+                                  <span className="dw-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
+                                  <Amount value={service.debt} />
+                                  <Icon name="chevronDown" className="dw-service-chevron" />
+                                  <i className="dw-service-track" aria-hidden="true">
+                                    <em style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} />
+                                  </i>
+                                </button>
+                                {abierto ? (
+                                  <div className="dw-service-drill">
+                                    <p className="dw-service-drill-head">
+                                      <strong className="dw-figure">{whole(filas.length)}</strong> barrios con el servicio activo
+                                      <span className="dw-sep" aria-hidden="true" />
+                                      <strong className="dw-figure">{whole(cuentas)}</strong> cuentas
+                                    </p>
+                                    {filas.length ? (
+                                      <ul className="dw-drill-list">
+                                        {filas.slice(0, barriosVisibles).map((fila) => (
+                                          <li key={fila.barrio}>
+                                            <span className="dw-drill-name">{fila.barrio}</span>
+                                            <span className="dw-drill-meta">{whole(fila.cuentas)} cuentas · {whole(fila.criticos)} críticas</span>
+                                            <Amount value={fila.deuda} />
+                                            <i className="dw-service-track" aria-hidden="true">
+                                              <em style={{ transform: `scaleX(${fila.deuda / mayor})` }} />
+                                            </i>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="dw-empty">Ningún barrio tiene este servicio activo.</p>
+                                    )}
+                                    {filas.length > barriosVisibles ? (
+                                      <button type="button" className="dw-link" onClick={() => setBarriosVisibles(filas.length)}>
+                                        Ver los {whole(filas.length)} barrios
+                                      </button>
+                                    ) : null}
+                                    <div className="dw-service-drill-actions">
+                                      <button type="button" className="dw-button-secondary" onClick={() => printServiceDebt(service)}>
+                                        <Icon name="print" />
+                                        Ver / imprimir PDF
+                                      </button>
+                                    </div>
+                                    <CuentasDelServicio
+                                      estado={cuentasPorServicio[service.field]}
+                                      onLoadAll={() => cargarCuentasServicio(service.field, "all")}
+                                    />
+                                  </div>
+                                ) : null}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                  <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
+                </section>
+                <footer className="dw-panel-foot">
+                  <button type="button" className="dw-button-secondary" onClick={printDebtSummary}>
+                    <Icon name="print" />
+                    Ver / imprimir resumen PDF
+                  </button>
+                </footer>
+              </div></div>
+            </article>
+          ) : null}
+        </div>
+
+        <aside className="dw-col dw-col-side" aria-label="Pendientes y actividad">
+          <article className="dw-panel dw-attention">
+            <header className="dw-panel-head">
+              <div>
+                <span className="dw-eyebrow">Prioridades</span>
+                <h2>Atención requerida</h2>
+              </div>
+            </header>
+            <ul className="dw-list">
+              {attentionItems.map((item) => {
+                const tone = LEVEL_ORDER[item.level] === 0 ? "is-critical" : item.tone || "";
+                return (
+                  <li key={item.key || item.title}>
+                    <button type="button" className={tone} onClick={() => navigate(item.actionView, item.filter || "")}>
+                      <Icon name={item.icon} />
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>{item.detail}</small>
+                      </span>
+                      {Number.isFinite(item.count) ? <b className="dw-count dw-figure">{whole(item.count)}</b> : <i aria-hidden="true" />}
+                      <Icon name="arrowRight" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {!attentionItems.length ? <p className="dw-empty">No hay prioridades pendientes.</p> : null}
+          </article>
+
+          {fieldMetrics.length ? (
+            <article className="dw-panel dw-campo">
+              <header className="dw-panel-head">
+                <div>
+                  <span className="dw-eyebrow">Operación de campo</span>
+                  <h2>Actividad del equipo</h2>
+                </div>
+              </header>
+              <ul className="dw-list">
+                {fieldMetrics.map((item) => (
+                  <li key={item.key}>
+                    <button type="button" className={item.tone || ""} onClick={() => navigate(FIELD_VIEWS[item.key] || "users")}>
+                      <Icon name={item.icon} />
+                      <span>
+                        <strong>{item.label}</strong>
+                        <small>{item.helper}</small>
+                      </span>
+                      <b className="dw-count is-neutral dw-figure">{whole(item.value)}</b>
+                      <Icon name="arrowRight" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ) : null}
+
           <article className="dw-panel dw-feed">
                     <header className="dw-panel-head">
                       <div>
@@ -911,7 +911,7 @@ export default function DashboardWorkspace({ model }) {
                     </ul>
                     {!model.feed.length ? <p className="dw-empty">Aún no hay actividad reciente.</p> : null}
                   </article>
-        </div>
+        </aside>
       </div>
     </main>
   );
