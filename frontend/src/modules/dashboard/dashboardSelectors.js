@@ -77,3 +77,18 @@ export const clampSplit = (percent, availableWidth = 0, minMain = 420, minSide =
   const max = 100 - (minSide / width) * 100;
   return Math.round(Math.min(max, Math.max(min, value)) * 10) / 10;
 };
+
+// "7 de cada 10": una proporcion dicha como la diria una persona. Se redondea
+// a decimos; con total cero no hay lectura posible.
+export const ofEachTen = (part, total) => {
+  const denominator = Number(total || 0);
+  if (!denominator) return "";
+  const tenths = Math.round((Number(part || 0) / denominator) * 10);
+  return `${tenths} de cada 10`;
+};
+
+// Cuantos lempiras de interes se deben por cada lempira de capital.
+export const interestPerCapital = (intereses, capital) => {
+  const base = Number(capital || 0);
+  return base ? Number(intereses || 0) / base : 0;
+};

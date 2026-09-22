@@ -469,19 +469,6 @@ body.dw-resizing * {
   font-weight: 700;
 }
 
-.dashboard-workspace .dw-meter {
-  height: 5px;
-  overflow: hidden;
-  border-radius: 99px;
-  background: var(--dw-tint);
-}
-
-.dashboard-workspace .dw-meter i {
-  display: block;
-  height: 100%;
-  background: var(--dw-red);
-}
-
 .dashboard-workspace .dw-note {
   color: var(--dw-muted);
   font-size: 11.5px;
@@ -1074,8 +1061,7 @@ body.dw-resizing * {
 .dashboard-workspace .dw-link:hover,
 .dashboard-workspace .dw-disclosure:hover,
 .dashboard-workspace .dw-ranking button:hover,
-.dashboard-workspace .dw-list button:hover,
-.dashboard-workspace .dw-stat:hover {
+.dashboard-workspace .dw-list button:hover {
   box-shadow: none;
 }
 
@@ -1138,9 +1124,8 @@ body.dw-resizing * {
 .dashboard-workspace .dw-panel-head { padding-bottom: 10px; border-bottom: 1px solid var(--dw-line-soft); }
 .dashboard-workspace .dw-list button { min-height: 64px; }
 .dashboard-workspace .dw-ranking button { min-height: 52px; }
-.dashboard-workspace .dw-seg,.dashboard-workspace .dw-ranking-track em,.dashboard-workspace .dw-meter i { transition: width 300ms ease; }
+.dashboard-workspace .dw-seg,.dashboard-workspace .dw-ranking-track em { transition: width 300ms ease; }
 .dashboard-workspace .dw-button-secondary,.dashboard-workspace .dw-select select { min-height: 44px; }
-@keyframes dw-value-in { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 620px) {
   .dashboard-workspace .dw-panel { padding: 14px; }
   .dashboard-workspace .dw-status-side { width: 100%; }
@@ -1234,7 +1219,7 @@ body.dw-resizing * {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-workspace .dw-stat,
+  .dashboard-workspace .dw-plazos,
   .dashboard-workspace .dw-actions button,
   .dashboard-workspace .dw-actions button .app-icon,
   .dashboard-workspace .dw-panel-body,
@@ -1242,8 +1227,7 @@ body.dw-resizing * {
     transition: none;
   }
 
-  .dashboard-workspace .dw-stat[data-alerta] strong { animation: none; }
-  .dashboard-workspace .dw-stat:active,
+  .dashboard-workspace .dw-plazos:active,
   .dashboard-workspace .dw-actions button:active,
   .dashboard-workspace .dw-actions button:hover .app-icon { transform: none; }
 }
@@ -1611,62 +1595,336 @@ body.dw-resizing * {
   min-height: 36px;
 }
 
-/* --- Resumen de cartera --- */
+/* --- Resumen de cartera ---
+   Una sola pieza: el monto a la izquierda y las cuentas del padron como
+   niveles sobre una regla graduada a la derecha. Los plazos de fichas van en
+   su propia tarjeta porque son trabajo operativo, no cartera. */
 
 .dashboard-workspace .dw-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.3fr);
   gap: 0.75rem;
 }
 
-.dashboard-workspace .dw-hero,
-.dashboard-workspace .dw-stat {
+.dashboard-workspace .dw-resumen {
+  --nivel-label: 12.5rem;
   display: grid;
-  align-content: start;
-  gap: 0.5rem;
-  min-width: 0;
-  padding: 1rem 1.1rem;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.45fr);
+  overflow: hidden;
   border: 1px solid var(--dw-line);
   border-radius: var(--dw-radius);
   background: var(--dw-surface);
 }
 
-.dashboard-workspace .dw-hero {
-  border-top: 3px solid var(--dw-blue);
+.dashboard-workspace .dw-resumen-monto {
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+  padding: 1.1rem 1.25rem;
+  border-right: 1px solid var(--dw-line-soft);
+  box-shadow: inset 0 3px 0 var(--dw-blue);
 }
 
-.dashboard-workspace .dw-hero > header {
+.dashboard-workspace .dw-resumen-monto > header,
+.dashboard-workspace .dw-niveles > header,
+.dashboard-workspace .dw-plazos-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.35rem 0.75rem;
+  min-height: 32px;
 }
 
-.dashboard-workspace .dw-hero .dw-amount.is-hero {
-  font-size: clamp(28px, 2.6vw, 38px);
+.dashboard-workspace .dw-resumen .dw-amount.is-hero {
+  font-size: clamp(30px, 2.5vw, 38px);
 }
 
-.dashboard-workspace .dw-hero .dw-cartera-bar {
-  height: 12px;
+.dashboard-workspace .dw-resumen .dw-cartera-bar {
+  gap: 2px;
+  height: 10px;
+  border-radius: 4px;
 }
 
-/* En el resumen la leyenda va en fila: capital e intereses se comparan de un
-   vistazo, sin ocupar dos renglones. */
-.dashboard-workspace .dw-hero .dw-cartera-legend {
+.dashboard-workspace .dw-resumen .dw-cartera-legend {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
-.dashboard-workspace .dw-hero .dw-cartera-legend > div {
+.dashboard-workspace .dw-resumen .dw-cartera-legend > div {
   display: grid;
   gap: 0.15rem;
   padding: 0;
   border: 0;
 }
 
-.dashboard-workspace .dw-hero .dw-cartera-legend dd b {
+.dashboard-workspace .dw-resumen .dw-cartera-legend dd b {
   min-width: 0;
   text-align: left;
+}
+
+/* Lectura en palabras de lo que dicen las cifras: una sola linea, con datos. */
+.dashboard-workspace .dw-lectura {
+  margin: 0;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--dw-line);
+  color: var(--dw-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.dashboard-workspace .dw-lectura strong {
+  color: var(--dw-ink);
+  font-weight: 700;
+}
+
+/* --- Niveles sobre la regla --- */
+
+.dashboard-workspace .dw-niveles {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--dw-tint);
+}
+
+.dashboard-workspace .dw-niveles-promedio {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--dw-muted);
+  font-size: 12px;
+}
+
+.dashboard-workspace .dw-niveles-promedio .dw-amount {
+  font-size: 13.5px;
+}
+
+.dashboard-workspace .dw-regla {
+  position: relative;
+  height: 18px;
+  margin-left: var(--nivel-label);
+  border-bottom: 1px solid #b9cde4;
+}
+
+.dashboard-workspace .dw-regla span {
+  position: absolute;
+  bottom: 5px;
+  color: var(--dw-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.dashboard-workspace .dw-regla span:first-child { transform: none; }
+.dashboard-workspace .dw-regla span:last-child { transform: translateX(-100%); }
+
+/* Cada marca baja hasta la linea de la regla. */
+.dashboard-workspace .dw-regla span::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 1px;
+  height: 5px;
+  background: #b9cde4;
+}
+
+.dashboard-workspace .dw-regla span:first-child::after { left: 0; }
+.dashboard-workspace .dw-regla span:last-child::after { left: auto; right: 0; }
+
+.dashboard-workspace .dw-niveles-lista {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard-workspace .dw-niveles-lista li {
+  display: grid;
+  grid-template-columns: var(--nivel-label) minmax(0, 1fr);
+  align-items: center;
+}
+
+.dashboard-workspace .dw-nivel-texto {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 0.4rem;
+  padding-right: 0.9rem;
+}
+
+.dashboard-workspace .dw-nivel-texto strong {
+  color: var(--dw-ink);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dashboard-workspace .dw-nivel-texto span {
+  color: var(--dw-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.dashboard-workspace .dw-nivel-texto small {
+  grid-column: 1 / -1;
+  color: var(--dw-muted);
+  font-size: 11.5px;
+}
+
+/* La pista lleva las mismas divisiones de 25 % que la regla: el nivel se lee
+   contra las marcas sin tener que mirar arriba. */
+.dashboard-workspace .dw-nivel-barra {
+  display: block;
+  height: 22px;
+  overflow: hidden;
+  border: 1px solid var(--dw-line-soft);
+  border-radius: 5px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgba(20, 101, 217, 0.12) calc(25% - 1px) 25%),
+    var(--dw-surface);
+}
+
+.dashboard-workspace .dw-nivel-barra b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 500ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dashboard-workspace .dw-niveles-lista .is-padron b { background: #c9dcf3; }
+.dashboard-workspace .dw-niveles-lista .is-mora b { background: var(--dw-blue); }
+.dashboard-workspace .dw-niveles-lista .is-critica b { background: var(--dw-red); }
+.dashboard-workspace .dw-niveles-lista .is-critica .dw-nivel-texto strong { color: var(--dw-red); }
+
+/* --- Plazos de fichas --- */
+
+.dashboard-workspace .dw-plazos {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--dw-line);
+  border-radius: var(--dw-radius);
+  background: var(--dw-surface);
+  box-shadow: inset 0 3px 0 var(--dw-teal);
+  color: var(--dw-body);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dashboard-workspace .dw-plazos.has-alerts {
+  box-shadow: inset 0 3px 0 #d59124;
+}
+
+.dashboard-workspace .dw-plazos:hover {
+  border-color: rgba(20, 101, 217, 0.3);
+  background: var(--dw-tint);
+  box-shadow: inset 0 3px 0 var(--dw-teal);
+}
+
+.dashboard-workspace .dw-plazos.has-alerts:hover {
+  box-shadow: inset 0 3px 0 #d59124;
+}
+
+.dashboard-workspace .dw-plazos:active {
+  transform: scale(0.985);
+}
+
+.dashboard-workspace .dw-plazos-head .app-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--dw-teal);
+}
+
+.dashboard-workspace .dw-plazos.has-alerts .dw-plazos-head .app-icon {
+  color: #b86f08;
+}
+
+.dashboard-workspace .dw-plazos-cifra {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.dashboard-workspace .dw-plazos-cifra strong {
+  color: var(--dw-ink);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dashboard-workspace .dw-plazos-cifra span {
+  max-width: 13ch;
+  color: var(--dw-muted);
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.dashboard-workspace .dw-plazos-barra {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e2e9f2;
+}
+
+.dashboard-workspace .dw-plazos-barra i {
+  display: block;
+  height: 100%;
+}
+
+.dashboard-workspace .dw-plazos .is-overdue i,
+.dashboard-workspace .dw-plazos-barra .is-overdue { background: var(--dw-red); }
+.dashboard-workspace .dw-plazos .is-due i,
+.dashboard-workspace .dw-plazos-barra .is-due { background: #d59124; }
+.dashboard-workspace .dw-plazos .is-upcoming i,
+.dashboard-workspace .dw-plazos-barra .is-upcoming { background: #f0cd84; }
+
+.dashboard-workspace .dw-plazos-leyenda {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.dashboard-workspace .dw-plazos-leyenda > span {
+  display: grid;
+  grid-template-columns: 8px 2.5ch minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--dw-body);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.dashboard-workspace .dw-plazos-leyenda > span[data-vacio] {
+  opacity: 0.55;
+}
+
+.dashboard-workspace .dw-plazos-leyenda i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.dashboard-workspace .dw-plazos-leyenda b {
+  color: var(--dw-ink);
+  font-weight: 700;
+  text-align: right;
+}
+
+.dashboard-workspace .dw-plazos-ok {
+  color: var(--dw-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .dashboard-workspace .dw-icon-button {
@@ -1696,59 +1954,6 @@ body.dw-resizing * {
   height: 16px;
 }
 
-.dashboard-workspace .dw-stat {
-  border-top: 3px solid #8fb4e6;
-  color: var(--dw-body);
-  text-align: left;
-}
-
-.dashboard-workspace .dw-stat > strong {
-  color: var(--dw-ink);
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.1;
-  animation: dw-value-in 240ms ease-out;
-}
-
-.dashboard-workspace .dw-stat > small {
-  color: var(--dw-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.dashboard-workspace .dw-meter.is-blue i {
-  background: var(--dw-blue);
-}
-
-.dashboard-workspace .dw-stat.is-critical {
-  border-top-color: var(--dw-red);
-}
-
-.dashboard-workspace .dw-stat.is-alert {
-  border-top-color: var(--dw-teal);
-  cursor: pointer;
-  transition:
-    border-color 0.16s ease,
-    background 0.16s ease,
-    transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.dashboard-workspace .dw-stat.is-alert.has-alerts {
-  border-top-color: var(--dw-gold);
-}
-
-.dashboard-workspace .dw-stat.is-alert.has-alerts > strong {
-  color: var(--dw-gold);
-}
-
-.dashboard-workspace .dw-stat.is-alert:hover {
-  background: var(--dw-tint);
-}
-
-.dashboard-workspace .dw-stat.is-alert:active {
-  transform: scale(0.985);
-}
-
 .dashboard-workspace .dw-stat-link {
   display: inline-flex;
   align-items: center;
@@ -1765,13 +1970,13 @@ body.dw-resizing * {
 }
 
 /* Late solo mientras haya fichas por atender. */
-.dashboard-workspace .dw-stat[data-alerta] > strong {
-  animation: dw-value-in 240ms ease-out, dw-stat-pulse 2.4s ease-in-out 240ms infinite;
+.dashboard-workspace .dw-plazos[data-alerta] .dw-plazos-head .app-icon {
+  animation: dw-stat-pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes dw-stat-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.72; }
+  50% { opacity: 0.55; }
 }
 
 /* --- Acciones rapidas: una barra de herramientas, no una fila de tarjetas --- */
@@ -1828,32 +2033,81 @@ body.dw-resizing * {
   border-top: 0;
 }
 
+/* Debajo del resumen, los plazos pasan a franja: cifra, barra y enlace en
+   una fila en lugar de una tarjeta ancha y vacia. */
 @media (max-width: 1280px) {
   .dashboard-workspace .dw-overview {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
-  .dashboard-workspace .dw-hero {
-    grid-column: 1 / -1;
+  .dashboard-workspace .dw-plazos {
+    grid-template-columns: minmax(170px, auto) minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head barra link"
+      "cifra leyenda link";
+    align-items: center;
+    column-gap: 1.5rem;
+  }
+  .dashboard-workspace .dw-plazos-head { grid-area: head; }
+  .dashboard-workspace .dw-plazos-cifra { grid-area: cifra; }
+  .dashboard-workspace .dw-plazos-barra { grid-area: barra; }
+  .dashboard-workspace .dw-plazos-leyenda {
+    grid-area: leyenda;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.25rem;
+  }
+  .dashboard-workspace .dw-plazos-ok { grid-area: leyenda; }
+  .dashboard-workspace .dw-plazos > .dw-stat-link { grid-area: link; margin-top: 0; }
+}
+
+@media (max-width: 560px) {
+  .dashboard-workspace .dw-plazos {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "cifra" "barra" "leyenda" "link";
+  }
+  .dashboard-workspace .dw-plazos-leyenda {
+    display: grid;
+  }
+}
+
+@media (max-width: 860px) {
+  .dashboard-workspace .dw-resumen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-workspace .dw-resumen-monto {
+    border-right: 0;
+    border-bottom: 1px solid var(--dw-line-soft);
   }
 }
 
 @media (max-width: 720px) {
-  .dashboard-workspace .dw-overview {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .dashboard-workspace .dw-actions button {
     flex: 1 1 calc(50% - 0.5rem);
     justify-content: center;
   }
-  .dashboard-workspace .dw-hero .dw-cartera-legend {
+}
+
+/* En telefono el texto de cada nivel va arriba de su barra. */
+@media (max-width: 560px) {
+  .dashboard-workspace .dw-resumen {
+    --nivel-label: 0px;
+  }
+  .dashboard-workspace .dw-niveles-lista li {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0.3rem;
+  }
+  .dashboard-workspace .dw-resumen-monto,
+  .dashboard-workspace .dw-niveles {
+    padding: 1rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-workspace .dw-stat > strong,
-  .dashboard-workspace .dw-stat[data-alerta] > strong {
+  .dashboard-workspace .dw-plazos[data-alerta] .dw-plazos-head .app-icon {
     animation: none;
+  }
+  .dashboard-workspace .dw-nivel-barra b {
+    transition: none;
   }
 }
 
@@ -1873,22 +2127,6 @@ body.dw-resizing * {
   }
   .dashboard-workspace .dw-attention {
     order: -1;
-  }
-}
-
-@media (max-width: 720px) {
-  .dashboard-workspace .dw-overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .dashboard-workspace .dw-hero,
-  .dashboard-workspace .dw-stat.is-alert {
-    grid-column: 1 / -1;
-  }
-  .dashboard-workspace .dw-stat {
-    padding: 0.85rem;
-  }
-  .dashboard-workspace .dw-stat > strong {
-    font-size: 24px;
   }
 }
 

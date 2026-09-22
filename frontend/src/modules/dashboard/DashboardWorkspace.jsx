@@ -4,7 +4,7 @@ import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
 import { escapeHtml } from "../../utils/html";
 import { printDocument } from "../../utils/printDocument";
-import { clampSplit, debtRankingAll, filterBarriosByQuery, formatCompactCurrency, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
+import { clampSplit, debtRankingAll, filterBarriosByQuery, formatCompactCurrency, interestPerCapital, ofEachTen, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
@@ -294,6 +294,25 @@ export default function DashboardWorkspace({ model }) {
   const metricByKey = Object.fromEntries((model.metrics || []).map((item) => [item.key, item]));
   const alertMetric = metricByKey.alerts || { value: 0 };
   const alertCount = Number(alertMetric.value || 0);
+  // Tramos del plazo; si el modelo no trae desglose, todo cuenta como alerta.
+  const plazos = [
+    { key: "overdue", label: "Vencidas", value: Number(alertMetric.breakdown?.overdue || 0) },
+    { key: "due", label: "Vencen hoy", value: Number(alertMetric.breakdown?.due || 0) },
+    { key: "upcoming", label: "Por vencer", value: Number(alertMetric.breakdown?.upcoming ?? (alertMetric.breakdown ? 0 : alertCount)) }
+  ];
+  const plazosTotal = Math.max(1, plazos.reduce((sum, item) => sum + item.value, 0));
+
+  // Niveles de la regla: todos a la escala del padron, para que se lea cuanto
+  // baja cada uno y no solo su cifra.
+  const padronRecords = Number(model.padronTotals.records || 0);
+  const niveles = [
+    { key: "padron", label: "cuentas", value: padronRecords, share: padronRecords ? 100 : 0, note: `en el padrón · ${whole(model.padronTotals.barrios)} barrios` },
+    { key: "mora", label: "con mora", value: Number(debt.deudores || 0), share: debtorShare, note: `${oneDecimal(debtorShare)} del padrón` },
+    { key: "critica", label: "críticas", value: Number(debt.criticos || 0), share: percent(debt.criticos, padronRecords), note: `${oneDecimal(criticalShare)} de las con mora` }
+  ];
+  const cuentasAlDia = Math.max(0, padronRecords - Number(debt.deudores || 0));
+  const promedioPorCuenta = Number(debt.deudores || 0) ? debtTotal / Number(debt.deudores) : 0;
+  const interesPorLempira = interestPerCapital(debt.intereses, debt.capital);
   const fieldMetrics = ["records", "gps", "online", "users"].map((key) => metricByKey[key]).filter(Boolean);
   const attentionItems = [...(model.attention || [])].sort(
     (left, right) => (LEVEL_ORDER[left.level] ?? 3) - (LEVEL_ORDER[right.level] ?? 3)
@@ -520,80 +539,140 @@ export default function DashboardWorkspace({ model }) {
 
       {/* La cartera es la cifra que define el dia: va primero y con mas peso.
           Las tres tarjetas de al lado la explican o piden accion. */}
+      {/* Resumen de cartera: el monto y de donde sale (capital e intereses) a la
+          izquierda; a la derecha, las cuentas como niveles sobre una regla
+          graduada, a la escala del padron. Los plazos de fichas van aparte
+          porque son trabajo operativo, no cartera. */}
       <section className="dw-overview" aria-label="Resumen de cartera">
-        <article className="dw-hero">
-          <header>
-            <span className="dw-eyebrow">Cartera en mora</span>
-            <button type="button" className="dw-icon-button" onClick={printDebtSummary} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
-              <Icon name="print" />
-            </button>
-          </header>
-          <p className="dw-cartera-total">
-            <Amount value={debtTotal} className="is-hero" compact />
-            <small className="dw-cartera-exact dw-figure">{formatCurrency(debtTotal)}</small>
-          </p>
-          <div
-            className="dw-cartera-bar"
-            role="img"
-            aria-label={`Capital ${oneDecimal(capitalShare)}, intereses ${oneDecimal(interesShare)} de la mora total`}
-          >
-            <span className="dw-seg is-capital" style={{ width: `${capitalShare}%` }} />
-            <span className="dw-seg is-interes" style={{ width: `${interesShare}%` }} />
+        <article className="dw-resumen">
+          <div className="dw-resumen-monto">
+            <header>
+              <span className="dw-eyebrow">Cartera en mora</span>
+              <button type="button" className="dw-icon-button" onClick={printDebtSummary} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
+                <Icon name="print" />
+              </button>
+            </header>
+            <p className="dw-cartera-total">
+              <Amount value={debtTotal} className="is-hero" compact />
+              <small className="dw-cartera-exact dw-figure">{formatCurrency(debtTotal)}</small>
+            </p>
+            <div
+              className="dw-cartera-bar"
+              role="img"
+              aria-label={`Capital ${oneDecimal(capitalShare)}, intereses ${oneDecimal(interesShare)} de la mora total`}
+            >
+              <span className="dw-seg is-capital" style={{ width: `${capitalShare}%` }} />
+              <span className="dw-seg is-interes" style={{ width: `${interesShare}%` }} />
+            </div>
+            <dl className="dw-cartera-legend">
+              <div>
+                <dt>
+                  <i className="is-capital" aria-hidden="true" />
+                  Capital
+                </dt>
+                <dd>
+                  <Amount value={debt.capital} compact />
+                  <b className="dw-figure">{oneDecimal(capitalShare)}</b>
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <i className="is-interes" aria-hidden="true" />
+                  Intereses
+                </dt>
+                <dd>
+                  <Amount value={debt.intereses} compact />
+                  <b className="dw-figure">{oneDecimal(interesShare)}</b>
+                </dd>
+              </div>
+            </dl>
+            {interesPorLempira ? (
+              <p className="dw-lectura">
+                Por cada <strong>L 1</strong> de capital se deben{" "}
+                <strong className="dw-figure">L {interesPorLempira.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> de intereses.
+              </p>
+            ) : null}
           </div>
-          <dl className="dw-cartera-legend">
-            <div>
-              <dt>
-                <i className="is-capital" aria-hidden="true" />
-                Capital
-              </dt>
-              <dd>
-                <Amount value={debt.capital} compact />
-                <b className="dw-figure">{oneDecimal(capitalShare)}</b>
-              </dd>
+
+          <div className="dw-niveles">
+            <header>
+              <span className="dw-eyebrow">Cuentas del padrón</span>
+              <span className="dw-niveles-promedio">
+                Promedio por cuenta con mora <Amount value={promedioPorCuenta} compact />
+              </span>
+            </header>
+            {/* Regla graduada: marcas cada 25 % del padron, como una regla de nivel. */}
+            <div className="dw-regla" aria-hidden="true">
+              {[0, 25, 50, 75, 100].map((mark) => (
+                <span key={mark} style={{ left: `${mark}%` }}>{mark}%</span>
+              ))}
             </div>
-            <div>
-              <dt>
-                <i className="is-interes" aria-hidden="true" />
-                Intereses
-              </dt>
-              <dd>
-                <Amount value={debt.intereses} compact />
-                <b className="dw-figure">{oneDecimal(interesShare)}</b>
-              </dd>
-            </div>
-          </dl>
+            <ol className="dw-niveles-lista">
+              {niveles.map((nivel) => (
+                <li key={nivel.key} className={`is-${nivel.key}`}>
+                  <span className="dw-nivel-texto">
+                    <strong className="dw-figure">{whole(nivel.value)}</strong>
+                    <span>{nivel.label}</span>
+                    <small className="dw-figure">{nivel.note}</small>
+                  </span>
+                  <i
+                    className="dw-nivel-barra"
+                    role="img"
+                    aria-label={`${whole(nivel.value)} ${nivel.label}, ${oneDecimal(nivel.share)} del padrón`}
+                  >
+                    <b style={{ width: `${Math.min(100, nivel.share)}%` }} />
+                  </i>
+                </li>
+              ))}
+            </ol>
+            <p className="dw-lectura">
+              {ofEachTen(debt.criticos, debt.deudores) ? (
+                <>
+                  <strong>{ofEachTen(debt.criticos, debt.deudores)}</strong> cuentas con mora son críticas (mora de {"L\u00a01,000"} o más).{" "}
+                </>
+              ) : null}
+              <strong className="dw-figure">{whole(cuentasAlDia)}</strong> cuentas están al día.
+            </p>
+          </div>
         </article>
-
-        <div className="dw-stat">
-          <span className="dw-eyebrow">Cuentas con mora</span>
-          <strong className="dw-figure">{whole(debt.deudores)}</strong>
-          <div className="dw-meter is-blue" role="img" aria-label={`${oneDecimal(debtorShare)} de las cuentas del padrón tienen mora`}>
-            <i style={{ width: `${debtorShare}%` }} />
-          </div>
-          <small>{oneDecimal(debtorShare)} de las {whole(model.padronTotals.records)} cuentas del padrón</small>
-        </div>
-
-        <div className="dw-stat is-critical">
-          <span className="dw-eyebrow">Casos críticos</span>
-          <strong className="dw-figure">{whole(debt.criticos)}</strong>
-          <div className="dw-meter" role="img" aria-label={`${oneDecimal(criticalShare)} de las cuentas con mora son críticas`}>
-            <i style={{ width: `${criticalShare}%` }} />
-          </div>
-          <small>{oneDecimal(criticalShare)} de las cuentas con mora · mora de {"L\u00a01,000"} o más</small>
-        </div>
 
         <button
           type="button"
-          className={`dw-stat is-alert ${alertCount ? "has-alerts" : ""}`.trim()}
+          className={`dw-plazos ${alertCount ? "has-alerts" : ""}`.trim()}
           // Late solo cuando hay algo que atender: un pulso permanente seria ruido.
           data-alerta={alertCount ? "" : undefined}
           onClick={() => navigate("records", "alerts")}
         >
-          <span className="dw-eyebrow">Fichas con plazo crítico</span>
-          <strong className="dw-figure">{whole(alertCount)}</strong>
-          <small>{alertCount ? alertMetric.trend || alertMetric.helper : "Sin fichas vencidas ni por vencer"}</small>
+          <span className="dw-plazos-head">
+            <span className="dw-eyebrow">Plazos de fichas</span>
+            <Icon name={alertCount ? "warning" : "checkCircle"} />
+          </span>
+          <span className="dw-plazos-cifra">
+            <strong className="dw-figure">{whole(alertCount)}</strong>
+            <span>{alertCount === 1 ? "ficha con plazo crítico" : "fichas con plazo crítico"}</span>
+          </span>
+          {alertCount ? (
+            <>
+              <span className="dw-plazos-barra" role="img" aria-label={plazos.map((item) => `${item.value} ${item.label.toLowerCase()}`).join(", ")}>
+                {plazos.filter((item) => item.value).map((item) => (
+                  <i key={item.key} className={`is-${item.key}`} style={{ width: `${(item.value / plazosTotal) * 100}%` }} />
+                ))}
+              </span>
+              <span className="dw-plazos-leyenda">
+                {plazos.map((item) => (
+                  <span key={item.key} className={`is-${item.key}`} data-vacio={item.value ? undefined : ""}>
+                    <i aria-hidden="true" />
+                    <b className="dw-figure">{whole(item.value)}</b>
+                    {item.label}
+                  </span>
+                ))}
+              </span>
+            </>
+          ) : (
+            <span className="dw-plazos-ok">Ninguna ficha vencida ni por vencer. Regla de 7 días hábiles.</span>
+          )}
           <span className="dw-stat-link">
-            Ver alertas
+            {alertCount ? "Revisar fichas" : "Ver fichas"}
             <Icon name="arrowRight" />
           </span>
         </button>
