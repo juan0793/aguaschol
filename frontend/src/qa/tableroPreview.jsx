@@ -17,13 +17,21 @@ const barrio = (nombre, total, deudores, criticos, registros) => ({
   ]
 });
 
+// Siete dias terminando hoy, con la forma que arma lastDaysSeries.
+const serie = (totales) =>
+  totales.map((total, index) => ({ key: `2026-09-${String(16 + index).padStart(2, "0")}`, total }));
+
+// Barrios de relleno para que el conmutador Top 5 / Top 10 tenga que mostrar.
+const relleno = ["COL. VENECIA", "BO. SAN JUAN", "COL. LAS COLINAS", "BO. EL TAMARINDO", "COL. UNIVERSIDAD", "BO. LOS MANGOS"]
+  .map((nombre, index) => barrio(nombre, 9800000 - index * 900000, 600 - index * 40, 400 - index * 30, 650));
+
 const model = {
   navigate: () => {},
   refresh: () => {},
   refreshing: false,
   connectionStatus: "live",
-  syncLabel: "Sincronizado hace 2 segundos",
-  padronTotals: { records: 25158, barrios: 127 },
+  syncLabel: "Sincronizado hace un momento",
+  padronTotals: { records: 25158, barrios: 127, updatedAt: "2026-09-18T14:05:00Z" },
   onlineUsers: [
     { id: 1, full_name: "Ana Díaz", roleLabel: "Administradora" },
     { id: 2, full_name: "Diego Andino", roleLabel: "Técnico" },
@@ -31,14 +39,15 @@ const model = {
     { id: 4, full_name: "Luis Herrera", roleLabel: "Técnico" }
   ],
   metrics: [
-    { key: "records", label: "Fichas activas", value: 55, helper: "0 movimientos hoy", icon: "records", tone: "" },
-    { key: "gps", label: "Puntos GPS", value: 5394, helper: "0 puntos registrados hoy", icon: "map", tone: "is-map" },
-    { key: "users", label: "Usuarios en línea", value: 7, helper: "10 usuarios registrados", icon: "users", tone: "is-live" },
-    { key: "alerts", label: "Alertas", value: 10, helper: "Pendientes con plazo crítico", icon: "warning", tone: "is-critical" }
+    { key: "records", label: "Fichas activas", value: 55, helper: "3 movimientos hoy · 6 ayer", series: serie([4, 7, 0, 5, 9, 6, 3]), icon: "records", tone: "" },
+    { key: "gps", label: "Puntos GPS", value: 5394, helper: "18 hoy · promedio 31 por día", series: serie([42, 38, 0, 0, 51, 67, 18]), icon: "map", tone: "is-map" },
+    { key: "online", label: "Usuarios en línea", value: 7, helper: "10 usuarios registrados", icon: "users", tone: "is-live" },
+    { key: "alerts", label: "Alertas", value: 10, helper: "Pendientes con plazo crítico", trend: "4 vencidas / 2 vencen hoy", icon: "warning", tone: "is-critical" }
   ],
   attention: [
-    { key: "a", level: "critical", title: "Fichas con plazo crítico", detail: "10 fichas están en alerta o vencidas por regla de 7 días hábiles.", icon: "warning", action: () => {} },
-    { key: "b", level: "pending", title: "Fichas sin foto", detail: "36 fichas visibles aún no tienen evidencia fotográfica asociada.", icon: "records", action: () => {} }
+    { key: "c", level: "Informativo", tone: "is-info", title: "Jornada activa", detail: "Hoy: puntos listos para revisar.", count: 18, icon: "map", actionView: "mapReports" },
+    { key: "b", level: "Atención", tone: "is-warning", title: "Fichas sin foto", detail: "Fichas visibles que aún no tienen evidencia fotográfica.", count: 36, icon: "records", actionView: "records" },
+    { key: "a", level: "Crítico", tone: "is-warning", title: "Fichas con plazo crítico", detail: "En alerta o vencidas por la regla de 7 días hábiles.", count: 10, icon: "warning", actionView: "records", filter: "alerts" }
   ],
   debtSummary: { capital: 115357814.1, intereses: 116561243.32, total: 231919057.42, deudores: 19106, criticos: 12925 },
   debtBarrios: [
@@ -46,7 +55,8 @@ const model = {
     barrio("BO. CABAÑAS", 12016609.79, 790, 560, 850),
     barrio("BO. LA LIBERTAD", 11094120.99, 701, 512, 810),
     barrio("RESIDENCIAL MONTELIMAR 1 Y 2", 10683188.14, 655, 480, 700),
-    barrio("BO. EL CENTRO", 10105923.67, 640, 455, 690)
+    barrio("BO. EL CENTRO", 10105923.67, 640, 455, 690),
+    ...relleno
   ],
   // Responde como el endpoint /claves/services/accounts.
   fetchServiceAccounts: async (field) =>

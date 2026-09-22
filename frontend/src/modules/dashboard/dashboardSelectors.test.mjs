@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { debtRanking, filterBarriosByQuery, metricValueOf, normalizeBarrioText, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors.js";
+import { debtRanking, filterBarriosByQuery, formatCompactCurrency, lastDaysSeries, metricValueOf, normalizeBarrioText, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors.js";
 assert.deepEqual(debtRanking([{ barrio: "A", deuda: { total: 2 } }, { barrio: "B", deuda: { total: 5 } }]).map((x) => x.name), ["B", "A"]);
 assert.deepEqual(debtRanking([{ barrio_colonia: "Centro", deuda: { criticos: 3 } }], "critical").map(({ name, value }) => ({ name, value })), [{ name: "Centro", value: 3 }]);
 assert.deepEqual(sumSelectedDebt([{ name: "A", debt: { total: 5, capital: 3 } }, { name: "B", debt: { total: 7, capital: 4 } }], ["A", "B"]), { capital: 7, intereses: 0, total: 12, deudores: 0, criticos: 0, records: 0 });
@@ -41,3 +41,23 @@ assert.deepEqual(
   [["BO. PORVENIR", 4], ["COLONIA EL EDEN", 1]]
 );
 assert.deepEqual(selectedRankedRows(padron, [], "total"), []);
+
+// Montos abreviados para el tablero.
+assert.equal(formatCompactCurrency(231919057.42), "L 231.9 M");
+assert.equal(formatCompactCurrency(56201982.88), "L 56.2 M");
+assert.equal(formatCompactCurrency(12345), "L 12.3 mil");
+assert.equal(formatCompactCurrency(980), "L 980");
+assert.equal(formatCompactCurrency(1500000000), "L 1.5 mil M");
+assert.equal(formatCompactCurrency(null), "L 0");
+
+// La serie diaria rellena con cero y cruza el cambio de mes.
+assert.deepEqual(
+  lastDaysSeries(new Map([["2026-09-30", 4], ["2026-10-02", 7]]), "2026-10-02", 4),
+  [
+    { key: "2026-09-29", total: 0 },
+    { key: "2026-09-30", total: 4 },
+    { key: "2026-10-01", total: 0 },
+    { key: "2026-10-02", total: 7 }
+  ]
+);
+assert.deepEqual(lastDaysSeries(new Map(), ""), []);

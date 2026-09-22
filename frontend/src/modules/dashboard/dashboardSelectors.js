@@ -31,3 +31,35 @@ export const selectedRankedRows = (rows = [], selected = [], metric = "total") =
   .filter((item) => selected.includes(item.name))
   .map((item) => ({ ...item, value: metricValueOf(item, metric) }))
   .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "es"));
+
+// Monto abreviado para lectura ejecutiva: "L 231.9 M", "L 12.3 mil". Los
+// centavos de una cartera de cientos de millones son ruido en el tablero; el
+// monto exacto sigue disponible al pasar el cursor y en los reportes.
+export const formatCompactCurrency = (value) => {
+  const amount = Number(value || 0);
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? "-" : "";
+  const fixed = (number) => number.toLocaleString("es-HN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (abs >= 1e9) return `L ${sign}${fixed(abs / 1e9)} mil M`;
+  if (abs >= 1e6) return `L ${sign}${fixed(abs / 1e6)} M`;
+  if (abs >= 1e4) return `L ${sign}${fixed(abs / 1e3)} mil`;
+  return `L ${sign}${abs.toLocaleString("es-HN", { maximumFractionDigits: 0 })}`;
+};
+
+// Recorre los dias por calendario (no por 24 h desde ahora) para que el cambio
+// de horario o la hora del navegador no salten ni dupliquen un dia.
+const shiftDateKey = (dateKey, days) => {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+// Serie de los ultimos `days` dias, del mas antiguo a hoy, con cero en los
+// dias sin movimiento. `totals` es un Map de "AAAA-MM-DD" a cantidad.
+export const lastDaysSeries = (totals = new Map(), todayKey = "", days = 7) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(todayKey)) return [];
+  return Array.from({ length: days }, (_, index) => {
+    const key = shiftDateKey(todayKey, index - (days - 1));
+    return { key, total: Number(totals.get(key) || 0) };
+  });
+};
