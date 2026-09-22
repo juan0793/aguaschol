@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
 import { escapeHtml } from "../../utils/html";
 import { printDocument } from "../../utils/printDocument";
-import { debtRankingAll, filterBarriosByQuery, formatCompactCurrency, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
+import { clampSplit, debtRankingAll, filterBarriosByQuery, formatCompactCurrency, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
@@ -24,6 +24,27 @@ const FIELD_VIEWS = { records: "records", gps: "map", online: "users", users: "u
 const LEVEL_ORDER = { Crítico: 0, critical: 0, Atención: 1, pending: 1, Informativo: 2 };
 
 const PANELES_KEY = "aguas.dashboard.paneles-plegados";
+const ANCHO_KEY = "aguas.dashboard.ancho-principal";
+// Ancho del separador: es a la vez el espacio entre columnas y la zona de agarre.
+const HANDLE_PX = 20;
+
+const leerAncho = () => {
+  try {
+    const guardado = Number(window.localStorage.getItem(ANCHO_KEY));
+    return Number.isFinite(guardado) && guardado > 0 ? guardado : SPLIT_DEFAULT;
+  } catch {
+    return SPLIT_DEFAULT;
+  }
+};
+
+const guardarAncho = (valor) => {
+  try {
+    if (valor === SPLIT_DEFAULT) window.localStorage.removeItem(ANCHO_KEY);
+    else window.localStorage.setItem(ANCHO_KEY, String(valor));
+  } catch {
+    // Sin almacenamiento el ajuste vale solo para esta visita.
+  }
+};
 
 // En una pantalla larga, poder reducir un gráfico que hoy no se mira vale más
 // que cualquier animación. La elección se recuerda entre visitas.
@@ -187,6 +208,13 @@ function Amount({ value, className = "", compact = false }) {
 
 export default function DashboardWorkspace({ model }) {
   const buscadorRef = useRef(null);
+  const gridRef = useRef(null);
+  const frameRef = useRef(0);
+  // El ultimo valor calculado durante el arrastre: se guarda al soltar sin
+  // depender de que el estado ya se haya actualizado.
+  const ultimoSplitRef = useRef(0);
+  const [split, setSplit] = useState(leerAncho);
+  const [arrastrando, setArrastrando] = useState(false);
   const [servicioAbierto, setServicioAbierto] = useState("");
   const [barriosVisibles, setBarriosVisibles] = useState(6);
   // Las cuentas de un servicio se piden al abrirlo y se guardan por servicio,
@@ -316,6 +344,74 @@ export default function DashboardWorkspace({ model }) {
       agregarBarrio((sugerencias[resaltada] || sugerencias[0]).name);
     }
   };
+  // --- Separador de columnas ---
+  // El porcentaje es de la columna principal sobre el ancho util (sin el
+  // separador). Se acota en pixeles para que ninguna columna se rompa.
+  const anchoUtil = () => Math.max(0, (gridRef.current?.getBoundingClientRect().width || 0) - HANDLE_PX);
+  const acotar = (valor) => clampSplit(valor, anchoUtil());
+  const fijarSplit = (valor, persistir = false) => {
+    const siguiente = acotar(valor);
+    setSplit(siguiente);
+    if (persistir) guardarAncho(siguiente);
+  };
+
+  // Si la ventana se achica, el valor guardado puede dejar una columna bajo su
+  // minimo: se vuelve a acotar al cargar y en cada cambio de tamaño.
+  useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() => setSplit((actual) => clampSplit(actual, Math.max(0, grid.getBoundingClientRect().width - HANDLE_PX))));
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, []);
+
+  // Mientras se arrastra, el cursor y la seleccion de texto se fijan en toda la
+  // pagina: si el puntero sale del separador no debe seleccionar el ranking.
+  useEffect(() => {
+    if (!arrastrando) return undefined;
+    document.body.classList.add("dw-resizing");
+    return () => document.body.classList.remove("dw-resizing");
+  }, [arrastrando]);
+
+  const moverSeparador = (clientX) => {
+    const bounds = gridRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const util = Math.max(1, bounds.width - HANDLE_PX);
+    const valor = ((clientX - bounds.left - HANDLE_PX / 2) / util) * 100;
+    ultimoSplitRef.current = clampSplit(valor, util);
+    // Un cambio por cuadro: el puntero dispara mas eventos de los que se pintan.
+    cancelAnimationFrame(frameRef.current);
+    frameRef.current = requestAnimationFrame(() => setSplit(ultimoSplitRef.current));
+  };
+
+  // Soltar y perder la captura llegan los dos; solo el primero cierra.
+  const terminarArrastre = (event) => {
+    if (!ultimoSplitRef.current) return;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    cancelAnimationFrame(frameRef.current);
+    const final = ultimoSplitRef.current;
+    ultimoSplitRef.current = 0;
+    setSplit(final);
+    guardarAncho(final);
+    setArrastrando(false);
+  };
+
+  const tecladoSeparador = (event) => {
+    const paso = event.shiftKey ? 10 : 2;
+    const acciones = {
+      ArrowLeft: () => fijarSplit(split - paso, true),
+      ArrowRight: () => fijarSplit(split + paso, true),
+      Home: () => fijarSplit(0, true),
+      End: () => fijarSplit(100, true),
+      Enter: () => fijarSplit(SPLIT_DEFAULT, true)
+    };
+    if (!acciones[event.key]) return;
+    event.preventDefault();
+    acciones[event.key]();
+  };
+
   const navigate = (view, focus = "") => {
     if (focus) sessionStorage.setItem("aguas.clandestinos.focus", focus);
     model.navigate(view);
@@ -513,10 +609,14 @@ export default function DashboardWorkspace({ model }) {
       </nav>
 
       {/* Columna ancha para el analisis de la mora; la angosta para lo que se
-          atiende hoy. Rejilla fija: el divisor arrastrable parecia una barra
-          de desplazamiento suelta y nadie lo usaba. */}
-      <div className="dw-grid">
-        <div className="dw-col dw-col-main">
+          atiende hoy. El separador reparte el ancho entre ambas: se arrastra,
+          se mueve con las flechas y doble clic (o Enter) lo restablece. */}
+      <div
+        ref={gridRef}
+        className={`dw-grid ${arrastrando ? "is-resizing" : ""}`.trim()}
+        style={{ "--dw-columns": `minmax(0, ${split}fr) ${HANDLE_PX}px minmax(0, ${100 - split}fr)` }}
+      >
+        <div className="dw-col dw-col-main" id="dw-col-main">
           <article className="dw-panel dw-mora" data-metric={debtMetric} data-plegado={plegados.has("mora")}>
                     <header className="dw-panel-head">
                       <div>
@@ -902,6 +1002,41 @@ export default function DashboardWorkspace({ model }) {
               </div></div>
             </article>
           ) : null}
+        </div>
+
+        <div
+          className="dw-resize-handle"
+          role="separator"
+          tabIndex={0}
+          aria-orientation="vertical"
+          aria-label="Ajustar el ancho de las columnas"
+          aria-controls="dw-col-main"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(split)}
+          aria-valuetext={`Columna principal al ${Math.round(split)} %`}
+          title="Arrastrá para ajustar el ancho · doble clic para restablecer"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            ultimoSplitRef.current = split;
+            setArrastrando(true);
+          }}
+          onPointerMove={(event) => {
+            if (arrastrando) moverSeparador(event.clientX);
+          }}
+          onPointerUp={terminarArrastre}
+          onPointerCancel={terminarArrastre}
+          onLostPointerCapture={terminarArrastre}
+          onDoubleClick={() => fijarSplit(SPLIT_DEFAULT, true)}
+          onKeyDown={tecladoSeparador}
+        >
+          <span className="dw-resize-grip" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
         </div>
 
         <aside className="dw-col dw-col-side" aria-label="Pendientes y actividad">

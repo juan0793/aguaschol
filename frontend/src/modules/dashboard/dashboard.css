@@ -215,9 +215,99 @@
    el analisis de la mora; la angosta, lo que se atiende hoy. */
 .dashboard-workspace .dw-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
-  gap: 0.85rem;
+  /* El reparto lo fija el separador (--dw-columns); el separador mismo es el
+     espacio entre columnas, por eso no hay column-gap. Los minimos en pixeles
+     los asegura clampSplit al arrastrar y al cambiar el tamaño. */
+  grid-template-columns: var(--dw-columns, minmax(0, 62fr) 20px minmax(0, 38fr));
+  gap: 0.85rem 0;
   align-items: start;
+}
+
+/* --- Separador de columnas ---
+   La zona de agarre ocupa todo el alto de la rejilla; la linea solo aparece al
+   acercarse y la manija acompaña el desplazamiento para no perderla de vista. */
+.dashboard-workspace .dw-resize-handle {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  min-height: 120px;
+  cursor: col-resize;
+  outline: none;
+  touch-action: none;
+}
+
+.dashboard-workspace .dw-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transform: translateX(-50%);
+  transition: background 0.16s ease;
+}
+
+.dashboard-workspace .dw-resize-grip {
+  position: sticky;
+  top: calc(50vh - 22px);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 3px;
+  width: 12px;
+  height: 44px;
+  margin-top: 64px;
+  border: 1px solid var(--dw-line);
+  border-radius: 7px;
+  background: var(--dw-surface);
+  box-shadow: 0 2px 6px rgba(11, 63, 115, 0.08);
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.dashboard-workspace .dw-resize-grip i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--dw-muted);
+  transition: background 0.16s ease;
+}
+
+.dashboard-workspace .dw-resize-handle:hover::before {
+  background: var(--dw-line);
+}
+
+.dashboard-workspace .dw-resize-handle:hover .dw-resize-grip,
+.dashboard-workspace .dw-resize-handle:focus-visible .dw-resize-grip,
+.dashboard-workspace .dw-grid.is-resizing .dw-resize-grip {
+  border-color: var(--dw-blue);
+  transform: scaleY(1.08);
+}
+
+.dashboard-workspace .dw-resize-handle:hover .dw-resize-grip i,
+.dashboard-workspace .dw-resize-handle:focus-visible .dw-resize-grip i,
+.dashboard-workspace .dw-grid.is-resizing .dw-resize-grip i {
+  background: var(--dw-blue);
+}
+
+.dashboard-workspace .dw-resize-handle:focus-visible::before,
+.dashboard-workspace .dw-grid.is-resizing .dw-resize-handle::before {
+  background: var(--dw-blue);
+}
+
+.dashboard-workspace .dw-resize-handle:focus-visible .dw-resize-grip {
+  outline: 2px solid var(--dw-blue);
+  outline-offset: 2px;
+}
+
+/* Mientras se arrastra, toda la pagina muestra el cursor de ajuste y no
+   selecciona texto aunque el puntero pase sobre el ranking. */
+body.dw-resizing,
+body.dw-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .dashboard-workspace .dw-col {
@@ -1770,6 +1860,9 @@
 /* En una sola columna los pendientes no pueden quedar debajo de todo el
    analisis de mora: las columnas se disuelven y la atencion sube primero. */
 @media (max-width: 1100px) {
+  .dashboard-workspace .dw-resize-handle {
+    display: none;
+  }
   .dashboard-workspace .dw-grid {
     display: flex;
     flex-direction: column;
@@ -1951,4 +2044,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dashboard-workspace .dw-concentration i { transition: none; }
+  .dashboard-workspace .dw-resize-grip,
+  .dashboard-workspace .dw-resize-handle::before { transition: none; }
 }

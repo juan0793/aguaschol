@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { debtRanking, filterBarriosByQuery, formatCompactCurrency, lastDaysSeries, metricValueOf, normalizeBarrioText, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors.js";
+import { clampSplit, SPLIT_DEFAULT, debtRanking, filterBarriosByQuery, formatCompactCurrency, lastDaysSeries, metricValueOf, normalizeBarrioText, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors.js";
 assert.deepEqual(debtRanking([{ barrio: "A", deuda: { total: 2 } }, { barrio: "B", deuda: { total: 5 } }]).map((x) => x.name), ["B", "A"]);
 assert.deepEqual(debtRanking([{ barrio_colonia: "Centro", deuda: { criticos: 3 } }], "critical").map(({ name, value }) => ({ name, value })), [{ name: "Centro", value: 3 }]);
 assert.deepEqual(sumSelectedDebt([{ name: "A", debt: { total: 5, capital: 3 } }, { name: "B", debt: { total: 7, capital: 4 } }], ["A", "B"]), { capital: 7, intereses: 0, total: 12, deudores: 0, criticos: 0, records: 0 });
@@ -61,3 +61,10 @@ assert.deepEqual(
   ]
 );
 assert.deepEqual(lastDaysSeries(new Map(), ""), []);
+
+// El separador respeta los minimos en pixeles de cada columna.
+assert.equal(clampSplit(62, 1200), 62);
+assert.equal(clampSplit(20, 1200), 35); // 420 px de 1200
+assert.equal(clampSplit(95, 1200), 75); // deja 300 px a la lateral
+assert.equal(clampSplit(90, 600), 75); // sin espacio para ambos minimos
+assert.equal(clampSplit("x", 1200), SPLIT_DEFAULT);
