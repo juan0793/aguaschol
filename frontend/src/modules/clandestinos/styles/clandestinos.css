@@ -31,7 +31,7 @@
 .cl-toolbar label, .cl-field, .cl-report-form label, .cl-report-list footer label, .cl-reason { display: grid; gap: 6px; color: var(--navy); font-size: 12px; font-weight: 750; }
 .cl-toolbar input, .cl-toolbar select, .cl-fields input, .cl-fields select, .cl-fields textarea, .cl-report-form input, .cl-report-form select, .cl-report-form textarea, .cl-report-list footer input, .cl-reason input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #bfd5eb; border-radius: 10px; background: #fff; color: var(--navy); }
 .cl-search > div { position: relative; }.cl-search > div .app-icon { position: absolute; top: 12px; left: 12px; color: var(--muted); }.cl-search input { padding-left: 40px; }
-.cl-table-wrap { position: relative; overflow: auto; border: 1px solid #d8e5f1; border-radius: 13px; }.cl-table { width: 100%; border-collapse: collapse; }.cl-table th { padding: 12px; background: #edf4fa; color: var(--navy); text-align: left; white-space: nowrap; }.cl-table td { padding: 11px 12px; border-top: 1px solid #e4edf5; vertical-align: middle; }.cl-table tbody tr { transition: background .16s ease; }.cl-table tbody tr:hover, .cl-table tbody tr.is-selected { background: #f1f7ff; }.cl-table-wrap.is-refreshing .cl-table { opacity: .62; transition: opacity .16s ease; }.cl-table-refresh { position: absolute; top: 10px; right: 12px; display: inline-flex; min-height: 28px; align-items: center; padding: 4px 9px; border: 1px solid #c9ddf4; border-radius: 999px; background: rgba(255,255,255,.94); color: var(--primary); font-size: 11px; font-weight: 800; box-shadow: 0 4px 12px rgba(16,42,67,.08); }
+.cl-table-wrap { position: relative; overflow: auto; border: 1px solid #d8e5f1; border-radius: 13px; }.cl-table { width: 100%; border-collapse: collapse; }.cl-table th { padding: 12px; background: #edf4fa; color: var(--navy); text-align: left; white-space: nowrap; }.cl-table td { padding: 11px 12px; border-top: 1px solid #e4edf5; vertical-align: middle; }.cl-table tbody tr { transition: background .16s ease; }.cl-table tbody tr:hover, .cl-table tbody tr.is-selected { background: #f1f7ff; }.cl-table-wrap.is-refreshing .cl-table { opacity: .62; transition: opacity .16s ease; }
 .cl-table input[type="checkbox"], .cl-check input, .cl-report-services input { width: 18px; min-height: 18px; height: 18px; accent-color: var(--primary); }
 .cl-link { display: grid; gap: 2px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--navy); text-align: left; cursor: pointer; }.cl-link span { color: var(--muted); font-size: 12px; }
 .cl-status { display: inline-flex; align-items: center; gap: 7px; width: max-content; padding: 5px 9px; border-radius: 999px; background: #edf3f8; color: var(--navy); font-size: 12px; font-weight: 750; white-space: nowrap; }.cl-status i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }.cl-status.is-regularized, .cl-status.is-approved, .cl-status.is-linked { background: #e7f7f0; color: var(--success); }.cl-status.is-confirmed, .cl-status.is-visit, .cl-status.is-review { background: #e9f2ff; color: var(--primary); }.cl-status.is-discarded, .cl-status.is-duplicate { background: #fff0f1; color: var(--danger); }.cl-status.is-info_requested, .cl-status.is-regularization { background: #fff7e8; color: var(--alert); }
@@ -148,3 +148,40 @@
   .cl-inbox .cl-table th:nth-child(6) { width:128px; }
   .cl-inbox .cl-table th { white-space:normal; }
 }
+
+/* --- Fluidez de la bandeja ---
+   El clic responde en el acto: la marca se desliza a la etapa elegida y las
+   filas entran con un fundido corto. Pasar el cursor ya no se pinta igual que
+   la etapa activa, que hacia parecer dos pestañas seleccionadas. */
+.cl-inbox .cl-toolbar { grid-template-columns: minmax(260px,1fr) minmax(160px,240px) auto; }
+.cl-indicators { position: relative; }
+.cl-indicators button { transition: color .16s ease, background-color .16s ease; }
+.cl-indicators button:hover, .cl-indicators button.is-active { border-bottom-color: transparent; }
+/* styles.css levanta todos los botones al pasar el cursor (fondo, sombra y
+   desplazamiento); en una fila de pestañas eso parecia una segunda seleccion. */
+.cl-indicators button:hover:not(:disabled) { background: transparent; box-shadow: none; transform: none; }
+.cl-indicators button:hover:not(.is-active) { color: var(--navy); }
+.cl-indicators button:hover:not(.is-active) strong { background: #e1eaf4; }
+.cl-indicators button.is-active { color: var(--primary); }
+.cl-indicators button strong { transition: background-color .16s ease, color .16s ease; }
+.cl-indicators-mark { position: absolute; top: 0; left: 0; height: 2px; border-radius: 2px; background: var(--primary); pointer-events: none; transition: transform .26s cubic-bezier(.23,1,.32,1), width .26s cubic-bezier(.23,1,.32,1); }
+.cl-rows { animation: cl-rows-in .2s ease-out; }
+@keyframes cl-rows-in { from { opacity: .3; } to { opacity: 1; } }
+/* Si la respuesta tarda, la tabla se atenua; si llega rapido, no parpadea. */
+.cl-table-wrap.is-refreshing .cl-table { opacity: .6; transition: opacity .16s ease .15s; }
+.cl-table-progress { position: absolute; top: 0; right: 0; left: 0; z-index: 2; height: 2px; overflow: hidden; opacity: 0; animation: cl-show 0s linear .15s forwards; }
+.cl-table-progress::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 35%; border-radius: 2px; background: var(--primary); animation: cl-progress 1s ease-in-out infinite; }
+@keyframes cl-show { to { opacity: 1; } }
+@keyframes cl-progress { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+.cl-bulk-selected { display: inline-flex; flex-wrap: wrap; gap: 10px; animation: cl-rows-in .18s ease-out; }
+.cl-bulk-actions > span:not(.cl-bulk-selected) { font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .cl-indicators-mark, .cl-indicators button, .cl-indicators button strong { transition: none; }
+  .cl-rows, .cl-bulk-selected { animation: none; }
+  .cl-table-progress::before { animation-duration: 2.4s; }
+}
+/* La regla global de inputs (input:not([type=checkbox])...) pisaba el espacio
+   de la lupa y el icono tapaba la primera letra del texto. */
+.cl-inbox .cl-search > div input { padding-left: 40px; }
+@media (max-width: 1120px) { .cl-inbox .cl-toolbar { grid-template-columns: minmax(0,1fr) auto; }.cl-inbox .cl-toolbar .cl-search { grid-column: 1/-1; } }
+@media (max-width: 760px) { .cl-inbox .cl-toolbar { grid-template-columns: minmax(0,1fr); } }
