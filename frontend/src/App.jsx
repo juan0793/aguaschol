@@ -125,6 +125,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { lastDaysSeries } from "./modules/dashboard/dashboardSelectors.js";
 
 const lazyWithRetry = (loader) => lazy(async () => {
   try {
@@ -3093,13 +3094,36 @@ function App() {
     ],
     [draftForm, draftSavedAt, lookupHistory.length, mapDiaryGroups.length, mapPointsToday, recentLookupCountToday, recordsUpdatedToday, safeRecords.length]
   );
+  // Historial real de los ultimos 7 dias: fichas tocadas por dia y puntos GPS
+  // por jornada. La mora no tiene serie porque el padron es una sola foto.
+  const dashboardDailySeries = useMemo(() => {
+    const recordsByDay = new Map();
+    safeRecords.forEach((record) => {
+      const key = getMapDiaryDateKey(record.updated_at || record.created_at);
+      if (key) recordsByDay.set(key, (recordsByDay.get(key) || 0) + 1);
+    });
+    const pointsByDay = new Map();
+    if (safeMapDiaryGroupsSummary.length) {
+      mapDiaryGroups.forEach((group) => pointsByDay.set(group.key, Number(group.total || 0)));
+    } else {
+      safeMapPoints.forEach((point) => {
+        const key = getMapDiaryDateKey(point);
+        if (key) pointsByDay.set(key, (pointsByDay.get(key) || 0) + 1);
+      });
+    }
+    return {
+      records: lastDaysSeries(recordsByDay, todayDateKey),
+      gps: lastDaysSeries(pointsByDay, todayDateKey)
+    };
+  }, [mapDiaryGroups, safeMapDiaryGroupsSummary.length, safeMapPoints, safeRecords, todayDateKey]);
   const dashboardLiveMetrics = useMemo(
     () => [
       {
         key: "records",
         label: "Fichas activas",
         value: safeRecords.length,
-        helper: `${recordsUpdatedToday} movimientos hoy`,
+        helper: `${recordsUpdatedToday} movimientos hoy · ${dashboardDailySeries.records.at(-2)?.total || 0} ayer`,
+        series: dashboardDailySeries.records,
         icon: "records",
         badge: "En vivo",
         detail: `Registros actualmente en operacion`,
@@ -3114,7 +3138,8 @@ function App() {
         key: "gps",
         label: "Puntos GPS",
         value: mapPointsTotal,
-        helper: `${mapPointsToday} puntos registrados hoy`,
+        helper: `${mapPointsToday} hoy · promedio ${Math.round(dashboardDailySeries.gps.reduce((sum, day) => sum + day.total, 0) / Math.max(1, dashboardDailySeries.gps.length))} por día`,
+        series: dashboardDailySeries.gps,
         icon: "map",
         badge: "Hoy",
         detail: "Levantamiento de campo acumulado",
@@ -3162,6 +3187,7 @@ function App() {
     ],
     [
       alertRecords.length,
+      dashboardDailySeries,
       dashboardNow,
       mapDiaryGroups,
       mapPointsTotal,

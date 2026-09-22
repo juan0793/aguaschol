@@ -482,16 +482,6 @@
   --chart-border: #efc1ca;
 }
 
-.dashboard-workspace .dw-ranking-count {
-  padding: 5px 9px;
-  border-radius: 6px;
-  background: var(--chart-tint);
-  color: var(--chart-color);
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .dashboard-workspace .dw-mora > .dw-panel-head { flex-direction: row; align-items: center; }
 
 .dashboard-workspace .dw-metric-switch {
@@ -726,7 +716,6 @@
   font-size: 12.5px;
 }
 
-.dashboard-workspace .dw-hint,
 .dashboard-workspace .dw-empty {
   margin: 0;
   color: var(--dw-muted);
@@ -1070,9 +1059,6 @@
 }
 
 @container (max-width: 540px) {
-  .dashboard-workspace .dw-ranking-row > button:first-child { grid-template-columns: 28px minmax(0, 1fr); }
-  .dashboard-workspace .dw-ranking-value { grid-column: 2; justify-items: start; }
-  .dashboard-workspace .dw-rank-number { grid-row: 1 / 4; align-self: start; }
   .dashboard-workspace .dw-ranking-summary { flex-wrap: wrap; gap: 10px; }
   .dashboard-workspace .dw-ranking-summary > div { text-align: left; }
   .dashboard-workspace .dw-metric-switch button { flex-direction: column; gap: 4px; padding: 6px 3px; }
@@ -1811,4 +1797,158 @@
   .dashboard-workspace .dw-stat > strong {
     font-size: 24px;
   }
+}
+
+/* ===========================================================================
+   Montos abreviados, serie de 7 dias y ranking compacto
+   =========================================================================== */
+
+.dashboard-workspace .dw-cartera-total {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.dashboard-workspace .dw-cartera-exact {
+  color: var(--dw-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dashboard-workspace .dw-amount[title] {
+  cursor: help;
+}
+
+/* --- Mini barras de 7 dias --- */
+
+.dashboard-workspace .dw-minibars {
+  display: block;
+  width: 64px;
+  height: 24px;
+  overflow: visible;
+}
+
+.dashboard-workspace .dw-minibars rect {
+  fill: #9fc0ec;
+}
+
+.dashboard-workspace .dw-minibars rect.is-empty {
+  fill: #dbe5f1;
+}
+
+.dashboard-workspace .dw-minibars rect.is-today {
+  fill: var(--dw-blue);
+}
+
+.dashboard-workspace .dw-minibars rect:hover {
+  fill: var(--dw-ink);
+}
+
+.dashboard-workspace .dw-campo .dw-list button {
+  grid-template-columns: auto minmax(0, 1fr) 64px auto auto;
+}
+
+/* --- Top 5 / Top 10 --- */
+
+/* Va dentro del encabezado, cuyos div hijos son rejilla: se fuerza la fila. */
+.dashboard-workspace .dw-panel-head > .dw-top-switch {
+  display: inline-flex;
+  flex: none;
+  flex-direction: row;
+  gap: 0;
+  margin-left: auto;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--dw-tint);
+}
+
+.dashboard-workspace .dw-top-switch button {
+  min-height: 30px;
+  padding: 0 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--dw-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dashboard-workspace .dw-top-switch button:hover {
+  box-shadow: none;
+  color: var(--dw-ink);
+}
+
+.dashboard-workspace .dw-top-switch button[aria-pressed="true"] {
+  border-color: var(--chart-border, var(--dw-line));
+  background: var(--dw-surface);
+  color: var(--chart-color, var(--dw-blue));
+}
+
+/* --- Concentracion: cada barrio como tramo del total del padron --- */
+
+.dashboard-workspace .dw-ranking-summary {
+  flex-wrap: wrap;
+}
+
+.dashboard-workspace .dw-ranking-summary > .dw-concentration {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e2e9f2;
+}
+
+.dashboard-workspace .dw-concentration i {
+  display: block;
+  height: 100%;
+  background: var(--chart-color);
+  transition: width 300ms ease, opacity 0.16s ease;
+}
+
+.dashboard-workspace .dw-concentration i:hover {
+  opacity: 0.7;
+}
+
+/* --- Fila del ranking: nombre y monto arriba, barra y porcentaje abajo --- */
+
+/* Columna del monto fija: cada fila es su propia rejilla y, con ancho libre,
+   las barras terminaban en lugares distintos y no se podian comparar. */
+.dashboard-workspace .dw-ranking-row > button:first-child {
+  grid-template-columns: 28px minmax(0, 1fr) 6.5rem;
+  gap: 6px 10px;
+  padding: 8px 10px;
+}
+
+.dashboard-workspace .dw-ranking-track {
+  grid-column: 2;
+  height: 8px;
+}
+
+.dashboard-workspace .dw-ranking-value {
+  justify-self: end;
+}
+
+.dashboard-workspace .dw-ranking-share {
+  grid-column: 3;
+  justify-self: end;
+  min-width: 3.5em;
+  color: var(--dw-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.dashboard-workspace .dw-ranking .dw-amount {
+  font-size: 14.5px;
+}
+
+.dashboard-workspace .dw-ranking button {
+  min-height: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-concentration i { transition: none; }
 }

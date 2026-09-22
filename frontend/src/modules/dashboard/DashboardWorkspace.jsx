@@ -4,7 +4,7 @@ import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
 import { escapeHtml } from "../../utils/html";
 import { printDocument } from "../../utils/printDocument";
-import { debtRankingAll, filterBarriosByQuery, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
+import { debtRankingAll, filterBarriosByQuery, formatCompactCurrency, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
@@ -127,15 +127,58 @@ const serviceReportBadge = (service) => {
   return `<div class="print-report-service-flag${isHazardous ? " is-hazardous" : ""}">${reportIcon(isHazardous ? "alert" : "water")}<span><small>${isHazardous ? "Servicio prioritario" : "Servicio reportado"}</small><strong>${escapeHtml(service.label)}</strong></span></div>`;
 };
 
+// Siete barras, una por dia, de la mas antigua a hoy. Un solo tono: la altura
+// es la magnitud; hoy va en el tono oscuro para ubicarse sin leer fechas.
+function MiniBars({ series = [], unit = "" }) {
+  // Sin historial se deja el hueco para que las cifras sigan alineadas.
+  if (series.length < 2) return <i className="dw-minibars" aria-hidden="true" />;
+  const max = Math.max(1, ...series.map((day) => day.total));
+  const width = 64;
+  const height = 24;
+  const gap = 2;
+  const barWidth = (width - gap * (series.length - 1)) / series.length;
+  const dayLabel = (key) => new Intl.DateTimeFormat("es-HN", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${key}T12:00:00Z`));
+  return (
+    <svg
+      className="dw-minibars"
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      role="img"
+      aria-label={`Últimos ${series.length} días: ${series.map((day) => `${dayLabel(day.key)} ${day.total}`).join(", ")}`}
+    >
+      {series.map((day, index) => {
+        const barHeight = day.total ? Math.max(2, (day.total / max) * height) : 1;
+        return (
+          <rect
+            key={day.key}
+            x={index * (barWidth + gap)}
+            y={height - barHeight}
+            width={barWidth}
+            height={barHeight}
+            rx="1.5"
+            className={index === series.length - 1 ? "is-today" : day.total ? "" : "is-empty"}
+          >
+            <title>{`${dayLabel(day.key)}: ${day.total.toLocaleString("es-HN")} ${unit}`.trim()}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
 // La cifra es el material tipografico de este tablero: el signo de lempira va
 // mas pequeno y liviano para que los digitos, en cifras tabulares, carguen el peso.
-function Amount({ value, className = "" }) {
-  const text = formatCurrency(Number(value || 0));
-  const match = text.match(/^(\D+)\s*(.+)$/);
+// Con `compact` se lee "L 231.9 M"; el monto exacto queda en el title para
+// quien necesite el centavo.
+function Amount({ value, className = "", compact = false }) {
+  const exact = formatCurrency(Number(value || 0));
+  const text = compact ? formatCompactCurrency(value) : exact;
+  const match = text.match(/^(\D+?)\s*([-\d].*)$/);
   const mark = match ? match[1].trim() : "";
   const digits = match ? match[2] : text;
   return (
-    <span className={`dw-amount ${className}`.trim()}>
+    <span className={`dw-amount ${className}`.trim()} title={compact ? exact : undefined}>
       {mark ? <i aria-hidden="true">{mark}</i> : null}
       {digits}
     </span>
@@ -164,6 +207,7 @@ export default function DashboardWorkspace({ model }) {
     });
 
   const [debtMetric, setDebtMetric] = useState("total");
+  const [topN, setTopN] = useState(5);
   const [barrioQuery, setBarrioQuery] = useState("");
   const [resaltada, setResaltada] = useState(0);
   const [selectedBarrios, setSelectedBarrios] = useState([]);
@@ -174,7 +218,7 @@ export default function DashboardWorkspace({ model }) {
   // la busqueda necesita la lista completa para encontrar barrios que no entran
   // al ranking visible.
   const rankingAll = useMemo(() => debtRankingAll(model.debtBarrios, debtMetric), [model.debtBarrios, debtMetric]);
-  const ranking = useMemo(() => rankingAll.slice(0, 5), [rankingAll]);
+  const ranking = useMemo(() => rankingAll.slice(0, topN), [rankingAll, topN]);
   const searchHits = useMemo(() => filterBarriosByQuery(rankingAll, barrioQuery, 40), [rankingAll, barrioQuery]);
   const buscando = Boolean(barrioQuery.trim());
   // La posicion real en el padron, para que la sugerencia diga de que puesto
@@ -389,7 +433,8 @@ export default function DashboardWorkspace({ model }) {
             </button>
           </header>
           <p className="dw-cartera-total">
-            <Amount value={debtTotal} className="is-hero" />
+            <Amount value={debtTotal} className="is-hero" compact />
+            <small className="dw-cartera-exact dw-figure">{formatCurrency(debtTotal)}</small>
           </p>
           <div
             className="dw-cartera-bar"
@@ -406,7 +451,7 @@ export default function DashboardWorkspace({ model }) {
                 Capital
               </dt>
               <dd>
-                <Amount value={debt.capital} />
+                <Amount value={debt.capital} compact />
                 <b className="dw-figure">{oneDecimal(capitalShare)}</b>
               </dd>
             </div>
@@ -416,7 +461,7 @@ export default function DashboardWorkspace({ model }) {
                 Intereses
               </dt>
               <dd>
-                <Amount value={debt.intereses} />
+                <Amount value={debt.intereses} compact />
                 <b className="dw-figure">{oneDecimal(interesShare)}</b>
               </dd>
             </div>
@@ -478,7 +523,15 @@ export default function DashboardWorkspace({ model }) {
                         <span className="dw-eyebrow">Datos reales del padrón</span>
                         <h2>Barrios con mayor mora</h2>
                       </div>
-                      {ranking.length ? <span className="dw-ranking-count">Top {ranking.length}</span> : null}
+                      {rankingAll.length > 5 ? (
+                        <div className="dw-top-switch" role="group" aria-label="Cantidad de barrios">
+                          {[5, 10].map((size) => (
+                            <button type="button" key={size} aria-pressed={topN === size} onClick={() => setTopN(size)}>
+                              Top {size}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                       <BotonPlegar plegado={plegados.has("mora")} titulo="los barrios con mayor mora" onToggle={() => alternarPanel("mora")} />
                     </header>
                     <div className="dw-panel-body"><div className="dw-panel-body-inner">
@@ -489,12 +542,25 @@ export default function DashboardWorkspace({ model }) {
                         </button>
                       ))}
                     </div>
-                    {ranking.length ? <div className="dw-ranking-summary" role="status">
-                      <span><strong className="dw-figure">{oneDecimal(percent(rankingTotal, metricTotal))}</strong><span>{metricDescription} se concentra en estos {ranking.length} barrios.</span></span>
-                      <div><small>{debtMetric === "total" ? "Mora acumulada" : debtMetric === "accounts" ? "Abonados con mora" : "Casos críticos"}</small>
-                        {debtMetric === "total" ? <Amount value={rankingTotal} /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
+                    {ranking.length ? (
+                      <div className="dw-ranking-summary" role="status">
+                        <span><strong className="dw-figure">{oneDecimal(percent(rankingTotal, metricTotal))}</strong><span>{metricDescription} se concentra en estos {ranking.length} barrios.</span></span>
+                        <div><small>{debtMetric === "total" ? "Mora acumulada" : debtMetric === "accounts" ? "Abonados con mora" : "Casos críticos"}</small>
+                          {debtMetric === "total" ? <Amount value={rankingTotal} compact /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
+                        </div>
+                        {/* Cada tramo es un barrio sobre el total del padron: la barra
+                            muestra la concentracion real, no solo el orden. */}
+                        <div className="dw-concentration" aria-hidden="true">
+                          {ranking.map((item) => (
+                            <i
+                              key={item.name}
+                              style={{ width: `${percent(item.value, metricTotal)}%` }}
+                              title={`${item.name}: ${oneDecimal(percent(item.value, metricTotal))}`}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div> : null}
+                    ) : null}
                     <div className="dw-barrio-picker">
                       <div className="dw-barrio-search">
                         <Icon name="search" />
@@ -668,11 +734,13 @@ export default function DashboardWorkspace({ model }) {
                           </section>
                         ) : null}
                       </div>
-                    ) : (
-                      ranking.length ? <p className="dw-hint">Seleccioná barrios para sumar su mora. Abrí la flecha para ver el desglose.</p> : null
-                    )}
+                    ) : null}
 
-                    {ranking.length ? <p className="dw-chart-caption">Top 5 de mayor a menor · Tocá un barrio para agregarlo a la selección.</p> : null}
+                    {ranking.length ? (
+                      <p className="dw-chart-caption">
+                        Tocá un barrio para sumarlo a la selección · la flecha abre su desglose · la barra se compara con el primero.
+                      </p>
+                    ) : null}
 
                     {ranking.length ? (
                       <ol className="dw-ranking">
@@ -689,15 +757,17 @@ export default function DashboardWorkspace({ model }) {
                                 <strong className="dw-ranking-name">{item.name}</strong>
                                 <span className="dw-ranking-value">
                                   {debtMetric === "total" ? (
-                                    <Amount value={item.value} />
+                                    <Amount value={item.value} compact />
                                   ) : (
                                     <span className="dw-amount dw-figure">{whole(item.value)}</span>
                                   )}
-                                  <small className="dw-figure">{oneDecimal(percent(item.value, metricTotal))} {metricDescription}</small>
                                 </span>
                                 <i className="dw-ranking-track" aria-hidden="true">
                                   <em style={{ transform: `scaleX(${item.value / maxDebt})` }} />
                                 </i>
+                                <small className="dw-ranking-share dw-figure" title={`${oneDecimal(percent(item.value, metricTotal))} ${metricDescription}`}>
+                                  {oneDecimal(percent(item.value, metricTotal))}
+                                </small>
                               </button>
                               <button
                                 type="button"
@@ -771,7 +841,7 @@ export default function DashboardWorkspace({ model }) {
                                   }}
                                 >
                                   <span className="dw-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
-                                  <Amount value={service.debt} />
+                                  <Amount value={service.debt} compact />
                                   <Icon name="chevronDown" className="dw-service-chevron" />
                                   <i className="dw-service-track" aria-hidden="true">
                                     <em style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} />
@@ -880,6 +950,7 @@ export default function DashboardWorkspace({ model }) {
                         <strong>{item.label}</strong>
                         <small>{item.helper}</small>
                       </span>
+                      <MiniBars series={item.series} unit={item.key === "gps" ? "puntos" : "fichas"} />
                       <b className="dw-count is-neutral dw-figure">{whole(item.value)}</b>
                       <Icon name="arrowRight" />
                     </button>
