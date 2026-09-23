@@ -29466,3 +29466,22 @@ button.control-sidebar-home:focus-visible {
 @media print {
   .app-activity { display: none; }
 }
+
+/* Barra de actividad del módulo Clandestinos (reemplaza los atajos de cuenta,
+   que ya están en el menú del usuario). */
+.cl-activity { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 40px; padding: 8px 10px 8px 12px; overflow: hidden; border: 1px solid #dbe7f3; border-radius: 12px; background: #f7fafd; color: #486581; font-size: 0.82rem; }
+.cl-activity strong { color: #102a43; font-size: 0.84rem; }
+.cl-activity-summary { font-variant-numeric: tabular-nums; }
+.cl-activity time { color: #7b8fa3; font-variant-numeric: tabular-nums; }
+.cl-activity-dot { width: 8px; height: 8px; border-radius: 50%; background: #1f9463; box-shadow: 0 0 0 3px rgba(31, 148, 99, 0.16); }
+.cl-activity.is-busy .cl-activity-dot { background: #1769e0; box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.16); animation: cl-activity-pulse 1s ease-in-out infinite; }
+.cl-activity-track { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; overflow: hidden; background: transparent; }
+.cl-activity-track > span { position: absolute; inset: 0; background: #1f9463; transform-origin: left; animation: cl-activity-done 0.5s ease-out both; }
+.cl-activity.is-busy .cl-activity-track { background: #e3edf8; }
+.cl-activity.is-busy .cl-activity-track > span { right: auto; width: 38%; border-radius: 3px; background: linear-gradient(90deg, #1769e0, #5aa0ff); animation: cl-activity-slide 1.05s ease-in-out infinite; }
+.app-chrome .cl-activity .cl-activity-refresh { margin-left: auto; min-height: 30px; padding: 0.25rem 0.6rem; }
+@keyframes cl-activity-slide { from { transform: translateX(-100%); } to { transform: translateX(270%); } }
+@keyframes cl-activity-done { from { transform: scaleX(0.4); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } to { transform: scaleX(1); opacity: 0.35; } }
+@keyframes cl-activity-pulse { 50% { opacity: 0.45; } }
+@media (max-width: 640px) { .cl-activity-summary, .cl-activity time { flex-basis: 100%; order: 3; } }
+@media (prefers-reduced-motion: reduce) { .cl-activity-track > span, .cl-activity-dot { animation: none !important; } }

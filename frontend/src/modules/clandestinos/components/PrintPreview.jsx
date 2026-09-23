@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { printDocument } from "../../../utils/printDocument";
 import { formatSpanishDate } from "../../../utils/datesAndBusiness";
+import { CountUp, DonutChart, MeterLegend, StackedBars } from "./ClCharts";
 
 const PRINT_STYLES = `<style>
   .cl-print-page { color: #111; font: 11px/1.35 Arial, sans-serif; break-after: page; }
@@ -85,14 +86,61 @@ const NoticeLetter = ({ record }) => {
 
 const BatchList = ({ records }) => <article className="cl-print-page cl-print-batch"><div className="cl-print-brand"><strong>AGUAS DE CHOLUTECA</strong><span>Listado resumido de fichas</span></div><h3>{records.length} fichas seleccionadas</h3><table><thead><tr><th>#</th><th>Código catastral</th><th>Nombre</th><th>Barrio / colonia</th><th>Impresión</th></tr></thead><tbody>{records.map((record, index) => <tr key={record.id}><td>{index + 1}</td><td>{record.clave_catastral || "--"}</td><td>{record.nombre_catastral || record.inquilino || "--"}</td><td>{record.barrio_colonia || "--"}</td><td>{record.printed_at ? new Date(record.printed_at).toLocaleDateString("es-HN") : "No impresa"}</td></tr>)}</tbody></table><footer>Documento generado desde Control Aguas · {new Date().toLocaleDateString("es-HN")}</footer></article>;
 
-export default function PrintPreview({ records = [] }) {
+const TEMPLATE_ICONS = { technical_sheet: "records", notice: "mail", inspection_order: "map", evidences: "eye", batch_list: "clipboard" };
+const ETAPAS = [["draft", "Borrador"], ["pending", "Por visitar"], ["visit", "En visita"], ["confirmed", "Aviso pendiente"], ["regularization", "En seguimiento"], ["regularized", "Cerrada"], ["discarded", "Descartada"]];
+// Estado de impresión: verde = ya salió en papel, gris = aún no.
+const PRINT_STATES = [["printed", "Ya impresas", "#1f9463", "success"], ["unprinted", "Sin imprimir", "#8fa3b8", "print"]];
+const PRINT_ACCENT = "#5a4fcf";
+const isPrinted = (record) => Boolean(record.printed_at);
+
+export default function PrintPreview({ records = [], onGoFichas, onClearSelection }) {
   const pagesRef = useRef(null);
   const [template, setTemplate] = useState(() => sessionStorage.getItem("aguas.clandestinos.printTemplate") || "technical_sheet");
-  const [, label] = templates.find(([key]) => key === template) || templates[0];
+  const [printFilter, setPrintFilter] = useState("");
+  const [etapaFilter, setEtapaFilter] = useState("");
+  const [, label, helper] = templates.find(([key]) => key === template) || templates[0];
   const select = (key) => { sessionStorage.setItem("aguas.clandestinos.printTemplate", key); setTemplate(key); };
+  // Lo que se elige en los gráficos decide qué fichas pasan a la vista previa.
+  const visible = records.filter((record) => (!printFilter || (printFilter === "printed") === isPrinted(record)) && (!etapaFilter || (record.estado_operativo || "pending") === etapaFilter));
+  const printedCount = records.filter(isPrinted).length;
+  const etapaRows = ETAPAS.map(([key, etapa]) => {
+    const scoped = records.filter((record) => (record.estado_operativo || "pending") === key && (!printFilter || (printFilter === "printed") === isPrinted(record)));
+    return { key, label: etapa, total: scoped.length, parts: [{ key: "total", label: etapa, value: scoped.length, color: PRINT_ACCENT }] };
+  }).filter((row) => row.total);
+  const pageCount = !visible.length ? 0 : template === "batch_list" ? 1 : visible.length;
+  const hasFilters = Boolean(printFilter || etapaFilter);
   const print = () => pagesRef.current && printDocument(label, `${PRINT_STYLES}${pagesRef.current.innerHTML}`, { pageSize: "Letter portrait", pageMargin: "12mm" });
-  return <div className="cl-print-layout"><aside className="cl-print-menu"><span className="cl-kicker">Documentos</span><h2>Centro de impresión</h2><p>Selecciona el formato y revisa antes de imprimir.</p>{templates.map(([key,title,helper]) => <button type="button" key={key} className={template === key ? "is-active" : ""} onClick={() => select(key)}><Icon name={key === "evidences" ? "activity" : "print"} /><span><strong>{title}</strong><small>{helper}</small></span><Icon name="arrowRight" /></button>)}</aside>
-    <section className="cl-print-preview"><header><div><span className="cl-kicker">Vista previa</span><h2>{label}</h2><p>{records.length ? `${records.length} fichas seleccionadas` : "Selecciona fichas desde la bandeja; por ahora se muestra una vista vacía."}</p></div><button type="button" className="cl-primary" disabled={!records.length} onClick={print}><Icon name="print" />Imprimir</button></header>
-      <div className="cl-print-pages" ref={pagesRef}>{records.length ? template === "batch_list" ? <BatchList records={records} /> : template === "notice" ? records.map((record) => <NoticeLetter key={record.id} record={record} />) : records.map((record) => <PrintPage key={record.id} record={record} label={label} template={template} />) : <div className="cl-print-empty"><Icon name="print" /><h3>Sin fichas seleccionadas</h3><p>Vuelve a Fichas y marca los expedientes que deseas imprimir.</p></div>}</div>
+  return <div className="cl-print-layout">
+    <section className="cl-print-top" aria-label="Formato y selección para imprimir">
+      <div className="cl-print-formats" role="radiogroup" aria-label="Formato del documento">
+        {templates.map(([key, title, detail]) => <button type="button" role="radio" aria-checked={template === key} key={key} className={template === key ? "is-active" : ""} title={detail} onClick={() => select(key)}><span className="cl-print-format-icon"><Icon name={TEMPLATE_ICONS[key] || "print"} /></span><strong>{title}</strong></button>)}
+      </div>
+      <div className="cl-print-charts">
+        <div className="cl-banco-chart">
+          <header><h3>Estado de impresión</h3><p>Toca para filtrar la vista previa</p></header>
+          <div className="cl-banco-donut-row">
+            <DonutChart size={120} label="Fichas por estado de impresión" centerCaption="seleccionadas" selected={printFilter} onSelect={setPrintFilter} segments={PRINT_STATES.map(([key, title, color]) => ({ key, label: title, color, value: key === "printed" ? printedCount : records.length - printedCount }))} />
+            <MeterLegend selected={printFilter} onSelect={setPrintFilter} renderIcon={(item) => <Icon name={item.icon} />} items={PRINT_STATES.map(([key, title, color, icon]) => ({ key, label: title, color, icon, value: key === "printed" ? printedCount : records.length - printedCount }))} />
+          </div>
+        </div>
+        <div className="cl-banco-chart">
+          <header><h3>Por etapa</h3><p>{etapaFilter ? <button type="button" className="cl-scope-clear" onClick={() => setEtapaFilter("")}>Ver todas las etapas</button> : "Toca una etapa para filtrar"}</p></header>
+          <StackedBars label="Fichas seleccionadas por etapa" selected={etapaFilter} onSelect={setEtapaFilter} rows={etapaRows} emptyText="Sin fichas seleccionadas" />
+        </div>
+        <aside className="cl-print-summary">
+          <span className="cl-kicker">Listo para imprimir</span>
+          <strong><CountUp value={pageCount} /></strong>
+          <span>{pageCount === 1 ? "página" : "páginas"} · {label}</span>
+          <button type="button" className="cl-primary" disabled={!visible.length} onClick={print}><Icon name="print" />Imprimir {visible.length ? visible.length : ""}</button>
+          <div>
+            {hasFilters ? <button type="button" className="cl-quiet" onClick={() => { setPrintFilter(""); setEtapaFilter(""); }}><Icon name="filter" />Quitar filtros</button> : null}
+            {records.length ? <button type="button" className="cl-quiet" onClick={onClearSelection}><Icon name="close" />Vaciar</button> : null}
+            <button type="button" className="cl-quiet" onClick={onGoFichas}><Icon name="records" />Elegir fichas</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+    <section className="cl-print-preview"><header><div><span className="cl-kicker">Vista previa</span><h2>{label}</h2><p>{records.length ? `${visible.length} de ${records.length} fichas · ${helper}` : helper}</p></div></header>
+      <div className="cl-print-pages" ref={pagesRef}>{visible.length ? template === "batch_list" ? <BatchList records={visible} /> : template === "notice" ? visible.map((record) => <NoticeLetter key={record.id} record={record} />) : visible.map((record) => <PrintPage key={record.id} record={record} label={label} template={template} />) : <div className="cl-print-empty"><Icon name="print" /><h3>{records.length ? "Ninguna ficha con estos filtros" : "Sin fichas seleccionadas"}</h3><p>{records.length ? "Quita un filtro de los gráficos para ver el resto." : "Vuelve a Fichas y marca los expedientes que deseas imprimir."}</p>{!records.length ? <button type="button" className="cl-primary" onClick={onGoFichas}><Icon name="records" />Ir a Fichas</button> : null}</div>}</div>
     </section></div>;
 }

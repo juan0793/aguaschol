@@ -1175,6 +1175,14 @@ function App() {
   const [notificationUserId, setNotificationUserId] = useState(null);
   const [workspaceView, setWorkspaceView] = useState(() => getWorkspaceViewByRole(session?.user?.role));
   const [crossModuleFocus, setCrossModuleFocus] = useState(null);
+  // Barra superior del módulo Clandestinos: búsqueda por clave y estado de carga.
+  const [clandestinosCommand, setClandestinosCommand] = useState(null);
+  const [clandestinosStatus, setClandestinosStatus] = useState(null);
+  const [clandestinosUpdatedAt, setClandestinosUpdatedAt] = useState(null);
+  const clandestinosBusy = Boolean(clandestinosStatus?.busy);
+  useEffect(() => {
+    if (clandestinosStatus && !clandestinosBusy) setClandestinosUpdatedAt(new Date());
+  }, [clandestinosBusy, clandestinosStatus]);
   const [cargandoDatos, setCargandoDatos] = useState(false);
   const peticionesEnCursoRef = useRef(0);
   const actividadTimerRef = useRef(0);
@@ -5592,27 +5600,6 @@ function App() {
     setSelectedFile(null);
     setAvisoHtml("");
     setLastProcessedRecord(null);
-  };
-
-  const handleSearch = async (event) => {
-    event.preventDefault();
-    const value = search.trim();
-    setRecordFilters((current) => ({ ...current, clave: value }));
-    setRecordPage(1);
-
-    if (!value) {
-      loadRecords("", recordView);
-    }
-  };
-
-  const handleSearchInputChange = (event) => {
-    const value = event.target.value;
-    setSearch(value);
-    setRecordFilters((current) => ({ ...current, clave: value }));
-
-    if (!value.trim()) {
-      loadRecords("", recordView);
-    }
   };
 
   const handleLookupInputChange = (event) => {
@@ -14021,36 +14008,43 @@ function App() {
               </div>
             </div>
           ) : workspaceView === "records" ? (
-            <form onSubmit={handleSearch}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setClandestinosCommand({ type: "search", q: search.trim(), id: Date.now() });
+              }}
+            >
               <div className="search-row">
                 <input
                   id="search"
                   value={search}
-                  onChange={handleSearchInputChange}
-                  placeholder="Ej. 10-22-23"
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar ficha por clave, ej. 10-22-23"
+                  aria-label="Buscar ficha por clave catastral"
                 />
                 <button type="submit"><Icon name="search" />Buscar</button>
               </div>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={() => loadRecords(search)}>
-                  <Icon name="refresh" />
-                  Refrescar listado
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
-                  <Icon name="records" />
-                  Operaciones realizadas
-                </button>
+              {/* Cuenta y contraseña viven en el menú del usuario; aquí va lo que
+                  sirve mientras se trabaja: si el módulo está cargando y qué tiene. */}
+              <div className={`cl-activity ${clandestinosBusy || !clandestinosStatus ? "is-busy" : "is-idle"}`} role="status" aria-live="polite">
+                <span className="cl-activity-track" aria-hidden="true"><span /></span>
+                <span className="cl-activity-dot" aria-hidden="true" />
+                <strong>{!clandestinosStatus ? "Cargando módulo…" : clandestinosBusy ? `${clandestinosStatus.label}…` : "Al día"}</strong>
+                {clandestinosStatus?.summary ? <span className="cl-activity-summary">{clandestinosStatus.summary}</span> : null}
+                {clandestinosUpdatedAt && !clandestinosBusy ? (
+                  <time dateTime={clandestinosUpdatedAt.toISOString()}>
+                    Actualizado {clandestinosUpdatedAt.toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" })}
+                  </time>
+                ) : null}
                 <button
                   type="button"
-                  className="button-secondary"
-                  onClick={() => setShowPasswordModal(true)}
+                  className="button-secondary cl-activity-refresh"
+                  disabled={clandestinosBusy}
+                  onClick={() => setClandestinosCommand({ type: "refresh", id: Date.now() })}
+                  title="Volver a cargar las fichas"
                 >
-                  <Icon name="auth" />
-                  Cambiar contrasena
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesion
+                  <Icon name="refresh" />
+                  Actualizar
                 </button>
               </div>
             </form>
@@ -14060,16 +14054,6 @@ function App() {
                 Consulta el padrón maestro sin entrar al módulo de fichas. Acepta clave base `00-00-00` o `000-00-00`,
                 y clave completa `00-00-00-00` o `000-00-00-00`.
               </p>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-              </div>
             </div>
           ) : workspaceView === "map" ? (
             <div className="workspace-summary">
@@ -15068,6 +15052,8 @@ function App() {
           onFocusConsumed={() => setCrossModuleFocus(null)}
           onPrintFicha={handlePrintFicha}
           onPrintAviso={handlePrintAviso}
+          command={clandestinosCommand}
+          onStatusChange={setClandestinosStatus}
         />
       </Suspense>
       ) : workspaceView === "recordsLegacyDisabled" ? (

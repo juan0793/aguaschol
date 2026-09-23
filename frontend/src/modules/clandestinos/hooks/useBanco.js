@@ -22,7 +22,7 @@ export const useBanco = (api, active = true) => {
     if (!silent) hasData.current ? setRefreshing(true) : setLoading(true);
     setError("");
     try {
-      const next = await api.banco({ q: query, dictamen, estado, barrio, page, limit: 20 });
+      const next = await api.banco({ q: query, dictamen, estado, barrio, page, limit: 24 });
       if (requestId !== requestSequence.current) return;
       hasData.current = true;
       setData(next);

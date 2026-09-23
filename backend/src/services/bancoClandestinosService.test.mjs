@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPadronIndex, descartarCandidato, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato } from "./bancoClandestinosService.js";
+import { buildPadronIndex, descartarCandidato, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato } from "./bancoClandestinosService.js";
 import { getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
@@ -124,4 +124,17 @@ test("reimportar no toca a los que ya se enviaron a ficha", async () => {
   assert.deepEqual([result.nuevos, result.actualizados, result.sin_cambios_procesados], [0, 1, 2]);
   const { items } = await listBancoClandestinos({ query: "Casa sin cuenta", estado: "enviado" });
   assert.equal(items[0].estado, "enviado");
+});
+
+test("resume los barrios con más candidatos y su desglose por dictamen", () => {
+  const barrios = resumirBarrios([
+    { barrio_colonia: "Barrio Cabañas", dictamen: "clandestino", total: 3 },
+    { barrio_colonia: "Barrio Cabañas", dictamen: "probable", total: "2" },
+    { barrio_colonia: "Colonia Brasilia", dictamen: "registrado", total: 4 },
+    { barrio_colonia: "", dictamen: "clandestino", total: 9 }
+  ]);
+  assert.deepEqual(barrios.map((item) => [item.barrio, item.total]), [["Barrio Cabañas", 5], ["Colonia Brasilia", 4]]);
+  assert.equal(barrios[0].clandestino, 3);
+  assert.equal(barrios[0].probable, 2);
+  assert.equal(barrios[0].registrado, 0);
 });

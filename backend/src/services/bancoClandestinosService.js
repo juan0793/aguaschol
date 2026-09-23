@@ -190,6 +190,23 @@ const guardarDictamen = async (id, result) => {
   );
 };
 
+const BARRIOS_EN_GRAFICO = 8;
+// Filas { barrio_colonia, dictamen, total } -> los barrios con más candidatos,
+// cada uno con su desglose por dictamen.
+export const resumirBarrios = (rows = []) => {
+  const byBarrio = new Map();
+  for (const row of rows) {
+    const barrio = row.barrio_colonia;
+    if (!barrio) continue;
+    const entry = byBarrio.get(barrio) || { barrio, total: 0, ...Object.fromEntries(BANCO_DICTAMENES.map((key) => [key, 0])) };
+    const total = Number(row.total || 0);
+    entry.total += total;
+    if (row.dictamen in entry) entry[row.dictamen] += total;
+    byBarrio.set(barrio, entry);
+  }
+  return [...byBarrio.values()].sort((a, b) => b.total - a.total || a.barrio.localeCompare(b.barrio, "es")).slice(0, BARRIOS_EN_GRAFICO);
+};
+
 export const listBancoClandestinos = async ({ query = "", dictamen = "", estado = "pendiente", barrio = "", page = 1, limit = 25 } = {}) => {
   query = clean(query); dictamen = clean(dictamen); estado = clean(estado); barrio = clean(barrio);
   const safeLimit = Math.min(Math.max(Number(limit) || 25, 5), 200);
@@ -200,6 +217,8 @@ export const listBancoClandestinos = async ({ query = "", dictamen = "", estado 
     const scoped = memoryBanco.filter((item) => (!estado || item.estado === estado) && (!barrio || item.barrio_colonia === barrio) &&
       (!term || [item.clave_catastral, item.abonado_campo, item.barrio_colonia, item.alcaldia_propietario, item.comentario_campo].join(" ").toLowerCase().includes(term)));
     const filtered = scoped.filter((item) => !dictamen || item.dictamen === dictamen);
+    const barrioScope = memoryBanco.filter((item) => (!estado || item.estado === estado) && (!dictamen || item.dictamen === dictamen) && item.barrio_colonia &&
+      (!term || [item.clave_catastral, item.abonado_campo, item.barrio_colonia, item.alcaldia_propietario, item.comentario_campo].join(" ").toLowerCase().includes(term)));
     const totalPages = Math.max(1, Math.ceil(filtered.length / safeLimit));
     const currentPage = Math.min(requestedPage, totalPages);
     return {
@@ -207,7 +226,8 @@ export const listBancoClandestinos = async ({ query = "", dictamen = "", estado 
       total: filtered.length, page: currentPage, total_pages: totalPages,
       counts: Object.fromEntries(BANCO_DICTAMENES.map((key) => [key, scoped.filter((item) => item.dictamen === key).length])),
       estados: Object.fromEntries(BANCO_ESTADOS.map((key) => [key, memoryBanco.filter((item) => item.estado === key).length])),
-      barrios: [...new Set(memoryBanco.map((item) => item.barrio_colonia).filter(Boolean))].sort()
+      barrios: [...new Set(memoryBanco.map((item) => item.barrio_colonia).filter(Boolean))].sort(),
+      barrio_counts: resumirBarrios(barrioScope.map((item) => ({ barrio_colonia: item.barrio_colonia, dictamen: item.dictamen, total: 1 })))
     };
   }
 
@@ -216,11 +236,16 @@ export const listBancoClandestinos = async ({ query = "", dictamen = "", estado 
   const searchParams = [estado, estado, barrio, barrio, query, ...Array(5).fill(likeValue(query))];
   const filteredWhere = `${searchWhere} AND (? = '' OR dictamen = ?)`;
   const filteredParams = [...searchParams, dictamen, dictamen];
-  const [[countRows], [estadoRows], [barrioRows], [totalRows]] = await Promise.all([
+  // Barrios con más candidatos: respetan estado, búsqueda y dictamen, pero no
+  // el barrio elegido, para que el gráfico siga mostrando las alternativas.
+  const barrioWhere = "(? = '' OR estado = ?) AND (? = '' OR dictamen = ?) AND barrio_colonia <> '' AND (? = '' OR clave_catastral LIKE ? OR abonado_campo LIKE ? OR barrio_colonia LIKE ? OR alcaldia_propietario LIKE ? OR comentario_campo LIKE ?)";
+  const barrioParams = [estado, estado, dictamen, dictamen, query, ...Array(5).fill(likeValue(query))];
+  const [[countRows], [estadoRows], [barrioRows], [totalRows], [barrioCountRows]] = await Promise.all([
     pool.query(`SELECT dictamen, COUNT(*) AS total FROM banco_clandestinos WHERE ${searchWhere} GROUP BY dictamen`, searchParams),
     pool.query("SELECT estado, COUNT(*) AS total FROM banco_clandestinos GROUP BY estado"),
     pool.query("SELECT DISTINCT barrio_colonia FROM banco_clandestinos WHERE barrio_colonia <> '' ORDER BY barrio_colonia"),
-    pool.query(`SELECT COUNT(*) AS total FROM banco_clandestinos WHERE ${filteredWhere}`, filteredParams)
+    pool.query(`SELECT COUNT(*) AS total FROM banco_clandestinos WHERE ${filteredWhere}`, filteredParams),
+    pool.query(`SELECT barrio_colonia, dictamen, COUNT(*) AS total FROM banco_clandestinos WHERE ${barrioWhere} GROUP BY barrio_colonia, dictamen`, barrioParams)
   ]);
   const total = Number(totalRows[0]?.total || 0);
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
@@ -238,7 +263,8 @@ export const listBancoClandestinos = async ({ query = "", dictamen = "", estado 
     total, page: currentPage, total_pages: totalPages,
     counts: Object.fromEntries(BANCO_DICTAMENES.map((key) => [key, Number(countRows.find((row) => row.dictamen === key)?.total || 0)])),
     estados: Object.fromEntries(BANCO_ESTADOS.map((key) => [key, Number(estadoRows.find((row) => row.estado === key)?.total || 0)])),
-    barrios: barrioRows.map((row) => row.barrio_colonia)
+    barrios: barrioRows.map((row) => row.barrio_colonia),
+    barrio_counts: resumirBarrios(barrioCountRows)
   };
 };
 

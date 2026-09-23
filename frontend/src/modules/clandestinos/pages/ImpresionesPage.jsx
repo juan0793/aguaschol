@@ -1,2 +1,2 @@
 import PrintPreview from "../components/PrintPreview";
-export default function ImpresionesPage({ records }) { return <PrintPreview records={records} />; }
+export default function ImpresionesPage(props) { return <PrintPreview {...props} />; }

@@ -66,9 +66,8 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
     <header className="cl-inbox-head">
       <span className="cl-inbox-emblem" aria-hidden="true" key={etapaActiva?.[0] || "todas"}><Icon name={alertsOnly ? "warning" : etapaActiva?.[2] || "records"} /></span>
       <div className="cl-inbox-title">
-        <h2>Fichas clandestinas</h2>
+        <h2>{alertsOnly ? "Con plazo crítico" : etapaActiva ? etapaActiva[1] : "Todas las etapas"}</h2>
         <p className="cl-inbox-scope" aria-live="polite">
-          <strong>{alertsOnly ? "Con plazo crítico" : etapaActiva ? etapaActiva[1] : "Todas las etapas"}</strong>
           <span className="cl-scope-count">{alertsOnly ? `${alertItems.length} en esta página` : etapaActiva ? `${model.total} de ${totalExpedientes} expedientes` : `${model.total} ${model.total === 1 ? "expediente" : "expedientes"}`}</span>
           {model.filters.barrio ? <span className="cl-scope-chip">{model.filters.barrio}<button type="button" onClick={() => model.filters.setBarrio("")} aria-label={`Quitar el barrio ${model.filters.barrio}`}><Icon name="close" /></button></span> : null}
           {model.filters.query.trim() ? <span className="cl-scope-chip">“{model.filters.query.trim()}”<button type="button" onClick={() => model.filters.setQuery("")} aria-label="Quitar la búsqueda"><Icon name="close" /></button></span> : null}

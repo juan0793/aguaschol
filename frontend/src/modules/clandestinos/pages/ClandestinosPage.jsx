@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "../../../components/Icon";
 import FichasInbox from "../components/FichasInbox";
 import FichaDrawer from "../components/FichaDrawer";
@@ -13,8 +14,12 @@ import "../styles/clandestinos.css";
 
 const tabs = [["resumen","Resumen","dashboard"],["fichas","Fichas","records"],["banco","Banco","inbox"],["reportes","Reportes técnicos","activity"],["impresiones","Impresiones","print"],["configuracion","Configuración","more"]];
 const tabFromHash = () => location.hash.match(/^#clandestinos\/(\w+)/)?.[1] || "fichas";
+// Secciones que trabajan fuera del flujo normal de fichas: al entrar se marca
+// el borde de toda la app con su color para que no se confundan.
+const MODOS = { banco: "Banco de campo · revisión de candidatos", impresiones: "Centro de impresión · documentos oficiales" };
+const plural = (value, singular, pluralText) => `${Number(value || 0).toLocaleString("es-HN")} ${Number(value) === 1 ? singular : pluralText}`;
 
-export default function ClandestinosPage({ apiFetch, session, showAlert, navigate, focusRequest, onFocusConsumed, onPrintFicha, onPrintAviso }) {
+export default function ClandestinosPage({ apiFetch, session, showAlert, navigate, focusRequest, onFocusConsumed, onPrintFicha, onPrintAviso, command, onStatusChange }) {
   const api = useMemo(() => createClandestinosApi(apiFetch), [apiFetch]); const [tab, setTab] = useState(tabFromHash); const [config, setConfig] = useState(null); const [drawer, setDrawer] = useState(undefined); const [selected, setSelected] = useState(new Map()); const [comparison, setComparison] = useState(null); const [bulkLoading, setBulkLoading] = useState(false);
   const fichas = useFichas(api, true);
   const banco = useBanco(api, tab === "banco");
@@ -31,17 +36,49 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
     }).catch((error) => showAlert(error.message)).finally(() => onFocusConsumed?.());
   }, [api, config, focusRequest, onFocusConsumed, showAlert]);
   const go = (key) => { if (key === "resumen") { navigate("dashboard"); return; } history.replaceState(null, "", `#clandestinos/${key}`); setTab(key); };
+
+  // Órdenes que llegan desde la barra superior de la app (buscar clave, actualizar).
+  const handledCommand = useRef(null);
+  useEffect(() => {
+    if (!command || handledCommand.current === command.id) return;
+    handledCommand.current = command.id;
+    if (command.type === "search") { go("fichas"); fichas.filters.setQuery(command.q || ""); }
+    if (command.type === "refresh") { fichas.reload(); if (tab === "banco") banco.reload(); }
+  }, [command]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // La barra superior muestra si el módulo está trabajando y qué hay cargado.
+  const totalExpedientes = Object.values(fichas.counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+  const busy = !config || fichas.loading || fichas.refreshing || bulkLoading || (tab === "banco" && (banco.loading || banco.refreshing));
+  const busyLabel = !config ? "Cargando módulo" : bulkLoading ? "Procesando selección" : tab === "banco" && (banco.loading || banco.refreshing) ? "Actualizando banco" : "Actualizando fichas";
+  const statusSummary = [plural(totalExpedientes, "expediente", "expedientes"), tab === "banco" && banco.estados?.pendiente != null ? `${banco.estados.pendiente} en banco por revisar` : null, selected.size ? `${selected.size} para imprimir` : null].filter(Boolean).join(" · ");
+  useEffect(() => { onStatusChange?.({ busy, label: busyLabel, summary: statusSummary }); }, [busy, busyLabel, statusSummary, onStatusChange]);
+  useEffect(() => () => onStatusChange?.(null), [onStatusChange]);
+
   const toggle = (record) => setSelected((current) => { const next = new Map(current); const key = String(record.id); next.has(key) ? next.delete(key) : next.set(key, record); return next; });
   const toggleVisible = (records) => setSelected((current) => { const next = new Map(current); const remove = records.every((record) => next.has(String(record.id))); records.forEach((record) => remove ? next.delete(String(record.id)) : next.set(String(record.id), record)); return next; });
   const selectAll = async () => { setBulkLoading(true); try { const data = await api.fichas({ q: fichas.filters.query, state: fichas.filters.state, barrio: fichas.filters.barrio, page: 1, limit: 500 }); setSelected(new Map(data.items.map((item) => [String(item.id), item]))); showAlert(`${data.items.length} fichas seleccionadas.`); } catch (error) { showAlert(error.message); } finally { setBulkLoading(false); } };
   const compareSelected = async () => { if (!selected.size) return; setBulkLoading(true); try { const data = await api.compareFichas([...selected.keys()]); setComparison(data); showAlert(`Comparacion lista: ${data.summary.alcaldia_only} posibles clandestinas aparecen en Alcaldia y no en Aguas.`); } catch (error) { showAlert(error.message); } finally { setBulkLoading(false); } };
   const openBancoFicha = async (candidato) => { try { const data = await api.fichas({ q: candidato.clave_catastral, limit: 8 }); const found = data.items.find((item) => Number(item.id) === Number(candidato.inmueble_id)); if (found) setDrawer(found); else showAlert("La ficha ya no está activa; revisa archivados."); } catch (error) { showAlert(error.message); } };
   if (!config) return <main className="cl-module"><div className="cl-module-loading"><LatticeLoader label="Cargando módulo Clandestinos…" showTimer /></div></main>;
-  return <main className="cl-module"><header className="cl-module-header"><div><span className="cl-kicker">Control Aguas</span><h1>Inmuebles clandestinos</h1><p>Expedientes, campo e impresión en un flujo controlado.</p></div><nav aria-label="Secciones de Clandestinos">{tabs.filter(([key]) => key !== "configuracion" || config.permissions.can_manage_configuration).map(([key,label,icon]) => <button type="button" key={key} className={tab === key ? "is-active" : ""} onClick={() => go(key)}><Icon name={icon} />{label}</button>)}</nav><div className="cl-role"><Icon name="users" /><span>{session?.user?.full_name || session?.user?.username}<small>{session?.user?.role}</small></span></div></header>
+
+  // El encabezado dice en qué sección se está y qué contiene, no un rótulo fijo.
+  const secciones = {
+    fichas: { icon: "records", title: "Fichas clandestinas", detail: `${plural(totalExpedientes, "expediente", "expedientes")} en seguimiento${fichas.counts?.confirmed ? ` · ${fichas.counts.confirmed} con aviso pendiente` : ""}` },
+    banco: { icon: "inbox", title: "Banco de clandestinos", detail: banco.estados?.pendiente != null ? `${plural(banco.estados.pendiente, "punto de campo", "puntos de campo")} por revisar · ${banco.estados.enviado || 0} enviados a ficha` : "Puntos de campo verificados contra Aguas y Alcaldía" },
+    reportes: { icon: "activity", title: "Reportes técnicos", detail: "Hallazgos de campo con su seguimiento" },
+    impresiones: { icon: "print", title: "Centro de impresión", detail: selected.size ? `${plural(selected.size, "ficha lista", "fichas listas")} para imprimir` : "Marca fichas en la bandeja para prepararlas" },
+    configuracion: { icon: "settings", title: "Configuración del módulo", detail: "Catálogos, plantillas y permisos" }
+  };
+  const seccion = secciones[tab] || secciones.fichas;
+  const modo = MODOS[tab];
+
+  return <main className={`cl-module ${modo ? `is-mode is-mode-${tab}` : ""}`.trim()}>
+    {modo ? createPortal(<div className={`cl-mode-frame is-${tab}`} aria-hidden="true"><span><Icon name={seccion.icon} />{modo}</span></div>, document.body) : null}
+    <header className="cl-module-header"><div className="cl-module-heading"><span className="cl-module-emblem" key={tab} aria-hidden="true"><Icon name={seccion.icon} /></span><div><span className="cl-kicker">Clandestinos{modo ? <em className="cl-mode-chip">Módulo especial</em> : null}</span><h1>{seccion.title}</h1><p aria-live="polite">{seccion.detail}</p></div></div><nav aria-label="Secciones de Clandestinos">{tabs.filter(([key]) => key !== "configuracion" || config.permissions.can_manage_configuration).map(([key,label,icon]) => <button type="button" key={key} className={`${tab === key ? "is-active" : ""} ${MODOS[key] ? `is-special is-${key}` : ""}`.trim()} onClick={() => go(key)}><Icon name={icon} />{label}</button>)}</nav><div className="cl-role"><Icon name="users" /><span>{session?.user?.full_name || session?.user?.username}<small>{session?.user?.role}</small></span></div></header>
     {tab === "fichas" ? <FichasInbox model={fichas} selectedIds={new Set(selected.keys())} onToggle={toggle} onToggleVisible={toggleVisible} onSelectAll={selectAll} onClearSelection={() => setSelected(new Map())} onCompare={compareSelected} onPrintSummary={() => { sessionStorage.setItem("aguas.clandestinos.printTemplate", "batch_list"); go("impresiones"); }} comparison={comparison} bulkLoading={bulkLoading} onOpen={setDrawer} onNew={() => setDrawer(null)} canCreate={config.permissions.can_manage_ficha_state} /> : null}
     {tab === "banco" ? <BancoClandestinos api={api} model={banco} permissions={config.permissions} notify={showAlert} onOpenFicha={openBancoFicha} onFichaCreated={(ficha) => { fichas.reload(); setDrawer(ficha); }} /> : null}
     {tab === "reportes" ? <ReportesTecnicosPage api={api} config={config} notify={showAlert} /> : null}
-    {tab === "impresiones" ? <ImpresionesPage records={[...selected.values()]} /> : null}
+    {tab === "impresiones" ? <ImpresionesPage records={[...selected.values()]} onGoFichas={() => go("fichas")} onClearSelection={() => setSelected(new Map())} /> : null}
     {tab === "configuracion" ? <section className="cl-config"><header className="cl-page-head"><div><span className="cl-kicker">Administración</span><h2>Configuración del módulo</h2><p>Catálogos visibles para controlar los flujos sin valores ambiguos.</p></div></header><div className="cl-config-grid"><article><Icon name="records" /><h3>Estados de ficha</h3><p>{config.ficha_states.join(" · ")}</p></article><article><Icon name="activity" /><h3>Estados de reportes</h3><p>{config.report_states.join(" · ")}</p></article><article><Icon name="print" /><h3>Plantillas</h3><p>{config.print_templates.join(" · ")}</p></article><article><Icon name="users" /><h3>Permisos efectivos</h3><p>{Object.entries(config.permissions).filter(([,value]) => value).map(([key]) => key).join(" · ")}</p></article></div></section> : null}
     {drawer !== undefined ? <FichaDrawer record={drawer} api={api} config={config} notify={showAlert} onClose={() => setDrawer(undefined)} onPrintFicha={onPrintFicha} onPrintAviso={onPrintAviso} onSaved={async (saved, close = true) => { setSelected((current) => { const key = String(saved.id); if (!current.has(key)) return current; const next = new Map(current); next.set(key, saved); return next; }); await fichas.reload(); if (close) setDrawer(undefined); else setDrawer(saved); }} /> : null}
   </main>;
