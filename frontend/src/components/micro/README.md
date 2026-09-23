@@ -8,6 +8,7 @@ Componentes de gesto y estado adaptados de [React Bits](https://reactbits.dev)
 | Componente | Para que sirve | Donde se usa hoy |
 | --- | --- | --- |
 | `HoldButton` | Confirmar una accion irreversible manteniendo presionado, en lugar de `window.confirm` | Eliminar inspeccion, eliminar chat de Telegram |
+| `LiveNumber` | Cifra de tablero que cuenta desde el valor anterior solo cuando cambia, y hace destellar su tarjeta una vez; escribe en el nodo de texto (sin re-renders). También `flashElement` y la clase `.live-attention` (3 latidos) | KPIs del Tablero y del Resumen de clandestinos, centro del donut |
 | `LatticeLoader` | Estado de carga con retícula de puntos, etiqueta y cronómetro opcional | Arranque de los módulos y placeholders de las tablas |
 | `SlideCommit` | Confirmar con un deslizamiento completo y reflejar el resultado de la promesa (pendiente, hecho, fallo) | Cierre de lote en Control de Entregas |
 | `SpringCheck` | Casilla de seleccion con respuesta visible en listados densos | Bandeja de fichas clandestinas |

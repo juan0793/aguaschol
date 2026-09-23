@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { getRecordDeadlineMeta } from "../../../utils/records";
-import { CountUp, DonutChart, MeterLegend, StackedBars } from "./ClCharts";
+import LiveNumber from "../../../components/micro/LiveNumber";
+import { DonutChart, MeterLegend, StackedBars } from "./ClCharts";
 
 // Etapas de la ficha en el orden del proceso.
 const ETAPAS = [["draft", "Borradores"], ["pending", "Por visitar"], ["visit", "En visita"], ["confirmed", "Aviso pendiente"], ["regularization", "En seguimiento"], ["regularized", "Cerradas"], ["discarded", "Descartadas"]];
@@ -10,6 +11,8 @@ const DICTAMENES = [["clandestino", "Clandestino", "warning", "#c2414b"], ["prob
 const REPORTES_POR_ATENDER = ["new", "review", "info_requested"];
 const FICHA_COLOR = "#1769e0";
 const TECNICO_COLOR = "#0f8a80";
+// Cada minuto se revisa el backend en silencio mientras la pestaña está a la vista.
+const REFRESCO_MS = 60000;
 
 /**
  * Resumen del módulo: lo que hay en cada parte del proceso y lo que pide
@@ -19,8 +22,9 @@ export default function ResumenClandestinos({ api, onOpenFichas, onOpenBanco, on
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const load = useCallback(async () => {
-    setLoading(true);
+  const firma = useRef("");
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError("");
     try {
       const [fichas, banco, reportes] = await Promise.all([
@@ -29,21 +33,33 @@ export default function ResumenClandestinos({ api, onOpenFichas, onOpenBanco, on
         api.reports({})
       ]);
       const plazos = (fichas.items || []).map((item) => getRecordDeadlineMeta(item)?.statusKey);
-      setData({
-        fichas,
-        banco,
+      // Solo lo que el resumen muestra; si llega igual, no se toca nada (sin
+      // re-render ni animaciones). Si cambió, solo se mueve lo que cambió.
+      const siguiente = {
+        counts: fichas.counts || {},
+        banco: { counts: banco.counts || {}, sin_asignar: banco.sin_asignar || 0, asignaciones: banco.asignaciones || [] },
         reportes: reportes.reduce((acc, item) => ({ ...acc, [item.estado]: (acc[item.estado] || 0) + 1 }), {}),
         vencidas: plazos.filter((key) => key === "overdue").length,
-        porVencer: plazos.filter((key) => ["warning", "due"].includes(key)).length,
-        actualizado: new Date()
-      });
-    } catch (reason) { setError(reason.message); } finally { setLoading(false); }
+        porVencer: plazos.filter((key) => ["warning", "due"].includes(key)).length
+      };
+      const nueva = JSON.stringify(siguiente);
+      if (nueva !== firma.current) {
+        firma.current = nueva;
+        setData({ ...siguiente, actualizado: new Date() });
+      }
+    } catch (reason) { if (!silent) setError(reason.message); } finally { if (!silent) setLoading(false); }
   }, [api]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const revisar = () => { if (document.visibilityState === "visible") load({ silent: true }); };
+    const timer = setInterval(revisar, REFRESCO_MS);
+    document.addEventListener("visibilitychange", revisar);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", revisar); };
+  }, [load]);
 
   if (!data) return <section className="cl-resumen" aria-busy="true">{error ? <p className="cl-alert">{error}</p> : <div className="cl-resumen-grid is-skeleton">{Array.from({ length: 5 }, (_, index) => <div key={index} className="cl-bcard is-skeleton" />)}</div>}</section>;
 
-  const counts = data.fichas.counts || {};
+  const counts = data.counts || {};
   const activas = ETAPAS_ACTIVAS.reduce((sum, key) => sum + Number(counts[key] || 0), 0);
   // Lo que de verdad queda por revisar: los pendientes que no están en Aguas
   // (esos salen del banco con "Verificar").
@@ -53,7 +69,7 @@ export default function ResumenClandestinos({ api, onOpenFichas, onOpenBanco, on
   const kpis = [
     { key: "activas", icon: "records", label: "Expedientes activos", value: activas, hint: `${counts.regularized || 0} cerrados`, onClick: () => onOpenFichas("") },
     { key: "aviso", icon: "mail", label: "Con aviso pendiente", value: counts.confirmed || 0, hint: "Confirmados sin aviso entregado", onClick: () => onOpenFichas("confirmed") },
-    { key: "plazo", icon: "warning", label: "Plazo crítico", value: data.vencidas + data.porVencer, hint: data.vencidas ? `${data.vencidas} vencidas` : "Ninguna vencida", tone: data.vencidas ? "is-danger" : data.porVencer ? "is-warning" : "", onClick: () => onOpenFichas("", { alertas: true }) },
+    { key: "plazo", icon: "warning", label: "Plazo crítico", value: data.vencidas + data.porVencer, hint: data.vencidas ? `${data.vencidas} vencidas` : "Ninguna vencida", tone: data.vencidas ? "is-danger" : data.porVencer ? "is-warning" : "", atencion: data.vencidas + data.porVencer > 0, onClick: () => onOpenFichas("", { alertas: true }) },
     { key: "banco", icon: "inbox", label: "Banco por revisar", value: bancoPendiente, hint: enAguas ? `${enAguas} ya están en Aguas: usa Verificar` : `${data.banco.sin_asignar || 0} sin asignar a técnico`, tone: enAguas ? "is-warning" : "", onClick: () => onOpenBanco({}) },
     { key: "reportes", icon: "activity", label: "Reportes por atender", value: reportesPorAtender, hint: data.reportes.info_requested ? `${data.reportes.info_requested} esperan información` : `${data.reportes.review || 0} en revisión`, onClick: () => onOpenReportes(data.reportes.review ? "review" : "") }
   ];
@@ -61,13 +77,14 @@ export default function ResumenClandestinos({ api, onOpenFichas, onOpenBanco, on
   return <section className="cl-resumen" aria-label="Resumen del módulo">
     <header className="cl-resumen-head">
       <p>Toca cualquier número o barra para abrir esa lista ya filtrada.</p>
-      <button type="button" className="cl-quiet" disabled={loading} onClick={load}><Icon name="refresh" />{loading ? "Actualizando…" : `Actualizado ${data.actualizado.toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" })}`}</button>
+      <button type="button" className="cl-quiet" disabled={loading} onClick={() => load()}><Icon name="refresh" />{loading ? "Actualizando…" : `Actualizado ${data.actualizado.toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" })}`}</button>
     </header>
     <div className="cl-resumen-kpis">
       {kpis.map((kpi) => <button type="button" key={kpi.key} className={`cl-resumen-kpi ${kpi.tone || ""}`.trim()} onClick={kpi.onClick}>
-        <span className="cl-resumen-kpi-icon"><Icon name={kpi.icon} /></span>
+        {/* Solo lo que pide atención late, tres veces al aparecer o al cambiar la cifra. */}
+        <span className="cl-resumen-kpi-icon"><span key={kpi.atencion ? kpi.value : "quieto"} className={kpi.atencion ? "live-attention" : undefined}><Icon name={kpi.icon} /></span></span>
         <span className="cl-resumen-kpi-label">{kpi.label}</span>
-        <strong><CountUp value={kpi.value} /></strong>
+        <LiveNumber as="strong" value={kpi.value} flash=".cl-resumen-kpi" />
         <small>{kpi.hint}</small>
       </button>)}
     </div>

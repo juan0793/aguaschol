@@ -564,3 +564,21 @@
 @media (max-width: 1320px) { .cl-resumen-kpis { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
 @media (max-width: 900px) { .cl-resumen-grid, .cl-reports-guide ol { grid-template-columns: minmax(0,1fr); } }
 @media (max-width: 760px) { .cl-resumen { padding: 12px; } }
+
+/* Microinteracciones de tablero: datos vivos, sin movimiento permanente.
+   - El donut "respira" (1.2 % de escala) una vez cada 5 s; se detiene si no
+     se ve (data-offscreen), al pasar el cursor, y con movimiento reducido.
+   - La entrada de barras y segmentos ocurre una sola vez (useGrow); después
+     solo se desliza lo que cambia de valor (transiciones de 500–700 ms). */
+.cl-donut svg { transform-origin: 50% 50%; animation: cl-breathe 5s ease-in-out 1.4s infinite; }
+.cl-donut[data-offscreen] svg, .cl-donut:hover svg, .cl-donut:focus-within svg { animation-play-state: paused; }
+@keyframes cl-breathe { 0%, 76%, 100% { transform: scale(1); } 88% { transform: scale(1.012); } }
+.cl-donut figcaption strong { font-variant-numeric: tabular-nums; }
+.cl-resumen-kpi { transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.cl-resumen-kpi .cl-resumen-kpi-icon > span { display: grid; place-items: center; }
+.cl-resumen-kpi[data-live] > strong { color: var(--primary); transition: color .7s ease; }
+.cl-resumen-kpi.is-danger[data-live] > strong { color: var(--danger); }
+@media (prefers-reduced-motion: reduce) {
+  .cl-donut svg { animation: none; }
+  .cl-donut-segment, .cl-meters-track > span, .cl-bars-fill, .cl-resumen-kpi { transition: none; }
+}

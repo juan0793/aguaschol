@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
+import LiveNumber from "../../components/micro/LiveNumber";
 import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
 import { escapeHtml } from "../../utils/html";
@@ -127,6 +128,13 @@ function BotonPlegar({ plegado, titulo, onToggle }) {
 const SERVICE_ICONS = { agua: "water", alcantarillado: "sewer", barrido: "broom", recoleccion: "waste", desechos_peligrosos: "warning" };
 
 const whole = (value) => Number(value || 0).toLocaleString("es-HN");
+// Para el conteo: los cuadros intermedios se redondean a entero.
+const wholeRounded = (value) => whole(Math.round(Number(value) || 0));
+
+// Cifra entera que cuenta al cambiar y hace destellar su tarjeta (flash).
+function LiveWhole({ value, flash = "", as = "strong", className = "dw-figure" }) {
+  return <LiveNumber as={as} className={className} value={value} format={wholeRounded} flash={flash} />;
+}
 const percent = (part, total) => (total ? (Number(part || 0) / total) * 100 : 0);
 const oneDecimal = (value) => `${value.toFixed(1)}%`;
 
@@ -192,16 +200,19 @@ function MiniBars({ series = [], unit = "" }) {
 // mas pequeno y liviano para que los digitos, en cifras tabulares, carguen el peso.
 // Con `compact` se lee "L 231.9 M"; el monto exacto queda en el title para
 // quien necesite el centavo.
-function Amount({ value, className = "", compact = false }) {
-  const exact = formatCurrency(Number(value || 0));
-  const text = compact ? formatCompactCurrency(value) : exact;
+const splitAmount = (text) => {
   const match = text.match(/^(\D+?)\s*([-\d].*)$/);
-  const mark = match ? match[1].trim() : "";
-  const digits = match ? match[2] : text;
+  return match ? [match[1].trim(), match[2]] : ["", text];
+};
+
+function Amount({ value, className = "", compact = false, flash = "" }) {
+  const exact = formatCurrency(Number(value || 0));
+  const [mark] = splitAmount(compact ? formatCompactCurrency(value) : exact);
+  const digits = (current) => splitAmount(compact ? formatCompactCurrency(current) : formatCurrency(current))[1];
   return (
     <span className={`dw-amount ${className}`.trim()} title={compact ? exact : undefined}>
       {mark ? <i aria-hidden="true">{mark}</i> : null}
-      {digits}
+      <LiveNumber value={Number(value || 0)} format={digits} flash={flash} duration={700} />
     </span>
   );
 }
@@ -502,9 +513,9 @@ export default function DashboardWorkspace({ model }) {
         <p className="dw-status-source">
           <span className="dw-eyebrow">Padrón maestro</span>
           <span>
-            <strong className="dw-figure">{whole(model.padronTotals.records)}</strong> cuentas
+            <LiveWhole value={model.padronTotals.records} /> cuentas
             <span className="dw-sep" aria-hidden="true" />
-            <strong className="dw-figure">{whole(model.padronTotals.barrios)}</strong> barrios
+            <LiveWhole value={model.padronTotals.barrios} /> barrios
             {padronDate ? (
               <>
                 <span className="dw-sep" aria-hidden="true" />
@@ -553,7 +564,7 @@ export default function DashboardWorkspace({ model }) {
               </button>
             </header>
             <p className="dw-cartera-total">
-              <Amount value={debtTotal} className="is-hero" compact />
+              <Amount value={debtTotal} className="is-hero" compact flash=".dw-resumen-monto" />
               <small className="dw-cartera-exact dw-figure">{formatCurrency(debtTotal)}</small>
             </p>
             <div
@@ -611,7 +622,7 @@ export default function DashboardWorkspace({ model }) {
               {niveles.map((nivel) => (
                 <li key={nivel.key} className={`is-${nivel.key}`}>
                   <span className="dw-nivel-texto">
-                    <strong className="dw-figure">{whole(nivel.value)}</strong>
+                    <LiveWhole value={nivel.value} flash=".dw-niveles-lista li" />
                     <span>{nivel.label}</span>
                     <small className="dw-figure">{nivel.note}</small>
                   </span>
@@ -631,7 +642,7 @@ export default function DashboardWorkspace({ model }) {
                   <strong>{ofEachTen(debt.criticos, debt.deudores)}</strong> cuentas con mora son críticas (mora de {"L\u00a01,000"} o más).{" "}
                 </>
               ) : null}
-              <strong className="dw-figure">{whole(cuentasAlDia)}</strong> cuentas están al día.
+              <LiveWhole value={cuentasAlDia} /> cuentas están al día.
             </p>
           </div>
         </article>
@@ -639,16 +650,17 @@ export default function DashboardWorkspace({ model }) {
         <button
           type="button"
           className={`dw-plazos ${alertCount ? "has-alerts" : ""}`.trim()}
-          // Late solo cuando hay algo que atender: un pulso permanente seria ruido.
           data-alerta={alertCount ? "" : undefined}
           onClick={() => navigate("records", "alerts")}
         >
           <span className="dw-plazos-head">
             <span className="dw-eyebrow">Plazos de fichas</span>
-            <Icon name={alertCount ? "warning" : "checkCircle"} />
+            {/* Late solo cuando hay algo que atender, tres veces al aparecer o
+                al cambiar la cifra; un pulso permanente seria ruido. */}
+            <span key={alertCount ? `alerta-${alertCount}` : "ok"} className={alertCount ? "live-attention dw-plazos-icon" : "dw-plazos-icon"}><Icon name={alertCount ? "warning" : "checkCircle"} /></span>
           </span>
           <span className="dw-plazos-cifra">
-            <strong className="dw-figure">{whole(alertCount)}</strong>
+            <LiveWhole value={alertCount} flash=".dw-plazos" />
             <span>{alertCount === 1 ? "ficha con plazo crítico" : "fichas con plazo crítico"}</span>
           </span>
           {alertCount ? (
@@ -662,7 +674,7 @@ export default function DashboardWorkspace({ model }) {
                 {plazos.map((item) => (
                   <span key={item.key} className={`is-${item.key}`} data-vacio={item.value ? undefined : ""}>
                     <i aria-hidden="true" />
-                    <b className="dw-figure">{whole(item.value)}</b>
+                    <LiveWhole as="b" value={item.value} />
                     {item.label}
                   </span>
                 ))}

@@ -1,0 +1,34 @@
+/* Destello único de la tarjeta cuyo valor cambió: un fondo que aparece y se va
+   en 700 ms. Nada se mueve de lugar ni se repite. */
+[data-live] {
+  animation: live-flash 700ms ease-out;
+}
+
+[data-live="down"] {
+  animation-name: live-flash-down;
+}
+
+@keyframes live-flash {
+  0% { box-shadow: inset 0 0 0 1px rgba(23, 105, 224, 0.35); background-color: rgba(23, 105, 224, 0.07); }
+  100% { box-shadow: inset 0 0 0 1px rgba(23, 105, 224, 0); }
+}
+
+@keyframes live-flash-down {
+  0% { box-shadow: inset 0 0 0 1px rgba(98, 125, 152, 0.4); background-color: rgba(98, 125, 152, 0.07); }
+  100% { box-shadow: inset 0 0 0 1px rgba(98, 125, 152, 0); }
+}
+
+/* Micropulsación para lo que pide atención (plazo crítico): tres latidos
+   suaves al aparecer o al cambiar la cifra, y luego quieto. */
+.live-attention {
+  animation: live-attention 1.6s ease-in-out 3;
+}
+
+@keyframes live-attention {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-live], .live-attention { animation: none !important; }
+}
