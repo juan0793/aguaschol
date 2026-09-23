@@ -4,8 +4,10 @@ import { Icon } from "../../../components/Icon";
 import FichasInbox from "../components/FichasInbox";
 import FichaDrawer from "../components/FichaDrawer";
 import BancoClandestinos from "../components/BancoClandestinos";
+import ResumenClandestinos from "../components/ResumenClandestinos";
 import { useFichas } from "../hooks/useFichas";
 import { useBanco } from "../hooks/useBanco";
+import { useReportes } from "../hooks/useReportes";
 import { createClandestinosApi } from "../services/clandestinosApi";
 import ReportesTecnicosPage from "./ReportesTecnicosPage";
 import ImpresionesPage from "./ImpresionesPage";
@@ -24,6 +26,7 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   const fichas = useFichas(api, true);
   // La validadora de campo entra directo a lo que le asignaron.
   const banco = useBanco(api, tab === "banco", { defaultAsignado: session?.user?.role === "validadora_campo" ? "mine" : "" });
+  const reportes = useReportes(api, tab === "reportes");
   useEffect(() => { api.config().then(setConfig).catch((error) => showAlert(error.message)); }, [api]);
   useEffect(() => { const change = () => setTab(tabFromHash()); addEventListener("hashchange", change); return () => removeEventListener("hashchange", change); }, []);
   useEffect(() => {
@@ -36,7 +39,18 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
       else showAlert("Sin ficha relacionada.");
     }).catch((error) => showAlert(error.message)).finally(() => onFocusConsumed?.());
   }, [api, config, focusRequest, onFocusConsumed, showAlert]);
-  const go = (key) => { if (key === "resumen") { navigate("dashboard"); return; } history.replaceState(null, "", `#clandestinos/${key}`); setTab(key); };
+  const go = (key) => { history.replaceState(null, "", `#clandestinos/${key}`); setTab(key); };
+  // Desde el Resumen: abrir cada pestaña con el filtro de lo que se tocó.
+  const abrirFichas = (state = "", { alertas = false } = {}) => {
+    if (alertas) sessionStorage.setItem("aguas.clandestinos.focus", "alerts");
+    fichas.filters.setQuery(""); fichas.filters.setBarrio(""); fichas.filters.setState(state);
+    go("fichas");
+  };
+  const abrirBanco = ({ dictamen = "", asignado = "" } = {}) => {
+    banco.filters.setQuery(""); banco.filters.setBarrio(""); banco.filters.setEstado("pendiente"); banco.filters.setDictamen(dictamen); banco.filters.setAsignado(asignado);
+    go("banco");
+  };
+  const abrirReportes = (state = "") => { reportes.setState(state); go("reportes"); };
 
   // Órdenes que llegan desde la barra superior de la app (buscar clave, actualizar).
   const handledCommand = useRef(null);
@@ -63,10 +77,12 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   if (!config) return <main className="cl-module"><div className="cl-module-loading"><LatticeLoader label="Cargando módulo Clandestinos…" showTimer /></div></main>;
 
   // El encabezado dice en qué sección se está y qué contiene, no un rótulo fijo.
+  const reportesPorAtender = ["new", "review", "info_requested"].reduce((sum, key) => sum + Number(reportes.counts[key] || 0), 0);
   const secciones = {
+    resumen: { icon: "dashboard", title: "Resumen de clandestinos", detail: "Cómo va el proceso: fichas, banco de campo, técnicos y reportes" },
     fichas: { icon: "records", title: "Fichas clandestinas", detail: `${plural(totalExpedientes, "expediente", "expedientes")} en seguimiento${fichas.counts?.confirmed ? ` · ${fichas.counts.confirmed} con aviso pendiente` : ""}` },
     banco: { icon: "inbox", title: "Banco de clandestinos", detail: banco.estados?.pendiente != null ? `${plural(banco.estados.pendiente, "punto de campo", "puntos de campo")} por revisar · ${banco.estados.enviado || 0} enviados a ficha` : "Puntos de campo verificados contra Aguas y Alcaldía" },
-    reportes: { icon: "activity", title: "Reportes técnicos", detail: "Hallazgos de campo con su seguimiento" },
+    reportes: { icon: "activity", title: "Reportes técnicos", detail: reportes.total ? `${plural(reportesPorAtender, "hallazgo de campo", "hallazgos de campo")} por atender · ${reportes.total} en total` : "Hallazgos que registran los técnicos en campo, para revisar y vincular a una ficha" },
     impresiones: { icon: "print", title: "Centro de impresión", detail: selected.size ? `${plural(selected.size, "ficha lista", "fichas listas")} para imprimir` : "Marca fichas en la bandeja para prepararlas" },
     configuracion: { icon: "settings", title: "Configuración del módulo", detail: "Catálogos, plantillas y permisos" }
   };
@@ -78,7 +94,8 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
     <header className="cl-module-header"><div className="cl-module-heading"><span className="cl-module-emblem" key={tab} aria-hidden="true"><Icon name={seccion.icon} /></span><div><span className="cl-kicker">Clandestinos{modo ? <em className="cl-mode-chip">Módulo especial</em> : null}</span><h1>{seccion.title}</h1><p aria-live="polite">{seccion.detail}</p></div></div><nav aria-label="Secciones de Clandestinos">{tabs.filter(([key]) => key !== "configuracion" || config.permissions.can_manage_configuration).map(([key,label,icon]) => <button type="button" key={key} className={`${tab === key ? "is-active" : ""} ${MODOS[key] ? `is-special is-${key}` : ""}`.trim()} onClick={() => go(key)}><Icon name={icon} />{label}</button>)}</nav><div className="cl-role"><Icon name="users" /><span>{session?.user?.full_name || session?.user?.username}<small>{session?.user?.role}</small></span></div></header>
     {tab === "fichas" ? <FichasInbox model={fichas} selectedIds={new Set(selected.keys())} onToggle={toggle} onToggleVisible={toggleVisible} onSelectAll={selectAll} onClearSelection={() => setSelected(new Map())} onCompare={compareSelected} onPrintSummary={() => { sessionStorage.setItem("aguas.clandestinos.printTemplate", "batch_list"); go("impresiones"); }} comparison={comparison} bulkLoading={bulkLoading} onOpen={setDrawer} onNew={() => setDrawer(null)} canCreate={config.permissions.can_manage_ficha_state} /> : null}
     {tab === "banco" ? <BancoClandestinos api={api} model={banco} permissions={config.permissions} session={session} notify={showAlert} onOpenFicha={openBancoFicha} onFichaCreated={(ficha) => { fichas.reload(); setDrawer(ficha); }} /> : null}
-    {tab === "reportes" ? <ReportesTecnicosPage api={api} config={config} notify={showAlert} /> : null}
+    {tab === "resumen" ? <ResumenClandestinos api={api} onOpenFichas={abrirFichas} onOpenBanco={abrirBanco} onOpenReportes={abrirReportes} /> : null}
+    {tab === "reportes" ? <ReportesTecnicosPage api={api} config={config} notify={showAlert} model={reportes} /> : null}
     {tab === "impresiones" ? <ImpresionesPage records={[...selected.values()]} onGoFichas={() => go("fichas")} onClearSelection={() => setSelected(new Map())} /> : null}
     {tab === "configuracion" ? <section className="cl-config"><header className="cl-page-head"><div><span className="cl-kicker">Administración</span><h2>Configuración del módulo</h2><p>Catálogos visibles para controlar los flujos sin valores ambiguos.</p></div></header><div className="cl-config-grid"><article><Icon name="records" /><h3>Estados de ficha</h3><p>{config.ficha_states.join(" · ")}</p></article><article><Icon name="activity" /><h3>Estados de reportes</h3><p>{config.report_states.join(" · ")}</p></article><article><Icon name="print" /><h3>Plantillas</h3><p>{config.print_templates.join(" · ")}</p></article><article><Icon name="users" /><h3>Permisos efectivos</h3><p>{Object.entries(config.permissions).filter(([,value]) => value).map(([key]) => key).join(" · ")}</p></article></div></section> : null}
     {drawer !== undefined ? <FichaDrawer record={drawer} api={api} config={config} notify={showAlert} onClose={() => setDrawer(undefined)} onPrintFicha={onPrintFicha} onPrintAviso={onPrintAviso} onSaved={async (saved, close = true) => { setSelected((current) => { const key = String(saved.id); if (!current.has(key)) return current; const next = new Map(current); next.set(key, saved); return next; }); await fichas.reload(); if (close) setDrawer(undefined); else setDrawer(saved); }} /> : null}
