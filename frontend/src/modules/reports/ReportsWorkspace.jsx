@@ -36,8 +36,6 @@ export default function ReportsWorkspace({ model }) {
   const days = useMemo(() => model.days.map((day) => ({ ...day, label: formatMapDiaryLabel(day.key) })), [model.days]);
   const filteredDays = useMemo(() => filterReportDays(days, dayFilters), [days, dayFilters]);
   const points = useMemo(() => flattenReportPoints(model.data.zones), [model.data.zones]);
-  const ready = points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude))).length;
-  const pending = Math.max(0, points.length - ready);
   const debtKeys = useMemo(() => new Set((model.debtReport?.results || []).filter((item) => item.exists && item.matches?.some((match) => Number(match.total || 0) > 0)).map((item) => String(item.key))), [model.debtReport]);
   const debtSummary = { ...model.debtSummary, totalDebtLabel: formatCurrency(model.debtSummary.totalDebt || 0) };
   const debtChart = {
@@ -77,7 +75,7 @@ export default function ReportsWorkspace({ model }) {
 
   return <section className="reports-workspace">
     <ReportsHeader activeLabel={formatMapDiaryLabel(model.activeDateKey)} activeTotal={model.data.totalPoints} days={days} onSelectDay={model.onSelectDay} onOpenAllDays={() => setDaysOpen(true)} loading={model.loadingPoints || model.loadingContexts} onRefresh={model.onRefresh} onPreview={() => setPreviewOpen(true)} onGenerate={() => setGeneratorOpen(true)} onSettings={() => setSettingsOpen(true)} />
-    <ReportSummaryBar total={model.data.totalPoints} zones={model.data.totalZones} ready={ready} pending={pending} />
+    <ReportSummaryBar total={model.data.totalPoints} zones={model.data.totalZones} points={points} />
     <div className="reports-content"><ReportsTabs active={tab} onChange={setTab} />
       {tab === "findings" ? <ReportFindingsTab apiFetch={model.apiFetch} activeDateKey={model.activeDateKey} notify={model.notify} onOpenBanco={model.onOpenBanco} /> : null}
       {tab === "overview" ? <ReportOverviewTab data={model.data} settings={model.settings} activeLabel={formatMapDiaryLabel(model.activeDateKey)} debt={model.debtReport ? debtSummary : null} onPreview={() => setPreviewOpen(true)} /> : null}

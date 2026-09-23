@@ -3,7 +3,10 @@
    sombras consistentes. Ver frontend/src/components/ds/design-system.css para
    los tokens (--ds-*) y componentes compartidos (PageHeader, MetricRow). */
 
-.map-reports-mode .app-chrome .map-report-toolbar { display: none; }
+/* La barra vieja de la cabecera de la app quedó oculta, pero su tarjeta blanca
+   seguía ocupando una franja vacía: se oculta la tarjeta completa. */
+.map-reports-mode .app-chrome .map-report-toolbar,
+.page-shell.map-reports-mode .app-chrome > .search-card { display: none; }
 
 .reports-workspace {
   display: grid;
@@ -317,3 +320,66 @@
 .cl-module .rf-sinclave { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 32px; margin-top: 10px; padding: 0 8px; border: 1px dashed #c9d6e3; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12.5px; text-align: left; cursor: pointer; }
 .cl-module .rf-sinclave.is-active { border-style: solid; border-color: #8fa3b8; background: #f3f6f9; color: var(--navy); }
 .rf-sinclave .app-icon { width: 14px; height: 14px; }
+
+/* ---------- Encabezado rediseñado (rp-*) ---------- */
+.reports-workspace .rp-header { display: grid; gap: 12px; padding: 18px 20px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 16px; background: var(--ds-surface, #fff); box-shadow: 0 6px 18px rgba(16, 42, 67, 0.05); }
+.reports-workspace .rp-header-top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; }
+.reports-workspace .rp-title { display: grid; gap: 2px; min-width: 0; }
+.reports-workspace .rp-kicker { color: var(--ds-blue, #1769e0); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.reports-workspace .rp-title h1 { margin: 0; color: var(--ds-text, #102a43); font-size: 24px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+.reports-workspace .rp-title p { margin: 0; color: var(--ds-text-muted, #627d98); font-size: 13.5px; }
+.reports-workspace .rp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.reports-workspace .rp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; width: auto; margin: 0; padding: 0 14px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 10px; background: #fff; box-shadow: none; color: var(--ds-text, #243b53); font-size: 13.5px; font-weight: 700; line-height: 1; white-space: nowrap; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
+.reports-workspace .rp-btn:hover:not(:disabled) { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue-soft, #eef5ff); transform: none; }
+.reports-workspace .rp-btn .app-icon { width: 16px; height: 16px; }
+.reports-workspace .rp-btn.is-icon { width: 38px; padding: 0; }
+.reports-workspace .rp-btn.is-primary { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue, #1769e0); color: #fff; }
+.reports-workspace .rp-btn.is-primary:hover:not(:disabled) { background: #0b5cc4; color: #fff; }
+.reports-workspace .rp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.reports-workspace .rp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-top: 12px; border-top: 1px solid var(--ds-border, #e3ebf3); }
+.reports-workspace .rp-day { position: relative; }
+.reports-workspace .rp-day-trigger { display: inline-flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 40px; width: auto; margin: 0; padding: 0 12px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 10px; background: #f7fafd; box-shadow: none; color: var(--ds-text, #102a43); font-size: 14px; font-weight: 600; text-align: left; white-space: nowrap; cursor: pointer; }
+.reports-workspace .rp-day-trigger:hover, .reports-workspace .rp-day-trigger[aria-expanded="true"] { border-color: var(--ds-blue, #1769e0); background: #fff; transform: none; }
+.reports-workspace .rp-day-trigger > .app-icon { width: 16px; height: 16px; color: var(--ds-blue, #1769e0); }
+.reports-workspace .rp-day-label { color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 700; }
+.reports-workspace .rp-day-trigger strong { font-size: 14.5px; font-weight: 800; }
+.reports-workspace .rp-day-count { padding: 2px 8px; border-radius: 999px; background: var(--ds-blue-soft, #eaf2fe); color: var(--ds-blue, #1769e0); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.reports-workspace .rp-day-caret { color: var(--ds-text-muted, #627d98); transition: transform 0.16s ease; }
+.reports-workspace .rp-day-trigger[aria-expanded="true"] .rp-day-caret { transform: rotate(180deg); }
+.reports-workspace .rp-day-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; display: grid; gap: 2px; width: max(100%, 300px); padding: 8px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 12px; background: #fff; box-shadow: 0 16px 36px rgba(16, 42, 67, 0.16); }
+.reports-workspace .rp-day-search { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; padding: 0 10px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 9px; }
+.reports-workspace .rp-day-search .app-icon { width: 15px; height: 15px; color: var(--ds-text-muted, #627d98); }
+.reports-workspace .rp-day-search input { flex: 1; min-width: 0; min-height: 36px; padding: 0; border: 0; background: transparent; box-shadow: none; font-size: 13.5px; outline: none; }
+.reports-workspace .rp-day-pop > button { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; width: 100%; margin: 0; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: var(--ds-text, #243b53); font-size: 13.5px; font-weight: 600; text-align: left; cursor: pointer; }
+.reports-workspace .rp-day-pop > button:hover { background: #f1f6fc; transform: none; }
+.reports-workspace .rp-day-pop > button.is-active { color: var(--ds-blue, #1769e0); font-weight: 800; }
+.reports-workspace .rp-day-pop > button small { color: var(--ds-text-muted, #627d98); font-size: 12px; font-variant-numeric: tabular-nums; }
+.reports-workspace .rp-day-pop > .rp-day-all { justify-content: flex-start; gap: 6px; margin-top: 4px; border-top: 1px solid var(--ds-border, #e3ebf3); border-radius: 0 0 8px 8px; color: var(--ds-blue, #1769e0); font-weight: 700; }
+.reports-workspace .rp-day-all .app-icon { width: 14px; height: 14px; }
+.reports-workspace .rp-day-empty { margin: 0; padding: 8px 10px; color: var(--ds-text-muted, #627d98); font-size: 13px; }
+.reports-workspace .rp-status { display: inline-flex; align-items: center; gap: 7px; color: var(--ds-text-muted, #627d98); font-size: 13px; font-weight: 600; }
+.reports-workspace .rp-status i { width: 8px; height: 8px; border-radius: 50%; background: #1f9463; box-shadow: 0 0 0 3px rgba(31, 148, 99, 0.16); }
+.reports-workspace .rp-status.is-loading i { background: #d08a1f; box-shadow: 0 0 0 3px rgba(208, 138, 31, 0.18); }
+
+/* ---------- Números de la jornada ---------- */
+.reports-workspace .rp-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.reports-workspace .rp-metric { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "icon label" "icon value" "icon hint"; column-gap: 10px; align-items: center; padding: 12px 14px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 14px; background: #fff; }
+.reports-workspace .rp-metric-icon { grid-area: icon; align-self: start; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #eaf2fe; color: var(--ds-blue, #1769e0); }
+.reports-workspace .rp-metric-icon .app-icon { width: 18px; height: 18px; }
+.reports-workspace .rp-metric-label { grid-area: label; color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 700; }
+.reports-workspace .rp-metric > strong { grid-area: value; color: var(--ds-text, #102a43); font-size: 26px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.reports-workspace .rp-metric > small { grid-area: hint; color: var(--ds-text-muted, #627d98); font-size: 12px; }
+.reports-workspace .rp-metric.is-good .rp-metric-icon { background: #e6f6ee; color: #1f9463; }
+.reports-workspace .rp-metric.is-warn .rp-metric-icon { background: #fdf4e4; color: #b06d12; }
+.reports-workspace .rp-metric.is-bad .rp-metric-icon { background: #fdeef0; color: #b8323e; }
+.reports-workspace .rp-metric.is-bad > strong { color: #b8323e; }
+@media (max-width: 1000px) { .reports-workspace .rp-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .reports-workspace .rp-header { padding: 14px; }
+  .reports-workspace .rp-title h1 { font-size: 21px; }
+  .reports-workspace .rp-actions { width: 100%; }
+  .reports-workspace .rp-actions .rp-btn:not(.is-icon) { flex: 1 1 auto; }
+  .reports-workspace .rp-day, .reports-workspace .rp-day-trigger { width: 100%; }
+  .reports-workspace .rp-day-trigger strong { overflow: hidden; text-overflow: ellipsis; }
+  .reports-workspace .rp-day-caret { margin-left: auto; }
+}

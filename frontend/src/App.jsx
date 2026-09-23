@@ -1612,6 +1612,10 @@ function App() {
     () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === activeMapDiaryDateKey),
     [activeMapDiaryDateKey, safeMapPoints]
   );
+  // El menú mostraba "N puntos hoy" aunque la jornada visible fuera de otro día.
+  const puntosJornadaLabel = activeMapDiaryDateKey === getTodayMapDiaryKey()
+    ? `${visibleMapPoints.length} puntos hoy`
+    : `${visibleMapPoints.length} puntos · ${new Date(`${activeMapDiaryDateKey}T12:00:00`).toLocaleDateString("es-HN", { day: "numeric", month: "short" })}`;
   const mapPointsForCanvas = useMemo(
     () => (isCompactMapView ? visibleMapPoints.slice(0, MOBILE_MAP_POINT_LIMIT) : visibleMapPoints),
     [isCompactMapView, visibleMapPoints]
@@ -2431,7 +2435,7 @@ function App() {
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "sigTerritorial", label: "SIG Territorial", icon: "map", group: "operacion", helper: "Cartografía operativa" },
-            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: puntosJornadaLabel },
             { key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" },
             { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
             { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
@@ -2450,7 +2454,7 @@ function App() {
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
             { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
             { key: "sigTerritorial", label: "SIG Territorial", icon: "map", group: "operacion", helper: "Cartografía operativa" },
-            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: `${visibleMapPoints.length} puntos hoy` },
+            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: puntosJornadaLabel },
             ...(isFieldValidator
               ? [{ key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" }]
               : []),
