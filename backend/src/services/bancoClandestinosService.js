@@ -142,7 +142,7 @@ export const parseCsv = (text = "") => {
   return body.map((values) => Object.fromEntries(keys.map((key, position) => [key, values[position] ?? ""])));
 };
 
-const candidatoDesdeFila = (row) => ({
+export const candidatoDesdeFila = (row) => ({
   origen_ref: clean(row.origen_ref || row.fid || row.fid_qfield),
   clave_catastral: normalizarClaveBanco(row.clave_catastral || row.clave || row.clave_usada),
   clave_origen: clean(row.clave_origen || row.origen_clave).slice(0, 20),
@@ -457,6 +457,12 @@ export const importBancoClandestinos = async ({ csv = "", origen = "qfield", lot
   if (rows.length > MAX_IMPORT_ROWS) throw fail(`El banco admite hasta ${MAX_IMPORT_ROWS} filas por importación.`, 413);
   const sinReferencia = rows.filter((row) => !row.origen_ref).length;
   if (sinReferencia) throw fail(`${sinReferencia} filas no traen origen_ref (id del punto). Sin él no se puede evitar duplicados.`);
+  return guardarCandidatos(rows, { origen, lote }, user);
+};
+
+// Guarda candidatos ya armados (CSV de QField o hallazgos de puntos GPS):
+// dictamina cada uno contra los padrones y no toca los ya enviados o descartados.
+export const guardarCandidatos = async (rows, { origen = "qfield", lote = "" } = {}, user) => {
   origen = clean(origen).slice(0, 40) || "qfield";
   lote = clean(lote).slice(0, 120);
   const index = currentIndex({ reloadAlcaldia: true });

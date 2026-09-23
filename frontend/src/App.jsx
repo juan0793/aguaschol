@@ -17536,6 +17536,12 @@ function App() {
               <Suspense fallback={<ModuleSkeleton title="reportes" />}>
                 <ReportsWorkspace
                   model={{
+                    apiFetch,
+                    notify: showAlert,
+                    onOpenBanco: () => {
+                      window.location.hash = "clandestinos/banco";
+                      setWorkspaceView("records");
+                    },
                     activeDateKey: activeMapDiaryDateKey,
                     days: mapDiaryGroups,
                     data: mapReportPrintData,

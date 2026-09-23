@@ -1,6 +1,7 @@
 import { Icon } from "../../components/Icon";
 
 const tabs = [
+  ["findings", "Hallazgos", "flag"],
   ["overview", "Resumen", "dashboard"],
   ["records", "Registros", "records"],
   ["debt", "Mora", "activity"],

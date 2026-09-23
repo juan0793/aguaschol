@@ -11,12 +11,14 @@ import ReportOverviewTab from "./tabs/ReportOverviewTab";
 import ReportRecordsTab from "./tabs/ReportRecordsTab";
 import ReportDebtTab from "./tabs/ReportDebtTab";
 import RegulatorReportTab from "./tabs/RegulatorReportTab";
+import ReportFindingsTab from "./tabs/ReportFindingsTab";
 import { filterReportDays, flattenReportPoints } from "./utils/reportSelectors";
 import "../../components/ds/design-system.css";
 import "./reports.css";
 
 export default function ReportsWorkspace({ model }) {
-  const [tab, setTab] = useState("overview");
+  // Hallazgos va primero: es lo que convierte el levantamiento en acciones.
+  const [tab, setTab] = useState("findings");
   const [daysOpen, setDaysOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -77,6 +79,7 @@ export default function ReportsWorkspace({ model }) {
     <ReportsHeader activeLabel={formatMapDiaryLabel(model.activeDateKey)} activeTotal={model.data.totalPoints} days={days} onSelectDay={model.onSelectDay} onOpenAllDays={() => setDaysOpen(true)} loading={model.loadingPoints || model.loadingContexts} onRefresh={model.onRefresh} onPreview={() => setPreviewOpen(true)} onGenerate={() => setGeneratorOpen(true)} onSettings={() => setSettingsOpen(true)} />
     <ReportSummaryBar total={model.data.totalPoints} zones={model.data.totalZones} ready={ready} pending={pending} />
     <div className="reports-content"><ReportsTabs active={tab} onChange={setTab} />
+      {tab === "findings" ? <ReportFindingsTab apiFetch={model.apiFetch} activeDateKey={model.activeDateKey} notify={model.notify} onOpenBanco={model.onOpenBanco} /> : null}
       {tab === "overview" ? <ReportOverviewTab data={model.data} settings={model.settings} activeLabel={formatMapDiaryLabel(model.activeDateKey)} debt={model.debtReport ? debtSummary : null} onPreview={() => setPreviewOpen(true)} /> : null}
       {tab === "records" ? <ReportRecordsTab points={points} debtKeys={debtKeys} onEditPoint={(pointId) => { model.onEditPoint(pointId); setDetailOpen(true); }} onOpenMap={model.onOpenMap} /> : null}
       {tab === "debt" ? <ReportDebtTab loading={model.loadingDebt} report={model.debtReport} summary={debtSummary} chart={debtChart} onVerify={model.onVerifyDebt} onDetail={model.onDebtDetail} onPrint={model.onPrintDebt} onDownload={model.onDownloadDebt} /> : null}

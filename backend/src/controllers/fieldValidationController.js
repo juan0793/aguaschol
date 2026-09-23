@@ -1,5 +1,9 @@
 import { listFieldValidationPoints, validateFieldPoint } from "../services/fieldValidationService.js";
 import { getFieldAnalytics } from "../services/fieldAnalyticsService.js";
+import { enviarHallazgosAlBanco, getFieldFindings } from "../services/fieldFindingsService.js";
+
+export const fieldFindingsHandler = async (req, res, next) => { try { res.setHeader("Cache-Control", "no-store"); res.json(await getFieldFindings({ from: req.query?.from, to: req.query?.to })); } catch (error) { next(error); } };
+export const fieldFindingsToBancoHandler = async (req, res, next) => { try { res.json(await enviarHallazgosAlBanco(req.body || {}, req.authUser)); } catch (error) { next(error); } };
 
 export const listFieldValidationPointsHandler = async (req, res, next) => {
   try {
