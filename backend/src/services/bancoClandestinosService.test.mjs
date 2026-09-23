@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPadronIndex, descartarCandidato, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato } from "./bancoClandestinosService.js";
+import { buildPadronIndex, descartarCandidato, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
 import { getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
@@ -137,4 +137,18 @@ test("resume los barrios con más candidatos y su desglose por dictamen", () => 
   assert.equal(barrios[0].clandestino, 3);
   assert.equal(barrios[0].probable, 2);
   assert.equal(barrios[0].registrado, 0);
+});
+
+test("verificar descarta a los que aparecen en Aguas y deja a los demás", async () => {
+  await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo\nv-1,22-35-01-01,Casa de Lucila\nv-2,89-13-15,Casa de Hilda", lote: "verificacion" }, admin);
+  await assert.rejects(() => verificarBancoClandestinos(campo, { index }), (error) => error.status === 403);
+  const result = await verificarBancoClandestinos(tecnico, { index });
+  assert.ok(result.descartados >= 1);
+  const [lucila] = (await listBancoClandestinos({ query: "Casa de Lucila", estado: "" })).items;
+  assert.equal(lucila.estado, "descartado");
+  assert.equal(lucila.dictamen, "registrado");
+  assert.match(lucila.motivo_descarte, /Aparece en Aguas/);
+  const [hilda] = (await listBancoClandestinos({ query: "Casa de Hilda", estado: "" })).items;
+  assert.equal(hilda.estado, "pendiente");
+  assert.equal(hilda.dictamen, "clandestino");
 });

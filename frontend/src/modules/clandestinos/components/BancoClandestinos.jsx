@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { CountUp, DonutChart, MeterLegend, StackedBars } from "./ClCharts";
+import BarrioPicker from "./BarrioPicker";
 
 const DICTAMENES = [
   ["clandestino", "Clandestino", "Solo aparece en Alcaldía", "warning"],
@@ -92,7 +93,7 @@ export default function BancoClandestinos({ api, model, permissions, notify, onO
     setWorking("verify");
     try {
       const result = await api.bancoVerify();
-      notify(result.cambiaron ? `${result.verificados} verificados contra los padrones; ${result.cambiaron} cambiaron de dictamen.` : `${result.verificados} verificados contra los padrones; sin cambios.`);
+      notify([`${result.verificados} verificados contra los padrones`, result.descartados ? `${result.descartados} pasaron a descartados por aparecer en Aguas` : "ninguno aparece en Aguas", result.cambiaron ? `${result.cambiaron} cambiaron de dictamen` : ""].filter(Boolean).join("; ") + ".");
       await model.reload();
     } catch (error) { notify(error.message); } finally { setWorking(""); }
   };
@@ -117,11 +118,12 @@ export default function BancoClandestinos({ api, model, permissions, notify, onO
       </div>
       <div className="cl-banco-chart is-bars">
         <header><h3>Barrios con más candidatos</h3><p>{model.filters.barrio ? <button type="button" className="cl-scope-clear" onClick={() => model.filters.setBarrio("")}>Ver todos los barrios</button> : "Toca un barrio para filtrar"}</p></header>
-        <StackedBars label="Candidatos por barrio" selected={model.filters.barrio} onSelect={model.filters.setBarrio} emptyText={model.loading ? "Cargando…" : "Sin barrios con estos filtros"} rows={(model.barrio_counts || []).map((row) => ({ key: row.barrio, label: row.barrio, total: row.total, parts: DICTAMENES.map(([key, label]) => ({ key, label, value: row[key] || 0, color: DICTAMEN_COLORS[key] })) }))} />
+        <StackedBars label="Candidatos por barrio" selected={model.filters.barrio} onSelect={model.filters.setBarrio} emptyText={model.loading ? "Cargando…" : "Sin barrios con estos filtros"} rows={(model.barrio_counts || []).slice(0, 8).map((row) => ({ key: row.barrio, label: row.barrio, total: row.total, parts: DICTAMENES.map(([key, label]) => ({ key, label, value: row[key] || 0, color: DICTAMEN_COLORS[key] })) }))} />
       </div>
       <aside className="cl-banco-flow" aria-label="Avance del banco">
         <h3>Avance</h3>
         {BANCO_FLOW.map(([key, label, icon]) => <button type="button" key={key} aria-pressed={model.filters.estado === key} className={model.filters.estado === key ? "is-active" : ""} onClick={() => model.filters.setEstado(key)}><Icon name={icon} /><span>{label}</span><strong><CountUp value={model.estados?.[key] || 0} /></strong></button>)}
+        {permissions.can_process_banco ? <p className="cl-banco-flow-hint"><Icon name="checkCircle" />Verificar vuelve a revisar los pendientes y manda a descartados los que ya aparecen en Aguas.</p> : null}
         <div className="cl-banco-head-actions">
           {permissions.can_process_banco ? <button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={verify} title="Vuelve a dictaminar los pendientes con los padrones actuales"><Icon name="refresh" />{working === "verify" ? "Verificando…" : "Verificar"}</button> : null}
           {permissions.can_import_banco ? <><input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={(event) => importFile(event.target.files?.[0])} /><button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={() => fileInput.current?.click()} title="Importar el CSV del levantamiento de QField"><Icon name="download" />{working === "import" ? "Importando…" : "Importar CSV"}</button></> : null}
@@ -131,7 +133,7 @@ export default function BancoClandestinos({ api, model, permissions, notify, onO
     <div className="cl-toolbar">
       <label className="cl-search"><span>Buscar</span><div><Icon name="search" /><input value={model.filters.query} onChange={(event) => model.filters.setQuery(event.target.value)} placeholder="Clave, propietario, barrio o comentario" /></div></label>
       <label><span>Estado</span><select value={model.filters.estado} onChange={(event) => model.filters.setEstado(event.target.value)}>{ESTADOS.map(([value, label]) => <option key={value || "todos"} value={value}>{label}{value ? ` (${model.estados?.[value] || 0})` : ""}</option>)}</select></label>
-      <label><span>Barrio</span><select value={model.filters.barrio} onChange={(event) => model.filters.setBarrio(event.target.value)}><option value="">Todos</option>{(model.barrios || []).map((item) => <option key={item}>{item}</option>)}</select></label>
+      <div className="cl-picker-field"><span>Barrio</span><BarrioPicker value={model.filters.barrio} onChange={model.filters.setBarrio} options={model.barrio_counts || []} /></div>
       <button type="button" className="cl-quiet" onClick={model.filters.clear}><Icon name="refresh" />Limpiar</button>
     </div>
     {model.error ? <p className="cl-alert">{model.error}</p> : null}

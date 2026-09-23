@@ -190,8 +190,7 @@ const guardarDictamen = async (id, result) => {
   );
 };
 
-const BARRIOS_EN_GRAFICO = 8;
-// Filas { barrio_colonia, dictamen, total } -> los barrios con más candidatos,
+// Filas { barrio_colonia, dictamen, total } -> todos los barrios, de más a menos candidatos,
 // cada uno con su desglose por dictamen.
 export const resumirBarrios = (rows = []) => {
   const byBarrio = new Map();
@@ -204,7 +203,7 @@ export const resumirBarrios = (rows = []) => {
     if (row.dictamen in entry) entry[row.dictamen] += total;
     byBarrio.set(barrio, entry);
   }
-  return [...byBarrio.values()].sort((a, b) => b.total - a.total || a.barrio.localeCompare(b.barrio, "es")).slice(0, BARRIOS_EN_GRAFICO);
+  return [...byBarrio.values()].sort((a, b) => b.total - a.total || a.barrio.localeCompare(b.barrio, "es"));
 };
 
 export const listBancoClandestinos = async ({ query = "", dictamen = "", estado = "pendiente", barrio = "", page = 1, limit = 25 } = {}) => {
@@ -313,13 +312,17 @@ export const importBancoClandestinos = async ({ csv = "", origen = "qfield", lot
 };
 
 // Vuelve a dictaminar los candidatos pendientes con los padrones cargados en este momento.
-export const verificarBancoClandestinos = async (user) => {
+// Verifica los pendientes contra los padrones actuales. Regla: si el predio
+// aparece en Aguas no es clandestino, así que sale del banco como descartado
+// (se puede devolver a mano si hiciera falta).
+export const verificarBancoClandestinos = async (user, { index } = {}) => {
   if (!canProcess(user)) throw fail("Tu rol no puede verificar el banco.", 403);
-  const index = currentIndex({ reloadAlcaldia: true });
+  index ||= currentIndex({ reloadAlcaldia: true });
   const pendientes = env.useMemoryDb
     ? memoryBanco.filter((item) => item.estado === "pendiente")
     : (await getPool().query("SELECT id, clave_catastral, abonado_campo, dictamen FROM banco_clandestinos WHERE estado = 'pendiente'"))[0];
   const cambios = {};
+  let descartados = 0;
   for (const item of pendientes) {
     const result = dictaminarCandidato(item, index);
     if (result.dictamen !== item.dictamen) {
@@ -327,9 +330,13 @@ export const verificarBancoClandestinos = async (user) => {
       cambios[key] = (cambios[key] || 0) + 1;
     }
     await guardarDictamen(item.id, result);
+    if (result.dictamen === "registrado") {
+      await marcarProcesado(item.id, { estado: "descartado", motivo_descarte: `Aparece en Aguas (verificación automática): ${result.motivo_dictamen}`.slice(0, 255) }, user);
+      descartados += 1;
+    }
   }
-  const summary = { verificados: pendientes.length, cambiaron: Object.values(cambios).reduce((sum, value) => sum + value, 0), cambios, padron_version: getMasterVersion() };
-  if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.verified", entityType: "banco_clandestinos", entityId: 0, summary: `Banco verificado contra padrones: ${summary.verificados} candidatos, ${summary.cambiaron} cambiaron`, details: summary });
+  const summary = { verificados: pendientes.length, cambiaron: Object.values(cambios).reduce((sum, value) => sum + value, 0), descartados, cambios, padron_version: getMasterVersion() };
+  if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.verified", entityType: "banco_clandestinos", entityId: 0, summary: `Banco verificado contra padrones: ${summary.verificados} candidatos, ${summary.cambiaron} cambiaron, ${descartados} descartados por aparecer en Aguas`, details: summary });
   return summary;
 };
 
