@@ -72,12 +72,17 @@ export function DonutChart({ segments, selected = "", onSelect, label, centerCap
 /**
  * Barras horizontales apiladas y seleccionables (una fila = una categoría).
  * rows: [{ key, label, total, parts: [{ key, value, color, label }] }]
+ * reserveRows: alto fijo para ese número de filas. Úsalo cuando la cantidad de
+ * filas depende de un filtro que se escribe (p. ej. la búsqueda del Banco): así
+ * el gráfico no cambia de alto con cada tecla ni empuja lo que tiene debajo.
  */
-export function StackedBars({ rows, selected = "", onSelect, emptyText = "Sin datos para graficar", label }) {
+const ROW_HEIGHT = 27.5;
+export function StackedBars({ rows, selected = "", onSelect, emptyText = "Sin datos para graficar", label, reserveRows = 0 }) {
   const ready = useGrow();
   const max = Math.max(1, ...rows.map((row) => row.total));
-  if (!rows.length) return <p className="cl-bars-empty">{emptyText}</p>;
-  return <ul className="cl-bars" aria-label={label}>
+  const reserva = reserveRows ? { minHeight: `${reserveRows * ROW_HEIGHT}px` } : undefined;
+  if (!rows.length) return <p className="cl-bars-empty" style={reserva}>{emptyText}</p>;
+  return <ul className="cl-bars" aria-label={label} style={reserva}>
     {rows.map((row, index) => {
       const isActive = selected === row.key;
       const title = [`${row.label}: ${row.total}`, ...row.parts.filter((part) => part.value).map((part) => `${part.label}: ${part.value}`)].join("\n");

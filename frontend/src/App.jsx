@@ -127,6 +127,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { lastDaysSeries } from "./modules/dashboard/dashboardSelectors.js";
 import { abrirMisAsignaciones } from "./modules/clandestinos/hooks/useBanco";
+import { installSearchScrollGuard } from "./utils/searchScrollGuard";
 
 const lazyWithRetry = (loader) => lazy(async () => {
   try {
@@ -5477,6 +5478,10 @@ function App() {
       setWorkspaceView(allowedViews.includes(defaultView) ? defaultView : "records");
     }
   }, [isAuthenticated, isAdmin, isFieldValidator, session?.user?.role, workspaceView]);
+
+  // Buscadores sin saltos: al filtrar mientras se escribe, la página no se acorta
+  // bajo la vista (ver utils/searchScrollGuard.js).
+  useEffect(() => installSearchScrollGuard(), []);
 
   // La direccion refleja la vista abierta: recargar o compartir el enlace lleva al mismo
   // lugar. replaceState porque la app no escucha popstate; el hash de cada modulo se conserva.

@@ -167,7 +167,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
       </div>
       <div className="cl-banco-chart is-bars">
         <header><h3>Barrios con más candidatos</h3><p>{model.filters.barrio ? <button type="button" className="cl-scope-clear" onClick={() => model.filters.setBarrio("")}>Ver todos los barrios</button> : "Toca un barrio para filtrar"}</p></header>
-        <StackedBars label="Candidatos por barrio" selected={model.filters.barrio} onSelect={model.filters.setBarrio} emptyText={model.loading ? "Cargando…" : "Sin barrios con estos filtros"} rows={(model.barrio_counts || []).slice(0, 8).map((row) => ({ key: row.barrio, label: row.barrio, total: row.total, parts: DICTAMENES.map(([key, label]) => ({ key, label, value: row[key] || 0, color: DICTAMEN_COLORS[key] })) }))} />
+        <StackedBars label="Candidatos por barrio" reserveRows={8} selected={model.filters.barrio} onSelect={model.filters.setBarrio} emptyText={model.loading ? "Cargando…" : "Sin barrios con estos filtros"} rows={(model.barrio_counts || []).slice(0, 8).map((row) => ({ key: row.barrio, label: row.barrio, total: row.total, parts: DICTAMENES.map(([key, label]) => ({ key, label, value: row[key] || 0, color: DICTAMEN_COLORS[key] })) }))} />
       </div>
       <aside className="cl-banco-flow" aria-label="Avance del banco">
         <h3>Avance</h3>

@@ -1496,6 +1496,28 @@ body.dw-resizing * {
   transition: transform 320ms ease;
 }
 
+/* Las sugerencias flotan sobre el panel: antes se abrían dentro de la página y
+   empujaban el ranking hacia abajo con cada letra. */
+.dashboard-workspace .dw-suggestions,
+.dashboard-workspace .dw-barrio-picker > .dw-empty {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 30;
+  max-height: min(340px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dashboard-workspace .dw-barrio-picker > .dw-empty {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--dw-line);
+  border-radius: 9px;
+  background: var(--dw-surface);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.12);
+}
+
 .dashboard-workspace .dw-suggestions {
   display: grid;
   gap: 2px;

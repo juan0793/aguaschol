@@ -589,3 +589,6 @@
 .cl-module .cl-inbox-scope .cl-scope-clear { min-height: 0; padding: 6px 8px; margin: -6px -8px -6px 0; line-height: inherit; }
 /* La etiqueta de búsqueda mide 26 px: la línea la reserva siempre. */
 .cl-inbox-scope { min-height: 26px; align-items: center; }
+
+/* Con alto reservado (reserveRows) las filas no se estiran: quedan arriba. */
+.cl-bars { align-content: start; }
