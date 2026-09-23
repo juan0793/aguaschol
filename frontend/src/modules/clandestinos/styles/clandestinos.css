@@ -441,7 +441,7 @@
 .cl-bcard > header .spring-check, .cl-bcard > header > label:first-child { flex: none; }
 .cl-bcard-owner { padding: 1px 7px; border-radius: 999px; background: #eef2f7; color: var(--navy); font-weight: 700; }
 .cl-bcard-owner.is-mine { background: var(--mode-soft, #eef5ff); color: var(--mode, var(--primary)); }
-.cl-banco-selbar { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; padding: 8px 10px; border: 1px solid #dce8f3; border-radius: 12px; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); }
+.cl-banco-selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; padding: 8px 10px; border: 1px solid #dce8f3; border-radius: 12px; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); }
 .cl-banco-selbar.is-active { border-color: var(--mode-line, #bcd6f5); background: color-mix(in srgb, var(--mode-soft, #eef5ff) 70%, #fff); box-shadow: 0 8px 20px rgba(16,42,67,.08); }
 .cl-banco-selcount { flex: 1; min-width: 180px; color: var(--muted); font-size: 13px; }
 .cl-banco-selcount strong { color: var(--navy); font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -514,5 +514,14 @@
   .cl-assign-body { grid-template-columns: 1fr; }
   .cl-assign-col.is-plan { border-top: 1px solid #e3ebf3; border-left: 0; }
   .cl-assign > footer { display: grid; grid-template-columns: 1fr 1fr; }
-  .cl-banco-selbar { top: 0; }
+  .cl-banco-float { right: 12px; bottom: 30px; left: 12px; width: auto; transform: none; }
+  .cl-banco-float .cl-banco-selcount { flex-basis: 100%; }
 }
+
+.cl-banco.is-selecting { padding-bottom: 96px; }
+.cl-banco-float { position: fixed; bottom: 34px; left: 50%; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: max-content; max-width: calc(100vw - 32px); padding: 10px 12px 10px 16px; border: 1px solid var(--mode-line, #bcd6f5); border-radius: 14px; background: rgba(255,255,255,.97); box-shadow: 0 16px 40px rgba(16,42,67,.22); transform: translateX(-50%); animation: cl-float-in .2s cubic-bezier(.23,1,.32,1); }
+.cl-banco-float .cl-banco-selcount { flex: none; min-width: 0; margin-right: 6px; }
+.cl-module .cl-banco-float button { min-height: 38px; font-size: 13px; }
+.cl-banco-float .cl-primary { background: var(--mode, var(--primary)); border-color: var(--mode, var(--primary)); }
+@keyframes cl-float-in { from { opacity: 0; transform: translate(-50%, 10px); } }
+@media (prefers-reduced-motion: reduce) { .cl-banco-float { animation: none; } }

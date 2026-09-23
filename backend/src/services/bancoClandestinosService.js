@@ -418,7 +418,7 @@ export const asignarCandidatos = async ({ ids = [], tecnico_ids = [], preview = 
     await connection.beginTransaction();
     for (const { tecnico, total, barrios, ids: grupo } of plan) {
       if (!grupo.length) continue;
-      await connection.query("UPDATE banco_clandestinos SET asignado_a = ?, asignado_por = ?, asignado_at = CURRENT_TIMESTAMP WHERE id IN (?)", [tecnico.id, user?.id || null, grupo]);
+      await connection.query("UPDATE banco_clandestinos SET asignado_a = ?, asignado_por = ?, asignado_at = CURRENT_TIMESTAMP WHERE id IN (?) AND estado = 'pendiente'", [tecnico.id, user?.id || null, grupo]);
       if (Number(tecnico.id) === Number(user?.id)) continue;
       const detalle = barrios.slice(0, 6).map((item) => `${item.barrio} (${item.total})`).join(", ") + (barrios.length > 6 ? ` y ${barrios.length - 6} barrios más` : "");
       const body = `${user?.full_name || "Administración"} te asignó ${total} ${total === 1 ? "candidato" : "candidatos"} del banco de clandestinos para hacer ficha: ${detalle}. Ábrelos en Clandestinos › Banco › Mis asignaciones.`;

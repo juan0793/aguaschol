@@ -156,7 +156,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
     } catch (error) { notify(error.message); } finally { setWorking(""); if (fileInput.current) fileInput.current.value = ""; }
   };
 
-  return <section className="cl-banco" aria-label="Banco de clandestinos">
+  return <section className={`cl-banco ${canAssign && selected.size ? "is-selecting" : ""}`.trim()} aria-label="Banco de clandestinos">
     <section className={`cl-banco-charts ${model.refreshing ? "is-refreshing" : ""}`.trim()} aria-label="Resumen del banco">
       <div className="cl-banco-chart is-donut">
         <header><h3>Dictamen</h3><p>Toca un segmento para filtrar</p></header>
@@ -198,11 +198,14 @@ export default function BancoClandestinos({ api, model, permissions, session, no
       <SpringCheck checked={allVisibleSelected} onChange={toggleVisible} ariaLabel="Seleccionar los de esta página" />
       <span className="cl-banco-selcount">{selected.size ? <><strong>{selected.size}</strong> {selected.size === 1 ? "seleccionado" : "seleccionados"}</> : "Selecciona candidatos para asignarlos a técnicos"}</span>
       {model.total > visibleSelectable.length ? <button type="button" className="cl-quiet" disabled={Boolean(working)} onClick={selectAllFiltered}>{working === "select" ? "Seleccionando…" : `Seleccionar los ${model.total} del filtro`}</button> : null}
-      {selected.size ? <>
-        <button type="button" className="cl-quiet" onClick={() => setSelected(new Map())}><Icon name="close" />Limpiar</button>
-        {[...selected.values()].some((item) => item.asignado_a != null) ? <button type="button" className="cl-quiet" disabled={Boolean(working)} onClick={unassign}><Icon name="refresh" />Quitar asignación</button> : null}
-        <button type="button" className="cl-primary" onClick={() => setAssigning(true)}><Icon name="users" />Asignar o repartir</button>
-      </> : null}
+    </div> : null}
+    {/* Las acciones de la selección flotan abajo: la página es larga y la barra
+        de arriba se pierde al bajar a marcar más tarjetas. */}
+    {canAssign && selected.size ? <div className="cl-banco-float" role="region" aria-label="Acciones de la selección">
+      <span className="cl-banco-selcount"><strong>{selected.size}</strong> {selected.size === 1 ? "seleccionado" : "seleccionados"}</span>
+      <button type="button" className="cl-quiet" onClick={() => setSelected(new Map())}><Icon name="close" />Limpiar</button>
+      {[...selected.values()].some((item) => item.asignado_a != null) ? <button type="button" className="cl-quiet" disabled={Boolean(working)} onClick={unassign}><Icon name="refresh" />Quitar asignación</button> : null}
+      <button type="button" className="cl-primary" onClick={() => setAssigning(true)}><Icon name="users" />Asignar o repartir</button>
     </div> : null}
     {assigning ? <AsignarTecnicosDialog api={api} ids={selectedIds} notify={notify} onClose={() => setAssigning(false)} onDone={() => { setAssigning(false); setSelected(new Map()); model.reload({ silent: true }); }} /> : null}
     {model.refreshing ? <span className="cl-table-progress cl-banco-progress" role="status" aria-label="Actualizando banco" /> : null}
