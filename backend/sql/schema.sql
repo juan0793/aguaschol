@@ -319,13 +319,27 @@ CREATE TABLE IF NOT EXISTS banco_clandestinos (
   motivo_descarte VARCHAR(255) NOT NULL DEFAULT '',
   procesado_por INT UNSIGNED NULL,
   procesado_at TIMESTAMP NULL DEFAULT NULL,
+  asignado_a INT UNSIGNED NULL,
+  asignado_por INT UNSIGNED NULL,
+  asignado_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_banco_clandestinos_origen (origen, origen_ref),
+  KEY idx_banco_clandestinos_asignado (asignado_a, estado),
   KEY idx_banco_clandestinos_estado (estado, dictamen),
   KEY idx_banco_clandestinos_clave (clave_catastral),
   CONSTRAINT fk_banco_clandestinos_inmueble FOREIGN KEY (inmueble_id) REFERENCES inmuebles_clandestinos(id) ON DELETE SET NULL,
   CONSTRAINT fk_banco_clandestinos_procesador FOREIGN KEY (procesado_por) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
+-- Avisos que recibe un tecnico cuando le asignan candidatos del banco: la campana
+-- los reconoce por aqui y abre el Banco en "Mis asignaciones".
+CREATE TABLE IF NOT EXISTS banco_asignacion_avisos (
+  message_id INT UNSIGNED NOT NULL PRIMARY KEY,
+  recipient_user_id INT UNSIGNED NOT NULL,
+  total INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_banco_asignacion_avisos_recipient (recipient_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS barrio_codigo_catalogo (

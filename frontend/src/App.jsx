@@ -126,6 +126,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { lastDaysSeries } from "./modules/dashboard/dashboardSelectors.js";
+import { abrirMisAsignaciones } from "./modules/clandestinos/hooks/useBanco";
 
 const lazyWithRetry = (loader) => lazy(async () => {
   try {
@@ -13662,6 +13663,11 @@ function App() {
               onEntregaNotification={(loteId) => {
                 window.location.hash = `entregas/lotes?lote=${Number(loteId)}`;
                 setWorkspaceView("entregas");
+              }}
+              onBancoNotification={() => {
+                abrirMisAsignaciones();
+                window.location.hash = "clandestinos/banco";
+                setWorkspaceView("records");
               }}
               onNotificationSelect={(userId) => {
                 setWorkspaceView("profile");

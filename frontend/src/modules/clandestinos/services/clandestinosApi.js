@@ -23,6 +23,10 @@ export const createClandestinosApi = (apiFetch) => ({
   bancoVerify: () => apiFetch("/clandestinos/banco/verificar", { method: "POST" }).then(json),
   bancoSend: (id, clave_catastral = "") => apiFetch(`/clandestinos/banco/${id}/enviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clave_catastral }) }).then(json),
   bancoDiscard: (id, motivo) => apiFetch(`/clandestinos/banco/${id}/descartar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ motivo }) }).then(json),
+  bancoListado: (params = {}) => apiFetch(`/clandestinos/banco/listado?${new URLSearchParams(params)}`).then(json),
+  bancoTecnicos: () => apiFetch("/clandestinos/banco/tecnicos").then(json),
+  bancoAssign: (payload) => apiFetch("/clandestinos/banco/asignar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(json),
+  bancoUnassign: (ids) => apiFetch("/clandestinos/banco/desasignar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).then(json),
   bancoRestore: (id) => apiFetch(`/clandestinos/banco/${id}/restaurar`, { method: "POST" }).then(json),
   evidence: (id, file, description = "") => { const body = new FormData(); body.append("evidence", file); body.append("description", description); return apiFetch(`/clandestinos/reportes/${id}/evidencias`, { method: "POST", body }).then(json); }
 });

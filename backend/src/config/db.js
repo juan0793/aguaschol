@@ -613,6 +613,19 @@ const ensureSchema = async () => {
       columnName: "achievement_code",
       definition: "VARCHAR(80) NULL AFTER user_id"
     });
+    // Banco de clandestinos: asignacion de candidatos a tecnicos.
+    for (const [columnName, definition] of [
+      ["asignado_a", "INT UNSIGNED NULL AFTER procesado_at"],
+      ["asignado_por", "INT UNSIGNED NULL AFTER asignado_a"],
+      ["asignado_at", "TIMESTAMP NULL DEFAULT NULL AFTER asignado_por"]
+    ]) {
+      await ensureColumn(admin, { tableName: "banco_clandestinos", columnName, definition });
+    }
+    await ensureIndex(admin, {
+      tableName: "banco_clandestinos",
+      indexName: "idx_banco_clandestinos_asignado",
+      columns: ["asignado_a", "estado"]
+    });
     await ensureIndex(admin, {
       tableName: "auth_sessions",
       indexName: "idx_auth_sessions_user",

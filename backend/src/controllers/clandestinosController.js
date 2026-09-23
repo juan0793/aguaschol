@@ -1,4 +1,4 @@
-import { descartarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, restaurarCandidato, verificarBancoClandestinos } from "../services/bancoClandestinosService.js";
+import { asignarCandidatos, descartarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listadoBancoClandestinos, listBancoClandestinos, listTecnicosBanco, quitarAsignacion, restaurarCandidato, verificarBancoClandestinos } from "../services/bancoClandestinosService.js";
 import { attachReportEvidence, changeFichaState, changeReportState, compareClandestinosFichas, createTechnicalReport, getClandestinosConfig, linkTechnicalReport, listClandestinosFichas, listStateHistory, listTechnicalReports, updateFichaInternalNotes } from "../services/clandestinosService.js";
 
 export const config = async (req, res) => res.json(getClandestinosConfig(req.authUser));
@@ -12,7 +12,13 @@ export const createReport = async (req, res, next) => { try { res.status(201).js
 export const reportState = async (req, res, next) => { try { res.json(await changeReportState(req.params.id, req.body || {}, req.authUser)); } catch (error) { next(error); } };
 export const linkReport = async (req, res, next) => { try { res.json(await linkTechnicalReport(req.params.id, req.body?.inmueble_id, req.authUser)); } catch (error) { next(error); } };
 export const evidence = async (req, res, next) => { try { res.status(201).json(await attachReportEvidence(req.params.id, req.file, req.body?.description, req.authUser)); } catch (error) { next(error); } };
-export const banco = async (req, res, next) => { try { res.json(await listBancoClandestinos({ query: req.query.q, dictamen: req.query.dictamen, estado: req.query.estado ?? "pendiente", barrio: req.query.barrio, page: req.query.page, limit: req.query.limit })); } catch (error) { next(error); } };
+// "mine" en el filtro de asignación se resuelve con la sesión, nunca con un id del cliente.
+const bancoFiltros = (req) => ({ query: req.query.q, dictamen: req.query.dictamen, estado: req.query.estado ?? "pendiente", barrio: req.query.barrio, asignado: req.query.asignado === "mine" ? String(req.authUser?.id || -1) : req.query.asignado, page: req.query.page, limit: req.query.limit });
+export const banco = async (req, res, next) => { try { res.json(await listBancoClandestinos(bancoFiltros(req))); } catch (error) { next(error); } };
+export const bancoListado = async (req, res, next) => { try { res.json(await listadoBancoClandestinos(bancoFiltros(req))); } catch (error) { next(error); } };
+export const bancoTecnicos = async (req, res, next) => { try { res.json(await listTecnicosBanco(req.authUser)); } catch (error) { next(error); } };
+export const bancoAssign = async (req, res, next) => { try { res.json(await asignarCandidatos(req.body || {}, req.authUser)); } catch (error) { next(error); } };
+export const bancoUnassign = async (req, res, next) => { try { res.json(await quitarAsignacion(req.body || {}, req.authUser)); } catch (error) { next(error); } };
 export const bancoImport = async (req, res, next) => { try { res.status(201).json(await importBancoClandestinos(req.body || {}, req.authUser)); } catch (error) { next(error); } };
 export const bancoVerify = async (req, res, next) => { try { res.json(await verificarBancoClandestinos(req.authUser)); } catch (error) { next(error); } };
 export const bancoSend = async (req, res, next) => { try { res.json(await enviarCandidatoAFicha(req.params.id, req.body || {}, req.authUser)); } catch (error) { next(error); } };

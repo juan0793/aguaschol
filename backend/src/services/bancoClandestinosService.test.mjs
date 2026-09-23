@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPadronIndex, descartarCandidato, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
+import { asignarCandidatos, buildPadronIndex, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
 import { getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
@@ -151,4 +151,45 @@ test("verificar descarta a los que aparecen en Aguas y deja a los demás", async
   const [hilda] = (await listBancoClandestinos({ query: "Casa de Hilda", estado: "" })).items;
   assert.equal(hilda.estado, "pendiente");
   assert.equal(hilda.dictamen, "clandestino");
+});
+
+test("repartir deja bloques vecinos por barrio y cargas parejas", () => {
+  const candidatos = [
+    { id: 1, barrio_colonia: "Barrio B", clave_catastral: "20-01-02" },
+    { id: 2, barrio_colonia: "Barrio A", clave_catastral: "10-01-10" },
+    { id: 3, barrio_colonia: "Barrio A", clave_catastral: "10-01-02" },
+    { id: 4, barrio_colonia: "Barrio B", clave_catastral: "20-01-01" },
+    { id: 5, barrio_colonia: "Barrio C", clave_catastral: "30-01-01" }
+  ];
+  const plan = repartirCandidatos(candidatos, [7, 8]);
+  assert.deepEqual(plan.map((item) => item.items.map((candidato) => candidato.id)), [[3, 2, 4], [1, 5]]);
+  assert.deepEqual(repartirCandidatos(candidatos, []), []);
+});
+
+test("asignar reparte, ignora los ya procesados y la validadora solo trabaja lo suyo", async () => {
+  await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo,barrio_colonia\na-1,998-01-01,Asignable uno,Barrio Asignar\na-2,998-01-02,Asignable dos,Barrio Asignar\na-3,998-01-03,Asignable tres,Barrio Asignar", lote: "asignar" }, admin);
+  const { items } = await listBancoClandestinos({ query: "Asignable" });
+  const ids = items.map((item) => item.id);
+  await assert.rejects(() => asignarCandidatos({ ids, tecnico_ids: [campo.id] }, campo), (error) => error.status === 403);
+  await assert.rejects(() => asignarCandidatos({ ids, tecnico_ids: [] }, admin), /técnico/);
+
+  const preview = await asignarCandidatos({ ids, tecnico_ids: [tecnico.id, campo.id], preview: true }, admin);
+  assert.deepEqual(preview.plan.map((item) => item.total), [2, 1]);
+  assert.equal((await listBancoClandestinos({ query: "Asignable", asignado: String(campo.id) })).total, 0);
+
+  await asignarCandidatos({ ids, tecnico_ids: [tecnico.id, campo.id] }, admin);
+  const deCampo = await listBancoClandestinos({ query: "Asignable", asignado: String(campo.id) });
+  assert.equal(deCampo.total, 1);
+  assert.equal(deCampo.asignaciones.find((item) => item.id === campo.id).pendientes, 1);
+  assert.equal((await listBancoClandestinos({ query: "Asignable", asignado: "none" })).total, 0);
+
+  const ajeno = (await listBancoClandestinos({ query: "Asignable", asignado: String(tecnico.id) })).items[0];
+  await assert.rejects(() => enviarCandidatoAFicha(ajeno.id, {}, campo), (error) => error.status === 403);
+  const propio = deCampo.items[0];
+  const result = await enviarCandidatoAFicha(propio.id, {}, campo);
+  assert.equal(result.candidato.estado, "enviado");
+
+  const pendientes = ids.filter((id) => id !== propio.id);
+  assert.equal((await quitarAsignacion({ ids: pendientes }, admin)).liberados, 2);
+  await assert.rejects(() => asignarCandidatos({ ids: [propio.id], tecnico_ids: [tecnico.id] }, admin), (error) => error.status === 409);
 });

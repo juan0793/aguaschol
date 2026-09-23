@@ -37,7 +37,10 @@ export const getClandestinosConfig = (user) => ({
     can_discard: user?.role === "admin",
     can_manage_configuration: user?.role === "admin",
     can_process_banco: canReview(user),
-    can_import_banco: user?.role === "admin"
+    can_import_banco: user?.role === "admin",
+    can_assign_banco: canReview(user),
+    // La validadora de campo solo trabaja lo que le asignaron.
+    can_work_assigned_banco: ["admin", "operator", "validadora_campo"].includes(user?.role)
   }
 });
 

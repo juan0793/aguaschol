@@ -2,9 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "aguas.clandestinos.banco.v1";
 const restore = () => { try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } };
+// La campana (aviso de asignación) abre el banco en "Mis asignaciones" aunque el
+// módulo todavía no esté montado: deja el filtro guardado y avisa con un evento.
+export const BANCO_MIS_ASIGNACIONES = "aguas:banco-mis-asignaciones";
+export const abrirMisAsignaciones = () => {
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...restore(), asignado: "mine", estado: "pendiente", dictamen: "", barrio: "", query: "", page: 1 })); } catch { /* sin almacenamiento */ }
+  dispatchEvent(new CustomEvent(BANCO_MIS_ASIGNACIONES));
+};
 
-export const useBanco = (api, active = true) => {
+export const useBanco = (api, active = true, { defaultAsignado = "" } = {}) => {
   const saved = useMemo(restore, []);
+  const [asignado, setAsignado] = useState(saved.asignado ?? defaultAsignado);
   const [query, setQuery] = useState(saved.query || "");
   const [dictamen, setDictamen] = useState(saved.dictamen || "");
   const [estado, setEstado] = useState(saved.estado ?? "pendiente");
@@ -22,7 +30,7 @@ export const useBanco = (api, active = true) => {
     if (!silent) hasData.current ? setRefreshing(true) : setLoading(true);
     setError("");
     try {
-      const next = await api.banco({ q: query, dictamen, estado, barrio, page, limit: 24 });
+      const next = await api.banco({ q: query, dictamen, estado, barrio, asignado, page, limit: 24 });
       if (requestId !== requestSequence.current) return;
       hasData.current = true;
       setData(next);
@@ -31,10 +39,15 @@ export const useBanco = (api, active = true) => {
     } finally {
       if (!silent && requestId === requestSequence.current) { setLoading(false); setRefreshing(false); }
     }
-  }, [active, api, barrio, dictamen, estado, page, query]);
+  }, [active, api, asignado, barrio, dictamen, estado, page, query]);
   useEffect(() => { const timer = setTimeout(load, 180); return () => clearTimeout(timer); }, [load]);
-  useEffect(() => { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ query, dictamen, estado, barrio, page })); }, [barrio, dictamen, estado, page, query]);
+  useEffect(() => { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ query, dictamen, estado, barrio, asignado, page })); }, [asignado, barrio, dictamen, estado, page, query]);
+  useEffect(() => {
+    const abrir = () => { setAsignado("mine"); setEstado("pendiente"); setDictamen(""); setBarrio(""); setQuery(""); setPage(1); };
+    addEventListener(BANCO_MIS_ASIGNACIONES, abrir);
+    return () => removeEventListener(BANCO_MIS_ASIGNACIONES, abrir);
+  }, []);
   const reset = (setter) => (value) => { setter(value); setPage(1); };
-  const filters = { query, dictamen, estado, barrio, page, setQuery: reset(setQuery), setDictamen: reset(setDictamen), setEstado: reset(setEstado), setBarrio: reset(setBarrio), setPage, clear: () => { setQuery(""); setDictamen(""); setEstado("pendiente"); setBarrio(""); setPage(1); } };
+  const filters = { query, dictamen, estado, barrio, asignado, page, setQuery: reset(setQuery), setDictamen: reset(setDictamen), setEstado: reset(setEstado), setBarrio: reset(setBarrio), setAsignado: reset(setAsignado), setPage, clear: () => { setQuery(""); setDictamen(""); setEstado("pendiente"); setBarrio(""); setAsignado(defaultAsignado); setPage(1); } };
   return { ...data, loading, refreshing, error, filters, reload: (options) => load(options) };
 };

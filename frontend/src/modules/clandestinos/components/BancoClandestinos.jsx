@@ -1,5 +1,9 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
+import SpringCheck from "../../../components/micro/SpringCheck";
+import { printDocument } from "../../../utils/printDocument";
+import AsignarTecnicosDialog from "./AsignarTecnicosDialog";
+import { BANCO_PRINT_STYLES, buildBancoListado, dictamenParaImprimir } from "../services/bancoPrint";
 import { CountUp, DonutChart, MeterLegend, StackedBars } from "./ClCharts";
 import BarrioPicker from "./BarrioPicker";
 
@@ -20,17 +24,19 @@ const SERVICES = [["agua", "Agua potable", "water"], ["alcantarillado", "Alcanta
 
 const mapUrl = (item) => `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
 
-function Candidato({ item, permissions, busy, onSend, onDiscard, onRestore, onOpenFicha }) {
+function Candidato({ item, permissions, userId, busy, selectable, selected, onToggle, onSend, onDiscard, onRestore, onOpenFicha }) {
   const [clave, setClave] = useState("");
   const [discarding, setDiscarding] = useState(false);
   const [motivo, setMotivo] = useState("");
   const pendiente = item.estado === "pendiente";
-  const canProcess = permissions.can_process_banco && pendiente;
+  // La validadora de campo solo trabaja lo que le asignaron.
+  const canProcess = pendiente && (permissions.can_process_banco || (permissions.can_work_assigned_banco && item.asignado_a != null && Number(item.asignado_a) === Number(userId)));
   const canSend = canProcess && item.dictamen !== "registrado";
   const needsClave = canSend && !item.clave_catastral;
   const enAguas = item.aguas_clave || item.aguas_abonado;
-  return <article className={`cl-bcard is-${item.dictamen} ${busy ? "is-busy" : ""}`.trim()}>
+  return <article className={`cl-bcard is-${item.dictamen} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""}`.trim()}>
     <header>
+      {selectable ? <SpringCheck checked={selected} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${item.clave_catastral || `punto ${item.origen_ref}`}`} /> : null}
       <span className={`cl-bcard-badge is-${item.dictamen}`} title={`${DICTAMEN_LABELS[item.dictamen] || item.dictamen}: ${item.motivo_dictamen || ""}`}><Icon name={DICTAMEN_ICONS[item.dictamen] || "search"} /></span>
       <div className="cl-bcard-id">
         <h3>{item.clave_catastral || "Sin clave"}</h3>
@@ -65,6 +71,7 @@ function Candidato({ item, permissions, busy, onSend, onDiscard, onRestore, onOp
       <div className="cl-bcard-meta">
         {item.latitude != null ? <a href={mapUrl(item)} target="_blank" rel="noreferrer" title="Ver ubicación en el mapa"><Icon name="map" /><span>Mapa</span></a> : <span title="Sin coordenadas"><Icon name="map" /><span>—</span></span>}
         <span title="Punto del levantamiento en QField"><Icon name="pin" />#{item.origen_ref}</span>
+        {item.asignado_nombre ? <span className={`cl-bcard-owner ${Number(item.asignado_a) === Number(userId) ? "is-mine" : ""}`.trim()} title={`Asignado a ${item.asignado_nombre}`}><Icon name="users" />{Number(item.asignado_a) === Number(userId) ? "Tuyo" : item.asignado_nombre.split(" ")[0]}</span> : null}
       </div>
       <div className="cl-bcard-actions">
         {canProcess && !discarding ? <button type="button" className="cl-bcard-icon" title="Descartar candidato" aria-label="Descartar candidato" disabled={busy} onClick={() => setDiscarding(true)}><Icon name="archive" /></button> : null}
@@ -76,10 +83,52 @@ function Candidato({ item, permissions, busy, onSend, onDiscard, onRestore, onOp
   </article>;
 }
 
-export default function BancoClandestinos({ api, model, permissions, notify, onOpenFicha, onFichaCreated }) {
+export default function BancoClandestinos({ api, model, permissions, session, notify, onOpenFicha, onFichaCreated }) {
   const [busyId, setBusyId] = useState(null);
   const [working, setWorking] = useState("");
   const fileInput = useRef(null);
+  const userId = session?.user?.id;
+  const canAssign = Boolean(permissions.can_assign_banco);
+  // Selección para asignar: solo lo que todavía hay que convertir en ficha.
+  const [selected, setSelected] = useState(() => new Map());
+  const [assigning, setAssigning] = useState(false);
+  const selectedIds = useMemo(() => [...selected.keys()], [selected]);
+  const isSelectable = (item) => canAssign && item.estado === "pendiente" && item.dictamen !== "registrado";
+  const toggleSelected = (item) => setSelected((current) => { const next = new Map(current); next.has(item.id) ? next.delete(item.id) : next.set(item.id, item); return next; });
+  const visibleSelectable = model.items.filter(isSelectable);
+  const allVisibleSelected = Boolean(visibleSelectable.length) && visibleSelectable.every((item) => selected.has(item.id));
+  const toggleVisible = () => setSelected((current) => { const next = new Map(current); visibleSelectable.forEach((item) => (allVisibleSelected ? next.delete(item.id) : next.set(item.id, item))); return next; });
+  const filtrosActuales = { q: model.filters.query, dictamen: model.filters.dictamen, estado: model.filters.estado, barrio: model.filters.barrio, asignado: model.filters.asignado };
+  const selectAllFiltered = async () => {
+    setWorking("select");
+    try {
+      const { items } = await api.bancoListado(filtrosActuales);
+      const asignables = items.filter(isSelectable);
+      setSelected(new Map(asignables.map((item) => [item.id, item])));
+      notify(`${asignables.length} ${asignables.length === 1 ? "candidato seleccionado" : "candidatos seleccionados"}${items.length > asignables.length ? ` (se omitieron ${items.length - asignables.length} que ya no están pendientes o aparecen en Aguas)` : ""}.`);
+    } catch (error) { notify(error.message); } finally { setWorking(""); }
+  };
+  const unassign = async () => {
+    setWorking("unassign");
+    try { const result = await api.bancoUnassign(selectedIds); notify(`${result.liberados} ${result.liberados === 1 ? "candidato quedó" : "candidatos quedaron"} sin asignar.`); setSelected(new Map()); await model.reload({ silent: true }); }
+    catch (error) { notify(error.message); } finally { setWorking(""); }
+  };
+  // Nombre de quien tiene el filtro de asignación (para el título y el listado).
+  const asignadoNombre = model.filters.asignado === "mine" ? session?.user?.full_name || "Mis asignaciones"
+    : Number(model.filters.asignado) > 0 ? model.asignaciones?.find((item) => String(item.id) === String(model.filters.asignado))?.nombre || "Técnico" : "";
+  const misPendientes = model.asignaciones?.find((item) => Number(item.id) === Number(userId))?.pendientes || 0;
+  // Listado de campo: solo clandestinos (o el dictamen elegido); nunca los que están en Aguas.
+  const imprimir = async () => {
+    setWorking("print");
+    try {
+      const dictamen = dictamenParaImprimir(model.filters.dictamen);
+      const { items, limite } = await api.bancoListado({ ...filtrosActuales, dictamen });
+      if (!items.length) { notify("No hay candidatos para imprimir con estos filtros."); return; }
+      const markup = buildBancoListado(items, { ...model.filters, dictamen, estadoLabel: ESTADO_LABELS[model.filters.estado] || "Todos", asignadoNombre });
+      await printDocument("Listado de campo · Banco de clandestinos", `${BANCO_PRINT_STYLES}${markup}`, { pageSize: "Letter landscape", pageMargin: "10mm", reportType: "banco-clandestinos-listado" });
+      if (items.length >= limite) notify(`Se imprimieron los primeros ${limite}; filtra por barrio para el resto.`);
+    } catch (error) { notify(error.message); } finally { setWorking(""); }
+  };
   const run = async (id, action) => { setBusyId(id); try { await action(); } catch (error) { notify(error.message); } finally { setBusyId(null); } };
   const send = (item, clave) => run(item.id, async () => {
     const result = await api.bancoSend(item.id, clave);
@@ -123,8 +172,14 @@ export default function BancoClandestinos({ api, model, permissions, notify, onO
       <aside className="cl-banco-flow" aria-label="Avance del banco">
         <h3>Avance</h3>
         {BANCO_FLOW.map(([key, label, icon]) => <button type="button" key={key} aria-pressed={model.filters.estado === key} className={model.filters.estado === key ? "is-active" : ""} onClick={() => model.filters.setEstado(key)}><Icon name={icon} /><span>{label}</span><strong><CountUp value={model.estados?.[key] || 0} /></strong></button>)}
+        {canAssign || model.asignaciones?.length ? <div className="cl-banco-team" aria-label="Asignaciones por técnico">
+          <h4>Técnicos</h4>
+          {canAssign ? <button type="button" aria-pressed={model.filters.asignado === "none"} className={model.filters.asignado === "none" ? "is-active" : ""} onClick={() => model.filters.setAsignado(model.filters.asignado === "none" ? "" : "none")}><Icon name="inbox" /><span>Sin asignar</span><strong><CountUp value={model.sin_asignar || 0} /></strong></button> : null}
+          {(model.asignaciones || []).filter((item) => canAssign || Number(item.id) === Number(userId)).slice(0, 8).map((item) => { const key = Number(item.id) === Number(userId) ? "mine" : String(item.id); const active = model.filters.asignado === key || model.filters.asignado === String(item.id); return <button type="button" key={item.id} aria-pressed={active} className={active ? "is-active" : ""} onClick={() => model.filters.setAsignado(active ? "" : key)}><Icon name="users" /><span>{Number(item.id) === Number(userId) ? "Mis asignaciones" : item.nombre}</span><strong>{item.pendientes}</strong></button>; })}
+        </div> : null}
         {permissions.can_process_banco ? <p className="cl-banco-flow-hint"><Icon name="checkCircle" />Verificar vuelve a revisar los pendientes y manda a descartados los que ya aparecen en Aguas.</p> : null}
         <div className="cl-banco-head-actions">
+          <button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={imprimir} title="Imprime el listado de campo con los filtros actuales. Solo clandestinos (o el dictamen elegido); nunca los que aparecen en Aguas."><Icon name="print" />{working === "print" ? "Preparando…" : "Imprimir listado"}</button>
           {permissions.can_process_banco ? <button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={verify} title="Vuelve a dictaminar los pendientes con los padrones actuales"><Icon name="refresh" />{working === "verify" ? "Verificando…" : "Verificar"}</button> : null}
           {permissions.can_import_banco ? <><input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={(event) => importFile(event.target.files?.[0])} /><button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={() => fileInput.current?.click()} title="Importar el CSV del levantamiento de QField"><Icon name="download" />{working === "import" ? "Importando…" : "Importar CSV"}</button></> : null}
         </div>
@@ -137,9 +192,22 @@ export default function BancoClandestinos({ api, model, permissions, notify, onO
       <button type="button" className="cl-quiet" onClick={model.filters.clear}><Icon name="refresh" />Limpiar</button>
     </div>
     {model.error ? <p className="cl-alert">{model.error}</p> : null}
+    {misPendientes && model.filters.asignado !== "mine" ? <div className="cl-banco-mine" role="status"><Icon name="users" /><span><strong>Tienes {misPendientes} {misPendientes === 1 ? "candidato asignado" : "candidatos asignados"}</strong> para convertir en ficha.</span><button type="button" className="cl-primary" onClick={() => { model.filters.setEstado("pendiente"); model.filters.setAsignado("mine"); }}>Ver mis asignaciones<Icon name="arrowRight" /></button></div> : null}
+    {asignadoNombre ? <p className="cl-banco-scope"><Icon name="users" />{model.filters.asignado === "mine" ? "Mis asignaciones" : `Asignados a ${asignadoNombre}`}<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={() => model.filters.setAsignado("")}>Ver todos</button></p> : model.filters.asignado === "none" ? <p className="cl-banco-scope"><Icon name="inbox" />Sin asignar<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={() => model.filters.setAsignado("")}>Ver todos</button></p> : null}
+    {canAssign && visibleSelectable.length ? <div className={`cl-banco-selbar ${selected.size ? "is-active" : ""}`.trim()}>
+      <SpringCheck checked={allVisibleSelected} onChange={toggleVisible} ariaLabel="Seleccionar los de esta página" />
+      <span className="cl-banco-selcount">{selected.size ? <><strong>{selected.size}</strong> {selected.size === 1 ? "seleccionado" : "seleccionados"}</> : "Selecciona candidatos para asignarlos a técnicos"}</span>
+      {model.total > visibleSelectable.length ? <button type="button" className="cl-quiet" disabled={Boolean(working)} onClick={selectAllFiltered}>{working === "select" ? "Seleccionando…" : `Seleccionar los ${model.total} del filtro`}</button> : null}
+      {selected.size ? <>
+        <button type="button" className="cl-quiet" onClick={() => setSelected(new Map())}><Icon name="close" />Limpiar</button>
+        {[...selected.values()].some((item) => item.asignado_a != null) ? <button type="button" className="cl-quiet" disabled={Boolean(working)} onClick={unassign}><Icon name="refresh" />Quitar asignación</button> : null}
+        <button type="button" className="cl-primary" onClick={() => setAssigning(true)}><Icon name="users" />Asignar o repartir</button>
+      </> : null}
+    </div> : null}
+    {assigning ? <AsignarTecnicosDialog api={api} ids={selectedIds} notify={notify} onClose={() => setAssigning(false)} onDone={() => { setAssigning(false); setSelected(new Map()); model.reload({ silent: true }); }} /> : null}
     {model.refreshing ? <span className="cl-table-progress cl-banco-progress" role="status" aria-label="Actualizando banco" /> : null}
     <div className={`cl-banco-list ${model.refreshing ? "is-refreshing" : ""}`.trim()} aria-busy={model.loading || model.refreshing}>
-      {model.loading ? Array.from({ length: 6 }, (_, index) => <div key={index} className="cl-bcard is-skeleton" aria-hidden="true" />) : model.items.length ? model.items.map((item) => <Candidato key={item.id} item={item} permissions={permissions} busy={busyId === item.id} onSend={send} onDiscard={discard} onRestore={restore} onOpenFicha={onOpenFicha} />) : <div className="cl-empty-state"><Icon name="inbox" /><strong>No hay candidatos con estos filtros</strong><span>{permissions.can_import_banco ? "Importa el CSV del levantamiento de QField para llenar el banco." : "Cuando administración importe un levantamiento de campo, aparecerá aquí."}</span></div>}
+      {model.loading ? Array.from({ length: 6 }, (_, index) => <div key={index} className="cl-bcard is-skeleton" aria-hidden="true" />) : model.items.length ? model.items.map((item) => <Candidato key={item.id} item={item} permissions={permissions} userId={userId} selectable={isSelectable(item)} selected={selected.has(item.id)} onToggle={toggleSelected} busy={busyId === item.id} onSend={send} onDiscard={discard} onRestore={restore} onOpenFicha={onOpenFicha} />) : <div className="cl-empty-state"><Icon name="inbox" /><strong>No hay candidatos con estos filtros</strong><span>{permissions.can_import_banco ? "Importa el CSV del levantamiento de QField para llenar el banco." : "Cuando administración importe un levantamiento de campo, aparecerá aquí."}</span></div>}
     </div>
     <footer className="cl-pagination"><span>{model.total} {model.total === 1 ? "candidato" : "candidatos"} · Página {model.page} de {model.total_pages}</span><div><button type="button" disabled={model.page <= 1} onClick={() => model.filters.setPage(model.page - 1)}><Icon name="arrowLeft" />Anterior</button><button type="button" disabled={model.page >= model.total_pages} onClick={() => model.filters.setPage(model.page + 1)}>Siguiente<Icon name="arrowRight" /></button></div></footer>
   </section>;
