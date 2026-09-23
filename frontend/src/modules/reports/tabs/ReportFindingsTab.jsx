@@ -4,6 +4,7 @@ import LiveNumber from "../../../components/micro/LiveNumber";
 import SpringCheck from "../../../components/micro/SpringCheck";
 import { DonutChart, MeterLegend } from "../../clandestinos/components/ClCharts";
 import { formatCurrency } from "../../../utils/formatting";
+import { formatMapDiaryLabel } from "../../../utils/datesAndBusiness";
 import { printDocument } from "../../../utils/printDocument";
 import { MAP_POINT_TYPES } from "../../../constants/formsAndUi";
 import { buildFindingsPrint, FINDINGS_PRINT_STYLES } from "../utils/findingsPrint";
@@ -16,7 +17,7 @@ export const CATEGORIAS = [
   { key: "sin_facturar", label: "Alcantarillado sin facturar", hint: "Caja de registro o descarga en un predio que no paga alcantarillado", icon: "sewer", color: "#1769e0" },
   { key: "con_mora", label: "Con mora", hint: "Tiene cuentas y alguna debe", icon: "activity", color: "#d08a1f" },
   { key: "al_dia", label: "Al día", hint: "Tiene cuentas y ninguna debe", icon: "checkCircle", color: "#1f9463" },
-  { key: "sin_clave", label: "Sin clave", hint: "El técnico no anotó la clave: no se puede cruzar", icon: "search", color: "#8fa3b8" }
+  { key: "sin_clave", label: "Sin clave", hint: "No se detectó una clave en la referencia ni en la descripción", icon: "search", color: "#8fa3b8" }
 ];
 const CAT = Object.fromEntries(CATEGORIAS.map((item) => [item.key, item]));
 const TIPO = Object.fromEntries(MAP_POINT_TYPES.map((item) => [item.value, item.label]));
@@ -58,6 +59,7 @@ export default function ReportFindingsTab({ apiFetch, activeDateKey, notify, onO
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [categoria, setCategoria] = useState("");
+  const [busquedaSinClave, setBusquedaSinClave] = useState("");
   const [seleccion, setSeleccion] = useState(() => new Set());
   const [visibles, setVisibles] = useState(POR_PAGINA);
   const [enviando, setEnviando] = useState(false);
@@ -77,11 +79,19 @@ export default function ReportFindingsTab({ apiFetch, activeDateKey, notify, onO
     } catch (reason) { setError(reason.message); } finally { setLoading(false); }
   }, [apiFetch, periodo.from, periodo.to]);
   useEffect(() => { cargar(); }, [cargar]);
-  useEffect(() => { setSeleccion(new Set()); setVisibles(POR_PAGINA); }, [periodoKey, categoria]);
+  useEffect(() => { setSeleccion(new Set()); setVisibles(POR_PAGINA); setBusquedaSinClave(""); }, [periodoKey, categoria]);
 
   // Por defecto se abre la categoría más accionable que tenga algo.
   const activa = categoria || CATEGORIAS.find((item) => item.key !== "sin_clave" && data?.conteo?.[item.key])?.key || "sin_cuenta";
-  const lista = useMemo(() => (data?.items || []).filter((item) => item.categoria === activa), [activa, data]);
+  const lista = useMemo(() => activa === "sin_clave"
+    ? data?.puntosSinClave || []
+    : (data?.items || []).filter((item) => item.categoria === activa), [activa, data]);
+  const puntosSinClaveFiltrados = useMemo(() => {
+    const termino = busquedaSinClave.trim().toLocaleLowerCase("es-HN");
+    if (activa !== "sin_clave" || !termino) return lista;
+    return lista.filter((point) => [point.id, point.point_type, point.barrio, point.reference, point.description]
+      .some((value) => String(value || "").toLocaleLowerCase("es-HN").includes(termino)));
+  }, [activa, busquedaSinClave, lista]);
   const nuevos = lista.filter((item) => item.categoria === "sin_cuenta" && !item.seguimiento);
   const alternar = (base) => setSeleccion((actual) => { const next = new Set(actual); next.has(base) ? next.delete(base) : next.add(base); return next; });
 
@@ -102,7 +112,8 @@ export default function ReportFindingsTab({ apiFetch, activeDateKey, notify, onO
 
   const imprimir = (tipo) => {
     const markup = buildFindingsPrint(lista, { tipo, periodo: periodo.label, total: tipo === "cobro" ? data?.totales?.mora : null });
-    printDocument(tipo === "cobro" ? "Listado de cobro · levantamiento" : "Alcantarillado sin facturar", `${FINDINGS_PRINT_STYLES}${markup}`, { pageSize: "Letter landscape", pageMargin: "10mm", reportType: `hallazgos-${tipo}` });
+    const titulo = tipo === "cobro" ? "Listado de cobro · levantamiento" : tipo === "sin_clave" ? "Puntos GPS sin clave" : "Alcantarillado sin facturar";
+    printDocument(titulo, `${FINDINGS_PRINT_STYLES}${markup}`, { pageSize: "Letter landscape", pageMargin: "10mm", reportType: `hallazgos-${tipo}` });
   };
 
   const conteo = data?.conteo || {};
@@ -158,7 +169,7 @@ export default function ReportFindingsTab({ apiFetch, activeDateKey, notify, onO
         <header>
           <div>
             <h3 style={{ "--cat": CAT[activa]?.color }}><i aria-hidden="true" />{CAT[activa]?.label}<span>{lista.length}</span></h3>
-            <p>{activa === "sin_clave" ? "Estos puntos no traen clave en la nota: se corrigen desde Control territorial GPS." : CAT[activa]?.hint}</p>
+            <p>{activa === "sin_clave" ? "No se encontró una clave catastral en la referencia ni en la descripción. Revisa cada punto en el mapa." : CAT[activa]?.hint}</p>
           </div>
           <div className="rf-actions">
             {activa === "sin_cuenta" ? <>
@@ -167,9 +178,28 @@ export default function ReportFindingsTab({ apiFetch, activeDateKey, notify, onO
             </> : null}
             {activa === "sin_facturar" && lista.length ? <button type="button" className="cl-primary" onClick={() => imprimir("facturacion")}><Icon name="print" />Listado para facturación</button> : null}
             {activa === "con_mora" && lista.length ? <button type="button" className="cl-primary" onClick={() => imprimir("cobro")}><Icon name="print" />Listado de cobro</button> : null}
+            {activa === "sin_clave" && lista.length ? <button type="button" className="cl-primary" onClick={() => imprimir("sin_clave")}><Icon name="print" />Imprimir listado</button> : null}
           </div>
         </header>
-        {activa === "sin_clave" ? <p className="rf-empty">{plural(conteo.sin_clave, "punto", "puntos")} sin clave en este periodo.</p> : lista.length ? <>
+        {activa === "sin_clave" && lista.length ? <>
+          <div className="rf-point-search"><label><Icon name="search" /><input type="search" value={busquedaSinClave} onChange={(event) => { setBusquedaSinClave(event.target.value); setVisibles(POR_PAGINA); }} placeholder="Buscar por punto, barrio o texto" aria-label="Buscar puntos sin clave" /></label><small>Mostrando {Math.min(visibles, puntosSinClaveFiltrados.length)} de {puntosSinClaveFiltrados.length} coincidencias · {lista.length} puntos en total</small></div>
+          {puntosSinClaveFiltrados.length ? <div className="rf-table-wrap"><table className="rf-table rf-no-key-table">
+            <thead><tr><th>Punto GPS</th><th>Tipo</th><th>Barrio / sector</th><th>Fecha levantada</th><th>Referencia y descripción</th><th>Ubicación</th></tr></thead>
+            <tbody>{puntosSinClaveFiltrados.slice(0, visibles).map((point) => {
+              const hasCoordinates = point.latitude != null && point.longitude != null;
+              const mapUrl = hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}` : "";
+              return <tr key={point.id}>
+                <td className="rf-key"><strong>#{point.id}</strong></td>
+                <td>{TIPO[point.point_type] || point.point_type || "--"}</td>
+                <td>{point.barrio || "Sin barrio identificado"}</td>
+                <td>{point.diary_date ? formatMapDiaryLabel(point.diary_date) : "Sin fecha"}</td>
+                <td><span className="rf-note">{point.reference || "--"}</span>{point.description ? <small className="rf-point-description">{point.description}</small> : null}</td>
+                <td>{hasCoordinates ? <a className="rf-location-link" href={mapUrl} target="_blank" rel="noreferrer"><Icon name="map" />{point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}</a> : <span className="rf-chip">Sin coordenadas</span>}</td>
+              </tr>;
+            })}</tbody>
+          </table></div> : <p className="rf-empty">No hay puntos que coincidan con «{busquedaSinClave}».</p>}
+          {puntosSinClaveFiltrados.length > visibles ? <button type="button" className="cl-quiet rf-more-btn" onClick={() => setVisibles((n) => n + POR_PAGINA)}>Ver {Math.min(POR_PAGINA, puntosSinClaveFiltrados.length - visibles)} más de {puntosSinClaveFiltrados.length}</button> : null}
+        </> : activa === "sin_clave" ? <p className="rf-empty">{loading ? "Calculando…" : "No hay puntos sin clave en este periodo."}</p> : lista.length ? <>
           <div className="rf-table-wrap"><table className="rf-table">
             <thead><tr>{activa === "sin_cuenta" ? <th aria-label="Seleccionar" /> : null}<th>Clave</th><th>Barrio</th><th>Levantado</th><th>{activa === "sin_cuenta" ? "Nota de campo" : "Cuentas en Aguas"}</th>{activa === "con_mora" ? <th className="is-num">Mora</th> : null}<th>Estado</th></tr></thead>
             <tbody>{lista.slice(0, visibles).map((item) => <tr key={item.base}>

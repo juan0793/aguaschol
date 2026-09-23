@@ -1,8 +1,11 @@
+import { MAP_POINT_TYPES } from "../../../constants/formsAndUi.js";
+
 // Listados imprimibles de los hallazgos: para Comercialización (alcantarillado
 // sin facturar) y para cobro (predios con mora). Carta horizontal.
 
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const lempiras = (value) => `L ${Number(value || 0).toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const TIPO = Object.fromEntries(MAP_POINT_TYPES.map(({ value, label }) => [value, label]));
 
 // printDocument arma la página en modo quirks: la tabla lleva su propia fuente.
 export const FINDINGS_PRINT_STYLES = `<style>
@@ -22,6 +25,24 @@ export const FINDINGS_PRINT_STYLES = `<style>
   .fp .chk span { display: block; width: 11px; height: 11px; margin: 1px auto; border: 1.2px solid #334e68; }
   .fp-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin-top: 26px; }
   .fp-sign div { padding-top: 5px; border-top: 1px solid #334e68; color: #52606d; text-align: center; }
+  .fp-key-report { border-top: 5px solid #1769e0; }
+  .fp-key-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding: 12px 0 8px; border-bottom: 1px solid #cbd5df; }
+  .fp-key-heading h1 { margin: 2px 0; color: #102a43; font-size: 19px; }
+  .fp-key-heading p, .fp-key-heading small { margin: 0; color: #52606d; }
+  .fp-key-heading .fp-right { text-align: right; }
+  .fp-key-kicker { color: #1769e0 !important; font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .fp-key-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+  .fp-key-metrics > div { display: grid; gap: 2px; padding: 7px 9px; border: 1px solid #d7e4ee; border-left: 3px solid #1769e0; background: #f5f9fd; }
+  .fp-key-metrics small { color: #52606d; font-size: 8px; text-transform: uppercase; letter-spacing: .05em; }
+  .fp-key-metrics strong { color: #102a43; font-size: 13px; }
+  .fp-key-report table { font-size: 9px; }
+  .fp-key-report th { background: #eaf2fe; color: #163d5c; }
+  .fp-key-report tr:nth-child(even) td { background: #f8fbfe; }
+  .fp-key-report .fp-key-id { color: #1769e0; font-weight: 700; white-space: nowrap; }
+  .fp-key-report .fp-coords { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .fp-key-report .fp-note { max-width: 270px; }
+  .fp-key-report .fp-date { white-space: nowrap; }
+  @media print { .fp-key-report, .fp-key-report * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
 </style>`;
 
 /**
@@ -29,6 +50,24 @@ export const FINDINGS_PRINT_STYLES = `<style>
  * opciones: { tipo: "facturacion" | "cobro", periodo, total }
  */
 export const buildFindingsPrint = (items = [], { tipo = "facturacion", periodo = "", total = null } = {}, now = new Date()) => {
+  if (tipo === "sin_clave") {
+    const zonas = new Set(items.map((item) => item.barrio).filter((value) => value && !["Sin barrio", "Sin barrio identificado"].includes(value)));
+    const coordenados = items.filter((item) => item.latitude != null && item.longitude != null).length;
+    const filas = items.map((item, index) => {
+      const coords = item.latitude != null && item.longitude != null
+        ? `${Number(item.latitude).toFixed(6)}, ${Number(item.longitude).toFixed(6)}`
+        : "Sin coordenadas";
+      return `<tr><td class="num">${index + 1}</td><td class="fp-key-id">#${escapeHtml(item.id)}</td><td>${escapeHtml(TIPO[item.point_type] || item.point_type || "--")}</td><td>${escapeHtml(item.barrio || "Sin barrio identificado")}</td><td class="fp-date">${escapeHtml(item.diary_date || "Sin fecha")}</td><td class="fp-note">${escapeHtml(item.reference || "--")}</td><td>${escapeHtml(item.description || "--")}</td><td class="fp-coords">${escapeHtml(coords)}</td></tr>`;
+    }).join("");
+    return `<article class="fp fp-key-report">
+      <header class="fp-brand"><div><strong>AGUAS DE CHOLUTECA</strong><small>Departamento de Comercialización · Control territorial GPS</small></div><div class="fp-right"><small>Reporte de calidad del levantamiento</small></div></header>
+      <div class="fp-key-heading"><div><p class="fp-key-kicker">Hallazgos de campo</p><h1>Puntos GPS sin clave catastral</h1><p>Registros que requieren revisar referencia, descripción o ubicación.</p></div><div class="fp-right"><strong>${escapeHtml(periodo)}</strong><br /><small>Impreso el ${escapeHtml(now.toLocaleString("es-HN", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" }))}</small></div></div>
+      <section class="fp-key-metrics"><div><small>Puntos por revisar</small><strong>${items.length.toLocaleString("es-HN")}</strong></div><div><small>Con coordenadas</small><strong>${coordenados.toLocaleString("es-HN")}</strong></div><div><small>Barrios identificados</small><strong>${zonas.size.toLocaleString("es-HN")}</strong></div></section>
+      <table><thead><tr><th>#</th><th>Punto GPS</th><th>Tipo de registro</th><th>Barrio / sector</th><th>Fecha</th><th>Referencia</th><th>Descripción</th><th>Coordenadas</th></tr></thead><tbody>${filas || '<tr><td colspan="8">No hay puntos para este periodo.</td></tr>'}</tbody></table>
+      <div class="fp-sign"><div>Revisado por</div><div>Responsable de corregir</div><div>Fecha</div></div>
+    </article>`;
+  }
+
   const cobro = tipo === "cobro";
   const filas = [];
   let n = 0;

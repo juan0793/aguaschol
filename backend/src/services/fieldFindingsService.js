@@ -47,10 +47,24 @@ const padronPorBase = () => {
 export const clasificarHallazgos = (puntos = [], porBase = new Map(), seguimiento = new Map(), catalogo = []) => {
   const predios = new Map();
   let sinClave = 0;
+  const puntosSinClave = [];
   for (const punto of puntos) {
     const clave = getPointClave(punto);
     const base = buildClaveBase(clave);
-    if (!base) { sinClave += 1; continue; }
+    if (!base) {
+      sinClave += 1;
+      puntosSinClave.push({
+        id: Number(punto.id),
+        point_type: punto.point_type || "caja_registro",
+        barrio: resolveFieldZone(punto, catalogo).label,
+        latitude: punto.latitude == null ? null : Number(punto.latitude),
+        longitude: punto.longitude == null ? null : Number(punto.longitude),
+        reference: String(punto.reference_note || "").slice(0, 240),
+        description: String(punto.description || "").slice(0, 300),
+        diary_date: String(punto.diary_date || "").slice(0, 10)
+      });
+      continue;
+    }
     // El barrio sale del código de la clave (igual que Control territorial), así
     // también lo tienen los predios que no están en el padrón.
     const predio = predios.get(base) || { base, clave, zona: resolveFieldZone(punto, catalogo).label, puntos: [], tipos: new Set(), lat: null, lng: null };
@@ -102,6 +116,7 @@ export const clasificarHallazgos = (puntos = [], porBase = new Map(), seguimient
   conteo.sin_clave = sinClave;
   return {
     items,
+    puntosSinClave,
     conteo,
     totales: {
       puntos: puntos.length,
@@ -126,7 +141,8 @@ const leerPuntos = async ({ from, to }) => {
   if (from) { where.push("COALESCE(diary_date, DATE(created_at)) >= ?"); params.push(from); }
   if (to) { where.push("COALESCE(diary_date, DATE(created_at)) <= ?"); params.push(to); }
   const [rows] = await getPool().query(
-    `SELECT id, point_type, latitude, longitude, description, reference_note, validation_status
+    `SELECT id, point_type, latitude, longitude, description, reference_note,
+       DATE_FORMAT(COALESCE(diary_date, DATE(created_at)), '%Y-%m-%d') AS diary_date
      FROM map_points ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
      ORDER BY id LIMIT ?`,
     [...params, MAX_PUNTOS]
