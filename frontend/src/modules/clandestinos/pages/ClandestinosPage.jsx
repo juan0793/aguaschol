@@ -62,7 +62,15 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   }, [command]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // La barra superior muestra si el módulo está trabajando y qué hay cargado.
-  const totalExpedientes = Object.values(fichas.counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+  // Los conteos de useFichas respetan la búsqueda; el encabezado y la barra de
+  // actividad usan los del módulo completo (sin búsqueda ni barrio) para que su
+  // texto no cambie —ni salte de línea— con cada tecla.
+  const [conteosModulo, setConteosModulo] = useState(null);
+  useEffect(() => {
+    if (!fichas.filters.query.trim() && !fichas.filters.barrio && fichas.counts && Object.keys(fichas.counts).length) setConteosModulo(fichas.counts);
+  }, [fichas.counts, fichas.filters.barrio, fichas.filters.query]);
+  const conteosEstables = conteosModulo || fichas.counts || {};
+  const totalExpedientes = Object.values(conteosEstables).reduce((sum, value) => sum + Number(value || 0), 0);
   const busy = !config || fichas.loading || fichas.refreshing || bulkLoading || (tab === "banco" && (banco.loading || banco.refreshing));
   const busyLabel = !config ? "Cargando módulo" : bulkLoading ? "Procesando selección" : tab === "banco" && (banco.loading || banco.refreshing) ? "Actualizando banco" : "Actualizando fichas";
   const statusSummary = [plural(totalExpedientes, "expediente", "expedientes"), tab === "banco" && banco.estados?.pendiente != null ? `${banco.estados.pendiente} en banco por revisar` : null, selected.size ? `${selected.size} para imprimir` : null].filter(Boolean).join(" · ");
@@ -80,7 +88,7 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   const reportesPorAtender = ["new", "review", "info_requested"].reduce((sum, key) => sum + Number(reportes.counts[key] || 0), 0);
   const secciones = {
     resumen: { icon: "dashboard", title: "Resumen de clandestinos", detail: "Cómo va el proceso: fichas, banco de campo, técnicos y reportes" },
-    fichas: { icon: "records", title: "Fichas clandestinas", detail: `${plural(totalExpedientes, "expediente", "expedientes")} en seguimiento${fichas.counts?.confirmed ? ` · ${fichas.counts.confirmed} con aviso pendiente` : ""}` },
+    fichas: { icon: "records", title: "Fichas clandestinas", detail: `${plural(totalExpedientes, "expediente", "expedientes")} en seguimiento${conteosEstables.confirmed ? ` · ${conteosEstables.confirmed} con aviso pendiente` : ""}` },
     banco: { icon: "inbox", title: "Banco de clandestinos", detail: banco.estados?.pendiente != null ? `${plural(banco.estados.pendiente, "punto de campo", "puntos de campo")} por revisar · ${banco.estados.enviado || 0} enviados a ficha` : "Puntos de campo verificados contra Aguas y Alcaldía" },
     reportes: { icon: "activity", title: "Reportes técnicos", detail: reportes.total ? `${plural(reportesPorAtender, "hallazgo de campo", "hallazgos de campo")} por atender · ${reportes.total} en total` : "Hallazgos que registran los técnicos en campo, para revisar y vincular a una ficha" },
     impresiones: { icon: "print", title: "Centro de impresión", detail: selected.size ? `${plural(selected.size, "ficha lista", "fichas listas")} para imprimir` : "Marca fichas en la bandeja para prepararlas" },

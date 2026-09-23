@@ -14037,7 +14037,9 @@ function App() {
                 <span className="cl-activity-dot" aria-hidden="true" />
                 <strong>{!clandestinosStatus ? "Cargando módulo…" : clandestinosBusy ? `${clandestinosStatus.label}…` : "Al día"}</strong>
                 {clandestinosStatus?.summary ? <span className="cl-activity-summary">{clandestinosStatus.summary}</span> : null}
-                {clandestinosUpdatedAt && !clandestinosBusy ? (
+                {/* La hora se queda visible también mientras carga: así la barra
+                    no cambia de largo (ni de alto) con cada consulta. */}
+                {clandestinosUpdatedAt ? (
                   <time dateTime={clandestinosUpdatedAt.toISOString()}>
                     Actualizado {clandestinosUpdatedAt.toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" })}
                   </time>

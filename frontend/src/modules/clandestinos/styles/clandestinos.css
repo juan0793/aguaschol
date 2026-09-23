@@ -582,3 +582,10 @@
   .cl-donut svg { animation: none; }
   .cl-donut-segment, .cl-meters-track > span, .cl-bars-fill, .cl-resumen-kpi { transition: none; }
 }
+
+/* "Ver todas" aparece al escribir en el buscador: con el mínimo de 44 px de los
+   botones del módulo, la línea del encabezado crecía 25 px y empujaba el campo.
+   Conserva un área de toque cómoda con margen negativo, sin alterar la línea. */
+.cl-module .cl-inbox-scope .cl-scope-clear { min-height: 0; padding: 6px 8px; margin: -6px -8px -6px 0; line-height: inherit; }
+/* La etiqueta de búsqueda mide 26 px: la línea la reserva siempre. */
+.cl-inbox-scope { min-height: 26px; align-items: center; }

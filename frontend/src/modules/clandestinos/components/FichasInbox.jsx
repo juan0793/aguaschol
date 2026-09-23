@@ -54,13 +54,24 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
     return () => removeEventListener("resize", medir);
   }, [model.filters.state, model.counts]);
   const hayFiltros = Boolean(model.filters.query || model.filters.state || model.filters.barrio || alertsOnly);
+  const buscando = Boolean(model.filters.query.trim());
+  const inboxRef = useRef(null);
+  const alturaFija = useRef(0);
+  useLayoutEffect(() => {
+    const inbox = inboxRef.current;
+    if (!inbox) return;
+    if (!buscando) { alturaFija.current = 0; inbox.style.minHeight = ""; return; }
+    // Se guarda la mayor altura vista durante la búsqueda y se usa como piso.
+    alturaFija.current = Math.max(alturaFija.current, inbox.offsetHeight);
+    inbox.style.minHeight = `${alturaFija.current}px`;
+  });
   const [guia, setGuia] = useState(false);
   // Total de expedientes en todas las etapas (con la busqueda y el barrio
   // aplicados): es la referencia del "7 de 55" del encabezado.
   const totalExpedientes = Object.values(model.counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
   const etapaActiva = ETAPAS.find(([key]) => key === model.filters.state);
   const quitarTodo = () => { model.filters.clear(); setAlertsOnly(false); };
-  return <section className="cl-inbox" aria-label="Bandeja de trabajo de fichas">
+  return <section ref={inboxRef} className="cl-inbox" aria-label="Bandeja de trabajo de fichas">
     {/* El encabezado dice que se esta viendo: la etapa (con su icono), cuantas
         fichas de cuantas, y los filtros activos, cada uno removible. */}
     <header className="cl-inbox-head">
@@ -80,18 +91,20 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
       </div>
     </header>
     {guia ? <div className="cl-workflow-help" id="cl-guia-proceso"><section className="cl-workflow-guide" aria-label="Proceso recomendado para una ficha clandestina">{FLOW_GUIDE.map(([number, title, detail]) => <article key={number}><span>{number}</span><div><strong>{title}</strong><small>{detail}</small></div></article>)}</section></div> : null}
-    {alertItems.length ? <section className={`cl-deadline-banner ${alertsOnly ? "is-filtered" : ""}`} role="status"><span className="cl-deadline-icon"><Icon name="warning" /></span><div className="cl-deadline-copy"><small>Atención prioritaria</small><strong>{alertsOnly ? `Mostrando ${alertTitle.toLowerCase()}` : alertTitle}</strong><span>{overdueCount ? `Revisa el plazo y registra la siguiente acción para poner${alertItems.length === 1 ? "la" : "las"} al día.` : `Quedan dos días hábiles o menos para atender${alertItems.length === 1 ? "la" : "las"}.`}</span></div><button type="button" className="cl-deadline-action" onClick={() => setAlertsOnly((current) => !current)}>{alertsOnly ? "Ver todas" : "Revisar ahora"}<Icon name={alertsOnly ? "refresh" : "arrowRight"} /></button></section> : null}
+    {/* El buscador va antes del aviso de plazos: el aviso depende de los resultados y, arriba,
+        empujaba el campo mientras se escribía. */}
     <div className="cl-toolbar">
       <label className="cl-search"><span>Buscar ficha</span><div><Icon name="search" /><input value={model.filters.query} onChange={(event) => model.filters.setQuery(event.target.value)} placeholder="Clave, abonado o barrio" /></div></label>
       <label><span>Barrio</span><select value={model.filters.barrio} onChange={(event) => model.filters.setBarrio(event.target.value)}><option value="">Todos</option>{barrios.map((item) => <option key={item}>{item}</option>)}</select></label>
     </div>
+    {alertItems.length ? <section className={`cl-deadline-banner ${alertsOnly ? "is-filtered" : ""}`} role="status"><span className="cl-deadline-icon"><Icon name="warning" /></span><div className="cl-deadline-copy"><small>Atención prioritaria</small><strong>{alertsOnly ? `Mostrando ${alertTitle.toLowerCase()}` : alertTitle}</strong><span>{overdueCount ? `Revisa el plazo y registra la siguiente acción para poner${alertItems.length === 1 ? "la" : "las"} al día.` : `Quedan dos días hábiles o menos para atender${alertItems.length === 1 ? "la" : "las"}.`}</span></div><button type="button" className="cl-deadline-action" onClick={() => setAlertsOnly((current) => !current)}>{alertsOnly ? "Ver todas" : "Revisar ahora"}<Icon name={alertsOnly ? "refresh" : "arrowRight"} /></button></section> : null}
     {/* La etapa se elige solo aqui (antes tambien habia un selector con lo
         mismo). Al pasar el cursor o enfocar se adelanta la consulta. */}
     <div className="cl-indicators" role="group" aria-label="Filtrar por etapa" ref={etapasRef}>
       {ETAPAS.map(([key, label, icon]) => <button type="button" key={key} aria-pressed={model.filters.state === key} className={model.filters.state === key ? "is-active" : ""} title={STATE_OPTIONS[key]} onPointerEnter={() => model.prefetchState?.(key)} onFocus={() => model.prefetchState?.(key)} onClick={() => { setAlertsOnly(false); model.filters.setState(model.filters.state === key ? "" : key); }}><Icon name={icon} /><span>{label}</span><strong>{model.counts[key] || 0}</strong></button>)}
       {marca ? <i className="cl-indicators-mark" aria-hidden="true" style={{ transform: `translate(${marca.left}px, ${marca.top}px)`, width: marca.width }} /> : null}
     </div>
-    {serviceTotal ? <section className="cl-service-stats" aria-label="Conexiones de servicios registradas">
+    {serviceTotal || buscando ? <section className="cl-service-stats" aria-label="Conexiones de servicios registradas">
       <header className="cl-service-stats-head"><h3>Servicios registrados</h3><p>{serviceTotal ? `Sobre ${serviceTotal} ${serviceTotal === 1 ? "ficha" : "fichas"} con los filtros actuales` : "Sin fichas para resumir"}</p></header>
       <dl className="cl-service-stats-grid">{serviceMetrics.map(([key, label, icon, tone]) => { const value = Number(serviceStats[key] || 0); const percent = serviceTotal ? Math.round((value / serviceTotal) * 100) : 0; return <div className={`cl-service-stat ${tone}`} key={key}><dt><Icon name={icon} />{label}</dt><dd><strong>{value}</strong><span>{percent}%</span></dd></div>; })}</dl>
     </section> : null}

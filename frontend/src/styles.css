@@ -29471,7 +29471,9 @@ button.control-sidebar-home:focus-visible {
    que ya están en el menú del usuario). */
 .cl-activity { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 40px; padding: 8px 10px 8px 12px; overflow: hidden; border: 1px solid #dbe7f3; border-radius: 12px; background: #f7fafd; color: #486581; font-size: 0.82rem; }
 .cl-activity strong { color: #102a43; font-size: 0.84rem; }
-.cl-activity-summary { font-variant-numeric: tabular-nums; }
+.cl-activity-summary { min-width: 0; overflow: hidden; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.cl-activity > strong { min-width: 7.5em; white-space: nowrap; }
+@media (min-width: 641px) { .cl-activity { flex-wrap: nowrap; } .cl-activity-summary { flex: 0 1 auto; } .cl-activity time { flex: none; white-space: nowrap; } }
 .cl-activity time { color: #7b8fa3; font-variant-numeric: tabular-nums; }
 .cl-activity-dot { width: 8px; height: 8px; border-radius: 50%; background: #1f9463; box-shadow: 0 0 0 3px rgba(31, 148, 99, 0.16); }
 .cl-activity.is-busy .cl-activity-dot { background: #1769e0; box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.16); animation: cl-activity-pulse 1s ease-in-out infinite; }
