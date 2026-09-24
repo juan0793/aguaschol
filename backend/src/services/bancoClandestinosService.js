@@ -2,7 +2,7 @@ import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { getAlcaldiaRecords, getMasterRecords, getMasterVersion } from "./claveLookupService.js";
-import { createInmueble, getByClave } from "./inmuebleService.js";
+import { createInmueble, getByClave, listInmuebles } from "./inmuebleService.js";
 import { likeValue } from "../utils/normalize.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 
@@ -498,6 +498,82 @@ export const guardarCandidatos = async (rows, { origen = "qfield", lote = "" } =
   }
   if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.imported", entityType: "banco_clandestinos", entityId: 0, summary: `Banco de clandestinos: ${summary.nuevos} nuevos, ${summary.actualizados} actualizados (${lote || origen})`, details: summary });
   return { ...summary, padron_version: getMasterVersion() };
+};
+
+// Clave de Alcaldía sin coincidencia en Aguas -> candidato del banco. origen_ref es
+// la clave tal como viene en Alcaldía, así reenviarla no la duplica.
+export const candidatoDesdeAlcaldia = (row = {}) => candidatoDesdeFila({
+  origen_ref: clean(row.clave_catastral),
+  clave_catastral: row.clave_aguas_formato || row.clave_catastral,
+  comentario_campo: "Clave de Alcaldía sin coincidencia en Aguas (Consultas del padrón)",
+  barrio_colonia: row.caserio || row.direccion
+});
+
+// Claves (normalizadas) que ya tienen trabajo: en el banco por otro origen (GPS,
+// QField) o con ficha activa. Una consulta por tabla, no una por clave.
+const clavesConTrabajo = async (claves = [], origen = "") => {
+  const wanted = [...new Set(claves.filter(Boolean))];
+  const enBanco = new Set();
+  const conFicha = new Set();
+  if (!wanted.length) return { enBanco, conFicha };
+  const buscadas = new Set(wanted);
+  if (env.useMemoryDb) {
+    memoryBanco.forEach((item) => { if (item.origen !== origen && buscadas.has(item.clave_catastral)) enBanco.add(item.clave_catastral); });
+    (await listInmuebles()).forEach((ficha) => { const clave = normalizarClaveBanco(ficha.clave_catastral); if (buscadas.has(clave)) conFicha.add(clave); });
+    return { enBanco, conFicha };
+  }
+  const [bancoRows] = await getPool().query("SELECT DISTINCT clave_catastral FROM banco_clandestinos WHERE origen <> ? AND clave_catastral IN (?)", [origen, wanted]);
+  bancoRows.forEach((row) => enBanco.add(row.clave_catastral));
+  // Las fichas guardan la clave tal cual se escribió ("302-6-1" o "302-06-01"):
+  // un IN exacto no las encontraría. Se traen las claves activas y se comparan
+  // normalizadas (el banco ya guarda las suyas normalizadas).
+  const [fichaRows] = await getPool().query("SELECT DISTINCT clave_catastral FROM inmuebles_clandestinos WHERE archived_at IS NULL AND clave_catastral <> ''");
+  fichaRows.forEach((row) => { const clave = normalizarClaveBanco(row.clave_catastral); if (buscadas.has(clave)) conFicha.add(clave); });
+  return { enBanco, conFicha };
+};
+
+/**
+ * Manda al banco las claves de Alcaldía elegidas en Consultas del padrón.
+ * Omite las que ya están en el banco por otro origen o ya tienen ficha, para
+ * no darle a los técnicos el mismo predio dos veces.
+ * El cliente solo dice qué claves: los datos salen del padrón de Alcaldía cargado
+ * (registros se puede inyectar en pruebas).
+ */
+export const enviarClavesAlcaldiaAlBanco = async ({ claves = [] } = {}, user, { registros } = {}) => {
+  if (!canProcess(user)) throw fail("Tu rol no puede enviar al banco.", 403);
+  const elegidas = new Set((Array.isArray(claves) ? claves : []).map(clean).filter(Boolean));
+  if (!elegidas.size) throw fail("Elige al menos una clave.");
+  if (elegidas.size > MAX_IMPORT_ROWS) throw fail(`Se pueden enviar hasta ${MAX_IMPORT_ROWS} claves a la vez.`, 413);
+  // El padrón de Alcaldía trae claves repetidas: una fila por clave, la primera.
+  const porClave = new Map();
+  (registros || getAlcaldiaRecords()).forEach((row) => {
+    const clave = clean(row.clave_catastral);
+    if (elegidas.has(clave) && !porClave.has(clave)) porClave.set(clave, row);
+  });
+  const encontrados = [...porClave.values()];
+  if (!encontrados.length) throw fail("Ninguna de esas claves está en el padrón de Alcaldía cargado.", 404);
+  const candidatos = encontrados.map(candidatoDesdeAlcaldia);
+  const { enBanco, conFicha } = await clavesConTrabajo(candidatos.map((candidato) => candidato.clave_catastral), "alcaldia");
+  const aGuardar = candidatos.filter((candidato) => !enBanco.has(candidato.clave_catastral) && !conFicha.has(candidato.clave_catastral));
+  const ya_en_banco = candidatos.filter((candidato) => enBanco.has(candidato.clave_catastral)).length;
+  const con_ficha = candidatos.filter((candidato) => !enBanco.has(candidato.clave_catastral) && conFicha.has(candidato.clave_catastral)).length;
+  const omitidos = elegidas.size - encontrados.length;
+  if (!aGuardar.length) return { total: 0, nuevos: 0, actualizados: 0, sin_cambios_procesados: 0, enviados: 0, omitidos, ya_en_banco, con_ficha };
+  const lote = `Cruce Alcaldía ${new Date().toISOString().slice(0, 10)}`;
+  const resumen = await guardarCandidatos(aGuardar, { origen: "alcaldia", lote }, user);
+  if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.from_alcaldia", entityType: "banco_clandestinos", entityId: 0, summary: `${resumen.nuevos} claves de Alcaldía enviadas al banco (${lote})`, details: { claves: aGuardar.map((candidato) => candidato.origen_ref).slice(0, 500), total: aGuardar.length, ya_en_banco, con_ficha } });
+  return { ...resumen, enviados: aGuardar.length, omitidos, ya_en_banco, con_ficha };
+};
+
+// Qué claves de un origen ya están en el banco y en qué estado (para marcarlas en la lista).
+export const listarRefsBanco = async ({ origen = "" } = {}, user) => {
+  if (!canProcess(user)) throw fail("Tu rol no puede consultar el banco.", 403);
+  origen = clean(origen).slice(0, 40);
+  if (!origen) throw fail("Indica el origen.");
+  const rows = env.useMemoryDb
+    ? memoryBanco.filter((item) => item.origen === origen)
+    : (await getPool().query("SELECT origen_ref, estado FROM banco_clandestinos WHERE origen = ?", [origen]))[0];
+  return { origen, items: rows.map((row) => ({ origen_ref: row.origen_ref, estado: row.estado })) };
 };
 
 // Vuelve a dictaminar los candidatos pendientes con los padrones cargados en este momento.

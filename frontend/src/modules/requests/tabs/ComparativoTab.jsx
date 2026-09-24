@@ -65,7 +65,7 @@ export default function ComparativoTab({ model }) {
       {MODES.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={view === "graficos" && model.chartMode === key} className={view === "graficos" && model.chartMode === key ? "is-active" : ""} onClick={() => { setView("graficos"); model.setChartMode(key); if (key !== "servicios") model.setStatsServiceField(""); }}>{label}</button>)}
     </div>
 
-    {view === "claves" ? <ClavesSinAguas key={clavesBarrio || "todos"} candidates={candidates} barrio={clavesBarrio} onBarrioChange={setClavesBarrio} statsByBarrio={statsByBarrio} /> : <div className="pq-compare-grid">
+    {view === "claves" ? <ClavesSinAguas key={clavesBarrio || "todos"} candidates={candidates} initialBarrio={clavesBarrio} statsByBarrio={statsByBarrio} apiFetch={model.apiFetch} notify={model.notify} onOpenBanco={model.onOpenBanco} /> : <div className="pq-compare-grid">
       <section className="pq-chart">
         <header>
           <div><h3>{title}</h3><p>{model.chartMode === "servicios" && stats.selectedServiceLabel ? `Porcentaje de usuarios con ${stats.selectedServiceLabel} en cada barrio.` : mode[3]}</p></div>

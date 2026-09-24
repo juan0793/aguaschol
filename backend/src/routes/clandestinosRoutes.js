@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { banco, bancoAssign, bancoDiscard, bancoListado, bancoTecnicos, bancoUnassign, bancoImport, bancoRestore, bancoSend, bancoVerify, compareFichas, config, createReport, evidence, fichaInternalNotes, fichaState, fichas, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
+import { banco, bancoAssign, bancoDiscard, bancoFromAlcaldia, bancoRefs, bancoListado, bancoTecnicos, bancoUnassign, bancoImport, bancoRestore, bancoSend, bancoVerify, compareFichas, config, createReport, evidence, fichaInternalNotes, fichaState, fichas, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
 import { imageUpload } from "../middleware/upload.js";
 
 const router = Router();
@@ -19,6 +19,8 @@ router.get("/banco/tecnicos", bancoTecnicos);
 router.post("/banco/asignar", bancoAssign);
 router.post("/banco/desasignar", bancoUnassign);
 router.post("/banco/importar", bancoImport);
+router.post("/banco/desde-alcaldia", bancoFromAlcaldia);
+router.get("/banco/refs", bancoRefs);
 router.post("/banco/verificar", bancoVerify);
 router.post("/banco/:id/enviar", bancoSend);
 router.post("/banco/:id/descartar", bancoDiscard);

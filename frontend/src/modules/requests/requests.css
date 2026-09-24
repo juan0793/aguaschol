@@ -240,16 +240,44 @@
 .pq-workspace .pq-detail-list dd { margin: 0; color: var(--ds-text, #102a43); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .pq-workspace .pq-detail-list .is-alert dd { color: #b8323e; }
 
-/* ---------- Claves sin registrar ---------- */
+/* ---------- Claves sin registrar ----------
+   Índice de barrios a la izquierda, claves del barrio elegido a la derecha,
+   de 100 en 100: la página nunca crece hasta el último barrio. */
 .pq-workspace .pq-claves { display: grid; gap: 12px; min-width: 0; }
-.pq-workspace .pq-claves-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
 .pq-workspace .pq-claves-head h3 { margin: 0; color: var(--ds-text, #102a43); font-size: 16px; font-weight: 800; }
 .pq-workspace .pq-claves-head p { margin: 3px 0 0; color: var(--ds-text-muted, #627d98); font-size: 13px; }
-.pq-workspace .pq-claves .pq-barrio-head span > b { color: #b8323e; }
+.pq-workspace .pq-search.is-busy .app-icon { color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-selection .app-icon { width: 15px; height: 15px; margin: 0 6px -2px 0; }
+.pq-workspace .pq-selection.is-done { border-color: #bfe3d0; background: #eef8f3; }
+.pq-workspace .pq-selection.is-done > span > .app-icon { color: #1f9463; }
+.pq-workspace .pq-claves-layout { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); align-items: start; gap: 16px; }
+.pq-workspace .pq-claves-index { position: sticky; top: 12px; overflow: hidden; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; background: #f9fbfd; }
+.pq-workspace .pq-claves-index ol { max-height: min(70vh, 640px); margin: 0; padding: 4px; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
+.pq-workspace .pq-claves-index button { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; width: 100%; min-height: 36px; margin: 0; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: var(--ds-text, #243b53); font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.pq-workspace .pq-claves-index button:hover:not(:disabled) { background: #eef3f8; box-shadow: none; transform: none; }
+.pq-workspace .pq-claves-index button.is-active { background: #fff; box-shadow: inset 3px 0 var(--ds-blue, #1769e0), 0 1px 2px rgba(16, 42, 67, 0.08); color: var(--ds-blue-deep, #0b3f73); font-weight: 800; }
+.pq-workspace .pq-claves-index button:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
+.pq-workspace .pq-claves-index button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pq-workspace .pq-claves-index button > b { color: #b8323e; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-claves-index button > em { padding: 1px 7px; border-radius: 999px; background: var(--ds-blue, #1769e0); color: #fff; font-size: 11px; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-claves-picker { display: none; }
+.pq-workspace .pq-claves-detail { display: grid; gap: 10px; min-width: 0; }
+.pq-workspace .pq-claves-detail > header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; }
+.pq-workspace .pq-claves-detail h4 { margin: 0; color: var(--ds-text, #102a43); font-size: 17px; font-weight: 800; }
+.pq-workspace .pq-claves-detail > header p { margin: 2px 0 0; color: var(--ds-text-muted, #627d98); font-size: 13px; }
+.pq-workspace .pq-claves-detail > header p b { color: #b8323e; }
+/* La tabla se desplaza por dentro, a la altura del índice: la página no crece. */
+.pq-workspace .pq-claves-table { max-height: min(70vh, 640px); }
 .pq-workspace .pq-table.is-claves tbody th { min-width: 150px; font-weight: 700; }
 .pq-workspace .pq-table.is-claves td { white-space: normal; }
-.pq-workspace .pq-table.is-claves td:nth-child(5) { min-width: 200px; }
-.pq-workspace .pq-claves-more { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 10px 12px; border-top: 1px solid var(--ds-border, #e3ebf3); color: var(--ds-text-muted, #627d98); font-size: 12.5px; }
+.pq-workspace .pq-table.is-claves td:nth-child(6) { min-width: 200px; }
+.pq-workspace .pq-table.is-claves tr.is-in-banco > * { color: var(--ds-text-muted, #627d98); }
+.pq-workspace .pq-banco-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: #eef3f8; color: var(--ds-text-muted, #627d98); font-family: var(--font-sans, system-ui, sans-serif); font-size: 11px; font-weight: 700; vertical-align: 1px; white-space: nowrap; }
+.pq-workspace .pq-banco-tag.is-pendiente { background: #fdf3e2; color: #8a5a12; }
+.pq-workspace .pq-banco-tag.is-enviado { background: #e6f6ee; color: #1a7a52; }
+.pq-workspace .pq-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 12px; color: var(--ds-text-muted, #627d98); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-pager > span:first-child { margin-right: auto; }
+.pq-workspace .pq-pager-page { color: var(--ds-text, #243b53); font-weight: 700; }
 .pq-workspace .pq-bar.is-coverage { height: 8px; }
 .pq-workspace .pq-bar.is-coverage i { background: #1f9463; }
 .pq-workspace .pq-detail-dominant { margin: 0; color: var(--ds-text-muted, #627d98); font-size: 13px; }
@@ -261,6 +289,13 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
+  /* En pantallas angostas el índice de barrios es un selector. */
+  .pq-workspace .pq-claves-layout { grid-template-columns: minmax(0, 1fr); }
+  .pq-workspace .pq-claves-index { position: static; overflow: visible; border: 0; background: none; }
+  .pq-workspace .pq-claves-index ol { display: none; }
+  .pq-workspace .pq-claves-picker { display: grid; gap: 4px; color: var(--ds-text, #243b53); font-size: 12.5px; font-weight: 700; }
+  .pq-workspace .pq-panel .pq-claves-picker select { width: 100%; min-height: 40px; padding: 7px 10px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 9px; background: #fff; box-shadow: none; font-size: 14px; }
+  .pq-workspace .pq-pager > span:first-child { flex: 1 1 100%; }
   .pq-workspace .pq-listado, .pq-workspace .pq-compare-grid { grid-template-columns: minmax(0, 1fr); }
   .pq-workspace .pq-builder, .pq-workspace .pq-detail { position: static; }
   .pq-workspace .pq-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

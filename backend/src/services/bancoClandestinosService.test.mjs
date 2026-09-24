@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { asignarCandidatos, buildPadronIndex, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
-import { getByClave } from "./inmuebleService.js";
+import { asignarCandidatos, buildPadronIndex, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
+import { createInmueble, getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
 const tecnico = { id: 2, role: "operator", full_name: "Técnico" };
@@ -199,4 +199,59 @@ test("asignar reparte, ignora los ya procesados y la validadora solo trabaja lo 
   const pendientes = ids.filter((id) => id !== propio.id);
   assert.equal((await quitarAsignacion({ ids: pendientes }, admin)).liberados, 2);
   await assert.rejects(() => asignarCandidatos({ ids: [propio.id], tecnico_ids: [tecnico.id] }, admin), (error) => error.status === 409);
+});
+
+test("las claves de Alcaldía elegidas entran al banco una sola vez", async () => {
+  const registros = [
+    { clave_catastral: "0301-05-012", clave_aguas_formato: "301-05-12", nombre: "ROSA AGUILAR", caserio: "Residencial Villa Bertilia" },
+    { clave_catastral: "0301-05-013", clave_aguas_formato: "301-05-13", nombre: "LUIS HERRERA", direccion: "Col. San Pedro" }
+  ];
+  const candidato = candidatoDesdeAlcaldia(registros[0]);
+  assert.equal(candidato.origen_ref, "0301-05-012");
+  assert.equal(candidato.clave_catastral, "301-05-12");
+  assert.equal(candidato.barrio_colonia, "Residencial Villa Bertilia");
+
+  await assert.rejects(enviarClavesAlcaldiaAlBanco({ claves: ["0301-05-012"] }, campo, { registros }), { status: 403 });
+  await assert.rejects(enviarClavesAlcaldiaAlBanco({ claves: [] }, admin, { registros }), /al menos una clave/);
+  await assert.rejects(enviarClavesAlcaldiaAlBanco({ claves: ["no-existe"] }, admin, { registros }), { status: 404 });
+
+  const primera = await enviarClavesAlcaldiaAlBanco({ claves: ["0301-05-012", "0301-05-013", "no-existe"] }, tecnico, { registros });
+  assert.equal(primera.nuevos, 2);
+  assert.equal(primera.enviados, 2);
+  assert.equal(primera.omitidos, 1);
+  const segunda = await enviarClavesAlcaldiaAlBanco({ claves: ["0301-05-012"] }, admin, { registros });
+  assert.equal(segunda.nuevos, 0);
+  assert.equal(segunda.actualizados, 1);
+
+  const refs = await listarRefsBanco({ origen: "alcaldia" }, admin);
+  assert.deepEqual(refs.items.map((item) => item.origen_ref).sort(), ["0301-05-012", "0301-05-013"]);
+  await assert.rejects(listarRefsBanco({ origen: "alcaldia" }, campo), { status: 403 });
+});
+
+test("no duplica predios que ya están en el banco por otro origen o que ya tienen ficha", async () => {
+  await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo\nq-301,301-05-20,Levantado en campo", lote: "prueba" }, admin);
+  await createInmueble({ clave_catastral: "302-6-1", barrio_colonia: "Barrio Prueba", nombre_catastral: "YA TIENE FICHA" }, { user: admin });
+  assert.ok(await getByClave("302-6-1")); // misma clave, escrita sin ceros
+  const registros = [
+    { clave_catastral: "0301-05-020", clave_aguas_formato: "301-05-20", nombre: "YA EN EL BANCO", caserio: "Barrio Prueba" },
+    { clave_catastral: "0302-06-001", clave_aguas_formato: "302-06-01", nombre: "YA TIENE FICHA", caserio: "Barrio Prueba" },
+    { clave_catastral: "0301-05-021", clave_aguas_formato: "301-05-21", nombre: "NUEVO", caserio: "Barrio Prueba" }
+  ];
+  const resultado = await enviarClavesAlcaldiaAlBanco({ claves: registros.map((row) => row.clave_catastral) }, admin, { registros });
+  assert.equal(resultado.ya_en_banco, 1);
+  assert.equal(resultado.con_ficha, 1);
+  assert.equal(resultado.nuevos, 1);
+  assert.equal(resultado.enviados, 1);
+  const soloRepetidos = await enviarClavesAlcaldiaAlBanco({ claves: ["0301-05-020", "0302-06-001"] }, admin, { registros });
+  assert.equal(soloRepetidos.nuevos, 0);
+  assert.equal(soloRepetidos.enviados, 0);
+});
+
+test("una clave repetida en el padrón de Alcaldía cuenta una sola vez", async () => {
+  const fila = { clave_catastral: "0303-07-001", clave_aguas_formato: "303-07-01", nombre: "REPETIDA", caserio: "Barrio Prueba" };
+  const resultado = await enviarClavesAlcaldiaAlBanco({ claves: ["0303-07-001"] }, admin, { registros: [fila, { ...fila }] });
+  assert.equal(resultado.enviados, 1);
+  assert.equal(resultado.nuevos, 1);
+  assert.equal(resultado.actualizados, 0);
+  assert.equal(resultado.omitidos, 0);
 });

@@ -18668,6 +18668,12 @@ function App() {
                     comparison: alcaldiaComparison,
                     loadingComparison: loadingAlcaldiaComparison,
                     onCompare: () => loadAlcaldiaComparison(),
+                    apiFetch,
+                    notify: showAlert,
+                    onOpenBanco: () => {
+                      window.location.hash = "clandestinos/banco";
+                      setWorkspaceView("records");
+                    },
                     stats: padronStatisticsData,
                     padronMeta,
                     alcaldiaMeta,

@@ -1,4 +1,4 @@
-import { asignarCandidatos, descartarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listadoBancoClandestinos, listBancoClandestinos, listTecnicosBanco, quitarAsignacion, restaurarCandidato, verificarBancoClandestinos } from "../services/bancoClandestinosService.js";
+import { asignarCandidatos, descartarCandidato, enviarClavesAlcaldiaAlBanco, listarRefsBanco, enviarCandidatoAFicha, importBancoClandestinos, listadoBancoClandestinos, listBancoClandestinos, listTecnicosBanco, quitarAsignacion, restaurarCandidato, verificarBancoClandestinos } from "../services/bancoClandestinosService.js";
 import { attachReportEvidence, changeFichaState, changeReportState, compareClandestinosFichas, createTechnicalReport, getClandestinosConfig, linkTechnicalReport, listClandestinosFichas, listStateHistory, listTechnicalReports, updateFichaInternalNotes } from "../services/clandestinosService.js";
 
 export const config = async (req, res) => res.json(getClandestinosConfig(req.authUser));
@@ -24,3 +24,5 @@ export const bancoVerify = async (req, res, next) => { try { res.json(await veri
 export const bancoSend = async (req, res, next) => { try { res.json(await enviarCandidatoAFicha(req.params.id, req.body || {}, req.authUser)); } catch (error) { next(error); } };
 export const bancoDiscard = async (req, res, next) => { try { res.json(await descartarCandidato(req.params.id, req.body || {}, req.authUser)); } catch (error) { next(error); } };
 export const bancoRestore = async (req, res, next) => { try { res.json(await restaurarCandidato(req.params.id, req.authUser)); } catch (error) { next(error); } };
+export const bancoFromAlcaldia = async (req, res, next) => { try { res.status(201).json(await enviarClavesAlcaldiaAlBanco(req.body || {}, req.authUser)); } catch (error) { next(error); } };
+export const bancoRefs = async (req, res, next) => { try { res.json(await listarRefsBanco({ origen: req.query.origen }, req.authUser)); } catch (error) { next(error); } };
