@@ -39,7 +39,7 @@ assert.deepEqual(sumDebtRows([]), { capital: 0, intereses: 0, total: 0, deudores
 // El criterio de orden se refleja en el encabezado impreso.
 assert.equal(debtMetricLabel("total"), "Mora total");
 assert.equal(debtMetricLabel("accounts"), "Abonados con mora");
-assert.equal(debtMetricLabel("critical"), "Casos criticos");
+assert.equal(debtMetricLabel("critical"), "Mora alta");
 
 const { buildDebtRankingPrintMarkup } = await import("./debtRankingPrint.js");
 const html = buildDebtRankingPrintMarkup({ rows: all, metric: "total", selectedBarrios: ["BO. CABAÑAS"], generatedAt: "17 de agosto de 2026" });

@@ -4,7 +4,7 @@ export const debtRanking = (barrios = [], metric = "total") => debtRankingAll(ba
 
 export const sumDebtRows = (rows = []) => rows.reduce((sum, item) => ({ capital: sum.capital + Number(item.debt?.capital || 0), intereses: sum.intereses + Number(item.debt?.intereses || 0), total: sum.total + Number(item.debt?.total || 0), deudores: sum.deudores + Number(item.debt?.deudores || 0), criticos: sum.criticos + Number(item.debt?.criticos || 0), records: sum.records + Number(item.records || 0) }), { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0, records: 0 });
 
-export const debtMetricLabel = (metric = "total") => metric === "accounts" ? "Abonados con mora" : metric === "critical" ? "Casos criticos" : "Mora total";
+export const debtMetricLabel = (metric = "total") => metric === "accounts" ? "Abonados con mora" : metric === "critical" ? "Mora alta" : "Mora total";
 
 export const sumSelectedDebt = (rows = [], selected = []) => rows.filter((item) => selected.includes(item.name)).reduce((sum, item) => ({ capital: sum.capital + Number(item.debt.capital || 0), intereses: sum.intereses + Number(item.debt.intereses || 0), total: sum.total + Number(item.debt.total || 0), deudores: sum.deudores + Number(item.debt.deudores || 0), criticos: sum.criticos + Number(item.debt.criticos || 0), records: sum.records + Number(item.records || 0) }), { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0, records: 0 });
 

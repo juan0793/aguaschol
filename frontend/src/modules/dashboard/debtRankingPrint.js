@@ -49,11 +49,11 @@ export const buildDebtRankingPrintMarkup = ({ rows = [], metric = "total", selec
       <section class="field-report-zone debt-rank-zone">
         <div class="field-report-zone-head"><div><span class="field-report-zone-kicker">Desglose completo</span><h3>Mora total de cada barrio</h3></div></div>
         <table class="field-report-table data-report-table debt-rank-table">
-          <thead><tr><th class="col-rank">#</th><th class="col-barrio">Barrio / colonia</th><th>Cuentas</th><th>Con mora</th><th>Criticos</th><th>Capital</th><th>Intereses</th><th>Mora total</th><th>% del total</th></tr></thead>
+          <thead><tr><th class="col-rank">#</th><th class="col-barrio">Barrio / colonia</th><th>Cuentas</th><th>Con mora</th><th>Mora alta</th><th>Capital</th><th>Intereses</th><th>Mora total</th><th>% del total</th></tr></thead>
           <tbody>${bodyRows}</tbody>
           <tfoot><tr><th class="col-rank"></th><th class="col-barrio">Total general</th><th>${count(totals.records)}</th><th>${count(totals.deudores)}</th><th>${count(totals.criticos)}</th><th>${money(totals.capital)}</th><th>${money(totals.intereses)}</th><th>${money(totals.total)}</th><th>${rows.length ? "100.0%" : "0.0%"}</th></tr></tfoot>
         </table>
-        <p class="debt-rank-note"><strong>Nota:</strong> casos criticos son cuentas con mora igual o mayor a L 1,000. El porcentaje se calcula sobre la mora total de los barrios listados.</p>
+        <p class="debt-rank-note"><strong>Nota:</strong> mora alta son las cuentas que deben L 1,000 o más. El porcentaje se calcula sobre la mora total de los barrios listados.</p>
       </section>
     </div>`;
 };

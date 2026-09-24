@@ -320,7 +320,7 @@ export default function DashboardWorkspace({ model }) {
   const niveles = [
     { key: "padron", label: "cuentas", value: padronRecords, share: padronRecords ? 100 : 0, note: `en el padrón · ${whole(model.padronTotals.barrios)} barrios` },
     { key: "mora", label: "con mora", value: Number(debt.deudores || 0), share: debtorShare, note: `${oneDecimal(debtorShare)} del padrón` },
-    { key: "critica", label: "críticas", value: Number(debt.criticos || 0), share: percent(debt.criticos, padronRecords), note: `${oneDecimal(criticalShare)} de las con mora` }
+    { key: "critica", label: "con mora alta", value: Number(debt.criticos || 0), share: percent(debt.criticos, padronRecords), note: `${oneDecimal(criticalShare)} de las con mora` }
   ];
   const cuentasAlDia = Math.max(0, padronRecords - Number(debt.deudores || 0));
   const promedioPorCuenta = Number(debt.deudores || 0) ? debtTotal / Number(debt.deudores) : 0;
@@ -334,7 +334,7 @@ export default function DashboardWorkspace({ model }) {
   const metricTotal = debtMetric === "accounts"
     ? Number(debt.deudores || 0)
     : debtMetric === "critical" ? Number(debt.criticos || 0) : debtTotal;
-  const metricDescription = debtMetric === "accounts" ? "de los abonados con mora" : debtMetric === "critical" ? "de los casos críticos" : "de la mora total";
+  const metricDescription = debtMetric === "accounts" ? "de los abonados con mora" : debtMetric === "critical" ? "de las cuentas con mora alta" : "de la mora total";
   const rankingTotal = ranking.reduce((sum, item) => sum + item.value, 0);
   const selectedShare = percent(
     debtMetric === "accounts" ? selectedDebt.deudores : debtMetric === "critical" ? selectedDebt.criticos : selectedDebt.total,
@@ -451,7 +451,7 @@ export default function DashboardWorkspace({ model }) {
   const printSelection = () =>
     printDocument(
       "Sumatoria de barrios",
-      `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Abonados</strong><span>${whole(selectedDebt.records)}</span></div>${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Casos criticos</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("records", "Detalle por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Abonados</th><th>Cuentas con mora</th><th>Casos criticos</th><th>Capital</th><th>Intereses</th><th>Mora total</th></tr></thead><tbody>${selectedRows.map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${whole(row.records)}</td><td>${whole(row.debt?.deudores)}</td><td>${whole(row.debt?.criticos)}</td><td>${escapeHtml(formatCurrency(row.debt?.capital))}</td><td>${escapeHtml(formatCurrency(row.debt?.intereses))}</td><td>${escapeHtml(formatCurrency(row.debt?.total))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedDebt.records)}</th><th>${whole(selectedDebt.deudores)}</th><th>${whole(selectedDebt.criticos)}</th><th>${escapeHtml(formatCurrency(selectedDebt.capital))}</th><th>${escapeHtml(formatCurrency(selectedDebt.intereses))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
+      `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Abonados</strong><span>${whole(selectedDebt.records)}</span></div>${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Cuentas con mora alta</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("records", "Detalle por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Abonados</th><th>Cuentas con mora</th><th>Mora alta</th><th>Capital</th><th>Intereses</th><th>Mora total</th></tr></thead><tbody>${selectedRows.map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${whole(row.records)}</td><td>${whole(row.debt?.deudores)}</td><td>${whole(row.debt?.criticos)}</td><td>${escapeHtml(formatCurrency(row.debt?.capital))}</td><td>${escapeHtml(formatCurrency(row.debt?.intereses))}</td><td>${escapeHtml(formatCurrency(row.debt?.total))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedDebt.records)}</th><th>${whole(selectedDebt.deudores)}</th><th>${whole(selectedDebt.criticos)}</th><th>${escapeHtml(formatCurrency(selectedDebt.capital))}</th><th>${escapeHtml(formatCurrency(selectedDebt.intereses))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
       { pageSize: "Letter portrait", bodyClassName: "dashboard-report-body", showPageFooter: true }
     );
 
@@ -483,7 +483,7 @@ export default function DashboardWorkspace({ model }) {
   const printDebtSummary = () =>
     printDocument(
       "Resumen de mora",
-      `${dashboardReportHeader("Resumen de mora", "Situación financiera y mora asociada por servicio")}<section class="print-section">${reportSectionTitle("chart", "Situación financiera")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Mora total</strong><span>${escapeHtml(formatCurrency(debtTotal))}</span></div><div class="print-field"><strong>Capital</strong><span>${escapeHtml(formatCurrency(debt.capital))}</span></div><div class="print-field"><strong>Intereses</strong><span>${escapeHtml(formatCurrency(debt.intereses))}</span></div><div class="print-field"><strong>Cuentas con mora</strong><span>${whole(debt.deudores)}</span></div><div class="print-field"><strong>Casos críticos</strong><span>${whole(debt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("water", "Mora asociada por servicio")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${serviceDebt.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody></table></section>`,
+      `${dashboardReportHeader("Resumen de mora", "Situación financiera y mora asociada por servicio")}<section class="print-section">${reportSectionTitle("chart", "Situación financiera")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Mora total</strong><span>${escapeHtml(formatCurrency(debtTotal))}</span></div><div class="print-field"><strong>Capital</strong><span>${escapeHtml(formatCurrency(debt.capital))}</span></div><div class="print-field"><strong>Intereses</strong><span>${escapeHtml(formatCurrency(debt.intereses))}</span></div><div class="print-field"><strong>Cuentas con mora</strong><span>${whole(debt.deudores)}</span></div><div class="print-field"><strong>Cuentas con mora alta</strong><span>${whole(debt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("water", "Mora asociada por servicio")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${serviceDebt.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody></table></section>`,
       { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body dashboard-report-body", showPageFooter: true }
     );
 
@@ -502,7 +502,7 @@ export default function DashboardWorkspace({ model }) {
     detailedAccounts = detailedAccounts.filter((account) => Number(account.deuda || 0) > 0);
     printDocument(
       `Mora asociada por servicio: ${service.label}`,
-      `${dashboardReportHeader("Mora asociada por servicio", "", serviceReportBadge(service))}<section class="print-section">${reportSectionTitle("water", "Resumen")}<div class="print-grid print-grid-four"><div class="print-field"><strong>Mora asociada</strong><span>${escapeHtml(formatCurrency(service.debt))}</span></div><div class="print-field"><strong>Activos</strong><span>${whole(service.active)}</span></div><div class="print-field"><strong>Inactivos</strong><span>${whole(service.inactive)}</span></div><div class="print-field"><strong>Sin dato</strong><span>${whole(service.unknown)}</span></div></div></section><section class="print-section">${reportSectionTitle("chart", "Mora por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Cuentas</th><th>Críticas</th><th>Mora</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.barrio)}</td><td>${whole(row.cuentas)}</td><td>${whole(row.criticos)}</td><td>${escapeHtml(formatCurrency(row.deuda))}</td></tr>`).join("")}</tbody></table></section>${detailedAccounts.length ? `<section class="print-section print-account-section">${reportSectionTitle("users", `Cuentas con mora (${whole(detailedAccounts.length)})`)}<table class="field-report-table data-report-table"><thead><tr><th>Nombre</th><th>Barrio</th><th>Clave / abonado</th><th>Mora</th></tr></thead><tbody>${detailedAccounts.map((account) => `<tr><td>${escapeHtml(account.nombre)}</td><td>${escapeHtml(account.barrio_colonia)}</td><td>${escapeHtml(account.clave_catastral || account.abonado)}</td><td>${escapeHtml(formatCurrency(account.deuda))}</td></tr>`).join("")}</tbody></table></section>` : ""}`,
+      `${dashboardReportHeader("Mora asociada por servicio", "", serviceReportBadge(service))}<section class="print-section">${reportSectionTitle("water", "Resumen")}<div class="print-grid print-grid-four"><div class="print-field"><strong>Mora asociada</strong><span>${escapeHtml(formatCurrency(service.debt))}</span></div><div class="print-field"><strong>Activos</strong><span>${whole(service.active)}</span></div><div class="print-field"><strong>Inactivos</strong><span>${whole(service.inactive)}</span></div><div class="print-field"><strong>Sin dato</strong><span>${whole(service.unknown)}</span></div></div></section><section class="print-section">${reportSectionTitle("chart", "Mora por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Cuentas</th><th>Mora alta</th><th>Mora</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.barrio)}</td><td>${whole(row.cuentas)}</td><td>${whole(row.criticos)}</td><td>${escapeHtml(formatCurrency(row.deuda))}</td></tr>`).join("")}</tbody></table></section>${detailedAccounts.length ? `<section class="print-section print-account-section">${reportSectionTitle("users", `Cuentas con mora (${whole(detailedAccounts.length)})`)}<table class="field-report-table data-report-table"><thead><tr><th>Nombre</th><th>Barrio</th><th>Clave / abonado</th><th>Mora</th></tr></thead><tbody>${detailedAccounts.map((account) => `<tr><td>${escapeHtml(account.nombre)}</td><td>${escapeHtml(account.barrio_colonia)}</td><td>${escapeHtml(account.clave_catastral || account.abonado)}</td><td>${escapeHtml(formatCurrency(account.deuda))}</td></tr>`).join("")}</tbody></table></section>` : ""}`,
       { pageSize: "Letter portrait", pageMargin: "10mm", bodyClassName: "field-report-body dashboard-report-body", showPageFooter: true }
     );
   };
@@ -641,7 +641,7 @@ export default function DashboardWorkspace({ model }) {
             <p className="dw-lectura">
               {ofEachTen(debt.criticos, debt.deudores) ? (
                 <>
-                  <strong>{ofEachTen(debt.criticos, debt.deudores)}</strong> cuentas con mora son críticas (mora de {"L\u00a01,000"} o más).{" "}
+                  <strong>{ofEachTen(debt.criticos, debt.deudores)}</strong> cuentas con mora deben {"L\u00a01,000"} o más.{" "}
                 </>
               ) : null}
               <LiveWhole value={cuentasAlDia} /> cuentas están al día.
@@ -729,7 +729,7 @@ export default function DashboardWorkspace({ model }) {
                     </header>
                     <div className="dw-panel-body"><div className="dw-panel-body-inner">
                     <div className="dw-metric-switch" role="group" aria-label="Ordenar barrios por">
-                      {[["total", "Mora total", "records"], ["accounts", "Abonados", "users"], ["critical", "Casos críticos", "warning"]].map(([metric, label, icon]) => (
+                      {[["total", "Mora total", "records"], ["accounts", "Abonados", "users"], ["critical", "Mora alta", "trendUp"]].map(([metric, label, icon]) => (
                         <button type="button" key={metric} aria-pressed={debtMetric === metric} onClick={() => setDebtMetric(metric)}>
                           <Icon name={icon} />{label}
                         </button>
@@ -738,7 +738,7 @@ export default function DashboardWorkspace({ model }) {
                     {ranking.length ? (
                       <div className="dw-ranking-summary" role="status">
                         <span><strong className="dw-figure">{oneDecimal(percent(rankingTotal, metricTotal))}</strong><span>{metricDescription} se concentra en estos {ranking.length} barrios.</span></span>
-                        <div><small>{debtMetric === "total" ? "Mora acumulada" : debtMetric === "accounts" ? "Abonados con mora" : "Casos críticos"}</small>
+                        <div><small>{debtMetric === "total" ? "Mora acumulada" : debtMetric === "accounts" ? "Abonados con mora" : "Cuentas con mora alta"}</small>
                           {debtMetric === "total" ? <Amount value={rankingTotal} compact /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
                         </div>
                         {/* Cada tramo es un barrio sobre el total del padron: la barra
@@ -845,7 +845,7 @@ export default function DashboardWorkspace({ model }) {
                         </ul>
                         <p className="dw-selection-share">
                           Concentran el <strong className="dw-figure">{oneDecimal(selectedShare)}</strong>
-                          {debtMetric === "accounts" ? " de los abonados con mora del padrón." : debtMetric === "critical" ? " de los casos críticos del padrón." : " de la mora del padrón."}
+                          {debtMetric === "accounts" ? " de los abonados con mora del padrón." : debtMetric === "critical" ? " de las cuentas con mora alta del padrón." : " de la mora del padrón."}
                         </p>
                         <dl className="dw-selection-figures">
                           <div>
@@ -875,14 +875,14 @@ export default function DashboardWorkspace({ model }) {
                             <dd className="dw-amount dw-figure">{whole(selectedDebt.deudores)}</dd>
                           </div>
                           <div>
-                            <dt>Críticas</dt>
+                            <dt>Mora alta</dt>
                             <dd className="dw-amount dw-figure">{whole(selectedDebt.criticos)}</dd>
                           </div>
                         </dl>
                         {selectedRows.length > 1 ? (
                           <section className="dw-selection-chart">
                             <header>
-                              <strong>{debtMetric === "total" ? "Mora" : debtMetric === "accounts" ? "Abonados con mora" : "Casos críticos"} de los barrios elegidos</strong>
+                              <strong>{debtMetric === "total" ? "Mora" : debtMetric === "accounts" ? "Abonados con mora" : "Cuentas con mora alta"} de los barrios elegidos</strong>
                               <small>Se rearma al agregar o quitar un barrio.</small>
                             </header>
                             <ol>
@@ -977,7 +977,7 @@ export default function DashboardWorkspace({ model }) {
                                 <div><dt>Capital</dt><dd><Amount value={item.debt.capital} /></dd></div>
                                 <div><dt>Intereses</dt><dd><Amount value={item.debt.intereses} /></dd></div>
                                 <div><dt>Cuentas con mora</dt><dd className="dw-amount dw-figure">{whole(item.debt.deudores)}</dd></div>
-                                <div><dt>Casos críticos</dt><dd className="dw-amount dw-figure">{whole(item.debt.criticos)}</dd></div>
+                                <div><dt>Mora alta</dt><dd className="dw-amount dw-figure">{whole(item.debt.criticos)}</dd></div>
                                 <div><dt>Promedio por cuenta</dt><dd><Amount value={Number(item.debt.deudores || 0) ? Number(item.debt.total || 0) / Number(item.debt.deudores) : 0} /></dd></div>
                               </dl>
                             ) : null}
@@ -1052,7 +1052,7 @@ export default function DashboardWorkspace({ model }) {
                                         {filas.slice(0, barriosVisibles).map((fila) => (
                                           <li key={fila.barrio}>
                                             <span className="dw-drill-name">{fila.barrio}</span>
-                                            <span className="dw-drill-meta">{whole(fila.cuentas)} cuentas · {whole(fila.criticos)} críticas</span>
+                                            <span className="dw-drill-meta">{whole(fila.cuentas)} cuentas · {whole(fila.criticos)} con mora alta</span>
                                             <Amount value={fila.deuda} />
                                             <i className="dw-service-track" aria-hidden="true">
                                               <em style={{ transform: `scaleX(${fila.deuda / mayor})` }} />

@@ -2500,3 +2500,9 @@ body.dw-resizing * {
 @media (prefers-reduced-motion: reduce) {
   .dashboard-workspace .dw-sync.is-refreshing .dw-sync-dot { animation: none; }
 }
+
+/* Mora alta (L 1,000 o más) es magnitud, no alarma: azul profundo institucional.
+   El rojo queda solo para lo que exige acción hoy (fichas vencidas). */
+.dashboard-workspace .dw-niveles-lista .is-critica b { background: #0b3f73; }
+.dashboard-workspace .dw-niveles-lista .is-critica .dw-nivel-texto strong { color: var(--dw-ink); }
+.dashboard-workspace .dw-mora[data-metric="critical"] { --chart-color: #0b3f73; --chart-tint: #e8eef6; --chart-border: #b9c8da; }
