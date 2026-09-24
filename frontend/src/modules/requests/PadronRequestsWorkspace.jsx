@@ -36,7 +36,6 @@ export default function PadronRequestsWorkspace({ model }) {
     <header className="pq-header">
       <div className="pq-header-top">
         <div className="pq-title">
-          <span className="pq-kicker">Padrón maestro</span>
           <h1>Consultas del padrón</h1>
           <p>Servicios, deuda y abonados de cada barrio, y el comparativo con Alcaldía. Todo sale del padrón activo.</p>
         </div>

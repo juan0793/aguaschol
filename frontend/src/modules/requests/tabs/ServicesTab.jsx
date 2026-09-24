@@ -8,8 +8,9 @@ const money = (value) => formatCurrency(Number(value) || 0);
 
 function SortHeader({ sortKey, label, sort, onSort, className = "" }) {
   const active = sort.key === sortKey;
+  const state = active ? `is-active is-${sort.dir}` : "";
   return <th className={className} aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-    <button type="button" onClick={() => onSort(sortKey)} className={active ? "is-active" : ""}>{label}<span aria-hidden="true">{active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}</span></button>
+    <button type="button" onClick={() => onSort(sortKey)} className={state}>{label}<Icon name="chevronDown" /></button>
   </th>;
 }
 
@@ -28,6 +29,13 @@ export default function ServicesTab({ model }) {
   const selected = new Set(model.selectedBarrios);
   const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(row.name));
   const focus = model.selectedServiceField;
+  // Las tarjetas van en el mismo orden que las columnas de la tabla que ordenan.
+  const services = SERVICE_COLUMNS
+    .map(([field, , icon, label]) => {
+      const service = serviceData.serviceRows.find((item) => item.field === field);
+      return service ? { ...service, icon, label } : null;
+    })
+    .filter(Boolean);
 
   const onSort = (key) => setSort((current) => ({ key, dir: current.key === key ? (current.dir === "desc" ? "asc" : "desc") : key === "name" ? "asc" : "desc" }));
   const pickService = (field) => { model.onSelectService(field); setSort({ key: field, dir: "desc" }); };
@@ -42,16 +50,13 @@ export default function ServicesTab({ model }) {
 
   return <div className="pq-panel">
     <section className="pq-services" aria-label="Usuarios por servicio">
-      {serviceData.serviceRows.map((service) => {
-        const icon = SERVICE_COLUMNS.find(([field]) => field === service.field)?.[2] || "water";
-        return <button type="button" key={service.field} aria-pressed={focus === service.field} className={`pq-service ${focus === service.field ? "is-active" : ""}`.trim()} onClick={() => pickService(service.field)} title={`Ordenar la tabla por ${service.label}`}>
-          <span className="pq-service-head"><Icon name={icon} />{service.label}</span>
-          <strong>{count(service.active)}</strong>
-          <span className="pq-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Number(service.percentage) || 0)}%` }} /></span>
-          <small>{service.percentage}% del padrón · {count(service.inactive)} sin el servicio</small>
-          <small className="pq-service-debt">Deuda de estas cuentas <b>{money(service.deuda?.total)}</b></small>
-        </button>;
-      })}
+      {services.map((service) => <button type="button" key={service.field} aria-pressed={focus === service.field} className={`pq-service ${focus === service.field ? "is-active" : ""}`.trim()} onClick={() => pickService(service.field)} title={`Ordenar la tabla por ${service.label}`}>
+        <span className="pq-service-head"><Icon name={service.icon} />{service.label}</span>
+        <strong>{count(service.active)}</strong>
+        <span className="pq-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Number(service.percentage) || 0)}%` }} /></span>
+        <small>{service.percentage}% del padrón · {count(service.inactive)} sin el servicio</small>
+        <span className="pq-service-debt"><small>Deuda de estas cuentas</small><b>{money(service.deuda?.total)}</b></span>
+      </button>)}
     </section>
 
     <div className="pq-toolbar">
@@ -99,7 +104,9 @@ export default function ServicesTab({ model }) {
             </>}
             {SERVICE_COLUMNS.map(([field]) => {
               const service = row.services[field];
-              return <td key={field} className={`pq-col-service ${focus === field ? "is-focus" : ""}`.trim()}>
+              // Un cero se lee en gris y sin barra: así destacan los barrios que sí tienen el servicio.
+              const zero = (view === "usuarios" ? service.active : service.deuda) === 0;
+              return <td key={field} className={`pq-col-service ${focus === field ? "is-focus" : ""} ${zero ? "is-zero" : ""}`.trim()}>
                 {view === "usuarios" ? <span className="pq-cell-service"><b>{count(service.active)}</b><small>{service.percentage}%</small><i aria-hidden="true"><em style={{ width: `${Math.min(100, service.percentage)}%` }} /></i></span> : money(service.deuda)}
               </td>;
             })}

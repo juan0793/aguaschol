@@ -2,12 +2,14 @@
 // usuarios, cada servicio (usuarios con el servicio y deuda de esas cuentas) y
 // la deuda del barrio. Funciones puras para poder probarlas sin React.
 
+// [campo, encabezado de columna, icono, nombre completo]. El orden es el de la
+// tabla y también el de las tarjetas de servicio que la ordenan.
 export const SERVICE_COLUMNS = [
-  ["agua", "Agua", "water"],
-  ["alcantarillado", "Alcantarillado", "sewer"],
-  ["barrido", "Barrido", "broom"],
-  ["recoleccion", "Recolección", "waste"],
-  ["desechos_peligrosos", "Peligrosos", "warning"]
+  ["agua", "Agua", "water", "Agua potable"],
+  ["alcantarillado", "Alcantarillado", "sewer", "Alcantarillado"],
+  ["barrido", "Barrido", "broom", "Barrido"],
+  ["recoleccion", "Recolección", "waste", "Recolección de desechos"],
+  ["desechos_peligrosos", "Peligrosos", "warning", "Desechos peligrosos"]
 ];
 
 const num = (value) => Number(value || 0);

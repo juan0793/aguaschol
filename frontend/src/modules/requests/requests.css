@@ -80,16 +80,24 @@
 .pq-workspace .pq-empty .pq-btn { margin-top: 6px; }
 .pq-workspace .pq-empty.is-inline { padding: 28px 12px; }
 
-/* ---------- Tarjetas de servicio ---------- */
-.pq-workspace .pq-services { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.pq-workspace .pq-service { display: grid; gap: 6px; align-content: start; min-width: 0; min-height: 0; width: auto; margin: 0; padding: 12px 14px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; background: #fff; box-shadow: none; color: var(--ds-text, #102a43); font-weight: 500; text-align: left; cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-.pq-workspace .pq-service:hover:not(:disabled) { border-color: #a9c6ea; box-shadow: 0 4px 12px rgba(16, 42, 67, 0.06); transform: none; }
-.pq-workspace .pq-service.is-active { border-color: var(--ds-blue, #1769e0); box-shadow: 0 0 0 1px var(--ds-blue, #1769e0); }
-.pq-workspace .pq-service-head { display: flex; align-items: center; gap: 6px; color: var(--ds-text-muted, #627d98); font-size: 12.5px; font-weight: 700; }
-.pq-workspace .pq-service-head .app-icon { width: 15px; height: 15px; margin: 0; color: var(--ds-blue, #1769e0); }
+/* ---------- Selector de servicio ----------
+   Una sola franja dividida, no cinco tarjetas: es el control que ordena la
+   tabla de abajo, y así no compite con las cifras del encabezado. Las líneas
+   divisorias son el fondo del contenedor asomando por el gap de 1px. */
+.pq-workspace .pq-services { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; background: var(--ds-border, #dbe6f0); }
+.pq-workspace .pq-service { display: grid; grid-template-rows: auto auto auto auto 1fr; gap: 6px; min-width: 0; min-height: 0; width: auto; margin: 0; padding: 14px 16px 13px; border: 0; border-radius: 0; background: #fff; box-shadow: none; color: var(--ds-text, #102a43); font-weight: 500; text-align: left; cursor: pointer; transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+.pq-workspace .pq-service:hover:not(:disabled) { background: #f7fafd; box-shadow: none; transform: none; }
+.pq-workspace .pq-service:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
+.pq-workspace .pq-service.is-active, .pq-workspace .pq-service.is-active:hover:not(:disabled) { background: var(--ds-blue-soft, #eaf2fd); box-shadow: inset 0 3px var(--ds-blue, #1769e0); }
+.pq-workspace .pq-service-head { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ds-text-muted, #627d98); font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-service-head .app-icon { flex: none; width: 15px; height: 15px; margin: 0; color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-service.is-active .pq-service-head { color: var(--ds-blue-deep, #0b3f73); }
 .pq-workspace .pq-service > strong { font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .pq-workspace .pq-service small { color: var(--ds-text-muted, #627d98); font-size: 12px; }
-.pq-workspace .pq-service-debt b { color: var(--ds-text, #102a43); font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-service.is-active .pq-bar { background: #d6e5f8; }
+.pq-workspace .pq-service-debt { display: grid; align-self: end; gap: 1px; margin-top: 2px; padding-top: 8px; border-top: 1px solid #e8eef5; }
+.pq-workspace .pq-service.is-active .pq-service-debt { border-top-color: #cfe0f6; }
+.pq-workspace .pq-service-debt b { overflow: hidden; color: var(--ds-text, #102a43); font-size: 13.5px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- Barra de herramientas ---------- */
 .pq-workspace .pq-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
@@ -106,9 +114,14 @@
 .pq-workspace .pq-table thead th { position: sticky; top: 0; z-index: 2; padding: 0; background: #f6f9fc; color: var(--ds-text-muted, #627d98); font-size: 11.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
 .pq-workspace .pq-table thead th > button { display: flex; align-items: center; justify-content: flex-end; gap: 5px; width: 100%; min-height: 40px; margin: 0; padding: 0 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .pq-workspace .pq-table thead th > button:hover:not(:disabled) { background: #edf3fa; box-shadow: none; transform: none; color: var(--ds-text, #102a43); }
-.pq-workspace .pq-table thead th > button span { color: var(--ds-text-faint, #94a3b8); font-size: 11px; }
+/* Flecha de orden: solo en la columna activa; en las demás aparece al pasar
+   el cursor o con el foco, para anunciar que se puede ordenar. */
+.pq-workspace .pq-table thead th > button .app-icon { flex: none; width: 13px; height: 13px; margin: 0; opacity: 0; transition: opacity 0.15s ease, transform 0.15s ease; }
+.pq-workspace .pq-table thead th > button:hover .app-icon, .pq-workspace .pq-table thead th > button:focus-visible .app-icon { opacity: 0.45; }
+.pq-workspace .pq-table thead th > button:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
 .pq-workspace .pq-table thead th > button.is-active { color: var(--ds-blue, #1769e0); }
-.pq-workspace .pq-table thead th > button.is-active span { color: inherit; }
+.pq-workspace .pq-table thead th > button.is-active .app-icon { opacity: 1; }
+.pq-workspace .pq-table thead th > button.is-asc .app-icon { transform: rotate(180deg); }
 .pq-workspace .pq-table .pq-col-name, .pq-workspace .pq-table.is-listado th, .pq-workspace .pq-table.is-listado td, .pq-workspace .pq-table.is-compare th, .pq-workspace .pq-table.is-compare td { text-align: left; }
 .pq-workspace .pq-table thead .pq-col-name > button { justify-content: flex-start; }
 .pq-workspace .pq-table tbody .pq-col-name { position: sticky; left: 0; z-index: 1; min-width: 180px; max-width: 280px; overflow: hidden; background: #fff; color: var(--ds-text, #102a43); font-weight: 700; text-overflow: ellipsis; }
@@ -125,6 +138,8 @@
 .pq-workspace .pq-cell-service small { grid-area: pct; color: var(--ds-text-muted, #627d98); font-size: 11.5px; }
 .pq-workspace .pq-cell-service i { grid-area: bar; display: block; height: 4px; overflow: hidden; border-radius: 99px; background: #e8eef5; }
 .pq-workspace .pq-cell-service em { display: block; height: 100%; border-radius: inherit; background: #5b9bec; }
+.pq-workspace .pq-table td.is-zero, .pq-workspace .pq-table td.is-zero .pq-cell-service b { color: var(--ds-text-muted, #64748b); font-weight: 400; }
+.pq-workspace .pq-table td.is-zero .pq-cell-service i { visibility: hidden; }
 .pq-workspace .pq-table .pq-col-total { color: var(--ds-text, #102a43); }
 .pq-workspace .pq-table tfoot > tr > * { position: sticky; bottom: 0; z-index: 2; border-top: 2px solid var(--ds-border-strong, #cfdce8); border-bottom: 0; background: #f6f9fc; color: var(--ds-text, #102a43); font-weight: 800; }
 .pq-workspace .pq-table tfoot .pq-col-name { left: 0; z-index: 3; text-align: left; }
@@ -228,7 +243,10 @@
 /* ---------- Responsive ---------- */
 @media (max-width: 1280px) {
   .pq-workspace .pq-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .pq-workspace .pq-services { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* 3 + 2 sin huecos: seis columnas, las tres primeras ocupan 2 y las dos últimas 3. */
+  .pq-workspace .pq-services { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .pq-workspace .pq-service { grid-column: span 2; }
+  .pq-workspace .pq-service:nth-child(n + 4) { grid-column: span 3; }
 }
 @media (max-width: 1000px) {
   .pq-workspace .pq-listado, .pq-workspace .pq-compare-grid { grid-template-columns: minmax(0, 1fr); }
@@ -239,6 +257,8 @@
   .pq-workspace .pq-header { padding: 14px; }
   .pq-workspace .pq-title h1 { font-size: 21px; }
   .pq-workspace .pq-metrics, .pq-workspace .pq-services { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pq-workspace .pq-service, .pq-workspace .pq-service:nth-child(n + 4) { grid-column: auto; padding: 12px 13px; }
+  .pq-workspace .pq-service:last-child { grid-column: 1 / -1; }
   .pq-workspace .pq-panel { padding: 12px; }
   .pq-workspace .pq-toolbar > .pq-search { flex: 1 1 100%; }
   .pq-workspace .pq-toolbar-actions { width: 100%; margin-left: 0; }
@@ -256,5 +276,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .pq-workspace .pq-panel { animation: none; }
-  .pq-workspace .pq-bar i { transition: none; }
+  .pq-workspace .pq-bar i, .pq-workspace .pq-service, .pq-workspace .pq-table thead th > button .app-icon { transition: none; }
 }
