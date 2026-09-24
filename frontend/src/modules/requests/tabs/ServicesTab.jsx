@@ -6,14 +6,16 @@ import { SERVICE_COLUMNS, buildServiceRows, sortServiceRows, sumServiceRows } fr
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
 
-function SortHeader({ sortKey, label, sort, onSort, className = "" }) {
+function SortHeader({ sortKey, label, sort, onSort, className = "", title }) {
   const active = sort.key === sortKey;
   const state = active ? `is-active is-${sort.dir}` : "";
   return <th className={className} aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-    <button type="button" onClick={() => onSort(sortKey)} className={state}>{label}<Icon name="chevronDown" /></button>
+    <button type="button" onClick={() => onSort(sortKey)} className={state} title={title}>{label}<Icon name="chevronDown" /></button>
   </th>;
 }
 
+// La tabla es la pantalla: los encabezados de servicio eligen y ordenan, y la
+// fila de totales va arriba, fija bajo los encabezados, donde entra la vista.
 export default function ServicesTab({ model }) {
   const { serviceData } = model;
   const [query, setQuery] = useState("");
@@ -29,43 +31,30 @@ export default function ServicesTab({ model }) {
   const selected = new Set(model.selectedBarrios);
   const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(row.name));
   const focus = model.selectedServiceField;
-  // Las tarjetas van en el mismo orden que las columnas de la tabla que ordenan.
-  const services = SERVICE_COLUMNS
-    .map(([field, , icon, label]) => {
-      const service = serviceData.serviceRows.find((item) => item.field === field);
-      return service ? { ...service, icon, label } : null;
-    })
-    .filter(Boolean);
+  const serviceNames = Object.fromEntries(SERVICE_COLUMNS.map(([field, , , label]) => [field, label]));
 
-  const onSort = (key) => setSort((current) => ({ key, dir: current.key === key ? (current.dir === "desc" ? "asc" : "desc") : key === "name" ? "asc" : "desc" }));
-  const pickService = (field) => { model.onSelectService(field); setSort({ key: field, dir: "desc" }); };
+  const onSort = (key) => {
+    // Ordenar por un servicio también lo deja seleccionado (resalta su columna).
+    if (serviceNames[key]) model.onSelectService(key);
+    setSort((current) => ({ key, dir: current.key === key ? (current.dir === "desc" ? "asc" : "desc") : key === "name" ? "asc" : "desc" }));
+  };
   const toggleVisible = () => {
     const names = visible.map((row) => row.name);
     model.onSetSelectedBarrios(allVisibleSelected ? model.selectedBarrios.filter((name) => !names.includes(name)) : [...new Set([...model.selectedBarrios, ...names])]);
   };
+  const serviceClass = (field, extra = "") => `pq-col-service ${focus === field ? "is-focus" : ""} ${extra}`.trim();
 
   if (!serviceData.hasData) {
     return <div className="pq-panel"><div className="pq-empty"><Icon name="water" /><strong>{model.loadingServices ? "Leyendo el padrón maestro…" : "Sin datos de servicios"}</strong><span>{model.loadingServices ? "Calculando servicios y deuda por barrio." : "Actualiza los datos para calcular los servicios del padrón activo."}</span>{!model.loadingServices ? <button type="button" className="pq-btn" onClick={model.onRefresh}><Icon name="refresh" />Actualizar datos</button> : null}</div></div>;
   }
 
-  return <div className="pq-panel">
-    <section className="pq-services" aria-label="Usuarios por servicio">
-      {services.map((service) => <button type="button" key={service.field} aria-pressed={focus === service.field} className={`pq-service ${focus === service.field ? "is-active" : ""}`.trim()} onClick={() => pickService(service.field)} title={`Ordenar la tabla por ${service.label}`}>
-        <span className="pq-service-head"><Icon name={service.icon} />{service.label}</span>
-        <strong>{count(service.active)}</strong>
-        <span className="pq-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Number(service.percentage) || 0)}%` }} /></span>
-        <small>{service.percentage}% del padrón · {count(service.inactive)} sin el servicio</small>
-        <span className="pq-service-debt"><small>Deuda de estas cuentas</small><b>{money(service.deuda?.total)}</b></span>
-      </button>)}
-    </section>
-
+  return <div className="pq-panel is-table">
     <div className="pq-toolbar">
       <label className="pq-search"><Icon name="search" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar barrio" aria-label="Buscar barrio" /></label>
       <div className="pq-segmented" role="group" aria-label="Qué mostrar en la tabla">
         <button type="button" aria-pressed={view === "usuarios"} className={view === "usuarios" ? "is-active" : ""} onClick={() => setView("usuarios")}>Usuarios por servicio</button>
         <button type="button" aria-pressed={view === "deuda"} className={view === "deuda" ? "is-active" : ""} onClick={() => { setView("deuda"); if (sort.key === "usuarios") setSort({ key: "deuda", dir: "desc" }); }}>Deuda por servicio</button>
       </div>
-      <span className="pq-count">{count(visible.length)} {visible.length === 1 ? "barrio" : "barrios"}</span>
       <div className="pq-toolbar-actions">
         <button type="button" className="pq-btn" onClick={() => model.onPrintServices()}><Icon name="print" />Imprimir informe</button>
         <button type="button" className="pq-btn" onClick={model.onDownloadServicesPdf} disabled={model.downloadingServicesPdf}><Icon name="download" />{model.downloadingServicesPdf ? "Guardando…" : "Guardar PDF"}</button>
@@ -79,7 +68,7 @@ export default function ServicesTab({ model }) {
     </div> : null}
 
     <div className="pq-table-wrap">
-      <table className={`pq-table is-${view}`}>
+      <table className={`pq-table is-services is-${view}`}>
         <thead>
           <tr>
             <th className="pq-check"><input type="checkbox" checked={allVisibleSelected} onChange={toggleVisible} aria-label="Seleccionar los barrios visibles" /></th>
@@ -89,8 +78,24 @@ export default function ServicesTab({ model }) {
               <SortHeader sortKey="capital" label="Capital" sort={sort} onSort={onSort} />
               <SortHeader sortKey="intereses" label="Intereses" sort={sort} onSort={onSort} />
             </>}
-            {SERVICE_COLUMNS.map(([field, label]) => <SortHeader key={field} sortKey={field} label={label} sort={sort} onSort={onSort} className={`pq-col-service ${focus === field ? "is-focus" : ""}`.trim()} />)}
+            {SERVICE_COLUMNS.map(([field, label, , fullName]) => <SortHeader key={field} sortKey={field} label={label} sort={sort} onSort={onSort} className={serviceClass(field)} title={`Ordenar por ${fullName}`} />)}
             <SortHeader sortKey="deuda" label="Deuda total" sort={sort} onSort={onSort} className="pq-col-total" />
+          </tr>
+          <tr className="pq-totals">
+            <td className="pq-check" />
+            <th scope="row" className="pq-col-name">{query ? "Total filtrado" : "Total del padrón"}<span className="pq-count">{count(visible.length)} {visible.length === 1 ? "barrio" : "barrios"}</span></th>
+            {view === "usuarios" ? <td>{count(totals.usuarios)}</td> : <>
+              <td>{count(totals.deuda.deudores)}</td>
+              <td>{money(totals.deuda.capital)}</td>
+              <td>{money(totals.deuda.intereses)}</td>
+            </>}
+            {SERVICE_COLUMNS.map(([field]) => {
+              const service = totals.services[field];
+              return <td key={field} className={serviceClass(field)} title={view === "usuarios" ? `${count(totals.usuarios - service.active)} sin el servicio` : undefined}>
+                {view === "usuarios" ? <span className="pq-cell-service"><b>{count(service.active)}</b><small>{service.percentage}%</small><i aria-hidden="true"><em style={{ width: `${Math.min(100, service.percentage)}%` }} /></i></span> : money(service.deuda)}
+              </td>;
+            })}
+            <td className="pq-col-total"><b>{money(totals.deuda.total)}</b></td>
           </tr>
         </thead>
         <tbody>
@@ -106,7 +111,7 @@ export default function ServicesTab({ model }) {
               const service = row.services[field];
               // Un cero se lee en gris y sin barra: así destacan los barrios que sí tienen el servicio.
               const zero = (view === "usuarios" ? service.active : service.deuda) === 0;
-              return <td key={field} className={`pq-col-service ${focus === field ? "is-focus" : ""} ${zero ? "is-zero" : ""}`.trim()}>
+              return <td key={field} className={serviceClass(field, zero ? "is-zero" : "")}>
                 {view === "usuarios" ? <span className="pq-cell-service"><b>{count(service.active)}</b><small>{service.percentage}%</small><i aria-hidden="true"><em style={{ width: `${Math.min(100, service.percentage)}%` }} /></i></span> : money(service.deuda)}
               </td>;
             })}
@@ -114,21 +119,8 @@ export default function ServicesTab({ model }) {
           </tr>)}
           {!visible.length ? <tr><td colSpan={view === "usuarios" ? 9 : 11} className="pq-table-empty">Ningún barrio coincide con “{query}”.</td></tr> : null}
         </tbody>
-        {visible.length ? <tfoot>
-          <tr>
-            <td className="pq-check" />
-            <th scope="row" className="pq-col-name">Total {query ? "filtrado" : "del padrón"}</th>
-            {view === "usuarios" ? <td>{count(totals.usuarios)}</td> : <>
-              <td>{count(totals.deuda.deudores)}</td>
-              <td>{money(totals.deuda.capital)}</td>
-              <td>{money(totals.deuda.intereses)}</td>
-            </>}
-            {SERVICE_COLUMNS.map(([field]) => <td key={field} className={`pq-col-service ${focus === field ? "is-focus" : ""}`.trim()}>{view === "usuarios" ? <span className="pq-cell-service"><b>{count(totals.services[field].active)}</b><small>{totals.services[field].percentage}%</small></span> : money(totals.services[field].deuda)}</td>)}
-            <td className="pq-col-total"><b>{money(totals.deuda.total)}</b></td>
-          </tr>
-        </tfoot> : null}
       </table>
     </div>
-    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Toca una tarjeta de servicio o el encabezado de una columna para ordenar. Marca barrios para imprimirlos aparte."}</p>
+    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Toca el encabezado de un servicio para resaltarlo y ordenar por él. Marca barrios para imprimirlos aparte."}</p>
   </div>;
 }

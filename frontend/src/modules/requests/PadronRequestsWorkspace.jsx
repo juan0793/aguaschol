@@ -24,48 +24,40 @@ export default function PadronRequestsWorkspace({ model }) {
   const [tab, setTab] = useState("servicios");
   const { serviceData, serviceReport } = model;
   const loading = model.loadingServices || model.loadingComparison;
-  const metrics = [
-    { key: "usuarios", icon: "users", label: "Usuarios", value: serviceData.totalRecords, hint: "en el padrón activo" },
-    { key: "barrios", icon: "map", label: "Barrios", value: serviceReport?.summary?.total_barrios ?? 0, hint: "con usuarios registrados" },
-    { key: "deuda", icon: "activity", label: "Deuda total", value: serviceData.deuda.total || 0, format: money, hint: `${Number(serviceData.deuda.deudores || 0).toLocaleString("es-HN")} cuentas con deuda`, tone: "is-debt" },
-    { key: "sin-alc", icon: "water", label: "Agua sin alcantarillado", value: serviceData.profiles.water_without_sewer ?? 0, hint: "tienen agua, no alcantarillado" },
-    { key: "sin-agua", icon: "sewer", label: "Alcantarillado sin agua", value: serviceData.profiles.sewer_without_water ?? 0, hint: "tienen alcantarillado, no agua" }
+  // Cifras del padrón como una línea de libro contable, no como tarjetas: la
+  // tabla de abajo es la que manda.
+  const figures = [
+    { key: "usuarios", label: "usuarios en el padrón", value: serviceData.totalRecords },
+    { key: "barrios", label: "barrios con usuarios", value: serviceReport?.summary?.total_barrios ?? 0 },
+    { key: "deuda", label: `de deuda en ${Number(serviceData.deuda.deudores || 0).toLocaleString("es-HN")} cuentas`, value: serviceData.deuda.total || 0, format: money },
+    { key: "sin-alc", label: "con agua y sin alcantarillado", value: serviceData.profiles.water_without_sewer ?? 0 },
+    { key: "sin-agua", label: "con alcantarillado y sin agua", value: serviceData.profiles.sewer_without_water ?? 0 }
   ];
 
   return <section className="pq-workspace">
-    <header className="pq-header">
-      <div className="pq-header-top">
-        <div className="pq-title">
-          <h1>Consultas del padrón</h1>
-          <p>Servicios, deuda y abonados de cada barrio, y el comparativo con Alcaldía. Todo sale del padrón activo.</p>
-        </div>
-        <div className="pq-actions">
-          <button type="button" className="pq-btn" onClick={model.onRefresh} disabled={loading}><Icon name="refresh" className={loading ? "ds-icon-spin" : ""} />{loading ? "Actualizando…" : "Actualizar datos"}</button>
-        </div>
-      </div>
-      <div className="pq-source">
-        <span className={`pq-status ${loading ? "is-loading" : model.loadError ? "is-error" : ""}`.trim()} role="status"><i aria-hidden="true" />{loading ? "Leyendo el padrón…" : model.loadError ? "Sin datos del padrón" : "Datos al día"}</span>
-        <span><Icon name="records" />Fuente <b>{serviceReport?.source?.file_name || "Padrón maestro"}</b></span>
-        {serviceReport?.source?.updated_at ? <span><Icon name="calendar" />Actualizado <b>{formatDateTime(serviceReport.source.updated_at)}</b></span> : null}
-      </div>
-    </header>
+    <div className="pq-sheet">
+      <header className="pq-header">
+        <h1>Consultas del padrón</h1>
+        <button type="button" className="pq-btn pq-refresh" onClick={model.onRefresh} disabled={loading} aria-label={loading ? "Actualizando…" : "Actualizar datos"}><Icon name="refresh" className={loading ? "ds-icon-spin" : ""} /><span className="pq-btn-label">{loading ? "Actualizando…" : "Actualizar datos"}</span></button>
+        <p className="pq-source">
+          <span className={`pq-status ${loading ? "is-loading" : model.loadError ? "is-error" : ""}`.trim()} role="status"><i aria-hidden="true" />{loading ? "Leyendo el padrón…" : model.loadError ? "Sin datos del padrón" : "Datos al día"}</span>
+          <span>Fuente <b>{serviceReport?.source?.file_name || "Padrón maestro"}</b></span>
+          {serviceReport?.source?.updated_at ? <span>Actualizado <b>{formatDateTime(serviceReport.source.updated_at)}</b></span> : null}
+        </p>
+        <dl className="pq-ledger" aria-label="Resumen del padrón">
+          {figures.map((figure) => <div key={figure.key} className="pq-figure">
+            <dt>{figure.label}</dt>
+            <LiveNumber as="dd" value={figure.value} format={figure.format} flash=".pq-figure" />
+          </div>)}
+        </dl>
+      </header>
 
-    {model.loadError ? <div className="pq-alert" role="alert">
-      <Icon name="warning" />
-      <div><strong>No se pudo leer el padrón maestro</strong><p>{model.loadError.replace(/\.?$/, ".")} Los totales no reflejan la base de datos.</p></div>
-      <button type="button" className="pq-btn" onClick={model.onRefresh} disabled={loading}><Icon name="refresh" />Reintentar</button>
-    </div> : null}
+      {model.loadError ? <div className="pq-alert" role="alert">
+        <Icon name="warning" />
+        <div><strong>No se pudo leer el padrón maestro</strong><p>{model.loadError.replace(/\.?$/, ".")} Los totales no reflejan la base de datos.</p></div>
+        <button type="button" className="pq-btn" onClick={model.onRefresh} disabled={loading}><Icon name="refresh" />Reintentar</button>
+      </div> : null}
 
-    <section className="pq-metrics" aria-label="Resumen del padrón">
-      {metrics.map((metric) => <div key={metric.key} className={`pq-metric ${metric.tone || ""}`.trim()}>
-        <span className="pq-metric-icon"><Icon name={metric.icon} /></span>
-        <span className="pq-metric-label">{metric.label}</span>
-        <LiveNumber as="strong" value={metric.value} format={metric.format} flash=".pq-metric" />
-        <small>{metric.hint}</small>
-      </div>)}
-    </section>
-
-    <div className="pq-content">
       <nav className="pq-tabs" role="tablist" aria-label="Consultas del padrón">
         {TABS.map(([key, label, icon]) => <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}><Icon name={icon} />{label}</button>)}
       </nav>

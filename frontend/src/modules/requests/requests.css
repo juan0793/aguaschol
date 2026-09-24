@@ -32,46 +32,46 @@
 .pq-workspace .pq-note .app-icon { flex: none; width: 14px; height: 14px; margin: 2px 0 0; }
 .pq-workspace .pq-count { color: var(--ds-text-muted, #627d98); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* ---------- Hoja ----------
+   Encabezado, pestañas y panel son una sola hoja: nada de tarjetas sueltas
+   encima de la tabla, que es la que tiene que empezar arriba. */
+.pq-workspace .pq-sheet { min-width: 0; overflow: clip; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(16, 42, 67, 0.05); }
+
 /* ---------- Encabezado ---------- */
-.pq-workspace .pq-header { display: grid; gap: 12px; padding: 18px 20px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(16, 42, 67, 0.05); }
-.pq-workspace .pq-header-top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; }
-.pq-workspace .pq-title { display: grid; gap: 2px; min-width: 0; }
-.pq-workspace .pq-title h1 { margin: 0; color: var(--ds-text, #102a43); font-size: 24px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
-.pq-workspace .pq-title p { margin: 0; color: var(--ds-text-muted, #627d98); font-size: 13.5px; }
-.pq-workspace .pq-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.pq-workspace .pq-source { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding-top: 12px; border-top: 1px solid var(--ds-border, #e3ebf3); color: var(--ds-text-muted, #627d98); font-size: 13px; }
-.pq-workspace .pq-source > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.pq-workspace .pq-source .app-icon { width: 14px; height: 14px; }
-.pq-workspace .pq-source b { color: var(--ds-text, #102a43); font-weight: 700; overflow-wrap: anywhere; }
+.pq-workspace .pq-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title action" "source action" "ledger ledger"; align-items: start; column-gap: 20px; padding: 16px 20px 0; }
+.pq-workspace .pq-header h1 { grid-area: title; margin: 0; color: var(--ds-text, #102a43); font-size: 22px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+.pq-workspace .pq-refresh { grid-area: action; }
+.pq-workspace .pq-source { grid-area: source; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; margin: 4px 0 12px; color: var(--ds-text-muted, #627d98); font-size: 12.5px; }
+.pq-workspace .pq-source > span { min-width: 0; }
+.pq-workspace .pq-status { display: inline-flex; align-items: center; gap: 6px; }
+.pq-workspace .pq-source b { color: var(--ds-text, #243b53); font-weight: 700; overflow-wrap: anywhere; }
 .pq-workspace .pq-status { font-weight: 600; }
-.pq-workspace .pq-status i { width: 8px; height: 8px; border-radius: 50%; background: #1f9463; box-shadow: 0 0 0 3px rgba(31, 148, 99, 0.16); }
-.pq-workspace .pq-status.is-loading i { background: #d08a1f; box-shadow: 0 0 0 3px rgba(208, 138, 31, 0.18); }
-.pq-workspace .pq-status.is-error i { background: #b8323e; box-shadow: 0 0 0 3px rgba(184, 50, 62, 0.16); }
-.pq-workspace .pq-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border: 1px solid #f0c9ce; border-radius: 12px; background: #fdf3f4; color: #8a2330; }
+.pq-workspace .pq-status i { width: 7px; height: 7px; border-radius: 50%; background: #1f9463; }
+.pq-workspace .pq-status.is-loading i { background: #d08a1f; }
+.pq-workspace .pq-status.is-error i { background: #b8323e; }
+
+/* Cifras del padrón: una línea de libro contable (número grande, etiqueta
+   corrida) separada por filetes. Sin iconos ni cajas. */
+.pq-workspace .pq-ledger { grid-area: ledger; display: flex; flex-wrap: wrap; margin: 0; padding: 12px 0 14px; border-top: 1px solid var(--ds-border, #e3ebf3); }
+.pq-workspace .pq-figure { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 1px; min-width: 0; padding: 0 22px; border-left: 1px solid var(--ds-border, #e3ebf3); border-radius: 6px; }
+.pq-workspace .pq-figure:first-child { padding-left: 0; border-left: 0; }
+.pq-workspace .pq-figure dd { margin: 0; color: var(--ds-text, #102a43); font-size: 19px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pq-workspace .pq-figure dt { color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 600; }
+
+.pq-workspace .pq-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 20px 14px; padding: 12px 14px; border: 1px solid #f0c9ce; border-radius: 12px; background: #fdf3f4; color: #8a2330; }
 .pq-workspace .pq-alert > .app-icon { flex: none; width: 20px; height: 20px; }
 .pq-workspace .pq-alert > div { flex: 1; min-width: 220px; }
 .pq-workspace .pq-alert p { margin: 2px 0 0; font-size: 13px; }
 
-/* ---------- Cifras ---------- */
-.pq-workspace .pq-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.pq-workspace .pq-metric { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "icon label" "icon value" "icon hint"; column-gap: 10px; align-items: center; min-width: 0; padding: 12px 14px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 14px; background: #fff; }
-.pq-workspace .pq-metric-icon { grid-area: icon; align-self: start; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #eaf2fe; color: var(--ds-blue, #1769e0); }
-.pq-workspace .pq-metric-icon .app-icon { width: 18px; height: 18px; }
-.pq-workspace .pq-metric-label { grid-area: label; color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 700; }
-.pq-workspace .pq-metric > strong { grid-area: value; overflow: hidden; color: var(--ds-text, #102a43); font-size: 24px; line-height: 1.2; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
-.pq-workspace .pq-metric > small { grid-area: hint; color: var(--ds-text-muted, #627d98); font-size: 12px; }
-.pq-workspace .pq-metric.is-debt .pq-metric-icon { background: #fdf4e4; color: #b06d12; }
-.pq-workspace .pq-metric.is-debt > strong { font-size: 20px; }
-
-/* ---------- Contenedor de pestañas ---------- */
-.pq-workspace .pq-content { min-width: 0; overflow: clip; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(16, 42, 67, 0.05); }
-.pq-workspace .pq-tabs { display: flex; gap: 4px; padding: 8px 12px 0; overflow-x: auto; border-bottom: 1px solid var(--ds-border, #e3ebf3); }
-.pq-workspace .pq-tabs button { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; width: auto; margin: 0; padding: 0 14px; border: 0; border-radius: 9px 9px 0 0; background: transparent; box-shadow: none; color: var(--ds-text-muted, #627d98); font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+/* ---------- Pestañas ---------- */
+.pq-workspace .pq-tabs { display: flex; gap: 4px; padding: 0 12px; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--ds-border, #e3ebf3); border-bottom: 1px solid var(--ds-border, #e3ebf3); background: #f9fbfd; }
+.pq-workspace .pq-tabs button { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; width: auto; margin: 0; padding: 0 14px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--ds-text-muted, #627d98); font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .pq-workspace .pq-tabs button .app-icon { width: 16px; height: 16px; margin: 0; color: var(--ds-text-faint, #94a3b8); }
 .pq-workspace .pq-tabs button:hover:not(:disabled) { background: var(--ds-surface-subtle, #f1f5f9); box-shadow: none; transform: none; color: var(--ds-text, #102a43); }
-.pq-workspace .pq-tabs button.is-active { background: var(--ds-blue-soft, #eaf2fd); box-shadow: inset 0 -2px var(--ds-blue, #1769e0); color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-tabs button.is-active { background: #fff; box-shadow: inset 0 -2px var(--ds-blue, #1769e0); color: var(--ds-blue, #1769e0); }
 .pq-workspace .pq-tabs button.is-active .app-icon { color: var(--ds-blue, #1769e0); }
 .pq-workspace .pq-panel { display: grid; gap: 14px; min-width: 0; padding: 16px; animation: pq-tab-in 160ms ease; }
+.pq-workspace .pq-panel.is-table { gap: 12px; padding: 12px 16px 16px; }
 @keyframes pq-tab-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .pq-workspace .pq-empty { display: grid; justify-items: center; gap: 6px; padding: 48px 16px; color: var(--ds-text-muted, #627d98); text-align: center; }
 .pq-workspace .pq-empty > .app-icon { width: 28px; height: 28px; color: var(--ds-text-faint, #94a3b8); }
@@ -80,24 +80,6 @@
 .pq-workspace .pq-empty .pq-btn { margin-top: 6px; }
 .pq-workspace .pq-empty.is-inline { padding: 28px 12px; }
 
-/* ---------- Selector de servicio ----------
-   Una sola franja dividida, no cinco tarjetas: es el control que ordena la
-   tabla de abajo, y así no compite con las cifras del encabezado. Las líneas
-   divisorias son el fondo del contenedor asomando por el gap de 1px. */
-.pq-workspace .pq-services { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; background: var(--ds-border, #dbe6f0); }
-.pq-workspace .pq-service { display: grid; grid-template-rows: auto auto auto auto 1fr; gap: 6px; min-width: 0; min-height: 0; width: auto; margin: 0; padding: 14px 16px 13px; border: 0; border-radius: 0; background: #fff; box-shadow: none; color: var(--ds-text, #102a43); font-weight: 500; text-align: left; cursor: pointer; transition: background-color 0.15s ease, box-shadow 0.15s ease; }
-.pq-workspace .pq-service:hover:not(:disabled) { background: #f7fafd; box-shadow: none; transform: none; }
-.pq-workspace .pq-service:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
-.pq-workspace .pq-service.is-active, .pq-workspace .pq-service.is-active:hover:not(:disabled) { background: var(--ds-blue-soft, #eaf2fd); box-shadow: inset 0 3px var(--ds-blue, #1769e0); }
-.pq-workspace .pq-service-head { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ds-text-muted, #627d98); font-size: 12.5px; font-weight: 700; }
-.pq-workspace .pq-service-head .app-icon { flex: none; width: 15px; height: 15px; margin: 0; color: var(--ds-blue, #1769e0); }
-.pq-workspace .pq-service.is-active .pq-service-head { color: var(--ds-blue-deep, #0b3f73); }
-.pq-workspace .pq-service > strong { font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.pq-workspace .pq-service small { color: var(--ds-text-muted, #627d98); font-size: 12px; }
-.pq-workspace .pq-service.is-active .pq-bar { background: #d6e5f8; }
-.pq-workspace .pq-service-debt { display: grid; align-self: end; gap: 1px; margin-top: 2px; padding-top: 8px; border-top: 1px solid #e8eef5; }
-.pq-workspace .pq-service.is-active .pq-service-debt { border-top-color: #cfe0f6; }
-.pq-workspace .pq-service-debt b { overflow: hidden; color: var(--ds-text, #102a43); font-size: 13.5px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- Barra de herramientas ---------- */
 .pq-workspace .pq-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
@@ -107,11 +89,11 @@
 .pq-workspace .pq-selection > span { margin-right: auto; }
 
 /* ---------- Tablas ---------- */
-.pq-workspace .pq-table-wrap { max-height: 68vh; overflow: auto; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; }
+.pq-workspace .pq-table-wrap { max-height: 72vh; overflow: auto; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; }
 .pq-workspace .pq-table-wrap.is-flat { max-height: none; }
 .pq-workspace .pq-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
 .pq-workspace .pq-table th, .pq-workspace .pq-table td { padding: 9px 12px; border-bottom: 1px solid #edf2f7; text-align: right; vertical-align: middle; white-space: nowrap; }
-.pq-workspace .pq-table thead th { position: sticky; top: 0; z-index: 2; padding: 0; background: #f6f9fc; color: var(--ds-text-muted, #627d98); font-size: 11.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
+.pq-workspace .pq-table thead tr:first-child th { position: sticky; top: 0; z-index: 2; height: 40px; padding: 0; background: #f6f9fc; color: var(--ds-text-muted, #627d98); font-size: 11.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
 .pq-workspace .pq-table thead th > button { display: flex; align-items: center; justify-content: flex-end; gap: 5px; width: 100%; min-height: 40px; margin: 0; padding: 0 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .pq-workspace .pq-table thead th > button:hover:not(:disabled) { background: #edf3fa; box-shadow: none; transform: none; color: var(--ds-text, #102a43); }
 /* Flecha de orden: solo en la columna activa; en las demás aparece al pasar
@@ -141,9 +123,19 @@
 .pq-workspace .pq-table td.is-zero, .pq-workspace .pq-table td.is-zero .pq-cell-service b { color: var(--ds-text-muted, #64748b); font-weight: 400; }
 .pq-workspace .pq-table td.is-zero .pq-cell-service i { visibility: hidden; }
 .pq-workspace .pq-table .pq-col-total { color: var(--ds-text, #102a43); }
-.pq-workspace .pq-table tfoot > tr > * { position: sticky; bottom: 0; z-index: 2; border-top: 2px solid var(--ds-border-strong, #cfdce8); border-bottom: 0; background: #f6f9fc; color: var(--ds-text, #102a43); font-weight: 800; }
-.pq-workspace .pq-table tfoot .pq-col-name { left: 0; z-index: 3; text-align: left; }
-.pq-workspace .pq-table tfoot .pq-cell-service b { font-weight: 800; }
+/* Fila de totales: fija justo debajo de los encabezados (que miden 40px). Es
+   el resumen por servicio que antes vivía en cinco tarjetas aparte. */
+.pq-workspace .pq-table .pq-totals > * { position: sticky; top: 40px; z-index: 2; padding-top: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--ds-border-strong, #cfdce8); background: #fff; color: var(--ds-text, #102a43); font-size: 13.5px; font-weight: 800; }
+.pq-workspace .pq-table .pq-totals .pq-col-name { color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
+.pq-workspace .pq-table .pq-totals .pq-cell-service b { font-weight: 800; }
+.pq-workspace .pq-table .pq-totals .pq-count { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.pq-workspace .pq-table .pq-totals .pq-col-service.is-focus { background: #e6f0fd; }
+.pq-workspace .pq-table .pq-totals .pq-col-service.is-focus .pq-cell-service b { color: var(--ds-blue-deep, #0b3f73); }
+.pq-workspace .pq-table .pq-totals .pq-cell-service i { height: 5px; }
+.pq-workspace .pq-table .pq-totals .pq-col-service.is-focus .pq-cell-service i { background: #cfe0f6; }
+.pq-workspace .pq-table .pq-totals .pq-col-service.is-focus .pq-cell-service em { background: var(--ds-blue, #1769e0); }
+/* Barrio fijo a la izquierda también en encabezado y totales. */
+.pq-workspace .pq-table thead .pq-col-name, .pq-workspace .pq-table thead tr:first-child th.pq-col-name { position: sticky; left: 0; z-index: 4; }
 .pq-workspace .pq-table .is-num { text-align: right; }
 .pq-workspace .pq-table .is-muted { color: var(--ds-text-muted, #627d98); }
 .pq-workspace .pq-table .is-mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 12.5px; }
@@ -241,40 +233,36 @@
 .pq-workspace .pq-detail-services .pq-bar { grid-column: 1 / -1; }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1280px) {
-  .pq-workspace .pq-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  /* 3 + 2 sin huecos: seis columnas, las tres primeras ocupan 2 y las dos últimas 3. */
-  .pq-workspace .pq-services { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .pq-workspace .pq-service { grid-column: span 2; }
-  .pq-workspace .pq-service:nth-child(n + 4) { grid-column: span 3; }
-}
 @media (max-width: 1000px) {
   .pq-workspace .pq-listado, .pq-workspace .pq-compare-grid { grid-template-columns: minmax(0, 1fr); }
   .pq-workspace .pq-builder, .pq-workspace .pq-detail { position: static; }
   .pq-workspace .pq-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pq-workspace .pq-figure { padding: 0 16px; }
 }
 @media (max-width: 700px) {
-  .pq-workspace .pq-header { padding: 14px; }
-  .pq-workspace .pq-title h1 { font-size: 21px; }
-  .pq-workspace .pq-metrics, .pq-workspace .pq-services { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pq-workspace .pq-service, .pq-workspace .pq-service:nth-child(n + 4) { grid-column: auto; padding: 12px 13px; }
-  .pq-workspace .pq-service:last-child { grid-column: 1 / -1; }
-  .pq-workspace .pq-panel { padding: 12px; }
+  .pq-workspace .pq-header { grid-template-areas: "title action" "source source" "ledger ledger"; align-items: center; column-gap: 12px; padding: 12px 14px 0; }
+  .pq-workspace .pq-header h1 { font-size: 20px; }
+  /* Solo el icono: el nombre accesible viene del aria-label del botón. */
+  .pq-workspace .pq-refresh { width: 38px; padding: 0; }
+  .pq-workspace .pq-refresh .pq-btn-label { display: none; }
+  .pq-workspace .pq-source { margin: 2px 0 10px; font-size: 12px; }
+  /* En el teléfono las cifras van en una sola línea que se desliza, para no
+     empujar la tabla medio pantallazo hacia abajo. */
+  .pq-workspace .pq-ledger { flex-wrap: nowrap; margin: 0 -14px; padding: 10px 14px 12px; overflow-x: auto; scroll-padding-inline: 14px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .pq-workspace .pq-ledger::-webkit-scrollbar { display: none; }
+  .pq-workspace .pq-figure { flex: none; padding: 0 14px; scroll-snap-align: start; }
+  .pq-workspace .pq-figure dd { font-size: 17px; }
+  .pq-workspace .pq-alert { margin: 0 14px 12px; }
+  .pq-workspace .pq-panel, .pq-workspace .pq-panel.is-table { padding: 12px; }
   .pq-workspace .pq-toolbar > .pq-search { flex: 1 1 100%; }
   .pq-workspace .pq-toolbar-actions { width: 100%; margin-left: 0; }
   .pq-workspace .pq-toolbar-actions .pq-btn { flex: 1 1 auto; }
   .pq-workspace .pq-bars button { grid-template-columns: minmax(0, 1fr) auto; }
   .pq-workspace .pq-bars .pq-bar { grid-column: 1 / -1; grid-row: 2; }
-  .pq-workspace .pq-table tbody .pq-col-name { min-width: 140px; max-width: 170px; }
-}
-@media (max-width: 440px) {
-  .pq-workspace .pq-metric { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "value" "hint"; padding: 10px 12px; }
-  .pq-workspace .pq-metric-icon { display: none; }
-  .pq-workspace .pq-metric > strong { font-size: 21px; }
-  .pq-workspace .pq-metric.is-debt { grid-column: 1 / -1; }
-  .pq-workspace .pq-service > strong { font-size: 21px; }
+  .pq-workspace .pq-table .pq-col-name { min-width: 132px; max-width: 150px; white-space: normal; }
+  .pq-workspace .pq-table-wrap { max-height: 78vh; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pq-workspace .pq-panel { animation: none; }
-  .pq-workspace .pq-bar i, .pq-workspace .pq-service, .pq-workspace .pq-table thead th > button .app-icon { transition: none; }
+  .pq-workspace .pq-bar i, .pq-workspace .pq-table thead th > button .app-icon { transition: none; }
 }
