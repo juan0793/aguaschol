@@ -30,7 +30,10 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
   const [motivo, setMotivo] = useState("");
   const pendiente = item.estado === "pendiente";
   // La validadora de campo solo trabaja lo que le asignaron.
-  const canProcess = pendiente && (permissions.can_process_banco || (permissions.can_work_assigned_banco && item.asignado_a != null && Number(item.asignado_a) === Number(userId)));
+  const canWork = permissions.can_process_banco || (permissions.can_work_assigned_banco && item.asignado_a != null && Number(item.asignado_a) === Number(userId));
+  const canProcess = pendiente && canWork;
+  // Quien puede descartar también puede deshacerlo, por si fue un error.
+  const canRestore = item.estado === "descartado" && canWork;
   const canSend = canProcess && item.dictamen !== "registrado";
   const needsClave = canSend && !item.clave_catastral;
   const enAguas = item.aguas_clave || item.aguas_abonado;
@@ -77,7 +80,7 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
         {canProcess && !discarding ? <button type="button" className="cl-bcard-icon" title="Descartar candidato" aria-label="Descartar candidato" disabled={busy} onClick={() => setDiscarding(true)}><Icon name="archive" /></button> : null}
         {canSend && !discarding ? <button type="button" className="cl-bcard-go" disabled={busy || (needsClave && !clave.trim())} onClick={() => onSend(item, clave)}><Icon name="send" />{busy ? "Verificando…" : "Enviar a ficha"}</button> : null}
         {item.estado === "enviado" && item.inmueble_id ? <button type="button" className="cl-bcard-go is-soft" onClick={() => onOpenFicha(item)}><Icon name="eye" />Abrir ficha</button> : null}
-        {item.estado === "descartado" && permissions.can_process_banco ? <button type="button" className="cl-bcard-go is-soft" disabled={busy} onClick={() => onRestore(item)}><Icon name="refresh" />Devolver</button> : null}
+        {canRestore ? <button type="button" className="cl-bcard-go is-soft" disabled={busy} title="Deshacer el descarte: vuelve a Por revisar" onClick={() => onRestore(item)}><Icon name="refresh" />Devolver</button> : null}
       </div>
     </footer>
   </article>;
@@ -136,7 +139,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
     await model.reload({ silent: true });
     onFichaCreated?.(result.ficha);
   });
-  const discard = (item, motivo) => run(item.id, async () => { await api.bancoDiscard(item.id, motivo); notify("Candidato descartado."); await model.reload({ silent: true }); });
+  const discard = (item, motivo) => run(item.id, async () => { await api.bancoDiscard(item.id, motivo); notify("Candidato descartado. Si fue un error, lo encuentras en Descartados y lo puedes devolver."); await model.reload({ silent: true }); });
   const restore = (item) => run(item.id, async () => { await api.bancoRestore(item.id); notify("Candidato devuelto al banco."); await model.reload({ silent: true }); });
   const verify = async () => {
     setWorking("verify");

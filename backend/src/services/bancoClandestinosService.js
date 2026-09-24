@@ -611,11 +611,13 @@ export const descartarCandidato = async (id, { motivo = "" } = {}, user) => {
   return getCandidato(id);
 };
 
+// Deshacer un descarte por error: quien puede descartar un candidato tambien puede devolverlo.
 export const restaurarCandidato = async (id, user) => {
-  if (!canProcess(user)) throw fail("Tu rol no puede restaurar candidatos.", 403);
   const candidato = await getCandidato(id);
   if (!candidato) throw fail("Candidato no encontrado.", 404);
+  if (!canWork(user, candidato)) throw fail("Tu rol no puede devolver este candidato al banco.", 403);
   if (candidato.estado !== "descartado") throw fail("Solo se pueden devolver al banco los candidatos descartados.", 409);
   await marcarProcesado(id, { estado: "pendiente" }, user);
+  if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.restored", entityType: "banco_clandestinos", entityId: Number(id), summary: `Candidato ${candidato.clave_catastral || `#${candidato.origen_ref}`} devuelto al banco`, details: { motivo_descarte: candidato.motivo_descarte } });
   return getCandidato(id);
 };

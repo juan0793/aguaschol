@@ -186,6 +186,13 @@ test("asignar reparte, ignora los ya procesados y la validadora solo trabaja lo 
   const ajeno = (await listBancoClandestinos({ query: "Asignable", asignado: String(tecnico.id) })).items[0];
   await assert.rejects(() => enviarCandidatoAFicha(ajeno.id, {}, campo), (error) => error.status === 403);
   const propio = deCampo.items[0];
+  // Un descarte por error se deshace: la validadora devuelve lo suyo, no lo ajeno.
+  await descartarCandidato(propio.id, { motivo: "Me equivoqué de punto" }, campo);
+  assert.equal((await restaurarCandidato(propio.id, campo)).estado, "pendiente");
+  await descartarCandidato(ajeno.id, { motivo: "No aplica" }, tecnico);
+  await assert.rejects(() => restaurarCandidato(ajeno.id, campo), (error) => error.status === 403);
+  await restaurarCandidato(ajeno.id, tecnico);
+
   const result = await enviarCandidatoAFicha(propio.id, {}, campo);
   assert.equal(result.candidato.estado, "enviado");
 
