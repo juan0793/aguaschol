@@ -70,7 +70,7 @@
 .pq-workspace .pq-tabs button:hover:not(:disabled) { background: var(--ds-surface-subtle, #f1f5f9); box-shadow: none; transform: none; color: var(--ds-text, #102a43); }
 .pq-workspace .pq-tabs button.is-active { background: #fff; box-shadow: inset 0 -2px var(--ds-blue, #1769e0); color: var(--ds-blue, #1769e0); }
 .pq-workspace .pq-tabs button.is-active .app-icon { color: var(--ds-blue, #1769e0); }
-.pq-workspace .pq-panel { display: grid; gap: 14px; min-width: 0; padding: 16px; animation: pq-tab-in 160ms ease; }
+.pq-workspace .pq-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; padding: 16px; animation: pq-tab-in 160ms ease; }
 .pq-workspace .pq-panel.is-table { gap: 12px; padding: 12px 16px 16px; }
 @keyframes pq-tab-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 .pq-workspace .pq-empty { display: grid; justify-items: center; gap: 6px; padding: 48px 16px; color: var(--ds-text-muted, #627d98); text-align: center; }
@@ -141,7 +141,7 @@
 .pq-workspace .pq-table .is-mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 12.5px; }
 .pq-workspace .pq-table-empty { padding: 28px 12px; color: var(--ds-text-muted, #627d98); text-align: center; }
 .pq-workspace .pq-table.is-listado tbody th { color: var(--ds-text, #102a43); font-weight: 650; white-space: normal; min-width: 200px; }
-.pq-workspace .pq-table.is-listado thead th, .pq-workspace .pq-table.is-compare thead th { padding: 10px 12px; }
+.pq-workspace .pq-table.is-listado thead tr:first-child th, .pq-workspace .pq-table.is-compare thead tr:first-child th { height: auto; padding: 10px 12px; }
 .pq-workspace .pq-table.is-compare tbody tr { cursor: pointer; }
 .pq-workspace .pq-table.is-compare td { white-space: normal; }
 
@@ -194,12 +194,26 @@
 .pq-workspace .pq-toolbar.is-compact > .pq-search { flex: 1 1 280px; }
 
 /* ---------- Alcaldía vs Aguas ---------- */
-.pq-workspace .pq-compare-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.pq-workspace .pq-compare-head > .pq-summary { flex: 1 1 560px; }
-.pq-workspace .pq-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.pq-workspace .pq-compare-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+/* Mismas cifras en línea que el encabezado, sin el filete superior. */
+.pq-workspace .pq-ledger.is-compare { flex: 1 1 auto; padding: 0; border-top: 0; }
+.pq-workspace .pq-figure.is-alert dd { color: #b8323e; }
+.pq-workspace .pq-figure-link { display: inline-flex; align-items: baseline; gap: 8px; min-height: 0; width: auto; margin: 0; padding: 0; border: 0; border-radius: 4px; background: none; box-shadow: none; color: inherit; font: inherit; cursor: pointer; }
+.pq-workspace .pq-figure-link:hover:not(:disabled) { background: none; box-shadow: none; transform: none; }
+.pq-workspace .pq-figure-link span { color: var(--ds-blue, #1769e0); font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-figure-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.pq-workspace .pq-figure-link .app-icon { align-self: center; width: 14px; height: 14px; margin: 0 0 0 -4px; color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-figure-link:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: 3px; }
+.pq-workspace .pq-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .pq-workspace .pq-modes button { min-height: 34px; width: auto; margin: 0; padding: 0 13px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 999px; background: #fff; box-shadow: none; color: var(--ds-text, #243b53); font-size: 13px; font-weight: 700; cursor: pointer; }
 .pq-workspace .pq-modes button:hover:not(:disabled) { border-color: var(--ds-blue, #1769e0); box-shadow: none; transform: none; }
 .pq-workspace .pq-modes button.is-active { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue, #1769e0); color: #fff; }
+/* La lista de claves no es un gráfico más: va aparte, en el tono de alerta del cruce. */
+.pq-workspace .pq-modes button.is-claves { border-color: #f0c9ce; background: #fdf6f7; color: #8a2330; }
+.pq-workspace .pq-modes button.is-claves b { margin-left: 4px; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-modes button.is-claves:hover:not(:disabled) { border-color: #b8323e; }
+.pq-workspace .pq-modes button.is-claves.is-active { border-color: #b8323e; background: #b8323e; color: #fff; }
+.pq-workspace .pq-modes-sep { width: 1px; height: 22px; margin: 0 6px; background: var(--ds-border-strong, #cfdce8); }
 .pq-workspace .pq-compare-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 14px; align-items: start; }
 .pq-workspace .pq-chart { display: grid; gap: 12px; min-width: 0; }
 .pq-workspace .pq-chart > header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 14px; }
@@ -218,11 +232,24 @@
 .pq-workspace .pq-bars .pq-bar { height: 10px; }
 .pq-workspace .pq-bars button > b { font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; }
 .pq-workspace .pq-detail { position: sticky; top: 12px; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 14px; background: #f9fbfd; }
-.pq-workspace .pq-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
-.pq-workspace .pq-detail-grid > div { padding: 8px 10px; border-radius: 9px; background: #fff; border: 1px solid var(--ds-border, #e3ebf3); }
-.pq-workspace .pq-detail-grid dt { color: var(--ds-text-muted, #627d98); font-size: 11.5px; font-weight: 700; }
-.pq-workspace .pq-detail-grid dd { margin: 0; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.pq-workspace .pq-detail-grid .is-alert dd { color: #b8323e; }
+.pq-workspace .pq-detail-coverage { display: grid; gap: 6px; font-size: 13px; color: var(--ds-text-muted, #627d98); }
+.pq-workspace .pq-detail-coverage b { color: var(--ds-text, #102a43); font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-detail-list { display: grid; margin: 0; }
+.pq-workspace .pq-detail-list > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--ds-border, #e3ebf3); }
+.pq-workspace .pq-detail-list dt { color: var(--ds-text-muted, #627d98); font-size: 13px; }
+.pq-workspace .pq-detail-list dd { margin: 0; color: var(--ds-text, #102a43); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-detail-list .is-alert dd { color: #b8323e; }
+
+/* ---------- Claves sin registrar ---------- */
+.pq-workspace .pq-claves { display: grid; gap: 12px; min-width: 0; }
+.pq-workspace .pq-claves-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
+.pq-workspace .pq-claves-head h3 { margin: 0; color: var(--ds-text, #102a43); font-size: 16px; font-weight: 800; }
+.pq-workspace .pq-claves-head p { margin: 3px 0 0; color: var(--ds-text-muted, #627d98); font-size: 13px; }
+.pq-workspace .pq-claves .pq-barrio-head span > b { color: #b8323e; }
+.pq-workspace .pq-table.is-claves tbody th { min-width: 150px; font-weight: 700; }
+.pq-workspace .pq-table.is-claves td { white-space: normal; }
+.pq-workspace .pq-table.is-claves td:nth-child(5) { min-width: 200px; }
+.pq-workspace .pq-claves-more { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 10px 12px; border-top: 1px solid var(--ds-border, #e3ebf3); color: var(--ds-text-muted, #627d98); font-size: 12.5px; }
 .pq-workspace .pq-bar.is-coverage { height: 8px; }
 .pq-workspace .pq-bar.is-coverage i { background: #1f9463; }
 .pq-workspace .pq-detail-dominant { margin: 0; color: var(--ds-text-muted, #627d98); font-size: 13px; }
@@ -248,10 +275,17 @@
   .pq-workspace .pq-source { margin: 2px 0 10px; font-size: 12px; }
   /* En el teléfono las cifras van en una sola línea que se desliza, para no
      empujar la tabla medio pantallazo hacia abajo. */
-  .pq-workspace .pq-ledger { flex-wrap: nowrap; margin: 0 -14px; padding: 10px 14px 12px; overflow-x: auto; scroll-padding-inline: 14px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .pq-workspace .pq-ledger { flex-wrap: nowrap; }
+  .pq-workspace .pq-header .pq-ledger { margin: 0 -14px; padding: 10px 14px 12px; overflow-x: auto; scroll-padding-inline: 14px; scroll-snap-type: x proximity; scrollbar-width: none; }
   .pq-workspace .pq-ledger::-webkit-scrollbar { display: none; }
   .pq-workspace .pq-figure { flex: none; padding: 0 14px; scroll-snap-align: start; }
   .pq-workspace .pq-figure dd { font-size: 17px; }
+  .pq-workspace .pq-ledger.is-compare { flex: 1 1 100%; margin: 0 -12px; padding: 0 12px; overflow-x: auto; scrollbar-width: none; }
+  .pq-workspace .pq-compare-head .pq-results-actions { width: 100%; }
+  .pq-workspace .pq-compare-head .pq-results-actions .pq-btn { flex: 1 1 auto; }
+  .pq-workspace .pq-modes-sep { display: none; }
+  .pq-workspace .pq-modes { flex-wrap: nowrap; margin: 0 -12px; padding: 0 12px 2px; overflow-x: auto; scrollbar-width: none; }
+  .pq-workspace .pq-modes button { flex: none; white-space: nowrap; }
   .pq-workspace .pq-alert { margin: 0 14px 12px; }
   .pq-workspace .pq-panel, .pq-workspace .pq-panel.is-table { padding: 12px; }
   .pq-workspace .pq-toolbar > .pq-search { flex: 1 1 100%; }

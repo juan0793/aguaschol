@@ -1,4 +1,6 @@
+import { useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
+import ClavesSinAguas from "./ClavesSinAguas";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 
@@ -14,6 +16,12 @@ const MODES = [
 export default function ComparativoTab({ model }) {
   const { stats, comparison } = model;
   const summary = comparison?.summary;
+  // "graficos" = los modos de siempre; "claves" = lista de claves sin registrar por barrio.
+  const [view, setView] = useState("graficos");
+  const [clavesBarrio, setClavesBarrio] = useState("");
+  const candidates = comparison?.candidates || [];
+  const statsByBarrio = useMemo(() => new Map((comparison?.barrio_stats || []).map((item) => [item.barrio_colonia, item])), [comparison?.barrio_stats]);
+  const openClaves = (barrio = "") => { setClavesBarrio(barrio); setView("claves"); };
   const mode = MODES.find(([key]) => key === model.chartMode) || MODES[0];
   const isPercent = model.chartMode.includes("cobertura") || (model.chartMode === "servicios" && model.statsServiceField);
   const value = (item) => (isPercent ? `${item.value}%` : count(item.value));
@@ -30,25 +38,34 @@ export default function ComparativoTab({ model }) {
     return <div className="pq-panel"><div className="pq-empty"><Icon name="barChart" /><strong>{model.loadingComparison ? "Comparando padrones…" : "Todavía no hay comparación"}</strong><span>Cruza el padrón de Alcaldía con el de Aguas para ver brechas, cobertura y servicios por barrio.</span>{!model.loadingComparison ? <button type="button" className="pq-btn is-primary" onClick={model.onCompare}><Icon name="refresh" />Comparar padrones</button> : null}</div></div>;
   }
 
+  const alcaldiaTotal = Number(summary.alcaldia_records ?? model.alcaldiaMeta?.total_records ?? 0);
+  const matched = Number(summary.exact_matches ?? 0) + Number(summary.base_matches ?? 0);
+  const coverage = alcaldiaTotal ? ((matched / alcaldiaTotal) * 100).toFixed(1) : "0";
+
   return <div className="pq-panel">
     <div className="pq-compare-head">
-      <dl className="pq-summary">
-        <div><dt>Claves en Alcaldía</dt><dd>{count(summary.alcaldia_records ?? model.alcaldiaMeta?.total_records)}</dd></div>
-        <div><dt>Usuarios en Aguas</dt><dd>{count(summary.aguas_records ?? model.padronMeta?.total_records)}</dd></div>
-        <div className="is-alert"><dt>No aparecen en Aguas</dt><dd>{count(summary.candidate_clandestine)}</dd></div>
-        <div><dt>Coincidencias</dt><dd>{count((summary.exact_matches ?? 0) + (summary.base_matches ?? 0))}</dd></div>
+      {/* Los usuarios de Aguas ya están en el encabezado: aquí solo lo propio del cruce. */}
+      <dl className="pq-ledger is-compare" aria-label="Resultado del cruce">
+        <div className="pq-figure"><dt>claves en el padrón de Alcaldía</dt><dd>{count(alcaldiaTotal)}</dd></div>
+        <div className="pq-figure"><dt>coinciden con Aguas ({coverage}% de cobertura)</dt><dd>{count(matched)}</dd></div>
+        <div className="pq-figure is-alert">
+          <dt>no aparecen en Aguas</dt>
+          <dd><button type="button" className="pq-figure-link" onClick={() => openClaves("")} aria-pressed={view === "claves" && !clavesBarrio}>{count(summary.candidate_clandestine)}<span>Ver por barrio</span><Icon name="arrowRight" /></button></dd>
+        </div>
       </dl>
       <div className="pq-results-actions">
         <button type="button" className="pq-btn" onClick={model.onCompare} disabled={model.loadingComparison}><Icon name="refresh" className={model.loadingComparison ? "ds-icon-spin" : ""} />{model.loadingComparison ? "Comparando…" : "Comparar de nuevo"}</button>
-        <button type="button" className="pq-btn" onClick={model.onDownloadStatsPdf} disabled={model.downloadingStatsPdf || !stats.dynamicRows.length}><Icon name="download" />{model.downloadingStatsPdf ? "Guardando…" : "Guardar PDF"}</button>
+        {view === "graficos" ? <button type="button" className="pq-btn" onClick={model.onDownloadStatsPdf} disabled={model.downloadingStatsPdf || !stats.dynamicRows.length}><Icon name="download" />{model.downloadingStatsPdf ? "Guardando…" : "Guardar PDF"}</button> : null}
       </div>
     </div>
 
-    <div className="pq-modes" role="tablist" aria-label="Qué gráfico ver">
-      {MODES.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={model.chartMode === key} className={model.chartMode === key ? "is-active" : ""} onClick={() => { model.setChartMode(key); if (key !== "servicios") model.setStatsServiceField(""); }}>{label}</button>)}
+    <div className="pq-modes" role="tablist" aria-label="Qué ver del cruce">
+      <button type="button" role="tab" aria-selected={view === "claves"} className={`is-claves ${view === "claves" ? "is-active" : ""}`.trim()} onClick={() => openClaves("")}>Claves sin registrar <b>{count(summary.candidate_clandestine)}</b></button>
+      <span className="pq-modes-sep" aria-hidden="true" />
+      {MODES.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={view === "graficos" && model.chartMode === key} className={view === "graficos" && model.chartMode === key ? "is-active" : ""} onClick={() => { setView("graficos"); model.setChartMode(key); if (key !== "servicios") model.setStatsServiceField(""); }}>{label}</button>)}
     </div>
 
-    <div className="pq-compare-grid">
+    {view === "claves" ? <ClavesSinAguas key={clavesBarrio || "todos"} candidates={candidates} barrio={clavesBarrio} onBarrioChange={setClavesBarrio} statsByBarrio={statsByBarrio} /> : <div className="pq-compare-grid">
       <section className="pq-chart">
         <header>
           <div><h3>{title}</h3><p>{model.chartMode === "servicios" && stats.selectedServiceLabel ? `Porcentaje de usuarios con ${stats.selectedServiceLabel} en cada barrio.` : mode[3]}</p></div>
@@ -86,16 +103,18 @@ export default function ComparativoTab({ model }) {
       </section>
 
       <aside className="pq-detail" aria-label="Detalle del barrio">
-        <span className="pq-kicker">Detalle del barrio</span>
         {detail ? <>
           <h3>{detail.barrio_colonia}</h3>
-          <dl className="pq-detail-grid">
-            <div><dt>Claves Alcaldía</dt><dd>{count(detail.alcaldia_total)}</dd></div>
-            <div><dt>En Aguas</dt><dd>{count(detail.aguas_registradas)}</dd></div>
-            <div><dt>Cobertura</dt><dd>{detail.cobertura_aguas_pct}%</dd></div>
+          <div className="pq-detail-coverage">
+            <span><b>{detail.cobertura_aguas_pct}%</b> de cobertura en Aguas</span>
+            <span className="pq-bar is-coverage" aria-hidden="true"><i style={{ width: `${Math.min(100, Number(detail.cobertura_aguas_pct) || 0)}%` }} /></span>
+          </div>
+          <dl className="pq-detail-list">
+            <div><dt>Claves de Alcaldía</dt><dd>{count(detail.alcaldia_total)}</dd></div>
+            <div><dt>Registradas en Aguas</dt><dd>{count(detail.aguas_registradas)}</dd></div>
             <div className={Number(detail.brecha_registros) > 0 ? "is-alert" : ""}><dt>Brecha</dt><dd>{count(detail.brecha_registros)}</dd></div>
           </dl>
-          <span className="pq-bar is-coverage" aria-label={`Cobertura ${detail.cobertura_aguas_pct}%`}><i style={{ width: `${Math.min(100, Number(detail.cobertura_aguas_pct) || 0)}%` }} /></span>
+          {Number(detail.candidatas_clandestinas) > 0 ? <button type="button" className="pq-btn is-block" onClick={() => openClaves(detail.barrio_colonia)}><Icon name="records" />Ver las {count(detail.candidatas_clandestinas)} claves sin registrar</button> : null}
           <p className="pq-detail-dominant">Servicio mayoritario <b>{detail.servicio_dominante || "Sin servicio dominante"}</b></p>
           <ul className="pq-detail-services">
             {Object.entries(stats.serviceLabels).map(([field, label]) => {
@@ -105,6 +124,6 @@ export default function ComparativoTab({ model }) {
           </ul>
         </> : <p className="pq-note">Toca un barrio de la lista para ver su cobertura y servicios.</p>}
       </aside>
-    </div>
+    </div>}
   </div>;
 }

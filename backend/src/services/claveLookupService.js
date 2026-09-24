@@ -1339,7 +1339,13 @@ export const compareAlcaldiaWithAguas = async () => {
   reloadAlcaldiaRecords();
   
   const aguasIndex = buildAguasIndex();
-  const comparedRows = alcaldiaRecords.map((item) => decorateAlcaldiaRecord(item, aguasIndex));
+  // barrio_comparacion: el barrio con el que se agrupa la brecha. Viaja en cada
+  // fila para que la lista de claves por barrio cuadre con barrio_stats.
+  const comparedRows = alcaldiaRecords.map((item) => {
+    const row = decorateAlcaldiaRecord(item, aguasIndex);
+    row.barrio_comparacion = row.caserio || row.direccion || resolveBarrioNameFromClave(row.clave_catastral || row.clave_alcaldia, "Sin barrio");
+    return row;
+  });
   const exactMatches = comparedRows.filter((item) => item.match_type === "exacta");
   const baseMatches = comparedRows.filter((item) => item.match_type === "base");
   const candidates = comparedRows.filter((item) => item.match_type === "sin_coincidencia");
@@ -1351,7 +1357,7 @@ export const compareAlcaldiaWithAguas = async () => {
     ["desechos_peligrosos", "Desechos peligrosos"]
   ];
   const barrioStatsMap = comparedRows.reduce((accumulator, item) => {
-    const barrio = item.caserio || item.direccion || resolveBarrioNameFromClave(item.clave_catastral || item.clave_alcaldia, "Sin barrio");
+    const barrio = item.barrio_comparacion;
     const current = accumulator.get(barrio) ?? {
       barrio_colonia: barrio,
       alcaldia_total: 0,
