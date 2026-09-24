@@ -22,22 +22,45 @@ const ESTADO_LABELS = Object.fromEntries(ESTADOS.map(([key, label]) => [key, lab
 const BANCO_FLOW = [["pendiente", "Por revisar", "inbox"], ["enviado", "Enviados a ficha", "send"], ["descartado", "Descartados", "archive"]];
 const SERVICES = [["agua", "Agua potable", "water"], ["alcantarillado", "Alcantarillado", "sewer"], ["desechos", "Desechos sólidos", "waste"]];
 
+// Motivos frecuentes del trabajo de campo; "Otro" pide escribirlo. El detalle se agrega al motivo.
+const MOTIVOS_DESCARTE = ["Ya tiene servicio en Aguas", "Clave catastral equivocada", "Punto duplicado", "Lote baldío o sin construcción", "No tiene conexión de agua", "Otro"];
+const fechaCorta = (value) => (value ? new Date(value).toLocaleDateString("es-HN", { day: "numeric", month: "short", year: "numeric" }) : "");
+
 const mapUrl = (item) => `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
+
+function DescartePanel({ busy, onCancel, onConfirm }) {
+  const [motivo, setMotivo] = useState("");
+  const [detalle, setDetalle] = useState("");
+  const esOtro = motivo === "Otro";
+  const texto = esOtro ? detalle.trim() : [motivo, detalle.trim()].filter(Boolean).join(": ");
+  const listo = Boolean(motivo) && Boolean(texto);
+  return <form className="cl-bcard-discard" aria-label="Motivo del descarte" onSubmit={(event) => { event.preventDefault(); if (listo) onConfirm(texto); }} onKeyDown={(event) => { if (event.key === "Escape") onCancel(); }}>
+    <header><Icon name="archive" /><strong>¿Por qué se descarta?</strong></header>
+    <div className="cl-bcard-reasons" role="group" aria-label="Motivos frecuentes">
+      {MOTIVOS_DESCARTE.map((item, index) => <button type="button" key={item} autoFocus={index === 0} aria-pressed={motivo === item} className={motivo === item ? "is-active" : ""} onClick={() => setMotivo(item)}>{item}</button>)}
+    </div>
+    {motivo ? <textarea autoFocus={esOtro} rows={2} maxLength={200} aria-label={esOtro ? "Escribe el motivo" : "Detalle del descarte"} value={detalle} onChange={(event) => setDetalle(event.target.value)} placeholder={esOtro ? "Escribe el motivo del descarte" : "Detalle (opcional), ej. ya se levantó como #9"} /> : <p className="cl-bcard-discard-hint">Elige un motivo; queda guardado y se puede devolver al banco si fue un error.</p>}
+    <footer>
+      <button type="button" className="cl-bcard-go is-soft" onClick={onCancel}>Cancelar</button>
+      <button type="submit" className="cl-bcard-go is-danger" disabled={busy || !listo}><Icon name="archive" />{busy ? "Descartando…" : "Descartar"}</button>
+    </footer>
+  </form>;
+}
 
 function Candidato({ item, permissions, userId, busy, selectable, selected, onToggle, onSend, onDiscard, onRestore, onOpenFicha }) {
   const [clave, setClave] = useState("");
   const [discarding, setDiscarding] = useState(false);
-  const [motivo, setMotivo] = useState("");
   const pendiente = item.estado === "pendiente";
+  const descartado = item.estado === "descartado";
   // La validadora de campo solo trabaja lo que le asignaron.
   const canWork = permissions.can_process_banco || (permissions.can_work_assigned_banco && item.asignado_a != null && Number(item.asignado_a) === Number(userId));
   const canProcess = pendiente && canWork;
   // Quien puede descartar también puede deshacerlo, por si fue un error.
-  const canRestore = item.estado === "descartado" && canWork;
+  const canRestore = descartado && canWork;
   const canSend = canProcess && item.dictamen !== "registrado";
   const needsClave = canSend && !item.clave_catastral;
   const enAguas = item.aguas_clave || item.aguas_abonado;
-  return <article className={`cl-bcard is-${item.dictamen} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""}`.trim()}>
+  return <article className={`cl-bcard is-${item.dictamen} ${descartado ? "is-descartado" : ""} ${discarding ? "is-discarding" : ""} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""}`.trim()}>
     <header>
       {selectable ? <SpringCheck checked={selected} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${item.clave_catastral || `punto ${item.origen_ref}`}`} /> : null}
       <span className={`cl-bcard-badge is-${item.dictamen}`} title={`${DICTAMEN_LABELS[item.dictamen] || item.dictamen}: ${item.motivo_dictamen || ""}`}><Icon name={DICTAMEN_ICONS[item.dictamen] || "search"} /></span>
@@ -62,12 +85,12 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
     </dl>
     {item.comentario_campo ? <p className="cl-bcard-note" title={item.comentario_campo}><Icon name="notes" /><span>{item.comentario_campo}</span></p> : null}
     {item.nota_revision ? <p className="cl-bcard-warn"><Icon name="warning" />{item.nota_revision}</p> : null}
-    {item.estado === "descartado" ? <p className="cl-bcard-warn is-muted"><Icon name="archive" />Descartado: {item.motivo_descarte}</p> : null}
-    {discarding ? <form className="cl-bcard-form" onSubmit={(event) => { event.preventDefault(); onDiscard(item, motivo); }}>
-      <input autoFocus aria-label="Motivo del descarte" value={motivo} onChange={(event) => setMotivo(event.target.value)} placeholder="Motivo del descarte" />
-      <button type="button" className="cl-bcard-icon" title="Cancelar" aria-label="Cancelar descarte" onClick={() => { setDiscarding(false); setMotivo(""); }}><Icon name="close" /></button>
-      <button type="submit" className="cl-bcard-go is-danger" disabled={busy || !motivo.trim()}><Icon name="archive" />Descartar</button>
-    </form> : needsClave ? <form className="cl-bcard-form" onSubmit={(event) => { event.preventDefault(); onSend(item, clave); }}>
+    {descartado ? <div className="cl-bcard-motivo">
+      <span className="cl-bcard-motivo-label"><Icon name="archive" />Motivo del descarte</span>
+      <p>{item.motivo_descarte || "Sin motivo registrado"}</p>
+      {item.procesado_por_nombre || item.procesado_at ? <small>{[item.procesado_por_nombre && `Por ${item.procesado_por_nombre}`, fechaCorta(item.procesado_at)].filter(Boolean).join(" · ")}</small> : null}
+    </div> : null}
+    {discarding ? <DescartePanel busy={busy} onCancel={() => setDiscarding(false)} onConfirm={(motivo) => onDiscard(item, motivo)} /> : needsClave ? <form className="cl-bcard-form" onSubmit={(event) => { event.preventDefault(); onSend(item, clave); }}>
       <input aria-label="Clave catastral" value={clave} onChange={(event) => setClave(event.target.value)} placeholder="Escribe la clave, ej. 89-13-15" />
     </form> : null}
     <footer>
@@ -80,7 +103,7 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
         {canProcess && !discarding ? <button type="button" className="cl-bcard-icon" title="Descartar candidato" aria-label="Descartar candidato" disabled={busy} onClick={() => setDiscarding(true)}><Icon name="archive" /></button> : null}
         {canSend && !discarding ? <button type="button" className="cl-bcard-go" disabled={busy || (needsClave && !clave.trim())} onClick={() => onSend(item, clave)}><Icon name="send" />{busy ? "Verificando…" : "Enviar a ficha"}</button> : null}
         {item.estado === "enviado" && item.inmueble_id ? <button type="button" className="cl-bcard-go is-soft" onClick={() => onOpenFicha(item)}><Icon name="eye" />Abrir ficha</button> : null}
-        {canRestore ? <button type="button" className="cl-bcard-go is-soft" disabled={busy} title="Deshacer el descarte: vuelve a Por revisar" onClick={() => onRestore(item)}><Icon name="refresh" />Devolver</button> : null}
+        {canRestore ? <button type="button" className="cl-bcard-go is-soft" disabled={busy} title="Deshacer el descarte: vuelve a Por revisar" onClick={() => onRestore(item)}><Icon name="refresh" />Devolver al banco</button> : null}
       </div>
     </footer>
   </article>;

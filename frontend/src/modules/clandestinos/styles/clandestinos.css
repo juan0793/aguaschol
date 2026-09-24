@@ -353,6 +353,29 @@
 .cl-module .cl-bcard-go.is-danger { border-color: var(--danger); background: var(--danger); color: #fff; }
 .cl-module .cl-bcard-go:disabled, .cl-module .cl-bcard-icon:disabled { opacity: .5; cursor: not-allowed; }
 .cl-bcard .app-icon { flex: none; }
+/* Descarte: panel de motivos dentro de la tarjeta y tarjeta descartada apagada con su motivo. */
+.cl-bcard.is-discarding { border-color: #e8c5c9; border-top-color: var(--tone); box-shadow: 0 0 0 1px #f1d8db, 0 8px 20px rgba(155,32,45,.07); }
+.cl-bcard.is-discarding > footer .cl-bcard-actions { display: none; }
+.cl-bcard-discard { display: grid; gap: 8px; padding: 10px; border: 1px solid #f0d9dc; border-radius: 10px; background: #fdf7f8; animation: cl-discard-in .18s ease both; }
+.cl-bcard-discard > header { display: flex; align-items: center; gap: 6px; color: var(--danger); font-size: 12.5px; }
+.cl-bcard-discard > header .app-icon { width: 14px; height: 14px; }
+.cl-bcard-reasons { display: flex; flex-wrap: wrap; gap: 5px; }
+.cl-module .cl-bcard-reasons button { min-height: 28px; padding: 3px 10px; border: 1px solid #e3d3d5; border-radius: 999px; background: #fff; color: var(--text); font-size: 12px; font-weight: 650; cursor: pointer; transition: background .14s ease, border-color .14s ease, color .14s ease; }
+.cl-module .cl-bcard-reasons button:hover { border-color: #d7a9ae; }
+.cl-module .cl-bcard-reasons button.is-active { border-color: var(--danger); background: var(--danger); color: #fff; }
+.cl-module .cl-bcard-reasons button:focus-visible, .cl-module .cl-bcard-discard textarea:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(155,32,45,.18); }
+.cl-module .cl-bcard-discard textarea { width: 100%; min-height: 52px; padding: 7px 10px; border: 1px solid #e3d3d5; border-radius: 9px; background: #fff; color: var(--navy); font: inherit; font-size: 12.5px; resize: vertical; }
+.cl-bcard-discard-hint { color: var(--text-muted); font-size: 11.5px; }
+.cl-bcard-discard > footer { display: flex; justify-content: flex-end; gap: 6px; }
+@keyframes cl-discard-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.cl-bcard.is-descartado { --tone: #b8c4d0; border-top-style: dashed; background: #fbfcfd; }
+.cl-bcard.is-descartado .cl-bcard-badge, .cl-bcard.is-descartado .cl-bcard-services, .cl-bcard.is-descartado .cl-bcard-padrones { opacity: .6; filter: saturate(.4); }
+.cl-bcard.is-descartado h3 { color: var(--text-muted); }
+.cl-bcard-motivo { display: grid; gap: 2px; padding: 7px 10px; border-left: 3px solid var(--danger); border-radius: 4px 9px 9px 4px; background: #fbf2f3; }
+.cl-bcard-motivo-label { display: flex; align-items: center; gap: 5px; color: var(--danger); font-size: 10.5px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.cl-bcard-motivo-label .app-icon { width: 12px; height: 12px; }
+.cl-bcard-motivo p { color: var(--navy); font-size: 13px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.cl-bcard-motivo small { color: var(--text-muted); font-size: 11.5px; }
 .cl-bcard-go .app-icon, .cl-bcard-icon .app-icon { width: 15px; height: 15px; }
 
 /* Centro de impresión: formato arriba, gráficos que filtran y vista previa ancha */
@@ -400,7 +423,7 @@
   .cl-print-formats { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cl-module-emblem, .cl-mode-frame, .cl-bcard, .cl-bcard.is-skeleton { animation: none; }
+  .cl-module-emblem, .cl-mode-frame, .cl-bcard, .cl-bcard.is-skeleton, .cl-bcard-discard { animation: none; }
   .cl-donut-segment, .cl-meters-track > span, .cl-bars-fill { transition: none; }
 }
 @media print { .cl-mode-frame { display: none !important; } }
