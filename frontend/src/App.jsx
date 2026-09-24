@@ -13,8 +13,6 @@ import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import RecordsWorkspaceHeader from "./components/records/RecordsWorkspaceHeader";
 import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections, getPathForWorkspaceView, getWorkspaceViewFromPath } from "./components/sidebar/sidebarConfig";
-import PageHeader from "./components/ds/PageHeader";
-import MetricRow from "./components/ds/Metrics";
 import { ModuleSkeleton } from "./components/ds/Skeleton";
 import "./components/ds/design-system.css";
 import "./styles/request-workspace.css";
@@ -144,6 +142,7 @@ const FieldValidationWorkspace = lazy(() => import("./components/FieldValidation
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
 const ReportsWorkspace = lazy(() => import("./modules/reports/ReportsWorkspace"));
+const PadronRequestsWorkspace = lazy(() => import("./modules/requests/PadronRequestsWorkspace"));
 const DashboardWorkspace = lazy(() => import("./modules/dashboard/DashboardWorkspace"));
 const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
 const ImportacionWorkspace = lazy(() => import("./components/ImportacionWorkspace"));
@@ -1079,7 +1078,6 @@ function App() {
   const sheetRef = useRef(null);
   const recordHistoryRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
-  const padronStatsChartRef = useRef(null);
   const mapPointsRequestRef = useRef({ id: 0, controller: null });
   const intentionalLogoutRef = useRef(false);
   const sessionInvalidatingRef = useRef(false);
@@ -1234,11 +1232,8 @@ function App() {
   const [loadingPadronRequestMeta, setLoadingPadronRequestMeta] = useState(false);
   const [padronServiceReport, setPadronServiceReport] = useState(null);
   const [loadingPadronServiceReport, setLoadingPadronServiceReport] = useState(false);
-  const [showPadronServiceModal, setShowPadronServiceModal] = useState(false);
-  const [showPadronRequestModal, setShowPadronRequestModal] = useState(false);
   const [selectedAguasServiceField, setSelectedAguasServiceField] = useState("agua");
   const [selectedAguasServiceBarrios, setSelectedAguasServiceBarrios] = useState([]);
-  const [aguasServiceBarrioFilter, setAguasServiceBarrioFilter] = useState("");
   const [barrioCodes, setBarrioCodes] = useState([]);
   const [barrioCodeForm, setBarrioCodeForm] = useState(emptyBarrioForm);
   const [loadingBarrioCodes, setLoadingBarrioCodes] = useState(false);
@@ -1315,7 +1310,6 @@ function App() {
   const [alcaldiaComparison, setAlcaldiaComparison] = useState(null);
   const [padronChartMode, setPadronChartMode] = useState("brecha");
   const [padronChartType, setPadronChartType] = useState("barras");
-  const [showPadronStatsModal, setShowPadronStatsModal] = useState(false);
   const [downloadingPadronStatsPdf, setDownloadingPadronStatsPdf] = useState(false);
   const [downloadingAguasServicePdf, setDownloadingAguasServicePdf] = useState(false);
   const [selectedPadronStatBarrio, setSelectedPadronStatBarrio] = useState("");
@@ -1764,8 +1758,8 @@ function App() {
             panelClass: "hero-panel-users",
             cardClass: "search-card-users",
             toplineLabel: "Peticiones institucionales",
-            title: "Solicitudes al padrón maestro",
-            lead: "Generación de listados administrativos filtrados desde el padrón, listos para impresión y PDF.",
+            title: "Consultas del padrón",
+            lead: "Servicios, deuda y abonados por barrio desde el padrón maestro, listos para imprimir y PDF.",
             kicker: "Análisis ejecutivo"
           },
           logs: {
@@ -2019,24 +2013,9 @@ function App() {
       ];
     }
 
+    // Consultas del padrón muestra sus propias cifras (usuarios, barrios, deuda).
     if (workspaceView === "requests") {
-      return [
-        {
-          icon: "records",
-          label: "Registros",
-          value: String(padronRequestResult?.summary?.total_registros ?? 0)
-        },
-        {
-          icon: "dashboard",
-          label: "Barrios",
-          value: String(padronRequestResult?.summary?.total_barrios ?? 0)
-        },
-        {
-          icon: loadingPadronRequest ? "refresh" : "activity",
-          label: "Estado",
-          value: loadingPadronRequest ? "Generando" : padronRequestResult ? "Listo" : "Sin consulta"
-        }
-      ];
+      return [];
     }
 
     return [
@@ -3022,20 +3001,6 @@ function App() {
     () => new Set(selectedAguasServiceBarrios.map((name) => String(name || "").trim()).filter(Boolean)),
     [selectedAguasServiceBarrios]
   );
-  const visibleAguasServiceBarrioRows = useMemo(() => {
-    const normalizedFilter = aguasServiceBarrioFilter.trim().toLowerCase();
-    if (!normalizedFilter) return aguasServiceReportData.barrioRows;
-    return aguasServiceReportData.barrioRows.filter((barrio) =>
-      String(barrio.barrio_colonia || "").toLowerCase().includes(normalizedFilter)
-    );
-  }, [aguasServiceBarrioFilter, aguasServiceReportData.barrioRows]);
-  const visibleAguasDebtBarrioRows = useMemo(() => {
-    const normalizedFilter = aguasServiceBarrioFilter.trim().toLowerCase();
-    if (!normalizedFilter) return aguasServiceReportData.barrios;
-    return aguasServiceReportData.barrios.filter((barrio) =>
-      getAguasServiceBarrioName(barrio).toLowerCase().includes(normalizedFilter)
-    );
-  }, [aguasServiceBarrioFilter, aguasServiceReportData.barrios, getAguasServiceBarrioName]);
   const selectedAguasServiceBarrioRows = useMemo(
     () =>
       aguasServiceReportData.barrios.filter((barrio) =>
@@ -3043,10 +3008,6 @@ function App() {
       ),
     [aguasServiceReportData.barrios, getAguasServiceBarrioName, selectedAguasServiceBarrioSet]
   );
-  const allVisibleAguasServiceBarriosSelected =
-    visibleAguasServiceBarrioRows.length > 0 &&
-    visibleAguasServiceBarrioRows.every((barrio) => selectedAguasServiceBarrioSet.has(getAguasServiceBarrioName(barrio)));
-
   useEffect(() => {
     setSelectedAguasServiceBarrios((current) => {
       if (!current.length) return current;
@@ -3065,18 +3026,6 @@ function App() {
     );
   }, []);
 
-  const toggleVisibleAguasServiceBarrios = useCallback(() => {
-    const visibleNames = visibleAguasServiceBarrioRows.map((barrio) => getAguasServiceBarrioName(barrio));
-    setSelectedAguasServiceBarrios((current) => {
-      const currentSet = new Set(current);
-      const shouldRemove = visibleNames.length > 0 && visibleNames.every((name) => currentSet.has(name));
-      if (shouldRemove) {
-        return current.filter((name) => !visibleNames.includes(name));
-      }
-      visibleNames.forEach((name) => currentSet.add(name));
-      return Array.from(currentSet);
-    });
-  }, [getAguasServiceBarrioName, visibleAguasServiceBarrioRows]);
   const dashboardMetrics = useMemo(
     () => [
       {
@@ -4208,9 +4157,6 @@ function App() {
     setAlcaldiaComparison(null);
     setFieldDebtReport(null);
     setShowFieldDebtModal(false);
-    setShowPadronServiceModal(false);
-    setShowPadronRequestModal(false);
-    setShowPadronStatsModal(false);
     setSelectedAguasServiceField("agua");
     setSelectedPadronStatBarrio("");
     setSelectedPadronServiceField("");
@@ -12256,18 +12202,6 @@ function App() {
       tone: "is-followup"
     };
   }, [avisoHtml, form, recordValidationIssues]);
-  useEffect(() => {
-    if (!showPadronStatsModal) return undefined;
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setShowPadronStatsModal(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showPadronStatsModal]);
 
   if (session?.token && !sessionVerified) {
     return (
@@ -12754,7 +12688,6 @@ function App() {
         "page-shell",
         sidebarCollapsed ? "sidebar-collapsed" : "",
         ["requests", "mapReports", "mapAnalytics"].includes(workspaceView) ? "reports-layout-mode" : "",
-        showPadronServiceModal || showPadronStatsModal ? "reports-modal-open" : "",
         workspaceView === "mapReports" ? "map-reports-mode" : "",
         workspaceView === "dashboard" ? "dashboard-refactor-mode" : ""
       ].filter(Boolean).join(" ")}
@@ -18703,1001 +18636,61 @@ function App() {
                 </div>
               </section>
             ) : workspaceView === "requests" ? (
-              <section className="preview-panel log-panel-full request-workspace">
-                <div className="log-shell">
-                  <PageHeader
-                    kicker="Peticiones al padrón"
-                    title="Menú de peticiones"
-                    description="Prepara reportes desde el padrón maestro con una sola vista de trabajo: elige la plantilla, ajusta criterios y genera el listado listo para imprimir o exportar."
-                  />
-                  <div className="request-status-row">
-                    <MetricRow
-                      metrics={[
-                        { label: "Plantillas", value: padronRequestTemplates.length || 0 },
-                        { label: "Registros", value: padronRequestResult?.summary?.total_registros ?? 0 },
-                        { label: "Barrios", value: padronRequestResult?.summary?.total_barrios ?? 0 }
-                      ]}
-                    />
-                    <span
-                      className={`ds-badge ${
-                        padronRequestLoadError
-                          ? "is-danger"
-                          : loadingPadronRequest || loadingPadronRequestMeta
-                            ? "is-warning"
-                            : "is-success is-live"
-                      }`}
-                      title={padronRequestLoadError || undefined}
-                    >
-                      <span className="ds-badge-dot" />
-                      {padronRequestLoadError
-                        ? "Sin datos"
-                        : loadingPadronRequest
-                          ? "Generando"
-                          : loadingPadronRequestMeta
-                            ? "Cargando"
-                            : "Listo"}
-                    </span>
-                  </div>
-                  {padronRequestLoadError ? (
-                    <div className="request-load-error" role="alert">
-                      <Icon name="warning" />
-                      <div>
-                        <strong>No se pudo leer el padrón maestro</strong>
-                        <p>{padronRequestLoadError.replace(/\.?$/, ".")} Los totales de abajo no reflejan la base de datos.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          loadPadronRequestMeta();
-                          loadPadronServiceReport({ silent: true });
-                        }}
-                        disabled={loadingPadronRequestMeta || loadingPadronServiceReport}
-                      >
-                        <Icon name="refresh" />
-                        {loadingPadronRequestMeta || loadingPadronServiceReport ? "Reintentando…" : "Reintentar"}
-                      </button>
-                    </div>
-                  ) : null}
-                  <article className="document-sheet log-sheet request-sheet">
-                    <div className="map-report-office-head request-office-head">
-                      <div className="map-report-brand">
-                        <img src={logoAguasCholuteca} alt="Logo Aguas de Choluteca" className="brand-logo" />
-                        <div>
-                          <p className="sheet-kicker">Aguas de Choluteca, S.A. de C.V.</p>
-                          <h3>Constructor de peticiones</h3>
-                          <p className="helper-text">Diseñado para abrir, configurar y entregar solicitudes desde un unico espacio.</p>
-                        </div>
-                      </div>
-                      <div className="request-download-row">
-                        <span className="panel-pill">{padronRequestTemplates.length || 0} plantillas</span>
-                        <span className="panel-pill">{aguasServiceReportData.totalRecords} usuarios</span>
-                        <span className="panel-pill">{alcaldiaComparison?.summary ? "Graficos listos" : "Graficos pendientes"}</span>
-                      </div>
-                    </div>
-
-                    <div className="request-option-grid">
-                      <button
-                        type="button"
-                        className="request-option-card"
-                        onClick={() => setShowPadronRequestModal(true)}
-                      >
-                        <span className="sheet-kicker">Listado configurable</span>
-                        <strong>Constructor de peticiones</strong>
-                        <p>Arma reportes filtrados desde el padron maestro, con vista previa, impresion y PDF.</p>
-                        <b>{padronRequestResult?.summary?.total_registros ?? 0} filas preparadas</b>
-                      </button>
-                      <button
-                        type="button"
-                        className="request-option-card"
-                        onClick={() => {
-                          setShowPadronServiceModal(true);
-                          if (!padronServiceReport?.summary) loadPadronServiceReport({ silent: true });
-                        }}
-                      >
-                        <span className="sheet-kicker">Padron maestro</span>
-                        <strong>Informe de servicios</strong>
-                        <p>Desglose actualizado de agua, alcantarillado, barrido, recoleccion y desechos por barrio.</p>
-                        <b>{aguasServiceReportData.totalRecords} usuarios</b>
-                      </button>
-                      <button
-                        type="button"
-                        className="request-option-card"
-                        onClick={() => {
-                          setShowPadronStatsModal(true);
-                          if (!alcaldiaComparison?.summary) loadAlcaldiaComparison({ silent: true });
-                        }}
-                      >
-                        <span className="sheet-kicker">Comparativo</span>
-                        <strong>Alcaldia vs Aguas</strong>
-                        <p>Graficos de brechas, cobertura, candidatas clandestinas y servicios por barrio.</p>
-                        <b>{alcaldiaComparison?.summary?.candidate_clandestine ?? 0} candidatas</b>
-                      </button>
-                    </div>
-
-                    <details className="request-secondary">
-                      <summary><Icon name="arrowRight" />Flujo rápido y ejemplos útiles</summary>
-                      <div className="request-helper-strip">
-                        <div className="request-helper-card">
-                          <span className="sheet-kicker">Flujo rapido</span>
-                          <strong>1. Plantilla  2. Ajuste  3. Generar</strong>
-                          <p>Todo el trabajo queda concentrado aqui para que el operador no tenga que navegar a otros modulos.</p>
-                        </div>
-                        <div className="request-helper-card">
-                          <span className="sheet-kicker">Ejemplos utiles</span>
-                          <div className="request-example-list">
-                            <span className="request-example-chip">apart, apto, aptos</span>
-                            <span className="request-example-chip">barrio:centro</span>
-                            <span className="request-example-chip">abonado:12345</span>
-                            <span className="request-example-chip">-hotel</span>
-                          </div>
-                        </div>
-                      </div>
-                    </details>
-
-                    {false ? <section className="document-block request-statistics-panel">
-                      <div className="admin-section-head">
-                        <div>
-                          <p className="sheet-kicker">Informe del padron maestro</p>
-                          <h3>Servicios activos en Aguas</h3>
-                          <p className="helper-text">
-                            Se actualiza desde el padron maestro activo: agua potable, alcantarillado, barrido, recoleccion y desechos peligrosos.
-                          </p>
-                        </div>
-                        <span className="panel-pill">
-                          {loadingPadronServiceReport ? "Actualizando" : `${aguasServiceReportData.totalRecords} usuarios`}
-                        </span>
-                      </div>
-                      <div className="request-stat-summary">
-                        <div className="request-summary-card">
-                          <span>Total padron</span>
-                          <strong>{aguasServiceReportData.totalRecords}</strong>
-                        </div>
-                        <div className="request-summary-card">
-                          <span>Barrios</span>
-                          <strong>{padronServiceReport?.summary?.total_barrios ?? 0}</strong>
-                        </div>
-                        <div className="request-summary-card">
-                          <span>Todos servicios base</span>
-                          <strong>{aguasServiceReportData.profiles.all_core_services ?? 0}</strong>
-                        </div>
-                        <div className="request-summary-card">
-                          <span>Sin servicios base</span>
-                          <strong>{aguasServiceReportData.profiles.no_core_services ?? 0}</strong>
-                        </div>
-                      </div>
-                      <div className="request-chart-list aguas-service-preview">
-                        {aguasServiceReportData.serviceRows.length ? (
-                          aguasServiceReportData.serviceRows.map((service) => (
-                            <button
-                              key={service.field}
-                              type="button"
-                              className={`request-chart-row ${selectedAguasServiceField === service.field ? "is-selected" : ""}`}
-                              onClick={() => setSelectedAguasServiceField(service.field)}
-                            >
-                              <div className="request-chart-copy">
-                                <div className="request-chart-heading">
-                                  <strong>{service.label}</strong>
-                                  <b className="request-chart-value">{service.percentage}%</b>
-                                </div>
-                                <span>{service.detail}</span>
-                              </div>
-                              <div className="request-chart-track">
-                                <span style={{ width: `${(Number(service.active || 0) / aguasServiceReportData.maxServiceTotal) * 100}%` }} />
-                              </div>
-                            </button>
-                          ))
-                        ) : (
-                          <p className="helper-text">No hay datos del padron maestro para calcular servicios.</p>
-                        )}
-                      </div>
-                      <div className="request-stat-actions">
-                        <button type="button" onClick={() => loadPadronServiceReport()} disabled={loadingPadronServiceReport}>
-                          <Icon name="refresh" />
-                          {loadingPadronServiceReport ? "Actualizando..." : "Actualizar informe"}
-                        </button>
-                        <button
-                          type="button"
-                          className="button-secondary"
-                          onClick={() => setShowPadronServiceModal(true)}
-                          disabled={!aguasServiceReportData.hasData}
-                        >
-                          <Icon name="dashboard" />
-                          Ver grafico
-                        </button>
-                        <button
-                          type="button"
-                          className="button-secondary"
-                          onClick={handlePrintAguasServiceReport}
-                          disabled={!aguasServiceReportData.hasData}
-                        >
-                          <Icon name="records" />
-                          Imprimir informe
-                        </button>
-                      </div>
-                    </section> : null}
-
-                    {showPadronServiceModal ? (
-                      <div className="stats-modal-backdrop" role="presentation" onMouseDown={() => setShowPadronServiceModal(false)}>
-                        <section className="stats-modal-card" role="dialog" aria-modal="true" aria-label="Grafico de servicios del padron" onMouseDown={(event) => event.stopPropagation()}>
-                          <div className="stats-modal-head">
-                            <div>
-                              <p className="sheet-kicker">Grafico del padron maestro</p>
-                              <h3>Servicios activos por usuario</h3>
-                              <p className="helper-text">
-                                Fuente: {padronServiceReport?.source?.file_name || "Padron maestro"} - {formatDateTime(padronServiceReport?.source?.updated_at)}
-                              </p>
-                            </div>
-                            <div className="stats-modal-actions">
-                              <button type="button" onClick={handleDownloadAguasServicePdf} disabled={downloadingAguasServicePdf}>
-                                <Icon name="records" />
-                                {downloadingAguasServicePdf ? "Guardando..." : "Guardar PDF"}
-                              </button>
-                              <button type="button" onClick={() => handlePrintAguasServiceReport()}>
-                                <Icon name="records" />
-                                Imprimir
-                              </button>
-                              <button
-                                type="button"
-                                className="button-secondary"
-                                onClick={() => handlePrintAguasServiceReport({ onlySelected: true })}
-                                disabled={!selectedAguasServiceBarrios.length}
-                              >
-                                <Icon name="records" />
-                                Imprimir barrios ({selectedAguasServiceBarrios.length})
-                              </button>
-                              <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronServiceModal(false)}>
-                                Cerrar
-                              </button>
-                            </div>
-                          </div>
-                          <div className="request-stat-summary stats-modal-summary">
-                            <div className="request-summary-card">
-                              <span>Usuarios</span>
-                              <strong>{aguasServiceReportData.totalRecords}</strong>
-                            </div>
-                            <div className="request-summary-card">
-                              <span>Con agua sin alcantarillado</span>
-                              <strong>{aguasServiceReportData.profiles.water_without_sewer ?? 0}</strong>
-                            </div>
-                            <div className="request-summary-card">
-                              <span>Alcantarillado sin agua</span>
-                              <strong>{aguasServiceReportData.profiles.sewer_without_water ?? 0}</strong>
-                            </div>
-                            <div className="request-summary-card">
-                              <span>Barrios</span>
-                              <strong>{padronServiceReport?.summary?.total_barrios ?? 0}</strong>
-                            </div>
-                            <div className="request-summary-card is-debt-total">
-                              <span>Deuda total</span>
-                              <strong>{formatCurrency(aguasServiceReportData.deuda.total || 0)}</strong>
-                              <small>{aguasServiceReportData.deuda.deudores || 0} cuentas con deuda</small>
-                            </div>
-                          </div>
-                          <div className="stats-modal-body">
-                            <div className="request-chart-controls" role="group" aria-label="Servicio del padron maestro">
-                              {aguasServiceReportData.services.map((service) => (
-                                <button
-                                  key={service.field}
-                                  type="button"
-                                  className={selectedAguasServiceField === service.field ? "active" : ""}
-                                  onClick={() => setSelectedAguasServiceField(service.field)}
-                                >
-                                  {service.label}
-                                </button>
-                              ))}
-                            </div>
-                            <div className="request-chart-grid">
-                              <section className="request-chart-card is-wide">
-                                <div>
-                                  <strong>Resumen general por servicio</strong>
-                                  <span>Cantidad de usuarios con cada servicio activo dentro del padron maestro.</span>
-                                </div>
-                                <div className="request-chart-list">
-                                  {aguasServiceReportData.serviceRows.map((service) => (
-                                    <button
-                                      key={`modal-service-${service.field}`}
-                                      type="button"
-                                      className={`request-chart-row ${selectedAguasServiceField === service.field ? "is-selected" : ""}`}
-                                      onClick={() => setSelectedAguasServiceField(service.field)}
-                                    >
-                                      <div className="request-chart-copy">
-                                        <div className="request-chart-heading">
-                                          <strong>{service.label}</strong>
-                                          <b className="request-chart-value">{service.active}</b>
-                                        </div>
-                                        <span>{service.percentage}% del padron - {service.inactive} sin servicio</span>
-                                        <span className="request-chart-debt">Deuda asociada: {formatCurrency(service.deuda?.total || 0)}</span>
-                                      </div>
-                                      <div className="request-chart-track">
-                                        <span style={{ width: `${(Number(service.active || 0) / aguasServiceReportData.maxServiceTotal) * 100}%` }} />
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
-                              </section>
-                              <section className="request-chart-card">
-                                <div>
-                                  <strong>{aguasServiceReportData.selectedService?.label || "Servicio"} por barrio</strong>
-                                  <span>Marca los barrios que quieres imprimir con el desglose completo de servicios.</span>
-                                  <label className="request-chart-filter aguas-barrio-print-filter">
-                                    <span>Buscar barrio para imprimir</span>
-                                    <input
-                                      value={aguasServiceBarrioFilter}
-                                      onChange={(event) => setAguasServiceBarrioFilter(event.target.value)}
-                                      placeholder="Ej. La Providencia"
-                                    />
-                                  </label>
-                                  <div className="request-barrio-print-actions">
-                                    <button
-                                      type="button"
-                                      className="button-secondary"
-                                      onClick={toggleVisibleAguasServiceBarrios}
-                                      disabled={!visibleAguasServiceBarrioRows.length}
-                                    >
-                                      {allVisibleAguasServiceBarriosSelected ? "Quitar visibles" : "Seleccionar visibles"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="button-secondary"
-                                      onClick={() => setSelectedAguasServiceBarrios([])}
-                                      disabled={!selectedAguasServiceBarrios.length}
-                                    >
-                                      Limpiar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handlePrintAguasServiceReport({ onlySelected: true })}
-                                      disabled={!selectedAguasServiceBarrios.length}
-                                    >
-                                      <Icon name="records" />
-                                      Imprimir seleccion
-                                    </button>
-                                  </div>
-                                  <span className="helper-text">
-                                    {selectedAguasServiceBarrios.length
-                                      ? `${selectedAguasServiceBarrios.length} barrios seleccionados`
-                                      : "Selecciona uno o varios barrios para imprimirlos aparte."}
-                                  </span>
-                                </div>
-                                <div className="request-chart-list">
-                                  {visibleAguasServiceBarrioRows.length ? (
-                                    visibleAguasServiceBarrioRows.map((item) => {
-                                      const barrioName = getAguasServiceBarrioName(item);
-                                      const isSelected = selectedAguasServiceBarrioSet.has(barrioName);
-                                      return (
-                                      <button
-                                        key={`service-barrio-${item.barrio_colonia}`}
-                                        type="button"
-                                        className={`request-chart-row request-barrio-select-row ${isSelected ? "is-selected" : ""}`}
-                                        onClick={() => toggleAguasServiceBarrioSelection(barrioName)}
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={isSelected}
-                                          onChange={() => toggleAguasServiceBarrioSelection(barrioName)}
-                                          onClick={(event) => event.stopPropagation()}
-                                          aria-label={`Seleccionar ${barrioName}`}
-                                        />
-                                        <div className="request-chart-copy">
-                                          <div className="request-chart-heading">
-                                            <strong>{item.barrio_colonia}</strong>
-                                            <b className="request-chart-value">{item.active}</b>
-                                          </div>
-                                          <span>{item.percentage}% de {item.total_registros} usuarios</span>
-                                          <span className="request-chart-debt">Deuda asociada: {formatCurrency(item.deuda_servicio?.total || 0)}</span>
-                                        </div>
-                                        <div className="request-chart-track">
-                                          <span style={{ width: `${(Number(item.active || 0) / aguasServiceReportData.maxBarrioServiceTotal) * 100}%` }} />
-                                        </div>
-                                      </button>
-                                      );
-                                    })
-                                  ) : (
-                                    <p className="helper-text">No hay barrios para este filtro.</p>
-                                  )}
-                                </div>
-                              </section>
-                              <section className="request-chart-card is-wide aguas-debt-table-card">
-                                <div>
-                                  <strong>Totales de deuda por barrio y servicio</strong>
-                                  <span>Capital e intereses del barrio, más la deuda de las cuentas que tienen cada servicio activo.</span>
-                                </div>
-                                <div className="aguas-debt-table-wrap">
-                                  <table className="aguas-debt-table">
-                                    <thead>
-                                      <tr>
-                                        <th>Barrio</th>
-                                        <th>Capital</th>
-                                        <th>Intereses</th>
-                                        <th>Total</th>
-                                        <th>Agua</th>
-                                        <th>Alcantarillado</th>
-                                        <th>Barrido</th>
-                                        <th>Recoleccion</th>
-                                        <th>Peligrosos</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {visibleAguasDebtBarrioRows.map((barrio) => {
-                                        const services = Array.isArray(barrio.servicios) ? barrio.servicios : [];
-                                        const serviceDebt = (field) => services.find((service) => service.field === field)?.deuda?.total || 0;
-                                        return (
-                                          <tr key={`debt-${getAguasServiceBarrioName(barrio)}`}>
-                                            <th>{getAguasServiceBarrioName(barrio)}</th>
-                                            <td>{formatCurrency(barrio.deuda?.capital || 0)}</td>
-                                            <td>{formatCurrency(barrio.deuda?.intereses || 0)}</td>
-                                            <td><strong>{formatCurrency(barrio.deuda?.total || 0)}</strong></td>
-                                            <td>{formatCurrency(serviceDebt("agua"))}</td>
-                                            <td>{formatCurrency(serviceDebt("alcantarillado"))}</td>
-                                            <td>{formatCurrency(serviceDebt("barrido"))}</td>
-                                            <td>{formatCurrency(serviceDebt("recoleccion"))}</td>
-                                            <td>{formatCurrency(serviceDebt("desechos_peligrosos"))}</td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                <p className="helper-text">
-                                  Nota: una misma cuenta puede sumar en varios servicios porque el archivo maestro no separa la deuda por concepto facturado.
-                                </p>
-                              </section>
-                            </div>
-                          </div>
-                        </section>
-                      </div>
-                    ) : null}
-
-                    {false ? <section className="document-block request-statistics-panel">
-                      <div className="admin-section-head">
-                        <div>
-                          <p className="sheet-kicker">Graficos estadisticos</p>
-                          <h3>Alcaldia vs Aguas de Choluteca</h3>
-                          <p className="helper-text">
-                            Detecta barrios donde Alcaldia tiene claves catastrales, pero Aguas registra menos usuarios o no encuentra coincidencia.
-                          </p>
-                        </div>
-                        <span className="panel-pill">
-                          {alcaldiaComparison?.summary
-                            ? `${alcaldiaComparison.summary.candidate_clandestine ?? 0} candidatas`
-                            : "Sin comparar"}
-                        </span>
-                      </div>
-                      <div className="request-stat-summary">
-                        <div className="request-summary-card">
-                          <span>Aguas</span>
-                          <strong>{alcaldiaComparison?.summary?.aguas_records ?? padronMeta?.total_records ?? 0}</strong>
-                        </div>
-                        <div className="request-summary-card">
-                          <span>Alcaldia</span>
-                          <strong>{alcaldiaComparison?.summary?.alcaldia_records ?? alcaldiaMeta?.total_records ?? 0}</strong>
-                        </div>
-                        <div className="request-summary-card">
-                          <span>No aparecen en Aguas</span>
-                          <strong>{alcaldiaComparison?.summary?.candidate_clandestine ?? 0}</strong>
-                        </div>
-                        <div className="request-summary-card">
-                          <span>Coincidencias</span>
-                          <strong>{(alcaldiaComparison?.summary?.exact_matches ?? 0) + (alcaldiaComparison?.summary?.base_matches ?? 0)}</strong>
-                        </div>
-                      </div>
-                      <div className="request-stat-actions">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowPadronStatsModal(true);
-                            if (!alcaldiaComparison?.summary) loadAlcaldiaComparison({ silent: true });
-                          }}
-                        >
-                          <Icon name="dashboard" />
-                          Ver graficos completos
-                        </button>
-                        <span className="helper-text">Abre una ventana amplia para cambiar modo, tipo de grafico y revisar cada barrio sin que se monten datos.</span>
-                      </div>
-                    </section> : null}
-
-                    {showPadronStatsModal ? (
-                      <div className="stats-modal-backdrop" role="presentation" onMouseDown={() => setShowPadronStatsModal(false)}>
-                        <section className="stats-modal-card" role="dialog" aria-modal="true" aria-label="Graficos estadisticos" onMouseDown={(event) => event.stopPropagation()}>
-                          <div className="stats-modal-head">
-                            <div>
-                              <p className="sheet-kicker">Graficos estadisticos</p>
-                              <h3>Alcaldia vs Aguas de Choluteca</h3>
-                              <p className="helper-text">Explora cobertura, brechas y servicios por barrio en una vista amplia.</p>
-                            </div>
-                            <div className="stats-modal-actions">
-                              <button
-                                type="button"
-                                onClick={handleDownloadPadronStatsPdf}
-                                disabled={downloadingPadronStatsPdf || !padronStatisticsData.dynamicRows.length}
-                              >
-                                <Icon name="records" />
-                                {downloadingPadronStatsPdf ? "Guardando..." : "Guardar PDF"}
-                              </button>
-                              <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronStatsModal(false)}>
-                                Cerrar
-                              </button>
-                            </div>
-                          </div>
-                          <div className="request-stat-summary stats-modal-summary">
-                            <div className="request-summary-card">
-                              <span>Aguas</span>
-                              <strong>{alcaldiaComparison?.summary?.aguas_records ?? padronMeta?.total_records ?? 0}</strong>
-                            </div>
-                            <div className="request-summary-card">
-                              <span>Alcaldia</span>
-                              <strong>{alcaldiaComparison?.summary?.alcaldia_records ?? alcaldiaMeta?.total_records ?? 0}</strong>
-                            </div>
-                            <div className="request-summary-card">
-                              <span>No aparecen en Aguas</span>
-                              <strong>{alcaldiaComparison?.summary?.candidate_clandestine ?? 0}</strong>
-                            </div>
-                            <div className="request-summary-card">
-                              <span>Coincidencias</span>
-                              <strong>{(alcaldiaComparison?.summary?.exact_matches ?? 0) + (alcaldiaComparison?.summary?.base_matches ?? 0)}</strong>
-                            </div>
-                          </div>
-                          <div className="stats-modal-body">
-                                                  <div className="request-chart-controls" role="group" aria-label="Tipo de grafico estadistico">
-                                                    {[
-                                                      ["brecha", "Brecha por barrio"],
-                                                      ["cobertura_alta", "Mas cobertura"],
-                                                      ["cobertura_baja", "Menos cobertura"],
-                                                      ["servicio_dominante", "Servicio mayoritario"],
-                                                      ["comparativa", "Comparativa"],
-                                                      ["servicios", "Dividir por servicios"]
-                                                    ].map(([mode, label]) => (
-                                                      <button
-                                                        key={mode}
-                                                        type="button"
-                                                        className={padronChartMode === mode ? "active" : ""}
-                                                       onClick={() => {
-                                                         setPadronChartMode(mode);
-                                                         if (mode !== "servicios") setSelectedPadronServiceField("");
-                                                       }}
-                                                      >
-                                                        {label}
-                                                      </button>
-                                                    ))}
-                                                  </div>
-                                                  <div className="request-chart-grid">
-                                                    <section ref={padronStatsChartRef} className="request-chart-card is-wide">
-                                                     <div>
-                                                       <strong>
-                                                         {padronChartMode === "cobertura_alta"
-                                                           ? "Barrios con mayor cobertura registrada"
-                                                           : padronChartMode === "cobertura_baja"
-                                                              ? "Barrios con menor cobertura en Aguas"
-                                                              : padronChartMode === "servicio_dominante"
-                                                                ? "Servicio mayoritario por barrio"
-                                                                : padronChartMode === "comparativa"
-                                                                  ? `Comparativa por ${padronStatisticsData.metricLabels?.[padronStatsSortMetric] || "metrica"}`
-                                                                : padronChartMode === "servicios" && padronStatisticsData.selectedServiceLabel
-                                                                 ? `Barrios con ${padronStatisticsData.selectedServiceLabel}`
-                                                                 : padronChartMode === "servicios"
-                                                                   ? "Usuarios divididos por servicio"
-                                                                 : "Barrios con mas claves de Alcaldia sin registro en Aguas"}
-                                                       </strong>
-                                                       <span>
-                                                         {padronChartMode === "servicios" && padronStatisticsData.selectedServiceLabel
-                                                           ? `Porcentaje de usuarios con ${padronStatisticsData.selectedServiceLabel} dentro de cada barrio.`
-                                                           : padronChartMode === "servicios"
-                                                            ? "Suma los servicios activos dentro de los usuarios encontrados en Aguas."
-                                                            : padronChartMode === "comparativa"
-                                                              ? "Ordena barrios por la metrica que necesitas para preparar reportes y comparativas."
-                                                            : "Toca un barrio para ver su detalle de cobertura y servicios."}
-                                                       </span>
-                                                       <div className="request-chart-type-controls" role="group" aria-label="Tipo de visualizacion">
-                                                          {[
-                                                            ["barras", "Barras"],
-                                                            ["lista", "Lista"],
-                                                            ["tabla", "Tabla"]
-                                                          ].map(([type, label]) => (
-                                                            <button
-                                                              key={type}
-                                                              type="button"
-                                                              className={padronChartType === type ? "active" : ""}
-                                                              onClick={() => setPadronChartType(type)}
-                                                            >
-                                                              {label}
-                                                            </button>
-                                                           ))}
-                                                          </div>
-                                                          <div className="request-chart-report-controls">
-                                                            <label>
-                                                              <span>Ordenar por</span>
-                                                              <select value={padronStatsSortMetric} onChange={(event) => setPadronStatsSortMetric(event.target.value)}>
-                                                                {Object.entries(padronStatisticsData.metricLabels || {}).map(([metric, label]) => (
-                                                                  <option key={metric} value={metric}>
-                                                                    {label}
-                                                                  </option>
-                                                                ))}
-                                                              </select>
-                                                            </label>
-                                                            <label>
-                                                              <span>Orden</span>
-                                                              <select value={padronStatsSortDirection} onChange={(event) => setPadronStatsSortDirection(event.target.value)}>
-                                                                <option value="desc">Mayor a menor</option>
-                                                                <option value="asc">Menor a mayor</option>
-                                                              </select>
-                                                            </label>
-                                                            <label>
-                                                              <span>Mostrar</span>
-                                                              <select value={padronStatsLimit} onChange={(event) => setPadronStatsLimit(Number(event.target.value))}>
-                                                                {[5, 10, 15, 20, 30].map((amount) => (
-                                                                  <option key={amount} value={amount}>
-                                                                    Top {amount}
-                                                                  </option>
-                                                                ))}
-                                                              </select>
-                                                            </label>
-                                                          </div>
-                                                          {padronChartMode === "servicios" && selectedPadronServiceField ? (
-                                                           <div className="request-chart-drilldown">
-                                                             <span>Servicio: {padronStatisticsData.selectedServiceLabel}</span>
-                                                             <button type="button" className="button-secondary" onClick={() => setSelectedPadronServiceField("")}>
-                                                               Ver todos los servicios
-                                                             </button>
-                                                           </div>
-                                                         ) : null}
-                                                         <label className="request-chart-filter">
-                                                           <span>Filtrar por barrio</span>
-                                                           <input
-                                                             value={padronStatsBarrioFilter}
-                                                             onChange={(event) => setPadronStatsBarrioFilter(event.target.value)}
-                                                             placeholder="Ej. Barrio La Libertad"
-                                                           />
-                                                         </label>
-                                                       </div>
-                                                       <div className={`request-chart-list is-${padronChartType}`}>
-                                                        {padronStatisticsData.dynamicRows.length ? (
-                                                          padronChartType === "tabla" ? (
-                                                            <div className="request-chart-table" role="table">
-                                                              <div role="row">
-                                                                <span>Barrio / servicio</span>
-                                                                <span>Detalle</span>
-                                                                <span>Valor</span>
-                                                              </div>
-                                                              {padronStatisticsData.dynamicRows.map((item) => (
-                                                                <button
-                                                                  key={String(padronChartMode) + "-table-" + String(item.barrio_colonia || item.field)}
-                                                                  type="button"
-                                                                  role="row"
-                                                                  onClick={() => {
-                                                                    if (padronChartMode === "servicios" && !selectedPadronServiceField && item.field) {
-                                                                      setSelectedPadronServiceField(item.field);
-                                                                      return;
-                                                                    }
-                                                                    if (item.barrio_colonia && (padronChartMode !== "servicios" || selectedPadronServiceField)) {
-                                                                      setSelectedPadronStatBarrio(item.barrio_colonia);
-                                                                    }
-                                                                  }}
-                                                                >
-                                                                  <span>{item.barrio_colonia}</span>
-                                                                  <span>{item.detail}</span>
-                                                                  <strong>{padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField) ? `${item.value}%` : item.value}</strong>
-                                                                </button>
-                                                              ))}
-                                                            </div>
-                                                          ) : (
-                                                            padronStatisticsData.dynamicRows.map((item) => (
-                                                              <button
-                                                                key={String(padronChartMode) + "-" + String(item.barrio_colonia || item.field)}
-                                                                type="button"
-                                                                className={"request-chart-row " + (padronStatisticsData.selectedBarrio?.barrio_colonia === item.barrio_colonia ? "is-selected" : "")}
-                                                                onClick={() => {
-                                                                  if (padronChartMode === "servicios" && !selectedPadronServiceField && item.field) {
-                                                                    setSelectedPadronServiceField(item.field);
-                                                                    return;
-                                                                  }
-                                                                  if (item.barrio_colonia && (padronChartMode !== "servicios" || selectedPadronServiceField)) {
-                                                                    setSelectedPadronStatBarrio(item.barrio_colonia);
-                                                                  }
-                                                                }}
-                                                              >
-                                                                <div className="request-chart-copy">
-                                                                  <div className="request-chart-heading">
-                                                                    <strong>{item.barrio_colonia}</strong>
-                                                                    <b className="request-chart-value">{padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField) ? `${item.value}%` : item.value}</b>
-                                                                  </div>
-                                                                  <span>{item.detail}</span>
-                                                                </div>
-                                                                {padronChartType === "barras" ? (
-                                                                  <div className="request-chart-track">
-                                                                    <span style={{ width: String((Number(item.value || 0) / padronStatisticsData.maxDynamicRows) * 100) + "%" }} />
-                                                                  </div>
-                                                                ) : null}
-                                                              </button>
-                                                            ))
-                                                          )
-                                                        ) : (
-                                                          <p className="helper-text">Genera la comparacion para activar este grafico.</p>
-                                                        )}
-                                                      </div>
-                                                    </section>
-                                                    <section className="request-chart-card">
-                                                      <div>
-                                                        <strong>Detalle del barrio</strong>
-                                                        <span>Lectura rapida de cobertura, brecha y servicio dominante.</span>
-                                                      </div>
-                                                      {padronStatisticsData.selectedBarrio ? (
-                                                        <div className="request-barrio-detail">
-                                                          <strong>{padronStatisticsData.selectedBarrio.barrio_colonia}</strong>
-                                                          <div className="request-barrio-detail-grid">
-                                                            <span>Claves Alcaldia <b>{padronStatisticsData.selectedBarrio.alcaldia_total}</b></span>
-                                                            <span>En Aguas <b>{padronStatisticsData.selectedBarrio.aguas_registradas}</b></span>
-                                                            <span>Cobertura <b>{padronStatisticsData.selectedBarrio.cobertura_aguas_pct}%</b></span>
-                                                            <span>Brecha <b>{padronStatisticsData.selectedBarrio.brecha_registros}</b></span>
-                                                          </div>
-                                                          <div className="request-service-dominant">
-                                                            <span>Servicio mayoritario</span>
-                                                            <strong>{padronStatisticsData.selectedBarrio.servicio_dominante || "Sin servicio dominante"}</strong>
-                                                          </div>
-                                                          <div className="request-service-list">
-                                                            {Object.entries(padronStatisticsData.serviceLabels).map(([field, label]) => {
-                                                              const total = Number(padronStatisticsData.selectedBarrio.servicios?.[field] || 0);
-                                                              const maxService = Math.max(
-                                                                1,
-                                                                ...Object.keys(padronStatisticsData.serviceLabels).map((serviceField) =>
-                                                                  Number(padronStatisticsData.selectedBarrio.servicios?.[serviceField] || 0)
-                                                                )
-                                                              );
-                                                              return (
-                                                                <div key={field} className="request-service-row">
-                                                                  <div>
-                                                                    <span>{label}</span>
-                                                                    <strong>{total}</strong>
-                                                                  </div>
-                                                                  <div className="request-chart-track">
-                                                                    <span style={{ width: String((total / maxService) * 100) + "%" }} />
-                                                                  </div>
-                                                                </div>
-                                                              );
-                                                            })}
-                                                          </div>
-                                                        </div>
-                                                      ) : (
-                                                        <p className="helper-text">Selecciona un barrio o genera la comparacion para ver el detalle.</p>
-                                                      )}
-                                                    </section>
-                                                    <section className="request-chart-card">
-                                                      <div>
-                                                        <strong>Resultado de la peticion por barrio</strong>
-                                                        <span>Grafico del listado generado con la plantilla actual.</span>
-                                                      </div>
-                                                      <div className="request-chart-list">
-                                                        {padronStatisticsData.requestBarriosTop.length ? (
-                                                          padronStatisticsData.requestBarriosTop.map((item) => (
-                                                            <div key={"request-" + item.barrio_colonia} className="request-chart-row">
-                                                              <div className="request-chart-copy">
-                                                                <strong>{item.barrio_colonia}</strong>
-                                                                <span>{item.total_registros} registros - {formatCurrency(item.tarifa_total || 0)}</span>
-                                                              </div>
-                                                              <div className="request-chart-track">
-                                                                <span style={{ width: String((Number(item.total_registros || 0) / padronStatisticsData.maxRequestRows) * 100) + "%" }} />
-                                                              </div>
-                                                            </div>
-                                                          ))
-                                                        ) : (
-                                                          <p className="helper-text">Genera una peticion para ver su grafico por barrio.</p>
-                                                        )}
-                                                      </div>
-                                                    </section>
-                                                  </div>
-                                                      </div>
-                        </section>
-                      </div>
-                    ) : null}
-
-                    {showPadronRequestModal ? (
-                      <div className="stats-modal-backdrop" role="presentation" onMouseDown={() => setShowPadronRequestModal(false)}>
-                        <section className="stats-modal-card" role="dialog" aria-modal="true" aria-label="Constructor de peticiones" onMouseDown={(event) => event.stopPropagation()}>
-                          <div className="stats-modal-head">
-                            <div>
-                              <p className="sheet-kicker">Listado configurable</p>
-                              <h3>Constructor de peticiones</h3>
-                              <p className="helper-text">Configura, genera, imprime y descarga listados desde el padron maestro.</p>
-                            </div>
-                            <div className="stats-modal-actions">
-                              <button type="button" onClick={handleRunPadronRequest} disabled={loadingPadronRequest}>
-                                <Icon name="refresh" className={loadingPadronRequest ? "ds-icon-spin" : ""} />
-                                {loadingPadronRequest ? "Generando..." : "Generar"}
-                              </button>
-                              <button type="button" className="button-secondary" onClick={handlePrintPadronRequest}>
-                                <Icon name="records" />
-                                Imprimir
-                              </button>
-                              <button type="button" className="button-secondary" onClick={handleDownloadPadronRequestPdf}>
-                                <Icon name="records" />
-                                PDF
-                              </button>
-                              <button type="button" className="button-secondary stats-modal-close" onClick={() => setShowPadronRequestModal(false)}>
-                                Cerrar
-                              </button>
-                            </div>
-                          </div>
-                          <div className="stats-modal-body">
-                    <div className="request-editor-grid">
-                      <form className="document-block request-editor-card" onSubmit={handleRunPadronRequest}>
-                        <div className="admin-section-head">
-                          <div>
-                            <p className="sheet-kicker">Constructor</p>
-                            <h3>Configurar solicitud</h3>
-                          </div>
-                          <span className="panel-pill">{padronRequestForm.preset_id || "custom"}</span>
-                        </div>
-                        <label>
-                          <span>Plantilla</span>
-                          <select
-                            name="preset_id"
-                            value={padronRequestForm.preset_id}
-                            onChange={handlePadronRequestPresetChange}
-                          >
-                            {padronRequestTemplates.map((template) => (
-                              <option key={template.id} value={template.id}>
-                                {template.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          <span>Titulo del reporte</span>
-                          <input
-                            name="title"
-                            value={padronRequestForm.title}
-                            onChange={handlePadronRequestFormChange}
-                            placeholder="Titulo institucional de la peticion"
-                          />
-                        </label>
-                        <label>
-                          <span>Descripcion</span>
-                          <textarea
-                            name="description"
-                            rows="3"
-                            value={padronRequestForm.description}
-                            onChange={handlePadronRequestFormChange}
-                            placeholder="Resumen de lo que necesita el solicitante"
-                          />
-                        </label>
-                        <label>
-                          <span>Palabras clave</span>
-                          <textarea
-                            name="keywords"
-                            rows="3"
-                            value={padronRequestForm.keywords}
-                            onChange={handlePadronRequestFormChange}
-                            placeholder="clinica, hospital, odont, laborat"
-                          />
-                        </label>
-                        <p className="helper-text">
-                          Usa comas para separar criterios. La plantilla base esta orientada a apartamentos, pero puedes ajustarla para cualquier otra peticion.
-                        </p>
-                        <p className="helper-text">
-                          Tambien puedes usar filtros avanzados como <strong>barrio:centro</strong>, <strong>clave:001-02</strong>, <strong>abonado:12345</strong> o excluir con <strong>-hotel</strong>.
-                        </p>
-                        <p className="helper-text">
-                          La columna <strong>Tarifa</strong> se toma del valor base registrado en el padron maestro.
-                        </p>
-                        <div className="map-form-actions">
-                          <button type="submit" disabled={loadingPadronRequest}>
-                            <Icon name="records" />
-                            {loadingPadronRequest ? "Procesando..." : "Preparar listado"}
-                          </button>
-                        </div>
-                      </form>
-
-                      <article className="document-block request-preview-card">
-                        <div className="admin-section-head">
-                          <div>
-                            <p className="sheet-kicker">Vista previa</p>
-                            <h3>{padronRequestResult?.request?.title || "Sin peticion generada"}</h3>
-                          </div>
-                          <span className="panel-pill">{padronRequestResult?.summary?.total_barrios ?? 0} barrios</span>
-                        </div>
-                        <div className="request-summary-grid">
-                          <div className="request-summary-card">
-                            <span>Registros</span>
-                            <strong>{padronRequestResult?.summary?.total_registros ?? 0}</strong>
-                          </div>
-                          <div className="request-summary-card">
-                            <span>Tarifa acumulada</span>
-                            <strong>{formatCurrency(padronRequestResult?.summary?.tarifa_total ?? 0)}</strong>
-                          </div>
-                          <div className="request-summary-card">
-                            <span>Total con interes</span>
-                            <strong>{formatCurrency(padronRequestResult?.summary?.total_con_interes ?? 0)}</strong>
-                          </div>
-                        </div>
-                        <div className="request-criteria-panel">
-                          <div className="request-criteria-group">
-                            <span>Criterios incluidos</span>
-                            <div className="request-example-list">
-                              {(padronRequestResult?.request?.criteria?.include || padronRequestResult?.request?.keywords || []).length ? (
-                                (padronRequestResult?.request?.criteria?.include || padronRequestResult?.request?.keywords || []).map((item) => (
-                                  <span key={`include-${item}`} className="request-example-chip is-include">{item}</span>
-                                ))
-                              ) : (
-                                <span className="request-example-chip is-empty">Sin criterios todavia</span>
-                              )}
-                            </div>
-                          </div>
-                          {(padronRequestResult?.request?.criteria?.exclude || []).length ? (
-                            <div className="request-criteria-group">
-                              <span>Criterios excluidos</span>
-                              <div className="request-example-list">
-                                {padronRequestResult.request.criteria.exclude.map((item) => (
-                                  <span key={`exclude-${item}`} className="request-example-chip is-exclude">{item}</span>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                        <p className="helper-text request-keyword-line">
-                          Palabras clave activas: {(padronRequestResult?.request?.keywords || []).join(", ") || "--"}
-                        </p>
-                        <p className="workspace-title">{padronRequestResult?.request?.description || "Genera una peticion para ver el resumen detallado."}</p>
-                      </article>
-                    </div>
-
-                    <div className="request-zone-list">
-                      {padronRequestResult?.summary?.barrios?.length ? (
-                        padronRequestResult.summary.barrios.map((barrio, index) => (
-                          <section key={barrio.barrio_colonia} className="document-block request-zone-card">
-                            <div className="map-report-zone-top">
-                              <div>
-                                <span className="sheet-kicker">Barrio {index + 1}</span>
-                                <h4>{barrio.barrio_colonia}</h4>
-                              </div>
-                              <div className="map-report-zone-metrics">
-                                <span>{barrio.total_registros} registros</span>
-                                <span>Tarifa {formatCurrency(barrio.tarifa_total)}</span>
-                                <span>Total {formatCurrency(barrio.total_con_interes)}</span>
-                              </div>
-                            </div>
-                            <div className="map-report-table-wrap">
-                              <table className="map-report-table request-table">
-                                <thead>
-                                  <tr>
-                                    <th>#</th>
-                                    <th>Nombre</th>
-                                    <th>Abonado</th>
-                                    <th>Clave</th>
-                                    <th>Barrio</th>
-                                    <th>Tarifa</th>
-                                    <th>Total</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {barrio.rows.map((row, rowIndex) => (
-                                    <tr key={`${row.clave_catastral}-${row.abonado}-${rowIndex}`}>
-                                      <td>{rowIndex + 1}</td>
-                                      <td>{row.nombre || "--"}</td>
-                                      <td>{row.abonado || "--"}</td>
-                                      <td>{ensureClaveHasPrefix(row.clave_catastral || row.clave_aguas_formato || row.clave_alcaldia, row.barrio_colonia, safeBarrioCodes) || "--"}</td>
-                                      <td>{row.barrio_colonia || "--"}</td>
-                                      <td>{formatCurrency(row.tarifa || 0)}</td>
-                                      <td>{formatCurrency(row.total || 0)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </section>
-                        ))
-                      ) : (
-                        <div className="empty-state">
-                          <h3>Sin peticion generada</h3>
-                          <p>Selecciona una plantilla o define palabras clave para construir un listado listo para entregar.</p>
-                        </div>
-                      )}
-                    </div>
-                          </div>
-                        </section>
-                      </div>
-                    ) : null}
-                  </article>
-                </div>
-              </section>
+              <Suspense fallback={<ModuleSkeleton title="consultas del padrón" />}>
+                <PadronRequestsWorkspace
+                  model={{
+                    serviceReport: padronServiceReport,
+                    serviceData: aguasServiceReportData,
+                    loadingServices: loadingPadronServiceReport || loadingPadronRequestMeta,
+                    loadError: padronRequestLoadError,
+                    onRefresh: () => {
+                      loadPadronRequestMeta({ silent: true });
+                      loadPadronServiceReport();
+                    },
+                    selectedServiceField: selectedAguasServiceField,
+                    onSelectService: setSelectedAguasServiceField,
+                    selectedBarrios: selectedAguasServiceBarrios,
+                    onToggleBarrio: toggleAguasServiceBarrioSelection,
+                    onSetSelectedBarrios: setSelectedAguasServiceBarrios,
+                    onPrintServices: handlePrintAguasServiceReport,
+                    onDownloadServicesPdf: handleDownloadAguasServicePdf,
+                    downloadingServicesPdf: downloadingAguasServicePdf,
+                    templates: padronRequestTemplates,
+                    form: padronRequestForm,
+                    onFormChange: handlePadronRequestFormChange,
+                    onPresetChange: handlePadronRequestPresetChange,
+                    onRunRequest: handleRunPadronRequest,
+                    loadingRequest: loadingPadronRequest,
+                    requestResult: padronRequestResult,
+                    onPrintRequest: handlePrintPadronRequest,
+                    onDownloadRequestPdf: handleDownloadPadronRequestPdf,
+                    formatClave: (row) => ensureClaveHasPrefix(row.clave_catastral || row.clave_aguas_formato || row.clave_alcaldia, row.barrio_colonia, safeBarrioCodes),
+                    comparison: alcaldiaComparison,
+                    loadingComparison: loadingAlcaldiaComparison,
+                    onCompare: () => loadAlcaldiaComparison(),
+                    stats: padronStatisticsData,
+                    padronMeta,
+                    alcaldiaMeta,
+                    chartMode: padronChartMode,
+                    setChartMode: setPadronChartMode,
+                    chartType: padronChartType,
+                    setChartType: setPadronChartType,
+                    sortMetric: padronStatsSortMetric,
+                    setSortMetric: setPadronStatsSortMetric,
+                    sortDirection: padronStatsSortDirection,
+                    setSortDirection: setPadronStatsSortDirection,
+                    limit: padronStatsLimit,
+                    setLimit: setPadronStatsLimit,
+                    barrioFilter: padronStatsBarrioFilter,
+                    setBarrioFilter: setPadronStatsBarrioFilter,
+                    statsServiceField: selectedPadronServiceField,
+                    setStatsServiceField: setSelectedPadronServiceField,
+                    onSelectStatBarrio: setSelectedPadronStatBarrio,
+                    onDownloadStatsPdf: handleDownloadPadronStatsPdf,
+                    downloadingStatsPdf: downloadingPadronStatsPdf
+                  }}
+                />
+              </Suspense>
             ) : workspaceView === "barrioCodes" ? (
               <BarrioCodesWorkspace
                 barrios={safeBarrioCodes}
