@@ -1,7 +1,7 @@
 import express, { Router } from "express";
 import {
   activateBatchHandler, applyBatchHandler, checkR2ConnectionHandler, claimUpdateRequestHandler, deleteBatchHandler, discardRecordsHandler,
-  finalizeBatchHandler, finishUpdateRequestHandler, getR2PadronStatusHandler, getR2UploadStatusHandler, getUpdateRequestHandler,
+  exportBatchExcelHandler, finalizeBatchHandler, finishUpdateRequestHandler, getR2PadronStatusHandler, getR2UploadStatusHandler, getUpdateRequestHandler,
   listBatchRecordsHandler, listBatchesHandler, migratePadronToR2Handler, receiveBlockHandler,
   migrateUploadsToR2Handler, requestUpdateHandler, restoreHistoricalPadronHandler, startBatchHandler, verifyBatchHandler
 } from "../controllers/foxProImportController.js";
@@ -24,6 +24,7 @@ router.post("/solicitudes", requireAuth, requireAdmin, requestUpdateHandler);
 router.get("/solicitudes/:id", requireAuth, requireAdmin, getUpdateRequestHandler);
 router.get("/lotes/:codigoLote/registros", requireAuth, requireAdmin, listBatchRecordsHandler);
 router.get("/lotes/:codigoLote/verificar", requireAuth, requireAdmin, verifyBatchHandler);
+router.get("/lotes/:codigoLote/excel", requireAuth, requireAdmin, exportBatchExcelHandler);
 router.post("/lotes/:codigoLote/activar", requireAuth, requireAdmin, activateBatchHandler);
 router.post("/lotes/:codigoLote/aplicar", requireAuth, requireAdmin, applyBatchHandler);
 router.post("/lotes/:codigoLote/descartar", requireAuth, requireAdmin, discardRecordsHandler);

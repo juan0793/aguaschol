@@ -1290,6 +1290,7 @@ function App() {
   const [loadingPadronBatches, setLoadingPadronBatches] = useState(false);
   const [activatingPadronBatch, setActivatingPadronBatch] = useState(false);
   const [verifyingPadronBatch, setVerifyingPadronBatch] = useState(false);
+  const [downloadingPadronBatch, setDownloadingPadronBatch] = useState(false);
   const [reprocessingPadron, setReprocessingPadron] = useState(false);
   const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
   const [padronSyncState, setPadronSyncState] = useState({
@@ -10143,45 +10144,68 @@ function App() {
     }
   };
 
+  // Baja un Excel del API respetando el nombre que manda el servidor.
+  const downloadExcelFile = async (path, { fallbackName, errorMessage }) => {
+    const response = await apiFetch(path);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || errorMessage);
+    }
+
+    const blob = await response.blob();
+    const contentType = response.headers.get("Content-Type") || blob.type || "";
+    const isExcelResponse =
+      contentType.includes("spreadsheet") ||
+      contentType.includes("vnd.ms-excel") ||
+      contentType.includes("octet-stream");
+
+    if (!isExcelResponse) {
+      const message = await blob.text().catch(() => "");
+      throw new Error(
+        message.includes("<!doctype") || message.includes("<html")
+          ? "El servidor devolvio una pagina web en lugar del padron. Revisa la URL del API configurada."
+          : "El servidor no devolvio un archivo Excel valido."
+      );
+    }
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const contentDisposition = response.headers.get("Content-Disposition") || "";
+    const fileNameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i);
+
+    link.href = downloadUrl;
+    link.download = decodeURIComponent(fileNameMatch?.[1] || fileNameMatch?.[2] || fallbackName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  };
+
   const handleDownloadPadron = async () => {
     try {
-      const response = await apiFetch("/claves/download");
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || "No se pudo descargar el padron maestro.");
-      }
-
-      const blob = await response.blob();
-      const contentType = response.headers.get("Content-Type") || blob.type || "";
-      const isExcelResponse =
-        contentType.includes("spreadsheet") ||
-        contentType.includes("vnd.ms-excel") ||
-        contentType.includes("octet-stream");
-
-      if (!isExcelResponse) {
-        const message = await blob.text().catch(() => "");
-        throw new Error(
-          message.includes("<!doctype") || message.includes("<html")
-            ? "El servidor devolvio una pagina web en lugar del padron. Revisa la URL del API configurada."
-            : "El servidor no devolvio un archivo Excel valido."
-        );
-      }
-
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const fallbackName = `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      const contentDisposition = response.headers.get("Content-Disposition") || "";
-      const fileNameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i);
-
-      link.href = downloadUrl;
-      link.download = decodeURIComponent(fileNameMatch?.[1] || fileNameMatch?.[2] || fallbackName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      await downloadExcelFile("/claves/download", {
+        fallbackName: `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        errorMessage: "No se pudo descargar el padron maestro."
+      });
       showAlert("Descarga del padron iniciada.");
     } catch (error) {
       showAlert(error.message || "No se pudo descargar el padron maestro.");
+    }
+  };
+
+  const handleDownloadPadronBatch = async () => {
+    if (!selectedPadronBatch) return;
+    setDownloadingPadronBatch(true);
+    try {
+      await downloadExcelFile(`/integracion/foxpro/lotes/${encodeURIComponent(selectedPadronBatch.codigo_lote)}/excel`, {
+        fallbackName: `padron-${selectedPadronBatch.codigo_lote}.xlsx`,
+        errorMessage: "No se pudo descargar el lote en Excel."
+      });
+      showAlert(`Descarga del lote ${selectedPadronBatch.codigo_lote} en Excel iniciada.`);
+    } catch (error) {
+      showAlert(error.message || "No se pudo descargar el lote en Excel.");
+    } finally {
+      setDownloadingPadronBatch(false);
     }
   };
 
@@ -16821,6 +16845,10 @@ function App() {
                   </button>
                   <button type="button" className="button-secondary" onClick={handleVerifyPadronBatch} disabled={!selectedPadronBatch || verifyingPadronBatch || activatingPadronBatch}>
                     <Icon name="search" />{verifyingPadronBatch ? "Verificando contenido..." : "Verificar lote activo"}
+                  </button>
+                  {/* Los lotes antiguos pierden su detalle al respaldarse; sin bloques no hay registros que exportar. */}
+                  <button type="button" className="button-secondary" onClick={handleDownloadPadronBatch} disabled={!selectedPadronBatch || downloadingPadronBatch || !Number(selectedPadronBatch?.registros_recibidos)} title={selectedPadronBatch && !Number(selectedPadronBatch.registros_recibidos) ? "Este lote ya no conserva sus registros: el detalle de los lotes antiguos se limpia después de respaldarlo." : "Descarga el lote como padrón en Excel (sin los registros con error)"}>
+                    <Icon name="download" />{downloadingPadronBatch ? "Preparando Excel..." : "Descargar lote en Excel"}
                   </button>
                 </section>
 

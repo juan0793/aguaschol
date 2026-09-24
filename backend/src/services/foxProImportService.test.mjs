@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyFoxProRow, deleteHistoricalFoxProBatch, foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord, pruneOldBatchDetails } from "./foxProImportService.js";
+import XLSX from "xlsx";
+import { classifyFoxProRow, deleteHistoricalFoxProBatch, exportFoxProBatchWorkbook, foxProRowsToMaster, hashFoxProRecords, hashMasterRecords, normalizeFoxProRecord, pruneOldBatchDetails } from "./foxProImportService.js";
 import { normalizeMasterRecords } from "./claveLookupService.js";
 import { sameSecret } from "../middleware/foxProSyncAuth.js";
 
@@ -151,4 +152,34 @@ test("crea el respaldo historico faltante antes de eliminar un lote antiguo", as
   assert.equal(uploaded, true);
   assert.equal(verified, true);
   assert.equal(statements.some((sql) => /^DELETE FROM importacion_padron_lotes/i.test(sql.trim())), true);
+});
+
+test("descarga el lote FoxPro como padron en Excel sin los registros con error", async () => {
+  const statements = [];
+  const pool = { query: async (sql, params) => {
+    statements.push([sql, params]);
+    if (/FROM importacion_padron_lotes/.test(sql)) return [[{ id: 7 }]];
+    return [[
+      { clave_catastral: "89-13-15", codigo_abonado: "1201", nombre: "MARIA FUNEZ", colonia: "BO. CABAÑAS", agua_normalizada: "S", alcantarillado_normalizado: "N", valor: "120.50", intereses: "9.50" },
+      { clave_catastral: "", codigo_abonado: "1202", nombre: "SIN CLAVE", colonia: "", agua_normalizada: "S", valor: 0, intereses: 0 }
+    ]];
+  } };
+  const file = await exportFoxProBatchWorkbook("FOXPRO-20260917-145012-f636fb8c", { pool });
+  assert.equal(file.fileName, "padron-FOXPRO-20260917-145012-f636fb8c.xlsx");
+  assert.match(statements[1][0], /estado NOT IN \('ERROR','DESCARTADO'\)/);
+  const workbook = XLSX.read(file.buffer, { type: "buffer" });
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+  assert.deepEqual(Object.keys(rows[0]), ["catastral", "abonado", "inquilino", "des_coloni", "agua", "alca", "barr", "tren", "bomb", "valor", "intereses", "total"]);
+  const maria = rows.find((row) => row.abonado === "1201");
+  assert.deepEqual([maria.catastral, maria.inquilino, maria.agua, maria.alca, maria.valor, maria.total], ["89-13-15", "MARIA FUNEZ", "S", "N", 120.5, 130]);
+  assert.ok(rows.some((row) => row.abonado === "1202" && row.catastral === ""));
+});
+
+test("avisa cuando el lote ya no conserva registros para exportar", async () => {
+  const pool = { query: async (sql) => {
+    if (/FROM importacion_padron_lotes/.test(sql)) return [[{ id: 3 }]];
+    if (/COUNT\(\*\)/.test(sql)) return [[{ total: 0 }]];
+    return [[]];
+  } };
+  await assert.rejects(() => exportFoxProBatchWorkbook("FOXPRO-20260801-000000-aaaa", { pool }), (error) => error.status === 409 && /ya no conserva/.test(error.message));
 });

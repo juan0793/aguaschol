@@ -1529,11 +1529,40 @@ export const generatePadronRequestReport = async (payload = {}) => {
   };
 };
 
-export const exportClavePadronWorkbook = async () => {
-  const sourceFileName = sanitizeExcelText(masterMeta.source_file_name || masterMeta.file_name || "");
-  const sourceExtension = path.extname(sourceFileName).toLowerCase();
+// Columnas con los nombres del maestro.dbf: el Excel se puede volver a subir como alternativa manual.
+const PADRON_EXCEL_COLUMNS = [
+  ["catastral", "clave_catastral", 16], ["abonado", "abonado", 11], ["inquilino", "inquilino", 34],
+  ["des_coloni", "barrio_colonia", 28], ["agua", "agua", 7], ["alca", "alcantarillado", 7], ["barr", "barrido", 7],
+  ["tren", "recoleccion", 7], ["bomb", "desechos_peligrosos", 7], ["valor", "valor", 11], ["intereses", "intereses", 11], ["total", "total", 11]
+];
+const NUMERIC_EXCEL_FIELDS = new Set(["valor", "intereses", "total"]);
 
-  if (fs.existsSync(maestroSourcePath) && excelMimeTypeByExtension[sourceExtension]) {
+export const buildPadronWorkbook = (records = [], { sheetName = "maestro" } = {}) => {
+  const rows = records.map((item) => Object.fromEntries(PADRON_EXCEL_COLUMNS.map(([header, field]) => [
+    header,
+    NUMERIC_EXCEL_FIELDS.has(field)
+      ? Number(item[field] ?? 0)
+      : sanitizeExcelText(item[field])
+  ])));
+  const worksheet = XLSX.utils.json_to_sheet(rows, { header: PADRON_EXCEL_COLUMNS.map(([header]) => header) });
+  worksheet["!cols"] = PADRON_EXCEL_COLUMNS.map(([, , width]) => ({ wch: width }));
+  if (rows.length) worksheet["!autofilter"] = { ref: worksheet["!ref"] };
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, normalizeWorksheetName(sheetName));
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx", bookSST: true });
+};
+
+export const padronExcelFileName = (label = "maestro") =>
+  `padron-${String(label).replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "maestro"}.xlsx`;
+
+export const exportClavePadronWorkbook = async () => {
+  const sourceFileName = sanitizeExcelText(masterMeta.source_file_name || "");
+  const sourceExtension = path.extname(sourceFileName).toLowerCase();
+  // El Excel guardado solo se entrega si es el padron activo; si despues se activo un lote
+  // FoxPro, ese archivo quedo viejo y el Excel se arma con los registros activos.
+  const activeIsSourceExcel = Boolean(sourceFileName) && masterMeta.file_name === masterMeta.source_file_name;
+
+  if (activeIsSourceExcel && fs.existsSync(maestroSourcePath) && excelMimeTypeByExtension[sourceExtension]) {
     return {
       fileName: sourceFileName,
       contentType: excelMimeTypeByExtension[sourceExtension],
@@ -1541,29 +1570,10 @@ export const exportClavePadronWorkbook = async () => {
     };
   }
 
-  const workbook = XLSX.utils.book_new();
-  const rows = masterRecords.map((item) => ({
-    catastral: sanitizeExcelText(item.clave_catastral),
-    nombre: sanitizeExcelText(item.inquilino),
-    numero_abonado: sanitizeExcelText(item.abonado),
-    titular: sanitizeExcelText(item.nombre),
-    barrio_colonia: sanitizeExcelText(item.barrio_colonia),
-    agua: sanitizeExcelText(item.agua),
-    alcantarillado: sanitizeExcelText(item.alcantarillado),
-    barrido: sanitizeExcelText(item.barrido),
-    recoleccion: sanitizeExcelText(item.recoleccion),
-    desechos_peligrosos: sanitizeExcelText(item.desechos_peligrosos),
-    valor: Number(item.valor ?? 0),
-    intereses: Number(item.intereses ?? 0),
-    total: Number(item.total ?? 0)
-  }));
-
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, worksheet, normalizeWorksheetName(masterMeta.sheet_name));
-
+  const codigoLote = masterMeta.last_import_summary?.codigo_lote || "";
   return {
-    fileName: `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    fileName: padronExcelFileName(codigoLote || `maestro-${new Date().toISOString().slice(0, 10)}`),
     contentType: excelMimeTypeByExtension[".xlsx"],
-    buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx", bookSST: true })
+    buffer: buildPadronWorkbook(masterRecords)
   };
 };

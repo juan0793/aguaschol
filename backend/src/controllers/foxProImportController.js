@@ -1,5 +1,5 @@
 import {
-  activateFoxProBatch, applyFoxProBatch, checkR2PadronConnection, claimFoxProUpdateRequest, deleteHistoricalFoxProBatch, discardFoxProRecords, finalizeFoxProBatch,
+  activateFoxProBatch, applyFoxProBatch, checkR2PadronConnection, exportFoxProBatchWorkbook, claimFoxProUpdateRequest, deleteHistoricalFoxProBatch, discardFoxProRecords, finalizeFoxProBatch,
   finishFoxProUpdateRequest, getFoxProUpdateRequest, listFoxProBatchRecords,
   getR2PadronStatus, listFoxProBatches, migrateActivePadronToR2, receiveFoxProBlock, requestFoxProUpdate,
   restoreHistoricalPadronFromR2, startFoxProBatch, verifyActiveFoxProBatch
@@ -40,6 +40,14 @@ export const listBatchRecordsHandler = async (req, res, next) => {
 };
 export const applyBatchHandler = async (req, res, next) => {
   try { res.json({ ok: true, ...(await applyFoxProBatch(req.params.codigoLote, req.body, req.authUser)) }); } catch (error) { next(error); }
+};
+export const exportBatchExcelHandler = async (req, res, next) => {
+  try {
+    const file = await exportFoxProBatchWorkbook(req.params.codigoLote);
+    res.setHeader("Content-Type", file.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${file.fileName}"`);
+    res.send(file.buffer);
+  } catch (error) { next(error); }
 };
 export const activateBatchHandler = async (req, res, next) => {
   try { res.json({ ok: true, ...(await activateFoxProBatch(req.params.codigoLote, req.authUser)) }); } catch (error) { next(error); }

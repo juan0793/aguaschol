@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import XLSX from "xlsx";
 import {
   activateMasterRecordsInMemory,
+  exportClavePadronWorkbook,
   getAguasServiceReport,
   getMasterRecordsForImport,
   normalizeLookupKey,
@@ -47,6 +49,23 @@ test("una importacion actualiza inmediatamente las consultas en memoria", async 
     const result = await searchClaveCatastral("990001", { field: "abonado" });
     assert.equal(result.matches.length, 1);
     assert.equal(result.matches[0].clave_catastral, "99-99-99-99");
+  } finally {
+    activateMasterRecordsInMemory(previous, { codigoLote: "RESTORE-TEST" });
+  }
+});
+
+test("descargar padron entrega el lote FoxPro activo y no el Excel manual viejo", async () => {
+  const previous = getMasterRecordsForImport();
+  try {
+    activateMasterRecordsInMemory([
+      { clave_catastral: "89-13-15", abonado: "1201", inquilino: "MARIA FUNEZ", barrio_colonia: "Barrio Cabañas", valor: 100, intereses: 5 },
+      { clave_catastral: "89-13-16", abonado: "1202", inquilino: "JOSE ANDINO", barrio_colonia: "Barrio Cabañas", valor: 0, intereses: 0 }
+    ], { codigoLote: "FOXPRO-TEST-EXPORT" });
+    const file = await exportClavePadronWorkbook();
+    assert.equal(file.fileName, "padron-FOXPRO-TEST-EXPORT.xlsx");
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+    assert.deepEqual(rows.map((row) => [row.catastral, row.inquilino, row.total]), [["89-13-15", "MARIA FUNEZ", 105], ["89-13-16", "JOSE ANDINO", 0]]);
   } finally {
     activateMasterRecordsInMemory(previous, { codigoLote: "RESTORE-TEST" });
   }

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
-import { getMasterRecordsForImport, normalizeLookupKey, normalizeMasterRecords, replaceMasterRecordsFromImport } from "./claveLookupService.js";
+import { buildPadronWorkbook, getMasterRecordsForImport, normalizeLookupKey, normalizeMasterRecords, padronExcelFileName, replaceMasterRecordsFromImport } from "./claveLookupService.js";
 import {
   getActivePadronStorageMeta,
   loadActivePadronSnapshot,
@@ -405,6 +405,28 @@ const rowToMaster = (row) => ({
   desechos_peligrosos: row.bombeo_normalizado || "", valor: Number(row.valor || 0), intereses: Number(row.intereses || 0)
 });
 export const foxProRowsToMaster = (rows = []) => rows.map(rowToMaster);
+
+// El lote como padron en Excel: los mismos registros que se activarian (sin errores ni descartados).
+export const exportFoxProBatchWorkbook = async (codigoLote, { pool = getPool() } = {}) => {
+  const codigo = batchCode(codigoLote);
+  const [lots] = await pool.query("SELECT id FROM importacion_padron_lotes WHERE codigo_lote=? LIMIT 1", [codigo]);
+  if (!lots.length) throw fail("Lote no encontrado.", 404);
+  const [rows] = await pool.query(
+    "SELECT * FROM importacion_padron_registros WHERE lote_id=? AND estado NOT IN ('ERROR','DESCARTADO') ORDER BY numero_fila",
+    [lots[0].id]
+  );
+  if (!rows.length) {
+    const [[count]] = await pool.query("SELECT COUNT(*) total FROM importacion_padron_registros WHERE lote_id=?", [lots[0].id]);
+    throw fail(Number(count.total)
+      ? "El lote no tiene registros validos para exportar."
+      : "Este lote ya no conserva sus registros: el detalle de los lotes antiguos se limpia despues de respaldarlo.", 409);
+  }
+  return {
+    fileName: padronExcelFileName(codigo),
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: buildPadronWorkbook(normalizeMasterRecords(foxProRowsToMaster(rows)))
+  };
+};
 
 export const restoreActivePadronFromDatabase = async () => {
   let preferred = { source: "none", records: null, r2_error: null };
