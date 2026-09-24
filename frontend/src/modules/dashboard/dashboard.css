@@ -90,7 +90,6 @@
   gap: 0.6rem 1.25rem;
   padding: 0.7rem 0.95rem;
   border: 1px solid var(--dw-line);
-  border-left: 3px solid var(--dw-blue);
   border-radius: var(--dw-radius);
   background: var(--dw-surface);
 }
@@ -596,7 +595,6 @@ body.dw-resizing * {
   justify-content: space-between;
   gap: 16px;
   padding: 14px;
-  border-left: 3px solid var(--chart-color);
   border-radius: 0 8px 8px 0;
   background: var(--chart-tint);
 }
@@ -744,7 +742,6 @@ body.dw-resizing * {
   gap: 0.5rem 0.9rem;
   margin: 0.1rem 0 0.45rem 1.6rem;
   padding: 0.6rem 0.75rem;
-  border-left: 2px solid var(--dw-blue);
   border-radius: 0 8px 8px 0;
   background: var(--dw-tint);
 }
@@ -1279,7 +1276,6 @@ body.dw-resizing * {
   gap: 0.5rem;
   margin: 0.15rem 0 0.5rem;
   padding: 0.7rem 0.75rem;
-  border-left: 3px solid var(--service-color);
   border-radius: 0 10px 10px 0;
   background: #f8fbff;
   animation: dw-drill-in 0.28s cubic-bezier(0.23, 1, 0.32, 1) both;
@@ -1644,7 +1640,6 @@ body.dw-resizing * {
   gap: 0.6rem;
   padding: 1.1rem 1.25rem;
   border-right: 1px solid var(--dw-line-soft);
-  box-shadow: inset 0 3px 0 var(--dw-blue);
 }
 
 .dashboard-workspace .dw-resumen-monto > header,
@@ -1833,7 +1828,6 @@ body.dw-resizing * {
   border: 1px solid var(--dw-line);
   border-radius: var(--dw-radius);
   background: var(--dw-surface);
-  box-shadow: inset 0 3px 0 var(--dw-teal);
   color: var(--dw-body);
   text-align: left;
   cursor: pointer;
@@ -1843,19 +1837,12 @@ body.dw-resizing * {
     transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.dashboard-workspace .dw-plazos.has-alerts {
-  box-shadow: inset 0 3px 0 #d59124;
-}
 
 .dashboard-workspace .dw-plazos:hover {
   border-color: rgba(20, 101, 217, 0.3);
   background: var(--dw-tint);
-  box-shadow: inset 0 3px 0 var(--dw-teal);
 }
 
-.dashboard-workspace .dw-plazos.has-alerts:hover {
-  box-shadow: inset 0 3px 0 #d59124;
-}
 
 .dashboard-workspace .dw-plazos:active {
   transform: scale(0.985);
@@ -2476,3 +2463,40 @@ body.dw-resizing * {
 .dashboard-workspace .dw-list button:hover { border-left: 0; }
 .dashboard-workspace .dw-ranking-detail { border: 1px solid var(--dw-line-soft); border-radius: var(--dw-radius); }
 .dashboard-workspace .dw-dotplot svg:focus-visible { outline: 2px solid var(--dw-blue); outline-offset: 4px; border-radius: 4px; }
+
+/* ---------- Pulido de la parte superior (crítica 2026-09-24) ---------- */
+
+/* Mientras actualiza, el punto no dice "todo bien": gris y latiendo. */
+.dashboard-workspace .dw-sync.is-refreshing .dw-sync-dot { background: var(--dw-muted); box-shadow: 0 0 0 3px rgba(95, 113, 132, 0.16); animation: dw-sync-pulse 1.2s ease-in-out infinite; }
+@keyframes dw-sync-pulse { 50% { opacity: 0.35; } }
+
+/* "+N" cuando hay más personas en línea que avatares. */
+.dashboard-workspace .dw-team-avatars i.is-more { background: var(--dw-tint); color: var(--dw-muted); font-size: 9.5px; }
+
+/* Los títulos de bloque ahora son h2: sin márgenes de encabezado. */
+.dashboard-workspace h2.dw-eyebrow { margin: 0; line-height: 1.3; }
+
+/* El panel de cartera y cuentas es uno solo y blanco, no dos tarjetas pegadas. */
+.dashboard-workspace .dw-niveles { background: var(--dw-surface); }
+
+/* Marcas de la regla al mínimo de 11px de DESIGN.md. */
+.dashboard-workspace .dw-regla span { font-size: 11px; }
+
+/* Plazos: el icono toma el color del estado que anuncia (rojo solo con vencidas);
+   las filas en cero se leen, y el tono "por vencer" deja de desaparecer sobre blanco. */
+.dashboard-workspace .dw-plazos.has-overdue .dw-plazos-head .app-icon { color: var(--dw-red); }
+.dashboard-workspace .dw-plazos-leyenda > span[data-vacio] { opacity: 0.8; }
+.dashboard-workspace .dw-plazos .is-upcoming i,
+.dashboard-workspace .dw-plazos-barra .is-upcoming { background: #d9b25f; }
+
+/* Áreas táctiles: 40px en escritorio, 44px en el teléfono. */
+.dashboard-workspace .dw-icon-button { width: 40px; height: 40px; }
+.dashboard-workspace .dw-status .dw-button-secondary { min-height: 40px; }
+@media (max-width: 560px) {
+  .dashboard-workspace .dw-icon-button { width: 44px; height: 44px; }
+  .dashboard-workspace .dw-status .dw-button-secondary,
+  .dashboard-workspace .dw-actions button { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-sync.is-refreshing .dw-sync-dot { animation: none; }
+}

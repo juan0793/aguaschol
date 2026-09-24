@@ -14278,7 +14278,7 @@ function App() {
             connectionStatus: dashboardConnectionStatus,
             refreshing: dashboardRefreshing,
             refresh: () => refreshDashboard({ force: true }),
-            syncLabel: dashboardConnectionStatus === "retrying" ? "Reintentando conexión…" : dashboardRefreshing ? "Actualizando..." : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
+            syncLabel: dashboardConnectionStatus === "retrying" ? "Reintentando conexión…" : dashboardRefreshing ? "Actualizando…" : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
             metrics: dashboardLiveMetrics,
             debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
             // El informe de servicios llega agregado por barrio; las cuentas de

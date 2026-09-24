@@ -535,16 +535,17 @@ export default function DashboardWorkspace({ model }) {
                 {model.onlineUsers.slice(0, 4).map((user) => (
                   <i key={user.id}>{(user.full_name || user.username || "U").trim().charAt(0).toUpperCase()}</i>
                 ))}
+                {model.onlineUsers.length > 4 ? <i className="is-more">+{model.onlineUsers.length - 4}</i> : null}
               </span>
               <span>{model.onlineUsers.length} en línea</span>
             </div>
           ) : null}
-          <span className={`dw-sync is-${model.connectionStatus || "idle"}`} role="status">
+          <span className={`dw-sync is-${model.refreshing && model.connectionStatus !== "retrying" ? "refreshing" : model.connectionStatus || "idle"}`} role="status">
             <i className="dw-sync-dot" aria-hidden="true" />
             {model.syncLabel}
           </span>
           <button type="button" className="dw-button-secondary" onClick={model.refresh} disabled={model.refreshing}>
-            <Icon name="refresh" />{model.refreshing ? "Actualizando…" : "Actualizar"}
+            <Icon name="refresh" className={model.refreshing ? "ds-icon-spin" : ""} />Actualizar
           </button>
         </div>
       </header>
@@ -559,7 +560,7 @@ export default function DashboardWorkspace({ model }) {
         <article className="dw-resumen">
           <div className="dw-resumen-monto">
             <header>
-              <span className="dw-eyebrow">Cartera en mora</span>
+              <h2 className="dw-eyebrow">Cartera en mora</h2>
               <button type="button" className="dw-icon-button" onClick={printDebtSummary} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
                 <Icon name="print" />
               </button>
@@ -608,7 +609,7 @@ export default function DashboardWorkspace({ model }) {
 
           <div className="dw-niveles">
             <header>
-              <span className="dw-eyebrow">Cuentas del padrón</span>
+              <h2 className="dw-eyebrow">Cuentas del padrón</h2>
               <span className="dw-niveles-promedio">
                 Promedio por cuenta con mora <Amount value={promedioPorCuenta} compact />
               </span>
@@ -650,7 +651,8 @@ export default function DashboardWorkspace({ model }) {
 
         <button
           type="button"
-          className={`dw-plazos ${alertCount ? "has-alerts" : ""}`.trim()}
+          className={["dw-plazos", alertCount ? "has-alerts" : "", plazos[0].value ? "has-overdue" : ""].filter(Boolean).join(" ")}
+          aria-label={alertCount ? `Plazos de fichas: ${alertCount} con plazo crítico (${plazos.map((item) => `${item.value} ${item.label.toLowerCase()}`).join(", ")}). Revisar fichas` : "Plazos de fichas: ninguna vencida ni por vencer. Ver fichas"}
           data-alerta={alertCount ? "" : undefined}
           onClick={() => navigate("records", "alerts")}
         >
