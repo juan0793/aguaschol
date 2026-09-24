@@ -194,26 +194,45 @@
 .pq-workspace .pq-toolbar.is-compact > .pq-search { flex: 1 1 280px; }
 
 /* ---------- Alcaldía vs Aguas ---------- */
-.pq-workspace .pq-compare-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
-/* Mismas cifras en línea que el encabezado, sin el filete superior. */
-.pq-workspace .pq-ledger.is-compare { flex: 1 1 auto; padding: 0; border-top: 0; }
-.pq-workspace .pq-figure.is-alert dd { color: #b8323e; }
+/* Cobertura del cruce: una barra partida en lo que coincide y lo que falta.
+   El tramo rojo (y su cifra en la leyenda) abre la lista de claves. */
+.pq-workspace .pq-coverage { display: grid; gap: 8px; }
+.pq-workspace .pq-coverage-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.pq-workspace .pq-coverage-head p { margin: 0; color: var(--ds-text-muted, #627d98); font-size: 14px; }
+.pq-workspace .pq-coverage-head p b { margin-right: 4px; color: var(--ds-text, #102a43); font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.pq-workspace .pq-coverage-bar { display: flex; gap: 3px; height: 12px; }
+.pq-workspace .pq-coverage-bar > * { flex-basis: 0; min-width: 4px; margin: 0; padding: 0; border: 0; border-radius: 3px; box-shadow: none; }
+.pq-workspace .pq-coverage-bar > :first-child { border-radius: 99px 3px 3px 99px; }
+.pq-workspace .pq-coverage-bar > :last-child { border-radius: 3px 99px 99px 3px; }
+.pq-workspace .pq-coverage-bar .is-match { background: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-coverage-bar .is-gap { width: auto; min-height: 0; background: #d64550; cursor: pointer; transition: background-color 0.15s ease; }
+.pq-workspace .pq-coverage-bar .is-gap:hover:not(:disabled) { background: #b8323e; box-shadow: none; transform: none; }
+.pq-workspace .pq-coverage-bar .is-gap:focus-visible { outline: 2px solid #b8323e; outline-offset: 2px; }
+.pq-workspace .pq-coverage-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 24px; margin: 0; }
+.pq-workspace .pq-coverage-legend > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.pq-workspace .pq-coverage-legend > div::before { content: ""; align-self: center; width: 10px; height: 10px; border-radius: 3px; }
+.pq-workspace .pq-coverage-legend > .is-match::before { background: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-coverage-legend > .is-gap::before { background: #d64550; }
+.pq-workspace .pq-coverage-legend dt { color: var(--ds-text-muted, #627d98); font-size: 13px; white-space: nowrap; }
+.pq-workspace .pq-coverage-legend dd { margin: 0; color: var(--ds-text, #102a43); font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-coverage-legend .is-gap dd { color: #b8323e; }
 .pq-workspace .pq-figure-link { display: inline-flex; align-items: baseline; gap: 8px; min-height: 0; width: auto; margin: 0; padding: 0; border: 0; border-radius: 4px; background: none; box-shadow: none; color: inherit; font: inherit; cursor: pointer; }
 .pq-workspace .pq-figure-link:hover:not(:disabled) { background: none; box-shadow: none; transform: none; }
-.pq-workspace .pq-figure-link span { color: var(--ds-blue, #1769e0); font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-figure-link span { color: var(--ds-blue, #1769e0); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
 .pq-workspace .pq-figure-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
 .pq-workspace .pq-figure-link .app-icon { align-self: center; width: 14px; height: 14px; margin: 0 0 0 -4px; color: var(--ds-blue, #1769e0); }
 .pq-workspace .pq-figure-link:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: 3px; }
-.pq-workspace .pq-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.pq-workspace .pq-modes button { min-height: 34px; width: auto; margin: 0; padding: 0 13px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 999px; background: #fff; box-shadow: none; color: var(--ds-text, #243b53); font-size: 13px; font-weight: 700; cursor: pointer; }
-.pq-workspace .pq-modes button:hover:not(:disabled) { border-color: var(--ds-blue, #1769e0); box-shadow: none; transform: none; }
-.pq-workspace .pq-modes button.is-active { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue, #1769e0); color: #fff; }
-/* La lista de claves no es un gráfico más: va aparte, en el tono de alerta del cruce. */
-.pq-workspace .pq-modes button.is-claves { border-color: #f0c9ce; background: #fdf6f7; color: #8a2330; }
-.pq-workspace .pq-modes button.is-claves b { margin-left: 4px; font-variant-numeric: tabular-nums; }
-.pq-workspace .pq-modes button.is-claves:hover:not(:disabled) { border-color: #b8323e; }
-.pq-workspace .pq-modes button.is-claves.is-active { border-color: #b8323e; background: #b8323e; color: #fff; }
-.pq-workspace .pq-modes-sep { width: 1px; height: 22px; margin: 0 6px; background: var(--ds-border-strong, #cfdce8); }
+
+/* Vistas del cruce: control segmentado, el mismo de la pestaña de servicios. */
+.pq-workspace .pq-views { display: flex; gap: 2px; max-width: 100%; width: max-content; padding: 3px; overflow-x: auto; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 10px; background: var(--ds-surface-subtle, #f1f5f9); scrollbar-width: none; }
+.pq-workspace .pq-views button { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; width: auto; margin: 0; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; box-shadow: none; color: var(--ds-text-muted, #627d98); font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.pq-workspace .pq-views button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.6); box-shadow: none; transform: none; color: var(--ds-text, #102a43); }
+.pq-workspace .pq-views button.is-active { background: #fff; color: var(--ds-blue, #1769e0); box-shadow: 0 1px 2px rgba(16, 42, 67, 0.12); }
+.pq-workspace .pq-views button:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
+.pq-workspace .pq-views button.is-claves { margin-right: 6px; }
+.pq-workspace .pq-views button.is-claves b { padding: 1px 7px; border-radius: 999px; background: #fdeef0; color: #b8323e; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-views button.is-claves.is-active { color: #8a2330; }
+.pq-workspace .pq-views button.is-claves.is-active b { background: #b8323e; color: #fff; }
 .pq-workspace .pq-compare-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 14px; align-items: start; }
 .pq-workspace .pq-chart { display: grid; gap: 12px; min-width: 0; }
 .pq-workspace .pq-chart > header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 14px; }
@@ -315,12 +334,9 @@
   .pq-workspace .pq-ledger::-webkit-scrollbar { display: none; }
   .pq-workspace .pq-figure { flex: none; padding: 0 14px; scroll-snap-align: start; }
   .pq-workspace .pq-figure dd { font-size: 17px; }
-  .pq-workspace .pq-ledger.is-compare { flex: 1 1 100%; margin: 0 -12px; padding: 0 12px; overflow-x: auto; scrollbar-width: none; }
-  .pq-workspace .pq-compare-head .pq-results-actions { width: 100%; }
-  .pq-workspace .pq-compare-head .pq-results-actions .pq-btn { flex: 1 1 auto; }
-  .pq-workspace .pq-modes-sep { display: none; }
-  .pq-workspace .pq-modes { flex-wrap: nowrap; margin: 0 -12px; padding: 0 12px 2px; overflow-x: auto; scrollbar-width: none; }
-  .pq-workspace .pq-modes button { flex: none; white-space: nowrap; }
+  .pq-workspace .pq-coverage-head .pq-results-actions { width: 100%; }
+  .pq-workspace .pq-coverage-head .pq-results-actions .pq-btn { flex: 1 1 auto; }
+  .pq-workspace .pq-views { width: auto; max-width: none; margin: 0 -12px; border-right: 0; border-left: 0; border-radius: 0; }
   .pq-workspace .pq-alert { margin: 0 14px 12px; }
   .pq-workspace .pq-panel, .pq-workspace .pq-panel.is-table { padding: 12px; }
   .pq-workspace .pq-toolbar > .pq-search { flex: 1 1 100%; }

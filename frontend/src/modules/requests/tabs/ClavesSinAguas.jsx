@@ -102,7 +102,6 @@ export default function ClavesSinAguas({ candidates, initialBarrio = "", statsBy
   return <section className="pq-claves" aria-label="Claves que no aparecen en Aguas">
     <header className="pq-claves-head">
       <div>
-        <h3>Claves de Alcaldía que no aparecen en Aguas</h3>
         <p>{count(matches)} {matches === 1 ? "clave" : "claves"} en {count(groups.length)} {groups.length === 1 ? "barrio" : "barrios"}{deferredQuery ? ` para “${deferredQuery}”` : ""}. Marca las que quieras mandar al Banco de clandestinos.</p>
       </div>
     </header>

@@ -43,25 +43,30 @@ export default function ComparativoTab({ model }) {
   const coverage = alcaldiaTotal ? ((matched / alcaldiaTotal) * 100).toFixed(1) : "0";
 
   return <div className="pq-panel">
-    <div className="pq-compare-head">
-      {/* Los usuarios de Aguas ya están en el encabezado: aquí solo lo propio del cruce. */}
-      <dl className="pq-ledger is-compare" aria-label="Resultado del cruce">
-        <div className="pq-figure"><dt>claves en el padrón de Alcaldía</dt><dd>{count(alcaldiaTotal)}</dd></div>
-        <div className="pq-figure"><dt>coinciden con Aguas ({coverage}% de cobertura)</dt><dd>{count(matched)}</dd></div>
-        <div className="pq-figure is-alert">
-          <dt>no aparecen en Aguas</dt>
-          <dd><button type="button" className="pq-figure-link" onClick={() => openClaves("")} aria-pressed={view === "claves" && !clavesBarrio}>{count(summary.candidate_clandestine)}<span>Ver por barrio</span><Icon name="arrowRight" /></button></dd>
+    {/* El cruce en una barra: lo que coincide (azul) y lo que no aparece en Aguas
+        (rojo), que es la puerta a la lista de claves. Los usuarios de Aguas ya
+        están en el encabezado de la página. */}
+    <section className="pq-coverage" aria-label="Resultado del cruce">
+      <div className="pq-coverage-head">
+        <p><b>{coverage}%</b> de las {count(alcaldiaTotal)} claves de Alcaldía están en Aguas</p>
+        <div className="pq-results-actions">
+          <button type="button" className="pq-btn" onClick={model.onCompare} disabled={model.loadingComparison}><Icon name="refresh" className={model.loadingComparison ? "ds-icon-spin" : ""} />{model.loadingComparison ? "Comparando…" : "Comparar de nuevo"}</button>
+          {view === "graficos" ? <button type="button" className="pq-btn" onClick={model.onDownloadStatsPdf} disabled={model.downloadingStatsPdf || !stats.dynamicRows.length}><Icon name="download" />{model.downloadingStatsPdf ? "Guardando…" : "Guardar PDF"}</button> : null}
         </div>
-      </dl>
-      <div className="pq-results-actions">
-        <button type="button" className="pq-btn" onClick={model.onCompare} disabled={model.loadingComparison}><Icon name="refresh" className={model.loadingComparison ? "ds-icon-spin" : ""} />{model.loadingComparison ? "Comparando…" : "Comparar de nuevo"}</button>
-        {view === "graficos" ? <button type="button" className="pq-btn" onClick={model.onDownloadStatsPdf} disabled={model.downloadingStatsPdf || !stats.dynamicRows.length}><Icon name="download" />{model.downloadingStatsPdf ? "Guardando…" : "Guardar PDF"}</button> : null}
       </div>
-    </div>
+      <div className="pq-coverage-bar">
+        <span className="is-match" style={{ flexGrow: matched }} />
+        <button type="button" className="is-gap" style={{ flexGrow: Number(summary.candidate_clandestine || 0) }} onClick={() => openClaves("")} aria-label={`Ver las ${count(summary.candidate_clandestine)} claves que no aparecen en Aguas`} />
+      </div>
+      <dl className="pq-coverage-legend">
+        <div className="is-match"><dt>coinciden con Aguas</dt><dd>{count(matched)}</dd></div>
+        <div className="is-gap"><dt>no aparecen en Aguas</dt><dd><button type="button" className="pq-figure-link" onClick={() => openClaves("")}>{count(summary.candidate_clandestine)}<span>Ver por barrio</span><Icon name="arrowRight" /></button></dd></div>
+      </dl>
+    </section>
 
-    <div className="pq-modes" role="tablist" aria-label="Qué ver del cruce">
+    {/* Una sola navegación de vistas, segmentada como "Usuarios / Deuda por servicio". */}
+    <div className="pq-views" role="tablist" aria-label="Qué ver del cruce">
       <button type="button" role="tab" aria-selected={view === "claves"} className={`is-claves ${view === "claves" ? "is-active" : ""}`.trim()} onClick={() => openClaves("")}>Claves sin registrar <b>{count(summary.candidate_clandestine)}</b></button>
-      <span className="pq-modes-sep" aria-hidden="true" />
       {MODES.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={view === "graficos" && model.chartMode === key} className={view === "graficos" && model.chartMode === key ? "is-active" : ""} onClick={() => { setView("graficos"); model.setChartMode(key); if (key !== "servicios") model.setStatsServiceField(""); }}>{label}</button>)}
     </div>
 
