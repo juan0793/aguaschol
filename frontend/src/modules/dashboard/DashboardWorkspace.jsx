@@ -7,6 +7,7 @@ import { escapeHtml } from "../../utils/html";
 import { printDocument } from "../../utils/printDocument";
 import { clampSplit, debtRankingAll, filterBarriosByQuery, formatCompactCurrency, interestPerCapital, ofEachTen, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
+import ServiceDotPlot from "./ServiceDotPlot";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
 
@@ -711,7 +712,6 @@ export default function DashboardWorkspace({ model }) {
           <article className="dw-panel dw-mora" data-metric={debtMetric} data-plegado={plegados.has("mora")}>
                     <header className="dw-panel-head">
                       <div>
-                        <span className="dw-eyebrow">Datos reales del padrón</span>
                         <h2>Barrios con mayor mora</h2>
                       </div>
                       {rankingAll.length > 5 ? (
@@ -1004,12 +1004,12 @@ export default function DashboardWorkspace({ model }) {
             <article className="dw-panel dw-servicios" data-plegado={plegados.has("servicios")}>
               <header className="dw-panel-head">
                 <div>
-                  <span className="dw-eyebrow">Composición de la mora</span>
                   <h2>Mora por servicio</h2>
                 </div>
                 <BotonPlegar plegado={plegados.has("servicios")} titulo="la mora por servicio" onToggle={() => alternarPanel("servicios")} />
               </header>
               <div className="dw-panel-body"><div className="dw-panel-body-inner">
+                <ServiceDotPlot debtBarrios={model.debtBarrios} />
                 <section className="dw-service-debt">
                         <ul>
                           {serviceDebt.map((service) => {
@@ -1134,7 +1134,6 @@ export default function DashboardWorkspace({ model }) {
           <article className="dw-panel dw-attention">
             <header className="dw-panel-head">
               <div>
-                <span className="dw-eyebrow">Prioridades</span>
                 <h2>Atención requerida</h2>
               </div>
             </header>
@@ -1163,7 +1162,6 @@ export default function DashboardWorkspace({ model }) {
             <article className="dw-panel dw-campo">
               <header className="dw-panel-head">
                 <div>
-                  <span className="dw-eyebrow">Operación de campo</span>
                   <h2>Actividad del equipo</h2>
                 </div>
               </header>
@@ -1189,7 +1187,6 @@ export default function DashboardWorkspace({ model }) {
           <article className="dw-panel dw-feed">
                     <header className="dw-panel-head">
                       <div>
-                        <span className="dw-eyebrow">Últimos movimientos</span>
                         <h2>Actividad reciente</h2>
                       </div>
                     </header>

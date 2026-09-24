@@ -148,6 +148,16 @@ El tablero debe ser ejecutivo y escaneable:
 - Resumen de fichas, mapas, actividad y pendientes.
 - Evitar secciones tipo hero comercial.
 
+Lenguaje de tablero de análisis (desde 2026-09-24, tomado de una referencia tipo "Insights Dashboard" en versión clara). Aplica al tablero principal y es la excepción documentada a las reglas generales de títulos y bordes:
+- Paneles planos: fondo blanco, filete gris de 1px (`#dfe5ec`), radio de 8px, sin sombras.
+- Sin filetes de color arriba ni a la izquierda, sin etiquetas en mayúsculas encima del título y sin insignias de fondo para los conteos.
+- Títulos de panel en caso oración, de 15px y peso 650. Es más chico que la regla general de 18 a 24px, porque en el tablero el protagonista es la cifra.
+- Cifras grandes, en tinta (`#16283b`) y tabulares.
+- Rejillas horizontales de 1px muy claras (`#e8ecf1`) y ejes de 11px apagados.
+- Las barras son finas, sin pista rellena, con el extremo del dato redondeado.
+- El color es dato, no adorno. El azul institucional marca la magnitud, el rojo solo lo crítico y el ocre los intereses. Una misma medida va en un solo color: la mora por servicio es toda azul, porque el icono y el nombre ya identifican el servicio.
+- Gráfico de puntos "Mora por barrio y servicio": una columna por servicio y un punto por barrio. Al pasar el cursor, el mismo barrio se marca en todas las columnas, y un clic lo deja fijo. Con teclado: Tab para entrar, flechas para recorrer, Esc para soltar.
+
 ### Busqueda de clave
 
 La busqueda debe sentirse como herramienta de campo:

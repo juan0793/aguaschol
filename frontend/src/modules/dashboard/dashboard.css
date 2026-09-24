@@ -2329,3 +2329,150 @@ body.dw-resizing * {
   .dashboard-workspace .dw-ranking-track em,
   .dashboard-workspace .dw-minibars rect { animation: none; }
 }
+
+/* ===========================================================================
+   Lenguaje de tablero de análisis (2026-09-24)
+   Referencia del usuario: un "Insights Dashboard" de paneles planos, rejilla
+   fina y cifras grandes, en versión clara. El color es dato, no adorno: sin
+   filetes de color arriba ni a la izquierda, sin etiquetas en mayúsculas
+   espaciadas, sin insignias de fondo. Esta capa va última a propósito.
+   =========================================================================== */
+
+.dashboard-workspace {
+  --dw-ink: #16283b;
+  --dw-body: #2b3d50;
+  --dw-muted: #5f7184;
+  --dw-line: #dfe5ec;
+  --dw-line-soft: #edf0f4;
+  --dw-grid: #e8ecf1;
+  --dw-tint: #f5f7fa;
+  --dw-radius: 8px;
+  --dw-radius-sm: 6px;
+  gap: 12px;
+}
+
+/* Títulos de panel en caso oración; el kicker encima del título se va. */
+.dashboard-workspace .dw-eyebrow {
+  color: var(--dw-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.dashboard-workspace .dw-panel-head { padding-bottom: 0; border-bottom: 0; }
+.dashboard-workspace .dw-panel-head h2 { color: var(--dw-ink); font-size: 15px; font-weight: 650; }
+
+/* Superficies planas: filete gris de 1px, radio de 8px, sin sombras ni filetes de color. */
+.dashboard-workspace .dw-panel,
+.dashboard-workspace .dw-resumen,
+.dashboard-workspace .dw-plazos {
+  border-color: var(--dw-line);
+  border-radius: var(--dw-radius);
+  box-shadow: none;
+}
+.dashboard-workspace .dw-resumen-monto,
+.dashboard-workspace .dw-plazos:hover,
+.dashboard-workspace .dw-plazos.has-alerts,
+.dashboard-workspace .dw-plazos.has-alerts:hover { box-shadow: none; }
+.dashboard-workspace .dw-plazos:hover { border-color: #c5d0dc; background: var(--dw-surface); }
+.dashboard-workspace .dw-resumen-monto { border-right-color: var(--dw-line-soft); }
+
+/* Banda de estado: una línea de contexto, no una tarjeta. */
+.dashboard-workspace .dw-status { border-color: transparent; background: transparent; padding-inline: 2px; }
+
+/* Cifras grandes y en tinta; las etiquetas, chicas y apagadas. */
+.dashboard-workspace .dw-plazos-cifra strong,
+.dashboard-workspace .dw-niveles-lista strong { color: var(--dw-ink); }
+.dashboard-workspace .dw-niveles-lista .is-critica .dw-nivel-texto strong { color: var(--dw-red); }
+
+/* Barras finas sobre la rejilla, sin pista rellena: el dato termina en punta redondeada. */
+.dashboard-workspace .dw-regla { border-bottom-color: var(--dw-line); }
+.dashboard-workspace .dw-nivel-barra {
+  height: 12px;
+  border: 0;
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), var(--dw-grid) calc(25% - 1px) 25%),
+    linear-gradient(var(--dw-grid), var(--dw-grid)) left center / 100% 1px no-repeat;
+}
+.dashboard-workspace .dw-nivel-barra b { border-radius: 0 3px 3px 0; }
+.dashboard-workspace .dw-niveles-lista .is-padron b { background: #b3c6db; }
+.dashboard-workspace .dw-ranking-track { height: 8px; border-radius: 0; background: linear-gradient(var(--dw-grid), var(--dw-grid)) left center / 100% 1px no-repeat; }
+.dashboard-workspace .dw-ranking-track em { border-radius: 0 3px 3px 0; }
+
+/* Ranking: posición como número apagado, no como baldosa de color. */
+.dashboard-workspace .dw-rank-number { width: auto; height: auto; background: none; color: var(--dw-muted); font-variant-numeric: tabular-nums; }
+.dashboard-workspace .is-selected .dw-rank-number { background: none; color: var(--chart-color); }
+.dashboard-workspace .dw-ranking-row > button:first-child:hover { background: var(--dw-tint); }
+.dashboard-workspace .dw-ranking-row > button:first-child.is-selected { border-color: var(--chart-color); background: var(--dw-tint); }
+
+/* Resumen de concentración: una cifra y su lectura, sin franja de color al costado. */
+.dashboard-workspace .dw-ranking-summary { padding: 4px 0 12px; border-left: 0; border-bottom: 1px solid var(--dw-line-soft); border-radius: 0; background: none; }
+.dashboard-workspace .dw-ranking-summary > span > strong { font-size: 28px; }
+
+/* Conteos de pendientes: la cifra sola, en tinta; roja solo si es crítica (el icono y el texto ya la nombran). */
+.dashboard-workspace .dw-count,
+.dashboard-workspace .dw-list button.is-info .dw-count,
+.dashboard-workspace .dw-count.is-neutral { min-width: 0; padding: 0; background: none; color: var(--dw-ink); font-size: 15px; font-weight: 800; }
+.dashboard-workspace .dw-list button.is-critical .dw-count { background: none; color: var(--dw-red); }
+.dashboard-workspace .dw-list li + li { border-top: 1px solid var(--dw-line-soft); }
+
+/* Acciones rápidas: botones planos del mismo radio que los paneles. */
+.dashboard-workspace .dw-actions button { border-radius: var(--dw-radius); box-shadow: none; }
+
+/* ---------- Mora por barrio y servicio (gráfico de puntos) ---------- */
+.dashboard-workspace .dw-dotplot { position: relative; display: grid; gap: 6px; min-width: 0; margin: 0 0 6px; }
+.dashboard-workspace .dw-dotplot svg { display: block; width: 100%; overflow: visible; }
+.dashboard-workspace .dw-dotplot-grid line { stroke: var(--dw-grid); stroke-width: 1; }
+.dashboard-workspace .dw-dotplot-grid text { fill: var(--dw-muted); font-size: 11px; font-variant-numeric: tabular-nums; text-anchor: end; }
+.dashboard-workspace .dw-dotplot-label { fill: var(--dw-body); font-size: 12px; font-weight: 600; text-anchor: middle; }
+/* Punto: azul translúcido con anillo del color de la superficie, para que se lean al solaparse.
+   El trazo transparente agranda el área que responde al cursor. */
+.dashboard-workspace .dw-dotplot circle {
+  fill: rgba(20, 101, 217, 0.55);
+  stroke: #fff;
+  stroke-width: 1.5;
+  cursor: pointer;
+  transition: opacity 150ms ease, fill 150ms ease;
+}
+.dashboard-workspace .dw-dotplot circle.is-dim { opacity: 0.28; }
+.dashboard-workspace .dw-dotplot circle.is-linked { fill: var(--dw-ink); stroke-width: 2; }
+.dashboard-workspace .dw-dotplot-tip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  width: 210px;
+  padding: 10px 12px;
+  border: 1px solid var(--dw-line);
+  border-radius: var(--dw-radius);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(22, 40, 59, 0.12);
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+.dashboard-workspace .dw-dotplot-tip strong { color: var(--dw-ink); font-size: 13px; overflow-wrap: anywhere; }
+.dashboard-workspace .dw-dotplot-tip dl { display: grid; gap: 2px; margin: 0; }
+.dashboard-workspace .dw-dotplot-tip dl > div { display: flex; justify-content: space-between; gap: 10px; color: var(--dw-muted); font-size: 12px; }
+.dashboard-workspace .dw-dotplot-tip dd { margin: 0; color: var(--dw-body); font-weight: 600; font-variant-numeric: tabular-nums; }
+.dashboard-workspace .dw-dotplot-tip .is-current dt,
+.dashboard-workspace .dw-dotplot-tip .is-current dd { color: var(--dw-ink); font-weight: 800; }
+.dashboard-workspace .dw-dotplot figcaption { color: var(--dw-muted); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-dotplot circle { transition: none; }
+}
+/* El texto de apoyo de las listas heredaba el 800 de los botones globales. */
+.dashboard-workspace .dw-list small { font-weight: 500; }
+/* Cerca del borde de arriba la ficha no cabe: va debajo del punto. */
+.dashboard-workspace .dw-dotplot-tip.is-below { transform: translate(-50%, 14px); }
+/* Mora por servicio es una sola medida: un solo azul. El icono y el nombre
+   identifican el servicio (la paleta por servicio no distinguía bien los tonos). */
+.dashboard-workspace .dw-service-debt [data-service] { --service-color: var(--dw-blue); }
+.dashboard-workspace .dw-service-name .app-icon { color: var(--dw-muted); }
+/* El desglose de un servicio: bloque con filete completo, no franja de color al costado. */
+.dashboard-workspace .dw-service-drill { border: 1px solid var(--dw-line-soft); border-radius: var(--dw-radius); background: var(--dw-tint); }
+/* Sin franjas de color al costado: ni en las listas al pasar el cursor ni en el desglose del ranking. */
+.dashboard-workspace .dw-list button,
+.dashboard-workspace .dw-list button:hover { border-left: 0; }
+.dashboard-workspace .dw-ranking-detail { border: 1px solid var(--dw-line-soft); border-radius: var(--dw-radius); }
+.dashboard-workspace .dw-dotplot svg:focus-visible { outline: 2px solid var(--dw-blue); outline-offset: 4px; border-radius: 4px; }

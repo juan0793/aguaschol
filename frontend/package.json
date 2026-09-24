@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "start": "node ./server.js",
     "test:entregas": "node --test src/modules/entregas/selectors/entregasSelectors.test.mjs src/modules/entregas/utils/cierreLoteUtils.test.mjs src/modules/entregas/utils/entregasDate.test.mjs src/modules/entregas/print/weeklyReportSummary.test.mjs",
-    "test:dashboard": "node --test src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs",
+    "test:dashboard": "node --test src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs src/modules/dashboard/dotPlotLayout.test.mjs",
     "test:sig": "node --test src/modules/sig/utils/sigZoomRules.test.mjs src/modules/sig/utils/sigGeojson.test.mjs src/modules/sig/utils/loteTerritorial.test.mjs",
     "test:requests": "node --test src/modules/requests/utils/serviceTable.test.mjs src/modules/requests/utils/alcaldiaClaves.test.mjs"
   },
