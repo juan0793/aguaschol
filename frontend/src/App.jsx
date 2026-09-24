@@ -1291,6 +1291,7 @@ function App() {
   const [activatingPadronBatch, setActivatingPadronBatch] = useState(false);
   const [verifyingPadronBatch, setVerifyingPadronBatch] = useState(false);
   const [downloadingPadronBatch, setDownloadingPadronBatch] = useState(false);
+  const [downloadingPadron, setDownloadingPadron] = useState(false);
   const [reprocessingPadron, setReprocessingPadron] = useState(false);
   const [loadingPadronMeta, setLoadingPadronMeta] = useState(false);
   const [padronSyncState, setPadronSyncState] = useState({
@@ -10182,6 +10183,7 @@ function App() {
   };
 
   const handleDownloadPadron = async () => {
+    setDownloadingPadron(true);
     try {
       await downloadExcelFile("/claves/download", {
         fallbackName: `padron-maestro-${new Date().toISOString().slice(0, 10)}.xlsx`,
@@ -10190,6 +10192,8 @@ function App() {
       showAlert("Descarga del padron iniciada.");
     } catch (error) {
       showAlert(error.message || "No se pudo descargar el padron maestro.");
+    } finally {
+      setDownloadingPadron(false);
     }
   };
 
@@ -16395,7 +16399,7 @@ function App() {
                     <Icon name="refresh" />
                     Limpiar
                   </button>
-                  <button type="button" className="button-secondary" onClick={handleDownloadPadron}>
+                  <button type="button" className="button-secondary" onClick={handleDownloadPadron} disabled={downloadingPadron}>
                     <Icon name="records" />
                     Descargar padrón
                   </button>
@@ -16815,10 +16819,15 @@ function App() {
 
               <div className="padron-console-grid padron-source-grid">
                 <section className="padron-file-panel padron-active-source">
-                  <div>
-                    <span>Fuente activa</span>
-                    <strong>{padronMeta?.file_name || "Sin registro"}</strong>
-                    <small>{padronMeta?.last_import_summary?.source === "FOXPRO_MANUAL" ? `Lote ${padronMeta?.last_import_summary?.codigo_lote || "FoxPro"} conectado al sistema` : "Excel conectado al sistema"}</small>
+                  <div className="padron-active-head">
+                    <div>
+                      <span>Fuente activa</span>
+                      <strong>{padronMeta?.file_name || "Sin registro"}</strong>
+                      <small>{padronMeta?.last_import_summary?.source === "FOXPRO_MANUAL" ? `Lote ${padronMeta?.last_import_summary?.codigo_lote || "FoxPro"} conectado al sistema` : "Excel conectado al sistema"}</small>
+                    </div>
+                    <button type="button" className="button-secondary padron-active-download" onClick={handleDownloadPadron} disabled={downloadingPadron || !padronMeta?.total_records} title={`Descarga en Excel el padrón que consulta el sistema ahora (${Number(padronMeta?.total_records || 0).toLocaleString("es-HN")} registros)`}>
+                      <Icon name="download" />{downloadingPadron ? "Preparando Excel..." : "Descargar padrón activo"}
+                    </button>
                   </div>
                   <div className="padron-file-meta">
                     <span>Hoja <b>{padronMeta?.sheet_name || "--"}</b></span>

@@ -7681,6 +7681,22 @@ button.app-user-chip {
   color: #52728d;
 }
 
+.padron-active-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.padron-active-head > div {
+  min-width: 0;
+}
+
+.padron-active-head .padron-active-download {
+  flex: none;
+  white-space: nowrap;
+}
+
 .padron-file-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -8215,6 +8231,15 @@ button.app-user-chip {
   }
   .padron-active-source {
     grid-column: auto;
+  }
+
+  .padron-active-head {
+    flex-direction: column;
+  }
+
+  .padron-active-source .padron-active-head .padron-active-download {
+    width: 100%;
+    justify-content: center;
   }
 
   .padron-lot-summary {
