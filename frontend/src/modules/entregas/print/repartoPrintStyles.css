@@ -1,0 +1,21 @@
+/* Hojas del reparto de barrios. Heredan la hoja Letter, el encabezado y el
+   aislamiento de impresion del acta de sobrantes (mismo portal y misma clase en
+   <body>); aqui solo va lo propio del reparto. */
+@import "./loteSobrantesStyles.css";
+
+.ent-hoja-reparto .ent-hoja-datos { margin-bottom: 12px; }
+
+/* Hoja de una persona: su lista a la izquierda y su zona a la derecha. */
+.ent-reparto-hoja-cuerpo { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 14px; align-items: start; }
+.ent-reparto-hoja-mapa { break-inside: avoid; }
+.ent-reparto-hoja-mapa svg { display: block; width: 100%; height: auto; border: 1px solid var(--hoja-borde); border-radius: 6px; background: #f7f9fc; }
+.ent-reparto-hoja-mapa.is-general { margin-bottom: 12px; }
+.ent-reparto-hoja-mapa.is-general svg { max-height: 104mm; }
+
+.ent-hoja-reparto .ent-hoja-tabla td.ent-reparto-casilla { width: 58px; }
+.ent-hoja-reparto .ent-hoja-tabla td.ent-reparto-casilla::after { content: ""; display: block; width: 12px; height: 12px; margin: 0 auto; border: 1px solid var(--hoja-tinta-suave); border-radius: 2px; }
+.ent-reparto-muestra { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 2px; vertical-align: 0; }
+
+@media print {
+  .ent-reparto-hoja-mapa svg, .ent-reparto-muestra { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

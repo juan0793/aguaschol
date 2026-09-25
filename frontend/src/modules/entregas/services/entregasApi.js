@@ -32,6 +32,12 @@ export const createEntregasApi = (apiFetch) => ({
   actualizarPersonal: (id, payload) =>
     apiFetch(`/entregas/personal/${id}`, { method: "PATCH", ...jsonBody(payload) }).then(json),
 
+  reparto: () => apiFetch("/entregas/reparto").then(json),
+  repartoMapa: () => apiFetch("/entregas/reparto/mapa").then(json),
+  asignarBarrio: (codigo, payload) =>
+    apiFetch(`/entregas/reparto/barrios/${encodeURIComponent(codigo)}`, { method: "PUT", ...jsonBody(payload) }).then(json),
+  asignarBarrios: (payload) => apiFetch("/entregas/reparto/lote", { method: "POST", ...jsonBody(payload) }).then(json),
+
   lotes: (params = {}) => apiFetch(`/entregas/lotes${query(params)}`).then(json),
   lote: (id) => apiFetch(`/entregas/lotes/${id}`).then(json),
   crearLote: (payload) => apiFetch("/entregas/lotes", { method: "POST", ...jsonBody(payload) }).then(json),

@@ -30,6 +30,12 @@ import {
   listReportesSemanales,
   previewReporteSemanal
 } from "../services/entregasReportService.js";
+import {
+  getReparto,
+  getRepartoMapa,
+  updateRepartoBarrio,
+  updateRepartoLote
+} from "../services/entregasRepartoService.js";
 
 const handle = (fn) => async (req, res, next) => {
   try {
@@ -52,6 +58,19 @@ export const personalUpdate = handle(async (req, res) =>
 
 export const cicloCerrar = handle(async (req, res) =>
   res.json(await cerrarCicloEntregas(req.body || {}, req.authUser))
+);
+
+export const repartoList = handle(async (req, res) => res.json(await getReparto(req.authUser)));
+export const repartoMapa = handle(async (req, res) => {
+  // Es el mismo archivo para todos y no cambia entre despliegues: se deja cachear.
+  res.set("Cache-Control", "private, max-age=86400");
+  res.json(getRepartoMapa());
+});
+export const repartoBarrioUpdate = handle(async (req, res) =>
+  res.json(await updateRepartoBarrio(req.params.codigo, req.body || {}, req.authUser))
+);
+export const repartoLoteUpdate = handle(async (req, res) =>
+  res.json(await updateRepartoLote(req.body || {}, req.authUser))
 );
 
 export const lotesList = handle(async (req, res) => res.json(await listLotes(req.query, req.authUser)));

@@ -989,6 +989,20 @@ CREATE TABLE IF NOT EXISTS entrega_ciclos (
   CONSTRAINT fk_entrega_ciclos_usuario FOREIGN KEY (declarado_por) REFERENCES app_users(id) ON DELETE SET NULL
 );
 
+-- Reparto de barrios: que persona de campo entrega cada barrio. El barrio se
+-- identifica por su codigo (primer segmento de la clave catastral), el mismo que
+-- guarda entrega_lotes.barrio_codigo. Sin fila = barrio sin responsable.
+CREATE TABLE IF NOT EXISTS entrega_reparto_barrios (
+  barrio_codigo VARCHAR(10) NOT NULL PRIMARY KEY,
+  responsable_id INT UNSIGNED NULL,
+  orden_ruta SMALLINT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_entrega_reparto_responsable (responsable_id),
+  CONSTRAINT fk_entrega_reparto_responsable FOREIGN KEY (responsable_id) REFERENCES personal_campo(id) ON DELETE SET NULL,
+  CONSTRAINT fk_entrega_reparto_usuario FOREIGN KEY (actualizado_por) REFERENCES app_users(id) ON DELETE SET NULL
+);
+
 -- Apuntes: tablero personal del administrador. Todo se filtra por user_id del usuario
 -- autenticado. sort_order es fraccionario para que reordenar actualice una sola fila;
 -- deleted_at permite deshacer y una tarea purga lo borrado hace mas de 30 dias.

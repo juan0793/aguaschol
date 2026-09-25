@@ -24,6 +24,10 @@ import {
   reporteCreate,
   reporteDetail,
   reportePreview,
+  repartoBarrioUpdate,
+  repartoList,
+  repartoLoteUpdate,
+  repartoMapa,
   reportesList,
   resumen
 } from "../controllers/entregasController.js";
@@ -37,6 +41,11 @@ router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);
 router.get("/personal", personalList);
 router.post("/personal", requireRoles("admin"), personalCreate);
 router.patch("/personal/:id", requireRoles("admin"), personalUpdate);
+
+router.get("/reparto", requireRoles("admin", "operator"), repartoList);
+router.get("/reparto/mapa", requireRoles("admin", "operator"), repartoMapa);
+router.put("/reparto/barrios/:codigo", requireRoles("admin", "operator"), repartoBarrioUpdate);
+router.post("/reparto/lote", requireRoles("admin", "operator"), repartoLoteUpdate);
 
 router.get("/lotes", lotesList);
 router.post("/lotes", requireRoles("admin", "operator"), loteCreate);

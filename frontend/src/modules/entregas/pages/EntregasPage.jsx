@@ -4,6 +4,7 @@ import { createEntregasApi } from "../services/entregasApi";
 import { useLotes } from "../hooks/useLotes";
 import { useNoEntregadas } from "../hooks/useNoEntregadas";
 import { useAvanceJornada } from "../hooks/useAvanceJornada";
+import { useReparto } from "../hooks/useReparto";
 import EntregasStats from "../components/EntregasStats";
 import AvanceJornada from "../components/AvanceJornada";
 import LoteForm from "../components/LoteForm";
@@ -15,6 +16,7 @@ import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
 import NoEntregadasTable from "../components/NoEntregadasTable";
 import NoEntregadaDetalle from "../components/NoEntregadaDetalle";
 import PersonalCampoTable from "../components/PersonalCampoTable";
+import RepartoBarrios from "../components/RepartoBarrios";
 import ReportesSemanales from "../components/ReportesSemanales";
 import { GraficoBarriosSobrantes, GraficoPorDia } from "../components/ReporteCharts";
 import { formatDate, formatNumber } from "../utils/entregasFormatters";
@@ -29,6 +31,7 @@ const SUBVISTAS = [
   { key: "lotes", label: "Lotes diarios", corto: "Hoy", hint: "Reparto y cierre", icon: "records" },
   { key: "historial", label: "Lotes anteriores", corto: "Anteriores", hint: "Historial", icon: "history" },
   { key: "pendientes", label: "No entregadas", corto: "Pendientes", hint: "Seguimiento", icon: "warning" },
+  { key: "reparto", label: "Reparto por barrio", corto: "Reparto", hint: "Zonas", icon: "map" },
   { key: "personal", label: "Personal de campo", corto: "Personal", hint: "Técnicos", icon: "users" },
   { key: "reportes", label: "Reportes semanales", corto: "Reportes", hint: "Informes", icon: "archive" }
 ];
@@ -62,6 +65,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   });
   const historial = useLotes(api, Boolean(config) && vista === "historial", { historial: true });
   const pendientes = useNoEntregadas(api, Boolean(config) && vista === "pendientes");
+  const reparto = useReparto(api, Boolean(config?.permissions?.can_manage_reparto) && vista === "reparto", personal);
 
   const cargarPersonal = useCallback(async () => {
     try {
@@ -248,6 +252,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
   const subvistas = SUBVISTAS.filter((item) => {
     if (item.key === "reportes") return config.permissions.can_generate_report;
+    if (item.key === "reparto") return config.permissions.can_manage_reparto;
     return true;
   });
 
@@ -266,7 +271,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
               type="button"
               className={`ent-menu-card ${vista === item.key ? "is-active" : ""}`}
               aria-current={vista === item.key ? "page" : undefined}
-              data-group={["personal", "reportes"].includes(item.key) ? "gestion" : "operacion"}
+              data-group={["reparto", "personal", "reportes"].includes(item.key) ? "gestion" : "operacion"}
               onClick={() => ir(item.key)}
             >
               <Icon name={item.icon} />
@@ -459,6 +464,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           onOpen={abrirDetalle}
           onCerrar={abrirCierre}
         />
+      ) : null}
+
+      {vista === "reparto" && config.permissions.can_manage_reparto ? (
+        <RepartoBarrios model={reparto} personal={personal} permissions={config.permissions} notify={notify} />
       ) : null}
 
       {vista === "personal" ? (

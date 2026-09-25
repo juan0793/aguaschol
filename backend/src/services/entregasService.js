@@ -162,6 +162,7 @@ export const getEntregasConfig = async (user) => {
       can_close_ciclo: isAdmin(user),
       can_manage_seguimiento: isGestor(user) || Boolean(personalPropio),
       can_generate_report: isGestor(user),
+      can_manage_reparto: isGestor(user),
       can_correct_report: isAdmin(user),
       can_view_all: isGestor(user)
     }
