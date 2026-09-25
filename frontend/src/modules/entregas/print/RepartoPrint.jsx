@@ -2,7 +2,7 @@ import logoAguasCholuteca from "../../../assets/logo-aguas-choluteca.png";
 import { Seccion } from "./WeeklyReportBlocks";
 import RepartoMapa from "../components/RepartoMapa";
 import { formatDateTime, formatNumber } from "../utils/entregasFormatters";
-import { barriosDeResponsable, formatoDesvio, tramoDeCarga } from "../utils/repartoUtils";
+import { barriosDeResponsable, desvioEnFrase, formatoDesvio, tramoDeCarga } from "../utils/repartoUtils";
 import "./repartoPrintStyles.css";
 
 const Encabezado = ({ titulo, subtitulo }) => (
@@ -28,7 +28,7 @@ function HojaPersona({ persona, reparto, generadoEn }) {
       <section className="ent-hoja-datos">
         <div><span>Responsable</span><strong>{persona.nombre_completo}</strong></div>
         <div><span>Barrios</span><strong>{formatNumber(total.barrios)}</strong></div>
-        <div><span>Claves en el padrón</span><strong>{formatNumber(total.claves)} ({formatoDesvio(total.claves, meta) || "—"} de la meta)</strong></div>
+        <div><span>Claves en el padrón</span><strong>{formatNumber(total.claves)}{meta ? ` (${desvioEnFrase(total.claves, meta)})` : ""}</strong></div>
       </section>
       <div className="ent-reparto-hoja-cuerpo">
         <Seccion titulo="Orden de entrega" descripcion="Los barrios sin número de ruta van al final, de mayor a menor carga." ancha>

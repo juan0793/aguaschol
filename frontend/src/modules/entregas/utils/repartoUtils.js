@@ -72,6 +72,14 @@ export const formatoDesvio = (claves, meta) => {
   return `${porcentaje > 0 ? "+" : "−"}${Math.abs(porcentaje)} %`;
 };
 
+// Frase completa para textos corridos: "en la meta", "4 % sobre la meta"...
+export const desvioEnFrase = (claves, meta) => {
+  if (!meta) return "";
+  const porcentaje = Math.round(desvioDeMeta(claves, meta) * 100);
+  if (porcentaje === 0) return "en la meta";
+  return `${Math.abs(porcentaje)} % ${porcentaje > 0 ? "sobre" : "bajo"} la meta`;
+};
+
 // Barrios de una persona en el orden en que se entregan: primero los que tienen
 // orden de ruta, despues el resto de mayor a menor carga.
 export const barriosDeResponsable = (barrios = [], responsableId) =>

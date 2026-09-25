@@ -4,6 +4,7 @@ import {
   asignacionesDePlantilla,
   barriosDeResponsable,
   colorPorResponsable,
+  desvioEnFrase,
   emparejarNombre,
   metaPorPersona,
   participantesDelReparto,
@@ -81,4 +82,10 @@ test("aplicar plantilla: reparto completo, orden solo donde es real", () => {
   // Iztoca y Morazán no estan en la plantilla: se liberan.
   assert.equal(porCodigo["41"].responsable_id, null);
   assert.equal(porCodigo["17"].responsable_id, null);
+});
+
+test("frase de desvio sin repetir 'la meta'", () => {
+  assert.equal(desvioEnFrase(2702, 2702), "en la meta");
+  assert.equal(desvioEnFrase(2810, 2702), "4 % sobre la meta");
+  assert.equal(desvioEnFrase(2530, 2702), "6 % bajo la meta");
 });

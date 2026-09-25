@@ -173,6 +173,12 @@
      papel que tenga la impresora (Letter o A4); la hoja mide 196mm y entra en
      los dos. */
   @page { size: portrait; margin: 12mm 10mm; }
+  /* Pagina con nombre: otros modulos declaran su propio @page sin nombre (el SIG
+     imprime en horizontal y sin margen) y, una vez cargado su CSS, esa regla le
+     ganaba a esta: la hoja de 241mm no cabia en los 216mm de alto de una carta
+     horizontal y el pie saltaba a otra pagina. Con nombre, la hoja siempre usa
+     este formato. */
+  @page ent-hoja { size: letter portrait; margin: 12mm 10mm; }
 
   /* Aislar el informe del resto de la aplicacion. `inset: 0` recortaba la hoja a
      la altura de una pagina: el informe salia impreso sin encabezado, sin
@@ -203,6 +209,7 @@
      los margenes que elija el dialogo de impresion, asi el corte de pagina cae
      siempre donde se veia en pantalla. */
   .ent-hoja {
+    page: ent-hoja;
     width: auto;
     max-width: 196mm;
     box-shadow: none;
