@@ -1,6 +1,6 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@blossom-carousel/core/style.css";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { CalendarDays, MapPin } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
@@ -10,7 +10,7 @@ import BatchPicker from "./components/BatchPicker";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import AppSidebar from "./components/sidebar/AppSidebar";
-import { buildSidebarSections, getPathForWorkspaceView, getWorkspaceViewFromPath } from "./components/sidebar/sidebarConfig";
+import { buildSidebarSections, getPathForWorkspaceView } from "./components/sidebar/sidebarConfig";
 import { ModuleSkeleton } from "./components/ds/Skeleton";
 import "./components/ds/design-system.css";
 import "./styles/request-workspace.css";
@@ -30,9 +30,7 @@ import {
   NOTIFICATION_REQUEST_STORAGE_KEY
 } from "./constants/storageKeys";
 import {
-  ALERT_MAP_POINT_COLOR,
   ALERT_MAP_POINT_TYPE,
-  COMMERCIAL_MAP_POINT_COLOR,
   COMMERCIAL_MAP_POINT_TYPE,
   defaultMapReportStaff,
   defaultMapReportSettings,
@@ -53,7 +51,6 @@ import {
   roleLabel
 } from "./utils/formatting";
 import {
-  extractPadronLookupReferences,
   formatClaveInput,
   getLookupServiceMeta,
   getLookupValidationMessage,
@@ -73,12 +70,11 @@ import {
 import {
   buildExternalMapUrl,
   buildMapReportDraftFromPoint,
-  deriveMapPointZone,
   formatCoordinate,
   getMapPointContextKey,
   getMapPointTypeLabel
 } from "./utils/mapField";
-import { buildPadronNameIndex, buildReportDebtRows, buildSharedCadastralKeys, selectReportZones, stripServicesFromDescription } from "./modules/reports/utils/reportSelectors";
+import { buildPadronNameIndex, buildReportDebtRows, buildSharedCadastralKeys, selectReportZones } from "./modules/reports/utils/reportSelectors";
 import {
   comparableFormShape,
   getRecordDeadlineMeta,
@@ -90,7 +86,6 @@ import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
 import { buildPrintHtml, pause, printDocument, saveReportPdf } from "./utils/printDocument";
 import {
-  extractClaveFromText,
   getBarrioNameFromClave,
   normalizeBarrioCode,
   resolveBarrioFromPayload,
@@ -112,870 +107,176 @@ import { Input } from "@/components/ui/input";
 import { lastDaysSeries } from "./modules/dashboard/dashboardSelectors.js";
 import { abrirMisAsignaciones } from "./modules/clandestinos/hooks/useBanco";
 import { installSearchScrollGuard } from "./utils/searchScrollGuard";
+import {
+  FieldMap,
+  MapPrintDialog,
+  FieldValidationWorkspace,
+  MyProfileWorkspace,
+  RailwayUsageWorkspace,
+  PlanosWorkspace,
+  ReportsWorkspace,
+  PadronRequestsWorkspace,
+  DashboardWorkspace,
+  TransportWorkspace,
+  ImportacionWorkspace,
+  SigTerritorialWorkspace,
+  ClandestinosPage,
+  InspeccionesPage,
+  EntregasPage,
+  NotesPage,
+  prefetchModule
+} from "./app/lazyModules";
+import {
+  groupAuditLogsByDay,
+  EMPTY_AUDIT_FILTERS,
+  AUDIT_FILTER_KEYS,
+  AUDIT_ACTION_OPTIONS,
+  AUDIT_ENTITY_OPTIONS,
+  auditActionTone,
+  formatAuditTime,
+  auditRelativeDayLabel
+} from "./utils/audit";
+import { MapLoadBoundary } from "./components/MapLoadBoundary";
+import {
+  DASHBOARD_WIDGET_STORAGE_KEY,
+  DASHBOARD_REFRESH_INTERVAL_MS,
+  MAP_POINT_LIST_INITIAL_LIMIT,
+  MAP_POINT_LIST_STEP,
+  MOBILE_MAP_POINT_LIMIT,
+  MAP_AUTO_REFRESH_MS,
+  MOBILE_MAP_AUTO_REFRESH_MS,
+  RECORDS_PAGE_SIZE,
+  MAP_DIARY_PRIMARY_LIMIT,
+  PADRON_SYNC_STEPS,
+  EXECUTIVE_REPORT_CREDIT
+} from "./constants/workspace";
+import {
+  GEOLOCATION_OPTIONS,
+  GEOLOCATION_FALLBACK_OPTIONS,
+  getCurrentPosition,
+  isLocalSecureHost,
+  getGeolocationUnavailableMessage,
+  getGeolocationErrorMessage
+} from "./utils/geolocation";
+import { getTodayMapDiaryKey } from "./utils/mapDiary";
+import { MapDiaryArchiveCalendar } from "./components/MapDiaryArchiveCalendar";
+import {
+  REPORT_POINT_DANGER_RGB,
+  REPORT_POINT_DANGER_FILL_RGB,
+  REPORT_POINT_DANGER_BORDER_RGB,
+  REPORT_POINT_ALERT_RGB,
+  REPORT_POINT_ALERT_FILL_RGB,
+  REPORT_POINT_ALERT_BORDER_RGB,
+  isRedReportPoint,
+  isAlertReportPoint,
+  getDefaultMapPointColor,
+  getReportPointRowClassName,
+  getMapReportZoneOverrideKey,
+  getMapReportTechnicians,
+  normalizeMapReportStaff,
+  buildMapReportStaffMarkup,
+  getMapReportTechniciansLabel,
+  getMapReportBarrioZone,
+  getMapReportPointClave,
+  getMapZoneClavesLabel,
+  MAP_REPORT_SERVICE_LEGEND,
+  getMapPointPadronNames,
+  getMapPointReportReferenceLabel,
+  getMapReportTypeChartRows,
+  buildMapReportTypeChartMarkup,
+  buildMapReportBriefRows,
+  getMapPointHousingUnits,
+  normalizeHousingUnitsInput,
+  MAP_DESCRIPTION_PADRON_BLOCK_PATTERN,
+  stripMapDescriptionPadronBlock,
+  getMapPointTechnicalDescription,
+  getMapPointReferenceNote,
+  normalizeMapReportSettings,
+  stripTransientMapReportSettings,
+  loadMapReportSettingsByDate
+} from "./utils/mapReport";
+import {
+  FIELD_DEBT_SERVICE_DEFINITIONS,
+  extractFieldDebtLookupReferences,
+  getFieldDebtServiceStatus,
+  buildMapDescriptionPadronBlock,
+  getActiveServiceShortLabels,
+  buildLookupAssistantDetails,
+  buildFieldDebtServicesMarkup,
+  buildFieldDebtPointRows,
+  getFieldDebtResultLabel
+} from "./utils/fieldDebt";
+import {
+  formatPercent,
+  formatRelativeTime,
+  formatDashboardSyncRelativeTime,
+  formatDashboardSyncDate
+} from "./utils/timeFormat";
+import {
+  getPadronStatusLabel,
+  clampPrintCopies,
+  getRecordPhotoPath,
+  getRecordDisplayName,
+  getRecordAguasPresenceLabel,
+  getRecordFichaDateLabel,
+  getRecordPrintedDateLabel
+} from "./utils/recordLabels";
+import { humanizeDashboardActivity, normalizeDashboardWidgetPrefs } from "./utils/dashboardActivity";
+import {
+  readJsonResponse,
+  getAlertDetails,
+  getDefaultWorkspaceView,
+  getWorkspaceViewByRole
+} from "./utils/appShell";
 
-const lazyWithRetry = (loader) => lazy(async () => {
-  try {
-    return await loader();
-  } catch (error) {
-    await new Promise((resolve) => window.setTimeout(resolve, 350));
-    return loader();
-  }
-});
-
-const FieldMap = lazyWithRetry(() => import("./components/FieldMap"));
-const MapPrintDialog = lazyWithRetry(() => import("./components/MapPrintDialog"));
-const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
-const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
-const RailwayUsageWorkspace = lazy(() => import("./components/RailwayUsageWorkspace"));
-const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
-const ReportsWorkspace = lazy(() => import("./modules/reports/ReportsWorkspace"));
-const PadronRequestsWorkspace = lazy(() => import("./modules/requests/PadronRequestsWorkspace"));
-const DashboardWorkspace = lazy(() => import("./modules/dashboard/DashboardWorkspace"));
-const TransportWorkspace = lazy(() => import("./components/TransportWorkspace"));
-const ImportacionWorkspace = lazy(() => import("./components/ImportacionWorkspace"));
-const SigTerritorialWorkspace = lazy(() => import("./modules/sig/SigTerritorialWorkspace"));
-const ClandestinosPage = lazyWithRetry(() => import("./modules/clandestinos/pages/ClandestinosPage"));
-const InspeccionesPage = lazyWithRetry(() => import("./modules/inspecciones/pages/InspeccionesPage"));
-const EntregasPage = lazyWithRetry(() => import("./modules/entregas/pages/EntregasPage"));
-const NotesPage = lazyWithRetry(() => import("./modules/notes/pages/NotesPage"));
-
-// La auditoria se lee siempre en hora de Honduras: agrupar por la fecha local del
-// navegador movia eventos de la noche al dia siguiente y desalineaba la hora del
-// evento con la marca completa que imprime formatDateTime.
-const AUDIT_TIME_ZONE = "America/Tegucigalpa";
-
-const auditDayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: AUDIT_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-});
-
-const auditDayLabelFormatter = new Intl.DateTimeFormat("es-HN", {
-  timeZone: AUDIT_TIME_ZONE,
-  day: "numeric",
-  month: "long",
-  year: "numeric"
-});
-
-const auditTimeFormatter = new Intl.DateTimeFormat("es-HN", {
-  timeZone: AUDIT_TIME_ZONE,
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false
-});
-
-const groupAuditLogsByDay = (logs) => {
-  const groups = new Map();
-  logs.forEach((log) => {
-    const date = new Date(log.created_at);
-    const key = Number.isNaN(date.getTime()) ? "sin-fecha" : auditDayKeyFormatter.format(date);
-    if (!groups.has(key)) {
-      groups.set(key, {
-        key,
-        label: key === "sin-fecha" ? "Sin fecha" : auditDayLabelFormatter.format(date),
-        logs: []
-      });
-    }
-    groups.get(key).logs.push(log);
-  });
-  return [...groups.values()];
-};
-
-const EMPTY_AUDIT_FILTERS = {
-  action: "",
-  entity_type: "",
-  actor: "",
-  search: "",
-  date_from: "",
-  date_to: ""
-};
-
-const AUDIT_FILTER_KEYS = Object.keys(EMPTY_AUDIT_FILTERS);
-
-const AUDIT_ACTION_OPTIONS = [
-  { value: "auth.login", label: "Inicio de sesion" },
-  { value: "auth.logout", label: "Cierre de sesion" },
-  { value: "user.created", label: "Usuario creado" },
-  { value: "padron.updated", label: "Padron actualizado" },
-  { value: "inmueble.created", label: "Ficha creada" },
-  { value: "inmueble.updated", label: "Ficha actualizada" },
-  { value: "inmueble.archived", label: "Ficha archivada" },
-  { value: "inmueble.restored", label: "Ficha restaurada" },
-  { value: "inmueble.deleted", label: "Ficha eliminada" },
-  { value: "report.generated", label: "Reporte generado" }
-];
-
-const AUDIT_ENTITY_OPTIONS = [
-  { value: "user", label: "Usuario" },
-  { value: "inmueble", label: "Ficha" },
-  { value: "padron", label: "Padron" },
-  { value: "report", label: "Reporte" }
-];
-
-// Cada familia de eventos toma un acento propio para leer el stream de un vistazo
-// sin tener que detenerse a leer la etiqueta.
-const auditActionTone = (action = "") => {
-  if (action.startsWith("auth.")) return "auth";
-  if (action.startsWith("user.")) return "user";
-  if (action.startsWith("padron.")) return "padron";
-  if (action.startsWith("report.")) return "report";
-  if (action.startsWith("map_point.") || action.startsWith("transport.")) return "field";
-  if (action.startsWith("inmueble.")) return "record";
-  return "system";
-};
-
-const formatAuditTime = (value) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "--:--" : auditTimeFormatter.format(date);
-};
-
-// El encabezado del dia gana un "Hoy"/"Ayer" para ubicarse sin leer la fecha completa.
-const auditRelativeDayLabel = (key) => {
-  if (key === "sin-fecha") return "";
-  const today = new Date();
-  if (key === auditDayKeyFormatter.format(today)) return "Hoy";
-  const yesterday = new Date(today.getTime() - 86400000);
-  return key === auditDayKeyFormatter.format(yesterday) ? "Ayer" : "";
-};
-
-// Los módulos viajan en su propio archivo, así que la primera visita cuesta una
-// descarga. Se adelanta en cuanto el puntero (o el foco del teclado) toca su
-// ítem del menú: para cuando llega el clic, el código ya está en caché.
-const MODULE_LOADERS = {
-  dashboard: () => import("./modules/dashboard/DashboardWorkspace"),
-  notes: () => import("./modules/notes/pages/NotesPage"),
-  inspecciones: () => import("./modules/inspecciones/pages/InspeccionesPage"),
-  entregas: () => import("./modules/entregas/pages/EntregasPage"),
-  records: () => import("./modules/clandestinos/pages/ClandestinosPage"),
-  importacion: () => import("./components/ImportacionWorkspace"),
-  sigTerritorial: () => import("./modules/sig/SigTerritorialWorkspace"),
-  map: () => import("./components/FieldMap"),
-  fieldValidation: () => import("./components/FieldValidationWorkspace"),
-  mapReports: () => import("./modules/reports/ReportsWorkspace"),
-  planos: () => import("./modules/planos/PlanosWorkspace"),
-  profile: () => import("./components/profile/MyProfileWorkspace"),
-  railwayUsage: () => import("./components/RailwayUsageWorkspace")
-};
-
-// Un fallo aquí no es un error de la app: el módulo se volverá a pedir al entrar.
-const prefetchModule = (key) => {
-  MODULE_LOADERS[key]?.().catch(() => {});
-};
-
-class MapLoadBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { failed: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  render() {
-    if (this.state.failed) {
-      return (
-        <div className="map-canvas map-canvas-loading">
-          <button type="button" className="button-secondary" onClick={() => this.setState({ failed: false })}>
-            Reintentar mapa
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-const DASHBOARD_WIDGET_STORAGE_KEY = "aguaschol:dashboard-widgets:v1";
-const DASHBOARD_REFRESH_INTERVAL_MS = 10000;
-const MAP_POINT_LIST_INITIAL_LIMIT = 30;
-const MAP_POINT_LIST_STEP = 30;
-const MOBILE_MAP_POINT_LIMIT = 180;
-const MAP_AUTO_REFRESH_MS = 45000;
-const MOBILE_MAP_AUTO_REFRESH_MS = 90000;
-const DEFAULT_DASHBOARD_WIDGET_ORDER = [
-  "spotlight",
-  "metrics",
-  "signals",
-  "executive",
-  "activity",
-  "lookup",
-  "journeys",
-  "online"
-];
-const RECORDS_PAGE_SIZE = 10;
-const MAP_DIARY_PRIMARY_LIMIT = 4;
-const MAP_DIARY_WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
-const REPORT_POINT_DANGER_RGB = [220, 38, 38];
-const REPORT_POINT_DANGER_FILL_RGB = [254, 242, 242];
-const REPORT_POINT_DANGER_BORDER_RGB = [248, 113, 113];
-const REPORT_POINT_ALERT_RGB = [146, 64, 14];
-const REPORT_POINT_ALERT_FILL_RGB = [255, 251, 235];
-const REPORT_POINT_ALERT_BORDER_RGB = [245, 158, 11];
-const GEOLOCATION_OPTIONS = {
-  enableHighAccuracy: true,
-  timeout: 18000,
-  maximumAge: 0
-};
-const GEOLOCATION_FALLBACK_OPTIONS = {
-  enableHighAccuracy: false,
-  timeout: 22000,
-  maximumAge: 60000
-};
-const IOS_GPS_HELP =
-  "En iPhone la ubicacion solo funciona si abres el sistema con HTTPS y das permiso en Safari. Mientras tanto puedes tocar el mapa o escribir latitud y longitud para guardar el punto.";
-
-const isRedReportPoint = (point = {}) =>
-  point.point_type === COMMERCIAL_MAP_POINT_TYPE ||
-  String(point.marker_color || "").trim().toLowerCase() === COMMERCIAL_MAP_POINT_COLOR;
-const isAlertReportPoint = (point = {}) =>
-  point.point_type === ALERT_MAP_POINT_TYPE ||
-  String(point.marker_color || "").trim().toLowerCase() === ALERT_MAP_POINT_COLOR;
-const getDefaultMapPointColor = (pointType = "", fallback = "#1576d1") => {
-  if (pointType === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
-  if (pointType === ALERT_MAP_POINT_TYPE) return ALERT_MAP_POINT_COLOR;
-  return fallback;
-};
-
-const getCurrentPosition = (options) =>
-  new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
-  });
-
-const isLocalSecureHost = () => {
-  if (typeof window === "undefined") return false;
-  return window.location.hostname === "::1";
-};
-
-const getGeolocationUnavailableMessage = () => {
-  if (typeof window !== "undefined" && !window.isSecureContext && !isLocalSecureHost()) {
-    return IOS_GPS_HELP;
-  }
-
-  return "Este dispositivo no soporta geolocalizacion. Puedes tocar el mapa o escribir las coordenadas manualmente.";
-};
-
-const getGeolocationErrorMessage = (error) => {
-  if (typeof window !== "undefined" && !window.isSecureContext && !isLocalSecureHost()) {
-    return IOS_GPS_HELP;
-  }
-
-  if (error?.code === error?.PERMISSION_DENIED || error?.code === 1) {
-    return "El navegador bloqueo la ubicacion. En iPhone revisa Ajustes > Safari > Ubicacion y permite el acceso; tambien puedes tocar el mapa para marcar el punto.";
-  }
-
-  if (error?.code === error?.TIMEOUT || error?.code === 3) {
-    return "El GPS tardo demasiado en responder. Intenta al aire libre, toca el mapa o escribe latitud y longitud para registrar el punto.";
-  }
-
-  return "No fue posible obtener la ubicacion actual. Puedes tocar el mapa o escribir las coordenadas manualmente.";
-};
-
-const getReportPointRowClassName = (point = {}, baseClassName = "") =>
-  [
-    baseClassName,
-    isRedReportPoint(point) ? "is-red-report-point" : "",
-    isAlertReportPoint(point) ? "is-alert-report-point" : ""
-  ].filter(Boolean).join(" ");
-
-const parseMapDiaryDate = (dateKey) => {
-  const [year, month, day] = String(dateKey || "").split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-};
-
-const getMapDiaryCalendarDays = (activeDateKey, groups = []) => {
-  const activeDate = parseMapDiaryDate(activeDateKey) || new Date();
-  const year = activeDate.getFullYear();
-  const month = activeDate.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
-  const totalsByKey = new Map(groups.map((group) => [group.key, Number(group.total || 0)]));
-  const blanks = Array.from({ length: firstWeekday }, (_, index) => ({ key: `blank-${index}`, blank: true }));
-  const days = Array.from({ length: daysInMonth }, (_, index) => {
-    const day = index + 1;
-    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return { key, day, total: totalsByKey.get(key) || 0 };
-  });
-  return blanks.concat(days);
-};
-
-const shiftMapDiaryMonth = (monthKey, amount) => {
-  const [year, month] = String(monthKey || "").split("-").map(Number);
-  const nextDate = new Date(year, month - 1 + amount, 1);
-  return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
-};
-
-const MapDiaryArchiveCalendar = ({ groups, selectedDateKey, loading, onSelectDate }) => {
-  const monthKeys = useMemo(
-    () => Array.from(new Set(groups.map((group) => group.key.slice(0, 7)))).sort(),
-    [groups]
-  );
-  const selectedMonthKey = selectedDateKey?.slice(0, 7) || monthKeys.at(-1) || getTodayMapDiaryKey().slice(0, 7);
-  const [monthKey, setMonthKey] = useState(selectedMonthKey);
-
-  useEffect(() => {
-    if (selectedDateKey) setMonthKey(selectedDateKey.slice(0, 7));
-  }, [selectedDateKey]);
-
-  const monthGroups = groups.filter((group) => group.key.startsWith(`${monthKey}-`));
-  const monthPoints = monthGroups.reduce((total, group) => total + Number(group.total || 0), 0);
-  const rawMonthLabel = parseMapDiaryDate(`${monthKey}-01`)?.toLocaleDateString("es-HN", {
-    month: "long",
-    year: "numeric"
-  }) || "";
-  const monthLabel = `${rawMonthLabel.charAt(0).toUpperCase()}${rawMonthLabel.slice(1)}`;
-  const firstMonth = monthKeys[0];
-  const lastMonth = monthKeys.at(-1);
-
-  return (
-    <section className="map-diary-archive-calendar" aria-label="Calendario de jornadas trabajadas">
-      <div className="map-diary-archive-calendar-title">
-        <span><CalendarDays size={20} /></span>
-        <div><strong>Jornadas trabajadas</strong><small>{groups.length} fechas registradas</small></div>
-      </div>
-      <div className="map-diary-archive-month-nav">
-        <button
-          type="button"
-          onClick={() => setMonthKey((current) => shiftMapDiaryMonth(current, -1))}
-          disabled={!firstMonth || monthKey <= firstMonth}
-          aria-label="Mes anterior"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <strong>{monthLabel}</strong>
-        <button
-          type="button"
-          onClick={() => setMonthKey((current) => shiftMapDiaryMonth(current, 1))}
-          disabled={!lastMonth || monthKey >= lastMonth}
-          aria-label="Mes siguiente"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-      <div className="map-diary-archive-calendar-grid" aria-hidden="true">
-        {MAP_DIARY_WEEKDAYS.map((day) => <span key={day}>{day}</span>)}
-      </div>
-      <div className="map-diary-archive-calendar-grid">
-        {getMapDiaryCalendarDays(`${monthKey}-01`, groups).map((day) =>
-          day.blank ? (
-            <span key={day.key} className="is-blank" />
-          ) : (
-            <button
-              key={day.key}
-              type="button"
-              className={`${day.total ? "has-work" : ""} ${selectedDateKey === day.key ? "is-active" : ""}`}
-              onClick={() => day.total && onSelectDate(day.key)}
-              disabled={!day.total || loading}
-              aria-label={day.total ? `${formatMapDiaryLabel(day.key)}, ${day.total} puntos` : formatMapDiaryLabel(day.key)}
-            >
-              <span>{day.day}</span>
-              {day.total ? <small>{day.total}</small> : null}
-            </button>
-          )
-        )}
-      </div>
-      <div className="map-diary-archive-calendar-summary">
-        <div><strong>{monthGroups.length}</strong><span>jornadas</span></div>
-        <div><strong>{monthPoints}</strong><span>puntos</span></div>
-      </div>
-    </section>
-  );
-};
-
-const readJsonResponse = async (response, fallbackMessage = "La API no devolvio una respuesta JSON valida.") => {
-  const text = await response.text();
-  if (!text) return {};
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    if ((response.headers.get("content-type") || "").includes("text/html") || /^\s*<!doctype html/i.test(text)) {
-      throw new Error("La app recibio una pagina HTML en vez de la API. Abre el dominio principal o configura VITE_API_URL/BACKEND_URL hacia el backend.");
-    }
-
-    throw new Error(fallbackMessage);
-  }
-};
-
-const getPadronStatusLabel = (status) => {
-  if (status === "varios_padrones") return "Varios padrones";
-  if (status === "reportada") return "Impresa";
-  return "Clandestina";
-};
-
-const PADRON_SYNC_STEPS = [
-  { label: "Cache borrado", progress: 24 },
-  { label: "Datos reemplazados", progress: 72 },
-  { label: "Excel completo verificado", progress: 100 }
-];
-
-const clampPrintCopies = (value) => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return 0;
-  return Math.min(5, Math.max(0, parsed));
-};
-
-const formatPercent = (value, total) => {
-  if (!total) return "0%";
-  return `${Math.round((Number(value || 0) / Number(total)) * 100)}%`;
-};
-
-const formatRelativeTime = (value, now = Date.now()) => {
-  const date = value ? new Date(value) : null;
-  const timestamp = date?.getTime();
-  if (!Number.isFinite(timestamp)) return "hace un momento";
-
-  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
-  if (seconds < 10) return "hace unos segundos";
-  if (seconds < 60) return `hace ${seconds} segundos`;
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes === 1) return "hace 1 minuto";
-  if (minutes < 60) return `hace ${minutes} minutos`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours === 1) return "hace 1 hora";
-  if (hours < 24) return `hace ${hours} horas`;
-
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "hace 1 dia";
-  return `hace ${days} dias`;
-};
-
-const formatDashboardSyncRelativeTime = (value, now = Date.now()) => {
-  const date = value ? new Date(value) : null;
-  const timestamp = date?.getTime();
-  if (!Number.isFinite(timestamp)) return "hace segundos";
-
-  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
-  if (seconds < 10) return "hace un momento";
-  if (seconds < 60) return `hace ${seconds} segundos`;
-
-  return formatRelativeTime(value, now);
-};
-
-const formatDashboardSyncDate = (value) => {
-  const date = value ? new Date(value) : new Date();
-  if (!Number.isFinite(date.getTime())) return "sin sincronizacion";
-
-  return new Intl.DateTimeFormat("es-HN", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
-};
-
-const getRecordPhotoPath = (record) =>
-  record?.foto_path || record?.foto_url || record?.fotografia || record?.photo_path || "";
-
-const getRecordDisplayName = (record, alcaldiaMatch = null) => {
-  const doesNotAppearInAguas = ["clandestino", "reportada"].includes(record?.estado_padron || "clandestino");
-  const recordKey = String(record?.clave_catastral || "").trim();
-  const candidates = doesNotAppearInAguas
-    ? [alcaldiaMatch?.nombre, record?.nombre_alcaldia, record?.abonado, record?.nombre_catastral, record?.inquilino]
-    : [record?.abonado, record?.nombre_catastral, record?.inquilino, alcaldiaMatch?.nombre, record?.nombre_alcaldia];
-  const name = candidates.find((value) => {
-    const cleanValue = String(value || "").trim();
-    return cleanValue && cleanValue !== recordKey;
-  });
-  return name || "--";
-};
-
-const getRecordAguasPresenceLabel = (record) => {
-  if (record?.estado_padron === "varios_padrones") return "Si aparece en Aguas";
-  if (["clandestino", "reportada"].includes(record?.estado_padron || "clandestino")) return "No aparece en Aguas";
-  return "Pendiente de validar";
-};
-
-const getRecordFichaDateLabel = (record) =>
-  formatSpanishDate(record?.created_at || record?.fecha_ficha || record?.fecha_registro || record?.fecha_aviso || record?.updated_at);
-
-const getRecordPrintedDateLabel = (record) => formatDateTime(record?.printed_at);
-
-const humanizeDashboardActivity = (log) => {
-  const actor = log?.actor_name || log?.actor_email || "Sistema";
-  const summary = String(log?.summary || "").trim();
-  const entityId = log?.entity_id ? String(log.entity_id) : "";
-
-  if (log?.action === "map_point.created") {
-    return `${actor} agrego un punto de campo al mapa`;
-  }
-  if (log?.action === "inmueble.created") {
-    return `${actor} creo la ficha ${entityId || summary.replace(/^Ficha\s+/i, "") || "reciente"}`;
-  }
-  if (log?.action === "inmueble.updated") {
-    return `${actor} actualizo la ficha ${entityId || summary.replace(/^Ficha\s+/i, "") || "reciente"}`;
-  }
-  if (log?.action === "inmueble.photo_attached") {
-    return `${actor} adjunto fotografia a ${entityId || "una ficha"}`;
-  }
-  if (log?.action === "auth.login") {
-    return `${actor} inicio sesion en el sistema`;
-  }
-  if (log?.action === "auth.logout") {
-    return `${actor} cerro sesion`;
-  }
-  if (log?.action === "transport.route_alert") {
-    return summary || `Se genero una alerta operativa`;
-  }
-
-  return summary || `${actor} registro actividad operativa`;
-};
-
-const EXECUTIVE_REPORT_CREDIT =
-  "Supervisado, desarrollado, implementado y documentado por el Ingeniero Juan Ramón Ordóñez Bonilla, con seguimiento directo del trabajo realizado en campo.";
-
-const getTodayMapDiaryKey = () => getMapDiaryDateKey(new Date());
-
-const normalizeDashboardWidgetPrefs = (value) => {
-  const orderSource = Array.isArray(value?.order) ? value.order : [];
-  const hiddenSource = Array.isArray(value?.hidden) ? value.hidden : [];
-  const order = [
-    ...orderSource.filter((item, index) => DEFAULT_DASHBOARD_WIDGET_ORDER.includes(item) && orderSource.indexOf(item) === index),
-    ...DEFAULT_DASHBOARD_WIDGET_ORDER.filter((item) => !orderSource.includes(item))
-  ];
-  const hidden = hiddenSource.filter((item, index) => DEFAULT_DASHBOARD_WIDGET_ORDER.includes(item) && hiddenSource.indexOf(item) === index);
-
-  return { order, hidden };
-};
-
-const getDefaultWorkspaceView = (role) => (role === "admin" ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "inspecciones" : "records");
-const getWorkspaceViewByRole = (role) => getWorkspaceViewFromPath(window.location.pathname) ?? getDefaultWorkspaceView(role);
-const getMapReportZoneOverrideKey = (zoneName) => String(zoneName || "Zona no especificada").trim() || "Zona no especificada";
-const getMapReportTechnicians = (staff) => {
-  const names = Array.isArray(staff?.field_technician_names)
-    ? staff.field_technician_names
-    : [staff?.field_technicians, staff?.field_technician_secondary];
-  const normalizedNames = names.map((name) => String(name ?? "").trim());
-  return normalizedNames.length ? normalizedNames : [""];
-};
-const normalizeMapReportStaff = (staff) => {
-  const technicians = getMapReportTechnicians(staff);
-  return {
-    ...defaultMapReportStaff,
-    ...(staff && typeof staff === "object" ? staff : {}),
-    field_technician_names: technicians.length ? technicians : [""],
-    field_technicians: technicians[0] ?? "",
-    field_technician_secondary: technicians[1] ?? ""
-  };
-};
-const buildMapReportStaffMarkup = (staff) => {
-  const normalizedStaff = normalizeMapReportStaff(staff);
-  return `
-    <div class="field-report-staff">
-      ${normalizedStaff.field_technician_names
-        .map(
-          (name, index) => `
-            <div>
-              <strong>Tecnico de campo ${index + 1}</strong>
-              <span>${escapeHtml(name || "--")}</span>
-            </div>
-          `
-        )
-        .join("")}
-      <div>
-        <strong>Ingeniero de datos</strong>
-        <span>${escapeHtml(normalizedStaff.data_engineer || "--")}</span>
-      </div>
-    </div>
-  `;
-};
-const getMapReportTechniciansLabel = (staff) => {
-  const names = getMapReportTechnicians(staff).filter(Boolean);
-  return names.length ? names.join(" / ") : "--";
-};
-const getMapReportBarrioZone = (point = {}, context = null, barrios = []) => {
-  const rawZone = String(context?.zone || deriveMapPointZone(point) || "").trim();
-  const source = [
-    rawZone,
-    point.reference_note,
-    point.reference,
-    point.description
-  ].filter(Boolean).join(" ");
-  const clave = extractClaveFromText(source);
-  const barrio = getBarrioNameFromClave(clave, barrios);
-
-  if (!barrio) {
-    return rawZone || "Zona no especificada";
-  }
-
-  const prefix = String(clave || "").split("-").filter(Boolean)[0] || "";
-  return `${prefix} - ${barrio}`;
-};
-const getMapReportPointClave = (point = {}, context = null) =>
-  extractClaveFromText(
-    [
-      context?.zone,
-      point.reference_note,
-      point.reference,
-      point.description
-    ].filter(Boolean).join(" ")
-  );
-const getMapReportTopZones = (reportData = {}, limit = 8) =>
-  [...(reportData.zones || [])]
-    .sort((left, right) => (right.total || 0) - (left.total || 0))
-    .slice(0, limit);
-const getMapZoneClavesLabel = (zone = {}) => Array.from(zone.claves || []).join(", ");
-const MAP_REPORT_SERVICE_LEGEND = "Servicios activos extraídos de la descripción de campo";
-const getMapPointPadronNames = (point = {}, nameIndex = new Map()) =>
-  Array.from(
-    new Set(
-      extractFieldDebtLookupReferences(
-        [point.report_key, point.reference_note, point.reference, point.description].filter(Boolean).join("\n")
-      )
-        .map((reference) => nameIndex.get(reference.key))
-        .filter(Boolean)
-    )
-  ).join(", ") || "--";
-const getMapPointReportReferenceLabel = (point = {}) =>
-  extractFieldDebtLookupReferences(
-    [point.report_key, point.reference_note, point.reference, point.description].filter(Boolean).join("\n")
-  )
-    .map((reference) => reference.label)
-    .join(", ") || point.report_key || "--";
-const getMapReportTypeChartRows = (reportData = {}, limit = 6) =>
-  Object.entries(reportData.totalsByType || {})
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, limit);
-const buildMapReportTypeChartMarkup = (reportData = {}) => {
-  const rows = getMapReportTypeChartRows(reportData);
-  const max = Math.max(1, ...rows.map(([, total]) => Number(total || 0)));
-  return rows.length
-    ? `<section class="map-report-chart"><h2>Distribución de puntos</h2>${rows
-        .map(
-          ([label, total]) =>
-            `<div><span>${escapeHtml(label)}</span><i><b style="width:${Math.max(5, (Number(total || 0) / max) * 100)}%"></b></i><strong>${total}</strong></div>`
-        )
-        .join("")}</section>`
-    : "";
-};
-const buildMapReportBriefRows = (reportData = {}, nameIndex = new Map()) => {
-  const rows = [];
-  (reportData.zones || []).forEach((zone) => {
-    const items = zone.items?.length ? zone.items : [null];
-    items.forEach((point) => {
-      const servicesLabel = point ? getMapPointServicesLabel(point) : getMapZoneServicesLabel(zone);
-      rows.push([
-        String(rows.length + 1),
-        zone.displayName || zone.zone || "--",
-        point ? getMapPointReportReferenceLabel(point) : "--",
-        point ? getMapPointPadronNames(point, nameIndex) : "--",
-        point ? getMapPointTypeLabel(point.point_type) : zone.pointTypesLabel || "--",
-        point ? getMapPointTechnicalDescription(point) || "--" : "--",
-        servicesLabel
-      ]);
-    });
-  });
-  return rows;
-};
-const FIELD_DEBT_SERVICE_DEFINITIONS = [
-  { field: "agua", label: "Agua potable", shortLabel: "Agua", aliases: ["agua", "potable"] },
-  { field: "alcantarillado", label: "Alcantarillado", shortLabel: "Alcant.", aliases: ["alcantarillado", "alca"] },
-  { field: "barrido", label: "Barrido", shortLabel: "Barrido", aliases: ["barrido", "barr"] },
-  {
-    field: "recoleccion",
-    label: "Recoleccion de desechos",
-    shortLabel: "Desechos",
-    legacyShortLabels: ["Recolec."],
-    aliases: ["desechos", "recoleccion", "tren", "basura", "aseo"]
-  },
-  {
-    field: "desechos_peligrosos",
-    label: "Desechos peligrosos",
-    shortLabel: "Peligrosos",
-    aliases: ["peligrosos", "bomb"]
-  }
-];
-const getFieldDebtServiceShortLabels = (service = {}) =>
-  [service.shortLabel, service.label, ...(service.legacyShortLabels || [])].filter(Boolean);
-const getMapPointHousingUnits = (point = {}) => {
-  const numeric = Math.round(Number(point.housing_units || 1));
-  return Number.isFinite(numeric) ? Math.max(1, numeric) : 1;
-};
-const normalizeHousingUnitsInput = (value) => {
-  const numeric = Math.round(Number(value || 1));
-  return Number.isFinite(numeric) ? String(Math.max(1, Math.min(999, numeric))) : "1";
-};
-const getMapZoneHousingUnits = (zone = {}) =>
-  (zone.items || []).reduce((total, point) => total + getMapPointHousingUnits(point), 0);
-const getMapPointServicesLabel = (point = {}) => {
-  const source = `${point.reference_note || ""}\n${point.description || ""}`;
-  const activeServices = FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) => {
-    return getFieldDebtServiceShortLabels(service).some((label) => {
-      const pattern = new RegExp(`${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:\\s*S(?:i|\\u00ed)`, "i");
-      return pattern.test(source);
-    });
-  }).map((service) => service.shortLabel);
-
-  return activeServices.length ? activeServices.join(", ") : "Sin servicios activos";
-};
-const getMapZoneServicesLabel = (zone = {}) => {
-  const services = new Set();
-  (zone.items || []).forEach((point) => {
-    getMapPointServicesLabel(point)
-      .split(",")
-      .map((service) => service.trim())
-      .filter((service) => service && service !== "--")
-      .forEach((service) => services.add(service));
-  });
-  return services.size ? Array.from(services).join(", ") : "--";
-};
-const extractFieldDebtLookupReferences = (value = "") => extractPadronLookupReferences(value);
-const getFieldDebtRequestedServices = (value = "") => {
-  const normalized = String(value ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-  return FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) =>
-    service.aliases.some((alias) => normalized.includes(alias))
-  ).map((service) => service.label);
-};
-const getFieldDebtServiceStatus = (match = {}, serviceField = "") => {
-  const value = String(match?.[serviceField] ?? "").trim().toUpperCase();
-  if (value === "S") return "Sí";
-  if (value === "N") return "No";
-  return "--";
-};
-const MAP_DESCRIPTION_PADRON_BLOCK_PATTERN =
-  /\n?\s*(?:Datos del padron(?: \([^)]+\))?:\n?)?(?:(?:Abonado|Nombre|Barrio\/colonia|Direccion):.*\n)+Servicios:.*(?=\n{2,}|$)/i;
-const stripMapDescriptionPadronBlock = (value = "") =>
-  String(value ?? "").replace(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN, "").trimEnd();
-const getMapPointTechnicalDescription = (point = {}) =>
-  stripServicesFromDescription(stripMapDescriptionPadronBlock(point.description || ""));
-const getMapPointReferenceNote = (point = {}) =>
-  String(point.reference_note || point.reference || "").trim();
-const buildMapDescriptionPadronBlock = (match = {}) => {
-  const identityLines = [
-    match.abonado ? `Abonado: ${match.abonado}` : "",
-    match.inquilino || match.nombre ? `Nombre: ${match.inquilino || match.nombre}` : "",
-    match.barrio_colonia ? `Barrio/colonia: ${match.barrio_colonia}` : "",
-    match.direccion ? `Direccion: ${match.direccion}` : ""
-  ].filter(Boolean);
-  const serviceLine = FIELD_DEBT_SERVICE_DEFINITIONS.map(
-    (service) => `${service.shortLabel}: ${getFieldDebtServiceStatus(match, service.field)}`
-  ).join(" | ");
-
-  return [
-    ...identityLines,
-    `Servicios: ${serviceLine}`
-  ].join("\n");
-};
-const getActiveServiceShortLabels = (match = {}) =>
-  FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) => String(match?.[service.field] || "").trim().toUpperCase() === "S")
-    .map((service) => service.shortLabel);
-const formatLookupAssistantMoney = (value) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? formatCurrency(numeric) : "";
-};
-const buildLookupAssistantDetails = (match = {}) => {
-  const detailRows = [
-    ["Clave", match.clave_catastral || match.clave_aguas_formato],
-    ["Abonado", match.abonado],
-    ["Nombre", match.inquilino || match.nombre],
-    ["Titular", match.nombre && match.nombre !== match.inquilino ? match.nombre : ""],
-    ["Barrio/colonia", match.barrio_colonia || match.caserio],
-    ["Direccion", match.direccion],
-    ["Agua potable", getFieldDebtServiceStatus(match, "agua")],
-    ["Alcantarillado", getFieldDebtServiceStatus(match, "alcantarillado")],
-    ["Barrido", getFieldDebtServiceStatus(match, "barrido")],
-    ["Desechos / tren de aseo", getFieldDebtServiceStatus(match, "recoleccion")],
-    ["Desechos peligrosos", getFieldDebtServiceStatus(match, "desechos_peligrosos")],
-    ["Valor", formatLookupAssistantMoney(match.valor)],
-    ["Intereses", formatLookupAssistantMoney(match.intereses)],
-    ["Total", formatLookupAssistantMoney(match.total)]
-  ];
-
-  return detailRows
-    .filter(([, value]) => String(value ?? "").trim() && String(value ?? "").trim() !== "--")
-    .map(([label, value]) => ({ label, value }));
-};
-const buildFieldDebtServicesMarkup = (match = {}) =>
-  FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => {
-    const isActive = getFieldDebtServiceStatus(match, service.field) === "Sí";
-    return `
-      <span class="field-debt-service-mark ${isActive ? "is-on" : "is-off"}">
-        <b>${isActive ? "✓" : "×"}</b>${escapeHtml(service.shortLabel)}
-      </span>
-    `;
-  }).join("");
-const buildFieldDebtPointRows = (points = []) =>
-  points
-    .map((point, index) => {
-      const sourceText = [point.reference_note, point.description].filter(Boolean).join(" ");
-      const references = extractFieldDebtLookupReferences(sourceText).map((reference) => {
-        if (reference.field !== "clave") return reference;
-        const value = reference.value.split("-").slice(0, 3).join("-");
-        return { ...reference, value, key: `clave:${value}`, label: value };
-      });
-      return {
-        point,
-        index,
-        sourceText,
-        keys: references.map((reference) => reference.key),
-        references,
-        requestedServices: getFieldDebtRequestedServices(sourceText)
-      };
-    })
-    .filter((row) => row.keys.length);
-const getFieldDebtResultLabel = (result = {}) => result.label || result.key || "--";
-const normalizeMapReportSettings = (value) => ({
-  ...defaultMapReportSettings,
-  ...(value && typeof value === "object" ? value : {}),
-  zone_overrides: value?.zone_overrides && typeof value.zone_overrides === "object" ? value.zone_overrides : {},
-  map_image_data_url: typeof value?.map_image_data_url === "string" ? value.map_image_data_url : "",
-  map_image_name: typeof value?.map_image_name === "string" ? value.map_image_name : ""
-});
-
-const stripTransientMapReportSettings = (settings) => {
-  const { map_image_data_url, map_image_name, ...settingsToStore } = normalizeMapReportSettings(settings);
-  return settingsToStore;
-};
-
-const loadMapReportSettingsByDate = () => {
-  const saved = window.localStorage.getItem(MAP_REPORT_SETTINGS_STORAGE_KEY);
-  if (!saved) return {};
-
-  try {
-    const parsed = JSON.parse(saved);
-    if (parsed?.by_date && typeof parsed.by_date === "object") {
-      return Object.fromEntries(
-        Object.entries(parsed.by_date).map(([dateKey, settings]) => [
-          dateKey,
-          normalizeMapReportSettings(settings)
-        ])
-      );
-    }
-
-    if (parsed && typeof parsed === "object") {
-      return {
-        [getMapDiaryDateKey(new Date())]: normalizeMapReportSettings(parsed)
-      };
-    }
-  } catch {
-    window.localStorage.removeItem(MAP_REPORT_SETTINGS_STORAGE_KEY);
-  }
-
-  return {};
-};
-
-const getAlertDetails = (text) => {
-  const value = String(text || "").toLowerCase();
-  if (/no fue posible|no se pudo|error|fall[oó]|ses[ií]on venc/i.test(value)) {
-    return { tone: "error", label: "No se pudo completar" };
-  }
-  if (/guardad|actualizad|generad|descargad|registrad|impres|cread|eliminad|enviad|validad|correctamente|completad|listo|comparaci[oó]n lista/i.test(value)) {
-    return { tone: "success", label: "Listo" };
-  }
-  if (/atenci[oó]n|vencid|alerta|pendiente|selecciona|debes|primero|no concuerda|no se encontr[oó]/i.test(value)) {
-    return { tone: "warning", label: "Atención" };
-  }
-  return { tone: "info", label: "Actualización" };
-};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function App() {
   const sheetRef = useRef(null);
