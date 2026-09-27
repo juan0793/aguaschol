@@ -40,16 +40,21 @@ export class ProfileWebSocketManager {
         const baseWsUrl = (WS_URL || fallbackWsUrl).replace(/\/$/, "");
         const wsUrl = `${baseWsUrl}/ws/profile?token=${encodeURIComponent(this.token)}`;
 
-        this.socket = new WebSocket(wsUrl);
+        const socket = new WebSocket(wsUrl);
+        this.socket = socket;
+        // Un socket reemplazado o cerrado con disconnect() ya no debe tocar el estado del manager.
+        const isStale = () => this.socket !== socket;
 
-        this.socket.addEventListener("open", () => {
+        socket.addEventListener("open", () => {
+          if (isStale()) return resolve();
           this.reconnectAttempts = 0;
           this.connectPromise = null;
           this.emit("connect");
           resolve();
         });
 
-        this.socket.addEventListener("message", (event) => {
+        socket.addEventListener("message", (event) => {
+          if (isStale()) return;
           try {
             this.handleMessage(JSON.parse(event.data));
           } catch (error) {
@@ -57,7 +62,8 @@ export class ProfileWebSocketManager {
           }
         });
 
-        this.socket.addEventListener("close", () => {
+        socket.addEventListener("close", () => {
+          if (isStale()) return;
           this.connectPromise = null;
           this.emit("disconnect");
           if (this.shouldReconnect) {
@@ -65,7 +71,8 @@ export class ProfileWebSocketManager {
           }
         });
 
-        this.socket.addEventListener("error", (error) => {
+        socket.addEventListener("error", (error) => {
+          if (isStale()) return resolve();
           this.connectPromise = null;
           this.emit("error", error);
           reject(error);
@@ -169,9 +176,16 @@ export class ProfileWebSocketManager {
 
   disconnect() {
     this.shouldReconnect = false;
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
+    const socket = this.socket;
+    this.socket = null;
+    this.connectPromise = null;
+    if (!socket) return;
+    // Cerrar mientras conecta (p. ej. el doble montaje de StrictMode) dispara "error" en el navegador;
+    // se espera a que abra para cerrarlo limpio.
+    if (socket.readyState === WebSocket.CONNECTING) {
+      socket.addEventListener("open", () => socket.close(), { once: true });
+    } else {
+      socket.close();
     }
   }
 

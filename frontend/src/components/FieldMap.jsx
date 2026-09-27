@@ -16,10 +16,17 @@ const TILE_CACHE_BUSTER = "osm-20260407";
 const MOBILE_MEDIA_QUERY = "(max-width: 768px), (pointer: coarse)";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
+// Leaflet borra _mapPane en map.remove(); invalidar un mapa ya destruido lanza '_leaflet_pos'.
+const safeInvalidate = (map) => {
+  if (map?._mapPane) map.invalidateSize(false);
+};
 const invalidateSoon = (map) => {
-  window.requestAnimationFrame(() => map?.invalidateSize(false));
-  window.setTimeout(() => map?.invalidateSize(false), 80);
-  window.setTimeout(() => map?.invalidateSize(false), 280);
+  const frame = window.requestAnimationFrame(() => safeInvalidate(map));
+  const timers = [80, 280].map((delay) => window.setTimeout(() => safeInvalidate(map), delay));
+  return () => {
+    window.cancelAnimationFrame(frame);
+    timers.forEach((timer) => window.clearTimeout(timer));
+  };
 };
 const getDraftMarkerColor = (draft = {}) => {
   if (draft.point_type === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
@@ -179,17 +186,19 @@ function FieldMap({
     tileLayerRef.current = tileLayer;
     pointLayerRef.current = L.layerGroup().addTo(map);
 
+    let resizeFrame = 0;
     const resizeObserver = new ResizeObserver(() => {
-      window.requestAnimationFrame(() => {
-        map.invalidateSize(false);
-      });
+      window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = window.requestAnimationFrame(() => safeInvalidate(map));
     });
 
     resizeObserver.observe(containerRef.current);
-    invalidateSoon(map);
+    const cancelInvalidate = invalidateSoon(map);
 
     return () => {
       resizeObserver.disconnect();
+      window.cancelAnimationFrame(resizeFrame);
+      cancelInvalidate();
       if (statusTimerRef.current) {
         window.clearTimeout(statusTimerRef.current);
       }
@@ -217,7 +226,7 @@ function FieldMap({
       return;
     }
 
-    invalidateSoon(mapRef.current);
+    return invalidateSoon(mapRef.current);
   }, [isActive]);
 
   useEffect(() => {
@@ -341,12 +350,12 @@ function FieldMap({
       duration: 0.45,
       easeLinearity: 0.25
     });
-    window.requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize(false);
-    });
-    window.setTimeout(() => {
-      mapRef.current?.invalidateSize(false);
-    }, 260);
+    const frame = window.requestAnimationFrame(() => safeInvalidate(mapRef.current));
+    const timer = window.setTimeout(() => safeInvalidate(mapRef.current), 260);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
   }, [mapFocusRequest]);
 
   const handleSetDraftToMapCenter = () => {
