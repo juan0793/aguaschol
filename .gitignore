@@ -19,6 +19,7 @@ frontend-dev.err.log
 .codex/
 tmp/
 graphify-out/
+.impeccable/review/
 
 foxpro-reader/ControlAguasFoxProReader-win-x86*/
 foxpro-reader/ControlAguasFoxProReader-win-x86*.zip
