@@ -3,7 +3,6 @@ import "@blossom-carousel/core/style.css";
 import { toast, Toaster } from "sonner";
 import { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import AppSidebar from "./components/sidebar/AppSidebar";
-import { getPathForWorkspaceView } from "./components/sidebar/sidebarConfig";
 import { ModuleSkeleton } from "./components/ds/Skeleton";
 import "./components/ds/design-system.css";
 import "./styles/request-workspace.css";
@@ -13,10 +12,7 @@ import {
   AUTH_STORAGE_KEY,
   DRAFT_STORAGE_KEY,
   DRAFT_SAVED_AT_STORAGE_KEY,
-  MAP_REPORT_SETTINGS_STORAGE_KEY,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
-  RECORD_ALERT_NOTIFICATION_STORAGE_KEY,
-  NOTIFICATION_REQUEST_STORAGE_KEY
 } from "./constants/storageKeys";
 import {
   defaultMapReportStaff,
@@ -38,10 +34,8 @@ import {
 } from "./utils/records";
 import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/localStorage";
 import {
-  getBarrioNameFromClave,
   resolveBarrioFromPayload,
 } from "./utils/barrioCodes";
-import { installSearchScrollGuard } from "./utils/searchScrollGuard";
 import {
   FieldValidationWorkspace,
   MyProfileWorkspace,
@@ -65,25 +59,15 @@ import {
   AUDIT_ENTITY_OPTIONS,
 } from "./utils/audit";
 import {
-  DASHBOARD_REFRESH_INTERVAL_MS,
   MAP_POINT_LIST_INITIAL_LIMIT,
-  MAP_AUTO_REFRESH_MS,
-  MOBILE_MAP_AUTO_REFRESH_MS,
   MAP_DIARY_PRIMARY_LIMIT,
 } from "./constants/workspace";
 import { getTodayMapDiaryKey } from "./utils/mapDiary";
 import {
   normalizeMapReportStaff,
-  MAP_DESCRIPTION_PADRON_BLOCK_PATTERN,
-  stripMapDescriptionPadronBlock,
   normalizeMapReportSettings,
-  stripTransientMapReportSettings,
   loadMapReportSettingsByDate
 } from "./utils/mapReport";
-import {
-  extractFieldDebtLookupReferences,
-  buildMapDescriptionPadronBlock,
-} from "./utils/fieldDebt";
 import {
   formatDashboardSyncRelativeTime,
 } from "./utils/timeFormat";
@@ -137,6 +121,10 @@ import { createMapDataLoaders } from "./modules/campo/createMapDataLoaders";
 import { createPadronDataActions } from "./modules/padron/createPadronDataActions";
 import { createRecordFormActions } from "./modules/clandestinos/createRecordFormActions";
 import { createLookupRecordBridge } from "./modules/lookup/createLookupRecordBridge";
+import { useRecordEffects } from "./modules/clandestinos/useRecordEffects";
+import { useFieldMapEffects } from "./modules/campo/useFieldMapEffects";
+import { useAdminDataEffects } from "./app/useAdminDataEffects";
+import { useAppShellEffects } from "./app/useAppShellEffects";
 
 function App() {
   const sheetRef = useRef(null);
@@ -583,72 +571,16 @@ function App() {
     todayDateKey
   });
 
-  useEffect(() => {
-    if (mapDiaryDateKey !== activeMapDiaryDateKey) {
-      setMapDiaryDateKey(activeMapDiaryDateKey);
-    }
-  }, [activeMapDiaryDateKey, mapDiaryDateKey]);
 
-  useEffect(() => {
-    if (regulatorReportDiaryKeys.length || !regulatorReportDiaryOptions.length) return;
-    setRegulatorReportDiaryKeys(regulatorReportDiaryOptions.slice(0, 3).map((group) => group.key));
-  }, [regulatorReportDiaryKeys.length, regulatorReportDiaryOptions]);
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia?.("(max-width: 768px), (pointer: coarse)");
-    if (!mediaQuery) return undefined;
 
-    const handleChange = () => setIsCompactMapView(mediaQuery.matches);
-    handleChange();
-    mediaQuery.addEventListener?.("change", handleChange);
-    return () => mediaQuery.removeEventListener?.("change", handleChange);
-  }, []);
 
-  useEffect(() => {
-    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
-  }, [sidebarCollapsed]);
 
-  useEffect(() => {
-    const byDate = Object.fromEntries(
-      Object.entries(mapReportSettingsByDate).map(([dateKey, settings]) => [
-        dateKey,
-        stripTransientMapReportSettings(settings)
-      ])
-    );
-    window.localStorage.setItem(MAP_REPORT_SETTINGS_STORAGE_KEY, JSON.stringify({ by_date: byDate }));
-  }, [mapReportSettingsByDate]);
 
-  useEffect(() => {
-    const handleEscape = (event) => {
-      if (event.key !== "Escape") return;
-      setShowMobileModuleMenu(false);
-      setShowUserMenu(false);
-    };
 
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, []);
 
-  useEffect(() => () => {
-    mapPointsRequestRef.current.controller?.abort();
-  }, []);
 
-  useEffect(() => {
-    setRecordPage(1);
-  }, [search, recordView, recordQuickFilter, recordFilters]);
 
-  useEffect(() => {
-    setRecordPage((current) => Math.min(current, recordPagination.totalPages));
-  }, [recordPagination.totalPages]);
-
-  useEffect(() => {
-    setSelectedMapPointId((current) => (visibleMapPoints.some((point) => point.id === current) ? current : null));
-  }, [visibleMapPoints]);
-
-  useEffect(() => {
-    setMapReportPage(1);
-    setMapPointListLimit(MAP_POINT_LIST_INITIAL_LIMIT);
-  }, [activeMapDiaryDateKey]);
 
   const showAlert = useCallback((text) => {
     if (!text || (intentionalLogoutRef.current && /la sesi[oó]n venci[oó]/i.test(text))) return;
@@ -814,54 +746,6 @@ function App() {
     workspaceView
   });
 
-  useEffect(() => {
-    if (!session?.token) return undefined;
-
-    let cancelled = false;
-    const refreshStoredSession = async () => {
-      try {
-        const response = await fetch(`${API_URL}/auth/me`, {
-          cache: "no-store",
-          credentials: "include",
-          headers: {
-            Authorization: `Bearer ${session.token}`
-          }
-        });
-
-        if (cancelled) return;
-        if (response.status === 401) {
-          sessionInvalidatingRef.current = true;
-          clearSession();
-          if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
-          return;
-        }
-        if (!response.ok) {
-          setSessionVerified(true);
-          return;
-        }
-
-        const data = await response.json();
-        if (!data?.user) return;
-
-        setSession((current) => {
-          if (current?.token !== session.token) return current;
-          const nextSession = { ...current, user: data.user };
-          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
-          return nextSession;
-        });
-        sessionInvalidatingRef.current = false;
-        setSessionVerified(true);
-      } catch {
-        // Keep the stored session if the API is temporarily unreachable.
-        setSessionVerified(true);
-      }
-    };
-
-    refreshStoredSession();
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.token, showAlert]);
 
 
 
@@ -881,159 +765,14 @@ function App() {
     return URL.createObjectURL(selectedFile);
   }, [selectedFile]);
 
-  useEffect(() => {
-    return () => {
-      if (localSelectedPhotoUrl) {
-        URL.revokeObjectURL(localSelectedPhotoUrl);
-      }
-    };
-  }, [localSelectedPhotoUrl]);
-
-  useEffect(() => {
-    if (workspaceView === "records") return undefined;
-    const timer = window.setInterval(() => {
-      setDashboardNow(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [workspaceView]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setShowPasswordModal(false);
-      return;
-    }
-
-    if (mustChangePassword) {
-      setShowPasswordModal(true);
-    }
-  }, [isAuthenticated, mustChangePassword]);
 
 
-  useEffect(() => {
-    if (isAuthenticated && workspaceView === "records") {
-      loadRecords(search, recordView);
-      loadBarrioCodes({ silent: true });
-    }
-  }, [isAuthenticated, recordView, workspaceView]);
 
-  useEffect(() => {
-    if (!String(form.clave_catastral || "").trim() || String(form.barrio_colonia || "").trim()) {
-      return;
-    }
 
-    const barrio = getBarrioNameFromClave(form.clave_catastral, safeBarrioCodes);
-    if (barrio) {
-      setForm((current) => (
-        String(current.barrio_colonia || "").trim()
-          ? current
-          : { ...current, barrio_colonia: barrio }
-      ));
-    }
-  }, [form.clave_catastral, form.barrio_colonia, safeBarrioCodes]);
 
-  useEffect(() => {
-    if (!isAuthenticated || !alertRecords.length || !["records", "dashboard"].includes(workspaceView)) {
-      return;
-    }
 
-    if (!("Notification" in window)) {
-      return;
-    }
 
-    const shouldRequestPermission =
-      Notification.permission === "default" &&
-      !window.localStorage.getItem(NOTIFICATION_REQUEST_STORAGE_KEY);
 
-    if (shouldRequestPermission) {
-      window.localStorage.setItem(NOTIFICATION_REQUEST_STORAGE_KEY, "1");
-      Notification.requestPermission().catch(() => {});
-      return;
-    }
-
-    if (Notification.permission !== "granted") {
-      return;
-    }
-
-    const nextNotified = { ...notifiedRecordAlerts };
-    let changed = false;
-
-    alertRecords.slice(0, 4).forEach((record) => {
-      const meta = recordDeadlineMetaById[record.id];
-      if (!meta) return;
-
-      const key = `${record.id}:${meta.statusKey}`;
-      if (nextNotified[key]) return;
-
-      try {
-        new Notification(`Ficha ${meta.label.toLowerCase()}`, {
-          body: `${record.clave_catastral} · ${getRecordBarrioName(record, "Sin ubicacion")} · ${meta.helper}`,
-          tag: `record-alert-${record.id}-${meta.statusKey}`
-        });
-      } catch {
-        return;
-      }
-
-      nextNotified[key] = new Date().toISOString();
-      changed = true;
-    });
-
-    if (changed) {
-      window.localStorage.setItem(RECORD_ALERT_NOTIFICATION_STORAGE_KEY, JSON.stringify(nextNotified));
-      setNotifiedRecordAlerts(nextNotified);
-    }
-  }, [alertRecords, isAuthenticated, notifiedRecordAlerts, recordDeadlineMetaById, workspaceView]);
-
-  useEffect(() => {
-    if (!isAuthenticated || workspaceView !== "records") {
-      return undefined;
-    }
-
-    const refreshRecords = () => {
-      if (document.visibilityState === "visible") {
-        loadRecords(search, recordView, { silent: true });
-      }
-    };
-
-    const handleWindowFocus = () => refreshRecords();
-    const intervalId = window.setInterval(refreshRecords, 8000);
-    document.addEventListener("visibilitychange", refreshRecords);
-    window.addEventListener("focus", handleWindowFocus);
-
-    return () => {
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", refreshRecords);
-      window.removeEventListener("focus", handleWindowFocus);
-    };
-  }, [isAuthenticated, recordView, search, workspaceView]);
-
-  // Cargar conteo de mensajes sin leer periodicamente
-  useEffect(() => {
-    if (!isAuthenticated || !session?.user?.id) return;
-
-    const loadUnreadMessagesCount = async () => {
-      try {
-        const response = await apiFetch("/profile");
-        const data = await response.json();
-        if (response.ok && data.messages) {
-          const unreadCount = (data.messages ?? []).filter(
-            (m) => m.recipient_user_id === session.user.id && !m.read_at
-          ).length;
-          setUnreadMessagesCount(unreadCount);
-        }
-      } catch (error) {
-        console.error("Error cargando conteo de mensajes:", error);
-      }
-    };
-
-    // Cargar al iniciar
-    loadUnreadMessagesCount();
-
-    // Actualizar cada 30 segundos
-    const intervalId = window.setInterval(loadUnreadMessagesCount, 30000);
-
-    return () => window.clearInterval(intervalId);
-  }, [isAuthenticated, session?.user?.id, apiFetch]);
 
 
 
@@ -1087,327 +826,28 @@ function App() {
     [isAuthenticated, isAdmin, workspaceView]
   );
 
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin) {
-      return;
-    }
-
-    if (workspaceView === "users") {
-      loadUsers();
-    }
-
-    if (workspaceView === "padron") {
-      loadPadronMeta();
-      loadPadronBatches();
-      loadAlcaldiaMeta();
-      loadBarrioCodes({ silent: true });
-    }
-
-    if (workspaceView === "barrioCodes") {
-      loadBarrioCodes();
-    }
-
-    if (["dashboard", "requests"].includes(workspaceView)) {
-      loadPadronServiceReport({ silent: true });
-    }
-
-    if (workspaceView === "requests") {
-      loadPadronRequestMeta();
-      loadPadronMeta();
-      loadAlcaldiaMeta();
-      loadBarrioCodes({ silent: true });
-      if (!alcaldiaComparison?.summary) {
-        loadAlcaldiaComparison({ silent: true });
-      }
-    }
-
-    if (workspaceView === "logs") {
-      loadAuditLogs();
-    }
-  }, [auditFiltersQuery, isAuthenticated, isAdmin, workspaceView]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => setAuditFiltersQuery(auditFilters), 320);
-    return () => window.clearTimeout(timeoutId);
-  }, [auditFilters]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin || !["dashboard", "requests"].includes(workspaceView)) {
-      return undefined;
-    }
-
-    const intervalId = window.setInterval(() => {
-      loadPadronServiceReport({ silent: true });
-    }, 60000);
-
-    return () => window.clearInterval(intervalId);
-  }, [isAuthenticated, isAdmin, workspaceView]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin) return undefined;
-
-    const handleReportGenerated = async (event) => {
-      const detail = event.detail || {};
-      if (!detail.reportId) return;
-
-      try {
-        const response = await apiFetch("/users/audit-logs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            report_id: detail.reportId,
-            title: detail.title || detail.reportId,
-            report_type: detail.reportType || "print-report",
-            page_size: detail.pageSize || "Letter portrait",
-            page_margin: detail.pageMargin || "10mm",
-            body_class_name: detail.bodyClassName || "",
-            body_markup: detail.bodyMarkup || "",
-            summary: `Reporte generado: ${detail.title || detail.reportId}`,
-            details: {
-              title: detail.title || "Reporte",
-              report_type: detail.reportType || "print-report",
-              generated_at: detail.createdAt || new Date().toISOString(),
-              archive_available: Boolean(detail.bodyMarkup)
-            }
-          })
-        });
-
-        if (response.ok && workspaceView === "logs") {
-          loadAuditLogs({ silent: true });
-        }
-      } catch {
-        // La auditoria no debe interrumpir la vista previa ni la impresion.
-      }
-    };
-
-    window.addEventListener("aguaschol:report-generated", handleReportGenerated);
-    return () => window.removeEventListener("aguaschol:report-generated", handleReportGenerated);
-  }, [apiFetch, isAuthenticated, isAdmin, workspaceView]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin) {
-      return undefined;
-    }
-
-    loadUsers({ silent: true });
-
-    const refreshOnlineUsers = () => {
-      if (document.visibilityState === "visible") {
-        loadUsers({ silent: true });
-      }
-    };
-
-    const intervalId = window.setInterval(refreshOnlineUsers, 20000);
-    document.addEventListener("visibilitychange", refreshOnlineUsers);
-    window.addEventListener("focus", refreshOnlineUsers);
-
-    return () => {
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", refreshOnlineUsers);
-      window.removeEventListener("focus", refreshOnlineUsers);
-    };
-  }, [isAuthenticated, isAdmin]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") {
-      return undefined;
-    }
-
-    refreshDashboard();
-    loadPadronMeta({ silent: true });
-    loadAlcaldiaMeta({ silent: true });
-
-    const intervalId = window.setInterval(refreshDashboard, DASHBOARD_REFRESH_INTERVAL_MS);
-    document.addEventListener("visibilitychange", refreshDashboard);
-    window.addEventListener("focus", refreshDashboard);
-
-    return () => {
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", refreshDashboard);
-      window.removeEventListener("focus", refreshDashboard);
-    };
-  }, [isAuthenticated, isAdmin, refreshDashboard, workspaceView]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin || workspaceView !== "executiveReport") {
-      return undefined;
-    }
-
-    loadRecords("", "active", { silent: true });
-    loadMapDiaryGroups({ silent: true });
-    loadMapPoints({ silent: true });
-    return undefined;
-  }, [isAuthenticated, isAdmin, workspaceView]);
-
-  useEffect(() => {
-    if (isAuthenticated && ["map", "mapReports", "mapAnalytics"].includes(workspaceView)) {
-        loadMapDiaryGroups({ silent: true });
-        loadMapPoints({ date: workspaceView === "map" ? activeMapDiaryDateKey : "" });
-      }
-  }, [activeMapDiaryDateKey, isAuthenticated, workspaceView]);
-
-  useEffect(() => {
-    if (["mapReports", "mapAnalytics"].includes(workspaceView) && isAdmin) {
-      loadMapPointContexts(visibleMapPoints);
-    }
-  }, [isAdmin, visibleMapPoints, workspaceView]);
-
-  useEffect(() => {
-    setMapReportPage(1);
-  }, [workspaceView]);
-
-  useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(mapReportPrintData.zones.length / 5));
-    setMapReportPage((current) => Math.min(current, totalPages));
-  }, [mapReportPrintData.zones.length]);
-
-  useEffect(() => {
-    const allowedViews = isFieldValidator
-      ? ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "fieldValidation", "planos"]
-      : ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "planos"];
-    if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
-      const defaultView = getDefaultWorkspaceView(session?.user?.role);
-      setWorkspaceView(allowedViews.includes(defaultView) ? defaultView : "records");
-    }
-  }, [isAuthenticated, isAdmin, isFieldValidator, session?.user?.role, workspaceView]);
-
-  // Buscadores sin saltos: al filtrar mientras se escribe, la página no se acorta
-  // bajo la vista (ver utils/searchScrollGuard.js).
-  useEffect(() => installSearchScrollGuard(), []);
-
-  // La direccion refleja la vista abierta: recargar o compartir el enlace lleva al mismo
-  // lugar. replaceState porque la app no escucha popstate; el hash de cada modulo se conserva.
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const path = getPathForWorkspaceView(workspaceView);
-    if (window.location.pathname !== path) {
-      window.history.replaceState(window.history.state, "", `${path}${window.location.search}${window.location.hash}`);
-    }
-  }, [isAuthenticated, workspaceView]);
-
-  useEffect(() => {
-    setShowMobileModuleMenu(false);
-    window.scrollTo(0, 0);
-  }, [workspaceView]);
-
-  useEffect(() => {
-    if (!isAuthenticated || workspaceView !== "map") {
-      return undefined;
-    }
-
-    const refreshMapPoints = () => {
-      if (document.visibilityState === "visible") {
-        loadMapDiaryGroups({ silent: true });
-        loadMapPoints({ silent: true, date: activeMapDiaryDateKey });
-      }
-    };
-
-    const handleWindowFocus = () => refreshMapPoints();
-    const refreshInterval = isCompactMapView ? MOBILE_MAP_AUTO_REFRESH_MS : MAP_AUTO_REFRESH_MS;
-    const intervalId = window.setInterval(refreshMapPoints, refreshInterval);
-    document.addEventListener("visibilitychange", refreshMapPoints);
-    window.addEventListener("focus", handleWindowFocus);
-
-    return () => {
-      window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", refreshMapPoints);
-      window.removeEventListener("focus", handleWindowFocus);
-    };
-  }, [activeMapDiaryDateKey, isAuthenticated, isCompactMapView, workspaceView]);
-
-  useEffect(() => {
-    if (!isAdmin && recordView === "archived") {
-      setRecordView("active");
-    }
-  }, [isAdmin, recordView]);
-
-  useEffect(() => {
-    if (form.id || !hasDraftContent(form)) {
-      return undefined;
-    }
-
-    const timer = window.setTimeout(() => {
-      const nextDraft = { ...emptyForm, ...form, id: null };
-      const savedAt = new Date().toISOString();
-      setDraftForm(nextDraft);
-      window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
-      window.localStorage.setItem(DRAFT_SAVED_AT_STORAGE_KEY, savedAt);
-    }, 420);
-
-    return () => window.clearTimeout(timer);
-  }, [form]);
 
 
 
 
 
-  useEffect(() => {
-    const description = String(mapDraft.description || "");
-    const descriptionWithoutPadron = stripMapDescriptionPadronBlock(description);
-    const references = extractFieldDebtLookupReferences(descriptionWithoutPadron);
-    const reference = references[references.length - 1] || null;
 
-    if (!reference) {
-      setMapDescriptionLookupStatus("");
-      return undefined;
-    }
 
-    const currentBlock = description.match(MAP_DESCRIPTION_PADRON_BLOCK_PATTERN)?.[0] || "";
-    if (currentBlock) {
-      setMapDescriptionLookupStatus("Informacion del padron anexada.");
-      return undefined;
-    }
-    setMapDescriptionLookupStatus(`Consultando padron para ${reference.label}...`);
 
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      try {
-        let data = mapDescriptionLookupCacheRef.current.get(reference.key);
-        if (!data) {
-          const response = await apiFetch(
-            `/claves/search?clave=${encodeURIComponent(reference.value)}&field=${encodeURIComponent(reference.field)}&_padron=${encodeURIComponent(
-              padronMeta?.updated_at || ""
-            )}`
-          );
-          data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.message || "No fue posible consultar el padron.");
-          }
-          mapDescriptionLookupCacheRef.current.set(reference.key, data);
-        }
 
-        if (cancelled) return;
-        const match = Array.isArray(data.matches) ? data.matches[0] : null;
-        if (!match) {
-          setMapDescriptionLookupStatus(`${reference.label} no aparece en el padron.`);
-          return;
-        }
 
-        setMapDraft((current) => {
-          const currentDescription = String(current.description || "");
-          const cleanDescription = stripMapDescriptionPadronBlock(currentDescription);
-          if (!extractFieldDebtLookupReferences(cleanDescription).some((item) => item.key === reference.key)) {
-            return current;
-          }
-          const nextBlock = buildMapDescriptionPadronBlock(match);
-          return {
-            ...current,
-            description: [cleanDescription, nextBlock].filter(Boolean).join("\n\n")
-          };
-        });
-        setMapDescriptionLookupStatus("Datos del padron anexados automaticamente.");
-      } catch (error) {
-        if (!cancelled) {
-          setMapDescriptionLookupStatus(error.message || "No fue posible consultar el padron.");
-        }
-      }
-    }, 650);
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [mapDraft.description, padronMeta?.updated_at, safeBarrioCodes]);
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2022,6 +1462,105 @@ function App() {
     setSelectedFile,
     setWorkspaceView,
     showAlert
+  });
+  useRecordEffects({
+    alertRecords,
+    form,
+    getRecordBarrioName,
+    isAdmin,
+    isAuthenticated,
+    loadBarrioCodes,
+    loadRecords,
+    localSelectedPhotoUrl,
+    notifiedRecordAlerts,
+    recordDeadlineMetaById,
+    recordFilters,
+    recordPagination,
+    recordQuickFilter,
+    recordView,
+    safeBarrioCodes,
+    search,
+    setDashboardNow,
+    setDraftForm,
+    setForm,
+    setNotifiedRecordAlerts,
+    setRecordPage,
+    setRecordView,
+    workspaceView
+  });
+  useFieldMapEffects({
+    activeMapDiaryDateKey,
+    apiFetch,
+    isAdmin,
+    isAuthenticated,
+    isCompactMapView,
+    loadMapDiaryGroups,
+    loadMapPointContexts,
+    loadMapPoints,
+    mapDescriptionLookupCacheRef,
+    mapDiaryDateKey,
+    mapDraft,
+    mapPointsRequestRef,
+    mapReportPrintData,
+    mapReportSettingsByDate,
+    padronMeta,
+    regulatorReportDiaryKeys,
+    regulatorReportDiaryOptions,
+    safeBarrioCodes,
+    setMapDescriptionLookupStatus,
+    setMapDiaryDateKey,
+    setMapDraft,
+    setMapPointListLimit,
+    setMapReportPage,
+    setRegulatorReportDiaryKeys,
+    setSelectedMapPointId,
+    visibleMapPoints,
+    workspaceView
+  });
+  useAdminDataEffects({
+    alcaldiaComparison,
+    apiFetch,
+    auditFilters,
+    auditFiltersQuery,
+    isAdmin,
+    isAuthenticated,
+    loadAlcaldiaComparison,
+    loadAlcaldiaMeta,
+    loadAuditLogs,
+    loadBarrioCodes,
+    loadMapDiaryGroups,
+    loadMapPoints,
+    loadPadronBatches,
+    loadPadronMeta,
+    loadPadronRequestMeta,
+    loadPadronServiceReport,
+    loadRecords,
+    loadUsers,
+    refreshDashboard,
+    setAuditFiltersQuery,
+    workspaceView
+  });
+  useAppShellEffects({
+    apiFetch,
+    clearSession,
+    intentionalLogoutRef,
+    isAdmin,
+    isAuthenticated,
+    isFieldValidator,
+    mustChangePassword,
+    session,
+    sessionInvalidatingRef,
+    setIsCompactMapView,
+    setSession,
+    setSessionVerified,
+    setShowMobileModuleMenu,
+    setShowPasswordModal,
+    setShowUserMenu,
+    setUnreadMessagesCount,
+    setWorkspaceView,
+    showAlert,
+    sidebarCollapsed,
+    workspaceView
   });
   if (session?.token && !sessionVerified) {
     return (
