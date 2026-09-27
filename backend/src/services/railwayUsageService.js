@@ -1,5 +1,13 @@
 const RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MINUTES_IN_MONTH = 43_200;
+const RESOURCE_PRICES = {
+  CPU_USAGE: 20 / MINUTES_IN_MONTH,
+  MEMORY_USAGE_GB: 10 / MINUTES_IN_MONTH,
+  NETWORK_TX_GB: 0.05,
+  DISK_USAGE_GB: 0.15 / MINUTES_IN_MONTH,
+  BACKUP_USAGE_GB: 0.15 / MINUTES_IN_MONTH
+};
 
 const projectQuery = `query RailwayProject($projectId: String!) {
   project(id: $projectId) {
@@ -7,6 +15,45 @@ const projectQuery = `query RailwayProject($projectId: String!) {
     services { edges { node { id name } } }
   }
 }`;
+
+const workspaceQuery = `query RailwayWorkspace($workspaceId: String!) {
+  workspace(workspaceId: $workspaceId) {
+    customer { billingPeriod { start end } }
+  }
+}`;
+
+const projectUsageQuery = `query RailwayProjectUsage(
+  $workspaceId: String!
+  $startDate: DateTime!
+  $endDate: DateTime!
+  $measurements: [MetricMeasurement!]!
+) {
+  usage(
+    workspaceId: $workspaceId
+    startDate: $startDate
+    endDate: $endDate
+    measurements: $measurements
+    groupBy: [PROJECT_ID, SERVICE_ID]
+    includeDeleted: true
+  ) {
+    measurement
+    value
+    tags { projectId serviceId }
+  }
+}`;
+
+const estimatedUsageQuery = `query RailwayEstimatedUsage(
+  $workspaceId: String!
+  $measurements: [MetricMeasurement!]!
+) {
+  estimatedUsage(workspaceId: $workspaceId, measurements: $measurements, includeDeleted: true) {
+    measurement
+    estimatedValue
+    projectId
+  }
+}`;
+
+const BILLABLE_MEASUREMENTS = Object.keys(RESOURCE_PRICES);
 
 const usageQuery = `query RailwayUsage(
   $projectId: String!
@@ -60,44 +107,63 @@ export const getRailwayUsage = async () => {
     throw error;
   }
 
-  const end = new Date();
-  const start = new Date(end.getTime() - 30 * DAY_MS);
   const projectId = process.env.RAILWAY_PROJECT_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
   const projectData = await railwayGraphql(projectQuery, { projectId });
-  if (!projectData.project?.workspaceId) {
+  const workspaceId = projectData.project?.workspaceId;
+  if (!workspaceId) {
     const error = new Error("No se encontró el espacio de trabajo de Railway para este proyecto.");
     error.status = 502;
     throw error;
   }
-  const [usageData, metricData] = await Promise.all([
-    railwayGraphql(`query RailwayProjectUsage($workspaceId: String!, $startDate: DateTime!, $endDate: DateTime!, $usageProperties: [ProjectUsageProperty!]!) {
-      projectServiceUsage(workspaceId: $workspaceId, startDate: $startDate, endDate: $endDate, first: 500, measurements: $usageProperties) {
-        usage { measurement value tags { projectId serviceId environmentId } }
-      }
-    }`, {
-      workspaceId: projectData.project.workspaceId,
+  const workspaceData = await railwayGraphql(workspaceQuery, { workspaceId });
+  const billingPeriod = workspaceData.workspace?.customer?.billingPeriod;
+  if (!billingPeriod?.start || !billingPeriod?.end) {
+    const error = new Error("Railway no devolvió el ciclo de facturación actual.");
+    error.status = 502;
+    throw error;
+  }
+  const start = new Date(billingPeriod.start);
+  const end = new Date(billingPeriod.end);
+  const now = new Date();
+  const [usageData, estimatedData, metricData] = await Promise.all([
+    railwayGraphql(projectUsageQuery, {
+      workspaceId,
       startDate: start.toISOString(),
-      endDate: end.toISOString(),
-      usageProperties: ["CURRENT_USAGE", "ESTIMATED_USAGE", "CPU_USAGE", "MEMORY_USAGE", "NETWORK_USAGE", "DISK_USAGE", "BACKUP_USAGE"]
+      endDate: now < end ? now.toISOString() : end.toISOString(),
+      measurements: BILLABLE_MEASUREMENTS
+    }),
+    railwayGraphql(estimatedUsageQuery, {
+      workspaceId,
+      measurements: BILLABLE_MEASUREMENTS
     }),
     railwayGraphql(usageQuery, {
       projectId,
       environmentId,
-      startDate: start.toISOString(),
-      endDate: end.toISOString(),
+      startDate: new Date(now.getTime() - 30 * DAY_MS).toISOString(),
+      endDate: now.toISOString(),
       metricMeasurements: ["CPU_USAGE", "MEMORY_USAGE_GB"]
     })
   ]);
   const serviceNames = Object.fromEntries(
     (projectData.project.services?.edges ?? []).map(({ node }) => [node.id, node.name])
   );
-  const usage = (usageData.projectServiceUsage?.usage ?? []).filter(
+  const usage = (usageData.usage ?? []).filter(
     (row) => row.tags?.projectId === process.env.RAILWAY_PROJECT_ID
   );
-  const sum = (measurement) => usage
+  const estimatedUsage = (estimatedData.estimatedUsage ?? []).filter(
+    (row) => row.projectId === projectId
+  );
+  const quantity = (rows, measurement, valueKey) => rows
     .filter((row) => row.measurement === measurement)
-    .reduce((total, row) => total + Number(row.value || 0), 0);
+    .reduce((total, row) => total + Number(row[valueKey] || 0), 0);
+  const resourceUsage = Object.fromEntries(BILLABLE_MEASUREMENTS.map((measurement) => [
+    measurement,
+    quantity(usage, measurement, "value") * RESOURCE_PRICES[measurement]
+  ]));
+  const estimatedCost = estimatedUsage.reduce((total, row) => (
+    total + Number(row.estimatedValue || 0) * (RESOURCE_PRICES[row.measurement] || 0)
+  ), 0);
   const metrics = metricData.metrics ?? [];
   const peaks = Object.fromEntries(["CPU_USAGE", "MEMORY_USAGE_GB"].map((measurement) => {
     const samples = metrics
@@ -114,10 +180,10 @@ export const getRailwayUsage = async () => {
   }));
 
   return {
-    period: { start: start.toISOString(), end: end.toISOString() },
-    currentUsage: sum("CURRENT_USAGE"),
-    estimatedUsage: sum("ESTIMATED_USAGE"),
-    resourceUsage: Object.fromEntries(["CPU_USAGE", "MEMORY_USAGE", "NETWORK_USAGE", "DISK_USAGE", "BACKUP_USAGE"].map((key) => [key, sum(key)])),
+    period: { start: start.toISOString(), end: end.toISOString(), updatedAt: now.toISOString() },
+    currentUsage: Object.values(resourceUsage).reduce((total, value) => total + value, 0),
+    estimatedUsage: estimatedCost,
+    resourceUsage,
     peaks
   };
 };

@@ -9,14 +9,15 @@ const usageUrl = "https://docs.railway.com/projects/project-usage";
 
 const resources = [
   { icon: Cpu, label: "CPU", key: "CPU_USAGE" },
-  { icon: MemoryStick, label: "Memoria", key: "MEMORY_USAGE" },
-  { icon: Network, label: "Red", key: "NETWORK_USAGE" },
-  { icon: HardDrive, label: "Disco", key: "DISK_USAGE" },
-  { icon: Database, label: "Respaldo", key: "BACKUP_USAGE" }
+  { icon: MemoryStick, label: "Memoria", key: "MEMORY_USAGE_GB" },
+  { icon: Network, label: "Red", key: "NETWORK_TX_GB" },
+  { icon: HardDrive, label: "Disco", key: "DISK_USAGE_GB" },
+  { icon: Database, label: "Respaldo", key: "BACKUP_USAGE_GB" }
 ];
 
 const money = new Intl.NumberFormat("es-HN", { style: "currency", currency: "USD" });
 const dateHour = new Intl.DateTimeFormat("es-HN", { timeZone: "America/Tegucigalpa", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+const date = new Intl.DateTimeFormat("es-HN", { timeZone: "America/Tegucigalpa", day: "numeric", month: "short" });
 
 export default function RailwayUsageWorkspace({ apiFetch }) {
   const [usage, setUsage] = useState(null);
@@ -54,7 +55,7 @@ export default function RailwayUsageWorkspace({ apiFetch }) {
 
       <div className="railway-usage-source" role="note">
         <span className="railway-usage-source-mark" aria-hidden="true"><Clock3 size={19} /></span>
-        <p>{loading ? "Consultando consumo y métricas de Railway…" : error ? error : `Datos de Railway · periodo de 30 días · actualizado ${dateHour.format(new Date(usage.period.end))}`}</p>
+        <p>{loading ? "Consultando consumo y métricas de Railway…" : error ? error : `Ciclo de facturación ${date.format(new Date(usage.period.start))} – ${date.format(new Date(usage.period.end))} · actualizado ${dateHour.format(new Date(usage.period.updatedAt))}`}</p>
       </div>
 
       <section className="railway-usage-grid" aria-label="Vistas de consumo de Railway">
@@ -110,7 +111,7 @@ export default function RailwayUsageWorkspace({ apiFetch }) {
             <span className="railway-usage-eyebrow">Qué revisar</span>
             <h2 id="railway-resources-title">Recursos facturados y medidos</h2>
           </div>
-          <span>Desglose mensual en USD</span>
+          <span>Desglose del ciclo en USD</span>
         </div>
         <ul>
           {resources.map(({ icon: Icon, label, key }) => (
