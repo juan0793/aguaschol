@@ -229,55 +229,6 @@ import {
   getWorkspaceViewByRole
 } from "./utils/appShell";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function App() {
   const sheetRef = useRef(null);
   const reportMapCaptureRef = useRef(null);
@@ -325,19 +276,11 @@ function App() {
       return null;
     }
   });
-  const [draftSaveState, setDraftSaveState] = useState(() => (draftForm ? "saved" : "idle"));
   const [search, setSearch] = useState("");
-  const [emptyRecordsMessage, setEmptyRecordsMessage] = useState("Cargando registros...");
-  const [loading, setLoading] = useState(true);
-  const [loadingRecordHistory, setLoadingRecordHistory] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [avisoHtml, setAvisoHtml] = useState("");
-  const [activeSection, setActiveSection] = useState("abonado");
   const [recordView, setRecordView] = useState("active");
   const [recordQuickFilter, setRecordQuickFilter] = useState("all");
   const [recordPage, setRecordPage] = useState(1);
-  const [recordListSelection, setRecordListSelection] = useState([]);
-  const [showRecordAdvancedFilters, setShowRecordAdvancedFilters] = useState(false);
   const [recordFilters, setRecordFilters] = useState({
     clave: "",
     barrio: "",
@@ -346,9 +289,7 @@ function App() {
     date_to: "",
     status: "all"
   });
-  const [selectedRecordId, setSelectedRecordId] = useState(null);
   const [processingRecordId, setProcessingRecordId] = useState(null);
-  const [lastProcessedRecord, setLastProcessedRecord] = useState(null);
   const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
   const [showDashboardAlertsModal, setShowDashboardAlertsModal] = useState(false);
   const [showPrintComparisonModal, setShowPrintComparisonModal] = useState(false);
@@ -402,11 +343,8 @@ function App() {
   // Solo la recarga pedida con el botón: la automática de cada 10 s no debe
   // deshabilitar ni hacer girar el botón Actualizar.
   const [dashboardManualRefreshing, setDashboardManualRefreshing] = useState(false);
-  const [dashboardSyncCycleKey, setDashboardSyncCycleKey] = useState(0);
   const [dashboardConnectionStatus, setDashboardConnectionStatus] = useState("synced");
   const [dashboardAlertFilter, setDashboardAlertFilter] = useState("all");
-  const [changedDashboardMetricKeys, setChangedDashboardMetricKeys] = useState([]);
-  const dashboardMetricValuesRef = useRef({});
   const [showMobileModuleMenu, setShowMobileModuleMenu] = useState(false);
   const closeMobileModuleMenu = useCallback(() => setShowMobileModuleMenu(false), []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -456,10 +394,7 @@ function App() {
   const [loadingArchiveMapDiaryPoints, setLoadingArchiveMapDiaryPoints] = useState(false);
   const [savingReportMapPoint, setSavingReportMapPoint] = useState(false);
   const [editingReportMapPointId, setEditingReportMapPointId] = useState(null);
-  const [selectedReportMapPointId, setSelectedReportMapPointId] = useState(null);
-  const [reportMapStatus, setReportMapStatus] = useState("Sincronizado");
   const [reportMapDraft, setReportMapDraft] = useState(emptyMapReportDraft);
-  const [reportMapFocusRequest, setReportMapFocusRequest] = useState(null);
   const [mapReportStaff, setMapReportStaff] = useState(() => normalizeMapReportStaff(defaultMapReportStaff));
   const [mapReportSettingsByDate, setMapReportSettingsByDate] = useState(() => loadMapReportSettingsByDate());
   const [regulatorReportDiaryKeys, setRegulatorReportDiaryKeys] = useState([]);
@@ -534,7 +469,6 @@ function App() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [selectedAuditReport, setSelectedAuditReport] = useState(null);
   const [loadingAuditReportId, setLoadingAuditReportId] = useState("");
-  const [recordHistory, setRecordHistory] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [auditFilters, setAuditFilters] = useState(EMPTY_AUDIT_FILTERS);
   // Los campos de texto escriben en `auditFilters` al instante (la UI responde) pero
@@ -2262,23 +2196,6 @@ function App() {
     ]
   );
   const dashboardActivity = useMemo(() => safeAuditLogs.slice(0, 5), [safeAuditLogs]);
-  useEffect(() => {
-    const previousValues = dashboardMetricValuesRef.current;
-    const nextValues = Object.fromEntries(dashboardLiveMetrics.map((metric) => [metric.key, metric.value]));
-    const changedKeys = dashboardLiveMetrics
-      .filter((metric) => Object.prototype.hasOwnProperty.call(previousValues, metric.key) && previousValues[metric.key] !== metric.value)
-      .map((metric) => metric.key);
-
-    dashboardMetricValuesRef.current = nextValues;
-    if (!changedKeys.length) return undefined;
-
-    setChangedDashboardMetricKeys(changedKeys);
-    const timeoutId = window.setTimeout(() => {
-      setChangedDashboardMetricKeys((current) => current.filter((key) => !changedKeys.includes(key)));
-    }, 900);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [dashboardLiveMetrics]);
 
   const dashboardLiveFeed = useMemo(() => {
     const feed = [];
@@ -3002,7 +2919,6 @@ function App() {
     const handleEscape = (event) => {
       if (event.key !== "Escape") return;
       setShowMobileModuleMenu(false);
-      setShowRecordAdvancedFilters(false);
       setShowUserMenu(false);
     };
 
@@ -3024,9 +2940,6 @@ function App() {
 
   useEffect(() => {
     setSelectedMapPointId((current) => (visibleMapPoints.some((point) => point.id === current) ? current : null));
-    setSelectedReportMapPointId((current) =>
-      visibleMapPoints.some((point) => point.id === current) ? current : null
-    );
   }, [visibleMapPoints]);
 
   useEffect(() => {
@@ -3060,10 +2973,8 @@ function App() {
       confirm_password: ""
     });
     setRecords([]);
-    setRecordListSelection([]);
     setUsers([]);
     setAuditLogs([]);
-    setRecordHistory([]);
     setLatestUserResult(null);
     setLookupSearchMode("clave");
     setLookupQuery("");
@@ -3080,7 +2991,6 @@ function App() {
     setMapFocusRequest(null);
     setLookupHistory(loadStoredLookupHistory());
     setDraftForm(null);
-    setDraftSaveState("idle");
     setDraftSavedAt(null);
     setNotifiedRecordAlerts(loadStoredRecordNotifications());
     setPadronMeta(null);
@@ -3328,7 +3238,6 @@ function App() {
       updatePadronSyncState({ progress: 72, message: "Data del padron reemplazada en el sistema" });
       applyPadronSyncResult(data);
       setDashboardLastUpdatedAt(Date.now());
-      setDashboardSyncCycleKey((current) => current + 1);
       showAlert(successMessage(data));
       return data;
     } finally {
@@ -3479,9 +3388,6 @@ function App() {
       setRecordView("active");
       return;
     }
-    if (!silent) {
-      setLoading(true);
-    }
     try {
       const response = await apiFetch(
         `/inmuebles?q=${encodeURIComponent(query)}&archived=${view === "archived"}`,
@@ -3506,18 +3412,10 @@ function App() {
 
       const list = Array.isArray(data) ? data.map(normalizeRecord) : [];
       setRecords(list);
-      setEmptyRecordsMessage(
-        list.length ? "" : view === "archived" ? "No hay fichas guardadas." : "No hay registros para mostrar."
-      );
     } catch (_error) {
       if (!silent) {
         setRecords([]);
-        setEmptyRecordsMessage("");
         showAlert("No fue posible cargar los registros.");
-      }
-    } finally {
-      if (!silent) {
-        setLoading(false);
       }
     }
   };
@@ -4064,9 +3962,7 @@ function App() {
       const nextPoints = Array.isArray(data) ? data : [];
       setMapPoints(nextPoints);
       setSelectedMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
-      setSelectedReportMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
       setMapStatus("Sincronizado");
-      setReportMapStatus("Sincronizado");
     } catch (error) {
       if (error.name === "AbortError") {
         return;
@@ -4215,7 +4111,6 @@ function App() {
 
   const loadRecordSummary = async ({ silent = false } = {}) => {
     if (!isAuthenticated || !isAdmin) return;
-    if (!silent) setLoading(true);
 
     try {
       const response = await apiFetch("/inmuebles/summary");
@@ -4233,8 +4128,6 @@ function App() {
       setRecords(Array.isArray(data) ? data.map(normalizeRecord) : []);
     } catch (error) {
       if (!silent) showAlert(error.message || "No fue posible cargar el resumen de fichas.");
-    } finally {
-      if (!silent) setLoading(false);
     }
   };
 
@@ -4273,7 +4166,6 @@ function App() {
       if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") return;
       if (!force && document.visibilityState !== "visible") return;
 
-      setDashboardSyncCycleKey((current) => current + 1);
       setDashboardRefreshing(true);
       setDashboardConnectionStatus("updating");
       try {
@@ -4296,37 +4188,6 @@ function App() {
     },
     [isAuthenticated, isAdmin, workspaceView]
   );
-
-  const loadRecordHistory = async (recordId) => {
-    if (!isAuthenticated || !recordId) {
-      setRecordHistory([]);
-      return;
-    }
-
-    setLoadingRecordHistory(true);
-
-    try {
-      const response = await apiFetch(`/inmuebles/${recordId}/history?limit=25`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar el historial de la ficha.");
-      }
-
-      setRecordHistory(Array.isArray(data) ? data : []);
-    } catch (error) {
-      setRecordHistory([]);
-      showAlert(error.message || "No fue posible cargar el historial de la ficha.");
-    } finally {
-      setLoadingRecordHistory(false);
-    }
-  };
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
@@ -4563,15 +4424,6 @@ function App() {
   }, [isAdmin, recordView]);
 
   useEffect(() => {
-    if (workspaceView !== "records" || !form.id) {
-      setRecordHistory([]);
-      return;
-    }
-
-    loadRecordHistory(form.id);
-  }, [form.id, workspaceView]);
-
-  useEffect(() => {
     if (!isAuthenticated || workspaceView !== "lookup") {
       return undefined;
     }
@@ -4596,17 +4448,10 @@ function App() {
   }, [isAuthenticated, lookupQuery, lookupSearchMode, workspaceView]);
 
   useEffect(() => {
-    if (form.id) {
-      setDraftSaveState("idle");
+    if (form.id || !hasDraftContent(form)) {
       return undefined;
     }
 
-    if (!hasDraftContent(form)) {
-      setDraftSaveState("idle");
-      return undefined;
-    }
-
-    setDraftSaveState("saving");
     const timer = window.setTimeout(() => {
       const nextDraft = { ...emptyForm, ...form, id: null };
       const savedAt = new Date().toISOString();
@@ -4614,7 +4459,6 @@ function App() {
       window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
       window.localStorage.setItem(DRAFT_SAVED_AT_STORAGE_KEY, savedAt);
       setDraftSavedAt(savedAt);
-      setDraftSaveState("saved");
     }, 420);
 
     return () => window.clearTimeout(timer);
@@ -4623,8 +4467,6 @@ function App() {
   const applyRecord = (record) => {
     setForm(withBarrioFromPrefix({ ...emptyForm, ...normalizeRecord(record) }, safeBarrioCodes));
     setSelectedFile(null);
-    setAvisoHtml("");
-    setLastProcessedRecord(null);
   };
 
   const handleLookupInputChange = (event) => {
@@ -5967,7 +5809,6 @@ function App() {
 
   const resetReportMapDraft = () => {
     setEditingReportMapPointId(null);
-    setSelectedReportMapPointId(null);
     setReportMapDraft({ ...emptyMapReportDraft });
   };
 
@@ -6563,16 +6404,8 @@ function App() {
       return;
     }
 
-    setSelectedReportMapPointId(point.id);
     setEditingReportMapPointId(point.id);
     setReportMapDraft(withReferenceBarrioPrefix(buildMapReportDraftFromPoint(point), safeBarrioCodes));
-    setReportMapStatus("Edicion activa");
-    setReportMapFocusRequest({
-      latitude: Number(point.latitude),
-      longitude: Number(point.longitude),
-      zoom: 19,
-      key: Date.now()
-    });
   };
 
   const handleSaveReportMapPoint = async (event) => {
@@ -6626,15 +6459,7 @@ function App() {
       );
       setMapDiaryGroupsSummary((current) => syncMapDiaryGroups(current, data, previousPoint));
       setMapDiaryDateKey(getMapDiaryDateKey(data.created_at) || getMapDiaryDateKey(new Date()));
-      setSelectedReportMapPointId(data.id);
       setEditingReportMapPointId(null);
-      setReportMapStatus(isEditing ? "Punto actualizado" : "Punto agregado");
-      setReportMapFocusRequest({
-        latitude: Number(data.latitude),
-        longitude: Number(data.longitude),
-        zoom: 19,
-        key: Date.now()
-      });
       setReportMapDraft({ ...emptyMapReportDraft });
       showAlert(isEditing ? "Punto del reporte actualizado." : "Punto agregado desde reportes de campo.");
     } catch (error) {
@@ -8267,7 +8092,6 @@ function App() {
   };
 
   const handleSelectRecord = (record) => {
-    setSelectedRecordId(record.id ?? null);
     applyRecord(record);
     focusSheet();
   };
@@ -8281,8 +8105,6 @@ function App() {
     };
     const enrichedForm = withBarrioFromPrefix(nextForm, safeBarrioCodes);
 
-    setSelectedRecordId(null);
-    setLastProcessedRecord(null);
     setRecordQuickFilter("all");
     setRecordFilters({
       clave: enrichedForm.clave_catastral || "",
@@ -8294,8 +8116,6 @@ function App() {
     });
     setForm(enrichedForm);
     setSelectedFile(null);
-    setAvisoHtml("");
-    setActiveSection("abonado");
     setWorkspaceView("records");
     showAlert(alertMessage);
     focusSheet();
@@ -8353,7 +8173,6 @@ function App() {
         comentarios: nextRecord.comentarios || "Datos actualizados desde padron Aguas"
       };
       setWorkspaceView("records");
-      setSelectedRecordId(nextRecord.id ?? null);
       setRecordQuickFilter("all");
       setRecordFilters({
         clave: nextRecord.clave_catastral || "",
@@ -8364,8 +8183,6 @@ function App() {
         status: "all"
       });
       setSelectedFile(null);
-      setAvisoHtml("");
-      setActiveSection("abonado");
       applyRecord(nextForm);
       showAlert(`Ficha cargada con datos actualizados del padron para ${nextForm.clave_catastral}. Guarda la ficha para conservarlos.`);
     } catch (error) {
@@ -8578,8 +8395,6 @@ function App() {
   };
 
   const resetForm = () => {
-    setSelectedRecordId(null);
-    setLastProcessedRecord(null);
     setRecordQuickFilter("all");
     setRecordFilters({
       clave: "",
@@ -8593,9 +8408,6 @@ function App() {
     setDraftForm(null);
     setDraftSavedAt(null);
     setSelectedFile(null);
-    setAvisoHtml("");
-    setActiveSection("abonado");
-    setDraftSaveState("idle");
     window.localStorage.removeItem(DRAFT_STORAGE_KEY);
     window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
     focusSheet();
@@ -8922,7 +8734,6 @@ function App() {
       setAlcaldiaFile(null);
       clearPadronDerivedState();
       setDashboardLastUpdatedAt(Date.now());
-      setDashboardSyncCycleKey((current) => current + 1);
       showAlert(`Padron de alcaldia actualizado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
       updateAlcaldiaSyncState({
@@ -9662,7 +9473,6 @@ function App() {
       });
       if (savedIds.has(form.id)) {
         setForm(emptyForm);
-        setSelectedRecordId(null);
       }
       showAlert(`${selectedRecords.length} fichas impresas pasaron a guardadas.`);
     } catch (error) {
