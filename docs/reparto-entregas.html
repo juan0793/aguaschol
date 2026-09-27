@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reparto de entregas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#f4f7fb; --surface:#ffffff; --surface-2:#eef3f9; --ink:#183b5a; --ink-strong:#0b3f73; --muted:#597087;
+  --line:rgba(20,101,217,.14); --line-strong:rgba(20,101,217,.28); --accent:#1465d9; --accent-ink:#ffffff;
+  --map-bg:#f7f9fc; --map-empty:#e4e9ef; --map-edge:#ffffff; --halo:#ffffff;
+  --h1:#cde2fb; --h2:#9ec5f4; --h3:#5598e7; --h4:#256abf; --h5:#0d366b; --h-ink-light:#0b2a47; --h-ink-dark:#ffffff;
+  --dv-n2:#1c5cab; --dv-n1:#86b6ef; --dv-0:#d3d1cb; --dv-p1:#f2a19b; --dv-p2:#c8322f;
+  --t1:#2a78d6; --t2:#eb6834; --t3:#1baf7a; --t4:#eda100; --t5:#e87ba4; --t6:#008300; --t7:#4a3aa7; --t8:#e34948; --t9:#3d3b36;
+  --moved:#c27a12; --shadow:0 1px 2px rgba(11,63,115,.06),0 8px 24px -12px rgba(11,63,115,.18);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#0c1622; --surface:#122133; --surface-2:#172a40; --ink:#d6e4f2; --ink-strong:#f1f6fb; --muted:#8aa2ba;
+  --line:rgba(118,200,255,.14); --line-strong:rgba(118,200,255,.3); --accent:#4d9cff; --accent-ink:#06182b;
+  --map-bg:#0f1c2b; --map-empty:#1d2c3d; --map-edge:#0c1622; --halo:#0c1622;
+  --h1:#1a3350; --h2:#1c4f8f; --h3:#2a78d6; --h4:#6da7ec; --h5:#b7d3f6; --h-ink-light:#e6f0fa; --h-ink-dark:#06182b;
+  --dv-n2:#5598e7; --dv-n1:#1c4f8f; --dv-0:#4a4945; --dv-p1:#8a3230; --dv-p2:#ef6b66;
+  --t1:#3987e5; --t2:#d95926; --t3:#199e70; --t4:#c98500; --t5:#d55181; --t6:#008300; --t7:#9085e9; --t8:#e66767; --t9:#d8d6cf;
+  --moved:#f2b64a; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.5);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0c1622; --surface:#122133; --surface-2:#172a40; --ink:#d6e4f2; --ink-strong:#f1f6fb; --muted:#8aa2ba;
+  --line:rgba(118,200,255,.14); --line-strong:rgba(118,200,255,.3); --accent:#4d9cff; --accent-ink:#06182b;
+  --map-bg:#0f1c2b; --map-empty:#1d2c3d; --map-edge:#0c1622; --halo:#0c1622;
+  --h1:#1a3350; --h2:#1c4f8f; --h3:#2a78d6; --h4:#6da7ec; --h5:#b7d3f6; --h-ink-light:#e6f0fa; --h-ink-dark:#06182b;
+  --dv-n2:#5598e7; --dv-n1:#1c4f8f; --dv-0:#4a4945; --dv-p1:#8a3230; --dv-p2:#ef6b66;
+  --t1:#3987e5; --t2:#d95926; --t3:#199e70; --t4:#c98500; --t5:#d55181; --t6:#008300; --t7:#9085e9; --t8:#e66767; --t9:#d8d6cf;
+  --moved:#f2b64a; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Plus Jakarta Sans",system-ui,"Segoe UI",Arial,sans-serif;padding:24px 20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:24px}
+h1,h2,h3{color:var(--ink-strong);text-wrap:balance;margin:0}
+h1{font-size:clamp(22px,3vw,30px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:18px;font-weight:700}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);max-width:72ch;margin:6px 0 0}
+.num{font-variant-numeric:tabular-nums}
+header.top{display:grid;gap:14px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);font:600 14px/1 inherit;padding:9px 14px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg.small button{font-size:13px;padding:7px 11px}
+.btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-strong);font:600 14px/1 inherit;padding:10px 14px;border-radius:9px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+button:focus-visible,.tile:focus-visible,select:focus-visible,.shape:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{font-size:13px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:2px}
+.kpi b{font-size:24px;font-weight:800;color:var(--ink-strong)}
+.kpi span{font-size:13px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);display:grid;gap:14px}
+.panel-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center}
+.hint{font-size:13px;color:var(--muted);margin:0}
+/* mapa */
+.map-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+.map-box{background:var(--map-bg);border:1px solid var(--line);border-radius:12px;overflow:hidden;position:relative}
+.map-box svg{display:block;width:100%;height:auto;touch-action:manipulation}
+.shape{cursor:pointer;stroke:var(--map-edge);stroke-width:1.6;transition:opacity .2s}
+.shape:hover{stroke:var(--ink-strong);stroke-width:2.4}
+.shape.moved{stroke:var(--moved);stroke-width:3;stroke-dasharray:6 4}
+.shape.sel{stroke:var(--ink-strong);stroke-width:3.4;stroke-dasharray:none}
+.shape.dim{opacity:.18}
+.bg-poly{fill:var(--map-empty);stroke:var(--map-edge);stroke-width:1.2}
+.zlabel{font:800 15px "Plus Jakarta Sans",system-ui,sans-serif;fill:var(--ink-strong);paint-order:stroke;stroke:var(--halo);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.zlabel small{font-weight:600}
+.blabel{font:600 10px "Plus Jakarta Sans",system-ui,sans-serif;fill:var(--ink);paint-order:stroke;stroke:var(--halo);stroke-width:3px;pointer-events:none}
+.map-side{display:grid;gap:12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--muted);align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 12px/1 inherit;padding:6px 8px;border-radius:999px;cursor:pointer}
+.chip i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.chip b{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600}
+.chip[aria-pressed="true"]{border-color:var(--ink-strong);box-shadow:inset 0 0 0 1px var(--ink-strong)}
+.scale{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.scale-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+.scale-bar i{height:12px;border-radius:3px}
+.scale-lab{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;text-align:center}
+.info{background:var(--surface-2);border-radius:10px;padding:12px;display:grid;gap:6px;font-size:14px}
+.info h3{font-size:16px}
+.info dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px}
+.info dt{color:var(--muted)} .info dd{margin:0;font-weight:600;color:var(--ink-strong)}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:0}
+/* barras */
+.bars{display:grid;gap:8px}
+.bar-row{display:grid;grid-template-columns:minmax(110px,150px) 1fr 118px;gap:12px;align-items:center}
+.bar-name{font-weight:600;font-size:14px;color:var(--ink-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{position:relative;height:22px;background:var(--surface-2);border-radius:6px}
+.bar-fill{position:absolute;inset:0 auto 0 0;border-radius:0 4px 4px 0;transition:width .35s ease}
+.bar-ghost{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--muted);opacity:.8;border-radius:2px}
+.bar-target{position:absolute;top:-6px;bottom:-6px;width:0;border-left:2px dashed var(--ink-strong);opacity:.55}
+.bar-val{font-size:13px;text-align:right;white-space:nowrap}
+.bar-val b{color:var(--ink-strong)}
+.axis{display:grid;grid-template-columns:minmax(110px,150px) 1fr 118px;gap:12px;font-size:12px;color:var(--muted)}
+.axis-scale{position:relative;height:16px}
+.axis-scale span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;background:var(--surface-2);color:var(--ink-strong)}
+.pill i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.lg-line{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+/* zonas */
+.zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.zone{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.zone-head{padding:12px 14px;display:grid;gap:6px;border-bottom:1px solid var(--line);border-top:5px solid var(--zc,var(--line))}
+.zone-title{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.zone-title h3{font-size:16px;display:flex;align-items:center;gap:8px}
+.zone-title h3 i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.zone-total{font-size:20px;font-weight:800;color:var(--ink-strong)}
+.zone-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.tiles{display:flex;flex-wrap:wrap;gap:4px;padding:10px;align-content:flex-start}
+.tile{flex:var(--g) 1 var(--b);min-width:0;min-height:52px;border:0;border-radius:7px;padding:6px 8px;text-align:left;cursor:pointer;font:inherit;display:flex;flex-direction:column;justify-content:space-between;gap:2px;background:var(--tb);color:var(--ti)}
+.tile:hover{filter:brightness(1.06)}
+.tile .tn{font-size:12px;font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.tile .tc{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+.tile .to{font-size:10px;font-weight:700;opacity:.8;margin-right:4px}
+.tile.moved{outline:2px dashed var(--moved);outline-offset:-2px}
+.tile .from{font-size:10px;font-weight:700;opacity:.85}
+.tile.zero{background:transparent;color:var(--muted);border:1px dashed var(--line-strong)}
+.empty{padding:18px 14px;color:var(--muted);font-size:13px}
+.zone.unassigned{background:var(--surface-2)}
+.notes{display:grid;gap:10px;font-size:14px}
+.notes ul{margin:0;padding-left:18px;display:grid;gap:6px;max-width:84ch}
+/* diálogo */
+.sheet{position:fixed;inset:0;background:rgba(6,24,43,.45);display:grid;place-items:center;padding:16px;z-index:10}
+.sheet-card{background:var(--surface);color:var(--ink);border-radius:14px;border:1px solid var(--line-strong);width:min(420px,100%);padding:18px;display:grid;gap:12px;box-shadow:var(--shadow)}
+.sheet-card h3{font-size:17px}
+.sheet-card select{font:500 15px inherit;padding:10px;border-radius:9px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--ink);width:100%}
+.sheet-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media (max-width:860px){.map-layout{grid-template-columns:1fr}}
+@media (max-width:560px){
+  body{padding:16px 16px 40px}
+  .bar-row,.axis{grid-template-columns:92px 1fr 84px;gap:8px}
+  .bar-val .dev{display:none}
+  .zones{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.bar-fill,.shape{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Aguas de Choluteca · Entrega de facturas</div>
+      <h1>Reparto de barrios por técnico</h1>
+      <p class="lede">Carga de cada técnico según el maestro de claves (24,080 abonados), ubicada con los polígonos y planos del SIG. La meta es repartir parejo entre 9 técnicos: <b class="num" id="meta-lede"></b> claves cada uno. La vista <b>Propuesta</b> le arma zona a Sindy en el noreste y reacomoda los bordes entre zonas vecinas. Toca cualquier barrio, en el mapa o en las tarjetas, para moverlo.</p>
+    </div>
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Vista">
+        <button type="button" id="v-actual" aria-pressed="false">Actual (hojas)</button>
+        <button type="button" id="v-prop" aria-pressed="true">Propuesta</button>
+      </div>
+      <button type="button" class="btn" id="copy">Copiar reparto</button>
+      <button type="button" class="btn" id="reset">Restablecer propuesta</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis" aria-label="Resumen"></section>
+
+  <section class="panel" aria-labelledby="h-map">
+    <div class="panel-head">
+      <h2 id="h-map">Mapa por zona</h2>
+      <div class="seg small" role="group" aria-label="Color del mapa">
+        <button type="button" data-mode="tech" aria-pressed="true">Técnico</button>
+        <button type="button" data-mode="load" aria-pressed="false">Carga de la zona</button>
+        <button type="button" data-mode="heat" aria-pressed="false">Claves por barrio</button>
+      </div>
+    </div>
+    <div class="map-layout">
+      <div class="map-box"><svg id="map" role="img" aria-label="Mapa de barrios de Choluteca coloreado por técnico"></svg></div>
+      <div class="map-side">
+        <div id="map-legend"></div>
+        <div class="info" id="info"><p class="hint">Toca un barrio para ver sus claves y moverlo. Los círculos son barrios sin polígono en el SIG, ubicados por el plano CAD o por el GPS de los abonados; su tamaño va con las claves.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-bars">
+    <div class="panel-head">
+      <h2 id="h-bars">Carga contra la meta</h2>
+      <div class="legend" id="legend-state"></div>
+    </div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-zones">
+    <div class="panel-head">
+      <h2 id="h-zones">Barrios de cada zona</h2>
+      <div class="legend">
+        <span class="lg-line"><i class="swatch" style="background:var(--h1)"></i>&lt;100</span>
+        <span class="lg-line"><i class="swatch" style="background:var(--h2)"></i>100–299</span>
+        <span class="lg-line"><i class="swatch" style="background:var(--h3)"></i>300–599</span>
+        <span class="lg-line"><i class="swatch" style="background:var(--h4)"></i>600–999</span>
+        <span class="lg-line"><i class="swatch" style="background:var(--h5)"></i>1,000+ claves</span>
+        <span class="lg-line" id="legend-moved"><i class="swatch" style="outline:2px dashed var(--moved);outline-offset:-2px;background:transparent"></i>Cambia de técnico</span>
+      </div>
+    </div>
+    <p class="hint">El tamaño de cada barrio es proporcional a sus claves. En Sayma el número es su orden de entrega; los barrios nuevos van al final.</p>
+    <div class="zones" id="zones"></div>
+  </section>
+
+  <section class="panel notes" aria-labelledby="h-notes">
+    <h2 id="h-notes">Cómo se armó la propuesta</h2>
+    <ul>
+      <li><b>Sindy</b> toma el noreste: Montelimar 1 y 2, Res. Blu, Fountainebleau, Andalucía, Viscaya y Monte Redondo (nadie los tenía), más Julio Midence y Villa Real de Oscar y San Carlos de Elmer. Es un barrio grande (Montelimar), uno mediano (Julio Midence) y varios pequeños, todos pegados.</li>
+      <li><b>Oscar</b> compensa con el norte de Alfredo: La Providencia, Suyapa e Iberia, que ya colindan con Morazán, Brasil y Las Arenas.</li>
+      <li><b>Alfredo</b> compensa con el sur de Carlos: Sagrado Corazón, Gracias a Dios, Las Vegas, El Recreo y Res. Vista Hermosa, más Sampile y Palomar. Su zona queda toda al sur, sin la parte del norte.</li>
+      <li><b>Carlos</b> suelta El Aterrizaje a Melissa y se queda con el centro: El Centro, La Libertad, San Juan Bosco y Santa Lucía.</li>
+      <li><b>Luis Fernando</b> suelta Cabañas (1,285 claves, en el centro y lejos del resto de su zona) a Melissa, y recibe El Estadio y las colonias pequeñas del sur.</li>
+      <li><b>Melissa</b> suelta Venecia, Carranza y Enmanuel a Elmer, que colindan con El Estruendo. <b>Sayma</b> recibe Iztoca y El Dorado, al norte de su ruta. <b>Diego</b> no cambia.</li>
+      <li>Ubicación: 65 de los 82 polígonos del SIG tienen barrio identificado por su etiqueta, el plano CAD o los puntos GPS de los abonados. Los barrios sin polígono se ubicaron por el texto del plano CAD. Cubre el 99 % de las claves.</li>
+      <li>Quedan por ubicar Col. Pedro Díaz (171 claves), que no aparece en ningún plano, y 35 registros sin barrio. Brisas del Bosque (Oscar) no existe en el maestro.</li>
+      <li>La propuesta equilibra carga y cercanía, pero no conoce calles, ríos ni el orden de recorrido. Revísala con los técnicos antes de aplicarla.</li>
+    </ul>
+  </section>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <h3 id="sheet-title"></h3>
+    <div class="hint" id="sheet-info"></div>
+    <label for="sheet-select" class="hint">Asignar a</label>
+    <select id="sheet-select"></select>
+    <div class="hint" id="sheet-preview"></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn" id="sheet-cancel">Cancelar</button>
+      <button type="button" class="btn primary" id="sheet-ok">Mover barrio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAP = {"W":886,"H":758,"polys":[{"f":1,"d":"M320,534L326,541L334,555L339,558L311,574L316,583L300,592L280,557L296,547L291,539L317,524L320,534Z"},{"f":2,"d":"M343,520L347,517L343,520Z"},{"f":3,"d":"M361,525L355,528L346,535L332,552L326,541L320,534L335,525L354,513L361,525Z"},{"f":4,"d":"M354,513L354,513L354,513Z"},{"f":5,"d":"M345,512L352,508L345,512Z"},{"f":6,"d":"M355,513L347,517L344,513L352,508L355,513Z"},{"f":7,"d":"M405,507L409,512L411,515L394,515L393,515L393,506L401,506L404,506L405,507Z"},{"f":8,"d":"M392,572L384,575L381,577L378,580L374,582L368,584L362,585L359,584L354,582L352,582L354,567L353,564L339,558L334,555L332,552L346,535L355,528L361,525L372,515L391,505L392,572Z"},{"f":9,"d":"M355,513L352,507L355,513Z"},{"f":10,"d":"M309,503L317,524L291,539L296,547L280,557L256,513L300,487L309,503Z"},{"f":11,"d":"M263,509L256,513L261,521L193,560L186,547L175,525L248,482L263,509Z"},{"f":12,"d":"M391,505L372,515L361,525L346,496L340,486L385,462L390,462L391,505Z"},{"f":13,"d":"M201,510L175,525L164,505L156,510L136,474L129,478L124,471L167,447L201,510Z"},{"f":14,"d":"M284,461L323,439L284,461Z"},{"f":15,"d":"M461,445L454,445L449,447L445,451L444,457L444,459L456,489L457,494L456,501L456,502L456,504L453,513L449,518L438,524L437,525L436,527L435,530L435,532L439,540L440,543L440,550L439,555L438,557L435,558L433,562L428,565L421,567L413,567L400,571L395,571L394,572L394,573L393,515L411,515L409,512L404,506L401,506L393,506L392,438L461,437L461,445Z"},{"f":16,"d":"M383,430L386,431L387,434L384,435L385,435L382,436L382,436L378,438L373,438L370,437L370,438L366,439L361,429L371,431L373,427L383,430Z"},{"f":17,"d":"M389,426L383,424L389,426Z"},{"f":18,"d":"M362,451L353,456L363,474L340,486L352,508L344,513L347,517L335,525L320,534L309,503L284,461L323,439L348,424L362,451Z"},{"f":19,"d":"M328,419L323,421L330,435L322,440L309,413L320,407L328,419Z"},{"f":20,"d":"M309,413L322,440L284,461L300,487L263,509L248,482L228,447L305,404L309,413Z"},{"f":21,"d":"M357,424L359,427L366,439L370,438L370,437L378,438L382,436L382,436L385,435L384,435L387,434L386,431L383,430L384,425L390,426L390,462L385,462L363,474L353,456L362,451L339,408L346,404L357,424Z"},{"f":22,"d":"M248,435L228,447L248,482L201,510L167,447L162,438L228,401L248,435Z"},{"f":23,"d":"M371,397L370,400L374,406L383,424L384,425L383,430L373,427L371,431L361,429L359,427L357,424L346,404L368,392L371,397Z"},{"f":24,"d":"M366,388L368,392L339,408L348,424L330,435L323,421L328,419L320,407L363,382L366,388Z"},{"f":25,"d":"M402,379L415,382L422,381L432,381L437,383L446,387L448,388L449,394L457,394L464,396L467,394L471,393L473,400L481,400L483,412L479,411L465,411L464,415L461,419L460,423L462,427L460,432L463,437L392,438L391,379L399,378L402,379Z"},{"f":26,"d":"M196,375L196,375L196,375Z"},{"f":27,"d":"M363,382L309,413L363,382Z"},{"f":28,"d":"M285,382L290,390L304,382L313,400L248,435L228,401L237,396L232,387L275,363L285,382Z"},{"f":29,"d":"M149,350L151,353L163,352L182,384L196,375L203,391L198,394L209,412L180,428L170,409L143,423L136,407L130,396L155,382L152,375L150,372L146,362L144,360L141,354L150,352L149,349L149,350Z"},{"f":30,"d":"M386,369L309,413L305,404L313,400L304,382L324,372L328,379L382,349L386,369Z"},{"f":31,"d":"M266,343L266,343L266,343Z"},{"f":32,"d":"M315,351L312,343L315,351Z"},{"f":33,"d":"M312,343L324,372L290,390L275,363L269,351L266,343L305,327L312,343Z"},{"f":34,"d":"M198,327L199,333L200,337L197,335L195,337L199,347L200,350L205,362L208,368L182,384L163,352L151,353L149,350L160,347L161,346L160,346L161,339L172,339L176,340L177,341L180,340L182,335L184,331L186,329L198,326L198,327Z"},{"f":35,"d":"M313,323L305,327L285,335L281,326L313,323Z"},{"f":36,"d":"M221,325L221,328L223,332L225,336L220,335L215,334L206,338L204,338L200,337L199,333L199,330L198,326L221,321L221,325Z"},{"f":37,"d":"M330,322L340,363L324,372L312,343L305,327L313,323L317,324L330,321L330,322Z"},{"f":38,"d":"M233,349L237,347L246,343L258,345L266,343L269,351L275,363L232,387L237,396L209,412L198,394L203,391L196,375L208,368L205,362L200,350L199,347L195,337L197,335L202,338L206,338L215,334L220,335L225,336L223,332L221,328L221,321L227,320L233,349Z"},{"f":39,"d":"M472,325L459,328L456,318L469,314L472,325Z"},{"f":40,"d":"M386,313L388,315L390,426L383,424L374,406L370,400L371,397L363,382L386,369L382,349L328,379L324,372L340,363L330,322L330,321L386,313Z"},{"f":41,"d":"M417,312L417,312L417,312Z"},{"f":42,"d":"M255,312L259,324L261,330L281,326L285,335L266,343L258,345L246,343L237,347L233,349L227,320L255,311L255,312Z"},{"f":43,"d":"M442,308L451,306L442,308Z"},{"f":44,"d":"M275,310L278,315L281,324L265,327L262,328L260,320L257,310L273,305L275,310Z"},{"f":45,"d":"M456,305L456,305L456,305Z"},{"f":46,"d":"M469,314L456,318L459,328L470,325L479,353L436,365L434,362L433,362L424,335L417,312L425,312L466,303L469,314Z"},{"f":47,"d":"M480,319L497,361L507,394L488,399L473,400L471,393L467,394L464,396L457,394L449,394L448,388L446,387L433,382L434,380L437,381L436,371L437,371L436,365L479,353L470,325L472,325L466,303L472,301L480,319Z"},{"f":48,"d":"M480,319L472,301L480,319Z"},{"f":49,"d":"M442,308L425,312L417,312L433,362L434,362L436,365L437,371L436,371L437,381L434,380L433,382L432,381L426,380L415,382L399,378L391,379L390,315L393,312L395,311L405,309L427,303L439,299L442,308Z"},{"f":50,"d":"M439,299L442,308L439,299L439,299Z"},{"f":51,"d":"M552,300L542,303L556,348L544,354L545,356L545,356L548,360L549,363L550,364L553,374L562,370L564,370L566,372L573,373L576,372L584,373L591,371L594,384L597,387L600,386L601,389L568,398L577,423L553,429L551,422L534,426L525,400L519,395L507,394L497,361L480,319L550,291L552,300Z"},{"f":52,"d":"M467,288L472,301L442,308L439,299L463,290L467,288L467,288Z"},{"f":53,"d":"M575,285L576,285L577,285L578,288L592,302L604,292L611,299L599,310L597,307L582,321L577,316L569,305L552,286L560,284L570,280L575,285Z"},{"f":54,"d":"M551,286L552,286L555,290L550,291L480,319L467,288L532,262L551,286Z"},{"f":55,"d":"M406,263L407,265L410,263L412,268L409,269L412,275L425,269L433,288L424,292L428,301L391,311L389,310L388,310L387,311L373,313L362,288L387,266L390,265L394,265L404,260L406,263Z"},{"f":56,"d":"M350,261L373,313L335,318L318,321L304,322L281,324L278,315L275,310L273,305L277,304L285,299L293,295L315,277L315,276L315,275L315,274L317,271L321,267L328,265L331,264L334,263L339,263L341,262L346,255L350,261Z"},{"f":57,"d":"M425,269L412,275L409,269L412,268L410,263L407,265L404,260L416,251L425,269Z"},{"f":58,"d":"M442,250L446,249L456,269L463,287L428,301L424,292L433,288L416,251L426,242L433,235L442,250Z"},{"f":59,"d":"M613,237L615,237L638,280L638,282L637,283L624,278L610,274L595,272L591,273L587,274L560,284L552,286L551,286L532,262L566,249L602,234L610,233L613,237Z"},{"f":60,"d":"M477,198L508,234L530,261L463,287L456,269L446,249L442,250L433,235L450,211L455,204L465,197L473,193L477,198Z"},{"f":61,"d":"M514,181L517,192L483,206L477,198L495,185L513,179L514,181Z"},{"f":62,"d":"M572,183L608,229L608,229L565,247L530,261L500,225L483,206L517,192L514,181L528,175L546,170L561,167L572,183Z"},{"f":63,"d":"M261,521L290,574L267,587L263,579L253,584L253,585L241,591L239,585L232,580L229,579L226,576L221,568L202,578L193,560L261,521Z"},{"f":64,"d":"M130,396L129,393L107,402L122,437L140,429L138,426L143,423L130,396Z"},{"f":65,"d":"M170,409L138,426L141,432L142,439L112,454L117,463L119,462L121,465L120,466L124,471L167,447L162,438L180,428L170,409Z"},{"f":66,"d":"M112,454L89,464L105,482L121,467L120,466L121,465L121,465L119,462L117,463L112,454Z"},{"f":67,"d":"M106,482L104,494L130,487L131,488L135,486L134,484L121,467L106,482Z"},{"f":68,"d":"M104,494L119,545L135,536L129,526L156,510L136,474L129,478L135,486L131,488L130,487L104,494Z"},{"f":69,"d":"M156,510L164,505L183,542L131,573L121,562L127,558L121,546L119,545L135,536L129,526L156,510Z"},{"f":70,"d":"M183,542L157,557L171,585L163,590L169,599L150,611L163,642L161,643L164,649L179,643L172,620L236,583L229,579L226,576L221,568L202,578L190,554L183,542L157,557L183,542Z"},{"f":71,"d":"M157,557L106,587L142,648L148,644L151,649L163,642L150,611L169,599L163,590L171,585L157,557Z"},{"f":72,"d":"M106,587L98,592L92,587L79,609L72,637L90,642L103,635L99,628L122,615L106,587Z"},{"f":73,"d":"M267,587L263,579L253,584L265,605L263,604L263,605L266,623L262,627L257,629L241,631L242,635L245,634L247,641L242,642L242,643L249,644L258,644L279,640L281,640L292,640L300,642L304,653L314,655L311,644L314,631L321,627L326,623L326,622L307,588L300,592L290,574L267,587Z"},{"f":74,"d":"M179,643L183,656L192,653L205,657L222,660L225,650L230,642L219,638L195,634L183,631L181,631L176,632L179,643Z"},{"f":75,"d":"M230,642L235,634L239,632L238,630L230,631L227,621L222,602L217,594L184,613L172,620L176,632L183,631L195,634L219,638L230,642Z"},{"f":76,"d":"M183,656L184,677L202,678L204,672L205,667L205,657L192,653L183,656Z"},{"f":77,"d":"M203,674L213,675L219,665L222,660L205,657L203,674Z"},{"f":78,"d":"M184,677L185,686L194,701L198,688L200,683L202,678L184,677Z"},{"f":79,"d":"M218,665L221,669L235,694L237,698L259,686L247,666L234,643L230,642L225,650L222,660L218,665Z"},{"f":80,"d":"M237,698L241,707L249,702L260,698L265,696L259,686L237,698Z"},{"f":81,"d":"M241,707L245,704L247,730L248,731L260,736L267,738L263,726L267,724L263,714L272,712L265,696L249,702L241,707Z"},{"f":82,"d":"M291,412L310,447L284,461L300,487L263,509L228,447L291,412Z"}],"barrios":[{"id":"BO. EL CENTRO","n":"Bo. El Centro","c":869,"s":"14","a":"Carlos Osorto","o":1,"p":"Carlos Osorto","x":228,"y":366,"f":[38],"t":"poligono"},{"id":"BO. LA LIBERTAD","n":"Bo. La Libertad","c":944,"s":"24","a":"Carlos Osorto","o":2,"p":"Carlos Osorto","x":209,"y":454,"f":[22],"t":"poligono"},{"id":"BO.  SAN  JUAN BOSCO","n":"Bo. San Juan Bosco","c":427,"s":"10","a":"Carlos Osorto","o":3,"p":"Carlos Osorto","x":166,"y":486,"f":[13],"t":"poligono"},{"id":"BO. SANTA LUCIA","n":"Bo. Santa Lucia","c":323,"s":"09","a":"Carlos Osorto","o":4,"p":"Carlos Osorto","x":150,"y":539,"f":[69],"t":"poligono"},{"id":"BO. EL ATERRIZAJE","n":"Bo. El Aterrizaje","c":431,"s":"19","a":"Carlos Osorto","o":5,"p":"Melissa","x":343,"y":381,"f":[30],"t":"poligono"},{"id":"BO. SAGRADO CORAZON","n":"Bo. Sagrado Corazon","c":479,"s":"45","a":"Carlos Osorto","o":6,"p":"Alfredo","x":287,"y":615,"f":[73],"t":"poligono"},{"id":"EL RECREO","n":"El Recreo","c":97,"s":"38","a":"Carlos Osorto","o":7,"p":"Alfredo","x":369,"y":548,"f":[8],"t":"poligono"},{"id":"BO. LAS VEGAS","n":"Bo. Las Vegas","c":108,"s":"40","a":"Carlos Osorto","o":8,"p":"Alfredo","x":333,"y":570,"f":[],"t":"punto"},{"id":"BO. GRACIAS A DIOS","n":"Bo. Gracias a Dios","c":110,"s":"34","a":"Carlos Osorto","o":9,"p":"Alfredo","x":319,"y":597,"f":[],"t":"punto"},{"id":"RES. VISTA HERMOSA","n":"Res. Vista Hermosa","c":61,"s":"66","a":"Carlos Osorto","o":10,"p":"Alfredo","x":381,"y":654,"f":[],"t":"punto"},{"id":"BO. SAN PEDRO SUR","n":"Bo. San Pedro Sur","c":287,"s":"35","a":"Luis Fernando","o":1,"p":"Luis Fernando","x":129,"y":509,"f":[68],"t":"poligono"},{"id":"BO.  SAN PEDRO DEL NORTE","n":"Bo. San Pedro del Norte","c":28,"s":"115","a":"Luis Fernando","o":2,"p":"Luis Fernando","x":118,"y":482,"f":[67],"t":"poligono"},{"id":"RESIDENCIAL LOMAS DE CASIPULU","n":"Res. Lomas de Casipulu","c":31,"s":"147","a":"Luis Fernando","o":3,"p":"Luis Fernando","x":25,"y":510,"f":[],"t":"punto"},{"id":"BO. PORVENIR","n":"Bo. Porvenir","c":638,"s":"28","a":"Luis Fernando","o":4,"p":"Luis Fernando","x":184,"y":590,"f":[70],"t":"poligono"},{"id":"COL. VICTOR ARGEÑAL","n":"Col. Victor Argeñal","c":268,"s":"48","a":"Luis Fernando","o":5,"p":"Luis Fernando","x":142,"y":600,"f":[71],"t":"poligono"},{"id":"COLONIA EL EDEN","n":"Col. El Eden","c":202,"s":"70","a":"Luis Fernando","o":6,"p":"Luis Fernando","x":147,"y":659,"f":[],"t":"punto"},{"id":"COLONIA NUEVA EDEN","n":"Col. Nueva Eden","c":56,"s":"88","a":"Luis Fernando","o":7,"p":"Luis Fernando","x":145,"y":683,"f":[],"t":"punto"},{"id":"SAN JORGE","n":"San Jorge","c":244,"s":"52","a":"Luis Fernando","o":8,"p":"Luis Fernando","x":95,"y":615,"f":[72],"t":"poligono"},{"id":"COL. JERUSALEN","n":"Col. Jerusalen","c":82,"s":"90","a":"Luis Fernando","o":9,"p":"Luis Fernando","x":206,"y":621,"f":[75],"t":"poligono"},{"id":"CRISTO DE ESQUIPULA","n":"Cristo de Esquipula","c":242,"s":"136","a":"Luis Fernando","o":10,"p":"Luis Fernando","x":202,"y":645,"f":[74],"t":"poligono"},{"id":"TAIWAN","n":"Taiwan","c":76,"s":"107","a":"Luis Fernando","o":11,"p":"Luis Fernando","x":211,"y":666,"f":[77],"t":"poligono"},{"id":"YOUTEENDER","n":"Youteender","c":64,"s":"106","a":"Luis Fernando","o":12,"p":"Luis Fernando","x":193,"y":686,"f":[78],"t":"poligono"},{"id":"BO. CABAÑAS","n":"Bo. Cabañas","c":1285,"s":"22","a":"Luis Fernando","o":13,"p":"Melissa","x":275,"y":455,"f":[20],"t":"poligono"},{"id":"BO. SUYAPA","n":"Bo. Suyapa","c":363,"s":"01","a":"Alfredo","o":1,"p":"Oscar Álvarez","x":439,"y":270,"f":[58],"t":"poligono"},{"id":"BO. LA PROVIDENCIA","n":"Bo. La Providencia","c":768,"s":"46","a":"Alfredo","o":2,"p":"Oscar Álvarez","x":477,"y":242,"f":[60],"t":"poligono"},{"id":"BO. BRISAS DEL SUR","n":"Bo. Brisas del Sur","c":571,"s":"04","a":"Alfredo","o":3,"p":"Alfredo","x":420,"y":498,"f":[15],"t":"poligono"},{"id":"BO. NUEVA ESPERANZA","n":"Bo. Nueva Esperanza","c":436,"s":"03","a":"Alfredo","o":4,"p":"Alfredo","x":428,"y":410,"f":[25],"t":"poligono"},{"id":"COL. IBERIA","n":"Col. Iberia","c":116,"s":"47","a":"Alfredo","o":5,"p":"Oscar Álvarez","x":397,"y":288,"f":[55],"t":"poligono"},{"id":"BO. CAMPO LUNA","n":"Bo. Campo Luna","c":191,"s":"07","a":"Alfredo","o":6,"p":"Alfredo","x":308,"y":557,"f":[1],"t":"poligono"},{"id":"BARRIO SAN LUIS","n":"Bo. San Luis","c":257,"s":"81","a":"Alfredo","o":7,"p":"Alfredo","x":287,"y":520,"f":[10],"t":"poligono"},{"id":"BO. EL PROGRESO","n":"Bo. El Progreso","c":63,"s":"51","a":"Alfredo","o":8,"p":"Alfredo","x":340,"y":531,"f":[3],"t":"poligono"},{"id":"COL. MARCELO GERIN","n":"Col. Marcelo Gerin","c":118,"s":"44","a":"Alfredo","o":9,"p":"Alfredo","x":327,"y":476,"f":[18],"t":"poligono"},{"id":"BO. CAMPO SOL","n":"Bo. Campo Sol","c":263,"s":"05","a":"Diego Saldaña","o":1,"p":"Diego Saldaña","x":370,"y":492,"f":[12],"t":"poligono"},{"id":"BO. LA CEIBA","n":"Bo. La Ceiba","c":413,"s":"06","a":"Diego Saldaña","o":2,"p":"Diego Saldaña","x":327,"y":476,"f":[18],"t":"poligono"},{"id":"COL. 9 DE ENERO","n":"Col. 9 de Enero","c":223,"s":"33","a":"Diego Saldaña","o":3,"p":"Diego Saldaña","x":380,"y":394,"f":[],"t":"punto"},{"id":"COL. LAS ACACIAS","n":"Col. Las Acacias","c":200,"s":"36","a":"Diego Saldaña","o":4,"p":"Diego Saldaña","x":365,"y":413,"f":[23],"t":"poligono"},{"id":"BO. LOS FUERTES","n":"Bo. Los Fuertes","c":308,"s":"18","a":"Diego Saldaña","o":5,"p":"Diego Saldaña","x":365,"y":355,"f":[40],"t":"poligono"},{"id":"BO. TAMARINDO","n":"Bo. Tamarindo","c":317,"s":"26","a":"Diego Saldaña","o":6,"p":"Diego Saldaña","x":295,"y":358,"f":[33],"t":"poligono"},{"id":"BO. GUADALUPE","n":"Bo. Guadalupe","c":518,"s":"25","a":"Diego Saldaña","o":7,"p":"Diego Saldaña","x":267,"y":399,"f":[28],"t":"poligono"},{"id":"BO. LA ESPERANZA","n":"Bo. La Esperanza","c":132,"s":"27","a":"Diego Saldaña","o":8,"p":"Diego Saldaña","x":324,"y":344,"f":[37],"t":"poligono"},{"id":"BO. ALEGRIA","n":"Bo. Alegria","c":212,"s":"20","a":"Diego Saldaña","o":9,"p":"Diego Saldaña","x":369,"y":445,"f":[21],"t":"poligono"},{"id":"BO. MORAZAN","n":"Bo. Morazan","c":207,"s":"17","a":"Oscar Álvarez","o":1,"p":"Oscar Álvarez","x":379,"y":265,"f":[],"t":"punto"},{"id":"BARRIO BRISAS DEL RIO","n":"Bo. Brisas del Rio","c":196,"s":"110","a":"Oscar Álvarez","o":2,"p":"Oscar Álvarez","x":408,"y":233,"f":[],"t":"punto"},{"id":"BRISAS DEL BOSQUE","n":"Brisas del Bosque","c":0,"s":"","a":"Oscar Álvarez","o":3,"p":"Oscar Álvarez","x":null,"y":null,"f":[],"t":null},{"id":"BO. LAS ARENAS","n":"Bo. Las Arenas","c":304,"s":"50","a":"Oscar Álvarez","o":4,"p":"Oscar Álvarez","x":456,"y":189,"f":[],"t":"punto"},{"id":"LOTIFICACION BEEL","n":"Lot. Beel","c":47,"s":"114","a":"Oscar Álvarez","o":5,"p":"Oscar Álvarez","x":498,"y":193,"f":[61],"t":"poligono"},{"id":"COL. JULIO MIDENCE","n":"Col. Julio Midence","c":766,"s":"56","a":"Oscar Álvarez","o":6,"p":"Sindy","x":546,"y":214,"f":[62],"t":"poligono"},{"id":"RESIDENCIAL VILLA REAL","n":"Res. Villa Real","c":106,"s":"89","a":"Oscar Álvarez","o":7,"p":"Sindy","x":580,"y":174,"f":[],"t":"punto"},{"id":"RES. LOS LLANOS","n":"Res. Los Llanos","c":182,"s":"62","a":"Oscar Álvarez","o":8,"p":"Oscar Álvarez","x":580,"y":299,"f":[53],"t":"poligono"},{"id":"COL. MIRAMONTES","n":"Col. Miramontes","c":202,"s":"55","a":"Oscar Álvarez","o":9,"p":"Oscar Álvarez","x":586,"y":261,"f":[59],"t":"poligono"},{"id":"BO. VALLE","n":"Bo. Valle","c":341,"s":"29","a":"Oscar Álvarez","o":10,"p":"Oscar Álvarez","x":508,"y":290,"f":[54],"t":"poligono"},{"id":"BO. BRASIL","n":"Bo. Brasil","c":53,"s":"31","a":"Oscar Álvarez","o":11,"p":"Oscar Álvarez","x":456,"y":299,"f":[52],"t":"poligono"},{"id":"BO. EL ESTADIO","n":"Bo. El Estadio","c":411,"s":"23","a":"Melissa","o":1,"p":"Luis Fernando","x":220,"y":521,"f":[11],"t":"poligono"},{"id":"BO. PIEDRAS AZULES","n":"Bo. Piedras Azules","c":416,"s":"08","a":"Melissa","o":2,"p":"Melissa","x":245,"y":559,"f":[63],"t":"poligono"},{"id":"LOT. CARRANZA","n":"Lot. Carranza","c":297,"s":"02","a":"Melissa","o":3,"p":"Elmer Gómez","x":411,"y":346,"f":[49],"t":"poligono"},{"id":"BO. EL CORTIJO","n":"Bo. El Cortijo","c":213,"s":"21","a":"Melissa","o":4,"p":"Melissa","x":340,"y":408,"f":[24],"t":"poligono"},{"id":"COL. LAS ACACIAS II","n":"Col. Las Acacias II","c":166,"s":"67","a":"Melissa","o":5,"p":"Melissa","x":374,"y":433,"f":[16],"t":"poligono"},{"id":"COL. VENECIA","n":"Col. Venecia","c":551,"s":"43","a":"Melissa","o":6,"p":"Elmer Gómez","x":447,"y":334,"f":[46],"t":"poligono"},{"id":"BO. EL HOSPITAL","n":"Bo. El Hospital","c":277,"s":"12","a":"Sayma","o":1,"p":"Sayma","x":169,"y":393,"f":[29],"t":"poligono"},{"id":"BO. CORBETA","n":"Bo. Corbeta","c":230,"s":"13","a":"Sayma","o":2,"p":"Sayma","x":184,"y":355,"f":[34],"t":"poligono"},{"id":"BO. BUENOS AIRES","n":"Bo. Buenos Aires","c":81,"s":"39","a":"Sayma","o":3,"p":"Sayma","x":211,"y":330,"f":[36],"t":"poligono"},{"id":"BO. LOS MANGOS","n":"Bo. Los Mangos","c":445,"s":"16","a":"Sayma","o":4,"p":"Sayma","x":325,"y":298,"f":[35,56],"t":"poligono"},{"id":"BO. LOS GRANEROS","n":"Bo. Los Graneros","c":203,"s":"11","a":"Sayma","o":5,"p":"Sayma","x":148,"y":440,"f":[65],"t":"poligono"},{"id":"BO. LA CRUZ","n":"Bo. La Cruz","c":241,"s":"15","a":"Sayma","o":6,"p":"Sayma","x":255,"y":328,"f":[42,44],"t":"poligono"},{"id":"COL. SANTA MARTHA","n":"Col. Santa Martha","c":280,"s":"37","a":"Sayma","o":7,"p":"Sayma","x":126,"y":415,"f":[64],"t":"poligono"},{"id":"COL. ISIDRO PINEDA","n":"Col. Isidro Pineda","c":66,"s":"64","a":"Sayma","o":8,"p":"Sayma","x":106,"y":467,"f":[66],"t":"poligono"},{"id":"COL. 15 DE SEPTIEMBRE","n":"Col. 15 de Septiembre","c":75,"s":"49","a":"Elmer Gómez","o":1,"p":"Elmer Gómez","x":563,"y":303,"f":[],"t":"punto"},{"id":"BO.LAS COLINAS","n":"Bo. Las Colinas","c":759,"s":"30","a":"Elmer Gómez","o":2,"p":"Elmer Gómez","x":534,"y":363,"f":[51],"t":"poligono"},{"id":"LOTIFICADORA LAS DELICIAS","n":"Lot. Las Delicias","c":154,"s":"60","a":"Elmer Gómez","o":3,"p":"Elmer Gómez","x":560,"y":357,"f":[],"t":"punto"},{"id":"CUMBRE CHOROTEGA","n":"Cumbre Chorotega","c":27,"s":"96","a":"Elmer Gómez","o":4,"p":"Elmer Gómez","x":500,"y":422,"f":[],"t":"punto"},{"id":"MARIA MILAGROSA","n":"Maria Milagrosa","c":135,"s":"59","a":"Elmer Gómez","o":5,"p":"Elmer Gómez","x":523,"y":430,"f":[],"t":"punto"},{"id":"COLONIA NARVAEZ","n":"Col. Narvaez","c":48,"s":"117","a":"Elmer Gómez","o":6,"p":"Elmer Gómez","x":545,"y":428,"f":[],"t":"punto"},{"id":"BO. EL ESTRUENDO","n":"Bo. El Estruendo","c":502,"s":"42","a":"Elmer Gómez","o":7,"p":"Elmer Gómez","x":474,"y":368,"f":[47],"t":"poligono"},{"id":"COL. SAN CARLOS","n":"Col. San Carlos","c":56,"s":"57","a":"Elmer Gómez","o":8,"p":"Sindy","x":612,"y":205,"f":[],"t":"punto"},{"id":"RESIDENCIAL SAN CARLOS","n":"Res. San Carlos","c":3,"s":"57","a":"Elmer Gómez","o":9,"p":"Sindy","x":612,"y":205,"f":[],"t":"punto"},{"id":"NUEVA BELLA VISTA","n":"Nueva Bella Vista","c":37,"s":"141","a":"Elmer Gómez","o":10,"p":"Elmer Gómez","x":472,"y":428,"f":[],"t":"punto"},{"id":"RESIDENCIAL MARBELLA","n":"Res. Marbella","c":7,"s":"140","a":"Elmer Gómez","o":11,"p":"Elmer Gómez","x":400,"y":511,"f":[7],"t":"poligono"},{"id":"BO. IZTOCA","n":"Bo. Iztoca","c":724,"s":"41","a":"Sin técnico","o":99,"p":"Sayma","x":119,"y":253,"f":[],"t":"punto"},{"id":"MONTELIMAR_B","n":"Res. Montelimar · mz 36–83","c":697,"s":"113","a":"Sin técnico","o":99,"p":"Sindy","x":840,"y":25,"f":[],"t":"punto"},{"id":"MONTELIMAR_A","n":"Res. Montelimar · mz 1–35","c":691,"s":"113","a":"Sin técnico","o":99,"p":"Sindy","x":840,"y":25,"f":[],"t":"punto"},{"id":"COL. PEDRO DIAZ","n":"Col. Pedro Diaz","c":171,"s":"32","a":"Sin técnico","o":99,"p":"Sin técnico","x":null,"y":null,"f":[],"t":null},{"id":"LOT. VISTA HERMOSA","n":"Lot. Vista Hermosa","c":143,"s":"63","a":"Sin técnico","o":99,"p":"Elmer Gómez","x":574,"y":334,"f":[],"t":"punto"},{"id":"BO. SAN FRANCISCO DEL PALOMAR","n":"Bo. San Francisco del Palomar","c":115,"s":"54","a":"Sin técnico","o":99,"p":"Alfredo","x":371,"y":592,"f":[],"t":"punto"},{"id":"BO. SAMPILE","n":"Bo. Sampile","c":112,"s":"53","a":"Sin técnico","o":99,"p":"Alfredo","x":431,"y":583,"f":[],"t":"punto"},{"id":"LOT. EL DORADO","n":"Lot. El Dorado","c":104,"s":"61","a":"Sin técnico","o":99,"p":"Sayma","x":191,"y":236,"f":[],"t":"punto"},{"id":"RES. BLU","n":"Res. Blu","c":93,"s":"197","a":"Sin técnico","o":99,"p":"Sindy","x":817,"y":34,"f":[],"t":"punto"},{"id":"FOUNTAINEBLEAU","n":"Fountainebleau","c":48,"s":"190","a":"Sin técnico","o":99,"p":"Sindy","x":822,"y":64,"f":[],"t":"punto"},{"id":"RESIDENCIAL ENMANUEL","n":"Res. Enmanuel","c":39,"s":"132","a":"Sin técnico","o":99,"p":"Elmer Gómez","x":464,"y":321,"f":[39],"t":"poligono"},{"id":"Residencial Viscaya","n":"Res. Viscaya","c":34,"s":"177","a":"Sin técnico","o":99,"p":"Sindy","x":721,"y":137,"f":[],"t":"punto"},{"id":"Res. Andalucia II","n":"Res. Andalucia II","c":33,"s":"84","a":"Sin técnico","o":99,"p":"Sindy","x":847,"y":141,"f":[],"t":"punto"},{"id":"COL. MANUEL VALLADARES","n":"Col. Manuel Valladares","c":30,"s":"65","a":"Sin técnico","o":99,"p":"Luis Fernando","x":114,"y":635,"f":[],"t":"punto"},{"id":"RESIDENCIAL FOUNTAINEBLEAU II","n":"Res. Fountainebleau II","c":28,"s":"195","a":"Sin técnico","o":99,"p":"Sindy","x":835,"y":60,"f":[],"t":"punto"},{"id":"","n":"Sin barrio en el maestro","c":21,"s":"10","a":"Sin técnico","o":99,"p":"Sin técnico","x":null,"y":null,"f":[],"t":null},{"id":"LOT. MONTE REDONDO","n":"Lot. Monte Redondo","c":15,"s":"58","a":"Sin técnico","o":99,"p":"Sindy","x":645,"y":152,"f":[],"t":"punto"},{"id":"THELMO RUIZ VALDEZ","n":"Thelmo Ruiz Valdez","c":11,"s":"68","a":"Sin técnico","o":99,"p":"Luis Fernando","x":237,"y":671,"f":[79],"t":"poligono"},{"id":"CRISTO DE ESQUIPULA III","n":"Cristo de Esquipula III","c":10,"s":"183","a":"Sin técnico","o":99,"p":"Luis Fernando","x":239,"y":636,"f":[],"t":"punto"},{"id":"VILLAS DEL CORTIJO","n":"Villas del Cortijo","c":9,"s":"91","a":"Sin técnico","o":99,"p":"Melissa","x":320,"y":422,"f":[19],"t":"poligono"},{"id":"NO REGISTRADAS","n":"No registradas","c":7,"s":"56","a":"Sin técnico","o":99,"p":"Sin técnico","x":null,"y":null,"f":[],"t":null},{"id":"***UBICAR COLONIA ****","n":"Ubicar colonia","c":7,"s":"16","a":"Sin técnico","o":99,"p":"Sin técnico","x":null,"y":null,"f":[],"t":null},{"id":"COLONIA REYES","n":"Col. Reyes","c":6,"s":"185","a":"Sin técnico","o":99,"p":"Luis Fernando","x":194,"y":666,"f":[76],"t":"poligono"},{"id":"BO. LOS VIVEROS","n":"Bo. Los Viveros","c":6,"s":"69","a":"Sin técnico","o":99,"p":"Luis Fernando","x":176,"y":703,"f":[],"t":"punto"},{"id":"CIUDAD NUEVA","n":"Ciudad Nueva","c":5,"s":"91","a":"Sin técnico","o":99,"p":"Melissa","x":320,"y":422,"f":[19],"t":"poligono"},{"id":"RESIDENCIAL JOSE CECILIO DEL VALLE","n":"Res. Jose Cecilio del Valle","c":4,"s":"124","a":"Sin técnico","o":99,"p":"Oscar Álvarez","x":415,"y":264,"f":[57],"t":"poligono"},{"id":"Fontainebleau III","n":"Fontainebleau III","c":4,"s":"201","a":"Sin técnico","o":99,"p":"Sin técnico","x":null,"y":null,"f":[],"t":null},{"id":"LOTIFICACION LA TRINIDAD","n":"Lot. La Trinidad","c":2,"s":"119","a":"Sin técnico","o":99,"p":"Luis Fernando","x":213,"y":690,"f":[],"t":"punto"},{"id":"COL. RICARDO ANDINO","n":"Col. Ricardo Andino","c":1,"s":"109","a":"Sin técnico","o":99,"p":"Luis Fernando","x":127,"y":693,"f":[],"t":"punto"},{"id":"RES MONTELIMAR","n":"Res. Montelimar (sin mz)","c":1,"s":"113","a":"Sin técnico","o":99,"p":"Sindy","x":840,"y":25,"f":[],"t":"punto"},{"id":"RESIDENCIAL EL PARAISO","n":"Res. El Paraiso","c":1,"s":"128","a":"Sin técnico","o":99,"p":"Elmer Gómez","x":518,"y":464,"f":[],"t":"punto"},{"id":"COLONIA VILLA GRAN AMOR","n":"Col. Villa Gran Amor","c":1,"s":"134","a":"Sin técnico","o":99,"p":"Luis Fernando","x":133,"y":703,"f":[],"t":"punto"},{"id":"SITIO SAN LUIS, CONTIGUO A LAS COLINAS","n":"Sitio San Luis (contiguo a Las Colinas)","c":1,"s":"156","a":"Sin técnico","o":99,"p":"Elmer Gómez","x":603,"y":363,"f":[],"t":"punto"},{"id":"MARCELINO CHAMPAÑAT","n":"Marcelino Champañat","c":1,"s":"87","a":"Sin técnico","o":99,"p":"Sindy","x":861,"y":84,"f":[],"t":"punto"}]};
+const DATA = MAP.barrios;
+const TECHS = ["Carlos Osorto","Luis Fernando","Alfredo","Diego Saldaña","Oscar Álvarez","Melissa","Sayma","Elmer Gómez","Sindy"];
+const TCOLOR = Object.fromEntries(TECHS.map((t,i)=>[t,`var(--t${i+1})`]));
+const NONE = "Sin técnico";
+const JUNK = new Set(["","NO REGISTRADAS","***UBICAR COLONIA ****"]);
+const META = Math.round(DATA.filter(r=>r.x!=null && !JUNK.has(r.id)).reduce((s,r)=>s+r.c,0)/TECHS.length);
+const KEY = "reparto-entregas-propuesta-v2";
+const fmt = n => n.toLocaleString("en-US");
+const byId = Object.fromEntries(DATA.map(r=>[r.id,r]));
+document.getElementById("meta-lede").textContent = fmt(META);
+
+let view = "p", mapMode = "tech", focusTech = null, selected = null;
+let overrides = {};
+try { overrides = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch { overrides = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(overrides)); } catch {} };
+
+const ownerOf = (r, v = view) => v === "a" ? r.a : (overrides[r.id] ?? r.p);
+const totals = (v = view) => {
+  const t = Object.fromEntries([...TECHS, NONE].map(k=>[k,0]));
+  for (const r of DATA) t[ownerOf(r, v)] += r.c;
+  return t;
+};
+const STATES = [
+  { max:-0.15, label:"Muy liviano", color:"var(--dv-n2)" },
+  { max:-0.05, label:"Liviano", color:"var(--dv-n1)" },
+  { max:0.05, label:"Equilibrado", color:"var(--dv-0)" },
+  { max:0.15, label:"Cargado", color:"var(--dv-p1)" },
+  { max:Infinity, label:"Sobrecargado", color:"var(--dv-p2)" },
+];
+const state = total => { const d = (total - META) / META; const s = STATES.find(s => d <= s.max); return total === 0 ? { ...STATES[0], label:"Sin barrios" } : s; };
+const dev = total => { const p = Math.round((total - META) / META * 100); return (p > 0 ? "+" : p < 0 ? "−" : "±") + Math.abs(p) + " %"; };
+const heat = c => c >= 1000 ? ["var(--h5)","var(--h-ink-dark)"] : c >= 600 ? ["var(--h4)","var(--h-ink-dark)"] : c >= 300 ? ["var(--h3)","var(--h-ink-dark)"] : c >= 100 ? ["var(--h2)","var(--h-ink-light)"] : ["var(--h1)","var(--h-ink-light)"];
+const short = n => n.split(" ")[0];
+const movedCount = () => DATA.filter(r => r.a !== NONE && ownerOf(r) !== r.a).length;
+
+function renderKpis(){
+  const t = totals(), vals = TECHS.map(k=>t[k]);
+  const max = Math.max(...vals), min = Math.min(...vals);
+  const ok = TECHS.filter(k=>Math.abs((t[k]-META)/META)<=0.05).length;
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi"><b class="num">${fmt(META)}</b><span>Meta por técnico</span></div>
+    <div class="kpi"><b class="num">${fmt(min)} – ${fmt(max)}</b><span>Rango de carga ${view==="a"?"actual":"propuesto"}</span></div>
+    <div class="kpi"><b class="num">${ok} de 9</b><span>Técnicos dentro de ±5 % de la meta</span></div>
+    <div class="kpi"><b class="num">${view==="a"?"—":movedCount()}</b><span>Barrios que cambian de técnico</span></div>`;
+}
+
+/* ---------- mapa ---------- */
+const svg = document.getElementById("map");
+svg.setAttribute("viewBox", `0 0 ${MAP.W} ${MAP.H}`);
+const polyById = Object.fromEntries(MAP.polys.map(p=>[p.f,p]));
+const usedF = new Set(DATA.flatMap(r=>r.f||[]));
+function fillFor(r){
+  const o = ownerOf(r);
+  if (mapMode === "heat") return heat(r.c)[0];
+  if (o === NONE) return "var(--map-empty)";
+  if (mapMode === "load") return state(totals()[o]).color;
+  return TCOLOR[o];
+}
+function renderMap(){
+  const t = totals();
+  let bg = "";
+  for (const p of MAP.polys) if (!usedF.has(p.f)) bg += `<path class="bg-poly" d="${p.d}"/>`;
+  // polígonos: el barrio más grande queda encima cuando comparten polígono
+  const withPoly = DATA.filter(r=>r.t==="poligono" && r.f.length && !JUNK.has(r.id)).sort((a,b)=>a.c-b.c);
+  let shapes = "";
+  const polyOwner = {};
+  for (const r of withPoly) for (const f of r.f) polyOwner[f] = r;
+  for (const [f, r] of Object.entries(polyOwner)) shapes += shapeFor(r, `<path d="${polyById[f].d}"`);
+  // puntos
+  const pts = DATA.filter(r=>r.t==="punto" && r.x!=null && !JUNK.has(r.id)).sort((a,b)=>b.c-a.c);
+  const seen = {};
+  for (const r of pts) {
+    const k = r.x+","+r.y; const n = seen[k] = (seen[k]||0)+1;
+    const x = r.x + (n-1)*14, rad = Math.max(6, Math.sqrt(r.c)*0.9);
+    shapes += shapeFor(r, `<circle cx="${x}" cy="${r.y}" r="${rad.toFixed(1)}"`);
+  }
+  // etiquetas de zona: en el barrio más grande de cada técnico
+  let labels = "";
+  for (const k of TECHS) {
+    const rs = DATA.filter(r=>ownerOf(r)===k && r.x!=null && !JUNK.has(r.id));
+    if (!rs.length) continue;
+    const big = rs.reduce((a,b)=>b.c>a.c?b:a);
+    const faded = focusTech && focusTech!==k;
+    labels += `<text class="zlabel" x="${big.x}" y="${big.y}" text-anchor="middle" opacity="${faded?0.25:1}">${short(k)}<tspan x="${big.x}" dy="15" font-size="11" font-weight="600">${fmt(t[k])}</tspan></text>`;
+  }
+  svg.innerHTML = bg + shapes + labels;
+  svg.setAttribute("aria-label", `Mapa de barrios coloreado por ${mapMode==="tech"?"técnico":mapMode==="load"?"carga de la zona":"claves por barrio"}`);
+  renderMapLegend();
+}
+function shapeFor(r, open){
+  const o = ownerOf(r);
+  const moved = view==="p" && r.a!==NONE && o!==r.a;
+  const cls = ["shape", moved?"moved":"", selected===r.id?"sel":"", focusTech && focusTech!==o ? "dim":""].join(" ");
+  return `${open} class="${cls}" fill="${fillFor(r)}" data-id="${encodeURIComponent(r.id)}" tabindex="0" role="button" aria-label="${r.n}, ${fmt(r.c)} claves, ${o}"><title>${r.n} · ${fmt(r.c)} claves · ${o===NONE?"sin técnico":o}</title></${open.startsWith("<path")?"path":"circle"}>`;
+}
+function renderMapLegend(){
+  const t = totals(); const el = document.getElementById("map-legend");
+  if (mapMode === "tech") {
+    el.innerHTML = `<div class="legend">${TECHS.map(k=>`<button type="button" class="chip" data-tech="${k}" aria-pressed="${focusTech===k}"><i style="background:${TCOLOR[k]}"></i>${short(k)} <b>${fmt(t[k])}</b></button>`).join("")}</div>
+      <p class="hint" style="margin-top:8px">Toca un técnico para resaltar su zona. ${view==="p"?"Borde punteado: cambia de técnico.":""}</p>`;
+  } else if (mapMode === "load") {
+    el.innerHTML = `<div class="scale"><div class="scale-bar">${STATES.map(s=>`<i style="background:${s.color}"></i>`).join("")}</div>
+      <div class="scale-lab"><span>−15 %</span><span>−5 %</span><span>meta</span><span>+5 %</span><span>+15 %</span></div>
+      <p class="hint">Cada barrio toma el color de la carga total de su técnico frente a la meta de ${fmt(META)}.</p></div>
+      <div class="legend" style="margin-top:8px">${TECHS.map(k=>{const s=state(t[k]);return `<span class="pill"><i style="background:${s.color}"></i>${short(k)} ${t[k]?dev(t[k]):"0"}</span>`}).join("")}</div>`;
+  } else {
+    el.innerHTML = `<div class="scale"><div class="scale-bar">${["h1","h2","h3","h4","h5"].map(h=>`<i style="background:var(--${h})"></i>`).join("")}</div>
+      <div class="scale-lab"><span>&lt;100</span><span>100</span><span>300</span><span>600</span><span>1,000+</span></div>
+      <p class="hint">Claves por barrio. Muestra dónde se concentra el trabajo, sin importar de quién es.</p></div>`;
+  }
+}
+function renderInfo(){
+  const el = document.getElementById("info");
+  const r = selected && byId[selected];
+  if (!r) { el.innerHTML = `<p class="hint">Toca un barrio para ver sus claves y moverlo. Los círculos son barrios sin polígono en el SIG, ubicados por el plano CAD o por el GPS de los abonados; su tamaño va con las claves.</p>`; return; }
+  const o = ownerOf(r);
+  el.innerHTML = `<h3>${r.n}</h3><dl>
+    <dt>Claves</dt><dd class="num">${fmt(r.c)}</dd>
+    <dt>En las hojas</dt><dd>${r.a===NONE?"Sin técnico":r.a}</dd>
+    ${view==="p"?`<dt>Propuesta</dt><dd>${o===NONE?"Por ubicar":`<i class="swatch" style="background:${TCOLOR[o]}"></i>${o}`}</dd>`:""}
+    <dt>Ubicación</dt><dd>${r.t==="poligono"?"Polígono del SIG":r.x!=null?"Punto del plano":"Sin ubicar"}</dd></dl>
+    ${view==="p"?`<button type="button" class="btn primary" id="info-move">Mover a otro técnico</button>`:`<p class="hint">Cambia a Propuesta para moverlo.</p>`}`;
+  const b = document.getElementById("info-move"); if (b) b.addEventListener("click", ()=>openSheet(r));
+}
+svg.addEventListener("click", e => { const s = e.target.closest(".shape"); if (!s) return; selected = decodeURIComponent(s.dataset.id); renderMap(); renderInfo(); });
+svg.addEventListener("keydown", e => { if (e.key!=="Enter" && e.key!==" ") return; const s = e.target.closest(".shape"); if (!s) return; e.preventDefault(); selected = decodeURIComponent(s.dataset.id); renderMap(); renderInfo(); });
+document.getElementById("map-legend").addEventListener("click", e => { const c = e.target.closest(".chip"); if (!c) return; focusTech = focusTech===c.dataset.tech ? null : c.dataset.tech; renderMap(); });
+document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
+  mapMode = b.dataset.mode; document.querySelectorAll("[data-mode]").forEach(x=>x.setAttribute("aria-pressed", x===b)); renderMap();
+}));
+
+/* ---------- barras ---------- */
+function renderBars(){
+  const t = totals(), ta = totals("a");
+  const scaleMax = Math.ceil(Math.max(4000, ...TECHS.map(k=>Math.max(t[k],ta[k])))/1000)*1000;
+  const pct = v => (v/scaleMax*100).toFixed(2)+"%";
+  let html = "";
+  for (const k of TECHS){
+    const s = state(t[k]);
+    const ghost = view==="p" && ta[k]!==t[k] ? `<span class="bar-ghost" style="left:${pct(ta[k])}" title="Actual: ${fmt(ta[k])}"></span>` : "";
+    html += `<div class="bar-row">
+      <div class="bar-name" title="${k}"><i class="swatch" style="background:${TCOLOR[k]}"></i>${k}</div>
+      <div class="bar-track" title="${k}: ${fmt(t[k])} claves · ${s.label}">
+        <span class="bar-fill" style="width:${pct(t[k])};background:${s.color}"></span>
+        <span class="bar-target" style="left:${pct(META)}"></span>${ghost}
+      </div>
+      <div class="bar-val num"><b>${fmt(t[k])}</b> <span class="dev">${t[k]?dev(t[k]):""}</span></div>
+    </div>`;
+  }
+  let ticks = "";
+  for (let v=0; v<=scaleMax; v+=1000) ticks += `<span style="left:${pct(v)}">${fmt(v)}</span>`;
+  html += `<div class="axis"><span></span><div class="axis-scale num">${ticks}</div><span></span></div>`;
+  document.getElementById("bars").innerHTML = html;
+  document.getElementById("legend-state").innerHTML =
+    STATES.map(s=>`<span class="lg-line"><i class="swatch" style="background:${s.color}"></i>${s.label}</span>`).join("") +
+    `<span class="lg-line"><i class="swatch" style="border-left:2px dashed var(--ink-strong);border-radius:0;width:2px"></i>Meta</span>` +
+    (view==="p" ? `<span class="lg-line"><i class="swatch" style="background:var(--muted);width:2px;border-radius:0"></i>Carga actual</span>` : "");
+}
+
+/* ---------- tarjetas ---------- */
+function sortRows(k, rows){
+  return rows.sort((x,y)=>{
+    const ox = ownerOf(x)===x.a ? x.o : 100, oy = ownerOf(y)===y.a ? y.o : 100;
+    return k==="Sayma" ? (ox-oy) || (y.c-x.c) : (y.c-x.c);
+  });
+}
+function renderZones(){
+  const t = totals();
+  const groups = Object.fromEntries([...TECHS, NONE].map(k=>[k,[]]));
+  for (const r of DATA) groups[ownerOf(r)].push(r);
+  let html = "";
+  for (const k of [...TECHS, NONE]){
+    const rows = sortRows(k, groups[k]);
+    if (k===NONE && !rows.length) continue;
+    const s = state(t[k]);
+    const head = k===NONE
+      ? `<div class="zone-meta">Claves sin técnico · ${rows.length} registros</div>`
+      : `<div class="zone-meta"><span class="pill"><i style="background:${s.color}"></i>${s.label}</span><span class="num">${t[k]?dev(t[k])+" frente a la meta":""}</span><span>· ${rows.length} barrios</span></div>`;
+    const tiles = rows.map(r=>{
+      const [bg,ink] = heat(r.c);
+      const moved = view==="p" && ownerOf(r)!==r.a;
+      const from = moved ? `<span class="from">de ${r.a===NONE?"sin técnico":short(r.a)}</span>` : "";
+      const ord = k==="Sayma" && ownerOf(r)===r.a ? `<span class="to">${r.o}.</span>` : "";
+      const g = Math.max(r.c, 40), b = Math.round(Math.min(260, 64 + Math.sqrt(r.c)*4.2));
+      return `<button type="button" class="tile${moved?" moved":""}${r.c===0?" zero":""}" data-id="${encodeURIComponent(r.id)}" style="--g:${g};--b:${b}px;--tb:${bg};--ti:${ink}" title="${r.n}: ${fmt(r.c)} claves">
+        <span class="tn">${ord}${r.n}</span><span class="tc">${r.c?fmt(r.c):"sin claves"} ${from}</span></button>`;
+    }).join("");
+    html += `<article class="zone${k===NONE?" unassigned":""}" style="--zc:${k===NONE?"var(--line-strong)":s.color}">
+      <div class="zone-head"><div class="zone-title"><h3>${k===NONE?"Por ubicar":`<i style="background:${TCOLOR[k]}"></i>${k}`}</h3><span class="zone-total num">${fmt(t[k])}</span></div>${head}</div>
+      ${rows.length ? `<div class="tiles">${tiles}</div>` : `<div class="empty">Sin barrios asignados.</div>`}
+    </article>`;
+  }
+  document.getElementById("zones").innerHTML = html;
+  document.getElementById("legend-moved").hidden = view!=="p";
+}
+
+function render(){
+  document.getElementById("v-actual").setAttribute("aria-pressed", view==="a");
+  document.getElementById("v-prop").setAttribute("aria-pressed", view==="p");
+  document.getElementById("reset").hidden = view!=="p";
+  renderKpis(); renderMap(); renderInfo(); renderBars(); renderZones();
+}
+
+/* ---------- mover barrio ---------- */
+let current = null;
+const sheet = document.getElementById("sheet"), sel = document.getElementById("sheet-select");
+function openSheet(r){
+  current = r;
+  document.getElementById("sheet-title").textContent = r.n;
+  document.getElementById("sheet-info").textContent = `${fmt(r.c)} claves · en las hojas: ${r.a===NONE?"sin técnico":r.a}`;
+  sel.innerHTML = [...TECHS, NONE].map(k=>`<option value="${k}">${k===NONE?"Por ubicar":k}</option>`).join("");
+  sel.value = ownerOf(r);
+  preview();
+  sheet.hidden = false; sel.focus();
+}
+function preview(){
+  if (!current) return;
+  const t = totals(), from = ownerOf(current), to = sel.value;
+  const el = document.getElementById("sheet-preview");
+  if (from===to){ el.textContent = "Sigue en la misma zona."; return; }
+  const parts = [];
+  if (from!==NONE) parts.push(`${from}: ${fmt(t[from])} → ${fmt(t[from]-current.c)}`);
+  if (to!==NONE) parts.push(`${to}: ${fmt(t[to])} → ${fmt(t[to]+current.c)}`);
+  el.textContent = parts.join(" · ");
+}
+const closeSheet = () => { sheet.hidden = true; current = null; };
+sel.addEventListener("change", preview);
+document.getElementById("sheet-cancel").addEventListener("click", closeSheet);
+sheet.addEventListener("click", e => { if (e.target===sheet) closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key==="Escape" && !sheet.hidden) closeSheet(); });
+document.getElementById("sheet-ok").addEventListener("click", () => {
+  const r = current, to = sel.value;
+  if (to === r.p) delete overrides[r.id]; else overrides[r.id] = to;
+  save(); closeSheet(); render();
+  flash(`${r.n} pasó a ${to===NONE?"por ubicar":to}.`);
+});
+document.getElementById("zones").addEventListener("click", e => {
+  const b = e.target.closest(".tile"); if (!b) return;
+  const r = byId[decodeURIComponent(b.dataset.id)];
+  if (view==="a"){ flash("Cambia a Propuesta para mover barrios."); return; }
+  openSheet(r);
+});
+
+let flashT;
+function flash(msg){ const s = document.getElementById("status"); s.textContent = msg; clearTimeout(flashT); flashT = setTimeout(()=>s.textContent="", 4000); }
+
+document.getElementById("v-actual").addEventListener("click", ()=>{ view="a"; render(); });
+document.getElementById("v-prop").addEventListener("click", ()=>{ view="p"; render(); });
+document.getElementById("reset").addEventListener("click", ()=>{ overrides = {}; save(); render(); flash("Propuesta restablecida."); });
+document.getElementById("copy").addEventListener("click", async ()=>{
+  const t = totals(); const lines = [`Reparto de entregas — ${view==="a"?"actual":"propuesta"} (meta ${fmt(META)} por técnico)`, ""];
+  for (const k of [...TECHS, NONE]){
+    const rows = sortRows(k, DATA.filter(r=>ownerOf(r)===k));
+    if (!rows.length) continue;
+    lines.push(`${k===NONE?"Por ubicar":k} — ${fmt(t[k])} claves`);
+    rows.forEach((r,i)=>lines.push(`  ${i+1}. ${r.n} (${fmt(r.c)})${view==="p"&&ownerOf(r)!==r.a?` ← de ${r.a===NONE?"sin técnico":r.a}`:""}`));
+    lines.push("");
+  }
+  const text = lines.join("\n");
+  try { await navigator.clipboard.writeText(text); flash("Reparto copiado."); }
+  catch { flash("No se pudo copiar automáticamente."); }
+});
+
+render();
+</script>
+</body>
+
+</html>
