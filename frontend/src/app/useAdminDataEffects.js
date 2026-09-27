@@ -173,6 +173,10 @@ export function useAdminDataEffects({
     loadRecords("", "active", { silent: true });
     loadMapDiaryGroups({ silent: true });
     loadMapPoints({ silent: true });
+    // El informe muestra el total del padrón maestro y de Alcaldía: sin esto salía 0 si se
+    // abría sin haber pasado antes por el tablero, el padrón o los informes.
+    loadPadronMeta({ silent: true });
+    loadAlcaldiaMeta({ silent: true });
     return undefined;
   }, [isAuthenticated, isAdmin, workspaceView]);
 }
