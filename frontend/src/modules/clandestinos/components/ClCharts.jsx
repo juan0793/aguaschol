@@ -90,7 +90,7 @@ export function StackedBars({ rows, selected = "", onSelect, emptyText = "Sin da
         <button type="button" title={title} aria-pressed={isActive} className={`${isActive ? "is-active" : ""} ${selected && !isActive ? "is-dimmed" : ""}`.trim()} onClick={() => onSelect?.(isActive ? "" : row.key)}>
           <span className="cl-bars-label">{row.label}</span>
           <span className="cl-bars-track" style={{ "--bar-delay": `${index * 45}ms` }}>
-            <span className="cl-bars-fill" style={{ width: ready ? `${(row.total / max) * 100}%` : 0 }}>
+            <span className="cl-bars-fill" style={{ transform: `scaleX(${ready && max ? row.total / max : 0})` }}>
               {row.parts.map((part) => part.value ? <i key={part.key} style={{ flexGrow: part.value, background: part.color }} /> : null)}
             </span>
           </span>
@@ -116,7 +116,7 @@ export function MeterLegend({ items, selected = "", onSelect, renderIcon }) {
         <span className="cl-meters-icon">{renderIcon?.(item)}</span>
         <span className="cl-meters-copy"><span>{item.label}</span><small>{percent}%</small></span>
         <strong><CountUp value={item.value} /></strong>
-        <span className="cl-meters-track"><span style={{ width: ready ? `${percent}%` : 0 }} /></span>
+        <span className="cl-meters-track"><span style={{ transform: `scaleX(${ready ? percent / 100 : 0})` }} /></span>
       </button>;
     })}
   </div>;

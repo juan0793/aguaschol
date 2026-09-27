@@ -102,7 +102,7 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
         mismo). Al pasar el cursor o enfocar se adelanta la consulta. */}
     <div className="cl-indicators" role="group" aria-label="Filtrar por etapa" ref={etapasRef}>
       {ETAPAS.map(([key, label, icon]) => <button type="button" key={key} aria-pressed={model.filters.state === key} className={model.filters.state === key ? "is-active" : ""} title={STATE_OPTIONS[key]} onPointerEnter={() => model.prefetchState?.(key)} onFocus={() => model.prefetchState?.(key)} onClick={() => { setAlertsOnly(false); model.filters.setState(model.filters.state === key ? "" : key); }}><Icon name={icon} /><span>{label}</span><strong>{model.counts[key] || 0}</strong></button>)}
-      {marca ? <i className="cl-indicators-mark" aria-hidden="true" style={{ transform: `translate(${marca.left}px, ${marca.top}px)`, width: marca.width }} /> : null}
+      {marca ? <i className="cl-indicators-mark" aria-hidden="true" style={{ transform: `translate(${marca.left}px, ${marca.top}px) scaleX(${marca.width / 100})` }} /> : null}
     </div>
     {serviceTotal || buscando ? <section className="cl-service-stats" aria-label="Conexiones de servicios registradas">
       <header className="cl-service-stats-head"><h3>Servicios registrados</h3><p>{serviceTotal ? `Sobre ${serviceTotal} ${serviceTotal === 1 ? "ficha" : "fichas"} con los filtros actuales` : "Sin fichas para resumir"}</p></header>

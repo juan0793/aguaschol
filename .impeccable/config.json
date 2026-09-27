@@ -27,6 +27,15 @@
         ],
         "createdAt": "2026-09-27T05:55:22.635Z",
         "reason": "Agent: width anima solo las barras de costo y la regla de ritmo (elementos chicos, posición absoluta) al cambiar el dato; se apaga con prefers-reduced-motion. Mismo caso que la excepción ya aceptada de dashboard.css (2026-09-24)."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "frontend/src/modules/clandestinos/styles/clandestinos.css"
+        ],
+        "createdAt": "2026-09-27T21:00:09.276Z",
+        "reason": "Claude: falso positivo en .cl-donut-segment, que anima stroke-width de un trazo SVG (solo repintado, sin layout). Las transiciones de width reales de este archivo se pasaron a transform el 2026-09-27."
       }
     ]
   }
