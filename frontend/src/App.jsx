@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@blossom-carousel/core/style.css";
-import { toast, Toaster } from "sonner";
+import { Toaster } from "sonner";
 import { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import AppSidebar from "./components/sidebar/AppSidebar";
 import { ModuleSkeleton } from "./components/ds/Skeleton";
@@ -49,23 +49,9 @@ import {
   prefetchModule
 } from "./app/lazyModules";
 import {
-  groupAuditLogsByDay,
-  AUDIT_FILTER_KEYS,
-  AUDIT_ACTION_OPTIONS,
-  AUDIT_ENTITY_OPTIONS,
-} from "./utils/audit";
-import {
-  MAP_DIARY_PRIMARY_LIMIT,
-} from "./constants/workspace";
-import { getTodayMapDiaryKey } from "./utils/mapDiary";
-import {
-  normalizeMapReportSettings,
-} from "./utils/mapReport";
-import {
   formatDashboardSyncRelativeTime,
 } from "./utils/timeFormat";
 import {
-  getAlertDetails,
   getDefaultWorkspaceView,
 } from "./utils/appShell";
 import FieldMapWorkspace from "./modules/campo/FieldMapWorkspace";
@@ -127,6 +113,12 @@ import { useDashboardState } from "./modules/dashboard/useDashboardState";
 import { useAppShellState } from "./app/useAppShellState";
 import { useRecordsState } from "./modules/clandestinos/useRecordsState";
 import { useSessionState } from "./app/useSessionState";
+import { useMapDiaryData } from "./modules/campo/useMapDiaryData";
+import { useAuditView } from "./modules/audit/useAuditView";
+import { useDashboardRefresh } from "./modules/dashboard/useDashboardRefresh";
+import { useApiSession } from "./app/useApiSession";
+import ConfirmDeleteRecordModal from "./modules/clandestinos/dialogs/ConfirmDeleteRecordModal";
+import ConfirmDeleteUserModal from "./modules/users/ConfirmDeleteUserModal";
 
 function App() {
   const sheetRef = useRef(null);
@@ -166,8 +158,6 @@ function App() {
     showMobileModuleMenu,
     closeMobileModuleMenu
   } = appShellState;
-  const peticionesEnCursoRef = useRef(0);
-  const actividadTimerRef = useRef(0);
   const navigateWithFocus = (view, focus) => { setCrossModuleFocus(focus ? { view, requestId: Date.now(), ...focus } : null); setWorkspaceView(view); };
   const dashboardState = useDashboardState();
   const {
@@ -240,120 +230,29 @@ function App() {
   const safeMapDiaryGroupsSummary = Array.isArray(mapDiaryGroupsSummary) ? mapDiaryGroupsSummary : [];
   const safeUsers = Array.isArray(users) ? users : [];
   const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
-  const auditDayGroups = useMemo(() => groupAuditLogsByDay(safeAuditLogs), [safeAuditLogs]);
-  const auditFilterChips = useMemo(() => {
-    const labelFor = (options, value) => options.find((option) => option.value === value)?.label || value;
-    const chips = [];
-    if (auditFilters.search) chips.push({ key: "search", label: "Búsqueda", value: auditFilters.search });
-    if (auditFilters.action) chips.push({ key: "action", label: "Acción", value: labelFor(AUDIT_ACTION_OPTIONS, auditFilters.action) });
-    if (auditFilters.entity_type) chips.push({ key: "entity_type", label: "Entidad", value: labelFor(AUDIT_ENTITY_OPTIONS, auditFilters.entity_type) });
-    if (auditFilters.actor) chips.push({ key: "actor", label: "Actor", value: auditFilters.actor });
-    if (auditFilters.date_from) chips.push({ key: "date_from", label: "Desde", value: auditFilters.date_from });
-    if (auditFilters.date_to) chips.push({ key: "date_to", label: "Hasta", value: auditFilters.date_to });
-    return chips;
-  }, [auditFilters]);
-  const auditRangeLabel = auditFilters.date_from || auditFilters.date_to
-    ? `${auditFilters.date_from || "inicio"} → ${auditFilters.date_to || "hoy"}`
-    : "Historial completo";
-  const auditSyncing = loadingLogs
-    || AUDIT_FILTER_KEYS.some((key) => auditFilters[key] !== auditFiltersQuery[key]);
   const safeBarrioCodes = Array.isArray(barrioCodes) ? barrioCodes : [];
   const getRecordBarrioName = useCallback(
     (record = {}, fallback = "Sin barrio") =>
       String(resolveBarrioFromPayload(record, safeBarrioCodes, fallback)).trim() || fallback,
     [safeBarrioCodes]
   );
-  const mapDiaryGroups = useMemo(() => {
-    const todayKey = getTodayMapDiaryKey();
-    if (safeMapDiaryGroupsSummary.length) {
-      const groups = safeMapDiaryGroupsSummary
-        .filter((group) => group?.key)
-        .map((group) => ({
-          key: group.key,
-          total: Number(group.total || 0)
-        }))
-        .sort((left, right) => right.key.localeCompare(left.key));
-      return groups.some((group) => group.key === todayKey)
-        ? groups
-        : [{ key: todayKey, total: 0 }, ...groups].sort((left, right) => right.key.localeCompare(left.key));
-    }
-
-    const groups = safeMapPoints.reduce((accumulator, point) => {
-      const key = getMapDiaryDateKey(point);
-      if (!key) return accumulator;
-      const current = accumulator.get(key) ?? { key, total: 0 };
-      current.total += 1;
-      accumulator.set(key, current);
-      return accumulator;
-    }, new Map());
-
-    if (!groups.has(todayKey)) {
-      groups.set(todayKey, { key: todayKey, total: 0 });
-    }
-
-    return Array.from(groups.values()).sort((left, right) => right.key.localeCompare(left.key));
-  }, [safeMapDiaryGroupsSummary, safeMapPoints]);
-  const mapPointsTotal = useMemo(
-    () => mapDiaryGroups.reduce((total, group) => total + Number(group.total || 0), 0),
-    [mapDiaryGroups]
-  );
-  const activeMapDiaryDateKey = useMemo(
-    () => {
-      return mapDiaryGroups.some((group) => group.key === mapDiaryDateKey)
-        ? mapDiaryDateKey
-        : mapDiaryGroups[0]?.key ?? getTodayMapDiaryKey();
-    },
-    [mapDiaryDateKey, mapDiaryGroups]
-  );
-  const primaryMapDiaryGroups = useMemo(() => {
-    const recentGroups = mapDiaryGroups.slice(0, MAP_DIARY_PRIMARY_LIMIT);
-    if (recentGroups.some((group) => group.key === activeMapDiaryDateKey)) {
-      return recentGroups;
-    }
-
-    const activeGroup = mapDiaryGroups.find((group) => group.key === activeMapDiaryDateKey);
-    return activeGroup ? [activeGroup, ...recentGroups.slice(0, MAP_DIARY_PRIMARY_LIMIT - 1)] : recentGroups;
-  }, [activeMapDiaryDateKey, mapDiaryGroups]);
-  const archivedMapDiaryGroups = useMemo(() => {
-    const visibleKeys = new Set(primaryMapDiaryGroups.map((group) => group.key));
-    return mapDiaryGroups.filter((group) => !visibleKeys.has(group.key));
-  }, [mapDiaryGroups, primaryMapDiaryGroups]);
-  const regulatorReportDiaryOptions = useMemo(
-    () => mapDiaryGroups.filter((group) => Number(group.total || 0) > 0).slice(0, 8),
-    [mapDiaryGroups]
-  );
-  const selectedRegulatorDiaryKeys = useMemo(() => {
-    const availableKeys = new Set(regulatorReportDiaryOptions.map((group) => group.key));
-    const selected = regulatorReportDiaryKeys.filter((key) => availableKeys.has(key)).slice(0, 5);
-    return selected.length ? selected : regulatorReportDiaryOptions.slice(0, 3).map((group) => group.key);
-  }, [regulatorReportDiaryKeys, regulatorReportDiaryOptions]);
-  const selectedArchiveMapDiaryGroup = useMemo(
-    () => archivedMapDiaryGroups.find((group) => group.key === selectedArchiveMapDiaryKey) ?? archivedMapDiaryGroups[0] ?? null,
-    [archivedMapDiaryGroups, selectedArchiveMapDiaryKey]
-  );
-  const mapReportSettings = useMemo(
-    () => normalizeMapReportSettings(mapReportSettingsByDate[activeMapDiaryDateKey]),
-    [activeMapDiaryDateKey, mapReportSettingsByDate]
-  );
-  const setMapReportSettings = (updater) => {
-    setMapReportSettingsByDate((current) => {
-      const currentSettings = normalizeMapReportSettings(current[activeMapDiaryDateKey]);
-      const nextSettings = typeof updater === "function" ? updater(currentSettings) : updater;
-
-      return {
-        ...current,
-        [activeMapDiaryDateKey]: normalizeMapReportSettings(nextSettings)
-      };
-    });
-  };
   const selectedUser =
     safeUsers.find((user) => user.id === selectedUserId) ?? latestUserResult?.user ?? safeUsers[0] ?? null;
   const onlineUsers = useMemo(
     () => safeUsers.filter((user) => user.is_online),
     [safeUsers]
   );
-  const fieldMapPoints = useFieldMapPoints({ ...fieldMapState, activeMapDiaryDateKey, safeMapPoints });
-  const mapReportModel = useMapReportData({ ...fieldMapState, ...fieldMapPoints, mapDiaryGroups, mapReportSettings, safeBarrioCodes });
+  const mapDiaryData = useMapDiaryData({
+    mapDiaryDateKey,
+    mapReportSettingsByDate,
+    regulatorReportDiaryKeys,
+    safeMapDiaryGroupsSummary,
+    safeMapPoints,
+    selectedArchiveMapDiaryKey,
+    setMapReportSettingsByDate
+  });
+  const fieldMapPoints = useFieldMapPoints({ ...mapDiaryData, ...fieldMapState, safeMapPoints });
+  const mapReportModel = useMapReportData({ ...mapDiaryData, ...fieldMapState, ...fieldMapPoints, safeBarrioCodes });
   const isDirty = useMemo(() => {
     const baseline = form.id
       ? comparableFormShape(safeRecords.find((record) => record.id === form.id) ?? emptyForm)
@@ -376,27 +275,6 @@ function App() {
   }, [aguasServiceReportData.barrios, getAguasServiceBarrioName]);
 
   const recordFilterModel = useRecordFilters({ ...recordsState, getRecordBarrioName, safeRecords, todayDateKey });
-
-
-
-
-
-
-
-
-
-
-
-
-  const showAlert = useCallback((text) => {
-    if (!text || (intentionalLogoutRef.current && /la sesi[oó]n venci[oó]/i.test(text))) return;
-    const details = getAlertDetails(text);
-    toast[details.tone](details.label, {
-      description: text,
-      duration: 5000,
-      closeButton: true
-    });
-  }, []);
 
   const clearSession = () => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -441,107 +319,17 @@ function App() {
     setWorkspaceView("records");
     resetForm();
   };
+  const apiSession = useApiSession({ clearSession, intentionalLogoutRef, session, sessionInvalidatingRef, setCargandoDatos });
+  const { showAlert, apiFetch } = apiSession;
 
-  // La barra de actividad cuenta peticiones en curso, no renderiza por cada una:
-  // el contador vive en una ref y el estado solo cambia al empezar y al terminar
-  // una tanda. Espera 180 ms antes de mostrarse para que una consulta rápida no
-  // dispare un parpadeo.
-  const marcarPeticionInicio = useCallback(() => {
-    peticionesEnCursoRef.current += 1;
-    if (peticionesEnCursoRef.current === 1) {
-      window.clearTimeout(actividadTimerRef.current);
-      actividadTimerRef.current = window.setTimeout(() => setCargandoDatos(true), 180);
-    }
-  }, []);
-
-  const marcarPeticionFin = useCallback(() => {
-    peticionesEnCursoRef.current = Math.max(0, peticionesEnCursoRef.current - 1);
-    if (peticionesEnCursoRef.current === 0) {
-      window.clearTimeout(actividadTimerRef.current);
-      setCargandoDatos(false);
-    }
-  }, []);
-
-  // Revalidacion por ETag hecha a mano. Express ya envia ETag en cada GET, pero
-  // Chrome no guarda respuestas cross-origin que llevan Authorization, asi que
-  // nunca mandaba If-None-Match: cada sondeo del tablero rebajaba la respuesta
-  // entera. Aqui se guarda el ETag y el ultimo cuerpo por ruta y se revalida a
-  // mano: el servidor sigue consultandose siempre (los datos nunca se sirven sin
-  // preguntar), pero cuando nada cambio responde 304 sin cuerpo y se reutiliza
-  // lo ya recibido. Solo para las rutas que se sondean, via `revalidate: true`.
-  const apiRevalidateCacheRef = useRef(new Map());
-
-  const apiFetch = useCallback(async (path, options = {}) => {
-    const headers = new Headers(options.headers ?? {});
-
-    if (session?.token) {
-      headers.set("Authorization", `Bearer ${session.token}`);
-    }
-
-    const { revalidate, ...fetchOptions } = options;
-    const cacheKey = revalidate ? `${fetchOptions.method ?? "GET"} ${path}` : "";
-    const cached = cacheKey ? apiRevalidateCacheRef.current.get(cacheKey) : null;
-
-    if (cached?.etag) {
-      headers.set("If-None-Match", cached.etag);
-    }
-
-    marcarPeticionInicio();
-    try {
-      const response = await fetch(`${API_URL}${path}`, {
-        ...fetchOptions,
-        cache: fetchOptions.cache ?? "no-store",
-        credentials: fetchOptions.credentials ?? "include",
-        headers
-      });
-
-      if (cacheKey) {
-        if (response.status === 304 && cached) {
-          // Se devuelve una respuesta equivalente para que quien llama siga
-          // haciendo `await response.json()` sin enterarse del 304.
-          return new Response(cached.body, {
-            status: 200,
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-
-        if (response.ok) {
-          const etag = response.headers.get("ETag");
-          if (etag) {
-            const body = await response.clone().text();
-            apiRevalidateCacheRef.current.set(cacheKey, { etag, body });
-          } else {
-            apiRevalidateCacheRef.current.delete(cacheKey);
-          }
-        }
-      }
-      if (response.status === 401 && session?.token && !sessionInvalidatingRef.current) {
-        sessionInvalidatingRef.current = true;
-        clearSession();
-        if (!intentionalLogoutRef.current) showAlert("Tu sesión venció. Ingresa de nuevo para continuar.");
-      }
-      return response;
-    } finally {
-      marcarPeticionFin();
-    }
-  }, [session?.token, marcarPeticionInicio, marcarPeticionFin]);
   const lookupActions = useLookupActions({
+    ...apiSession,
     ...lookupState,
     ...padronState,
     ...appShellState,
-    apiFetch,
     clearSession,
-    isAuthenticated,
-    showAlert
+    isAuthenticated
   });
-
-
-
-
-
-
-
-
 
   const selectedPhotoUrl = useMemo(() => {
     if (!form.foto_path) return "";
@@ -554,122 +342,22 @@ function App() {
     return URL.createObjectURL(selectedFile);
   }, [selectedFile]);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const refreshDashboard = useCallback(
-    async ({ force = false } = {}) => {
-      if (!isAuthenticated || !isAdmin || workspaceView !== "dashboard") return;
-      if (!force && document.visibilityState !== "visible") return;
-
-      setDashboardRefreshing(true);
-      setDashboardConnectionStatus("updating");
-      try {
-        // `loadUsers` no va aqui: el efecto de usuarios en linea ya es su dueño
-        // unico y lo refresca cada 20 s, ademas de al enfocar la ventana y al
-        // volver a la pestaña. Teniendolo tambien en este ciclo de 10 s, /users
-        // salia dos veces al abrir el tablero y nueve veces por minuto.
-        await Promise.all([
-          loadRecordSummary({ silent: true }),
-          loadMapDiaryGroups({ silent: true }),
-          loadAuditLogs({ silent: true })
-        ]);
-        setDashboardLastUpdatedAt(Date.now());
-        setDashboardConnectionStatus("synced");
-      } catch {
-        setDashboardConnectionStatus("retrying");
-      } finally {
-        setDashboardRefreshing(false);
-      }
-    },
-    [isAuthenticated, isAdmin, workspaceView]
-  );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   const fieldDebtReports = createFieldDebtReports({
+    ...mapDiaryData,
+    ...apiSession,
     ...mapReportModel,
     ...fieldMapState,
     ...padronState,
-    ...fieldMapPoints,
-    activeMapDiaryDateKey,
-    apiFetch,
-    showAlert
+    ...fieldMapPoints
   });
   const dashboardData = useDashboardData({
+    ...mapDiaryData,
     ...padronState,
     ...recordFilterModel,
     ...dashboardState,
     ...fieldMapState,
     getRecordBarrioName,
     isAdmin,
-    mapDiaryGroups,
-    mapPointsTotal,
     onlineUsers,
     safeAuditLogs,
     safeBarrioCodes,
@@ -681,6 +369,7 @@ function App() {
   });
   const { dashboardLiveMetrics, dashboardLiveFeed, dashboardPriorityItems } = dashboardData;
   const { executiveReportData } = useExecutiveReportData({
+    ...mapDiaryData,
     ...padronState,
     ...dashboardData,
     ...fieldMapState,
@@ -688,7 +377,6 @@ function App() {
     ...padronRequestState,
     ...recordFilterModel,
     getRecordBarrioName,
-    mapDiaryGroups,
     onlineUsers,
     safeAuditLogs,
     safeBarrioCodes,
@@ -697,66 +385,60 @@ function App() {
     safeUsers
   });
   const { handleDownloadExecutiveReportPdf } = createExecutiveReportPdf({
+    ...mapDiaryData,
+    ...apiSession,
     ...recordFilterModel,
     executiveReportData,
-    mapDiaryGroups,
     safeAuditLogs,
     safeMapPoints,
     safeRecords,
-    safeUsers,
-    showAlert
+    safeUsers
   });
   const reportMapActions = useReportMapActions({
+    ...apiSession,
+    ...mapDiaryData,
     ...fieldMapState,
     ...fieldMapPoints,
-    apiFetch,
     clearSession,
     reportMapCaptureRef,
     safeBarrioCodes,
-    safeMapPoints,
-    setMapReportSettings,
-    showAlert
+    safeMapPoints
   });
   const { handleDownloadRegulatorEvidencePdf } = createRegulatorEvidencePdf({
+    ...mapDiaryData,
+    ...apiSession,
     ...reportMapActions,
     ...fieldMapState,
     ...sessionState,
     ...fieldMapPoints,
-    activeMapDiaryDateKey,
-    apiFetch,
     isAdmin,
-    mapReportSettings,
     safeAuditLogs,
     safeBarrioCodes,
     safeMapPoints,
-    safeUsers,
-    selectedRegulatorDiaryKeys,
-    showAlert
+    safeUsers
   });
   const mapReportPrinters = createMapReportPrinters({
+    ...mapDiaryData,
+    ...apiSession,
     ...fieldDebtReports,
     ...reportMapActions,
     ...mapReportModel,
-    ...fieldMapState,
-    activeMapDiaryDateKey,
-    apiFetch,
-    mapReportSettings,
-    showAlert
+    ...fieldMapState
   });
   const printBatchSelection = usePrintBatchSelection({ ...recordsState, ...recordFilterModel, getRecordBarrioName, safeRecords });
-  const recordLoaders = createRecordLoaders({ ...recordsState, apiFetch, clearSession, isAdmin, isAuthenticated, showAlert });
+  const recordLoaders = createRecordLoaders({ ...apiSession, ...recordsState, clearSession, isAdmin, isAuthenticated });
   const { loadRecordSummary } = recordLoaders;
   const fichaPrinting = createFichaPrinting({
+    ...apiSession,
     ...printBatchSelection,
     ...recordsState,
     ...recordLoaders,
-    apiFetch,
     getRecordBarrioName,
-    selectedPhotoUrl,
-    showAlert
+    selectedPhotoUrl
   });
   const { handlePrintFicha, handlePrintAviso } = fichaPrinting;
   const padronDataActions = createPadronDataActions({
+    ...apiSession,
     ...padronRequestState,
     ...lookupActions,
     ...padronState,
@@ -764,13 +446,12 @@ function App() {
     ...fieldMapState,
     ...lookupState,
     ...appShellState,
-    apiFetch,
     clearSession,
     isAdmin,
-    isAuthenticated,
-    showAlert
+    isAuthenticated
   });
   const padronReportPrinters = createPadronReportPrinters({
+    ...apiSession,
     ...padronReportData,
     ...padronState,
     ...dashboardData,
@@ -779,39 +460,37 @@ function App() {
     ...padronRequestState,
     ...recordsState,
     getRecordBarrioName,
-    safeBarrioCodes,
-    showAlert
+    safeBarrioCodes
   });
 
-  const { loadUsers } = createUserLoaders({ ...usersState, apiFetch, clearSession, isAdmin, isAuthenticated, showAlert });
-  const auditLoaders = createAuditLoaders({ ...auditState, apiFetch, clearSession, isAdmin, isAuthenticated, showAlert });
+  const { loadUsers } = createUserLoaders({ ...apiSession, ...usersState, clearSession, isAdmin, isAuthenticated });
+  const auditLoaders = createAuditLoaders({ ...apiSession, ...auditState, clearSession, isAdmin, isAuthenticated });
   const { loadAuditLogs } = auditLoaders;
-  const userAdminActions = createUserAdminActions({ ...usersState, ...auditLoaders, apiFetch, clearSession, loadUsers, showAlert });
+  const userAdminActions = createUserAdminActions({ ...apiSession, ...usersState, ...auditLoaders, clearSession, loadUsers });
   const { handleDeleteUser } = userAdminActions;
-  const padronAdminActions = createPadronAdminActions({ ...padronState, ...padronDataActions, ...dashboardState, apiFetch, clearSession, showAlert });
-  const auditActions = createAuditActions({ ...auditState, apiFetch, showAlert });
+  const padronAdminActions = createPadronAdminActions({ ...apiSession, ...padronState, ...padronDataActions, ...dashboardState, clearSession });
+  const auditActions = createAuditActions({ ...apiSession, ...auditState });
   const authActions = createAuthActions({
+    ...apiSession,
     ...auditLoaders,
     ...sessionState,
     ...appShellState,
-    apiFetch,
     clearSession,
     intentionalLogoutRef,
-    sessionInvalidatingRef,
-    showAlert
+    sessionInvalidatingRef
   });
   const { handleLogout } = authActions;
   const fieldMapActions = createFieldMapActions({
+    ...apiSession,
     ...fieldMapState,
     ...fieldMapPoints,
-    apiFetch,
     clearSession,
     isAdmin,
     safeBarrioCodes,
-    safeMapPoints,
-    showAlert
+    safeMapPoints
   });
   const { headerStats } = useHeaderStats({
+    ...mapDiaryData,
     ...recordsState,
     ...fieldMapState,
     ...padronRequestState,
@@ -822,14 +501,13 @@ function App() {
     ...appShellState,
     isAdmin,
     isTransport,
-    mapDiaryGroups,
-    mapPointsTotal,
     onlineUsers,
     safeAuditLogs,
     safeBarrioCodes,
     safeRecords
   });
   const appNavigation = useAppNavigation({
+    ...mapDiaryData,
     ...mapReportModel,
     ...padronState,
     ...padronRequestState,
@@ -837,47 +515,41 @@ function App() {
     ...appShellState,
     isAdmin,
     isFieldValidator,
-    mapPointsTotal,
     safeAuditLogs,
     safeBarrioCodes,
     safeRecords,
     safeUsers
   });
   const { sidebarNavigationSections } = appNavigation;
-  const barrioCodeActions = createBarrioCodeActions({ ...barrioCodesState, apiFetch, clearSession, isAuthenticated, showAlert });
+  const barrioCodeActions = createBarrioCodeActions({ ...apiSession, ...barrioCodesState, clearSession, isAuthenticated });
   const mapDataLoaders = createMapDataLoaders({
+    ...apiSession,
+    ...mapDiaryData,
     ...fieldMapState,
-    apiFetch,
-    archivedMapDiaryGroups,
     clearSession,
     isAdmin,
     isAuthenticated,
     mapPointsRequestRef,
-    safeMapPoints,
-    selectedArchiveMapDiaryGroup,
-    selectedRegulatorDiaryKeys,
-    showAlert
+    safeMapPoints
   });
   const { loadMapDiaryGroups } = mapDataLoaders;
   const recordFormActions = createRecordFormActions({
+    ...apiSession,
     ...recordsState,
     ...recordLoaders,
     ...usersState,
-    apiFetch,
     getRecordBarrioName,
     safeBarrioCodes,
-    sheetRef,
-    showAlert
+    sheetRef
   });
   const { resetForm, handleDeleteArchivedRecord } = recordFormActions;
   const lookupRecordBridge = createLookupRecordBridge({
+    ...apiSession,
     ...recordFormActions,
     ...recordsState,
     ...appShellState,
-    apiFetch,
     clearSession,
-    safeBarrioCodes,
-    showAlert
+    safeBarrioCodes
   });
   useRecordEffects({
     ...recordFilterModel,
@@ -893,21 +565,32 @@ function App() {
     safeBarrioCodes
   });
   useFieldMapEffects({
+    ...mapDiaryData,
+    ...apiSession,
     ...fieldMapState,
     ...mapDataLoaders,
     ...mapReportModel,
     ...padronState,
     ...fieldMapPoints,
     ...appShellState,
-    activeMapDiaryDateKey,
-    apiFetch,
     isAdmin,
     isAuthenticated,
     mapPointsRequestRef,
-    regulatorReportDiaryOptions,
     safeBarrioCodes
   });
+  const { refreshDashboard } = useDashboardRefresh({
+    isAdmin,
+    isAuthenticated,
+    loadAuditLogs,
+    loadMapDiaryGroups,
+    loadRecordSummary,
+    setDashboardConnectionStatus,
+    setDashboardLastUpdatedAt,
+    setDashboardRefreshing,
+    workspaceView
+  });
   useAdminDataEffects({
+    ...apiSession,
     ...padronState,
     ...auditState,
     ...padronDataActions,
@@ -916,17 +599,16 @@ function App() {
     ...mapDataLoaders,
     ...recordLoaders,
     ...appShellState,
-    apiFetch,
     isAdmin,
     isAuthenticated,
     loadUsers,
     refreshDashboard
   });
   useAppShellEffects({
+    ...apiSession,
     ...sessionState,
     ...fieldMapState,
     ...appShellState,
-    apiFetch,
     clearSession,
     intentionalLogoutRef,
     isAdmin,
@@ -935,9 +617,9 @@ function App() {
     mustChangePassword,
     sessionInvalidatingRef,
     setShowUserMenu,
-    showAlert,
     sidebarCollapsed
   });
+  const auditView = useAuditView({ auditFilters, auditFiltersQuery, loadingLogs, safeAuditLogs });
   if (session?.token && !sessionVerified) {
     return (
       <div className="login-shell login-scene" role="status" aria-live="polite">
@@ -981,57 +663,23 @@ function App() {
         />
       ) : null}
       {pendingDeleteUser ? (
-        <div className="password-modal-backdrop">
-          <div className="password-modal-card">
-            <div className="password-modal-head">
-              <p className="eyebrow">Confirmacion requerida</p>
-              <h2>Eliminar usuario</h2>
-              <p className="lead">
-                Se eliminara el registro de <strong>{pendingDeleteUser.full_name}</strong> y se cerraran sus sesiones activas.
-              </p>
-            </div>
-            <div className="password-form-actions">
-              <button type="button" className="button-secondary" onClick={() => setPendingDeleteUser(null)}>
-                Cancelar
-              </button>
-              <button type="button" className="button-danger" onClick={() => handleDeleteUser(pendingDeleteUser)}>
-                Eliminar usuario
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteUserModal
+          model={{ handleDeleteUser, pendingDeleteUser, setPendingDeleteUser }}
+        />
       ) : null}
       {pendingDeleteRecord ? (
-        <div className="password-modal-backdrop">
-          <div className="password-modal-card">
-            <div className="password-modal-head">
-              <p className="eyebrow">Registro archivado</p>
-              <h2>Eliminar ficha archivada</h2>
-              <p className="lead">
-                Se eliminara definitivamente la ficha <strong>{pendingDeleteRecord.clave_catastral}</strong>.
-                Esta accion solo aplica al registro archivado y no se puede deshacer.
-              </p>
-            </div>
-            <div className="password-form-actions">
-              <button type="button" className="button-secondary" onClick={() => setPendingDeleteRecord(null)}>
-                Cancelar
-              </button>
-              <button type="button" className="button-danger" onClick={() => handleDeleteArchivedRecord(pendingDeleteRecord)}>
-                Eliminar ficha
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteRecordModal
+          model={{ handleDeleteArchivedRecord, pendingDeleteRecord, setPendingDeleteRecord }}
+        />
       ) : null}
       <FieldDebtDialog
-        model={{ ...fieldMapState, ...mapReportModel, ...fieldDebtReports, activeMapDiaryDateKey }}
+        model={{ ...mapDiaryData, ...fieldMapState, ...mapReportModel, ...fieldDebtReports }}
       />
       <MapDiaryArchiveDialog
         model={{
+          ...mapDiaryData,
           ...fieldMapState,
           ...mapDataLoaders,
-          archivedMapDiaryGroups,
-          selectedArchiveMapDiaryGroup,
           setSidebarCollapsed,
           sidebarCollapsed
         }}
@@ -1064,6 +712,8 @@ function App() {
       />
       <AppHeader
         model={{
+          ...mapDiaryData,
+          ...apiSession,
           ...dashboardData,
           ...appNavigation,
           ...appShellState,
@@ -1083,21 +733,17 @@ function App() {
           ...sessionState,
           ...padronState,
           ...fieldMapPoints,
-          activeMapDiaryDateKey,
-          apiFetch,
           executiveReportData,
           handleDownloadExecutiveReportPdf,
           headerStats,
           isAdmin,
           isDirty,
           loadUsers,
-          mapDiaryGroups,
           onlineUsers,
           safeAuditLogs,
           safeMapPoints,
           safeRecords,
           setShowUserMenu,
-          showAlert,
           showUserMenu
         }}
       />
@@ -1178,11 +824,11 @@ function App() {
       ) : workspaceView === "executiveReport" ? (
       <ExecutiveReportView
         model={{
+          ...mapDiaryData,
           ...padronState,
           ...recordFilterModel,
           executiveReportData,
           handleDownloadExecutiveReportPdf,
-          mapDiaryGroups,
           safeAuditLogs,
           safeMapPoints,
           safeRecords,
@@ -1265,12 +911,12 @@ function App() {
       ) : workspaceView === "lookup" ? (
         <LookupWorkspace
           model={{
+            ...apiSession,
             ...lookupRecordBridge,
             ...padronState,
             ...padronAdminActions,
             ...lookupActions,
-            ...lookupState,
-            apiFetch
+            ...lookupState
           }}
         />
       ) : workspaceView === "importacion" ? (
@@ -1284,17 +930,14 @@ function App() {
       ) : workspaceView === "map" ? (
         <FieldMapWorkspace
           model={{
+            ...mapDiaryData,
             ...fieldMapActions,
             ...fieldMapState,
             ...mapReportPrinters,
             ...fieldMapPoints,
             ...mapDataLoaders,
             ...appShellState,
-            activeMapDiaryDateKey,
-            archivedMapDiaryGroups,
-            isAdmin,
-            mapDiaryGroups,
-            primaryMapDiaryGroups
+            isAdmin
           }}
         />
       ) : workspaceView === "planos" ? (
@@ -1316,6 +959,9 @@ function App() {
       ) : (
         <AdminWorkspace
           model={{
+            ...mapDiaryData,
+            ...apiSession,
+            ...auditView,
             ...reportMapActions,
             ...padronReportData,
             ...padronState,
@@ -1338,22 +984,11 @@ function App() {
             ...sessionState,
             ...appShellState,
             ...fieldMapPoints,
-            activeMapDiaryDateKey,
-            apiFetch,
-            auditDayGroups,
-            auditFilterChips,
-            auditRangeLabel,
-            auditSyncing,
             handleDownloadRegulatorEvidencePdf,
-            mapDiaryGroups,
-            mapReportSettings,
-            regulatorReportDiaryOptions,
             safeAuditLogs,
             safeBarrioCodes,
             safeUsers,
-            selectedRegulatorDiaryKeys,
-            selectedUser,
-            showAlert
+            selectedUser
           }}
         />
       )}
