@@ -545,11 +545,10 @@ function App() {
   const { resetForm, handleDeleteArchivedRecord } = recordFormActions;
   const lookupRecordBridge = createLookupRecordBridge({
     ...apiSession,
-    ...recordFormActions,
-    ...recordsState,
-    ...appShellState,
     clearSession,
-    safeBarrioCodes
+    navigateWithFocus,
+    safeBarrioCodes,
+    showAlert
   });
   useRecordEffects({
     ...recordFilterModel,

@@ -33,9 +33,19 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
     if (!focusRequest || !config) return;
     history.replaceState(null, "", "#clandestinos/fichas");
     setTab("fichas");
+    // action "new": abrir el formulario de ficha nueva con los datos que trae
+    // otro módulo (p. ej. la consulta por clave), sin guardar nada todavía.
+    if (focusRequest.action === "new") {
+      if (config.permissions.can_manage_ficha_state) setDrawer({ estado_operativo: "draft", comentarios: "", ...focusRequest.patch, clave_catastral: focusRequest.clave_catastral || focusRequest.patch?.clave_catastral || "", id: null });
+      else showAlert("Tu usuario no puede crear fichas.");
+      onFocusConsumed?.();
+      return;
+    }
+    // patch: datos a precargar sobre la ficha existente; quedan en el
+    // formulario y se conservan solo si se guarda.
     api.fichas({ q: focusRequest.clave_catastral || "", limit: 8 }).then((data) => {
       const found = data.items.find((item) => String(item.id) === String(focusRequest.fichaId)) || data.items[0];
-      if (found) setDrawer(found);
+      if (found) setDrawer(focusRequest.patch ? { ...found, ...focusRequest.patch, id: found.id } : found);
       else showAlert("Sin ficha relacionada.");
     }).catch((error) => showAlert(error.message)).finally(() => onFocusConsumed?.());
   }, [api, config, focusRequest, onFocusConsumed, showAlert]);

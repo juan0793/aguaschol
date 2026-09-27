@@ -1,48 +1,28 @@
-import { emptyForm } from "../../constants/formsAndUi";
 import { escapeHtml } from "../../utils/html";
 import { formatLookupAmount, getLookupTotalMeta } from "../../utils/formatting";
 import { getLookupServiceMeta } from "../../utils/claveAndLookup";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
-import { normalizeRecord } from "../../utils/datesAndBusiness";
 import { printDocument } from "../../utils/printDocument";
 import { withBarrioFromPrefix } from "../../utils/barrioCodes";
 
+// La consulta ya no llena el formulario legado de App: pide a Clandestinos
+// (vista "records") que abra su propia ficha, nueva o existente, con los
+// datos precargados. Nada se guarda hasta que el usuario pulse "Guardar ficha".
 export function createLookupRecordBridge({
   apiFetch,
-  applyRecord,
   clearSession,
-  focusSheet,
+  navigateWithFocus,
   safeBarrioCodes,
-  setForm,
-  setRecordFilters,
-  setRecordQuickFilter,
-  setSelectedFile,
-  setWorkspaceView,
   showAlert
 }) {
   const startNewRecordFromLookup = (patch = {}, alertMessage = "Ficha nueva preparada desde la consulta.") => {
-    const nextForm = {
-      ...emptyForm,
-      ...patch,
-      id: null,
-      foto_path: ""
-    };
-    const enrichedForm = withBarrioFromPrefix(nextForm, safeBarrioCodes);
-
-    setRecordQuickFilter("all");
-    setRecordFilters({
-      clave: enrichedForm.clave_catastral || "",
-      barrio: "",
-      responsible: "",
-      date_from: "",
-      date_to: "",
-      status: "all"
+    const values = withBarrioFromPrefix(patch, safeBarrioCodes);
+    navigateWithFocus("records", {
+      action: "new",
+      clave_catastral: values.clave_catastral || "",
+      patch: values
     });
-    setForm(enrichedForm);
-    setSelectedFile(null);
-    setWorkspaceView("records");
     showAlert(alertMessage);
-    focusSheet();
   };
 
   const padronFlagToRecordValue = (value = "") => {
@@ -80,7 +60,13 @@ export function createLookupRecordBridge({
         }
 
         if (response.status === 404) {
-          showAlert("No existe ficha guardada para esa clave. El reporte del padron si puede generarse desde este modulo.");
+          startNewRecordFromLookup(
+            {
+              ...buildRecordPatchFromAguasMatch(match),
+              comentarios: "Datos copiados desde padron Aguas"
+            },
+            `No habia ficha para ${match.clave_catastral}: se preparo una ficha nueva con los datos del padron.`
+          );
           return;
         }
 
@@ -88,27 +74,16 @@ export function createLookupRecordBridge({
         throw new Error(data.message || "No fue posible abrir la ficha para esta clave.");
       }
 
-      const nextRecord = normalizeRecord(await response.json());
-      const nextForm = {
-        ...nextRecord,
-        ...buildRecordPatchFromAguasMatch(match),
-        id: nextRecord.id,
-        foto_path: nextRecord.foto_path || "",
-        comentarios: nextRecord.comentarios || "Datos actualizados desde padron Aguas"
-      };
-      setWorkspaceView("records");
-      setRecordQuickFilter("all");
-      setRecordFilters({
-        clave: nextRecord.clave_catastral || "",
-        barrio: "",
-        responsible: "",
-        date_from: "",
-        date_to: "",
-        status: "all"
+      const record = await response.json();
+      navigateWithFocus("records", {
+        fichaId: record.id,
+        clave_catastral: record.clave_catastral || match.clave_catastral,
+        patch: {
+          ...buildRecordPatchFromAguasMatch(match),
+          comentarios: record.comentarios || "Datos actualizados desde padron Aguas"
+        }
       });
-      setSelectedFile(null);
-      applyRecord(nextForm);
-      showAlert(`Ficha cargada con datos actualizados del padron para ${nextForm.clave_catastral}. Guarda la ficha para conservarlos.`);
+      showAlert(`Ficha cargada con datos actualizados del padron para ${record.clave_catastral || match.clave_catastral}. Guarda la ficha para conservarlos.`);
     } catch (error) {
       showAlert(error.message || "No fue posible abrir la ficha para esa clave.");
     }
