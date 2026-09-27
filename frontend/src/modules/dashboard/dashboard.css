@@ -1609,10 +1609,6 @@ body.dw-resizing * {
   color: var(--dw-ink);
 }
 
-.dashboard-workspace .dw-status .dw-button-secondary {
-  min-height: 36px;
-}
-
 /* --- Resumen de cartera ---
    Una sola pieza: el monto a la izquierda y las cuentas del padron como
    niveles sobre una regla graduada a la derecha. Los plazos de fichas van en
@@ -2491,10 +2487,8 @@ body.dw-resizing * {
 
 /* Áreas táctiles: 40px en escritorio, 44px en el teléfono. */
 .dashboard-workspace .dw-icon-button { width: 40px; height: 40px; }
-.dashboard-workspace .dw-status .dw-button-secondary { min-height: 40px; }
 @media (max-width: 560px) {
   .dashboard-workspace .dw-icon-button { width: 44px; height: 44px; }
-  .dashboard-workspace .dw-status .dw-button-secondary,
   .dashboard-workspace .dw-actions button { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2506,3 +2500,106 @@ body.dw-resizing * {
 .dashboard-workspace .dw-niveles-lista .is-critica b { background: #0b3f73; }
 .dashboard-workspace .dw-niveles-lista .is-critica .dw-nivel-texto strong { color: var(--dw-ink); }
 .dashboard-workspace .dw-mora[data-metric="critical"] { --chart-color: #0b3f73; --chart-tint: #e8eef6; --chart-border: #b9c8da; }
+
+/* ===========================================================================
+   Barra superior y banda de estado del tablero (crítica 2026-09-27)
+   La barra superior es parte del marco de la página, no una tarjeta: blanca,
+   a lo ancho desde el menú lateral hasta el borde, con un solo filete gris
+   abajo. Sin degradado, sombra, radio, desenfoque ni movimiento al pasar el
+   cursor. Los !important le ganan a la capa de styles.css (~26350), que
+   también los usa; el ámbito .dashboard-refactor-mode deja los demás módulos
+   como estaban.
+   =========================================================================== */
+
+.dashboard-refactor-mode { --dw-bleed: var(--app-shell-gap, 1rem); }
+@media (max-width: 768px) {
+  .dashboard-refactor-mode { --dw-bleed: 0.65rem; }
+}
+
+.dashboard-refactor-mode .app-chrome {
+  /* width: auto para que los márgenes negativos la estiren hasta los bordes
+     (con el width: 100% de styles.css solo la corrían a la izquierda). */
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 calc(-1 * var(--dw-bleed)) 12px !important;
+  padding: 0 var(--dw-bleed) !important;
+  border-bottom: 1px solid #dfe5ec !important;
+  background: #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: none !important;
+}
+
+.dashboard-refactor-mode .app-topbar,
+.dashboard-refactor-mode .app-topbar:hover {
+  display: flex !important;
+  align-items: center;
+  gap: 12px !important;
+  min-height: 56px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.dashboard-refactor-mode .app-topbar-kpis { display: none !important; }
+
+/* El título de la página, con el mismo nombre que el menú lateral. */
+.dashboard-refactor-mode .app-topbar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #16283b;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-refactor-mode .app-topbar-session { margin-left: auto; }
+.dashboard-refactor-mode .app-user-chip { min-height: 40px !important; }
+.dashboard-refactor-mode .app-user-chip:hover { transform: none !important; box-shadow: none !important; }
+
+/* Banda de estado: el corte del padrón es el dato; el resto, contexto. */
+.dashboard-workspace .dw-status { padding-block: 4px; }
+.dashboard-workspace .dw-status-source { align-items: baseline; gap: 4px 10px; }
+.dashboard-workspace .dw-status-label { color: var(--dw-muted); font-size: 13px; font-weight: 500; }
+.dashboard-workspace .dw-status-source .dw-status-date { color: var(--dw-ink); font-size: 14px; font-weight: 650; }
+.dashboard-workspace .dw-status-source .dw-status-date.is-missing { color: var(--dw-muted); font-weight: 500; }
+
+/* Actualizar: acción de texto, sin caja; el área táctil se conserva. */
+.dashboard-workspace .dw-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--dw-radius-sm);
+  background: transparent;
+  box-shadow: none;
+  color: var(--dw-blue);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+.dashboard-workspace .dw-refresh:hover { background: var(--dw-line-soft); }
+.dashboard-workspace .dw-refresh:focus-visible { outline: 2px solid var(--dw-blue); outline-offset: 2px; }
+.dashboard-workspace .dw-refresh:disabled { color: var(--dw-muted); cursor: progress; }
+.dashboard-workspace .dw-refresh .app-icon { width: 15px; height: 15px; }
+@media (max-width: 560px) {
+  .dashboard-workspace .dw-refresh { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-refresh { transition: none; }
+}

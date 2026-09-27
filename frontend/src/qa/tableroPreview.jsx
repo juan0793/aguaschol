@@ -1,7 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Bell, Volume2 } from "lucide-react";
 import DashboardWorkspace from "../modules/dashboard/DashboardWorkspace";
+import { Icon } from "../components/Icon";
 import "../styles.css";
+import "../components/ds/design-system.css";
 
 // Banco de pruebas del tablero: tarjetas compactas, pulsación de las acciones
 // rápidas y paneles que se pliegan. Datos de mentira con la forma real.
@@ -82,8 +85,34 @@ const model = {
   ]
 };
 
+// ?marco: el tablero dentro del mismo marco que App.jsx (page-shell con
+// dashboard-refactor-mode y la barra superior), para revisar la barra sin sesión.
+const conMarco = new URLSearchParams(window.location.search).has("marco");
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <DashboardWorkspace model={model} />
+    {conMarco ? (
+      <div className="page-shell dashboard-refactor-mode">
+        <header className="hero app-chrome no-print hero-admin">
+          <div className="app-topbar">
+            <button type="button" className="app-menu-button" aria-label="Abrir menú">
+              <Icon name="menu" />
+            </button>
+            <h1 className="app-topbar-title">Tablero</h1>
+            <div className="app-topbar-kpis" />
+            <div className="app-topbar-session">
+              <div className="notification-center-container">
+                <button type="button" className="notification-sound-toggle" aria-label="Mutear sonido de mensajes"><Volume2 size={18} /></button>
+                <button type="button" className="notification-bell" aria-label="Abrir notificaciones"><Bell size={20} /></button>
+              </div>
+              <button type="button" className="app-user-chip"><Icon name="users" />admin</button>
+            </div>
+          </div>
+        </header>
+        <DashboardWorkspace model={model} />
+      </div>
+    ) : (
+      <DashboardWorkspace model={model} />
+    )}
   </React.StrictMode>
 );

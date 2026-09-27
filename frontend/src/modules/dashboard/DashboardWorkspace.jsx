@@ -509,21 +509,17 @@ export default function DashboardWorkspace({ model }) {
 
   return (
     <main className="dashboard-workspace">
-      {/* Banda de estado: de que corte del padron provienen las cifras de abajo. */}
-      <header className="dw-status">
+      {/* Banda de estado: de qué corte del padrón provienen las cifras de abajo.
+          El corte es lo único que no se repite en la página; las cuentas y los
+          barrios ya los muestra "Cuentas del padrón". */}
+      <section className="dw-status" aria-label="Estado del padrón">
         <p className="dw-status-source">
-          <span className="dw-eyebrow">Padrón maestro</span>
-          <span>
-            <LiveWhole value={model.padronTotals.records} /> cuentas
-            <span className="dw-sep" aria-hidden="true" />
-            <LiveWhole value={model.padronTotals.barrios} /> barrios
-            {padronDate ? (
-              <>
-                <span className="dw-sep" aria-hidden="true" />
-                <span className="dw-status-date">Corte del {padronDate}</span>
-              </>
-            ) : null}
-          </span>
+          <span className="dw-status-label">Padrón maestro</span>
+          {padronDate ? (
+            <strong className="dw-status-date">Corte del {padronDate}</strong>
+          ) : (
+            <span className="dw-status-date is-missing">Sin fecha de corte registrada</span>
+          )}
         </p>
         <div className="dw-status-side">
           {model.onlineUsers.length ? (
@@ -544,11 +540,13 @@ export default function DashboardWorkspace({ model }) {
             <i className="dw-sync-dot" aria-hidden="true" />
             {model.syncLabel}
           </span>
-          <button type="button" className="dw-button-secondary" onClick={model.refresh} disabled={model.refreshing}>
-            <Icon name="refresh" className={model.refreshing ? "ds-icon-spin" : ""} />Actualizar
+          {/* Discreto y solo atento a su propio clic: la recarga automática de
+              cada 10 s no lo deshabilita. */}
+          <button type="button" className="dw-refresh" onClick={model.refresh} disabled={model.manualRefreshing} aria-label="Actualizar las cifras del tablero">
+            <Icon name="refresh" className={model.manualRefreshing ? "ds-icon-spin" : ""} />Actualizar
           </button>
         </div>
-      </header>
+      </section>
 
       {/* La cartera es la cifra que define el dia: va primero y con mas peso.
           Las tres tarjetas de al lado la explican o piden accion. */}

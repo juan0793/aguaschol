@@ -1204,6 +1204,9 @@ function App() {
   const [dashboardNow, setDashboardNow] = useState(() => Date.now());
   const [dashboardLastUpdatedAt, setDashboardLastUpdatedAt] = useState(() => Date.now());
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
+  // Solo la recarga pedida con el botón: la automática de cada 10 s no debe
+  // deshabilitar ni hacer girar el botón Actualizar.
+  const [dashboardManualRefreshing, setDashboardManualRefreshing] = useState(false);
   const [dashboardSyncCycleKey, setDashboardSyncCycleKey] = useState(0);
   const [dashboardConnectionStatus, setDashboardConnectionStatus] = useState("synced");
   const [dashboardAlertFilter, setDashboardAlertFilter] = useState("all");
@@ -1664,7 +1667,8 @@ function App() {
             panelClass: "hero-panel-dashboard",
             cardClass: "search-card-dashboard",
             toplineLabel: "Centro administrativo",
-            title: "Tablero de control",
+            // Mismo nombre que en el menú lateral: la pantalla se llama Tablero.
+            title: "Tablero",
             lead: "Resumen operativo con actividad reciente y accesos rápidos para gestionar toda la plataforma.",
             kicker: "Visión general"
           },
@@ -13586,22 +13590,27 @@ function App() {
           >
             <Icon name="menu" />
           </button>
-          {/* La marca es el atajo al inicio: el logo lleva siempre al tablero
-              (o a la vista de entrada del rol, si no es administrador). */}
-          <button
-            type="button"
-            className="app-topbar-brand"
-            onClick={() => setWorkspaceView(getDefaultWorkspaceView(session?.user?.role))}
-            aria-label="Ir al inicio"
-          >
-            <span className="app-brand-mark" aria-hidden="true">
-              <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
-            </span>
-            <div>
-              <strong>Aguas de Choluteca</strong>
-              <span>{headerMeta.title}</span>
-            </div>
-          </button>
+          {/* En el tablero la barra lleva el título de la página: la marca ya está
+              en el menú lateral y aquí ya se está en el inicio. En los demás módulos
+              la marca es el atajo al inicio (el tablero o la vista de entrada del rol). */}
+          {workspaceView === "dashboard" ? (
+            <h1 className="app-topbar-title">{headerMeta.title}</h1>
+          ) : (
+            <button
+              type="button"
+              className="app-topbar-brand"
+              onClick={() => setWorkspaceView(getDefaultWorkspaceView(session?.user?.role))}
+              aria-label="Ir al inicio"
+            >
+              <span className="app-brand-mark" aria-hidden="true">
+                <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
+              </span>
+              <div>
+                <strong>Aguas de Choluteca</strong>
+                <span>{headerMeta.title}</span>
+              </div>
+            </button>
+          )}
           <div className="app-topbar-kpis">
             {headerStats.map((stat) => (
               <span className="app-topbar-kpi" key={stat.label}>
@@ -14280,7 +14289,15 @@ function App() {
             userName: session?.user?.full_name || session?.user?.username || "admin",
             connectionStatus: dashboardConnectionStatus,
             refreshing: dashboardRefreshing,
-            refresh: () => refreshDashboard({ force: true }),
+            manualRefreshing: dashboardManualRefreshing,
+            refresh: async () => {
+              setDashboardManualRefreshing(true);
+              try {
+                await refreshDashboard({ force: true });
+              } finally {
+                setDashboardManualRefreshing(false);
+              }
+            },
             syncLabel: dashboardConnectionStatus === "retrying" ? "Reintentando conexión…" : dashboardRefreshing ? "Actualizando…" : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
             metrics: dashboardLiveMetrics,
             debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
