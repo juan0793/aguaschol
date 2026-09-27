@@ -13,7 +13,6 @@ import {
   AUTH_STORAGE_KEY,
   DRAFT_STORAGE_KEY,
   DRAFT_SAVED_AT_STORAGE_KEY,
-  LOOKUP_HISTORY_STORAGE_KEY,
   MAP_REPORT_SETTINGS_STORAGE_KEY,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
   RECORD_ALERT_NOTIFICATION_STORAGE_KEY,
@@ -28,29 +27,19 @@ import {
 } from "./constants/formsAndUi";
 import {
   buildPhotoUrl,
-  formatLookupAmount,
-  getLookupTotalMeta,
   roleLabel
 } from "./utils/formatting";
 import {
-  getLookupServiceMeta,
-} from "./utils/claveAndLookup";
-import {
   getMapDiaryDateKey,
-  normalizeRecord,
 } from "./utils/datesAndBusiness";
 import {
   comparableFormShape,
   hasDraftContent
 } from "./utils/records";
 import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/localStorage";
-import { escapeHtml } from "./utils/html";
-import { printDocument } from "./utils/printDocument";
 import {
   getBarrioNameFromClave,
-  normalizeBarrioCode,
   resolveBarrioFromPayload,
-  withBarrioFromPrefix,
 } from "./utils/barrioCodes";
 import { installSearchScrollGuard } from "./utils/searchScrollGuard";
 import {
@@ -99,10 +88,6 @@ import {
   formatDashboardSyncRelativeTime,
 } from "./utils/timeFormat";
 import {
-  clampPrintCopies,
-} from "./utils/recordLabels";
-import {
-  readJsonResponse,
   getAlertDetails,
   getDefaultWorkspaceView,
   getWorkspaceViewByRole
@@ -143,6 +128,15 @@ import { useExecutiveReportData } from "./modules/reports/useExecutiveReportData
 import { useDashboardData } from "./modules/dashboard/useDashboardData";
 import { useHeaderStats } from "./app/useHeaderStats";
 import { useAppNavigation } from "./app/useAppNavigation";
+import { usePrintBatchSelection } from "./modules/clandestinos/usePrintBatchSelection";
+import { createRecordLoaders } from "./modules/clandestinos/createRecordLoaders";
+import { createUserLoaders } from "./modules/users/createUserLoaders";
+import { createAuditLoaders } from "./modules/audit/createAuditLoaders";
+import { createBarrioCodeActions } from "./modules/barrios/createBarrioCodeActions";
+import { createMapDataLoaders } from "./modules/campo/createMapDataLoaders";
+import { createPadronDataActions } from "./modules/padron/createPadronDataActions";
+import { createRecordFormActions } from "./modules/clandestinos/createRecordFormActions";
+import { createLookupRecordBridge } from "./modules/lookup/createLookupRecordBridge";
 
 function App() {
   const sheetRef = useRef(null);
@@ -869,110 +863,12 @@ function App() {
     };
   }, [session?.token, showAlert]);
 
-  const clearPadronDerivedState = () => {
-    setLookupResult(null);
-    setLookupFeedback("");
-    setPadronRequestResult(null);
-    setPadronServiceReport(null);
-    setAlcaldiaComparison(null);
-    setFieldDebtReport(null);
-    setShowFieldDebtModal(false);
-    setSelectedAguasServiceField("agua");
-    setSelectedPadronStatBarrio("");
-    setSelectedPadronServiceField("");
-    setPadronStatsBarrioFilter("");
-    setPadronStatsSortMetric("brecha_registros");
-    setPadronStatsSortDirection("desc");
-    setPadronChartMode("brecha");
-    setPadronChartType("barras");
-  };
 
-  const clearClientPadronCaches = () => {
-    persistLookupHistory([]);
-    window.sessionStorage?.removeItem?.(LOOKUP_HISTORY_STORAGE_KEY);
-    setLookupQuery("");
-    clearPadronDerivedState();
-  };
 
-  const updatePadronSyncState = (patch) => {
-    setPadronSyncState((current) => ({ ...current, ...patch }));
-  };
 
-  const updateAlcaldiaSyncState = (patch) => {
-    setAlcaldiaSyncState((current) => ({ ...current, ...patch }));
-  };
 
-  const applyPadronSyncResult = (data = {}) => {
-    setPadronMeta(data.meta ?? null);
-    setPadronImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
-    updatePadronSyncState({
-      status: "complete",
-      progress: 100,
-      message: "Padron verificado y listo para consultas",
-      verification: data.verification ?? null
-    });
-    if (workspaceView === "requests") {
-      loadPadronServiceReport({ silent: true });
-    }
-  };
 
-  const applyAlcaldiaSyncResult = (data = {}) => {
-    setAlcaldiaMeta(data.meta ?? null);
-    setAlcaldiaImportSummary(data.import_summary ?? data.meta?.last_import_summary ?? null);
-    updateAlcaldiaSyncState({
-      status: "complete",
-      progress: 100,
-      message: "Padron de alcaldia sincronizado"
-    });
-  };
 
-  const runPadronSyncSteps = async (request, successMessage, sourceLabel = "Excel") => {
-    let progressTimer = null;
-    updatePadronSyncState({
-      status: "running",
-      progress: 8,
-      message: "Iniciando reemplazo del padron maestro",
-      verification: null
-    });
-    clearClientPadronCaches();
-    updatePadronSyncState({ progress: 24, message: "Cache local y resultados anteriores borrados" });
-    progressTimer = window.setInterval(() => {
-      setPadronSyncState((current) => {
-        if (current.status !== "running" || current.progress >= 68) return current;
-        return {
-          ...current,
-          progress: Math.min(68, current.progress + 4),
-          message: current.progress >= 48 ? `Verificando ${sourceLabel} completo contra el sistema` : "Reemplazando data de padron en todos los modulos"
-        };
-      });
-    }, 420);
-
-    try {
-      const response = await request();
-      const data = await readJsonResponse(
-        response,
-        "La API no devolvio JSON. Revisa que el backend este disponible y que la base de datos este lista."
-      );
-
-      if (!response.ok) {
-        if (response.status >= 500 && !data.message) {
-          throw new Error("No se pudo conectar correctamente con la API. Revisa que el backend este disponible.");
-        }
-        if (response.status === 401) {
-          clearSession();
-        }
-        throw new Error(data.message || "No se pudo sincronizar el padron maestro.");
-      }
-
-      updatePadronSyncState({ progress: 72, message: "Data del padron reemplazada en el sistema" });
-      applyPadronSyncResult(data);
-      setDashboardLastUpdatedAt(Date.now());
-      showAlert(successMessage(data));
-      return data;
-    } finally {
-      if (progressTimer) window.clearInterval(progressTimer);
-    }
-  };
 
   const selectedPhotoUrl = useMemo(() => {
     if (!form.foto_path) return "";
@@ -984,90 +880,6 @@ function App() {
     if (!selectedFile) return "";
     return URL.createObjectURL(selectedFile);
   }, [selectedFile]);
-  const batchPrintSelection = useMemo(() => {
-    const entries = Object.entries(batchPrintCopies)
-      .map(([recordId, copies]) => {
-        const ficha = clampPrintCopies(copies?.ficha ?? 0);
-        const aviso = clampPrintCopies(copies?.aviso ?? 0);
-        const record = safeRecords.find((item) => String(item.id) === String(recordId));
-        return record && (ficha || aviso) ? { record, ficha, aviso } : null;
-      })
-      .filter(Boolean);
-
-    return {
-      entries,
-      fichas: entries.reduce((total, item) => total + item.ficha, 0),
-      avisos: entries.reduce((total, item) => total + item.aviso, 0)
-    };
-  }, [batchPrintCopies, safeRecords]);
-  const printedSaveSelection = useMemo(() => {
-    const entries = Object.entries(batchPrintCopies)
-      .map(([recordId, copies]) => {
-        if (!copies?.save) return null;
-        const record = safeRecords.find((item) => String(item.id) === String(recordId));
-        return record?.estado_padron === "reportada" ? record : null;
-      })
-      .filter(Boolean);
-
-    return {
-      entries,
-      total: entries.length
-    };
-  }, [batchPrintCopies, safeRecords]);
-  const manualPrintedSelection = useMemo(() => {
-    const entries = Object.entries(batchPrintCopies)
-      .map(([recordId, copies]) => {
-        if (!copies?.printed) return null;
-        const record = safeRecords.find((item) => String(item.id) === String(recordId));
-        return record?.estado_padron !== "reportada" ? record : null;
-      })
-      .filter(Boolean);
-
-    return {
-      entries,
-      total: entries.length
-    };
-  }, [batchPrintCopies, safeRecords]);
-  const printBatchStatusCounts = useMemo(
-    () => ({
-      pending: filteredRecords.filter((record) => record.estado_padron !== "reportada").length,
-      printed: filteredRecords.filter((record) => record.estado_padron === "reportada").length
-    }),
-    [filteredRecords]
-  );
-  const printBatchRecords = useMemo(() => {
-    if (recordView === "archived") return filteredRecords;
-    if (printBatchStatusView === "printed") {
-      return filteredRecords.filter((record) => record.estado_padron === "reportada");
-    }
-    return filteredRecords.filter((record) => record.estado_padron !== "reportada");
-  }, [filteredRecords, printBatchStatusView, recordView]);
-  const filteredPrintBatchRecords = useMemo(() => {
-    const query = printBatchSearch.trim().toLowerCase();
-
-    return printBatchRecords.filter((record) => {
-      const copies = batchPrintCopies[record.id] || {};
-      const fichaCopies = clampPrintCopies(copies.ficha ?? 0);
-      const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
-      const matchesSearch =
-        !query ||
-        String(record.clave_catastral || "").toLowerCase().includes(query) ||
-        getRecordBarrioName(record, "").toLowerCase().includes(query);
-
-      if (!matchesSearch) return false;
-      if (printBatchQuickFilter === "clandestina") {
-        return (record.estado_padron || "clandestino") === "clandestino";
-      }
-      if (printBatchQuickFilter === "ficha_selected") {
-        return fichaCopies > 0;
-      }
-      if (printBatchQuickFilter === "aviso_selected") {
-        return avisoCopies > 0;
-      }
-
-      return true;
-    });
-  }, [batchPrintCopies, printBatchQuickFilter, printBatchRecords, printBatchSearch]);
 
   useEffect(() => {
     return () => {
@@ -1097,45 +909,6 @@ function App() {
     }
   }, [isAuthenticated, mustChangePassword]);
 
-  const loadRecords = async (query = "", view = recordView, options = {}) => {
-    const { silent = false } = options;
-
-    if (!isAuthenticated) return;
-    if (!isAdmin && view === "archived") {
-      setRecordView("active");
-      return;
-    }
-    try {
-      const response = await apiFetch(
-        `/inmuebles?q=${encodeURIComponent(query)}&archived=${view === "archived"}`,
-        { revalidate: true }
-      );
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        if (response.status === 403 && view === "archived" && !isAdmin) {
-          setRecordView("active");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar los registros.");
-      }
-
-      const list = Array.isArray(data) ? data.map(normalizeRecord) : [];
-      setRecords(list);
-    } catch (_error) {
-      if (!silent) {
-        setRecords([]);
-        showAlert("No fue posible cargar los registros.");
-      }
-    }
-  };
 
   useEffect(() => {
     if (isAuthenticated && workspaceView === "records") {
@@ -1262,621 +1035,29 @@ function App() {
     return () => window.clearInterval(intervalId);
   }, [isAuthenticated, session?.user?.id, apiFetch]);
 
-  const loadUsers = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    if (!silent) {
-      setLoadingUsers(true);
-    }
 
-    try {
-      const response = await apiFetch("/users", { revalidate: true });
-      const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
 
-        throw new Error(data.message || "No fue posible cargar los usuarios.");
-      }
 
-      setUsers(Array.isArray(data) ? data : []);
-      setSelectedUserId((current) => {
-        const nextUsers = Array.isArray(data) ? data : [];
-        if (!nextUsers.length) return null;
-        return nextUsers.some((user) => user.id === current) ? current : nextUsers[0].id;
-      });
-    } catch (error) {
-      if (!silent) {
-        setUsers([]);
-        setSelectedUserId(null);
-        showAlert(error.message || "No fue posible cargar los usuarios.");
-      }
-    } finally {
-      if (!silent) {
-        setLoadingUsers(false);
-      }
-    }
-  };
 
-  const loadPadronMeta = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    if (!silent) {
-      setLoadingPadronMeta(true);
-    }
 
-    try {
-      const response = await apiFetch("/claves/meta");
-      const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
 
-        throw new Error(data.message || "No fue posible cargar la información del padrón.");
-      }
 
-      setPadronMeta(data.meta ?? null);
-      setPadronImportSummary(data.meta?.last_import_summary ?? null);
-    } catch (error) {
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar la información del padrón.");
-      }
-    } finally {
-      if (!silent) {
-        setLoadingPadronMeta(false);
-      }
-    }
-  };
 
-  const loadPadronBatches = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    if (!silent) setLoadingPadronBatches(true);
-    try {
-      const response = await apiFetch("/integracion/foxpro/lotes?limit=500");
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "No fue posible cargar los lotes FoxPro.");
-      const rows = Array.isArray(data.rows) ? data.rows : [];
-      setPadronBatches(rows);
-      setSelectedPadronBatchCode((current) => rows.some((row) => row.codigo_lote === current) ? current : rows[0]?.codigo_lote || "");
-    } catch (error) {
-      if (!silent) showAlert(error.message || "No fue posible cargar los lotes FoxPro.");
-    } finally {
-      if (!silent) setLoadingPadronBatches(false);
-    }
-  };
 
-  const loadAlcaldiaMeta = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    if (!silent) {
-      setLoadingAlcaldiaMeta(true);
-    }
 
-    try {
-      const response = await apiFetch("/claves/alcaldia/meta");
-      const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesión venció. Ingresa nuevamente.");
-          return;
-        }
 
-        throw new Error(data.message || "No fue posible cargar el padrón de alcaldía.");
-      }
 
-      setAlcaldiaMeta(data.meta ?? null);
-      setAlcaldiaImportSummary(data.meta?.last_import_summary ?? null);
-    } catch (error) {
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar el padrón de alcaldía.");
-      }
-    } finally {
-      if (!silent) {
-        setLoadingAlcaldiaMeta(false);
-      }
-    }
-  };
 
-  const loadAlcaldiaComparison = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    setLoadingAlcaldiaComparison(true);
 
-    try {
-      const response = await apiFetch("/claves/alcaldia/compare");
-      const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesión venció. Ingresa nuevamente.");
-          return;
-        }
 
-        throw new Error(data.message || "No fue posible comparar los padrones.");
-      }
 
-      setAlcaldiaComparison(data);
-      if (!silent) {
-        showAlert(`Comparacion lista: ${data.summary?.candidate_clandestine ?? 0} claves de alcaldia no aparecen en Aguas.`);
-      }
-      return data;
-    } catch (error) {
-      if (!silent) {
-        showAlert(error.message || "No fue posible comparar los padrones.");
-      }
-      return null;
-    } finally {
-      setLoadingAlcaldiaComparison(false);
-    }
-  };
 
-  const loadPadronRequestMeta = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    if (!silent) {
-      setLoadingPadronRequestMeta(true);
-    }
 
-    try {
-      const response = await apiFetch("/claves/requests/meta");
-      const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar las plantillas de peticiones.");
-      }
-
-      const templates = Array.isArray(data.templates) ? data.templates : [];
-      setPadronRequestLoadError("");
-      setPadronRequestTemplates(templates);
-      if (templates.length) {
-        const currentTemplate =
-          templates.find((template) => template.id === padronRequestForm.preset_id) ?? templates[0];
-
-        setPadronRequestForm((current) => ({
-          ...current,
-          preset_id: currentTemplate.id,
-          title: current.title || currentTemplate.title || "",
-          description: current.description || currentTemplate.description || "",
-          keywords: current.keywords || (currentTemplate.keywords || []).join(", ")
-        }));
-      }
-    } catch (error) {
-      setPadronRequestLoadError(error.message || "No fue posible cargar las plantillas de peticiones.");
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar las plantillas de peticiones.");
-      }
-    } finally {
-      if (!silent) {
-        setLoadingPadronRequestMeta(false);
-      }
-    }
-  };
-
-  const loadPadronServiceReport = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    setLoadingPadronServiceReport(true);
-
-    try {
-      const response = await apiFetch("/claves/services/report");
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar el informe de servicios del padron.");
-      }
-
-      setPadronServiceReport(data);
-      setPadronRequestLoadError("");
-      if (!silent) {
-        showAlert(`Informe actualizado: ${data.summary?.total_records ?? 0} registros del padron maestro.`);
-      }
-    } catch (error) {
-      setPadronRequestLoadError(error.message || "No fue posible cargar el informe de servicios del padron.");
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar el informe de servicios del padron.");
-      }
-    } finally {
-      setLoadingPadronServiceReport(false);
-    }
-  };
-
-  const loadBarrioCodes = async ({ silent = false } = {}) => {
-    if (!isAuthenticated) return;
-    if (!silent) {
-      setLoadingBarrioCodes(true);
-    }
-
-    try {
-      const response = await apiFetch("/barrios");
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar los codigos de barrios.");
-      }
-
-      setBarrioCodes(Array.isArray(data.barrios) ? data.barrios : []);
-    } catch (error) {
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar los codigos de barrios.");
-      }
-    } finally {
-      if (!silent) {
-        setLoadingBarrioCodes(false);
-      }
-    }
-  };
-
-  const handleBarrioCodeFormChange = (event) => {
-    const { name, value, type, checked } = event.target;
-    setBarrioCodeForm((current) => ({
-      ...current,
-      [name]: type === "checkbox" ? checked : name === "codigo" ? normalizeBarrioCode(value) : value
-    }));
-  };
-
-  const handleResetBarrioCodeForm = () => {
-    setBarrioCodeForm(emptyBarrioForm);
-  };
-
-  const handlePrepareAddBarrioCode = (codigo = "") => {
-    setBarrioCodeForm({
-      ...emptyBarrioForm,
-      codigo: normalizeBarrioCode(codigo)
-    });
-  };
-
-  const handleEditBarrioCode = (item) => {
-    setBarrioCodeForm({
-      codigo: item.codigo || "",
-      barrio: item.barrio || "",
-      activo: item.activo !== false
-    });
-  };
-
-  const handleSaveBarrioCode = async (event) => {
-    event.preventDefault();
-    setSavingBarrioCode(true);
-
-    try {
-      const response = await apiFetch("/barrios", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(barrioCodeForm)
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible guardar el codigo de barrio.");
-      }
-
-      setBarrioCodes(Array.isArray(data.barrios) ? data.barrios : []);
-      setBarrioCodeForm(emptyBarrioForm);
-      showAlert(`Codigo ${data.item?.codigo || ""} guardado.`);
-    } catch (error) {
-      showAlert(error.message || "No fue posible guardar el codigo de barrio.");
-    } finally {
-      setSavingBarrioCode(false);
-    }
-  };
-
-  const handleDeleteBarrioCode = async (codigo) => {
-    if (!window.confirm(`Eliminar el codigo ${codigo}?`)) return;
-    setSavingBarrioCode(true);
-
-    try {
-      const response = await apiFetch(`/barrios/${encodeURIComponent(codigo)}`, {
-        method: "DELETE"
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible eliminar el codigo de barrio.");
-      }
-
-      setBarrioCodes(Array.isArray(data.barrios) ? data.barrios : []);
-      setBarrioCodeForm((current) => (current.codigo === codigo ? emptyBarrioForm : current));
-      showAlert(`Codigo ${codigo} eliminado.`);
-    } catch (error) {
-      showAlert(error.message || "No fue posible eliminar el codigo de barrio.");
-    } finally {
-      setSavingBarrioCode(false);
-    }
-  };
-
-  const loadMapDiaryGroups = async ({ silent = false } = {}) => {
-    if (!isAuthenticated) return;
-
-    try {
-      const response = await apiFetch("/map-points/diary-groups");
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar las jornadas del mapa.");
-      }
-
-      setMapDiaryGroupsSummary(Array.isArray(data.groups) ? data.groups : []);
-    } catch (error) {
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar las jornadas del mapa.");
-      }
-    }
-  };
-
-  const loadMapPoints = async ({ silent = false, date = "" } = {}) => {
-    if (!isAuthenticated) return;
-
-    if (!silent) {
-      setLoadingMapPoints(true);
-    }
-
-    mapPointsRequestRef.current.controller?.abort();
-    const controller = new AbortController();
-    const requestId = mapPointsRequestRef.current.id + 1;
-    mapPointsRequestRef.current = { id: requestId, controller };
-
-    try {
-      const query = date ? `?date=${encodeURIComponent(date)}` : "";
-      const response = await apiFetch(`/map-points${query}`, { signal: controller.signal, revalidate: true });
-      const data = await response.json();
-
-      if (mapPointsRequestRef.current.id !== requestId) {
-        return;
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar los puntos del mapa.");
-      }
-
-      const nextPoints = Array.isArray(data) ? data : [];
-      setMapPoints(nextPoints);
-      setSelectedMapPointId((current) => (nextPoints.some((point) => point.id === current) ? current : null));
-      setMapStatus("Sincronizado");
-    } catch (error) {
-      if (error.name === "AbortError") {
-        return;
-      }
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar los puntos del mapa.");
-      }
-      setMapStatus("Sin conexion");
-    } finally {
-      if (mapPointsRequestRef.current.id === requestId) {
-        mapPointsRequestRef.current.controller = null;
-      }
-      if (!silent) {
-        setLoadingMapPoints(false);
-      }
-    }
-  };
-
-  const loadArchivedMapDiaryPoints = async (dateKey) => {
-    if (!isAuthenticated || !dateKey) return;
-
-    setLoadingArchiveMapDiaryPoints(true);
-    try {
-      const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar la jornada seleccionada.");
-      }
-
-      setArchiveMapDiaryPoints(Array.isArray(data) ? data : []);
-      setSelectedArchiveMapDiaryKey(dateKey);
-    } catch (error) {
-      showAlert(error.message || "No fue posible cargar la jornada seleccionada.");
-    } finally {
-      setLoadingArchiveMapDiaryPoints(false);
-    }
-  };
-
-  const openMapDiaryArchiveModal = () => {
-    if (!archivedMapDiaryGroups.length) return;
-    const nextKey = selectedArchiveMapDiaryGroup?.key || archivedMapDiaryGroups[0].key;
-    setShowMapDiaryArchiveModal(true);
-    loadArchivedMapDiaryPoints(nextKey);
-  };
-
-  const handleUseArchivedMapDiary = () => {
-    const nextKey = selectedArchiveMapDiaryGroup?.key || selectedArchiveMapDiaryKey;
-    if (!nextKey) return;
-    setMapDiaryDateKey(nextKey);
-    setMapReportPage(1);
-    setShowMapDiaryArchiveModal(false);
-  };
-
-  const loadMapPointContexts = async (points = safeMapPoints) => {
-    if (!isAuthenticated || !isAdmin) return;
-
-    const payloadPoints = Array.isArray(points) ? points : [];
-    if (!payloadPoints.length) {
-      setMapPointContexts({});
-      return;
-    }
-
-    setLoadingMapContexts(true);
-
-    try {
-      const response = await apiFetch("/map-points/context", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          points: payloadPoints.map((point) => ({
-            latitude: point.latitude,
-            longitude: point.longitude
-          }))
-        })
-      }).catch(() => {
-        throw new Error("No se pudo conectar con la API. Revisa que el backend este disponible.");
-      });
-      const data = await readJsonResponse(
-        response,
-        "La API no devolvio JSON. Revisa que el backend este disponible y que la base de datos este lista."
-      );
-
-      if (!response.ok) {
-        throw new Error(data.message || "No fue posible consultar las zonas del levantamiento.");
-      }
-
-      const nextContexts = Object.fromEntries(
-        (Array.isArray(data.contexts) ? data.contexts : []).map((context) => [context.key, context])
-      );
-      setMapPointContexts(nextContexts);
-    } catch (error) {
-      showAlert(error.message || "No fue posible consultar las zonas del levantamiento.");
-    } finally {
-      setLoadingMapContexts(false);
-    }
-  };
-
-  const loadAuditLogs = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-    if (!silent) {
-      setLoadingLogs(true);
-    }
-
-    try {
-      const params = new URLSearchParams({ limit: "120" });
-      Object.entries(auditFiltersQuery).forEach(([key, value]) => {
-        if (String(value ?? "").trim()) {
-          params.set(key, String(value).trim());
-        }
-      });
-
-      const response = await apiFetch(`/users/audit-logs?${params.toString()}`, { revalidate: true });
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible cargar el historial.");
-      }
-
-      setAuditLogs(Array.isArray(data) ? data : []);
-    } catch (error) {
-      setAuditLogs([]);
-      if (!silent) {
-        showAlert(error.message || "No fue posible cargar el historial.");
-      }
-    } finally {
-      if (!silent) {
-        setLoadingLogs(false);
-      }
-    }
-  };
-
-  const loadRecordSummary = async ({ silent = false } = {}) => {
-    if (!isAuthenticated || !isAdmin) return;
-
-    try {
-      const response = await apiFetch("/inmuebles/summary");
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-        throw new Error(data.message || "No fue posible cargar el resumen de fichas.");
-      }
-
-      setRecords(Array.isArray(data) ? data.map(normalizeRecord) : []);
-    } catch (error) {
-      if (!silent) showAlert(error.message || "No fue posible cargar el resumen de fichas.");
-    }
-  };
-
-  const handleOpenAuditReport = async (log) => {
-    const reportId = String(log?.entity_id || "").trim();
-    if (!reportId) return;
-    setLoadingAuditReportId(reportId);
-    try {
-      const response = await apiFetch(`/users/audit-logs/reports/${encodeURIComponent(reportId)}`);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.message || "No fue posible abrir el reporte archivado.");
-      }
-      setSelectedAuditReport(data);
-    } catch (error) {
-      showAlert(error.message || "No fue posible abrir el reporte archivado.");
-    } finally {
-      setLoadingAuditReportId("");
-    }
-  };
-
-  const handleReprintAuditReport = async () => {
-    if (!selectedAuditReport?.body_markup) return;
-    await printDocument(selectedAuditReport.title, selectedAuditReport.body_markup, {
-      reportId: selectedAuditReport.report_id,
-      pageSize: selectedAuditReport.page_size || "Letter portrait",
-      pageMargin: selectedAuditReport.page_margin || "10mm",
-      bodyClassName: selectedAuditReport.body_class_name || "",
-      skipAudit: true,
-      reportType: selectedAuditReport.report_type || "print-report"
-    });
-  };
 
   const refreshDashboard = useCallback(
     async ({ force = false } = {}) => {
@@ -2156,79 +1337,9 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [form]);
 
-  const applyRecord = (record) => {
-    setForm(withBarrioFromPrefix({ ...emptyForm, ...normalizeRecord(record) }, safeBarrioCodes));
-    setSelectedFile(null);
-  };
 
-  const handlePadronRequestFormChange = (event) => {
-    const { name, value } = event.target;
-    setPadronRequestForm((current) => ({ ...current, [name]: value }));
-  };
 
-  const handlePadronRequestPresetChange = (event) => {
-    const nextPresetId = event.target.value;
-    const selectedTemplate = padronRequestTemplates.find((template) => template.id === nextPresetId);
 
-    setPadronRequestForm((current) => ({
-      ...current,
-      preset_id: nextPresetId,
-      title: selectedTemplate?.title || current.title,
-      description: selectedTemplate?.description || current.description,
-      keywords: (selectedTemplate?.keywords || []).join(", ") || current.keywords
-    }));
-  };
-
-  const handleRunPadronRequest = async (event) => {
-    if (event) {
-      event.preventDefault();
-    }
-
-    const keywords = String(padronRequestForm.keywords || "")
-      .split(",")
-      .map((keyword) => keyword.trim())
-      .filter(Boolean);
-
-    if (!keywords.length) {
-      showAlert("Debes indicar al menos una palabra clave para generar la peticion.");
-      return;
-    }
-
-    setLoadingPadronRequest(true);
-
-    try {
-      const response = await apiFetch("/claves/requests/run", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          preset_id: padronRequestForm.preset_id,
-          title: padronRequestForm.title,
-          description: padronRequestForm.description,
-          keywords
-        })
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible generar la peticion.");
-      }
-
-      setPadronRequestResult(data);
-      showAlert(`Peticion generada con ${data.summary?.total_registros ?? 0} registros.`);
-    } catch (error) {
-      showAlert(error.message || "No fue posible generar la peticion.");
-    } finally {
-      setLoadingPadronRequest(false);
-    }
-  };
 
   useEffect(() => {
     const description = String(mapDraft.description || "");
@@ -2298,345 +1409,19 @@ function App() {
     };
   }, [mapDraft.description, padronMeta?.updated_at, safeBarrioCodes]);
 
-  const findAlcaldiaMatchForForm = async (candidateForm = form, options = {}) => {
-    const { allowTextFallback = true } = options;
-    const keyQuery = String(candidateForm.clave_catastral || "").trim();
-    const textQueries = [
-      candidateForm.nombre_catastral,
-      candidateForm.inquilino,
-      candidateForm.identidad,
-      candidateForm.barrio_colonia
-    ]
-      .map((value) => String(value || "").trim())
-      .filter((value) => value.length >= 3);
 
-    const tryQuery = async (query, field) => {
-      const response = await apiFetch(`/claves/alcaldia/search?field=${field}&clave=${encodeURIComponent(query)}`);
-      if (!response.ok) return null;
-      const data = await response.json();
-      const matches = Array.isArray(data.matches) ? data.matches : [];
-      return matches[0] ?? null;
-    };
 
-    if (keyQuery) {
-      const match = await tryQuery(keyQuery, "clave");
-      if (match) return match;
-    }
 
-    if (allowTextFallback) {
-      for (const query of textQueries) {
-        const match = await tryQuery(query, "texto");
-        if (match) return match;
-      }
-    }
 
-    return null;
-  };
 
-  const getAlcaldiaValidationComment = (match, record) => {
-    if (!match) return "No concuerda con clave de Alcaldia. Clandestino";
-    if (match.exists_in_aguas) return "Aparece en varios padrones";
-    return record?.comentarios || "Concuerda con Alcaldia y no aparece en Aguas. Clandestino";
-  };
 
-  const buildAlcaldiaValidationPayload = (record, match) => {
-    const nextState = match?.exists_in_aguas ? "varios_padrones" : "clandestino";
-    return {
-      ...record,
-      estado_padron: nextState,
-      clave_alcaldia: match?.clave_catastral || "",
-      nombre_alcaldia: match?.nombre || record.nombre_alcaldia || "",
-      barrio_alcaldia: match?.caserio || match?.direccion || record.barrio_alcaldia || "",
-      nombre_catastral: match?.nombre || record.nombre_catastral,
-      barrio_colonia: getRecordBarrioName(record, "") || match?.caserio || match?.direccion || "",
-      identidad: record.identidad || match?.identificador || "",
-      comentarios: getAlcaldiaValidationComment(match, record)
-    };
-  };
 
-  const handleValidatePrintRecord = async (record) => {
-    if (!record?.id) return;
 
-    setProcessingRecordId(record.id);
-    try {
-      const match = await findAlcaldiaMatchForForm(record, { allowTextFallback: false });
-      const payload = buildAlcaldiaValidationPayload(record, match);
 
-      const response = await apiFetch(`/inmuebles/${record.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || "No fue posible actualizar la validacion.");
-      }
 
-      const normalized = normalizeRecord(data);
-      setRecords((current) => current.map((item) => (item.id === normalized.id ? normalized : item)));
-      if (form.id === normalized.id) {
-        setForm({ ...emptyForm, ...normalized });
-      }
-      showAlert(
-        !match
-          ? `Ficha ${normalized.clave_catastral} no concuerda con Alcaldia. Quedo clandestina.`
-          : match.exists_in_aguas
-          ? `Ficha ${normalized.clave_catastral} validada: aparece en varios padrones.`
-          : `Ficha ${normalized.clave_catastral} validada como clandestina.`
-      );
-    } catch (error) {
-      showAlert(error.message || "No fue posible validar la ficha desde impresion.");
-    } finally {
-      setProcessingRecordId(null);
-    }
-  };
 
-  const handleToggleRegulatorDiaryKey = (dateKey) => {
-    setRegulatorReportDiaryKeys((current) => {
-      const baseline = current.length ? current : selectedRegulatorDiaryKeys;
-      if (baseline.includes(dateKey)) {
-        const next = baseline.filter((key) => key !== dateKey);
-        return next.length ? next : baseline;
-      }
 
-      return [...baseline, dateKey].slice(0, 5);
-    });
-  };
-
-  const focusSheet = () => {
-    window.requestAnimationFrame(() => {
-      sheetRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
-  };
-
-  const handleSelectRecord = (record) => {
-    applyRecord(record);
-    focusSheet();
-  };
-
-  const startNewRecordFromLookup = (patch = {}, alertMessage = "Ficha nueva preparada desde la consulta.") => {
-    const nextForm = {
-      ...emptyForm,
-      ...patch,
-      id: null,
-      foto_path: ""
-    };
-    const enrichedForm = withBarrioFromPrefix(nextForm, safeBarrioCodes);
-
-    setRecordQuickFilter("all");
-    setRecordFilters({
-      clave: enrichedForm.clave_catastral || "",
-      barrio: "",
-      responsible: "",
-      date_from: "",
-      date_to: "",
-      status: "all"
-    });
-    setForm(enrichedForm);
-    setSelectedFile(null);
-    setWorkspaceView("records");
-    showAlert(alertMessage);
-    focusSheet();
-  };
-
-  const padronFlagToRecordValue = (value = "") => {
-    const normalized = String(value ?? "").trim().toUpperCase();
-    if (normalized === "S") return "Si";
-    if (normalized === "N") return "No";
-    return "";
-  };
-
-  const buildRecordPatchFromAguasMatch = (match = {}) =>
-    withBarrioFromPrefix(
-      {
-        clave_catastral: match.clave_catastral || "",
-        abonado: match.abonado || "",
-        nombre_catastral: match.nombre || "",
-        inquilino: match.inquilino || "",
-        barrio_colonia: match.barrio_colonia || "",
-        conexion_agua: padronFlagToRecordValue(match.agua),
-        conexion_alcantarillado: padronFlagToRecordValue(match.alcantarillado),
-        recoleccion_desechos: padronFlagToRecordValue(match.recoleccion),
-        estado_padron: "varios_padrones"
-      },
-      safeBarrioCodes
-    );
-
-  const openLookupMatchInRecord = async (match) => {
-    try {
-      const response = await apiFetch(`/inmuebles/clave/${encodeURIComponent(match.clave_catastral)}`);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        if (response.status === 404) {
-          showAlert("No existe ficha guardada para esa clave. El reporte del padron si puede generarse desde este modulo.");
-          return;
-        }
-
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || "No fue posible abrir la ficha para esta clave.");
-      }
-
-      const nextRecord = normalizeRecord(await response.json());
-      const nextForm = {
-        ...nextRecord,
-        ...buildRecordPatchFromAguasMatch(match),
-        id: nextRecord.id,
-        foto_path: nextRecord.foto_path || "",
-        comentarios: nextRecord.comentarios || "Datos actualizados desde padron Aguas"
-      };
-      setWorkspaceView("records");
-      setRecordQuickFilter("all");
-      setRecordFilters({
-        clave: nextRecord.clave_catastral || "",
-        barrio: "",
-        responsible: "",
-        date_from: "",
-        date_to: "",
-        status: "all"
-      });
-      setSelectedFile(null);
-      applyRecord(nextForm);
-      showAlert(`Ficha cargada con datos actualizados del padron para ${nextForm.clave_catastral}. Guarda la ficha para conservarlos.`);
-    } catch (error) {
-      showAlert(error.message || "No fue posible abrir la ficha para esa clave.");
-    }
-  };
-
-  const handlePrintLookupMatchReport = async (match) => {
-    const totalMeta = getLookupTotalMeta(match?.total);
-    const valor = Number(match?.valor ?? 0);
-    const intereses = Number(match?.intereses ?? 0);
-    const total = Number(match?.total ?? 0);
-    const services = [
-      { label: "Agua", value: match?.agua, icon: "water" },
-      { label: "Alcantarillado", value: match?.alcantarillado, icon: "sewer" },
-      { label: "Barrido", value: match?.barrido, icon: "broom" },
-      { label: "Desechos / tren de aseo", value: match?.recoleccion, icon: "refresh" },
-      { label: "Desechos peligrosos", value: match?.desechos_peligrosos, icon: "waste" }
-    ];
-
-    const serviceMarkup = services
-      .map((service) => {
-        const serviceMeta = getLookupServiceMeta(service.value);
-        return `
-          <div class="lookup-report-service ${serviceMeta.tone}">
-            <strong>${escapeHtml(service.label)}</strong>
-            <span>${escapeHtml(serviceMeta.label)}</span>
-          </div>
-        `;
-      })
-      .join("");
-
-    await printDocument(
-      `Reporte ${match?.clave_catastral || "consulta-padron"}`,
-      `
-        <div class="lookup-report-shell">
-          <header class="lookup-report-header">
-            <div class="lookup-report-brand">
-              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
-              <div>
-                <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
-                <h1>Reporte de consulta por clave</h1>
-                <p>Resumen financiero y de servicios consultado desde el padron maestro.</p>
-              </div>
-            </div>
-            <div class="lookup-report-key">Clave catastral: ${escapeHtml(match?.clave_catastral || "--")}</div>
-          </header>
-
-          <section class="lookup-report-section">
-            <div class="lookup-report-grid">
-              <div><strong>Nombre</strong><span>${escapeHtml(match?.inquilino || "Sin nombre asociado")}</span></div>
-              <div><strong>Abonado</strong><span>${escapeHtml(match?.abonado || "--")}</span></div>
-              <div><strong>Zona</strong><span>${escapeHtml(match?.barrio_colonia || "--")}</span></div>
-              <div><strong>Estado</strong><span>${escapeHtml(totalMeta.helper)}</span></div>
-            </div>
-          </section>
-
-          <section class="lookup-report-section">
-            <h2>Detalle de saldo</h2>
-            <div class="lookup-report-balance-grid">
-              <div><strong>Sin interes</strong><span>${formatLookupAmount(valor)}</span></div>
-              <div><strong>Interes</strong><span>${formatLookupAmount(intereses)}</span></div>
-              <div class="is-total"><strong>Total</strong><span>${escapeHtml(totalMeta.text)}</span></div>
-            </div>
-            <div class="lookup-report-formula">
-              <strong>Sumatoria</strong>
-              <span>${formatLookupAmount(valor)} + ${formatLookupAmount(intereses)} = ${formatLookupAmount(total)}</span>
-            </div>
-          </section>
-
-          <section class="lookup-report-section">
-            <h2>Servicios registrados</h2>
-            <div class="lookup-report-service-grid">
-              ${serviceMarkup}
-            </div>
-          </section>
-        </div>
-      `,
-      {
-        bodyClassName: "lookup-report-body",
-        pageSize: "Letter portrait",
-        pageMargin: "10mm"
-      }
-    );
-
-    showAlert(`Reporte de saldo y servicios generado para la clave ${match?.clave_catastral || "--"}.`);
-  };
-
-  const resetForm = () => {
-    setRecordQuickFilter("all");
-    setRecordFilters({
-      clave: "",
-      barrio: "",
-      responsible: "",
-      date_from: "",
-      date_to: "",
-      status: "all"
-    });
-    setForm(emptyForm);
-    setDraftForm(null);
-    setSelectedFile(null);
-    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
-    window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
-    focusSheet();
-  };
-
-  const handleDeleteArchivedRecord = async (record) => {
-    if (!record?.id) return;
-
-    try {
-      const response = await apiFetch(`/inmuebles/${record.id}`, {
-        method: "DELETE"
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "No se pudo eliminar la ficha archivada.");
-      }
-
-      if (form.id === record.id) {
-        resetForm();
-      }
-
-      setPendingDeleteRecord(null);
-      showAlert(`Ficha ${data.inmueble?.clave_catastral || record.clave_catastral} eliminada del registro archivado.`);
-      loadRecords(search, "archived");
-    } catch (error) {
-      showAlert(error.message || "No se pudo eliminar la ficha archivada.");
-    }
-  };
 
   const {
     buildMapReportPadronData,
@@ -2786,6 +1571,32 @@ function App() {
     showAlert
   });
   const {
+    batchPrintSelection,
+    printedSaveSelection,
+    manualPrintedSelection,
+    printBatchStatusCounts,
+    filteredPrintBatchRecords
+  } = usePrintBatchSelection({
+    batchPrintCopies,
+    filteredRecords,
+    getRecordBarrioName,
+    printBatchQuickFilter,
+    printBatchSearch,
+    printBatchStatusView,
+    recordView,
+    safeRecords
+  });
+  const { loadRecords, loadRecordSummary } = createRecordLoaders({
+    apiFetch,
+    clearSession,
+    isAdmin,
+    isAuthenticated,
+    recordView,
+    setRecordView,
+    setRecords,
+    showAlert
+  });
+  const {
     openPrintBatchModalForRecords,
     updateBatchPrintCopies,
     adjustBatchPrintCopies,
@@ -2827,6 +1638,68 @@ function App() {
     showAlert
   });
   const {
+    clearPadronDerivedState,
+    clearClientPadronCaches,
+    updatePadronSyncState,
+    updateAlcaldiaSyncState,
+    applyAlcaldiaSyncResult,
+    runPadronSyncSteps,
+    loadPadronMeta,
+    loadPadronBatches,
+    loadAlcaldiaMeta,
+    loadAlcaldiaComparison,
+    loadPadronRequestMeta,
+    loadPadronServiceReport,
+    handlePadronRequestFormChange,
+    handlePadronRequestPresetChange,
+    handleRunPadronRequest
+  } = createPadronDataActions({
+    apiFetch,
+    clearSession,
+    isAdmin,
+    isAuthenticated,
+    padronRequestForm,
+    padronRequestTemplates,
+    persistLookupHistory,
+    setAlcaldiaComparison,
+    setAlcaldiaImportSummary,
+    setAlcaldiaMeta,
+    setAlcaldiaSyncState,
+    setDashboardLastUpdatedAt,
+    setFieldDebtReport,
+    setLoadingAlcaldiaComparison,
+    setLoadingAlcaldiaMeta,
+    setLoadingPadronBatches,
+    setLoadingPadronMeta,
+    setLoadingPadronRequest,
+    setLoadingPadronRequestMeta,
+    setLoadingPadronServiceReport,
+    setLookupFeedback,
+    setLookupQuery,
+    setLookupResult,
+    setPadronBatches,
+    setPadronChartMode,
+    setPadronChartType,
+    setPadronImportSummary,
+    setPadronMeta,
+    setPadronRequestForm,
+    setPadronRequestLoadError,
+    setPadronRequestResult,
+    setPadronRequestTemplates,
+    setPadronServiceReport,
+    setPadronStatsBarrioFilter,
+    setPadronStatsSortDirection,
+    setPadronStatsSortMetric,
+    setPadronSyncState,
+    setSelectedAguasServiceField,
+    setSelectedPadronBatchCode,
+    setSelectedPadronServiceField,
+    setSelectedPadronStatBarrio,
+    setShowFieldDebtModal,
+    showAlert,
+    workspaceView
+  });
+  const {
     handlePrintPadronRequest,
     handleDownloadPadronRequestPdf,
     handlePrintAguasServiceReport,
@@ -2859,6 +1732,29 @@ function App() {
     showAlert
   });
 
+  const { loadUsers } = createUserLoaders({
+    apiFetch,
+    clearSession,
+    isAdmin,
+    isAuthenticated,
+    setLoadingUsers,
+    setSelectedUserId,
+    setUsers,
+    showAlert
+  });
+  const { loadAuditLogs, handleOpenAuditReport, handleReprintAuditReport } = createAuditLoaders({
+    apiFetch,
+    auditFiltersQuery,
+    clearSession,
+    isAdmin,
+    isAuthenticated,
+    selectedAuditReport,
+    setAuditLogs,
+    setLoadingAuditReportId,
+    setLoadingLogs,
+    setSelectedAuditReport,
+    showAlert
+  });
   const {
     handleUserFormChange,
     handleCreateUser,
@@ -3029,6 +1925,103 @@ function App() {
     safeUsers,
     visibleMapPoints,
     workspaceView
+  });
+  const {
+    loadBarrioCodes,
+    handleBarrioCodeFormChange,
+    handleResetBarrioCodeForm,
+    handlePrepareAddBarrioCode,
+    handleEditBarrioCode,
+    handleSaveBarrioCode,
+    handleDeleteBarrioCode
+  } = createBarrioCodeActions({
+    apiFetch,
+    barrioCodeForm,
+    clearSession,
+    isAuthenticated,
+    setBarrioCodeForm,
+    setBarrioCodes,
+    setLoadingBarrioCodes,
+    setSavingBarrioCode,
+    showAlert
+  });
+  const {
+    loadMapDiaryGroups,
+    loadMapPoints,
+    loadArchivedMapDiaryPoints,
+    openMapDiaryArchiveModal,
+    handleUseArchivedMapDiary,
+    loadMapPointContexts,
+    handleToggleRegulatorDiaryKey
+  } = createMapDataLoaders({
+    apiFetch,
+    archivedMapDiaryGroups,
+    clearSession,
+    isAdmin,
+    isAuthenticated,
+    mapPointsRequestRef,
+    safeMapPoints,
+    selectedArchiveMapDiaryGroup,
+    selectedArchiveMapDiaryKey,
+    selectedRegulatorDiaryKeys,
+    setArchiveMapDiaryPoints,
+    setLoadingArchiveMapDiaryPoints,
+    setLoadingMapContexts,
+    setLoadingMapPoints,
+    setMapDiaryDateKey,
+    setMapDiaryGroupsSummary,
+    setMapPointContexts,
+    setMapPoints,
+    setMapReportPage,
+    setMapStatus,
+    setRegulatorReportDiaryKeys,
+    setSelectedArchiveMapDiaryKey,
+    setSelectedMapPointId,
+    setShowMapDiaryArchiveModal,
+    showAlert
+  });
+  const {
+    applyRecord,
+    handleValidatePrintRecord,
+    focusSheet,
+    handleSelectRecord,
+    resetForm,
+    handleDeleteArchivedRecord
+  } = createRecordFormActions({
+    apiFetch,
+    form,
+    getRecordBarrioName,
+    loadRecords,
+    safeBarrioCodes,
+    search,
+    setDraftForm,
+    setForm,
+    setPendingDeleteRecord,
+    setProcessingRecordId,
+    setRecordFilters,
+    setRecordQuickFilter,
+    setRecords,
+    setSelectedFile,
+    sheetRef,
+    showAlert
+  });
+  const {
+    startNewRecordFromLookup,
+    buildRecordPatchFromAguasMatch,
+    openLookupMatchInRecord,
+    handlePrintLookupMatchReport
+  } = createLookupRecordBridge({
+    apiFetch,
+    applyRecord,
+    clearSession,
+    focusSheet,
+    safeBarrioCodes,
+    setForm,
+    setRecordFilters,
+    setRecordQuickFilter,
+    setSelectedFile,
+    setWorkspaceView,
+    showAlert
   });
   if (session?.token && !sessionVerified) {
     return (
