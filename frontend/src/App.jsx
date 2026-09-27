@@ -4,9 +4,7 @@ import { CalendarDays, MapPin } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
-import LookupChatPanel from "./components/LookupChatPanel";
 import BarrioCodesWorkspace, { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
-import BatchPicker from "./components/BatchPicker";
 import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
 import { NotificationCenter } from "./components/NotificationCenter.jsx";
 import AppSidebar from "./components/sidebar/AppSidebar";
@@ -39,7 +37,6 @@ import {
   emptyMapDraft,
   emptyMapReportDraft,
   LOOKUP_SEARCH_MODES,
-  MAP_POINT_TYPES,
   MAX_LOOKUP_HISTORY_ITEMS,
 } from "./constants/formsAndUi";
 import {
@@ -51,10 +48,8 @@ import {
   roleLabel
 } from "./utils/formatting";
 import {
-  formatClaveInput,
   getLookupServiceMeta,
   getLookupValidationMessage,
-  isLookupKeyComplete,
   isLookupQueryReady,
   sanitizeLookupInput
 } from "./utils/claveAndLookup";
@@ -108,8 +103,6 @@ import { lastDaysSeries } from "./modules/dashboard/dashboardSelectors.js";
 import { abrirMisAsignaciones } from "./modules/clandestinos/hooks/useBanco";
 import { installSearchScrollGuard } from "./utils/searchScrollGuard";
 import {
-  FieldMap,
-  MapPrintDialog,
   FieldValidationWorkspace,
   MyProfileWorkspace,
   RailwayUsageWorkspace,
@@ -136,18 +129,15 @@ import {
   formatAuditTime,
   auditRelativeDayLabel
 } from "./utils/audit";
-import { MapLoadBoundary } from "./components/MapLoadBoundary";
 import {
   DASHBOARD_WIDGET_STORAGE_KEY,
   DASHBOARD_REFRESH_INTERVAL_MS,
   MAP_POINT_LIST_INITIAL_LIMIT,
-  MAP_POINT_LIST_STEP,
   MOBILE_MAP_POINT_LIMIT,
   MAP_AUTO_REFRESH_MS,
   MOBILE_MAP_AUTO_REFRESH_MS,
   RECORDS_PAGE_SIZE,
   MAP_DIARY_PRIMARY_LIMIT,
-  PADRON_SYNC_STEPS,
   EXECUTIVE_REPORT_CREDIT
 } from "./constants/workspace";
 import {
@@ -185,7 +175,6 @@ import {
   getMapReportTypeChartRows,
   buildMapReportTypeChartMarkup,
   buildMapReportBriefRows,
-  getMapPointHousingUnits,
   normalizeHousingUnitsInput,
   MAP_DESCRIPTION_PADRON_BLOCK_PATTERN,
   stripMapDescriptionPadronBlock,
@@ -228,6 +217,10 @@ import {
   getDefaultWorkspaceView,
   getWorkspaceViewByRole
 } from "./utils/appShell";
+import FieldMapWorkspace from "./modules/campo/FieldMapWorkspace";
+import PadronWorkspace from "./modules/padron/PadronWorkspace";
+import LookupWorkspace from "./modules/lookup/LookupWorkspace";
+import ExecutiveReportView from "./modules/reports/ExecutiveReportView";
 
 function App() {
   const sheetRef = useRef(null);
@@ -12340,189 +12333,20 @@ function App() {
           </Suspense>
         </main>
       ) : workspaceView === "executiveReport" ? (
-      <main className="executive-report-layout">
-        <section className="executive-hero-panel">
-          <div>
-            <p className="sheet-kicker">Memoria operativa integral</p>
-            <h2><Icon name="dashboard" className="title-icon" />Resumen de Operaciones realizadas</h2>
-            <p>
-              Consolidado de todo lo trabajado en la aplicación: captura de fichas, validación de padrones,
-              avisos, impresión, geolocalización, mapeo, reportes PDF, usuarios, funciones desarrolladas,
-              ahorro de tiempo para técnicos y trazabilidad.
-            </p>
-            <p className="executive-supervisor">{EXECUTIVE_REPORT_CREDIT}</p>
-          </div>
-          <button type="button" onClick={handleDownloadExecutiveReportPdf}>
-            <Icon name="records" />
-            Descargar PDF
-          </button>
-        </section>
-
-        <section className="executive-kpi-grid">
-          {[
-            { label: "Fichas registradas", value: safeRecords.length, helper: `${executiveReportData.statusTotals.reportada || 0} reportadas` },
-            { label: "Puntos GPS", value: safeMapPoints.length, helper: `${mapDiaryGroups.length} jornadas de campo` },
-            { label: "Padrón maestro", value: padronMeta?.total_records ?? 0, helper: `${alcaldiaMeta?.total_records ?? 0} registros Alcaldía` },
-            { label: "Eventos auditados", value: safeAuditLogs.length, helper: `${safeUsers.length} usuarios registrados` }
-          ].map((item) => (
-            <article key={item.label} className="executive-kpi-card">
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-              <small>{item.helper}</small>
-            </article>
-          ))}
-        </section>
-
-        <section className="executive-section-grid">
-          <article className="executive-card is-wide">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Alcance construido</p>
-                <h3>Módulos y capacidades entregadas</h3>
-              </div>
-              <span className="panel-pill">
-                Desde {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "sin registros"}
-              </span>
-            </div>
-            <div className="executive-module-list">
-              {executiveReportData.modules.map((item) => (
-                <article key={item.title} className="executive-module-item">
-                  <strong>{item.title}</strong>
-                  <p>{item.detail}</p>
-                  <span>{item.evidence}</span>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="executive-card is-wide">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Funciones de la aplicación</p>
-                <h3>Herramientas desarrolladas para campo y oficina</h3>
-              </div>
-            </div>
-            <div className="executive-module-list">
-              {executiveReportData.applicationFunctions.slice(0, 6).map((item) => (
-                <article key={item[0]} className="executive-module-item">
-                  <strong>{item[0]}</strong>
-                  <p>{item[1]}</p>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="executive-card is-wide">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Ahorro operativo</p>
-                <h3>Tiempo que se ahorran los técnicos</h3>
-              </div>
-            </div>
-            <div className="executive-table-list">
-              {executiveReportData.timeSavingsRows.slice(0, 6).map((item) => (
-                <div key={item[0]}>
-                  <span>{item[0]}</span>
-                  <strong>{item[1]} → {item[2]}</strong>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="executive-card">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Fichas</p>
-                <h3>Estado operativo</h3>
-              </div>
-            </div>
-            <div className="executive-stat-list">
-              <div><span>Clandestinas</span><strong>{executiveReportData.statusTotals.clandestino || 0}</strong></div>
-              <div><span>Reportadas</span><strong>{executiveReportData.statusTotals.reportada || 0}</strong></div>
-              <div><span>Varios padrones</span><strong>{executiveReportData.statusTotals.varios_padrones || 0}</strong></div>
-              <div><span>Con fotografía</span><strong>{executiveReportData.photoCount}</strong></div>
-              <div><span>Listas para aviso</span><strong>{executiveReportData.printedReadyRecords}</strong></div>
-              <div><span>Plazo crítico</span><strong>{alertRecords.length}</strong></div>
-            </div>
-          </article>
-
-          <article className="executive-card">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Campo</p>
-                <h3>Jornadas realizadas</h3>
-              </div>
-            </div>
-            <div className="executive-table-list">
-              {(executiveReportData.fieldJourneyRows.length ? executiveReportData.fieldJourneyRows : [{ label: "Sin jornadas", points: 0, zones: 0, records: 0 }]).slice(0, 8).map((item) => (
-                <div key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>{item.points} pts · {item.zones} zonas · {item.records} fichas</strong>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="executive-card">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Responsables</p>
-                <h3>Levantamiento por técnico</h3>
-              </div>
-            </div>
-            <div className="executive-table-list">
-              {(executiveReportData.fieldResponsibleRows.length ? executiveReportData.fieldResponsibleRows : [{ name: "Sin responsable", records: 0, withPhoto: 0 }]).map((item) => (
-                <div key={item.name}>
-                  <span>{item.name}</span>
-                  <strong>{item.records} fichas · {item.withPhoto} fotos</strong>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="executive-card">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Geolocalización</p>
-                <h3>Puntos por tipo</h3>
-              </div>
-            </div>
-            <div className="executive-table-list">
-              {(executiveReportData.mapTypeRows.length ? executiveReportData.mapTypeRows : [{ label: "Sin puntos", total: 0 }]).map((item) => (
-                <div key={item.label}><span>{item.label}</span><strong>{item.total}</strong></div>
-              ))}
-            </div>
-          </article>
-
-          <article className="executive-card">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Mapeo</p>
-                <h3>Zonas principales</h3>
-              </div>
-            </div>
-            <div className="executive-table-list">
-              {(executiveReportData.mapZoneRows.length ? executiveReportData.mapZoneRows : [{ label: "Sin zonas", total: 0 }]).map((item) => (
-                <div key={item.label}><span>{item.label}</span><strong>{item.total}</strong></div>
-              ))}
-            </div>
-          </article>
-
-          <article className="executive-card">
-            <div className="executive-card-head">
-              <div>
-                <p className="sheet-kicker">Bitácora</p>
-                <h3>Eventos principales</h3>
-              </div>
-            </div>
-            <div className="executive-table-list">
-              {(executiveReportData.auditRows.length ? executiveReportData.auditRows : [{ label: "Sin eventos", total: 0 }]).slice(0, 6).map((item) => (
-                <div key={item.label}><span>{item.label}</span><strong>{item.total}</strong></div>
-              ))}
-            </div>
-          </article>
-        </section>
-      </main>
+      <ExecutiveReportView
+        model={{
+          alcaldiaMeta,
+          alertRecords,
+          executiveReportData,
+          handleDownloadExecutiveReportPdf,
+          mapDiaryGroups,
+          padronMeta,
+          safeAuditLogs,
+          safeMapPoints,
+          safeRecords,
+          safeUsers
+        }}
+      />
       ) : workspaceView === "transport" ? (
       <main className="layout transport-layout-page">
         <section className="preview-panel transport-preview-panel">
@@ -12597,1416 +12421,135 @@ function App() {
         />
       </Suspense>
       ) : workspaceView === "lookup" ? (
-        <main className="lookup-layout">
-          <section className="lookup-shell no-print">
-            <div className="lookup-card">
-              <div className="lookup-card-head">
-                <div>
-                  <p className="sheet-kicker">Entrada principal</p>
-                  <h2><Icon name="search" className="title-icon" />Buscar clave</h2>
-                  <p className="lookup-card-description">
-                    Consulta una clave y decide el siguiente paso sin abrir toda la ficha desde el inicio.
-                  </p>
-                </div>
-                <span className="panel-pill">Alcaldía vs. Aguas</span>
-              </div>
-
-              <LookupChatPanel apiFetch={apiFetch} padronMeta={padronMeta} />
-
-              <div className="lookup-classic-launch">
-                <button type="button" className="button-secondary" onClick={() => setShowLookupClassicModal(true)}>
-                  <Icon name="records" />
-                  Abrir búsqueda clásica
-                </button>
-              </div>
-
-              <Dialog open={showLookupClassicModal} onOpenChange={setShowLookupClassicModal}>
-                <DialogContent className="lookup-classic-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-4xl">
-                  <DialogHeader className="password-modal-head">
-                    <p className="eyebrow">Modulo anterior</p>
-                    <DialogTitle>Busqueda clasica del padron</DialogTitle>
-                    <DialogDescription>
-                      Consulta manual por clave, nombre, abonado o Alcaldia cuando necesites el flujo anterior.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="lookup-classic-modal-body">
-                    <form className="lookup-form is-modal" onSubmit={handleLookupSearch}>
-                      <div className="lookup-mode-switch" role="tablist" aria-label="Tipo de busqueda">
-                        {LOOKUP_SEARCH_MODES.map((mode) => (
-                          <button
-                            key={mode.value}
-                            type="button"
-                            role="tab"
-                            aria-selected={lookupSearchMode === mode.value}
-                            className={lookupSearchMode === mode.value ? "is-active" : ""}
-                            onClick={() => handleLookupSearchModeChange(mode.value)}
-                          >
-                            <span>{mode.label}</span>
-                            <small>{mode.helper}</small>
-                          </button>
-                        ))}
-                      </div>
-
-                <label className="lookup-field">
-                  <span>{lookupInputLabel}</span>
-                  <input
-                    className={lookupSearchMode === "clave" ? "" : "is-textual"}
-                    value={lookupQuery}
-                    onChange={handleLookupInputChange}
-                    inputMode={lookupModeConfig.inputMode}
-                    autoComplete="off"
-                    placeholder={lookupInputPlaceholder}
-                    maxLength={lookupSearchMode === "clave" ? 11 : lookupSearchMode === "abonado" ? 18 : 96}
-                  />
-                </label>
-                {lookupSearchMode === "clave" ? (
-                  <>
-                    <div className="lookup-prefix-toggle" role="group" aria-label="Tipo de prefijo">
-                      <button
-                        type="button"
-                        className={lookupPrefixMode === "auto" ? "is-active" : ""}
-                        onClick={() => handleLookupPrefixModeChange("auto")}
-                      >
-                        Auto
-                      </button>
-                      <button
-                        type="button"
-                        className={lookupPrefixMode === "two" ? "is-active" : ""}
-                        onClick={() => handleLookupPrefixModeChange("two")}
-                      >
-                        Prefijo 2
-                      </button>
-                      <button
-                        type="button"
-                        className={lookupPrefixMode === "three" ? "is-active" : ""}
-                        onClick={() => handleLookupPrefixModeChange("three")}
-                      >
-                        Prefijo 3
-                      </button>
-                    </div>
-                    <div className="lookup-guide-sheet">
-                      <span>{lookupPrefixMode === "three" ? "###" : "##"}</span>
-                      <span>##</span>
-                      <span>##</span>
-                      <span className="is-optional">##</span>
-                    </div>
-                  </>
-                ) : null}
-                <div className="lookup-helper-row">
-                  <span className="helper-text">
-                    {lookupSearchMode === "clave"
-                      ? "Base de 3 bloques: trae todas las coincidencias. Se acepta primer bloque de 2 o 3 digitos."
-                      : lookupSearchMode === "nombre"
-                        ? "Busca por inquilino, propietario o nombre asociado dentro del padron maestro."
-                        : lookupSearchMode === "alcaldia"
-                          ? "Busca en el padron de Alcaldia por clave catastral, nombre, identidad o barrio/caserio."
-                          : "Puedes escribir una parte del numero de abonado para encontrar coincidencias rapido."}
-                  </span>
-                  <div className="lookup-example-chips">
-                    {lookupSearchMode === "clave" ? (
-                      <>
-                        <button
-                          type="button"
-                          className="record-quick-chip"
-                          onClick={() => {
-                            setLookupPrefixMode("auto");
-                            setLookupQuery("10-10-10");
-                          }}
-                        >
-                          10-10-10
-                        </button>
-                        <button
-                          type="button"
-                          className="record-quick-chip"
-                          onClick={() => {
-                            setLookupPrefixMode("three");
-                            setLookupQuery("100-10-10");
-                          }}
-                        >
-                          100-10-10
-                        </button>
-                        <button
-                          type="button"
-                          className="record-quick-chip"
-                          onClick={() => {
-                            setLookupPrefixMode("auto");
-                            setLookupQuery("10-10-10-01");
-                          }}
-                        >
-                          10-10-10-01
-                        </button>
-                        <button
-                          type="button"
-                          className="record-quick-chip"
-                          onClick={() => {
-                            setLookupPrefixMode("three");
-                            setLookupQuery("100-10-10-01");
-                          }}
-                        >
-                          100-10-10-01
-                        </button>
-                      </>
-                    ) : lookupSearchMode === "nombre" ? (
-                      <>
-                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("Juan")}>
-                          Juan
-                        </button>
-                        <button
-                          type="button"
-                          className="record-quick-chip"
-                          onClick={() => setLookupQuery("Aguilera")}
-                        >
-                          Aguilera
-                        </button>
-                      </>
-                    ) : lookupSearchMode === "alcaldia" ? (
-                      <>
-                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("01-01-01")}>
-                          01-01-01
-                        </button>
-                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("Barrio Suyapa")}>
-                          Barrio Suyapa
-                        </button>
-                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("Sandra")}>
-                          Sandra
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("16523")}>
-                          16523
-                        </button>
-                        <button type="button" className="record-quick-chip" onClick={() => setLookupQuery("100")}>
-                          100
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {lookupHistory.length ? (
-                  <div className="lookup-recent-strip">
-                    <div className="lookup-recent-head">
-                      <strong>Recientes en este equipo</strong>
-                      <small>Repite una consulta sin volver a escribir</small>
-                    </div>
-                    <div className="lookup-recent-list">
-                      {lookupHistory.slice(0, 6).map((item) => (
-                        <div
-                          key={`${item.mode}-${item.normalized_query}-${item.searched_at}`}
-                          className="lookup-recent-item"
-                        >
-                          <button
-                            type="button"
-                            className="lookup-recent-chip"
-                            onClick={() => {
-                              setLookupSearchMode(item.mode);
-                              setLookupQuery(String(item.normalized_query || item.query || ""));
-                              setLookupResult(null);
-                              setLookupFeedback("");
-                              if (item.mode === "clave") {
-                                const firstPart = String(item.normalized_query || item.query || "").split("-")[0] || "";
-                                setLookupPrefixMode(firstPart.length === 3 ? "three" : "auto");
-                              } else {
-                                setLookupPrefixMode("auto");
-                              }
-                            }}
-                          >
-                            <span>{item.normalized_query || item.query}</span>
-                            <small>
-                              {item.mode === "clave"
-                                ? "Clave"
-                                : item.mode === "nombre"
-                                  ? "Nombre"
-                                  : item.mode === "alcaldia"
-                                    ? "Alcaldia"
-                                    : "Abonado"}
-                            </small>
-                          </button>
-                          <button
-                            type="button"
-                            className="lookup-recent-remove"
-                            onClick={() => handleRemoveLookupHistoryItem(item)}
-                            aria-label={`Eliminar busqueda temporal ${item.normalized_query || item.query}`}
-                            title="Eliminar busqueda temporal"
-                          >
-                            <Icon name="waste" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                {lookupFeedback ? <p className="lookup-feedback">{lookupFeedback}</p> : null}
-                <div className="search-actions lookup-actions">
-                  <button type="submit" disabled={lookupLoading}>
-                    <Icon name="search" />
-                      {lookupLoading
-                        ? "Consultando..."
-                        : lookupSearchMode === "clave"
-                          ? "Consultar clave"
-                          : lookupSearchMode === "nombre"
-                            ? "Buscar nombre"
-                            : lookupSearchMode === "alcaldia"
-                              ? "Buscar en Alcaldia"
-                              : "Buscar abonado"}
-                  </button>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => {
-                      setLookupQuery("");
-                      setLookupResult(null);
-                      setLookupFeedback("");
-                    }}
-                  >
-                    <Icon name="refresh" />
-                    Limpiar
-                  </button>
-                  <button type="button" className="button-secondary" onClick={handleDownloadPadron} disabled={downloadingPadron}>
-                    <Icon name="records" />
-                    Descargar padrón
-                  </button>
-                </div>
-                    </form>
-                  </div>
-                  <DialogFooter className="password-form-actions print-batch-footer">
-                    <button type="button" className="button-secondary" onClick={() => setShowLookupClassicModal(false)}>
-                      Cerrar
-                    </button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="lookup-results">
-              {lookupResult ? (
-                <article className={`lookup-result-card ${lookupResult.exists ? "is-found" : "is-missing"}`}>
-                  <div className="lookup-result-head">
-                    <div>
-                      <p className="eyebrow">
-                        {lookupResult.field === "texto"
-                          ? "Busqueda Alcaldia"
-                          : lookupResult.field === "clave"
-                          ? lookupResult.mode === "base"
-                            ? "Busqueda por base"
-                            : "Busqueda exacta"
-                          : lookupResult.field === "nombre"
-                            ? "Busqueda por nombre"
-                            : "Busqueda por abonado"}
-                      </p>
-                      <h3>{lookupResult.normalized_query}</h3>
-                    </div>
-                    <span className={`lookup-status-pill ${lookupResult.exists ? "is-found" : "is-missing"}`}>
-                      {lookupResult.field === "texto"
-                        ? lookupResult.exists
-                          ? "Existe en Alcaldia"
-                          : "Sin registro Alcaldia"
-                        : lookupResult.exists
-                          ? "Si registrada"
-                          : "Sin registro"}
-                    </span>
-                  </div>
-
-                  <p className="lookup-result-message">
-                    {lookupResult.exists
-                      ? lookupResult.field === "texto"
-                        ? `Se encontraron ${lookupResult.total_matches} coincidencias en el padron de Alcaldia.`
-                        : lookupResult.field === "clave"
-                        ? lookupResult.mode === "base"
-                          ? `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa clave base.`
-                          : "La clave consultada si existe en el sistema maestro."
-                        : `Se encontraron ${lookupResult.total_matches} coincidencias asociadas a esa consulta.`
-                      : "No existe registro en el sistema. Posible clandestino."}
-                  </p>
-                  <div className="lookup-decision-grid">
-                    <div className={lookupResult.field === "texto" && lookupResult.exists ? "is-found" : "is-muted"}>
-                      <span>Alcaldia</span>
-                      <strong>{lookupResult.field === "texto" && lookupResult.exists ? "Aparece" : "Sin validar"}</strong>
-                    </div>
-                    <div className={lookupResult.field !== "texto" && lookupResult.exists ? "is-found" : lookupResult.field === "texto" ? "is-muted" : "is-missing"}>
-                      <span>Aguas</span>
-                      <strong>{lookupResult.field !== "texto" && lookupResult.exists ? "Aparece" : lookupResult.field === "texto" ? "Comparar abajo" : "No aparece"}</strong>
-                    </div>
-                    <div className={!lookupResult.exists || (lookupResult.field === "texto" && lookupResult.matches?.some((match) => !match.exists_in_aguas)) ? "is-danger" : "is-found"}>
-                      <span>Resultado</span>
-                      <strong>
-                        {!lookupResult.exists || (lookupResult.field === "texto" && lookupResult.matches?.some((match) => !match.exists_in_aguas))
-                          ? "Posible clandestino"
-                          : "Registrado"}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {!lookupResult.exists && lookupResult.field === "clave" ? (
-                    <div className="lookup-match-actions">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          startNewRecordFromLookup(
-                            {
-                              clave_catastral: lookupResult.normalized_query || lookupQuery.trim(),
-                              estado_padron: "clandestino",
-                              comentarios: "Clandestino"
-                            },
-                            `Ficha nueva preparada para la clave ${lookupResult.normalized_query || lookupQuery.trim()}.`
-                          )
-                        }
-                      >
-                        <Icon name="records" />
-                        Crear ficha nueva
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {lookupResult.exists ? (
-                    <>
-                      <div className="lookup-summary-strip">
-                        <div className="lookup-summary-card">
-                          <span>Coincidencias</span>
-                          <strong>{lookupResult.total_matches}</strong>
-                        </div>
-                        <div className="lookup-summary-card">
-                          <span>Modo</span>
-                          <strong>
-                            {lookupResult.field === "clave"
-                              ? lookupResult.mode === "base"
-                                ? "Base"
-                                : "Exacta"
-                              : lookupResult.field === "nombre"
-                                ? "Nombre"
-                                : lookupResult.field === "texto"
-                                  ? "Alcaldia"
-                                  : "Abonado"}
-                          </strong>
-                        </div>
-                        <div className="lookup-summary-card">
-                          <span>Consulta</span>
-                          <strong>{lookupResult.normalized_query}</strong>
-                        </div>
-                      </div>
-                      <div className="lookup-match-list">
-                      {lookupResult.matches.map((match) => (
-                        (() => {
-                          if (lookupResult.field === "texto") {
-                            return (
-                              <article key={`${match.clave_catastral}-${match.identificador}-${match.nombre}`} className="lookup-match-card">
-                                <div className="lookup-match-top">
-                                  <div className="lookup-match-headline">
-                                    <strong>{match.clave_catastral}</strong>
-                                    <span className="lookup-abonado-pill">Alcaldia</span>
-                                  </div>
-                                  <span className={`lookup-match-status ${match.exists_in_aguas ? "is-ok" : "is-danger"}`}>
-                                    <Icon name={match.exists_in_aguas ? "success" : "activity"} />
-                                    {match.exists_in_aguas ? "Tambien aparece en Aguas" : "Clandestino: no aparece en Aguas"}
-                                  </span>
-                                </div>
-                                <div className="lookup-match-grid">
-                                  <div className="lookup-match-field">
-                                    <span className="lookup-match-label">Nombre Alcaldia</span>
-                                    <span>{match.nombre || "Sin nombre registrado"}</span>
-                                  </div>
-                                  <div className="lookup-match-field">
-                                    <span className="lookup-match-label">Barrio/Caserio</span>
-                                    <span>{match.caserio || match.direccion || "--"}</span>
-                                  </div>
-                                  <div className="lookup-match-field">
-                                    <span className="lookup-match-label">Direccion</span>
-                                    <span>{match.direccion || "--"}</span>
-                                  </div>
-                                  <div className="lookup-match-field">
-                                    <span className="lookup-match-label">Identificador</span>
-                                    <span>{match.identificador || "--"}</span>
-                                  </div>
-                                  <div className="lookup-match-field">
-                                    <span className="lookup-match-label">Clave equivalente Aguas</span>
-                                    <span>{match.exists_in_aguas ? match.clave_aguas_formato || "--" : "No registrada en Aguas"}</span>
-                                  </div>
-                                  <div className="lookup-match-field">
-                                    <span className="lookup-match-label">Coincidencia</span>
-                                    <strong className={match.exists_in_aguas ? "lookup-match-total is-good" : "lookup-match-total is-danger"}>
-                                      {match.match_type === "exacta"
-                                        ? "Exacta"
-                                        : match.match_type === "base"
-                                          ? "Por base"
-                                          : "No aparece en Aguas"}
-                                    </strong>
-                                  </div>
-                                </div>
-                                <div className="lookup-match-actions">
-                                  <button
-                                    type="button"
-                                    className="button-secondary"
-                                    onClick={() =>
-                                      startNewRecordFromLookup(
-                                        {
-                                          clave_catastral:
-                                            (match.exists_in_aguas ? match.clave_aguas_formato : match.clave_catastral) ||
-                                            "",
-                                          nombre_catastral: match.nombre || "",
-                                          barrio_colonia: match.caserio || match.direccion || "",
-                                          identidad: match.identificador || "",
-                                          comentarios: match.exists_in_aguas ? "Aparece en varios padrones" : "Clandestino",
-                                          estado_padron: match.exists_in_aguas ? "varios_padrones" : "clandestino",
-                                          clave_alcaldia: match.clave_catastral || "",
-                                          nombre_alcaldia: match.nombre || "",
-                                          barrio_alcaldia: match.caserio || match.direccion || ""
-                                        },
-                                        `Ficha nueva preparada desde Alcaldia para la clave ${match.clave_catastral || "--"}.`
-                                      )
-                                    }
-                                  >
-                                    <Icon name="records" />
-                                    Pasar a ficha
-                                  </button>
-                                </div>
-                              </article>
-                            );
-                          }
-
-                          const totalMeta = getLookupTotalMeta(match.total);
-                          return (
-                            <article key={`${match.clave_catastral}-${match.inquilino}-${match.nombre}`} className="lookup-match-card">
-                              <div className="lookup-match-top">
-                                <div className="lookup-match-headline">
-                                  <strong>{match.clave_catastral}</strong>
-                                  <span className="lookup-abonado-pill">Abonado {match.abonado || "--"}</span>
-                                </div>
-                                <span className={`lookup-match-status ${totalMeta.tone}`}>
-                                  <Icon name={totalMeta.icon} />
-                                  {totalMeta.helper}
-                                </span>
-                              </div>
-                              <div className="lookup-match-grid">
-                                <div className="lookup-match-field">
-                                  <span className="lookup-match-label">Nombre</span>
-                                  <span>{match.inquilino || "Sin nombre asociado"}</span>
-                                </div>
-                                <div className="lookup-match-field">
-                                  <span className="lookup-match-label">Abonado</span>
-                                  <span>{match.abonado || "--"}</span>
-                                </div>
-                                <div className="lookup-match-field">
-                                  <span className="lookup-match-label">Zona</span>
-                                  <span>{match.barrio_colonia || "--"}</span>
-                                </div>
-                                <div className="lookup-match-field">
-                                  <span className="lookup-match-label">Sin interes</span>
-                                  <strong className="lookup-match-amount">
-                                    {formatLookupAmount(match.valor)}
-                                  </strong>
-                                </div>
-                                <div className="lookup-match-field">
-                                  <span className="lookup-match-label">Interes</span>
-                                  <strong className="lookup-match-amount">
-                                    {formatLookupAmount(match.intereses)}
-                                  </strong>
-                                </div>
-                                <div className="lookup-match-field">
-                                  <span className="lookup-match-label">Con interes</span>
-                                  <strong className={`lookup-match-total ${totalMeta.tone}`}>
-                                    {totalMeta.text}
-                                  </strong>
-                                </div>
-                              </div>
-                              <details className="lookup-detail-disclosure">
-                                <summary>Ver servicios y saldo</summary>
-                                <div className="lookup-service-grid">
-                                  {[
-                                    { label: "Agua", value: match.agua, icon: "water" },
-                                    { label: "Alcantarillado", value: match.alcantarillado, icon: "sewer" },
-                                    { label: "Barrido", value: match.barrido, icon: "broom" },
-                                    { label: "Desechos / tren de aseo", value: match.recoleccion, icon: "refresh" },
-                                    { label: "Desechos peligrosos", value: match.desechos_peligrosos, icon: "waste" }
-                                  ].map((service) => {
-                                    const serviceMeta = getLookupServiceMeta(service.value);
-                                    return (
-                                      <div key={service.label} className={`lookup-service-pill ${serviceMeta.tone}`}>
-                                        <div className="lookup-service-pill-top">
-                                          <span className="lookup-service-icon">
-                                            <Icon name={service.icon} />
-                                          </span>
-                                          <span>{service.label}</span>
-                                        </div>
-                                        <strong>{serviceMeta.label}</strong>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </details>
-                              <div className="lookup-match-actions">
-                                <button
-                                  type="button"
-                                  className="button-secondary"
-                                  onClick={() =>
-                                    startNewRecordFromLookup(
-                                      {
-                                        ...buildRecordPatchFromAguasMatch(match),
-                                        comentarios: "Datos copiados desde padron Aguas",
-                                        estado_padron: "varios_padrones"
-                                      },
-                                      `Datos copiados al formulario para ${match.clave_catastral || "--"}.`
-                                    )
-                                  }
-                                >
-                                  <Icon name="copy" />
-                                  Copiar al formulario
-                                </button>
-                                <button type="button" className="button-secondary" onClick={() => handlePrintLookupMatchReport(match)}>
-                                  <Icon name="records" />
-                                  Generar reporte
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => openLookupMatchInRecord(match)}
-                                >
-                                  <Icon name="search" />
-                                  Actualizar ficha
-                                </button>
-                              </div>
-                            </article>
-                          );
-                        })()
-                      ))}
-                      </div>
-                    </>
-                  ) : null}
-                </article>
-              ) : (
-                <article className="lookup-empty-card">
-                  <h3>Consulta rapida de padron</h3>
-                  <p>
-                    Usa esta pantalla para validar en campo por clave, nombre o abonado sin entrar al modulo de
-                    registro de clandestinos.
-                  </p>
-                </article>
-              )}
-            </div>
-          </section>
-        </main>
+        <LookupWorkspace
+          model={{
+            apiFetch,
+            buildRecordPatchFromAguasMatch,
+            downloadingPadron,
+            handleDownloadPadron,
+            handleLookupInputChange,
+            handleLookupPrefixModeChange,
+            handleLookupSearch,
+            handleLookupSearchModeChange,
+            handlePrintLookupMatchReport,
+            handleRemoveLookupHistoryItem,
+            lookupFeedback,
+            lookupHistory,
+            lookupInputLabel,
+            lookupInputPlaceholder,
+            lookupLoading,
+            lookupModeConfig,
+            lookupPrefixMode,
+            lookupQuery,
+            lookupResult,
+            lookupSearchMode,
+            openLookupMatchInRecord,
+            padronMeta,
+            setLookupFeedback,
+            setLookupPrefixMode,
+            setLookupQuery,
+            setLookupResult,
+            setLookupSearchMode,
+            setShowLookupClassicModal,
+            showLookupClassicModal,
+            startNewRecordFromLookup
+          }}
+        />
       ) : workspaceView === "importacion" ? (
         <Suspense fallback={<main className="import-workspace"><ModuleSkeleton title="la importación" /></main>}>
           <ImportacionWorkspace apiFetch={apiFetch} showAlert={showAlert} />
         </Suspense>
       ) : workspaceView === "padron" ? (
-        <main className="lookup-layout">
-          <section className="lookup-shell no-print">
-            {padronSyncState.status === "running" ? (
-              <div className="padron-system-overlay" role="status" aria-live="polite">
-                <div>
-                  <span className="padron-system-spinner"><Icon name="refresh" /></span>
-                  <p className="sheet-kicker">Sincronizando sistema</p>
-                  <h2>Actualizando padrón maestro</h2>
-                  <strong>{padronSyncState.progress}%</strong>
-                  <div className="padron-system-progress"><span style={{ width: `${padronSyncState.progress}%` }} /></div>
-                  <p>{padronSyncState.message}</p>
-                  <div className="padron-system-modules">
-                    <span>Buscar clave</span>
-                    <span>Verificar deuda</span>
-                    <span>Reportes</span>
-                    <span>Comparativas</span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-            {alcaldiaSyncState.status === "running" ? (
-              <div className="padron-system-overlay" role="status" aria-live="polite">
-                <div>
-                  <span className="padron-system-spinner"><Icon name="refresh" /></span>
-                  <p className="sheet-kicker">Sincronizando sistema</p>
-                  <h2>Actualizando padron Alcaldia</h2>
-                  <strong>{alcaldiaSyncState.progress}%</strong>
-                  <div className="padron-system-progress"><span style={{ width: `${alcaldiaSyncState.progress}%` }} /></div>
-                  <p>{alcaldiaSyncState.message}</p>
-                  <div className="padron-system-modules">
-                    <span>Buscar Alcaldia</span>
-                    <span>Comparativas</span>
-                    <span>Fichas</span>
-                    <span>Reportes</span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <Dialog open={Boolean(confirmingPadronBatch)} onOpenChange={(open) => !open && setConfirmingPadronBatch(null)}>
-              <DialogContent className="padron-confirm-dialog sm:max-w-xl">
-                <DialogHeader className="padron-confirm-head">
-                  <p className="sheet-kicker">Confirmar cambio de fuente</p>
-                  <DialogTitle>Activar lote FoxPro</DialogTitle>
-                  <DialogDescription>
-                    Revisa el lote antes de convertirlo en el padrón maestro del sistema.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="padron-confirm-body">
-                  <div className="padron-confirm-lot">
-                    <span>Lote seleccionado</span>
-                    <strong>{confirmingPadronBatch?.codigo_lote}</strong>
-                  </div>
-                  <div className="padron-confirm-summary">
-                    <span><b>{Number(confirmingPadronBatch?.total_registros || 0).toLocaleString("es-HN")}</b> registros</span>
-                    <span><b>{Number(confirmingPadronBatch?.registros_error || 0).toLocaleString("es-HN")}</b> errores excluidos</span>
-                    <span><b>{String(confirmingPadronBatch?.estado || "").replaceAll("_", " ")}</b> estado</span>
-                  </div>
-                  <div className="padron-confirm-effects">
-                    <strong>Al continuar:</strong>
-                    <ul>
-                      <li>Este lote reemplazará el padrón activo.</li>
-                      <li>Se limpiarán búsquedas, deuda, reportes y comparativas anteriores.</li>
-                      <li>El Excel guardado seguirá disponible como alternativa manual.</li>
-                    </ul>
-                  </div>
-                </div>
-                <DialogFooter className="padron-confirm-actions">
-                  <button type="button" className="button-secondary" onClick={() => setConfirmingPadronBatch(null)}>
-                    Cancelar
-                  </button>
-                  <button type="button" className="padron-confirm-button" onClick={confirmActivatePadronBatch}>
-                    <Icon name="refresh" /> Activar lote
-                  </button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <form className="lookup-card padron-master-console" onSubmit={handleUploadPadron}>
-              <div className="padron-console-hero">
-                <div className="padron-console-copy">
-                  <p className="sheet-kicker">Padron maestro</p>
-                  <h2><Icon name="refresh" className="title-icon" />Aguas de Choluteca</h2>
-                  <p>Activa un lote FoxPro como fuente principal, limpia consultas anteriores y conserva Excel como alternativa manual.</p>
-                </div>
-                <div className="padron-console-meter">
-                  <strong>{padronSyncState.verification?.verified_percent ?? (padronMeta?.total_records ? 100 : 0)}%</strong>
-                  <span>consistencia del padrón</span>
-                  <small>{padronMeta?.total_records ?? 0} claves activas</small>
-                </div>
-              </div>
-
-              <div className="padron-console-grid padron-source-grid">
-                <section className="padron-file-panel padron-active-source">
-                  <div className="padron-active-head">
-                    <div>
-                      <span>Fuente activa</span>
-                      <strong>{padronMeta?.file_name || "Sin registro"}</strong>
-                      <small>{padronMeta?.last_import_summary?.source === "FOXPRO_MANUAL" ? `Lote ${padronMeta?.last_import_summary?.codigo_lote || "FoxPro"} conectado al sistema` : "Excel conectado al sistema"}</small>
-                    </div>
-                    <button type="button" className="button-secondary padron-active-download" onClick={handleDownloadPadron} disabled={downloadingPadron || !padronMeta?.total_records} title={`Descarga en Excel el padrón que consulta el sistema ahora (${Number(padronMeta?.total_records || 0).toLocaleString("es-HN")} registros)`}>
-                      <Icon name="download" />{downloadingPadron ? "Preparando Excel..." : "Descargar padrón activo"}
-                    </button>
-                  </div>
-                  <div className="padron-file-meta">
-                    <span>Hoja <b>{padronMeta?.sheet_name || "--"}</b></span>
-                    <span>Actualización <b>{formatDateTime(padronMeta?.updated_at)}</b></span>
-                    <span>Estado <b>{loadingPadronMeta ? "Consultando" : "Sincronizado"}</b></span>
-                  </div>
-                </section>
-
-                <section className="padron-lot-panel">
-                  <div className="padron-source-heading">
-                    <span className="padron-source-badge">Fuente principal</span>
-                    <div><strong>Lote recibido desde FoxPro</strong><small>Selecciona una lectura revisada para convertirla en el padrón activo.</small></div>
-                  </div>
-                  <BatchPicker batches={padronBatches} selectedCode={selectedPadronBatchCode} loading={loadingPadronBatches} title="Lotes disponibles" onSelect={(batch) => setSelectedPadronBatchCode(batch.codigo_lote)} />
-                  {selectedPadronBatch ? (
-                    <div className="padron-lot-summary">
-                      <span><b>{Number(selectedPadronBatch.total_registros || 0).toLocaleString("es-HN")}</b> registros</span>
-                      <span><b>{Number(selectedPadronBatch.registros_error || 0).toLocaleString("es-HN")}</b> errores excluidos</span>
-                      <span className={`is-${String(selectedPadronBatch.estado).toLowerCase()}`}>{String(selectedPadronBatch.estado).replaceAll("_", " ")}</span>
-                    </div>
-                  ) : null}
-                  <button type="button" className="padron-activate-button" onClick={handleActivatePadronBatch} disabled={!selectedPadronBatch || loadingPadronBatches || activatingPadronBatch || !["LISTO", "PARCIALMENTE_APLICADO", "APLICADO"].includes(selectedPadronBatch?.estado)}>
-                    <Icon name="refresh" />{activatingPadronBatch ? "Activando lote..." : "Activar lote y limpiar cache"}
-                  </button>
-                  <button type="button" className="button-secondary" onClick={handleVerifyPadronBatch} disabled={!selectedPadronBatch || verifyingPadronBatch || activatingPadronBatch}>
-                    <Icon name="search" />{verifyingPadronBatch ? "Verificando contenido..." : "Verificar lote activo"}
-                  </button>
-                  {/* Los lotes antiguos pierden su detalle al respaldarse; sin bloques no hay registros que exportar. */}
-                  <button type="button" className="button-secondary" onClick={handleDownloadPadronBatch} disabled={!selectedPadronBatch || downloadingPadronBatch || !Number(selectedPadronBatch?.registros_recibidos)} title={selectedPadronBatch && !Number(selectedPadronBatch.registros_recibidos) ? "Este lote ya no conserva sus registros: el detalle de los lotes antiguos se limpia después de respaldarlo." : "Descarga el lote como padrón en Excel (sin los registros con error)"}>
-                    <Icon name="download" />{downloadingPadronBatch ? "Preparando Excel..." : "Descargar lote en Excel"}
-                  </button>
-                </section>
-
-                <section className="padron-upload-panel padron-excel-alternative">
-                  <span className="padron-source-badge is-secondary">Alternativa manual</span>
-                  <label className="padron-upload-drop">
-                    <Icon name="records" />
-                    <span>Seleccionar Excel alternativo</span>
-                    <strong>{padronFile ? padronFile.name : "Ningún archivo seleccionado"}</strong>
-                    <input
-                      type="file"
-                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                      onChange={handlePadronFileChange}
-                    />
-                  </label>
-                  <p className="helper-text">{padronMeta?.source_file_available ? `Excel alternativo guardado: ${padronMeta?.source_file_name || "Disponible"}.` : "Todavía no hay un Excel alternativo guardado."} Al usarlo también se reemplaza la data y se limpian consultas anteriores.</p>
-                </section>
-              </div>
-
-              <div className="padron-impact-grid">
-                {[
-                  ["Nuevas", padronImportSummary?.added ?? 0],
-                  ["Removidas", padronImportSummary?.removed ?? 0],
-                  ["Cambiadas", padronImportSummary?.changed ?? 0],
-                  ["Verificadas", padronSyncState.verification?.verified_records ?? padronMeta?.total_records ?? 0]
-                ].map(([label, value]) => {
-                  const base = padronImportSummary?.source_rows ?? padronSyncState.verification?.normalized_source_rows ?? padronMeta?.total_records ?? 0;
-                  return (
-                    <div key={label} className="padron-impact-tile">
-                      <span>{label}</span>
-                      <strong>{value}</strong>
-                      <small>{formatPercent(value, base)}</small>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="admin-result-grid padron-admin-grid">
-                <div className="document-block">
-                  <h4>Archivo activo</h4>
-                  <p><strong>Archivo:</strong> {padronMeta?.file_name || "Sin registro"}</p>
-                  <p><strong>Fuente guardada:</strong> {padronMeta?.source_file_available ? (padronMeta?.source_file_name || "Disponible") : "No disponible"}</p>
-                  <p><strong>Hoja:</strong> {padronMeta?.sheet_name || "--"}</p>
-                  <p><strong>Ultima actualizacion:</strong> {formatDateTime(padronMeta?.updated_at)}</p>
-                  <p><strong>Estado actual:</strong> {loadingPadronMeta ? "Consultando..." : "Sincronizado"}</p>
-                  <p className="helper-text">`Cambiadas` compara la misma clave contra el padrón anterior y detecta cambios en el nombre asociado.</p>
-                  <div className="padron-summary-strip">
-                    <div className="log-summary-card">
-                      <span>Nuevas</span>
-                      <strong>{padronImportSummary?.added ?? 0}</strong>
-                      <small>{formatPercent(padronImportSummary?.added ?? 0, padronImportSummary?.source_rows ?? padronMeta?.total_records ?? 0)}</small>
-                    </div>
-                    <div className="log-summary-card">
-                      <span>Removidas</span>
-                      <strong>{padronImportSummary?.removed ?? 0}</strong>
-                      <small>{formatPercent(padronImportSummary?.removed ?? 0, padronImportSummary?.source_rows ?? padronMeta?.total_records ?? 0)}</small>
-                    </div>
-                    <div className="log-summary-card">
-                      <span>Cambiadas</span>
-                      <strong>{padronImportSummary?.changed ?? 0}</strong>
-                      <small>{formatPercent(padronImportSummary?.changed ?? 0, padronImportSummary?.source_rows ?? padronMeta?.total_records ?? 0)}</small>
-                    </div>
-                  </div>
-                </div>
-                <div className="document-block">
-                  <h4>Nuevo archivo</h4>
-                  <label className="file-input">
-                    <span>Seleccionar Excel maestro</span>
-                    <input
-                      type="file"
-                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                      onChange={handlePadronFileChange}
-                    />
-                  </label>
-                  <p className="helper-text">
-                    Sube el padrón maestro en Excel y el módulo <strong>Buscar clave</strong> usará la nueva versión de inmediato.
-                  </p>
-                  {padronFile ? <p><strong>Archivo listo:</strong> {padronFile.name}</p> : null}
-                </div>
-              </div>
-
-              {padronSyncState.status !== "idle" ? (
-                <div className={`padron-sync-panel is-${padronSyncState.status}`}>
-                  <div className="padron-sync-head">
-                    <div>
-                      <span className="padron-sync-icon">
-                        <Icon name={padronSyncState.status === "error" ? "warning" : "refresh"} />
-                      </span>
-                      <div>
-                        <strong>{padronSyncState.message}</strong>
-                        <small>
-                          {padronSyncState.status === "running"
-                            ? "No uses busqueda ni verificacion hasta que llegue a 100%."
-                            : padronSyncState.status === "error"
-                              ? "Revisa el archivo y vuelve a sincronizar."
-                              : "Buscar clave, Verificar deuda, reportes y comparativas ya consultan esta version."}
-                        </small>
-                      </div>
-                    </div>
-                    <b>{padronSyncState.progress}%</b>
-                  </div>
-                  <div className="padron-sync-bar" aria-hidden="true">
-                    <span style={{ width: `${padronSyncState.progress}%` }} />
-                  </div>
-                  <div className="padron-sync-steps">
-                    {PADRON_SYNC_STEPS.map((step) => (
-                      <span key={step.label} className={padronSyncState.progress >= step.progress ? "is-done" : ""}>
-                        {step.label}
-                      </span>
-                    ))}
-                  </div>
-                  {padronSyncState.verification ? (
-                    <div className="padron-sync-verification">
-                      <span>{padronSyncState.verification.verified_records || 0} de {padronSyncState.verification.normalized_source_rows || 0} registros</span>
-                      <strong>{padronSyncState.verification.verified_percent || 0}%</strong>
-                      <small>
-                        Faltantes: {padronSyncState.verification.missing_records || 0} - Extras: {padronSyncState.verification.extra_records || 0}
-                      </small>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <div className="search-actions lookup-actions">
-                <button type="submit" disabled={uploadingPadron || activatingPadronBatch || !padronFile}>
-                  <Icon name="refresh" />
-                  {uploadingPadron ? "Activando Excel..." : "Usar Excel alternativo"}
-                </button>
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={handleReprocessPadron}
-                  disabled={reprocessingPadron || uploadingPadron || !padronMeta?.source_file_available}
-                >
-                  <Icon name="refresh" />
-                  {reprocessingPadron ? "Reprocesando..." : "Reprocesar ultimo Excel"}
-                </button>
-                <button type="button" className="button-secondary" onClick={handleDownloadPadron}>
-                  <Icon name="records" />
-                  Descargar Excel actual
-                </button>
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={() => {
-                    setPadronFile(null);
-                    loadPadronMeta();
-                  }}
-                  disabled={loadingPadronMeta}
-                >
-                  <Icon name="records" />
-                  {loadingPadronMeta ? "Consultando..." : "Ver estado actual"}
-                </button>
-              </div>
-            </form>
-
-            <div className="padron-dual-grid">
-              <form className="lookup-card padron-master-console padron-alcaldia-console" onSubmit={handleUploadAlcaldia}>
-                <div className="padron-console-hero">
-                  <div className="padron-console-copy">
-                    <p className="sheet-kicker">Padron de contraste</p>
-                    <h2><Icon name="records" className="title-icon" />Alcaldia de Choluteca</h2>
-                    <p>Reemplaza la informacion catastral activa, limpia consultas viejas y actualiza comparativas contra Aguas.</p>
-                  </div>
-                  <div className="padron-console-meter">
-                    <strong>{alcaldiaMeta?.total_records ? 100 : 0}%</strong>
-                    <span>padron municipal listo</span>
-                    <small>{alcaldiaMeta?.total_records ?? 0} claves activas</small>
-                  </div>
-                </div>
-
-                <div className="padron-console-grid">
-                  <section className="padron-file-panel">
-                    <div>
-                      <span>Archivo activo</span>
-                      <strong>{alcaldiaMeta?.file_name || "Sin registro"}</strong>
-                      <small>{alcaldiaMeta?.source_file_available ? `Fuente guardada: ${alcaldiaMeta?.source_file_name || "Disponible"}` : "Fuente guardada: no disponible"}</small>
-                    </div>
-                    <div className="padron-file-meta">
-                      <span>Hoja <b>{alcaldiaMeta?.sheet_name || "--"}</b></span>
-                      <span>Actualizacion <b>{formatDateTime(alcaldiaMeta?.updated_at)}</b></span>
-                      <span>Estado <b>{loadingAlcaldiaMeta ? "Consultando" : "Sincronizado"}</b></span>
-                    </div>
-                  </section>
-
-                  <section className="padron-upload-panel">
-                    <label className="padron-upload-drop">
-                      <Icon name="records" />
-                      <span>Seleccionar Excel Alcaldia</span>
-                      <strong>{alcaldiaFile ? alcaldiaFile.name : "Ningun archivo seleccionado"}</strong>
-                      <input
-                        type="file"
-                        accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        onChange={handleAlcaldiaFileChange}
-                      />
-                    </label>
-                    <p className="helper-text">Al actualizar se limpian caches de busqueda, reportes, comparativas y resultados anteriores.</p>
-                  </section>
-                </div>
-
-                <div className="padron-impact-grid">
-                  {[
-                    ["Nuevas", alcaldiaImportSummary?.added ?? 0],
-                    ["Removidas", alcaldiaImportSummary?.removed ?? 0],
-                    ["Cambiadas", alcaldiaImportSummary?.changed ?? 0],
-                    ["Importadas", alcaldiaMeta?.total_records ?? 0]
-                  ].map(([label, value]) => {
-                    const base = alcaldiaImportSummary?.source_rows ?? alcaldiaMeta?.total_records ?? 0;
-                    return (
-                      <div key={label} className="padron-impact-tile">
-                        <span>{label}</span>
-                        <strong>{value}</strong>
-                        <small>{formatPercent(value, base)}</small>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {alcaldiaSyncState.status !== "idle" ? (
-                  <div className={`padron-sync-panel is-${alcaldiaSyncState.status}`}>
-                    <div className="padron-sync-head">
-                      <div>
-                        <span className="padron-sync-icon">
-                          <Icon name={alcaldiaSyncState.status === "error" ? "warning" : "refresh"} />
-                        </span>
-                        <div>
-                          <strong>{alcaldiaSyncState.message}</strong>
-                          <small>
-                            {alcaldiaSyncState.status === "running"
-                              ? "No uses busqueda ni comparativas hasta que llegue a 100%."
-                              : alcaldiaSyncState.status === "error"
-                                ? "Revisa el archivo y vuelve a sincronizar."
-                                : "Busqueda municipal, fichas, reportes y comparativas ya consultan esta version."}
-                          </small>
-                        </div>
-                      </div>
-                      <b>{alcaldiaSyncState.progress}%</b>
-                    </div>
-                    <div className="padron-sync-bar" aria-hidden="true">
-                      <span style={{ width: `${alcaldiaSyncState.progress}%` }} />
-                    </div>
-                    <div className="padron-sync-steps">
-                      {PADRON_SYNC_STEPS.map((step) => (
-                        <span key={step.label} className={alcaldiaSyncState.progress >= step.progress ? "is-done" : ""}>
-                          {step.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="search-actions lookup-actions">
-                  <button type="submit" disabled={uploadingAlcaldia}>
-                    <Icon name="refresh" />
-                    {uploadingAlcaldia ? "Actualizando..." : "Actualizar padron Alcaldia"}
-                  </button>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => {
-                      setAlcaldiaFile(null);
-                      loadAlcaldiaMeta();
-                    }}
-                    disabled={loadingAlcaldiaMeta}
-                  >
-                    <Icon name="records" />
-                    {loadingAlcaldiaMeta ? "Consultando..." : "Ver estado Alcaldia"}
-                  </button>
-                </div>
-              </form>
-
-              <article className="lookup-card padron-compare-card">
-                <div className="lookup-card-head">
-                  <div>
-                    <p className="sheet-kicker">Deteccion de clandestinos</p>
-                    <h2><Icon name="search" className="title-icon" />Comparar Alcaldia contra Aguas</h2>
-                    <p className="lookup-card-description">
-                      Si una clave del padron de Alcaldia no aparece en Aguas de Choluteca, queda marcada como candidata clandestina.
-                    </p>
-                  </div>
-                  <button type="button" onClick={loadAlcaldiaComparison} disabled={loadingAlcaldiaComparison}>
-                    <Icon name="search" />
-                    {loadingAlcaldiaComparison ? "Comparando..." : "Comparar padrones"}
-                  </button>
-                </div>
-                <div className="padron-comparison-strip">
-                  <div className="log-summary-card"><span>Aguas</span><strong>{padronMeta?.total_records ?? 0}</strong></div>
-                  <div className="log-summary-card"><span>Alcaldia</span><strong>{alcaldiaMeta?.total_records ?? 0}</strong></div>
-                  <div className="log-summary-card"><span>Coincidencia exacta</span><strong>{alcaldiaComparison?.summary?.exact_matches ?? "--"}</strong></div>
-                  <div className="log-summary-card"><span>Candidatas</span><strong>{alcaldiaComparison?.summary?.candidate_clandestine ?? "--"}</strong></div>
-                </div>
-                <div className="padron-candidate-list">
-                  {alcaldiaComparison?.summary ? (
-                    (alcaldiaComparison.candidates || []).length ? (
-                      (alcaldiaComparison.candidates || []).slice(0, 20).map((item) => (
-                        <article key={item.clave_catastral} className="padron-candidate-card">
-                          <div>
-                            <strong>{item.clave_catastral}</strong>
-                            <span>{item.nombre || "Sin nombre registrado"}</span>
-                          </div>
-                          <p>{item.direccion || item.caserio || "Sin direccion registrada"}</p>
-                          <small>No aparece en Aguas de Choluteca</small>
-                        </article>
-                      ))
-                    ) : (
-                      <p className="helper-text">No hay candidatas clandestinas con los padrones actuales.</p>
-                    )
-                  ) : (
-                    <p className="helper-text">Carga ambos padrones y ejecuta la comparacion para ver las claves de Alcaldia que no aparecen en Aguas.</p>
-                  )}
-                </div>
-              </article>
-            </div>
-          </section>
-        </main>
+        <PadronWorkspace
+          model={{
+            activatingPadronBatch,
+            alcaldiaComparison,
+            alcaldiaFile,
+            alcaldiaImportSummary,
+            alcaldiaMeta,
+            alcaldiaSyncState,
+            confirmActivatePadronBatch,
+            confirmingPadronBatch,
+            downloadingPadron,
+            downloadingPadronBatch,
+            handleActivatePadronBatch,
+            handleAlcaldiaFileChange,
+            handleDownloadPadron,
+            handleDownloadPadronBatch,
+            handlePadronFileChange,
+            handleReprocessPadron,
+            handleUploadAlcaldia,
+            handleUploadPadron,
+            handleVerifyPadronBatch,
+            loadAlcaldiaComparison,
+            loadAlcaldiaMeta,
+            loadPadronMeta,
+            loadingAlcaldiaComparison,
+            loadingAlcaldiaMeta,
+            loadingPadronBatches,
+            loadingPadronMeta,
+            padronBatches,
+            padronFile,
+            padronImportSummary,
+            padronMeta,
+            padronSyncState,
+            reprocessingPadron,
+            selectedPadronBatch,
+            selectedPadronBatchCode,
+            setAlcaldiaFile,
+            setConfirmingPadronBatch,
+            setPadronFile,
+            setSelectedPadronBatchCode,
+            uploadingAlcaldia,
+            uploadingPadron,
+            verifyingPadronBatch
+          }}
+        />
       ) : workspaceView === "map" ? (
-        <main className="map-layout no-print">
-          <section className="map-shell">
-            <article className="map-stage-card">
-              <div className="lookup-card-head map-card-head">
-                <div>
-                  <p className="sheet-kicker">Geolocalizacion de campo</p>
-                  <h2><Icon name="map" className="title-icon" />Mapa de campo</h2>
-                </div>
-                <span className="panel-pill">{visibleMapPoints.length} puntos</span>
-              </div>
-              <div className="map-spatial-strip" aria-label="Resumen de jornada GPS">
-                <div>
-                  <span>Jornada</span>
-                  <strong>{formatMapDiaryLabel(activeMapDiaryDateKey)}</strong>
-                </div>
-                <div>
-                  <span>Captura</span>
-                  <strong>{mapDraft.latitude && mapDraft.longitude ? "Punto listo" : "Sin fijar"}</strong>
-                </div>
-                <div>
-                  <span>Viviendas</span>
-                  <strong>{visibleMapPoints.reduce((total, point) => total + getMapPointHousingUnits(point), 0)}</strong>
-                </div>
-              </div>
-              <div className="map-toolbar">
-                <span className={`map-status-chip ${["Sin conexion", "Sin GPS", "Sin permiso", "HTTPS requerido"].includes(mapStatus) ? "is-offline" : ""}`}>
-                  <Icon name={mapStatus === "GPS listo" ? "success" : mapStatus === "Sin conexion" ? "activity" : "map"} />
-                  {mapStatus}
-                </span>
-                <div className="map-workflow-steps" aria-label="Flujo de captura">
-                  <span>1. Ubica</span>
-                  <span>2. Describe</span>
-                  <span>3. Guarda</span>
-                </div>
-                <button
-                  type="button"
-                  className="button-secondary map-print-open-button"
-                  onClick={() => setShowMapPrintDialog(true)}
-                >
-                  <Icon name="print" />
-                  Imprimir mapa
-                </button>
-              </div>
-              {mapLocationHelp ? (
-                <p className="map-location-help">
-                  <Icon name="warning" />
-                  {mapLocationHelp}
-                </p>
-              ) : null}
-              <div className="map-diary-strip">
-                <div className="map-diary-strip-head">
-                  <strong>Bitacora por dia</strong>
-                  <span>{formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-                </div>
-                <div className="map-diary-tabs">
-                  {mapDiaryGroups.length ? (
-                    primaryMapDiaryGroups.map((group) => (
-                      <button
-                        key={group.key}
-                        type="button"
-                        className={`map-diary-tab ${activeMapDiaryDateKey === group.key ? "is-active" : ""}`}
-                        onClick={() => setMapDiaryDateKey(group.key)}
-                      >
-                        <strong>{formatMapDiaryLabel(group.key)}</strong>
-                        <span>{group.total} puntos</span>
-                      </button>
-                    ))
-                  ) : (
-                    <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
-                  )}
-                  {archivedMapDiaryGroups.length ? (
-                    <button type="button" className="map-diary-archive-card" onClick={openMapDiaryArchiveModal}>
-                      <strong>Jornadas anteriores</strong>
-                      <span>{archivedMapDiaryGroups.length} dias adjuntos</span>
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              <MapLoadBoundary>
-                <Suspense fallback={<div className="map-canvas map-canvas-loading">Cargando mapa...</div>}>
-                  <FieldMap
-                    apiUrl={API_URL}
-                    isActive={workspaceView === "map"}
-                    mapDraft={mapDraft}
-                    mapFocusRequest={mapFocusRequest}
-                    mapPoints={mapPointsForCanvas}
-                    onDraftChange={handleMapDraftFromMap}
-                    onSelectPoint={handleSelectMapPoint}
-                    onStatusChange={setMapStatus}
-                    selectedMapPointId={selectedMapPointId}
-                  />
-                </Suspense>
-              </MapLoadBoundary>
-              {hiddenCanvasPointCount ? (
-                <p className="helper-text map-mobile-limit-note">
-                  En movil se muestran los {mapPointsForCanvas.length} puntos mas recientes en el mapa para mantenerlo fluido. La bitacora conserva {visibleMapPoints.length} puntos.
-                </p>
-              ) : null}
-              {showMapPrintDialog ? (
-                <Suspense fallback={null}>
-                  <MapPrintDialog
-                    apiUrl={API_URL}
-                    dateLabel={formatMapDiaryLabel(activeMapDiaryDateKey)}
-                    open={showMapPrintDialog}
-                    onOpenChange={setShowMapPrintDialog}
-                    points={visibleMapPoints}
-                  />
-                </Suspense>
-              ) : null}
-            </article>
-
-            <aside className="map-side-panel">
-              <form className={`map-form-card ${editingMapPointId ? "is-editing" : ""}`} onSubmit={handleSaveMapPoint}>
-                <div className="lookup-card-head map-card-head">
-                  <div>
-                    <p className="sheet-kicker">{editingMapPointId ? "Edicion activa" : "Nuevo punto"}</p>
-                    <h3>{editingMapPointId ? "Actualizar ubicacion" : "Registrar ubicacion"}</h3>
-                    <p className="helper-text">
-                      {editingMapPointId
-                        ? "Ajusta coordenadas o descripcion y guarda los cambios."
-                        : "Usa GPS o toca el mapa; luego completa los datos tecnicos."}
-                    </p>
-                  </div>
-                  <button type="button" className="button-secondary" onClick={resetMapDraft}>
-                    <Icon name="refresh" />
-                    {editingMapPointId ? "Cancelar" : "Limpiar"}
-                  </button>
-                </div>
-
-                <div className="map-coordinates-grid">
-                  <label>
-                    <span>Latitud</span>
-                    <input
-                      name="latitude"
-                      value={mapDraft.latitude}
-                      onChange={handleMapDraftChange}
-                      inputMode="decimal"
-                      placeholder="13.301700"
-                    />
-                  </label>
-                  <label>
-                    <span>Longitud</span>
-                    <input
-                      name="longitude"
-                      value={mapDraft.longitude}
-                      onChange={handleMapDraftChange}
-                      inputMode="decimal"
-                      placeholder="-87.188900"
-                    />
-                  </label>
-                  <label>
-                    <span>Precision (m)</span>
-                    <input
-                      name="accuracy_meters"
-                      value={mapDraft.accuracy_meters}
-                      onChange={handleMapDraftChange}
-                      inputMode="decimal"
-                      placeholder="5"
-                    />
-                  </label>
-                  <label>
-                    <span>Tipo de punto</span>
-                    <select name="point_type" value={mapDraft.point_type} onChange={handleMapDraftChange}>
-                      {MAP_POINT_TYPES.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    {mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE ? (
-                      <small className="helper-text">Este punto se guardara y mostrara en rojo.</small>
-                    ) : mapDraft.point_type === ALERT_MAP_POINT_TYPE ? (
-                      <small className="helper-text">Este punto se guardara como alerta y se destacara en amarillo en el reporte.</small>
-                    ) : null}
-                  </label>
-                </div>
-
-                <label>
-                  <span>Referencia</span>
-                  <input
-                    name="reference"
-                    value={mapDraft.reference}
-                    onChange={handleMapDraftChange}
-                    placeholder="Frente a poste, esquina noroeste, casa verde..."
-                  />
-                </label>
-                <div className="map-description-grid">
-                  <label>
-                    <span>Descripcion tecnica</span>
-                    <textarea
-                      name="description"
-                      value={mapDraft.description}
-                      onChange={handleMapDraftChange}
-                      rows="4"
-                      placeholder="Detalle de la caja, descarga o punto observado. Ej. clave 10-07-01-01 o 22095."
-                    />
-                    {mapDescriptionLookupStatus ? (
-                      <small className="helper-text">{mapDescriptionLookupStatus}</small>
-                    ) : null}
-                  </label>
-                  <label className="map-housing-units-field">
-                    <span>Viviendas</span>
-                    <div className="map-housing-stepper">
-                      <button
-                        type="button"
-                        className="map-housing-stepper-button"
-                        onClick={() => adjustMapDraftHousingUnits(-1)}
-                        aria-label="Restar vivienda"
-                      >
-                        -
-                      </button>
-                      <input
-                        name="housing_units"
-                        type="number"
-                        min="1"
-                        max="999"
-                        step="1"
-                        value={mapDraft.housing_units}
-                        onChange={handleMapDraftChange}
-                        inputMode="numeric"
-                        placeholder="1"
-                      />
-                      <button
-                        type="button"
-                        className="map-housing-stepper-button"
-                        onClick={() => adjustMapDraftHousingUnits(1)}
-                        aria-label="Agregar vivienda"
-                      >
-                        <Icon name="plus" />
-                      </button>
-                    </div>
-                  </label>
-                </div>
-                <div className="map-form-actions">
-                  <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
-                    <Icon name="map" />
-                    {locatingUser ? "Ubicando..." : "Usar mi ubicacion"}
-                  </button>
-                  <button type="submit" disabled={savingMapPoint}>
-                    <Icon name={editingMapPointId ? "records" : "plus"} />
-                    {savingMapPoint ? "Guardando..." : editingMapPointId ? "Actualizar punto" : "Guardar punto"}
-                  </button>
-                </div>
-              </form>
-
-              {selectedMapPoint ? (
-                <article className="map-detail-card">
-                  <div className="lookup-card-head map-card-head">
-                    <div>
-                      <p className="sheet-kicker">Punto seleccionado</p>
-                      <h3 className="map-point-title-with-dot">
-                        <span
-                          className={`map-report-point-dot ${selectedMapPoint.is_terminal_point ? "is-pin" : ""}`}
-                          style={{ "--point-color": selectedMapPoint.marker_color || "#1576d1" }}
-                        />
-                        {getMapPointTypeLabel(selectedMapPoint.point_type)}
-                      </h3>
-                    </div>
-                    <span className="panel-pill">#{selectedMapPoint.id}</span>
-                  </div>
-                  <p className="map-detail-copy">
-                    {[getMapPointReferenceNote(selectedMapPoint), getMapPointTechnicalDescription(selectedMapPoint)]
-                      .filter(Boolean)
-                      .join(" - ") || "Sin referencia adicional."}
-                  </p>
-                  <div className="map-point-coords">
-                    <span>{formatCoordinate(selectedMapPoint.latitude)}</span>
-                    <span>{formatCoordinate(selectedMapPoint.longitude)}</span>
-                    <span>{getMapPointHousingUnits(selectedMapPoint)} viviendas</span>
-                    <span>{selectedMapPoint.accuracy_meters ? `±${selectedMapPoint.accuracy_meters} m` : "Sin precision"}</span>
-                  </div>
-                  <div className="map-point-actions">
-                    <button type="button" className="button-secondary" onClick={(event) => handleEditMapPoint(selectedMapPoint.id, event)}>
-                      <Icon name="records" />
-                      Editar
-                    </button>
-                    <button type="button" className="button-secondary" onClick={(event) => handleOpenPointInMaps(selectedMapPoint, event)}>
-                      <Icon name="map" />
-                      Ver en Maps
-                    </button>
-                    <button type="button" className="button-secondary" onClick={(event) => handleCopyCoordinates(selectedMapPoint, event)}>
-                      <Icon name="copy" />
-                      Copiar coords
-                    </button>
-                  </div>
-                </article>
-              ) : null}
-
-              <article className="map-list-card">
-                <div className="lookup-card-head map-card-head">
-                  <div>
-                    <p className="sheet-kicker">Registro tecnico</p>
-                    <h3>Puntos guardados</h3>
-                  </div>
-                  <div className="map-list-head-actions">
-                    <span className="panel-pill">{visibleMapPoints.length}</span>
-                    <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
-                      <Icon name="download" />
-                      Reporte detallado
-                    </button>
-                  </div>
-                </div>
-                <p className="helper-text">Mostrando la jornada del {formatMapDiaryLabel(activeMapDiaryDateKey)}.</p>
-                {loadingMapPoints ? <p className="helper-text">Cargando puntos...</p> : null}
-                <div className="map-point-list">
-                  {listedMapPoints.length ? (
-                    listedMapPoints.map((point) => (
-                      <article
-                        key={point.id}
-                        className={`map-point-card ${selectedMapPointId === point.id ? "is-active" : ""}`}
-                      >
-                        <button type="button" className="map-point-main" onClick={() => handleSelectMapPoint(point.id)}>
-                          <div className="map-point-top">
-                            <strong className="map-point-title-with-dot">
-                              <span
-                                className={`map-report-point-dot ${point.is_terminal_point ? "is-pin" : ""}`}
-                                style={{ "--point-color": point.marker_color || "#1576d1" }}
-                              />
-                              {getMapPointTypeLabel(point.point_type)}
-                            </strong>
-                            <span className="map-point-meta">{formatDateTime(point.created_at)}</span>
-                          </div>
-                          <p>
-                            {[getMapPointReferenceNote(point), getMapPointTechnicalDescription(point)]
-                              .filter(Boolean)
-                              .join(" - ") || "Sin referencia adicional."}
-                          </p>
-                          <div className="map-point-coords">
-                            <span>{formatCoordinate(point.latitude)}</span>
-                            <span>{formatCoordinate(point.longitude)}</span>
-                            <span>{point.accuracy_meters ? `±${point.accuracy_meters} m` : "Sin precision"}</span>
-                          </div>
-                        </button>
-                        <div className="map-point-actions">
-                          <button type="button" className="record-quick-chip" onClick={(event) => handleOpenPointInMaps(point, event)}>
-                            Ver en Maps
-                          </button>
-                          <button type="button" className="record-quick-chip" onClick={(event) => handleCopyCoordinates(point, event)}>
-                            Copiar coords
-                          </button>
-                          <button type="button" className="record-quick-chip" onClick={(event) => handleEditMapPoint(point.id, event)}>
-                            Editar
-                          </button>
-                        {isAdmin ? (
-                          <button type="button" className="record-quick-chip" onClick={() => handleDeleteMapPoint(point.id)}>
-                            Eliminar
-                          </button>
-                        ) : null}
-                        </div>
-                      </article>
-                    ))
-                  ) : (
-                    <div className="empty-state">
-                      <h3>Sin puntos aun</h3>
-                      <p>Usa el GPS o toca el mapa para comenzar a registrar ubicaciones tecnicas.</p>
-                    </div>
-                  )}
-                </div>
-                {hiddenMapPointCount ? (
-                  <button
-                    type="button"
-                    className="button-secondary map-load-more-button"
-                    onClick={() => setMapPointListLimit((current) => current + MAP_POINT_LIST_STEP)}
-                  >
-                    <Icon name="plus" />
-                    Ver {Math.min(MAP_POINT_LIST_STEP, hiddenMapPointCount)} puntos mas
-                  </button>
-                ) : null}
-              </article>
-            </aside>
-          </section>
-        </main>
+        <FieldMapWorkspace
+          model={{
+            activeMapDiaryDateKey,
+            adjustMapDraftHousingUnits,
+            archivedMapDiaryGroups,
+            editingMapPointId,
+            handleCopyCoordinates,
+            handleDeleteMapPoint,
+            handleDownloadMapReport,
+            handleEditMapPoint,
+            handleLocateUser,
+            handleMapDraftChange,
+            handleMapDraftFromMap,
+            handleOpenPointInMaps,
+            handleSaveMapPoint,
+            handleSelectMapPoint,
+            hiddenCanvasPointCount,
+            hiddenMapPointCount,
+            isAdmin,
+            listedMapPoints,
+            loadingMapPoints,
+            locatingUser,
+            mapDescriptionLookupStatus,
+            mapDiaryGroups,
+            mapDraft,
+            mapFocusRequest,
+            mapLocationHelp,
+            mapPointsForCanvas,
+            mapStatus,
+            openMapDiaryArchiveModal,
+            primaryMapDiaryGroups,
+            resetMapDraft,
+            savingMapPoint,
+            selectedMapPoint,
+            selectedMapPointId,
+            setMapDiaryDateKey,
+            setMapPointListLimit,
+            setMapStatus,
+            setShowMapPrintDialog,
+            showMapPrintDialog,
+            visibleMapPoints,
+            workspaceView
+          }}
+        />
       ) : workspaceView === "planos" ? (
         <Suspense fallback={<ModuleSkeleton title="planos y croquis" toolbar={false} rows={4} />}>
           <PlanosWorkspace apiFetch={apiFetch} isAdmin={isAdmin} users={safeUsers} />
