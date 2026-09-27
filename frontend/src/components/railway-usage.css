@@ -1,100 +1,429 @@
+/* ===========================================================================
+   Uso en Railway: monitor de costo y rendimiento.
+   Mismo lenguaje que el tablero de análisis (DESIGN.md): paneles planos con
+   filete gris de 1px, radio de 8px, sin sombras; títulos en caso oración;
+   cifras tabulares en tinta; rejilla fina. El color es dato: azul para la
+   magnitud, un color por servicio solo para distinguir líneas, y una escala
+   de un solo azul en el mapa de calor.
+   =========================================================================== */
+
 .railway-usage-layout { min-width: 0; }
+
 .railway-usage {
-  --ru-ink: #113854;
-  --ru-muted: #5c7487;
-  --ru-line: #dce6ed;
+  --ru-ink: #16283b;
+  --ru-body: #2b3d50;
+  --ru-muted: #5f7184;
+  --ru-line: #dfe5ec;
+  --ru-line-soft: #edf0f4;
+  --ru-grid: #e8ecf1;
+  --ru-tint: #f5f7fa;
   --ru-blue: #1465d9;
-  max-width: 1180px;
+  --ru-blue-soft: #c9dbf3;
+  --ru-deep: #0b3f73;
+  --ru-red: #9b202d;
+  --ru-radius: 8px;
+  --heat-0: #eef3f9;
+  --heat-1: #d3e2f4;
+  --heat-2: #a9c7ec;
+  --heat-3: #6ea1de;
+  --heat-4: #2f72c9;
+  --heat-5: #0b3f73;
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  max-width: 1240px;
   margin: 0 auto;
-  color: var(--ru-ink);
+  color: var(--ru-body);
+  font-variant-numeric: tabular-nums;
 }
-.railway-usage .ds-page-header { margin-bottom: 1rem; }
-.railway-usage .ds-page-header-description { max-width: 62ch; }
-.railway-usage-link,
-.railway-usage-text-link {
+
+.railway-usage ::selection { background: #cfe0f7; color: var(--ru-ink); }
+.railway-usage :focus-visible { outline: 2px solid var(--ru-blue); outline-offset: 3px; }
+
+/* ---------- Encabezado y línea de estado ---------- */
+
+.railway-usage .ds-page-header { margin-bottom: 0; }
+.railway-usage .ds-page-header-title { color: var(--ru-ink); }
+.railway-usage .ds-page-header-description { max-width: 68ch; color: var(--ru-muted); }
+
+.ru-primary-link {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: .45rem;
-  min-height: 42px;
-  border-radius: 8px;
-  font-size: .85rem;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border-radius: var(--ru-radius);
+  background: var(--ru-blue);
+  color: #fff;
+  font-size: 0.86rem;
   font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
 }
-.railway-usage-link { padding: .55rem .85rem; background: var(--ru-blue); color: #fff; }
-.railway-usage-link:hover { background: #0d54bb; color: #fff; }
-.railway-usage a:focus-visible { outline: 3px solid #83bafa; outline-offset: 3px; }
-.railway-usage-source {
+.ru-primary-link:hover { background: #0d54bb; color: #fff; }
+
+.ru-status {
   display: flex;
   align-items: center;
-  gap: .8rem;
-  margin: 0 0 1.1rem;
-  padding: .85rem 1rem;
-  border-left: 3px solid #2f88ce;
-  border-radius: 0 9px 9px 0;
-  background: #edf6fc;
-  color: #294d68;
+  gap: 0.6rem;
+  min-height: 40px;
+  padding: 0 2px;
+  color: var(--ru-muted);
 }
-.railway-usage-source-mark { display: grid; flex: 0 0 34px; height: 34px; place-items: center; color: #1465a7; }
-.railway-usage-source p { margin: 0; font-size: .88rem; line-height: 1.5; }
-.railway-usage-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
-.railway-usage-panel {
+.ru-status > svg { flex: none; }
+.ru-status p { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 0.86rem; line-height: 1.45; }
+.ru-status b { color: var(--ru-ink); font-weight: 650; }
+.ru-status.is-error { color: var(--ru-red); }
+.ru-status.is-error p { color: var(--ru-red); font-weight: 600; }
+
+.railway-usage .ru-refresh {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ru-line);
+  border-radius: var(--ru-radius);
+  background: #fff;
+  box-shadow: none;
+  color: var(--ru-ink);
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.railway-usage .ru-refresh:hover:not(:disabled) { border-color: #c5d0dc; background: var(--ru-tint); }
+.railway-usage .ru-refresh:disabled { color: var(--ru-muted); cursor: progress; }
+.ru-refresh .is-spinning { animation: ru-spin 900ms linear infinite; }
+@keyframes ru-spin { to { transform: rotate(360deg); } }
+
+.ru-body { display: grid; gap: 12px; transition: opacity 200ms ease; }
+.ru-body.is-refreshing { opacity: 0.6; }
+
+/* ---------- Paneles ---------- */
+
+.ru-panel {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  padding: 1.15rem 1.2rem 1rem;
+  padding: 16px 18px 14px;
   border: 1px solid var(--ru-line);
-  border-radius: 12px;
+  border-radius: var(--ru-radius);
   background: #fff;
 }
-.railway-usage-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.railway-usage-eyebrow { color: var(--ru-muted); font-size: .69rem; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
-.railway-usage-panel h2,
-.railway-usage-section-heading h2 { margin: .2rem 0 0; color: var(--ru-ink); font-size: 1.1rem; line-height: 1.35; }
-.railway-usage-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 10px; background: #eef5f8; color: #37637c; }
-.railway-usage-icon.is-blue { background: #eaf2fd; color: #1465d9; }
-.railway-usage-panel > p { min-height: 3.2em; margin: .75rem 0 .85rem; color: var(--ru-muted); font-size: .87rem; line-height: 1.55; }
-.railway-usage-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 0 .65rem; border-block: 1px solid var(--ru-line); }
-.railway-usage-facts div { display: grid; gap: .15rem; padding: .75rem .5rem .75rem 0; }
-.railway-usage-facts div + div { padding-left: .8rem; border-left: 1px solid var(--ru-line); }
-.railway-usage-facts dt { color: var(--ru-muted); font-size: .73rem; }
-.railway-usage-facts dd { margin: 0; color: var(--ru-ink); font-size: .9rem; font-weight: 700; }
-.railway-usage-retry { align-self: flex-start; min-height: 36px; margin: 0 0 .4rem; padding: .35rem .65rem; border: 1px solid #bdceda; border-radius: 7px; background: #fff; color: #285676; font-size: .8rem; font-weight: 700; cursor: pointer; }
-.railway-usage-retry:hover { background: #f3f8fc; }
-.railway-usage-text-link { align-self: flex-start; justify-content: flex-start; margin-top: auto; color: var(--ru-blue); }
-.railway-usage-text-link:hover { color: #0b4fae; text-decoration: underline; }
-.railway-usage-steps { display: grid; gap: .55rem; margin: 0 0 .7rem; padding: 0; list-style: none; color: #36536a; font-size: .83rem; line-height: 1.45; }
-.railway-usage-steps li { display: flex; align-items: flex-start; gap: .55rem; }
-.railway-usage-steps li > span { display: grid; width: 21px; height: 21px; flex: 0 0 21px; place-items: center; border-radius: 50%; background: #eff4f7; color: #45637b; font-size: .7rem; font-weight: 750; }
-.railway-usage-peaks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-bottom: .5rem; }
-.railway-usage-peak-group { min-width: 0; }
-.railway-usage-peak-group h3 { display: flex; align-items: center; gap: .35rem; margin: 0 0 .35rem; color: #355f79; font-size: .76rem; }
-.railway-usage-peak-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-width: 0; padding: .33rem 0; border-top: 1px solid #edf1f4; }
-.railway-usage-peak-row span { display: grid; min-width: 0; }
-.railway-usage-peak-row strong { overflow: hidden; color: var(--ru-ink); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
-.railway-usage-peak-row small,
-.railway-usage-no-data { color: var(--ru-muted); font-size: .69rem; }
-.railway-usage-peak-row b { color: var(--ru-ink); font-size: .74rem; white-space: nowrap; }
-.railway-usage-peak-placeholder { margin-bottom: .75rem; color: var(--ru-muted); font-size: .81rem; }
-.railway-usage-resources { margin-top: 1rem; padding: 1rem 1.15rem .75rem; border-radius: 12px; background: #f3f7fa; }
-.railway-usage-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem 1.5rem; margin-bottom: .8rem; }
-.railway-usage-section-heading > span { color: var(--ru-muted); font-size: .78rem; }
-.railway-usage-resources ul { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; margin: 0; padding: 0; list-style: none; }
-.railway-usage-resources li { display: flex; min-width: 0; align-items: flex-start; gap: .55rem; padding: .65rem .35rem .55rem 0; color: #39708d; }
-.railway-usage-resources li span { display: grid; gap: .2rem; min-width: 0; }
-.railway-usage-resources li strong { color: var(--ru-ink); font-size: .78rem; }
-.railway-usage-resources li small { color: var(--ru-muted); font-size: .69rem; line-height: 1.4; }
-@media (max-width: 760px) {
-  .railway-usage .ds-page-header { align-items: flex-start; }
-  .railway-usage-grid { grid-template-columns: 1fr; }
-  .railway-usage-panel > p { min-height: 0; }
-  .railway-usage-peaks { grid-template-columns: 1fr; }
-  .railway-usage-resources ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ru-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 14px;
 }
-@media (max-width: 430px) {
-  .railway-usage-source { align-items: flex-start; padding: .75rem; }
-  .railway-usage-link { width: 100%; }
-  .railway-usage .ds-page-header-actions { width: 100%; }
-  .railway-usage-section-heading { align-items: flex-start; flex-direction: column; }
+.ru-panel-head > div:first-child { display: grid; gap: 3px; min-width: min(100%, 16rem); flex: 1 1 16rem; }
+.ru-panel h2 { margin: 0; color: var(--ru-ink); font-size: 15px; font-weight: 650; line-height: 1.3; }
+.ru-panel-head p { max-width: 62ch; margin: 0; color: var(--ru-muted); font-size: 12.5px; line-height: 1.45; }
+.ru-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.ru-segmented { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--ru-tint); }
+.railway-usage .ru-segmented button {
+  min-height: 30px;
+  padding: 0 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ru-muted);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.railway-usage .ru-segmented button:hover { color: var(--ru-ink); }
+.railway-usage .ru-segmented button[aria-pressed="true"] { border-color: var(--ru-line); background: #fff; color: var(--ru-blue); }
+
+.ru-text-link {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: auto;
+  padding-top: 12px;
+  color: var(--ru-blue);
+  font-size: 12.5px;
+  font-weight: 650;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+.ru-text-link:hover { color: #0b4fae; text-decoration: underline; }
+
+.ru-empty { margin: 0; padding: 18px 0; color: var(--ru-muted); font-size: 13px; }
+
+/* ---------- Resumen del ciclo: un panel, cuatro celdas ---------- */
+
+.ru-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--ru-line);
+  border-radius: var(--ru-radius);
+  background: #fff;
+}
+.ru-stat { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 14px 18px 16px; }
+.ru-stat + .ru-stat { border-left: 1px solid var(--ru-line-soft); }
+.ru-stat-label { display: flex; align-items: center; gap: 6px; color: var(--ru-muted); font-size: 12.5px; font-weight: 600; }
+.ru-stat-label svg { flex: none; }
+.ru-stat strong { color: var(--ru-ink); font-size: 26px; font-weight: 800; line-height: 1.15; letter-spacing: 0; }
+.ru-stat small { color: var(--ru-muted); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* Regla gasto-contra-calendario: la barra es lo gastado del estimado; la marca, el día del ciclo. */
+.ru-pace {
+  position: relative;
+  height: 10px;
+  margin: 6px 0 2px;
+  background: linear-gradient(var(--ru-grid), var(--ru-grid)) left center / 100% 1px no-repeat;
+}
+.ru-pace b { position: absolute; inset: 1px auto 1px 0; border-radius: 0 3px 3px 0; background: var(--ru-blue); }
+.ru-pace i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ru-ink); }
+
+/* ---------- Rendimiento por servicio: gráfico de líneas ---------- */
+
+.ru-line-chart { position: relative; min-width: 0; }
+.ru-line-chart svg { display: block; overflow: visible; touch-action: pan-y; }
+.ru-line-chart svg:focus-visible { outline: 2px solid var(--ru-blue); outline-offset: 4px; border-radius: 4px; }
+.ru-grid line { stroke: var(--ru-grid); stroke-width: 1; }
+.ru-grid text,
+.ru-axis text { fill: var(--ru-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.ru-grid text { text-anchor: end; }
+.ru-axis text { text-anchor: middle; }
+.ru-line { fill: none; stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
+.ru-crosshair line { stroke: var(--ru-ink); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.55; }
+.ru-crosshair circle { stroke: #fff; stroke-width: 2; }
+.ru-line-chart svg { cursor: crosshair; }
+.ru-line-chart svg.is-pinned .ru-crosshair line { stroke-dasharray: none; opacity: 0.8; }
+
+.ru-tip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  min-width: 190px;
+  max-width: 250px;
+  padding: 9px 11px;
+  border: 1px solid var(--ru-line);
+  border-radius: var(--ru-radius);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(22, 40, 59, 0.12);
+  pointer-events: none;
+}
+.ru-tip strong { color: var(--ru-ink); font-size: 12.5px; }
+.ru-tip dl { display: grid; gap: 3px; margin: 0; }
+.ru-tip dl > div { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.ru-tip dt { display: flex; min-width: 0; align-items: center; gap: 6px; color: var(--ru-muted); }
+.ru-tip dt i { width: 8px; height: 8px; flex: none; border-radius: 50%; }
+.ru-tip dd { margin: 0; color: var(--ru-ink); font-weight: 700; white-space: nowrap; }
+
+/* Leyenda = interruptores: cada servicio muestra su promedio y su máximo en el periodo. */
+.ru-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--ru-line-soft);
+  list-style: none;
+}
+.railway-usage .ru-legend button {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--ru-radius);
+  background: transparent;
+  box-shadow: none;
+  color: var(--ru-body);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+.railway-usage .ru-legend button:hover { background: var(--ru-tint); }
+.ru-legend i { grid-row: span 2; width: 14px; height: 3px; border-radius: 2px; }
+.ru-legend-name { overflow: hidden; color: var(--ru-ink); font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.ru-legend-stats { grid-column: 2; color: var(--ru-muted); font-size: 11.5px; font-weight: 500; }
+.ru-legend-stats b { color: var(--ru-body); font-weight: 650; }
+.railway-usage .ru-legend button[aria-pressed="false"] { opacity: 0.5; }
+.railway-usage .ru-legend button[aria-pressed="false"] .ru-legend-name { text-decoration: line-through; }
+
+/* ---------- Horas pico y costo ---------- */
+
+.ru-lower { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+
+/* Mapa de calor: 7 días × 24 horas. Las filas se funden en la rejilla con display: contents. */
+.ru-heat {
+  display: grid;
+  grid-template-columns: 2.1rem repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  border-radius: 4px;
+}
+.ru-heat-row { display: contents; }
+.ru-heat-hour { color: var(--ru-muted); font-size: 11px; line-height: 1.6; }
+.ru-heat-day { align-self: center; color: var(--ru-muted); font-size: 11.5px; font-weight: 600; }
+.ru-heat-cell {
+  aspect-ratio: 1;
+  min-height: 12px;
+  border-radius: 2px;
+  background: var(--heat-0);
+  cursor: crosshair;
+}
+.ru-heat-cell[data-level="none"] { background: repeating-linear-gradient(45deg, #fff 0 2px, var(--ru-line-soft) 2px 4px); }
+.ru-heat [data-level="1"] { background: var(--heat-1); }
+.ru-heat [data-level="2"] { background: var(--heat-2); }
+.ru-heat [data-level="3"] { background: var(--heat-3); }
+.ru-heat [data-level="4"] { background: var(--heat-4); }
+.ru-heat [data-level="5"] { background: var(--heat-5); }
+.ru-heat-cell.is-peak { box-shadow: inset 0 0 0 2px #fff, 0 0 0 1.5px var(--ru-ink); }
+.ru-heat-cell.is-active { box-shadow: 0 0 0 2px var(--ru-ink); }
+
+.ru-heat-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 10px; }
+.ru-heat-readout { min-height: 1.45em; margin: 0; color: var(--ru-muted); font-size: 12.5px; line-height: 1.45; }
+.ru-heat-readout b { color: var(--ru-ink); font-weight: 650; }
+.ru-heat-scale { display: inline-flex; align-items: center; gap: 3px; color: var(--ru-muted); font-size: 11px; }
+.ru-heat-scale i { width: 12px; height: 12px; border-radius: 2px; background: var(--heat-0); }
+.ru-heat-scale i:first-of-type { margin-left: 4px; }
+.ru-heat-scale i:last-of-type { margin-right: 4px; }
+.ru-heat-scale [data-level="1"] { background: var(--heat-1); }
+.ru-heat-scale [data-level="2"] { background: var(--heat-2); }
+.ru-heat-scale [data-level="3"] { background: var(--heat-3); }
+.ru-heat-scale [data-level="4"] { background: var(--heat-4); }
+.ru-heat-scale [data-level="5"] { background: var(--heat-5); }
+
+.ru-peaks { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ru-line-soft); }
+.ru-peaks h3,
+.ru-subhead { margin: 0 0 6px; color: var(--ru-ink); font-size: 13px; font-weight: 650; }
+.ru-peaks ol { display: grid; margin: 0; padding: 0; list-style: none; }
+.ru-peaks li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  font-size: 12.5px;
+}
+.ru-peaks li + li { border-top: 1px solid var(--ru-line-soft); }
+.ru-peaks li span { overflow: hidden; color: var(--ru-ink); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.ru-peaks time { color: var(--ru-muted); }
+.ru-peaks b { min-width: 5.5rem; color: var(--ru-ink); font-weight: 700; text-align: right; }
+
+/* Barras de costo: finas, sin pista rellena; la proyección, en el mismo azul aclarado. */
+.ru-subhead:not(:first-of-type) { margin-top: 14px; }
+.ru-bars { display: grid; margin: 0; padding: 0; list-style: none; }
+.ru-bars li {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 8.5rem) minmax(0, 1fr) minmax(6.5rem, auto);
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+.ru-bars li + li { border-top: 1px solid var(--ru-line-soft); }
+.ru-bar-label { display: flex; min-width: 0; align-items: center; gap: 7px; color: var(--ru-ink); font-size: 13px; font-weight: 600; }
+.ru-bar-label svg { flex: none; color: var(--ru-muted); }
+.ru-bar {
+  position: relative;
+  height: 10px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), var(--ru-grid) calc(25% - 1px) 25%),
+    linear-gradient(var(--ru-grid), var(--ru-grid)) left center / 100% 1px no-repeat;
+}
+.ru-bar b,
+.ru-bar em { position: absolute; top: 0; bottom: 0; left: 0; min-width: 2px; border-radius: 0 3px 3px 0; transition: width 250ms cubic-bezier(0.22, 1, 0.36, 1); }
+.ru-pace b { transition: width 250ms cubic-bezier(0.22, 1, 0.36, 1); }
+.ru-bar b { background: var(--ru-blue); }
+.ru-bar em { background: var(--ru-blue-soft); }
+.ru-bar-value { display: grid; justify-items: end; line-height: 1.25; }
+.ru-bar-value strong { color: var(--ru-ink); font-size: 13px; font-weight: 700; }
+.ru-bar-value small { color: var(--ru-muted); font-size: 11.5px; white-space: nowrap; }
+
+.ru-bars-key { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0 0; color: var(--ru-muted); font-size: 11.5px; }
+.ru-bars-key span { display: inline-flex; align-items: center; gap: 6px; }
+.ru-bars-key b,
+.ru-bars-key em { width: 14px; height: 8px; border-radius: 0 2px 2px 0; }
+.ru-bars-key b { background: var(--ru-blue); }
+.ru-bars-key em { background: var(--ru-blue-soft); }
+
+/* ---------- Carga y sin datos ---------- */
+
+.ru-loading { display: grid; gap: 12px; }
+.ru-skeleton {
+  display: block;
+  width: 70%;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--ru-line-soft) 25%, var(--ru-tint) 50%, var(--ru-line-soft) 75%) 0 0 / 200% 100%;
+  animation: ru-shimmer 1.4s ease-in-out infinite;
+}
+.ru-skeleton.is-short { width: 40%; }
+.ru-skeleton.is-figure { width: 55%; height: 28px; margin: 4px 0; }
+.ru-skeleton.is-chart { width: 100%; height: 240px; margin-top: 14px; }
+@keyframes ru-shimmer { to { background-position: -200% 0; } }
+
+.ru-unavailable { gap: 6px; padding: 22px; }
+.ru-unavailable p { max-width: 70ch; margin: 0; color: var(--ru-muted); font-size: 13px; line-height: 1.5; }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .ru-lower { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .ru-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ru-stat:nth-child(3) { border-left: 0; }
+  .ru-stat:nth-child(n + 3) { border-top: 1px solid var(--ru-line-soft); }
+}
+
+@media (max-width: 560px) {
+  .railway-usage .ds-page-header-actions,
+  .ru-primary-link { width: 100%; justify-content: center; min-height: 44px; }
+  /* "Actualizar" se queda en la línea de estado, a la derecha, solo con el icono. */
+  .ru-status { align-items: center; }
+  .railway-usage .ru-refresh { width: 44px; height: 44px; justify-content: center; padding: 0; }
+  .ru-refresh span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ru-panel { padding: 14px 14px 12px; }
+  .ru-stat { padding: 12px 14px 14px; }
+  .ru-stat strong { font-size: 21px; }
+  .ru-stat-label { font-size: 12px; }
+  .railway-usage .ru-segmented button { min-height: 40px; }
+  .ru-heat { grid-template-columns: 1.8rem repeat(24, minmax(0, 1fr)); gap: 1px; }
+  .ru-heat-hour:not(.is-major) { visibility: hidden; }
+  .ru-heat-cell { min-height: 0; }
+  .ru-peaks li { grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 6px 0; }
+  .ru-peaks time { grid-column: 1; grid-row: 2; font-size: 11.5px; }
+  .ru-peaks b { grid-column: 2; grid-row: 1 / span 2; min-width: 0; }
+  .ru-bars li { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; }
+  .ru-bar { grid-column: 1 / -1; grid-row: 2; }
+  .ru-bar-value { grid-column: 2; grid-row: 1; }
+}
+
+@media (max-width: 340px) {
+  .ru-summary { grid-template-columns: 1fr; }
+  .ru-stat + .ru-stat { border-left: 0; border-top: 1px solid var(--ru-line-soft); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ru-refresh .is-spinning,
+  .ru-skeleton { animation: none; }
+  .ru-bar b,
+  .ru-bar em,
+  .ru-pace b,
+  .ru-body,
+  .ru-primary-link,
+  .railway-usage .ru-refresh,
+  .railway-usage .ru-segmented button,
+  .railway-usage .ru-legend button { transition: none; }
 }

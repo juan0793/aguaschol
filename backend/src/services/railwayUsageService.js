@@ -164,7 +164,31 @@ export const getRailwayUsage = async () => {
   const estimatedCost = estimatedUsage.reduce((total, row) => (
     total + Number(row.estimatedValue || 0) * (RESOURCE_PRICES[row.measurement] || 0)
   ), 0);
+  const estimatedResourceUsage = Object.fromEntries(BILLABLE_MEASUREMENTS.map((measurement) => [
+    measurement,
+    quantity(estimatedUsage, measurement, "estimatedValue") * RESOURCE_PRICES[measurement]
+  ]));
+  const serviceCosts = new Map();
+  for (const row of usage) {
+    const serviceId = row.tags?.serviceId || "sin-servicio";
+    const cost = Number(row.value || 0) * (RESOURCE_PRICES[row.measurement] || 0);
+    serviceCosts.set(serviceId, (serviceCosts.get(serviceId) || 0) + cost);
+  }
+  const serviceUsage = [...serviceCosts]
+    .map(([serviceId, cost]) => ({ serviceId, service: serviceNames[serviceId] || "Servicio eliminado", cost }))
+    .sort((a, b) => b.cost - a.cost);
   const metrics = metricData.metrics ?? [];
+  // Serie horaria por servicio, en pares [segundos Unix, valor] para no inflar la respuesta.
+  const series = metrics
+    .filter((row) => ["CPU_USAGE", "MEMORY_USAGE_GB"].includes(row.measurement))
+    .map((row) => ({
+      measurement: row.measurement,
+      serviceId: row.tags?.serviceId,
+      service: serviceNames[row.tags?.serviceId] || "Servicio",
+      points: (row.values ?? [])
+        .map((sample) => [Number(sample.ts), Math.round(Number(sample.value) * 10_000) / 10_000])
+        .filter(([ts, value]) => Number.isFinite(ts) && Number.isFinite(value))
+    }));
   const peaks = Object.fromEntries(["CPU_USAGE", "MEMORY_USAGE_GB"].map((measurement) => {
     const samples = metrics
       .filter((series) => series.measurement === measurement)
@@ -184,6 +208,9 @@ export const getRailwayUsage = async () => {
     currentUsage: Object.values(resourceUsage).reduce((total, value) => total + value, 0),
     estimatedUsage: estimatedCost,
     resourceUsage,
+    estimatedResourceUsage,
+    serviceUsage,
+    series,
     peaks
   };
 };

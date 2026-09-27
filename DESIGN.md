@@ -158,6 +158,14 @@ Lenguaje de tablero de análisis (desde 2026-09-24, tomado de una referencia tip
 - El color es dato, no adorno. El azul institucional marca la magnitud, el rojo solo lo crítico y el ocre los intereses. Una misma medida va en un solo color: la mora por servicio es toda azul, porque el icono y el nombre ya identifican el servicio.
 - Gráfico de puntos "Mora por barrio y servicio": una columna por servicio y un punto por barrio. Al pasar el cursor, el mismo barrio se marca en todas las columnas, y un clic lo deja fijo. Con teclado: Tab para entrar, flechas para recorrer, Esc para soltar.
 
+Pantallas de monitoreo (desde 2026-09-27, primera: "Uso en Railway"). Usan este mismo lenguaje de análisis y suman estas reglas:
+- Gráficos de líneas con varios servicios: un color por servicio, en orden de costo: `#1465d9`, `#0f8a7e`, `#8a4fb8` y `#64748b` (del quinto en adelante, `#94a3b8`). Estos colores van solo en las líneas y su leyenda; en el resto de la pantalla el nombre identifica el servicio. Nunca se usan ocre ni rojo.
+- Gráfico de líneas: el cursor en cruz lee todos los servicios a la misma hora. Es discontinuo al pasar y sólido cuando está fijo. Un clic o un toque lo fija, las flechas recorren las horas, RePág/AvPág saltan un día y Esc lo suelta; es la misma regla que el gráfico de puntos. La ficha de lectura nunca sale del gráfico.
+- Mapa de calor: seis tonos de un solo azul (`#eef3f9`, `#d3e2f4`, `#a9c7ec`, `#6ea1de`, `#2f72c9` y `#0b3f73`), repartidos entre el mínimo y el máximo observados, no desde cero; el tono más claro es "la hora más tranquila". Una celda sin datos va rayada en gris, nunca en el tono 0. El pico lleva un anillo de tinta y una línea de texto lo nombra.
+- Las barras que se comparan dentro de un mismo panel comparten escala, para que el mismo dólar mida lo mismo en todas. La proyección va detrás, en azul aclarado `#c9dbf3`, y la leyenda "Consumido / Proyección al cierre" aparece solo si hay proyección.
+- Regla gasto contra calendario: la barra azul es la parte gastada del estimado y la marca vertical en tinta es el día del ciclo. Debajo va la frase en texto, por ejemplo "56% del estimado · 60% del ciclo transcurrido".
+- Las fichas flotantes (tooltips) llevan una sombra suave `0 6px 18px rgba(22, 40, 59, 0.12)`. Es la única sombra permitida en este lenguaje, porque separa una capa que flota sobre el dato.
+
 ### Busqueda de clave
 
 La busqueda debe sentirse como herramienta de campo:

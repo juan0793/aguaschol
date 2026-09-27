@@ -18,6 +18,15 @@
         ],
         "createdAt": "2026-09-24T22:10:21.969Z",
         "reason": "Agent: width anima solo barras de datos chicas (overflow hidden, alto fijo) al cambiar el dato; respeta prefers-reduced-motion. Clasificado falso positivo en la crítica 2026-09-24"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "frontend/src/components/railway-usage.css"
+        ],
+        "createdAt": "2026-09-27T05:55:22.635Z",
+        "reason": "Agent: width anima solo las barras de costo y la regla de ritmo (elementos chicos, posición absoluta) al cambiar el dato; se apaga con prefers-reduced-motion. Mismo caso que la excepción ya aceptada de dashboard.css (2026-09-24)."
       }
     ]
   }
