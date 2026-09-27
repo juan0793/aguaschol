@@ -29,8 +29,6 @@ import {
   emptyForm,
   emptyMapDraft,
   emptyMapReportDraft,
-  LOOKUP_SEARCH_MODES,
-  MAX_LOOKUP_HISTORY_ITEMS,
 } from "./constants/formsAndUi";
 import {
   actionLabel,
@@ -42,9 +40,6 @@ import {
 } from "./utils/formatting";
 import {
   getLookupServiceMeta,
-  getLookupValidationMessage,
-  isLookupQueryReady,
-  sanitizeLookupInput
 } from "./utils/claveAndLookup";
 import {
   formatDateTime,
@@ -200,6 +195,8 @@ import MapDiaryArchiveDialog from "./modules/campo/MapDiaryArchiveDialog";
 import FieldDebtDialog from "./modules/campo/FieldDebtDialog";
 import PasswordChangeModal from "./components/PasswordChangeModal";
 import LoginScreen from "./app/LoginScreen";
+import { useLookupState } from "./modules/lookup/useLookupState";
+import { useLookupActions } from "./modules/lookup/useLookupActions";
 
 function App() {
   const sheetRef = useRef(null);
@@ -265,7 +262,27 @@ function App() {
   const [showPrintBatchModal, setShowPrintBatchModal] = useState(false);
   const [showDashboardAlertsModal, setShowDashboardAlertsModal] = useState(false);
   const [showPrintComparisonModal, setShowPrintComparisonModal] = useState(false);
-  const [showLookupClassicModal, setShowLookupClassicModal] = useState(false);
+  const {
+    showLookupClassicModal,
+    setShowLookupClassicModal,
+    lookupSearchMode,
+    setLookupSearchMode,
+    lookupQuery,
+    setLookupQuery,
+    lookupPrefixMode,
+    setLookupPrefixMode,
+    lookupLoading,
+    setLookupLoading,
+    lookupResult,
+    setLookupResult,
+    lookupFeedback,
+    setLookupFeedback,
+    lookupHistory,
+    setLookupHistory,
+    lookupModeConfig,
+    lookupInputLabel,
+    lookupInputPlaceholder
+  } = useLookupState();
   const [printingComparison, setPrintingComparison] = useState(false);
   const [printComparisonHeader, setPrintComparisonHeader] = useState({
     kicker: "Lista de fichas vencidas",
@@ -310,13 +327,6 @@ function App() {
     return saved === null ? window.matchMedia?.("(max-width: 1100px)").matches : saved === "true";
   });
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [lookupSearchMode, setLookupSearchMode] = useState("clave");
-  const [lookupQuery, setLookupQuery] = useState("");
-  const [lookupPrefixMode, setLookupPrefixMode] = useState("auto");
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupResult, setLookupResult] = useState(null);
-  const [lookupFeedback, setLookupFeedback] = useState("");
-  const [lookupHistory, setLookupHistory] = useState(() => loadStoredLookupHistory());
   const [padronRequestTemplates, setPadronRequestTemplates] = useState([]);
   // Sin esto, un 500 del backend se veia igual que "no hay datos": los contadores
   // quedaban en 0 y la insignia seguia diciendo "Listo" en cuanto pasaba el aviso.
@@ -433,26 +443,6 @@ function App() {
   // un fetch del historial completo.
   const [auditFiltersQuery, setAuditFiltersQuery] = useState(EMPTY_AUDIT_FILTERS);
   const [auditFiltersOpen, setAuditFiltersOpen] = useState(false);
-  const lookupModeConfig =
-    LOOKUP_SEARCH_MODES.find((mode) => mode.value === lookupSearchMode) ?? LOOKUP_SEARCH_MODES[0];
-  const lookupInputLabel =
-    lookupSearchMode === "clave"
-      ? "Clave catastral"
-      : lookupSearchMode === "nombre"
-        ? "Nombre o inquilino"
-        : lookupSearchMode === "alcaldia"
-          ? "Clave, nombre o barrio de Alcaldía"
-          : "Numero de abonado";
-  const lookupInputPlaceholder =
-    lookupSearchMode === "clave"
-      ? lookupPrefixMode === "three"
-        ? "000-00-00 o 000-00-00-00"
-        : "00-00-00, 000-00-00 o clave completa"
-      : lookupSearchMode === "nombre"
-        ? "Ej. Juan Aguilera Estrada"
-        : lookupSearchMode === "alcaldia"
-          ? "Ej. 01-01-01, Suyapa o Sandra"
-        : "Ej. 16523";
   const isAuthenticated = Boolean(session?.token) && sessionVerified;
   const isAdmin = session?.user?.role === "admin";
   const isTransport = session?.user?.role === "transport";
@@ -2701,6 +2691,32 @@ function App() {
       marcarPeticionFin();
     }
   }, [session?.token, marcarPeticionInicio, marcarPeticionFin]);
+  const {
+    persistLookupHistory,
+    handleRemoveLookupHistoryItem,
+    handleLookupInputChange,
+    handleLookupPrefixModeChange,
+    handleLookupSearchModeChange,
+    handleLookupSearch
+  } = useLookupActions({
+    apiFetch,
+    clearSession,
+    isAuthenticated,
+    lookupHistory,
+    lookupPrefixMode,
+    lookupQuery,
+    lookupSearchMode,
+    padronMeta,
+    setLookupFeedback,
+    setLookupHistory,
+    setLookupLoading,
+    setLookupPrefixMode,
+    setLookupQuery,
+    setLookupResult,
+    setLookupSearchMode,
+    showAlert,
+    workspaceView
+  });
 
   useEffect(() => {
     if (!session?.token) return undefined;
@@ -2750,11 +2766,6 @@ function App() {
       cancelled = true;
     };
   }, [session?.token, showAlert]);
-
-  const persistLookupHistory = (nextHistory) => {
-    window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
-    setLookupHistory(nextHistory);
-  };
 
   const clearPadronDerivedState = () => {
     setLookupResult(null);
@@ -2859,18 +2870,6 @@ function App() {
     } finally {
       if (progressTimer) window.clearInterval(progressTimer);
     }
-  };
-
-  const handleRemoveLookupHistoryItem = (historyItem) => {
-    const nextHistory = lookupHistory.filter(
-      (item) =>
-        !(
-          item.mode === historyItem.mode &&
-          String(item.normalized_query || item.query || "") === String(historyItem.normalized_query || historyItem.query || "") &&
-          item.searched_at === historyItem.searched_at
-        )
-    );
-    persistLookupHistory(nextHistory);
   };
 
   const selectedPhotoUrl = useMemo(() => {
@@ -4040,30 +4039,6 @@ function App() {
   }, [isAdmin, recordView]);
 
   useEffect(() => {
-    if (!isAuthenticated || workspaceView !== "lookup") {
-      return undefined;
-    }
-
-    if (!lookupQuery.trim()) {
-      setLookupFeedback("");
-      setLookupResult(null);
-      return undefined;
-    }
-
-    if (!isLookupQueryReady(lookupQuery, lookupSearchMode)) {
-      setLookupResult(null);
-      setLookupFeedback(getLookupValidationMessage(lookupSearchMode));
-      return undefined;
-    }
-
-    const timer = window.setTimeout(() => {
-      handleLookupSearch();
-    }, 280);
-
-    return () => window.clearTimeout(timer);
-  }, [isAuthenticated, lookupQuery, lookupSearchMode, workspaceView]);
-
-  useEffect(() => {
     if (form.id || !hasDraftContent(form)) {
       return undefined;
     }
@@ -4082,112 +4057,6 @@ function App() {
   const applyRecord = (record) => {
     setForm(withBarrioFromPrefix({ ...emptyForm, ...normalizeRecord(record) }, safeBarrioCodes));
     setSelectedFile(null);
-  };
-
-  const handleLookupInputChange = (event) => {
-    const nextValue = sanitizeLookupInput(event.target.value, lookupSearchMode, lookupPrefixMode);
-    setLookupQuery(nextValue);
-    setLookupFeedback("");
-
-    if (!nextValue.trim()) {
-      setLookupResult(null);
-    }
-  };
-
-  const handleLookupPrefixModeChange = (mode) => {
-    setLookupPrefixMode(mode);
-    setLookupQuery((current) => sanitizeLookupInput(current, lookupSearchMode, mode));
-    setLookupFeedback("");
-  };
-
-  const handleLookupSearchModeChange = (mode) => {
-    setLookupSearchMode(mode);
-    setLookupQuery("");
-    setLookupResult(null);
-    setLookupFeedback("");
-    if (mode !== "clave") {
-      setLookupPrefixMode("auto");
-    }
-  };
-
-  const handleLookupSearch = async (event) => {
-    if (event) {
-      event.preventDefault();
-    }
-
-    const normalizedLookupQuery = lookupQuery.trim();
-
-    if (!normalizedLookupQuery) {
-      setLookupResult(null);
-      setLookupFeedback(
-          lookupSearchMode === "clave"
-            ? "Ingresa una clave catastral para consultar."
-            : lookupSearchMode === "nombre"
-              ? "Ingresa un nombre para consultar."
-              : lookupSearchMode === "alcaldia"
-                ? "Ingresa una clave, nombre o barrio para consultar en Alcaldia."
-                : "Ingresa un numero de abonado para consultar."
-      );
-      return;
-    }
-
-    if (!isLookupQueryReady(normalizedLookupQuery, lookupSearchMode)) {
-      setLookupResult(null);
-      setLookupFeedback(getLookupValidationMessage(lookupSearchMode));
-      return;
-    }
-
-    setLookupLoading(true);
-    setLookupFeedback("");
-
-    try {
-      const padronCacheKey = encodeURIComponent(padronMeta?.updated_at || Date.now());
-      const lookupUrl =
-        lookupSearchMode === "alcaldia"
-          ? `/claves/alcaldia/search?field=texto&clave=${encodeURIComponent(normalizedLookupQuery)}&_padron=${padronCacheKey}`
-          : `/claves/search?clave=${encodeURIComponent(normalizedLookupQuery)}&field=${encodeURIComponent(lookupSearchMode)}&_padron=${padronCacheKey}`;
-      const response = await apiFetch(lookupUrl);
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
-          return;
-        }
-
-        throw new Error(data.message || "No fue posible consultar la clave.");
-      }
-
-      setLookupResult(data);
-      const historyEntry = {
-        mode: lookupSearchMode,
-        query: normalizedLookupQuery,
-        normalized_query: data.normalized_query || normalizedLookupQuery,
-        total_matches: data.total_matches ?? 0,
-        exists: Boolean(data.exists),
-        searched_at: new Date().toISOString()
-      };
-      setLookupHistory((current) => {
-        const nextHistory = [
-          historyEntry,
-          ...current.filter(
-            (item) =>
-              !(
-                item.mode === historyEntry.mode &&
-                String(item.normalized_query || item.query) === String(historyEntry.normalized_query)
-              )
-          )
-        ].slice(0, MAX_LOOKUP_HISTORY_ITEMS);
-        window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
-        return nextHistory;
-      });
-    } catch (error) {
-      setLookupResult(null);
-      setLookupFeedback(error.message || "No fue posible consultar la clave.");
-    } finally {
-      setLookupLoading(false);
-    }
   };
 
   const handlePadronRequestFormChange = (event) => {
@@ -9799,7 +9668,6 @@ function App() {
       />
     );
   }
-
 
   return (
     <div
