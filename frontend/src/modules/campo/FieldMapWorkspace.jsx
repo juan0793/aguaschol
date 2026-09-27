@@ -62,32 +62,12 @@ export default function FieldMapWorkspace({ model }) {
               <p className="sheet-kicker">Geolocalizacion de campo</p>
               <h2><Icon name="map" className="title-icon" />Mapa de campo</h2>
             </div>
-            <span className="panel-pill">{visibleMapPoints.length} puntos</span>
-          </div>
-          <div className="map-spatial-strip" aria-label="Resumen de jornada GPS">
-            <div>
-              <span>Jornada</span>
-              <strong>{formatMapDiaryLabel(activeMapDiaryDateKey)}</strong>
-            </div>
-            <div>
-              <span>Captura</span>
-              <strong>{mapDraft.latitude && mapDraft.longitude ? "Punto listo" : "Sin fijar"}</strong>
-            </div>
-            <div>
-              <span>Viviendas</span>
-              <strong>{visibleMapPoints.reduce((total, point) => total + getMapPointHousingUnits(point), 0)}</strong>
-            </div>
           </div>
           <div className="map-toolbar">
             <span className={`map-status-chip ${["Sin conexion", "Sin GPS", "Sin permiso", "HTTPS requerido"].includes(mapStatus) ? "is-offline" : ""}`}>
               <Icon name={mapStatus === "GPS listo" ? "success" : mapStatus === "Sin conexion" ? "activity" : "map"} />
               {mapStatus}
             </span>
-            <div className="map-workflow-steps" aria-label="Flujo de captura">
-              <span>1. Ubica</span>
-              <span>2. Describe</span>
-              <span>3. Guarda</span>
-            </div>
             <button
               type="button"
               className="button-secondary map-print-open-button"
@@ -106,7 +86,6 @@ export default function FieldMapWorkspace({ model }) {
           <div className="map-diary-strip">
             <div className="map-diary-strip-head">
               <strong>Bitacora por dia</strong>
-              <span>{formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
             </div>
             <div className="map-diary-tabs">
               {mapDiaryGroups.length ? (
