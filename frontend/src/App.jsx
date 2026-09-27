@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@blossom-carousel/core/style.css";
 import { toast, Toaster } from "sonner";
-import { Icon, actionIconName } from "./components/Icon";
+import { actionIconName } from "./components/Icon";
 import { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections, getPathForWorkspaceView } from "./components/sidebar/sidebarConfig";
@@ -106,7 +106,6 @@ import {
   AUDIT_ENTITY_OPTIONS,
 } from "./utils/audit";
 import {
-  DASHBOARD_WIDGET_STORAGE_KEY,
   DASHBOARD_REFRESH_INTERVAL_MS,
   MAP_POINT_LIST_INITIAL_LIMIT,
   MOBILE_MAP_POINT_LIMIT,
@@ -163,8 +162,6 @@ import {
   FIELD_DEBT_SERVICE_DEFINITIONS,
   extractFieldDebtLookupReferences,
   buildMapDescriptionPadronBlock,
-  getActiveServiceShortLabels,
-  buildLookupAssistantDetails,
   buildFieldDebtServicesMarkup,
   buildFieldDebtPointRows,
   getFieldDebtResultLabel
@@ -182,7 +179,7 @@ import {
   getRecordAguasPresenceLabel,
   getRecordFichaDateLabel,
 } from "./utils/recordLabels";
-import { humanizeDashboardActivity, normalizeDashboardWidgetPrefs } from "./utils/dashboardActivity";
+import { humanizeDashboardActivity } from "./utils/dashboardActivity";
 import {
   readJsonResponse,
   getAlertDetails,
@@ -280,9 +277,6 @@ function App() {
   const [printBatchQuickFilter, setPrintBatchQuickFilter] = useState("all");
   const [printBatchStatusView, setPrintBatchStatusView] = useState("pending");
   const [batchPrinting, setBatchPrinting] = useState(false);
-  const [draftSavedAt, setDraftSavedAt] = useState(
-    () => window.localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY) || null
-  );
   const [notifiedRecordAlerts, setNotifiedRecordAlerts] = useState(() => loadStoredRecordNotifications());
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [notificationUserId, setNotificationUserId] = useState(null);
@@ -300,18 +294,6 @@ function App() {
   const peticionesEnCursoRef = useRef(0);
   const actividadTimerRef = useRef(0);
   const navigateWithFocus = (view, focus) => { setCrossModuleFocus(focus ? { view, requestId: Date.now(), ...focus } : null); setWorkspaceView(view); };
-  const [dashboardWidgetPrefs, setDashboardWidgetPrefs] = useState(() => {
-    try {
-      const saved = window.localStorage.getItem(DASHBOARD_WIDGET_STORAGE_KEY);
-      if (!saved) {
-        return normalizeDashboardWidgetPrefs({});
-      }
-
-      return normalizeDashboardWidgetPrefs(JSON.parse(saved));
-    } catch {
-      return normalizeDashboardWidgetPrefs({});
-    }
-  });
   const [dashboardNow, setDashboardNow] = useState(() => Date.now());
   const [dashboardLastUpdatedAt, setDashboardLastUpdatedAt] = useState(() => Date.now());
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
@@ -471,119 +453,6 @@ function App() {
         : lookupSearchMode === "alcaldia"
           ? "Ej. 01-01-01, Suyapa o Sandra"
         : "Ej. 16523";
-  const lookupAssistant = useMemo(() => {
-    const query = lookupQuery.trim();
-    const modeLabel =
-      lookupSearchMode === "clave"
-        ? "clave catastral"
-        : lookupSearchMode === "nombre"
-          ? "nombre"
-          : lookupSearchMode === "alcaldia"
-            ? "registro de Alcaldia"
-            : "abonado";
-
-    if (lookupLoading) {
-      return {
-        tone: "is-thinking",
-        title: "Consultando informacion",
-        messages: [`Estoy buscando ${query || `por ${modeLabel}`} en el padron disponible.`],
-        chips: ["Revisando coincidencias", "Preparando retroalimentacion"]
-      };
-    }
-
-    if (lookupFeedback) {
-      return {
-        tone: "is-warning",
-        title: "Ajusta la busqueda",
-        messages: [lookupFeedback],
-        chips: ["Formato pendiente", "No se consulto aun"]
-      };
-    }
-
-    if (lookupResult) {
-      if (!lookupResult.exists) {
-        return {
-          tone: "is-danger",
-          title: "Posible clandestino",
-          messages: [
-            lookupResult.field === "clave"
-              ? "No aparece en Aguas con la clave consultada. Conviene crear ficha nueva si el punto fue verificado en campo."
-              : "No encontre coincidencias con esa busqueda. Prueba una clave exacta, nombre alterno o numero de abonado si lo tienes."
-          ],
-          chips: lookupResult.field === "clave" ? ["No registrado", "Crear ficha"] : ["Sin coincidencias", "Revisar datos"]
-        };
-      }
-
-      if (lookupResult.field === "texto") {
-        const missingInAguas = (lookupResult.matches || []).filter((match) => !match.exists_in_aguas).length;
-        return {
-          tone: missingInAguas ? "is-warning" : "is-success",
-          title: missingInAguas ? "Atencion: revisar candidatas" : "Coincidencia municipal encontrada",
-          messages: [
-            missingInAguas
-              ? `${missingInAguas} coincidencia(s) de Alcaldia no aparecen en Aguas. Revisa la lista y prepara ficha si corresponde.`
-              : `Hay ${lookupResult.total_matches} coincidencia(s) en Alcaldia y no se detecta brecha inmediata en la lista visible.`
-          ],
-          chips: missingInAguas ? ["Alcaldia si", "Aguas pendiente"] : ["Alcaldia encontrada", "Comparar detalle"]
-        };
-      }
-
-      const firstMatch = lookupResult.matches?.[0] || {};
-      const services = getActiveServiceShortLabels(firstMatch);
-      return {
-        tone: "is-success",
-        title: lookupResult.field === "clave" ? "Clave registrada en Aguas" : "Coincidencias encontradas",
-        messages: [
-          lookupResult.field === "clave" && lookupResult.mode === "base"
-            ? `Esta base tiene ${lookupResult.total_matches} coincidencia(s). Abre el detalle para elegir la cuenta exacta.`
-            : `Buenos dias. Su clave ${firstMatch.clave_catastral || lookupResult.normalized_query} aparece en el padron de Aguas. Estos son los datos del abonado que encontre:`,
-          services.length
-            ? `Servicios activos detectados: ${services.join(", ")}.`
-            : "No se ven servicios activos en la primera coincidencia."
-        ],
-        chips: [
-          firstMatch.abonado ? `Abonado ${firstMatch.abonado}` : "Registrado",
-          services.length ? `${services.length} servicio(s)` : "Sin servicios activos"
-        ],
-        details: buildLookupAssistantDetails(firstMatch)
-      };
-    }
-
-    if (!query) {
-      return {
-        tone: "is-idle",
-        title: "Asistente de busqueda",
-        messages: [
-          lookupSearchMode === "clave"
-            ? "Escribe una clave completa para validar si aparece en Aguas, o una base de tres bloques para ver cuentas relacionadas."
-            : lookupSearchMode === "alcaldia"
-              ? "Busca en Alcaldia para comparar si existe brecha con Aguas."
-              : `Escribe un ${modeLabel} para ubicar coincidencias en el padron.`
-        ],
-        chips: ["Esperando datos", "Te indico el siguiente paso"]
-      };
-    }
-
-    if (!isLookupQueryReady(query, lookupSearchMode)) {
-      return {
-        tone: "is-warning",
-        title: "Voy leyendo la entrada",
-        messages: [
-          lookupSearchMode === "clave"
-            ? "La clave todavia no tiene formato completo. Usa 00-00-00, 000-00-00 o agrega el cuarto bloque si buscas una cuenta exacta."
-            : getLookupValidationMessage(lookupSearchMode)
-        ],
-        chips: ["Entrada incompleta", "Sigue escribiendo"]
-      };
-    }
-
-    return {
-      tone: "is-ready",
-      title: "Lista para consultar",
-      messages: [`La busqueda por ${modeLabel} ya tiene formato suficiente. Presiona consultar para revisar estado y recomendacion.`],
-      chips: ["Formato correcto", "Consultar ahora"]
-    };
-  }, [lookupFeedback, lookupLoading, lookupQuery, lookupResult, lookupSearchMode]);
   const isAuthenticated = Boolean(session?.token) && sessionVerified;
   const isAdmin = session?.user?.role === "admin";
   const isTransport = session?.user?.role === "transport";
@@ -617,18 +486,6 @@ function App() {
     (record = {}, fallback = "Sin barrio") =>
       String(resolveBarrioFromPayload(record, safeBarrioCodes, fallback)).trim() || fallback,
     [safeBarrioCodes]
-  );
-  const displayRecords = useMemo(
-    () =>
-      safeRecords.map((record) => {
-        if (String(record.barrio_colonia || "").trim()) {
-          return record;
-        }
-
-        const barrio = getRecordBarrioName(record, "");
-        return barrio ? { ...record, barrio_colonia: barrio } : record;
-      }),
-    [getRecordBarrioName, safeRecords]
   );
   const mapDiaryGroups = useMemo(() => {
     const todayKey = getTodayMapDiaryKey();
@@ -1603,10 +1460,6 @@ function App() {
       detail: "Empieza por Tablero para una vista ejecutiva o entra directo al módulo que necesites."
     };
   }, [isAdmin, mapDiaryGroups.length, onlineUsers.length, padronMeta?.total_records, safeAuditLogs.length]);
-  const totalCajaRegistro = useMemo(
-    () => visibleMapPoints.filter((point) => point.point_type === "caja_registro").length,
-    [visibleMapPoints]
-  );
   const fieldDebtSummary = useMemo(() => {
     const matches = Array.isArray(fieldDebtReport?.results)
       ? fieldDebtReport.results.flatMap((item) => item.matches || [])
@@ -1692,10 +1545,6 @@ function App() {
   const pendingPhotoRecords = useMemo(
     () => safeRecords.filter((record) => !String(record.foto_path || "").trim()).length,
     [safeRecords]
-  );
-  const recentLookupCountToday = useMemo(
-    () => lookupHistory.filter((item) => getMapDiaryDateKey(item.searched_at) === todayDateKey).length,
-    [lookupHistory, todayDateKey]
   );
   const mapReportPagination = useMemo(() => {
     const pageSize = 5;
@@ -2023,39 +1872,6 @@ function App() {
     );
   }, []);
 
-  const dashboardMetrics = useMemo(
-    () => [
-      {
-        label: "Movimiento de hoy",
-        value: recordsUpdatedToday,
-        helper: `${safeRecords.length} fichas activas en operación`,
-        icon: "records"
-      },
-      {
-        label: "Borrador de campo",
-        value: draftForm ? "Listo" : "Vacío",
-        helper: draftForm
-          ? `Último guardado ${draftSavedAt ? formatDateTime(draftSavedAt) : "hace un momento"}`
-          : "Sin captura pendiente en este equipo",
-        icon: draftForm ? "success" : "history"
-      },
-      {
-        label: "Campo hoy",
-        value: mapPointsToday,
-        helper: `${mapDiaryGroups.length} jornadas guardadas en bitácora`,
-        icon: "map"
-      },
-      {
-        label: "Consultas rápidas",
-        value: recentLookupCountToday,
-        helper: lookupHistory.length
-          ? `${lookupHistory.length} consultas recientes listas para repetir`
-          : "Aún no hay búsquedas guardadas",
-        icon: "search"
-      }
-    ],
-    [draftForm, draftSavedAt, lookupHistory.length, mapDiaryGroups.length, mapPointsToday, recentLookupCountToday, recordsUpdatedToday, safeRecords.length]
-  );
   // Historial real de los ultimos 7 dias: fichas tocadas por dia y puntos GPS
   // por jornada. La mora no tiene serie porque el padron es una sola foto.
   const dashboardDailySeries = useMemo(() => {
@@ -2170,7 +1986,6 @@ function App() {
       safeUsers.length
     ]
   );
-  const dashboardActivity = useMemo(() => safeAuditLogs.slice(0, 5), [safeAuditLogs]);
 
   const dashboardLiveFeed = useMemo(() => {
     const feed = [];
@@ -2257,54 +2072,6 @@ function App() {
       .slice(0, 8);
   }, [alertRecords, mapPointContexts, recordDeadlineMetaById, safeAuditLogs, safeBarrioCodes, safeMapPoints, safeRecords]);
   const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
-  const dashboardFocusCards = useMemo(
-    () => [
-      {
-        title: "Operación del día",
-        value: `${recordsUpdatedToday} movimientos hoy`,
-        detail: draftForm
-          ? "Tienes un borrador operativo listo para retomarse."
-          : pendingPhotoRecords
-            ? `${pendingPhotoRecords} fichas siguen sin fotografía asociada.`
-            : "El módulo de fichas está listo para captura y seguimiento.",
-        icon: "records",
-        actionLabel: "Abrir fichas",
-        actionView: "records"
-      },
-      {
-        title: "Campo y geolocalización",
-        value: `${mapPointsToday} puntos hoy`,
-        detail: dashboardJourneys[0]
-          ? `Última jornada: ${formatMapDiaryLabel(dashboardJourneys[0].key)} con ${dashboardJourneys[0].total} puntos.`
-          : "Todavía no hay jornadas cargadas en mapa de campo.",
-        icon: "map",
-        actionLabel: "Ir a mapa",
-        actionView: "map"
-      },
-      {
-        title: "Consulta y padrón",
-        value: `${lookupHistory.length} consultas`,
-        detail: padronMeta?.file_name
-          ? `Padrón activo: ${padronMeta.file_name}`
-          : "Conviene validar el padrón maestro antes de consultas masivas.",
-        icon: "search",
-        actionLabel: "Buscar clave",
-        actionView: "lookup"
-      }
-    ],
-    [dashboardJourneys, draftForm, lookupHistory.length, mapPointsToday, padronMeta?.file_name, pendingPhotoRecords, recordsUpdatedToday]
-  );
-  const dashboardQuickActions = useMemo(
-    () => [
-      { key: "records", label: "Nueva ficha", helper: "Crear registro clandestino", icon: "plus" },
-      { key: "lookup", label: "Buscar clave", helper: "Consulta rápida de padrón", icon: "search" },
-      { key: "map", label: "Mapa de campo", helper: "Levantamiento GPS", icon: "map" },
-      { key: "executiveReport", label: "Reportes", helper: "Vista ejecutiva y estadísticas", icon: "dashboard" },
-      { key: "printAlerts", label: "Imprimir alertas", helper: "Lote de fichas criticas", icon: "records" },
-      { key: "logs", label: "Bitácora", helper: "Actividad del sistema", icon: "logs" }
-    ],
-    []
-  );
   const dashboardPriorityItems = useMemo(() => {
     const items = [];
 
@@ -2459,77 +2226,6 @@ function App() {
       }),
     [dashboardAlertFilter, dashboardAlertRecords]
   );
-  const dashboardLookupItems = useMemo(() => lookupHistory.slice(0, 5), [lookupHistory]);
-  const dashboardSignalCards = useMemo(
-    () => [
-      {
-        title: "Plazo crítico",
-        value: alertRecords.length,
-        helper: alertRecords.length ? "Fichas que requieren seguimiento hoy." : "Sin fichas críticas por plazo.",
-        tone: alertRecords.length ? "is-warning" : "is-calm",
-        icon: alertRecords.length ? "warning" : "success"
-      },
-      {
-        title: "Sin fotografía",
-        value: pendingPhotoRecords,
-        helper: pendingPhotoRecords ? "Pendientes de evidencia visual." : "Todas las visibles tienen foto.",
-        tone: pendingPhotoRecords ? "is-warning" : "is-calm",
-        icon: pendingPhotoRecords ? "activity" : "success"
-      },
-      {
-        title: "Consultas de hoy",
-        value: recentLookupCountToday,
-        helper: lookupHistory.length ? "Búsqueda rápida reutilizable desde el tablero." : "Aún no hay consultas en este equipo.",
-        tone: recentLookupCountToday ? "is-info" : "is-calm",
-        icon: "search"
-      }
-    ],
-    [alertRecords.length, lookupHistory.length, pendingPhotoRecords, recentLookupCountToday]
-  );
-  const dashboardExecutiveCards = useMemo(() => {
-    const now = Date.now();
-    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const todayRecords = safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey).length;
-    const weekRecords = safeRecords.filter((record) => {
-      const stamp = Date.parse(record.updated_at || record.created_at || "");
-      return Number.isFinite(stamp) && stamp >= weekAgo;
-    }).length;
-    const weekMapPoints = mapDiaryGroups.reduce((total, group) => {
-      const stamp = Date.parse(`${group.key}T12:00:00`);
-      return Number.isFinite(stamp) && stamp >= weekAgo ? total + Number(group.total || 0) : total;
-    }, 0);
-    const weekLookups = lookupHistory.filter((item) => {
-      const stamp = Date.parse(item.searched_at || "");
-      return Number.isFinite(stamp) && stamp >= weekAgo;
-    }).length;
-
-    return [
-      {
-        title: "Fichas",
-        today: todayRecords,
-        week: weekRecords,
-        helper: weekRecords ? `${todayRecords} hoy frente a ${weekRecords} movimientos de la semana.` : "Todavía no hay movimiento semanal.",
-        icon: "records",
-        tone: todayRecords ? "is-info" : "is-calm"
-      },
-      {
-        title: "Campo",
-        today: mapPointsToday,
-        week: weekMapPoints,
-        helper: weekMapPoints ? `${mapPointsToday} puntos hoy y ${weekMapPoints} en los últimos 7 días.` : "Sin levantamientos en la última semana.",
-        icon: "map",
-        tone: mapPointsToday ? "is-info" : "is-calm"
-      },
-      {
-        title: "Consultas",
-        today: recentLookupCountToday,
-        week: weekLookups,
-        helper: weekLookups ? `${recentLookupCountToday} consultas hoy y ${weekLookups} en la semana.` : "No hay consultas recientes registradas.",
-        icon: "search",
-        tone: recentLookupCountToday ? "is-warning" : "is-calm"
-      }
-    ];
-  }, [lookupHistory, mapDiaryGroups, mapPointsToday, recentLookupCountToday, safeRecords, todayDateKey]);
   const dashboardTechnicianSummary = useMemo(() => {
     const grouped = safeRecords.reduce((acc, record) => {
       const owner = String(record.levantamiento_datos || record.analista_datos || "Sin asignar").trim() || "Sin asignar";
@@ -2547,31 +2243,6 @@ function App() {
       }
       if (recordDeadlineMetaById[record.id]?.status && recordDeadlineMetaById[record.id].status !== "on_track") {
         acc[owner].alert += 1;
-      }
-      return acc;
-    }, {});
-
-    return Object.values(grouped)
-      .sort((left, right) => right.total - left.total || right.alert - left.alert || left.name.localeCompare(right.name))
-      .slice(0, 5);
-  }, [recordDeadlineMetaById, safeRecords]);
-  const dashboardZoneSummary = useMemo(() => {
-    const grouped = safeRecords.reduce((acc, record) => {
-      const zone = getRecordBarrioName(record, "Sin zona");
-      if (!acc[zone]) {
-        acc[zone] = {
-          name: zone,
-          total: 0,
-          pendingPhoto: 0,
-          alert: 0
-        };
-      }
-      acc[zone].total += 1;
-      if (!record.foto_path) {
-        acc[zone].pendingPhoto += 1;
-      }
-      if (recordDeadlineMetaById[record.id]?.status && recordDeadlineMetaById[record.id].status !== "on_track") {
-        acc[zone].alert += 1;
       }
       return acc;
     }, {});
@@ -2825,31 +2496,6 @@ function App() {
     dashboardTechnicianSummary,
     safeUsers.length
   ]);
-  const moveDashboardWidget = (key, direction) => {
-    setDashboardWidgetPrefs((current) => {
-      const currentIndex = current.order.indexOf(key);
-      const nextIndex = currentIndex + direction;
-      if (currentIndex === -1 || nextIndex < 0 || nextIndex >= current.order.length) {
-        return current;
-      }
-
-      const nextOrder = [...current.order];
-      const [item] = nextOrder.splice(currentIndex, 1);
-      nextOrder.splice(nextIndex, 0, item);
-      return { ...current, order: nextOrder };
-    });
-  };
-  const toggleDashboardWidgetVisibility = (key) => {
-    setDashboardWidgetPrefs((current) => ({
-      ...current,
-      hidden: current.hidden.includes(key)
-        ? current.hidden.filter((item) => item !== key)
-        : [...current.hidden, key]
-    }));
-  };
-  const resetDashboardWidgets = () => {
-    setDashboardWidgetPrefs(normalizeDashboardWidgetPrefs({}));
-  };
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
@@ -2871,10 +2517,6 @@ function App() {
     mediaQuery.addEventListener?.("change", handleChange);
     return () => mediaQuery.removeEventListener?.("change", handleChange);
   }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(DASHBOARD_WIDGET_STORAGE_KEY, JSON.stringify(dashboardWidgetPrefs));
-  }, [dashboardWidgetPrefs]);
 
   useEffect(() => {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
@@ -2966,7 +2608,6 @@ function App() {
     setMapFocusRequest(null);
     setLookupHistory(loadStoredLookupHistory());
     setDraftForm(null);
-    setDraftSavedAt(null);
     setNotifiedRecordAlerts(loadStoredRecordNotifications());
     setPadronMeta(null);
     setPadronImportSummary(null);
@@ -4433,7 +4074,6 @@ function App() {
       setDraftForm(nextDraft);
       window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
       window.localStorage.setItem(DRAFT_SAVED_AT_STORAGE_KEY, savedAt);
-      setDraftSavedAt(savedAt);
     }, 420);
 
     return () => window.clearTimeout(timer);
@@ -6923,7 +6563,6 @@ function App() {
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const autoTable = autoTableModule.default;
       const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
-      const reportData = mapReportPrintData;
       const generatedAtIso = new Date().toISOString();
       const generatedAt = formatDateTime(generatedAtIso);
       const reportTitle = "Resumen de trabajo realizado";
@@ -7122,52 +6761,6 @@ function App() {
           ].filter(Boolean).join("\n") || "Referencias registradas en puntos GPS."
         ];
       });
-      const drawMiniMap = (points, x, y, width, height, title) => {
-        document.setDrawColor(185, 209, 228);
-        document.setFillColor(237, 245, 252);
-        document.roundedRect(x, y, width, height, 3, 3, "FD");
-        document.setFont("helvetica", "bold");
-        document.setFontSize(8);
-        document.setTextColor(18, 59, 93);
-        if (title) {
-          document.text(title, x + 4, y + 6);
-        }
-        const validPoints = points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)));
-        if (!validPoints.length) {
-          document.setFont("helvetica", "normal");
-          document.setTextColor(91, 116, 139);
-          document.text("Sin puntos", x + width / 2, y + height / 2, { align: "center" });
-          return;
-        }
-        const minLat = Math.min(...validPoints.map((point) => Number(point.latitude)));
-        const maxLat = Math.max(...validPoints.map((point) => Number(point.latitude)));
-        const minLng = Math.min(...validPoints.map((point) => Number(point.longitude)));
-        const maxLng = Math.max(...validPoints.map((point) => Number(point.longitude)));
-        const latSpan = maxLat - minLat || 0.0001;
-        const lngSpan = maxLng - minLng || 0.0001;
-        document.setDrawColor(209, 224, 237);
-        for (let line = 1; line <= 3; line += 1) {
-          document.line(x + 4, y + 10 + (height - 16) * (line / 4), x + width - 4, y + 10 + (height - 16) * (line / 4));
-          document.line(x + 4 + (width - 8) * (line / 4), y + 10, x + 4 + (width - 8) * (line / 4), y + height - 4);
-        }
-        validPoints.slice(0, 55).forEach((point) => {
-          const dotX = x + 5 + ((Number(point.longitude) - minLng) / lngSpan) * (width - 10);
-          const dotY = y + 11 + ((maxLat - Number(point.latitude)) / latSpan) * (height - 17);
-          if (isRedReportPoint(point)) {
-            document.setFillColor(220, 38, 38);
-          } else if (isAlertReportPoint(point)) {
-            document.setFillColor(245, 158, 11);
-          } else {
-            document.setFillColor(21, 118, 209);
-          }
-          document.circle(dotX, dotY, 1.5, "F");
-        });
-        document.setFont("helvetica", "normal");
-        document.setFontSize(7);
-        document.setTextColor(78, 101, 123);
-        document.text(`${validPoints.length} puntos`, x + width - 4, y + height - 4, { align: "right" });
-      };
-
       const addFooter = () => {
         const currentPage = document.getCurrentPageInfo().pageNumber;
         document.setFont("helvetica", "normal");
@@ -8381,7 +7974,6 @@ function App() {
     });
     setForm(emptyForm);
     setDraftForm(null);
-    setDraftSavedAt(null);
     setSelectedFile(null);
     window.localStorage.removeItem(DRAFT_STORAGE_KEY);
     window.localStorage.removeItem(DRAFT_SAVED_AT_STORAGE_KEY);
@@ -10208,392 +9800,6 @@ function App() {
     );
   }
 
-  const dashboardWidgetItems = [
-    {
-      key: "spotlight",
-      label: "Vision y acciones",
-      helper: "Entrada principal del tablero",
-      className: "is-wide",
-      content: (
-        <section className="dashboard-spotlight-grid">
-          <article className="preview-panel dashboard-spotlight-panel">
-            <div className="dashboard-panel-head dashboard-spotlight-head">
-              <div>
-                <p className="sheet-kicker">Vision ejecutiva</p>
-                  <h2><Icon name="dashboard" className="title-icon" />Tablero</h2>
-                <p className="workspace-title">
-                  Una vista rapida para decidir a donde entrar, que revisar y donde hace falta atencion inmediata.
-                </p>
-              </div>
-              <span className="panel-pill">Computadora primero</span>
-            </div>
-            <div className="dashboard-focus-grid">
-              {dashboardFocusCards.map((card) => (
-                <article key={card.title} className="dashboard-focus-card">
-                  <span className="dashboard-focus-icon"><Icon name={card.icon} /></span>
-                  <strong>{card.title}</strong>
-                  <h3>{card.value}</h3>
-                  <p>{card.detail}</p>
-                  <button type="button" className="button-secondary" onClick={() => setWorkspaceView(card.actionView)}>
-                    {card.actionLabel}
-                  </button>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="preview-panel dashboard-command-panel">
-            <div className="dashboard-panel-head">
-              <div>
-                <p className="sheet-kicker">Acciones rapidas</p>
-                <h2><Icon name="activity" className="title-icon" />Que quieres hacer ahora</h2>
-              </div>
-            </div>
-            <div className="dashboard-command-list">
-              {dashboardQuickActions.map((action) => (
-                <button
-                  key={action.key}
-                  type="button"
-                  className="dashboard-command-card"
-                  onClick={() => setWorkspaceView(action.key)}
-                >
-                  <span className="dashboard-command-icon"><Icon name={action.icon} /></span>
-                  <span className="dashboard-command-copy">
-                    <strong>{action.label}</strong>
-                    <small>{action.helper}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </article>
-        </section>
-      )
-    },
-    {
-      key: "metrics",
-      label: "Metricas base",
-      helper: "Volumen operativo rapido",
-      className: "is-wide",
-      content: (
-        <div className="dashboard-metric-grid">
-          {dashboardMetrics.map((metric) => (
-            <article key={metric.label} className="dashboard-metric-card">
-              <span className="dashboard-metric-icon"><Icon name={metric.icon} /></span>
-              <strong>{metric.value}</strong>
-              <span>{metric.label}</span>
-              <small>{metric.helper}</small>
-            </article>
-          ))}
-        </div>
-      )
-    },
-    {
-      key: "signals",
-      label: "Senales operativas",
-      helper: "Alertas y semaforos",
-      className: "is-wide",
-      content: (
-        <section className="dashboard-signal-grid">
-          {dashboardSignalCards.map((card) => (
-            <article key={card.title} className={`dashboard-signal-card ${card.tone}`}>
-              <span className="dashboard-signal-icon"><Icon name={card.icon} /></span>
-              <div>
-                <strong>{card.title}</strong>
-                <h3>{card.value}</h3>
-                <p>{card.helper}</p>
-              </div>
-            </article>
-          ))}
-        </section>
-      )
-    },
-    {
-      key: "executive",
-      label: "Operaciones realizadas",
-      helper: "Comparativos y carga",
-      className: "is-wide",
-      content: (
-        <section className="dashboard-dual-grid">
-          <article className="preview-panel dashboard-panel">
-            <div className="dashboard-panel-head">
-              <div>
-                <p className="sheet-kicker">Comparativo</p>
-                <h2><Icon name="dashboard" className="title-icon" />Hoy contra semana</h2>
-              </div>
-            </div>
-            <div className="dashboard-comparison-list">
-              {dashboardExecutiveCards.map((card) => (
-                <article key={card.title} className={`dashboard-comparison-card ${card.tone}`}>
-                  <div className="dashboard-comparison-head">
-                    <span className="dashboard-comparison-icon"><Icon name={card.icon} /></span>
-                    <div>
-                      <strong>{card.title}</strong>
-                      <p>{card.helper}</p>
-                    </div>
-                  </div>
-                  <div className="dashboard-comparison-metrics">
-                    <div>
-                      <small>Hoy</small>
-                      <span>{card.today}</span>
-                    </div>
-                    <div>
-                      <small>7 dias</small>
-                      <span>{card.week}</span>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="preview-panel dashboard-panel">
-            <div className="dashboard-panel-head">
-              <div>
-                <p className="sheet-kicker">Carga operativa</p>
-                <h2><Icon name="users" className="title-icon" />Equipo y zonas clave</h2>
-              </div>
-            </div>
-            <div className="dashboard-summary-stack">
-              <section className="dashboard-summary-block">
-                <div className="dashboard-summary-title">
-                  <strong>Tecnicos con mas fichas</strong>
-                  <span>{dashboardTechnicianSummary.length} visibles</span>
-                </div>
-                <div className="dashboard-summary-list">
-                  {dashboardTechnicianSummary.length ? (
-                    dashboardTechnicianSummary.map((item) => (
-                      <article key={item.name} className="dashboard-summary-item">
-                        <div>
-                          <strong>{item.name}</strong>
-                          <p>{item.withPhoto}/{item.total} con foto · {item.alert} en alerta</p>
-                        </div>
-                        <span className="dashboard-summary-badge">{item.total}</span>
-                      </article>
-                    ))
-                  ) : (
-                    <div className="empty-state">
-                      <h3>Sin responsables visibles</h3>
-                      <p>Cuando existan fichas activas se resumiran aqui.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <section className="dashboard-summary-block">
-                <div className="dashboard-summary-title">
-                  <strong>Barrios con mas movimiento</strong>
-                  <span>{dashboardZoneSummary.length} zonas</span>
-                </div>
-                <div className="dashboard-summary-list">
-                  {dashboardZoneSummary.length ? (
-                    dashboardZoneSummary.map((item) => (
-                      <article key={item.name} className="dashboard-summary-item">
-                        <div>
-                          <strong>{item.name}</strong>
-                          <p>{item.pendingPhoto} sin foto · {item.alert} en alerta</p>
-                        </div>
-                        <span className="dashboard-summary-badge">{item.total}</span>
-                      </article>
-                    ))
-                  ) : (
-                    <div className="empty-state">
-                      <h3>Sin zonas activas</h3>
-                      <p>Los barrios con mayor actividad apareceran aqui.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            </div>
-          </article>
-        </section>
-      )
-    },
-    {
-      key: "activity",
-      label: "Actividad reciente",
-      helper: "Bitacora viva",
-      className: "is-half",
-      content: (
-        <section className="preview-panel dashboard-panel">
-          <div className="dashboard-panel-head">
-            <div>
-              <p className="sheet-kicker">Actividad reciente</p>
-              <h2><Icon name="activity" className="title-icon" />Pulso operativo</h2>
-            </div>
-            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
-              <Icon name="logs" />
-              Bitacora completa
-            </button>
-          </div>
-          <div className="dashboard-activity-list">
-            {dashboardActivity.length ? (
-              dashboardActivity.map((log) => (
-                <article key={log.id} className="dashboard-activity-item">
-                  <span className="dashboard-activity-icon">
-                    <Icon name={actionIconName(log.action)} />
-                  </span>
-                  <div>
-                    <strong>{log.summary || actionLabel(log.action)}</strong>
-                    <p>{log.actor_name || log.actor_email || "Sistema"} · {formatDateTime(log.created_at)}</p>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="empty-state">
-                <h3>Sin actividad reciente</h3>
-                <p>Cuando el equipo opere fichas, mapa o usuarios, veras el resumen aqui.</p>
-              </div>
-            )}
-          </div>
-        </section>
-      )
-    },
-    {
-      key: "lookup",
-      label: "Busquedas recientes",
-      helper: "Consultas reutilizables",
-      className: "is-half",
-      content: (
-        <section className="preview-panel dashboard-panel">
-          <div className="dashboard-panel-head">
-            <div>
-              <p className="sheet-kicker">Consulta operativa</p>
-              <h2><Icon name="search" className="title-icon" />Busquedas recientes</h2>
-            </div>
-            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("lookup")}>
-              <Icon name="search" />
-              Abrir consulta
-            </button>
-          </div>
-          <div className="dashboard-activity-list">
-            {dashboardLookupItems.length ? (
-              dashboardLookupItems.map((item) => (
-                <button
-                  key={`${item.mode}-${item.normalized_query}-${item.searched_at}`}
-                  type="button"
-                  className="dashboard-activity-item dashboard-lookup-item"
-                  onClick={() => {
-                    setLookupSearchMode(item.mode);
-                    setLookupQuery(String(item.normalized_query || item.query || ""));
-                    setLookupResult(null);
-                    setLookupFeedback("");
-                    if (item.mode === "clave") {
-                      const firstPart = String(item.normalized_query || item.query || "").split("-")[0] || "";
-                      setLookupPrefixMode(firstPart.length === 3 ? "three" : "auto");
-                    } else {
-                      setLookupPrefixMode("auto");
-                    }
-                    setWorkspaceView("lookup");
-                  }}
-                >
-                  <span className="dashboard-activity-icon">
-                    <Icon name={item.mode === "clave" ? "records" : item.mode === "nombre" ? "users" : "search"} />
-                  </span>
-                  <div>
-                    <strong>{item.normalized_query || item.query}</strong>
-                    <p>
-                      {item.mode === "clave" ? "Clave" : item.mode === "nombre" ? "Nombre" : "Abonado"} ·{" "}
-                      {item.exists ? `${item.total_matches} coincidencias` : "Sin registro"} · {formatDateTime(item.searched_at)}
-                    </p>
-                  </div>
-                </button>
-              ))
-            ) : (
-              <div className="empty-state">
-                <h3>Sin consultas guardadas</h3>
-                <p>Las ultimas busquedas de clave, nombre o abonado apareceran aqui para repetirlas rapido.</p>
-              </div>
-            )}
-          </div>
-        </section>
-      )
-    },
-    {
-      key: "journeys",
-      label: "Jornadas de campo",
-      helper: "Resumen geografico",
-      className: "is-half",
-      content: (
-        <article className="preview-panel dashboard-panel">
-          <div className="dashboard-panel-head">
-            <div>
-              <p className="sheet-kicker">Campo</p>
-              <h2><Icon name="map" className="title-icon" />Jornadas recientes</h2>
-            </div>
-            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("mapReports")}>
-              <Icon name="records" />
-              Reportes campo
-            </button>
-          </div>
-          <div className="dashboard-journey-list">
-            {dashboardJourneys.length ? (
-              dashboardJourneys.map((journey) => (
-                <button
-                  key={journey.key}
-                  type="button"
-                  className="dashboard-journey-card"
-                  onClick={() => {
-                    setMapDiaryDateKey(journey.key);
-                    setWorkspaceView("map");
-                  }}
-                >
-                  <strong>{formatMapDiaryLabel(journey.key)}</strong>
-                  <span>{journey.total} puntos levantados</span>
-                </button>
-              ))
-            ) : (
-              <div className="empty-state">
-                <h3>Sin jornadas de campo</h3>
-                <p>Los levantamientos del mapa apareceran aqui por fecha.</p>
-              </div>
-            )}
-          </div>
-        </article>
-      )
-    },
-    {
-      key: "online",
-      label: "Usuarios en linea",
-      helper: "Operacion activa",
-      className: "is-half",
-      content: (
-        <article className="preview-panel dashboard-panel">
-          <div className="dashboard-panel-head">
-            <div>
-              <p className="sheet-kicker">Equipo activo</p>
-              <h2><Icon name="users" className="title-icon" />Usuarios en linea</h2>
-            </div>
-            <button type="button" className="button-secondary" onClick={() => setWorkspaceView("users")}>
-              <Icon name="users" />
-              Gestionar accesos
-            </button>
-          </div>
-          <div className="dashboard-online-list">
-            {onlineUsers.length ? (
-              onlineUsers.map((user) => (
-                <article key={user.id} className="dashboard-online-card">
-                  <div>
-                    <strong>{user.full_name || user.username}</strong>
-                    <p>{roleLabel(user.role)} · {user.active_sessions || 0} sesiones</p>
-                  </div>
-                  <span className="record-badge is-online">En linea</span>
-                </article>
-              ))
-            ) : (
-              <div className="empty-state">
-                <h3>Sin usuarios conectados</h3>
-                <p>Cuando alguien tenga sesion activa, lo veras reflejado aqui.</p>
-              </div>
-            )}
-          </div>
-        </article>
-      )
-    }
-  ];
-  const visibleDashboardWidgetItems = dashboardWidgetPrefs.order
-    .map((key) => dashboardWidgetItems.find((item) => item.key === key))
-    .filter(Boolean)
-    .filter((item) => !dashboardWidgetPrefs.hidden.includes(item.key));
 
   return (
     <div

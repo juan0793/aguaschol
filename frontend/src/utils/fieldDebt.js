@@ -1,6 +1,5 @@
 import { escapeHtml } from "./html";
 import { extractPadronLookupReferences } from "./claveAndLookup";
-import { formatCurrency } from "./formatting";
 
 export const FIELD_DEBT_SERVICE_DEFINITIONS = [
   { field: "agua", label: "Agua potable", shortLabel: "Agua", aliases: ["agua", "potable"] },
@@ -61,37 +60,8 @@ export const buildMapDescriptionPadronBlock = (match = {}) => {
   ].join("\n");
 };
 
-export const getActiveServiceShortLabels = (match = {}) =>
-  FIELD_DEBT_SERVICE_DEFINITIONS.filter((service) => String(match?.[service.field] || "").trim().toUpperCase() === "S")
-    .map((service) => service.shortLabel);
 
-export const formatLookupAssistantMoney = (value) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? formatCurrency(numeric) : "";
-};
 
-export const buildLookupAssistantDetails = (match = {}) => {
-  const detailRows = [
-    ["Clave", match.clave_catastral || match.clave_aguas_formato],
-    ["Abonado", match.abonado],
-    ["Nombre", match.inquilino || match.nombre],
-    ["Titular", match.nombre && match.nombre !== match.inquilino ? match.nombre : ""],
-    ["Barrio/colonia", match.barrio_colonia || match.caserio],
-    ["Direccion", match.direccion],
-    ["Agua potable", getFieldDebtServiceStatus(match, "agua")],
-    ["Alcantarillado", getFieldDebtServiceStatus(match, "alcantarillado")],
-    ["Barrido", getFieldDebtServiceStatus(match, "barrido")],
-    ["Desechos / tren de aseo", getFieldDebtServiceStatus(match, "recoleccion")],
-    ["Desechos peligrosos", getFieldDebtServiceStatus(match, "desechos_peligrosos")],
-    ["Valor", formatLookupAssistantMoney(match.valor)],
-    ["Intereses", formatLookupAssistantMoney(match.intereses)],
-    ["Total", formatLookupAssistantMoney(match.total)]
-  ];
-
-  return detailRows
-    .filter(([, value]) => String(value ?? "").trim() && String(value ?? "").trim() !== "--")
-    .map(([label, value]) => ({ label, value }));
-};
 
 export const buildFieldDebtServicesMarkup = (match = {}) =>
   FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => {

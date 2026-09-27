@@ -128,10 +128,6 @@ export const getMapReportPointClave = (point = {}, context = null) =>
     ].filter(Boolean).join(" ")
   );
 
-export const getMapReportTopZones = (reportData = {}, limit = 8) =>
-  [...(reportData.zones || [])]
-    .sort((left, right) => (right.total || 0) - (left.total || 0))
-    .slice(0, limit);
 
 export const getMapZoneClavesLabel = (zone = {}) => Array.from(zone.claves || []).join(", ");
 
@@ -203,8 +199,6 @@ export const normalizeHousingUnitsInput = (value) => {
   return Number.isFinite(numeric) ? String(Math.max(1, Math.min(999, numeric))) : "1";
 };
 
-export const getMapZoneHousingUnits = (zone = {}) =>
-  (zone.items || []).reduce((total, point) => total + getMapPointHousingUnits(point), 0);
 
 export const getMapPointServicesLabel = (point = {}) => {
   const source = `${point.reference_note || ""}\n${point.description || ""}`;

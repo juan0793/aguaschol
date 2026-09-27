@@ -1,5 +1,3 @@
-import { DEFAULT_DASHBOARD_WIDGET_ORDER } from "../constants/workspace";
-
 export const humanizeDashboardActivity = (log) => {
   const actor = log?.actor_name || log?.actor_email || "Sistema";
   const summary = String(log?.summary || "").trim();
@@ -28,16 +26,4 @@ export const humanizeDashboardActivity = (log) => {
   }
 
   return summary || `${actor} registro actividad operativa`;
-};
-
-export const normalizeDashboardWidgetPrefs = (value) => {
-  const orderSource = Array.isArray(value?.order) ? value.order : [];
-  const hiddenSource = Array.isArray(value?.hidden) ? value.hidden : [];
-  const order = [
-    ...orderSource.filter((item, index) => DEFAULT_DASHBOARD_WIDGET_ORDER.includes(item) && orderSource.indexOf(item) === index),
-    ...DEFAULT_DASHBOARD_WIDGET_ORDER.filter((item) => !orderSource.includes(item))
-  ];
-  const hidden = hiddenSource.filter((item, index) => DEFAULT_DASHBOARD_WIDGET_ORDER.includes(item) && hiddenSource.indexOf(item) === index);
-
-  return { order, hidden };
 };
