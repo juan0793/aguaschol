@@ -42,7 +42,14 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
       return;
     }
     // patch: datos a precargar sobre la ficha existente; quedan en el
-    // formulario y se conservan solo si se guarda.
+    // formulario y se conservan solo si se guarda. Si el módulo de origen ya
+    // trae la ficha exacta (record), se abre esa sin volver a buscarla: la
+    // búsqueda por clave es parcial y podría devolver otra ficha primero.
+    if (focusRequest.record) {
+      setDrawer({ ...focusRequest.record, ...focusRequest.patch, id: focusRequest.record.id });
+      onFocusConsumed?.();
+      return;
+    }
     api.fichas({ q: focusRequest.clave_catastral || "", limit: 8 }).then((data) => {
       const found = data.items.find((item) => String(item.id) === String(focusRequest.fichaId)) || data.items[0];
       if (found) setDrawer(focusRequest.patch ? { ...found, ...focusRequest.patch, id: found.id } : found);

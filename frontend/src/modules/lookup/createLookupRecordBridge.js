@@ -76,6 +76,7 @@ export function createLookupRecordBridge({
 
       const record = await response.json();
       navigateWithFocus("records", {
+        record,
         fichaId: record.id,
         clave_catastral: record.clave_catastral || match.clave_catastral,
         patch: {
