@@ -18,6 +18,7 @@ frontend-dev.err.log
 .tools/
 .codex/
 tmp/
+graphify-out/
 
 foxpro-reader/ControlAguasFoxProReader-win-x86*/
 foxpro-reader/ControlAguasFoxProReader-win-x86*.zip
