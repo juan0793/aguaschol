@@ -9,13 +9,15 @@ const itemLabels = {
   executiveReport: "Operaciones",
   requests: "Impresión e informes",
   logs: "Auditoría",
-  notes: "Apuntes"
+  notes: "Apuntes",
+  railwayUsage: "Uso en Railway"
 };
 
 const routeViews = {
   "/dashboard": "dashboard",
   "/tablero": "dashboard",
   "/perfil": "profile",
+  "/uso-railway": "railwayUsage",
   "/inspecciones": "inspecciones",
   "/entregas": "entregas",
   "/clandestinos": "records",
@@ -50,6 +52,6 @@ export const buildSidebarSections = (items = [], dashboardItem = null) => {
     { key: "operacion", title: "Operación", helper: "Procesos diarios", icon: "activity", collapsible: true, items: take(["inspecciones", "entregas", "records", "lookup"]) },
     { key: "gestion", title: "Gestión", helper: "Datos y administración", icon: "records", collapsible: true, items: take(["requests", "barrioCodes", "padron", "importacion", "logs", "users"]) },
     { key: "territorio", title: "Territorio", helper: "Mapas y zonas", icon: "map", collapsible: true, items: take(["sigTerritorial", "map", "fieldValidation", "mapReports", "planos"]) },
-    { key: "sistema", title: "Sistema", helper: "Cuenta y configuración", icon: "settings", collapsible: true, items: take(["profile"]) }
+    { key: "sistema", title: "Sistema", helper: "Cuenta y configuración", icon: "settings", collapsible: true, items: take(["profile", "railwayUsage"]) }
   ].filter((section) => section.items.length);
 };

@@ -140,6 +140,7 @@ const FieldMap = lazyWithRetry(() => import("./components/FieldMap"));
 const MapPrintDialog = lazyWithRetry(() => import("./components/MapPrintDialog"));
 const FieldValidationWorkspace = lazy(() => import("./components/FieldValidationWorkspace"));
 const MyProfileWorkspace = lazy(() => import("./components/profile/MyProfileWorkspace"));
+const RailwayUsageWorkspace = lazy(() => import("./components/RailwayUsageWorkspace"));
 const PlanosWorkspace = lazy(() => import("./modules/planos/PlanosWorkspace"));
 const ReportsWorkspace = lazy(() => import("./modules/reports/ReportsWorkspace"));
 const PadronRequestsWorkspace = lazy(() => import("./modules/requests/PadronRequestsWorkspace"));
@@ -267,7 +268,8 @@ const MODULE_LOADERS = {
   fieldValidation: () => import("./components/FieldValidationWorkspace"),
   mapReports: () => import("./modules/reports/ReportsWorkspace"),
   planos: () => import("./modules/planos/PlanosWorkspace"),
-  profile: () => import("./components/profile/MyProfileWorkspace")
+  profile: () => import("./components/profile/MyProfileWorkspace"),
+  railwayUsage: () => import("./components/RailwayUsageWorkspace")
 };
 
 // Un fallo aquí no es un error de la app: el módulo se volverá a pedir al entrar.
@@ -2411,6 +2413,7 @@ function App() {
       (isAdmin
         ? [
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
+            { key: "railwayUsage", label: "Uso en Railway", icon: "barChart", group: "principal", helper: "Consumo y horas pico" },
             { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
             { key: "entregas", label: "Control de entregas", icon: "archive", group: "operacion", helper: "Facturas y notas de cobro" },
             { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
@@ -14775,6 +14778,12 @@ function App() {
               initialTargetUserId={notificationUserId}
               onTargetUserSelected={() => setNotificationUserId(null)}
             />
+          </Suspense>
+        </main>
+      ) : workspaceView === "railwayUsage" ? (
+        <main className="railway-usage-layout">
+          <Suspense fallback={<ModuleSkeleton title="uso en Railway" toolbar={false} rows={4} />}>
+            <RailwayUsageWorkspace apiFetch={apiFetch} />
           </Suspense>
         </main>
       ) : workspaceView === "executiveReport" ? (

@@ -1,0 +1,100 @@
+.railway-usage-layout { min-width: 0; }
+.railway-usage {
+  --ru-ink: #113854;
+  --ru-muted: #5c7487;
+  --ru-line: #dce6ed;
+  --ru-blue: #1465d9;
+  max-width: 1180px;
+  margin: 0 auto;
+  color: var(--ru-ink);
+}
+.railway-usage .ds-page-header { margin-bottom: 1rem; }
+.railway-usage .ds-page-header-description { max-width: 62ch; }
+.railway-usage-link,
+.railway-usage-text-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-height: 42px;
+  border-radius: 8px;
+  font-size: .85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.railway-usage-link { padding: .55rem .85rem; background: var(--ru-blue); color: #fff; }
+.railway-usage-link:hover { background: #0d54bb; color: #fff; }
+.railway-usage a:focus-visible { outline: 3px solid #83bafa; outline-offset: 3px; }
+.railway-usage-source {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  margin: 0 0 1.1rem;
+  padding: .85rem 1rem;
+  border-left: 3px solid #2f88ce;
+  border-radius: 0 9px 9px 0;
+  background: #edf6fc;
+  color: #294d68;
+}
+.railway-usage-source-mark { display: grid; flex: 0 0 34px; height: 34px; place-items: center; color: #1465a7; }
+.railway-usage-source p { margin: 0; font-size: .88rem; line-height: 1.5; }
+.railway-usage-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+.railway-usage-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1.15rem 1.2rem 1rem;
+  border: 1px solid var(--ru-line);
+  border-radius: 12px;
+  background: #fff;
+}
+.railway-usage-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.railway-usage-eyebrow { color: var(--ru-muted); font-size: .69rem; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
+.railway-usage-panel h2,
+.railway-usage-section-heading h2 { margin: .2rem 0 0; color: var(--ru-ink); font-size: 1.1rem; line-height: 1.35; }
+.railway-usage-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 10px; background: #eef5f8; color: #37637c; }
+.railway-usage-icon.is-blue { background: #eaf2fd; color: #1465d9; }
+.railway-usage-panel > p { min-height: 3.2em; margin: .75rem 0 .85rem; color: var(--ru-muted); font-size: .87rem; line-height: 1.55; }
+.railway-usage-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 0 .65rem; border-block: 1px solid var(--ru-line); }
+.railway-usage-facts div { display: grid; gap: .15rem; padding: .75rem .5rem .75rem 0; }
+.railway-usage-facts div + div { padding-left: .8rem; border-left: 1px solid var(--ru-line); }
+.railway-usage-facts dt { color: var(--ru-muted); font-size: .73rem; }
+.railway-usage-facts dd { margin: 0; color: var(--ru-ink); font-size: .9rem; font-weight: 700; }
+.railway-usage-retry { align-self: flex-start; min-height: 36px; margin: 0 0 .4rem; padding: .35rem .65rem; border: 1px solid #bdceda; border-radius: 7px; background: #fff; color: #285676; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.railway-usage-retry:hover { background: #f3f8fc; }
+.railway-usage-text-link { align-self: flex-start; justify-content: flex-start; margin-top: auto; color: var(--ru-blue); }
+.railway-usage-text-link:hover { color: #0b4fae; text-decoration: underline; }
+.railway-usage-steps { display: grid; gap: .55rem; margin: 0 0 .7rem; padding: 0; list-style: none; color: #36536a; font-size: .83rem; line-height: 1.45; }
+.railway-usage-steps li { display: flex; align-items: flex-start; gap: .55rem; }
+.railway-usage-steps li > span { display: grid; width: 21px; height: 21px; flex: 0 0 21px; place-items: center; border-radius: 50%; background: #eff4f7; color: #45637b; font-size: .7rem; font-weight: 750; }
+.railway-usage-peaks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-bottom: .5rem; }
+.railway-usage-peak-group { min-width: 0; }
+.railway-usage-peak-group h3 { display: flex; align-items: center; gap: .35rem; margin: 0 0 .35rem; color: #355f79; font-size: .76rem; }
+.railway-usage-peak-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-width: 0; padding: .33rem 0; border-top: 1px solid #edf1f4; }
+.railway-usage-peak-row span { display: grid; min-width: 0; }
+.railway-usage-peak-row strong { overflow: hidden; color: var(--ru-ink); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
+.railway-usage-peak-row small,
+.railway-usage-no-data { color: var(--ru-muted); font-size: .69rem; }
+.railway-usage-peak-row b { color: var(--ru-ink); font-size: .74rem; white-space: nowrap; }
+.railway-usage-peak-placeholder { margin-bottom: .75rem; color: var(--ru-muted); font-size: .81rem; }
+.railway-usage-resources { margin-top: 1rem; padding: 1rem 1.15rem .75rem; border-radius: 12px; background: #f3f7fa; }
+.railway-usage-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem 1.5rem; margin-bottom: .8rem; }
+.railway-usage-section-heading > span { color: var(--ru-muted); font-size: .78rem; }
+.railway-usage-resources ul { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.railway-usage-resources li { display: flex; min-width: 0; align-items: flex-start; gap: .55rem; padding: .65rem .35rem .55rem 0; color: #39708d; }
+.railway-usage-resources li span { display: grid; gap: .2rem; min-width: 0; }
+.railway-usage-resources li strong { color: var(--ru-ink); font-size: .78rem; }
+.railway-usage-resources li small { color: var(--ru-muted); font-size: .69rem; line-height: 1.4; }
+@media (max-width: 760px) {
+  .railway-usage .ds-page-header { align-items: flex-start; }
+  .railway-usage-grid { grid-template-columns: 1fr; }
+  .railway-usage-panel > p { min-height: 0; }
+  .railway-usage-peaks { grid-template-columns: 1fr; }
+  .railway-usage-resources ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 430px) {
+  .railway-usage-source { align-items: flex-start; padding: .75rem; }
+  .railway-usage-link { width: 100%; }
+  .railway-usage .ds-page-header-actions { width: 100%; }
+  .railway-usage-section-heading { align-items: flex-start; flex-direction: column; }
+}
