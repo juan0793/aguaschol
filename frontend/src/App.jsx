@@ -1,21 +1,14 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@blossom-carousel/core/style.css";
-import { CalendarDays, MapPin } from "lucide-react";
 import { toast, Toaster } from "sonner";
-import FieldAnalyticsPanel from "./components/FieldAnalyticsPanel";
 import { Icon, actionIconName } from "./components/Icon";
-import BarrioCodesWorkspace, { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
-import { UsersContent, UsersSidebar } from "./components/users/UsersWorkspace";
-import { NotificationCenter } from "./components/NotificationCenter.jsx";
+import { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import AppSidebar from "./components/sidebar/AppSidebar";
 import { buildSidebarSections, getPathForWorkspaceView } from "./components/sidebar/sidebarConfig";
 import { ModuleSkeleton } from "./components/ds/Skeleton";
 import "./components/ds/design-system.css";
 import "./styles/request-workspace.css";
 import logoAguasCholuteca from "./assets/logo-aguas-choluteca.png";
-import loginBridgeBackground from "./assets/login/login-bridge-background.webp";
-import loginDroplet from "./assets/login/control-aguas-droplet.png";
-import loginSplash from "./assets/login/control-aguas-splash.png";
 import { API_URL } from "./config/api";
 import {
   AUTH_STORAGE_KEY,
@@ -79,7 +72,7 @@ import {
 import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/localStorage";
 import { escapeHtml } from "./utils/html";
 import { fileToDataUrl, optimizeImageForUpload, urlToDataUrl } from "./utils/imageUtils";
-import { buildPrintHtml, pause, printDocument, saveReportPdf } from "./utils/printDocument";
+import { pause, printDocument, saveReportPdf } from "./utils/printDocument";
 import {
   getBarrioNameFromClave,
   normalizeBarrioCode,
@@ -88,27 +81,13 @@ import {
   withReferenceBarrioPrefix,
   ensureClaveHasPrefix
 } from "./utils/barrioCodes";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { lastDaysSeries } from "./modules/dashboard/dashboardSelectors.js";
-import { abrirMisAsignaciones } from "./modules/clandestinos/hooks/useBanco";
 import { installSearchScrollGuard } from "./utils/searchScrollGuard";
 import {
   FieldValidationWorkspace,
   MyProfileWorkspace,
   RailwayUsageWorkspace,
   PlanosWorkspace,
-  ReportsWorkspace,
-  PadronRequestsWorkspace,
   DashboardWorkspace,
   TransportWorkspace,
   ImportacionWorkspace,
@@ -125,9 +104,6 @@ import {
   AUDIT_FILTER_KEYS,
   AUDIT_ACTION_OPTIONS,
   AUDIT_ENTITY_OPTIONS,
-  auditActionTone,
-  formatAuditTime,
-  auditRelativeDayLabel
 } from "./utils/audit";
 import {
   DASHBOARD_WIDGET_STORAGE_KEY,
@@ -149,7 +125,6 @@ import {
   getGeolocationErrorMessage
 } from "./utils/geolocation";
 import { getTodayMapDiaryKey } from "./utils/mapDiary";
-import { MapDiaryArchiveCalendar } from "./components/MapDiaryArchiveCalendar";
 import {
   REPORT_POINT_DANGER_RGB,
   REPORT_POINT_DANGER_FILL_RGB,
@@ -187,7 +162,6 @@ import {
 import {
   FIELD_DEBT_SERVICE_DEFINITIONS,
   extractFieldDebtLookupReferences,
-  getFieldDebtServiceStatus,
   buildMapDescriptionPadronBlock,
   getActiveServiceShortLabels,
   buildLookupAssistantDetails,
@@ -202,13 +176,11 @@ import {
   formatDashboardSyncDate
 } from "./utils/timeFormat";
 import {
-  getPadronStatusLabel,
   clampPrintCopies,
   getRecordPhotoPath,
   getRecordDisplayName,
   getRecordAguasPresenceLabel,
   getRecordFichaDateLabel,
-  getRecordPrintedDateLabel
 } from "./utils/recordLabels";
 import { humanizeDashboardActivity, normalizeDashboardWidgetPrefs } from "./utils/dashboardActivity";
 import {
@@ -221,6 +193,16 @@ import FieldMapWorkspace from "./modules/campo/FieldMapWorkspace";
 import PadronWorkspace from "./modules/padron/PadronWorkspace";
 import LookupWorkspace from "./modules/lookup/LookupWorkspace";
 import ExecutiveReportView from "./modules/reports/ExecutiveReportView";
+import AdminWorkspace from "./app/AdminWorkspace";
+import AppHeader from "./app/AppHeader";
+import AuditReportViewerDialog from "./modules/audit/AuditReportViewerDialog";
+import DashboardAlertsDialog from "./modules/dashboard/DashboardAlertsDialog";
+import PrintComparisonDialog from "./modules/clandestinos/dialogs/PrintComparisonDialog";
+import PrintBatchDialog from "./modules/clandestinos/dialogs/PrintBatchDialog";
+import MapDiaryArchiveDialog from "./modules/campo/MapDiaryArchiveDialog";
+import FieldDebtDialog from "./modules/campo/FieldDebtDialog";
+import PasswordChangeModal from "./components/PasswordChangeModal";
+import LoginScreen from "./app/LoginScreen";
 
 function App() {
   const sheetRef = useRef(null);
@@ -10212,83 +10194,17 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div
-        className="login-shell login-scene"
-        style={{ "--login-bridge-background": `url(${loginBridgeBackground})` }}
-      >
-        {authFx ? (
-          <div className={`auth-fx auth-fx-${authFx.mode}`}>
-            <div className="auth-fx-card">
-              <span className="auth-fx-dot" />
-              <strong>{authFx.text}</strong>
-            </div>
-          </div>
-        ) : null}
-        <Toaster position="top-right" richColors closeButton duration={5000} visibleToasts={3} />
-        <div className="login-droplet-sequence" aria-hidden="true">
-          <img className="login-droplet-fall" src={loginDroplet} alt="" />
-          <img className="login-droplet-splash" src={loginSplash} alt="" />
-          <img className="login-droplet-resolve" src={loginDroplet} alt="" />
-        </div>
-        <div className="login-layout">
-          <main className="login-card" aria-labelledby="login-title">
-            <header className="login-card-head">
-              <img src={loginDroplet} alt="Logo de Control Aguas" className="login-logo" />
-              <p className="login-brand-kicker">AGUAS DE CHOLUTECA</p>
-              <h1 id="login-title">Control Aguas</h1>
-              <p className="login-subtitle">Acceso al sistema de registro y seguimiento.</p>
-            </header>
-
-            <form className="login-form" onSubmit={handleLogin}>
-              <div className="login-field">
-                <label htmlFor="login-username">Usuario o correo</label>
-                <div className="login-input-shell">
-                  <span className="login-input-icon" aria-hidden="true"><Icon name="users" /></span>
-                  <input
-                    id="login-username"
-                    name="username"
-                    value={loginForm.username}
-                    onChange={handleLoginChange}
-                    autoComplete="username"
-                    placeholder="Ingresa tu usuario o correo"
-                  />
-                </div>
-              </div>
-
-              <div className="login-field">
-                <label htmlFor="login-password">Contraseña</label>
-                <div className="login-input-shell">
-                  <span className="login-input-icon" aria-hidden="true"><Icon name="auth" /></span>
-                  <input
-                    id="login-password"
-                    name="password"
-                    type={showLoginPassword ? "text" : "password"}
-                    value={loginForm.password}
-                    onChange={handleLoginChange}
-                    autoComplete="current-password"
-                    placeholder="Ingresa tu contraseña"
-                  />
-                  <button
-                    type="button"
-                    className="login-password-toggle"
-                    onClick={() => setShowLoginPassword((current) => !current)}
-                    aria-label={showLoginPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    aria-pressed={showLoginPassword}
-                  >
-                    {showLoginPassword ? "Ocultar" : "Mostrar"}
-                  </button>
-                </div>
-              </div>
-
-              <button className="login-submit" type="submit" disabled={loginLoading}>
-                {loginLoading ? "Ingresando..." : "Ingresar"}
-              </button>
-            </form>
-
-            <p className="login-footnote">Acceso exclusivo para personal autorizado.</p>
-          </main>
-        </div>
-      </div>
+      <LoginScreen
+        model={{
+          authFx,
+          handleLogin,
+          handleLoginChange,
+          loginForm,
+          loginLoading,
+          setShowLoginPassword,
+          showLoginPassword
+        }}
+      />
     );
   }
 
@@ -10699,68 +10615,17 @@ function App() {
       ) : null}
       <Toaster position="top-right" richColors closeButton duration={5000} visibleToasts={3} />
       {passwordModalVisible ? (
-        <div className={`password-modal-backdrop ${mustChangePassword ? "is-forced" : ""}`}>
-          <div className="password-modal-card">
-            <div className="password-modal-head">
-              <p className="eyebrow">{mustChangePassword ? "Acción requerida" : "Seguridad de acceso"}</p>
-              <h2>{mustChangePassword ? "Cambia tu contraseña temporal" : "Cambiar contraseña"}</h2>
-              <p className="lead">
-                {mustChangePassword
-                  ? "Antes de continuar, define una nueva contraseña personal para proteger tu cuenta."
-                  : "Actualiza tu contraseña cuando lo necesites."}
-              </p>
-            </div>
-            <form className="password-form" onSubmit={handleChangePassword}>
-              {passwordFeedback ? <p className="password-feedback">{passwordFeedback}</p> : null}
-              <label>
-                <span>Contraseña actual</span>
-                <input
-                  name="current_password"
-                  type="password"
-                  value={passwordForm.current_password}
-                  onChange={handlePasswordFormChange}
-                  required
-                />
-              </label>
-              <label>
-                <span>Nueva contraseña</span>
-                <input
-                  name="new_password"
-                  type="password"
-                  value={passwordForm.new_password}
-                  onChange={handlePasswordFormChange}
-                  minLength={8}
-                  required
-                />
-              </label>
-              <label>
-                <span>Confirmar nueva contraseña</span>
-                <input
-                  name="confirm_password"
-                  type="password"
-                  value={passwordForm.confirm_password}
-                  onChange={handlePasswordFormChange}
-                  required
-                />
-              </label>
-              <div className="password-form-actions">
-                <button type="submit" disabled={changingPassword}>
-                  <Icon name="auth" />
-                  {changingPassword ? "Actualizando..." : "Guardar nueva contraseña"}
-                </button>
-                {!mustChangePassword ? (
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => setShowPasswordModal(false)}
-                  >
-                    Cerrar
-                  </button>
-                ) : null}
-              </div>
-            </form>
-          </div>
-        </div>
+        <PasswordChangeModal
+          model={{
+            changingPassword,
+            handleChangePassword,
+            handlePasswordFormChange,
+            mustChangePassword,
+            passwordFeedback,
+            passwordForm,
+            setShowPasswordModal
+          }}
+        />
       ) : null}
       {pendingDeleteUser ? (
         <div className="password-modal-backdrop">
@@ -10805,1459 +10670,173 @@ function App() {
           </div>
         </div>
       ) : null}
-      <Dialog open={showFieldDebtModal} onOpenChange={setShowFieldDebtModal}>
-        <DialogContent className="field-debt-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-6xl">
-          <DialogHeader className="password-modal-head">
-            <p className="eyebrow">Verificación administrativa</p>
-            <DialogTitle>Verificación</DialogTitle>
-            <DialogDescription className="lead">
-              Claves o abonados detectados en las referencias de la jornada {formatMapDiaryLabel(fieldDebtReport?.dateKey || activeMapDiaryDateKey)}, cruzados contra el padron maestro.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="field-debt-modal-body">
-            {loadingFieldDebtReport ? (
-              <div className="empty-state field-debt-loading-state">
-                <Icon name="refresh" className="empty-state-icon field-debt-loading-icon" />
-                <h3>Verificación en proceso</h3>
-                <p>Estoy extrayendo claves y abonados de las referencias, y consultando el padron cargado.</p>
-                <span className="field-debt-loading-bar" aria-hidden="true" />
-              </div>
-            ) : fieldDebtReport ? (
-              <>
-                <div className="field-debt-summary-grid">
-                  <div className="log-summary-card">
-                    <span>Referencias unicas</span>
-                    <strong>{fieldDebtSummary.totalKeys}</strong>
-                  </div>
-                  <div className="log-summary-card">
-                    <span>Encontradas</span>
-                    <strong>{fieldDebtSummary.foundKeys}</strong>
-                  </div>
-                  <div className="log-summary-card">
-                    <span>Sin coincidencia</span>
-                    <strong>{fieldDebtSummary.missingKeys}</strong>
-                  </div>
-                  <div className="log-summary-card">
-                    <span>Deuda total</span>
-                    <strong>{formatCurrency(fieldDebtSummary.totalDebt)} lempiras</strong>
-                  </div>
-                </div>
-
-                <div className="field-debt-service-grid">
-                  {FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => (
-                    <div key={service.field} className="field-debt-service-card">
-                      <span>{service.label}</span>
-                      <strong>{fieldDebtSummary.services[service.field] || 0}</strong>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="field-debt-table-wrap">
-                  <table className="field-debt-table">
-                    <thead>
-                      <tr>
-                        <th>Referencia detectada</th>
-                        <th>Reportes</th>
-                        <th>Abonado</th>
-                        <th>Nombre</th>
-                        <th>Barrio</th>
-                        <th>Servicios</th>
-                        <th>Total sin interés</th>
-                        <th>Intereses</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fieldDebtReport.results.length ? (
-                        fieldDebtReport.results.flatMap((result) => {
-                          if (!result.matches?.length) {
-                            return (
-                              <tr key={`${result.key}-missing`} className="is-missing">
-                                <td>{getFieldDebtResultLabel(result)}</td>
-                                <td>{fieldDebtReport?.keyCounts?.[result.key] || 0}</td>
-                                <td>--</td>
-                                <td>{result.error || "No aparece en el padrón"}</td>
-                                <td>--</td>
-                                <td>--</td>
-                                <td>--</td>
-                                <td>--</td>
-                                <td>--</td>
-                              </tr>
-                            );
-                          }
-
-                          return result.matches.map((match, matchIndex) => (
-                            <tr key={`${result.key}-${match.abonado || match.clave_catastral || matchIndex}`}>
-                              <td>{matchIndex === 0 ? getFieldDebtResultLabel(result) : ""}</td>
-                              <td>{matchIndex === 0 ? fieldDebtReport?.keyCounts?.[result.key] || 0 : ""}</td>
-                              <td>{match.abonado || "--"}</td>
-                              <td>{match.inquilino || match.nombre || "--"}</td>
-                              <td>{match.barrio_colonia || "--"}</td>
-                              <td>
-                                {FIELD_DEBT_SERVICE_DEFINITIONS.map((service) => (
-                                  <span
-                                    key={service.field}
-                                    className={`field-debt-service-pill ${getFieldDebtServiceStatus(match, service.field) === "Sí" ? "is-on" : "is-off"}`}
-                                  >
-                                    <b>{getFieldDebtServiceStatus(match, service.field) === "Sí" ? "✓" : "×"}</b>
-                                    {service.shortLabel}
-                                  </span>
-                                ))}
-                              </td>
-                              <td className="field-debt-table-money">{formatCurrency(Number(match.valor || 0))}</td>
-                              <td className="field-debt-table-money">{formatCurrency(Number(match.intereses || 0))}</td>
-                              <td className="field-debt-table-money is-total">{formatCurrency(Number(match.total || 0))}</td>
-                            </tr>
-                          ));
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan="9">No se detectaron claves ni abonados en esta jornada.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <p className="helper-text">
-                  Se revisaron {fieldDebtSummary.totalPoints} puntos con referencia manual. El detalle final se resume arriba para evitar duplicar la referencia de campo.
-                </p>
-              </>
-            ) : (
-              <div className="empty-state">
-                <h3>Sin verificación</h3>
-                <p>Ejecuta la verificacion desde Reportes GPS para revisar las claves o abonados de la jornada.</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="password-form-actions print-batch-footer">
-            <button type="button" className="button-secondary" onClick={() => setShowFieldDebtModal(false)}>
-              Cerrar
-            </button>
-            <button type="button" className="button-secondary" onClick={handlePrintFieldDebtReport} disabled={!fieldDebtReport || loadingFieldDebtReport}>
-              <Icon name="records" />
-              Imprimir
-            </button>
-            <button type="button" onClick={handleDownloadFieldDebtPdf} disabled={!fieldDebtReport || loadingFieldDebtReport}>
-              <Icon name="records" />
-              Generar PDF
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showMapDiaryArchiveModal} onOpenChange={setShowMapDiaryArchiveModal}>
-        <DialogContent className="map-diary-archive-modal shadcn-print-dialog max-h-[calc(100vh-1rem)] overflow-hidden sm:max-w-none">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Calendario de jornadas trabajadas</DialogTitle>
-            <DialogDescription>Selecciona una fecha trabajada para revisar sus puntos.</DialogDescription>
-          </DialogHeader>
-          <div className="map-diary-archive-toolbar">
-            <button type="button" className="button-secondary map-diary-sidebar-toggle" onClick={() => setSidebarCollapsed((current) => !current)}>
-              <Icon name="arrowLeft" />
-              {sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
-            </button>
-          </div>
-          <div className="map-diary-archive-layout">
-            <MapDiaryArchiveCalendar
-              groups={archivedMapDiaryGroups}
-              selectedDateKey={selectedArchiveMapDiaryGroup?.key}
-              loading={loadingArchiveMapDiaryPoints}
-              onSelectDate={loadArchivedMapDiaryPoints}
-            />
-            <section className="map-diary-archive-detail">
-              <div className="map-diary-archive-detail-head">
-                <div>
-                  <span className="sheet-kicker"><CalendarDays size={14} /> Jornada seleccionada</span>
-                  <h3>{selectedArchiveMapDiaryGroup ? formatMapDiaryLabel(selectedArchiveMapDiaryGroup.key) : "Sin jornada"}</h3>
-                  <p className="map-diary-archive-points"><MapPin size={15} /> {selectedArchiveMapDiaryGroup?.total || 0} puntos guardados</p>
-                </div>
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={handleUseArchivedMapDiary}
-                  disabled={!selectedArchiveMapDiaryGroup}
-                >
-                  <Icon name="map" />
-                  Abrir jornada
-                </button>
-              </div>
-              <div className="map-diary-archive-table-wrap">
-                <table className="map-diary-archive-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Tipo</th>
-                      <th>Referencia</th>
-                      <th>Descripcion</th>
-                      <th>Coordenadas</th>
-                      <th>Precision</th>
-                      <th>Hora</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadingArchiveMapDiaryPoints ? (
-                      <tr>
-                        <td colSpan="7">Cargando datos guardados...</td>
-                      </tr>
-                    ) : archiveMapDiaryPoints.length ? (
-                      archiveMapDiaryPoints.map((point, index) => (
-                        <tr key={point.id || `${point.latitude}-${point.longitude}-${index}`}>
-                          <td data-label="#">{index + 1}</td>
-                          <td data-label="Tipo">{getMapPointTypeLabel(point.point_type)}</td>
-                          <td data-label="Referencia">{getMapPointReferenceNote(point) || "--"}</td>
-                          <td data-label="Descripción">{getMapPointTechnicalDescription(point) || "--"}</td>
-                          <td data-label="Coordenadas">{formatCoordinate(point.latitude)}, {formatCoordinate(point.longitude)}</td>
-                          <td data-label="Precisión">{point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
-                          <td data-label="Hora">{formatDateTime(point.created_at)}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7">Selecciona una jornada para ver los datos guardados.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showPrintBatchModal} onOpenChange={(open) => !batchPrinting && setShowPrintBatchModal(open)}>
-        <DialogContent className="print-batch-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-3xl">
-          <DialogHeader className="password-modal-head">
-            <p className="eyebrow">Impresion rapida</p>
-            <DialogTitle>Seleccionar fichas, avisos y copias</DialogTitle>
-            <DialogDescription className="lead">
-              Selecciona el lote, revisa pendientes o impresas y evita repetir impresiones.
-            </DialogDescription>
-            <p className="helper-text">
-              Al imprimir, las fichas pasan a impresas y salen de alertas. Desde impresas puedes marcarlas y enviarlas a guardadas.
-            </p>
-          </DialogHeader>
-          <div className="print-batch-toolbar">
-            <div className="print-batch-filters" aria-label="Apartados de impresion">
-              {[
-                { key: "pending", label: `Pendientes (${printBatchStatusCounts.pending})` },
-                { key: "printed", label: `Impresas (${printBatchStatusCounts.printed})` }
-              ].map((filter) => (
-                <Button
-                  key={filter.key}
-                  type="button"
-                  variant={printBatchStatusView === filter.key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setPrintBatchStatusView(filter.key);
-                    if (filter.key === "printed" && printBatchQuickFilter === "clandestina") {
-                      setPrintBatchQuickFilter("all");
-                    }
-                  }}
-                >
-                  {filter.label}
-                </Button>
-              ))}
-            </div>
-            <label className="print-batch-search">
-              <span>Buscar ficha</span>
-              <Input
-                type="search"
-                value={printBatchSearch}
-                onChange={(event) => setPrintBatchSearch(event.target.value)}
-                placeholder="Buscar por clave..."
-              />
-            </label>
-            <div className="print-batch-filters" aria-label="Filtros rapidos de impresion">
-              {[
-                { key: "all", label: "Todas" },
-                { key: "clandestina", label: "Clandestinas" },
-                { key: "ficha_selected", label: "Con ficha seleccionada" },
-                { key: "aviso_selected", label: "Con aviso seleccionado" }
-              ].map((filter) => (
-                <Button
-                  key={filter.key}
-                  type="button"
-                  variant={printBatchQuickFilter === filter.key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPrintBatchQuickFilter(filter.key)}
-                >
-                  {filter.label}
-                </Button>
-              ))}
-            </div>
-            <div className="print-batch-summary" aria-label="Resumen de seleccion">
-              <Badge variant="secondary">{batchPrintSelection.fichas} fichas</Badge>
-              <Badge variant="secondary">{batchPrintSelection.avisos} avisos</Badge>
-              <Badge variant="outline">{filteredPrintBatchRecords.length} visibles</Badge>
-              <Badge variant="outline">
-                {filteredPrintBatchRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino").length} clandestinas
-              </Badge>
-              {printBatchStatusView === "printed" ? (
-                <Badge variant="outline">{printedSaveSelection.total} para guardar</Badge>
-              ) : manualPrintedSelection.total ? (
-                <Badge variant="outline">{manualPrintedSelection.total} ya impresas</Badge>
-              ) : null}
-            </div>
-            <div className="print-batch-actions">
-              {printBatchStatusView === "printed" ? (
-                <>
-                  <Button type="button" variant="outline" size="sm" onClick={selectVisiblePrintedForSave}>
-                    Marcar visibles
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSaveSelectedPrintedRecords}
-                    disabled={batchPrinting || !printedSaveSelection.total}
-                  >
-                    Enviar a guardadas
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("ficha")}>
-                    Seleccionar fichas visibles
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => selectVisibleBatchPrintCopies("aviso")}>
-                    Seleccionar avisos visibles
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={selectVisiblePendingAsPrinted}>
-                    Marcar visibles ya impresas
-                  </Button>
-                </>
-              )}
-              <Button type="button" variant="ghost" size="sm" onClick={clearBatchPrintCopies}>
-                Limpiar seleccion
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPrintComparisonModal(true)}
-              >
-                Comparar todas las fichas
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleMoveSelectedFichasToPrinted}
-                disabled={batchPrinting || printBatchStatusView === "printed" || (!batchPrintSelection.fichas && !manualPrintedSelection.total)}
-              >
-                Marcar como impresas
-              </Button>
-            </div>
-          </div>
-          <div className="print-batch-scroll">
-            <div className="print-batch-grid">
-              {filteredPrintBatchRecords.length ? (
-                filteredPrintBatchRecords.map((record) => {
-                  const copies = batchPrintCopies[record.id] || {};
-                  const fichaCopies = clampPrintCopies(copies.ficha ?? 0);
-                  const avisoCopies = clampPrintCopies(copies.aviso ?? 0);
-                  const padronStatus = record.estado_padron || "clandestino";
-                  const isClandestina = padronStatus === "clandestino";
-                  const isPrinted = padronStatus === "reportada";
-                  const isSelected = Boolean(fichaCopies || avisoCopies);
-                  const isMarkedForSave = Boolean(copies.save);
-                  const isMarkedPrinted = Boolean(copies.printed);
-
-                  return (
-                    <article
-                      key={`print-${record.id}`}
-                      className={`print-batch-card ${isSelected ? "is-selected" : ""}`}
-                    >
-                      <div className="print-batch-card-main">
-                        <div className="print-batch-card-title">
-                          <strong>{record.clave_catastral}</strong>
-                          {isSelected ? <Badge variant="outline" className="print-selected-badge">Seleccionada</Badge> : null}
-                        </div>
-                        <span>{getRecordBarrioName(record, "Sin ubicacion")}</span>
-                        <div className="print-batch-card-meta">
-                          <Badge
-                            variant={isClandestina ? "destructive" : padronStatus === "reportada" ? "secondary" : "outline"}
-                            className={`print-status-badge is-${padronStatus}`}
-                          >
-                            {getPadronStatusLabel(padronStatus)}
-                          </Badge>
-                          <small>Creada: {getRecordFichaDateLabel(record)}</small>
-                          {isPrinted ? <small>Impresa: {getRecordPrintedDateLabel(record)}</small> : null}
-                        </div>
-                      </div>
-                      <div className="print-batch-status">
-                        {isPrinted ? (
-                          <label className="print-save-check">
-                            <input
-                              type="checkbox"
-                              checked={isMarkedForSave}
-                              onChange={() => togglePrintedSaveSelection(record.id)}
-                            />
-                            <span>Enviar a guardadas</span>
-                          </label>
-                        ) : (
-                          <>
-                            <label className="print-save-check">
-                              <input
-                                type="checkbox"
-                                checked={isMarkedPrinted}
-                                onChange={() => togglePendingPrintedSelection(record.id)}
-                              />
-                              <span>Ya fue impresa</span>
-                            </label>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="print-validate-button"
-                              onClick={() => handleValidatePrintRecord(record)}
-                              disabled={processingRecordId === record.id}
-                            >
-                              <Icon name="search" />
-                              {processingRecordId === record.id ? "Validando..." : "Validar padrones"}
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      {!isPrinted ? (
-                        <>
-                          <div className="print-copy-group">
-                            <span>Ficha</span>
-                            <div className="print-copy-stepper">
-                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", -1)}>-</Button>
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-5]"
-                                aria-label={`Copias de ficha para ${record.clave_catastral}`}
-                                min="0"
-                                max="5"
-                                value={String(fichaCopies)}
-                                onChange={(event) => updateBatchPrintCopies(record.id, "ficha", event.target.value)}
-                              />
-                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "ficha", 1)}>+</Button>
-                            </div>
-                          </div>
-                          <div className="print-copy-group">
-                            <span>Aviso</span>
-                            <div className="print-copy-stepper">
-                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", -1)}>-</Button>
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-5]"
-                                aria-label={`Copias de aviso para ${record.clave_catastral}`}
-                                min="0"
-                                max="5"
-                                value={String(avisoCopies)}
-                                onChange={(event) => updateBatchPrintCopies(record.id, "aviso", event.target.value)}
-                              />
-                              <Button type="button" variant="outline" size="icon-sm" onClick={() => adjustBatchPrintCopies(record.id, "aviso", 1)}>+</Button>
-                            </div>
-                          </div>
-                        </>
-                      ) : null}
-                    </article>
-                  );
-                })
-              ) : (
-                <div className="empty-state">
-                  <h3>No hay fichas visibles</h3>
-                  <p>Ajusta el filtro por clave, barrio o estado para preparar impresiones.</p>
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="password-form-actions print-batch-footer">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowPrintBatchModal(false)}
-              disabled={batchPrinting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handlePrintBatch}
-              disabled={batchPrinting || (!batchPrintSelection.fichas && !batchPrintSelection.avisos)}
-              className={batchPrintSelection.fichas || batchPrintSelection.avisos ? "print-preview-button is-ready" : "print-preview-button"}
-            >
-              <Icon name="records" />
-              {batchPrinting
-                ? "Preparando..."
-                : `Vista previa: ${batchPrintSelection.fichas} fichas / ${batchPrintSelection.avisos} avisos`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showPrintComparisonModal} onOpenChange={setShowPrintComparisonModal}>
-        <DialogContent className="print-comparison-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-3xl">
-          <DialogHeader className="password-modal-head">
-            <p className="eyebrow">Menu aparte</p>
-            <DialogTitle>Comparar fichas vencidas contra Aguas</DialogTitle>
-            <DialogDescription className="lead">
-              Imprime una lista simple: clave catastral, nombre, barrio, fecha de ficha, estado y si aparece en Aguas.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="comparison-modal-summary">
-            <div>
-              <span>Fichas vencidas</span>
-              <strong>{overdueComparisonRecords.length}</strong>
-            </div>
-            <div>
-              <span>No aparecen en Aguas</span>
-              <strong>{overdueComparisonRecords.filter((record) => getRecordAguasPresenceLabel(record) === "No aparece en Aguas").length}</strong>
-            </div>
-            <div>
-              <span>Aparecen en Aguas</span>
-              <strong>{overdueComparisonRecords.filter((record) => getRecordAguasPresenceLabel(record) === "Si aparece en Aguas").length}</strong>
-            </div>
-          </div>
-          <section className="comparison-header-editor">
-            <div className="comparison-header-editor-head">
-              <strong>Encabezado de impresion</strong>
-              <span>Edita solo el titulo del reporte, no cambia datos ni padrones.</span>
-            </div>
-            <label>
-              <span>Etiqueta superior</span>
-              <Input
-                value={printComparisonHeader.kicker}
-                onChange={(event) =>
-                  setPrintComparisonHeader((current) => ({ ...current, kicker: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              <span>Titulo principal</span>
-              <Input
-                value={printComparisonHeader.title}
-                onChange={(event) =>
-                  setPrintComparisonHeader((current) => ({ ...current, title: event.target.value }))
-                }
-              />
-            </label>
-            <label className="is-wide">
-              <span>Nota del encabezado</span>
-              <Input
-                value={printComparisonHeader.note}
-                onChange={(event) =>
-                  setPrintComparisonHeader((current) => ({ ...current, note: event.target.value }))
-                }
-              />
-            </label>
-          </section>
-          <div className="comparison-modal-scroll">
-            {overdueComparisonRecords.length ? (
-              <table className="comparison-modal-table">
-                <thead>
-                  <tr>
-                    <th>Clave catastral</th>
-                    <th>Nombre</th>
-                    <th>Barrio</th>
-                    <th>Fecha ficha</th>
-                    <th>Estado</th>
-                    <th>Aguas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {overdueComparisonRecords.map((record) => (
-                    (() => {
-                      const alcaldiaMatch = alcaldiaComparisonByClave.get(String(record.clave_catastral || "").trim()) || null;
-                      return (
-                        <tr key={`comparison-${record.id}`}>
-                          <td>{record.clave_catastral || "--"}</td>
-                          <td>{getRecordDisplayName(record, alcaldiaMatch)}</td>
-                          <td>{getRecordBarrioName(record, "") || record.barrio_alcaldia || alcaldiaMatch?.caserio || alcaldiaMatch?.direccion || "--"}</td>
-                          <td>{getRecordFichaDateLabel(record)}</td>
-                          <td>
-                            <span className="comparison-status-badge">Vencida</span>
-                          </td>
-                          <td>
-                            <Badge variant={getRecordAguasPresenceLabel(record) === "Si aparece en Aguas" ? "secondary" : "destructive"}>
-                              {getRecordAguasPresenceLabel(record)}
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })()
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty-state">
-                <h3>Sin fichas vencidas</h3>
-                <p>No hay registros vencidos para comparar en este momento.</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="password-form-actions print-batch-footer">
-            <Button type="button" variant="outline" onClick={() => setShowPrintComparisonModal(false)}>
-              Cerrar
-            </Button>
-            <Button
-              type="button"
-              onClick={() => handlePrintAguasComparisonList(overdueComparisonRecords)}
-              disabled={printingComparison || !overdueComparisonRecords.length}
-            >
-              <Icon name="records" />
-              {printingComparison ? "Preparando..." : "Imprimir lista comparativa"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showDashboardAlertsModal} onOpenChange={setShowDashboardAlertsModal}>
-        <DialogContent className="dashboard-alert-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-3xl">
-          <DialogHeader className="password-modal-head">
-            <p className="eyebrow">Alertas vencidas</p>
-            <DialogTitle>Lista de fichas en alerta</DialogTitle>
-            <DialogDescription className="lead">
-              Menu aparte para revisar fichas vencidas, abrir una ficha individual, imprimir o generar la comparacion contra Aguas.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="dashboard-alert-summary">
-            <div>
-              <span>Total</span>
-              <strong>{dashboardAlertCounts.all}</strong>
-            </div>
-            <div>
-              <span>Vencidas</span>
-              <strong>{dashboardAlertCounts.critical}</strong>
-            </div>
-            <div>
-              <span>Sin foto</span>
-              <strong>{dashboardAlertCounts.noPhoto}</strong>
-            </div>
-          </div>
-          <div className="dashboard-alert-filters" aria-label="Filtros de alertas operativas">
-            {[
-              { key: "all", label: "Todas", count: dashboardAlertCounts.all },
-              { key: "critical", label: "Criticas", count: dashboardAlertCounts.critical },
-              { key: "today", label: "Hoy", count: dashboardAlertCounts.today },
-              { key: "no-photo", label: "Sin foto", count: dashboardAlertCounts.noPhoto },
-              { key: "printable", label: "Para imprimir", count: dashboardAlertCounts.printable }
-            ].map((filter) => (
-              <button
-                key={filter.key}
-                type="button"
-                className={dashboardAlertFilter === filter.key ? "is-active" : ""}
-                onClick={() => setDashboardAlertFilter(filter.key)}
-              >
-                {filter.label}
-                <span>{filter.count}</span>
-              </button>
-            ))}
-          </div>
-          <div className="dashboard-alerts-list dashboard-alert-modal-list">
-            {filteredDashboardAlertRecords.length ? (
-              filteredDashboardAlertRecords.map(({ record, statusKey, detail, status }) => (
-                <article
-                  key={`modal-${record.id}-${statusKey}`}
-                  className={`dashboard-alert-item ${statusKey || "warning"}`}
-                >
-                  <span className="dashboard-alert-icon">
-                    <Icon name={statusKey === "no-photo" ? "records" : "warning"} />
-                  </span>
-                  <div>
-                    <strong>{record.clave_catastral || "Sin clave"}</strong>
-                    <p>{detail}</p>
-                    <span>{status}</span>
-                  </div>
-                  <div className="dashboard-alert-actions">
-                    <label className="print-save-check dashboard-alert-check">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(batchPrintCopies[record.id]?.printed)}
-                        onChange={() => togglePendingPrintedSelection(record.id)}
-                      />
-                      <span>Ya impresa</span>
-                    </label>
-                    <button
-                      type="button"
-                      className="dashboard-alert-action"
-                      onClick={() => {
-                        handleSelectRecord(record);
-                        setShowDashboardAlertsModal(false);
-                        setWorkspaceView("records");
-                      }}
-                    >
-                      Ver ficha
-                    </button>
-                    <button
-                      type="button"
-                      className="dashboard-alert-action is-print"
-                      onClick={() => {
-                        setShowDashboardAlertsModal(false);
-                        openPrintBatchModalForRecords([record], "ficha");
-                      }}
-                    >
-                      Imprimir
-                    </button>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="empty-state">
-                <h3>Sin alertas pendientes</h3>
-                <p>Todas las fichas estan al dia.</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="password-form-actions print-batch-footer">
-            <Button type="button" variant="outline" onClick={() => setShowDashboardAlertsModal(false)}>
-              Cerrar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleMarkSelectedAlertsAsPrinted}
-              disabled={batchPrinting || !manualPrintedSelection.total}
-            >
-              {batchPrinting ? "Marcando..." : `Marcar impresas${manualPrintedSelection.total ? ` (${manualPrintedSelection.total})` : ""}`}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setShowDashboardAlertsModal(false);
-                setShowPrintComparisonModal(true);
-              }}
-            >
-              Comparar vencidas
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                setShowDashboardAlertsModal(false);
-                openPrintBatchModalForRecords(overdueComparisonRecords, "ficha");
-              }}
-              disabled={!overdueComparisonRecords.length}
-            >
-              <Icon name="records" />
-              Imprimir vencidas
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={Boolean(selectedAuditReport)} onOpenChange={(open) => !open && setSelectedAuditReport(null)}>
-        <DialogContent className="audit-report-viewer-modal shadcn-print-dialog max-h-[calc(100vh-1.5rem)] overflow-hidden sm:max-w-6xl">
-          <DialogHeader className="password-modal-head audit-report-viewer-head">
-            <DialogTitle><Icon name="print" className="title-icon" />{selectedAuditReport?.title || "Reporte archivado"}</DialogTitle>
-            <DialogDescription className="lead">
-              ID {selectedAuditReport?.report_id || "--"} · Archivado {selectedAuditReport?.created_at ? formatDateTime(selectedAuditReport.created_at) : "sin fecha"}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedAuditReport ? (
-            <div className="audit-report-viewer-frame">
-              <iframe
-                title={`Vista archivada ${selectedAuditReport.report_id}`}
-                sandbox=""
-                srcDoc={buildPrintHtml(selectedAuditReport.title, selectedAuditReport.body_markup, {
-                  reportId: selectedAuditReport.report_id,
-                  pageSize: selectedAuditReport.page_size || "Letter portrait",
-                  pageMargin: selectedAuditReport.page_margin || "10mm",
-                  bodyClassName: selectedAuditReport.body_class_name || ""
-                })}
-              />
-            </div>
-          ) : null}
-          <DialogFooter className="password-form-actions print-batch-footer">
-            <button type="button" className="button-secondary" onClick={() => setSelectedAuditReport(null)}>Cerrar</button>
-            <button type="button" className="button-primary" onClick={handleReprintAuditReport} disabled={!selectedAuditReport?.body_markup}>
-              <Icon name="print" /> Imprimir nuevamente
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <header className={`hero app-chrome no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""} ${workspaceView === "logs" ? "hero-logs-terminal" : ""}`}>
-        <div className="app-topbar">
-          <button
-            type="button"
-            className="app-menu-button"
-            onClick={() => setShowMobileModuleMenu((current) => !current)}
-            aria-label={showMobileModuleMenu ? "Cerrar menú" : "Abrir menú"}
-            aria-expanded={showMobileModuleMenu}
-            aria-controls="control-sidebar"
-          >
-            <Icon name="menu" />
-          </button>
-          {/* En el tablero la barra lleva el título de la página: la marca ya está
-              en el menú lateral y aquí ya se está en el inicio. En los demás módulos
-              la marca es el atajo al inicio (el tablero o la vista de entrada del rol). */}
-          {workspaceView === "dashboard" ? (
-            <h1 className="app-topbar-title">{headerMeta.title}</h1>
-          ) : (
-            <button
-              type="button"
-              className="app-topbar-brand"
-              onClick={() => setWorkspaceView(getDefaultWorkspaceView(session?.user?.role))}
-              aria-label="Ir al inicio"
-            >
-              <span className="app-brand-mark" aria-hidden="true">
-                <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
-              </span>
-              <div>
-                <strong>Aguas de Choluteca</strong>
-                <span>{headerMeta.title}</span>
-              </div>
-            </button>
-          )}
-          <div className="app-topbar-kpis">
-            {headerStats.map((stat) => (
-              <span className="app-topbar-kpi" key={stat.label}>
-                <small>{stat.label}</small>
-                <strong>{stat.value}</strong>
-              </span>
-            ))}
-          </div>
-          <div className="app-topbar-session">
-            {workspaceView !== "dashboard" ? <span className={`app-save-state ${isDirty ? "is-live" : ""}`}>
-              {["lookup", "padron"].includes(workspaceView)
-                ? workspaceView === "padron"
-                  ? uploadingPadron
-                    ? "Actualizando padron"
-                    : "Padron disponible"
-                  : lookupResult
-                    ? lookupResult.exists
-                      ? "Coincidencia encontrada"
-                      : "Sin coincidencias"
-                    : "Listo para consultar"
-                : isDirty
-                  ? "Cambios sin guardar"
-                  : "Todo guardado"}
-            </span> : null}
-            <NotificationCenter
-              apiFetch={apiFetch}
-              session={session}
-              unreadCount={unreadMessagesCount}
-              onUnreadCountChange={setUnreadMessagesCount}
-              showAlert={showAlert}
-              onNotificationClick={() => setWorkspaceView("profile")}
-              onEntregaNotification={(loteId) => {
-                window.location.hash = `entregas/lotes?lote=${Number(loteId)}`;
-                setWorkspaceView("entregas");
-              }}
-              onBancoNotification={() => {
-                abrirMisAsignaciones();
-                window.location.hash = "clandestinos/banco";
-                setWorkspaceView("records");
-              }}
-              onNotificationSelect={(userId) => {
-                setWorkspaceView("profile");
-                setNotificationUserId(userId);
-              }}
-            />
-            <button type="button" className="app-user-chip" aria-haspopup="menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu((current) => !current)}>
-              <Icon name="users" />
-              {session?.user?.full_name || session?.user?.username || "Sesion activa"}
-            </button>
-            {showUserMenu ? (
-              <div className="app-user-menu" role="menu">
-                <button type="button" role="menuitem" onClick={() => { setWorkspaceView("profile"); setShowUserMenu(false); }}><Icon name="users" />Mi perfil</button>
-                <button type="button" role="menuitem" onClick={() => { setShowPasswordModal(true); setShowUserMenu(false); }}><Icon name="auth" />Cambiar contraseña</button>
-                <button type="button" role="menuitem" onClick={handleLogout}><Icon name="logout" />Cerrar sesión</button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className={`search-card ${headerMeta.cardClass} ${workspaceView === "requests" ? "is-hidden" : ""}`}>
-          <div className="search-card-head">
-            <span>{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</span>
-            <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>
-          </div>
-          {workspaceView === "logs" ? (
-            <div className="log-module-command">
-              <div className="log-module-command-art" aria-hidden="true">
-                <span />
-              </div>
-              <div>
-                <span className="sheet-kicker">audit@aguaschol</span>
-                <strong>~/historial --watch --workstream</strong>
-                <p>Encabezado aislado para monitorear informacion de trabajo, eventos y trazabilidad sin mezclarlo visualmente con las fichas.</p>
-              </div>
-              <div className="log-module-command-stats">
-                <span>{safeAuditLogs.length} logs</span>
-                <span>{loadingLogs ? "sync" : "online"}</span>
-              </div>
-            </div>
-          ) : workspaceView === "dashboard" ? (
-            isAdmin ? (
-              <div className="admin-console">
-                <div className="admin-console-head">
-                  <div className="admin-identity-card">
-                    <div className="session-chip admin-session-chip">
-                      <Icon name="auth" />
-                      <span>Administrador: {session?.user?.full_name || session?.user?.username || "--"}</span>
-                    </div>
-                    <div className="admin-identity-copy">
-                      <strong>Centro de control operativo</strong>
-                      <p>Accesos directos, prioridades del dia y lectura ejecutiva del sistema.</p>
-                    </div>
-                  </div>
-                  <div className="admin-online-cluster">
-                    <span className="admin-online-count">
-                      <Icon name="success" />
-                      {onlineUsers.length} en linea
-                    </span>
-                    <div className="admin-online-list">
-                      {onlineUsers.length ? (
-                        onlineUsers.slice(0, 5).map((user) => (
-                          <span key={user.id} className="admin-online-user">
-                            <i />
-                            {user.full_name || user.username}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="admin-online-user is-empty">Sin usuarios conectados</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="admin-console-shell">
-                  <div className="admin-console-menu">
-                    {adminWorkspaceSections.map((section) => (
-                      <section key={section.key} className="admin-workspace-section">
-                        <div className="admin-workspace-section-head">
-                          <div>
-                            <strong>{section.title}</strong>
-                            <small>{section.detail}</small>
-                          </div>
-                          <span className="admin-section-count">{section.items.length}</span>
-                        </div>
-                        <div className="admin-workspace-grid">
-                          {section.items.map((item) => (
-                            <button
-                              key={item.key}
-                              type="button"
-                              className={`admin-workspace-card ${item.tone} ${workspaceView === item.key ? "is-active" : ""}`}
-                              onClick={() => setWorkspaceView(item.key)}
-                            >
-                              <span className="admin-workspace-icon"><Icon name={item.icon} /></span>
-                              <div className="admin-workspace-copy">
-                                <strong>{item.label}</strong>
-                                <small>{item.meta}</small>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                    ))}
-                  </div>
-                  {adminInsight ? (
-                    <aside className="admin-insight-card">
-                      <span className="admin-insight-icon"><Icon name={adminInsight.icon} /></span>
-                      <div>
-                        <strong>{adminInsight.title}</strong>
-                        <p>{adminInsight.detail}</p>
-                      </div>
-                    </aside>
-                  ) : null}
-                </div>
-                <div className="admin-priority-strip">
-                  {dashboardPriorityItems.map((item) => (
-                    <article key={item.title} className={`admin-priority-card ${item.tone}`}>
-                      <span className="admin-priority-icon"><Icon name={item.icon} /></span>
-                      <div>
-                        <strong>{item.title}</strong>
-                        <p>{item.detail}</p>
-                      </div>
-                      <button type="button" className="button-secondary" onClick={() => setWorkspaceView(item.actionView)}>
-                        {item.actionLabel}
-                      </button>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="session-chip">
-                  <Icon name="auth" />
-                  <span>Usuario actual: {session?.user?.full_name || session?.user?.username || "--"}</span>
-                </div>
-                <div className="workspace-nav">
-                  {moduleNavigationItems.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={workspaceView === item.key ? "button-secondary active-filter" : "button-secondary"}
-                      onClick={() => setWorkspaceView(item.key)}
-                    >
-                      <Icon name={item.icon} />
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )
-          ) : workspaceView === "entregas" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">Cierre diario, seguimiento de pendientes y trazabilidad de cada lote.</p>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="module-nav-wrap">
-              <div className="module-topbar">
-                <div className="module-topbar-copy">
-                  <div className="module-topbar-badges">
-                    <span className="module-badge">
-                      <Icon name={currentModuleNavigation?.icon || "records"} />
-                      {currentModuleNavigation?.group === "operacion"
-                        ? "Operación"
-                        : currentModuleNavigation?.group === "control"
-                          ? "Control"
-                          : "Administracion"}
-                    </span>
-                    <span className="module-badge subtle">
-                      <Icon name="users" />
-                      {session?.user?.full_name || session?.user?.username || "Sesion activa"}
-                    </span>
-                  </div>
-                  <p className="module-topbar-note">{currentModuleNavigation?.helper || headerMeta.kicker}</p>
-                </div>
-                <div className="module-topbar-actions">
-                  {isAdmin ? (
-                    <span className="module-side-chip">
-                      <Icon name="success" />
-                      {onlineUsers.length} en linea
-                    </span>
-                  ) : null}
-                  {isAdmin ? (
-                    <button type="button" className="button-secondary desktop-home-button" onClick={() => setWorkspaceView("dashboard")}>
-                      <Icon name="home" />
-                      Tablero
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="module-nav desktop-only">
-                {moduleNavigationItems.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className={`module-nav-tab ${workspaceView === item.key ? "is-active" : ""}`}
-                    onClick={() => setWorkspaceView(item.key)}
-                  >
-                    <span className="module-nav-icon"><Icon name={item.icon} /></span>
-                    <span className="module-nav-copy">
-                      <strong>{item.label}</strong>
-                      <small>{item.helper}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="module-nav-mobile mobile-only">
-                <div className="module-nav-mobile-primary">
-                  {primaryModuleNavigationItems.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={`module-nav-pill ${workspaceView === item.key ? "is-active" : ""}`}
-                      onClick={() => setWorkspaceView(item.key)}
-                    >
-                      <Icon name={item.icon} />
-                      {item.label}
-                    </button>
-                  ))}
-                  {secondaryModuleNavigationItems.length ? (
-                    <button
-                      type="button"
-                      className={`module-nav-pill module-more-trigger ${showMobileModuleMenu ? "is-active" : ""}`}
-                      onClick={() => setShowMobileModuleMenu((current) => !current)}
-                    >
-                      <Icon name="more" />
-                      Mas
-                    </button>
-                  ) : null}
-                </div>
-                {showMobileModuleMenu ? (
-                  <div className="module-nav-mobile-more">
-                    {isAdmin ? (
-                      <button type="button" className="module-nav-more-item" onClick={() => setWorkspaceView("dashboard")}>
-                        <Icon name="home" />
-                        <span>
-                          <strong>Tablero</strong>
-                          <small>Accesos rapidos</small>
-                        </span>
-                      </button>
-                    ) : null}
-                    {secondaryModuleNavigationItems.map((item) => (
-                      <button key={item.key} type="button" className="module-nav-more-item" onClick={() => setWorkspaceView(item.key)}>
-                        <Icon name={item.icon} />
-                        <span>
-                          <strong>{item.label}</strong>
-                          <small>{item.helper}</small>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )}
-          {workspaceView === "dashboard" ? (
-            <div className="workspace-summary dashboard-summary">
-              <p className="workspace-title">
-                Centro ejecutivo para arrancar el día con una lectura clara de fichas, campo, usuarios y actividad reciente.
-              </p>
-              <div className="dashboard-summary-chips">
-                <span className="panel-pill">Admin en línea: {onlineUsers.length}</span>
-                <span className="panel-pill">Jornada activa: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-                <span className="panel-pill">Bitácora: {mapDiaryGroups.length} días</span>
-              </div>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("records")}>
-                  <Icon name="records" />
-                  Abrir fichas
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("map")}>
-                  <Icon name="map" />
-                  Ir a campo
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("logs")}>
-                  <Icon name="logs" />
-                  Revisar actividad
-                </button>
-                <button type="button" onClick={() => setWorkspaceView("executiveReport")}>
-                  <Icon name="records" />
-                  Operaciones realizadas
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-              </div>
-            </div>
-          ) : workspaceView === "profile" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">
-                Perfil operativo con rendimiento, puntos censados, zonas trabajadas, mensajes y logros del equipo.
-              </p>
-              <div className="dashboard-summary-chips">
-                <span className="panel-pill">Vista en vivo</span>
-                <span className="panel-pill">Mapa personal</span>
-                <span className="panel-pill">Mensajes y logros</span>
-              </div>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contrasena
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesion
-                </button>
-              </div>
-            </div>
-          ) : workspaceView === "executiveReport" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">
-                Informe descargable para presentar las operaciones realizadas, funciones desarrolladas, ahorro de tiempo técnico y datos acumulados desde el primer registro disponible.
-              </p>
-              <div className="dashboard-summary-chips">
-                <span className="panel-pill">Periodo: {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "Sin registros"} - {formatSpanishDate(executiveReportData.generatedAt)}</span>
-                <span className="panel-pill">{safeRecords.length} fichas</span>
-                <span className="panel-pill">{safeMapPoints.length} puntos GPS</span>
-                <span className="panel-pill">{safeAuditLogs.length} eventos</span>
-              </div>
-              <div className="search-actions">
-                <button type="button" onClick={handleDownloadExecutiveReportPdf}>
-                  <Icon name="records" />
-                  Descargar PDF de operaciones
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("dashboard")}>
-                  <Icon name="dashboard" />
-                  Volver al tablero
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-              </div>
-            </div>
-          ) : workspaceView === "records" ? (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                setClandestinosCommand({ type: "search", q: search.trim(), id: Date.now() });
-              }}
-            >
-              <div className="search-row">
-                <input
-                  id="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar ficha por clave, ej. 10-22-23"
-                  aria-label="Buscar ficha por clave catastral"
-                />
-                <button type="submit"><Icon name="search" />Buscar</button>
-              </div>
-              {/* Cuenta y contraseña viven en el menú del usuario; aquí va lo que
-                  sirve mientras se trabaja: si el módulo está cargando y qué tiene. */}
-              <div className={`cl-activity ${clandestinosBusy || !clandestinosStatus ? "is-busy" : "is-idle"}`} role="status" aria-live="polite">
-                <span className="cl-activity-track" aria-hidden="true"><span /></span>
-                <span className="cl-activity-dot" aria-hidden="true" />
-                <strong>{!clandestinosStatus ? "Cargando módulo…" : clandestinosBusy ? `${clandestinosStatus.label}…` : "Al día"}</strong>
-                {clandestinosStatus?.summary ? <span className="cl-activity-summary">{clandestinosStatus.summary}</span> : null}
-                {/* La hora se queda visible también mientras carga: así la barra
-                    no cambia de largo (ni de alto) con cada consulta. */}
-                {clandestinosUpdatedAt ? (
-                  <time dateTime={clandestinosUpdatedAt.toISOString()}>
-                    Actualizado {clandestinosUpdatedAt.toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" })}
-                  </time>
-                ) : null}
-                <button
-                  type="button"
-                  className="button-secondary cl-activity-refresh"
-                  disabled={clandestinosBusy}
-                  onClick={() => setClandestinosCommand({ type: "refresh", id: Date.now() })}
-                  title="Volver a cargar las fichas"
-                >
-                  <Icon name="refresh" />
-                  Actualizar
-                </button>
-              </div>
-            </form>
-          ) : workspaceView === "lookup" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">
-                Consulta el padrón maestro sin entrar al módulo de fichas. Acepta clave base `00-00-00` o `000-00-00`,
-                y clave completa `00-00-00-00` o `000-00-00-00`.
-              </p>
-            </div>
-          ) : workspaceView === "map" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">
-                Módulo independiente para geolocalizar puntos técnicos en campo y dejar registro de cajas de aguas negras.
-              </p>
-              <div className="map-diary-summary">
-                <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-                <span className="helper-text">{visibleMapPoints.length} puntos de {mapDiaryGroups.length} jornadas registradas.</span>
-              </div>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
-                  <Icon name="map" />
-                  {locatingUser ? "Ubicando..." : "Mi ubicación"}
-                </button>
-                <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
-                  <Icon name="refresh" />
-                  {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
-                </button>
-                <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
-                  <Icon name="records" />
-                  Descargar reporte detallado
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
-                  <Icon name="records" />
-                  Operaciones realizadas
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-              </div>
-            </div>
-          ) : workspaceView === "importacion" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">Revisa los lotes recibidos desde FoxPro antes de aplicar cambios al padron maestro.</p>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={handleLogout}><Icon name="logout" />Cerrar sesion</button>
-              </div>
-            </div>
-          ) : workspaceView === "padron" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">
-                Sube un nuevo Excel maestro para reemplazar el padrón usado por <strong>Buscar clave</strong>.
-              </p>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={loadPadronMeta}>
-                  <Icon name="refresh" />
-                  Ver estado actual
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-              </div>
-            </div>
-          ) : workspaceView === "mapReports" ? (
-            <div className="workspace-summary map-report-toolbar">
-              <div className="map-report-toolbar-head">
-                <div>
-              <p className="workspace-title">
-                Reporte administrativo compacto de puntos levantados en campo, agrupados por zona y listo para impresión institucional.
-              </p>
-              <div className="map-diary-summary">
-                <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-                <span className="helper-text">{visibleMapPoints.length} puntos y {mapReportPrintData.totalZones} barrios en el reporte.</span>
-              </div>
-              </div>
-                <button type="button" onClick={handleVerifyFieldDebt} disabled={loadingFieldDebtReport}>
-                  <Icon name="search" />
-                  {loadingFieldDebtReport ? "Verificando..." : "Verificar deuda"}
-                </button>
-              </div>
-              <div className="map-report-action-groups">
-                <div className="map-report-action-group">
-                  <span>Preparar reporte</span>
-                  <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
-                  <Icon name="refresh" />
-                  {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
-                </button>
-                <button type="button" className="button-secondary" onClick={() => loadMapPointContexts(visibleMapPoints)} disabled={loadingMapContexts}>
-                  <Icon name="map" />
-                  {loadingMapContexts ? "Ubicando zonas..." : "Actualizar zonas"}
-                </button>
-                <button type="button" className="button-secondary" onClick={resetReportMapDraft}>
-                  <Icon name="plus" />
-                  Nuevo punto visual
-                </button>
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={() => setMapReportPage(1)}
-                  disabled={mapReportPagination.currentPage === 1}
-                >
-                  <Icon name="records" />
-                  Ir a página 1
-                </button>
-                  </div>
-                </div>
-                <div className="map-report-action-group">
-                  <span>Salida institucional</span>
-                  <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={handleDownloadMapFieldPdf}>
-                  <Icon name="records" />
-                  PDF con coordenadas
-                </button>
-                <button type="button" className="button-secondary" onClick={handleDownloadMapBriefPdf}>
-                  <Icon name="records" />
-                  PDF resumen ligero
-                </button>
-                <button type="button" className="button-secondary" onClick={handlePrintMapFieldReport}>
-                  <Icon name="records" />
-                  Imprimir con coordenadas
-                </button>
-                <button type="button" className="button-secondary" onClick={handlePrintMapBriefReport}>
-                  <Icon name="records" />
-                  Imprimir resumen
-                </button>
-                <button type="button" className="button-secondary" onClick={handleDownloadMapCensusPdf}>
-                  <Icon name="records" />
-                  PDF censo sin coordenadas
-                </button>
-                <button type="button" className="button-secondary" onClick={handlePrintMapCensusReport}>
-                  <Icon name="records" />
-                  Imprimir censo
-                </button>
-                  </div>
-                </div>
-                <div className="map-report-action-group is-session">
-                  <span>Cuenta</span>
-                  <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : workspaceView === "mapAnalytics" ? (
-            <div className="workspace-summary">
-              <p className="workspace-title">
-                Panel separado para revisar tendencias, zonas y precisión del levantamiento sin interferir con el reporte institucional.
-              </p>
-              <div className="map-diary-summary">
-                <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-                <span className="helper-text">{mapReportData.totalPoints} puntos en la jornada y {mapReportData.totalZones} zonas consolidadas.</span>
-              </div>
-              <div className="search-actions">
-                <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
-                  <Icon name="refresh" />
-                  {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
-                </button>
-                <button type="button" className="button-secondary" onClick={() => loadMapPointContexts(visibleMapPoints)} disabled={loadingMapContexts}>
-                  <Icon name="map" />
-                  {loadingMapContexts ? "Ubicando zonas..." : "Actualizar zonas"}
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("mapReports")}>
-                  <Icon name="records" />
-                  Ir al reporte
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-              </div>
-            </div>
-          ) : ["users", "logs"].includes(workspaceView) ? (
-            /* Esta barra pertenece a Usuarios y Auditoría. Antes era el tramo
-               comodín del encadenado, así que asomaba en cualquier pantalla que
-               no estuviera contemplada arriba. */
-            <div className="workspace-summary">
-              <p className="workspace-title">
-                {workspaceView === "users"
-                  ? "Alta de usuarios con envío por correo y perfiles de acceso."
-                  : "Bitácora operativa con eventos de acceso, cambios y archivado."}
-              </p>
-              <div className={`search-actions ${workspaceView === "users" ? "users-toolbar-actions" : ""}`}>
-                {workspaceView === "users" ? (
-                  <button type="button" className="button-secondary" onClick={loadUsers}>
-                    <Icon name="refresh" />
-                    Refrescar usuarios
-                  </button>
-                ) : (
-                  <button type="button" className="button-secondary" onClick={loadAuditLogs}>
-                    <Icon name="refresh" />
-                    Refrescar historial
-                  </button>
-                )}
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-        {/* El hueco que dejó esa barra ahora avisa cuando la app está pidiendo
-            datos: una línea fina en vez de tres botones repetidos. */}
-        <div className="app-activity" data-activa={cargandoDatos ? "" : undefined} role="presentation">
-          <span />
-        </div>
-      </header>
+      <FieldDebtDialog
+        model={{
+          activeMapDiaryDateKey,
+          fieldDebtReport,
+          fieldDebtSummary,
+          handleDownloadFieldDebtPdf,
+          handlePrintFieldDebtReport,
+          loadingFieldDebtReport,
+          setShowFieldDebtModal,
+          showFieldDebtModal
+        }}
+      />
+      <MapDiaryArchiveDialog
+        model={{
+          archiveMapDiaryPoints,
+          archivedMapDiaryGroups,
+          handleUseArchivedMapDiary,
+          loadArchivedMapDiaryPoints,
+          loadingArchiveMapDiaryPoints,
+          selectedArchiveMapDiaryGroup,
+          setShowMapDiaryArchiveModal,
+          setSidebarCollapsed,
+          showMapDiaryArchiveModal,
+          sidebarCollapsed
+        }}
+      />
+      <PrintBatchDialog
+        model={{
+          adjustBatchPrintCopies,
+          batchPrintCopies,
+          batchPrintSelection,
+          batchPrinting,
+          clearBatchPrintCopies,
+          filteredPrintBatchRecords,
+          getRecordBarrioName,
+          handleMoveSelectedFichasToPrinted,
+          handlePrintBatch,
+          handleSaveSelectedPrintedRecords,
+          handleValidatePrintRecord,
+          manualPrintedSelection,
+          printBatchQuickFilter,
+          printBatchSearch,
+          printBatchStatusCounts,
+          printBatchStatusView,
+          printedSaveSelection,
+          processingRecordId,
+          selectVisibleBatchPrintCopies,
+          selectVisiblePendingAsPrinted,
+          selectVisiblePrintedForSave,
+          setPrintBatchQuickFilter,
+          setPrintBatchSearch,
+          setPrintBatchStatusView,
+          setShowPrintBatchModal,
+          setShowPrintComparisonModal,
+          showPrintBatchModal,
+          togglePendingPrintedSelection,
+          togglePrintedSaveSelection,
+          updateBatchPrintCopies
+        }}
+      />
+      <PrintComparisonDialog
+        model={{
+          alcaldiaComparisonByClave,
+          getRecordBarrioName,
+          handlePrintAguasComparisonList,
+          overdueComparisonRecords,
+          printComparisonHeader,
+          printingComparison,
+          setPrintComparisonHeader,
+          setShowPrintComparisonModal,
+          showPrintComparisonModal
+        }}
+      />
+      <DashboardAlertsDialog
+        model={{
+          batchPrintCopies,
+          batchPrinting,
+          dashboardAlertCounts,
+          dashboardAlertFilter,
+          filteredDashboardAlertRecords,
+          handleMarkSelectedAlertsAsPrinted,
+          handleSelectRecord,
+          manualPrintedSelection,
+          openPrintBatchModalForRecords,
+          overdueComparisonRecords,
+          setDashboardAlertFilter,
+          setShowDashboardAlertsModal,
+          setShowPrintComparisonModal,
+          setWorkspaceView,
+          showDashboardAlertsModal,
+          togglePendingPrintedSelection
+        }}
+      />
+      <AuditReportViewerDialog
+        model={{ handleReprintAuditReport, selectedAuditReport, setSelectedAuditReport }}
+      />
+      <AppHeader
+        model={{
+          activeMapDiaryDateKey,
+          adminInsight,
+          adminWorkspaceSections,
+          apiFetch,
+          cargandoDatos,
+          clandestinosBusy,
+          clandestinosStatus,
+          clandestinosUpdatedAt,
+          currentModuleNavigation,
+          dashboardPriorityItems,
+          executiveReportData,
+          handleDownloadExecutiveReportPdf,
+          handleDownloadMapBriefPdf,
+          handleDownloadMapCensusPdf,
+          handleDownloadMapFieldPdf,
+          handleDownloadMapReport,
+          handleLocateUser,
+          handleLogout,
+          handlePrintMapBriefReport,
+          handlePrintMapCensusReport,
+          handlePrintMapFieldReport,
+          handleVerifyFieldDebt,
+          headerMeta,
+          headerStats,
+          isAdmin,
+          isDirty,
+          loadAuditLogs,
+          loadMapPointContexts,
+          loadMapPoints,
+          loadPadronMeta,
+          loadUsers,
+          loadingFieldDebtReport,
+          loadingLogs,
+          loadingMapContexts,
+          loadingMapPoints,
+          locatingUser,
+          lookupResult,
+          mapDiaryGroups,
+          mapReportData,
+          mapReportPagination,
+          mapReportPrintData,
+          moduleNavigationItems,
+          onlineUsers,
+          primaryModuleNavigationItems,
+          resetReportMapDraft,
+          safeAuditLogs,
+          safeMapPoints,
+          safeRecords,
+          search,
+          secondaryModuleNavigationItems,
+          session,
+          setClandestinosCommand,
+          setMapReportPage,
+          setNotificationUserId,
+          setSearch,
+          setShowMobileModuleMenu,
+          setShowPasswordModal,
+          setShowUserMenu,
+          setUnreadMessagesCount,
+          setWorkspaceView,
+          showAlert,
+          showMobileModuleMenu,
+          showUserMenu,
+          unreadMessagesCount,
+          uploadingPadron,
+          visibleMapPoints,
+          workspaceView
+        }}
+      />
       <AppSidebar
         sections={sidebarNavigationSections}
         activeKey={workspaceView}
@@ -12567,447 +11146,149 @@ function App() {
           />
         </Suspense>
       ) : (
-        <main className={`admin-layout ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-layout-logs" : ""}`}>
-          {workspaceView === "users" ? (
-            <UsersSidebar
-              loadingUsers={loadingUsers}
-              safeUsers={safeUsers}
-              selectedUser={selectedUser}
-              setSelectedUserId={setSelectedUserId}
-              roleLabel={roleLabel}
-            />
-          ) : null}
-
-          <section className={`admin-content ${["logs", "mapReports", "mapAnalytics", "requests", "barrioCodes"].includes(workspaceView) ? "admin-content-logs" : ""}`}>
-            {workspaceView === "mapReports" ? (
-              <Suspense fallback={<ModuleSkeleton title="reportes" />}>
-                <ReportsWorkspace
-                  model={{
-                    apiFetch,
-                    notify: showAlert,
-                    onOpenBanco: () => {
-                      window.location.hash = "clandestinos/banco";
-                      setWorkspaceView("records");
-                    },
-                    activeDateKey: activeMapDiaryDateKey,
-                    days: mapDiaryGroups,
-                    data: mapReportPrintData,
-                    settings: mapReportSettings,
-                    staff: mapReportStaff,
-                    technicians: getMapReportTechnicians(mapReportStaff),
-                    debtReport: fieldDebtReport,
-                    debtSummary: fieldDebtSummary,
-                    debtChart: fieldDebtChartData,
-                    regulatorDays: regulatorReportDiaryOptions,
-                    selectedRegulatorDays: selectedRegulatorDiaryKeys,
-                    loadingPoints: loadingMapPoints,
-                    loadingContexts: loadingMapContexts,
-                    loadingDebt: loadingFieldDebtReport,
-                    generatingRegulator: generatingRegulatorReport,
-                    reportDraft: reportMapDraft,
-                    savingPoint: savingReportMapPoint,
-                    onSelectDay: (dateKey) => {
-                      setMapDiaryDateKey(dateKey);
-                      setMapReportPage(1);
-                    },
-                    onRefresh: () => {
-                      loadMapDiaryGroups({ silent: true });
-                      loadMapPoints();
-                    },
-                    onOpenMap: (point) => {
-                      handleSelectMapPoint(point.id);
-                      setWorkspaceView("map");
-                    },
-                    onEditPoint: handleEditReportMapPoint,
-                    onDraftChange: handleReportMapDraftChange,
-                    onSavePoint: handleSaveReportMapPoint,
-                    onResetPoint: resetReportMapDraft,
-                    onVerifyDebt: handleVerifyFieldDebt,
-                    onDebtDetail: () => setShowFieldDebtModal(true),
-                    onPrintDebt: handlePrintFieldDebtChart,
-                    onDownloadDebt: handleDownloadFieldDebtPdf,
-                    onDownloadTechnical: handleDownloadMapFieldPdf,
-                    onPrintTechnical: handlePrintMapFieldReport,
-                    onDownloadBrief: handleDownloadMapBriefPdf,
-                    onPrintBrief: handlePrintMapBriefReport,
-                    onDownloadCensus: handleDownloadMapCensusPdf,
-                    onPrintCensus: handlePrintMapCensusReport,
-                    onDownloadRegulator: handleDownloadRegulatorEvidencePdf,
-                    onToggleRegulatorDay: handleToggleRegulatorDiaryKey,
-                    onSettingsChange: handleMapReportSettingsChange,
-                    onImage: handleMapReportImageChange,
-                    onClearImage: clearMapReportImage,
-                    onStaffChange: handleMapReportStaffChange,
-                    onTechnicianChange: handleMapReportTechnicianChange,
-                    onAddTechnician: addMapReportTechnician,
-                    onRemoveTechnician: removeMapReportTechnician
-                  }}
-                />
-              </Suspense>
-            ) : workspaceView === "mapAnalytics" ? (
-              <FieldAnalyticsPanel
-                activeDateLabel={formatMapDiaryLabel(activeMapDiaryDateKey)}
-                loadingMapContexts={loadingMapContexts}
-                loadingMapPoints={loadingMapPoints}
-                mapAnalyticsData={mapAnalyticsData}
-                mapReportData={mapReportData}
-                onBackToReport={() => setWorkspaceView("mapReports")}
-                onRefreshPoints={() => loadMapPoints()}
-                onRefreshZones={() => loadMapPointContexts(visibleMapPoints)}
-              />
-            ) : workspaceView === "requests" ? (
-              <Suspense fallback={<ModuleSkeleton title="consultas del padrón" />}>
-                <PadronRequestsWorkspace
-                  model={{
-                    serviceReport: padronServiceReport,
-                    serviceData: aguasServiceReportData,
-                    loadingServices: loadingPadronServiceReport || loadingPadronRequestMeta,
-                    loadError: padronRequestLoadError,
-                    onRefresh: () => {
-                      loadPadronRequestMeta({ silent: true });
-                      loadPadronServiceReport();
-                    },
-                    selectedServiceField: selectedAguasServiceField,
-                    onSelectService: setSelectedAguasServiceField,
-                    selectedBarrios: selectedAguasServiceBarrios,
-                    onToggleBarrio: toggleAguasServiceBarrioSelection,
-                    onSetSelectedBarrios: setSelectedAguasServiceBarrios,
-                    onPrintServices: handlePrintAguasServiceReport,
-                    onDownloadServicesPdf: handleDownloadAguasServicePdf,
-                    downloadingServicesPdf: downloadingAguasServicePdf,
-                    templates: padronRequestTemplates,
-                    form: padronRequestForm,
-                    onFormChange: handlePadronRequestFormChange,
-                    onPresetChange: handlePadronRequestPresetChange,
-                    onRunRequest: handleRunPadronRequest,
-                    loadingRequest: loadingPadronRequest,
-                    requestResult: padronRequestResult,
-                    onPrintRequest: handlePrintPadronRequest,
-                    onDownloadRequestPdf: handleDownloadPadronRequestPdf,
-                    formatClave: (row) => ensureClaveHasPrefix(row.clave_catastral || row.clave_aguas_formato || row.clave_alcaldia, row.barrio_colonia, safeBarrioCodes),
-                    comparison: alcaldiaComparison,
-                    loadingComparison: loadingAlcaldiaComparison,
-                    onCompare: () => loadAlcaldiaComparison(),
-                    apiFetch,
-                    notify: showAlert,
-                    onOpenBanco: () => {
-                      window.location.hash = "clandestinos/banco";
-                      setWorkspaceView("records");
-                    },
-                    stats: padronStatisticsData,
-                    padronMeta,
-                    alcaldiaMeta,
-                    chartMode: padronChartMode,
-                    setChartMode: setPadronChartMode,
-                    chartType: padronChartType,
-                    setChartType: setPadronChartType,
-                    sortMetric: padronStatsSortMetric,
-                    setSortMetric: setPadronStatsSortMetric,
-                    sortDirection: padronStatsSortDirection,
-                    setSortDirection: setPadronStatsSortDirection,
-                    limit: padronStatsLimit,
-                    setLimit: setPadronStatsLimit,
-                    barrioFilter: padronStatsBarrioFilter,
-                    setBarrioFilter: setPadronStatsBarrioFilter,
-                    statsServiceField: selectedPadronServiceField,
-                    setStatsServiceField: setSelectedPadronServiceField,
-                    onSelectStatBarrio: setSelectedPadronStatBarrio,
-                    onDownloadStatsPdf: handleDownloadPadronStatsPdf,
-                    downloadingStatsPdf: downloadingPadronStatsPdf
-                  }}
-                />
-              </Suspense>
-            ) : workspaceView === "barrioCodes" ? (
-              <BarrioCodesWorkspace
-                barrios={safeBarrioCodes}
-                form={barrioCodeForm}
-                loading={loadingBarrioCodes}
-                saving={savingBarrioCode}
-                onFormChange={handleBarrioCodeFormChange}
-                onSubmit={handleSaveBarrioCode}
-                onEdit={handleEditBarrioCode}
-                onDelete={handleDeleteBarrioCode}
-                onReset={handleResetBarrioCodeForm}
-                onPrepareAdd={handlePrepareAddBarrioCode}
-              />
-            ) : workspaceView === "users" ? (
-              <UsersContent
-                apiFetch={apiFetch}
-                creatingUser={creatingUser}
-                handleCreateUser={handleCreateUser}
-                handleResetUserPassword={handleResetUserPassword}
-                handleUpdateUserRole={handleUpdateUserRole}
-                handleUserFormChange={handleUserFormChange}
-                latestUserResult={latestUserResult}
-                savingUserRoleId={savingUserRoleId}
-                selectedUser={selectedUser}
-                session={session}
-                setPendingDeleteUser={setPendingDeleteUser}
-                setUserForm={setUserForm}
-                userForm={userForm}
-                formatDateTime={formatDateTime}
-                roleLabel={roleLabel}
-                safeUsers={safeUsers}
-                showAlert={showAlert}
-              />
-            ) : (
-              <section className="preview-panel log-panel-full log-terminal-view audit-console">
-                <div className="log-shell audit-shell">
-                  <header className="audit-masthead">
-                    <div className="audit-masthead-copy">
-                      <span className="audit-kicker">
-                        <span className={`audit-kicker-dot ${auditSyncing ? "is-syncing" : ""}`.trim()} />
-                        Terminal de auditoría
-                      </span>
-                      <h2>Historial de actividad</h2>
-                      <p>Consola viva para seguir accesos, fichas, padrones y movimientos del trabajo operativo.</p>
-                    </div>
-                    <div className="audit-masthead-side">
-                      <div className="audit-counter">
-                        <strong>{safeAuditLogs.length}</strong>
-                        <small>eventos<br />indexados</small>
-                      </div>
-                      <div className="audit-masthead-actions">
-                        <button type="button" className="audit-action" onClick={() => setWorkspaceView("executiveReport")}>
-                          <Icon name="records" />
-                          Informe de operaciones
-                        </button>
-                        <button type="button" className="audit-action" onClick={handleAuditReportArchiveShortcut}>
-                          <Icon name="print" />
-                          Archivo de reportes
-                        </button>
-                      </div>
-                    </div>
-                  </header>
-
-                  <form className="audit-searchbar" onSubmit={(event) => event.preventDefault()}>
-                    <div className="audit-search-row">
-                      <div className="audit-search-field">
-                        <Icon name="search" />
-                        <input
-                          name="search"
-                          value={auditFilters.search}
-                          onChange={handleAuditFilterChange}
-                          placeholder="Buscar por ID de reporte, actor o detalle del evento"
-                          aria-label="Buscar en el historial"
-                        />
-                        {auditFilters.search ? (
-                          <button
-                            type="button"
-                            className="audit-search-clear"
-                            onClick={() => handleAuditFilterClear("search")}
-                            aria-label="Limpiar búsqueda"
-                          >
-                            <Icon name="close" />
-                          </button>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className={`audit-filter-toggle ${auditFiltersOpen ? "is-open" : ""}`.trim()}
-                        onClick={() => setAuditFiltersOpen((current) => !current)}
-                        aria-expanded={auditFiltersOpen}
-                      >
-                        <Icon name="filter" />
-                        Filtros
-                        {auditFilterChips.length ? <em>{auditFilterChips.length}</em> : null}
-                        <Icon name="chevronDown" className="audit-filter-caret" />
-                      </button>
-                      <button type="button" className="audit-action is-ghost" onClick={handleExportAuditLogs}>
-                        <Icon name="download" />
-                        Exportar CSV
-                      </button>
-                    </div>
-
-                    {auditFiltersOpen ? (
-                      <div className="audit-filter-grid">
-                        <label>
-                          <span>Acción</span>
-                          <select name="action" value={auditFilters.action} onChange={handleAuditFilterChange}>
-                            <option value="">Todas las acciones</option>
-                            {AUDIT_ACTION_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          <span>Entidad</span>
-                          <select name="entity_type" value={auditFilters.entity_type} onChange={handleAuditFilterChange}>
-                            <option value="">Todas las entidades</option>
-                            {AUDIT_ENTITY_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          <span>Actor</span>
-                          <input name="actor" value={auditFilters.actor} onChange={handleAuditFilterChange} placeholder="Nombre o correo" />
-                        </label>
-                        <div className="audit-filter-range">
-                          <span>Rango de fechas</span>
-                          <div>
-                            <input type="date" name="date_from" value={auditFilters.date_from} onChange={handleAuditFilterChange} aria-label="Desde" />
-                            <em>→</em>
-                            <input type="date" name="date_to" value={auditFilters.date_to} onChange={handleAuditFilterChange} aria-label="Hasta" />
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {auditFilterChips.length ? (
-                      <div className="audit-chip-row">
-                        {auditFilterChips.map((chip) => (
-                          <button
-                            key={chip.key}
-                            type="button"
-                            className="audit-active-chip"
-                            onClick={() => handleAuditFilterClear(chip.key)}
-                            title={`Quitar filtro ${chip.label}`}
-                          >
-                            <span>{chip.label}</span>
-                            <strong>{chip.value}</strong>
-                            <Icon name="close" />
-                          </button>
-                        ))}
-                        <button type="button" className="audit-chip-reset" onClick={handleAuditFiltersReset}>
-                          <Icon name="refresh" />
-                          Limpiar todo
-                        </button>
-                      </div>
-                    ) : null}
-                  </form>
-
-                  <div className="audit-stat-row">
-                    <div className={`audit-stat ${auditSyncing ? "is-syncing" : "is-live"}`}>
-                      <span>Stream</span>
-                      <strong>{auditSyncing ? "Sincronizando" : "En línea"}</strong>
-                      <small>{formatDateTime(new Date().toISOString())}</small>
-                    </div>
-                    <div className="audit-stat">
-                      <span>Eventos visibles</span>
-                      <strong>{safeAuditLogs.length}</strong>
-                      <small>{auditFilterChips.length ? "Con filtros aplicados" : "Sin filtros"}</small>
-                    </div>
-                    <div className="audit-stat">
-                      <span>Rango</span>
-                      <strong>{auditRangeLabel}</strong>
-                      <small>{auditDayGroups.length} {auditDayGroups.length === 1 ? "jornada" : "jornadas"}</small>
-                    </div>
-                    <div className="audit-stat">
-                      <span>Integridad</span>
-                      <strong>Trazabilidad activa</strong>
-                      <small>Registro inmutable</small>
-                    </div>
-                  </div>
-
-                  <article className="audit-stream-panel">
-                    {safeAuditLogs.length ? (
-                      <div className="audit-stream">
-                        {auditDayGroups.map((group) => {
-                          const relative = auditRelativeDayLabel(group.key);
-                          return (
-                            <section className="audit-day" key={group.key}>
-                              <header className="audit-day-heading">
-                                <Icon name="calendar" />
-                                {relative ? <strong>{relative}</strong> : null}
-                                <span>{group.label}</span>
-                                <small>{group.logs.length} {group.logs.length === 1 ? "evento" : "eventos"}</small>
-                              </header>
-                              <div className="audit-day-events">
-                                {group.logs.map((log, index) => {
-                                  const isReport = log.action === "report.generated";
-                                  const archiveAvailable = Boolean(log.details_json?.archive_available);
-                                  return (
-                                    <div
-                                      key={`${group.key}-${log.id}`}
-                                      className={`audit-event ${isReport ? "is-report" : ""}`.trim()}
-                                      data-tone={auditActionTone(log.action)}
-                                      style={{ "--log-delay": `${Math.min(index, 10) * 35}ms` }}
-                                    >
-                                      <div className="audit-event-rail">
-                                        <time dateTime={log.created_at} title={formatDateTime(log.created_at)}>
-                                          {formatAuditTime(log.created_at)}
-                                        </time>
-                                        <span className="audit-event-icon">
-                                          <Icon name={actionIconName(log.action)} />
-                                        </span>
-                                      </div>
-                                      <div className="audit-event-body">
-                                        <div className="audit-event-head">
-                                          <span className="audit-event-badge">{actionLabel(log.action)}</span>
-                                          {isReport && log.entity_id ? <span className="audit-event-id">{log.entity_id}</span> : null}
-                                        </div>
-                                        <p className="audit-event-summary">{log.summary || "Movimiento registrado"}</p>
-                                        <div className="audit-event-chips">
-                                          <span className="audit-meta-chip">
-                                            <i>Actor</i>{log.actor_name || log.actor_email || "Sistema"}
-                                          </span>
-                                          <span className="audit-meta-chip">
-                                            <i>Entidad</i>{log.entity_type || "--"}{log.entity_id ? ` #${log.entity_id}` : ""}
-                                          </span>
-                                          <span className="audit-meta-chip">
-                                            <i>Evento</i>{log.action || "audit.event"}
-                                          </span>
-                                        </div>
-                                        {isReport ? (
-                                          <div className="audit-event-actions">
-                                            <span className={archiveAvailable ? "audit-archive-status is-ready" : "audit-archive-status"}>
-                                              <Icon name={archiveAvailable ? "success" : "records"} />
-                                              {archiveAvailable ? "Copia visual archivada" : "Solo metadata disponible"}
-                                            </span>
-                                            {archiveAvailable ? (
-                                              <button
-                                                type="button"
-                                                className="audit-open-report"
-                                                onClick={() => handleOpenAuditReport(log)}
-                                                disabled={loadingAuditReportId === log.entity_id}
-                                              >
-                                                <Icon name="eye" />
-                                                {loadingAuditReportId === log.entity_id ? "Abriendo…" : "Ver e imprimir"}
-                                              </button>
-                                            ) : null}
-                                          </div>
-                                        ) : log.details_json ? (
-                                          <details className="audit-json">
-                                            <summary>
-                                              <Icon name="chevronRight" />
-                                              Ver detalle técnico
-                                            </summary>
-                                            <pre>{JSON.stringify(log.details_json, null, 2)}</pre>
-                                          </details>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </section>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="audit-empty">
-                        <span className="audit-empty-icon"><Icon name="history" /></span>
-                        <h3>{auditFilterChips.length ? "Sin coincidencias" : "Sin eventos registrados"}</h3>
-                        <p>
-                          {auditFilterChips.length
-                            ? "Ningún evento coincide con los filtros activos. Ajusta la búsqueda o límpialos para ver todo el historial."
-                            : "Las altas de usuarios, accesos y cambios de fichas apareceran aqui automaticamente."}
-                        </p>
-                        {auditFilterChips.length ? (
-                          <button type="button" className="audit-action" onClick={handleAuditFiltersReset}>
-                            <Icon name="refresh" />
-                            Limpiar filtros
-                          </button>
-                        ) : null}
-                      </div>
-                    )}
-                  </article>
-                </div>
-              </section>
-            )}
-          </section>
-        </main>
+        <AdminWorkspace
+          model={{
+            activeMapDiaryDateKey,
+            addMapReportTechnician,
+            aguasServiceReportData,
+            alcaldiaComparison,
+            alcaldiaMeta,
+            apiFetch,
+            auditDayGroups,
+            auditFilterChips,
+            auditFilters,
+            auditFiltersOpen,
+            auditRangeLabel,
+            auditSyncing,
+            barrioCodeForm,
+            clearMapReportImage,
+            creatingUser,
+            downloadingAguasServicePdf,
+            downloadingPadronStatsPdf,
+            fieldDebtChartData,
+            fieldDebtReport,
+            fieldDebtSummary,
+            generatingRegulatorReport,
+            handleAuditFilterChange,
+            handleAuditFilterClear,
+            handleAuditFiltersReset,
+            handleAuditReportArchiveShortcut,
+            handleBarrioCodeFormChange,
+            handleCreateUser,
+            handleDeleteBarrioCode,
+            handleDownloadAguasServicePdf,
+            handleDownloadFieldDebtPdf,
+            handleDownloadMapBriefPdf,
+            handleDownloadMapCensusPdf,
+            handleDownloadMapFieldPdf,
+            handleDownloadPadronRequestPdf,
+            handleDownloadPadronStatsPdf,
+            handleDownloadRegulatorEvidencePdf,
+            handleEditBarrioCode,
+            handleEditReportMapPoint,
+            handleExportAuditLogs,
+            handleMapReportImageChange,
+            handleMapReportSettingsChange,
+            handleMapReportStaffChange,
+            handleMapReportTechnicianChange,
+            handleOpenAuditReport,
+            handlePadronRequestFormChange,
+            handlePadronRequestPresetChange,
+            handlePrepareAddBarrioCode,
+            handlePrintAguasServiceReport,
+            handlePrintFieldDebtChart,
+            handlePrintMapBriefReport,
+            handlePrintMapCensusReport,
+            handlePrintMapFieldReport,
+            handlePrintPadronRequest,
+            handleReportMapDraftChange,
+            handleResetBarrioCodeForm,
+            handleResetUserPassword,
+            handleRunPadronRequest,
+            handleSaveBarrioCode,
+            handleSaveReportMapPoint,
+            handleSelectMapPoint,
+            handleToggleRegulatorDiaryKey,
+            handleUpdateUserRole,
+            handleUserFormChange,
+            handleVerifyFieldDebt,
+            latestUserResult,
+            loadAlcaldiaComparison,
+            loadMapDiaryGroups,
+            loadMapPointContexts,
+            loadMapPoints,
+            loadPadronRequestMeta,
+            loadPadronServiceReport,
+            loadingAlcaldiaComparison,
+            loadingAuditReportId,
+            loadingBarrioCodes,
+            loadingFieldDebtReport,
+            loadingMapContexts,
+            loadingMapPoints,
+            loadingPadronRequest,
+            loadingPadronRequestMeta,
+            loadingPadronServiceReport,
+            loadingUsers,
+            mapAnalyticsData,
+            mapDiaryGroups,
+            mapReportData,
+            mapReportPrintData,
+            mapReportSettings,
+            mapReportStaff,
+            padronChartMode,
+            padronChartType,
+            padronMeta,
+            padronRequestForm,
+            padronRequestLoadError,
+            padronRequestResult,
+            padronRequestTemplates,
+            padronServiceReport,
+            padronStatisticsData,
+            padronStatsBarrioFilter,
+            padronStatsLimit,
+            padronStatsSortDirection,
+            padronStatsSortMetric,
+            regulatorReportDiaryOptions,
+            removeMapReportTechnician,
+            reportMapDraft,
+            resetReportMapDraft,
+            safeAuditLogs,
+            safeBarrioCodes,
+            safeUsers,
+            savingBarrioCode,
+            savingReportMapPoint,
+            savingUserRoleId,
+            selectedAguasServiceBarrios,
+            selectedAguasServiceField,
+            selectedPadronServiceField,
+            selectedRegulatorDiaryKeys,
+            selectedUser,
+            session,
+            setAuditFiltersOpen,
+            setMapDiaryDateKey,
+            setMapReportPage,
+            setPadronChartMode,
+            setPadronChartType,
+            setPadronStatsBarrioFilter,
+            setPadronStatsLimit,
+            setPadronStatsSortDirection,
+            setPadronStatsSortMetric,
+            setPendingDeleteUser,
+            setSelectedAguasServiceBarrios,
+            setSelectedAguasServiceField,
+            setSelectedPadronServiceField,
+            setSelectedPadronStatBarrio,
+            setSelectedUserId,
+            setShowFieldDebtModal,
+            setUserForm,
+            setWorkspaceView,
+            showAlert,
+            toggleAguasServiceBarrioSelection,
+            userForm,
+            visibleMapPoints,
+            workspaceView
+          }}
+        />
       )}
     </div>
   );
