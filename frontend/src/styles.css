@@ -29304,15 +29304,25 @@ body {
 .notification-center-container { position: relative; z-index: 2; flex: 0 0 auto; }
 .notification-dropdown { max-width: calc(100vw - 24px); max-height: min(500px, calc(100dvh - 150px)); }
 .notification-bell:focus-visible { outline: 2px solid #1465d9; outline-offset: 2px; }
+/* En móvil el menú se ancla a la barra superior completa (no al grupo de
+   iconos, que mide ~80px): así ocupa el ancho disponible sin salirse. */
 @media (max-width: 620px) {
   .app-topbar-session { position: static; }
-  .notification-center-container { position: relative; }
-  .notification-dropdown { right: 0; width: min(360px, calc(100vw - 24px)); }
+  .notification-center-container { position: static; }
+  .notification-dropdown { left: auto; right: 8px; width: min(360px, calc(100% - 16px)); max-width: none; }
 }
 
 /* El encabezado debe dejar salir sus menús también en el breakpoint móvil. */
 .app-chrome { overflow: visible !important; }
-@media (max-width: 620px) { .notification-dropdown { width: min(360px, 100%); } }
+/* La barra superior forma su propio contexto de apilamiento (backdrop-filter):
+   sin z-index, la tarjeta de navegación del módulo y el contenido de cada
+   vista se pintaban encima de sus menús (notificaciones, usuario). */
+.app-topbar { position: relative; z-index: 3; }
+@media (max-width: 768px) {
+  /* En móvil el encabezado no es fijo (static), pero sigue necesitando quedar
+     por encima del contenido que sigue mientras un menú está abierto. */
+  .app-chrome { position: relative; z-index: 28; }
+}
 
 /* ===========================================================================
    Marca: el logo como atajo al inicio

@@ -50,10 +50,23 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
       onFocusConsumed?.();
       return;
     }
-    api.fichas({ q: focusRequest.clave_catastral || "", limit: 8 }).then((data) => {
-      const found = data.items.find((item) => String(item.id) === String(focusRequest.fichaId)) || data.items[0];
+    // La búsqueda por clave es parcial (LIKE, 8 resultados): con fichaId solo
+    // vale esa ficha; si no viene en la página se pide por clave exacta, y si
+    // tampoco coincide se avisa en vez de abrir otra.
+    const clave = focusRequest.clave_catastral || "";
+    const hasId = focusRequest.fichaId != null && focusRequest.fichaId !== "";
+    const sameId = (item) => item && String(item.id) === String(focusRequest.fichaId);
+    const findFicha = async () => {
+      const data = await api.fichas({ q: clave, limit: 8 });
+      if (!hasId) return data.items.find((item) => item.clave_catastral === clave) || data.items[0];
+      const found = data.items.find(sameId);
+      if (found || !clave) return found;
+      const exact = await api.fichaByClave(clave);
+      return sameId(exact) ? exact : null;
+    };
+    findFicha().then((found) => {
       if (found) setDrawer(focusRequest.patch ? { ...found, ...focusRequest.patch, id: found.id } : found);
-      else showAlert("Sin ficha relacionada.");
+      else showAlert(hasId ? `No se encontró la ficha #${focusRequest.fichaId}${clave ? ` (${clave})` : ""}; puede estar archivada.` : "Sin ficha relacionada.");
     }).catch((error) => showAlert(error.message)).finally(() => onFocusConsumed?.());
   }, [api, config, focusRequest, onFocusConsumed, showAlert]);
   const go = (key) => { history.replaceState(null, "", `#clandestinos/${key}`); setTab(key); };
