@@ -44,7 +44,8 @@ const railwayGraphql = async (query, variables) => {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.errors?.length) {
-    const error = new Error("Railway no pudo devolver las métricas solicitadas.");
+    const detail = payload.errors?.[0]?.message;
+    const error = new Error(detail || "Railway no pudo devolver las métricas solicitadas.");
     error.status = response.status === 401 || response.status === 403 ? 502 : 503;
     throw error;
   }
