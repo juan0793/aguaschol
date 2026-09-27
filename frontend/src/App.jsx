@@ -1,10 +1,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@blossom-carousel/core/style.css";
 import { toast, Toaster } from "sonner";
-import { actionIconName } from "./components/Icon";
 import { emptyBarrioForm } from "./components/BarrioCodesWorkspace";
 import AppSidebar from "./components/sidebar/AppSidebar";
-import { buildSidebarSections, getPathForWorkspaceView } from "./components/sidebar/sidebarConfig";
+import { getPathForWorkspaceView } from "./components/sidebar/sidebarConfig";
 import { ModuleSkeleton } from "./components/ds/Skeleton";
 import "./components/ds/design-system.css";
 import "./styles/request-workspace.css";
@@ -28,9 +27,7 @@ import {
   emptyMapReportDraft,
 } from "./constants/formsAndUi";
 import {
-  actionLabel,
   buildPhotoUrl,
-  formatCurrency,
   formatLookupAmount,
   getLookupTotalMeta,
   roleLabel
@@ -39,20 +36,11 @@ import {
   getLookupServiceMeta,
 } from "./utils/claveAndLookup";
 import {
-  formatMapDiaryLabel,
-  formatMonthGroup,
   getMapDiaryDateKey,
   normalizeRecord,
 } from "./utils/datesAndBusiness";
 import {
-  getMapPointContextKey,
-  getMapPointTypeLabel
-} from "./utils/mapField";
-import { selectReportZones } from "./modules/reports/utils/reportSelectors";
-import {
   comparableFormShape,
-  getRecordDeadlineMeta,
-  getRecordGroupDate,
   hasDraftContent
 } from "./utils/records";
 import { loadStoredLookupHistory, loadStoredRecordNotifications } from "./utils/localStorage";
@@ -64,7 +52,6 @@ import {
   resolveBarrioFromPayload,
   withBarrioFromPrefix,
 } from "./utils/barrioCodes";
-import { lastDaysSeries } from "./modules/dashboard/dashboardSelectors.js";
 import { installSearchScrollGuard } from "./utils/searchScrollGuard";
 import {
   FieldValidationWorkspace,
@@ -91,19 +78,13 @@ import {
 import {
   DASHBOARD_REFRESH_INTERVAL_MS,
   MAP_POINT_LIST_INITIAL_LIMIT,
-  MOBILE_MAP_POINT_LIMIT,
   MAP_AUTO_REFRESH_MS,
   MOBILE_MAP_AUTO_REFRESH_MS,
-  RECORDS_PAGE_SIZE,
   MAP_DIARY_PRIMARY_LIMIT,
 } from "./constants/workspace";
 import { getTodayMapDiaryKey } from "./utils/mapDiary";
 import {
-  getMapReportZoneOverrideKey,
   normalizeMapReportStaff,
-  getMapReportBarrioZone,
-  getMapReportPointClave,
-  getMapZoneClavesLabel,
   MAP_DESCRIPTION_PADRON_BLOCK_PATTERN,
   stripMapDescriptionPadronBlock,
   normalizeMapReportSettings,
@@ -111,20 +92,15 @@ import {
   loadMapReportSettingsByDate
 } from "./utils/mapReport";
 import {
-  FIELD_DEBT_SERVICE_DEFINITIONS,
   extractFieldDebtLookupReferences,
   buildMapDescriptionPadronBlock,
-  getFieldDebtResultLabel
 } from "./utils/fieldDebt";
 import {
-  formatRelativeTime,
   formatDashboardSyncRelativeTime,
 } from "./utils/timeFormat";
 import {
   clampPrintCopies,
-  getRecordPhotoPath,
 } from "./utils/recordLabels";
-import { humanizeDashboardActivity } from "./utils/dashboardActivity";
 import {
   readJsonResponse,
   getAlertDetails,
@@ -159,6 +135,14 @@ import { createAuditActions } from "./modules/audit/createAuditActions";
 import { createAuthActions } from "./app/createAuthActions";
 import { useReportMapActions } from "./modules/reports/useReportMapActions";
 import { createFieldMapActions } from "./modules/campo/createFieldMapActions";
+import { useFieldMapPoints } from "./modules/campo/useFieldMapPoints";
+import { useRecordFilters } from "./modules/clandestinos/useRecordFilters";
+import { useMapReportData } from "./modules/reports/useMapReportData";
+import { usePadronReportData } from "./modules/requests/usePadronReportData";
+import { useExecutiveReportData } from "./modules/reports/useExecutiveReportData";
+import { useDashboardData } from "./modules/dashboard/useDashboardData";
+import { useHeaderStats } from "./app/useHeaderStats";
+import { useAppNavigation } from "./app/useAppNavigation";
 
 function App() {
   const sheetRef = useRef(null);
@@ -522,461 +506,39 @@ function App() {
       };
     });
   };
-  const visibleMapPoints = useMemo(
-    () => safeMapPoints.filter((point) => getMapDiaryDateKey(point) === activeMapDiaryDateKey),
-    [activeMapDiaryDateKey, safeMapPoints]
-  );
-  // El menú mostraba "N puntos hoy" aunque la jornada visible fuera de otro día.
-  const puntosJornadaLabel = activeMapDiaryDateKey === getTodayMapDiaryKey()
-    ? `${visibleMapPoints.length} puntos hoy`
-    : `${visibleMapPoints.length} puntos · ${new Date(`${activeMapDiaryDateKey}T12:00:00`).toLocaleDateString("es-HN", { day: "numeric", month: "short" })}`;
-  const mapPointsForCanvas = useMemo(
-    () => (isCompactMapView ? visibleMapPoints.slice(0, MOBILE_MAP_POINT_LIMIT) : visibleMapPoints),
-    [isCompactMapView, visibleMapPoints]
-  );
-  const listedMapPoints = useMemo(
-    () => visibleMapPoints.slice(0, mapPointListLimit),
-    [mapPointListLimit, visibleMapPoints]
-  );
-  const hiddenMapPointCount = Math.max(0, visibleMapPoints.length - listedMapPoints.length);
-  const hiddenCanvasPointCount = Math.max(0, visibleMapPoints.length - mapPointsForCanvas.length);
-  const selectedMapPoint = visibleMapPoints.find((point) => point.id === selectedMapPointId) ?? null;
   const selectedUser =
     safeUsers.find((user) => user.id === selectedUserId) ?? latestUserResult?.user ?? safeUsers[0] ?? null;
   const onlineUsers = useMemo(
     () => safeUsers.filter((user) => user.is_online),
     [safeUsers]
   );
-  const headerMeta = useMemo(
-    () =>
-      (
-        {
-          records: {
-            panelClass: "hero-panel-records",
-            cardClass: "search-card-records",
-            toplineLabel: "Panel operativo",
-            title: "Registro de inmuebles clandestinos",
-            lead: "Gestión centralizada de fichas, avisos y seguimiento operativo del sistema.",
-            kicker: "Operación segura"
-          },
-          users: {
-            panelClass: "hero-panel-users",
-            cardClass: "search-card-users",
-            toplineLabel: "Administración de accesos",
-            title: "Gestión de usuarios",
-            lead: "Creación de cuentas, control de perfiles y entrega de credenciales con un flujo claro.",
-            kicker: "Control de acceso"
-          },
-          entregas: {
-            panelClass: "hero-panel-records",
-            cardClass: "search-card-records",
-            toplineLabel: "Operación de reparto",
-            title: "Control de entregas",
-            lead: "Seguimiento de lotes, cierres diarios y documentos pendientes.",
-            kicker: "Cierre diario"
-          },
-          dashboard: {
-            panelClass: "hero-panel-dashboard",
-            cardClass: "search-card-dashboard",
-            toplineLabel: "Centro administrativo",
-            // Mismo nombre que en el menú lateral: la pantalla se llama Tablero.
-            title: "Tablero",
-            lead: "Resumen operativo con actividad reciente y accesos rápidos para gestionar toda la plataforma.",
-            kicker: "Visión general"
-          },
-          executiveReport: {
-            panelClass: "hero-panel-logs",
-            cardClass: "search-card-users",
-            toplineLabel: "Operaciones realizadas",
-            title: "Resumen de Operaciones realizadas",
-            lead: "Informe consolidado desde el primer día de trabajo: fichas, geolocalización, mapeo, reportes, padrones, avisos, funciones desarrolladas, ahorro de tiempo y trazabilidad.",
-            kicker: "Memoria operativa"
-          },
-          padron: {
-            panelClass: "hero-panel-users",
-            cardClass: "search-card-users",
-            toplineLabel: "Administración de padrón",
-            title: "Padrón maestro",
-            lead: "Carga y reemplazo del archivo maestro usado por la consulta rápida de claves.",
-            kicker: "Actualización central"
-          },
-          importacion: {
-            panelClass: "hero-panel-users",
-            cardClass: "search-card-users",
-            toplineLabel: "Integracion FoxPro",
-            title: "Importacion",
-            lead: "Revision y aplicacion manual de lotes recibidos desde el servidor FoxPro.",
-            kicker: "Zona temporal"
-          },
-          barrioCodes: {
-            panelClass: "hero-panel-users",
-            cardClass: "search-card-users",
-            toplineLabel: "Catalogo territorial",
-            title: "Codigos de barrios",
-            lead: "Gestiona el prefijo inicial de las claves catastrales para completar barrios en fichas y reportes.",
-            kicker: "Barrios"
-          },
-          lookup: {
-            panelClass: "hero-panel-records",
-            cardClass: "search-card-records",
-            toplineLabel: "Consulta rápida",
-            title: "Buscar clave catastral",
-            lead: "Consulta apartada del módulo de fichas para validar si una clave ya existe en el padrón maestro.",
-            kicker: "Uso en campo"
-          },
-          map: {
-            panelClass: "hero-panel-records",
-            cardClass: "search-card-records",
-            toplineLabel: "Geolocalización operativa",
-            title: "Mapa de campo",
-            lead: "Módulo independiente para ubicar y registrar puntos técnicos de cajas y descargas en terreno.",
-            kicker: "Trabajo en sitio"
-          },
-          fieldValidation: {
-            panelClass: "hero-panel-records",
-            cardClass: "search-card-records",
-            toplineLabel: "Inteligencia territorial GPS",
-            title: "Control territorial GPS",
-            lead: "Consulta el historico, selecciona barrios y cruza claves, abonados y cartera para preparar nuevas jornadas.",
-            kicker: "Historico y zonas"
-          },
-          mapReports: {
-            panelClass: "hero-panel-logs",
-            cardClass: "search-card-users",
-            toplineLabel: "Administración de campo",
-            title: "Reportes de levantamiento",
-            lead: "Centro de reportes compacto para imprimir coordenadas, totales y zonas del trabajo levantado en campo.",
-            kicker: "Reporte institucional"
-          },
-          mapAnalytics: {
-            panelClass: "hero-panel-logs",
-            cardClass: "search-card-users",
-            toplineLabel: "Analítica de campo",
-            title: "Estadísticas del levantamiento",
-            lead: "Gráficos y lectura estadística del trabajo de campo, separados del reporte institucional para no interferir con impresión.",
-            kicker: "Lectura ejecutiva"
-          },
-          transport: {
-            panelClass: "hero-panel-records",
-            cardClass: "search-card-records",
-            toplineLabel: "Monitoreo de transporte",
-            title: "Seguimiento del vehículo recolector",
-            lead: "Traza la calle autorizada, ve el recorrido en verde y detecta a tiempo si el vehículo se sale de la ruta.",
-            kicker: "Ruta supervisada"
-          },
-          planos: {
-            panelClass: "hero-panel-records",
-            cardClass: "search-card-records",
-            toplineLabel: "Planos y croquis",
-            title: "Planos y Croquis",
-            lead: "Actualiza croquis de barrios usando el PDF como fondo y una capa editable para revision.",
-            kicker: "Croquis editable"
-          },
-          requests: {
-            panelClass: "hero-panel-users",
-            cardClass: "search-card-users",
-            toplineLabel: "Peticiones institucionales",
-            title: "Consultas del padrón",
-            lead: "Servicios, deuda y abonados por barrio desde el padrón maestro, listos para imprimir y PDF.",
-            kicker: "Análisis ejecutivo"
-          },
-          logs: {
-            panelClass: "hero-panel-logs",
-            cardClass: "search-card-logs",
-            toplineLabel: "Bitácora profesional",
-            title: "Historial de actividad",
-            lead: "Seguimiento continuo de movimientos relevantes con una lectura más limpia y trazable.",
-            kicker: "Trazabilidad"
-          },
-          notes: {
-            panelClass: "hero-panel-users",
-            cardClass: "search-card-users",
-            toplineLabel: "Uso administrativo",
-            title: "Apuntes",
-            lead: "Tablero personal para anotar cualquier cosa en segundos y organizarla después.",
-            kicker: "Privado del administrador"
-          }
-        }[workspaceView] ?? {
-          panelClass: "hero-panel-records",
-          cardClass: "search-card-records",
-          toplineLabel: "Panel operativo",
-          title: "Registro de inmuebles clandestinos",
-          lead: "Gestión centralizada de fichas, avisos y seguimiento operativo del sistema.",
-          kicker: "Operación segura"
-        }
-      ),
-    [workspaceView]
-  );
-  const recordDeadlineMetaById = useMemo(
-    () =>
-      Object.fromEntries(
-        safeRecords.map((record) => [record.id, getRecordDeadlineMeta(record)]).filter(([, meta]) => Boolean(meta))
-      ),
-    [safeRecords]
-  );
-  const alertRecords = useMemo(
-    () =>
-      safeRecords.filter((record) => {
-        const meta = recordDeadlineMetaById[record.id];
-        return meta && ["warning", "due", "overdue"].includes(meta.statusKey);
-      }),
-    [recordDeadlineMetaById, safeRecords]
-  );
-  const headerStats = useMemo(() => {
-    // El tablero ya muestra estas cifras en su propio cuerpo; repetirlas en la
-    // barra superior solo duplicaba lectura.
-    if (workspaceView === "dashboard") {
-      return [];
-    }
-
-    if (workspaceView === "executiveReport") {
-      return [
-        {
-          icon: "records",
-          label: "Fichas",
-          value: String(safeRecords.length)
-        },
-        {
-          icon: "map",
-          label: "Puntos GPS",
-          value: String(mapPointsTotal)
-        },
-        {
-          icon: "logs",
-          label: "Eventos",
-          value: String(safeAuditLogs.length)
-        },
-        {
-          icon: "refresh",
-          label: "Padrón",
-          value: String(padronMeta?.total_records ?? 0)
-        }
-      ];
-    }
-
-    if (workspaceView === "lookup") {
-      return [
-        {
-          icon: "search",
-          label: "Modo",
-          value: "Consulta"
-        },
-        {
-          icon: "records",
-          label: "Coincidencias",
-          value: String(lookupResult?.total_matches ?? 0)
-        },
-        {
-          icon: lookupResult?.exists ? "success" : "activity",
-          label: "Resultado",
-          value: lookupResult
-            ? lookupResult.exists
-              ? "Registrada"
-              : "Posible clandestino"
-            : "Sin consulta"
-        }
-      ];
-    }
-
-    if (workspaceView === "padron") {
-      return [
-        {
-          icon: "refresh",
-          label: "Estado",
-          value: uploadingPadron ? "Actualizando" : "Listo"
-        },
-        {
-          icon: "records",
-          label: "Claves activas",
-          value: String(padronMeta?.total_records ?? 0)
-        },
-        {
-          icon: "activity",
-          label: "Archivo",
-          value: padronMeta?.file_name || "Sin padrón"
-        }
-      ];
-    }
-
-    if (workspaceView === "importacion") {
-      return [
-        { icon: "refresh", label: "Origen", value: "FoxPro" },
-        { icon: "success", label: "Flujo", value: "Manual" },
-        { icon: "records", label: "Destino", value: "Revision" }
-      ];
-    }
-
-    if (workspaceView === "barrioCodes") {
-      return [
-        {
-          icon: "map",
-          label: "Codigos",
-          value: String(safeBarrioCodes.length)
-        },
-        {
-          icon: "success",
-          label: "Activos",
-          value: String(safeBarrioCodes.filter((item) => item.activo !== false).length)
-        },
-        {
-          icon: "records",
-          label: "Uso",
-          value: "Fichas"
-        }
-      ];
-    }
-
-    if (workspaceView === "map") {
-      return [
-        {
-          icon: "map",
-          label: "Puntos guardados",
-          value: String(visibleMapPoints.length)
-        },
-        {
-          icon: locatingUser ? "refresh" : "activity",
-          label: "Geolocalización",
-          value: locatingUser ? "Buscando" : mapStatus
-        },
-        {
-          icon: selectedMapPoint ? "success" : "map",
-          label: "Selección",
-          value: selectedMapPoint ? getMapPointTypeLabel(selectedMapPoint.point_type) : "Sin punto"
-        }
-      ];
-    }
-
-    if (workspaceView === "mapReports") {
-      const zones = new Set(
-        visibleMapPoints.map((point) =>
-          getMapReportBarrioZone(point, mapPointContexts[getMapPointContextKey(point)] ?? null, safeBarrioCodes)
-        )
-      );
-      return [
-        {
-          icon: "map",
-          label: "Puntos incluidos",
-          value: String(visibleMapPoints.length)
-        },
-        {
-          icon: "records",
-          label: "Zonas",
-          value: String(zones.size)
-        },
-        {
-          icon: "activity",
-          label: "Estado",
-          value: loadingMapPoints ? "Actualizando" : "Listo para imprimir"
-        }
-      ];
-    }
-
-    if (workspaceView === "fieldValidation") {
-      return [
-        {
-          icon: "map",
-          label: "Cobertura",
-          value: "Historico GPS"
-        },
-        {
-          icon: "records",
-          label: "Seleccion",
-          value: "Por barrios"
-        },
-        {
-          icon: "activity",
-          label: "Analisis",
-          value: "Claves y cartera"
-        }
-      ];
-    }
-
-    if (workspaceView === "mapAnalytics") {
-      return [
-        {
-          icon: "map",
-          label: "Puntos en jornada",
-          value: String(mapReportData.totalPoints)
-        },
-        {
-          icon: "records",
-          label: "Zonas",
-          value: String(mapReportData.totalZones)
-        },
-        {
-          icon: "activity",
-          label: "Analítica",
-          value: loadingMapPoints ? "Actualizando" : "Lista"
-        }
-      ];
-    }
-
-    if (workspaceView === "transport") {
-      return [
-        {
-          icon: "transport",
-          label: "Módulo",
-          value: isAdmin ? "Control" : "Conductor"
-        },
-        {
-          icon: "map",
-          label: "Ruta",
-          value: isTransport ? "Asignada" : "Monitoreo"
-        },
-        {
-          icon: "activity",
-          label: "Estado",
-          value: "Tiempo real"
-        }
-      ];
-    }
-
-    // Consultas del padrón muestra sus propias cifras (usuarios, barrios, deuda).
-    if (workspaceView === "requests") {
-      return [];
-    }
-
-    return [
-      {
-        icon: "records",
-        label: "Registros visibles",
-        value: String(safeRecords.length)
-      },
-      {
-        icon: form.id ? "activity" : "plus",
-        label: "Modo",
-        value: form.id ? "Edición" : "Nueva ficha"
-      },
-      {
-        icon: draftForm ? "success" : "refresh",
-        label: "Borrador",
-        value: draftForm ? "Disponible" : "Sin cambios"
-      }
-    ];
-  }, [
-    draftForm,
-    form.id,
-    locatingUser,
-    lookupResult,
-    mapDiaryGroups.length,
-    mapStatus,
+  const {
+    visibleMapPoints,
+    puntosJornadaLabel,
+    mapPointsForCanvas,
+    listedMapPoints,
+    hiddenMapPointCount,
+    hiddenCanvasPointCount,
+    selectedMapPoint
+  } = useFieldMapPoints({ activeMapDiaryDateKey, isCompactMapView, mapPointListLimit, safeMapPoints, selectedMapPointId });
+  const {
+    mapReportData,
+    mapReportPrintData,
+    getSelectedMapReportData,
+    getSelectedCajaTotal,
+    fieldDebtSummary,
+    fieldDebtChartData,
+    mapReportPagination,
+    mapAnalyticsData
+  } = useMapReportData({
+    fieldDebtReport,
+    mapDiaryGroups,
     mapPointContexts,
-    onlineUsers.length,
-    padronMeta,
-    loadingMapPoints,
-    visibleMapPoints.length,
-    safeRecords.length,
-    mapPointsTotal,
+    mapReportPage,
+    mapReportSettings,
     safeBarrioCodes,
-    safeAuditLogs.length,
-    selectedMapPoint,
-    padronRequestResult,
-    loadingPadronRequest,
-    uploadingPadron,
-    isAdmin,
-    isTransport,
-    workspaceView
-  ]);
+    visibleMapPoints
+  });
   const isDirty = useMemo(() => {
     const baseline = form.id
       ? comparableFormShape(safeRecords.find((record) => record.id === form.id) ?? emptyForm)
@@ -987,825 +549,27 @@ function App() {
     );
   }, [draftForm, form, safeRecords, selectedFile]);
   const todayDateKey = getMapDiaryDateKey(new Date());
-  const advancedFilteredRecords = useMemo(() => {
-    return safeRecords.filter((record) => {
-      const claveFilter = String(recordFilters.clave || "").trim().toLowerCase();
-      if (claveFilter) {
-        const normalizedClave = String(record.clave_catastral || "").toLowerCase();
-        const compactClave = normalizedClave.replace(/[^a-z0-9]/g, "");
-        const compactFilter = claveFilter.replace(/[^a-z0-9]/g, "");
-        if (!normalizedClave.includes(claveFilter) && (!compactFilter || !compactClave.includes(compactFilter))) {
-          return false;
-        }
-      }
-
-      if (recordFilters.barrio) {
-        const barrio = getRecordBarrioName(record, "");
-        if (barrio !== recordFilters.barrio) {
-          return false;
-        }
-      }
-
-      if (recordFilters.responsible) {
-        const responsiblePool = [record.levantamiento_datos, record.analista_datos]
-          .map((value) => String(value || "").trim())
-          .filter(Boolean);
-        if (!responsiblePool.includes(recordFilters.responsible)) {
-          return false;
-        }
-      }
-
-      const recordDateKey = getMapDiaryDateKey(getRecordGroupDate(record, recordView));
-      if (recordFilters.date_from && (!recordDateKey || recordDateKey < recordFilters.date_from)) {
-        return false;
-      }
-
-      if (recordFilters.date_to && (!recordDateKey || recordDateKey > recordFilters.date_to)) {
-        return false;
-      }
-
-      if (recordFilters.status === "no_photo") {
-        return Boolean(String(record.foto_path || "").trim()) === false;
-      }
-
-      if (recordFilters.status !== "all") {
-        const meta = recordDeadlineMetaById[record.id];
-        if (!meta || meta.statusKey !== recordFilters.status) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [recordDeadlineMetaById, recordFilters, recordView, safeRecords]);
-  const filteredRecords = useMemo(() => {
-    if (recordQuickFilter === "clandestino") {
-      return advancedFilteredRecords.filter((record) => (record.estado_padron || "clandestino") === "clandestino");
-    }
-
-    if (recordQuickFilter === "reportada") {
-      return advancedFilteredRecords.filter((record) => record.estado_padron === "reportada");
-    }
-
-    if (recordQuickFilter === "varios_padrones") {
-      return advancedFilteredRecords.filter((record) => record.estado_padron === "varios_padrones");
-    }
-
-    if (recordQuickFilter === "today") {
-      return advancedFilteredRecords.filter(
-        (record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey
-      );
-    }
-
-    if (recordQuickFilter === "no_photo") {
-      return advancedFilteredRecords.filter((record) => !String(record.foto_path || "").trim());
-    }
-
-    if (recordQuickFilter === "alert") {
-      return advancedFilteredRecords.filter((record) => {
-        const meta = recordDeadlineMetaById[record.id];
-        return meta && ["warning", "due", "overdue"].includes(meta.statusKey);
-      });
-    }
-
-    return advancedFilteredRecords;
-  }, [advancedFilteredRecords, recordDeadlineMetaById, recordQuickFilter, todayDateKey]);
-  const recordPagination = useMemo(() => {
-    const totalPages = Math.max(1, Math.ceil(filteredRecords.length / RECORDS_PAGE_SIZE));
-    const currentPage = Math.min(recordPage, totalPages);
-    const start = (currentPage - 1) * RECORDS_PAGE_SIZE;
-
-    return {
-      currentPage,
-      totalPages,
-      start,
-      end: Math.min(start + RECORDS_PAGE_SIZE, filteredRecords.length),
-      records: filteredRecords.slice(start, start + RECORDS_PAGE_SIZE)
-    };
-  }, [filteredRecords, recordPage]);
-  const mapReportData = useMemo(() => {
-    try {
-      const points = [...visibleMapPoints].sort((left, right) => {
-        const leftContext = mapPointContexts[getMapPointContextKey(left)] ?? null;
-        const rightContext = mapPointContexts[getMapPointContextKey(right)] ?? null;
-        const leftZone = getMapReportBarrioZone(left, leftContext, safeBarrioCodes);
-        const rightZone = getMapReportBarrioZone(right, rightContext, safeBarrioCodes);
-        const zoneDiff = leftZone.localeCompare(rightZone, "es");
-        if (zoneDiff !== 0) return zoneDiff;
-        return new Date(right.created_at) - new Date(left.created_at);
-      });
-
-      const zoneMap = new Map();
-      const totalsByType = points.reduce((totals, point) => {
-        const typeLabel = getMapPointTypeLabel(point.point_type);
-        totals[typeLabel] = (totals[typeLabel] ?? 0) + 1;
-        return totals;
-      }, {});
-
-      points.forEach((point) => {
-        const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-        const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
-        const pointClave = getMapReportPointClave(point, context);
-        const current = zoneMap.get(zone) ?? {
-          zone,
-          total: 0,
-          items: [],
-          accuracyValues: [],
-          pointTypes: new Set(),
-          claves: new Set(),
-          nearbyReferences: new Set(),
-          locationHints: new Set()
-        };
-
-        current.total += 1;
-        if (pointClave) {
-          current.claves.add(pointClave);
-        }
-        current.items.push({
-          ...point,
-          report_key: pointClave,
-          report_zone_label: pointClave ? `${zone} | Clave ${pointClave}` : zone,
-          suggested_zone: zone,
-          suggested_reference: context?.reference || "",
-          suggested_display_name: context?.display_name || ""
-        });
-        current.pointTypes.add(getMapPointTypeLabel(point.point_type));
-        if (context?.reference) {
-          current.nearbyReferences.add(context.reference);
-        }
-        if (context?.display_name) {
-          current.locationHints.add(context.display_name);
-        }
-        if (Number.isFinite(Number(point.accuracy_meters))) {
-          current.accuracyValues.push(Number(point.accuracy_meters));
-        }
-        zoneMap.set(zone, current);
-      });
-
-      const zones = Array.from(zoneMap.values()).map((zone) => ({
-        ...zone,
-        averageAccuracy: zone.accuracyValues.length
-          ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
-          : null,
-        pointTypesLabel: Array.from(zone.pointTypes).join(", "),
-        clavesLabel: getMapZoneClavesLabel(zone),
-        clavesTotal: zone.claves.size,
-        nearbyReferencesLabel: Array.from(zone.nearbyReferences).slice(0, 3).join(" | "),
-        primaryLocationLabel: Array.from(zone.locationHints)[0] || ""
-      }));
-
-      return {
-        totalPoints: points.length,
-        totalZones: zones.length,
-        totalsByType,
-        zones
-      };
-    } catch (error) {
-      console.error("mapReportData failed", error);
-      return {
-        totalPoints: Array.isArray(visibleMapPoints) ? visibleMapPoints.length : 0,
-        totalZones: 0,
-        totalsByType: {},
-        zones: []
-      };
-    }
-  }, [mapPointContexts, safeBarrioCodes, visibleMapPoints]);
-  const mapReportPrintData = useMemo(() => {
-    const manualBarrio = mapReportSettings.manual_barrio.trim();
-    const applyZoneOverrides = (data) => ({
-      ...data,
-      zones: data.zones.map((zone, index) => {
-        const overrideKey = getMapReportZoneOverrideKey(zone.zone);
-        const override = mapReportSettings.zone_overrides?.[overrideKey] ?? {};
-        const displayName = String(override.name || manualBarrio || zone.zone || "").trim() || zone.zone;
-        const displayKicker = String(override.kicker || `Zona ${index + 1}`).trim() || `Zona ${index + 1}`;
-        const displayReference =
-          String(override.reference || zone.nearbyReferencesLabel || "").trim() || zone.nearbyReferencesLabel;
-        const displayLocation =
-          String(override.location || mapReportSettings.manual_location || zone.primaryLocationLabel || "").trim() ||
-          zone.primaryLocationLabel;
-
-        return {
-          ...zone,
-          overrideKey,
-          displayKicker,
-          displayName,
-          displayReference,
-          displayLocation,
-          items: zone.items.map((point) => ({
-            ...point,
-            report_zone_label: displayName
-          }))
-        };
-      })
-    });
-
-    return applyZoneOverrides(mapReportData);
-  }, [mapReportData, mapReportSettings.manual_barrio, mapReportSettings.manual_location, mapReportSettings.zone_overrides]);
-  const getSelectedMapReportData = (includedZoneKeys) =>
-    selectReportZones(mapReportPrintData, includedZoneKeys, getMapPointTypeLabel);
-  const getSelectedCajaTotal = (reportData) => reportData.zones.reduce(
-    (total, zone) => total + zone.items.filter((point) => point.point_type === "caja_registro").length,
-    0
-  );
-  const adminWorkspaceItems = useMemo(
-    () =>
-      isAdmin
-        ? [
-            { key: "dashboard", section: "vision", label: "Tablero", icon: "dashboard", meta: "Vista ejecutiva", tone: "is-vision" },
-            { key: "profile", section: "vision", label: "Mi perfil", icon: "users", meta: "Rendimiento personal", tone: "is-users" },
-            { key: "inspecciones", section: "operacion", label: "Inspecciones", icon: "activity", meta: "Asignación y seguimiento", tone: "is-records" },
-            { key: "entregas", section: "operacion", label: "Control de entregas", icon: "archive", meta: "Facturas y notas de cobro", tone: "is-report" },
-            { key: "records", section: "operacion", label: "Clandestinos", icon: "records", meta: `${safeRecords.length} visibles`, tone: "is-records" },
-            { key: "lookup", section: "operacion", label: "Buscar clave", icon: "search", meta: "Consulta rápida", tone: "is-lookup" },
-            { key: "sigTerritorial", section: "operacion", label: "SIG Territorial", icon: "map", meta: "Cartografía operativa", tone: "is-map" },
-            { key: "map", section: "operacion", label: "Puntos GPS", icon: "map", meta: `${mapPointsTotal} puntos`, tone: "is-map" },
-            { key: "fieldValidation", section: "control", label: "Control territorial GPS", icon: "success", meta: "Historico y zonas", tone: "is-map" },
-            { key: "mapReports", section: "control", label: "Reportes GPS", icon: "records", meta: `${mapReportData.totalZones} zonas`, tone: "is-report" },
-            { key: "requests", section: "control", label: "Informes", icon: "dashboard", meta: `${padronRequestResult?.summary?.total_registros ?? 0} filas`, tone: "is-report" },
-            { key: "users", section: "control", label: "Usuarios", icon: "users", meta: `${safeUsers.length} registrados`, tone: "is-users" },
-            { key: "barrioCodes", section: "control", label: "Barrios", icon: "map", meta: `${safeBarrioCodes.length} codigos`, tone: "is-map" },
-            { key: "padron", section: "control", label: "Padrón", icon: "refresh", meta: `${padronMeta?.total_records ?? 0} claves`, tone: "is-padron" },
-            { key: "importacion", section: "control", label: "Importación", icon: "refresh", meta: "FoxPro manual", tone: "is-padron" },
-            { key: "logs", section: "control", label: "Historial", icon: "logs", meta: `${safeAuditLogs.length} eventos`, tone: "is-logs" }
-          ]
-        : [],
-    [
-      isAdmin,
-      isFieldValidator,
-      padronRequestResult?.summary?.total_registros,
-      mapReportData.totalPoints,
-      mapReportData.totalZones,
-      padronMeta?.total_records,
-      safeAuditLogs.length,
-      safeBarrioCodes.length,
-      mapPointsTotal,
-      safeRecords.length,
-      safeUsers.length
-    ]
-  );
-  const adminWorkspaceSections = useMemo(() => {
-    const sectionMeta = {
-      vision: {
-        title: "Visión",
-        detail: "Lectura rápida del sistema y acceso al tablero."
-      },
-      operacion: {
-        title: "Operación",
-        detail: "Trabajo diario de fichas, consulta y levantamiento."
-      },
-      control: {
-        title: "Control",
-        detail: "Supervisión, reportes, usuarios y padrón maestro."
-      }
-    };
-
-    return Object.entries(sectionMeta)
-      .map(([key, meta]) => ({
-        key,
-        ...meta,
-        items: adminWorkspaceItems.filter((item) => item.section === key)
-      }))
-      .filter((section) => section.items.length);
-  }, [adminWorkspaceItems]);
-  const moduleNavigationItems = useMemo(
-    () =>
-      (isAdmin
-        ? [
-            { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
-            { key: "railwayUsage", label: "Uso en Railway", icon: "barChart", group: "principal", helper: "Consumo y horas pico" },
-            { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
-            { key: "entregas", label: "Control de entregas", icon: "archive", group: "operacion", helper: "Facturas y notas de cobro" },
-            { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
-            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
-            { key: "sigTerritorial", label: "SIG Territorial", icon: "map", group: "operacion", helper: "Cartografía operativa" },
-            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: puntosJornadaLabel },
-            { key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" },
-            { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
-            { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
-            { key: "requests", label: "Informes", icon: "dashboard", group: "control", helper: "Peticiones y estadisticas" },
-            { key: "barrioCodes", label: "Barrios", icon: "map", group: "control", helper: `${safeBarrioCodes.length} codigos` },
-            { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
-            { key: "importacion", label: "Importación", icon: "refresh", group: "control", helper: "Lotes FoxPro" },
-            { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
-            { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` },
-            { key: "notes", label: "Apuntes", icon: "notes", group: "administracion", helper: "Notas internas" }
-          ]
-        : [
-            { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
-            { key: "inspecciones", label: "Inspecciones", icon: "activity", group: "operacion", helper: "Asignación y seguimiento" },
-            { key: "entregas", label: "Control de entregas", icon: "archive", group: "operacion", helper: "Facturas y notas de cobro" },
-            { key: "records", label: "Clandestinos", icon: "records", group: "operacion", helper: `${safeRecords.length} visibles` },
-            { key: "lookup", label: "Buscar clave", icon: "search", group: "operacion", helper: "Consulta rápida" },
-            { key: "sigTerritorial", label: "SIG Territorial", icon: "map", group: "operacion", helper: "Cartografía operativa" },
-            { key: "map", label: "Puntos GPS", icon: "map", group: "gps", helper: puntosJornadaLabel },
-            ...(isFieldValidator
-              ? [{ key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" }]
-              : []),
-            { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" }
-          ]),
-    [
-      isAdmin,
-      isFieldValidator,
-      padronRequestResult?.summary?.total_registros,
-      mapReportData.totalPoints,
-      mapReportData.totalZones,
-      padronMeta?.total_records,
-      safeAuditLogs.length,
-      safeBarrioCodes.length,
-      safeRecords.length,
-      safeUsers.length,
-      visibleMapPoints.length,
-    ]
-  );
-  const mobilePrimaryModuleKeys = useMemo(
-    () => ["profile", "inspecciones", "records", "lookup", "map"],
-    []
-  );
-  const primaryModuleNavigationItems = useMemo(
-    () => moduleNavigationItems.filter((item) => mobilePrimaryModuleKeys.includes(item.key)),
-    [mobilePrimaryModuleKeys, moduleNavigationItems]
-  );
-  const secondaryModuleNavigationItems = useMemo(
-    () => moduleNavigationItems.filter((item) => !mobilePrimaryModuleKeys.includes(item.key)),
-    [mobilePrimaryModuleKeys, moduleNavigationItems]
-  );
-  const currentModuleNavigation = useMemo(
-    () => moduleNavigationItems.find((item) => item.key === workspaceView) ?? null,
-    [moduleNavigationItems, workspaceView]
-  );
-  const sidebarNavigationSections = useMemo(() => {
-    const badgeByKey = {
-      records: safeRecords.length,
-      padron: padronMeta?.total_records ?? 0,
-      logs: safeAuditLogs.length,
-      barrioCodes: safeBarrioCodes.length,
-      users: safeUsers.length,
-      map: visibleMapPoints.length,
-      planos: null,
-      mapReports: mapReportData.totalZones,
-      requests: padronRequestResult?.summary?.total_registros ?? 0
-    };
-    const normalizeItem = (item) => ({
-      ...item,
-      badge: badgeByKey[item.key] ?? null
-    });
-    const items = moduleNavigationItems.map(normalizeItem);
-    const dashboardItem = isAdmin
-      ? { key: "dashboard", label: "Tablero", icon: "dashboard", helper: "Control", badge: null }
-      : null;
-
-    return buildSidebarSections(items, dashboardItem);
-  }, [
-    isAdmin,
-    mapReportData.totalPoints,
-    mapReportData.totalZones,
-    moduleNavigationItems,
-    padronMeta?.total_records,
-    padronRequestResult?.summary?.total_registros,
-    safeAuditLogs.length,
-    safeBarrioCodes.length,
-    safeRecords.length,
-    safeUsers.length,
-    visibleMapPoints.length
-  ]);
-  const adminInsight = useMemo(() => {
-    if (!isAdmin) {
-      return null;
-    }
-
-    if (!padronMeta?.total_records) {
-      return {
-        icon: "refresh",
-        title: "Padrón pendiente",
-        detail: "Conviene validar o actualizar el padrón maestro antes de abrir consultas masivas."
-      };
-    }
-
-    if (onlineUsers.length >= 4) {
-      return {
-        icon: "users",
-        title: "Equipo conectado",
-        detail: `Hay ${onlineUsers.length} usuarios en línea; el tablero te ayuda a monitorear campo, fichas y actividad sin cambiar de módulo.`
-      };
-    }
-
-    if (mapDiaryGroups.length > 1) {
-      return {
-        icon: "map",
-        title: "Bitácora activa",
-        detail: `Ya hay ${mapDiaryGroups.length} jornadas registradas; puedes entrar a Reportes campo para revisar la del día con mejor contexto.`
-      };
-    }
-
-    if (safeAuditLogs.length > 0) {
-      return {
-        icon: "logs",
-        title: "Actividad reciente",
-        detail: "Revisa el historial si necesitas rastrear cambios, ediciones o movimientos del equipo."
-      };
-    }
-
-    return {
-      icon: "dashboard",
-      title: "Centro de control listo",
-      detail: "Empieza por Tablero para una vista ejecutiva o entra directo al módulo que necesites."
-    };
-  }, [isAdmin, mapDiaryGroups.length, onlineUsers.length, padronMeta?.total_records, safeAuditLogs.length]);
-  const fieldDebtSummary = useMemo(() => {
-    const matches = Array.isArray(fieldDebtReport?.results)
-      ? fieldDebtReport.results.flatMap((item) => item.matches || [])
-      : [];
-    const uniqueAccounts = new Set(matches.map((match) => match.clave_catastral || match.abonado).filter(Boolean));
-    const services = FIELD_DEBT_SERVICE_DEFINITIONS.reduce((accumulator, service) => {
-      accumulator[service.field] = matches.filter((match) => String(match[service.field] || "").toUpperCase() === "S").length;
-      return accumulator;
-    }, {});
-
-    return {
-      totalKeys: fieldDebtReport?.keys?.length ?? 0,
-      totalPoints: fieldDebtReport?.pointRows?.length ?? 0,
-      foundKeys: fieldDebtReport?.results?.filter((item) => item.exists)?.length ?? 0,
-      missingKeys: fieldDebtReport?.results?.filter((item) => !item.exists)?.length ?? 0,
-      accounts: uniqueAccounts.size,
-      totalDebt: Number(matches.reduce((sum, match) => sum + Number(match.total ?? 0), 0).toFixed(2)),
-      services
-    };
-  }, [fieldDebtReport]);
-  const fieldDebtChartData = useMemo(() => {
-    const rows = Array.isArray(fieldDebtReport?.results)
-      ? fieldDebtReport.results.flatMap((result) => {
-          if (!result.matches?.length) {
-            return [
-              {
-                key: getFieldDebtResultLabel(result),
-                abonado: "--",
-                nombre: result.error || "Sin coincidencia en padron",
-                barrio: "--",
-                valor: 0,
-                intereses: 0,
-                total: 0,
-                reportes: Number(fieldDebtReport?.keyCounts?.[result.key] || 0),
-                exists: false
-              }
-            ];
-          }
-
-          return result.matches.map((match) => ({
-            key: match.clave_catastral || match.clave_aguas_formato || result.key,
-            abonado: match.abonado || "--",
-            nombre: match.inquilino || match.nombre || "--",
-            barrio: match.barrio_colonia || "--",
-            valor: Number(match.valor || 0),
-            intereses: Number(match.intereses || 0),
-            total: Number(match.total || 0),
-            reportes: Number(fieldDebtReport?.keyCounts?.[result.key] || 0),
-            exists: true
-          }));
-        })
-      : [];
-    const debtRows = rows
-      .filter((row) => row.exists)
-      .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
-    const topRows = debtRows.slice(0, 8);
-    const maxDebt = Math.max(1, ...topRows.map((row) => Number(row.total || 0)));
-    const totalDebt = debtRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
-    const criticalRows = debtRows.filter((row) => Number(row.total || 0) >= 1000);
-
-    return {
-      rows,
-      debtRows,
-      topRows,
-      maxDebt,
-      totalDebt,
-      criticalRows,
-      missingRows: rows.filter((row) => !row.exists)
-    };
-  }, [fieldDebtReport]);
-  const recordsUpdatedToday = useMemo(
-    () =>
-      safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === todayDateKey)
-        .length,
-    [safeRecords, todayDateKey]
-  );
-  const mapPointsToday = useMemo(
-    () => safeMapDiaryGroupsSummary.length
-      ? Number(mapDiaryGroups.find((group) => group.key === todayDateKey)?.total || 0)
-      : safeMapPoints.filter((point) => getMapDiaryDateKey(point) === todayDateKey).length,
-    [mapDiaryGroups, safeMapDiaryGroupsSummary.length, safeMapPoints, todayDateKey]
-  );
-  const pendingPhotoRecords = useMemo(
-    () => safeRecords.filter((record) => !String(record.foto_path || "").trim()).length,
-    [safeRecords]
-  );
-  const mapReportPagination = useMemo(() => {
-    const pageSize = 5;
-    const totalPages = Math.max(1, Math.ceil(mapReportPrintData.zones.length / pageSize));
-    const currentPage = Math.min(mapReportPage, totalPages);
-    const start = (currentPage - 1) * pageSize;
-    return {
-      pageSize,
-      totalPages,
-      currentPage,
-      zones: mapReportPrintData.zones.slice(start, start + pageSize)
-    };
-  }, [mapReportPrintData.zones, mapReportPage]);
-  const mapAnalyticsData = useMemo(() => {
-    const journeySeries = [...mapDiaryGroups]
-      .slice(0, 10)
-      .reverse()
-      .map((group) => ({
-        ...group,
-        label: formatMapDiaryLabel(group.key)
-      }));
-    const typeSeries = Object.entries(mapReportData.totalsByType)
-      .map(([label, total]) => ({ label, total }))
-      .sort((left, right) => right.total - left.total);
-    const zoneSeries = [...mapReportData.zones]
-      .sort((left, right) => right.total - left.total)
-      .slice(0, 8)
-      .map((zone) => ({
-        label: zone.zone,
-        total: zone.total,
-        accuracy: zone.averageAccuracy
-      }));
-    const accuracyBuckets = visibleMapPoints.reduce(
-      (accumulator, point) => {
-        const accuracy = Number(point.accuracy_meters);
-        if (!Number.isFinite(accuracy)) {
-          accumulator[3].total += 1;
-          return accumulator;
-        }
-        if (accuracy <= 5) {
-          accumulator[0].total += 1;
-          return accumulator;
-        }
-        if (accuracy <= 15) {
-          accumulator[1].total += 1;
-          return accumulator;
-        }
-        accumulator[2].total += 1;
-        return accumulator;
-      },
-      [
-        { label: "0 a 5 m", total: 0, tone: "is-good" },
-        { label: "6 a 15 m", total: 0, tone: "is-mid" },
-        { label: "Más de 15 m", total: 0, tone: "is-warn" },
-        { label: "Sin dato", total: 0, tone: "is-empty" }
-      ]
-    );
-
-    return {
-      journeySeries,
-      typeSeries,
-      zoneSeries,
-      accuracyBuckets,
-      maxJourneyTotal: Math.max(1, ...journeySeries.map((item) => item.total)),
-      maxTypeTotal: Math.max(1, ...typeSeries.map((item) => item.total)),
-      maxZoneTotal: Math.max(1, ...zoneSeries.map((item) => item.total))
-    };
-  }, [mapDiaryGroups, mapReportData.totalsByType, mapReportData.zones, visibleMapPoints]);
-  const padronStatisticsData = useMemo(() => {
-    const barrioStats = Array.isArray(alcaldiaComparison?.barrio_stats) ? alcaldiaComparison.barrio_stats : [];
-    const requestBarrios = Array.isArray(padronRequestResult?.summary?.barrios) ? padronRequestResult.summary.barrios : [];
-    const serviceLabels = {
-      agua: "Agua potable",
-      alcantarillado: "Alcantarillado",
-      barrido: "Barrido",
-      recoleccion: "Desechos / tren de aseo",
-      desechos_peligrosos: "Desechos peligrosos"
-    };
-    const normalizedBarrioFilter = padronStatsBarrioFilter.trim().toLowerCase();
-    const matchesBarrioFilter = (item = {}) =>
-      !normalizedBarrioFilter || String(item.barrio_colonia || "").toLowerCase().includes(normalizedBarrioFilter);
-    const limit = Number(padronStatsLimit || 10);
-    const metricLabels = {
-      brecha_registros: "Brecha",
-      cobertura_aguas_pct: "Cobertura",
-      candidatas_clandestinas: "Candidatas",
-      alcaldia_total: "Claves Alcaldia",
-      aguas_registradas: "Usuarios Aguas",
-      servicio_dominante_total: "Servicio dominante"
-    };
-    const sortBySelectedMetric = (items = []) =>
-      [...items].sort((left, right) => {
-        const direction = padronStatsSortDirection === "asc" ? 1 : -1;
-        const leftValue = Number(left?.[padronStatsSortMetric] || 0);
-        const rightValue = Number(right?.[padronStatsSortMetric] || 0);
-        return (
-          (leftValue - rightValue) * direction ||
-          String(left?.barrio_colonia || "").localeCompare(String(right?.barrio_colonia || ""), "es")
-        );
-      });
-    const clandestineByBarrio = barrioStats
-      .filter((item) => Number(item.candidatas_clandestinas || 0) > 0)
-      .filter(matchesBarrioFilter)
-      .slice(0, limit);
-    const coverageHighByBarrio = [...barrioStats]
-      .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.aguas_registradas || 0) > 0)
-      .filter(matchesBarrioFilter)
-      .sort((left, right) =>
-        Number(right.cobertura_aguas_pct || 0) - Number(left.cobertura_aguas_pct || 0) ||
-        Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
-      )
-      .slice(0, limit);
-    const lowCoverageByBarrio = [...barrioStats]
-      .filter((item) => Number(item.alcaldia_total || 0) >= 2 && Number(item.brecha_registros || 0) > 0)
-      .filter(matchesBarrioFilter)
-      .sort((left, right) =>
-        Number(left.cobertura_aguas_pct || 0) - Number(right.cobertura_aguas_pct || 0) ||
-        Number(right.brecha_registros || 0) - Number(left.brecha_registros || 0)
-      )
-      .slice(0, limit);
-    const serviceMajorityByBarrio = [...barrioStats]
-      .filter((item) => Number(item.servicio_dominante_total || 0) > 0)
-      .filter(matchesBarrioFilter)
-      .sort((left, right) =>
-        Number(right.servicio_dominante_total || 0) - Number(left.servicio_dominante_total || 0) ||
-        Number(right.aguas_registradas || 0) - Number(left.aguas_registradas || 0)
-      )
-      .slice(0, limit);
-    const comparativeByBarrio = sortBySelectedMetric(
-      barrioStats.filter(matchesBarrioFilter).filter((item) => Number(item.alcaldia_total || 0) > 0)
-    ).slice(0, limit);
-    const serviceSplitTotals = Object.entries(
-      barrioStats.reduce((accumulator, item) => {
-        Object.keys(serviceLabels).forEach((field) => {
-          accumulator[field] = (accumulator[field] || 0) + Number(item.servicios?.[field] || 0);
-        });
-        return accumulator;
-      }, {})
-    )
-      .map(([field, total]) => ({ field, label: serviceLabels[field] || field, total }))
-      .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
-    const serviceBarrioRows = Object.fromEntries(
-      Object.entries(serviceLabels).map(([field, label]) => [
-        field,
-        [...barrioStats]
-          .filter(matchesBarrioFilter)
-          .map((item) => {
-            const total = Number(item.servicios?.[field] || 0);
-            const aguasRegistradas = Number(item.aguas_registradas || 0);
-            const pct = aguasRegistradas ? Number(((total / aguasRegistradas) * 100).toFixed(1)) : 0;
-            return {
-              ...item,
-              field,
-              service_label: label,
-              service_total: total,
-              value: pct,
-              detail: `${total} de ${aguasRegistradas} usuarios con ${label} - ${pct}% del barrio`
-            };
-          })
-          .filter((item) => Number(item.service_total || 0) > 0)
-          .sort((left, right) =>
-            Number(right.value || 0) - Number(left.value || 0) ||
-            Number(right.service_total || 0) - Number(left.service_total || 0) ||
-            left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
-          )
-          .slice(0, limit)
-      ])
-    );
-    const requestBarriosTop = [...requestBarrios]
-      .sort((left, right) => Number(right.total_registros || 0) - Number(left.total_registros || 0))
-      .slice(0, 10);
-    const selectedBarrio =
-      barrioStats.find((item) => item.barrio_colonia === selectedPadronStatBarrio) ||
-      clandestineByBarrio[0] ||
-      lowCoverageByBarrio[0] ||
-      coverageHighByBarrio[0] ||
-      null;
-    const dynamicRowsByMode = {
-      brecha: clandestineByBarrio.map((item) => ({
-        ...item,
-        value: Number(item.candidatas_clandestinas || 0),
-        detail: `${item.candidatas_clandestinas} sin coincidencia de ${item.alcaldia_total} claves Alcaldia`
-      })),
-      cobertura_alta: coverageHighByBarrio.map((item) => ({
-        ...item,
-        value: Number(item.cobertura_aguas_pct || 0),
-        detail: `${item.cobertura_aguas_pct}% cobertura - ${item.aguas_registradas}/${item.alcaldia_total} registradas`
-      })),
-      cobertura_baja: lowCoverageByBarrio.map((item) => ({
-        ...item,
-        value: Number(item.brecha_registros || 0),
-        detail: `${item.cobertura_aguas_pct}% cobertura - brecha ${item.brecha_registros}`
-      })),
-      servicio_dominante: serviceMajorityByBarrio.map((item) => ({
-        ...item,
-        value: Number(item.servicio_dominante_total || 0),
-        detail: `${item.servicio_dominante}: ${item.servicio_dominante_total} usuarios`
-      })),
-      comparativa: comparativeByBarrio.map((item) => ({
-        ...item,
-        value: Number(item[padronStatsSortMetric] || 0),
-        detail: `Cobertura ${item.cobertura_aguas_pct}% - brecha ${item.brecha_registros} - Aguas ${item.aguas_registradas}/${item.alcaldia_total} - candidatas ${item.candidatas_clandestinas}`
-      })),
-      servicios: selectedPadronServiceField
-        ? (serviceBarrioRows[selectedPadronServiceField] || [])
-        : serviceSplitTotals.map((item) => ({
-            ...item,
-            barrio_colonia: item.label,
-            value: Number(item.total || 0),
-            detail: `${item.total} usuarios registrados con este servicio`
-          }))
-    };
-    const dynamicRows = dynamicRowsByMode[padronChartMode] || dynamicRowsByMode.brecha;
-
-    return {
-      barrioStats,
-      metricLabels,
-      comparativeByBarrio,
-      serviceLabels,
-      clandestineByBarrio,
-      coverageHighByBarrio,
-      lowCoverageByBarrio,
-      serviceMajorityByBarrio,
-      serviceSplitTotals,
-      serviceBarrioRows,
-      selectedServiceLabel: selectedPadronServiceField ? serviceLabels[selectedPadronServiceField] : "",
-      requestBarriosTop,
-      selectedBarrio,
-      dynamicRows,
-      maxDynamicRows:
-        padronChartMode.includes("cobertura") || (padronChartMode === "servicios" && selectedPadronServiceField)
-          ? 100
-          : Math.max(1, ...dynamicRows.map((item) => Number(item.value || 0))),
-      maxClandestine: Math.max(1, ...clandestineByBarrio.map((item) => Number(item.candidatas_clandestinas || 0))),
-      maxLowCoverageGap: Math.max(1, ...lowCoverageByBarrio.map((item) => Number(item.brecha_registros || 0))),
-      maxRequestRows: Math.max(1, ...requestBarriosTop.map((item) => Number(item.total_registros || 0)))
-    };
-  }, [
+  const {
+    padronStatisticsData,
+    aguasServiceReportData,
+    getAguasServiceBarrioName,
+    selectedAguasServiceBarrioRows,
+    toggleAguasServiceBarrioSelection
+  } = usePadronReportData({
     alcaldiaComparison,
     padronChartMode,
     padronRequestResult,
+    padronServiceReport,
     padronStatsBarrioFilter,
     padronStatsLimit,
     padronStatsSortDirection,
     padronStatsSortMetric,
+    selectedAguasServiceBarrios,
+    selectedAguasServiceField,
     selectedPadronServiceField,
-    selectedPadronStatBarrio
-  ]);
-  const aguasServiceReportData = useMemo(() => {
-    const services = Array.isArray(padronServiceReport?.summary?.services) ? padronServiceReport.summary.services : [];
-    const barrios = Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [];
-    const totalRecords = Number(padronServiceReport?.summary?.total_records || 0);
-    const selectedService = services.find((service) => service.field === selectedAguasServiceField) || services[0] || null;
-    const maxServiceTotal = Math.max(1, ...services.map((service) => Number(service.active || 0)));
-    const serviceRows = services.map((service) => ({
-      ...service,
-      detail: `${Number(service.active || 0)} con servicio activo, deuda asociada ${formatCurrency(service.deuda?.total || 0)}`
-    }));
-    const barrioRows = barrios
-      .map((barrio) => {
-        const service = (barrio.servicios || []).find((item) => item.field === selectedService?.field) || null;
-        return {
-          barrio_colonia: barrio.barrio_colonia,
-          total_registros: Number(barrio.total_registros || 0),
-          active: Number(service?.active || 0),
-          inactive: Number(service?.inactive || 0),
-          percentage: Number(service?.percentage || 0),
-          deuda: barrio.deuda || {},
-          deuda_servicio: service?.deuda || {}
-        };
-      })
-      .filter((item) => item.total_registros > 0)
-      .sort((left, right) =>
-        right.active - left.active ||
-        right.total_registros - left.total_registros ||
-        left.barrio_colonia.localeCompare(right.barrio_colonia, "es")
-      );
-    const maxBarrioServiceTotal = Math.max(1, ...barrioRows.map((item) => item.active));
-    const profiles = padronServiceReport?.summary?.profiles || {};
-
-    return {
-      services,
-      serviceRows,
-      barrios,
-      barrioRows,
-      selectedService,
-      deuda: padronServiceReport?.summary?.deuda || {},
-      totalRecords,
-      maxServiceTotal,
-      maxBarrioServiceTotal,
-      profiles,
-      hasData: totalRecords > 0
-    };
-  }, [padronServiceReport, selectedAguasServiceField]);
-  const getAguasServiceBarrioName = useCallback((barrio = {}) => {
-    const name = String(barrio.barrio_colonia || "").trim();
-    return name || "Sin barrio";
-  }, []);
-  const selectedAguasServiceBarrioSet = useMemo(
-    () => new Set(selectedAguasServiceBarrios.map((name) => String(name || "").trim()).filter(Boolean)),
-    [selectedAguasServiceBarrios]
-  );
-  const selectedAguasServiceBarrioRows = useMemo(
-    () =>
-      aguasServiceReportData.barrios.filter((barrio) =>
-        selectedAguasServiceBarrioSet.has(getAguasServiceBarrioName(barrio))
-      ),
-    [aguasServiceReportData.barrios, getAguasServiceBarrioName, selectedAguasServiceBarrioSet]
-  );
+    selectedPadronStatBarrio,
+    setSelectedAguasServiceBarrios
+  });
   useEffect(() => {
     setSelectedAguasServiceBarrios((current) => {
       if (!current.length) return current;
@@ -1815,639 +579,15 @@ function App() {
     });
   }, [aguasServiceReportData.barrios, getAguasServiceBarrioName]);
 
-  const toggleAguasServiceBarrioSelection = useCallback((barrioName) => {
-    const normalizedName = String(barrioName || "").trim() || "Sin barrio";
-    setSelectedAguasServiceBarrios((current) =>
-      current.includes(normalizedName)
-        ? current.filter((name) => name !== normalizedName)
-        : [...current, normalizedName]
-    );
-  }, []);
-
-  // Historial real de los ultimos 7 dias: fichas tocadas por dia y puntos GPS
-  // por jornada. La mora no tiene serie porque el padron es una sola foto.
-  const dashboardDailySeries = useMemo(() => {
-    const recordsByDay = new Map();
-    safeRecords.forEach((record) => {
-      const key = getMapDiaryDateKey(record.updated_at || record.created_at);
-      if (key) recordsByDay.set(key, (recordsByDay.get(key) || 0) + 1);
-    });
-    const pointsByDay = new Map();
-    if (safeMapDiaryGroupsSummary.length) {
-      mapDiaryGroups.forEach((group) => pointsByDay.set(group.key, Number(group.total || 0)));
-    } else {
-      safeMapPoints.forEach((point) => {
-        const key = getMapDiaryDateKey(point);
-        if (key) pointsByDay.set(key, (pointsByDay.get(key) || 0) + 1);
-      });
-    }
-    return {
-      records: lastDaysSeries(recordsByDay, todayDateKey),
-      gps: lastDaysSeries(pointsByDay, todayDateKey)
-    };
-  }, [mapDiaryGroups, safeMapDiaryGroupsSummary.length, safeMapPoints, safeRecords, todayDateKey]);
-  const dashboardLiveMetrics = useMemo(
-    () => [
-      {
-        key: "records",
-        label: "Fichas activas",
-        value: safeRecords.length,
-        helper: `${recordsUpdatedToday} movimientos hoy · ${dashboardDailySeries.records.at(-2)?.total || 0} ayer`,
-        series: dashboardDailySeries.records,
-        icon: "records",
-        badge: "En vivo",
-        detail: `Registros actualmente en operacion`,
-        trend: recordsUpdatedToday ? `+${recordsUpdatedToday} hoy` : "Sin cambios hoy",
-        micro: `${recordsUpdatedToday} creadas o actualizadas hoy`,
-        progressLabel: `${safeRecords.length} visibles`,
-        progress: safeRecords.length ? Math.min(100, Math.max(12, Math.round((safeRecords.length / Math.max(safeRecords.length, padronMeta?.total_records || safeRecords.length)) * 100))) : 0,
-        tone: "is-info",
-        sparkline: [36, 44, 42, 52, 48, 58, 64]
-      },
-      {
-        key: "gps",
-        label: "Puntos GPS",
-        value: mapPointsTotal,
-        helper: `${mapPointsToday} hoy · promedio ${Math.round(dashboardDailySeries.gps.reduce((sum, day) => sum + day.total, 0) / Math.max(1, dashboardDailySeries.gps.length))} por día`,
-        series: dashboardDailySeries.gps,
-        icon: "map",
-        badge: "Hoy",
-        detail: "Levantamiento de campo acumulado",
-        trend: mapPointsToday
-          ? `Ultimo movimiento ${safeMapPoints[0] ? formatRelativeTime(safeMapPoints[0].created_at || safeMapPoints[0].updated_at, dashboardNow) : formatMapDiaryLabel(mapDiaryGroups[0]?.key)}`
-          : "Sin puntos hoy",
-        micro: `${mapPointsToday} puntos registrados hoy`,
-        progressLabel: `${mapPointsToday} puntos de la jornada`,
-        progress: Math.min(100, Math.max(mapPointsToday ? 14 : 0, Math.round((mapPointsToday / Math.max(1, mapPointsToday, 50)) * 100))),
-        tone: "is-map",
-        sparkline: [18, 28, 34, 36, 48, 55, 62]
-      },
-      {
-        key: "online",
-        label: "Usuarios en línea",
-        value: onlineUsers.length,
-        helper: `${safeUsers.length} usuarios registrados`,
-        icon: "users",
-        badge: onlineUsers.length ? "En vivo" : "Normal",
-        detail: "Actividad simultanea del equipo",
-        trend: onlineUsers.length ? "Jornada activa" : "Sin sesiones activas",
-        micro: `${onlineUsers.length} conectados ahora`,
-        progressLabel: `${onlineUsers.length}/${Math.max(safeUsers.length, 1)} usuarios`,
-        progress: Math.min(100, Math.round((onlineUsers.length / Math.max(safeUsers.length, 1)) * 100)),
-        tone: "is-live",
-        sparkline: [20, 24, 30, 28, 35, 38, 42]
-      },
-      {
-        key: "alerts",
-        label: "Alertas",
-        value: alertRecords.length,
-        helper: alertRecords.length ? "Pendientes con plazo critico" : "Sin alertas pendientes",
-        icon: alertRecords.length ? "warning" : "success",
-        badge: alertRecords.length ? "Critico" : "Normal",
-        detail: "Fichas vencidas o proximas",
-        // Desglose por estado del plazo: la tarjeta del tablero lo dibuja por tramos.
-        breakdown: {
-          overdue: alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length,
-          due: alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "due").length,
-          upcoming: alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "warning").length
-        },
-        trend: `${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length} vencidas / ${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "due").length} vencen hoy`,
-        micro: `${alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length} vencidas o criticas`,
-        progressLabel: "Vencidas y por vencer",
-        progress: alertRecords.length
-          ? Math.round((alertRecords.filter((record) => recordDeadlineMetaById[record.id]?.statusKey === "overdue").length / alertRecords.length) * 100)
-          : 0,
-        tone: alertRecords.length ? "is-critical" : "is-calm",
-        sparkline: alertRecords.length ? [70, 68, 64, 66, 62, 59, 54] : [10, 10, 8, 8, 7, 7, 6]
-      }
-    ],
-    [
-      alertRecords.length,
-      dashboardDailySeries,
-      dashboardNow,
-      mapDiaryGroups,
-      mapPointsTotal,
-      mapPointsToday,
-      onlineUsers.length,
-      padronMeta?.total_records,
-      recordDeadlineMetaById,
-      recordsUpdatedToday,
-      safeMapPoints.length,
-      safeMapPoints,
-      safeRecords.length,
-      safeUsers.length
-    ]
-  );
-
-  const dashboardLiveFeed = useMemo(() => {
-    const feed = [];
-    const pushFeedItem = (item) => {
-      const createdAt = item.createdAt || item.updatedAt;
-      if (!createdAt) return;
-      feed.push({
-        ...item,
-        createdAt,
-        timestamp: new Date(createdAt).getTime() || 0
-      });
-    };
-
-    safeAuditLogs.slice(0, 12).forEach((log) => {
-      const actionTitle = {
-        "auth.login": "Usuario inicio sesion",
-        "map_point.created": "Nuevo punto GPS registrado",
-        "inmueble.created": "Ficha creada",
-        "inmueble.updated": "Ficha actualizada",
-        "inmueble.photo_attached": "Ficha lista para imprimir",
-        "transport.route_alert": "Alerta generada"
-      }[log.action] || actionLabel(log.action);
-
-      pushFeedItem({
-        key: `audit-${log.id}`,
-        title: actionTitle,
-        detail: humanizeDashboardActivity(log),
-        user: log.actor_name || log.actor_email || "Sistema",
-        icon: actionIconName(log.action),
-        tone: log.action?.includes("alert") ? "is-warning" : "is-info",
-        createdAt: log.created_at,
-        targetView: log.action === "map_point.created" ? "mapReports" : log.action?.startsWith("inmueble.") ? "records" : "logs",
-        targetPointId: log.action === "map_point.created" ? log.entity_id : null,
-        targetRecordId: log.action?.startsWith("inmueble.") ? log.entity_id : null
-      });
-    });
-
-    safeMapPoints.slice(0, 6).forEach((point) => {
-      pushFeedItem({
-        key: `point-${point.id}`,
-        title: "GPS registrado",
-        detail: `Se agrego ${getMapPointTypeLabel(point.point_type).toLowerCase()} en ${getMapReportBarrioZone(point, mapPointContexts[getMapPointContextKey(point)] ?? null, safeBarrioCodes) || "zona pendiente"}`,
-        user: point.created_by_name || point.created_by || "Equipo de campo",
-        icon: "map",
-        tone: "is-map",
-        createdAt: point.created_at || point.updated_at,
-        targetView: "mapReports",
-        targetPointId: point.id
-      });
-    });
-
-    safeRecords.slice(0, 8).forEach((record) => {
-      pushFeedItem({
-        key: `record-${record.id}`,
-        title: "Ficha creada",
-        detail: `${record.clave_catastral || "Sin clave"} en ${getRecordBarrioName(record, "ubicacion pendiente")}`,
-        user: record.levantamiento_datos || "Equipo operativo",
-        icon: "records",
-        tone: "is-record",
-        createdAt: record.created_at,
-        targetView: "records",
-        targetRecordId: record.id
-      });
-    });
-
-    alertRecords.slice(0, 6).forEach((record) => {
-      const meta = recordDeadlineMetaById[record.id];
-      pushFeedItem({
-        key: `alert-${record.id}-${meta?.statusKey || "warning"}`,
-        title: meta?.statusKey === "overdue" ? "Alerta generada" : "Ficha lista para imprimir",
-        detail: `La ficha ${record.clave_catastral || "sin clave"} ${meta?.statusKey === "overdue" ? "vencio su plazo" : "requiere seguimiento"}`,
-        user: record.analista_datos || "Sistema",
-        icon: meta?.statusKey === "overdue" ? "warning" : "records",
-        tone: meta?.statusKey === "overdue" ? "is-warning" : "is-ready",
-        createdAt: record.updated_at || record.created_at,
-        targetView: "records",
-        targetRecordId: record.id
-      });
-    });
-
-    return feed
-      .filter((item) => Number.isFinite(item.timestamp))
-      .sort((left, right) => right.timestamp - left.timestamp)
-      .slice(0, 8);
-  }, [alertRecords, mapPointContexts, recordDeadlineMetaById, safeAuditLogs, safeBarrioCodes, safeMapPoints, safeRecords]);
-  const dashboardJourneys = useMemo(() => mapDiaryGroups.slice(0, 4), [mapDiaryGroups]);
-  const dashboardPriorityItems = useMemo(() => {
-    const items = [];
-
-    if (!padronMeta?.total_records) {
-      items.push({
-        tone: "is-warning",
-        title: "Padrón pendiente",
-        detail: "Actualiza o valida el padrón maestro para consultas y peticiones confiables.",
-        icon: "refresh",
-        actionView: "padron",
-        actionLabel: "Revisar padrón",
-        level: "Atención",
-        badge: "Pendiente"
-      });
-    }
-
-    if (alertRecords.length) {
-      items.push({
-        tone: "is-warning",
-        title: "Fichas con plazo crítico",
-        detail: "En alerta o vencidas por la regla de 7 días hábiles.",
-        count: alertRecords.length,
-        icon: "warning",
-        actionView: "records",
-        filter: "alerts",
-        actionLabel: "Ver alertas",
-        level: "Crítico",
-        badge: "Crítico"
-      });
-    }
-
-    if (pendingPhotoRecords >= 3) {
-      items.push({
-        tone: "is-warning",
-        title: "Fichas sin foto",
-        detail: "Fichas visibles que aún no tienen evidencia fotográfica.",
-        count: pendingPhotoRecords,
-        icon: "records",
-        actionView: "records",
-        actionLabel: "Completar fichas",
-        level: "Atención",
-        badge: "Pendiente"
-      });
-    }
-
-    // Cuántos usuarios hay conectados ya se ve en la banda de estado del
-    // tablero: no es un asunto pendiente y no compite con las alertas reales.
-    if (dashboardJourneys[0]) {
-      items.push({
-        tone: "is-info",
-        title: "Jornada activa",
-        detail: `${formatMapDiaryLabel(dashboardJourneys[0].key)}: puntos listos para revisar.`,
-        count: dashboardJourneys[0].total,
-        icon: "map",
-        actionView: "mapReports",
-        actionLabel: "Abrir reportes",
-        level: "Informativo",
-        badge: "En vivo"
-      });
-    }
-
-    if (!items.length) {
-      items.push({
-        tone: "is-calm",
-        title: "Sistema estable",
-        detail: "El tablero está listo para arrancar captura, consulta o control administrativo.",
-        icon: "success",
-        actionView: "records",
-        actionLabel: "Ir a fichas",
-        level: "Informativo",
-        badge: "Normal"
-      });
-    }
-
-    return items.slice(0, 3);
-  }, [alertRecords.length, dashboardJourneys, padronMeta?.total_records, pendingPhotoRecords]);
-  const dashboardAlertRecords = useMemo(() => {
-    const recordsWithoutPhoto = safeRecords
-      .filter((record) => !getRecordPhotoPath(record))
-      .map((record) => ({
-        record,
-        statusKey: "no-photo",
-        status: "Sin foto",
-        detail: "Pendiente de evidencia fotografica para cerrar la ficha.",
-        actionLabel: "Ver ficha"
-      }));
-    const deadlineAlerts = alertRecords.map((record) => {
-      const meta = recordDeadlineMetaById[record.id];
-      const isOverdue = meta?.statusKey === "overdue";
-      const isDue = meta?.statusKey === "due";
-      return {
-        record,
-        statusKey: meta?.statusKey || "warning",
-        status: isOverdue ? "Vencida" : isDue ? "Vence hoy" : "Atencion",
-        detail: isOverdue
-          ? "Plazo operativo de 7 dias habiles superado."
-          : isDue
-            ? "Requiere revision durante la jornada de hoy."
-            : "Requiere seguimiento por plazo operativo."
-      };
-    });
-
-    return [...deadlineAlerts, ...recordsWithoutPhoto]
-      .filter((item, index, list) => list.findIndex((other) => other.record.id === item.record.id && other.statusKey === item.statusKey) === index)
-      .slice(0, 24);
-  }, [alertRecords, recordDeadlineMetaById, safeRecords]);
-  const dashboardAlertCounts = useMemo(() => {
-    const overdue = dashboardAlertRecords.filter((item) => item.statusKey === "overdue").length;
-    const due = dashboardAlertRecords.filter((item) => item.statusKey === "due").length;
-    const noPhoto = dashboardAlertRecords.filter((item) => item.statusKey === "no-photo").length;
-    const printable = dashboardAlertRecords.filter((item) => ["overdue", "due", "warning"].includes(item.statusKey)).length;
-
-    return {
-      all: dashboardAlertRecords.length,
-      critical: overdue,
-      today: due,
-      noPhoto,
-      printable
-    };
-  }, [dashboardAlertRecords]);
-  const overdueComparisonRecords = useMemo(
-    () =>
-      dashboardAlertRecords
-        .filter((item) => item.statusKey === "overdue")
-        .map((item) => item.record),
-    [dashboardAlertRecords]
-  );
-  const alcaldiaComparisonByClave = useMemo(() => {
-    const rows = [
-      ...(alcaldiaComparison?.candidates || []),
-      ...(alcaldiaComparison?.matched_by_base || []),
-      ...(alcaldiaComparison?.matched_exact || [])
-    ];
-    return rows.reduce((map, row) => {
-      [row.clave_catastral, row.clave_aguas_formato].forEach((key) => {
-        const cleanKey = String(key || "").trim();
-        if (cleanKey && !map.has(cleanKey)) {
-          map.set(cleanKey, row);
-        }
-      });
-      return map;
-    }, new Map());
-  }, [alcaldiaComparison]);
-  const filteredDashboardAlertRecords = useMemo(
-    () =>
-      dashboardAlertRecords.filter((item) => {
-        if (dashboardAlertFilter === "critical") return item.statusKey === "overdue";
-        if (dashboardAlertFilter === "today") return item.statusKey === "due";
-        if (dashboardAlertFilter === "no-photo") return item.statusKey === "no-photo";
-        if (dashboardAlertFilter === "printable") return ["overdue", "due", "warning"].includes(item.statusKey);
-        return true;
-      }),
-    [dashboardAlertFilter, dashboardAlertRecords]
-  );
-  const dashboardTechnicianSummary = useMemo(() => {
-    const grouped = safeRecords.reduce((acc, record) => {
-      const owner = String(record.levantamiento_datos || record.analista_datos || "Sin asignar").trim() || "Sin asignar";
-      if (!acc[owner]) {
-        acc[owner] = {
-          name: owner,
-          total: 0,
-          withPhoto: 0,
-          alert: 0
-        };
-      }
-      acc[owner].total += 1;
-      if (record.foto_path) {
-        acc[owner].withPhoto += 1;
-      }
-      if (recordDeadlineMetaById[record.id]?.status && recordDeadlineMetaById[record.id].status !== "on_track") {
-        acc[owner].alert += 1;
-      }
-      return acc;
-    }, {});
-
-    return Object.values(grouped)
-      .sort((left, right) => right.total - left.total || right.alert - left.alert || left.name.localeCompare(right.name))
-      .slice(0, 5);
-  }, [recordDeadlineMetaById, safeRecords]);
-  const executiveReportData = useMemo(() => {
-    const allDates = [
-      ...safeRecords.flatMap((record) => [record.created_at, record.updated_at, record.fecha_aviso]),
-      ...safeMapPoints.flatMap((point) => [point.created_at, point.updated_at]),
-      ...safeAuditLogs.map((log) => log.created_at)
-    ]
-      .map((value) => {
-        const stamp = Date.parse(value || "");
-        return Number.isFinite(stamp) ? stamp : null;
-      })
-      .filter(Boolean);
-    const firstDate = allDates.length ? new Date(Math.min(...allDates)) : null;
-    const lastDate = allDates.length ? new Date(Math.max(...allDates)) : new Date();
-    const statusTotals = safeRecords.reduce(
-      (acc, record) => {
-        const status = record.estado_padron || "clandestino";
-        acc[status] = (acc[status] ?? 0) + 1;
-        return acc;
-      },
-      { clandestino: 0, reportada: 0, varios_padrones: 0 }
-    );
-    const mapTypeTotals = safeMapPoints.reduce((acc, point) => {
-      const label = getMapPointTypeLabel(point.point_type);
-      acc[label] = (acc[label] ?? 0) + 1;
-      return acc;
-    }, {});
-    const mapZoneTotals = safeMapPoints.reduce((acc, point) => {
-      const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-      const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
-      acc[zone] = (acc[zone] ?? 0) + 1;
-      return acc;
-    }, {});
-    const gpsZoneDetails = safeMapPoints.reduce((acc, point) => {
-      const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-      const zone = getMapReportBarrioZone(point, context, safeBarrioCodes);
-      const typeLabel = getMapPointTypeLabel(point.point_type);
-      if (!acc[zone]) {
-        acc[zone] = {
-          label: zone,
-          total: 0,
-          types: {},
-          accuracyValues: [],
-          firstDate: "",
-          lastDate: ""
-        };
-      }
-      acc[zone].total += 1;
-      acc[zone].types[typeLabel] = (acc[zone].types[typeLabel] ?? 0) + 1;
-      if (Number.isFinite(Number(point.accuracy_meters))) {
-        acc[zone].accuracyValues.push(Number(point.accuracy_meters));
-      }
-      const dateKey = getMapDiaryDateKey(point);
-      if (dateKey) {
-        acc[zone].firstDate = !acc[zone].firstDate || dateKey < acc[zone].firstDate ? dateKey : acc[zone].firstDate;
-        acc[zone].lastDate = !acc[zone].lastDate || dateKey > acc[zone].lastDate ? dateKey : acc[zone].lastDate;
-      }
-      return acc;
-    }, {});
-    const recordZoneTotals = safeRecords.reduce((acc, record) => {
-      const zone = getRecordBarrioName(record, "Sin barrio");
-      if (!acc[zone]) {
-        acc[zone] = {
-          label: zone,
-          total: 0,
-          clandestino: 0,
-          reportada: 0,
-          varios_padrones: 0,
-          withPhoto: 0,
-          alert: 0
-        };
-      }
-      const status = record.estado_padron || "clandestino";
-      acc[zone].total += 1;
-      acc[zone][status] = (acc[zone][status] ?? 0) + 1;
-      if (String(record.foto_path || "").trim()) {
-        acc[zone].withPhoto += 1;
-      }
-      if (recordDeadlineMetaById[record.id]) {
-        acc[zone].alert += 1;
-      }
-      return acc;
-    }, {});
-    const monthlyTotals = [...safeRecords, ...safeMapPoints].reduce((acc, item) => {
-      const dateKey = getMapDiaryDateKey(item.updated_at || item.created_at || item.fecha_aviso);
-      if (!dateKey) return acc;
-      const monthKey = dateKey.slice(0, 7);
-      if (!acc[monthKey]) {
-        acc[monthKey] = {
-          label: formatMonthGroup(`${monthKey}-01`),
-          records: 0,
-          points: 0
-        };
-      }
-      if ("clave_catastral" in item) {
-        acc[monthKey].records += 1;
-      } else {
-        acc[monthKey].points += 1;
-      }
-      return acc;
-    }, {});
-    const auditTotals = safeAuditLogs.reduce((acc, log) => {
-      const key = actionLabel(log.action);
-      acc[key] = (acc[key] ?? 0) + 1;
-      return acc;
-    }, {});
-    const photoCount = safeRecords.filter((record) => String(record.foto_path || "").trim()).length;
-    const archivedEvents = safeAuditLogs.filter((log) => log.action === "inmueble.archived").length;
-    const printedReadyRecords = safeRecords.filter((record) => record.fecha_aviso && record.levantamiento_datos && record.analista_datos).length;
-    const fieldJourneyRows = mapDiaryGroups.map((journey) => {
-      const dayPoints = safeMapPoints.filter((point) => getMapDiaryDateKey(point) === journey.key);
-      const dayRecords = safeRecords.filter((record) => getMapDiaryDateKey(record.updated_at || record.created_at) === journey.key);
-      const dayZones = new Set(
-        dayPoints.map((point) => {
-          const context = mapPointContexts[getMapPointContextKey(point)] ?? null;
-          return getMapReportBarrioZone(point, context, safeBarrioCodes);
-        })
-      );
-
-      return {
-        key: journey.key,
-        label: formatMapDiaryLabel(journey.key),
-        points: dayPoints.length,
-        records: dayRecords.length,
-        photos: dayRecords.filter((record) => String(record.foto_path || "").trim()).length,
-        zones: dayZones.size
-      };
-    });
-    const fieldResponsibleRows = dashboardTechnicianSummary.map((item) => ({
-      name: item.name,
-      records: item.total,
-      withPhoto: item.withPhoto,
-      alert: item.alert
-    }));
-
-    return {
-      generatedAt: new Date(),
-      firstDate,
-      lastDate,
-      statusTotals,
-      photoCount,
-      pendingPhotoCount: Math.max(0, safeRecords.length - photoCount),
-      printedReadyRecords,
-      archivedEvents,
-      fieldJourneyRows,
-      fieldResponsibleRows,
-      statusRows: [
-        { label: "Clandestinas", total: statusTotals.clandestino || 0 },
-        { label: "Reportadas", total: statusTotals.reportada || 0 },
-        { label: "Varios padrones", total: statusTotals.varios_padrones || 0 }
-      ],
-      recordZoneRows: Object.values(recordZoneTotals)
-        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label)),
-      monthlyRows: Object.entries(monthlyTotals)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([, value]) => value),
-      gpsZoneDetailRows: Object.values(gpsZoneDetails)
-        .map((zone) => ({
-          ...zone,
-          averageAccuracy: zone.accuracyValues.length
-            ? Number((zone.accuracyValues.reduce((sum, value) => sum + value, 0) / zone.accuracyValues.length).toFixed(1))
-            : null,
-          typeLabel: Object.entries(zone.types)
-            .sort((left, right) => right[1] - left[1])
-            .map(([label, total]) => `${label}: ${total}`)
-            .join(", ")
-        }))
-        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label)),
-      mapTypeRows: Object.entries(mapTypeTotals)
-        .map(([label, total]) => ({ label, total }))
-        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label)),
-      mapZoneRows: Object.entries(mapZoneTotals)
-        .map(([label, total]) => ({ label, total }))
-        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label))
-        .slice(0, 8),
-      auditRows: Object.entries(auditTotals)
-        .map(([label, total]) => ({ label, total }))
-        .sort((left, right) => right.total - left.total || left.label.localeCompare(right.label))
-        .slice(0, 10),
-      applicationFunctions: [
-        ["Registro de fichas", "Crear, editar, buscar y clasificar inmuebles por clave catastral, barrio, abonado y estado operativo."],
-        ["Validación de padrones", "Comparar información entre padrón maestro, Alcaldía y registros de Aguas para detectar coincidencias o posibles clandestinos."],
-        ["Evidencia fotográfica", "Adjuntar fotografía por ficha y dejar respaldo visual del levantamiento realizado en campo."],
-        ["Geolocalización GPS", "Capturar puntos técnicos, zonas, precisión, jornadas y referencias para sustentar el recorrido territorial."],
-        ["Mapa de campo", "Visualizar puntos levantados, agruparlos por zona y generar reportes de coordenadas para supervisión."],
-        ["Avisos y fichas imprimibles", "Generar ficha técnica, aviso formal e impresión rápida por lote con selección de copias."],
-        ["Reportes PDF", "Descargar reportes de campo, solicitudes de padrón y resumen consolidado para presentación institucional."],
-        ["Bitácora y usuarios", "Registrar sesiones, cambios, operaciones, restauraciones y actividad por usuario para trazabilidad."]
-      ],
-      timeSavingsRows: [
-        ["Búsqueda de clave y validación", "10 a 15 minutos manuales", "1 a 2 minutos en la aplicación", "Reduce revisión en Excel, cruces manuales y errores de digitación."],
-        ["Elaboración de ficha", "15 a 20 minutos manuales", "4 a 6 minutos en la aplicación", "Centraliza datos, estado, fotografía y formato imprimible."],
-        ["Generación de aviso", "8 a 12 minutos manuales", "1 a 2 minutos en la aplicación", "El aviso se genera desde la ficha sin volver a redactar la información."],
-        ["Reporte de campo por zona", "1 a 2 horas manuales", "5 a 10 minutos en la aplicación", "Agrupa GPS, zonas, totales y jornadas automáticamente."],
-        ["Consolidado para supervisión", "Medio día de revisión manual", "10 a 20 minutos en la aplicación", "Resume fichas, barrios, GPS, usuarios, bitácora y estadísticas."],
-        ["Impresión de varias fichas/avisos", "30 a 60 minutos manuales", "5 a 10 minutos con impresión rápida", "Permite seleccionar copias por ficha y aviso en un solo flujo."]
-      ],
-      modules: [
-        {
-          title: "Fichas catastrales",
-          detail: "Registro, edición, búsqueda por clave catastral, clasificación por padrón, fotografía, ficha visual, aviso y procesamiento a reportadas.",
-          evidence: `${safeRecords.length} fichas activas visibles, ${statusTotals.reportada || 0} reportadas y ${photoCount} con evidencia fotográfica.`
-        },
-        {
-          title: "Trabajo realizado en campo",
-          detail: "Captura GPS en sitio, levantamiento de fichas, evidencia fotográfica, jornadas por fecha, zonas cubiertas y puntos técnicos ubicados en mapa.",
-          evidence: `${safeMapPoints.length} puntos geolocalizados, ${mapDiaryGroups.length} jornadas y ${photoCount} fichas con fotografía.`
-        },
-        {
-          title: "Reportes institucionales",
-          detail: "Reporte de levantamiento por zonas, estadísticas de campo, descarga PDF, impresión, reporte de solicitudes al padrón y consulta por clave.",
-          evidence: `${mapReportData.totalZones} zonas en la jornada activa y ${padronRequestResult?.summary?.total_registros ?? 0} registros en la última petición.`
-        },
-        {
-          title: "Padrones y validación",
-          detail: "Carga de padrón maestro, carga de padrón de Alcaldía, comparación contra Aguas y detección de inmuebles clandestinos o repetidos en varios padrones.",
-          evidence: `${padronMeta?.total_records ?? 0} claves en padrón maestro y ${alcaldiaMeta?.total_records ?? 0} registros de Alcaldía.`
-        },
-        {
-          title: "Operación y trazabilidad",
-          detail: "Usuarios, roles, sesiones, bitácora de eventos, auditoría de cambios, restauración y archivo administrativo.",
-          evidence: `${safeUsers.length} usuarios registrados, ${onlineUsers.length} en línea y ${safeAuditLogs.length} eventos auditados.`
-        },
-        {
-          title: "Impresión y avisos",
-          detail: "Ficha imprimible con formato institucional, aviso editable, impresión individual y lote rápido con selección de copias por ficha o aviso.",
-          evidence: `${printedReadyRecords} fichas cuentan con datos base para generar aviso.`
-        }
-      ]
-    };
-  }, [
-    alcaldiaMeta?.total_records,
-    mapDiaryGroups.length,
-    mapPointContexts,
-    mapReportData.totalZones,
-    onlineUsers.length,
-    padronMeta?.total_records,
-    padronRequestResult?.summary?.total_registros,
-    recordDeadlineMetaById,
-    safeAuditLogs,
-    safeBarrioCodes,
-    safeMapPoints,
+  const { recordDeadlineMetaById, alertRecords, filteredRecords, recordPagination } = useRecordFilters({
+    getRecordBarrioName,
+    recordFilters,
+    recordPage,
+    recordQuickFilter,
+    recordView,
     safeRecords,
-    dashboardTechnicianSummary,
-    safeUsers.length
-  ]);
+    todayDateKey
+  });
 
   useEffect(() => {
     if (mapDiaryDateKey !== activeMapDiaryDateKey) {
@@ -4517,6 +2657,54 @@ function App() {
     showAlert,
     visibleMapPoints
   });
+  const {
+    adminInsight,
+    dashboardLiveMetrics,
+    dashboardLiveFeed,
+    dashboardPriorityItems,
+    dashboardAlertCounts,
+    overdueComparisonRecords,
+    alcaldiaComparisonByClave,
+    filteredDashboardAlertRecords,
+    dashboardTechnicianSummary
+  } = useDashboardData({
+    alcaldiaComparison,
+    alertRecords,
+    dashboardAlertFilter,
+    dashboardNow,
+    getRecordBarrioName,
+    isAdmin,
+    mapDiaryGroups,
+    mapPointContexts,
+    mapPointsTotal,
+    onlineUsers,
+    padronMeta,
+    recordDeadlineMetaById,
+    safeAuditLogs,
+    safeBarrioCodes,
+    safeMapDiaryGroupsSummary,
+    safeMapPoints,
+    safeRecords,
+    safeUsers,
+    todayDateKey
+  });
+  const { executiveReportData } = useExecutiveReportData({
+    alcaldiaMeta,
+    dashboardTechnicianSummary,
+    getRecordBarrioName,
+    mapDiaryGroups,
+    mapPointContexts,
+    mapReportData,
+    onlineUsers,
+    padronMeta,
+    padronRequestResult,
+    recordDeadlineMetaById,
+    safeAuditLogs,
+    safeBarrioCodes,
+    safeMapPoints,
+    safeRecords,
+    safeUsers
+  });
   const { handleDownloadExecutiveReportPdf } = createExecutiveReportPdf({
     alertRecords,
     executiveReportData,
@@ -4793,6 +2981,54 @@ function App() {
     setSelectedMapPointId,
     showAlert,
     visibleMapPoints
+  });
+  const { headerStats } = useHeaderStats({
+    draftForm,
+    form,
+    isAdmin,
+    isTransport,
+    loadingMapPoints,
+    loadingPadronRequest,
+    locatingUser,
+    lookupResult,
+    mapDiaryGroups,
+    mapPointContexts,
+    mapPointsTotal,
+    mapReportData,
+    mapStatus,
+    onlineUsers,
+    padronMeta,
+    padronRequestResult,
+    safeAuditLogs,
+    safeBarrioCodes,
+    safeRecords,
+    selectedMapPoint,
+    uploadingPadron,
+    visibleMapPoints,
+    workspaceView
+  });
+  const {
+    headerMeta,
+    adminWorkspaceSections,
+    moduleNavigationItems,
+    primaryModuleNavigationItems,
+    secondaryModuleNavigationItems,
+    currentModuleNavigation,
+    sidebarNavigationSections
+  } = useAppNavigation({
+    isAdmin,
+    isFieldValidator,
+    mapPointsTotal,
+    mapReportData,
+    padronMeta,
+    padronRequestResult,
+    puntosJornadaLabel,
+    safeAuditLogs,
+    safeBarrioCodes,
+    safeRecords,
+    safeUsers,
+    visibleMapPoints,
+    workspaceView
   });
   if (session?.token && !sessionVerified) {
     return (
