@@ -8,6 +8,23 @@ import { Suspense } from "react";
 import { formatCoordinate, getMapPointTypeLabel } from "../../utils/mapField";
 import { formatDateTime, formatMapDiaryLabel } from "../../utils/datesAndBusiness";
 import { getMapPointHousingUnits, getMapPointReferenceNote, getMapPointTechnicalDescription } from "../../utils/mapReport";
+import "./field-map.css";
+
+const OFFLINE_MAP_STATUSES = ["Sin conexion", "Sin GPS", "Sin permiso", "HTTPS requerido"];
+
+const getPointSummary = (point) =>
+  [getMapPointReferenceNote(point), getMapPointTechnicalDescription(point)].filter(Boolean).join(" - ")
+  || "Sin referencia adicional.";
+
+function PointDot({ point }) {
+  return (
+    <span
+      className={`map-report-point-dot ${point.is_terminal_point ? "is-pin" : ""}`}
+      style={{ "--point-color": point.marker_color || "#1576d1" }}
+      aria-hidden="true"
+    />
+  );
+}
 
 export default function FieldMapWorkspace({ model }) {
   const {
@@ -53,21 +70,45 @@ export default function FieldMapWorkspace({ model }) {
     workspaceView
   } = model;
 
+  const isOffline = OFFLINE_MAP_STATUSES.includes(mapStatus);
+  const isGpsReady = mapStatus === "GPS listo";
+
   return (
-    <main className="map-layout no-print">
+    <main className="map-layout fm no-print">
       <section className="map-shell">
-        <article className="map-stage-card">
-          <div className="lookup-card-head map-card-head">
-            <div>
-              <p className="sheet-kicker">Geolocalizacion de campo</p>
-              <h2><Icon name="map" className="title-icon" />Mapa de campo</h2>
-            </div>
-          </div>
+        <article className="map-stage-card" aria-labelledby="fm-map-title">
+          <h2 id="fm-map-title" className="fm-visually-hidden">Mapa de campo</h2>
           <div className="map-toolbar">
-            <span className={`map-status-chip ${["Sin conexion", "Sin GPS", "Sin permiso", "HTTPS requerido"].includes(mapStatus) ? "is-offline" : ""}`}>
-              <Icon name={mapStatus === "GPS listo" ? "success" : mapStatus === "Sin conexion" ? "activity" : "map"} />
+            <span className={`map-status-chip ${isOffline ? "is-offline" : ""} ${isGpsReady ? "is-ready" : ""}`} role="status">
+              <span className="fm-status-dot" aria-hidden="true" />
               {mapStatus}
             </span>
+            <nav className="map-diary-strip" aria-label="Bitácora por día">
+              <div className="map-diary-tabs">
+                {mapDiaryGroups.length ? (
+                  primaryMapDiaryGroups.map((group) => (
+                    <button
+                      key={group.key}
+                      type="button"
+                      className={`map-diary-tab ${activeMapDiaryDateKey === group.key ? "is-active" : ""}`}
+                      aria-pressed={activeMapDiaryDateKey === group.key}
+                      onClick={() => setMapDiaryDateKey(group.key)}
+                    >
+                      <strong>{formatMapDiaryLabel(group.key)}</strong>
+                      <span>{group.total} {group.total === 1 ? "punto" : "puntos"}</span>
+                    </button>
+                  ))
+                ) : (
+                  <span className="map-diary-empty">Todavía no hay jornadas registradas.</span>
+                )}
+                {archivedMapDiaryGroups.length ? (
+                  <button type="button" className="map-diary-archive-card" onClick={openMapDiaryArchiveModal}>
+                    <strong>Jornadas anteriores</strong>
+                    <span>{archivedMapDiaryGroups.length} días</span>
+                  </button>
+                ) : null}
+              </div>
+            </nav>
             <button
               type="button"
               className="button-secondary map-print-open-button"
@@ -83,34 +124,6 @@ export default function FieldMapWorkspace({ model }) {
               {mapLocationHelp}
             </p>
           ) : null}
-          <div className="map-diary-strip">
-            <div className="map-diary-strip-head">
-              <strong>Bitacora por dia</strong>
-            </div>
-            <div className="map-diary-tabs">
-              {mapDiaryGroups.length ? (
-                primaryMapDiaryGroups.map((group) => (
-                  <button
-                    key={group.key}
-                    type="button"
-                    className={`map-diary-tab ${activeMapDiaryDateKey === group.key ? "is-active" : ""}`}
-                    onClick={() => setMapDiaryDateKey(group.key)}
-                  >
-                    <strong>{formatMapDiaryLabel(group.key)}</strong>
-                    <span>{group.total} puntos</span>
-                  </button>
-                ))
-              ) : (
-                <span className="map-diary-empty">Todavia no hay jornadas registradas.</span>
-              )}
-              {archivedMapDiaryGroups.length ? (
-                <button type="button" className="map-diary-archive-card" onClick={openMapDiaryArchiveModal}>
-                  <strong>Jornadas anteriores</strong>
-                  <span>{archivedMapDiaryGroups.length} dias adjuntos</span>
-                </button>
-              ) : null}
-            </div>
-          </div>
           <MapLoadBoundary>
             <Suspense fallback={<div className="map-canvas map-canvas-loading">Cargando mapa...</div>}>
               <FieldMap
@@ -128,7 +141,7 @@ export default function FieldMapWorkspace({ model }) {
           </MapLoadBoundary>
           {hiddenCanvasPointCount ? (
             <p className="helper-text map-mobile-limit-note">
-              En movil se muestran los {mapPointsForCanvas.length} puntos mas recientes en el mapa para mantenerlo fluido. La bitacora conserva {visibleMapPoints.length} puntos.
+              En móvil se muestran los {mapPointsForCanvas.length} puntos más recientes en el mapa para mantenerlo fluido. La bitácora conserva {visibleMapPoints.length} puntos.
             </p>
           ) : null}
           {showMapPrintDialog ? (
@@ -146,53 +159,67 @@ export default function FieldMapWorkspace({ model }) {
 
         <aside className="map-side-panel">
           <form className={`map-form-card ${editingMapPointId ? "is-editing" : ""}`} onSubmit={handleSaveMapPoint}>
-            <div className="lookup-card-head map-card-head">
+            <header className="fm-section-head">
               <div>
-                <p className="sheet-kicker">{editingMapPointId ? "Edicion activa" : "Nuevo punto"}</p>
-                <h3>{editingMapPointId ? "Actualizar ubicacion" : "Registrar ubicacion"}</h3>
-                <p className="helper-text">
+                <h3>
+                  {editingMapPointId ? `Editando punto #${editingMapPointId}` : "Registrar ubicación"}
+                </h3>
+                <p>
                   {editingMapPointId
-                    ? "Ajusta coordenadas o descripcion y guarda los cambios."
-                    : "Usa GPS o toca el mapa; luego completa los datos tecnicos."}
+                    ? "Ajusta coordenadas o descripción y guarda los cambios."
+                    : "Usa GPS o toca el mapa; luego completa los datos técnicos."}
                 </p>
               </div>
-              <button type="button" className="button-secondary" onClick={resetMapDraft}>
-                <Icon name="refresh" />
+              <button type="button" className="button-secondary fm-quiet-button" onClick={resetMapDraft}>
+                <Icon name={editingMapPointId ? "close" : "refresh"} />
                 {editingMapPointId ? "Cancelar" : "Limpiar"}
               </button>
-            </div>
+            </header>
 
-            <div className="map-coordinates-grid">
-              <label>
-                <span>Latitud</span>
-                <input
-                  name="latitude"
-                  value={mapDraft.latitude}
-                  onChange={handleMapDraftChange}
-                  inputMode="decimal"
-                  placeholder="13.301700"
-                />
-              </label>
-              <label>
-                <span>Longitud</span>
-                <input
-                  name="longitude"
-                  value={mapDraft.longitude}
-                  onChange={handleMapDraftChange}
-                  inputMode="decimal"
-                  placeholder="-87.188900"
-                />
-              </label>
-              <label>
-                <span>Precision (m)</span>
-                <input
-                  name="accuracy_meters"
-                  value={mapDraft.accuracy_meters}
-                  onChange={handleMapDraftChange}
-                  inputMode="decimal"
-                  placeholder="5"
-                />
-              </label>
+            <fieldset className="fm-coords">
+              <legend className="fm-visually-hidden">Coordenadas</legend>
+              <div className="fm-coords-head">
+                <span aria-hidden="true">Coordenadas</span>
+                <button type="button" className="button-secondary fm-gps-button" onClick={handleLocateUser} disabled={locatingUser}>
+                  <Icon name="map" />
+                  {locatingUser ? "Ubicando..." : "Usar mi ubicación"}
+                </button>
+              </div>
+              <div className="map-coordinates-grid">
+                <label>
+                  <span>Latitud</span>
+                  <input
+                    name="latitude"
+                    value={mapDraft.latitude}
+                    onChange={handleMapDraftChange}
+                    inputMode="decimal"
+                    placeholder="13.301700"
+                  />
+                </label>
+                <label>
+                  <span>Longitud</span>
+                  <input
+                    name="longitude"
+                    value={mapDraft.longitude}
+                    onChange={handleMapDraftChange}
+                    inputMode="decimal"
+                    placeholder="-87.188900"
+                  />
+                </label>
+                <label className="fm-accuracy-field">
+                  <span>Precisión (m)</span>
+                  <input
+                    name="accuracy_meters"
+                    value={mapDraft.accuracy_meters}
+                    onChange={handleMapDraftChange}
+                    inputMode="decimal"
+                    placeholder="5"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <div className="fm-type-row">
               <label>
                 <span>Tipo de punto</span>
                 <select name="point_type" value={mapDraft.point_type} onChange={handleMapDraftChange}>
@@ -200,47 +227,17 @@ export default function FieldMapWorkspace({ model }) {
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
-                {mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE ? (
-                  <small className="helper-text">Este punto se guardara y mostrara en rojo.</small>
-                ) : mapDraft.point_type === ALERT_MAP_POINT_TYPE ? (
-                  <small className="helper-text">Este punto se guardara como alerta y se destacara en amarillo en el reporte.</small>
-                ) : null}
               </label>
-            </div>
-
-            <label>
-              <span>Referencia</span>
-              <input
-                name="reference"
-                value={mapDraft.reference}
-                onChange={handleMapDraftChange}
-                placeholder="Frente a poste, esquina noroeste, casa verde..."
-              />
-            </label>
-            <div className="map-description-grid">
-              <label>
-                <span>Descripcion tecnica</span>
-                <textarea
-                  name="description"
-                  value={mapDraft.description}
-                  onChange={handleMapDraftChange}
-                  rows="4"
-                  placeholder="Detalle de la caja, descarga o punto observado. Ej. clave 10-07-01-01 o 22095."
-                />
-                {mapDescriptionLookupStatus ? (
-                  <small className="helper-text">{mapDescriptionLookupStatus}</small>
-                ) : null}
-              </label>
-              <label className="map-housing-units-field">
-                <span>Viviendas</span>
-                <div className="map-housing-stepper">
+              <div className="map-housing-units-field">
+                <span id="fm-housing-label">Viviendas</span>
+                <div className="map-housing-stepper" role="group" aria-labelledby="fm-housing-label">
                   <button
                     type="button"
                     className="map-housing-stepper-button"
                     onClick={() => adjustMapDraftHousingUnits(-1)}
                     aria-label="Restar vivienda"
                   >
-                    -
+                    <Icon name="minus" />
                   </button>
                   <input
                     name="housing_units"
@@ -252,6 +249,7 @@ export default function FieldMapWorkspace({ model }) {
                     onChange={handleMapDraftChange}
                     inputMode="numeric"
                     placeholder="1"
+                    aria-labelledby="fm-housing-label"
                   />
                   <button
                     type="button"
@@ -262,13 +260,37 @@ export default function FieldMapWorkspace({ model }) {
                     <Icon name="plus" />
                   </button>
                 </div>
-              </label>
+              </div>
+              {mapDraft.point_type === COMMERCIAL_MAP_POINT_TYPE ? (
+                <small className="fm-type-note is-commercial">Este punto se guardará y mostrará en rojo.</small>
+              ) : mapDraft.point_type === ALERT_MAP_POINT_TYPE ? (
+                <small className="fm-type-note is-alert">Este punto se guardará como alerta y se destacará en amarillo en el reporte.</small>
+              ) : null}
             </div>
+
+            <label>
+              <span>Referencia</span>
+              <input
+                name="reference"
+                value={mapDraft.reference}
+                onChange={handleMapDraftChange}
+                placeholder="Frente a poste, esquina noroeste, casa verde..."
+              />
+            </label>
+            <label>
+              <span>Descripción técnica</span>
+              <textarea
+                name="description"
+                value={mapDraft.description}
+                onChange={handleMapDraftChange}
+                rows="3"
+                placeholder="Detalle de la caja, descarga o punto observado. Ej. clave 10-07-01-01 o 22095."
+              />
+              {mapDescriptionLookupStatus ? (
+                <small className="helper-text">{mapDescriptionLookupStatus}</small>
+              ) : null}
+            </label>
             <div className="map-form-actions">
-              <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
-                <Icon name="map" />
-                {locatingUser ? "Ubicando..." : "Usar mi ubicacion"}
-              </button>
               <button type="submit" disabled={savingMapPoint}>
                 <Icon name={editingMapPointId ? "records" : "plus"} />
                 {savingMapPoint ? "Guardando..." : editingMapPointId ? "Actualizar punto" : "Guardar punto"}
@@ -277,31 +299,21 @@ export default function FieldMapWorkspace({ model }) {
           </form>
 
           {selectedMapPoint ? (
-            <article className="map-detail-card">
-              <div className="lookup-card-head map-card-head">
-                <div>
-                  <p className="sheet-kicker">Punto seleccionado</p>
-                  <h3 className="map-point-title-with-dot">
-                    <span
-                      className={`map-report-point-dot ${selectedMapPoint.is_terminal_point ? "is-pin" : ""}`}
-                      style={{ "--point-color": selectedMapPoint.marker_color || "#1576d1" }}
-                    />
-                    {getMapPointTypeLabel(selectedMapPoint.point_type)}
-                  </h3>
-                </div>
-                <span className="panel-pill">#{selectedMapPoint.id}</span>
-              </div>
-              <p className="map-detail-copy">
-                {[getMapPointReferenceNote(selectedMapPoint), getMapPointTechnicalDescription(selectedMapPoint)]
-                  .filter(Boolean)
-                  .join(" - ") || "Sin referencia adicional."}
-              </p>
-              <div className="map-point-coords">
-                <span>{formatCoordinate(selectedMapPoint.latitude)}</span>
-                <span>{formatCoordinate(selectedMapPoint.longitude)}</span>
-                <span>{getMapPointHousingUnits(selectedMapPoint)} viviendas</span>
-                <span>{selectedMapPoint.accuracy_meters ? `±${selectedMapPoint.accuracy_meters} m` : "Sin precision"}</span>
-              </div>
+            <article className="map-detail-card" aria-labelledby="fm-detail-title">
+              <header className="fm-section-head">
+                <h3 id="fm-detail-title" className="map-point-title-with-dot">
+                  <PointDot point={selectedMapPoint} />
+                  {getMapPointTypeLabel(selectedMapPoint.point_type)}
+                </h3>
+                <span className="fm-id">#{selectedMapPoint.id}</span>
+              </header>
+              <p className="map-detail-copy">{getPointSummary(selectedMapPoint)}</p>
+              <dl className="fm-detail-facts">
+                <div><dt>Latitud</dt><dd>{formatCoordinate(selectedMapPoint.latitude)}</dd></div>
+                <div><dt>Longitud</dt><dd>{formatCoordinate(selectedMapPoint.longitude)}</dd></div>
+                <div><dt>Viviendas</dt><dd>{getMapPointHousingUnits(selectedMapPoint)}</dd></div>
+                <div><dt>Precisión</dt><dd>{selectedMapPoint.accuracy_meters ? `±${selectedMapPoint.accuracy_meters} m` : "Sin dato"}</dd></div>
+              </dl>
               <div className="map-point-actions">
                 <button type="button" className="button-secondary" onClick={(event) => handleEditMapPoint(selectedMapPoint.id, event)}>
                   <Icon name="records" />
@@ -319,21 +331,19 @@ export default function FieldMapWorkspace({ model }) {
             </article>
           ) : null}
 
-          <article className="map-list-card">
-            <div className="lookup-card-head map-card-head">
+          <article className="map-list-card" aria-labelledby="fm-list-title">
+            <header className="fm-section-head">
               <div>
-                <p className="sheet-kicker">Registro tecnico</p>
-                <h3>Puntos guardados</h3>
+                <h3 id="fm-list-title">
+                  Puntos guardados <span className="fm-count">{visibleMapPoints.length}</span>
+                </h3>
+                <p>Jornada del {formatMapDiaryLabel(activeMapDiaryDateKey)}</p>
               </div>
-              <div className="map-list-head-actions">
-                <span className="panel-pill">{visibleMapPoints.length}</span>
-                <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
-                  <Icon name="download" />
-                  Reporte detallado
-                </button>
-              </div>
-            </div>
-            <p className="helper-text">Mostrando la jornada del {formatMapDiaryLabel(activeMapDiaryDateKey)}.</p>
+              <button type="button" className="button-secondary fm-quiet-button" onClick={handleDownloadMapReport}>
+                <Icon name="download" />
+                Reporte detallado
+              </button>
+            </header>
             {loadingMapPoints ? <p className="helper-text">Cargando puntos...</p> : null}
             <div className="map-point-list">
               {listedMapPoints.length ? (
@@ -342,26 +352,23 @@ export default function FieldMapWorkspace({ model }) {
                     key={point.id}
                     className={`map-point-card ${selectedMapPointId === point.id ? "is-active" : ""}`}
                   >
-                    <button type="button" className="map-point-main" onClick={() => handleSelectMapPoint(point.id)}>
+                    <button
+                      type="button"
+                      className="map-point-main"
+                      aria-pressed={selectedMapPointId === point.id}
+                      onClick={() => handleSelectMapPoint(point.id)}
+                    >
                       <div className="map-point-top">
                         <strong className="map-point-title-with-dot">
-                          <span
-                            className={`map-report-point-dot ${point.is_terminal_point ? "is-pin" : ""}`}
-                            style={{ "--point-color": point.marker_color || "#1576d1" }}
-                          />
+                          <PointDot point={point} />
                           {getMapPointTypeLabel(point.point_type)}
                         </strong>
                         <span className="map-point-meta">{formatDateTime(point.created_at)}</span>
                       </div>
-                      <p>
-                        {[getMapPointReferenceNote(point), getMapPointTechnicalDescription(point)]
-                          .filter(Boolean)
-                          .join(" - ") || "Sin referencia adicional."}
-                      </p>
+                      <p>{getPointSummary(point)}</p>
                       <div className="map-point-coords">
-                        <span>{formatCoordinate(point.latitude)}</span>
-                        <span>{formatCoordinate(point.longitude)}</span>
-                        <span>{point.accuracy_meters ? `±${point.accuracy_meters} m` : "Sin precision"}</span>
+                        <span>{formatCoordinate(point.latitude)}, {formatCoordinate(point.longitude)}</span>
+                        <span>{point.accuracy_meters ? `±${point.accuracy_meters} m` : "Sin precisión"}</span>
                       </div>
                     </button>
                     <div className="map-point-actions">
@@ -374,18 +381,18 @@ export default function FieldMapWorkspace({ model }) {
                       <button type="button" className="record-quick-chip" onClick={(event) => handleEditMapPoint(point.id, event)}>
                         Editar
                       </button>
-                    {isAdmin ? (
-                      <button type="button" className="record-quick-chip" onClick={() => handleDeleteMapPoint(point.id)}>
-                        Eliminar
-                      </button>
-                    ) : null}
+                      {isAdmin ? (
+                        <button type="button" className="record-quick-chip is-danger" onClick={() => handleDeleteMapPoint(point.id)}>
+                          Eliminar
+                        </button>
+                      ) : null}
                     </div>
                   </article>
                 ))
               ) : (
-                <div className="empty-state">
-                  <h3>Sin puntos aun</h3>
-                  <p>Usa el GPS o toca el mapa para comenzar a registrar ubicaciones tecnicas.</p>
+                <div className="fm-empty">
+                  <strong>Sin puntos en esta jornada</strong>
+                  <p>Usa el GPS o toca el mapa para comenzar a registrar ubicaciones técnicas.</p>
                 </div>
               )}
             </div>
@@ -396,7 +403,7 @@ export default function FieldMapWorkspace({ model }) {
                 onClick={() => setMapPointListLimit((current) => current + MAP_POINT_LIST_STEP)}
               >
                 <Icon name="plus" />
-                Ver {Math.min(MAP_POINT_LIST_STEP, hiddenMapPointCount)} puntos mas
+                Ver {Math.min(MAP_POINT_LIST_STEP, hiddenMapPointCount)} puntos más
               </button>
             ) : null}
           </article>

@@ -545,39 +545,45 @@ export default function AppHeader({ model }) {
             </p>
           </div>
         ) : workspaceView === "map" ? (
-          <div className="workspace-summary">
-            <p className="workspace-title">
-              Módulo independiente para geolocalizar puntos técnicos en campo y dejar registro de cajas de aguas negras.
-            </p>
-            <div className="map-diary-summary">
-              <span className="panel-pill">Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</span>
-              <span className="helper-text">{visibleMapPoints.length} puntos de {mapDiaryGroups.length} jornadas registradas.</span>
+          <div className="workspace-summary fm-summary">
+            <div className="fm-summary-copy">
+              <p className="workspace-title">
+                Módulo independiente para geolocalizar puntos técnicos en campo y dejar registro de cajas de aguas negras.
+              </p>
+              <p className="fm-summary-meta">
+                <strong>Bitácora: {formatMapDiaryLabel(activeMapDiaryDateKey)}</strong>
+                <span>{visibleMapPoints.length} {visibleMapPoints.length === 1 ? "punto" : "puntos"} de {mapDiaryGroups.length} jornadas registradas</span>
+              </p>
             </div>
-            <div className="search-actions">
-              <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
-                <Icon name="map" />
-                {locatingUser ? "Ubicando..." : "Mi ubicación"}
-              </button>
-              <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
-                <Icon name="refresh" />
-                {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
-              </button>
-              <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
-                <Icon name="records" />
-                Descargar reporte detallado
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
-                <Icon name="records" />
-                Operaciones realizadas
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                <Icon name="auth" />
-                Cambiar contraseña
-              </button>
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
-              </button>
+            <div className="fm-summary-actions">
+              <div className="search-actions" role="group" aria-label="Acciones del mapa">
+                <button type="button" className="button-secondary" onClick={handleLocateUser} disabled={locatingUser}>
+                  <Icon name="map" />
+                  {locatingUser ? "Ubicando..." : "Mi ubicación"}
+                </button>
+                <button type="button" className="button-secondary" onClick={() => loadMapPoints()} disabled={loadingMapPoints}>
+                  <Icon name="refresh" />
+                  {loadingMapPoints ? "Actualizando..." : "Refrescar puntos"}
+                </button>
+                <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
+                  <Icon name="download" />
+                  Descargar reporte detallado
+                </button>
+                <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
+                  <Icon name="records" />
+                  Operaciones realizadas
+                </button>
+              </div>
+              <div className="search-actions fm-summary-session" role="group" aria-label="Sesión">
+                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
+                  <Icon name="auth" />
+                  Cambiar contraseña
+                </button>
+                <button type="button" className="button-secondary" onClick={handleLogout}>
+                  <Icon name="logout" />
+                  Cerrar sesión
+                </button>
+              </div>
             </div>
           </div>
         ) : workspaceView === "importacion" ? (
