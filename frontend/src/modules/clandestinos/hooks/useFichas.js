@@ -108,5 +108,6 @@ export const useFichas = (api, active = true) => {
   const filters = { query, state, barrio, page, setQuery: (value) => { setQuery(value); setPage(1); }, setState: (value) => { setState(value); setPage(1); }, setBarrio: (value) => { setBarrio(value); setPage(1); }, setPage, clear: () => { setQuery(""); setState(""); setBarrio(""); setPage(1); } };
   // Tras guardar una ficha lo recordado ya no vale: se descarta y se recarga.
   const reload = () => { cache.current.clear(); return load(); };
-  return { ...data, viewKey: data.key, loading, refreshing, error, filters, prefetchState, reload };
+  // requestKey: la combinación pedida; cuando viewKey la alcanza, lo que se ve ya es lo pedido.
+  return { ...data, viewKey: data.key, requestKey: key, loading, refreshing, error, filters, prefetchState, reload };
 };

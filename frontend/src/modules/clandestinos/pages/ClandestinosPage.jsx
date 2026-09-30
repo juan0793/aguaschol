@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../../components/Icon";
 import FichasInbox from "../components/FichasInbox";
@@ -12,6 +12,7 @@ import { createClandestinosApi } from "../services/clandestinosApi";
 import ReportesTecnicosPage from "./ReportesTecnicosPage";
 import ImpresionesPage from "./ImpresionesPage";
 import LatticeLoader from "../../../components/micro/LatticeLoader";
+import { congelarAltura, soltarAltura } from "../alturaSuave";
 import "../styles/clandestinos.css";
 
 const tabs = [["resumen","Resumen","dashboard"],["fichas","Fichas","records"],["banco","Banco","inbox"],["reportes","Reportes técnicos","activity"],["impresiones","Impresiones","print"],["configuracion","Configuración","more"]];
@@ -69,7 +70,14 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
       else showAlert(hasId ? `No se encontró la ficha #${focusRequest.fichaId}${clave ? ` (${clave})` : ""}; puede estar archivada.` : "Sin ficha relacionada.");
     }).catch((error) => showAlert(error.message)).finally(() => onFocusConsumed?.());
   }, [api, config, focusRequest, onFocusConsumed, showAlert]);
-  const go = (key) => { history.replaceState(null, "", `#clandestinos/${key}`); setTab(key); };
+  // Cambiar de pestaña no hace saltar la página: el módulo conserva su alto mientras
+  // entra la vista nueva (con un fundido) y luego se ajusta con una transición.
+  const moduloRef = useRef(null);
+  const go = (key) => { if (key !== tab) congelarAltura(moduloRef.current); history.replaceState(null, "", `#clandestinos/${key}`); setTab(key); };
+  useLayoutEffect(() => {
+    const timer = setTimeout(() => soltarAltura(moduloRef.current), 260);
+    return () => clearTimeout(timer);
+  }, [tab]);
   // Desde el Resumen: abrir cada pestaña con el filtro de lo que se tocó.
   const abrirFichas = (state = "", { alertas = false } = {}) => {
     if (alertas) sessionStorage.setItem("aguas.clandestinos.focus", "alerts");
@@ -127,15 +135,17 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   const seccion = secciones[tab] || secciones.fichas;
   const modo = MODOS[tab];
 
-  return <main className={`cl-module ${["resumen", "fichas"].includes(tab) ? "is-flat" : ""} ${modo ? `is-mode is-mode-${tab}` : ""}`.trim()}>
+  return <main ref={moduloRef} className={`cl-module ${["resumen", "fichas"].includes(tab) ? "is-flat" : ""} ${modo ? `is-mode is-mode-${tab}` : ""}`.trim()}>
     {modo ? createPortal(<div className={`cl-mode-frame is-${tab}`} aria-hidden="true"><span><Icon name={seccion.icon} />{modo}</span></div>, document.body) : null}
     <header className="cl-module-header"><div className="cl-module-heading"><span className="cl-module-emblem" key={tab} aria-hidden="true"><Icon name={seccion.icon} /></span><div><span className="cl-kicker">Clandestinos{modo ? <em className="cl-mode-chip">Módulo especial</em> : null}</span><h1>{seccion.title}</h1><p aria-live="polite">{seccion.detail}</p></div></div><nav aria-label="Secciones de Clandestinos">{tabs.filter(([key]) => key !== "configuracion" || config.permissions.can_manage_configuration).map(([key,label,icon]) => <button type="button" key={key} className={`${tab === key ? "is-active" : ""} ${MODOS[key] ? `is-special is-${key}` : ""}`.trim()} onClick={() => go(key)}><Icon name={icon} />{label}</button>)}</nav><div className="cl-role"><Icon name="users" /><span>{session?.user?.full_name || session?.user?.username}<small>{session?.user?.role}</small></span></div></header>
+    <div className="cl-view" key={tab}>
     {tab === "fichas" ? <FichasInbox model={fichas} selectedIds={new Set(selected.keys())} onToggle={toggle} onToggleVisible={toggleVisible} onSelectAll={selectAll} onClearSelection={() => setSelected(new Map())} onCompare={compareSelected} onPrintSummary={() => { sessionStorage.setItem("aguas.clandestinos.printTemplate", "batch_list"); go("impresiones"); }} comparison={comparison} bulkLoading={bulkLoading} onOpen={setDrawer} onNew={() => setDrawer(null)} canCreate={config.permissions.can_manage_ficha_state} /> : null}
     {tab === "banco" ? <BancoClandestinos api={api} model={banco} permissions={config.permissions} session={session} notify={showAlert} onOpenFicha={openBancoFicha} onFichaCreated={(ficha) => { fichas.reload(); setDrawer(ficha); }} /> : null}
     {tab === "resumen" ? <ResumenClandestinos api={api} onOpenFichas={abrirFichas} onOpenBanco={abrirBanco} onOpenReportes={abrirReportes} onOpenFicha={setDrawer} /> : null}
     {tab === "reportes" ? <ReportesTecnicosPage api={api} config={config} notify={showAlert} model={reportes} /> : null}
     {tab === "impresiones" ? <ImpresionesPage records={[...selected.values()]} onGoFichas={() => go("fichas")} onClearSelection={() => setSelected(new Map())} /> : null}
     {tab === "configuracion" ? <section className="cl-config"><header className="cl-page-head"><div><span className="cl-kicker">Administración</span><h2>Configuración del módulo</h2><p>Catálogos visibles para controlar los flujos sin valores ambiguos.</p></div></header><div className="cl-config-grid"><article><Icon name="records" /><h3>Estados de ficha</h3><p>{config.ficha_states.join(" · ")}</p></article><article><Icon name="activity" /><h3>Estados de reportes</h3><p>{config.report_states.join(" · ")}</p></article><article><Icon name="print" /><h3>Plantillas</h3><p>{config.print_templates.join(" · ")}</p></article><article><Icon name="users" /><h3>Permisos efectivos</h3><p>{Object.entries(config.permissions).filter(([,value]) => value).map(([key]) => key).join(" · ")}</p></article></div></section> : null}
+    </div>
     {drawer !== undefined ? <FichaDrawer record={drawer} api={api} config={config} notify={showAlert} onClose={() => setDrawer(undefined)} onPrintFicha={onPrintFicha} onPrintAviso={onPrintAviso} onSaved={async (saved, close = true) => { setSelected((current) => { const key = String(saved.id); if (!current.has(key)) return current; const next = new Map(current); next.set(key, saved); return next; }); await fichas.reload(); if (close) setDrawer(undefined); else setDrawer(saved); }} /> : null}
   </main>;
 }

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import FichasInbox from '../src/modules/clandestinos/components/FichasInbox.jsx';
 import {Icon} from '../src/components/Icon';
@@ -21,9 +21,12 @@ function QA() {
   const [query, setQuery] = useState('');
   const [barrio, setBarrio] = useState('');
   const [selected, setSelected] = useState(new Map());
-  const items = TODAS.filter((item) => (!state || item.estado_operativo === state) && (!barrio || item.barrio_colonia === barrio) && (!query || item.clave_catastral.includes(query)));
+  // Simula la red: lo que se ve (shown) llega 300 ms después de lo pedido (state).
+  const [shown, setShown] = useState('');
+  useEffect(() => { const timer = setTimeout(() => setShown(state), 300); return () => clearTimeout(timer); }, [state]);
+  const items = TODAS.filter((item) => (!shown || item.estado_operativo === shown) && (!barrio || item.barrio_colonia === barrio) && (!query || item.clave_catastral.includes(query)));
   const noop = () => {};
-  const model = {items, counts: COUNTS, total: state ? COUNTS[state] : 56, page: 1, total_pages: 1, loading: false, refreshing: false, error: '', viewKey: state,
+  const model = {items, counts: COUNTS, total: shown ? COUNTS[shown] : 56, page: 1, total_pages: 1, loading: false, refreshing: shown !== state, error: '', viewKey: shown, requestKey: state,
     service_stats: {total: 56, agua_potable: 41, aguas_residuales: 22, ambos: 19, solo_agua: 22, solo_aguas_residuales: 3, ninguno: 12},
     filters: {query, state, barrio, setQuery, setState, setBarrio, setPage: noop, clear: () => { setQuery(''); setState(''); setBarrio(''); }}};
   const toggle = (item) => setSelected((cur) => { const next = new Map(cur); const key = String(item.id); next.has(key) ? next.delete(key) : next.set(key, item); return next; });

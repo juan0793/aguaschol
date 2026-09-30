@@ -602,6 +602,12 @@
 /* Sin etiqueta encima del título (el nombre de la pestaña ya dice dónde se está). */
 .is-flat .cl-module-heading .cl-kicker { display: none; }
 
+/* Al cambiar de pestaña del módulo, la vista nueva entra con un fundido corto
+   (el alto lo suaviza alturaSuave.js). */
+.cl-view { animation: cl-view-in .26s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes cl-view-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cl-view { animation: none; } }
+
 /* Fichas en el mismo lenguaje del Resumen: sin tarjetas, filetes de 1px, cifras
    en tinta tabulares y el color solo como dato (tono de etapa, plazo crítico). */
 .is-flat .cl-inbox { container-type: inline-size; --rs-ink: #16283b; --rs-rule: #dfe5ec; --rs-grid: #e8ecf1; --rs-hover: #f3f6f9; min-height: 0; padding: 4px 0 24px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
