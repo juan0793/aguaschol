@@ -632,6 +632,25 @@ const ensureSchema = async () => {
       indexName: "idx_banco_clandestinos_asignado",
       columns: ["asignado_a", "estado"]
     });
+    // Ajustes del módulo Clandestinos (p. ej. el Analista de datos de la ficha técnica).
+    await admin.query(
+      `CREATE TABLE IF NOT EXISTS clandestinos_ajustes (
+         clave VARCHAR(80) NOT NULL PRIMARY KEY,
+         valor VARCHAR(255) NOT NULL DEFAULT '',
+         updated_by INT UNSIGNED NULL,
+         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+       )`
+    );
+    // Una sola vez (marca "relleno_analista_datos"): las fichas activas sin "Analista de
+    // datos" quedan con el configurado (o el de siempre si todavía no se configuró).
+    const [[rellenoHecho]] = await admin.query("SELECT COUNT(*) AS n FROM clandestinos_ajustes WHERE clave = 'relleno_analista_datos'");
+    if (!Number(rellenoHecho?.n)) {
+      await admin.query(
+        `UPDATE inmuebles_clandestinos SET analista_datos = COALESCE((SELECT valor FROM clandestinos_ajustes WHERE clave = 'analista_datos' AND valor <> ''), 'Ing. Juan Ordoñez Bonilla')
+         WHERE archived_at IS NULL AND analista_datos = ''`
+      );
+      await admin.query("INSERT INTO clandestinos_ajustes (clave, valor) VALUES ('relleno_analista_datos', NOW())");
+    }
     // Fichas que salieron del banco sin "Levantamiento de datos": queda quien la mandó a
     // ficha (o el técnico asignado si la mandó administración). Solo llena las vacías.
     await admin.query(

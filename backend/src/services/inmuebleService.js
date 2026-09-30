@@ -5,6 +5,7 @@ import { buildAvisoHtml } from "../utils/avisoTemplate.js";
 import { deleteStoredPhoto, saveUploadedPhoto } from "./fileStorageService.js";
 import { getBarrioByClave } from "./barrioCodeService.js";
 import { likeValue, normalizeDateField, normalizeKey } from "../utils/normalize.js";
+import { getAnalistaDatos } from "./clandestinosAjustesService.js";
 
 const memoryRecords = [
   {
@@ -216,6 +217,8 @@ export const getById = async (id, { includeArchived = true } = {}) => {
 export const createInmueble = async (payload, options = {}) => {
   const data = await applyBarrioFromClave(mapPayload(payload));
   ensureKey(data);
+  // Sin analista escrito, firma el "Analista de datos" configurado en el módulo.
+  if (!data.analista_datos) data.analista_datos = await getAnalistaDatos().catch(() => "");
 
   if (env.useMemoryDb) {
     const existing = memoryRecords.find((item) => item.clave_catastral === data.clave_catastral);

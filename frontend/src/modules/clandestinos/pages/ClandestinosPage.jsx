@@ -5,6 +5,7 @@ import FichasInbox from "../components/FichasInbox";
 import FichaDrawer from "../components/FichaDrawer";
 import BancoClandestinos from "../components/BancoClandestinos";
 import ResumenClandestinos from "../components/ResumenClandestinos";
+import AjustesModulo from "../components/AjustesModulo";
 import { useFichas } from "../hooks/useFichas";
 import { useBanco } from "../hooks/useBanco";
 import { useReportes } from "../hooks/useReportes";
@@ -144,7 +145,7 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
     {tab === "resumen" ? <ResumenClandestinos api={api} onOpenFichas={abrirFichas} onOpenBanco={abrirBanco} onOpenReportes={abrirReportes} onOpenFicha={setDrawer} /> : null}
     {tab === "reportes" ? <ReportesTecnicosPage api={api} config={config} notify={showAlert} model={reportes} /> : null}
     {tab === "impresiones" ? <ImpresionesPage records={[...selected.values()]} onGoFichas={() => go("fichas")} onClearSelection={() => setSelected(new Map())} /> : null}
-    {tab === "configuracion" ? <section className="cl-config"><header className="cl-page-head"><div><span className="cl-kicker">Administración</span><h2>Configuración del módulo</h2><p>Catálogos visibles para controlar los flujos sin valores ambiguos.</p></div></header><div className="cl-config-grid"><article><Icon name="records" /><h3>Estados de ficha</h3><p>{config.ficha_states.join(" · ")}</p></article><article><Icon name="activity" /><h3>Estados de reportes</h3><p>{config.report_states.join(" · ")}</p></article><article><Icon name="print" /><h3>Plantillas</h3><p>{config.print_templates.join(" · ")}</p></article><article><Icon name="users" /><h3>Permisos efectivos</h3><p>{Object.entries(config.permissions).filter(([,value]) => value).map(([key]) => key).join(" · ")}</p></article></div></section> : null}
+    {tab === "configuracion" ? <section className="cl-config"><header className="cl-page-head"><div><span className="cl-kicker">Administración</span><h2>Configuración del módulo</h2><p>Catálogos visibles para controlar los flujos sin valores ambiguos.</p></div></header>{config.permissions.can_manage_configuration ? <AjustesModulo api={api} ajustes={config.ajustes} notify={showAlert} onSaved={(ajustes) => setConfig((actual) => ({ ...actual, ajustes }))} /> : null}<div className="cl-config-grid"><article><Icon name="records" /><h3>Estados de ficha</h3><p>{config.ficha_states.join(" · ")}</p></article><article><Icon name="activity" /><h3>Estados de reportes</h3><p>{config.report_states.join(" · ")}</p></article><article><Icon name="print" /><h3>Plantillas</h3><p>{config.print_templates.join(" · ")}</p></article><article><Icon name="users" /><h3>Permisos efectivos</h3><p>{Object.entries(config.permissions).filter(([,value]) => value).map(([key]) => key).join(" · ")}</p></article></div></section> : null}
     </div>
     {drawer !== undefined ? <FichaDrawer record={drawer} api={api} config={config} notify={showAlert} onClose={() => setDrawer(undefined)} onPrintFicha={onPrintFicha} onPrintAviso={onPrintAviso} onSaved={async (saved, close = true) => { setSelected((current) => { const key = String(saved.id); if (!current.has(key)) return current; const next = new Map(current); next.set(key, saved); return next; }); await fichas.reload(); if (close) setDrawer(undefined); else setDrawer(saved); }} /> : null}
   </main>;

@@ -6,6 +6,8 @@ const json = async (response) => {
 
 export const createClandestinosApi = (apiFetch) => ({
   config: () => apiFetch("/clandestinos/config").then(json),
+  // Ajustes del módulo (p. ej. Analista de datos de la ficha técnica); solo administración.
+  saveAjustes: (ajustes) => apiFetch("/clandestinos/config/ajustes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ajustes) }).then(json),
   fichas: (params = {}) => apiFetch(`/clandestinos/fichas?${new URLSearchParams(params)}`).then(json),
   // Ritmo de trabajo: fichas por día, semana, mes o año de levantamiento.
   fichasRitmo: (params = {}) => apiFetch(`/clandestinos/fichas/ritmo?${new URLSearchParams(params)}`).then(json),

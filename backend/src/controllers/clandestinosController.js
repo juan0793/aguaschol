@@ -1,7 +1,9 @@
 import { asignarCandidatos, descartarCandidato, enviarClavesAlcaldiaAlBanco, listarRefsBanco, enviarCandidatoAFicha, importBancoClandestinos, listadoBancoClandestinos, listBancoClandestinos, listTecnicosBanco, quitarAsignacion, restaurarCandidato, verificarBancoClandestinos } from "../services/bancoClandestinosService.js";
 import { attachReportEvidence, changeFichaState, changeReportState, compareClandestinosFichas, createTechnicalReport, getClandestinosConfig, linkTechnicalReport, listClandestinosFichas, listStateHistory, listTechnicalReports, ritmoClandestinosFichas, updateFichaInternalNotes } from "../services/clandestinosService.js";
+import { getAjustes, updateAjustes } from "../services/clandestinosAjustesService.js";
 
-export const config = async (req, res) => res.json(getClandestinosConfig(req.authUser));
+export const config = async (req, res, next) => { try { res.json({ ...getClandestinosConfig(req.authUser), ajustes: await getAjustes() }); } catch (error) { next(error); } };
+export const configAjustes = async (req, res, next) => { try { res.json({ ajustes: await updateAjustes(req.body || {}, req.authUser) }); } catch (error) { next(error); } };
 export const fichas = async (req, res, next) => { try { const data = await listClandestinosFichas({ query: req.query.q, state: req.query.state, barrio: req.query.barrio, page: req.query.page, limit: req.query.limit }); if (req.authUser?.role === "validadora_campo") data.items = data.items.map(({ id, clave_catastral, abonado, barrio_colonia, estado_operativo, created_at }) => ({ id, clave_catastral, abonado, barrio_colonia, estado_operativo, created_at })); res.json(data); } catch (error) { next(error); } };
 export const fichasRitmo = async (req, res, next) => { try { res.json(await ritmoClandestinosFichas({ query: req.query.q, state: req.query.state, barrio: req.query.barrio, granularidad: req.query.granularidad })); } catch (error) { next(error); } };
 export const compareFichas = async (req, res, next) => { try { res.json(await compareClandestinosFichas(req.body?.ids)); } catch (error) { next(error); } };
