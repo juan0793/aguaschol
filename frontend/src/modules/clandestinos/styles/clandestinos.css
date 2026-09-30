@@ -593,14 +593,19 @@
 
 /* Panel operativo: una superficie, indicadores en franja y detalle por filas. */
 .cl-module.is-flat { background: #fff; }
-.is-flat .cl-module-header { position: static; padding: 8px 0 20px; border: 0; border-bottom: 1px solid #dbe3eb; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
-.is-flat .cl-module-emblem { display: none; }
-.is-flat .cl-module-header nav { gap: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.is-flat .cl-module-header nav button { border-radius: 0; border-bottom: 2px solid transparent; box-shadow: none; }
-.is-flat .cl-module-header nav button.is-active { border-bottom-color: var(--primary); background: transparent; box-shadow: none; }
-.is-flat .cl-module-header nav button:hover:not(.is-active) { background: #f3f6f9; box-shadow: none; }
-/* Sin etiqueta encima del título (el nombre de la pestaña ya dice dónde se está). */
-.is-flat .cl-module-heading .cl-kicker { display: none; }
+/* El encabezado del módulo es el mismo en todas las pestañas: si cambiara de alto
+   (tarjeta en unas, plano en otras), la barra de pestañas se movería bajo el clic. */
+.is-flat-head .cl-module-header { position: static; padding: 8px 0 20px; border: 0; border-bottom: 1px solid #dbe3eb; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.is-flat-head .cl-module-emblem { display: none; }
+.is-flat-head .cl-module-heading h1 { display: flex; align-items: center; gap: 10px; }
+.is-flat-head .cl-module-heading h1 .cl-mode-chip { flex: none; font-size: 10.5px; font-weight: 750; line-height: 1.6; }
+.is-flat-head .cl-module-heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.is-flat-head .cl-module-header nav { gap: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.is-flat-head .cl-module-header nav button { border-radius: 0; border-bottom: 2px solid transparent; box-shadow: none; }
+.is-flat-head .cl-module-header nav button.is-active { border-bottom-color: var(--primary); background: transparent; box-shadow: none; }
+.is-flat-head .cl-module-header nav button.is-special.is-active { border-bottom-color: var(--tab); box-shadow: none; }
+.is-flat-head .cl-module-header nav button:hover:not(.is-active) { background: #f3f6f9; box-shadow: none; }
+.cl-module.is-flat-head.is-mode .cl-module-header { border-color: var(--mode-line); box-shadow: none; }
 
 /* Al cambiar de pestaña del módulo, la vista nueva entra con un fundido corto
    (el alto lo suaviza alturaSuave.js). */
