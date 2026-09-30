@@ -155,6 +155,12 @@ export const emitProfileMessage = (message) => {
   broadcastEvent(event, (client) => client.userId === senderId || client.userId === recipientId);
 };
 
+// Evento para los usuarios conectados con alguno de estos roles (p. ej. actividad del equipo a admin).
+export const emitToRoles = (event, roles = []) => {
+  if (!websocketServer) return;
+  broadcastEvent(event, (client) => roles.includes(client.user?.role));
+};
+
 export const getProfileOnlineUsers = () => {
   return getUniqueOnlineUsers();
 };

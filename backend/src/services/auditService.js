@@ -1,4 +1,5 @@
 import { getPool } from "../config/db.js";
+import { notificarActividad } from "./teamActivityService.js";
 
 export const createAuditLog = async ({
   actorUserId = null,
@@ -15,14 +16,16 @@ export const createAuditLog = async ({
   let snapshotName = actorName?.trim?.() ?? "";
   let snapshotEmail = actorEmail?.trim?.() ?? "";
 
-  if (actorUserId && (!snapshotName || !snapshotEmail)) {
-    const [rows] = await pool.query("SELECT full_name, email FROM app_users WHERE id = ? LIMIT 1", [actorUserId]);
-    const actor = rows[0];
+  // El rol dice si la acción va a la actividad del equipo (todo lo que no hace un admin).
+  let actor = null;
+  if (actorUserId) {
+    const [rows] = await pool.query("SELECT id, full_name, email, role FROM app_users WHERE id = ? LIMIT 1", [actorUserId]);
+    actor = rows[0] || null;
     snapshotName = snapshotName || actor?.full_name || "";
     snapshotEmail = snapshotEmail || actor?.email || "";
   }
 
-  await pool.query(
+  const [result] = await pool.query(
     `
       INSERT INTO audit_logs (
         actor_user_id, actor_name_snapshot, actor_email_snapshot, action, entity_type, entity_id, summary, details_json
@@ -40,6 +43,7 @@ export const createAuditLog = async ({
       details ? JSON.stringify(details) : null
     ]
   );
+  if (actor) notificarActividad({ id: result?.insertId, actor: { ...actor, full_name: snapshotName || actor.full_name }, action, entityType, entityId, summary, details });
 };
 
 const mapAuditRows = (rows) =>

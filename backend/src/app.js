@@ -24,6 +24,7 @@ import inspeccionesRoutes from "./routes/inspeccionesRoutes.js";
 import entregasRoutes from "./routes/entregasRoutes.js";
 import notesRoutes from "./routes/notesRoutes.js";
 import railwayRoutes from "./routes/railwayRoutes.js";
+import teamActivityRoutes from "./routes/teamActivityRoutes.js";
 import gisRoutes from "./modules/gis/gis.routes.js";
 import { readStoredFile } from "./services/fileStorageService.js";
 
@@ -175,6 +176,7 @@ app.get("/api/map-tiles/:z/:x/:y.png", getMapTileHandler);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/notes", requireAuth, notesRoutes);
 app.use("/api/admin/railway", requireAuth, requireAdmin, railwayRoutes);
+app.use("/api/admin/team-activity", requireAuth, requireAdmin, teamActivityRoutes);
 app.use("/api/ai", requireAuth, aiRoutes);
 app.use("/api/barrios", requireAuth, barrioCodeRoutes);
 app.use("/api/claves", requireAuth, claveLookupRoutes);

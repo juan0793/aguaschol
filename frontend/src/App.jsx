@@ -37,6 +37,7 @@ import {
   FieldValidationWorkspace,
   MyProfileWorkspace,
   RailwayUsageWorkspace,
+  TeamActivityWorkspace,
   PlanosWorkspace,
   DashboardWorkspace,
   TransportWorkspace,
@@ -159,6 +160,15 @@ function App() {
     closeMobileModuleMenu
   } = appShellState;
   const navigateWithFocus = (view, focus) => { setCrossModuleFocus(focus ? { view, requestId: Date.now(), ...focus } : null); setWorkspaceView(view); };
+  // Abre el registro de un evento de la actividad del equipo (campana o pantalla).
+  const abrirActividadEquipo = (activity) => {
+    const enlace = activity?.enlace;
+    if (enlace?.view === "records" && enlace.fichaId) navigateWithFocus("records", { fichaId: enlace.fichaId });
+    else if (enlace?.view === "entregas" && enlace.loteId) { window.location.hash = `entregas/lotes?lote=${Number(enlace.loteId)}`; setWorkspaceView("entregas"); }
+    else if (enlace?.view === "banco") { window.location.hash = "clandestinos/banco"; setWorkspaceView("records"); }
+    else if (enlace?.view === "inspecciones") setWorkspaceView("inspecciones");
+    else setWorkspaceView("teamActivity");
+  };
   const dashboardState = useDashboardState();
   const {
     dashboardNow,
@@ -743,7 +753,8 @@ function App() {
           safeMapPoints,
           safeRecords,
           setShowUserMenu,
-          showUserMenu
+          showUserMenu,
+          abrirActividadEquipo
         }}
       />
       <AppSidebar
@@ -812,6 +823,12 @@ function App() {
               initialTargetUserId={notificationUserId}
               onTargetUserSelected={() => setNotificationUserId(null)}
             />
+          </Suspense>
+        </main>
+      ) : workspaceView === "teamActivity" && isAdmin ? (
+        <main className="team-activity-layout">
+          <Suspense fallback={<ModuleSkeleton title="la actividad del equipo" toolbar={false} rows={6} />}>
+            <TeamActivityWorkspace apiFetch={apiFetch} session={session} onOpen={abrirActividadEquipo} />
           </Suspense>
         </main>
       ) : workspaceView === "railwayUsage" ? (

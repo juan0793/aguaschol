@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Bell, MessageSquare, Volume2, VolumeX, X } from "lucide-react";
+import { Bell, CheckCircle2, MessageSquare, Users, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NOTIFICATION_SOUND_MUTED_STORAGE_KEY } from "../constants/storageKeys.js";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../utils/profileWebSocket.js";
@@ -14,8 +14,16 @@ export function NotificationCenter({
   onEntregaNotification,
   onBancoNotification,
   onUnreadCountChange,
+  onTeamActivityClick,
+  onTeamActivitySelect,
   showAlert
 }) {
+  // Administración también recibe lo que hace el equipo (actividad del sistema).
+  const isAdmin = session?.user?.role === "admin";
+  const [tab, setTab] = useState("mensajes");
+  const [team, setTeam] = useState([]);
+  const [teamUnread, setTeamUnread] = useState(0);
+  const [teamSeenAt, setTeamSeenAt] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,6 +35,32 @@ export function NotificationCenter({
   const dropdownRef = useRef(null);
   const wsManagerRef = useRef(null);
   const soundMutedRef = useRef(soundMuted);
+  const isOpenRef = useRef(false);
+  const tabRef = useRef(tab);
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+  useEffect(() => { tabRef.current = tab; }, [tab]);
+
+  // Actividad del equipo: lo último y cuántas no ha visto este administrador.
+  const loadTeam = async () => {
+    const response = await apiFetch("/admin/team-activity?resumen=0&limit=8");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "No se pudo cargar la actividad del equipo.");
+    setTeam(data.items || []);
+    setTeamUnread(Number(data.unread || 0));
+    setTeamSeenAt(data.seen_at || null);
+    return data;
+  };
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadTeam().catch(() => {});
+  }, [isAdmin]);
+
+  // Al abrir la pestaña "Equipo" se da por vista la actividad; los puntos de
+  // "nueva" siguen hasta cerrar, para distinguir lo que acaba de llegar.
+  useEffect(() => {
+    if (!isAdmin || !isOpen || tab !== "equipo" || !teamUnread) return;
+    apiFetch("/admin/team-activity/seen", { method: "POST" }).then((response) => { if (response.ok) setTeamUnread(0); }).catch(() => {});
+  }, [apiFetch, isAdmin, isOpen, tab, teamUnread]);
 
   useEffect(() => {
     soundMutedRef.current = soundMuted;
@@ -90,6 +124,7 @@ export function NotificationCenter({
     };
 
     loadNotifications();
+    if (isAdmin) loadTeam().catch(() => setError("No se pudo cargar la actividad del equipo."));
   }, [apiFetch, isOpen, onUnreadCountChange, session?.user?.id]);
 
   // Conectar WebSocket para actualizaciones en tiempo real
@@ -111,16 +146,37 @@ export function NotificationCenter({
       }
     };
 
+    // Algo que hizo el equipo: siempre a la campana; sonido y aviso solo si cierra un trabajo.
+    const handleTeamActivity = (activity) => {
+      if (!isAdmin || !activity?.id) return;
+      setTeam((prev) => (prev.some((item) => item.id === activity.id) ? prev : [activity, ...prev].slice(0, 20)));
+      if (!(isOpenRef.current && tabRef.current === "equipo")) setTeamUnread((current) => current + 1);
+      if (activity.final) {
+        playNotificationSound({ muted: soundMutedRef.current });
+        showAlert?.(`${activity.actor_name}: ${activity.summary}`);
+      }
+    };
+
     manager.on("message_received", handleMessageReceived);
+    manager.on("team_activity", handleTeamActivity);
 
     wsManagerRef.current = manager;
     manager.connect().catch((error) => console.error("WebSocket error:", error));
 
     return () => {
       manager.off("message_received", handleMessageReceived);
+      manager.off("team_activity", handleTeamActivity);
       releaseSharedProfileWebSocketManager(sessionToken);
     };
-  }, [onUnreadCountChange, session?.user?.id, sessionToken, showAlert]);
+  }, [isAdmin, onUnreadCountChange, session?.user?.id, sessionToken, showAlert]);
+
+  const totalUnread = Number(unreadCount || 0) + (isAdmin ? teamUnread : 0);
+  const abrirCampana = () => {
+    // Se abre en la pestaña que tiene algo nuevo; si solo hay del equipo, en "Equipo".
+    if (!isOpen && isAdmin) setTab(Number(unreadCount || 0) === 0 && teamUnread > 0 ? "equipo" : "mensajes");
+    setIsOpen(!isOpen);
+  };
+  const esNueva = (activity) => !teamSeenAt || new Date(activity.created_at) > new Date(teamSeenAt);
 
   const handleMarkAsRead = async (messageId) => {
     try {
@@ -191,8 +247,8 @@ export function NotificationCenter({
         {soundMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
       <button
-        className={`notification-bell ${unreadCount > 0 ? "has-notifications" : ""}`}
-        onClick={() => setIsOpen(!isOpen)}
+        className={`notification-bell ${totalUnread > 0 ? "has-notifications" : ""}`}
+        onClick={abrirCampana}
         title="Notificaciones"
         aria-label="Abrir notificaciones"
         type="button"
@@ -201,14 +257,14 @@ export function NotificationCenter({
       >
         <Bell size={20} />
         <AnimatePresence>
-          {unreadCount > 0 && (
+          {totalUnread > 0 && (
             <motion.span
               className="notification-badge"
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.8 }}
             >
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {totalUnread > 9 ? "9+" : totalUnread}
             </motion.span>
           )}
         </AnimatePresence>
@@ -228,7 +284,7 @@ export function NotificationCenter({
           >
             <div className="notification-dropdown-header">
               <h4>Notificaciones</h4>
-              {notifications.length > 0 && (
+              {(!isAdmin || tab === "mensajes") && notifications.length > 0 && (
                 <button
                   className="notification-clear-btn"
                   onClick={handleClearAll}
@@ -239,7 +295,21 @@ export function NotificationCenter({
               )}
             </div>
 
-            <div className="notification-dropdown-list">
+            {isAdmin ? <div className="notification-tabs" role="tablist" aria-label="Tipo de notificación">
+              <button type="button" role="tab" aria-selected={tab === "mensajes"} className={tab === "mensajes" ? "is-active" : ""} onClick={() => setTab("mensajes")}><MessageSquare size={14} />Mensajes{unreadCount > 0 ? <b>{unreadCount}</b> : null}</button>
+              <button type="button" role="tab" aria-selected={tab === "equipo"} className={tab === "equipo" ? "is-active" : ""} onClick={() => setTab("equipo")}><Users size={14} />Equipo{teamUnread > 0 ? <b>{teamUnread}</b> : null}</button>
+            </div> : null}
+
+            {isAdmin && tab === "equipo" ? <div className="notification-dropdown-list" role="tabpanel" aria-label="Actividad del equipo">
+              {team.length ? team.slice(0, 8).map((activity) => <button type="button" key={activity.id} className={`notification-item notification-team-item ${activity.final ? "is-final" : ""}`} onClick={() => { onTeamActivitySelect?.(activity); setIsOpen(false); }}>
+                <span className="notification-team-mark" aria-hidden="true">{activity.final ? <CheckCircle2 size={15} /> : <i />}</span>
+                <span className="notification-item-content">
+                  <span className="notification-item-header"><strong className="notification-sender">{activity.actor_name}</strong>{esNueva(activity) ? <span className="notification-unread-dot" title="Nueva" /> : null}</span>
+                  <span className="notification-item-body">{activity.final ? <em>Finalizó · </em> : null}{activity.summary}</span>
+                  <small className="notification-item-time">{formatRelativeTime(activity.created_at)}</small>
+                </span>
+              </button>) : <div className="notification-empty"><Users size={24} /><span>El equipo no ha registrado actividad reciente</span></div>}
+            </div> : <div className="notification-dropdown-list">
               {error ? <p className="notification-error" role="alert">{error}</p> : null}
               {loading ? (
                 <div className="notification-loading">Cargando...</div>
@@ -293,9 +363,13 @@ export function NotificationCenter({
                   <span>Sin notificaciones</span>
                 </div>
               ) : null}
-            </div>
+            </div>}
 
-            {notifications.length > 8 && (
+            {isAdmin && tab === "equipo" ? <div className="notification-dropdown-footer">
+              <button className="notification-view-all" type="button" onClick={() => { onTeamActivityClick?.(); setIsOpen(false); }}>Ver toda la actividad del equipo</button>
+            </div> : null}
+
+            {(!isAdmin || tab === "mensajes") && notifications.length > 8 && (
               <div className="notification-dropdown-footer">
                 <button
                   className="notification-view-all"

@@ -256,6 +256,7 @@ export function useAppNavigation({
             { key: "barrioCodes", label: "Barrios", icon: "map", group: "control", helper: `${safeBarrioCodes.length} codigos` },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "importacion", label: "Importación", icon: "refresh", group: "control", helper: "Lotes FoxPro" },
+            { key: "teamActivity", label: "Actividad del equipo", icon: "users", group: "control", helper: "Lo que hacen los técnicos" },
             { key: "logs", label: "Historial", icon: "logs", group: "control", helper: `${safeAuditLogs.length} eventos` },
             { key: "users", label: "Usuarios", icon: "users", group: "administracion", helper: `${safeUsers.length} registrados` },
             { key: "notes", label: "Apuntes", icon: "notes", group: "administracion", helper: "Notas internas" }

@@ -15,6 +15,8 @@ export class ProfileWebSocketManager {
       user_offline: [],
       user_typing: [],
       user_stop_typing: [],
+      // Lo que hace el equipo (solo lo reciben administradores).
+      team_activity: [],
       error: []
     };
     this.reconnectAttempts = 0;
@@ -94,6 +96,8 @@ export class ProfileWebSocketManager {
       this.emit("online_users", data.online_users || []);
     } else if (type === "profile.message_received") {
       this.emit("message_received", data.message);
+    } else if (type === "team.activity") {
+      this.emit("team_activity", data.activity);
     } else if (type === "profile.message_deleted") {
       this.emit("message_deleted", data.message);
     } else if (type === "profile.user_online") {

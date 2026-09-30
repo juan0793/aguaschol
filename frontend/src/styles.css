@@ -1202,6 +1202,18 @@
   color: var(--brand-blue-deep);
 }
 
+/* Campana de administración: pestañas Mensajes / Equipo y la actividad del equipo. */
+.notification-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); }
+.notification-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-muted); font-size: 12.5px; font-weight: 650; cursor: pointer; }
+.notification-tabs button.is-active { border-bottom-color: var(--brand-blue); color: var(--brand-blue); }
+.notification-tabs button b { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--brand-blue); color: #fff; font-size: 10.5px; line-height: 18px; }
+.notification-team-item { width: 100%; border-width: 0 0 1px; border-style: solid; border-color: var(--border); background: transparent; font: inherit; text-align: left; }
+.notification-team-item .notification-item-body, .notification-team-item .notification-item-header { display: flex; }
+.notification-team-item .notification-item-body { display: block; }
+.notification-team-item em { color: #17845b; font-style: normal; font-weight: 700; }
+.notification-team-mark { display: grid; flex: none; place-items: center; width: 18px; height: 18px; margin-top: 1px; color: #17845b; }
+.notification-team-mark i { width: 7px; height: 7px; border-radius: 50%; background: #9fb0c2; }
+
 /* Print-friendly summary for barrios */
 @media print {
   :root { background: #fff !important; color: #000 !important; }

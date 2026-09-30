@@ -1,0 +1,98 @@
+/* Actividad del equipo: lenguaje de tablero de análisis sin tarjetas (DESIGN.md).
+   Filetes de 1px, cifras en tinta tabulares; el verde marca lo que cierra un trabajo. */
+.ta { --ta-ink: #16283b; --ta-muted: #52677c; --ta-rule: #dfe5ec; --ta-grid: #e8ecf1; --ta-hover: #f3f6f9; --ta-blue: #1465d9; --ta-done: #17845b;
+  container-type: inline-size; min-width: 0; padding: 20px 24px 32px; background: #fff; color: #243b53; font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.ta *, .ta *::before, .ta *::after { box-sizing: border-box; }
+.ta h1, .ta h2, .ta h3, .ta p { margin: 0; }
+.ta button { font: inherit; }
+.ta button:focus-visible, .ta select:focus-visible, .ta input:focus-visible { outline: 2px solid var(--ta-blue); outline-offset: 2px; }
+.ta .app-icon { width: 15px; height: 15px; flex: none; }
+
+.ta-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--ta-rule); }
+.ta-head h1 { color: var(--ta-ink); font-size: 22px; font-weight: 750; }
+.ta-head p { margin-top: 4px; color: var(--ta-muted); font-size: 13px; }
+.ta-live { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; color: var(--ta-done); font-weight: 700; }
+.ta-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ta-done); animation: ta-pulso 2.4s ease-in-out infinite; }
+@keyframes ta-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.ta-quiet { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1px solid #c9ddf4; border-radius: 9px; background: #fff; color: var(--ta-ink); font-weight: 700; cursor: pointer; }
+.ta-quiet:hover:not(:disabled) { border-color: var(--ta-blue); color: var(--ta-blue); }
+
+/* Filtros: periodo, persona y área. */
+.ta-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; padding: 16px 0 12px; }
+.ta-segmented { display: inline-flex; border: 1px solid var(--ta-rule); border-radius: 9px; overflow: hidden; }
+.ta-segmented button { min-height: 38px; padding: 0 14px; border: 0; border-left: 1px solid var(--ta-rule); background: #fff; color: var(--ta-muted); font-size: 13px; font-weight: 650; cursor: pointer; }
+.ta-segmented button:first-child { border-left: 0; }
+.ta-segmented button.is-active { background: #eef4fd; color: var(--ta-blue); }
+.ta-range { display: flex; gap: 10px; }
+.ta-range label, .ta-select { display: grid; gap: 4px; color: var(--ta-muted); font-size: 11.5px; font-weight: 650; }
+.ta-range input, .ta-select select { min-height: 38px; padding: 0 10px; border: 1px solid var(--ta-rule); border-radius: 9px; background: #fff; color: var(--ta-ink); font: inherit; font-size: 13px; }
+.ta-select select { min-width: 220px; }
+.ta-areas { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--ta-rule); }
+.ta-areas button { min-height: 38px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ta-muted); font-size: 13px; font-weight: 650; cursor: pointer; }
+.ta-areas button:hover:not(.is-active) { color: var(--ta-ink); background: var(--ta-hover); }
+.ta-areas button.is-active { border-bottom-color: var(--ta-blue); color: var(--ta-blue); }
+.ta-error { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 10px 0; border-bottom: 1px solid var(--ta-rule); color: #b8323e; font-weight: 650; }
+.ta-error button { border: 0; background: none; color: var(--ta-blue); font-weight: 700; cursor: pointer; }
+
+/* Dos columnas: resumen por persona | lo que hizo el equipo. */
+.ta-split { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 2.2fr); align-items: start; }
+.ta-split > section { min-width: 0; }
+.ta-people { padding-right: 28px; }
+.ta-feed { padding-left: 28px; border-left: 1px solid var(--ta-rule); }
+.ta-split header { margin-bottom: 10px; }
+.ta-split h2 { color: var(--ta-ink); font-size: 15px; font-weight: 650; }
+.ta-split header p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 3px; color: var(--ta-muted); font-size: 12px; }
+.ta-split header p .app-icon { width: 13px; height: 13px; color: var(--ta-done); }
+
+.ta-people table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ta-people th { padding: 0 8px 8px 0; border-bottom: 1px solid var(--ta-rule); color: var(--ta-muted); font-size: 11px; font-weight: 650; text-align: left; }
+.ta-people td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--ta-grid); }
+.ta-people .is-num { padding-right: 0; padding-left: 8px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ta-people td strong { color: var(--ta-done); }
+.ta-people td strong.is-zero { color: var(--ta-muted); font-weight: 500; }
+.ta-people td button { max-width: 100%; overflow: hidden; padding: 0; border: 0; background: none; color: var(--ta-ink); font-weight: 650; text-align: left; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; cursor: pointer; }
+.ta-people td button:hover { color: var(--ta-blue); }
+.ta-people tr.is-active td { background: #eef4fd; }
+.ta-people tr.is-active td button { color: var(--ta-blue); }
+.ta-muted { color: var(--ta-muted); }
+
+/* Línea de tiempo por día. */
+.ta-day + .ta-day { margin-top: 18px; }
+.ta-day h3 { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--ta-rule); color: var(--ta-ink); font-size: 13px; font-weight: 700; }
+.ta-day h3 span { color: var(--ta-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ta-day ol { margin: 0; padding: 0; list-style: none; }
+.ta-day li { display: grid; grid-template-columns: 74px minmax(90px, 150px) minmax(0, 1fr) auto 64px; gap: 12px; align-items: center; min-height: 40px; padding: 6px 0; border-bottom: 1px solid var(--ta-grid); font-size: 13px; transition: background-color .6s ease; }
+.ta-day li:hover { background: var(--ta-hover); }
+.ta-day li.is-new { background: #eef6f1; }
+.ta-day time { color: var(--ta-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ta-who { overflow: hidden; color: var(--ta-ink); font-weight: 650; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
+.ta-what { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ta-what > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ta-day li.is-final .ta-what { color: var(--ta-done); font-weight: 650; }
+.ta-area { color: var(--ta-muted); font-size: 11.5px; white-space: nowrap; }
+.ta-open { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 0; border: 0; background: none; color: var(--ta-blue); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ta-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ta-open .app-icon { width: 13px; height: 13px; }
+.ta-empty { padding: 20px 0; color: var(--ta-muted); font-size: 13px; }
+.ta-more { display: block; width: 100%; min-height: 40px; margin-top: 12px; border: 1px solid var(--ta-rule); border-radius: 9px; background: #fff; color: var(--ta-blue); font-weight: 700; cursor: pointer; }
+.ta-more:hover:not(:disabled) { border-color: var(--ta-blue); }
+
+@container (max-width: 900px) {
+  .ta-split { grid-template-columns: minmax(0, 1fr); }
+  .ta-people { padding-right: 0; }
+  .ta-feed { margin-top: 24px; padding: 20px 0 0; border-top: 1px solid var(--ta-rule); border-left: 0; }
+}
+@container (max-width: 560px) {
+  .ta-day li { grid-template-columns: 70px minmax(0, 1fr) auto; grid-template-areas: "hora quien abrir" "hora que que"; gap: 2px 10px; }
+  .ta-day time { grid-area: hora; align-self: start; padding-top: 1px; }
+  .ta-who { grid-area: quien; }
+  .ta-what { grid-area: que; align-items: flex-start; }
+  .ta-what > span { white-space: normal; }
+  .ta-what .app-icon { margin-top: 2px; }
+  .ta-area { display: none; }
+  .ta-open { grid-area: abrir; }
+  .ta-select select { min-width: 0; width: 100%; }
+  .ta-select { flex: 1 1 100%; }
+}
+@media (max-width: 600px) { .ta { padding-inline: 12px; } }
+@media (prefers-reduced-motion: reduce) { .ta-live i { animation: none; } .ta-day li { transition: none; } }

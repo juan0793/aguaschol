@@ -19,6 +19,8 @@ export const MyProfileWorkspace = lazy(() => import("../components/profile/MyPro
 
 export const RailwayUsageWorkspace = lazy(() => import("../components/RailwayUsageWorkspace"));
 
+export const TeamActivityWorkspace = lazy(() => import("../modules/actividad/TeamActivityWorkspace"));
+
 export const PlanosWorkspace = lazy(() => import("../modules/planos/PlanosWorkspace"));
 
 export const ReportsWorkspace = lazy(() => import("../modules/reports/ReportsWorkspace"));
@@ -57,7 +59,8 @@ export const MODULE_LOADERS = {
   mapReports: () => import("../modules/reports/ReportsWorkspace"),
   planos: () => import("../modules/planos/PlanosWorkspace"),
   profile: () => import("../components/profile/MyProfileWorkspace"),
-  railwayUsage: () => import("../components/RailwayUsageWorkspace")
+  railwayUsage: () => import("../components/RailwayUsageWorkspace"),
+  teamActivity: () => import("../modules/actividad/TeamActivityWorkspace")
 };
 
 // Un fallo aquí no es un error de la app: el módulo se volverá a pedir al entrar.

@@ -332,6 +332,12 @@ const ensureSchema = async () => {
       columnName: "force_password_change",
       definition: "TINYINT(1) NOT NULL DEFAULT 0"
     });
+    // Hasta cuándo vio cada administrador la actividad del equipo (campana).
+    await ensureColumn(admin, {
+      tableName: "app_users",
+      columnName: "team_activity_seen_at",
+      definition: "TIMESTAMP NULL DEFAULT NULL"
+    });
     await ensureColumn(admin, {
       tableName: "inmuebles_clandestinos",
       columnName: "archived_at",

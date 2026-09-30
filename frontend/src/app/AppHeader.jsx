@@ -73,7 +73,8 @@ export default function AppHeader({ model }) {
     unreadMessagesCount,
     uploadingPadron,
     visibleMapPoints,
-    workspaceView
+    workspaceView,
+    abrirActividadEquipo
   } = model;
 
   return (
@@ -150,6 +151,8 @@ export default function AppHeader({ model }) {
               window.location.hash = "clandestinos/banco";
               setWorkspaceView("records");
             }}
+            onTeamActivityClick={() => setWorkspaceView("teamActivity")}
+            onTeamActivitySelect={abrirActividadEquipo}
             onNotificationSelect={(userId) => {
               setWorkspaceView("profile");
               setNotificationUserId(userId);
