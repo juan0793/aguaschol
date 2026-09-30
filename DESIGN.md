@@ -166,6 +166,15 @@ Pantallas de monitoreo (desde 2026-09-27, primera: "Uso en Railway"). Usan este 
 - Regla gasto contra calendario: la barra azul es la parte gastada del estimado y la marca vertical en tinta es el día del ciclo. Debajo va la frase en texto, por ejemplo "56% del estimado · 60% del ciclo transcurrido".
 - Las fichas flotantes (tooltips) llevan una sombra suave `0 6px 18px rgba(22, 40, 59, 0.12)`. Es la única sombra permitida en este lenguaje, porque separa una capa que flota sobre el dato.
 
+Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de clandestinos"). Aplican el mismo lenguaje de análisis, pero sin paneles: todo va a todo el ancho y las secciones se separan con filetes de 1px (`#dfe5ec`).
+- La franja de indicadores solo lleva cifras que no aparecen en otra parte de la pantalla, como vencidas, nuevas, avance del equipo o conversión. Si una cifra ya está en una sección, no se repite arriba.
+- El proceso va en columnas iguales, una por etapa y en orden, conectadas con un chevrón fino. Debajo lleva una franja proporcional y una frase que la lee, por ejemplo "87% sigue en el banco sin ficha · 1% ya está cerrado".
+- Los tonos de las etapas son un solo azul que se oscurece al avanzar (`#c9dbf3`, `#8db6e6`, `#4f8bd8`, `#1465d9`, `#0b3f73`). Lo que todavía no es ficha (el banco) va en gris `#b6c3d1` y el cierre en verde `#18a689`.
+- Lo que hay que atender va en una tabla densa, lo más atrasado primero, y la clave catastral abre el registro. El rojo marca lo vencido y el ocre lo que está por vencer.
+- El avance por persona va en una barra apilada: hecho en azul, descartado en gris y pendiente como pista clara. A la derecha van el porcentaje y los pendientes.
+- Las columnas dependen del ancho del resumen (container queries), no de la ventana: 7 etapas desde unos 1040px, 4 por debajo y una lista densa en teléfono.
+- No van etiquetas encima de los títulos ni tracking negativo.
+
 ### Busqueda de clave
 
 La busqueda debe sentirse como herramienta de campo:
