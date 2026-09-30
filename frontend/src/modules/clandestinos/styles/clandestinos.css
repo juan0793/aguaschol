@@ -595,7 +595,14 @@
 .cl-module.is-flat { background: #fff; }
 /* El encabezado del módulo es el mismo en todas las pestañas: si cambiara de alto
    (tarjeta en unas, plano en otras), la barra de pestañas se movería bajo el clic. */
-.is-flat-head .cl-module-header { position: static; padding: 8px 0 20px; border: 0; border-bottom: 1px solid #dbe3eb; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+/* Fijo arriba al hacer scroll en todas las pestañas. Lleva el fondo de su pestaña
+   para tapar lo que pasa por debajo: gris de página, blanco en Resumen/Fichas y el
+   tono del modo en Banco e Impresiones. */
+.is-flat-head .cl-module-header { position: sticky; top: 0; z-index: 15; padding: 8px 0 20px; border: 0; border-bottom: 1px solid #dbe3eb; border-radius: 0; background: var(--page-bg); box-shadow: none; backdrop-filter: none; }
+.cl-module.is-flat.is-flat-head .cl-module-header { background: #fff; }
+.cl-module.is-flat-head.is-mode .cl-module-header { background: var(--mode-soft); }
+/* En el teléfono el encabezado (con las pestañas en rejilla) es muy alto para quedar fijo. */
+@media (max-width: 760px) { .is-flat-head .cl-module-header { position: static; } }
 .is-flat-head .cl-module-emblem { display: none; }
 .is-flat-head .cl-module-heading h1 { display: flex; align-items: center; gap: 10px; }
 .is-flat-head .cl-module-heading h1 .cl-mode-chip { flex: none; font-size: 10.5px; font-weight: 750; line-height: 1.6; }

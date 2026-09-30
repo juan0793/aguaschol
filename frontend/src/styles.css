@@ -21363,12 +21363,16 @@ button,
   box-shadow: 0 8px 18px rgba(11, 63, 115, 0.06);
 }
 
-/* Reports layout repair: keep report panels and chart modals inside the viewport. */
+/* Reports layout repair: keep report panels and chart modals inside the viewport.
+   clip recorta igual que hidden pero sin volver a body/#root contenedores de scroll:
+   con hidden, ningún position: sticky de la app funcionaba (se pegaban a un body que
+   nunca se desplaza). hidden queda como respaldo para navegadores sin clip. */
 html,
 body,
 #root {
   max-width: 100%;
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .page-shell {
