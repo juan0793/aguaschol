@@ -152,14 +152,25 @@ export default function BancoClandestinos({ api, model, permissions, session, no
   const asignadoNombre = model.filters.asignado === "mine" ? session?.user?.full_name || "Mis asignaciones"
     : Number(model.filters.asignado) > 0 ? model.asignaciones?.find((item) => String(item.id) === String(model.filters.asignado))?.nombre || "Técnico" : "";
   const misPendientes = model.asignaciones?.find((item) => Number(item.id) === Number(userId))?.pendientes || 0;
+  // Técnico elegido en el panel (o uno mismo en "Mis asignaciones"), con su avance.
+  const tecnicoActivo = model.filters.asignado === "mine" ? model.asignaciones?.find((item) => Number(item.id) === Number(userId))
+    : Number(model.filters.asignado) > 0 ? model.asignaciones?.find((item) => String(item.id) === String(model.filters.asignado)) : null;
+  // Al tocar un técnico se ve todo lo suyo (pendiente, a ficha y descartado); al soltarlo, vuelve a "Por revisar".
+  const verTecnico = (key) => {
+    const soltar = model.filters.asignado === key;
+    model.filters.setAsignado(soltar ? "" : key);
+    model.filters.setEstado(soltar ? "pendiente" : "");
+  };
   // Listado de campo: solo clandestinos (o el dictamen elegido); nunca los que están en Aguas.
+  // Lo de un técnico se imprime completo, con su avance y lo ya trabajado marcado.
   const imprimir = async () => {
     setWorking("print");
     try {
-      const dictamen = dictamenParaImprimir(model.filters.dictamen);
+      const dictamen = tecnicoActivo ? model.filters.dictamen : dictamenParaImprimir(model.filters.dictamen);
       const { items, limite } = await api.bancoListado({ ...filtrosActuales, dictamen });
       if (!items.length) { notify("No hay candidatos para imprimir con estos filtros."); return; }
-      const markup = buildBancoListado(items, { ...model.filters, dictamen, estadoLabel: ESTADO_LABELS[model.filters.estado] || "Todos", asignadoNombre });
+      const avance = tecnicoActivo && !model.filters.estado && !dictamen && !model.filters.barrio && !model.filters.query ? tecnicoActivo : null;
+      const markup = buildBancoListado(items, { ...model.filters, dictamen, estadoLabel: ESTADO_LABELS[model.filters.estado] || "Todos", asignadoNombre, avance });
       await printDocument("Listado de campo · Banco de clandestinos", `${BANCO_PRINT_STYLES}${markup}`, { pageSize: "Letter landscape", pageMargin: "10mm", reportType: "banco-clandestinos-listado" });
       if (items.length >= limite) notify(`Se imprimieron los primeros ${limite}; filtra por barrio para el resto.`);
     } catch (error) { notify(error.message); } finally { setWorking(""); }
@@ -210,7 +221,15 @@ export default function BancoClandestinos({ api, model, permissions, session, no
         {canAssign || model.asignaciones?.length ? <div className="cl-banco-team" aria-label="Asignaciones por técnico">
           <h4>Técnicos</h4>
           {canAssign ? <button type="button" aria-pressed={model.filters.asignado === "none"} className={model.filters.asignado === "none" ? "is-active" : ""} onClick={() => model.filters.setAsignado(model.filters.asignado === "none" ? "" : "none")}><Icon name="inbox" /><span>Sin asignar</span><strong><CountUp value={model.sin_asignar || 0} /></strong></button> : null}
-          {(model.asignaciones || []).filter((item) => canAssign || Number(item.id) === Number(userId)).slice(0, 8).map((item) => { const key = Number(item.id) === Number(userId) ? "mine" : String(item.id); const active = model.filters.asignado === key || model.filters.asignado === String(item.id); return <button type="button" key={item.id} aria-pressed={active} className={active ? "is-active" : ""} onClick={() => model.filters.setAsignado(active ? "" : key)}><Icon name="users" /><span>{Number(item.id) === Number(userId) ? "Mis asignaciones" : item.nombre}</span><strong>{item.pendientes}</strong></button>; })}
+          {(model.asignaciones || []).filter((item) => canAssign || Number(item.id) === Number(userId)).map((item) => {
+            const key = Number(item.id) === Number(userId) ? "mine" : String(item.id);
+            const active = model.filters.asignado === key || model.filters.asignado === String(item.id);
+            return <button type="button" key={item.id} aria-pressed={active} className={`cl-banco-tech ${active ? "is-active" : ""} ${item.pendientes ? "" : "is-done"}`.trim()} title={`${item.nombre}: ${item.trabajados} de ${item.total} trabajados (${item.enviados} a ficha, ${item.descartados} descartados) · ${item.pendientes} pendientes`} onClick={() => verTecnico(key)}>
+              <Icon name="users" />
+              <span className="cl-banco-tech-name">{Number(item.id) === Number(userId) ? "Mis asignaciones" : item.nombre}<i className="cl-banco-tech-bar" aria-hidden="true"><b style={{ width: `${item.avance}%` }} /></i></span>
+              <span className="cl-banco-tech-num"><strong>{item.avance}%</strong><small>{item.pendientes} pend.</small></span>
+            </button>;
+          })}
         </div> : null}
         {permissions.can_process_banco ? <p className="cl-banco-flow-hint"><Icon name="checkCircle" />Verificar vuelve a revisar los pendientes y manda a descartados los que ya aparecen en Aguas.</p> : null}
         <div className="cl-banco-head-actions">
@@ -228,7 +247,18 @@ export default function BancoClandestinos({ api, model, permissions, session, no
     </div>
     {model.error ? <p className="cl-alert">{model.error}</p> : null}
     {misPendientes && model.filters.asignado !== "mine" ? <div className="cl-banco-mine" role="status"><Icon name="users" /><span><strong>Tienes {misPendientes} {misPendientes === 1 ? "candidato asignado" : "candidatos asignados"}</strong> para convertir en ficha.</span><button type="button" className="cl-primary" onClick={() => { model.filters.setEstado("pendiente"); model.filters.setAsignado("mine"); }}>Ver mis asignaciones<Icon name="arrowRight" /></button></div> : null}
-    {asignadoNombre ? <p className="cl-banco-scope"><Icon name="users" />{model.filters.asignado === "mine" ? "Mis asignaciones" : `Asignados a ${asignadoNombre}`}<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={() => model.filters.setAsignado("")}>Ver todos</button></p> : model.filters.asignado === "none" ? <p className="cl-banco-scope"><Icon name="inbox" />Sin asignar<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={() => model.filters.setAsignado("")}>Ver todos</button></p> : null}
+    {asignadoNombre ? <div className="cl-banco-scope is-tecnico">
+      <p><Icon name="users" />{model.filters.asignado === "mine" ? "Mis asignaciones" : `Asignados a ${asignadoNombre}`}<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}{model.filters.estado ? ` · ${(ESTADO_LABELS[model.filters.estado] || "").toLowerCase()}` : ""}</span></p>
+      {tecnicoActivo ? <div className="cl-banco-scope-avance" aria-label={`Avance ${tecnicoActivo.avance}%`}>
+        <strong>{tecnicoActivo.avance}%</strong>
+        <span className="cl-banco-tech-bar is-large" aria-hidden="true"><b style={{ width: `${tecnicoActivo.avance}%` }} /></span>
+        <small>{tecnicoActivo.trabajados} de {tecnicoActivo.total} trabajados · {tecnicoActivo.enviados} a ficha · {tecnicoActivo.descartados} descartados · {tecnicoActivo.pendientes} pendientes</small>
+      </div> : null}
+      <div className="cl-banco-scope-actions">
+        <button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={imprimir}><Icon name="print" />{working === "print" ? "Preparando…" : "Imprimir"}</button>
+        <button type="button" className="cl-scope-clear" onClick={() => { model.filters.setAsignado(""); model.filters.setEstado("pendiente"); }}>Ver todos</button>
+      </div>
+    </div> : model.filters.asignado === "none" ? <p className="cl-banco-scope"><Icon name="inbox" />Sin asignar<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={() => model.filters.setAsignado("")}>Ver todos</button></p> : null}
     {canAssign && visibleSelectable.length ? <div className={`cl-banco-selbar ${selected.size ? "is-active" : ""}`.trim()}>
       <SpringCheck checked={allVisibleSelected} onChange={toggleVisible} ariaLabel="Seleccionar los de esta página" />
       <span className="cl-banco-selcount">{selected.size ? <><strong>{selected.size}</strong> {selected.size === 1 ? "seleccionado" : "seleccionados"}</> : "Selecciona candidatos para asignarlos a técnicos"}</span>

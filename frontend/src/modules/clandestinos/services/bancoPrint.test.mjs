@@ -21,4 +21,18 @@ test("el listado agrupa por barrio, escapa texto y nunca lleva registrados en Ag
   assert.doesNotMatch(html, /22-36-39/);
   assert.match(html, /OSCAR &lt;b&gt;/);
   assert.match(html, /Juan Pérez/);
+  assert.doesNotMatch(html, /bl-avance/);
+});
+
+test("lo de un técnico lleva su avance y marca lo ya trabajado", () => {
+  const html = buildBancoListado([
+    { id: 1, dictamen: "clandestino", estado: "pendiente", clave_catastral: "14-08-02-07", origen_ref: "760" },
+    { id: 2, dictamen: "clandestino", estado: "enviado", clave_catastral: "14-08-02-08", origen_ref: "761" },
+    { id: 3, dictamen: "clandestino", estado: "descartado", motivo_descarte: "Punto duplicado", clave_catastral: "14-08-02-13", origen_ref: "767" }
+  ], { asignadoNombre: "Sindy", avance: { total: 3, trabajados: 2, enviados: 1, descartados: 1, pendientes: 1, avance: 66 } });
+  assert.match(html, /Avance 66%/);
+  assert.match(html, /2 de 3 trabajados/);
+  assert.match(html, /class="bl-hecho">Ficha</);
+  assert.match(html, /class="bl-hecho">Descartado<\/td><td>Punto duplicado/);
+  assert.equal((html.match(/class="bl-chk"/g) || []).length, 1);
 });

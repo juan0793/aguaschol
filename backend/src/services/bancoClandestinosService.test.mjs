@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { asignarCandidatos, buildPadronIndex, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
+import { asignarCandidatos, buildPadronIndex, resumirAsignaciones, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
 import { createInmueble, getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
@@ -128,6 +128,19 @@ test("reimportar no toca a los que ya se enviaron a ficha", async () => {
   assert.deepEqual([result.nuevos, result.actualizados, result.sin_cambios_procesados], [0, 1, 2]);
   const { items } = await listBancoClandestinos({ query: "Casa sin cuenta", estado: "enviado" });
   assert.equal(items[0].estado, "enviado");
+});
+
+test("el avance por técnico cuenta lo enviado a ficha y lo descartado como trabajado", () => {
+  const [sindy, diego] = resumirAsignaciones([
+    { asignado_a: 5, nombre: "Sindy", estado: "pendiente", total: 1 },
+    { asignado_a: 5, nombre: "Sindy", estado: "enviado", total: "4" },
+    { asignado_a: 5, nombre: "Sindy", estado: "descartado", total: 1 },
+    { asignado_a: 9, nombre: "diego", estado: "enviado", total: 3 }
+  ]);
+  assert.deepEqual([sindy.id, sindy.total, sindy.trabajados, sindy.pendientes, sindy.avance], [5, 6, 5, 1, 83]);
+  assert.deepEqual([diego.total, diego.pendientes, diego.avance], [3, 0, 100]);
+  // Con 199 de 200 hechos no se muestra 100 %.
+  assert.equal(resumirAsignaciones([{ asignado_a: 1, estado: "enviado", total: 199 }, { asignado_a: 1, estado: "pendiente", total: 1 }])[0].avance, 99);
 });
 
 test("resume los barrios con más candidatos y su desglose por dictamen", () => {

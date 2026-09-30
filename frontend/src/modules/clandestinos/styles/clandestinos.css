@@ -491,6 +491,23 @@
 .cl-banco-team > button:hover { background: #fff; border-color: #dce8f3; }
 .cl-banco-team > button.is-active { background: var(--mode-soft, #eef5ff); border-color: var(--mode-line, #bcd6f5); color: var(--mode, var(--primary)); font-weight: 700; }
 .cl-banco-team > button strong { font-variant-numeric: tabular-nums; }
+/* Técnico con su avance: nombre, barra y porcentaje (con lo que le queda). */
+.cl-module .cl-banco-team > .cl-banco-tech { min-height: 40px; padding-block: 4px; }
+.cl-banco-tech-name { display: grid; gap: 4px; min-width: 0; }
+.cl-banco-tech-bar { display: block; overflow: hidden; height: 4px; border-radius: 99px; background: #e3ebf3; }
+.cl-banco-tech-bar > b { display: block; height: 100%; border-radius: inherit; background: #5a47b8; transition: width .3s ease; }
+.cl-banco-tech-bar.is-large { flex: 1; min-width: 120px; height: 8px; }
+.cl-banco-tech.is-done .cl-banco-tech-bar > b { background: #1f9463; }
+.cl-banco-tech-num { display: grid; justify-items: end; line-height: 1.15; }
+.cl-banco-tech-num small { color: var(--muted); font-size: 10.5px; font-weight: 500; }
+.cl-banco-scope.is-tecnico { gap: 8px 14px; padding: 10px 12px; border: 1px solid #d9d2f5; border-radius: 12px; background: #f8f6ff; }
+.cl-banco-scope.is-tecnico > p { display: flex; align-items: center; gap: 8px; margin: 0; }
+.cl-banco-scope.is-tecnico > p > span { color: var(--muted); font-weight: 500; }
+.cl-banco-scope-avance { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 240px; }
+.cl-banco-scope-avance > strong { color: #5a47b8; font-size: 18px; font-variant-numeric: tabular-nums; }
+.cl-banco-scope-avance > small { color: var(--muted); font-size: 12px; font-weight: 500; }
+.cl-banco-scope-actions { display: flex; align-items: center; gap: 8px; }
+.cl-module .cl-banco-scope-actions .cl-secondary { min-height: 34px; font-size: 12.5px; }
 @media (max-width: 1320px) { .cl-banco-team { grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } .cl-banco-team h4 { grid-column: 1 / -1; } }
 
 .cl-assign-backdrop { --primary:#1769e0; --primary-hover:#0b5cc4; --navy:#102a43; --text:#243b53; --muted:#627d98; --danger:#b8323e; --alert:#9a6518; --mode:#0f8a80; --mode-soft:#e3f5f2; --mode-line:#a8ddd5; position: fixed; inset: 0; z-index: 230; display: grid; place-items: center; padding: 24px; background: rgba(16,42,67,.45); backdrop-filter: blur(4px); color: var(--text); font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; animation: clFade .16s ease; }

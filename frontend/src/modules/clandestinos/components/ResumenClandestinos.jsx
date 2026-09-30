@@ -104,7 +104,7 @@ export default function ResumenClandestinos({ api, onOpenFichas, onOpenBanco, on
         <header><h3>Carga por técnico</h3><p>Candidatos asignados sin convertir en ficha</p></header>
         <StackedBars label="Carga por técnico" onSelect={(key) => key && onOpenBanco({ asignado: key })} emptyText="Nadie tiene candidatos asignados todavía. Asígnalos desde el Banco." rows={[
           ...(data.banco.sin_asignar ? [{ key: "none", label: "Sin asignar", total: data.banco.sin_asignar, parts: [{ key: "none", label: "Sin asignar", value: data.banco.sin_asignar, color: "#8fa3b8" }] }] : []),
-          ...(data.banco.asignaciones || []).map((item) => ({ key: String(item.id), label: item.nombre, total: item.pendientes, parts: [{ key: "p", label: "Pendientes", value: item.pendientes, color: TECNICO_COLOR }] }))
+          ...(data.banco.asignaciones || []).filter((item) => item.pendientes > 0).map((item) => ({ key: String(item.id), label: item.nombre, total: item.pendientes, parts: [{ key: "p", label: "Pendientes", value: item.pendientes, color: TECNICO_COLOR }] }))
         ]} />
       </div>
       <div className="cl-banco-chart">

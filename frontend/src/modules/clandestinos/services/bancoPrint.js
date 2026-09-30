@@ -50,6 +50,10 @@ export const BANCO_PRINT_STYLES = `<style>
   .bl-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin-top: 26px; break-inside: avoid; }
   .bl-sign div { padding-top: 5px; border-top: 1px solid #334e68; color: #52606d; text-align: center; }
   .bl-foot { margin-top: 10px; color: #52606d; font-size: 8.5px; }
+  .bl-avance { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; padding: 6px 8px; border: 1px solid #102a43; }
+  .bl-avance .bl-bar { flex: 1; height: 8px; border: 1px solid #334e68; }
+  .bl-avance .bl-bar i { display: block; height: 100%; background: #334e68; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bl .bl-hecho { font-size: 8.5px; font-weight: 700; text-align: center; white-space: nowrap; }
 </style>`;
 
 const fechaLarga = (date) => date.toLocaleString("es-HN", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" });
@@ -77,20 +81,25 @@ export const buildBancoListado = (items = [], filtros = {}, now = new Date()) =>
       const servicios = [["agua", "A"], ["alcantarillado", "Al"], ["desechos", "D"]].map(([key, label]) => `<i class="${item[key] ? "on" : ""}">${label}</i>`).join("");
       const comentario = String(item.comentario_campo || "").trim();
       const hallazgo = comentario && comentario !== item.clave_catastral ? escapeHtml(comentario) : "<em>—</em>";
-      return `<tr><td class="bl-num">${numero}</td><td class="bl-clave">${item.clave_catastral ? escapeHtml(item.clave_catastral) : "<em>Sin clave</em>"}</td><td><span class="bl-dic ${clase}">${simbolo} ${etiqueta}</span></td><td class="bl-prop">${item.alcaldia_propietario ? escapeHtml(item.alcaldia_propietario) : "<em>No aparece</em>"}</td><td>${escapeHtml(aguas)}</td><td class="bl-serv">${servicios}</td><td class="bl-hall">${hallazgo}</td><td class="bl-qf">#${escapeHtml(item.origen_ref)}</td><td class="bl-chk"><span></span></td><td></td></tr>`;
+      // Pendiente: casilla para marcar en campo; si ya se trabajó, se dice cómo.
+      const visitado = item.estado === "enviado" ? `<td class="bl-hecho">Ficha</td>` : item.estado === "descartado" ? `<td class="bl-hecho">Descartado</td>` : `<td class="bl-chk"><span></span></td>`;
+      return `<tr><td class="bl-num">${numero}</td><td class="bl-clave">${item.clave_catastral ? escapeHtml(item.clave_catastral) : "<em>Sin clave</em>"}</td><td><span class="bl-dic ${clase}">${simbolo} ${etiqueta}</span></td><td class="bl-prop">${item.alcaldia_propietario ? escapeHtml(item.alcaldia_propietario) : "<em>No aparece</em>"}</td><td>${escapeHtml(aguas)}</td><td class="bl-serv">${servicios}</td><td class="bl-hall">${hallazgo}</td><td class="bl-qf">#${escapeHtml(item.origen_ref)}</td>${visitado}<td>${item.estado === "descartado" && item.motivo_descarte ? escapeHtml(item.motivo_descarte) : ""}</td></tr>`;
     }).join("");
     return `<tr class="bl-grp"><td colspan="10"><strong>${escapeHtml(barrio)}</strong><span>${lista.length} ${lista.length === 1 ? "candidato" : "candidatos"}</span></td></tr>${filas}`;
   }).join("");
   const resumen = Object.entries(DICTAMEN).filter(([key]) => conteo[key]).map(([key, [simbolo, etiqueta, clase]]) => `<span class="bl-dic ${clase}">${simbolo} ${etiqueta} <b>${conteo[key]}</b></span>`).join("");
   const asignado = filtros.asignadoNombre ? escapeHtml(filtros.asignadoNombre) : "______________________________";
+  // Avance del técnico (solo cuando se imprime lo asignado a alguien).
+  const av = filtros.avance;
+  const avance = av ? `<div class="bl-avance"><strong>Avance ${av.avance}%</strong><span class="bl-bar"><i style="width:${av.avance}%"></i></span><span>${av.trabajados} de ${av.total} trabajados · ${av.enviados} a ficha · ${av.descartados} descartados · ${av.pendientes} pendientes</span></div>` : "";
   return `<article class="bl">
     <header class="bl-brand"><div><strong>AGUAS DE CHOLUTECA</strong><small>Departamento de Comercialización · Unidad Técnica de Catastro</small></div><div class="bl-right"><strong>Listado de campo · Banco de clandestinos</strong><small>Impreso el ${escapeHtml(fechaLarga(now))}</small></div></header>
-    <div class="bl-meta"><p><span>Estado</span>${escapeHtml(filtros.estadoLabel || "Por revisar")}</p><p><span>Dictamen</span>${escapeHtml(DICTAMEN[filtros.dictamen]?.[1] || "Clandestino")}</p><p><span>Barrio</span>${escapeHtml(filtros.barrio || "Todos")}</p><p><span>Búsqueda</span>${escapeHtml(filtros.query || "—")}</p><p><span>Asignado a</span>${asignado}</p></div>
-    <div class="bl-sum"><strong>${rows.length} ${rows.length === 1 ? "candidato" : "candidatos"}</strong>${resumen}</div>
+    <div class="bl-meta"><p><span>Estado</span>${escapeHtml(filtros.estadoLabel || "Por revisar")}</p><p><span>Dictamen</span>${escapeHtml(DICTAMEN[filtros.dictamen]?.[1] || "Todos")}</p><p><span>Barrio</span>${escapeHtml(filtros.barrio || "Todos")}</p><p><span>Búsqueda</span>${escapeHtml(filtros.query || "—")}</p><p><span>Asignado a</span>${asignado}</p></div>
+    ${avance}<div class="bl-sum"><strong>${rows.length} ${rows.length === 1 ? "candidato" : "candidatos"}</strong>${resumen}</div>
     <table><colgroup><col style="width:3.2%"><col style="width:8.5%"><col style="width:10%"><col style="width:16.5%"><col style="width:8.5%"><col style="width:7.8%"><col style="width:19%"><col style="width:5.5%"><col style="width:5%"><col style="width:16%"></colgroup>
       <thead><tr><th>#</th><th>Clave catastral</th><th>Dictamen</th><th>Propietario (Alcaldía)</th><th>Aguas</th><th>Servicios</th><th>Hallazgo de campo</th><th>QField</th><th>Visitado</th><th>Observación del técnico</th></tr></thead>
       <tbody>${cuerpo}</tbody></table>
-    <p class="bl-legend">Servicios observados: <b>A</b> agua potable · <b>Al</b> alcantarillado · <b>D</b> desechos sólidos (marcado = sí). Dictamen: ● solo en Alcaldía · ▲ el lote está en Aguas, la unidad no · ? sin clave o fuera de ambos padrones. No incluye predios registrados en Aguas.</p>
+    <p class="bl-legend">Servicios observados: <b>A</b> agua potable · <b>Al</b> alcantarillado · <b>D</b> desechos sólidos (marcado = sí). Dictamen: ● no aparece en Aguas · ? sin clave para verificar. Visitado: casilla = pendiente; Ficha = ya se hizo ficha; Descartado = se descartó (motivo en observación). No incluye predios registrados en Aguas.</p>
     <div class="bl-sign"><div>Técnico de campo</div><div>Fecha de visita</div><div>Revisado por (Comercialización)</div></div>
     <p class="bl-foot">Documento generado desde Control Aguas · Banco de clandestinos</p>
   </article>`;

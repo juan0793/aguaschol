@@ -241,12 +241,31 @@ const bancoFilter = ({ query, dictamen, estado, barrio, asignado }, skip = []) =
 
 const cleanFilters = ({ query = "", dictamen = "", estado = "pendiente", barrio = "", asignado = "" } = {}) =>
   ({ query: clean(query), dictamen: clean(dictamen), estado: clean(estado), barrio: clean(barrio), asignado: clean(asignado) });
-const ORDEN_BANCO = "ORDER BY FIELD(banco_clandestinos.dictamen, 'clandestino', 'sin_determinar', 'registrado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral";
+// Con "Todos" los estados (p. ej. lo de un técnico) lo pendiente va primero.
+const ORDEN_BANCO = "ORDER BY FIELD(banco_clandestinos.estado, 'pendiente', 'enviado', 'descartado'), FIELD(banco_clandestinos.dictamen, 'clandestino', 'sin_determinar', 'registrado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral";
 
-// Carga pendiente por técnico (lo que les queda por convertir en ficha).
-const resumirAsignaciones = (rows) => rows
-  .map((row) => ({ id: Number(row.asignado_a), nombre: row.nombre || `Usuario #${row.asignado_a}`, pendientes: Number(row.total || 0) }))
-  .sort((a, b) => b.pendientes - a.pendientes || a.nombre.localeCompare(b.nombre, "es"));
+// Avance por técnico. Filas { asignado_a, nombre, estado, total } -> todo lo que se le
+// asignó, cuánto le queda y cuánto ya trabajó (a ficha o descartado), en porcentaje.
+// El porcentaje se redondea hacia abajo: 100 % solo cuando no queda ningún pendiente.
+export const resumirAsignaciones = (rows = []) => {
+  const porTecnico = new Map();
+  for (const row of rows) {
+    const id = Number(row.asignado_a);
+    const entry = porTecnico.get(id) || { id, nombre: row.nombre || `Usuario #${id}`, pendientes: 0, enviados: 0, descartados: 0 };
+    const total = Number(row.total || 0);
+    if (row.estado === "pendiente") entry.pendientes += total;
+    else if (row.estado === "enviado") entry.enviados += total;
+    else if (row.estado === "descartado") entry.descartados += total;
+    porTecnico.set(id, entry);
+  }
+  return [...porTecnico.values()]
+    .map((entry) => {
+      const total = entry.pendientes + entry.enviados + entry.descartados;
+      const trabajados = entry.enviados + entry.descartados;
+      return { ...entry, total, trabajados, avance: total ? Math.floor((trabajados / total) * 100) : 0 };
+    })
+    .sort((a, b) => b.pendientes - a.pendientes || a.nombre.localeCompare(b.nombre, "es"));
+};
 
 export const listBancoClandestinos = async (filters = {}) => {
   const { query, dictamen, estado, barrio, asignado } = cleanFilters(filters);
@@ -262,8 +281,11 @@ export const listBancoClandestinos = async (filters = {}) => {
     const filtered = memoryBanco.filter(fullFilter.test);
     const totalPages = Math.max(1, Math.ceil(filtered.length / safeLimit));
     const currentPage = Math.min(requestedPage, totalPages);
-    const pendientesAsignados = memoryBanco.filter((item) => item.estado === "pendiente" && item.asignado_a != null);
-    const porTecnico = [...new Set(pendientesAsignados.map((item) => item.asignado_a))].map((id) => ({ asignado_a: id, total: pendientesAsignados.filter((item) => item.asignado_a === id).length }));
+    const asignados = memoryBanco.filter((item) => item.asignado_a != null);
+    const porTecnico = [...new Set(asignados.map((item) => `${item.asignado_a}|${item.estado}`))].map((key) => {
+      const [id, estado] = key.split("|");
+      return { asignado_a: Number(id), estado, total: asignados.filter((item) => Number(item.asignado_a) === Number(id) && item.estado === estado).length };
+    });
     return {
       items: filtered.slice((currentPage - 1) * safeLimit, currentPage * safeLimit).map(mapCandidato),
       total: filtered.length, page: currentPage, total_pages: totalPages,
@@ -283,10 +305,10 @@ export const listBancoClandestinos = async (filters = {}) => {
     pool.query("SELECT DISTINCT barrio_colonia FROM banco_clandestinos WHERE barrio_colonia <> '' ORDER BY barrio_colonia"),
     pool.query(`SELECT COUNT(*) AS total FROM banco_clandestinos WHERE ${fullFilter.where}`, fullFilter.params),
     pool.query(`SELECT barrio_colonia, dictamen, COUNT(*) AS total FROM banco_clandestinos WHERE ${barrioFilter.where} AND barrio_colonia <> '' GROUP BY barrio_colonia, dictamen`, barrioFilter.params),
-    pool.query(`SELECT banco_clandestinos.asignado_a, COALESCE(app_users.full_name, app_users.username, '') AS nombre, COUNT(*) AS total
+    pool.query(`SELECT banco_clandestinos.asignado_a, banco_clandestinos.estado, COALESCE(app_users.full_name, app_users.username, '') AS nombre, COUNT(*) AS total
       FROM banco_clandestinos LEFT JOIN app_users ON app_users.id = banco_clandestinos.asignado_a
-      WHERE banco_clandestinos.estado = 'pendiente' AND banco_clandestinos.asignado_a IS NOT NULL
-      GROUP BY banco_clandestinos.asignado_a, app_users.full_name, app_users.username`),
+      WHERE banco_clandestinos.asignado_a IS NOT NULL
+      GROUP BY banco_clandestinos.asignado_a, banco_clandestinos.estado, app_users.full_name, app_users.username`),
     pool.query("SELECT COUNT(*) AS total FROM banco_clandestinos WHERE estado = 'pendiente' AND asignado_a IS NULL AND dictamen <> 'registrado'")
   ]);
   const total = Number(totalRows[0]?.total || 0);
