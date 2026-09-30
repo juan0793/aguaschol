@@ -463,6 +463,14 @@
 .cl-bcard > header .spring-check, .cl-bcard > header > label:first-child { flex: none; }
 .cl-bcard-owner { padding: 1px 7px; border-radius: 999px; background: #eef2f7; color: var(--navy); font-weight: 700; }
 .cl-bcard-owner.is-mine { background: var(--mode-soft, #eef5ff); color: var(--mode, var(--primary)); }
+/* Ya asignadas: violeta, fuera de los colores de dictamen y del azul de selección. */
+.cl-bcard.is-asignado { border-color: #c9c0f0; background: #fcfbff; }
+.cl-bcard.is-asignado.is-selected { border-color: var(--mode, var(--primary)); }
+.cl-bcard > .cl-bcard-assigned { display: flex; align-items: center; gap: 6px; min-width: 0; margin: -11px -12px 0; padding: 5px 12px; border-radius: 11px 11px 0 0; background: #efebfd; color: #5a47b8; font-size: 12px; }
+.cl-bcard-assigned > span { overflow: hidden; flex: 1; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+.cl-bcard-assigned strong { font-weight: 750; }
+.cl-bcard-assigned small { flex: none; color: #7e70c4; font-size: 11px; }
+.cl-bcard-assigned .app-icon { width: 13px; height: 13px; }
 .cl-banco-selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; padding: 8px 10px; border: 1px solid #dce8f3; border-radius: 12px; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); }
 .cl-banco-selbar.is-active { border-color: var(--mode-line, #bcd6f5); background: color-mix(in srgb, var(--mode-soft, #eef5ff) 70%, #fff); box-shadow: 0 8px 20px rgba(16,42,67,.08); }
 .cl-banco-selcount { flex: 1; min-width: 180px; color: var(--muted); font-size: 13px; }

@@ -61,7 +61,14 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
   // Solo "registrado" está en Aguas; si no, la cuenta guardada es de otra unidad del mismo lote.
   const enAguas = item.dictamen === "registrado" && (item.aguas_clave || item.aguas_abonado);
   const loteEnAguas = !enAguas && item.aguas_clave;
-  return <article className={`cl-bcard is-${item.dictamen} ${descartado ? "is-descartado" : ""} ${discarding ? "is-discarding" : ""} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""}`.trim()}>
+  // Lo pendiente que ya tiene técnico se distingue con una franja arriba de la tarjeta.
+  const asignado = pendiente && item.asignado_a != null;
+  const mio = Number(item.asignado_a) === Number(userId);
+  return <article className={`cl-bcard is-${item.dictamen} ${descartado ? "is-descartado" : ""} ${discarding ? "is-discarding" : ""} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""} ${asignado ? "is-asignado" : ""}`.trim()}>
+    {asignado ? <p className="cl-bcard-assigned" title={[`Asignado a ${item.asignado_nombre || "un técnico"}`, fechaCorta(item.asignado_at)].filter(Boolean).join(" · ")}>
+      <Icon name="users" /><span>{mio ? <strong>Asignado a ti</strong> : <>Asignado a <strong>{item.asignado_nombre || "un técnico"}</strong></>}</span>
+      {item.asignado_at ? <small>{fechaCorta(item.asignado_at)}</small> : null}
+    </p> : null}
     <header>
       {selectable ? <SpringCheck checked={selected} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${item.clave_catastral || `punto ${item.origen_ref}`}`} /> : null}
       <span className={`cl-bcard-badge is-${item.dictamen}`} title={`${DICTAMEN_LABELS[item.dictamen] || item.dictamen}: ${item.motivo_dictamen || ""}`}><Icon name={DICTAMEN_ICONS[item.dictamen] || "search"} /></span>
@@ -99,7 +106,7 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
       <div className="cl-bcard-meta">
         {item.latitude != null ? <a href={mapUrl(item)} target="_blank" rel="noreferrer" title="Ver ubicación en el mapa"><Icon name="map" /><span>Mapa</span></a> : <span title="Sin coordenadas"><Icon name="map" /><span>—</span></span>}
         <span title="Punto del levantamiento en QField"><Icon name="pin" />#{item.origen_ref}</span>
-        {item.asignado_nombre ? <span className={`cl-bcard-owner ${Number(item.asignado_a) === Number(userId) ? "is-mine" : ""}`.trim()} title={`Asignado a ${item.asignado_nombre}`}><Icon name="users" />{Number(item.asignado_a) === Number(userId) ? "Tuyo" : item.asignado_nombre.split(" ")[0]}</span> : null}
+        {item.asignado_nombre && !asignado ? <span className={`cl-bcard-owner ${Number(item.asignado_a) === Number(userId) ? "is-mine" : ""}`.trim()} title={`Asignado a ${item.asignado_nombre}`}><Icon name="users" />{Number(item.asignado_a) === Number(userId) ? "Tuyo" : item.asignado_nombre.split(" ")[0]}</span> : null}
       </div>
       <div className="cl-bcard-actions">
         {canProcess && !discarding ? <button type="button" className="cl-bcard-icon" title="Descartar candidato" aria-label="Descartar candidato" disabled={busy} onClick={() => setDiscarding(true)}><Icon name="archive" /></button> : null}
