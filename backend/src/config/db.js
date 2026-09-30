@@ -626,6 +626,15 @@ const ensureSchema = async () => {
       indexName: "idx_banco_clandestinos_asignado",
       columns: ["asignado_a", "estado"]
     });
+    // Clandestino = no aparece en Aguas: "probable" y las claves fuera de ambos
+    // padrones pasan a clandestino (idempotente; despues ya no quedan filas que coincidan).
+    // MySQL asigna de izquierda a derecha: el motivo va antes de cambiar el dictamen.
+    await admin.query(
+      `UPDATE banco_clandestinos SET
+         motivo_dictamen = IF(dictamen = 'probable', CONCAT('No aparece en Aguas; el lote sí (', aguas_clave, ')'), 'No aparece en Aguas ni en Alcaldía'),
+         dictamen = 'clandestino'
+       WHERE dictamen = 'probable' OR (dictamen = 'sin_determinar' AND clave_catastral <> '')`
+    );
     await ensureIndex(admin, {
       tableName: "auth_sessions",
       indexName: "idx_auth_sessions_user",

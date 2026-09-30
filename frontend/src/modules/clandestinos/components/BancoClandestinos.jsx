@@ -8,15 +8,14 @@ import { CountUp, DonutChart, MeterLegend, StackedBars } from "./ClCharts";
 import BarrioPicker from "./BarrioPicker";
 
 const DICTAMENES = [
-  ["clandestino", "Clandestino", "Solo aparece en Alcaldía", "warning"],
-  ["probable", "Probable", "El lote está en Aguas, la unidad no", "flag"],
-  ["sin_determinar", "Sin determinar", "Sin clave o fuera de ambos padrones", "search"],
+  ["clandestino", "Clandestino", "No aparece en Aguas", "warning"],
+  ["sin_determinar", "Sin determinar", "Sin clave para verificar", "search"],
   ["registrado", "Registrado en Aguas", "No es clandestino", "checkCircle"]
 ];
 const DICTAMEN_LABELS = Object.fromEntries(DICTAMENES.map(([key, label]) => [key, label]));
 const DICTAMEN_ICONS = Object.fromEntries(DICTAMENES.map(([key, , , icon]) => [key, icon]));
 // Colores de estado (reservados): rojo crítico, ámbar advertencia, gris neutro, verde bien.
-const DICTAMEN_COLORS = { clandestino: "#c2414b", probable: "#d08a1f", sin_determinar: "#8fa3b8", registrado: "#1f9463" };
+const DICTAMEN_COLORS = { clandestino: "#c2414b", sin_determinar: "#8fa3b8", registrado: "#1f9463" };
 const ESTADOS = [["pendiente", "Por revisar"], ["enviado", "Enviados a ficha"], ["descartado", "Descartados"], ["", "Todos"]];
 const ESTADO_LABELS = Object.fromEntries(ESTADOS.map(([key, label]) => [key, label]));
 const BANCO_FLOW = [["pendiente", "Por revisar", "inbox"], ["enviado", "Enviados a ficha", "send"], ["descartado", "Descartados", "archive"]];
@@ -59,7 +58,9 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
   const canRestore = descartado && canWork;
   const canSend = canProcess && item.dictamen !== "registrado";
   const needsClave = canSend && !item.clave_catastral;
-  const enAguas = item.aguas_clave || item.aguas_abonado;
+  // Solo "registrado" está en Aguas; si no, la cuenta guardada es de otra unidad del mismo lote.
+  const enAguas = item.dictamen === "registrado" && (item.aguas_clave || item.aguas_abonado);
+  const loteEnAguas = !enAguas && item.aguas_clave;
   return <article className={`cl-bcard is-${item.dictamen} ${descartado ? "is-descartado" : ""} ${discarding ? "is-discarding" : ""} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""}`.trim()}>
     <header>
       {selectable ? <SpringCheck checked={selected} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${item.clave_catastral || `punto ${item.origen_ref}`}`} /> : null}
@@ -78,9 +79,10 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
         <dt><Icon name="home" /><span>Alcaldía</span></dt>
         <dd>{item.alcaldia_propietario || "No aparece"}</dd>
       </div>
-      <div className={enAguas ? "is-found" : ""} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : "No aparece en Aguas"}>
+      <div className={enAguas ? "is-found" : ""} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : loteEnAguas ? `Esta unidad no aparece en Aguas. Otra unidad del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : "No aparece en Aguas"}>
         <dt><Icon name="water" /><span>Aguas</span></dt>
         <dd>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : "No aparece"}</dd>
+        {loteEnAguas ? <small>Lote sí: {item.aguas_clave}</small> : null}
       </div>
     </dl>
     {item.comentario_campo ? <p className="cl-bcard-note" title={item.comentario_campo}><Icon name="notes" /><span>{item.comentario_campo}</span></p> : null}

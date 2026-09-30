@@ -304,7 +304,6 @@
 .cl-bcard { --tone: #8fa3b8; --tone-soft: #eef2f6; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 11px 12px 10px; border: 1px solid color-mix(in srgb, var(--tone) 38%, #dbe6f0); border-radius: 12px; background: #fff; transition: box-shadow .16s ease, transform .16s ease; animation: cl-card-in .28s ease both; }
 .cl-bcard:hover { box-shadow: 0 8px 20px rgba(16,42,67,.08); }
 .cl-bcard.is-clandestino { --tone: #c2414b; --tone-soft: #fdeef0; }
-.cl-bcard.is-probable { --tone: #d08a1f; --tone-soft: #fdf4e4; }
 .cl-bcard.is-registrado { --tone: #1f9463; --tone-soft: #e6f6ee; }
 .cl-bcard.is-busy { opacity: .7; }
 .cl-bcard.is-skeleton { height: 168px; border-top-color: #e3ebf3; background: linear-gradient(90deg, #f4f8fb 25%, #eaf1f7 50%, #f4f8fb 75%) 0 0 / 200% 100%; animation: cl-shimmer 1.2s linear infinite; }
@@ -328,6 +327,7 @@
 .cl-bcard-padrones dt .app-icon { width: 12px; height: 12px; }
 .cl-bcard-padrones dd { overflow: hidden; margin: 0; color: #93a4b5; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .cl-bcard-padrones .is-found dd { color: var(--navy); font-weight: 700; }
+.cl-bcard-padrones small { overflow: hidden; color: var(--alert); font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .cl-bcard-note, .cl-bcard-warn { display: flex; align-items: flex-start; gap: 6px; color: var(--text); font-size: 12.5px; }
 .cl-bcard-note .app-icon, .cl-bcard-warn .app-icon { width: 14px; height: 14px; margin-top: 2px; color: var(--muted); }
 .cl-bcard-note > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

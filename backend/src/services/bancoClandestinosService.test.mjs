@@ -26,26 +26,29 @@ test("normaliza claves de campo a bloques de dos dígitos", () => {
   assert.equal(normalizarClaveBanco("1-2"), "");
 });
 
-test("solo en Alcaldía es clandestino; en Aguas no lo es", () => {
+test("fuera de Aguas es clandestino; en Aguas no lo es", () => {
   assert.equal(dictaminarCandidato({ clave_catastral: "89-13-15" }, index).dictamen, "clandestino");
   assert.equal(dictaminarCandidato({ clave_catastral: "89-13-15" }, index).alcaldia_propietario, "HILDA TORRES");
   assert.equal(dictaminarCandidato({ clave_catastral: "22-35-01" }, index).dictamen, "registrado");
   assert.equal(dictaminarCandidato({ clave_catastral: "22-35-01-01" }, index).dictamen, "registrado");
 });
 
-test("una unidad sin cuenta en un lote registrado es probable", () => {
+test("una unidad sin cuenta en un lote registrado es clandestina, con el lote como pista", () => {
   const result = dictaminarCandidato({ clave_catastral: "14-08-02-07" }, index);
-  assert.equal(result.dictamen, "probable");
+  assert.equal(result.dictamen, "clandestino");
   assert.equal(result.aguas_clave, "14-08-02-01");
+  assert.match(result.motivo_dictamen, /No aparece en Aguas; el lote 14-08-02 sí/);
 });
 
 test("el abonado registrado manda aunque la clave no exista", () => {
   assert.equal(dictaminarCandidato({ clave_catastral: "999-01-01", abonado_campo: "7317" }, index).dictamen, "registrado");
 });
 
-test("sin clave o con clave desconocida queda sin determinar", () => {
+test("sin clave queda sin determinar; una clave fuera de ambos padrones es clandestina", () => {
   assert.equal(dictaminarCandidato({ clave_catastral: "" }, index).dictamen, "sin_determinar");
-  assert.equal(dictaminarCandidato({ clave_catastral: "998-01-01" }, index).motivo_dictamen, "La clave no existe en ningún padrón");
+  const desconocida = dictaminarCandidato({ clave_catastral: "998-01-01" }, index);
+  assert.equal(desconocida.dictamen, "clandestino");
+  assert.equal(desconocida.motivo_dictamen, "No aparece en Aguas ni en Alcaldía");
 });
 
 test("lee CSV con BOM, comillas y comas dentro del texto", () => {
@@ -71,7 +74,8 @@ test("solo administración importa y la reimportación no duplica", async () => 
   assert.equal(second.actualizados, 3);
   const list = await listBancoClandestinos({ query: "Barrio prueba" });
   assert.equal(list.total, 3);
-  assert.equal(list.counts.sin_determinar, 3);
+  assert.equal(list.counts.clandestino, 2);
+  assert.equal(list.counts.sin_determinar, 1);
 });
 
 test("enviar a ficha crea la ficha y saca al candidato del banco", async () => {
@@ -129,13 +133,13 @@ test("reimportar no toca a los que ya se enviaron a ficha", async () => {
 test("resume los barrios con más candidatos y su desglose por dictamen", () => {
   const barrios = resumirBarrios([
     { barrio_colonia: "Barrio Cabañas", dictamen: "clandestino", total: 3 },
-    { barrio_colonia: "Barrio Cabañas", dictamen: "probable", total: "2" },
+    { barrio_colonia: "Barrio Cabañas", dictamen: "sin_determinar", total: "2" },
     { barrio_colonia: "Colonia Brasilia", dictamen: "registrado", total: 4 },
     { barrio_colonia: "", dictamen: "clandestino", total: 9 }
   ]);
   assert.deepEqual(barrios.map((item) => [item.barrio, item.total]), [["Barrio Cabañas", 5], ["Colonia Brasilia", 4]]);
   assert.equal(barrios[0].clandestino, 3);
-  assert.equal(barrios[0].probable, 2);
+  assert.equal(barrios[0].sin_determinar, 2);
   assert.equal(barrios[0].registrado, 0);
 });
 

@@ -7,7 +7,7 @@ import { DonutChart, MeterLegend, StackedBars } from "./ClCharts";
 // Etapas de la ficha en el orden del proceso.
 const ETAPAS = [["draft", "Borradores"], ["pending", "Por visitar"], ["visit", "En visita"], ["confirmed", "Aviso pendiente"], ["regularization", "En seguimiento"], ["regularized", "Cerradas"], ["discarded", "Descartadas"]];
 const ETAPAS_ACTIVAS = ["draft", "pending", "visit", "confirmed", "regularization"];
-const DICTAMENES = [["clandestino", "Clandestino", "warning", "#c2414b"], ["probable", "Probable", "flag", "#d08a1f"], ["sin_determinar", "Sin determinar", "search", "#8fa3b8"]];
+const DICTAMENES = [["clandestino", "Clandestino", "warning", "#c2414b"], ["sin_determinar", "Sin determinar", "search", "#8fa3b8"]];
 const REPORTES_POR_ATENDER = ["new", "review", "info_requested"];
 const FICHA_COLOR = "#1769e0";
 const TECNICO_COLOR = "#0f8a80";

@@ -1,7 +1,7 @@
 // Listado de campo del banco de clandestinos (carta horizontal). Solo lleva
 // candidatos por convertir en ficha: los que ya aparecen en Aguas nunca se imprimen.
 
-export const DICTAMENES_IMPRIMIBLES = ["clandestino", "probable", "sin_determinar"];
+export const DICTAMENES_IMPRIMIBLES = ["clandestino", "sin_determinar"];
 
 // Sin dictamen elegido se imprimen solo los clandestinos; si el filtro es
 // "registrado en Aguas" también se vuelve a clandestinos.
@@ -9,7 +9,6 @@ export const dictamenParaImprimir = (dictamen = "") => (DICTAMENES_IMPRIMIBLES.i
 
 const DICTAMEN = {
   clandestino: ["●", "Clandestino", "is-c"],
-  probable: ["▲", "Probable", "is-p"],
   sin_determinar: ["?", "Sin determinar", "is-s"]
 };
 
@@ -41,7 +40,7 @@ export const BANCO_PRINT_STYLES = `<style>
   .bl em { color: #7b8794; font-style: normal; }
   .bl .bl-prop { font-size: 9px; text-transform: uppercase; }
   .bl .bl-dic { font-weight: 700; white-space: nowrap; }
-  .bl .is-c { color: #9b202d; } .bl .is-p { color: #8a5a0b; } .bl .is-s { color: #52606d; }
+  .bl .is-c { color: #9b202d; } .bl .is-s { color: #52606d; }
   .bl .bl-serv { white-space: nowrap; }
   .bl .bl-serv i { display: inline-block; min-width: 12px; margin-right: 1px; padding: 0 2px; border: 1px solid #cbd5df; color: #b0bac5; font-size: 8.5px; font-style: normal; text-align: center; }
   .bl .bl-serv i.on { border-color: #102a43; color: #102a43; font-weight: 700; }
@@ -73,7 +72,8 @@ export const buildBancoListado = (items = [], filtros = {}, now = new Date()) =>
     const filas = lista.map((item) => {
       numero += 1;
       const [simbolo, etiqueta, clase] = DICTAMEN[item.dictamen] || ["?", item.dictamen, "is-s"];
-      const aguas = item.aguas_clave || (item.aguas_abonado ? `Ab. ${item.aguas_abonado}` : "—");
+      // Aquí nunca hay registrados: una clave de Aguas es de otra unidad del mismo lote.
+      const aguas = item.aguas_clave ? `No (lote: ${item.aguas_clave})` : "—";
       const servicios = [["agua", "A"], ["alcantarillado", "Al"], ["desechos", "D"]].map(([key, label]) => `<i class="${item[key] ? "on" : ""}">${label}</i>`).join("");
       const comentario = String(item.comentario_campo || "").trim();
       const hallazgo = comentario && comentario !== item.clave_catastral ? escapeHtml(comentario) : "<em>—</em>";

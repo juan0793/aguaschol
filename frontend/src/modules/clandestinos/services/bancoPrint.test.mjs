@@ -5,7 +5,8 @@ import { buildBancoListado, dictamenParaImprimir } from "./bancoPrint.js";
 test("sin dictamen o con registrados se imprimen solo clandestinos", () => {
   assert.equal(dictamenParaImprimir(""), "clandestino");
   assert.equal(dictamenParaImprimir("registrado"), "clandestino");
-  assert.equal(dictamenParaImprimir("probable"), "probable");
+  assert.equal(dictamenParaImprimir("sin_determinar"), "sin_determinar");
+  assert.equal(dictamenParaImprimir("probable"), "clandestino");
 });
 
 test("el listado agrupa por barrio, escapa texto y nunca lleva registrados en Aguas", () => {

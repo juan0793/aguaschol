@@ -7,10 +7,10 @@ import { likeValue } from "../utils/normalize.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 
 // Banco de clandestinos: puntos levantados en campo que todavia no son fichas.
-// Cada candidato se verifica contra el padron activo de Aguas y el de Alcaldia:
-// si esta en Aguas no es clandestino; si solo aparece en Alcaldia, si lo es.
+// Regla: clandestino es todo predio que no aparece en el padron de Aguas. Alcaldia
+// no decide nada, solo aporta el propietario. Sin clave no se puede verificar.
 
-export const BANCO_DICTAMENES = ["clandestino", "probable", "sin_determinar", "registrado"];
+export const BANCO_DICTAMENES = ["clandestino", "sin_determinar", "registrado"];
 export const BANCO_ESTADOS = ["pendiente", "enviado", "descartado"];
 const MAX_IMPORT_ROWS = 5000;
 
@@ -101,13 +101,12 @@ export const dictaminarCandidato = ({ clave_catastral = "", abonado_campo = "" }
     const registro = aguasExacta || aguasLote;
     return { dictamen: "registrado", motivo_dictamen: `Registrado en Aguas: ${registro.clave_catastral} · abonado ${clean(registro.abonado) || "sin número"}`, ...snapshot(registro, alcaldia) };
   }
-  if (aguasLote) {
-    return { dictamen: "probable", motivo_dictamen: `El lote ${baseDe(clave)} está en Aguas, pero esta unidad no`, ...snapshot(aguasLote, alcaldia) };
-  }
-  if (alcaldia) {
-    return { dictamen: "clandestino", motivo_dictamen: "Solo aparece en el padrón de Alcaldía", ...snapshot(null, alcaldia) };
-  }
-  return { dictamen: "sin_determinar", motivo_dictamen: "La clave no existe en ningún padrón", ...snapshot(null, null) };
+  // Una unidad sin cuenta dentro de un lote registrado también es clandestina; se guarda
+  // la cuenta vecina del lote como pista (la persona puede pagar con otra unidad).
+  const motivo = aguasLote
+    ? `No aparece en Aguas; el lote ${baseDe(clave)} sí (${aguasLote.clave_catastral})`
+    : alcaldia ? "No aparece en Aguas; sí en Alcaldía" : "No aparece en Aguas ni en Alcaldía";
+  return { dictamen: "clandestino", motivo_dictamen: motivo, ...snapshot(aguasLote, alcaldia) };
 };
 
 const currentIndex = ({ reloadAlcaldia = false } = {}) =>
@@ -242,7 +241,7 @@ const bancoFilter = ({ query, dictamen, estado, barrio, asignado }, skip = []) =
 
 const cleanFilters = ({ query = "", dictamen = "", estado = "pendiente", barrio = "", asignado = "" } = {}) =>
   ({ query: clean(query), dictamen: clean(dictamen), estado: clean(estado), barrio: clean(barrio), asignado: clean(asignado) });
-const ORDEN_BANCO = "ORDER BY FIELD(banco_clandestinos.dictamen, 'clandestino', 'probable', 'sin_determinar', 'registrado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral";
+const ORDEN_BANCO = "ORDER BY FIELD(banco_clandestinos.dictamen, 'clandestino', 'sin_determinar', 'registrado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral";
 
 // Carga pendiente por técnico (lo que les queda por convertir en ficha).
 const resumirAsignaciones = (rows) => rows
