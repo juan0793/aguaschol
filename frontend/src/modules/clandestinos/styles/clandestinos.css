@@ -592,12 +592,86 @@
 .cl-report-toolbar { grid-template-columns: minmax(0, 1fr); }
 
 /* Panel operativo: una superficie, indicadores en franja y detalle por filas. */
-.cl-module.is-summary { background: #fff; }
-.is-summary .cl-module-header { position: static; padding: 8px 0 20px; border: 0; border-bottom: 1px solid #dbe3eb; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
-.is-summary .cl-module-emblem { display: none; }
-.is-summary .cl-module-header nav { gap: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.is-summary .cl-module-header nav button { border-radius: 0; border-bottom: 2px solid transparent; box-shadow: none; }
-.is-summary .cl-module-header nav button.is-active { border-bottom-color: var(--primary); background: transparent; box-shadow: none; }
+.cl-module.is-flat { background: #fff; }
+.is-flat .cl-module-header { position: static; padding: 8px 0 20px; border: 0; border-bottom: 1px solid #dbe3eb; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.is-flat .cl-module-emblem { display: none; }
+.is-flat .cl-module-header nav { gap: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.is-flat .cl-module-header nav button { border-radius: 0; border-bottom: 2px solid transparent; box-shadow: none; }
+.is-flat .cl-module-header nav button.is-active { border-bottom-color: var(--primary); background: transparent; box-shadow: none; }
+.is-flat .cl-module-header nav button:hover:not(.is-active) { background: #f3f6f9; box-shadow: none; }
+/* Sin etiqueta encima del título (el nombre de la pestaña ya dice dónde se está). */
+.is-flat .cl-module-heading .cl-kicker { display: none; }
+
+/* Fichas en el mismo lenguaje del Resumen: sin tarjetas, filetes de 1px, cifras
+   en tinta tabulares y el color solo como dato (tono de etapa, plazo crítico). */
+.is-flat .cl-inbox { container-type: inline-size; --rs-ink: #16283b; --rs-rule: #dfe5ec; --rs-grid: #e8ecf1; --rs-hover: #f3f6f9; min-height: 0; padding: 4px 0 24px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.is-flat .cl-inbox .cl-inbox-head { grid-template-columns: minmax(0,1fr) auto; padding-bottom: 16px; border-bottom-color: var(--rs-rule); }
+.is-flat .cl-inbox-emblem { display: none; }
+.is-flat .cl-inbox-title h2 { color: var(--rs-ink); font-size: 20px; font-weight: 750; }
+
+/* Etapas: columnas iguales del proceso con su tono y su cifra; la marca azul
+   se desliza bajo la activa. Descartadas queda aparte, tras un filete. */
+.is-flat .cl-indicators { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, .9fr); gap: 0; margin-bottom: 20px; border-top: 1px solid var(--rs-rule); border-bottom: 1px solid var(--rs-rule); }
+.is-flat .cl-indicators button { display: grid; justify-items: start; gap: 6px; min-height: 76px; padding: 12px 12px 10px; font-size: 12px; text-align: left; }
+.is-flat .cl-indicators button:first-child { padding-left: 0; }
+.is-flat .cl-indicators button.is-aside { border-left: 1px solid var(--rs-rule); padding-left: 14px; }
+.is-flat .cl-indicators button:hover:not(.is-active) { background: var(--rs-hover); }
+.cl-stage-label { display: flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; overflow: hidden; color: #52677c; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.cl-stage-label > i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.is-flat .cl-indicators button strong { min-width: 0; padding: 0; border-radius: 0; background: transparent; color: var(--rs-ink); font-size: 24px; font-weight: 800; line-height: 1; text-align: left; }
+.is-flat .cl-indicators button:hover:not(.is-active) strong { background: transparent; }
+.is-flat .cl-indicators button.is-active strong { background: transparent; color: var(--primary); }
+.is-flat .cl-indicators button.is-active .cl-stage-label { color: var(--primary); }
+.is-flat .cl-indicators-mark { height: 3px; }
+
+/* Aviso de plazos: una línea entre filetes, no una tarjeta. */
+.is-flat .cl-deadline-banner { gap: 10px; padding: 10px 0; border: 0; border-top: 1px solid var(--rs-rule); border-bottom: 1px solid var(--rs-rule); border-radius: 0; background: transparent; box-shadow: none; }
+.is-flat .cl-deadline-banner::before, .is-flat .cl-deadline-banner::after { display: none; }
+.is-flat .cl-deadline-icon { width: auto; height: auto; flex: none; border-radius: 0; background: transparent; color: var(--danger); }
+.is-flat .cl-deadline-banner.is-filtered .cl-deadline-icon { background: transparent; }
+.is-flat .cl-deadline-copy small { display: none; }
+.is-flat .cl-deadline-copy strong { color: var(--danger); font-size: 13.5px; }
+.is-flat .cl-deadline-banner.is-filtered .cl-deadline-copy strong { color: var(--rs-ink); }
+.is-flat .cl-deadline-copy span { color: #52677c; font-size: 12.5px; }
+.is-flat .cl-deadline-action { justify-content: flex-start; min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: var(--primary); box-shadow: none; }
+.is-flat .cl-deadline-action:hover { text-decoration: underline; text-underline-offset: 3px; transform: none; }
+
+/* Servicios: cifras sobre la rejilla, sin iconos de color de relleno. */
+.is-flat .cl-service-stats { margin-bottom: 18px; padding-bottom: 0; border-bottom: 0; }
+.is-flat .cl-service-stats-head h3 { color: var(--rs-ink); font-size: 15px; font-weight: 650; }
+.is-flat .cl-service-stats-grid { gap: 0; border-top: 1px solid var(--rs-rule); border-bottom: 1px solid var(--rs-rule); }
+.is-flat .cl-service-stat { padding: 10px 12px; border-left: 1px solid var(--rs-grid); }
+.is-flat .cl-service-stat:first-child { padding-left: 0; border-left: 0; }
+.is-flat .cl-service-stat dt { color: #52677c; font-weight: 650; }
+.is-flat .cl-service-stat dd { margin-left: 0; }
+.is-flat .cl-service-stat strong { color: var(--rs-ink); font-size: 22px; font-weight: 800; }
+
+/* Tabla: filetes horizontales, cabecera sin fondo, fila crítica marcada por su plazo. */
+.is-flat .cl-inbox .cl-bulk-actions { margin-bottom: 10px; }
+.is-flat .cl-table-wrap { border: 0; border-top: 1px solid var(--rs-rule); border-radius: 0; }
+.is-flat .cl-table th { padding: 10px 12px; border-bottom: 1px solid var(--rs-rule); background: transparent; color: #52677c; font-size: 12px; font-weight: 650; }
+.is-flat .cl-table td { border-bottom: 1px solid var(--rs-grid); }
+.is-flat .cl-table tbody tr:hover td { background: var(--rs-hover); }
+.is-flat .cl-table tbody tr.is-critical { background: transparent; box-shadow: none; }
+.is-flat .cl-table tbody tr.is-critical .cl-deadline strong { color: var(--danger); }
+.is-flat .cl-pagination { padding-top: 12px; border-top: 1px solid var(--rs-rule); }
+/* Plazo como texto con color de dato, no como cajita; la fila abre con una flecha sin marco. */
+.is-flat .cl-table .cl-deadline, .is-flat .cl-table .cl-deadline[class*="is-"] { padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.is-flat .cl-table .cl-deadline strong { font-size: 12.5px; }
+.is-flat .cl-table .cl-deadline.is-overdue strong { color: var(--danger); }
+.is-flat .cl-table .cl-deadline.is-due strong, .is-flat .cl-table .cl-deadline.is-warning strong { color: #986211; }
+.is-flat .cl-table .cl-deadline small { color: #52677c; font-size: 11px; }
+.is-flat .cl-table .cl-icon-button { border-color: transparent; background: transparent; color: #52677c; }
+.is-flat .cl-table tr:hover .cl-icon-button { color: var(--primary); }
+@container (max-width: 1040px) { .is-flat .cl-indicators { grid-template-columns: repeat(4, minmax(0, 1fr)); } .is-flat .cl-indicators button:nth-child(4n + 1) { padding-left: 0; } .is-flat .cl-indicators button.is-aside { border-left: 0; padding-left: 12px; } .is-flat .cl-indicators button:nth-child(n + 5) { border-top: 1px solid var(--rs-grid); } }
+@media (max-width: 600px) {
+  .is-flat .cl-indicators { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .is-flat .cl-indicators button { min-height: 64px; padding: 10px 10px 8px 0; }
+  .is-flat .cl-indicators button.is-aside { padding-left: 0; }
+  .is-flat .cl-indicators button:nth-child(n + 3) { border-top: 1px solid var(--rs-grid); }
+  .is-flat .cl-indicators button strong { font-size: 20px; }
+  .is-flat .cl-service-stat { padding-left: 0; border-left: 0; }
+}
 .cl-resumen { --summary-line: #dbe3eb; --summary-muted: #52677c; min-height: 0; padding: 4px 0 24px; background: #fff; }
 .cl-resumen-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .cl-resumen-head h2 { margin: 0 0 4px; color: var(--navy); font-size: 16px; font-weight: 700; }

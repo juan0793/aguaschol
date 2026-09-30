@@ -3,12 +3,12 @@ import { Icon } from "../../../components/Icon";
 import { getRecordDeadlineMeta } from "../../../utils/records";
 import LiveNumber from "../../../components/micro/LiveNumber";
 import { StackedBars } from "./ClCharts";
+import { ETAPA_TONOS } from "../etapas";
 
-// Etapas de la ficha en el orden del proceso, con su tono en la franja del proceso:
-// un solo azul que se oscurece al avanzar; el banco en gris (aún no es ficha) y el cierre en verde.
-const ETAPAS = [["draft", "Borradores", "#c9dbf3"], ["pending", "Por visitar", "#8db6e6"], ["visit", "En visita", "#4f8bd8"], ["confirmed", "Aviso pendiente", "#1465d9"], ["regularization", "En seguimiento", "#0b3f73"], ["regularized", "Cerradas", "#18a689"]];
+// Etapas de la ficha en el orden del proceso, con su tono en la franja del proceso (ver etapas.js).
+const ETAPAS = [["draft", "Borradores"], ["pending", "Por visitar"], ["visit", "En visita"], ["confirmed", "Aviso pendiente"], ["regularization", "En seguimiento"], ["regularized", "Cerradas"]].map(([key, label]) => [key, label, ETAPA_TONOS[key]]);
 const ETAPA_LABEL = Object.fromEntries([...ETAPAS, ["discarded", "Descartada"]].map(([key, label]) => [key, label]));
-const BANCO_TONO = "#b6c3d1";
+const BANCO_TONO = ETAPA_TONOS.banco;
 // Reportes que todavía piden algo de la oficina, en el orden en que se atienden.
 const REPORTES_POR_ATENDER = [["new", "Nuevos"], ["review", "En revisión"], ["info_requested", "Falta información"]];
 const PLAZO_ORDEN = { overdue: 0, due: 1, warning: 2 };

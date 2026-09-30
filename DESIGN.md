@@ -174,6 +174,9 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
 - El avance por persona va en una barra apilada: hecho en azul, descartado en gris y pendiente como pista clara. A la derecha van el porcentaje y los pendientes.
 - Las columnas dependen del ancho del resumen (container queries), no de la ventana: 7 etapas desde unos 1040px, 4 por debajo y una lista densa en teléfono.
 - No van etiquetas encima de los títulos ni tracking negativo.
+- La bandeja de Fichas usa el mismo lenguaje (clase `is-flat` del módulo, igual que el Resumen):
+  - Las pestañas de etapa son columnas iguales con el tono de la etapa (`frontend/src/modules/clandestinos/etapas.js`) y su cifra; Descartadas va aparte, tras un filete.
+  - El aviso de plazos es una línea entre filetes y el plazo de cada fila es texto con color de dato, no una cajita.
 
 ### Busqueda de clave
 
