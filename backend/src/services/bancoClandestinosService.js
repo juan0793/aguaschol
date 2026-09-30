@@ -638,7 +638,15 @@ const marcarProcesado = async (id, { estado, inmueble_id = null, motivo_descarte
   );
 };
 
-const fichaDesdeCandidato = (candidato, clave) => {
+// Quién levantó la ficha ("Responsable" y "Levantamiento de datos" en la ficha técnica):
+// el técnico que la manda a ficha. Si la manda administración y el candidato estaba
+// asignado, cuenta el técnico asignado, que es quien hizo el trabajo de campo.
+export const responsableDeFicha = (candidato, user) => {
+  if (user?.role === "admin" && clean(candidato?.asignado_nombre)) return clean(candidato.asignado_nombre).slice(0, 180);
+  return clean(user?.full_name || user?.username).slice(0, 180);
+};
+
+const fichaDesdeCandidato = (candidato, clave, responsable = "") => {
   const hallazgos = [
     candidato.comentario_campo && `Hallazgo de campo: ${candidato.comentario_campo}`,
     candidato.lote_baldio && "Marcado como lote baldío en campo.",
@@ -659,7 +667,8 @@ const fichaDesdeCandidato = (candidato, clave) => {
     conexion_agua: candidato.agua ? "Si" : "No",
     conexion_alcantarillado: candidato.alcantarillado ? "Si" : "No",
     recoleccion_desechos: candidato.desechos ? "Si" : "No",
-    uso_suelo: candidato.lote_baldio ? "Lote baldío" : ""
+    uso_suelo: candidato.lote_baldio ? "Lote baldío" : "",
+    levantamiento_datos: responsable
   };
 };
 
@@ -680,14 +689,20 @@ export const enviarCandidatoAFicha = async (id, { clave_catastral = "" } = {}, u
   }
   const actualizado = { ...candidato, ...verificacion };
 
+  const responsable = responsableDeFicha(candidato, user);
   const existente = await getByClave(clave);
   if (existente) {
+    // La ficha ya existía: si nadie figura como responsable, queda quien la trabajó desde el banco.
+    if (responsable && !clean(existente.levantamiento_datos)) {
+      if (env.useMemoryDb) existente.levantamiento_datos = responsable;
+      else await getPool().query("UPDATE inmuebles_clandestinos SET levantamiento_datos = ? WHERE id = ? AND levantamiento_datos = ''", [responsable, existente.id]);
+    }
     await marcarProcesado(id, { estado: "enviado", inmueble_id: existente.id, clave_catastral: clave }, user);
     return { candidato: await getCandidato(id), ficha: existente, ficha_existente: true };
   }
   let ficha;
   try {
-    ficha = await createInmueble(fichaDesdeCandidato(actualizado, clave), { actorUserId: user?.id });
+    ficha = await createInmueble(fichaDesdeCandidato(actualizado, clave, responsable), { actorUserId: user?.id });
   } catch (error) {
     if (error.status === 409 || error.code === "ER_DUP_ENTRY") throw fail(`Ya existe una ficha archivada con la clave ${clave}. Restáurala desde archivados.`, 409);
     throw error;

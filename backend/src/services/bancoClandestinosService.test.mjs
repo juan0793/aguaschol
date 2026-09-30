@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { asignarCandidatos, buildPadronIndex, resumirAsignaciones, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
+import { asignarCandidatos, buildPadronIndex, resumirAsignaciones, responsableDeFicha, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
 import { createInmueble, getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
@@ -88,6 +88,8 @@ test("enviar a ficha crea la ficha y saca al candidato del banco", async () => {
   const ficha = await getByClave("997-01-01");
   assert.equal(ficha.conexion_agua, "Si");
   assert.match(ficha.comentarios, /Casa sin cuenta/);
+  // Quien la mandó a ficha queda como responsable del levantamiento.
+  assert.equal(ficha.levantamiento_datos, "Técnico");
   assert.equal((await listBancoClandestinos({ query: "Casa sin cuenta" })).total, 0);
   await assert.rejects(() => enviarCandidatoAFicha(items[0].id, {}, tecnico), (error) => error.status === 409);
 });
@@ -98,6 +100,13 @@ test("sin clave pide escribirla; con la clave del técnico sí se envía", async
   const result = await enviarCandidatoAFicha(items[0].id, { clave_catastral: "997 1 2" }, tecnico);
   assert.equal(result.ficha.clave_catastral, "997-01-02");
   assert.equal(result.candidato.clave_catastral, "997-01-02");
+});
+
+test("responsable de la ficha: el técnico que la manda; si es administración, el asignado", () => {
+  assert.equal(responsableDeFicha({ asignado_nombre: "Sindy" }, tecnico), "Técnico");
+  assert.equal(responsableDeFicha({ asignado_nombre: "Sindy" }, admin), "Sindy");
+  assert.equal(responsableDeFicha({ asignado_nombre: "" }, admin), "Administración");
+  assert.equal(responsableDeFicha({}, { username: "elmer" }), "elmer");
 });
 
 test("una clave que ya tiene ficha se vincula sin crear otra", async () => {

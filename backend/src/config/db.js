@@ -632,6 +632,18 @@ const ensureSchema = async () => {
       indexName: "idx_banco_clandestinos_asignado",
       columns: ["asignado_a", "estado"]
     });
+    // Fichas que salieron del banco sin "Levantamiento de datos": queda quien la mandó a
+    // ficha (o el técnico asignado si la mandó administración). Solo llena las vacías.
+    await admin.query(
+      `UPDATE inmuebles_clandestinos
+         JOIN banco_clandestinos ON banco_clandestinos.inmueble_id = inmuebles_clandestinos.id AND banco_clandestinos.estado = 'enviado'
+         LEFT JOIN app_users AS procesador ON procesador.id = banco_clandestinos.procesado_por
+         LEFT JOIN app_users AS asignado ON asignado.id = banco_clandestinos.asignado_a
+       SET inmuebles_clandestinos.levantamiento_datos = LEFT(COALESCE(
+             CASE WHEN procesador.role = 'admin' AND asignado.id IS NOT NULL THEN COALESCE(NULLIF(asignado.full_name, ''), asignado.username) END,
+             NULLIF(procesador.full_name, ''), procesador.username), 180)
+       WHERE inmuebles_clandestinos.levantamiento_datos = '' AND banco_clandestinos.procesado_por IS NOT NULL`
+    );
     // Clandestino = no aparece en Aguas: "probable" y las claves fuera de ambos
     // padrones pasan a clandestino (idempotente; despues ya no quedan filas que coincidan).
     // MySQL asigna de izquierda a derecha: el motivo va antes de cambiar el dictamen.
