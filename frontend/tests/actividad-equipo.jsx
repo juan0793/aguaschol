@@ -5,16 +5,24 @@ import '../src/styles.css';
 // Datos simulados solo para QA local (forma real, nombres inventados); no se escriben en el servidor.
 const params = new URLSearchParams(location.search);
 const hace = (min) => new Date(Date.now() - min * 60000).toISOString();
-const ev = (id, actor_id, actor_name, action, categoria, summary, min, final = false, enlace = null) => ({id, actor_id, actor_name, action, categoria, summary, created_at: hace(min), final, enlace});
+const ev = (id, actor_id, actor_name, action, categoria, summary, min, final = false, enlace = null, entity_type = '', entity_id = '') => ({id, actor_id, actor_name, action, categoria, summary, created_at: hace(min), final, enlace, entity_type, entity_id});
+const ficha = (id) => ({view: 'records', fichaId: id});
 const ITEMS = params.has('empty') ? [] : [
-  ev(40, 5, 'Sindy', 'banco_clandestinos.sent_to_ficha', 'fichas', 'Banco → ficha 14-08-02-07 (clandestino)', 3, true, {view: 'records', fichaId: 1823}),
-  ev(39, 9, 'diego', 'inspeccion.gps_registered', 'inspecciones', 'GPS registrado en la inspección INS-0142', 11),
-  ev(38, 5, 'Sindy', 'banco_clandestinos.discarded', 'fichas', 'Candidato 14-08-02-10 descartado', 25, true, {view: 'banco'}),
-  ev(37, 7, 'Melisa maradiaga', 'DOCUMENTO_REENTREGADO', 'entregas', 'Aviso de cobro entregado en Barrio El Centro', 48, true, {view: 'entregas', loteId: 12}),
-  ev(36, 9, 'diego', 'inmueble.updated', 'fichas', 'Ficha 10-22-23 actualizada: teléfono y observaciones del inmueble con texto largo de prueba', 70, false, {view: 'records', fichaId: 1801}),
-  ev(35, 11, 'oscar ivan alvarez', 'map_point.created', 'campo', 'Punto GPS creado en Colonia Brasilia', 95),
-  ev(34, 9, 'diego', 'inspeccion.finalized', 'inspecciones', 'Inspección INS-0139 finalizada', 60 * 20, true, {view: 'inspecciones'}),
-  ev(33, 7, 'Melisa maradiaga', 'LOTE_CERRADO', 'entregas', 'Lote #11 cerrado', 60 * 22, true, {view: 'entregas', loteId: 11}),
+  ev(52, 9, 'diego', 'banco_clandestinos.sent_to_ficha', 'fichas', 'Banco → ficha 14-04-08-41 (clandestino)', 2, true, ficha(1830), 'inmueble', '1830'),
+  ev(51, 9, 'diego', 'inmueble.created', 'fichas', 'Ficha 14-04-08-41 creada', 2, false, ficha(1830), 'inmueble', '1830'),
+  ev(50, 12, 'elmer', 'inmueble.internal_notes_updated', 'fichas', 'Observaciones internas actualizadas en 42-46-02', 11, false, ficha(1829), 'inmueble', '1829'),
+  ev(49, 12, 'elmer', 'inmueble.updated', 'fichas', 'Ficha 42-46-02 actualizada', 11, false, ficha(1829), 'inmueble', '1829'),
+  ev(48, 12, 'elmer', 'banco_clandestinos.sent_to_ficha', 'fichas', 'Banco → ficha 42-46-02 (clandestino)', 12, true, ficha(1829), 'inmueble', '1829'),
+  ev(47, 12, 'elmer', 'inmueble.created', 'fichas', 'Ficha 42-46-02 creada', 12, false, ficha(1829), 'inmueble', '1829'),
+  ev(46, 12, 'elmer', 'banco_clandestinos.verified', 'fichas', 'Banco verificado contra padrones: 372 candidatos, 0 cambiaron, 0 descartados por aparecer en Aguas', 14, false, {view: 'banco'}, 'banco_clandestinos', '0'),
+  ev(45, 11, 'oscar ivan alvarez', 'inmueble.internal_notes_updated', 'fichas', 'Observaciones internas actualizadas en 42-60-03', 17, false, ficha(1828), 'inmueble', '1828'),
+  ev(44, 11, 'oscar ivan alvarez', 'inmueble.updated', 'fichas', 'Ficha 42-60-03 actualizada', 17, false, ficha(1828), 'inmueble', '1828'),
+  ev(43, 11, 'oscar ivan alvarez', 'banco_clandestinos.sent_to_ficha', 'fichas', 'Banco → ficha 42-60-03 (clandestino)', 18, true, ficha(1828), 'inmueble', '1828'),
+  ev(42, 11, 'oscar ivan alvarez', 'inmueble.created', 'fichas', 'Ficha 42-60-03 creada', 18, false, ficha(1828), 'inmueble', '1828'),
+  ev(41, 9, 'diego', 'inspeccion.gps_registered', 'inspecciones', 'GPS registrado en la inspección INS-0142', 40, false, {view: 'inspecciones'}, 'inspeccion', '142'),
+  ev(40, 7, 'Melisa maradiaga', 'DOCUMENTO_REENTREGADO', 'entregas', 'Aviso de cobro entregado en Barrio El Centro', 48, true, {view: 'entregas', loteId: 12}, 'entrega', '311'),
+  ev(34, 9, 'diego', 'inspeccion.finalized', 'inspecciones', 'Inspección INS-0139 finalizada', 60 * 20, true, {view: 'inspecciones'}, 'inspeccion', '139'),
+  ev(33, 7, 'Melisa maradiaga', 'LOTE_CERRADO', 'entregas', 'Lote #11 cerrado', 60 * 22, true, {view: 'entregas', loteId: 11}, 'entrega', '11'),
   ev(32, 11, 'oscar ivan alvarez', 'report.generated', 'otros', 'Reporte de mora generado', 60 * 50)
 ];
 const TECNICOS = params.has('empty') ? [] : [

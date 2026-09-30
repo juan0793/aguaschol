@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../../utils/profileWebSocket.js";
+import { agruparActividad, resumenTrabajo } from "./agruparActividad";
 import "./actividad.css";
 
 // Actividad del equipo: lo que hicieron en el sistema los técnicos y operadores
@@ -109,6 +110,8 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
     return () => { manager.off("team_activity", entra); releaseSharedProfileWebSocketManager(sessionToken); };
   }, [sessionToken]);
 
+  // Por día y, dentro de cada día, por trabajo: lo que una persona hizo sobre el mismo
+  // registro en pocos minutos va en una línea que se despliega con cada acción.
   const porDia = useMemo(() => {
     const grupos = new Map();
     for (const item of data.items) {
@@ -116,8 +119,11 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
       if (!grupos.has(dia)) grupos.set(dia, []);
       grupos.get(dia).push(item);
     }
-    return [...grupos.entries()];
+    return [...grupos.entries()].map(([dia, items]) => ({ dia, acciones: items.length, trabajos: agruparActividad(items) }));
   }, [data.items]);
+  const [desplegados, setDesplegados] = useState(() => new Set());
+  const alternar = (id) => setDesplegados((actual) => { const next = new Set(actual); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const rangoHora = (trabajo) => (trabajo.items.length > 1 && hora(trabajo.desde) !== hora(trabajo.hasta) ? `${hora(trabajo.desde).replace(/\s?[ap]\.\s?m\./i, "")}–${hora(trabajo.hasta)}` : hora(trabajo.hasta));
   const areas = data.categorias || AREAS_POR_DEFECTO;
   const personaActiva = data.tecnicos.find((item) => String(item.id) === String(actor));
   const totalPeriodo = data.tecnicos.reduce((sum, item) => sum + item.total, 0);
@@ -165,16 +171,30 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
 
       <section className="ta-feed" aria-labelledby="ta-feed-title" aria-busy={loading}>
         <header><h2 id="ta-feed-title">{personaActiva ? `Lo que hizo ${personaActiva.nombre}` : "Lo que hizo el equipo"}</h2><p>Lo más reciente primero. Lo marcado con <Icon name="checkCircle" /> cierra un trabajo.</p></header>
-        {porDia.length ? porDia.map(([dia, items]) => <div className="ta-day" key={dia}>
-          <h3>{tituloDia(dia)}<span>{items.length}</span></h3>
+        {porDia.length ? porDia.map(({ dia, acciones, trabajos }) => <div className="ta-day" key={dia}>
+          <h3>{tituloDia(dia)}<span>{trabajos.length} {trabajos.length === 1 ? "trabajo" : "trabajos"} · {acciones} {acciones === 1 ? "acción" : "acciones"}</span></h3>
           <ol>
-            {items.map((item) => <li key={item.id} className={`${item.final ? "is-final" : ""} ${recientes.has(item.id) ? "is-new" : ""}`.trim()}>
-              <time dateTime={item.created_at}>{hora(item.created_at)}</time>
-              <span className="ta-who">{item.actor_name}</span>
-              <span className="ta-what">{item.final ? <Icon name="checkCircle" /> : null}<span>{item.summary}</span></span>
-              <span className="ta-area">{areas[item.categoria] || "Otros"}</span>
-              {item.enlace ? <button type="button" className="ta-open" onClick={() => onOpen?.(item)}>Abrir<Icon name="arrowRight" /></button> : <span />}
-            </li>)}
+            {trabajos.map((trabajo) => {
+              const varias = trabajo.items.length > 1;
+              const abierto = desplegados.has(trabajo.id);
+              const nuevo = trabajo.items.some((item) => recientes.has(item.id));
+              return <li key={trabajo.id} className={`${trabajo.final ? "is-final" : ""} ${varias ? "is-group" : ""} ${nuevo ? "is-new" : ""} ${abierto ? "is-open" : ""}`.trim()}>
+                <div className="ta-row">
+                  <time dateTime={trabajo.hasta}>{rangoHora(trabajo)}</time>
+                  <span className="ta-who">{trabajo.actor_name}</span>
+                  <span className="ta-what">
+                    {trabajo.final ? <Icon name="checkCircle" /> : null}
+                    <span>{varias && trabajo.titulo ? <b>{trabajo.titulo}</b> : null}{varias && trabajo.titulo ? " · " : null}{resumenTrabajo(trabajo)}</span>
+                    {varias ? <button type="button" className="ta-count" aria-expanded={abierto} onClick={() => alternar(trabajo.id)} title={abierto ? "Ocultar el detalle" : "Ver cada acción"}>{trabajo.items.length} acciones<Icon name="chevronDown" /></button> : null}
+                  </span>
+                  <span className="ta-area">{areas[trabajo.categoria] || "Otros"}</span>
+                  {trabajo.enlace ? <button type="button" className="ta-open" onClick={() => onOpen?.({ ...trabajo.items[0], enlace: trabajo.enlace })}>Abrir<Icon name="arrowRight" /></button> : <span />}
+                </div>
+                {varias && abierto ? <ol className="ta-steps">
+                  {[...trabajo.items].reverse().map((item) => <li key={item.id} className={item.final ? "is-final" : ""}><time dateTime={item.created_at}>{hora(item.created_at)}</time><span>{item.summary}</span></li>)}
+                </ol> : null}
+              </li>;
+            })}
           </ol>
         </div>) : <p className="ta-empty">{loading ? "Cargando…" : "No hay actividad con estos filtros."}</p>}
         {data.has_more ? <button type="button" className="ta-more" disabled={masLoading} onClick={cargarMas}>{masLoading ? "Cargando…" : "Cargar más"}</button> : null}

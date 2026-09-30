@@ -61,14 +61,29 @@
 .ta-day h3 { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--ta-rule); color: var(--ta-ink); font-size: 13px; font-weight: 700; }
 .ta-day h3 span { color: var(--ta-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ta-day ol { margin: 0; padding: 0; list-style: none; }
-.ta-day li { display: grid; grid-template-columns: 74px minmax(90px, 150px) minmax(0, 1fr) auto 64px; gap: 12px; align-items: center; min-height: 40px; padding: 6px 0; border-bottom: 1px solid var(--ta-grid); font-size: 13px; transition: background-color .6s ease; }
-.ta-day li:hover { background: var(--ta-hover); }
-.ta-day li.is-new { background: #eef6f1; }
+.ta-day > ol > li { border-bottom: 1px solid var(--ta-grid); font-size: 13px; transition: background-color .6s ease; }
+.ta-day > ol > li:hover { background: var(--ta-hover); }
+.ta-day > ol > li.is-new { background: #eef6f1; }
+.ta-row { display: grid; grid-template-columns: 96px minmax(90px, 150px) minmax(0, 1fr) auto 64px; gap: 12px; align-items: center; min-height: 40px; padding: 6px 0; }
 .ta-day time { color: var(--ta-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ta-who { overflow: hidden; color: var(--ta-ink); font-weight: 650; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
 .ta-what { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .ta-what > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ta-day li.is-final .ta-what { color: var(--ta-done); font-weight: 650; }
+.ta-day li.is-final:not(.is-group) > .ta-row .ta-what { color: var(--ta-done); font-weight: 650; }
+.ta-day li.is-final > .ta-row .ta-what > .app-icon { color: var(--ta-done); }
+/* Trabajo agrupado: la clave en negrita y las acciones en hasta dos líneas. */
+.ta-day li.is-group .ta-what > span { display: -webkit-box; overflow: hidden; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.ta-what b { color: var(--ta-ink); font-weight: 750; font-variant-numeric: tabular-nums; }
+.ta-day li.is-final .ta-what b { color: var(--ta-done); }
+/* "3 acciones": despliega cada acción del trabajo. */
+.ta-count { display: inline-flex; flex: none; align-items: center; gap: 3px; min-height: 24px; padding: 0 7px; border: 1px solid var(--ta-rule); border-radius: 999px; background: #fff; color: var(--ta-muted); font-size: 11.5px; font-weight: 650; cursor: pointer; }
+.ta-count:hover, .ta-count[aria-expanded="true"] { border-color: #bcd3ee; color: var(--ta-blue); }
+.ta-count .app-icon { width: 13px; height: 13px; transition: transform .2s ease; }
+.ta-count[aria-expanded="true"] .app-icon { transform: rotate(180deg); }
+.ta-steps { margin: 0 0 8px 108px; padding: 0 0 0 12px; border-left: 2px solid var(--ta-rule); list-style: none; }
+.ta-steps li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px; padding: 3px 0; color: #243b53; font-size: 12.5px; }
+.ta-steps li.is-final { color: var(--ta-done); font-weight: 650; }
+.ta-steps time { color: var(--ta-muted); font-size: 12px; }
 .ta-area { color: var(--ta-muted); font-size: 11.5px; white-space: nowrap; }
 .ta-open { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 0; border: 0; background: none; color: var(--ta-blue); font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .ta-open:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -83,8 +98,10 @@
   .ta-feed { margin-top: 24px; padding: 20px 0 0; border-top: 1px solid var(--ta-rule); border-left: 0; }
 }
 @container (max-width: 560px) {
-  .ta-day li { grid-template-columns: 70px minmax(0, 1fr) auto; grid-template-areas: "hora quien abrir" "hora que que"; gap: 2px 10px; }
-  .ta-day time { grid-area: hora; align-self: start; padding-top: 1px; }
+  .ta-row { grid-template-columns: 70px minmax(0, 1fr) auto; grid-template-areas: "hora quien abrir" "hora que que"; gap: 2px 10px; }
+  .ta-row time { white-space: normal; }
+  .ta-steps { margin-left: 16px; }
+  .ta-row > time { grid-area: hora; align-self: start; padding-top: 1px; }
   .ta-who { grid-area: quien; }
   .ta-what { grid-area: que; align-items: flex-start; }
   .ta-what > span { white-space: normal; }
@@ -95,4 +112,4 @@
   .ta-select { flex: 1 1 100%; }
 }
 @media (max-width: 600px) { .ta { padding-inline: 12px; } }
-@media (prefers-reduced-motion: reduce) { .ta-live i { animation: none; } .ta-day li { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ta-live i { animation: none; } .ta-day > ol > li, .ta-count .app-icon { transition: none; } }

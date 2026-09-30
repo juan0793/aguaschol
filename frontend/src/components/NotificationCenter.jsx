@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { NOTIFICATION_SOUND_MUTED_STORAGE_KEY } from "../constants/storageKeys.js";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../utils/profileWebSocket.js";
 import { playNotificationSound, primeNotificationSound } from "../utils/notificationSound.js";
+import { agruparActividad, resumenTrabajo } from "../modules/actividad/agruparActividad.js";
 
 export function NotificationCenter({
   apiFetch,
@@ -42,7 +43,7 @@ export function NotificationCenter({
 
   // Actividad del equipo: lo último y cuántas no ha visto este administrador.
   const loadTeam = async () => {
-    const response = await apiFetch("/admin/team-activity?resumen=0&limit=8");
+    const response = await apiFetch("/admin/team-activity?resumen=0&limit=30");
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || "No se pudo cargar la actividad del equipo.");
     setTeam(data.items || []);
@@ -149,7 +150,7 @@ export function NotificationCenter({
     // Algo que hizo el equipo: siempre a la campana; sonido y aviso solo si cierra un trabajo.
     const handleTeamActivity = (activity) => {
       if (!isAdmin || !activity?.id) return;
-      setTeam((prev) => (prev.some((item) => item.id === activity.id) ? prev : [activity, ...prev].slice(0, 20)));
+      setTeam((prev) => (prev.some((item) => item.id === activity.id) ? prev : [activity, ...prev].slice(0, 40)));
       if (!(isOpenRef.current && tabRef.current === "equipo")) setTeamUnread((current) => current + 1);
       if (activity.final) {
         playNotificationSound({ muted: soundMutedRef.current });
@@ -301,12 +302,13 @@ export function NotificationCenter({
             </div> : null}
 
             {isAdmin && tab === "equipo" ? <div className="notification-dropdown-list" role="tabpanel" aria-label="Actividad del equipo">
-              {team.length ? team.slice(0, 8).map((activity) => <button type="button" key={activity.id} className={`notification-item notification-team-item ${activity.final ? "is-final" : ""}`} onClick={() => { onTeamActivitySelect?.(activity); setIsOpen(false); }}>
-                <span className="notification-team-mark" aria-hidden="true">{activity.final ? <CheckCircle2 size={15} /> : <i />}</span>
+              {/* Agrupado por trabajo: lo que una persona hizo sobre el mismo registro en pocos minutos. */}
+              {team.length ? agruparActividad(team).slice(0, 8).map((trabajo) => <button type="button" key={trabajo.id} className={`notification-item notification-team-item ${trabajo.final ? "is-final" : ""}`} onClick={() => { onTeamActivitySelect?.({ ...trabajo.items[0], enlace: trabajo.enlace }); setIsOpen(false); }}>
+                <span className="notification-team-mark" aria-hidden="true">{trabajo.final ? <CheckCircle2 size={15} /> : <i />}</span>
                 <span className="notification-item-content">
-                  <span className="notification-item-header"><strong className="notification-sender">{activity.actor_name}</strong>{esNueva(activity) ? <span className="notification-unread-dot" title="Nueva" /> : null}</span>
-                  <span className="notification-item-body">{activity.final ? <em>Finalizó · </em> : null}{activity.summary}</span>
-                  <small className="notification-item-time">{formatRelativeTime(activity.created_at)}</small>
+                  <span className="notification-item-header"><strong className="notification-sender">{trabajo.actor_name}</strong>{trabajo.items.some(esNueva) ? <span className="notification-unread-dot" title="Nueva" /> : null}</span>
+                  <span className="notification-item-body">{trabajo.final ? <em>Finalizó · </em> : null}{trabajo.items.length > 1 && trabajo.titulo ? `${trabajo.titulo} · ` : ""}{resumenTrabajo(trabajo)}</span>
+                  <small className="notification-item-time">{formatRelativeTime(trabajo.hasta)}{trabajo.items.length > 1 ? ` · ${trabajo.items.length} acciones` : ""}</small>
                 </span>
               </button>) : <div className="notification-empty"><Users size={24} /><span>El equipo no ha registrado actividad reciente</span></div>}
             </div> : <div className="notification-dropdown-list">
