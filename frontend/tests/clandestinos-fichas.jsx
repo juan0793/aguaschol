@@ -5,6 +5,7 @@ import {Icon} from '../src/components/Icon';
 import '../src/styles.css';
 import '../src/modules/clandestinos/styles/clandestinos.css';
 // Datos simulados solo para QA local (forma real, nombres inventados); no se escriben en el servidor.
+const params = new URLSearchParams(location.search);
 const hace = (dias) => new Date(Date.now() - dias * 86400000).toISOString();
 const ficha = (id, clave, abonado, barrio, estado, dias, extra = {}) => ({id, clave_catastral: clave, abonado, barrio_colonia: barrio, estado_operativo: estado, created_at: hace(dias), levantamiento_datos: 'Técnico de prueba', ...extra});
 const TODAS = [
@@ -16,21 +17,35 @@ const TODAS = [
   ficha(6, '22-17-16', 'Abonado de prueba 6', 'Barrio Cabañas', 'regularized', 30, {printed_at: hace(20)})
 ];
 const COUNTS = {draft: 0, pending: 52, visit: 0, confirmed: 0, regularization: 1, regularized: 3, discarded: 0};
+// Ritmo simulado con la forma real del backend (series de 30 días, 16 semanas, 12 meses o años).
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const lunes = (d) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+const PATRON = [0, 3, 5, 2, 0, 0, 7, 4, 6, 1, 0, 8, 5, 3, 0, 0, 2, 6, 9, 4, 0, 0, 5, 7, 3, 1, 0, 4, 6, 5];
+const ritmoDe = (g) => {
+  const hoy = new Date();
+  const serie = g === 'semana' ? Array.from({length: 16}, (_, i) => { const d = lunes(hoy); d.setDate(d.getDate() - (15 - i) * 7); return {periodo: iso(d), total: [4, 9, 12, 7, 0, 15, 22, 18, 11, 6, 14, 20, 17, 9, 25, 18][i], etapas: {pending: 3}}; })
+    : g === 'mes' ? Array.from({length: 12}, (_, i) => { const d = new Date(hoy.getFullYear(), hoy.getMonth() - (11 - i), 1); return {periodo: iso(d).slice(0, 7), total: [0, 0, 0, 0, 2, 5, 9, 14, 31, 64, 0, 0].slice(0, 12)[(i + 2) % 12], etapas: {pending: 5}}; })
+    : g === 'anio' ? [{periodo: String(hoy.getFullYear() - 1), total: 12, etapas: {regularized: 12}}, {periodo: String(hoy.getFullYear()), total: 64, etapas: {pending: 60, regularized: 4}}]
+    : Array.from({length: 30}, (_, i) => { const d = new Date(hoy); d.setDate(d.getDate() - (29 - i)); return {periodo: iso(d), total: PATRON[i], etapas: PATRON[i] ? {pending: PATRON[i] - (i % 3 ? 0 : 1), ...(i % 3 ? {} : {regularized: 1})} : {}}; });
+  return {granularidad: g, hoy: iso(hoy), serie, promedio: 4.6, totales: {hoy: 5, semana: 18, mes: 41, anio: 64, total: 76}, barrios: [{barrio: 'Barrio El Estruendo', total: 38}, {barrio: 'Barrio El Centro', total: 17}, {barrio: 'Barrio Cabañas', total: 9}, {barrio: 'Colonia Brasilia', total: 6}, {barrio: 'Residencial Villas del Cortijo con nombre largo', total: 3}]};
+};
 function QA() {
   const [state, setState] = useState('');
   const [query, setQuery] = useState('');
   const [barrio, setBarrio] = useState('');
   const [selected, setSelected] = useState(new Map());
+  const [granularidad, setGranularidad] = useState('dia');
   // Simula la red: lo que se ve (shown) llega 300 ms después de lo pedido (state).
   const [shown, setShown] = useState('');
   useEffect(() => { const timer = setTimeout(() => setShown(state), 300); return () => clearTimeout(timer); }, [state]);
-  const items = TODAS.filter((item) => (!shown || item.estado_operativo === shown) && (!barrio || item.barrio_colonia === barrio) && (!query || item.clave_catastral.includes(query)));
+  // Como el servidor: de la ficha levantada más reciente a la más vieja.
+  const items = [...TODAS].sort((a, b) => b.created_at.localeCompare(a.created_at)).filter((item) => (!shown || item.estado_operativo === shown) && (!barrio || item.barrio_colonia === barrio) && (!query || item.clave_catastral.includes(query)));
   const noop = () => {};
-  const model = {items, counts: COUNTS, total: shown ? COUNTS[shown] : 56, page: 1, total_pages: 1, loading: false, refreshing: shown !== state, error: '', viewKey: shown, requestKey: state,
+  const model = {ritmo: params.has('sinritmo') ? null : ritmoDe(granularidad), granularidad, setGranularidad, items, counts: COUNTS, total: shown ? COUNTS[shown] : 56, page: 1, total_pages: 1, loading: false, refreshing: shown !== state, error: '', viewKey: shown, requestKey: state,
     service_stats: {total: 56, agua_potable: 41, aguas_residuales: 22, ambos: 19, solo_agua: 22, solo_aguas_residuales: 3, ninguno: 12},
     filters: {query, state, barrio, setQuery, setState, setBarrio, setPage: noop, clear: () => { setQuery(''); setState(''); setBarrio(''); }}};
   const toggle = (item) => setSelected((cur) => { const next = new Map(cur); const key = String(item.id); next.has(key) ? next.delete(key) : next.set(key, item); return next; });
-  return <main className="cl-module is-flat">
+  return <main className="cl-module is-flat-head is-flat">
     <header className="cl-module-header"><div className="cl-module-heading"><span className="cl-module-emblem" aria-hidden="true"><Icon name="records" /></span><div><span className="cl-kicker">Clandestinos</span><h1>Fichas clandestinas</h1><p>56 expedientes en seguimiento (QA con datos simulados)</p></div></div>
       <nav aria-label="Secciones">{[['resumen','Resumen','dashboard'],['fichas','Fichas','records'],['banco','Banco','inbox'],['reportes','Reportes técnicos','activity'],['impresiones','Impresiones','print']].map(([key,label,icon]) => <button type="button" key={key} className={key === 'fichas' ? 'is-active' : ''}><Icon name={icon} />{label}</button>)}</nav>
       <div className="cl-role"><Icon name="users" /><span>admin<small>admin</small></span></div></header>

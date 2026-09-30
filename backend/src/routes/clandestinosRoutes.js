@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { banco, bancoAssign, bancoDiscard, bancoFromAlcaldia, bancoRefs, bancoListado, bancoTecnicos, bancoUnassign, bancoImport, bancoRestore, bancoSend, bancoVerify, compareFichas, config, createReport, evidence, fichaInternalNotes, fichaState, fichas, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
+import { banco, bancoAssign, bancoDiscard, bancoFromAlcaldia, bancoRefs, bancoListado, bancoTecnicos, bancoUnassign, bancoImport, bancoRestore, bancoSend, bancoVerify, compareFichas, config, createReport, evidence, fichaInternalNotes, fichaState, fichas, fichasRitmo, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
 import { imageUpload } from "../middleware/upload.js";
 
 const router = Router();
 router.get("/config", config);
 router.get("/fichas", fichas);
+router.get("/fichas/ritmo", fichasRitmo);
 router.post("/fichas/compare-padrones", compareFichas);
 router.patch("/fichas/:id/state", fichaState);
 router.patch("/fichas/:id/internal-notes", fichaInternalNotes);

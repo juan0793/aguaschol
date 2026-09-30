@@ -123,7 +123,7 @@ export const listClandestinosFichas = async ({ query = "", state = "", barrio = 
     pool.query(`SELECT COALESCE(estado_operativo, 'pending') AS estado_operativo, COUNT(*) AS total FROM inmuebles_clandestinos WHERE ${searchWhere} GROUP BY COALESCE(estado_operativo, 'pending')`, searchParams),
     pool.query(`SELECT COUNT(*) AS total FROM inmuebles_clandestinos WHERE ${filteredWhere}`, filteredParams),
     pool.query(
-      `SELECT ${FICHA_LIST_FIELDS.join(", ")} FROM inmuebles_clandestinos WHERE ${filteredWhere} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT ${FICHA_LIST_FIELDS.join(", ")} FROM inmuebles_clandestinos WHERE ${filteredWhere} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
       [...filteredParams, safeLimit, (requestedPage - 1) * safeLimit]
     ),
     pool.query(
@@ -145,7 +145,7 @@ export const listClandestinosFichas = async ({ query = "", state = "", barrio = 
   const currentPage = Math.min(requestedPage, totalPages);
   if (currentPage !== requestedPage && total) {
     const [pageRows] = await pool.query(
-      `SELECT ${FICHA_LIST_FIELDS.join(", ")} FROM inmuebles_clandestinos WHERE ${filteredWhere} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT ${FICHA_LIST_FIELDS.join(", ")} FROM inmuebles_clandestinos WHERE ${filteredWhere} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
       [...filteredParams, safeLimit, (currentPage - 1) * safeLimit]
     );
     return {
@@ -165,6 +165,85 @@ export const listClandestinosFichas = async ({ query = "", state = "", barrio = 
     counts: Object.fromEntries(FICHA_STATES.map((key) => [key, Number(countRows.find((row) => (row.estado_operativo || "pending") === key)?.total || 0)])),
     service_stats
   };
+};
+
+// ---------------------------------------------------------------------------
+// Ritmo de trabajo: fichas por día, semana, mes o año de levantamiento (creación).
+// Los días se cuentan en hora de Honduras (UTC-6, sin horario de verano), no en
+// la del servidor de base de datos, que en producción puede estar en UTC.
+const HN_OFFSET_MS = 6 * 3600000;
+export const RITMO_GRANULARIDADES = ["dia", "semana", "mes", "anio"];
+export const fechaHonduras = (value) => new Date(new Date(value).getTime() - HN_OFFSET_MS).toISOString().slice(0, 10);
+const sumarDias = (iso, dias) => new Date(Date.parse(`${iso}T00:00:00Z`) + dias * 86400000).toISOString().slice(0, 10);
+// Lunes de la semana del día dado (semana de lunes a domingo).
+export const lunesDe = (iso) => sumarDias(iso, -((new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7));
+export const periodoDe = (iso, granularidad) => granularidad === "semana" ? lunesDe(iso) : granularidad === "mes" ? iso.slice(0, 7) : granularidad === "anio" ? iso.slice(0, 4) : iso;
+
+// Periodos a mostrar, del más viejo al de hoy: 30 días, 16 semanas, 12 meses o todos los años con fichas.
+export const periodosRitmo = (granularidad, hoy, primerAnio) => {
+  if (granularidad === "semana") { const lunes = lunesDe(hoy); return Array.from({ length: 16 }, (_, i) => sumarDias(lunes, (i - 15) * 7)); }
+  if (granularidad === "mes") {
+    const [anio, mes] = hoy.split("-").map(Number);
+    return Array.from({ length: 12 }, (_, i) => { const fecha = new Date(Date.UTC(anio, mes - 1 - (11 - i), 1)); return fecha.toISOString().slice(0, 7); });
+  }
+  if (granularidad === "anio") { const actual = Number(hoy.slice(0, 4)); const desde = Math.min(primerAnio || actual, actual); return Array.from({ length: actual - desde + 1 }, (_, i) => String(desde + i)); }
+  return Array.from({ length: 30 }, (_, i) => sumarDias(hoy, i - 29));
+};
+
+/**
+ * filas: [{ created_at, estado, barrio }] ya filtradas. Devuelve la serie del
+ * periodo (con ceros donde no hubo fichas), totales de hoy/semana/mes/año y los
+ * barrios con más fichas.
+ */
+export const resumirRitmo = (filas = [], granularidad = "dia", ahora = new Date()) => {
+  granularidad = RITMO_GRANULARIDADES.includes(granularidad) ? granularidad : "dia";
+  const hoy = fechaHonduras(ahora);
+  const dias = filas.filter((fila) => fila.created_at).map((fila) => ({ ...fila, dia: fechaHonduras(fila.created_at) }));
+  const primerAnio = dias.reduce((min, fila) => Math.min(min, Number(fila.dia.slice(0, 4))), Number(hoy.slice(0, 4)));
+  const periodos = periodosRitmo(granularidad, hoy, primerAnio);
+  const porPeriodo = new Map(periodos.map((periodo) => [periodo, { periodo, total: 0, etapas: {} }]));
+  const barrios = new Map();
+  const totales = { hoy: 0, semana: 0, mes: 0, anio: 0, total: dias.length };
+  const semanaActual = lunesDe(hoy);
+  for (const fila of dias) {
+    const punto = porPeriodo.get(periodoDe(fila.dia, granularidad));
+    if (punto) { punto.total += 1; punto.etapas[fila.estado] = (punto.etapas[fila.estado] || 0) + 1; }
+    if (fila.dia === hoy) totales.hoy += 1;
+    if (fila.dia >= semanaActual && fila.dia <= hoy) totales.semana += 1;
+    if (fila.dia.slice(0, 7) === hoy.slice(0, 7)) totales.mes += 1;
+    if (fila.dia.slice(0, 4) === hoy.slice(0, 4)) totales.anio += 1;
+    const barrio = String(fila.barrio || "").trim() || "Sin barrio";
+    barrios.set(barrio, (barrios.get(barrio) || 0) + 1);
+  }
+  const serie = [...porPeriodo.values()];
+  const conFichas = serie.filter((punto) => punto.total > 0);
+  return {
+    granularidad,
+    hoy,
+    serie,
+    promedio: conFichas.length ? Math.round((conFichas.reduce((sum, punto) => sum + punto.total, 0) / conFichas.length) * 10) / 10 : 0,
+    totales,
+    barrios: [...barrios.entries()].map(([barrio, total]) => ({ barrio, total })).sort((a, b) => b.total - a.total || a.barrio.localeCompare(b.barrio, "es")).slice(0, 6)
+  };
+};
+
+export const ritmoClandestinosFichas = async ({ query = "", state = "", barrio = "", granularidad = "dia" } = {}) => {
+  query = clean(query); state = clean(state); barrio = clean(barrio);
+  if (env.useMemoryDb) {
+    const all = await listInmuebles({ query, archived: false });
+    const filas = all
+      .filter((item) => (!state || (item.estado_operativo || "pending") === state) && (!barrio || clean(item.barrio_colonia).toLowerCase() === barrio.toLowerCase()))
+      .map((item) => ({ created_at: item.created_at, estado: item.estado_operativo || "pending", barrio: item.barrio_colonia }));
+    return resumirRitmo(filas, granularidad);
+  }
+  const searchWhere = "archived_at IS NULL AND (? = '' OR clave_catastral LIKE ? OR abonado LIKE ? OR barrio_colonia LIKE ?)";
+  const filteredWhere = `${searchWhere} AND (? = '' OR COALESCE(estado_operativo, 'pending') = ?) AND (? = '' OR barrio_colonia = ?)`;
+  const params = [query, likeValue(query), likeValue(query), likeValue(query), state, state, barrio, barrio];
+  const [rows] = await getPool().query(
+    `SELECT created_at, COALESCE(estado_operativo, 'pending') AS estado, barrio_colonia AS barrio FROM inmuebles_clandestinos WHERE ${filteredWhere}`,
+    params
+  );
+  return resumirRitmo(rows, granularidad);
 };
 
 export const summarizePadronComparison = (rows = []) => ({

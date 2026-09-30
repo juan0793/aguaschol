@@ -19,6 +19,10 @@ export const useFichas = (api, active = true) => {
   const [state, setState] = useState(saved.state || "");
   const [barrio, setBarrio] = useState(saved.barrio || "");
   const [page, setPage] = useState(saved.page || 1);
+  // Agrupación del ritmo de trabajo y del listado: día, semana, mes o año de levantamiento.
+  const [granularidad, setGranularidad] = useState(saved.granularidad || "dia");
+  const [ritmo, setRitmo] = useState(null);
+  const [ritmoVersion, setRitmoVersion] = useState(0);
   const [data, setData] = useState({ items: [], counts: {}, total: 0, page: 1, total_pages: 1, key: "" });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,7 +101,19 @@ export const useFichas = (api, active = true) => {
   }, [active, barrio, counts, page, query, request, state]);
 
   useEffect(() => { if (!active) return undefined; const refresh = () => load({ silent: true }); const timer = setInterval(refresh, 10000); addEventListener("visibilitychange", refresh); return () => { clearInterval(timer); removeEventListener("visibilitychange", refresh); }; }, [active, load]);
-  useEffect(() => { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ query, state, barrio, page })); }, [barrio, page, query, state]);
+  useEffect(() => { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ query, state, barrio, page, granularidad })); }, [barrio, granularidad, page, query, state]);
+
+  // El ritmo sigue los mismos filtros que el listado (sin la página). Se pide al
+  // cambiar un filtro o la agrupación, y después de guardar una ficha.
+  const ritmoKey = JSON.stringify([query.trim(), state, barrio, granularidad, ritmoVersion]);
+  useEffect(() => {
+    if (!active) return undefined;
+    let vigente = true;
+    const timer = setTimeout(() => {
+      api.fichasRitmo?.({ q: query.trim(), state, barrio, granularidad }).then((next) => { if (vigente) setRitmo(next); }).catch(() => {});
+    }, TYPING_DELAY);
+    return () => { vigente = false; clearTimeout(timer); };
+  }, [active, api, ritmoKey]);
 
   // Adelanta una etapa al pasar el cursor o enfocar su pestaña.
   const prefetchState = (etapa) => {
@@ -107,7 +123,7 @@ export const useFichas = (api, active = true) => {
 
   const filters = { query, state, barrio, page, setQuery: (value) => { setQuery(value); setPage(1); }, setState: (value) => { setState(value); setPage(1); }, setBarrio: (value) => { setBarrio(value); setPage(1); }, setPage, clear: () => { setQuery(""); setState(""); setBarrio(""); setPage(1); } };
   // Tras guardar una ficha lo recordado ya no vale: se descarta y se recarga.
-  const reload = () => { cache.current.clear(); return load(); };
+  const reload = () => { cache.current.clear(); setRitmoVersion((value) => value + 1); return load(); };
   // requestKey: la combinación pedida; cuando viewKey la alcanza, lo que se ve ya es lo pedido.
-  return { ...data, viewKey: data.key, requestKey: key, loading, refreshing, error, filters, prefetchState, reload };
+  return { ...data, ritmo, granularidad, setGranularidad, viewKey: data.key, requestKey: key, loading, refreshing, error, filters, prefetchState, reload };
 };

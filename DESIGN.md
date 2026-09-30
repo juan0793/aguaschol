@@ -177,6 +177,8 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
 - La bandeja de Fichas usa el mismo lenguaje (clase `is-flat` del módulo, igual que el Resumen):
   - Las pestañas de etapa son columnas iguales con el tono de la etapa (`frontend/src/modules/clandestinos/etapas.js`) y su cifra; Descartadas va aparte, tras un filete.
   - El aviso de plazos es una línea entre filetes y el plazo de cada fila es texto con color de dato, no una cajita.
+  - "Ritmo de trabajo": barras de un solo azul por día, semana, mes o año de levantamiento; el periodo actual va en azul profundo `#0b3f73` y el promedio en una línea discontinua. La lectura del periodo va arriba del gráfico, nunca encima de las barras. A la derecha van los totales (hoy, semana, mes, año) y los barrios con más fichas, que filtran.
+  - El listado se agrupa por el mismo periodo, con un encabezado de grupo y su total ("6 fichas · 1 en esta página" si el grupo sigue en otra página).
 
 ### Busqueda de clave
 

@@ -7,6 +7,8 @@ const json = async (response) => {
 export const createClandestinosApi = (apiFetch) => ({
   config: () => apiFetch("/clandestinos/config").then(json),
   fichas: (params = {}) => apiFetch(`/clandestinos/fichas?${new URLSearchParams(params)}`).then(json),
+  // Ritmo de trabajo: fichas por día, semana, mes o año de levantamiento.
+  fichasRitmo: (params = {}) => apiFetch(`/clandestinos/fichas/ritmo?${new URLSearchParams(params)}`).then(json),
   // Ficha por clave exacta; null si no existe.
   fichaByClave: (clave) => apiFetch(`/inmuebles/clave/${encodeURIComponent(clave)}`).then((response) => response.status === 404 ? null : json(response)),
   compareFichas: (ids) => apiFetch("/clandestinos/fichas/compare-padrones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).then(json),

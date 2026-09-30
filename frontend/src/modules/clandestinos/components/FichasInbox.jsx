@@ -5,6 +5,8 @@ import { getRecordDeadlineMeta } from "../../../utils/records";
 import { TableSkeleton } from "../../../components/ds/Skeleton";
 import { ETAPA_TONOS } from "../etapas";
 import { congelarAltura, soltarAltura } from "../alturaSuave";
+import { diaLocal, etiquetaPeriodo, periodoDe } from "../periodos";
+import RitmoTrabajo from "./RitmoTrabajo";
 
 const STATE_LABELS = { draft: "Borrador", pending: "Pendiente", visit: "Visita", confirmed: "Confirmada", regularization: "Regularización", regularized: "Regularizada", discarded: "Descartada" };
 const STATE_OPTIONS = { draft: "Borrador · completar datos", pending: "Pendiente · programar visita", visit: "Visita · registrar hallazgos", confirmed: "Confirmada · preparar aviso", regularization: "Regularización · dar seguimiento", regularized: "Regularizada · caso cerrado", discarded: "Descartada · no procede" };
@@ -78,6 +80,27 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
   const totalExpedientes = Object.values(model.counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
   const etapaActiva = ETAPAS.find(([key]) => key === model.filters.state);
   const quitarTodo = () => cambiarVista(() => { model.filters.clear(); setAlertsOnly(false); });
+  // Listado agrupado por el mismo periodo del ritmo (día, semana, mes o año de levantamiento).
+  // Las filas ya vienen ordenadas por fecha de levantamiento, de la más reciente a la más vieja.
+  const granularidad = model.granularidad || "dia";
+  const hoy = model.ritmo?.hoy || diaLocal(new Date());
+  const grupos = useMemo(() => {
+    const lista = [];
+    for (const item of visibleItems) {
+      const periodo = periodoDe(item.created_at, granularidad);
+      const ultimo = lista[lista.length - 1];
+      if (ultimo && ultimo.periodo === periodo) ultimo.items.push(item);
+      else lista.push({ periodo, items: [item] });
+    }
+    return lista;
+  }, [granularidad, visibleItems]);
+  // Total del periodo según el ritmo (todas las páginas); si el periodo queda fuera de la serie, lo de esta página.
+  const totalesPeriodo = useMemo(() => new Map((model.ritmo?.granularidad === granularidad ? model.ritmo.serie : []).map((punto) => [punto.periodo, punto.total])), [granularidad, model.ritmo]);
+  const totalGrupo = (periodo, enPagina) => {
+    const total = totalesPeriodo.get(periodo);
+    const texto = (n) => `${n} ${n === 1 ? "ficha" : "fichas"}`;
+    return total && total > enPagina ? `${texto(total)} · ${enPagina} en esta página` : texto(total || enPagina);
+  };
   return <section ref={inboxRef} className="cl-inbox" aria-label="Bandeja de trabajo de fichas">
     {/* El encabezado dice que se esta viendo: la etapa (con su icono), cuantas
         fichas de cuantas, y los filtros activos, cada uno removible. */}
@@ -112,6 +135,7 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
       {ETAPAS.map(([key, label]) => <button type="button" key={key} aria-pressed={model.filters.state === key} className={`${model.filters.state === key ? "is-active" : ""} ${key === "discarded" ? "is-aside" : ""}`.trim() || undefined} title={STATE_OPTIONS[key]} onPointerEnter={() => model.prefetchState?.(key)} onFocus={() => model.prefetchState?.(key)} onClick={() => cambiarVista(() => { setAlertsOnly(false); model.filters.setState(model.filters.state === key ? "" : key); })}><span className="cl-stage-label"><i style={{ background: ETAPA_TONOS[key] }} aria-hidden="true" />{label}</span><strong>{model.counts[key] || 0}</strong></button>)}
       {marca ? <i className="cl-indicators-mark" aria-hidden="true" style={{ transform: `translate(${marca.left}px, ${marca.top}px) scaleX(${marca.width / 100})` }} /> : null}
     </div>
+    <RitmoTrabajo ritmo={model.ritmo} granularidad={model.granularidad || "dia"} onGranularidad={(value) => model.setGranularidad?.(value)} barrioActivo={model.filters.barrio} onBarrio={(value) => cambiarVista(() => model.filters.setBarrio(value))} />
     {/* El aviso de plazos va debajo de las etapas: si aparece o desaparece al cambiar
         de etapa, no mueve la barra que se acaba de tocar. */}
     {alertItems.length ? <section className={`cl-deadline-banner ${alertsOnly ? "is-filtered" : ""}`} role="status"><span className="cl-deadline-icon"><Icon name="warning" /></span><div className="cl-deadline-copy"><small>Atención prioritaria</small><strong>{alertsOnly ? `Mostrando ${alertTitle.toLowerCase()}` : alertTitle}</strong><span>{overdueCount ? `Revisa el plazo y registra la siguiente acción para poner${alertItems.length === 1 ? "la" : "las"} al día.` : `Quedan dos días hábiles o menos para atender${alertItems.length === 1 ? "la" : "las"}.`}</span></div><button type="button" className="cl-deadline-action" onClick={() => cambiarVista(() => setAlertsOnly((current) => !current))}>{alertsOnly ? "Ver todas" : "Revisar ahora"}<Icon name={alertsOnly ? "refresh" : "arrowRight"} /></button></section> : null}
@@ -124,7 +148,10 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
     {comparison?.summary ? <div className="cl-comparison-summary"><strong>{comparison.summary.total} comparadas</strong><span>En ambos: {comparison.summary.both}</span><span>Solo Alcaldía: {comparison.summary.alcaldia_only}</span><span>Solo Aguas: {comparison.summary.aguas_only}</span><span>En ninguno: {comparison.summary.neither}</span></div> : null}
     {model.error ? <p className="cl-alert">{model.error}</p> : null}
     <div className={`cl-table-wrap ${model.refreshing ? "is-refreshing" : ""}`.trim()} aria-busy={model.loading || model.refreshing}>{model.refreshing ? <span className="cl-table-progress" role="status" aria-label="Actualizando fichas" /> : null}<table className="cl-table"><thead><tr><th><SpringCheck checked={allVisibleSelected} onChange={() => onToggleVisible(visibleItems)} ariaLabel="Seleccionar las fichas visibles" /></th><th>Clave / abonado</th><th>Responsable</th><th>Barrio</th><th>Padrones</th><th>Etapa</th><th>Impresión</th><th>Plazo</th><th /></tr></thead><tbody key={model.viewKey || "inicial"} className="cl-rows">
-      {model.loading ? <TableSkeleton columns={9} label="Cargando fichas…" /> : visibleItems.length ? visibleItems.map((item) => { const match = comparisons.get(String(item.id)); const deadline = deadlineById.get(String(item.id)); const rowClasses = [selectedIds.has(String(item.id)) ? "is-selected" : "", ["warning","due","overdue"].includes(deadline?.statusKey) ? "is-critical" : ""].filter(Boolean).join(" "); return <tr key={item.id} className={rowClasses}><td><SpringCheck checked={selectedIds.has(String(item.id))} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${item.clave_catastral}`} /></td><td><button type="button" className="cl-link" onClick={() => onOpen(item)}><strong>{item.clave_catastral}</strong><span>{item.abonado || "Sin abonado"}</span></button></td><td>{item.levantamiento_datos || "Sin asignar"}</td><td>{item.barrio_colonia || "Sin ubicación"}</td><td>{match ? <span className={`cl-padron-badge ${match.appears_in_alcaldia && !match.appears_in_aguas ? "is-warning" : ""}`}>{match.appears_in_alcaldia ? "Alcaldía" : "No Alcaldía"} / {match.appears_in_aguas ? "Aguas" : "No Aguas"}</span> : <span className="cl-muted">Sin comparar</span>}</td><td><span className={`cl-status is-${item.estado_operativo || "pending"}`}><i />{stateLabel(item.estado_operativo)}</span></td><td>{item.printed_at ? <span className="cl-print-state is-printed"><Icon name="success" />Impresa {new Date(item.printed_at).toLocaleDateString("es-HN")}</span> : <span className="cl-print-state">No impresa</span>}</td><td>{deadline ? <span className={`cl-deadline is-${deadline.statusKey}`}><strong>{deadline.label}</strong><small>{deadline.helper}</small><small>{deadline.deadlineLabel}</small></span> : <span className="cl-muted">Sin plazo activo</span>}</td><td><button type="button" className="cl-icon-button" onClick={() => onOpen(item)} aria-label="Abrir ficha"><Icon name="arrowRight" /></button></td></tr>; }) : <tr><td colSpan="9" className="cl-empty">{alertsOnly ? "No hay fichas con plazo crítico en esta página." : "No hay fichas con estos filtros."}</td></tr>}
+      {model.loading ? <TableSkeleton columns={9} label="Cargando fichas…" /> : visibleItems.length ? grupos.map(({ periodo, items: filas }) => [
+      <tr key={`grupo-${periodo}`} className="cl-group-row"><th colSpan="9" scope="colgroup"><span>{etiquetaPeriodo(periodo, granularidad, hoy)}</span><small>{totalGrupo(periodo, filas.length)}</small></th></tr>,
+      ...filas.map((item) => { const match = comparisons.get(String(item.id)); const deadline = deadlineById.get(String(item.id)); const rowClasses = [selectedIds.has(String(item.id)) ? "is-selected" : "", ["warning","due","overdue"].includes(deadline?.statusKey) ? "is-critical" : ""].filter(Boolean).join(" "); return <tr key={item.id} className={rowClasses}><td><SpringCheck checked={selectedIds.has(String(item.id))} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${item.clave_catastral}`} /></td><td><button type="button" className="cl-link" onClick={() => onOpen(item)}><strong>{item.clave_catastral}</strong><span>{item.abonado || "Sin abonado"}</span></button></td><td>{item.levantamiento_datos || "Sin asignar"}</td><td>{item.barrio_colonia || "Sin ubicación"}</td><td>{match ? <span className={`cl-padron-badge ${match.appears_in_alcaldia && !match.appears_in_aguas ? "is-warning" : ""}`}>{match.appears_in_alcaldia ? "Alcaldía" : "No Alcaldía"} / {match.appears_in_aguas ? "Aguas" : "No Aguas"}</span> : <span className="cl-muted">Sin comparar</span>}</td><td><span className={`cl-status is-${item.estado_operativo || "pending"}`}><i />{stateLabel(item.estado_operativo)}</span></td><td>{item.printed_at ? <span className="cl-print-state is-printed"><Icon name="success" />Impresa {new Date(item.printed_at).toLocaleDateString("es-HN")}</span> : <span className="cl-print-state">No impresa</span>}</td><td>{deadline ? <span className={`cl-deadline is-${deadline.statusKey}`}><strong>{deadline.label}</strong><small>{deadline.helper}</small><small>{deadline.deadlineLabel}</small></span> : <span className="cl-muted">Sin plazo activo</span>}</td><td><button type="button" className="cl-icon-button" onClick={() => onOpen(item)} aria-label="Abrir ficha"><Icon name="arrowRight" /></button></td></tr>; })
+    ]) : <tr><td colSpan="9" className="cl-empty">{alertsOnly ? "No hay fichas con plazo crítico en esta página." : "No hay fichas con estos filtros."}</td></tr>}
     </tbody></table></div>
     <footer className="cl-pagination"><span>Página {model.page} de {model.total_pages}</span><div><button type="button" disabled={model.page <= 1} onClick={() => cambiarVista(() => model.filters.setPage(model.page - 1))}><Icon name="arrowLeft" />Anterior</button><button type="button" disabled={model.page >= model.total_pages} onClick={() => cambiarVista(() => model.filters.setPage(model.page + 1))}>Siguiente<Icon name="arrowRight" /></button></div></footer>
   </section>;
