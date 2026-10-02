@@ -563,6 +563,35 @@ export function UsersContent({
                           : "El cambio aplica incluso si el usuario esta en linea."}
                     </small>
                   </div>
+                  {latestUserResult?.user?.id === selectedUser.id && latestUserResult.temp_password ? (
+                    <div className="users-temp-password no-print" role="status">
+                      <Icon name="auth" />
+                      <div>
+                        <span>Contrasena temporal</span>
+                        <code>{latestUserResult.temp_password}</code>
+                        <small>
+                          {latestUserResult.delivery?.sent
+                            ? "Tambien se envio por correo. El usuario debera cambiarla al entrar."
+                            : "No se pudo enviar el correo: compartela manualmente. Debera cambiarla al entrar."}
+                        </small>
+                      </div>
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(latestUserResult.temp_password);
+                            showAlert("Contrasena copiada al portapapeles.");
+                          } catch {
+                            showAlert("No se pudo copiar; seleccionala y copiala manualmente.");
+                          }
+                        }}
+                      >
+                        <Icon name="copy" />
+                        Copiar
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="users-detail-actions-row no-print">
                     <button type="button" className="button-secondary" onClick={() => setDetailOpen(true)}>
                       <Icon name="edit" />

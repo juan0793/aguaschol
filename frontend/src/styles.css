@@ -27976,6 +27976,30 @@ body {
 .users-permissions-title { margin: 0 0 0.35rem; font-size: 0.78rem; font-weight: 700; color: var(--brand-blue-deep); }
 .users-permissions-copy { margin: 0.4rem 0 0; color: var(--text-muted); font-size: 0.78rem; }
 
+.users-temp-password {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  margin-bottom: 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--brand-blue-deep);
+  background: var(--surface-tinted);
+}
+.users-temp-password > .app-icon { color: var(--brand-blue-deep); flex-shrink: 0; }
+.users-temp-password > div { flex: 1; min-width: 0; display: grid; gap: 0.2rem; }
+.users-temp-password span { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+.users-temp-password code {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--brand-blue-deep);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.users-temp-password small { color: var(--text-muted); font-size: 0.75rem; }
+.users-temp-password .button-secondary { flex-shrink: 0; }
+
 .users-detail-actions-row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
 .users-detail-more {

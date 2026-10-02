@@ -156,7 +156,7 @@ export const createUser = async ({ full_name, email, role = "operator" }, actorU
   return {
     user,
     delivery: emailResult,
-    temp_password: emailResult.sent ? null : password
+    temp_password: password
   };
 };
 
@@ -377,6 +377,6 @@ export const resetUserPassword = async (userId, actorUser) => {
       force_password_change: true
     },
     delivery,
-    temp_password: delivery.sent ? null : password
+    temp_password: password
   };
 };
