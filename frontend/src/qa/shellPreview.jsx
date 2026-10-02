@@ -72,6 +72,12 @@ const fichasQa = Array.from({ length: Number(params.get("fichas")) || 0 }, (_, i
   created_at: new Date(Date.now() - (index % 4) * 86400000).toISOString(),
   updated_at: new Date().toISOString()
 }));
+const candidatoQa = (id, extra) => ({ id, origen: "qfield", origen_ref: String(700 + id), clave_catastral: "", dictamen: "clandestino", motivo_dictamen: "No aparece en Aguas; sí en Alcaldía", estado: "pendiente", barrio_colonia: "Barrio El Centro", agua: true, alcantarillado: true, desechos: false, lote_baldio: false, latitude: 13.3, longitude: -87.19, comentario_campo: "", alcaldia_propietario: "PROPIETARIO DE PRUEBA", alcaldia_clave: "", aguas_clave: "", aguas_abonado: "", asignado_a: null, asignado_nombre: "", duplicados: 0, ...extra });
+const bancoQa = [
+  candidatoQa(1, { clave_catastral: "01-05-30", comentario_campo: "Casa esquinera, portón negro", duplicados: 2 }),
+  candidatoQa(2, { clave_catastral: "01-05-21", dictamen: "sin_determinar", aguas_clave: "01-05-10-03", aguas_abonado: "25", motivo_dictamen: "Posible desmembración: PROPIETARIO DE PRUEBA ya tiene cuenta en Aguas en la misma manzana (01-05-10-03 · abonado 25); confirmar en campo si es el mismo predio" }),
+  candidatoQa(3, { clave_catastral: "01-07-02", comentario_campo: "Conexión directa a la red" })
+];
 const cuerpo = (init) => { try { return JSON.parse(init?.body || "{}"); } catch { return {}; } };
 const deLasQa = (ids = []) => fichasQa.filter((ficha) => ids.map(Number).includes(ficha.id));
 
@@ -104,6 +110,10 @@ window.fetch = (input, init) => {
     const target = usuariosQa.find((item) => item.id === Number(renombrar[1]));
     if (target) Object.assign(target, { full_name: cuerpo(init).full_name, updated_at: new Date().toISOString() });
     return Promise.resolve(respuesta({ user: target, fichas: 3, personal: 1, fichasOmitidas: false }));
+  }
+  // ?banco=1: candidatos de mentira (con copias y con posible desmembración).
+  if (params.get("banco") && /\/clandestinos\/banco(\?|$)/.test(url)) {
+    return Promise.resolve(respuesta({ items: bancoQa, counts: { clandestino: 2, sin_determinar: 1, registrado: 0 }, estados: { pendiente: 3, enviado: 0, descartado: 2 }, total: bancoQa.length, page: 1, total_pages: 1, barrios: ["Barrio El Centro"], barrio_counts: [], asignaciones: [], sin_asignar: 3 }));
   }
   // Las listas paginadas se copian con {...datos}: necesitan sus campos de verdad.
   if (/\/(clandestinos\/fichas|clandestinos\/banco)(\?|$)/.test(url)) {

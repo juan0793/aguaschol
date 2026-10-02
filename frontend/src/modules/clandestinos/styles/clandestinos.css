@@ -330,6 +330,10 @@
 .cl-bcard-padrones small { overflow: hidden; color: var(--alert); font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .cl-bcard-note, .cl-bcard-warn { display: flex; align-items: flex-start; gap: 6px; color: var(--text); font-size: 12.5px; }
 .cl-bcard-note .app-icon, .cl-bcard-warn .app-icon { width: 14px; height: 14px; margin-top: 2px; color: var(--muted); }
+.cl-bcard-desm { padding: 6px 8px; border-radius: 8px; background: #fff7e8; color: #6b4a0e; line-height: 1.35; }
+.cl-bcard-desm .app-icon { color: #9a6518; }
+.cl-bcard-dup { display: flex; align-items: center; gap: 6px; width: fit-content; margin: 0; padding: 3px 9px; border-radius: 999px; background: #eef4fd; color: #1d4f91; font-size: 12px; font-weight: 700; }
+.cl-bcard-dup .app-icon { width: 13px; height: 13px; }
 .cl-bcard-note > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .cl-bcard-warn { padding: 5px 8px; border-radius: 8px; background: #fdf4e4; color: var(--alert); font-weight: 650; }
 .cl-bcard-warn .app-icon { color: currentColor; }

@@ -327,6 +327,8 @@ CREATE TABLE IF NOT EXISTS banco_clandestinos (
   asignado_a INT UNSIGNED NULL,
   asignado_por INT UNSIGNED NULL,
   asignado_at TIMESTAMP NULL DEFAULT NULL,
+  duplicado_de INT UNSIGNED NULL,
+  no_duplicado TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_banco_clandestinos_origen (origen, origen_ref),

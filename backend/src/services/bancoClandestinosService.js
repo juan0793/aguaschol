@@ -46,17 +46,32 @@ export const normalizarClaveBanco = (value = "") => {
   return parts.map((part) => part.padStart(2, "0")).join("-");
 };
 const baseDe = (clave) => clave.split("-").slice(0, 3).join("-");
+const manzanaDe = (clave) => clave.split("-").slice(0, 2).join("-");
+
+// Palabras de un nombre para compararlo entre padrones (sin tildes ni palabras de relleno).
+const RELLENO_NOMBRE = new Set(["DEL", "LOS", "LAS", "VDA", "VIUDA", "SUCESION", "HEREDEROS", "HDOS"]);
+export const palabrasNombre = (value = "") => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
+  .replace(/[^A-Z ]/g, " ").split(/\s+/).filter((word) => word.length > 2 && !RELLENO_NOMBRE.has(word));
+// Mismo propietario con seguridad: 3 palabras en común, o el nombre más corto completo
+// (al menos 2 palabras). Con 2 palabras sueltas había demasiados apellidos repetidos.
+export const mismoPropietario = (a = [], b = []) => {
+  const comunes = a.filter((word) => b.includes(word)).length;
+  return comunes >= 3 || (comunes >= 2 && comunes === Math.min(a.length, b.length));
+};
 
 // Indices de ambos padrones para verificar miles de claves en un solo pase.
 export const buildPadronIndex = (aguasRows = [], alcaldiaRows = []) => {
   const aguasExacta = new Map();
   const aguasLote = new Map();
   const aguasAbonado = new Map();
+  const aguasManzana = new Map();
   aguasRows.forEach((row) => {
     const clave = normalizarClaveBanco(row.clave_catastral);
     if (clave) {
       if (!aguasExacta.has(clave)) aguasExacta.set(clave, row);
       if (!aguasLote.has(baseDe(clave))) aguasLote.set(baseDe(clave), row);
+      const nombres = [palabrasNombre(row.nombre), palabrasNombre(row.inquilino)].filter((words) => words.length >= 2);
+      if (nombres.length) aguasManzana.set(manzanaDe(clave), [...(aguasManzana.get(manzanaDe(clave)) || []), { row, nombres }]);
     }
     const abonado = clean(row.abonado);
     if (abonado && !aguasAbonado.has(abonado)) aguasAbonado.set(abonado, row);
@@ -69,7 +84,7 @@ export const buildPadronIndex = (aguasRows = [], alcaldiaRows = []) => {
     if (!alcaldiaExacta.has(clave)) alcaldiaExacta.set(clave, row);
     if (!alcaldiaLote.has(baseDe(clave))) alcaldiaLote.set(baseDe(clave), row);
   });
-  return { aguasExacta, aguasLote, aguasAbonado, alcaldiaExacta, alcaldiaLote };
+  return { aguasExacta, aguasLote, aguasAbonado, aguasManzana, alcaldiaExacta, alcaldiaLote };
 };
 
 const snapshot = (aguas, alcaldia) => ({
@@ -100,6 +115,22 @@ export const dictaminarCandidato = ({ clave_catastral = "", abonado_campo = "" }
   if (aguasExacta || (!esUnidad && aguasLote)) {
     const registro = aguasExacta || aguasLote;
     return { dictamen: "registrado", motivo_dictamen: `Registrado en Aguas: ${registro.clave_catastral} · abonado ${clean(registro.abonado) || "sin número"}`, ...snapshot(registro, alcaldia) };
+  }
+  // Lote desmembrado en Alcaldía: el lote nuevo tiene otro número, pero Aguas sigue
+  // cobrando con la cuenta del lote original. Si en la misma manzana hay una cuenta de
+  // Aguas a nombre del mismo propietario, no se da por clandestino: queda sin determinar
+  // con esa cuenta como pista, para confirmarlo en campo.
+  const propietario = palabrasNombre(alcaldia?.nombre);
+  if (!aguasLote && propietario.length >= 2) {
+    const vecina = (index.aguasManzana?.get(manzanaDe(clave)) || []).find((item) => item.nombres.some((nombre) => mismoPropietario(propietario, nombre)));
+    if (vecina) {
+      const cuenta = vecina.row;
+      return {
+        dictamen: "sin_determinar",
+        motivo_dictamen: `Posible desmembración: ${clean(alcaldia.nombre)} ya tiene cuenta en Aguas en la misma manzana (${clean(cuenta.clave_catastral)} · abonado ${clean(cuenta.abonado) || "sin número"}); confirmar en campo si es el mismo predio`,
+        ...snapshot(cuenta, alcaldia)
+      };
+    }
   }
   // Una unidad sin cuenta dentro de un lote registrado también es clandestina; se guarda
   // la cuenta vecina del lote como pista (la persona puede pagar con otra unidad).
@@ -168,10 +199,13 @@ const mapCandidato = (row) => row && ({
   latitude: row.latitude == null ? null : Number(row.latitude),
   longitude: row.longitude == null ? null : Number(row.longitude),
   asignado_a: row.asignado_a == null ? null : Number(row.asignado_a),
-  asignado_nombre: row.asignado_nombre || ""
+  asignado_nombre: row.asignado_nombre || "",
+  duplicado_de: row.duplicado_de == null ? null : Number(row.duplicado_de),
+  duplicados: Number(row.duplicados ?? (env.useMemoryDb ? memoryBanco.filter((item) => item.duplicado_de === Number(row.id)).length : 0))
 });
 
 const CANDIDATO_SELECT = `SELECT banco_clandestinos.*,
+    (SELECT COUNT(*) FROM banco_clandestinos AS copia WHERE copia.duplicado_de = banco_clandestinos.id) AS duplicados,
     COALESCE(procesador.full_name, procesador.username, '') AS procesado_por_nombre,
     COALESCE(asignado.full_name, asignado.username, '') AS asignado_nombre
   FROM banco_clandestinos
@@ -268,6 +302,7 @@ export const resumirAsignaciones = (rows = []) => {
 };
 
 export const listBancoClandestinos = async (filters = {}) => {
+  await agruparSiToca();
   const { query, dictamen, estado, barrio, asignado } = cleanFilters(filters);
   const safeLimit = Math.min(Math.max(Number(filters.limit) || 25, 5), 200);
   const requestedPage = Math.max(Number(filters.page) || 1, 1);
@@ -483,6 +518,81 @@ export const importBancoClandestinos = async ({ csv = "", origen = "qfield", lot
 
 // Guarda candidatos ya armados (CSV de QField o hallazgos de puntos GPS):
 // dictamina cada uno contra los padrones y no toca los ya enviados o descartados.
+// ---------- Duplicados: la misma clave más de una vez en el banco ----------
+// Pasa cuando dos técnicos levantan la misma casa en QField, o cuando una clave ya llegó
+// desde Alcaldía y luego llega un punto de campo con ella. Sin agrupar, cada copia se
+// repartía por separado y el técnico (o dos técnicos) visitaba la misma clave dos veces.
+// Por clave, uno queda como principal y las demás copias pendientes pasan a descartadas
+// con duplicado_de = principal: no se reparten ni cuentan en el avance, su comentario
+// de campo viaja a la ficha del principal y se pueden devolver si no eran duplicados.
+const pesoPrincipal = (item) =>
+  (item.estado === "enviado" ? 8 : 0) + (item.asignado_a != null ? 4 : 0) + (item.latitude != null ? 2 : 0) + (clean(item.comentario_campo) ? 1 : 0);
+
+// rows: candidatos pendientes o enviados con clave. Devuelve [{ id, principal, clave }]
+// con las copias pendientes que hay que agrupar.
+export const planDuplicados = (rows = []) => {
+  const porClave = new Map();
+  for (const row of rows) {
+    const clave = clean(row.clave_catastral);
+    if (!clave || Number(row.no_duplicado) || !["pendiente", "enviado"].includes(row.estado)) continue;
+    porClave.set(clave, [...(porClave.get(clave) || []), row]);
+  }
+  const plan = [];
+  for (const [clave, grupo] of porClave) {
+    if (grupo.length < 2) continue;
+    const principal = [...grupo].sort((a, b) => pesoPrincipal(b) - pesoPrincipal(a) || Number(a.id) - Number(b.id))[0];
+    grupo
+      .filter((item) => item !== principal && item.estado === "pendiente")
+      .forEach((item) => plan.push({ id: Number(item.id), principal: Number(principal.id), clave }));
+  }
+  return plan;
+};
+
+export const agruparDuplicadosBanco = async () => {
+  const rows = env.useMemoryDb
+    ? memoryBanco.filter((item) => ["pendiente", "enviado"].includes(item.estado) && item.clave_catastral)
+    : (await getPool().query(
+      `SELECT id, clave_catastral, estado, asignado_a, latitude, comentario_campo, no_duplicado
+         FROM banco_clandestinos
+        WHERE estado IN ('pendiente', 'enviado') AND clave_catastral <> '' AND no_duplicado = 0
+          AND clave_catastral IN (
+            SELECT clave_catastral FROM (
+              SELECT clave_catastral FROM banco_clandestinos
+               WHERE estado IN ('pendiente', 'enviado') AND clave_catastral <> '' AND no_duplicado = 0
+               GROUP BY clave_catastral HAVING COUNT(*) > 1
+            ) AS repetidas
+          )`
+    ))[0];
+  const plan = planDuplicados(rows);
+  for (const { id, principal } of plan) {
+    const motivo = `Duplicado: misma clave que el candidato #${principal}`;
+    if (env.useMemoryDb) {
+      const item = memoryBanco.find((candidate) => candidate.id === id);
+      Object.assign(item, { estado: "descartado", duplicado_de: principal, motivo_descarte: motivo, asignado_a: null, asignado_por: null, asignado_at: null, procesado_at: new Date().toISOString() });
+      continue;
+    }
+    await getPool().query(
+      `UPDATE banco_clandestinos
+          SET estado = 'descartado', duplicado_de = ?, motivo_descarte = ?, asignado_a = NULL, asignado_por = NULL, asignado_at = NULL, procesado_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND estado = 'pendiente'`,
+      [principal, motivo, id]
+    );
+  }
+  if (plan.length && !env.useMemoryDb) {
+    await createAuditLog({ actorUserId: null, action: "banco_clandestinos.duplicados", entityType: "banco_clandestinos", entityId: 0, summary: `${plan.length} ${plan.length === 1 ? "candidato repetido agrupado" : "candidatos repetidos agrupados"} por misma clave`, details: { grupos: plan.slice(0, 200) } });
+  }
+  return plan.length;
+};
+
+// Los datos que ya estaban en el banco se agrupan la primera vez que se abre (y luego
+// a lo sumo cada 10 minutos); lo nuevo, al importar o verificar.
+let ultimaAgrupacion = 0;
+const agruparSiToca = async () => {
+  if (Date.now() - ultimaAgrupacion < 10 * 60 * 1000) return;
+  ultimaAgrupacion = Date.now();
+  try { await agruparDuplicadosBanco(); } catch (error) { ultimaAgrupacion = 0; console.error("No se pudieron agrupar duplicados del banco:", error.message); }
+};
+
 export const guardarCandidatos = async (rows, { origen = "qfield", lote = "" } = {}, user) => {
   origen = clean(origen).slice(0, 40) || "qfield";
   lote = clean(lote).slice(0, 120);
@@ -517,6 +627,7 @@ export const guardarCandidatos = async (rows, { origen = "qfield", lote = "" } =
       columns.map((column) => record[column])
     );
   }
+  summary.duplicados = await agruparDuplicadosBanco();
   if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.imported", entityType: "banco_clandestinos", entityId: 0, summary: `Banco de clandestinos: ${summary.nuevos} nuevos, ${summary.actualizados} actualizados (${lote || origen})`, details: summary });
   return { ...summary, padron_version: getMasterVersion() };
 };
@@ -621,7 +732,8 @@ export const verificarBancoClandestinos = async (user, { index } = {}) => {
       descartados += 1;
     }
   }
-  const summary = { verificados: pendientes.length, cambiaron: Object.values(cambios).reduce((sum, value) => sum + value, 0), descartados, cambios, padron_version: getMasterVersion() };
+  const duplicados = await agruparDuplicadosBanco();
+  const summary = { verificados: pendientes.length, cambiaron: Object.values(cambios).reduce((sum, value) => sum + value, 0), descartados, duplicados, cambios, padron_version: getMasterVersion() };
   if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.verified", entityType: "banco_clandestinos", entityId: 0, summary: `Banco verificado contra padrones: ${summary.verificados} candidatos, ${summary.cambiaron} cambiaron, ${descartados} descartados por aparecer en Aguas`, details: summary });
   return summary;
 };
@@ -646,9 +758,10 @@ export const responsableDeFicha = (candidato, user) => {
   return clean(user?.full_name || user?.username).slice(0, 180);
 };
 
-const fichaDesdeCandidato = (candidato, clave, responsable = "") => {
+const fichaDesdeCandidato = (candidato, clave, responsable = "", copias = []) => {
   const hallazgos = [
     candidato.comentario_campo && `Hallazgo de campo: ${candidato.comentario_campo}`,
+    ...copias.map((copia) => `También levantado (${copia.origen} #${copia.origen_ref})${clean(copia.comentario_campo) ? `: ${clean(copia.comentario_campo)}` : ""}`),
     candidato.lote_baldio && "Marcado como lote baldío en campo.",
     candidato.latitude != null && `Coordenadas: ${candidato.latitude}, ${candidato.longitude}`,
     `Dictamen de padrones: ${candidato.motivo_dictamen}`,
@@ -702,7 +815,10 @@ export const enviarCandidatoAFicha = async (id, { clave_catastral = "" } = {}, u
   }
   let ficha;
   try {
-    ficha = await createInmueble(fichaDesdeCandidato(actualizado, clave, responsable), { actorUserId: user?.id });
+    const copias = env.useMemoryDb
+      ? memoryBanco.filter((item) => item.duplicado_de === Number(id))
+      : (await getPool().query("SELECT origen, origen_ref, comentario_campo FROM banco_clandestinos WHERE duplicado_de = ? ORDER BY id", [id]))[0];
+    ficha = await createInmueble(fichaDesdeCandidato(actualizado, clave, responsable, copias), { actorUserId: user?.id });
   } catch (error) {
     if (error.status === 409 || error.code === "ER_DUP_ENTRY") throw fail(`Ya existe una ficha archivada con la clave ${clave}. Restáurala desde archivados.`, 409);
     throw error;
@@ -730,6 +846,11 @@ export const restaurarCandidato = async (id, user) => {
   if (!canWork(user, candidato)) throw fail("Tu rol no puede devolver este candidato al banco.", 403);
   if (candidato.estado !== "descartado") throw fail("Solo se pueden devolver al banco los candidatos descartados.", 409);
   await marcarProcesado(id, { estado: "pendiente" }, user);
+  if (candidato.duplicado_de != null) {
+    // Quien lo devuelve dice que no era el mismo predio: no se vuelve a agrupar solo.
+    if (env.useMemoryDb) Object.assign(memoryBanco.find((item) => item.id === Number(id)), { duplicado_de: null, no_duplicado: 1 });
+    else await getPool().query("UPDATE banco_clandestinos SET duplicado_de = NULL, no_duplicado = 1 WHERE id = ?", [id]);
+  }
   if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.restored", entityType: "banco_clandestinos", entityId: Number(id), summary: `Candidato ${candidato.clave_catastral || `#${candidato.origen_ref}`} devuelto al banco`, details: { motivo_descarte: candidato.motivo_descarte } });
   return getCandidato(id);
 };

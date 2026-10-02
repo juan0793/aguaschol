@@ -627,7 +627,10 @@ const ensureSchema = async () => {
     for (const [columnName, definition] of [
       ["asignado_a", "INT UNSIGNED NULL AFTER procesado_at"],
       ["asignado_por", "INT UNSIGNED NULL AFTER asignado_a"],
-      ["asignado_at", "TIMESTAMP NULL DEFAULT NULL AFTER asignado_por"]
+      ["asignado_at", "TIMESTAMP NULL DEFAULT NULL AFTER asignado_por"],
+      // Copias de la misma clave: apuntan al candidato principal (ver agruparDuplicadosBanco).
+      ["duplicado_de", "INT UNSIGNED NULL"],
+      ["no_duplicado", "TINYINT(1) NOT NULL DEFAULT 0"]
     ]) {
       await ensureColumn(admin, { tableName: "banco_clandestinos", columnName, definition });
     }
@@ -635,6 +638,11 @@ const ensureSchema = async () => {
       tableName: "banco_clandestinos",
       indexName: "idx_banco_clandestinos_asignado",
       columns: ["asignado_a", "estado"]
+    });
+    await ensureIndex(admin, {
+      tableName: "banco_clandestinos",
+      indexName: "idx_banco_clandestinos_duplicado",
+      columns: ["duplicado_de"]
     });
     // Ajustes del módulo Clandestinos (p. ej. el Analista de datos de la ficha técnica).
     await admin.query(

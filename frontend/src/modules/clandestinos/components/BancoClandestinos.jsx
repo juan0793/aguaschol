@@ -94,6 +94,10 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
     </dl>
     {item.comentario_campo ? <p className="cl-bcard-note" title={item.comentario_campo}><Icon name="notes" /><span>{item.comentario_campo}</span></p> : null}
     {item.nota_revision ? <p className="cl-bcard-warn"><Icon name="warning" />{item.nota_revision}</p> : null}
+    {/* Lote desmembrado en Alcaldía: la pista (cuenta del mismo propietario en la manzana) va a la vista. */}
+    {item.dictamen === "sin_determinar" && /^Posible desmembración/.test(item.motivo_dictamen || "") ? <p className="cl-bcard-warn cl-bcard-desm"><Icon name="warning" /><span>{item.motivo_dictamen}</span></p> : null}
+    {/* Copias de la misma clave (otro punto de campo o la misma clave desde Alcaldía): se trabajan aquí, una sola vez. */}
+    {item.duplicados ? <p className="cl-bcard-dup" title="Las copias quedaron en Descartados con el motivo «Duplicado»; sus comentarios de campo pasan a la ficha."><Icon name="records" />{item.duplicados === 1 ? "+1 punto de campo con esta misma clave" : `+${item.duplicados} puntos de campo con esta misma clave`}</p> : null}
     {descartado ? <div className="cl-bcard-motivo">
       <span className="cl-bcard-motivo-label"><Icon name="archive" />Motivo del descarte</span>
       <p>{item.motivo_descarte || "Sin motivo registrado"}</p>
@@ -188,7 +192,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
     setWorking("verify");
     try {
       const result = await api.bancoVerify();
-      notify([`${result.verificados} verificados contra los padrones`, result.descartados ? `${result.descartados} pasaron a descartados por aparecer en Aguas` : "ninguno aparece en Aguas", result.cambiaron ? `${result.cambiaron} cambiaron de dictamen` : ""].filter(Boolean).join("; ") + ".");
+      notify([`${result.verificados} verificados contra los padrones`, result.descartados ? `${result.descartados} pasaron a descartados por aparecer en Aguas` : "ninguno aparece en Aguas", result.cambiaron ? `${result.cambiaron} cambiaron de dictamen` : "", result.duplicados ? `${result.duplicados} ${result.duplicados === 1 ? "repetido agrupado" : "repetidos agrupados"} por misma clave` : ""].filter(Boolean).join("; ") + ".");
       await model.reload();
     } catch (error) { notify(error.message); } finally { setWorking(""); }
   };
@@ -197,7 +201,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
     setWorking("import");
     try {
       const result = await api.bancoImport(await file.text(), file.name);
-      notify(`Importación lista: ${result.nuevos} nuevos, ${result.actualizados} actualizados${result.sin_cambios_procesados ? `, ${result.sin_cambios_procesados} ya procesados sin tocar` : ""}.`);
+      notify(`Importación lista: ${result.nuevos} nuevos, ${result.actualizados} actualizados${result.sin_cambios_procesados ? `, ${result.sin_cambios_procesados} ya procesados sin tocar` : ""}${result.duplicados ? `, ${result.duplicados} ${result.duplicados === 1 ? "repetido agrupado" : "repetidos agrupados"} por misma clave` : ""}.`);
       await model.reload();
     } catch (error) { notify(error.message); } finally { setWorking(""); if (fileInput.current) fileInput.current.value = ""; }
   };

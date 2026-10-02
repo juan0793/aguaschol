@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { asignarCandidatos, buildPadronIndex, resumirAsignaciones, responsableDeFicha, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
+import { agruparDuplicadosBanco, mismoPropietario, palabrasNombre, asignarCandidatos, buildPadronIndex, planDuplicados, resumirAsignaciones, responsableDeFicha, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
 import { createInmueble, getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
@@ -109,9 +109,17 @@ test("responsable de la ficha: el técnico que la manda; si es administración, 
   assert.equal(responsableDeFicha({}, { username: "elmer" }), "elmer");
 });
 
-test("una clave que ya tiene ficha se vincula sin crear otra", async () => {
-  await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo\nt-4,997-01-01,Mismo predio", lote: "prueba" }, admin);
+test("una clave que ya tiene ficha se agrupa como copia; si se devuelve, se vincula sin crear otra", async () => {
+  const importado = await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo\nt-4,997-01-01,Mismo predio", lote: "prueba" }, admin);
+  assert.equal(importado.duplicados, 1);
+  assert.equal((await listBancoClandestinos({ query: "Mismo predio" })).total, 0);
+  const [copia] = (await listBancoClandestinos({ query: "Mismo predio", estado: "descartado" })).items;
+  assert.match(copia.motivo_descarte, /Duplicado: misma clave/);
+  // Devolverlo dice "no era el mismo": no se vuelve a agrupar y se puede trabajar.
+  await restaurarCandidato(copia.id, admin);
   const { items } = await listBancoClandestinos({ query: "Mismo predio" });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].duplicado_de, null);
   const result = await enviarCandidatoAFicha(items[0].id, {}, tecnico);
   assert.equal(result.ficha_existente, true);
   assert.equal(result.ficha.clave_catastral, "997-01-01");
@@ -280,4 +288,57 @@ test("una clave repetida en el padrón de Alcaldía cuenta una sola vez", async 
   assert.equal(resultado.nuevos, 1);
   assert.equal(resultado.actualizados, 0);
   assert.equal(resultado.omitidos, 0);
+});
+
+test("duplicados: uno queda como principal (enviado, asignado o con más datos) y las copias pendientes se agrupan", () => {
+  const plan = planDuplicados([
+    { id: 1, clave_catastral: "40-01-01", estado: "pendiente", asignado_a: null, latitude: null, comentario_campo: "" },
+    { id: 2, clave_catastral: "40-01-01", estado: "pendiente", asignado_a: 9, latitude: 13.3, comentario_campo: "" },
+    { id: 3, clave_catastral: "40-01-01", estado: "pendiente", asignado_a: null, latitude: 13.3, comentario_campo: "casa azul" },
+    { id: 4, clave_catastral: "40-01-02", estado: "enviado", asignado_a: null, latitude: null, comentario_campo: "" },
+    { id: 5, clave_catastral: "40-01-02", estado: "pendiente", asignado_a: 9, latitude: 13.3, comentario_campo: "x" },
+    { id: 6, clave_catastral: "40-01-03", estado: "pendiente", asignado_a: null, latitude: null, comentario_campo: "" },
+    { id: 7, clave_catastral: "40-01-03", estado: "pendiente", asignado_a: null, latitude: null, comentario_campo: "", no_duplicado: 1 },
+    { id: 8, clave_catastral: "", estado: "pendiente" },
+    { id: 9, clave_catastral: "", estado: "pendiente" }
+  ]);
+  assert.deepEqual(plan.map(({ id, principal }) => [id, principal]), [[1, 2], [3, 2], [5, 4]]);
+});
+
+test("duplicados: dos puntos de campo de la misma clave se reparten una sola vez y el hallazgo llega a la ficha", async () => {
+  const csv = "origen_ref,clave_catastral,comentario_campo,latitude,longitude\nd-1,995-02-02,Casa esquinera,13.30,-87.19\nd-2,995-02-02,Medidor tapado,,";
+  const result = await importBancoClandestinos({ csv, lote: "duplicados" }, admin);
+  assert.equal(result.duplicados, 1);
+  const pendientes = await listBancoClandestinos({ query: "995-02-02" });
+  assert.equal(pendientes.total, 1);
+  assert.equal(pendientes.items[0].comentario_campo, "Casa esquinera");
+  assert.equal(pendientes.items[0].duplicados, 1);
+  assert.equal(await agruparDuplicadosBanco(), 0);
+  const { ficha } = await enviarCandidatoAFicha(pendientes.items[0].id, {}, tecnico);
+  assert.match(ficha.comentarios, /También levantado \(qfield #d-2\): Medidor tapado/);
+});
+
+test("desmembración: mismo propietario con cuenta en la misma manzana queda sin determinar, con la cuenta como pista", () => {
+  const indice = buildPadronIndex(
+    [{ clave_catastral: "01-05-10-03", abonado: "25", nombre: "EDWIN ALEXIS GUILLÉN PÉREZ" }, { clave_catastral: "01-05-11-01", abonado: "30", nombre: "MARIA RODRIGUEZ" }],
+    [
+      { clave_catastral: "01-05-21", clave_aguas_formato: "01-05-21", nombre: "EDWIN ALEXIS GUILLEN PEREZ", caserio: "Barrio El Centro" },
+      { clave_catastral: "01-05-22", clave_aguas_formato: "01-05-22", nombre: "JOSE RODRIGUEZ LOPEZ", caserio: "Barrio El Centro" },
+      { clave_catastral: "01-06-21", clave_aguas_formato: "01-06-21", nombre: "EDWIN ALEXIS GUILLEN PEREZ", caserio: "Barrio El Centro" }
+    ]
+  );
+  const desmembrada = dictaminarCandidato({ clave_catastral: "01-05-21" }, indice);
+  assert.equal(desmembrada.dictamen, "sin_determinar");
+  assert.match(desmembrada.motivo_dictamen, /Posible desmembración: .*01-05-10-03 · abonado 25/);
+  assert.equal(desmembrada.aguas_abonado, "25");
+  // Un apellido en común no basta, y otra manzana tampoco cuenta.
+  assert.equal(dictaminarCandidato({ clave_catastral: "01-05-22" }, indice).dictamen, "clandestino");
+  assert.equal(dictaminarCandidato({ clave_catastral: "01-06-21" }, indice).dictamen, "clandestino");
+});
+
+test("mismo propietario: 3 palabras en común o el nombre corto completo", () => {
+  assert.equal(mismoPropietario(palabrasNombre("Saúl Ely Padilla Borjas"), palabrasNombre("SAUL ELY PADILLA")), true);
+  assert.equal(mismoPropietario(palabrasNombre("Candida Rodriguez"), palabrasNombre("CANDIDA RODRIGUEZ")), true);
+  assert.equal(mismoPropietario(palabrasNombre("Oscar Rene Rodriguez Nuñez"), palabrasNombre("OSCAR RODRIGUEZ MEJIA")), false);
+  assert.equal(mismoPropietario(palabrasNombre("Diana Rodriguez Garcia"), palabrasNombre("Rodriguez Garcia Luis")), false);
 });
