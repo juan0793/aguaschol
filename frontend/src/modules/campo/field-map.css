@@ -934,19 +934,6 @@
   white-space: nowrap;
 }
 
-.app-chrome .fm-summary .fm-summary-session button {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  color: #506b82;
-}
-
-.app-chrome .fm-summary .fm-summary-session button:hover {
-  border-color: #dfe5ec;
-  background: #f4f7fb;
-  color: #0b3f73;
-}
-
 /* ---------- Tableta ---------- */
 
 @media (max-width: 1100px) {
@@ -1126,7 +1113,9 @@
     min-height: 44px;
   }
 
-  /* Encabezado: sin párrafo introductorio y acciones en una sola fila deslizable. */
+  /* Encabezado: sin párrafo introductorio y las cuatro acciones a la vista en una
+     rejilla de 2 x 2, con su nombre corto. Antes eran una fila deslizable y la
+     tercera y la cuarta quedaban cortadas sin indicio de que había más. */
   .app-chrome .fm-summary .workspace-title {
     display: none;
   }
@@ -1135,28 +1124,12 @@
     display: none;
   }
 
-  .app-chrome .fm-summary .fm-summary-actions {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    gap: 0.4rem;
-    margin-inline: -0.75rem;
-    padding: 0 0.75rem 0.1rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-  }
-
-  .app-chrome .fm-summary .fm-summary-actions::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* styles.css fuerza con !important una rejilla de 2 columnas en los encabezados
-     móviles; aquí la fila deslizable deja el mapa dentro de la primera pantalla. */
+  /* styles.css fuerza con !important su propia rejilla en los encabezados móviles. */
   .app-chrome .fm-summary .search-actions {
-    display: flex !important;
-    flex-wrap: nowrap;
-    grid-template-columns: none !important;
+    display: grid !important;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.4rem;
     overflow: visible !important;
   }
 
@@ -1164,17 +1137,19 @@
   .app-chrome .fm-summary .search-actions .button-secondary {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.35rem;
-    width: auto !important;
+    width: 100% !important;
+    min-width: 0;
     grid-column: auto !important;
     white-space: nowrap !important;
     min-height: 40px;
-    padding: 0.3rem 0.7rem;
+    padding: 0.3rem 0.5rem;
     font-size: 0.8rem;
   }
 
-  .app-chrome .fm-summary .fm-summary-session {
-    padding-right: 1.5rem;
+  .app-chrome .fm-summary .fm-label-extra {
+    display: none;
   }
 }
 

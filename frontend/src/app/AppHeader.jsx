@@ -530,11 +530,11 @@ export default function AppHeader({ model }) {
                 </button>
                 <button type="button" className="button-secondary" onClick={handleDownloadMapReport}>
                   <Icon name="download" />
-                  Descargar reporte detallado
+                  Descargar reporte<span className="fm-label-extra"> detallado</span>
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
                   <Icon name="records" />
-                  Operaciones realizadas
+                  Operaciones<span className="fm-label-extra"> realizadas</span>
                 </button>
               </div>
             </div>
