@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { describeAvisoPlazo } from "../avisoPlazo";
 import { Icon } from "../../../components/Icon";
 import { printDocument } from "../../../utils/printDocument";
 import { formatSpanishDate } from "../../../utils/datesAndBusiness";
@@ -56,11 +57,7 @@ const NoticeLetter = ({ record }) => {
   const firmante = record.firmante_aviso || "Jefatura de Comercialización";
   const cargo = record.cargo_firmante || "Aguas de Choluteca";
   const destinatario = record.aviso_destinatario || record.abonado || record.inquilino || record.nombre_catastral || "Señor(a)";
-  const plazoDias = Math.max(1, Math.min(90, Number(record.aviso_plazo_dias) || 7));
-  const fechaLimite = record.fecha_limite_aviso ? formatSpanishDate(record.fecha_limite_aviso) : "";
-  const plazoTexto = fechaLimite
-    ? `a más tardar el ${fechaLimite}`
-    : `en un plazo máximo de ${plazoDias} (${plazoDias}) días calendario a partir de la recepción del presente aviso`;
+  const plazoTexto = describeAvisoPlazo(record, formatSpanishDate);
   const instrucciones = String(record.aviso_instrucciones || "").trim();
   return <article className="cl-print-page cl-print-aviso">
     <div className="cl-aviso-header"><p><strong>AGUAS DE CHOLUTECA</strong></p><p>Departamento de Comercialización</p></div>

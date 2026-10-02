@@ -7,6 +7,7 @@ import "../styles/audit-console.css";
 import { Component } from "react";
 import { API_URL } from "../config/api";
 import { AUTH_STORAGE_KEY } from "../constants/storageKeys";
+import { computeFechaLimite } from "../modules/clandestinos/avisoPlazo";
 
 const params = new URLSearchParams(window.location.search);
 const rol = params.get("rol") || "admin";
@@ -42,8 +43,52 @@ const parseOriginal = JSON.parse;
 JSON.parse = (texto, ...resto) => (texto === MARCA_VACIA ? vacio() : parseOriginal(texto, ...resto));
 const respuesta = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 const fetchOriginal = window.fetch.bind(window);
+// ?fichas=N: fichas clandestinas de mentira (claves y nombres inventados) para
+// probar la bandeja y el lote de avisos sin backend.
+const BARRIOS = ["Barrio Cabañas", "Barrio El Centro", "Barrio Brisas Del Sur", "Barrio Alegría", "Barrio El Estruendo"];
+const TECNICOS = ["Técnico A", "Técnico B", "Técnico C"];
+const fichasQa = Array.from({ length: Number(params.get("fichas")) || 0 }, (_, index) => ({
+  id: 9000 + index,
+  clave_catastral: index % 7 === 6 ? "" : `${String(10 + (index % 40)).padStart(2, "0")}-${String(10 + index).padStart(2, "0")}-${String(1 + (index % 30)).padStart(2, "0")}`,
+  abonado: "",
+  nombre_catastral: `Prueba ${index + 1}`,
+  inquilino: "",
+  barrio_colonia: BARRIOS[index % BARRIOS.length],
+  levantamiento_datos: TECNICOS[index % TECNICOS.length],
+  accion_inspeccion: "Ficha de prueba del banco QA",
+  estado_padron: "clandestino",
+  estado_operativo: "pending",
+  conexion_agua: "Si",
+  conexion_alcantarillado: index % 3 ? "Si" : "No",
+  recoleccion_desechos: "No",
+  foto_path: "",
+  fecha_aviso: null,
+  firmante_aviso: "",
+  cargo_firmante: "",
+  aviso_plazo_tipo: index % 5 === 0 ? "dias" : null,
+  aviso_plazo_valor: index % 5 === 0 ? 7 : null,
+  fecha_limite_aviso: index % 5 === 0 ? "2026-10-13" : null,
+  printed_at: null,
+  created_at: new Date(Date.now() - (index % 4) * 86400000).toISOString(),
+  updated_at: new Date().toISOString()
+}));
+const cuerpo = (init) => { try { return JSON.parse(init?.body || "{}"); } catch { return {}; } };
+const deLasQa = (ids = []) => fichasQa.filter((ficha) => ids.map(Number).includes(ficha.id));
+
 window.fetch = (input, init) => {
   const url = typeof input === "string" ? input : input.url;
+  if (fichasQa.length && url.startsWith(API_URL)) {
+    if (/\/clandestinos\/fichas\?/.test(url)) return Promise.resolve(respuesta({ items: fichasQa, counts: { pending: fichasQa.length }, total: fichasQa.length, page: 1, total_pages: 1, service_stats: {} }));
+    if (url.includes("/clandestinos/fichas/por-ids")) return Promise.resolve(respuesta({ items: deLasQa(cuerpo(init).ids), skipped: [] }));
+    if (url.includes("/clandestinos/fichas/aviso-lote")) {
+      const datos = cuerpo(init);
+      const items = deLasQa(datos.ids).map((ficha) => Object.assign(ficha, { fecha_aviso: datos.fecha_aviso, aviso_plazo_tipo: datos.plazo.tipo, aviso_plazo_valor: datos.plazo.tipo === "fecha" ? null : datos.plazo.valor, fecha_limite_aviso: computeFechaLimite(datos.fecha_aviso, datos.plazo), firmante_aviso: datos.firmante_aviso, cargo_firmante: datos.cargo_firmante }));
+      return Promise.resolve(respuesta({ items, skipped: [] }));
+    }
+    if (url.includes("/clandestinos/fichas/avisos-impresos")) return Promise.resolve(respuesta({ updated: cuerpo(init).ids?.length || 0 }));
+    const marcar = url.match(/\/inmuebles\/(\d+)\/mark-printed/);
+    if (marcar) { const ficha = deLasQa([marcar[1]])[0]; if (ficha) Object.assign(ficha, { printed_at: new Date().toISOString(), estado_padron: "reportada" }); return Promise.resolve(respuesta(ficha || {})); }
+  }
   if (!url.startsWith(API_URL)) return fetchOriginal(input, init);
   if (url.includes("/auth/me")) return Promise.resolve(respuesta({ user: usuario }));
   // Las listas paginadas se copian con {...datos}: necesitan sus campos de verdad.

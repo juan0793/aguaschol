@@ -23,3 +23,20 @@ test("muestra la fecha limite calculada", () => {
 
   assert.equal(meta.deadlineLabel, "19 de junio de 2026");
 });
+
+test("con aviso, el plazo de la ficha es el del aviso (aunque ya esté impresa)", () => {
+  const viernes = new Date(2026, 9, 2, 10);
+  const meta = getRecordDeadlineMeta({ created_at: "2026-09-01T10:00:00", estado_padron: "reportada", aviso_plazo_tipo: "horas", aviso_plazo_valor: 24, fecha_limite_aviso: "2026-10-05" }, viernes);
+  assert.equal(meta.source, "aviso");
+  assert.equal(meta.statusKey, "warning");
+  assert.equal(meta.helper, "Aviso: 1 dia habil restante");
+  assert.equal(getRecordDeadlineMeta({ aviso_plazo_tipo: "dias", fecha_limite_aviso: "2026-10-02", created_at: "2026-09-01" }, viernes).statusKey, "due");
+  assert.equal(getRecordDeadlineMeta({ aviso_plazo_tipo: "dias", fecha_limite_aviso: "2026-10-01", created_at: "2026-09-01" }, viernes).statusKey, "overdue");
+});
+
+test("sin aviso, o con la ficha cerrada, sigue el plazo de levantamiento", () => {
+  const viernes = new Date(2026, 9, 2, 10);
+  assert.equal(getRecordDeadlineMeta({ created_at: "2026-10-01T10:00:00" }, viernes).source, "levantamiento");
+  assert.equal(getRecordDeadlineMeta({ created_at: "2026-10-01T10:00:00", estado_operativo: "regularized", aviso_plazo_tipo: "dias", fecha_limite_aviso: "2026-10-05" }, viernes).source, "levantamiento");
+  assert.equal(getRecordDeadlineMeta({ created_at: "2026-10-01T10:00:00", estado_padron: "reportada" }, viernes), null);
+});

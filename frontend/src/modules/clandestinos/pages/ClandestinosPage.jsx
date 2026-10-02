@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../../components/Icon";
 import FichasInbox from "../components/FichasInbox";
+import LoteAvisosDialog from "../components/LoteAvisosDialog";
 import FichaDrawer from "../components/FichaDrawer";
 import BancoClandestinos from "../components/BancoClandestinos";
 import ResumenClandestinos from "../components/ResumenClandestinos";
@@ -23,8 +24,8 @@ const tabFromHash = () => location.hash.match(/^#clandestinos\/(\w+)/)?.[1] || "
 const MODOS = { banco: "Banco de campo · revisión de candidatos", impresiones: "Centro de impresión · documentos oficiales" };
 const plural = (value, singular, pluralText) => `${Number(value || 0).toLocaleString("es-HN")} ${Number(value) === 1 ? singular : pluralText}`;
 
-export default function ClandestinosPage({ apiFetch, session, showAlert, navigate, focusRequest, onFocusConsumed, onPrintFicha, onPrintAviso, command, onStatusChange }) {
-  const api = useMemo(() => createClandestinosApi(apiFetch), [apiFetch]); const [tab, setTab] = useState(tabFromHash); const [config, setConfig] = useState(null); const [drawer, setDrawer] = useState(undefined); const [selected, setSelected] = useState(new Map()); const [comparison, setComparison] = useState(null); const [bulkLoading, setBulkLoading] = useState(false);
+export default function ClandestinosPage({ apiFetch, session, showAlert, navigate, focusRequest, onFocusConsumed, onPrintFicha, onPrintAviso, onPrintLote, command, onStatusChange }) {
+  const api = useMemo(() => createClandestinosApi(apiFetch), [apiFetch]); const [tab, setTab] = useState(tabFromHash); const [config, setConfig] = useState(null); const [drawer, setDrawer] = useState(undefined); const [selected, setSelected] = useState(new Map()); const [loteOpen, setLoteOpen] = useState(false); const [comparison, setComparison] = useState(null); const [bulkLoading, setBulkLoading] = useState(false);
   const fichas = useFichas(api, true);
   // La validadora de campo entra directo a lo que le asignaron.
   const banco = useBanco(api, tab === "banco", { defaultAsignado: session?.user?.role === "validadora_campo" ? "mine" : "" });
@@ -121,6 +122,23 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   const selectAll = async () => { setBulkLoading(true); try { const data = await api.fichas({ q: fichas.filters.query, state: fichas.filters.state, barrio: fichas.filters.barrio, page: 1, limit: 500 }); setSelected(new Map(data.items.map((item) => [String(item.id), item]))); showAlert(`${data.items.length} fichas seleccionadas.`); } catch (error) { showAlert(error.message); } finally { setBulkLoading(false); } };
   const compareSelected = async () => { if (!selected.size) return; setBulkLoading(true); try { const data = await api.compareFichas([...selected.keys()]); setComparison(data); showAlert(`Comparacion lista: ${data.summary.alcaldia_only} posibles clandestinas aparecen en Alcaldia y no en Aguas.`); } catch (error) { showAlert(error.message); } finally { setBulkLoading(false); } };
   const openBancoFicha = async (candidato) => { try { const data = await api.fichas({ q: candidato.clave_catastral, limit: 8 }); const found = data.items.find((item) => Number(item.id) === Number(candidato.inmueble_id)); if (found) setDrawer(found); else showAlert("La ficha ya no está activa; revisa archivados."); } catch (error) { showAlert(error.message); } };
+  // Fin del lote de avisos/fichas: la selección queda con las fichas al día (con su
+  // plazo nuevo) y se recarga la bandeja para que la columna Plazo lo muestre.
+  const terminarLote = async (frescas, resultado) => {
+    setLoteOpen(false);
+    setSelected((current) => { const next = new Map(current); frescas.forEach((item) => { if (next.has(String(item.id))) next.set(String(item.id), item); }); return next; });
+    await fichas.reload();
+    const partes = [];
+    if (resultado.printed) {
+      partes.push(`Lote impreso: ${resultado.avisos ? plural(frescas.length, "aviso", "avisos") : ""}${resultado.avisos && resultado.fichas ? " y " : ""}${resultado.fichas ? plural(frescas.length, "ficha técnica", "fichas técnicas") : ""}.`);
+    } else {
+      partes.push(resultado.avisos ? "Vista previa cerrada sin imprimir. La fecha y el plazo del aviso sí quedaron guardados." : "Vista previa cerrada sin imprimir.");
+    }
+    if (resultado.missingPhotos) partes.push(`${plural(resultado.missingPhotos, "ficha salió", "fichas salieron")} sin foto porque no cargó a tiempo.`);
+    if (resultado.skipped?.length) partes.push(`${plural(resultado.skipped.length, "ficha se omitió", "fichas se omitieron")} por estar archivada${resultado.skipped.length === 1 ? "" : "s"}.`);
+    if (resultado.markError) partes.push(resultado.markError);
+    showAlert(partes.join(" "));
+  };
   if (!config) return <main className="cl-module"><div className="cl-module-loading"><LatticeLoader label="Cargando módulo Clandestinos…" showTimer /></div></main>;
 
   // El encabezado dice en qué sección se está y qué contiene, no un rótulo fijo.
@@ -140,13 +158,14 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
     {modo ? createPortal(<div className={`cl-mode-frame is-${tab}`} aria-hidden="true"><span><Icon name={seccion.icon} />{modo}</span></div>, document.body) : null}
     <header className="cl-module-header"><div className="cl-module-heading"><span className="cl-module-emblem" key={tab} aria-hidden="true"><Icon name={seccion.icon} /></span><div><h1>{seccion.title}{modo ? <em className="cl-mode-chip">Módulo especial</em> : null}</h1><p aria-live="polite">{seccion.detail}</p></div></div><nav aria-label="Secciones de Clandestinos">{tabs.filter(([key]) => key !== "configuracion" || config.permissions.can_manage_configuration).map(([key,label,icon]) => <button type="button" key={key} className={`${tab === key ? "is-active" : ""} ${MODOS[key] ? `is-special is-${key}` : ""}`.trim()} onClick={() => go(key)}><Icon name={icon} />{label}</button>)}</nav><div className="cl-role"><Icon name="users" /><span>{session?.user?.full_name || session?.user?.username}<small>{session?.user?.role}</small></span></div></header>
     <div className="cl-view" key={tab}>
-    {tab === "fichas" ? <FichasInbox model={fichas} selectedIds={new Set(selected.keys())} onToggle={toggle} onToggleVisible={toggleVisible} onSelectAll={selectAll} onClearSelection={() => setSelected(new Map())} onCompare={compareSelected} onPrintSummary={() => { sessionStorage.setItem("aguas.clandestinos.printTemplate", "batch_list"); go("impresiones"); }} comparison={comparison} bulkLoading={bulkLoading} onOpen={setDrawer} onNew={() => setDrawer(null)} canCreate={config.permissions.can_manage_ficha_state} /> : null}
+    {tab === "fichas" ? <FichasInbox model={fichas} selectedIds={new Set(selected.keys())} onToggle={toggle} onToggleVisible={toggleVisible} onSelectAll={selectAll} onClearSelection={() => setSelected(new Map())} onCompare={compareSelected} onPrintSummary={() => { sessionStorage.setItem("aguas.clandestinos.printTemplate", "batch_list"); go("impresiones"); }} onOpenLote={config.permissions.can_manage_ficha_state && onPrintLote ? () => setLoteOpen(true) : null} comparison={comparison} bulkLoading={bulkLoading} onOpen={setDrawer} onNew={() => setDrawer(null)} canCreate={config.permissions.can_manage_ficha_state} /> : null}
     {tab === "banco" ? <BancoClandestinos api={api} model={banco} permissions={config.permissions} session={session} notify={showAlert} onOpenFicha={openBancoFicha} onFichaCreated={(ficha) => { fichas.reload(); setDrawer(ficha); }} /> : null}
     {tab === "resumen" ? <ResumenClandestinos api={api} onOpenFichas={abrirFichas} onOpenBanco={abrirBanco} onOpenReportes={abrirReportes} onOpenFicha={setDrawer} /> : null}
     {tab === "reportes" ? <ReportesTecnicosPage api={api} config={config} notify={showAlert} model={reportes} /> : null}
     {tab === "impresiones" ? <ImpresionesPage records={[...selected.values()]} onGoFichas={() => go("fichas")} onClearSelection={() => setSelected(new Map())} /> : null}
     {tab === "configuracion" ? <section className="cl-config"><header className="cl-page-head"><div><span className="cl-kicker">Administración</span><h2>Configuración del módulo</h2><p>Catálogos visibles para controlar los flujos sin valores ambiguos.</p></div></header>{config.permissions.can_manage_configuration ? <AjustesModulo api={api} ajustes={config.ajustes} notify={showAlert} onSaved={(ajustes) => setConfig((actual) => ({ ...actual, ajustes }))} /> : null}<div className="cl-config-grid"><article><Icon name="records" /><h3>Estados de ficha</h3><p>{config.ficha_states.join(" · ")}</p></article><article><Icon name="activity" /><h3>Estados de reportes</h3><p>{config.report_states.join(" · ")}</p></article><article><Icon name="print" /><h3>Plantillas</h3><p>{config.print_templates.join(" · ")}</p></article><article><Icon name="users" /><h3>Permisos efectivos</h3><p>{Object.entries(config.permissions).filter(([,value]) => value).map(([key]) => key).join(" · ")}</p></article></div></section> : null}
     </div>
+    {loteOpen ? <LoteAvisosDialog records={[...selected.values()]} api={api} onPrint={onPrintLote} onClose={() => setLoteOpen(false)} onDone={terminarLote} /> : null}
     {drawer !== undefined ? <FichaDrawer record={drawer} api={api} config={config} notify={showAlert} onClose={() => setDrawer(undefined)} onPrintFicha={onPrintFicha} onPrintAviso={onPrintAviso} onSaved={async (saved, close = true) => { setSelected((current) => { const key = String(saved.id); if (!current.has(key)) return current; const next = new Map(current); next.set(key, saved); return next; }); await fichas.reload(); if (close) setDrawer(undefined); else setDrawer(saved); }} /> : null}
   </main>;
 }

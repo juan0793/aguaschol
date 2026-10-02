@@ -446,7 +446,7 @@ function App() {
     getRecordBarrioName,
     selectedPhotoUrl
   });
-  const { handlePrintFicha, handlePrintAviso } = fichaPrinting;
+  const { handlePrintFicha, handlePrintAviso, printLote } = fichaPrinting;
   const padronDataActions = createPadronDataActions({
     ...apiSession,
     ...padronRequestState,
@@ -921,6 +921,7 @@ function App() {
           onFocusConsumed={() => setCrossModuleFocus(null)}
           onPrintFicha={handlePrintFicha}
           onPrintAviso={handlePrintAviso}
+          onPrintLote={printLote}
           command={clandestinosCommand}
           onStatusChange={setClandestinosStatus}
         />

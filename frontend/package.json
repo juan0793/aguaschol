@@ -17,6 +17,7 @@
     "test:dashboard": "node --test src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs src/modules/dashboard/dotPlotLayout.test.mjs",
     "test:railway": "node --test src/components/railwayUsageCharts.test.mjs",
     "test:sig": "node --test src/modules/sig/utils/sigZoomRules.test.mjs src/modules/sig/utils/sigGeojson.test.mjs src/modules/sig/utils/loteTerritorial.test.mjs",
+    "test:clandestinos": "node --test src/utils/records.test.mjs src/modules/clandestinos/services/bancoPrint.test.mjs src/modules/clandestinos/printing/loteImpresion.test.mjs",
     "test:requests": "node --test src/modules/requests/utils/serviceTable.test.mjs src/modules/requests/utils/alcaldiaClaves.test.mjs"
   },
   "dependencies": {

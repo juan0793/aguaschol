@@ -6,6 +6,7 @@ import {
   normalizeAlertDate,
   normalizeDateField
 } from "./datesAndBusiness.js";
+import { parseIsoDate } from "../modules/clandestinos/avisoPlazo.js";
 
 export const hasDraftContent = (candidate) =>
   Object.entries(emptyForm).some(([key, defaultValue]) => {
@@ -55,61 +56,41 @@ export const getRecordValidationIssues = (form = {}, hasExistingPhoto = false, s
   return issues;
 };
 
-export const getRecordDeadlineMeta = (record = {}, referenceDate = new Date()) => {
-  if (!record || record.archived_at) return null;
-  if (record.estado_padron === "reportada") return null;
-
-  const sourceDate = record.created_at || record.fecha_aviso || record.updated_at;
-  const createdDate = normalizeAlertDate(sourceDate);
-  if (!createdDate) return null;
-
-  const deadlineDate = addBusinessDays(createdDate, 7);
-  const today = normalizeAlertDate(referenceDate);
-  if (!deadlineDate || !today) return null;
-
+const deadlineStatus = (deadlineDate, today, source) => {
   const delta = countBusinessDaysBetween(today, deadlineDate);
+  // El plazo del aviso se distingue del de levantamiento con su prefijo.
+  const prefix = source === "aviso" ? "Aviso: " : "";
+  const base = { deadlineLabel: formatSpanishDate(deadlineDate), source };
 
   if (delta < 0) {
-    return {
-      tone: "is-overdue",
-      label: "Vencida",
-      helper: `${Math.abs(delta)} dias habiles vencidos`,
-      deadlineLabel: formatSpanishDate(deadlineDate),
-      icon: "activity",
-      statusKey: "overdue"
-    };
+    return { ...base, tone: "is-overdue", label: "Vencida", helper: `${prefix}${Math.abs(delta)} dias habiles vencidos`, icon: "activity", statusKey: "overdue" };
   }
-
   if (delta === 0) {
-    return {
-      tone: "is-due",
-      label: "Vence hoy",
-      helper: "Ultimo dia habil",
-      deadlineLabel: formatSpanishDate(deadlineDate),
-      icon: "warning",
-      statusKey: "due"
-    };
+    return { ...base, tone: "is-due", label: "Vence hoy", helper: `${prefix}ultimo dia habil`, icon: "warning", statusKey: "due" };
   }
-
   if (delta <= 2) {
-    return {
-      tone: "is-warning",
-      label: "En alerta",
-      helper: `${delta} dias habiles restantes`,
-      deadlineLabel: formatSpanishDate(deadlineDate),
-      icon: "warning",
-      statusKey: "warning"
-    };
+    return { ...base, tone: "is-warning", label: "En alerta", helper: `${prefix}${delta} ${delta === 1 ? "dia habil restante" : "dias habiles restantes"}`, icon: "warning", statusKey: "warning" };
   }
+  return { ...base, tone: "is-on-track", label: "En plazo", helper: `${prefix}${delta} dias habiles restantes`, icon: "success", statusKey: "on_track" };
+};
 
-  return {
-    tone: "is-on-track",
-    label: "En plazo",
-    helper: `${delta} dias habiles restantes`,
-    deadlineLabel: formatSpanishDate(deadlineDate),
-    icon: "success",
-    statusKey: "on_track"
-  };
+// Plazo de la ficha. Si ya se le dio un aviso con plazo (24 h, N días hábiles o una
+// fecha), manda ese vencimiento, aunque la ficha ya esté impresa ("reportada").
+// Si no, siguen los 7 días hábiles desde el levantamiento.
+export const getRecordDeadlineMeta = (record = {}, referenceDate = new Date()) => {
+  if (!record || record.archived_at) return null;
+  const today = normalizeAlertDate(referenceDate);
+  if (!today) return null;
+
+  const cerrada = ["regularized", "discarded"].includes(record.estado_operativo);
+  const avisoDate = record.aviso_plazo_tipo && !cerrada ? parseIsoDate(record.fecha_limite_aviso) : null;
+  if (avisoDate) return deadlineStatus(avisoDate, today, "aviso");
+
+  if (record.estado_padron === "reportada") return null;
+  const createdDate = normalizeAlertDate(record.created_at || record.fecha_aviso || record.updated_at);
+  const deadlineDate = createdDate ? addBusinessDays(createdDate, 7) : null;
+  if (!deadlineDate) return null;
+  return deadlineStatus(deadlineDate, today, "levantamiento");
 };
 
 export const getRecordGroupDate = (record, recordView) =>

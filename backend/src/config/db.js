@@ -383,6 +383,10 @@ const ensureSchema = async () => {
       columnName: "observaciones_internas",
       definition: "TEXT NULL"
     });
+    // Plazo del aviso al abonado (tipo + valor; la fecha límite la calcula utils/avisoPlazo.js).
+    for (const [columnName, definition] of [["aviso_plazo_tipo", "VARCHAR(10) NULL"], ["aviso_plazo_valor", "SMALLINT NULL"], ["fecha_limite_aviso", "DATE NULL"], ["aviso_instrucciones", "TEXT NULL"], ["aviso_impreso_at", "TIMESTAMP NULL"]]) {
+      await ensureColumn(admin, { tableName: "inmuebles_clandestinos", columnName, definition });
+    }
     await ensureColumn(admin, {
       tableName: "audit_logs",
       columnName: "actor_name_snapshot",

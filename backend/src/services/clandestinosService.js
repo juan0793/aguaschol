@@ -5,6 +5,7 @@ import { getById, listInmuebles } from "./inmuebleService.js";
 import { saveUploadedPhoto } from "./fileStorageService.js";
 import { compareAlcaldiaWithAguas, getMasterRecordsForImport } from "./claveLookupService.js";
 import { likeValue } from "../utils/normalize.js";
+import { computeFechaLimite, etiquetaPlazo, normalizePlazo, parseIsoDate, toIsoDate } from "../utils/avisoPlazo.js";
 
 export const FICHA_STATES = ["draft", "pending", "visit", "confirmed", "regularization", "regularized", "discarded"];
 export const REPORT_STATES = ["new", "review", "info_requested", "approved", "linked", "duplicate", "discarded"];
@@ -71,6 +72,11 @@ const FICHA_LIST_FIELDS = [
   "fecha_aviso",
   "firmante_aviso",
   "cargo_firmante",
+  "aviso_plazo_tipo",
+  "aviso_plazo_valor",
+  "fecha_limite_aviso",
+  "aviso_instrucciones",
+  "aviso_impreso_at",
   "levantamiento_datos",
   "analista_datos",
   "estado_operativo",
@@ -282,6 +288,107 @@ export const compareClandestinosFichas = async (ids = []) => {
     rows,
     summary: summarizePadronComparison(rows)
   };
+};
+
+// ---------- Avisos en lote: plazo, fichas frescas y avisos impresos ----------
+const LOTE_MAX = 500;
+const idsDelLote = (ids, verbo) => {
+  const selected = [...new Set((Array.isArray(ids) ? ids : []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  if (!selected.length) throw fail(`Selecciona al menos una ficha para ${verbo}.`);
+  if (selected.length > LOTE_MAX) throw fail(`El lote admite hasta ${LOTE_MAX} fichas.`, 413);
+  return selected;
+};
+const fichasActivas = async (ids) => {
+  const records = await Promise.all(ids.map((id) => getById(id, { includeArchived: false })));
+  return { found: records.filter(Boolean), skipped: ids.filter((id, index) => !records[index]).map((id) => ({ id, reason: "archivada o no encontrada" })) };
+};
+
+// Fichas completas y al día, en el orden pedido (para imprimir lo que hay en la base,
+// no lo que quedó en la selección de la bandeja).
+export const getFichasByIds = async (ids = [], user) => {
+  if (!canReview(user)) throw fail("Tu rol no puede imprimir fichas en lote.", 403);
+  const selected = idsDelLote(ids, "consultar");
+  const { found, skipped } = await fichasActivas(selected);
+  return { items: found, skipped };
+};
+
+// Fecha del aviso, plazo, firma e indicación para varias fichas a la vez. El
+// destinatario no se toca: cada aviso va a nombre de su abonado.
+export const setAvisoLote = async (payload = {}, user) => {
+  if (!canReview(user)) throw fail("Tu rol no puede preparar avisos.", 403);
+  const ids = idsDelLote(payload.ids, "preparar avisos");
+  const fechaAviso = String(payload.fecha_aviso ?? "").slice(0, 10);
+  const base = parseIsoDate(fechaAviso);
+  if (!base) throw fail("La fecha del aviso no es válida.");
+  const hoy = new Date();
+  const maxAviso = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 30);
+  if (base > maxAviso) throw fail("La fecha del aviso no puede pasar de 30 días desde hoy.");
+  const plazo = normalizePlazo(payload.plazo);
+  if (!plazo) throw fail("Elige el plazo: horas, días hábiles o una fecha.");
+  if (plazo.tipo !== "fecha" && !Number.isFinite(plazo.valor)) throw fail(plazo.tipo === "horas" ? "El plazo en horas va de 1 a 72." : "El plazo en días hábiles va de 1 a 90.");
+  const fechaLimite = computeFechaLimite(fechaAviso, plazo);
+  if (!fechaLimite) throw fail("La fecha límite no es válida.");
+  const limite = parseIsoDate(fechaLimite);
+  const maxLimite = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 180);
+  if (limite < base) throw fail("La fecha límite no puede ser anterior a la fecha del aviso.");
+  if (limite > maxLimite) throw fail("La fecha límite no puede pasar de 180 días desde el aviso.");
+  const firmante = clean(payload.firmante_aviso).slice(0, 180);
+  const cargo = clean(payload.cargo_firmante).slice(0, 180);
+  const instrucciones = clean(payload.aviso_instrucciones).slice(0, 1000);
+  const next = {
+    fecha_aviso: toIsoDate(base),
+    aviso_plazo_tipo: plazo.tipo,
+    aviso_plazo_valor: plazo.tipo === "fecha" ? null : plazo.valor,
+    fecha_limite_aviso: fechaLimite,
+    firmante_aviso: firmante,
+    cargo_firmante: cargo,
+    aviso_instrucciones: instrucciones
+  };
+
+  const { found, skipped } = await fichasActivas(ids);
+  if (!found.length) throw fail("Ninguna de las fichas seleccionadas está activa.", 404);
+  if (env.useMemoryDb) {
+    found.forEach((record) => Object.assign(record, next, { updated_at: new Date().toISOString() }));
+  } else {
+    await getPool().query(
+      `UPDATE inmuebles_clandestinos
+          SET fecha_aviso = ?, aviso_plazo_tipo = ?, aviso_plazo_valor = ?, fecha_limite_aviso = ?,
+              firmante_aviso = ?, cargo_firmante = ?, aviso_instrucciones = ?
+        WHERE id IN (?) AND archived_at IS NULL`,
+      [next.fecha_aviso, next.aviso_plazo_tipo, next.aviso_plazo_valor, next.fecha_limite_aviso, next.firmante_aviso, next.cargo_firmante, next.aviso_instrucciones, found.map((record) => record.id)]
+    );
+    const texto = etiquetaPlazo(next);
+    await Promise.all(found.map((record) => createAuditLog({
+      actorUserId: user?.id,
+      action: "inmueble.aviso_plazo",
+      entityType: "inmueble",
+      entityId: record.id,
+      summary: `Ficha ${record.clave_catastral || record.id}: aviso del ${next.fecha_aviso} con plazo de ${texto}`,
+      details: {
+        previous: { fecha_aviso: record.fecha_aviso, aviso_plazo_tipo: record.aviso_plazo_tipo, aviso_plazo_valor: record.aviso_plazo_valor, fecha_limite_aviso: record.fecha_limite_aviso },
+        next,
+        lote: found.length
+      }
+    })));
+  }
+  const fresh = await fichasActivas(found.map((record) => record.id));
+  return { items: fresh.found, skipped };
+};
+
+// Se llama solo cuando la vista previa del lote confirmó la impresión.
+export const markAvisosImpresos = async (ids = [], user) => {
+  if (!canReview(user)) throw fail("Tu rol no puede registrar avisos impresos.", 403);
+  const selected = idsDelLote(ids, "registrar");
+  const { found } = await fichasActivas(selected);
+  if (!found.length) return { updated: 0 };
+  if (env.useMemoryDb) {
+    const now = new Date().toISOString();
+    found.forEach((record) => { record.aviso_impreso_at = now; });
+  } else {
+    await getPool().query("UPDATE inmuebles_clandestinos SET aviso_impreso_at = NOW() WHERE id IN (?) AND archived_at IS NULL", [found.map((record) => record.id)]);
+    await createAuditLog({ actorUserId: user?.id, action: "inmueble.avisos_impresos", entityType: "inmueble", entityId: "", summary: `${found.length} ${found.length === 1 ? "aviso impreso" : "avisos impresos"} en lote`, details: { ids: found.map((record) => record.id) } });
+  }
+  return { updated: found.length };
 };
 
 const addHistory = async ({ entityType, entityId, previous = "", next, reason = "", user }) => {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { changeReportState, createTechnicalReport, getClandestinosConfig, listClandestinosFichas, listTechnicalReports, summarizePadronComparison } from "./clandestinosService.js";
+import { changeReportState, createTechnicalReport, getClandestinosConfig, getFichasByIds, markAvisosImpresos, setAvisoLote, listClandestinosFichas, listTechnicalReports, summarizePadronComparison } from "./clandestinosService.js";
 
 const technician = { id: 7, role: "validadora_campo", full_name: "Técnica de campo" };
 const reviewer = { id: 8, role: "operator", full_name: "Revisor" };
@@ -87,4 +87,39 @@ test("ritmo: serie con ceros, totales de hoy/semana/mes/año y barrios", async (
   const anio = resumirRitmo(filas, "anio", ahora);
   assert.deepEqual(anio.serie.map((punto) => [punto.periodo, punto.total]), [["2025", 1], ["2026", 4]]);
   assert.equal(resumirRitmo([], "otra", ahora).granularidad, "dia");
+});
+
+test("aviso en lote: guarda fecha, plazo en días hábiles y firma sin tocar el resto", async () => {
+  const [antes] = (await getFichasByIds([1], reviewer)).items;
+  const comentarios = antes.comentarios;
+  const { items, skipped } = await setAvisoLote({ ids: [1, 1, 999], fecha_aviso: "2026-10-02", plazo: { tipo: "dias", valor: 2 }, firmante_aviso: "Jefatura", cargo_firmante: "Comercialización" }, reviewer);
+  assert.equal(items.length, 1);
+  assert.deepEqual(skipped.map((item) => item.id), [999]);
+  assert.equal(items[0].fecha_limite_aviso, "2026-10-06");
+  assert.equal(items[0].aviso_plazo_tipo, "dias");
+  assert.equal(items[0].aviso_plazo_valor, 2);
+  assert.equal(items[0].firmante_aviso, "Jefatura");
+  assert.equal(items[0].comentarios, comentarios);
+});
+
+test("aviso en lote: 24 horas un viernes vence el lunes", async () => {
+  const { items } = await setAvisoLote({ ids: [1], fecha_aviso: "2026-10-02", plazo: { tipo: "horas", valor: 24 } }, reviewer);
+  assert.equal(items[0].fecha_limite_aviso, "2026-10-05");
+  assert.equal(items[0].aviso_plazo_valor, 24);
+});
+
+test("aviso en lote: valida permisos, plazo y tamaño del lote", async () => {
+  await assert.rejects(() => setAvisoLote({ ids: [1], fecha_aviso: "2026-10-02", plazo: { tipo: "dias", valor: 2 } }, technician), (error) => error.status === 403);
+  await assert.rejects(() => setAvisoLote({ ids: [1], fecha_aviso: "2026-10-02", plazo: { tipo: "horas", valor: 100 } }, reviewer), /1 a 72/);
+  await assert.rejects(() => setAvisoLote({ ids: [1], fecha_aviso: "2026-10-02", plazo: { tipo: "fecha", fecha: "2026-09-01" } }, reviewer), /anterior/);
+  await assert.rejects(() => setAvisoLote({ ids: [1], fecha_aviso: "2026-13-40", plazo: { tipo: "dias", valor: 2 } }, reviewer), /fecha del aviso/);
+  await assert.rejects(() => setAvisoLote({ ids: [], fecha_aviso: "2026-10-02", plazo: { tipo: "dias", valor: 2 } }, reviewer), /al menos una/);
+  await assert.rejects(() => setAvisoLote({ ids: Array.from({ length: 501 }, (_, index) => index + 1), fecha_aviso: "2026-10-02", plazo: { tipo: "dias", valor: 2 } }, reviewer), (error) => error.status === 413);
+  await assert.rejects(() => getFichasByIds([1], technician), (error) => error.status === 403);
+});
+
+test("avisos impresos: se registran solo para fichas activas", async () => {
+  assert.deepEqual(await markAvisosImpresos([1, 999], reviewer), { updated: 1 });
+  const [ficha] = (await getFichasByIds([1], reviewer)).items;
+  assert.ok(ficha.aviso_impreso_at);
 });

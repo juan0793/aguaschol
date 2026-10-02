@@ -13,6 +13,9 @@ export const createClandestinosApi = (apiFetch) => ({
   fichasRitmo: (params = {}) => apiFetch(`/clandestinos/fichas/ritmo?${new URLSearchParams(params)}`).then(json),
   // Ficha por clave exacta; null si no existe.
   fichaByClave: (clave) => apiFetch(`/inmuebles/clave/${encodeURIComponent(clave)}`).then((response) => response.status === 404 ? null : json(response)),
+  // Avisos en lote: fichas frescas por id y fecha/plazo/firma de una vez.
+  fichasPorIds: (ids) => apiFetch("/clandestinos/fichas/por-ids", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).then(json),
+  avisoLote: (payload) => apiFetch("/clandestinos/fichas/aviso-lote", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(json),
   compareFichas: (ids) => apiFetch("/clandestinos/fichas/compare-padrones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).then(json),
   saveFicha: (record) => apiFetch(record.id ? `/inmuebles/${record.id}` : "/inmuebles", { method: record.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(record) }).then(json),
   validatePadron: (clave) => apiFetch(`/claves/alcaldia/search?field=clave&clave=${encodeURIComponent(clave)}`).then(json),

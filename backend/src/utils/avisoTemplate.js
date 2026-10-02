@@ -1,3 +1,4 @@
+import { describeAvisoPlazo } from "./avisoPlazo.js";
 import { resolveBarrioFromRecord } from "../services/barrioCodeService.js";
 
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
@@ -34,9 +35,8 @@ export const buildAvisoHtml = (inmueble) => {
   const firmante = inmueble.firmante_aviso || "Jefatura de Comercializacion";
   const cargo = inmueble.cargo_firmante || "Aguas de Choluteca";
   const destinatario = inmueble.aviso_destinatario || inmueble.abonado || inmueble.inquilino || inmueble.nombre_catastral || "Senor(a)";
-  const plazoDias = Math.max(1, Math.min(90, Number(inmueble.aviso_plazo_dias) || 7));
-  const fechaLimite = inmueble.fecha_limite_aviso ? formatSpanishDate(inmueble.fecha_limite_aviso) : "";
-  const plazoTexto = fechaLimite ? `a mas tardar el ${escapeHtml(fechaLimite)}` : `en un plazo maximo de ${plazoDias} (${plazoDias}) dias calendario a partir de la recepcion del presente aviso`;
+  // Esta plantilla va sin tildes; la frase del plazo sale de utils/avisoPlazo.js.
+  const plazoTexto = escapeHtml(describeAvisoPlazo(inmueble, formatSpanishDate).normalize("NFD").replace(/[̀-ͯ]/g, ""));
   const instrucciones = String(inmueble.aviso_instrucciones || "").trim();
 
   return `

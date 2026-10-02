@@ -88,3 +88,28 @@ export const urlToDataUrl = async (url) => {
     reader.readAsDataURL(blob);
   });
 };
+
+// Para imprimir muchas fichas: la foto se reduce a ~1000 px en JPEG. Una foto de
+// cámara pesa varios MB y un lote de decenas volvía lenta la vista previa.
+export const urlToResizedDataUrl = async (url, maxDimension = 1000, quality = 0.8) => {
+  const original = await urlToDataUrl(url);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("imagen"));
+      element.src = original;
+    });
+    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+    if (scale >= 1) return original;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return original;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", quality);
+  } catch {
+    return original;
+  }
+};

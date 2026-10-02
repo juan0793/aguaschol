@@ -616,7 +616,9 @@
 
 /* Al cambiar de pestaña del módulo, la vista nueva entra con un fundido corto
    (el alto lo suaviza alturaSuave.js). */
-.cl-view { animation: cl-view-in .26s cubic-bezier(.16, 1, .3, 1) both; }
+/* backwards, no both: al terminar no debe quedar un transform puesto, porque convierte
+   en "relativas a la vista" las barras flotantes (position: fixed) del Banco y de Fichas. */
+.cl-view { animation: cl-view-in .26s cubic-bezier(.16, 1, .3, 1) backwards; }
 @keyframes cl-view-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .cl-view { animation: none; } }
 
@@ -975,3 +977,76 @@
 .cl-module .cl-ajustes .cl-primary { justify-self: start; width: auto; min-width: 140px; }
 .cl-ajustes .cl-primary:disabled { cursor: not-allowed; opacity: .55; }
 @media (max-width: 600px) { .cl-ajustes { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Avisos y fichas técnicas en lote ---------- */
+.cl-lote-backdrop { z-index: 230; }
+.cl-lote { width: min(780px, calc(100vw - 32px)); }
+/* El texto secundario del módulo (#627d98) no llega a 4.5:1 en 12px sobre los fondos
+   azulados del diálogo; aquí se oscurece. */
+.cl-lote, .cl-plazo { --muted: #486581; }
+/* Los editores van en un portal fuera de .cl-module: necesitan su propio anillo de foco. */
+.cl-notice-editor :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* La barra flotante no debe tapar las últimas filas. */
+.cl-inbox.is-selecting { padding-bottom: 96px; }
+.cl-lote .cl-icon-button { display: grid; width: 40px; height: 40px; place-items: center; padding: 0; }
+.cl-lote h2 { margin: 0; color: var(--navy); font-size: 20px; line-height: 1.2; }
+/* Las secciones tienen overflow:hidden (bordes redondeados) y la rejilla las encogía
+   para caber en el alto del diálogo; deben medir lo suyo y que el cuerpo se desplace. */
+.cl-lote .cl-notice-editor-body { grid-auto-rows: max-content; }
+.cl-lote > footer button { white-space: nowrap; }
+
+.cl-lote-docs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 14px; }
+.cl-lote-docs button { display: grid; gap: 2px; min-height: 58px; padding: 10px 12px; border: 1px solid #c9dbee; border-radius: 10px; background: #fff; color: var(--navy); text-align: left; cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.cl-lote-docs button small { color: var(--muted); font-size: 12px; font-weight: 600; }
+.cl-lote-docs button:hover:not(:disabled) { border-color: var(--primary); }
+.cl-lote-docs button.is-active { border-color: var(--primary); background: #eef5ff; box-shadow: inset 0 0 0 1px var(--primary); }
+.cl-lote-docs button.is-active strong { color: var(--primary); }
+
+.cl-lote-plazo { display: grid; gap: 12px; padding: 14px; }
+.cl-lote-fecha, .cl-plazo-fecha { display: grid; gap: 6px; max-width: 260px; color: var(--navy); font-size: 12px; font-weight: 750; }
+.cl-lote-fecha input, .cl-plazo-fecha input { min-height: 44px; padding: 10px 12px; border: 1px solid #bfd5eb; border-radius: 10px; background: #fff; color: var(--navy); font: inherit; }
+.cl-plazo { display: grid; gap: 10px; }
+.cl-plazo-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.cl-plazo-presets button { min-height: 40px; padding: 0 14px; border: 1px solid #c9dbee; border-radius: 999px; background: #fff; color: var(--text); font-size: 13.5px; font-weight: 700; cursor: pointer; transition: border-color .15s ease, background-color .15s ease, color .15s ease; }
+.cl-plazo-presets button:hover { border-color: var(--primary); color: var(--primary); }
+.cl-plazo-presets button.is-active { border-color: var(--primary); background: var(--primary); color: #fff; }
+.cl-plazo-resultado { display: grid; gap: 3px; margin: 0; padding: 10px 12px; border: 1px solid #d3e3f5; border-radius: 10px; background: #f4f8fd; }
+.cl-plazo-resultado strong { color: var(--navy); font-size: 14px; }
+.cl-plazo-resultado strong::first-letter { text-transform: uppercase; }
+.cl-plazo-resultado span { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.cl-plazo-resultado.is-error { border-color: #f0d2d6; background: #fdf3f4; }
+.cl-plazo-resultado.is-error strong { color: var(--danger); }
+
+.cl-lote-nota, .cl-lote-alerta, .cl-lote-avisos li { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--text); font-size: 13px; line-height: 1.4; }
+.cl-lote-nota .app-icon, .cl-lote-alerta .app-icon, .cl-lote-avisos .app-icon { flex: 0 0 16px; width: 16px; height: 16px; margin-top: 1px; color: #9a6518; }
+.cl-lote-alerta { padding: 10px 12px; border: 1px solid #f0d2d6; border-radius: 10px; background: #fdf3f4; }
+.cl-lote-alerta.is-error, .cl-lote-alerta.is-error .app-icon { color: var(--danger); }
+.cl-lote-avisos { display: grid; gap: 6px; margin: 0; padding: 0 2px; list-style: none; }
+.cl-lote-extra { grid-column: 1 / -1; }
+.cl-lote-extra summary { width: fit-content; color: var(--primary); font-size: 13px; font-weight: 700; cursor: pointer; }
+.cl-lote-extra textarea { width: 100%; min-height: 80px; margin-top: 8px; padding: 10px 12px; border: 1px solid #bfd5eb; border-radius: 10px; color: var(--navy); font: inherit; resize: vertical; }
+
+.cl-lote > footer .cl-lote-resumen { display: block; flex: 1 1 auto; min-width: 0; color: var(--text); font-size: 13px; font-weight: 600; }
+.cl-lote > footer .cl-lote-resumen strong { color: var(--navy); }
+.cl-lote-progreso { display: grid; gap: 6px; width: 100%; color: var(--primary); }
+.cl-lote-progreso progress { width: min(100%, 320px); height: 6px; border: 0; border-radius: 999px; background: #dbe7f3; appearance: none; overflow: hidden; }
+.cl-lote-progreso progress::-webkit-progress-bar { background: #dbe7f3; }
+.cl-lote-progreso progress::-webkit-progress-value { background: var(--primary); border-radius: 999px; transition: width .2s ease-out; }
+.cl-lote-progreso progress::-moz-progress-bar { background: var(--primary); }
+.cl-lote button:disabled { cursor: not-allowed; opacity: .55; }
+
+@media (max-width: 760px) {
+  .cl-lote-backdrop { padding: 0; place-items: end stretch; }
+  .cl-lote { width: 100%; height: auto; max-height: 92dvh; border: 1px solid #d7e5f2; border-radius: 18px 18px 0 0; }
+  .cl-lote > footer { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .cl-lote-docs { grid-template-columns: 1fr; gap: 6px; }
+  .cl-lote-docs button { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; min-height: 44px; padding: 8px 12px; }
+  .cl-lote .cl-notice-fields { grid-template-columns: 1fr; }
+  .cl-lote > footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .cl-lote > footer > div:last-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cl-lote > footer > div:last-child button { justify-content: center; }
+  .cl-lote-fecha { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cl-lote-docs button, .cl-plazo-presets button, .cl-lote-progreso progress::-webkit-progress-value { transition: none; }
+}

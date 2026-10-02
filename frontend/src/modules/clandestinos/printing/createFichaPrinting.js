@@ -2,10 +2,12 @@ import { buildPhotoUrl } from "../../../utils/formatting";
 import { clampPrintCopies } from "../../../utils/recordLabels";
 import { emptyForm } from "../../../constants/formsAndUi";
 import { escapeHtml } from "../../../utils/html";
-import { fileToDataUrl, urlToDataUrl } from "../../../utils/imageUtils";
+import { fileToDataUrl, urlToDataUrl, urlToResizedDataUrl } from "../../../utils/imageUtils";
 import { formatSpanishDate, normalizeRecord } from "../../../utils/datesAndBusiness";
 import logoAguasCholuteca from "../../../assets/logo-aguas-choluteca.png";
-import { printDocument } from "../../../utils/printDocument";
+import { announceReportGenerated, createReportId, printDocument } from "../../../utils/printDocument";
+import { describeAvisoPlazo, etiquetaPlazo } from "../avisoPlazo";
+import { ESTILOS_LOTE, armarPaginasLote, mapEnOrden, resumenLoteHtml, tituloLote } from "./loteImpresion";
 
 export function createFichaPrinting({
   apiFetch,
@@ -379,12 +381,17 @@ export function createFichaPrinting({
     }
   };
 
-  const buildFichaPrintDocument = async (recordOverride = null) => {
+  // silent: en un lote no se avisa ficha por ficha si falta la foto; se devuelve
+  // photoMissing y el lote da un solo mensaje al final.
+  const buildFichaPrintDocument = async (recordOverride = null, { silent = false } = {}) => {
     const targetRecord = recordOverride ? { ...emptyForm, ...normalizeRecord(recordOverride) } : form;
     let photoMarkup = "";
+    let photoMissing = false;
     let alcaldiaFichaMatch = null;
     let alcaldiaSearchMode = "";
-    const visibleClaveInput = document.querySelector('input[name="clave_catastral"]')?.value?.trim() || "";
+    // La clave escrita en el formulario solo sirve para la ficha abierta; en un lote
+    // todas las fichas sin clave tomaban esa misma.
+    const visibleClaveInput = recordOverride ? "" : document.querySelector('input[name="clave_catastral"]')?.value?.trim() || "";
     const recordClaveCatastral = String(targetRecord.clave_catastral || visibleClaveInput || "").trim();
 
     try {
@@ -395,11 +402,13 @@ export function createFichaPrinting({
         const dataUrl = await urlToDataUrl(selectedPhotoUrl);
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       } else if (recordOverride?.foto_path) {
-        const dataUrl = await urlToDataUrl(buildPhotoUrl(recordOverride.foto_path, recordOverride.updated_at || Date.now()));
+        const photoUrl = buildPhotoUrl(recordOverride.foto_path, recordOverride.updated_at || Date.now());
+        const dataUrl = silent ? await urlToResizedDataUrl(photoUrl) : await urlToDataUrl(photoUrl);
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       }
     } catch (_error) {
-      showAlert("La ficha se imprimira sin foto porque no fue posible cargarla a tiempo.");
+      photoMissing = true;
+      if (!silent) showAlert("La ficha se imprimira sin foto porque no fue posible cargarla a tiempo.");
     }
 
     const fetchAlcaldiaMatches = async (query, field = "clave") => {
@@ -481,6 +490,7 @@ export function createFichaPrinting({
         : "Sin coincidencia en Alcaldia";
 
     return {
+      photoMissing,
       title: `Ficha ${fichaClaveAlcaldia !== "--" ? fichaClaveAlcaldia : fichaClaveAguas}`,
       body: `
         <div class="print-ficha-compact-header">
@@ -608,11 +618,7 @@ export function createFichaPrinting({
     const firmante = targetRecord.firmante_aviso || "Jefatura de Comercializacion";
     const cargo = targetRecord.cargo_firmante || "Aguas de Choluteca";
     const destinatario = targetRecord.aviso_destinatario || targetRecord.abonado || targetRecord.inquilino || targetRecord.nombre_catastral || "Señor(a)";
-    const plazoDias = Math.max(1, Math.min(90, Number(targetRecord.aviso_plazo_dias) || 7));
-    const fechaLimite = targetRecord.fecha_limite_aviso ? formatSpanishDate(targetRecord.fecha_limite_aviso) : "";
-    const plazoTexto = fechaLimite
-      ? `a más tardar el ${escapeHtml(fechaLimite)}`
-      : `en un plazo máximo de ${plazoDias} (${plazoDias}) días calendario a partir de la recepción del presente aviso`;
+    const plazoTexto = escapeHtml(describeAvisoPlazo(targetRecord, formatSpanishDate));
     const instrucciones = String(targetRecord.aviso_instrucciones || "").trim();
 
     return `
@@ -666,7 +672,61 @@ export function createFichaPrinting({
     );
   };
 
+  // Avisos y/o fichas técnicas de varias fichas en una sola vista previa,
+  // intercalados por inmueble (ficha horizontal + su aviso vertical). Solo cuando
+  // se confirma la impresión se marcan las fichas como impresas y los avisos como
+  // entregados a imprenta. Los registros deben venir frescos de la API.
+  const printLote = async (records = [], { avisos = true, fichas = true, onProgress } = {}) => {
+    const lista = records.filter((record) => record?.id);
+    if (!lista.length || (!avisos && !fichas)) return { printed: false };
+    const fichaDocs = fichas
+      ? await mapEnOrden(lista, 4, (record) => buildFichaPrintDocument(record, { silent: true }), onProgress)
+      : [];
+    const missingPhotos = fichaDocs.filter((doc) => doc?.photoMissing).length;
+    const html = armarPaginasLote(lista.map((record, index) => ({
+      ficha: fichas ? fichaDocs[index].body : "",
+      aviso: avisos ? buildAvisoPrintMarkup(record) : ""
+    })));
+    const title = tituloLote({ total: lista.length, avisos, fichas });
+    const result = await printDocument(title, html, {
+      pageSize: "Letter portrait",
+      pageMargin: "10mm",
+      extraStyles: fichas ? ESTILOS_LOTE : "",
+      skipAudit: true
+    });
+    if (!result?.printed) return { printed: false, missingPhotos };
+
+    announceReportGenerated({
+      reportId: createReportId(),
+      title,
+      reportType: "lote-avisos-fichas",
+      bodyMarkup: resumenLoteHtml(lista, { avisos, fichas, plazo: avisos ? etiquetaPlazo(lista[0], formatSpanishDate) : "" }, escapeHtml)
+    });
+
+    const ids = lista.map((record) => record.id);
+    let fichasMarked = 0;
+    let markError = "";
+    if (fichas) {
+      const marked = await mapEnOrden(lista, 4, async (record) => {
+        const response = await apiFetch(`/inmuebles/${record.id}/mark-printed`, { method: "POST" });
+        return response.ok;
+      });
+      fichasMarked = marked.filter(Boolean).length;
+      if (fichasMarked < lista.length) markError = `${lista.length - fichasMarked} fichas no se pudieron marcar como impresas.`;
+    }
+    if (avisos) {
+      const response = await apiFetch("/clandestinos/fichas/avisos-impresos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids })
+      });
+      if (!response.ok) markError = [markError, "No se pudo registrar la impresión de los avisos."].filter(Boolean).join(" ");
+    }
+    return { printed: true, fichasMarked, missingPhotos, markError };
+  };
+
   return {
+    printLote,
     openPrintBatchModalForRecords,
     updateBatchPrintCopies,
     adjustBatchPrintCopies,

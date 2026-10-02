@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { banco, bancoAssign, bancoDiscard, bancoFromAlcaldia, bancoRefs, bancoListado, bancoTecnicos, bancoUnassign, bancoImport, bancoRestore, bancoSend, bancoVerify, compareFichas, config, configAjustes, createReport, evidence, fichaInternalNotes, fichaState, fichas, fichasRitmo, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
+import { avisoLote, avisosImpresos, fichasPorIds, banco, bancoAssign, bancoDiscard, bancoFromAlcaldia, bancoRefs, bancoListado, bancoTecnicos, bancoUnassign, bancoImport, bancoRestore, bancoSend, bancoVerify, compareFichas, config, configAjustes, createReport, evidence, fichaInternalNotes, fichaState, fichas, fichasRitmo, history, linkReport, reports, reportState } from "../controllers/clandestinosController.js";
 import { imageUpload } from "../middleware/upload.js";
 
 const router = Router();
@@ -8,6 +8,9 @@ router.put("/config/ajustes", configAjustes);
 router.get("/fichas", fichas);
 router.get("/fichas/ritmo", fichasRitmo);
 router.post("/fichas/compare-padrones", compareFichas);
+router.post("/fichas/por-ids", fichasPorIds);
+router.patch("/fichas/aviso-lote", avisoLote);
+router.post("/fichas/avisos-impresos", avisosImpresos);
 router.patch("/fichas/:id/state", fichaState);
 router.patch("/fichas/:id/internal-notes", fichaInternalNotes);
 router.get("/history/:entityType/:id", history);

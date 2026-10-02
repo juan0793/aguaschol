@@ -58,7 +58,8 @@ export const buildPrintHtml = (title, bodyMarkup, options) => {
     pageMargin = "10mm",
     bodyClassName = "",
     showPageFooter = false,
-    reportId = ""
+    reportId = "",
+    extraStyles = ""
   } = options;
   const footerMarkup = showPageFooter ? '<div class="field-report-page"></div>' : "";
   const reportIdMarkup = reportId ? `<div class="print-document-id">ID de reporte: ${escapeTitle(reportId)}</div>` : "";
@@ -76,6 +77,7 @@ export const buildPrintHtml = (title, bodyMarkup, options) => {
             size: ${pageSize};
             margin: ${pageMargin};
           }
+          ${extraStyles}
           body {
             font-family: Arial, sans-serif;
             margin: 0;

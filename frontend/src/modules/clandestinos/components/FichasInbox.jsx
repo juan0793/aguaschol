@@ -21,7 +21,18 @@ const ALERT_FOCUS_KEY = "aguas.clandestinos.focus";
 const ETAPAS = [["draft","Borradores","edit"],["pending","Por visitar","calendar"],["visit","En visita","map"],["confirmed","Aviso pendiente","mail"],["regularization","En seguimiento","history"],["regularized","Cerradas","success"],["discarded","Descartadas","archive"]];
 const stateLabel = (value) => STATE_LABELS[value] || "Pendiente";
 
-export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisible, onSelectAll, onClearSelection, onCompare, onPrintSummary, comparison, bulkLoading, onOpen, onNew, canCreate = false }) {
+export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisible, onSelectAll, onClearSelection, onCompare, onPrintSummary, onOpenLote = null, comparison, bulkLoading, onOpen, onNew, canCreate = false }) {
+  // Con fichas marcadas y la barra de selección fuera de la vista, sale una barra
+  // flotante abajo (como en el Banco) para no tener que subir a buscar las acciones.
+  // La barra aparece cuando termina la primera carga: se observa por ref de función.
+  const [bulkNode, setBulkNode] = useState(null);
+  const [bulkVisible, setBulkVisible] = useState(true);
+  useEffect(() => {
+    if (!bulkNode || typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver(([entry]) => setBulkVisible(entry.isIntersecting), { threshold: 0 });
+    observer.observe(bulkNode);
+    return () => observer.disconnect();
+  }, [bulkNode]);
   const [alertsOnly, setAlertsOnly] = useState(() => sessionStorage.getItem(ALERT_FOCUS_KEY) === "alerts");
   const barrios = [...new Set(model.items.map((item) => item.barrio_colonia).filter(Boolean))].sort();
   const comparisons = new Map((comparison?.rows || []).map((item) => [String(item.id), item]));
@@ -101,7 +112,7 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
     const texto = (n) => `${n} ${n === 1 ? "ficha" : "fichas"}`;
     return total && total > enPagina ? `${texto(total)} · ${enPagina} en esta página` : texto(total || enPagina);
   };
-  return <section ref={inboxRef} className="cl-inbox" aria-label="Bandeja de trabajo de fichas">
+  return <section ref={inboxRef} className={`cl-inbox${selectedIds.size && !bulkVisible ? " is-selecting" : ""}`} aria-label="Bandeja de trabajo de fichas">
     {/* El encabezado dice que se esta viendo: la etapa (con su icono), cuantas
         fichas de cuantas, y los filtros activos, cada uno removible. */}
     <header className="cl-inbox-head">
@@ -144,7 +155,13 @@ export default function FichasInbox({ model, selectedIds, onToggle, onToggleVisi
       <header className="cl-service-stats-head"><h3>Servicios registrados</h3><p>{serviceTotal ? `Sobre ${serviceTotal} ${serviceTotal === 1 ? "ficha" : "fichas"} con los filtros actuales` : "Sin fichas para resumir"}</p></header>
       <dl className="cl-service-stats-grid">{serviceMetrics.map(([key, label, icon, tone]) => { const value = Number(serviceStats[key] || 0); const percent = serviceTotal ? Math.round((value / serviceTotal) * 100) : 0; return <div className={`cl-service-stat ${tone}`} key={key}><dt><Icon name={icon} />{label}</dt><dd><strong>{value}</strong><span>{percent}%</span></dd></div>; })}</dl>
     </section>
-    <div className="cl-bulk-actions"><button type="button" className="cl-secondary" onClick={onSelectAll} disabled={bulkLoading || !model.total}><Icon name="clipboard" />Seleccionar todas ({model.total})</button>{selectedIds.size ? <button type="button" className="cl-quiet" onClick={onClearSelection}><Icon name="close" />Limpiar selección</button> : null}<span>{selectedIds.size ? `${selectedIds.size} ${selectedIds.size === 1 ? "seleccionada" : "seleccionadas"}` : "Marca fichas para compararlas o imprimir un resumen"}</span>{selectedIds.size ? <span className="cl-bulk-selected"><button type="button" className="cl-secondary" onClick={onCompare} disabled={bulkLoading}><Icon name="search" />{bulkLoading ? "Procesando..." : "Comparar con Alcaldía"}</button><button type="button" className="cl-primary" onClick={onPrintSummary}><Icon name="print" />Imprimir resumen</button></span> : null}</div>
+    <div ref={setBulkNode} className="cl-bulk-actions"><button type="button" className="cl-secondary" onClick={onSelectAll} disabled={bulkLoading || !model.total}><Icon name="clipboard" />Seleccionar todas ({model.total})</button>{selectedIds.size ? <button type="button" className="cl-quiet" onClick={onClearSelection}><Icon name="close" />Limpiar selección</button> : null}<span>{selectedIds.size ? `${selectedIds.size} ${selectedIds.size === 1 ? "seleccionada" : "seleccionadas"}` : onOpenLote ? "Marca fichas para darles plazo e imprimir avisos y fichas técnicas de una vez" : "Marca fichas para compararlas o imprimir un resumen"}</span>{selectedIds.size ? <span className="cl-bulk-selected"><button type="button" className="cl-secondary" onClick={onCompare} disabled={bulkLoading}><Icon name="search" />{bulkLoading ? "Procesando..." : "Comparar con Alcaldía"}</button><button type="button" className={onOpenLote ? "cl-secondary" : "cl-primary"} onClick={onPrintSummary}><Icon name="clipboard" />Imprimir resumen</button>{onOpenLote ? <button type="button" className="cl-primary" onClick={onOpenLote} disabled={bulkLoading}><Icon name="print" />Avisos y fichas técnicas</button> : null}</span> : null}</div>
+    {selectedIds.size && !bulkVisible ? <div className="cl-banco-float cl-fichas-float" role="region" aria-label="Acciones de la selección">
+      <span className="cl-banco-selcount"><strong>{selectedIds.size}</strong> {selectedIds.size === 1 ? "seleccionada" : "seleccionadas"}</span>
+      <button type="button" className="cl-quiet" onClick={onClearSelection}><Icon name="close" />Limpiar</button>
+      <button type="button" className={onOpenLote ? "cl-secondary" : "cl-primary"} onClick={onPrintSummary}><Icon name="clipboard" />Imprimir resumen</button>
+      {onOpenLote ? <button type="button" className="cl-primary" onClick={onOpenLote} disabled={bulkLoading}><Icon name="print" />Avisos y fichas técnicas</button> : null}
+    </div> : null}
     {comparison?.summary ? <div className="cl-comparison-summary"><strong>{comparison.summary.total} comparadas</strong><span>En ambos: {comparison.summary.both}</span><span>Solo Alcaldía: {comparison.summary.alcaldia_only}</span><span>Solo Aguas: {comparison.summary.aguas_only}</span><span>En ninguno: {comparison.summary.neither}</span></div> : null}
     {model.error ? <p className="cl-alert">{model.error}</p> : null}
     <div className={`cl-table-wrap ${model.refreshing ? "is-refreshing" : ""}`.trim()} aria-busy={model.loading || model.refreshing}>{model.refreshing ? <span className="cl-table-progress" role="status" aria-label="Actualizando fichas" /> : null}<table className="cl-table"><thead><tr><th><SpringCheck checked={allVisibleSelected} onChange={() => onToggleVisible(visibleItems)} ariaLabel="Seleccionar las fichas visibles" /></th><th>Clave / abonado</th><th>Responsable</th><th>Barrio</th><th>Padrones</th><th>Etapa</th><th>Impresión</th><th>Plazo</th><th /></tr></thead><tbody key={model.viewKey || "inicial"} className="cl-rows">
