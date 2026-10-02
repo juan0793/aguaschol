@@ -401,31 +401,36 @@ export function UsersContent({
       <section className="users-workspace-shell">
         <div className="users-hero-strip no-print">
           <span className="users-hero-icon" aria-hidden="true"><Icon name="users" /></span>
-          <div>
-            <p className="sheet-kicker">Administracion de usuarios</p>
+          <div className="users-hero-copy">
             <h2>Accesos del equipo</h2>
             <p className="workspace-title">
               Administra cuentas, perfiles, sesiones activas y accesos al sistema desde un solo lugar.
             </p>
           </div>
-          <div className="users-hero-actions">
-            {selectedUser ? (
-              <button type="button" className="button-secondary" onClick={() => setDetailOpen(true)}>
-                <Icon name="records" />
-                Ver detalle
-              </button>
-            ) : null}
-          </div>
-          <div className="users-hero-motif" aria-hidden="true">
-            <p className="users-hero-tagline">
-              Agua que nos une
-              <small>Personas que la hacen posible</small>
-            </p>
-            <svg viewBox="0 0 220 100" className="users-hero-illustration">
-              <path d="M0 78 20 60 38 74 58 48 82 70 104 40 128 66 152 46 176 68 200 52 220 66V100H0Z" className="users-hero-mountain" />
-              <path d="M0 88q20-8 40 0t40 0 40 0 40 0 40 0 40 0V100H0Z" className="users-hero-water" />
-            </svg>
-          </div>
+          {/* Ilustración propia: la gota (el servicio) unida por la red a las personas
+              que la hacen llegar. Mismo trazo que los iconos; solo decorativa. */}
+          <svg className="users-hero-art" viewBox="0 0 264 104" aria-hidden="true" focusable="false">
+            <path className="uh-water is-back" d="M4 92q14-6 28 0t28 0 28 0 28 0 28 0 28 0 28 0 28 0 28 0" />
+            <path className="uh-water" d="M18 84q14-6 28 0t28 0 28 0 28 0 28 0 28 0 28 0 28 0" />
+            <path className="uh-pipe" d="M44 66H220" />
+            <circle className="uh-node" cx="88" cy="66" r="3.2" />
+            <circle className="uh-node" cx="176" cy="66" r="3.2" />
+            <path className="uh-drop" d="M132 10c-9 12-19 23-19 35a19 19 0 0 0 38 0c0-12-10-23-19-35Z" />
+            <path className="uh-shine" d="M122 46a10 10 0 0 0 7 9" />
+            <path className="uh-pipe" d="M132 64v2" />
+            <circle className="uh-person" cx="44" cy="34" r="8" />
+            <path className="uh-person" d="M30 60a14 14 0 0 1 28 0" />
+            <path className="uh-pipe" d="M44 60v6" />
+            <circle className="uh-person" cx="220" cy="34" r="8" />
+            <path className="uh-person" d="M206 60a14 14 0 0 1 28 0" />
+            <path className="uh-pipe" d="M220 60v6" />
+          </svg>
+          {selectedUser ? (
+            <button type="button" className="button-secondary users-hero-action" onClick={() => setDetailOpen(true)}>
+              <Icon name="records" />
+              Ver detalle
+            </button>
+          ) : null}
         </div>
 
         <div className="users-metric-grid no-print">

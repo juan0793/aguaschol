@@ -27781,36 +27781,29 @@ body {
 }
 .users-hero-icon .app-icon { width: 24px; height: 24px; }
 .users-hero-strip h2 { margin: 0.2rem 0 0; font-size: 1.35rem; }
-.users-hero-actions { margin-left: auto; z-index: 1; }
-.users-hero-motif {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 1.1rem 1.3rem;
-  pointer-events: none;
+.users-hero-strip { align-items: center !important; }
+.users-hero-copy { flex: 1 1 auto; min-width: 0; }
+.users-hero-action { flex-shrink: 0; align-self: flex-start; margin: 0 !important; }
+/* Ilustración de la cabecera: trazo de 1.8 como los iconos, colores del sistema. */
+.users-hero-art { flex: 0 0 auto; width: 232px; height: auto; margin: -0.4rem 0.25rem -0.6rem 0; overflow: visible; }
+.users-hero-art path, .users-hero-art circle { fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.users-hero-art .uh-water { stroke: var(--brand-cyan); opacity: 0.75; }
+.users-hero-art .uh-water.is-back { opacity: 0.35; }
+.users-hero-art .uh-pipe { stroke: var(--brand-blue-deep); opacity: 0.45; }
+.users-hero-art .uh-node { fill: #fff; stroke: var(--brand-blue-deep); opacity: 0.6; }
+.users-hero-art .uh-drop { fill: rgba(20, 101, 217, 0.1); stroke: var(--brand-blue); }
+.users-hero-art .uh-shine { stroke: var(--brand-blue); opacity: 0.55; }
+.users-hero-art .uh-person { stroke: var(--brand-blue-deep); opacity: 0.7; }
+@media (max-width: 1180px) {
+  .users-hero-art { display: none; }
 }
-.users-hero-tagline {
-  margin: 0;
-  color: var(--brand-blue-deep);
-  font-weight: 700;
-  font-size: 0.82rem;
-  text-align: right;
-  opacity: 0.6;
-}
-.users-hero-tagline small {
-  display: block;
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.68rem;
-}
-.users-hero-illustration { width: 220px; height: 62px; opacity: 0.35; }
-.users-hero-mountain { fill: var(--brand-blue); opacity: 0.5; }
-.users-hero-water { fill: var(--brand-cyan); opacity: 0.6; }
-@media (max-width: 720px) {
-  .users-hero-motif { display: none; }
+
+/* Panel de usuarios fijo al lado: una sola barra de desplazamiento, la de la lista.
+   Antes se desplazaban el panel (regla general .sidebar) y la lista a la vez. */
+@media (min-width: 1051px) {
+  .users-sidebar-panel { display: flex; flex-direction: column; overflow: hidden !important; }
+  .users-sidebar-panel > * { flex-shrink: 0; }
+  .users-sidebar-panel .users-list { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
 }
 
 .users-workspace-grid {
