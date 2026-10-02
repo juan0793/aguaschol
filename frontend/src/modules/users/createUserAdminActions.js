@@ -179,11 +179,55 @@ export function createUserAdminActions({
     }
   };
 
+  // Corrige el nombre completo. Devuelve true si se guardó, para cerrar el editor.
+  const handleUpdateUserName = async (user, fullName) => {
+    const nombre = String(fullName || "").replace(/\s+/g, " ").trim();
+    if (!user?.id || !nombre || nombre === user.full_name) return true;
+    try {
+      const response = await apiFetch(`/users/${user.id}/name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: nombre })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearSession();
+          showAlert("La sesion vencio. Ingresa nuevamente.");
+          return false;
+        }
+        throw new Error(data.message || "No se pudo corregir el nombre.");
+      }
+      if (data.user) {
+        setUsers((current) => current.map((item) => (item.id === data.user.id ? { ...item, ...data.user } : item)));
+        if (latestUserResult?.user?.id === data.user.id) {
+          setLatestUserResult((current) => ({ ...current, user: { ...current.user, ...data.user } }));
+        }
+      }
+      const extra = [
+        data.fichas ? `${data.fichas} ${data.fichas === 1 ? "ficha" : "fichas"} donde figura como responsable` : "",
+        data.personal ? "su registro en Personal de campo" : ""
+      ].filter(Boolean).join(" y ");
+      showAlert([
+        `Nombre actualizado: ${nombre}.`,
+        extra ? `También se corrigió en ${extra}.` : "",
+        data.fichasOmitidas ? "Las fichas no se cambiaron porque otro usuario tenía el mismo nombre; corrígelas desde cada ficha." : ""
+      ].filter(Boolean).join(" "));
+      loadUsers({ silent: true });
+      loadAuditLogs();
+      return true;
+    } catch (error) {
+      showAlert(error.message || "No se pudo corregir el nombre.");
+      return false;
+    }
+  };
+
   return {
     handleUserFormChange,
     handleCreateUser,
     handleDeleteUser,
     handleResetUserPassword,
-    handleUpdateUserRole
+    handleUpdateUserRole,
+    handleUpdateUserName
   };
 }

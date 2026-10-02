@@ -1,5 +1,5 @@
 import { createAuditLog, createReportArchive, exportAuditLogsCsv, getReportArchive, listAuditLogs } from "../services/auditService.js";
-import { createUser, deleteUser, listUsers, resetUserPassword, updateUserRole } from "../services/userService.js";
+import { createUser, deleteUser, listUsers, resetUserPassword, updateUserName, updateUserRole } from "../services/userService.js";
 import {
   createTelegramChat,
   deleteTelegramChat,
@@ -75,6 +75,14 @@ export const resetUserPasswordHandler = async (req, res, next) => {
   try {
     const result = await resetUserPassword(req.params.id, req.authUser);
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUserNameHandler = async (req, res, next) => {
+  try {
+    res.json(await updateUserName(req.params.id, req.body?.full_name, req.authUser));
   } catch (error) {
     next(error);
   }

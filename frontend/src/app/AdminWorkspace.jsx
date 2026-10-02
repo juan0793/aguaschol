@@ -75,6 +75,7 @@ export default function AdminWorkspace({ model }) {
     handleSelectMapPoint,
     handleToggleRegulatorDiaryKey,
     handleUpdateUserRole,
+    handleUpdateUserName,
     handleUserFormChange,
     handleVerifyFieldDebt,
     latestUserResult,
@@ -325,6 +326,7 @@ export default function AdminWorkspace({ model }) {
             handleCreateUser={handleCreateUser}
             handleResetUserPassword={handleResetUserPassword}
             handleUpdateUserRole={handleUpdateUserRole}
+            handleUpdateUserName={handleUpdateUserName}
             handleUserFormChange={handleUserFormChange}
             latestUserResult={latestUserResult}
             savingUserRoleId={savingUserRoleId}

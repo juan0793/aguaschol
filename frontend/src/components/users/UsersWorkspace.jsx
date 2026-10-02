@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
@@ -314,12 +313,73 @@ const ROLE_DESCRIPTIONS = {
   transport: "Registra rutas y recolecciones de transporte."
 };
 
+// Nombre completo con corrección en el mismo lugar. Enter guarda, Escape cancela.
+function NombreEditable({ user, editando, onEditar, onGuardar }) {
+  const [valor, setValor] = useState(user.full_name || "");
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => { if (editando) setValor(user.full_name || ""); }, [editando, user.full_name]);
+  const limpio = valor.replace(/\s+/g, " ").trim();
+  const unaPalabra = limpio && !limpio.includes(" ");
+
+  if (!editando) {
+    return (
+      <div className="users-name-view">
+        <h3 className="user-name">{user.full_name || user.username}</h3>
+        {onGuardar ? (
+          <button type="button" className="users-name-edit" onClick={() => onEditar(true)}>
+            <Icon name="edit" />
+            Corregir nombre
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  const guardar = async (event) => {
+    event.preventDefault();
+    if (limpio.length < 3 || guardando) return;
+    setGuardando(true);
+    const ok = await onGuardar(user, limpio);
+    setGuardando(false);
+    if (ok) onEditar(false);
+  };
+
+  return (
+    <form className="users-name-form" onSubmit={guardar}>
+      <label htmlFor="users-name-input">Nombre completo</label>
+      <div className="users-name-row">
+        <input
+          id="users-name-input"
+          value={valor}
+          onChange={(event) => setValor(event.target.value)}
+          maxLength={180}
+          autoComplete="off"
+          autoFocus
+          disabled={guardando}
+        />
+        <button type="submit" disabled={guardando || limpio.length < 3 || limpio === user.full_name}>
+          {guardando ? "Guardando…" : "Guardar"}
+        </button>
+        <button type="button" className="button-secondary" onClick={() => onEditar(false)} disabled={guardando}>
+          Cancelar
+        </button>
+      </div>
+      <small className={unaPalabra ? "is-warning" : ""}>
+        {unaPalabra
+          ? "Agrega el apellido: con un solo nombre los informes no distinguen a los técnicos."
+          : "También se corrige en las fichas donde figura como responsable y en Personal de campo."}
+      </small>
+    </form>
+  );
+}
+
 export function UsersContent({
   apiFetch,
   creatingUser,
   handleCreateUser,
   handleResetUserPassword,
   handleUpdateUserRole,
+  handleUpdateUserName,
   handleUserFormChange,
   latestUserResult,
   savingUserRoleId,
@@ -334,6 +394,7 @@ export function UsersContent({
   showAlert
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [editandoNombre, setEditandoNombre] = useState(false);
 
   return (
     <>
@@ -624,87 +685,136 @@ export function UsersContent({
         <TelegramAccessPanel apiFetch={apiFetch} formatDateTime={formatDateTime} showAlert={showAlert} />
       </section>
 
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="users-detail-modal">
-          <DialogHeader>
-            <DialogTitle>Informacion del acceso</DialogTitle>
-            <DialogDescription>
-              Datos completos, estado de entrega y acciones administrativas del usuario seleccionado.
-            </DialogDescription>
+      <Dialog open={detailOpen} onOpenChange={(open) => { setDetailOpen(open); if (!open) setEditandoNombre(false); }}>
+        <DialogContent
+          className="users-detail-modal"
+          onEscapeKeyDown={(event) => { if (editandoNombre) { event.preventDefault(); setEditandoNombre(false); } }}
+        >
+          <DialogHeader className="users-access-head">
+            <DialogTitle>Información del acceso</DialogTitle>
+            <DialogDescription>Cuenta, perfil y contraseña del usuario.</DialogDescription>
           </DialogHeader>
           {selectedUser ? (
-            <div className="admin-result-grid users-modal-grid">
-              <div className="document-block">
-                <h4>Datos generales</h4>
-                <p className="user-detail-line"><strong>Nombre:</strong> <span className="user-name">{selectedUser.full_name}</span></p>
-                <p className="user-detail-line"><strong>Correo:</strong> <span className="user-email">{selectedUser.email}</span></p>
-                <p className="user-detail-line"><strong>Usuario:</strong> <span className="user-meta-inline">{selectedUser.username}</span></p>
-                <p><strong>Perfil:</strong> {roleLabel(selectedUser.role)}</p>
-                <label className="users-role-editor users-role-editor-compact">
-                  <span>Cambiar perfil</span>
-                  <select
-                    value={selectedUser.role}
-                    onChange={(event) => handleUpdateUserRole(selectedUser, event.target.value)}
-                    disabled={session?.user?.id === selectedUser.id || savingUserRoleId === selectedUser.id}
-                  >
-                    <option value="operator">Operador</option>
-                    <option value="validadora_campo">Validacion campo</option>
-                    <option value="transport">Transporte</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </label>
-                <p><strong>Ultimo acceso:</strong> {formatDateTime(selectedUser.last_login_at)}</p>
-                <p><strong>Estado en linea:</strong> {selectedUser.is_online ? "Conectado" : "Sin conexion activa"}</p>
-                <p><strong>Sesiones activas:</strong> {selectedUser.active_sessions || 0}</p>
-              </div>
-              <div className="document-block">
-                <h4>Estado y entrega</h4>
-                <div className="user-card-actions user-detail-actions">
+            <div className="users-access">
+              <section className="users-access-identity" aria-label="Usuario">
+                <span className={`user-list-avatar users-avatar-tone-${avatarTone(selectedUser)}`} aria-hidden="true">
+                  {String(selectedUser.full_name || selectedUser.username || "U").trim().charAt(0).toUpperCase()}
+                </span>
+                <div className="users-access-identity-main">
+                  <NombreEditable
+                    user={selectedUser}
+                    editando={editandoNombre}
+                    onEditar={setEditandoNombre}
+                    onGuardar={handleUpdateUserName}
+                  />
+                  <p className="users-access-meta">
+                    <span>{selectedUser.username}</span>
+                    <span>{selectedUser.email}</span>
+                  </p>
+                </div>
+                <div className="users-access-badges">
+                  <span className="record-badge user-role-badge">{roleLabel(selectedUser.role)}</span>
+                  <span className={`user-status-line ${selectedUser.is_online ? "is-online" : ""}`}>
+                    <i className="user-status-dot" aria-hidden="true" />
+                    {selectedUser.is_online ? "En línea" : "Sin conexión"}
+                  </span>
+                </div>
+              </section>
+
+              <section className="users-access-section" aria-labelledby="users-access-cuenta">
+                <h3 id="users-access-cuenta">Cuenta</h3>
+                <dl className="users-access-list">
+                  <div className="is-wide">
+                    <dt><label htmlFor="users-access-role">Perfil</label></dt>
+                    <dd>
+                      <select
+                        id="users-access-role"
+                        value={selectedUser.role}
+                        onChange={(event) => handleUpdateUserRole(selectedUser, event.target.value)}
+                        disabled={session?.user?.id === selectedUser.id || savingUserRoleId === selectedUser.id}
+                      >
+                        <option value="operator">Operador</option>
+                        <option value="validadora_campo">Validacion campo</option>
+                        <option value="transport">Transporte</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                      <small>
+                        {session?.user?.id === selectedUser.id
+                          ? "Tu propio perfil no se cambia desde esta sesión."
+                          : savingUserRoleId === selectedUser.id
+                            ? "Guardando perfil…"
+                            : "El cambio aplica aunque el usuario esté en línea."}
+                      </small>
+                    </dd>
+                  </div>
+                  <div><dt>Último acceso</dt><dd>{formatDateTime(selectedUser.last_login_at)}</dd></div>
+                  <div><dt>Sesiones activas</dt><dd>{selectedUser.active_sessions || 0}</dd></div>
+                  <div><dt>Creado</dt><dd>{formatDateTime(selectedUser.created_at)}</dd></div>
+                  <div><dt>Actualizado</dt><dd>{formatDateTime(selectedUser.updated_at)}</dd></div>
+                </dl>
+              </section>
+
+              <section className="users-access-section" aria-labelledby="users-access-clave">
+                <div className="users-access-section-head">
+                  <h3 id="users-access-clave">Contraseña</h3>
                   {session?.user?.id !== selectedUser.id ? (
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() => handleResetUserPassword(selectedUser)}
-                    >
+                    <button type="button" className="button-secondary" onClick={() => handleResetUserPassword(selectedUser)}>
                       <Icon name="refresh" />
-                      Regenerar contrasena temporal
+                      Regenerar temporal
                     </button>
                   ) : null}
                 </div>
+                <p className="users-access-status">
+                  <span className={`users-access-pill ${selectedUser.force_password_change ? "is-pending" : "is-done"}`}>
+                    {selectedUser.force_password_change ? "Cambio pendiente" : "Cambio completado"}
+                  </span>
+                  {selectedUser.force_password_change
+                    ? "Debe cambiar la contraseña temporal al entrar."
+                    : "El usuario ya eligió su propia contraseña."}
+                </p>
                 {latestUserResult?.user?.id === selectedUser.id ? (
                   <>
-                    <p>
-                      <strong>Estado de correo:</strong>{" "}
-                      {latestUserResult.delivery?.sent
-                        ? latestUserResult.delivery?.sandbox
-                          ? "Enviado en sandbox"
-                          : "Enviado"
-                        : "Pendiente o manual"}
-                    </p>
-                    <p>
-                      <strong>Detalle:</strong>{" "}
-                      {latestUserResult.delivery?.reason || "La notificacion fue procesada correctamente."}
-                    </p>
                     {latestUserResult.temp_password ? (
-                      <p><strong>Contrasena temporal:</strong> {latestUserResult.temp_password}</p>
+                      <div className="users-temp-password" role="status">
+                        <Icon name="auth" />
+                        <div>
+                          <span>Contraseña temporal</span>
+                          <code>{latestUserResult.temp_password}</code>
+                        </div>
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(latestUserResult.temp_password);
+                              showAlert("Contrasena copiada al portapapeles.");
+                            } catch {
+                              showAlert("No se pudo copiar; seleccionala y copiala manualmente.");
+                            }
+                          }}
+                        >
+                          <Icon name="copy" />
+                          Copiar
+                        </button>
+                      </div>
                     ) : null}
+                    <p className="users-access-note">
+                      <strong>Correo:</strong>{" "}
+                      {latestUserResult.delivery?.sent
+                        ? latestUserResult.delivery?.sandbox ? "enviado en modo de prueba" : "enviado"
+                        : "no se envió; compártela manualmente"}
+                      {latestUserResult.delivery?.reason ? ` · ${latestUserResult.delivery.reason}` : ""}
+                    </p>
                   </>
-                ) : (
-                  <>
-                    <p><strong>Estado:</strong> Usuario registrado en el sistema.</p>
-                    <p><strong>Creado:</strong> {formatDateTime(selectedUser.created_at)}</p>
-                    <p><strong>Actualizado:</strong> {formatDateTime(selectedUser.updated_at)}</p>
-                    <p><strong>Cambio de contrasena:</strong> {selectedUser.force_password_change ? "Pendiente" : "Completado"}</p>
-                  </>
-                )}
-              </div>
+                ) : null}
+              </section>
             </div>
           ) : null}
-          <DialogFooter>
+          <div className="users-access-footer">
             <button type="button" className="button-secondary" onClick={() => setDetailOpen(false)}>
               Cerrar
             </button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

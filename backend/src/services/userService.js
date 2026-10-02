@@ -160,6 +160,64 @@ export const createUser = async ({ full_name, email, role = "operator" }, actorU
   };
 };
 
+// Corrige el nombre completo (p. ej. un técnico que quedó solo con su nombre). Casi
+// todo lo lee de la cuenta en vivo; lo que se guardó como texto se actualiza aquí:
+// el responsable del levantamiento en las fichas y su registro en Personal de campo.
+// Si otro usuario se llama igual que el nombre viejo, las fichas no se tocan.
+export const updateUserName = async (userId, fullName, actorUser) => {
+  const pool = getPool();
+  const targetId = Number(userId);
+  const cleanName = String(fullName ?? "").replace(/\s+/g, " ").trim();
+  const fail = (message, status = 400) => Object.assign(new Error(message), { status });
+
+  if (!Number.isInteger(targetId) || targetId <= 0) throw fail("Usuario invalido.");
+  if (cleanName.length < 3) throw fail("Escribe el nombre completo (al menos 3 letras).");
+  if (cleanName.length > 180) throw fail("El nombre no puede pasar de 180 caracteres.");
+
+  const [rows] = await pool.query("SELECT id, full_name, username FROM app_users WHERE id = ? LIMIT 1", [targetId]);
+  const user = rows[0];
+  if (!user) throw fail("Usuario no encontrado.", 404);
+  const previous = String(user.full_name || "").trim();
+  if (previous === cleanName) return { user: (await listUsers()).find((item) => item.id === targetId), fichas: 0, personal: 0, fichasOmitidas: false };
+
+  const connection = await pool.getConnection();
+  let fichas = 0;
+  let personal = 0;
+  let fichasOmitidas = false;
+  try {
+    await connection.beginTransaction();
+    await connection.query("UPDATE app_users SET full_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [cleanName, targetId]);
+    if (previous) {
+      const [[{ homonimos }]] = await connection.query("SELECT COUNT(*) AS homonimos FROM app_users WHERE id <> ? AND TRIM(full_name) = ?", [targetId, previous]);
+      if (Number(homonimos) > 0) {
+        fichasOmitidas = true;
+      } else {
+        const [fichasResult] = await connection.query("UPDATE inmuebles_clandestinos SET levantamiento_datos = ? WHERE TRIM(levantamiento_datos) = ?", [cleanName, previous]);
+        fichas = fichasResult.affectedRows || 0;
+      }
+      const [personalResult] = await connection.query("UPDATE personal_campo SET nombre_completo = ? WHERE user_id = ? AND TRIM(nombre_completo) = ?", [cleanName, targetId, previous]);
+      personal = personalResult.affectedRows || 0;
+    }
+    await createAuditLog({
+      actorUserId: actorUser?.id ?? null,
+      action: "user.name_updated",
+      entityType: "user",
+      entityId: targetId,
+      summary: `Nombre de ${user.username} corregido: ${previous || "(vacío)"} → ${cleanName}`,
+      details: { previous, next: cleanName, fichas_actualizadas: fichas, personal_actualizado: personal, fichas_omitidas_por_homonimo: fichasOmitidas },
+      executor: connection
+    });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  return { user: (await listUsers()).find((item) => item.id === targetId), fichas, personal, fichasOmitidas };
+};
+
 export const updateUserRole = async (userId, role, actorUser) => {
   const pool = getPool();
   const targetId = Number(userId);

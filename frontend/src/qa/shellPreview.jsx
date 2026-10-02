@@ -75,6 +75,13 @@ const fichasQa = Array.from({ length: Number(params.get("fichas")) || 0 }, (_, i
 const cuerpo = (init) => { try { return JSON.parse(init?.body || "{}"); } catch { return {}; } };
 const deLasQa = (ids = []) => fichasQa.filter((ficha) => ids.map(Number).includes(ficha.id));
 
+// Usuarios de mentira para la pantalla de Usuarios (uno con solo su nombre).
+const usuariosQa = [
+  { id: 501, full_name: "elmer", username: "elmerprueba", email: "elmer@prueba.test", role: "operator", active_sessions: 1, is_online: true, force_password_change: false, last_login_at: new Date().toISOString(), created_at: "2026-05-11T15:54:00Z", updated_at: "2026-09-30T20:33:00Z" },
+  { id: 502, full_name: "Técnica de Prueba Dos", username: "tecnicados", email: "dos@prueba.test", role: "validadora_campo", active_sessions: 0, is_online: false, force_password_change: true, last_login_at: null, created_at: "2026-06-01T15:00:00Z", updated_at: "2026-06-01T15:00:00Z" },
+  { id: 503, full_name: "Admin de Prueba", username: "adminqa", email: "admin@prueba.test", role: "admin", active_sessions: 2, is_online: true, force_password_change: false, last_login_at: new Date().toISOString(), created_at: "2026-01-10T15:00:00Z", updated_at: "2026-09-01T15:00:00Z" }
+];
+
 window.fetch = (input, init) => {
   const url = typeof input === "string" ? input : input.url;
   if (fichasQa.length && url.startsWith(API_URL)) {
@@ -91,6 +98,13 @@ window.fetch = (input, init) => {
   }
   if (!url.startsWith(API_URL)) return fetchOriginal(input, init);
   if (url.includes("/auth/me")) return Promise.resolve(respuesta({ user: usuario }));
+  if (/\/users(\?|$)/.test(url) && (!init?.method || init.method === "GET")) return Promise.resolve(respuesta(usuariosQa));
+  const renombrar = url.match(/\/users\/(\d+)\/name$/);
+  if (renombrar) {
+    const target = usuariosQa.find((item) => item.id === Number(renombrar[1]));
+    if (target) Object.assign(target, { full_name: cuerpo(init).full_name, updated_at: new Date().toISOString() });
+    return Promise.resolve(respuesta({ user: target, fichas: 3, personal: 1, fichasOmitidas: false }));
+  }
   // Las listas paginadas se copian con {...datos}: necesitan sus campos de verdad.
   if (/\/(clandestinos\/fichas|clandestinos\/banco)(\?|$)/.test(url)) {
     return Promise.resolve(respuesta({ items: [], counts: {}, total: 0, page: 1, total_pages: 1, service_stats: {} }));

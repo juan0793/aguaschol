@@ -28007,6 +28007,67 @@ body {
 .users-temp-password small { color: var(--text-muted); font-size: 0.75rem; }
 .users-temp-password .button-secondary { flex-shrink: 0; }
 
+/* ---------- Información del acceso (diálogo de un usuario) ----------
+   Una sola columna con secciones separadas por filetes: identidad arriba (con el
+   nombre corregible), la cuenta como lista de datos y la contraseña con su acción. */
+.users-detail-modal.users-detail-modal { width: min(760px, calc(100vw - 2rem)); max-width: min(760px, calc(100vw - 2rem)); gap: 0; padding: 0; border-radius: 14px; }
+.users-access-head { padding: 1.1rem 3.5rem 0.9rem 1.4rem; border-bottom: 1px solid #e3eaf2; }
+.users-access-head [data-slot="dialog-title"] { color: var(--brand-blue-deep); font-size: 1.05rem; font-weight: 700; }
+.users-access-head [data-slot="dialog-description"] { color: var(--text-muted); font-size: 0.85rem; }
+.users-access { display: grid; }
+.users-access > section { padding: 1.1rem 1.4rem; border-bottom: 1px solid #e3eaf2; }
+
+.users-access-identity { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 0.9rem; }
+.users-access-identity .user-list-avatar { width: 48px; height: 48px; font-size: 1.15rem; grid-row: auto; }
+.users-access-identity-main { display: grid; gap: 0.3rem; min-width: 0; }
+.users-name-view { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; }
+.users-name-view h3 { margin: 0; color: #16283b; font-size: 1.2rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.users-name-edit { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 32px; padding: 0 0.55rem; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: var(--brand-blue); font-size: 0.82rem; font-weight: 700; }
+.users-name-edit:hover { background: var(--surface-tinted); transform: none; }
+.users-name-edit .app-icon { width: 14px; height: 14px; }
+.users-access-meta { display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem; margin: 0; color: var(--text-muted); font-size: 0.86rem; }
+.users-access-meta span { overflow-wrap: anywhere; }
+.users-access-badges { display: grid; justify-items: end; gap: 0.4rem; }
+.users-access-badges .user-status-line { font-size: 0.8rem; }
+
+.users-name-form { display: grid; gap: 0.4rem; }
+.users-name-form label { color: var(--brand-blue-deep); font-size: 0.78rem; font-weight: 700; }
+.users-name-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.users-name-row input { flex: 1 1 220px; min-width: 0; min-height: 42px; padding: 0.5rem 0.75rem; border: 1px solid #bfd5eb; border-radius: 10px; font: inherit; font-size: 1rem; }
+.users-name-row button { min-height: 42px; padding: 0 0.95rem; }
+.users-name-form small { color: var(--text-muted); font-size: 0.78rem; }
+.users-name-form small.is-warning { color: var(--warning); font-weight: 600; }
+
+.users-access-section h3 { margin: 0 0 0.75rem; color: #16283b; font-size: 0.95rem; font-weight: 650; }
+.users-access-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem; }
+.users-access-section-head h3 { margin: 0; }
+.users-access-section-head .button-secondary { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 38px; margin: 0; padding: 0 0.8rem; font-size: 0.85rem; }
+
+.users-access-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1.5rem; margin: 0; }
+.users-access-list > div { display: grid; gap: 0.15rem; min-width: 0; }
+.users-access-list > div.is-wide { grid-column: 1 / -1; }
+.users-access-list dt, .users-access-list dt label { color: var(--text-muted); font-size: 0.78rem; font-weight: 600; }
+.users-access-list dd { margin: 0; color: #16283b; font-size: 0.92rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.users-access-list select { width: min(100%, 280px); min-height: 40px; padding: 0.4rem 0.6rem; border: 1px solid #bfd5eb; border-radius: 10px; background: #fff; font: inherit; font-weight: 600; }
+.users-access-list dd small { display: block; margin-top: 0.25rem; color: var(--text-muted); font-size: 0.76rem; font-weight: 500; }
+
+.users-access-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; color: var(--text-muted); font-size: 0.86rem; }
+.users-access-pill { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700; }
+.users-access-pill.is-done { background: rgba(24, 166, 137, 0.14); color: #0f6a56; }
+.users-access-pill.is-pending { background: rgba(242, 182, 74, 0.22); color: #7a4f06; }
+.users-access-section .users-temp-password { margin: 0.75rem 0 0; }
+.users-access-note { margin: 0.6rem 0 0; color: var(--text-muted); font-size: 0.8rem; }
+.users-access-footer { display: flex; justify-content: flex-end; padding: 0.85rem 1.4rem; background: #f7f9fc; border-radius: 0 0 14px 14px; }
+.users-access-footer .button-secondary { min-height: 38px; margin: 0; }
+
+@media (max-width: 640px) {
+  .users-access-head, .users-access > section, .users-access-footer { padding-inline: 1rem; }
+  .users-access-identity { grid-template-columns: auto minmax(0, 1fr); }
+  .users-access-badges { grid-column: 1 / -1; display: flex; justify-content: flex-start; gap: 0.6rem; }
+  .users-access-list { grid-template-columns: 1fr; }
+  .users-name-row button { flex: 1 1 0; }
+}
+
 .users-detail-actions-row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
 .users-detail-more {
