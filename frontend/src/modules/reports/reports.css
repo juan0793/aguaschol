@@ -10,11 +10,17 @@
 
 .reports-workspace {
   display: grid;
+  min-width: 0;
   gap: 0.85rem;
   padding: 0.25rem;
   background: var(--ds-bg);
   color: var(--ds-text);
 }
+
+/* Sin esto, el selector de jornada (que no parte su texto) fijaba el ancho mínimo
+   de todo el módulo y en el celular la pantalla quedaba cortada a la derecha. */
+.reports-workspace .rp-header > *,
+.reports-workspace .rp-toolbar > * { min-width: 0; }
 
 /* ---------- Selector de jornada + estado (metadata del header) ---------- */
 .report-day-combobox { position: relative; }
@@ -300,6 +306,7 @@
 .rf-periods { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid #dce8f3; border-radius: 12px; background: #f5f9fd; }
 .cl-module .rf-periods button { min-height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
 .cl-module .rf-periods button.is-active { background: #fff; color: var(--primary); box-shadow: 0 3px 10px rgba(16,42,67,.1); }
+@media (max-width: 768px) { .cl-module .rf-periods button { min-height: 40px; } } /* táctil: antes 34px */
 .rf-progress { position: relative; display: block; margin: -6px 0 8px; }
 .rf-kpis { grid-template-columns: repeat(4, minmax(0,1fr)); }
 .rf-currency { color: var(--muted); font-size: 16px; font-weight: 600; }
@@ -415,7 +422,7 @@
   .reports-workspace .rp-title h1 { font-size: 21px; }
   .reports-workspace .rp-actions { width: 100%; }
   .reports-workspace .rp-actions .rp-btn:not(.is-icon) { flex: 1 1 auto; }
-  .reports-workspace .rp-day, .reports-workspace .rp-day-trigger { width: 100%; }
-  .reports-workspace .rp-day-trigger strong { overflow: hidden; text-overflow: ellipsis; }
+  .reports-workspace .rp-day, .reports-workspace .rp-day-trigger { width: 100%; min-width: 0; }
+  .reports-workspace .rp-day-trigger strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .reports-workspace .rp-day-caret { margin-left: auto; }
 }

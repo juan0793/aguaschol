@@ -5,6 +5,14 @@ import { formatMapDiaryLabel, formatSpanishDate } from "../utils/datesAndBusines
 import { getDefaultWorkspaceView } from "../utils/appShell";
 import logoAguasCholuteca from "../assets/logo-aguas-choluteca.png";
 
+// Pantallas cuya franja bajo la barra tiene contenido propio. En las demás la tarjeta
+// quedaba vacía: la navegación del módulo vive en el menú lateral, y cuenta y
+// contraseña en el menú del usuario. Entregas, Importación y Mi perfil solo
+// repetían lo que ya dice la página.
+const VISTAS_CON_FRANJA = ["dashboard", "logs", "records", "lookup", "map", "padron", "mapReports", "mapAnalytics", "executiveReport", "users"];
+// Franjas de solo texto: en el celular ese párrafo se oculta y la tarjeta quedaría vacía.
+const VISTAS_SOLO_TEXTO = ["lookup"];
+
 export default function AppHeader({ model }) {
   const {
     activeMapDiaryDateKey,
@@ -172,10 +180,7 @@ export default function AppHeader({ model }) {
         </div>
       </div>
 
-      {/* Cuenta y contraseña están en el menú del usuario y en el pie del menú
-          lateral. Entregas, Importación y Mi perfil solo repetían aquí lo que ya
-          dice la página, así que no llevan franja. */}
-      <div className={`search-card ${headerMeta.cardClass} ${["requests", "entregas", "importacion", "profile"].includes(workspaceView) ? "is-hidden" : ""}`}>
+      <div className={`search-card ${headerMeta.cardClass} ${VISTAS_CON_FRANJA.includes(workspaceView) ? "" : "is-hidden"} ${VISTAS_SOLO_TEXTO.includes(workspaceView) ? "is-text-only" : ""}`}>
         <div className="search-card-head">
           <span>{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</span>
           <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>
@@ -464,7 +469,7 @@ export default function AppHeader({ model }) {
               setClandestinosCommand({ type: "search", q: search.trim(), id: Date.now() });
             }}
           >
-            <div className="search-row">
+            <div className="search-row search-row-inline">
               <input
                 id="search"
                 value={search}

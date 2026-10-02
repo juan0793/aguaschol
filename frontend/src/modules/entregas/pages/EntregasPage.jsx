@@ -43,6 +43,19 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const notify = useCallback((mensaje) => showAlert?.(mensaje), [showAlert]);
 
   const [vista, setVista] = useState(vistaDesdeHash);
+  const [masMovilAbierto, setMasMovilAbierto] = useState(false);
+  useEffect(() => {
+    if (!masMovilAbierto) return undefined;
+    const cerrar = (event) => {
+      if (event.type === "keydown" ? event.key === "Escape" : !event.target.closest?.(".ent-mobile-tabs")) setMasMovilAbierto(false);
+    };
+    window.addEventListener("pointerdown", cerrar);
+    window.addEventListener("keydown", cerrar);
+    return () => {
+      window.removeEventListener("pointerdown", cerrar);
+      window.removeEventListener("keydown", cerrar);
+    };
+  }, [masMovilAbierto]);
   const [config, setConfig] = useState(null);
   const [configError, setConfigError] = useState("");
   const [loteDetalle, setLoteDetalle] = useState(null);
@@ -159,6 +172,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const ir = (key) => {
     window.history.replaceState(null, "", `#entregas/${key}`);
     setVista(key);
+    setMasMovilAbierto(false);
   };
 
   const refrescar = () => {
@@ -255,6 +269,11 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     if (item.key === "reparto") return config.permissions.can_manage_reparto;
     return true;
   });
+  // En la barra inferior del celular caben 5 pestañas con su nombre completo; si hay
+  // más, van 4 y "Más" abre el resto.
+  const movilPrincipales = subvistas.length > 5 ? subvistas.slice(0, 4) : subvistas;
+  const movilExtra = subvistas.length > 5 ? subvistas.slice(4) : [];
+  const movilExtraActiva = movilExtra.some((item) => item.key === vista);
 
   return (
     <main className="cl-module ent-module">
@@ -292,12 +311,34 @@ export default function EntregasPage({ apiFetch, showAlert }) {
       </header>
 
       <nav className="ent-mobile-tabs" aria-label="Navegación móvil de Control de entregas">
-        {subvistas.map((item) => (
-          <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} onClick={() => ir(item.key)}>
+        {movilPrincipales.map((item) => (
+          <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} aria-current={vista === item.key ? "page" : undefined} onClick={() => ir(item.key)}>
             <Icon name={item.icon} />
             <span>{item.corto}</span>
           </button>
         ))}
+        {movilExtra.length ? (
+          <button
+            type="button"
+            className={movilExtraActiva || masMovilAbierto ? "is-active" : ""}
+            aria-expanded={masMovilAbierto}
+            aria-controls="ent-mobile-mas"
+            onClick={() => setMasMovilAbierto((abierto) => !abierto)}
+          >
+            <Icon name={movilExtraActiva ? movilExtra.find((item) => item.key === vista).icon : "more"} />
+            <span>{movilExtraActiva ? movilExtra.find((item) => item.key === vista).corto : "Más"}</span>
+          </button>
+        ) : null}
+        {masMovilAbierto ? (
+          <div id="ent-mobile-mas" className="ent-mobile-mas">
+            {movilExtra.map((item) => (
+              <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} aria-current={vista === item.key ? "page" : undefined} onClick={() => ir(item.key)}>
+                <Icon name={item.icon} />
+                <span><strong>{item.label}</strong><small>{item.hint}</small></span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </nav>
 
       {lotesAbiertosPrevios.total > 0 ? <div className="ent-critical-banner" role="status"><Icon name="warning" /><div><strong>{formatNumber(lotesAbiertosPrevios.total)} lotes de jornadas anteriores siguen abiertos</strong><span>Prioridad de cierre · la justificación no elimina el pendiente.</span></div><button type="button" className="cl-secondary" onClick={verAbiertosPrevios}>Resolver cierres →</button></div> : null}

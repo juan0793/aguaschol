@@ -18,6 +18,14 @@
 }
 .ent-module .cl-inbox { padding: 18px; }
 .ent-module .cl-inbox-head { gap: 12px; margin-bottom: 14px; }
+/* Las cabeceras de Entregas son título + acción (sin el icono de Clandestinos). Con
+   la rejilla de 3 columnas de allá, el botón caía en la columna elástica (enorme en
+   escritorio) y en el celular en una de 0px, saliéndose de la tarjeta. */
+.ent-module .cl-inbox .cl-inbox-head { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 560px) {
+  .ent-module .cl-inbox .cl-inbox-head { grid-template-columns: minmax(0, 1fr); }
+  .ent-module .cl-inbox .cl-inbox-head > button { justify-self: start; }
+}
 .ent-module .cl-inbox-head h3, .ent-card h3 { line-height: 1.2; }
 .ent-header-action { justify-content: flex-end; }
 .ent-menu { display: grid !important; grid-template-columns: repeat(7, minmax(104px, 1fr)); gap: 8px !important; padding: 0 !important; border: 0 !important; background: transparent !important; }
@@ -421,8 +429,13 @@
   .ent-module .cl-module-header .ent-menu { display: none !important; }
   .ent-header-action, .ent-header-action .cl-primary { width: 100%; }
   .ent-mobile-tabs { position: fixed; right: 10px; bottom: 10px; left: 10px; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; padding: 6px; border: 1px solid rgba(201,221,244,.9); border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: 0 12px 28px rgba(16,42,67,.16); backdrop-filter: blur(12px); }
-  .ent-mobile-tabs button { display: grid; min-width: 0; min-height: 52px; place-items: center; gap: 2px; padding: 4px 2px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 750; cursor: pointer; }
-  .ent-mobile-tabs button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ent-mobile-tabs button { display: grid; min-width: 0; min-height: 52px; place-items: center; gap: 2px; padding: 4px 2px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 750; cursor: pointer; }
+  .ent-mobile-tabs > button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ent-mobile-mas { position: absolute; right: 6px; bottom: calc(100% + 8px); display: grid; min-width: 220px; gap: 2px; padding: 6px; border: 1px solid rgba(201,221,244,.9); border-radius: 14px; background: #fff; box-shadow: 0 12px 28px rgba(16,42,67,.16); animation: entSlideIn .16s ease both; }
+  .ent-mobile-tabs .ent-mobile-mas button { display: grid; grid-template-columns: 20px minmax(0, 1fr); place-items: center start; gap: 10px; min-height: 48px; padding: 6px 12px; font-size: 14px; color: var(--text, #18344f); text-align: left; }
+  .ent-mobile-mas button span { display: grid; gap: 1px; }
+  .ent-mobile-mas button small { color: var(--muted); font-size: 12px; font-weight: 600; }
+  .ent-mobile-tabs .ent-mobile-mas button.is-active { color: var(--primary); }
   .ent-mobile-tabs button.is-active { background: #eaf3ff; color: var(--primary); }
   .ent-module .cl-inbox { padding: 12px; }
   .ent-toolbar { grid-template-columns: 1fr; padding: 10px; }

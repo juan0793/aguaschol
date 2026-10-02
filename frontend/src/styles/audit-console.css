@@ -1039,6 +1039,17 @@
     linear-gradient(90deg, rgba(148, 183, 226, 0.03) 1px, transparent 1px);
 }
 
+/* styles.css pinta la marca de la barra en azul oscuro con !important; sobre el
+   fondo oscuro de Auditoría quedaba casi invisible. */
+.hero-logs-terminal .app-topbar-brand strong { color: #e2ecf8 !important; }
+.hero-logs-terminal .app-topbar-brand span { color: #a7bed8 !important; }
+
+/* En el celular el bloque de consola repetía el título, el contador y la
+   descripción que la página ya muestra, y empujaba el historial a media pantalla. */
+@media (max-width: 768px) {
+  .hero-logs-terminal .log-module-command { display: none; }
+}
+
 .hero-logs-terminal .log-module-command {
   gap: 0.9rem;
   padding: 0.85rem 1rem;

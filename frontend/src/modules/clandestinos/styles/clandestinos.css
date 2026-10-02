@@ -905,6 +905,7 @@
 .cl-module .cl-ritmo-seg button:first-child { border-left: 0; }
 .cl-module .cl-ritmo-seg button:hover:not(.is-active) { background: #f3f6f9; transform: none; }
 .cl-module .cl-ritmo-seg button.is-active { background: #eef4fd; color: #1465d9; }
+@media (max-width: 768px) { .cl-module .cl-ritmo-seg button { min-height: 40px; } } /* táctil: antes 32px */
 .cl-ritmo-read { min-height: 18px; margin: 10px 0 6px; overflow: hidden; color: var(--rt-ink); font-size: 12.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .cl-ritmo-chart { position: relative; height: 150px; margin-left: 30px; }
 .cl-ritmo-grid { position: absolute; inset: 0 0 20px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }

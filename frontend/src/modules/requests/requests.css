@@ -330,7 +330,10 @@
   /* En el teléfono las cifras van en una sola línea que se desliza, para no
      empujar la tabla medio pantallazo hacia abajo. */
   .pq-workspace .pq-ledger { flex-wrap: nowrap; }
-  .pq-workspace .pq-header .pq-ledger { margin: 0 -14px; padding: 10px 14px 12px; overflow-x: auto; scroll-padding-inline: 14px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .pq-workspace .pq-header .pq-ledger { margin: 0 -14px; padding: 10px 40px 12px 14px; overflow-x: auto; scroll-padding-inline: 14px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  /* El desvanecido a la derecha avisa que la fila sigue; el relleno final deja que la
+     última cifra salga entera de debajo del desvanecido. */
+  .pq-workspace .pq-header .pq-ledger { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
   .pq-workspace .pq-ledger::-webkit-scrollbar { display: none; }
   .pq-workspace .pq-figure { flex: none; padding: 0 14px; scroll-snap-align: start; }
   .pq-workspace .pq-figure dd { font-size: 17px; }

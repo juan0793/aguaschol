@@ -13983,6 +13983,12 @@ body.planos-focus-mode .page-shell > main {
   display: none;
 }
 
+@media (max-width: 768px) {
+  .search-card.is-text-only {
+    display: none;
+  }
+}
+
 .request-helper-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
@@ -27615,6 +27621,11 @@ body {
 }
 .users-filter-chip:hover { background: var(--surface-tinted); color: var(--brand-blue-deep); }
 .users-filter-chip.is-active { background: var(--brand-blue); color: #fff; }
+@media (max-width: 768px) {
+  /* Táctil: filtros y botón de limpiar de 40px (antes 28 y 30px). */
+  .users-filter-chip { min-height: 40px; padding: 0.4rem 0.85rem; font-size: 0.8rem; }
+  .users-search-reset { width: 40px; height: 40px; }
+}
 
 .users-list { gap: 0.6rem; }
 .user-list-card {
@@ -28631,9 +28642,14 @@ body {
   .app-menu-button .app-icon { color:#fff !important; }
   .hero-module .search-row { grid-template-columns:1fr !important; }
   .hero-module .search-row button { width:100% !important; }
+  /* Fichas: el buscador y su botón van en una sola línea. */
+  .hero-module .search-row.search-row-inline { display:grid !important; grid-template-columns:minmax(0,1fr) auto !important; align-items:stretch; gap:0.4rem; }
+  .hero-module .search-row.search-row-inline button { width:auto !important; }
   .hero-module .search-actions { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; overflow:visible !important; }
   .hero-module .search-actions button,
   .hero-module .search-actions .button-secondary { width:100% !important; min-width:0 !important; white-space:normal !important; }
+  /* Un botón que queda solo en su fila (p. ej. "Refrescar historial") la ocupa entera. */
+  .hero-module .search-actions > button:last-child:nth-child(odd) { grid-column:1 / -1; }
 }
 
 /* Navegacion principal compacta del dashboard 2026. */
@@ -29331,8 +29347,18 @@ body {
   .field-control-floating-panel::before { content: ""; position: absolute; top: 3px; left: 50%; z-index: 2; width: 34px; height: 3px; border-radius: 999px; background: #bfd0dd; transform: translateX(-50%); }
   .field-control-tabs { padding-top: 9px; }
   .field-control-tabs { grid-template-columns: repeat(3,minmax(0,1fr)); }
-  .field-control-tabs button { min-height: 34px; font-size: .62rem; }
-  .field-map-legend { bottom: 41%; left: 16px; max-height: 150px; overflow: auto; }
+  /* Táctil: controles de 40-44px y etiquetas de 11.5px como mínimo (antes 25-34px
+     y 9-10px, difíciles de tocar y de leer en la calle). */
+  .field-control-tabs button { min-height: 44px; font-size: .74rem; }
+  .field-control-search { height: 44px; }
+  .field-control-search > button { flex: 0 0 40px; width: 40px; height: 40px; margin-right: -6px; }
+  .field-map-mode span { font-size: .7rem; }
+  .field-map-mode select { min-height: 40px; font-size: .8rem; }
+  .field-control-date > span,
+  .field-control-metrics span,
+  .field-control-title > div > span { font-size: .72rem; }
+  .field-map-legend { bottom: 41%; left: 16px; max-height: 150px; overflow: auto; font-size: .72rem; }
+  .field-map-legend strong { font-size: .74rem; }
   .field-control-zone-grid,
   .field-control-point-form { grid-template-columns: 1fr; }
   .field-control-point-form .is-wide { grid-column: auto; }
@@ -29567,7 +29593,13 @@ button.control-sidebar-home:focus-visible {
 @keyframes cl-activity-slide { from { transform: translateX(-100%); } to { transform: translateX(270%); } }
 @keyframes cl-activity-done { from { transform: scaleX(0.4); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } to { transform: scaleX(1); opacity: 0.35; } }
 @keyframes cl-activity-pulse { 50% { opacity: 0.45; } }
-@media (max-width: 640px) { .cl-activity-summary, .cl-activity time { flex-basis: 100%; order: 3; } }
+/* En el celular: estado y Actualizar en la primera línea; resumen y hora juntos en
+   la segunda (antes iban en dos líneas más y el encabezado tapaba las fichas). */
+@media (max-width: 640px) {
+  .cl-activity::after { content: ""; flex-basis: 100%; order: 2; }
+  .cl-activity-summary { flex: 1 1 0; order: 3; }
+  .cl-activity time { flex: none; order: 4; white-space: nowrap; }
+}
 @media (prefers-reduced-motion: reduce) { .cl-activity-track > span, .cl-activity-dot { animation: none !important; } }
 
 /* Field map: one calm workspace, with the map as the primary surface. */
@@ -29675,4 +29707,13 @@ button.control-sidebar-home:focus-visible {
   .map-diary-tabs { margin-inline: -0.75rem; padding-inline: 0.75rem; }
   .map-diary-tab,
   .map-diary-archive-card { min-width: 124px; }
+}
+
+/* Celular: las etiquetas cortas sobre los títulos y las píldoras bajaban a 10.9px;
+   en la calle se leen mal. 11.5px como mínimo. */
+@media (max-width: 768px) {
+  .sheet-kicker,
+  .panel-pill {
+    font-size: 0.72rem;
+  }
 }
