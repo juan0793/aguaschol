@@ -172,7 +172,10 @@ export default function AppHeader({ model }) {
         </div>
       </div>
 
-      <div className={`search-card ${headerMeta.cardClass} ${workspaceView === "requests" ? "is-hidden" : ""}`}>
+      {/* Cuenta y contraseña están en el menú del usuario y en el pie del menú
+          lateral. Entregas, Importación y Mi perfil solo repetían aquí lo que ya
+          dice la página, así que no llevan franja. */}
+      <div className={`search-card ${headerMeta.cardClass} ${["requests", "entregas", "importacion", "profile"].includes(workspaceView) ? "is-hidden" : ""}`}>
         <div className="search-card-head">
           <span>{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</span>
           <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>
@@ -301,21 +304,7 @@ export default function AppHeader({ model }) {
               </div>
             </>
           )
-        ) : workspaceView === "entregas" ? (
-          <div className="workspace-summary">
-            <p className="workspace-title">Cierre diario, seguimiento de pendientes y trazabilidad de cada lote.</p>
-            <div className="search-actions">
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                <Icon name="auth" />
-                Cambiar contraseña
-              </button>
-            </div>
-          </div>
-        ) : (
+        ) : workspaceView === "entregas" ? null : (
           <div className="module-nav-wrap">
             <div className="module-topbar">
               <div className="module-topbar-copy">
@@ -444,31 +433,6 @@ export default function AppHeader({ model }) {
                 <Icon name="records" />
                 Operaciones realizadas
               </button>
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
-              </button>
-            </div>
-          </div>
-        ) : workspaceView === "profile" ? (
-          <div className="workspace-summary">
-            <p className="workspace-title">
-              Perfil operativo con rendimiento, puntos censados, zonas trabajadas, mensajes y logros del equipo.
-            </p>
-            <div className="dashboard-summary-chips">
-              <span className="panel-pill">Vista en vivo</span>
-              <span className="panel-pill">Mapa personal</span>
-              <span className="panel-pill">Mensajes y logros</span>
-            </div>
-            <div className="search-actions">
-              <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                <Icon name="auth" />
-                Cambiar contrasena
-              </button>
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesion
-              </button>
             </div>
           </div>
         ) : workspaceView === "executiveReport" ? (
@@ -490,10 +454,6 @@ export default function AppHeader({ model }) {
               <button type="button" className="button-secondary" onClick={() => setWorkspaceView("dashboard")}>
                 <Icon name="dashboard" />
                 Volver al tablero
-              </button>
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
               </button>
             </div>
           </div>
@@ -577,23 +537,6 @@ export default function AppHeader({ model }) {
                   Operaciones realizadas
                 </button>
               </div>
-              <div className="search-actions fm-summary-session" role="group" aria-label="Sesión">
-                <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                  <Icon name="auth" />
-                  Cambiar contraseña
-                </button>
-                <button type="button" className="button-secondary" onClick={handleLogout}>
-                  <Icon name="logout" />
-                  Cerrar sesión
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : workspaceView === "importacion" ? (
-          <div className="workspace-summary">
-            <p className="workspace-title">Revisa los lotes recibidos desde FoxPro antes de aplicar cambios al padron maestro.</p>
-            <div className="search-actions">
-              <button type="button" className="button-secondary" onClick={handleLogout}><Icon name="logout" />Cerrar sesion</button>
             </div>
           </div>
         ) : workspaceView === "padron" ? (
@@ -605,14 +548,6 @@ export default function AppHeader({ model }) {
               <button type="button" className="button-secondary" onClick={loadPadronMeta}>
                 <Icon name="refresh" />
                 Ver estado actual
-              </button>
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                <Icon name="auth" />
-                Cambiar contraseña
               </button>
             </div>
           </div>
@@ -689,19 +624,6 @@ export default function AppHeader({ model }) {
               </button>
                 </div>
               </div>
-              <div className="map-report-action-group is-session">
-                <span>Cuenta</span>
-                <div className="search-actions">
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                <Icon name="auth" />
-                Cambiar contraseña
-              </button>
-                </div>
-              </div>
             </div>
           </div>
         ) : workspaceView === "mapAnalytics" ? (
@@ -725,14 +647,6 @@ export default function AppHeader({ model }) {
               <button type="button" className="button-secondary" onClick={() => setWorkspaceView("mapReports")}>
                 <Icon name="records" />
                 Ir al reporte
-              </button>
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                <Icon name="auth" />
-                Cambiar contraseña
               </button>
             </div>
           </div>
@@ -758,14 +672,6 @@ export default function AppHeader({ model }) {
                   Refrescar historial
                 </button>
               )}
-              <button type="button" className="button-secondary" onClick={handleLogout}>
-                <Icon name="logout" />
-                Cerrar sesión
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setShowPasswordModal(true)}>
-                <Icon name="auth" />
-                Cambiar contraseña
-              </button>
             </div>
           </div>
         ) : null}

@@ -770,6 +770,7 @@ function App() {
         onPrefetch={prefetchModule}
         homeKey={getDefaultWorkspaceView(session?.user?.role)}
         onCloseMobile={closeMobileModuleMenu}
+        onChangePassword={() => setShowPasswordModal(true)}
         onLogout={handleLogout}
       />
       {workspaceView === "dashboard" ? (

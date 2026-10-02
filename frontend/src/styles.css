@@ -10593,10 +10593,6 @@ button.app-user-chip {
   margin: 0;
 }
 
-.map-report-action-group.is-session {
-  background: #fbfdff;
-}
-
 .regulator-report-selector {
   display: grid;
   gap: 0.75rem;

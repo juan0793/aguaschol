@@ -273,7 +273,7 @@
 
 .control-sidebar-footer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 6px;
   padding: 11px 10px;
   border-top: 1px solid var(--sidebar-divider);
@@ -331,6 +331,8 @@
 .control-sidebar-logout:hover,
 .control-sidebar-logout:active { border-color: rgba(254, 202, 202, 0.52); color: #fff; background: rgba(190, 48, 48, 0.28); transform: none; }
 .control-sidebar-logout > span:not(.app-icon) { display: none; }
+.control-sidebar-password:hover,
+.control-sidebar-password:active { border-color: var(--sidebar-active-border); color: #fff; background: rgba(255, 255, 255, 0.1); }
 .control-sidebar button:focus-visible { outline: 2px solid var(--sidebar-active-border); outline-offset: 2px; }
 .control-sidebar [data-tooltip] { position: relative; }
 
@@ -435,6 +437,11 @@
   .control-sidebar.is-mobile-open { transform: translateX(0); }
   .control-sidebar-toggle { display: none; }
   .control-sidebar-navigation { overscroll-behavior: contain; }
+  /* En táctil no hay tooltip: las dos acciones de cuenta van con su nombre, una
+     por fila debajo del usuario (lado a lado no caben en 320px). */
+  .control-sidebar-footer { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .control-sidebar-logout { width: 100%; grid-template-columns: 20px minmax(0, 1fr); justify-items: start; gap: 10px; padding: 0 12px; font-size: 13px; font-weight: 650; }
+  .control-sidebar-logout > span:not(.app-icon) { display: inline; white-space: nowrap; }
 }
 
 @media (max-height: 760px) and (min-width: 769px) {

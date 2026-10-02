@@ -26,6 +26,7 @@ export default function AppSidebar({
   onPrefetch,
   homeKey = "dashboard",
   onCloseMobile,
+  onChangePassword = () => {},
   onLogout
 }) {
   const sidebarRef = useRef(null);
@@ -178,6 +179,7 @@ export default function AppSidebar({
             <span>{String(userName || "U").trim().charAt(0).toUpperCase()}</span>
             <div><strong>{userName}</strong><small>{userRole}</small></div>
           </button>
+          <button type="button" className="control-sidebar-logout control-sidebar-password" onClick={() => { onCloseMobile(); onChangePassword(); }} aria-label="Cambiar contraseña" data-tooltip={effectiveCollapsed ? "Cambiar contraseña" : undefined}><Icon name="auth" /><span>Cambiar contraseña</span></button>
           <button type="button" className="control-sidebar-logout" onClick={onLogout} aria-label="Cerrar sesión" data-tooltip={effectiveCollapsed ? "Cerrar sesión" : undefined}><Icon name="logout" /><span>Cerrar sesión</span></button>
         </footer>
       </aside>
