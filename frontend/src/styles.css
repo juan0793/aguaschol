@@ -29573,30 +29573,98 @@ button.control-sidebar-home:focus-visible {
   }
 }
 
-/* Barra superior: fuera del tablero solo queda el logo circular, y solo en el
-   teléfono (ahí el menú lateral está escondido). En escritorio la celda queda vacía. */
+/* Barra superior fuera del tablero (desde 2026-10-05): el nombre y el título ya
+   están en el menú lateral y en la página, así que la barra solo lleva el logo,
+   circular, al centro y sin letras. Un clic lleva al inicio. En reposo late cada
+   pocos segundos (un leve pulso y una onda que se apaga); al pasar el puntero la
+   onda se acelera. La celda de la rejilla la ocupa un hueco vacío, para que la
+   sesión no se mueva. */
 .app-topbar .app-topbar-brand.is-logo-only {
-  visibility: hidden;
-  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 50px;
+  height: 50px;
+  margin: -25px 0 0 -25px;
+  border-radius: 50%;
 }
 
 .app-topbar .app-topbar-brand.is-logo-only .app-topbar-logo {
-  width: 40px;
-  height: 40px;
-  padding: 4px;
+  width: 50px;
+  height: 50px;
+  padding: 5px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0 0 1px rgba(20, 101, 217, 0.14);
+  box-shadow: 0 0 0 1px rgba(20, 101, 217, 0.14), 0 4px 12px rgba(11, 63, 115, 0.12);
+  animation: brand-pulse-beat 5.2s ease-in-out 1.2s infinite;
+}
+
+.app-topbar .app-topbar-brand.is-logo-only .app-brand-mark::after {
+  inset: -4px;
+  animation: brand-pulse-ring 5.2s cubic-bezier(0.23, 1, 0.32, 1) 1.2s infinite;
+}
+
+/* Al pasar el puntero manda la escala del hover y la onda se acelera. */
+.app-topbar .app-topbar-brand.is-logo-only:hover .app-topbar-logo,
+.app-topbar .app-topbar-brand.is-logo-only:focus-visible .app-topbar-logo,
+.app-topbar .app-topbar-brand.is-logo-only:active .app-topbar-logo {
+  animation: none;
+}
+
+.app-topbar .app-topbar-brand.is-logo-only:hover .app-brand-mark::after,
+.app-topbar .app-topbar-brand.is-logo-only:focus-visible .app-brand-mark::after {
+  animation: brand-ripple 1.9s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+/* Las cifras de la barra nunca pasan por debajo del logo: lo que no cabe antes
+   del centro baja a una segunda fila que queda oculta. Solo en escritorio: en el
+   teléfono la barra mide según su contenido y no puede ser contenedor. */
+@media (min-width: 769px) {
+  .app-topbar:has(> .app-topbar-brand.is-logo-only) {
+    container-type: inline-size;
+  }
+
+  .app-topbar:has(> .app-topbar-brand.is-logo-only) > .app-topbar-kpis {
+    max-width: calc(50cqi - 44px);
+    max-height: 34px;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow: hidden;
+  }
+}
+
+@keyframes brand-pulse-beat {
+  0%, 14%, 100% { transform: scale(1); }
+  5% { transform: scale(1.045); }
+  9% { transform: scale(0.99); }
+  11% { transform: scale(1.02); }
+}
+
+@keyframes brand-pulse-ring {
+  0% { opacity: 0; transform: scale(0.94); }
+  5% { opacity: 0.45; transform: scale(1); }
+  30% { opacity: 0; transform: scale(1.32); }
+  100% { opacity: 0; transform: scale(1.32); }
 }
 
 @media (max-width: 768px) {
+  /* En el teléfono el logo va junto al botón del menú y la sesión en la misma fila. */
+  .app-topbar .app-topbar-slot { display: none; }
+
   .app-topbar .app-topbar-brand.is-logo-only {
-    visibility: visible;
-    pointer-events: auto;
-    border-radius: 50%;
+    position: static;
+    width: 40px;
+    height: 40px;
+    margin: 0;
   }
 
-  /* Sin el nombre al lado del logo, la sesión cabe en la misma fila: la barra mide la mitad. */
+  .app-topbar .app-topbar-brand.is-logo-only .app-topbar-logo {
+    width: 40px;
+    height: 40px;
+    padding: 4px;
+  }
+
   .app-topbar:has(> .app-topbar-brand.is-logo-only) {
     grid-template-columns: auto auto minmax(0, 1fr) !important;
   }
@@ -29605,6 +29673,13 @@ button.control-sidebar-home:focus-visible {
     grid-column: auto !important;
     justify-self: end;
     min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-topbar .app-topbar-brand.is-logo-only .app-topbar-logo,
+  .app-topbar .app-topbar-brand.is-logo-only .app-brand-mark::after {
+    animation: none !important;
   }
 }
 

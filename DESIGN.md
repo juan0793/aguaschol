@@ -191,9 +191,9 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - Lo que cierra un trabajo lleva el icono verde, pero el texto va en tinta para que la lista no se vuelva toda verde. Si se filtra por una persona o por un área, esa columna desaparece de las filas.
   - Los días se cuentan en la hora de quien mira (`tz`), no en la de la base.
 - Marca de la aplicación (desde 2026-10-05):
-  - En el menú lateral va solo el logo, circular y al centro (68px; 46px con el menú contraído). Un clic lleva al inicio. En reposo late cada 5 segundos: un leve pulso del logo y una onda celeste que se apaga. Al pasar el puntero la onda se acelera. Con movimiento reducido queda quieto.
-  - El botón de contraer el menú es una pestaña redonda en el borde del menú.
-  - La barra superior ya no repite la marca ni el título: el título lo dice la página. En el teléfono, donde el menú está escondido, queda el logo circular como atajo al inicio, en la misma fila que la sesión.
+  - El menú lateral conserva el logo con el nombre "Aguas de Choluteca / Panel ejecutivo".
+  - Fuera del tablero, la barra superior no repite el nombre ni el título, porque el título ya lo dice la página. Lleva solo el logo, circular y sin letras, al centro de la barra (50px; 40px en el teléfono, junto al botón del menú). Un clic lleva al inicio. En reposo late cada 5 segundos: un leve pulso del logo y una onda azul que se apaga. Al pasar el puntero, la onda se acelera. Con movimiento reducido queda quieto.
+  - Las cifras de la barra nunca pasan por debajo del logo. Lo que no cabe antes del centro se oculta.
   - El menú usa el mismo nombre que la página: "Consultas del padrón" (antes "Impresión e informes").
 - "Servicios por barrio" en Consultas del padrón permite elegir un servicio (desde 2026-10-05):
   - Arriba de la tabla hay una fila de columnas iguales: "Todos los servicios" y una columna por servicio, cada una con sus usuarios y su porcentaje del padrón. La columna elegida va en azul claro con un filete azul abajo.

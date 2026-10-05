@@ -99,12 +99,13 @@ export default function AppHeader({ model }) {
           <Icon name="menu" />
         </button>
         {/* En el tablero la barra lleva el título de la página. En los demás módulos
-            la marca y el atajo al inicio viven en el menú lateral, y el título ya lo
-            dice la página: aquí solo queda el logo circular en el teléfono, donde el
-            menú está escondido. En escritorio la celda queda vacía para no mover la rejilla. */}
+            el nombre ya está en el menú lateral y el título en la página: aquí solo va
+            el logo circular, al centro, como atajo al inicio. El hueco guarda su celda
+            en la rejilla para que la sesión no se mueva. */}
         {workspaceView === "dashboard" ? (
           <h1 className="app-topbar-title">{headerMeta.title}</h1>
-        ) : (
+        ) : (<>
+          <span className="app-topbar-slot" aria-hidden="true" />
           <button
             type="button"
             className="app-topbar-brand is-logo-only"
@@ -116,7 +117,7 @@ export default function AppHeader({ model }) {
               <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
             </span>
           </button>
-        )}
+        </>)}
         <div className="app-topbar-kpis">
           {headerStats.map((stat) => (
             <span className="app-topbar-kpi" key={stat.label}>
