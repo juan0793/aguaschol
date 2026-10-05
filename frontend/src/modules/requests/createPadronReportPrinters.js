@@ -754,6 +754,199 @@ export function createPadronReportPrinters({
     }
   };
 
+  // Informe de un solo servicio: lo arma la vista "un servicio" de Consultas con las
+  // filas tal como se ven (orden, búsqueda, barrios marcados) y aquí solo se compone.
+  const serviceFocusText = ({ label, rows = [], totals = {}, resumen = {} }) => {
+    const nombre = String(label || "").toLowerCase();
+    const pctText = (value) => `${Number(value || 0).toLocaleString("es-HN", { maximumFractionDigits: 1 })}%`;
+    const intText = (value) => Number(value || 0).toLocaleString("es-HN");
+    return {
+      nombre,
+      intText,
+      title: `Informe de ${nombre} por barrio`,
+      figures: [
+        [intText(resumen.active), `usuarios con ${nombre}`, `${pctText(resumen.percentage)} del padrón`],
+        [intText(resumen.sin), `usuarios sin ${nombre}`, `${pctText(100 - Number(resumen.percentage || 0))} del padrón`],
+        [`${intText(resumen.barriosCon)} de ${intText(resumen.barrios)}`, `barrios con ${nombre}`, resumen.barriosSin ? `${intText(resumen.barriosSin)} sin el servicio` : "todos lo tienen"],
+        [formatCurrency(resumen.deuda || 0), `deuda de las cuentas con ${nombre}`, `${intText(resumen.deudores)} cuentas con deuda`],
+        [formatCurrency(resumen.deudores ? resumen.deuda / resumen.deudores : 0), "promedio por cuenta con deuda", `capital ${formatCurrency(resumen.capital || 0)}`]
+      ],
+      head: ["Barrio", "Usuarios", `Con ${nombre}`, "% del barrio", `Sin ${nombre}`, "Cuentas con deuda", "Capital", "Intereses", "Deuda", "Parte de la deuda"],
+      body: rows.map((row) => [row.name, intText(row.usuarios), intText(row.active), pctText(row.percentage), intText(row.sin), intText(row.deudores), formatCurrency(row.capital), formatCurrency(row.intereses), formatCurrency(row.deuda), pctText(row.share)]),
+      foot: [`Total (${intText(rows.length)} ${rows.length === 1 ? "barrio" : "barrios"})`, intText(totals.usuarios), intText(totals.active), pctText(totals.percentage), intText(totals.sin), intText(totals.deudores), formatCurrency(totals.capital || 0), formatCurrency(totals.intereses || 0), formatCurrency(totals.deuda || 0), pctText(totals.share)],
+      note: `La deuda es la de las cuentas que tienen ${nombre} activo. El archivo maestro no separa la deuda por concepto facturado: una cuenta con varios servicios suma en cada uno. "Parte de la deuda" es cuánto de la deuda de ${nombre} de toda la ciudad está en cada barrio.`
+    };
+  };
+
+  const handlePrintServiceFocus = async (informe = {}) => {
+    if (!informe.rows?.length) {
+      showAlert("No hay barrios para imprimir con este servicio.");
+      return;
+    }
+    const text = serviceFocusText(informe);
+    const generatedAt = formatDateTime(padronServiceReport?.generated_at || new Date().toISOString());
+    const align = (index) => (index === 0 ? "left" : "right");
+    const sinServicio = informe.barriosSinNombres?.length
+      ? `<section class="field-report-zone census-report-zone">
+          <div class="field-report-zone-head census-report-zone-head"><div><h3>Barrios sin ${escapeHtml(text.nombre)} (${informe.barriosSinNombres.length})</h3></div></div>
+          <p>${informe.barriosSinNombres.map(escapeHtml).join(" · ")}</p>
+        </section>`
+      : "";
+
+    await printDocument(
+      text.title,
+      `
+        <div class="field-report-shell census-report-shell">
+          <header class="field-report-header census-report-header">
+            <div class="field-report-brand">
+              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
+              <div>
+                <p class="field-report-kicker">Aguas de Choluteca, S.A. de C.V.</p>
+                <h1>${escapeHtml(text.title)}</h1>
+                <p>${escapeHtml(informe.filtro || `Barrios con ${text.nombre} del padrón maestro activo.`)}</p>
+              </div>
+            </div>
+            <div class="field-report-meta">
+              <span>Generado: ${generatedAt}</span>
+              <span>Barrios en el informe: ${text.intText(informe.rows.length)}</span>
+              <span>Fuente: ${escapeHtml(padronServiceReport?.source?.file_name || "Padrón maestro")}</span>
+            </div>
+          </header>
+          <section class="field-report-summary">
+            ${text.figures.map(([value, label, note]) => `
+              <div class="field-report-total-chip">
+                <strong>${escapeHtml(value)}</strong>
+                <span>${escapeHtml(label)} · ${escapeHtml(note)}</span>
+              </div>`).join("")}
+          </section>
+          <section class="field-report-zone census-report-zone">
+            <div class="field-report-zone-head census-report-zone-head">
+              <div><h3>Barrios con ${escapeHtml(text.nombre)}: usuarios y deuda</h3></div>
+            </div>
+            <table class="field-report-table census-report-table data-report-table">
+              <thead><tr>${text.head.map((title, index) => `<th style="text-align:${align(index)}">${escapeHtml(title)}</th>`).join("")}</tr></thead>
+              <tbody>${text.body.map((row) => `<tr>${row.map((value, index) => `<td style="text-align:${align(index)}">${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody>
+              <tfoot><tr>${text.foot.map((value, index) => `<th style="text-align:${align(index)}">${escapeHtml(value)}</th>`).join("")}</tr></tfoot>
+            </table>
+            <p><strong>Nota:</strong> ${escapeHtml(text.note)}</p>
+          </section>
+          ${sinServicio}
+        </div>
+      `,
+      {
+        pageSize: "Letter landscape",
+        pageMargin: "10mm",
+        bodyClassName: "field-report-body census-report-body",
+        showPageFooter: true
+      }
+    );
+  };
+
+  const handleDownloadServiceFocusPdf = async (informe = {}) => {
+    if (!informe.rows?.length) {
+      showAlert("No hay barrios para guardar con este servicio.");
+      return;
+    }
+    try {
+      setDownloadingAguasServicePdf(true);
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const autoTable = autoTableModule.default;
+      const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+      const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
+      const text = serviceFocusText(informe);
+      const generatedAt = formatDateTime(padronServiceReport?.generated_at || new Date().toISOString());
+      const addFooter = () => {
+        const pageNumber = document.getCurrentPageInfo().pageNumber;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        document.setTextColor(95, 116, 138);
+        document.text(`Aguas de Choluteca - ${text.title.toLowerCase()} - pag. ${pageNumber}`, 14, pageHeight - 8);
+      };
+
+      document.setFillColor(10, 65, 112);
+      document.rect(0, 0, pageWidth, 24, "F");
+      document.setTextColor(255, 255, 255);
+      document.setFont("helvetica", "bold");
+      document.setFontSize(15);
+      document.text(text.title, 14, 14);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(9);
+      document.text(`Generado: ${generatedAt}`, pageWidth - 14, 14, { align: "right" });
+
+      document.setTextColor(22, 54, 82);
+      document.setFontSize(9);
+      document.text(`Fuente: ${padronServiceReport?.source?.file_name || "Padron maestro"}`, 14, 32);
+      if (informe.filtro) document.text(informe.filtro, 14, 38);
+
+      // Cifras del servicio en una fila, separadas por filetes.
+      const figureWidth = (pageWidth - 28) / text.figures.length;
+      text.figures.forEach(([value, label, note], index) => {
+        const x = 14 + index * figureWidth;
+        if (index) {
+          document.setDrawColor(214, 226, 238);
+          document.line(x - 3, 44, x - 3, 64);
+        }
+        document.setFont("helvetica", "bold");
+        document.setFontSize(13);
+        document.setTextColor(10, 65, 112);
+        document.text(value, x, 50);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        document.setTextColor(36, 59, 83);
+        document.text(document.splitTextToSize(label, figureWidth - 6), x, 55);
+        document.setTextColor(95, 116, 138);
+        document.text(note, x, 63);
+      });
+
+      autoTable(document, {
+        startY: 71,
+        head: [text.head],
+        body: text.body,
+        foot: [text.foot],
+        showFoot: "lastPage",
+        theme: "striped",
+        styles: { fontSize: 7.6, cellPadding: 1.9, textColor: [23, 52, 78], overflow: "linebreak", halign: "right" },
+        columnStyles: { 0: { cellWidth: 52 } },
+        headStyles: { fillColor: [18, 93, 160], textColor: 255 },
+        footStyles: { fillColor: [232, 240, 250], textColor: [10, 65, 112], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [244, 248, 252] },
+        margin: { left: 14, right: 14, bottom: 14 },
+        didParseCell: (data) => { data.cell.styles.halign = data.column.index === 0 ? "left" : "right"; },
+        didDrawPage: addFooter
+      });
+
+      let y = (document.lastAutoTable?.finalY ?? 71) + 7;
+      const parrafo = (titulo, cuerpo) => {
+        const lineas = document.splitTextToSize(cuerpo, pageWidth - 28);
+        if (y + 6 + lineas.length * 4 > pageHeight - 14) {
+          document.addPage("letter", "landscape");
+          addFooter();
+          y = 18;
+        }
+        document.setFont("helvetica", "bold");
+        document.setFontSize(9);
+        document.setTextColor(10, 65, 112);
+        document.text(titulo, 14, y);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(8);
+        document.setTextColor(36, 59, 83);
+        document.text(lineas, 14, y + 5);
+        y += 9 + lineas.length * 4;
+      };
+      parrafo("Nota", text.note);
+      if (informe.barriosSinNombres?.length) parrafo(`Barrios sin ${text.nombre} (${informe.barriosSinNombres.length})`, informe.barriosSinNombres.join(" · "));
+
+      const slug = text.nombre.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-");
+      saveReportPdf(document, `informe-${slug}-por-barrio-${new Date().toISOString().slice(0, 10)}.pdf`, { title: text.title });
+      showAlert(`Informe de ${text.nombre} descargado en PDF.`);
+    } catch (error) {
+      showAlert(error.message || "No fue posible guardar el informe del servicio.");
+    } finally {
+      setDownloadingAguasServicePdf(false);
+    }
+  };
+
   const handleDownloadPadronStatsPdf = async () => {
     if (!alcaldiaComparison?.summary || !padronStatisticsData.dynamicRows.length) {
       showAlert("Genera primero los graficos para guardar el reporte en PDF.");
@@ -1141,6 +1334,8 @@ export function createPadronReportPrinters({
     handleDownloadPadronRequestPdf,
     handlePrintAguasServiceReport,
     handleDownloadAguasServicePdf,
+    handlePrintServiceFocus,
+    handleDownloadServiceFocusPdf,
     handleDownloadPadronStatsPdf,
     handlePrintAguasComparisonList
   };

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildServiceRows, sortServiceRows, sumServiceRows } from "./serviceTable.js";
+import { buildServiceFocusRows, buildServiceRows, sortServiceFocusRows, sortServiceRows, sumServiceFocusRows, sumServiceRows } from "./serviceTable.js";
 
 const barrios = [
   {
@@ -44,4 +44,23 @@ test("suma los barrios visibles y recalcula el porcentaje de cada servicio", () 
   assert.equal(totals.services.agua.active, 14);
   assert.equal(totals.services.agua.percentage, 93.3);
   assert.equal(totals.services.alcantarillado.deuda, 400);
+});
+
+test("lee cada barrio desde un solo servicio: con, sin, deuda y su parte del total", () => {
+  const rows = buildServiceRows([
+    { barrio_colonia: "Cabañas", total_registros: 10, servicios: [{ field: "barrido", active: 4, percentage: 40, deuda: { total: 300, capital: 250, intereses: 50, deudores: 3 } }] },
+    { barrio_colonia: "Centro", total_registros: 6, servicios: [{ field: "barrido", active: 6, percentage: 100, deuda: { total: 100, capital: 100, intereses: 0, deudores: 1 } }] },
+    { barrio_colonia: "Monterrey", total_registros: 8, servicios: [] }
+  ]);
+  const focus = buildServiceFocusRows(rows, "barrido");
+  const cabanas = focus.find((row) => row.name === "Cabañas");
+  assert.equal(cabanas.sin, 6);
+  assert.equal(cabanas.deudores, 3);
+  assert.equal(cabanas.share, 75);
+  assert.deepEqual(sortServiceFocusRows(focus, { key: "deuda", dir: "desc" }).map((row) => row.name), ["Cabañas", "Centro", "Monterrey"]);
+  const totals = sumServiceFocusRows(focus);
+  assert.equal(totals.active, 10);
+  assert.equal(totals.barriosCon, 2);
+  assert.equal(totals.percentage, 41.7);
+  assert.equal(totals.deuda, 400);
 });

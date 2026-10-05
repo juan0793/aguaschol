@@ -88,6 +88,36 @@
 .pq-workspace .pq-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 12px; border: 1px solid #c4dafa; border-radius: 10px; background: var(--ds-blue-soft, #eaf2fd); font-size: 13px; }
 .pq-workspace .pq-selection > span { margin-right: auto; }
 
+/* ---------- Elegir un servicio ----------
+   Columnas iguales, una por servicio, con su cifra del padrón. La elegida
+   abre su propia vista: barrios, deuda e informe de ese servicio. */
+.pq-workspace .pq-service-pick { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; background: #fff; }
+.pq-workspace .pq-service-pick button { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: 56px; width: auto; margin: 0; padding: 8px 14px; border: 0; border-left: 1px solid var(--ds-border, #e3ebf3); border-radius: 0; background: #fff; box-shadow: none; color: var(--ds-text, #102a43); text-align: left; cursor: pointer; transition: background-color 0.15s ease; }
+.pq-workspace .pq-service-pick button:first-child { border-left: 0; }
+.pq-workspace .pq-service-pick button:hover:not(:disabled) { background: #f7fafd; box-shadow: none; transform: none; }
+.pq-workspace .pq-service-pick button:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
+.pq-workspace .pq-service-pick span { display: flex; align-items: center; gap: 7px; overflow: hidden; font-size: 13.5px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.pq-workspace .pq-service-pick span .app-icon { flex: none; width: 16px; height: 16px; margin: 0; color: var(--ds-text-faint, #94a3b8); }
+.pq-workspace .pq-service-pick small { overflow: hidden; color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.pq-workspace .pq-service-pick button.is-active { background: var(--ds-blue-soft, #eef5ff); box-shadow: inset 0 -2px var(--ds-blue, #1769e0); }
+.pq-workspace .pq-service-pick button.is-active span, .pq-workspace .pq-service-pick button.is-active span .app-icon { color: var(--ds-blue, #1769e0); }
+
+/* Resumen del servicio elegido: cifras en línea, separadas por filetes. */
+.pq-workspace .pq-focus-figures { display: flex; flex-wrap: wrap; gap: 10px 0; margin: 2px 0 0; }
+.pq-workspace .pq-focus-figures > div { display: flex; flex-direction: column; min-width: 0; padding: 0 22px; border-left: 1px solid var(--ds-border, #e3ebf3); }
+.pq-workspace .pq-focus-figures > div:first-child { padding-left: 2px; border-left: 0; }
+.pq-workspace .pq-focus-figures dt { order: 2; color: var(--ds-text, #243b53); font-size: 12.5px; font-weight: 650; }
+.pq-workspace .pq-focus-figures dd { order: 1; margin: 0; color: var(--ds-text, #102a43); font-size: 19px; font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pq-workspace .pq-focus-figures dd.pq-focus-note { order: 3; color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 600; line-height: 1.4; }
+.pq-workspace .pq-check-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--ds-text, #243b53); font-size: 13px; font-weight: 600; cursor: pointer; }
+.pq-workspace .pq-check-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-share { display: inline-grid; justify-items: end; gap: 3px; min-width: 76px; }
+.pq-workspace .pq-share small { color: var(--ds-text, #243b53); font-size: 12.5px; }
+.pq-workspace .pq-share i { display: block; justify-self: stretch; height: 4px; }
+.pq-workspace .pq-share em { display: block; height: 100%; min-width: 2px; margin-left: auto; border-radius: 99px; background: #5b9bec; }
+.pq-workspace .pq-table td.is-zero .pq-share i { visibility: hidden; }
+.pq-workspace .pq-table tbody tr.is-without .pq-col-name { color: var(--ds-text-muted, #627d98); font-weight: 600; }
+
 /* ---------- Tablas ---------- */
 .pq-workspace .pq-table-wrap { max-height: 72vh; overflow: auto; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; }
 .pq-workspace .pq-table-wrap.is-flat { max-height: none; }
@@ -308,6 +338,9 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
+  /* Los servicios se deslizan en una fila en vez de apretarse. */
+  .pq-workspace .pq-service-pick { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); overflow-x: auto; scrollbar-width: none; }
+  .pq-workspace .pq-focus-figures > div { padding: 0 16px; }
   /* En pantallas angostas el índice de barrios es un selector. */
   .pq-workspace .pq-claves-layout { grid-template-columns: minmax(0, 1fr); }
   .pq-workspace .pq-claves-index { position: static; overflow: visible; border: 0; background: none; }
@@ -321,6 +354,10 @@
   .pq-workspace .pq-figure { padding: 0 16px; }
 }
 @media (max-width: 700px) {
+  /* Cifras del servicio en dos columnas, sin filetes verticales. */
+  .pq-workspace .pq-focus-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+  .pq-workspace .pq-focus-figures > div, .pq-workspace .pq-focus-figures > div:first-child { padding: 0; border-left: 0; }
+  .pq-workspace .pq-focus-figures dd { font-size: 17px; }
   .pq-workspace .pq-header { grid-template-areas: "title action" "source source" "ledger ledger"; align-items: center; column-gap: 12px; padding: 12px 14px 0; }
   .pq-workspace .pq-header h1 { font-size: 20px; }
   /* Solo el icono: el nombre accesible viene del aria-label del botón. */

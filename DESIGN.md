@@ -190,6 +190,11 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - El registro se pagina con números, de 50 acciones por página. Arriba van el rango ("51–100 de 191 acciones") y las flechas, y abajo los números de página. Un día partido entre páginas dice "27 acciones · 13 en esta página".
   - Lo que cierra un trabajo lleva el icono verde, pero el texto va en tinta para que la lista no se vuelva toda verde. Si se filtra por una persona o por un área, esa columna desaparece de las filas.
   - Los días se cuentan en la hora de quien mira (`tz`), no en la de la base.
+- "Servicios por barrio" en Consultas del padrón permite elegir un servicio (desde 2026-10-05):
+  - Arriba de la tabla hay una fila de columnas iguales: "Todos los servicios" y una columna por servicio, cada una con sus usuarios y su porcentaje del padrón. La columna elegida va en azul claro con un filete azul abajo.
+  - Al elegir un servicio, la pantalla muestra sus cifras en línea, entre filetes: usuarios con y sin el servicio, barrios con el servicio, deuda de esas cuentas y el promedio por cuenta con deuda. Debajo va su tabla: con y sin el servicio, cuentas con deuda, capital, intereses, deuda y la parte de la deuda del servicio que cae en cada barrio. Los barrios sin el servicio se ocultan, y una casilla los muestra.
+  - El informe impreso y el PDF llevan las filas tal como se ven: mismo orden, misma búsqueda o solo los barrios marcados. Al final nombran los barrios sin el servicio.
+  - La deuda siempre se rotula como "de las cuentas con el servicio", porque el archivo maestro no separa la deuda por concepto.
 
 ### Busqueda de clave
 
