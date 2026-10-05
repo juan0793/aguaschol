@@ -4,7 +4,7 @@ import { estadoClass, estadoLoteLabel, formatDate, formatNumber, formatPercent, 
 import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
 import LatticeLoader from "../../../components/micro/LatticeLoader";
 
-export default function LotesTable({ model, config, personal, permissions, historial = false, onToday, onOpen, onCerrar }) {
+export default function LotesTable({ model, config, personal, permissions, historial = false, onOpen, onCerrar }) {
   const { items, loading, error, filters, setFilters, clearFilters, page, setPage, total, total_pages: totalPages, resumen } = model;
   const [advanced, setAdvanced] = useState(false);
   const hoy = config.jornada?.fecha || toLocalIsoDate();
@@ -33,11 +33,9 @@ export default function LotesTable({ model, config, personal, permissions, histo
   const metrics = [["Lotes", total], ["Responsables", resumen?.responsables], ["Asignadas", resumen?.asignadas], ["Por cerrar", resumen?.abiertos], ["Efectividad", resumen ? formatPercent(resumen.efectividad) : "—"]];
   return (
     <section className="cl-inbox ent-operational-inbox" aria-busy={loading}>
-      <div className="cl-inbox-head">
-        {historial
-          ? <div><span className="cl-kicker">Historial</span><h3>Lotes anteriores</h3><p>Todo lo repartido antes de hoy. Los que sigan abiertos necesitan cierre.</p></div>
-          : <div><span className="cl-kicker">Operación diaria</span><h3>Lotes diarios</h3><p>Registra el resultado y cierra cada lote al terminar el recorrido.</p></div>}
-        {historial ? null : <button type="button" className="cl-secondary" onClick={onToday}><Icon name="calendar" />Hoy</button>}
+      {/* El rango ya se elige con los atajos de abajo (incluido "Hoy"): el título solo nombra la lista. */}
+      <div className="cl-inbox-head ent-head-compacta">
+        <div><h3>{historial ? "Lotes anteriores" : "Lotes"}</h3>{historial ? <p>Los que sigan abiertos necesitan cierre.</p> : null}</div>
       </div>
       <dl className="ent-metrics" aria-label="Totales de todos los resultados filtrados">
         {metrics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{loading ? "…" : typeof value === "string" ? value : value == null ? "—" : formatNumber(value)}</dd></div>)}

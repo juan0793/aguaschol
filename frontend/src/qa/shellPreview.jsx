@@ -109,6 +109,52 @@ const usuariosQa = [
   { id: 503, full_name: "Admin de Prueba", username: "adminqa", email: "admin@prueba.test", role: "admin", active_sessions: 2, is_online: true, force_password_change: false, last_login_at: new Date().toISOString(), created_at: "2026-01-10T15:00:00Z", updated_at: "2026-09-01T15:00:00Z" }
 ];
 
+// ?entregas=1: Control de entregas con lotes de mentira. El lote #31 es del usuario
+// y está abierto, para probar el cierre (también como técnico con ?rol=tecnico).
+const hoyQa = (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); })();
+const gestorQa = ["admin", "operator"].includes(rol);
+const loteQa = (id, extra) => ({ id, fecha: hoyQa, responsable_id: 7, responsable_nombre: "Técnico A", responsable_user_id: 1, barrio_codigo: "14-04", barrio_nombre: "Barrio El Centro", tipo_documento: "FACTURA", total_asignadas: 120, total_entregadas: 0, total_sobrantes: 0, total_detalle: 0, pendientes: 0, efectividad: 0, estado: "ABIERTO", observacion_responsable: "", no_entregadas: [], ...extra });
+const lotesQa = [
+  loteQa(31),
+  loteQa(30, { responsable_id: 8, responsable_nombre: "Técnico B", barrio_nombre: "Barrio Cabañas", total_asignadas: 96, total_entregadas: 91, total_sobrantes: 5, pendientes: 5, efectividad: 94.8, estado: "CERRADO" })
+];
+const entregasQa = (url, init) => {
+  const ruta = new URL(url).pathname.replace(/^.*\/entregas/, "");
+  const metodo = init?.method || "GET";
+  if (ruta === "/config") return { tipos_documento: ["FACTURA", "NOTA_COBRO"], jornada: { fecha: hoyQa, zona_horaria: "America/Tegucigalpa", fin: "17:00", recordatorios: false }, estados_lote: ["ABIERTO", "CERRADO", "REVISADO"], estados_no_entregada: ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA", "CANCELADA", "VENCIDA"], estados_en_seguimiento: ["PENDIENTE"], resultados_intento: ["SIN_RESPUESTA", "CASA_CERRADA", "NO_LOCALIZADO", "ENTREGADO", "OTRO"], tipos_personal: ["TECNICO", "COBRADOR", "ENTREGA_FACTURAS", "OTRO"], motivos: [{ codigo: "CASA_CERRADA", nombre: "Casa cerrada", requiere_observacion: false }, { codigo: "NO_LOCALIZADO", nombre: "No localizado", requiere_observacion: false }], barrios: [{ codigo: "14-04", barrio: "Barrio El Centro" }, { codigo: "14-05", barrio: "Barrio Cabañas" }, { codigo: "14-06", barrio: "Barrio Alegría" }], barrios_por_responsable: gestorQa ? null : { 7: ["14-04"], 9: ["14-05", "14-06"] }, semana_actual: { fecha_inicio: hoyQa, fecha_fin: hoyQa }, ciclo: null, personal_vinculado: { id: 7, nombre_completo: "Técnico A", tipo_personal: "TECNICO" }, permissions: { can_manage_personal: rol === "admin", can_create_lote: true, can_edit_lote: true, can_close_own_lote: true, can_force_close: rol === "admin", can_reopen_lote: rol === "admin", can_delete_lote: rol === "admin", can_close_ciclo: rol === "admin", can_manage_seguimiento: true, can_generate_report: gestorQa, can_manage_reparto: gestorQa, can_correct_report: rol === "admin", can_view_all: gestorQa } };
+  if (ruta === "/resumen") {
+    const cerrados = lotesQa.filter((lote) => lote.estado !== "ABIERTO");
+    const asignadas = lotesQa.reduce((sum, lote) => sum + lote.total_asignadas, 0);
+    const entregadas = cerrados.reduce((sum, lote) => sum + lote.total_entregadas, 0);
+    return { periodo: { fecha_inicio: hoyQa, fecha_fin: hoyQa }, periodo_anterior: { fecha_inicio: hoyQa, fecha_fin: hoyQa }, lotes: lotesQa.length, lotes_abiertos: lotesQa.length - cerrados.length, asignadas, entregadas, sobrantes: cerrados.reduce((sum, lote) => sum + lote.total_sobrantes, 0), pendientes: 5, reentregadas: 1, no_localizadas: 0, vencidas: 0, pendientes_mas_3_dias: 2, pendientes_mas_7_dias: 0, efectividad: asignadas ? Math.round((entregadas / asignadas) * 1000) / 10 : 0, comparativo: { asignadas: 0, entregadas: 0, pendientes: 0, reentregadas: 0, no_localizadas: 0, vencidas: 0, efectividad: 0 }, por_barrio: [], por_dia: [{ fecha: hoyQa, asignadas, entregadas, no_entregadas: 5 }] };
+  }
+  if (ruta === "/personal") return [{ id: 7, nombre_completo: "Técnico A", tipo_personal: "TECNICO", activo: true, tiene_acceso: true }, ...(gestorQa ? [{ id: 8, nombre_completo: "Técnico B", tipo_personal: "TECNICO", activo: true, tiene_acceso: true }] : []), { id: 9, nombre_completo: "Pedro (sin usuario)", tipo_personal: "TECNICO", activo: true, tiene_acceso: false }];
+  const cerrar = ruta.match(/^\/lotes\/(\d+)\/cerrar$/);
+  if (cerrar && metodo === "POST") {
+    const lote = lotesQa.find((item) => item.id === Number(cerrar[1]));
+    const sobrantes = Number(cuerpo(init).total_sobrantes || 0);
+    Object.assign(lote, { estado: "CERRADO", total_sobrantes: sobrantes, total_entregadas: lote.total_asignadas - sobrantes, efectividad: Math.round(((lote.total_asignadas - sobrantes) / lote.total_asignadas) * 1000) / 10 });
+    return lote;
+  }
+  if (ruta === "/lotes" && metodo === "POST") {
+    const datos = cuerpo(init);
+    const nombres = { 7: "Técnico A", 8: "Técnico B", 9: "Pedro (sin usuario)" };
+    const nuevo = loteQa(Math.max(...lotesQa.map((item) => item.id)) + 1, { responsable_id: Number(datos.responsable_id), responsable_nombre: nombres[datos.responsable_id], responsable_user_id: Number(datos.responsable_id) === 9 ? null : 1, barrio_codigo: datos.barrio_codigo, barrio_nombre: { "14-04": "Barrio El Centro", "14-05": "Barrio Cabañas", "14-06": "Barrio Alegría" }[datos.barrio_codigo], total_asignadas: Number(datos.total_asignadas), tipo_documento: datos.tipo_documento });
+    lotesQa.unshift(nuevo);
+    return nuevo;
+  }
+  const uno = ruta.match(/^\/lotes\/(\d+)$/);
+  if (uno) return lotesQa.find((item) => item.id === Number(uno[1])) || {};
+  if (ruta === "/lotes") {
+    const query = new URL(url).searchParams;
+    const items = lotesQa.filter((lote) => (!query.get("estado") || lote.estado === query.get("estado")) && (!query.get("fecha_hasta") || lote.fecha <= query.get("fecha_hasta")) && (!query.get("fecha_desde") || lote.fecha >= query.get("fecha_desde")));
+    const abiertos = items.filter((lote) => lote.estado === "ABIERTO").length;
+    return { items, total: items.length, page: 1, total_pages: 1, resumen: { responsables: 2, asignadas: items.reduce((sum, lote) => sum + lote.total_asignadas, 0), abiertos, entregadas: 0, efectividad: 0 } };
+  }
+  if (ruta === "/no-entregadas") return { items: [], total: 0, page: 1, total_pages: 1 };
+  return {};
+};
+
 window.fetch = (input, init) => {
   const url = typeof input === "string" ? input : input.url;
   if (fichasQa.length && url.startsWith(API_URL)) {
@@ -151,6 +197,7 @@ window.fetch = (input, init) => {
   if (params.get("banco") && /\/clandestinos\/banco(\?|$)/.test(url)) {
     return Promise.resolve(respuesta({ items: bancoQa, counts: { clandestino: 2, sin_determinar: 1, registrado: 0 }, estados: { pendiente: 3, enviado: 0, descartado: 2 }, total: bancoQa.length, page: 1, total_pages: 1, barrios: ["Barrio El Centro"], barrio_counts: [], asignaciones: [], sin_asignar: 3 }));
   }
+  if (params.get("entregas") && url.includes("/entregas/")) return Promise.resolve(respuesta(entregasQa(url, init)));
   // Las listas paginadas se copian con {...datos}: necesitan sus campos de verdad.
   if (/\/(clandestinos\/fichas|clandestinos\/banco)(\?|$)/.test(url)) {
     return Promise.resolve(respuesta({ items: [], counts: {}, total: 0, page: 1, total_pages: 1, service_stats: {} }));

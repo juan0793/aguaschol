@@ -18,6 +18,13 @@ const FORM_INICIAL = {
 
 // Al crear el lote NO se registra factura por factura: solo el total asignado.
 export default function LoteForm({ config, personal, notify, lote, onSaved, onCancel }) {
+  const editando = Boolean(lote?.id);
+  // El técnico (no la oficina) solo abre lotes en los barrios que el reparto le dio
+  // al responsable; el servidor lo vuelve a validar. Al editar no se limita.
+  const reparto = config.barrios_por_responsable || null;
+  const limitado = Boolean(reparto) && !editando;
+  // Un lote nuevo del técnico arranca a su nombre; puede cambiarlo a alguien sin usuario.
+  const formNuevo = limitado && config.personal_vinculado ? { ...FORM_INICIAL, responsable_id: String(config.personal_vinculado.id) } : FORM_INICIAL;
   const formDesdeLote = (item) => item ? {
     fecha: String(item.fecha || "").slice(0, 10),
     responsable_id: item.responsable_id || "",
@@ -26,7 +33,7 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
     tipo_documento: item.tipo_documento || "FACTURA",
     total_asignadas: item.total_asignadas || "",
     observacion_inicial: item.observacion_inicial || ""
-  } : FORM_INICIAL;
+  } : formNuevo;
 
   // El barrio no siempre esta en el catalogo; si el lote ya trae un codigo que
   // no reconocemos, asumimos que se guardo con nombre libre y abrimos ese modo.
@@ -36,7 +43,6 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
     return !config.barrios.some((barrioItem) => barrioItem.codigo === inicial.barrio_codigo);
   };
 
-  const editando = Boolean(lote?.id);
   const [form, setForm] = useState(() => formDesdeLote(lote));
   const [barrioLibre, setBarrioLibre] = useState(() => esBarrioLibre(lote));
   const [guardando, setGuardando] = useState(false);
@@ -52,6 +58,18 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
     [form.responsable_id, personal]
   );
   const responsable = personal.find((persona) => String(persona.id) === String(form.responsable_id));
+  const barriosDisponibles = useMemo(() => {
+    if (!limitado) return config.barrios;
+    const codigos = new Set(reparto[form.responsable_id] || []);
+    return config.barrios.filter((item) => codigos.has(String(item.codigo)));
+  }, [config.barrios, form.responsable_id, limitado, reparto]);
+  const sinBarrios = limitado && Boolean(form.responsable_id) && !barriosDisponibles.length;
+  // Si cambia el responsable y su reparto no incluye el barrio elegido, se limpia.
+  useEffect(() => {
+    if (limitado && form.barrio_codigo && !barriosDisponibles.some((item) => String(item.codigo) === String(form.barrio_codigo))) {
+      setForm((actual) => ({ ...actual, barrio_codigo: "" }));
+    }
+  }, [barriosDisponibles, form.barrio_codigo, limitado]);
   const barrioNombre = barrioLibre ? form.barrio_nombre : config.barrios.find((item) => item.codigo === form.barrio_codigo)?.barrio;
   const patch = (cambios) => setForm((actual) => ({ ...actual, ...cambios }));
 
@@ -74,7 +92,7 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
         ...form,
         total_asignadas: Number(form.total_asignadas)
       });
-      if (guardado && !editando) setForm({ ...FORM_INICIAL, fecha: form.fecha, tipo_documento: form.tipo_documento });
+      if (guardado && !editando) setForm({ ...formNuevo, fecha: form.fecha, tipo_documento: form.tipo_documento });
     } catch (error) {
       notify(error.message);
     } finally {
@@ -110,7 +128,7 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
               {activos.map((persona) => (
                 <option key={persona.id} value={persona.id}>
                   {persona.nombre_completo} — {tipoPersonalLabel(persona.tipo_personal)}
-                  {persona.tiene_acceso ? "" : " (sin acceso)"}
+                  {persona.tiene_acceso ? "" : " (sin usuario en la app)"}
                 </option>
               ))}
             </select>
@@ -120,16 +138,19 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
             <select
               value={barrioLibre ? OTRO_BARRIO : form.barrio_codigo}
               onChange={(event) => cambiarBarrio(event.target.value)}
+              disabled={sinBarrios}
               required
             >
-              <option value="">Selecciona el barrio del recorrido</option>
-              {config.barrios.map((item) => (
+              <option value="">{limitado && !form.responsable_id ? "Primero elige el responsable" : "Selecciona el barrio del recorrido"}</option>
+              {barriosDisponibles.map((item) => (
                 <option key={item.codigo} value={item.codigo}>
                   {item.codigo} · {item.barrio}
                 </option>
               ))}
-              <option value={OTRO_BARRIO}>Otro (especificar)</option>
+              {limitado ? null : <option value={OTRO_BARRIO}>Otro (especificar)</option>}
             </select>
+            {sinBarrios ? <small className="ent-field-aviso">{responsable?.nombre_completo || "Esta persona"} no tiene barrios en el reparto. Pide a la oficina que se los asigne.</small> : null}
+            {limitado && !sinBarrios && form.responsable_id ? <small className="ent-field-nota">Solo los barrios que el reparto le asignó.</small> : null}
             {barrioLibre ? (
               <input
                 value={form.barrio_nombre}

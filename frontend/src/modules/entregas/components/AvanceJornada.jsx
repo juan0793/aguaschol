@@ -77,15 +77,12 @@ export default function AvanceJornada({ model, fecha, onVerAnteriores, onAbrirLo
 
   return (
     <section className="ent-avance" aria-labelledby="ent-avance-titulo" aria-busy={loading}>
-      <div className="cl-inbox-head">
+      <div className="cl-inbox-head ent-head-compacta">
         <div>
-          <span className="cl-kicker">Avance de la jornada</span>
-          <h3 id="ent-avance-titulo">{formatFullDate(fecha)}</h3>
-          <p>Cómo va hoy cada técnico. De los días anteriores solo se muestra el acumulado, no el detalle por día.</p>
+          <h3 id="ent-avance-titulo">Avance de hoy · {formatFullDate(fecha)}</h3>
         </div>
-        <button type="button" className="cl-quiet" onClick={reload} disabled={loading}>
+        <button type="button" className="cl-quiet ent-icon-only" onClick={reload} disabled={loading} aria-label={loading ? "Actualizando…" : "Actualizar el avance"} title="Actualizar">
           <Icon name="refresh" className={loading ? "ent-refresh-icon is-spinning" : "ent-refresh-icon"} />
-          {loading ? "Actualizando…" : "Actualizar"}
         </button>
       </div>
 

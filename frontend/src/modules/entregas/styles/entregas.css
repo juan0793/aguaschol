@@ -818,3 +818,85 @@
 @media (prefers-reduced-motion: reduce) {
   .ent-reparto-forma, .ent-reparto-barra b, .ent-reparto-modos button { transition: none; }
 }
+
+/* ---------- Encabezado, pestañas con cifra, lotes propios y aviso de cierre (2026-10-05) ----------
+   El nombre del módulo ya está marcado en el menú lateral: las pestañas ocupan el
+   lugar del título y cada una dice cuánto espera acción en esa sección. */
+.ent-module .cl-module-header.ent-head { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 16px; margin-bottom: 16px; padding-top: 4px; }
+.ent-module .cl-module-header.ent-head .ent-menu { grid-column: 1; grid-row: 1; }
+.ent-module .cl-module-header.ent-head .ent-header-action { grid-column: 2; grid-row: 1; }
+.ent-module .ent-menu-card { align-items: center; }
+/* Si las pestañas no caben junto a "Nuevo lote", se deslizan; el borde se desvanece en vez de mostrar la barra. */
+.ent-module .cl-module-header.ent-head .ent-menu { scrollbar-width: none; }
+.ent-module .cl-module-header.ent-head .ent-menu::-webkit-scrollbar { display: none; }
+@media (max-width: 1180px) {
+  .ent-module .cl-module-header.ent-head .ent-menu { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); padding-right: 24px !important; }
+}
+.ent-tab-contador { display: inline-grid; min-width: 20px; height: 20px; margin-left: 2px; padding: 0 6px; place-items: center; border-radius: 10px; background: #dceafb; color: #12518d; font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.ent-tab-contador.is-critico { background: #fbe3e3; color: #a1202d; }
+
+/* Títulos de sección en una línea; actualizar es solo el icono (la pantalla ya se refresca sola). */
+.ent-module .cl-inbox .cl-inbox-head.ent-head-compacta { grid-template-columns: minmax(0, 1fr) auto; align-items: center; margin-bottom: 12px; }
+.ent-module .ent-head-compacta h3 { font-size: 16px; }
+.ent-module .ent-head-compacta p { margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+.ent-module .ent-icon-only { display: inline-grid; width: 40px; min-width: 40px; min-height: 40px; padding: 0; place-items: center; }
+
+/* Tus lotes por cerrar: lo primero de "Hoy" para el técnico, con el botón a mano. */
+.ent-mis-lotes { margin-bottom: 16px; padding: 14px 16px; border: 1px solid #b9d3f3; border-radius: 10px; background: #f3f8ff; }
+.ent-mis-lotes h3 { margin: 0; color: #0b2e4f; font-size: 15px; font-weight: 750; }
+.ent-mis-lotes ul { margin: 8px 0 0; padding: 0; list-style: none; }
+.ent-mis-lotes li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #d6e5f6; }
+.ent-mis-lotes li:first-child { border-top: 0; padding-top: 4px; }
+.ent-mis-lotes-info { display: grid; gap: 2px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; text-align: left; }
+.ent-mis-lotes-info strong { overflow: hidden; color: #0b2e4f; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.ent-mis-lotes-info small { color: var(--muted); font-size: 12.5px; }
+.ent-mis-lotes .cl-primary { min-height: 48px; }
+
+/* Aviso de lote cerrado: tarjeta al centro en escritorio y hoja abajo en el celular. */
+.ent-exito-capa { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; background: rgba(11, 46, 79, .28); animation: ent-exito-fondo .2s ease-out; }
+.ent-exito { position: relative; width: min(100%, 380px); overflow: hidden; padding: 24px 20px 20px; border-radius: 16px; background: #fff; box-shadow: 0 18px 48px rgba(11, 46, 79, .24); color: #18344f; text-align: center; animation: ent-exito-entra .34s cubic-bezier(.23, 1, .32, 1); }
+.ent-exito-check { width: 64px; height: 64px; margin: 0 auto 10px; }
+.ent-exito-check circle { fill: #1f9d68; animation: ent-exito-circulo .34s cubic-bezier(.23, 1, .32, 1) both; transform-origin: center; }
+.ent-exito-check path { fill: none; stroke: #fff; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 34; stroke-dashoffset: 34; animation: ent-exito-trazo .36s .2s ease-out forwards; }
+.ent-exito h2 { margin: 0; color: #0b2e4f; font-size: 21px; font-weight: 800; }
+.ent-exito > p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+.ent-exito dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 16px 0; padding: 12px 0; border-block: 1px solid #dde7ef; }
+.ent-exito dl > div + div { border-left: 1px solid #dde7ef; }
+.ent-exito dt { color: var(--muted); font-size: 12px; }
+.ent-exito dd { margin: 2px 0 0; color: #0b2e4f; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ent-exito-acciones { display: flex; gap: 8px; }
+.ent-exito-acciones .cl-primary { flex: 1; justify-content: center; }
+.ent-exito-acciones .cl-secondary { min-height: 48px; }
+/* La barra que se vacía avisa que el aviso se va solo; al tocarlo se queda. */
+.ent-exito-tiempo { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; background: #1f9d68; transform-origin: left; animation: ent-exito-tiempo linear forwards; }
+.ent-exito.is-paused .ent-exito-tiempo { animation: none; opacity: 0; }
+@keyframes ent-exito-fondo { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ent-exito-entra { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes ent-exito-circulo { from { transform: scale(.6); } to { transform: scale(1); } }
+@keyframes ent-exito-trazo { to { stroke-dashoffset: 0; } }
+@keyframes ent-exito-tiempo { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+@media (max-width: 760px) {
+  .ent-module .cl-module-header.ent-head { margin-bottom: 12px; padding-top: 0; }
+  .ent-module .cl-module-header.ent-head:not(:has(.ent-header-action button)) { margin-bottom: 0; }
+  .ent-tab-icono { position: relative; display: inline-grid; place-items: center; }
+  /* La barra recorta los nombres largos con "…": el icono y su cifra no deben recortarse. */
+  .ent-mobile-tabs > button .ent-tab-icono, .ent-mobile-tabs > button .ent-tab-contador, .ent-mobile-tabs > button .ent-tab-contador span { overflow: visible; max-width: none; }
+  .ent-mobile-tabs .ent-tab-contador { position: absolute; top: -8px; left: 13px; min-width: 12px; height: 16px; margin: 0; padding: 0 4px; border: 2px solid #fff; border-radius: 10px; background: var(--primary); color: #fff; font-size: 10.5px; box-sizing: content-box; }
+  .ent-mobile-tabs .ent-tab-contador.is-critico { background: #b42332; color: #fff; }
+  .ent-exito-capa { place-items: end stretch; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); }
+  .ent-exito { width: 100%; border-radius: 18px; }
+}
+@media (max-width: 560px) {
+  .ent-mis-lotes { padding: 12px 14px; }
+  .ent-mis-lotes li { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .ent-mis-lotes .cl-primary { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ent-exito-capa, .ent-exito, .ent-exito-check circle { animation: none; }
+  .ent-exito-check path { animation: none; stroke-dashoffset: 0; }
+}
+
+/* Formulario de lote del técnico: barrios limitados al reparto del responsable. */
+.ent-field-nota { color: var(--muted); font-size: 12px; font-weight: 500; }
+.ent-field-aviso { color: #925a08; font-size: 12.5px; font-weight: 650; }

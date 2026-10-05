@@ -31,7 +31,7 @@ test("MySQL real: permisos, cierre concurrente, correcciones, recordatorios y re
     }
     const [tecnico, otro, gestor] = users;
     const persona = await service.createPersonal({ nombre_completo: "María Hernández", tipo_personal: "TECNICO", user_id: tecnico.id, activo: true }, admin);
-    await service.createPersonal({ nombre_completo: "José Martínez", tipo_personal: "TECNICO", user_id: otro.id, activo: true }, admin);
+    const jose = await service.createPersonal({ nombre_completo: "José Martínez", tipo_personal: "TECNICO", user_id: otro.id, activo: true }, admin);
     await assert.rejects(service.createPersonal({ nombre_completo: "No permitido" }, gestor), { status: 403 });
     const hoy = jornadaEntregas().fecha;
     const lote = await service.createLote({ responsable_id: persona.id, fecha: hoy, barrio_nombre: "BO. EL CENTRO", tipo_documento: "FACTURA", total_asignadas: 10 }, admin);
@@ -153,6 +153,29 @@ test("MySQL real: permisos, cierre concurrente, correcciones, recordatorios y re
     // El informe ya emitido tampoco se movio.
     assert.equal(JSON.stringify((await reports.getReporteSemanal(report.id, admin)).snapshot), snapshot);
     assert.equal((await service.getEntregasConfig(admin)).ciclo.ultimo_corte.fecha_corte, addDays(hoy, -1));
+    // Personal sin usuario: cualquier técnico con usuario guarda sus lotes, y solo
+    // en un barrio que el reparto le dio a ese responsable.
+    const { listBarrioCodes } = await import("./barrioCodeService.js");
+    const [barrioA, barrioB] = (await listBarrioCodes()).filter((item) => item.activo && item.codigo);
+    const sinUsuario = await service.createPersonal({ nombre_completo: "Pedro Sin Usuario", tipo_personal: "TECNICO", activo: true }, admin);
+    await pool.query("INSERT INTO entrega_reparto_barrios (barrio_codigo, responsable_id) VALUES (?, ?), (?, ?)", [barrioA.codigo, sinUsuario.id, barrioB.codigo, persona.id]);
+    const configTecnico = await service.getEntregasConfig(tecnico);
+    assert.equal(configTecnico.permissions.can_create_lote, true);
+    assert.deepEqual(configTecnico.barrios_por_responsable[sinUsuario.id], [String(barrioA.codigo)]);
+    assert.deepEqual(configTecnico.barrios_por_responsable[persona.id], [String(barrioB.codigo)]);
+    assert.equal(configTecnico.barrios_por_responsable[jose.id], undefined);
+    assert.equal((await service.getEntregasConfig(admin)).barrios_por_responsable, null);
+    assert.deepEqual((await service.listPersonal({}, tecnico)).map((item) => item.id).sort(), [persona.id, sinUsuario.id].sort());
+    const loteSinUsuario = { responsable_id: sinUsuario.id, fecha: hoy, tipo_documento: "FACTURA", total_asignadas: 5 };
+    await assert.rejects(service.createLote({ ...loteSinUsuario, barrio_codigo: barrioB.codigo }, tecnico), { status: 403 });
+    await assert.rejects(service.createLote({ ...loteSinUsuario, responsable_id: jose.id, barrio_codigo: barrioA.codigo }, tecnico), { status: 403 });
+    await assert.rejects(service.createLote({ ...loteSinUsuario, responsable_id: persona.id, barrio_codigo: barrioA.codigo }, tecnico), { status: 403 });
+    const delOtro = await service.createLote({ ...loteSinUsuario, barrio_codigo: barrioA.codigo }, tecnico);
+    assert.equal((await service.getLoteDetail(delOtro.id, otro)).id, delOtro.id);
+    assert.ok((await service.listLotes({ fecha_desde: hoy, fecha_hasta: hoy }, tecnico)).items.some((item) => item.id === delOtro.id));
+    assert.equal((await service.cerrarLote(delOtro.id, { total_sobrantes: 0 }, tecnico)).estado, "CERRADO");
+    // La oficina no queda limitada por el reparto.
+    assert.ok((await service.createLote({ ...loteSinUsuario, barrio_codigo: barrioB.codigo }, gestor)).id);
     console.log(`QA MySQL verificado: ${database}`);
   } finally {
     if (pool) await pool.end();

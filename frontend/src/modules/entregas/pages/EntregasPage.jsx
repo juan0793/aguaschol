@@ -11,6 +11,8 @@ import LoteForm from "../components/LoteForm";
 import ActaSobrantesConsolidada from "../components/ActaSobrantesConsolidada";
 import LotesTable from "../components/LotesTable";
 import CierreLoteDialog from "../components/CierreLoteDialog";
+import LoteCerradoAviso from "../components/LoteCerradoAviso";
+import MisLotesPorCerrar from "../components/MisLotesPorCerrar";
 import LoteDetalle from "../components/LoteDetalle";
 import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
 import NoEntregadasTable from "../components/NoEntregadasTable";
@@ -36,13 +38,25 @@ const SUBVISTAS = [
   { key: "reportes", label: "Reportes semanales", corto: "Reportes", hint: "Informes", icon: "archive" }
 ];
 
-const vistaDesdeHash = () => window.location.hash.match(/^#entregas\/([\w-]+)/)?.[1] || "resumen";
+// Sin sección en el enlace, quien ve todo entra al Resumen y el técnico directo a
+// "Hoy", donde están sus lotes por cerrar.
+const vistaDelHash = () => window.location.hash.match(/^#entregas\/([\w-]+)/)?.[1] || "";
+const vistaInicial = (config) => (config?.permissions?.can_view_all === false ? "lotes" : "resumen");
+
+// Cifra sobre el icono de una pestaña; el nombre completo va para lectores de pantalla.
+function Contador({ valor }) {
+  if (!valor) return null;
+  return <span className={`ent-tab-contador ${valor.tono ? `is-${valor.tono}` : ""}`.trim()}>
+    <span aria-hidden="true">{valor.n > 99 ? "99+" : valor.n}</span>
+    <span className="sr-only">{`${formatNumber(valor.n)} ${valor.etiqueta}`}</span>
+  </span>;
+}
 
 export default function EntregasPage({ apiFetch, showAlert }) {
   const api = useMemo(() => createEntregasApi(apiFetch), [apiFetch]);
   const notify = useCallback((mensaje) => showAlert?.(mensaje), [showAlert]);
 
-  const [vista, setVista] = useState(vistaDesdeHash);
+  const [vistaPedida, setVista] = useState(vistaDelHash);
   const [masMovilAbierto, setMasMovilAbierto] = useState(false);
   useEffect(() => {
     if (!masMovilAbierto) return undefined;
@@ -67,6 +81,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const [loteEnEdicion, setLoteEnEdicion] = useState(null);
   const [documentoAbierto, setDocumentoAbierto] = useState(null);
   const [cargandoResumen, setCargandoResumen] = useState(false);
+  // Contadores de las pestañas: lotes de hoy por cerrar y documentos pendientes.
+  const [contadores, setContadores] = useState({ hoyAbiertos: 0, pendientes: 0 });
+  const [loteCerrado, setLoteCerrado] = useState(null);
+  const vista = vistaPedida || vistaInicial(config);
 
   const lotes = useLotes(api, Boolean(config) && ["lotes", "resumen"].includes(vista));
   // La barra de avance no sigue los filtros de la tabla: siempre mira la jornada
@@ -101,8 +119,15 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
   const cargarLotesAbiertosPrevios = useCallback(async () => {
     try {
-      const ayer = addDaysIso(toLocalIsoDate(), -1);
-      setLotesAbiertosPrevios(await api.lotes({ estado: "ABIERTO", fecha_hasta: ayer, limit: 6 }));
+      const hoy = toLocalIsoDate();
+      const ayer = addDaysIso(hoy, -1);
+      const [previos, abiertosHoy, pendientesDocs] = await Promise.all([
+        api.lotes({ estado: "ABIERTO", fecha_hasta: ayer, limit: 6 }),
+        api.lotes({ estado: "ABIERTO", fecha_desde: hoy, fecha_hasta: hoy, limit: 1 }),
+        api.noEntregadas({ estado: "PENDIENTE", limit: 1 })
+      ]);
+      setLotesAbiertosPrevios(previos);
+      setContadores({ hoyAbiertos: Number(abiertosHoy.total) || 0, pendientes: Number(pendientesDocs.total) || 0 });
     } catch (error) {
       notify(error.message);
     }
@@ -164,7 +189,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   }, [apiFetch, config, usuarios.length, vista]);
 
   useEffect(() => {
-    const cambio = () => setVista(vistaDesdeHash());
+    const cambio = () => setVista(vistaDelHash());
     window.addEventListener("hashchange", cambio);
     return () => window.removeEventListener("hashchange", cambio);
   }, []);
@@ -210,12 +235,6 @@ export default function EntregasPage({ apiFetch, showAlert }) {
     }
   };
 
-  const verHoy = () => {
-    const hoy = config.jornada?.fecha || toLocalIsoDate();
-    lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "", fecha_desde: hoy, fecha_hasta: hoy });
-    ir("lotes");
-  };
-
   const verAbiertosPrevios = () => {
     historial.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "ABIERTO", fecha_desde: "", fecha_hasta: addDaysIso(config.jornada?.fecha || toLocalIsoDate(), -1) });
     ir("historial");
@@ -238,6 +257,8 @@ export default function EntregasPage({ apiFetch, showAlert }) {
       notify(error.message);
     }
   };
+
+  const cerrarAviso = useCallback(() => setLoteCerrado(null), []);
 
   const guardarPersonal = async (id, payload) => {
     if (id) await api.actualizarPersonal(id, payload);
@@ -274,15 +295,24 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const movilPrincipales = subvistas.length > 5 ? subvistas.slice(0, 4) : subvistas;
   const movilExtra = subvistas.length > 5 ? subvistas.slice(4) : [];
   const movilExtraActiva = movilExtra.some((item) => item.key === vista);
+  // Cifra de cada pestaña: lo que espera acción en esa sección. Anteriores en rojo,
+  // porque un lote de otro día abierto ya está atrasado.
+  const contadorDe = (key) => ({
+    lotes: contadores.hoyAbiertos ? { n: contadores.hoyAbiertos, etiqueta: contadores.hoyAbiertos === 1 ? "lote de hoy por cerrar" : "lotes de hoy por cerrar" } : null,
+    historial: lotesAbiertosPrevios.total ? { n: lotesAbiertosPrevios.total, etiqueta: lotesAbiertosPrevios.total === 1 ? "lote anterior sin cerrar" : "lotes anteriores sin cerrar", tono: "critico" } : null,
+    pendientes: contadores.pendientes ? { n: contadores.pendientes, etiqueta: contadores.pendientes === 1 ? "documento pendiente" : "documentos pendientes" } : null
+  })[key] || null;
+  // Lotes de hoy por cerrar a cargo de quien mira: los suyos y, si es técnico, también
+  // los de personal sin usuario en la app (los guarda y cierra cualquier técnico).
+  const propioId = config.personal_vinculado?.id;
+  const misLotesAbiertos = propioId ? avance.lotesHoy.filter((lote) => lote.estado === "ABIERTO" && (Number(lote.responsable_id) === Number(propioId) || (!config.permissions.can_view_all && lote.responsable_user_id == null))) : [];
 
   return (
     <main className="cl-module ent-module">
-      <header className="cl-module-header">
-        <div>
-          <span className="cl-kicker">Control Aguas</span>
-          <h1>Control de entregas</h1>
-          <p>Seguimiento diario de facturas y notas de cobro.</p>
-        </div>
+      {/* El nombre del módulo ya está marcado en el menú lateral: aquí solo queda
+          para lectores de pantalla, y las pestañas suben al lugar del título. */}
+      <header className="cl-module-header ent-head">
+        <h1 className="sr-only">Control de entregas</h1>
         <nav className="ent-menu" aria-label="Secciones de Control de entregas">
           {subvistas.map((item) => (
             <button
@@ -297,6 +327,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
               <span>
                 {item.corto}
               </span>
+              <Contador valor={contadorDe(item.key)} />
             </button>
           ))}
         </nav>
@@ -313,7 +344,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
       <nav className="ent-mobile-tabs" aria-label="Navegación móvil de Control de entregas">
         {movilPrincipales.map((item) => (
           <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} aria-current={vista === item.key ? "page" : undefined} onClick={() => ir(item.key)}>
-            <Icon name={item.icon} />
+            <span className="ent-tab-icono"><Icon name={item.icon} /><Contador valor={contadorDe(item.key)} /></span>
             <span>{item.corto}</span>
           </button>
         ))}
@@ -345,17 +376,13 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
       {vista === "resumen" ? (
         <section className="cl-inbox">
-          <div className="cl-inbox-head">
+          <div className="cl-inbox-head ent-head-compacta">
             <div>
-              <span className="cl-kicker">
-                {resumen ? `${formatDate(resumen.periodo.fecha_inicio)} — ${formatDate(resumen.periodo.fecha_fin)}` : "Semana en curso"}
-              </span>
-              <h3>Resultado de la semana</h3>
-              <p>Entregas confirmadas al cerrar. La efectividad sobre lo asignado es parcial mientras existan lotes abiertos.</p>
+              <h3>Semana del {resumen ? `${formatDate(resumen.periodo.fecha_inicio)} al ${formatDate(resumen.periodo.fecha_fin)}` : "…"}</h3>
+              {resumen?.lotes_abiertos ? <p>La efectividad es parcial: {formatNumber(resumen.lotes_abiertos)} {resumen.lotes_abiertos === 1 ? "lote sigue abierto" : "lotes siguen abiertos"}.</p> : null}
             </div>
-            <button type="button" className="cl-quiet" onClick={cargarResumen} disabled={cargandoResumen}>
+            <button type="button" className="cl-quiet ent-icon-only" onClick={cargarResumen} disabled={cargandoResumen} aria-label={cargandoResumen ? "Actualizando…" : "Actualizar el resumen"} title="Actualizar">
               <Icon name="refresh" className={cargandoResumen ? "ent-refresh-icon is-spinning" : "ent-refresh-icon"} />
-              {cargandoResumen ? "Actualizando…" : "Actualizar"}
             </button>
           </div>
 
@@ -383,15 +410,6 @@ export default function EntregasPage({ apiFetch, showAlert }) {
                   </span>
                   <strong>{formatNumber(resumen?.lotes_abiertos)}</strong>
                 </li>
-                {lotesAbiertosPrevios.total ? (
-                  <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={verAbiertosPrevios}>
-                    <span className="ent-fila-etiqueta">
-                      <i />
-                      Abiertos anteriores
-                    </span>
-                    <strong>{formatNumber(lotesAbiertosPrevios.total)}</strong>
-                  </li>
-                ) : null}
                 <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ dias_minimos: "3", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" })}>
                   <span className="ent-fila-etiqueta">
                     <i />
@@ -406,23 +424,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
                   </span>
                   <strong>{formatNumber(resumen?.pendientes_mas_7_dias)}</strong>
                 </li>
-                <li className="is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ estado: "NO_LOCALIZADA", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" })}>
-                  <span className="ent-fila-etiqueta">
-                    <i />
-                    No localizadas
-                  </span>
-                  <strong>{formatNumber(resumen?.no_localizadas)}</strong>
-                </li>
               </ul>
               <button type="button" className="cl-secondary" onClick={() => irAPendientes({ dias_minimos: "" })}>
                 Ver documentos pendientes
               </button>
-              {lotesAbiertosPrevios.total ? (
-                <button type="button" className="cl-secondary" onClick={verAbiertosPrevios}>
-                  <Icon name="history" />
-                  Volver a jornadas anteriores
-                </button>
-              ) : null}
             </div>
             <div className="ent-resumen-wide">
               <GraficoBarriosSobrantes
@@ -461,7 +466,9 @@ export default function EntregasPage({ apiFetch, showAlert }) {
         />
       ) : null}
 
-      {vista === "lotes" ? (
+      {vista === "lotes" ? <MisLotesPorCerrar lotes={misLotesAbiertos} propioId={propioId} onCerrar={abrirCierre} onAbrir={abrirDetalle} /> : null}
+
+      {vista === "lotes" && config.permissions.can_view_all ? (
         <AvanceJornada model={avance} fecha={config.jornada?.fecha || toLocalIsoDate()} onVerAnteriores={() => ir("historial")} onAbrirLote={abrirDetalle} />
       ) : null}
 
@@ -471,7 +478,6 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           config={config}
           personal={personal}
           permissions={config.permissions}
-          onToday={verHoy}
           onOpen={abrirDetalle}
           onCerrar={abrirCierre}
         />
@@ -534,11 +540,19 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           lote={loteEnCierre}
           notify={notify}
           onClose={() => setLoteEnCierre(null)}
-          onSaved={() => {
+          onSaved={(actualizado) => {
             setLoteEnCierre(null);
             refrescar();
-            notify("Lote cerrado correctamente.");
+            setLoteCerrado(actualizado || loteEnCierre);
           }}
+        />
+      ) : null}
+
+      {loteCerrado ? (
+        <LoteCerradoAviso
+          lote={loteCerrado}
+          onListo={cerrarAviso}
+          onVerLote={() => { const lote = loteCerrado; setLoteCerrado(null); abrirDetalle(lote); }}
         />
       ) : null}
 

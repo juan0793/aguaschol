@@ -216,8 +216,10 @@ export function useHeaderStats({
       ];
     }
 
-    // Consultas del padrón muestra sus propias cifras (usuarios, barrios, deuda).
-    if (workspaceView === "requests") {
+    // Las cifras de abajo hablan del formulario de fichas: solo valen en esa vista.
+    // Los demás módulos (Entregas, Inspecciones, Consultas…) ya muestran las suyas
+    // en su propia pantalla, y aquí solo confundían ("Modo: Nueva ficha" en Entregas).
+    if (workspaceView !== "records") {
       return [];
     }
 

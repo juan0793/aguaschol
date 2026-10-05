@@ -130,6 +130,29 @@ const getPersonalDelUsuario = async (user) => {
   return rows[0] || null;
 };
 
+// Un técnico con usuario responde por sus propios lotes y por los de quien no
+// tiene usuario en la app (alguien tiene que guardarlos en el sistema).
+const respondePor = (responsable, personalPropio) =>
+  Boolean(personalPropio && responsable) &&
+  (Number(responsable.id) === Number(personalPropio.id) || responsable.user_id == null);
+
+// Barrios del reparto de cada persona por la que responde el técnico:
+// { [personal_id]: [barrio_codigo, …] }. Quien no tiene barrios queda con lista vacía.
+const barriosDelRepartoPara = async (personalPropio) => {
+  const [filas] = await getPool().query(
+    `SELECT personal_campo.id AS responsable_id, entrega_reparto_barrios.barrio_codigo
+     FROM personal_campo
+     LEFT JOIN entrega_reparto_barrios ON entrega_reparto_barrios.responsable_id = personal_campo.id
+     WHERE personal_campo.activo = 1 AND (personal_campo.id = ? OR personal_campo.user_id IS NULL)`,
+    [personalPropio.id]
+  );
+  return filas.reduce((acc, fila) => {
+    const lista = acc[fila.responsable_id] || (acc[fila.responsable_id] = []);
+    if (fila.barrio_codigo) lista.push(String(fila.barrio_codigo));
+    return acc;
+  }, {});
+};
+
 export const getEntregasConfig = async (user) => {
   const [motivos, personalPropio, barrios, ciclo] = await Promise.all([
     listMotivos(),
@@ -137,6 +160,9 @@ export const getEntregasConfig = async (user) => {
     listBarrioCodes().catch(() => []),
     getCicloVigente()
   ]);
+  // El técnico solo puede abrir lotes en los barrios que el reparto le dio al
+  // responsable: el formulario necesita saber cuáles son, sin abrir todo el reparto.
+  const barriosPorResponsable = !isGestor(user) && personalPropio ? await barriosDelRepartoPara(personalPropio) : null;
 
   return {
     tipos_documento: TIPOS_DOCUMENTO,
@@ -151,9 +177,10 @@ export const getEntregasConfig = async (user) => {
     semana_actual: semanaPorDefecto(jornadaEntregas().fecha),
     ciclo,
     personal_vinculado: personalPropio,
+    barrios_por_responsable: barriosPorResponsable,
     permissions: {
       can_manage_personal: isAdmin(user),
-      can_create_lote: isGestor(user),
+      can_create_lote: isGestor(user) || Boolean(personalPropio),
       can_edit_lote: Boolean(personalPropio) || isGestor(user),
       can_close_own_lote: Boolean(personalPropio) || isGestor(user),
       can_force_close: isAdmin(user),
@@ -241,12 +268,17 @@ export const listPersonal = async (query = {}, user) => {
   if (isGestor(user)) return mapped;
   const personalPropio = await getPersonalDelUsuario(user);
   if (!personalPropio) return [];
-  return mapped.map((persona) => ({
-    id: persona.id,
-    nombre_completo: persona.nombre_completo,
-    tipo_personal: persona.tipo_personal,
-    activo: persona.activo
-  }));
+  // El técnico solo ve a quienes puede asignar un lote: él mismo y quien no tiene usuario.
+  return mapped
+    .filter((persona) => respondePor(persona, personalPropio))
+    .map((persona) => ({
+      id: persona.id,
+      nombre_completo: persona.nombre_completo,
+      tipo_personal: persona.tipo_personal,
+      activo: persona.activo,
+      tiene_acceso: persona.tiene_acceso,
+      propio: Number(persona.id) === Number(personalPropio.id)
+    }));
 };
 
 const validarPersonalPayload = (payload = {}) => {
@@ -349,7 +381,11 @@ const alcanceLotes = async (user) => {
   if (isGestor(user)) return { filtro: "", params: [] };
   const personal = await getPersonalDelUsuario(user);
   if (!personal) return { filtro: "1 = 0", params: [] };
-  return { filtro: "entrega_lotes.responsable_id = ?", params: [personal.id], personal };
+  return {
+    filtro: "(entrega_lotes.responsable_id = ? OR entrega_lotes.responsable_id IN (SELECT id FROM personal_campo WHERE user_id IS NULL))",
+    params: [personal.id],
+    personal
+  };
 };
 
 export const listLotes = async (query = {}, user) => {
@@ -414,6 +450,7 @@ export const listLotes = async (query = {}, user) => {
        entrega_lotes.*,
        personal_campo.nombre_completo AS responsable_nombre,
        personal_campo.tipo_personal,
+       personal_campo.user_id AS responsable_user_id,
        COALESCE(detalle.total_detalle, 0) AS total_detalle,
        COALESCE(detalle.pendientes, 0) AS pendientes
      FROM entrega_lotes
@@ -468,31 +505,38 @@ const cargarLote = async (id, executor = getPool(), forUpdate = false) => {
   return rows[0];
 };
 
-const assertPuedeVerLote = (lote, user) => {
+const assertPuedeVerLote = async (lote, user) => {
   if (isGestor(user)) return;
-  if (!user?.id || !lote.responsable_user_id || Number(lote.responsable_user_id) !== Number(user.id)) {
-    throw fail("No tienes acceso a este lote.", 403);
-  }
+  if (!user?.id) throw fail("No tienes acceso a este lote.", 403);
+  if (lote.responsable_user_id && Number(lote.responsable_user_id) === Number(user.id)) return;
+  // Lote de alguien sin usuario: lo puede trabajar cualquier técnico con usuario.
+  if (!lote.responsable_user_id && (await getPersonalDelUsuario(user))) return;
+  throw fail("No tienes acceso a este lote.", 403);
 };
 
 export const getLoteDetail = async (id, user) => {
   const lote = await cargarLote(id);
-  assertPuedeVerLote(lote, user);
+  await assertPuedeVerLote(lote, user);
   const noEntregadas = await listNoEntregadasDeLote(lote.id);
   return { ...mapLoteRow(lote), no_entregadas: noEntregadas };
 };
 
 export const createLote = async (payload = {}, user) => {
-  if (!isGestor(user)) throw fail("No tienes permiso para crear lotes.", 403);
+  const gestor = isGestor(user);
+  const personalPropio = gestor ? null : await getPersonalDelUsuario(user);
+  if (!gestor && !personalPropio) throw fail("No tienes permiso para crear lotes.", 403);
 
   const responsableId = toEntero(payload.responsable_id);
   if (!responsableId) throw fail("Selecciona el responsable del lote.");
   const [[responsable]] = await getPool().query(
-    "SELECT id, nombre_completo, activo FROM personal_campo WHERE id = ? LIMIT 1",
+    "SELECT id, nombre_completo, activo, user_id FROM personal_campo WHERE id = ? LIMIT 1",
     [responsableId]
   );
   if (!responsable) throw fail("El responsable indicado no existe.", 404);
   if (!responsable.activo) throw fail("El responsable seleccionado está inactivo.");
+  if (!gestor && !respondePor(responsable, personalPropio)) {
+    throw fail("Solo puedes guardar tus lotes o los de personal que no tiene usuario en la app.", 403);
+  }
 
   const tipo = clean(payload.tipo_documento).toUpperCase();
   if (!TIPOS_DOCUMENTO.includes(tipo)) throw fail("Selecciona el tipo de documento.");
@@ -500,6 +544,16 @@ export const createLote = async (payload = {}, user) => {
   const fecha = toIsoDate(payload.fecha) || jornadaEntregas().fecha;
   const totalAsignadas = validarTotalAsignado(payload.total_asignadas);
   const barrio = await resolverBarrio(payload);
+  // El técnico solo abre lotes en un barrio que el reparto le dio a ese responsable.
+  if (!gestor) {
+    const [[asignado]] = await getPool().query(
+      "SELECT 1 AS ok FROM entrega_reparto_barrios WHERE responsable_id = ? AND barrio_codigo = ? LIMIT 1",
+      [responsableId, barrio.barrio_codigo]
+    );
+    if (!asignado) {
+      throw fail(`${barrio.barrio_nombre} no está asignado a ${responsable.nombre_completo} en el reparto de barrios. Pide a la oficina que lo asigne.`, 403);
+    }
+  }
 
   const [result] = await getPool().query(
     `INSERT INTO entrega_lotes
@@ -532,7 +586,7 @@ export const createLote = async (payload = {}, user) => {
 
 export const updateLote = async (id, payload = {}, user) => {
   const lote = await cargarLote(id);
-  assertPuedeVerLote(lote, user);
+  await assertPuedeVerLote(lote, user);
   if (lote.estado !== "ABIERTO" && !isAdmin(user)) {
     throw fail("Solo un administrador puede editar un lote ya cerrado.", 403);
   }
@@ -577,7 +631,7 @@ export const updateLote = async (id, payload = {}, user) => {
   try {
     await connection.beginTransaction();
     const actual = await cargarLote(id, connection, true);
-    assertPuedeVerLote(actual, user);
+    await assertPuedeVerLote(actual, user);
     if (actual.estado !== "ABIERTO" && !isAdmin(user)) {
       throw fail("El lote ya está cerrado. Pide a un administrador que lo reabra para corregirlo.", 409);
     }
@@ -611,7 +665,7 @@ export const cerrarLote = async (id, payload = {}, user) => {
   try {
     await connection.beginTransaction();
     lote = await cargarLote(id, connection, true);
-    assertPuedeVerLote(lote, user);
+    await assertPuedeVerLote(lote, user);
     if (lote.estado !== "ABIERTO") {
       throw fail("El lote ya está cerrado o revisado. Un administrador debe reabrirlo para corregir el cierre.", 409);
     }
@@ -869,7 +923,7 @@ const mapNoEntregadaRow = (row) => ({
 
 export const createNoEntregadas = async (loteId, payload = {}, user) => {
   const lote = await cargarLote(loteId);
-  assertPuedeVerLote(lote, user);
+  await assertPuedeVerLote(lote, user);
 
   const filas = Array.isArray(payload.items) ? payload.items : [payload];
   if (!filas.length) throw fail("No hay documentos para registrar.");
@@ -898,7 +952,7 @@ export const createNoEntregadas = async (loteId, payload = {}, user) => {
   try {
     await connection.beginTransaction();
     const actual = await cargarLote(lote.id, connection, true);
-    assertPuedeVerLote(actual, user);
+    await assertPuedeVerLote(actual, user);
     estadoActual = actual.estado;
     assertPuedeAgregarNoEntregadas({ estadoLote: estadoActual, esCorreccionAdmin });
 
@@ -1085,7 +1139,7 @@ const assertLoteEditable = (documento, user) => {
 
 export const getNoEntregadaDetail = async (id, user) => {
   const documento = await cargarNoEntregada(id);
-  assertPuedeVerLote(documento, user);
+  await assertPuedeVerLote(documento, user);
   const [intentos] = await getPool().query(
     `SELECT entrega_intentos.*, personal_campo.nombre_completo AS responsable_nombre
      FROM entrega_intentos
@@ -1103,7 +1157,7 @@ export const getNoEntregadaDetail = async (id, user) => {
 
 export const updateNoEntregada = async (id, payload = {}, user) => {
   const documento = await cargarNoEntregada(id);
-  assertPuedeVerLote(documento, user);
+  await assertPuedeVerLote(documento, user);
   assertLoteEditable(documento, user);
   const catalogo = await listMotivos();
   const cambios = {};
@@ -1142,7 +1196,7 @@ export const updateNoEntregada = async (id, payload = {}, user) => {
   try {
     await connection.beginTransaction();
     const actual = await cargarLote(documento.lote_id, connection, true);
-    assertPuedeVerLote(actual, user);
+    await assertPuedeVerLote(actual, user);
     assertLoteEditable({ lote_estado: actual.estado }, user);
     await connection.query(
       `UPDATE entrega_no_entregadas SET ${columnas.map((columna) => `${columna} = ?`).join(", ")} WHERE id = ?`,
@@ -1176,7 +1230,7 @@ export const updateNoEntregada = async (id, payload = {}, user) => {
 
 export const deleteNoEntregada = async (id, user) => {
   const documento = await cargarNoEntregada(id);
-  assertPuedeVerLote(documento, user);
+  await assertPuedeVerLote(documento, user);
   if (documento.lote_estado !== "ABIERTO" && !isAdmin(user)) {
     throw fail("Solo un administrador puede eliminar filas de un lote cerrado.", 403);
   }
@@ -1185,7 +1239,7 @@ export const deleteNoEntregada = async (id, user) => {
   try {
     await connection.beginTransaction();
     const actual = await cargarLote(documento.lote_id, connection, true);
-    assertPuedeVerLote(actual, user);
+    await assertPuedeVerLote(actual, user);
     if (actual.estado !== "ABIERTO" && !isAdmin(user)) {
       throw fail("El lote ya está cerrado. Pide a un administrador que lo reabra para corregirlo.", 409);
     }
@@ -1218,7 +1272,7 @@ export const deleteNoEntregada = async (id, user) => {
 
 export const registrarIntento = async (id, payload = {}, user) => {
   const documento = await cargarNoEntregada(id);
-  assertPuedeVerLote(documento, user);
+  await assertPuedeVerLote(documento, user);
   assertLoteEditable(documento, user);
 
   const resultado = clean(payload.resultado).toUpperCase();
@@ -1233,7 +1287,7 @@ export const registrarIntento = async (id, payload = {}, user) => {
   try {
   await connection.beginTransaction();
   const actual = await cargarLote(documento.lote_id, connection, true);
-  assertPuedeVerLote(actual, user);
+  await assertPuedeVerLote(actual, user);
   assertLoteEditable({ lote_estado: actual.estado }, user);
   const [[vigente]] = await connection.query("SELECT * FROM entrega_no_entregadas WHERE id = ? FOR UPDATE", [documento.id]);
   if (!vigente) throw fail("El documento ya no existe.", 404);
