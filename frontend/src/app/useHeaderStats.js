@@ -34,29 +34,9 @@ export function useHeaderStats({
       return [];
     }
 
+    // El mapa de operaciones lleva sus propias cifras por paso.
     if (workspaceView === "executiveReport") {
-      return [
-        {
-          icon: "records",
-          label: "Fichas",
-          value: String(safeRecords.length)
-        },
-        {
-          icon: "map",
-          label: "Puntos GPS",
-          value: String(mapPointsTotal)
-        },
-        {
-          icon: "logs",
-          label: "Eventos",
-          value: String(safeAuditLogs.length)
-        },
-        {
-          icon: "refresh",
-          label: "Padrón",
-          value: String(padronMeta?.total_records ?? 0)
-        }
-      ];
+      return [];
     }
 
     if (workspaceView === "lookup") {

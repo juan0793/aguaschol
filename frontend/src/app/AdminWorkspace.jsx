@@ -363,8 +363,8 @@ export default function AdminWorkspace({ model }) {
                   </div>
                   <div className="audit-masthead-actions">
                     <button type="button" className="audit-action" onClick={() => setWorkspaceView("executiveReport")}>
-                      <Icon name="records" />
-                      Informe de operaciones
+                      <Icon name="activity" />
+                      Mapa de operaciones
                     </button>
                     <button type="button" className="audit-action" onClick={handleAuditReportArchiveShortcut}>
                       <Icon name="print" />

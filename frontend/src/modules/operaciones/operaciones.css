@@ -1,0 +1,92 @@
+.operaciones-layout { min-width: 0; }
+/* Mapa de operaciones: lenguaje de tablero de análisis sin tarjetas (DESIGN.md).
+   Filetes de 1px, cifras en tinta tabulares. El rojo marca lo vencido, el ocre
+   lo que pide atención y el verde lo cerrado. Los pasos se conectan con flechas
+   rotuladas con lo que hace avanzar el trabajo. */
+.op { --op-ink: #16283b; --op-text: #243b53; --op-muted: #52677c; --op-rule: #dfe5ec; --op-grid: #e8ecf1; --op-hover: #f3f6f9; --op-blue: #1465d9; --op-red: #b8323e; --op-ocre: #9a6200; --op-done: #17845b;
+  --op-gap: 64px;
+  container-type: inline-size; min-width: 0; padding: 20px 24px 32px; border-radius: 12px; background: #fff; color: var(--op-text); font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+.op *, .op *::before, .op *::after { box-sizing: border-box; }
+.op h1, .op h2, .op h3, .op p, .op ol { margin: 0; }
+.op button { font: inherit; }
+.op button:focus-visible { outline: 2px solid var(--op-blue); outline-offset: 2px; }
+.op .app-icon { width: 15px; height: 15px; flex: none; }
+
+.op-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; padding-bottom: 16px; border-bottom: 1px solid var(--op-rule); }
+.op-head h1 { color: var(--op-ink); font-size: 22px; font-weight: 750; }
+.op-head p { margin-top: 4px; color: var(--op-muted); font-size: 13.5px; }
+.op-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.op-updated { color: var(--op-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.op-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; margin: 0; padding: 0 12px; border: 1px solid #c9ddf4; border-radius: 9px; background: #fff; box-shadow: none; color: var(--op-ink); font-size: 13px; font-weight: 700; cursor: pointer; }
+.op-btn:hover:not(:disabled) { border-color: var(--op-blue); background: #fff; color: var(--op-blue); transform: none; }
+.op-btn.is-quiet { border-color: transparent; color: var(--op-muted); }
+.op-btn.is-quiet:hover:not(:disabled) { border-color: var(--op-rule); }
+
+.op h2 { color: var(--op-ink); font-size: 15px; font-weight: 650; }
+
+/* Dónde se traba hoy: una línea por problema, con su acción a la derecha. */
+.op-cuellos { padding: 20px 0 22px; border-bottom: 1px solid var(--op-rule); }
+.op-cuellos ol { margin-top: 10px; padding: 0; border-top: 1px solid var(--op-grid); list-style: none; }
+.op-cuellos li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 46px; padding: 6px 0; border-bottom: 1px solid var(--op-grid); }
+.op-cuellos li > i { width: 8px; height: 8px; border-radius: 50%; background: var(--op-red); }
+.op-cuellos li.is-atencion > i { background: #d9930d; }
+.op-cuellos li p { color: var(--op-ink); font-size: 14px; font-weight: 550; text-wrap: pretty; }
+.op-cuellos li button { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; margin: 0; padding: 0 12px; border: 1px solid var(--op-rule); border-radius: 8px; background: #fff; box-shadow: none; color: var(--op-blue); font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.op-cuellos li button:hover { border-color: var(--op-blue); background: #f5f9ff; transform: none; }
+.op-cuellos li button .app-icon { width: 13px; height: 13px; }
+.op-ok { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--op-done); font-weight: 650; }
+
+/* El mapa: un carril por proceso; los pasos en columnas iguales unidos por flechas. */
+.op-mapa { padding-top: 20px; }
+.op-carril { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 20px; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--op-grid); }
+.op-carril:first-of-type { margin-top: 6px; border-top: 1px solid var(--op-grid); }
+.op-carril header h3 { color: var(--op-ink); font-size: 14.5px; font-weight: 750; }
+.op-carril header p { margin-top: 2px; color: var(--op-muted); font-size: 12px; line-height: 1.35; }
+.op-pasos { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--op-gap); padding: 0; list-style: none; }
+.op-paso { position: relative; min-width: 0; }
+.op-paso > button { display: grid; gap: 1px; width: 100%; min-height: 96px; margin: 0; padding: 10px 12px; border: 1px solid var(--op-rule); border-radius: 8px; background: #fff; box-shadow: none; color: inherit; text-align: left; cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.op-paso > button:hover { border-color: #a9c6ea; background: var(--op-hover); transform: none; }
+.op-paso-label { overflow: hidden; color: var(--op-muted); font-size: 12.5px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.op-paso strong { color: var(--op-ink); font-size: 24px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.op-paso small { color: var(--op-muted); font-size: 12px; line-height: 1.3; }
+.op-paso.is-critico > button { border-color: #efc3c7; }
+.op-paso.is-critico small { color: var(--op-red); font-weight: 700; }
+.op-paso.is-atencion small { color: var(--op-ocre); font-weight: 700; }
+.op-paso.is-hecho strong { color: var(--op-done); }
+
+/* Flecha entre pasos, con lo que hace avanzar el trabajo escrito encima. */
+.op-flecha { position: absolute; top: 50%; left: 100%; display: grid; justify-items: center; gap: 2px; width: var(--op-gap); padding: 0 6px; color: #8597ab; transform: translateY(-60%); pointer-events: none; }
+.op-flecha em { color: var(--op-muted); font-size: 11px; font-style: normal; font-weight: 600; line-height: 1.15; text-align: center; }
+.op-flecha svg { width: 40px; height: 10px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+
+.op-falla { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; color: var(--op-red); font-weight: 650; }
+.op-falla button { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: var(--op-blue); font-weight: 700; cursor: pointer; }
+
+.op-skeleton { display: grid; gap: 14px; padding-top: 20px; }
+.op-skeleton span { height: 96px; border-radius: 8px; background: linear-gradient(90deg, #f1f4f8 0%, #f8fafc 50%, #f1f4f8 100%); background-size: 200% 100%; animation: op-brillo 1.4s ease-in-out infinite; }
+.op-skeleton span:first-child { height: 120px; }
+@keyframes op-brillo { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* Menos ancho: el nombre del carril va arriba y los pasos ocupan toda la fila. */
+@container (max-width: 1100px) {
+  .op { --op-gap: 52px; }
+  /* Sin la columna del nombre, cada carril reparte su ancho entre sus propios pasos. */
+  .op-pasos { grid-template-columns: repeat(var(--pasos, 5), minmax(0, 1fr)); }
+  .op-carril { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .op-carril header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+}
+/* Teléfono o panel angosto: los pasos bajan uno debajo del otro y la flecha apunta hacia abajo. */
+@container (max-width: 720px) {
+  .op-pasos { grid-template-columns: minmax(0, 1fr); row-gap: 34px; }
+  .op-paso > button { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label valor" "nota valor"; align-items: center; min-height: 0; column-gap: 12px; }
+  .op-paso-label { grid-area: label; white-space: normal; }
+  .op-paso strong { grid-area: valor; font-size: 22px; }
+  .op-paso small { grid-area: nota; }
+  .op-flecha { top: 100%; left: 0; display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 0 0 14px; transform: none; }
+  .op-flecha svg { order: -1; width: 10px; height: 26px; transform: rotate(90deg); transform-origin: center; width: 26px; height: 10px; margin: 0 -8px; }
+  .op-flecha em { text-align: left; }
+  .op-cuellos li { grid-template-columns: 10px minmax(0, 1fr); }
+  .op-cuellos li button { grid-column: 2; justify-self: start; }
+}
+@media (max-width: 600px) { .op { padding-inline: 14px; } }
+@media (prefers-reduced-motion: reduce) { .op-skeleton span { animation: none; } .op-paso > button { transition: none; } }

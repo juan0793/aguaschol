@@ -58,7 +58,7 @@ import {
 import FieldMapWorkspace from "./modules/campo/FieldMapWorkspace";
 import PadronWorkspace from "./modules/padron/PadronWorkspace";
 import LookupWorkspace from "./modules/lookup/LookupWorkspace";
-import ExecutiveReportView from "./modules/reports/ExecutiveReportView";
+import MapaOperaciones from "./modules/operaciones/MapaOperaciones";
 import AdminWorkspace from "./app/AdminWorkspace";
 import AppHeader from "./app/AppHeader";
 import AuditReportViewerDialog from "./modules/audit/AuditReportViewerDialog";
@@ -839,19 +839,9 @@ function App() {
           </Suspense>
         </main>
       ) : workspaceView === "executiveReport" ? (
-      <ExecutiveReportView
-        model={{
-          ...mapDiaryData,
-          ...padronState,
-          ...recordFilterModel,
-          executiveReportData,
-          handleDownloadExecutiveReportPdf,
-          safeAuditLogs,
-          safeMapPoints,
-          safeRecords,
-          safeUsers
-        }}
-      />
+      <main className="operaciones-layout">
+        <MapaOperaciones apiFetch={apiFetch} onGo={setWorkspaceView} onDownloadMemoria={handleDownloadExecutiveReportPdf} />
+      </main>
       ) : workspaceView === "transport" ? (
       <main className="layout transport-layout-page">
         <section className="preview-panel transport-preview-panel">

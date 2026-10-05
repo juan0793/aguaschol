@@ -6,7 +6,7 @@ const itemLabels = {
   fieldValidation: "Control territorial GPS",
   mapReports: "Reportes de levantamiento",
   planos: "Planos y croquis",
-  executiveReport: "Operaciones",
+  executiveReport: "Mapa de operaciones",
   requests: "Consultas del padrón",
   logs: "Auditoría",
   notes: "Apuntes",
@@ -17,6 +17,7 @@ const itemLabels = {
 const routeViews = {
   "/dashboard": "dashboard",
   "/tablero": "dashboard",
+  "/operaciones": "executiveReport",
   "/perfil": "profile",
   "/uso-railway": "railwayUsage",
   "/inspecciones": "inspecciones",
@@ -50,7 +51,7 @@ export const buildSidebarSections = (items = [], dashboardItem = null) => {
   const take = (keys) => keys.map((key) => byKey.get(key)).filter(Boolean);
 
   return [
-    { key: "dashboard", title: "Dashboard", helper: "Vista general", icon: "home", collapsible: true, items: [dashboardItem, ...take(["notes"])].filter(Boolean) },
+    { key: "dashboard", title: "Dashboard", helper: "Vista general", icon: "home", collapsible: true, items: [dashboardItem, ...take(["executiveReport", "notes"])].filter(Boolean) },
     { key: "operacion", title: "Operación", helper: "Procesos diarios", icon: "activity", collapsible: true, items: take(["inspecciones", "entregas", "records", "lookup"]) },
     { key: "gestion", title: "Gestión", helper: "Datos y administración", icon: "records", collapsible: true, items: take(["requests", "barrioCodes", "padron", "importacion", "teamActivity", "logs", "users"]) },
     { key: "territorio", title: "Territorio", helper: "Mapas y zonas", icon: "map", collapsible: true, items: take(["sigTerritorial", "map", "fieldValidation", "mapReports", "planos"]) },

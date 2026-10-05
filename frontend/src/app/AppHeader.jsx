@@ -1,7 +1,7 @@
 import { Icon } from "../components/Icon";
 import { NotificationCenter } from "../components/NotificationCenter.jsx";
 import { abrirMisAsignaciones } from "../modules/clandestinos/hooks/useBanco";
-import { formatMapDiaryLabel, formatSpanishDate } from "../utils/datesAndBusiness";
+import { formatMapDiaryLabel } from "../utils/datesAndBusiness";
 import { getDefaultWorkspaceView } from "../utils/appShell";
 import logoAguasCholuteca from "../assets/logo-aguas-choluteca.png";
 
@@ -9,7 +9,7 @@ import logoAguasCholuteca from "../assets/logo-aguas-choluteca.png";
 // quedaba vacía: la navegación del módulo vive en el menú lateral, y cuenta y
 // contraseña en el menú del usuario. Entregas, Importación y Mi perfil solo
 // repetían lo que ya dice la página.
-const VISTAS_CON_FRANJA = ["dashboard", "logs", "records", "lookup", "map", "padron", "mapReports", "mapAnalytics", "executiveReport", "users"];
+const VISTAS_CON_FRANJA = ["dashboard", "logs", "records", "lookup", "map", "padron", "mapReports", "mapAnalytics", "users"];
 // Franjas de solo texto: en el celular ese párrafo se oculta y la tarjeta quedaría vacía.
 const VISTAS_SOLO_TEXTO = ["lookup"];
 
@@ -25,8 +25,6 @@ export default function AppHeader({ model }) {
     clandestinosUpdatedAt,
     currentModuleNavigation,
     dashboardPriorityItems,
-    executiveReportData,
-    handleDownloadExecutiveReportPdf,
     handleDownloadMapBriefPdf,
     handleDownloadMapCensusPdf,
     handleDownloadMapFieldPdf,
@@ -61,8 +59,6 @@ export default function AppHeader({ model }) {
     primaryModuleNavigationItems,
     resetReportMapDraft,
     safeAuditLogs,
-    safeMapPoints,
-    safeRecords,
     search,
     secondaryModuleNavigationItems,
     session,
@@ -434,30 +430,8 @@ export default function AppHeader({ model }) {
                 Revisar actividad
               </button>
               <button type="button" onClick={() => setWorkspaceView("executiveReport")}>
-                <Icon name="records" />
-                Operaciones realizadas
-              </button>
-            </div>
-          </div>
-        ) : workspaceView === "executiveReport" ? (
-          <div className="workspace-summary">
-            <p className="workspace-title">
-              Informe descargable para presentar las operaciones realizadas, funciones desarrolladas, ahorro de tiempo técnico y datos acumulados desde el primer registro disponible.
-            </p>
-            <div className="dashboard-summary-chips">
-              <span className="panel-pill">Periodo: {executiveReportData.firstDate ? formatSpanishDate(executiveReportData.firstDate) : "Sin registros"} - {formatSpanishDate(executiveReportData.generatedAt)}</span>
-              <span className="panel-pill">{safeRecords.length} fichas</span>
-              <span className="panel-pill">{safeMapPoints.length} puntos GPS</span>
-              <span className="panel-pill">{safeAuditLogs.length} eventos</span>
-            </div>
-            <div className="search-actions">
-              <button type="button" onClick={handleDownloadExecutiveReportPdf}>
-                <Icon name="records" />
-                Descargar PDF de operaciones
-              </button>
-              <button type="button" className="button-secondary" onClick={() => setWorkspaceView("dashboard")}>
-                <Icon name="dashboard" />
-                Volver al tablero
+                <Icon name="activity" />
+                Mapa de operaciones
               </button>
             </div>
           </div>
@@ -538,7 +512,7 @@ export default function AppHeader({ model }) {
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setWorkspaceView("executiveReport")}>
                   <Icon name="records" />
-                  Operaciones<span className="fm-label-extra"> realizadas</span>
+                  Mapa de operaciones
                 </button>
               </div>
             </div>
