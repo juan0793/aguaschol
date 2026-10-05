@@ -190,7 +190,7 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - El registro se pagina con números, de 50 acciones por página. Arriba van el rango ("51–100 de 191 acciones") y las flechas, y abajo los números de página. Un día partido entre páginas dice "27 acciones · 13 en esta página".
   - Lo que cierra un trabajo lleva el icono verde, pero el texto va en tinta para que la lista no se vuelva toda verde. Si se filtra por una persona o por un área, esa columna desaparece de las filas.
   - Los días se cuentan en la hora de quien mira (`tz`), no en la de la base.
-- "Mapa de operaciones" (desde 2026-10-05, reemplaza la "Memoria operativa"). Está en el menú, bajo Dashboard, y en la ruta `/operaciones`. Usa el lenguaje de análisis sin tarjetas:
+- "Mapa de operaciones" (desde 2026-10-05, reemplaza la "Memoria operativa"). Se abre desde Auditoría (botón "Mapa de operaciones") y en la ruta `/operaciones`. No va en el menú lateral, para no repetirlo. Usa el lenguaje de análisis sin tarjetas:
   - Arriba va "Dónde se traba hoy": una línea por problema, primero lo vencido (punto rojo) y después lo que pide atención (punto ocre). Cada línea dice el problema en una frase y lleva su acción ("Repartir", "Ver fichas"…). Si no hay nada trabado, lo dice en verde.
   - Debajo, "Cómo avanza cada proceso": un carril por proceso (Clandestinos, Inspecciones, Entregas de la semana). Cada carril tiene sus pasos en orden, unidos por flechas rotuladas con lo que hace avanzar el trabajo ("se visita", "se notifica"…). Cada paso lleva su cifra y una nota: en rojo lo vencido, en ocre lo atrasado y en verde lo cerrado.
   - Cada paso y cada acción abre su módulo con el filtro puesto.
