@@ -17,9 +17,11 @@
 .ta-quiet { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1px solid #c9ddf4; border-radius: 9px; background: #fff; color: var(--ta-ink); font-weight: 700; cursor: pointer; }
 .ta-quiet:hover:not(:disabled) { border-color: var(--ta-blue); color: var(--ta-blue); }
 
-/* Filtros: periodo, persona y área. */
+/* Filtros: periodo, persona y área. Cada control lleva su etiqueta arriba, así quedan a la misma altura. */
 .ta-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; padding: 16px 0 12px; }
-.ta-segmented { display: inline-flex; border: 1px solid var(--ta-rule); border-radius: 9px; overflow: hidden; }
+.ta-field { display: grid; gap: 4px; }
+.ta-field > span { color: var(--ta-muted); font-size: 11.5px; font-weight: 650; }
+.ta-segmented { display: inline-flex; justify-self: start; border: 1px solid var(--ta-rule); border-radius: 9px; overflow: hidden; }
 .ta-segmented button { min-height: 38px; padding: 0 14px; border: 0; border-left: 1px solid var(--ta-rule); background: #fff; color: var(--ta-muted); font-size: 13px; font-weight: 650; cursor: pointer; }
 .ta-segmented button:first-child { border-left: 0; }
 .ta-segmented button.is-active { background: #eef4fd; color: var(--ta-blue); }
@@ -27,89 +29,137 @@
 .ta-range label, .ta-select { display: grid; gap: 4px; color: var(--ta-muted); font-size: 11.5px; font-weight: 650; }
 .ta-range input, .ta-select select { min-height: 38px; padding: 0 10px; border: 1px solid var(--ta-rule); border-radius: 9px; background: #fff; color: var(--ta-ink); font: inherit; font-size: 13px; }
 .ta-select select { min-width: 220px; }
-.ta-areas { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--ta-rule); }
+.ta-areas { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 24px; border-bottom: 1px solid var(--ta-rule); }
 .ta-areas button { min-height: 38px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ta-muted); font-size: 13px; font-weight: 650; cursor: pointer; }
 .ta-areas button:hover:not(.is-active) { color: var(--ta-ink); background: var(--ta-hover); }
 .ta-areas button.is-active { border-bottom-color: var(--ta-blue); color: var(--ta-blue); }
 .ta-error { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 10px 0; border-bottom: 1px solid var(--ta-rule); color: #b8323e; font-weight: 650; }
 .ta-error button { border: 0; background: none; color: var(--ta-blue); font-weight: 700; cursor: pointer; }
 
-/* Dos columnas: resumen por persona | lo que hizo el equipo. */
-.ta-split { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 2.2fr); align-items: start; }
-.ta-split > section { min-width: 0; }
-.ta-people { padding-right: 28px; }
-.ta-feed { padding-left: 28px; border-left: 1px solid var(--ta-rule); }
+/* Dos columnas: a la izquierda quién y cuándo (persona e índice por día), a la derecha el registro paginado. */
+.ta-split { display: grid; grid-template-columns: minmax(320px, 372px) minmax(0, 1fr); align-items: stretch; }
+.ta-split > * { min-width: 0; }
+.ta-rail { display: flex; flex-direction: column; gap: 32px; padding-right: 28px; }
+.ta-feed { padding-left: 28px; border-left: 1px solid var(--ta-rule); scroll-margin-top: 12px; }
 .ta-split header { margin-bottom: 10px; }
 .ta-split h2 { color: var(--ta-ink); font-size: 15px; font-weight: 650; }
 .ta-split header p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 3px; color: var(--ta-muted); font-size: 12px; }
 .ta-split header p .app-icon { width: 13px; height: 13px; color: var(--ta-done); }
 
+/* Barra fina sin pista: misma escala dentro de cada lista. */
+.ta-bar { display: block; height: 3px; }
+.ta-bar b { display: block; height: 100%; min-width: 2px; border-radius: 0 2px 2px 0; background: var(--ta-blue); }
+
 .ta-people table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ta-people th { padding: 0 8px 8px 0; border-bottom: 1px solid var(--ta-rule); color: var(--ta-muted); font-size: 11px; font-weight: 650; text-align: left; }
-.ta-people td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--ta-grid); }
+.ta-people td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--ta-grid); vertical-align: top; }
+.ta-people td:first-child { width: 100%; max-width: 0; }
+.ta-people td:first-child .ta-bar { margin-top: 5px; }
 .ta-people .is-num { padding-right: 0; padding-left: 8px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ta-people td strong { color: var(--ta-done); }
 .ta-people td strong.is-zero { color: var(--ta-muted); font-weight: 500; }
-.ta-people td button { max-width: 100%; overflow: hidden; padding: 0; border: 0; background: none; color: var(--ta-ink); font-weight: 650; text-align: left; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; cursor: pointer; }
+.ta-people td button { display: block; max-width: 100%; min-height: 0; padding: 0; border: 0; background: none; color: var(--ta-ink); font-weight: 650; line-height: 1.3; text-align: left; text-transform: capitalize; overflow-wrap: anywhere; cursor: pointer; }
 .ta-people td button:hover { color: var(--ta-blue); }
 .ta-people tr.is-active td { background: #eef4fd; }
 .ta-people tr.is-active td button { color: var(--ta-blue); }
 .ta-muted { color: var(--ta-muted); }
 
+/* Índice por día: queda a la vista mientras se recorre el registro. Un clic lleva a la página y al día. */
+.ta-days { position: sticky; top: 12px; display: flex; flex-direction: column; max-height: calc(100vh - 24px); min-height: 0; }
+.ta-days ol { flex: 1 1 auto; min-height: 0; margin: 0; padding: 0; overflow-y: auto; border-top: 1px solid var(--ta-rule); list-style: none; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c9d5e2 transparent; }
+.ta-days li { border-bottom: 1px solid var(--ta-grid); }
+.ta-days button { display: grid; grid-template-columns: 84px minmax(0, 1fr) 40px auto; gap: 10px; align-items: center; width: 100%; min-height: 32px; padding: 4px 8px 4px 0; border: 0; background: none; color: #243b53; font-size: 12.5px; text-align: left; cursor: pointer; }
+.ta-days button:hover { background: var(--ta-hover); }
+.ta-days button.is-here { background: #eef4fd; }
+.ta-days button.is-here .ta-day-name { color: var(--ta-blue); font-weight: 700; }
+.ta-day-name { padding-left: 8px; color: var(--ta-ink); font-weight: 600; white-space: nowrap; }
+.ta-day-name::first-letter { text-transform: uppercase; }
+.ta-day-count { color: var(--ta-ink); font-variant-numeric: tabular-nums; text-align: right; }
+.ta-day-page { min-width: 30px; color: var(--ta-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; text-align: right; }
+
+/* Encabezado del registro con su paginación compacta; abajo va la completa. */
+.ta-feed-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 20px; }
+.ta-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; font-size: 12.5px; }
+.ta-pager > p { color: var(--ta-ink); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ta-pager > p span { color: var(--ta-muted); font-weight: 500; }
+.ta-pager > div { display: flex; align-items: center; gap: 4px; }
+.ta-pager button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 34px; min-height: 34px; padding: 0 8px; border: 1px solid var(--ta-rule); border-radius: 8px; background: #fff; color: var(--ta-ink); font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums; cursor: pointer; }
+.ta-pager button:hover:not(:disabled) { border-color: var(--ta-blue); color: var(--ta-blue); }
+.ta-pager button:disabled { color: #a3b1c0; cursor: default; }
+.ta-pager button[aria-current="page"] { border-color: var(--ta-blue); background: var(--ta-blue); color: #fff; }
+.ta-pager .ta-of { padding: 0 8px; color: var(--ta-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ta-pager .ta-gap { min-width: 20px; color: var(--ta-muted); text-align: center; }
+.ta-pager.is-bottom { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ta-rule); }
+.ta-days-list { transition: opacity .2s ease; }
+.ta-days-list.is-loading { opacity: .5; }
+
 /* Línea de tiempo por día. */
-.ta-day + .ta-day { margin-top: 18px; }
-.ta-day h3 { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--ta-rule); color: var(--ta-ink); font-size: 13px; font-weight: 700; }
-.ta-day h3 span { color: var(--ta-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ta-day { scroll-margin-top: 12px; }
+.ta-day + .ta-day { margin-top: 22px; }
+.ta-day h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--ta-rule); color: var(--ta-ink); font-size: 13px; font-weight: 700; }
+.ta-day h3 span { color: var(--ta-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .ta-day ol { margin: 0; padding: 0; list-style: none; }
 .ta-day > ol > li { border-bottom: 1px solid var(--ta-grid); font-size: 13px; transition: background-color .6s ease; }
 .ta-day > ol > li:hover { background: var(--ta-hover); }
 .ta-day > ol > li.is-new { background: #eef6f1; }
-.ta-row { display: grid; grid-template-columns: 96px minmax(90px, 150px) minmax(0, 1fr) auto 64px; gap: 12px; align-items: center; min-height: 40px; padding: 6px 0; }
+.ta-row { display: grid; grid-template-columns: 92px minmax(90px, 140px) minmax(0, 1fr) 104px 60px; gap: 14px; align-items: center; min-height: 40px; padding: 6px 4px 6px 0; }
+/* Con una sola persona o una sola área, esa columna sobra y su espacio pasa a lo que se hizo. */
+.ta-feed.is-one-person .ta-row { grid-template-columns: 92px minmax(0, 1fr) 104px 60px; }
+.ta-feed.is-one-area .ta-row { grid-template-columns: 92px minmax(90px, 140px) minmax(0, 1fr) 60px; }
+.ta-feed.is-one-person.is-one-area .ta-row { grid-template-columns: 92px minmax(0, 1fr) 60px; }
 .ta-day time { color: var(--ta-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ta-who { overflow: hidden; color: var(--ta-ink); font-weight: 650; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
 .ta-what { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .ta-what > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ta-day li.is-final:not(.is-group) > .ta-row .ta-what { color: var(--ta-done); font-weight: 650; }
+/* Lo que cierra un trabajo: el icono verde lo marca; el texto queda en tinta para que la lista no se vuelva toda verde. */
+.ta-day li.is-final:not(.is-group) > .ta-row .ta-what { color: var(--ta-ink); font-weight: 600; }
 .ta-day li.is-final > .ta-row .ta-what > .app-icon { color: var(--ta-done); }
+.ta-dot { display: grid; flex: none; place-items: center; width: 15px; height: 15px; }
+.ta-dot::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #b6c3d1; }
 /* Trabajo agrupado: la clave en negrita y las acciones en hasta dos líneas. */
 .ta-day li.is-group .ta-what > span { display: -webkit-box; overflow: hidden; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .ta-what b { color: var(--ta-ink); font-weight: 750; font-variant-numeric: tabular-nums; }
-.ta-day li.is-final .ta-what b { color: var(--ta-done); }
 /* "3 acciones": despliega cada acción del trabajo. */
 .ta-count { display: inline-flex; flex: none; align-items: center; gap: 3px; min-height: 24px; padding: 0 7px; border: 1px solid var(--ta-rule); border-radius: 999px; background: #fff; color: var(--ta-muted); font-size: 11.5px; font-weight: 650; cursor: pointer; }
 .ta-count:hover, .ta-count[aria-expanded="true"] { border-color: #bcd3ee; color: var(--ta-blue); }
 .ta-count .app-icon { width: 13px; height: 13px; transition: transform .2s ease; }
 .ta-count[aria-expanded="true"] .app-icon { transform: rotate(180deg); }
-.ta-steps { margin: 0 0 8px 108px; padding: 0 0 0 12px; border-left: 2px solid var(--ta-rule); list-style: none; }
+.ta-steps { margin: 0 0 8px 106px; padding: 0 0 0 12px; border-left: 2px solid var(--ta-rule); list-style: none; }
 .ta-steps li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px; padding: 3px 0; color: #243b53; font-size: 12.5px; }
 .ta-steps li.is-final { color: var(--ta-done); font-weight: 650; }
 .ta-steps time { color: var(--ta-muted); font-size: 12px; }
-.ta-area { color: var(--ta-muted); font-size: 11.5px; white-space: nowrap; }
+.ta-area { overflow: hidden; color: var(--ta-muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
 .ta-open { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 0; border: 0; background: none; color: var(--ta-blue); font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .ta-open:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ta-open .app-icon { width: 13px; height: 13px; }
 .ta-empty { padding: 20px 0; color: var(--ta-muted); font-size: 13px; }
-.ta-more { display: block; width: 100%; min-height: 40px; margin-top: 12px; border: 1px solid var(--ta-rule); border-radius: 9px; background: #fff; color: var(--ta-blue); font-weight: 700; cursor: pointer; }
-.ta-more:hover:not(:disabled) { border-color: var(--ta-blue); }
 
-@container (max-width: 900px) {
+/* Sin espacio para la columna lateral: persona e índice van lado a lado arriba del registro. */
+@container (max-width: 980px) {
   .ta-split { grid-template-columns: minmax(0, 1fr); }
-  .ta-people { padding-right: 0; }
-  .ta-feed { margin-top: 24px; padding: 20px 0 0; border-top: 1px solid var(--ta-rule); border-left: 0; }
+  .ta-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; gap: 24px 32px; padding-right: 0; }
+  .ta-days { position: static; max-height: 360px; }
+  .ta-feed { margin-top: 28px; padding: 22px 0 0; border-top: 1px solid var(--ta-rule); border-left: 0; }
 }
-@container (max-width: 560px) {
-  .ta-row { grid-template-columns: 70px minmax(0, 1fr) auto; grid-template-areas: "hora quien abrir" "hora que que"; gap: 2px 10px; }
+@container (max-width: 640px) {
+  .ta-row, .ta-feed.is-one-person .ta-row, .ta-feed.is-one-area .ta-row, .ta-feed.is-one-person.is-one-area .ta-row { grid-template-columns: 70px minmax(0, 1fr) auto; grid-template-areas: "hora quien abrir" "hora que que"; gap: 2px 10px; }
+  .ta-feed.is-one-person .ta-row, .ta-feed.is-one-person.is-one-area .ta-row { grid-template-areas: "hora que abrir"; }
   .ta-row time { white-space: normal; }
   .ta-steps { margin-left: 16px; }
   .ta-row > time { grid-area: hora; align-self: start; padding-top: 1px; }
   .ta-who { grid-area: quien; }
   .ta-what { grid-area: que; align-items: flex-start; }
   .ta-what > span { white-space: normal; }
-  .ta-what .app-icon { margin-top: 2px; }
+  .ta-what .app-icon, .ta-what .ta-dot { margin-top: 2px; }
   .ta-area { display: none; }
   .ta-open { grid-area: abrir; }
   .ta-select select { min-width: 0; width: 100%; }
   .ta-select { flex: 1 1 100%; }
+  .ta-days { max-height: 280px; }
+  .ta-feed-head .ta-pager { width: 100%; }
+  .ta-pager.is-bottom { justify-content: center; }
+  .ta-pager.is-bottom > p { width: 100%; text-align: center; }
+  .ta-pager.is-bottom .ta-step-label { display: none; }
 }
 @media (max-width: 600px) { .ta { padding-inline: 12px; } }
-@media (prefers-reduced-motion: reduce) { .ta-live i { animation: none; } .ta-day > ol > li, .ta-count .app-icon { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ta-live i { animation: none; } .ta-day > ol > li, .ta-count .app-icon, .ta-days-list { transition: none; } }

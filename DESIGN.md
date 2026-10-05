@@ -185,6 +185,11 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - La lista se agrupa por técnico, con "Sin asignar" al final. El encabezado de cada grupo lleva sus pendientes, su parte de la carga y una casilla para seleccionar el grupo. El backend ordena por técnico para que un grupo no se parta entre páginas.
   - "Carga del equipo" va a todo el ancho, entre filetes. La carga de un técnico es la parte que le toca de los pendientes ya repartidos. Las barras son azules y comparten la escala del técnico con más carga. Una marca en tinta señala el reparto parejo. El ocre marca a quien pasa de 1,5 veces lo parejo. Lo que falta repartir va aparte, con la cifra "sin asignar".
   - El diálogo de reparto ordena a los técnicos de menos a más carga. Para cada técnico muestra sus pendientes y su carga antes y después de asignar.
+- "Actividad del equipo" usa una columna lateral y el registro paginado (desde 2026-10-05):
+  - A la izquierda van "Por persona" (con una barra fina de su actividad del periodo, todas en la misma escala) y "Por día", el índice del periodo. El índice queda fijo al recorrer el registro. Cada día muestra sus acciones, una barra azul y la página donde empieza. Los días de la página actual van marcados en azul claro, y un clic lleva a la página y al día.
+  - El registro se pagina con números, de 50 acciones por página. Arriba van el rango ("51–100 de 191 acciones") y las flechas, y abajo los números de página. Un día partido entre páginas dice "27 acciones · 13 en esta página".
+  - Lo que cierra un trabajo lleva el icono verde, pero el texto va en tinta para que la lista no se vuelva toda verde. Si se filtra por una persona o por un área, esa columna desaparece de las filas.
+  - Los días se cuentan en la hora de quien mira (`tz`), no en la de la base.
 
 ### Busqueda de clave
 

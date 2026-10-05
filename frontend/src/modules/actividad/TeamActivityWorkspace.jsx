@@ -5,10 +5,12 @@ import { agruparActividad, resumenTrabajo } from "./agruparActividad";
 import "./actividad.css";
 
 // Actividad del equipo: lo que hicieron en el sistema los técnicos y operadores
-// (leído de la bitácora). Llega en vivo y se filtra por persona, área y periodo.
+// (leído de la bitácora). Llega en vivo, se filtra por persona, área y periodo, se
+// pagina con números y un índice por día salta a la página donde empieza cada día.
 const PERIODOS = [["hoy", "Hoy", 0], ["7d", "7 días", 6], ["30d", "30 días", 29]];
 const AREAS_POR_DEFECTO = { fichas: "Fichas y banco", inspecciones: "Inspecciones", entregas: "Entregas", campo: "GPS y planos", padron: "Padrón y barrios" };
-const PAGINA = 60;
+const PAGINA = 50;
+const TZ = new Date().getTimezoneOffset();
 
 const isoDia = (date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -21,6 +23,19 @@ const tituloDia = (dia) => {
   const ayer = hace(1);
   const texto = new Date(`${dia}T12:00:00`).toLocaleDateString("es-HN", { weekday: "long", day: "numeric", month: "long" });
   return dia === hoy ? `Hoy · ${texto}` : dia === ayer ? `Ayer · ${texto}` : texto.charAt(0).toUpperCase() + texto.slice(1);
+};
+// Etiqueta corta del índice: "Hoy", "Ayer" o "sáb 3 oct".
+const diaCorto = (dia) => {
+  if (dia === isoDia(new Date())) return "Hoy";
+  if (dia === hace(1)) return "Ayer";
+  return new Date(`${dia}T12:00:00`).toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "").replace(",", "");
+};
+const plural = (n, uno, varios) => `${n.toLocaleString("es-HN")} ${n === 1 ? uno : varios}`;
+const suave = () => (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+// Páginas a mostrar: la primera, la última y las vecinas de la actual; lo demás es "…".
+const paginasVisibles = (actual, total) => {
+  const orden = [...new Set([1, total, actual - 1, actual, actual + 1].filter((n) => n >= 1 && n <= total))].sort((a, b) => a - b);
+  return orden.flatMap((n, i) => (i && n - orden[i - 1] > 1 ? ["…", n] : [n]));
 };
 const relativo = (value) => {
   if (!value) return "—";
@@ -37,9 +52,8 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
   const [rango, setRango] = useState({ desde: hace(6), hasta: isoDia(new Date()) });
   const [actor, setActor] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [data, setData] = useState({ items: [], tecnicos: [], categorias: AREAS_POR_DEFECTO, has_more: false });
+  const [data, setData] = useState({ items: [], tecnicos: [], dias: [], total: 0, categorias: AREAS_POR_DEFECTO });
   const [loading, setLoading] = useState(false);
-  const [masLoading, setMasLoading] = useState(false);
   const [error, setError] = useState("");
   const [recientes, setRecientes] = useState(() => new Set());
 
@@ -49,39 +63,50 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
     const hasta = def ? isoDia(new Date()) : rango.hasta;
     return { desde, hasta, actor, categoria };
   }, [actor, categoria, periodo, rango]);
+  // La página va atada a los filtros: otro filtro, otra lista, y se vuelve a la primera.
+  const claveFiltros = JSON.stringify(filtros);
+  const [paginaElegida, setPaginaElegida] = useState({ clave: claveFiltros, numero: 1 });
+  const pagina = paginaElegida.clave === claveFiltros ? paginaElegida.numero : 1;
+  const setPagina = (numero) => setPaginaElegida({ clave: claveFiltros, numero });
 
-  const pedir = useCallback(async (extra = {}) => {
-    const params = new URLSearchParams(Object.entries({ ...filtros, limit: PAGINA, ...extra }).filter(([, value]) => value !== "" && value != null));
+  const pedir = useCallback(async () => {
+    const params = new URLSearchParams(Object.entries({ ...filtros, tz: TZ, pagina, limit: PAGINA }).filter(([, value]) => value !== "" && value != null));
     const response = await apiFetch(`/admin/team-activity?${params}`);
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || "No se pudo cargar la actividad del equipo.");
     return body;
-  }, [apiFetch, filtros]);
+  }, [apiFetch, filtros, pagina]);
 
+  // Solo cuenta la última respuesta pedida: un clic rápido entre páginas no mezcla listas.
+  const turno = useRef(0);
   const cargar = useCallback(async () => {
+    const mio = ++turno.current;
     setLoading(true);
     setError("");
     try {
-      setData(await pedir());
+      const body = await pedir();
+      if (mio !== turno.current) return;
+      setData(body);
       // Ver la pantalla cuenta como haber visto la actividad: la campana vuelve a cero.
       apiFetch("/admin/team-activity/seen", { method: "POST" }).catch(() => {});
-    } catch (reason) { setError(reason.message); } finally { setLoading(false); }
+    } catch (reason) { if (mio === turno.current) setError(reason.message); } finally { if (mio === turno.current) setLoading(false); }
   }, [apiFetch, pedir]);
   useEffect(() => { cargar(); }, [cargar]);
 
-  const cargarMas = async () => {
-    const ultimo = data.items[data.items.length - 1];
-    if (!ultimo) return;
-    setMasLoading(true);
-    try {
-      const mas = await pedir({ antes: ultimo.id, resumen: 0 });
-      setData((actual) => ({ ...actual, items: [...actual.items, ...mas.items], has_more: mas.has_more }));
-    } catch (reason) { setError(reason.message); } finally { setMasLoading(false); }
-  };
+  // Al cambiar de página se sube al inicio del registro; desde el índice, al día elegido.
+  const feedRef = useRef(null);
+  const destino = useRef(null);
+  useEffect(() => {
+    if (loading || !destino.current) return;
+    const target = destino.current === "inicio" ? feedRef.current : document.getElementById(`ta-dia-${destino.current}`);
+    destino.current = null;
+    target?.scrollIntoView({ block: "start", behavior: suave() });
+  }, [loading, data.items]);
+  const irAPagina = (numero) => { destino.current = "inicio"; setPagina(numero); };
 
-  // En vivo: lo nuevo entra arriba (si cabe en los filtros) y se marca unos segundos.
-  const filtrosRef = useRef(filtros);
-  useEffect(() => { filtrosRef.current = filtros; }, [filtros]);
+  // En vivo: lo nuevo entra arriba (si cabe en los filtros y se está en la primera página) y se marca unos segundos.
+  const filtrosRef = useRef({ ...filtros, pagina });
+  useEffect(() => { filtrosRef.current = { ...filtros, pagina }; }, [filtros, pagina]);
   const sessionToken = session?.token || session?.sessionToken || "";
   useEffect(() => {
     if (!sessionToken) return undefined;
@@ -97,10 +122,15 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
         const base = index >= 0 ? tecnicos[index] : { id: activity.actor_id, nombre: activity.actor_name, total: 0, hoy: 0, finalizados: 0, ultima: null };
         const nuevo = { ...base, total: base.total + 1, hoy: base.hoy + 1, finalizados: base.finalizados + (activity.final ? 1 : 0), ultima: activity.created_at };
         if (index >= 0) tecnicos[index] = nuevo; else tecnicos.push(nuevo);
-        const items = cuadra && !prev.items.some((item) => item.id === activity.id) ? [activity, ...prev.items] : prev.items;
-        return { ...prev, items, tecnicos };
+        const repetido = prev.items.some((item) => item.id === activity.id);
+        if (!cuadra || repetido) return { ...prev, tecnicos };
+        // Cuenta en el índice siempre; la línea solo entra si se está mirando la primera página.
+        const dia = isoDia(new Date(activity.created_at));
+        const dias = prev.dias?.[0]?.dia === dia ? [{ ...prev.dias[0], acciones: prev.dias[0].acciones + 1 }, ...prev.dias.slice(1)] : [{ dia, acciones: 1 }, ...(prev.dias || [])];
+        const items = actual.pagina === 1 ? [activity, ...prev.items] : prev.items;
+        return { ...prev, items, tecnicos, dias, total: (prev.total || 0) + 1 };
       });
-      if (cuadra) {
+      if (cuadra && actual.pagina === 1) {
         setRecientes((prev) => new Set(prev).add(activity.id));
         setTimeout(() => setRecientes((prev) => { const next = new Set(prev); next.delete(activity.id); return next; }), 6000);
       }
@@ -128,6 +158,45 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
   const personaActiva = data.tecnicos.find((item) => String(item.id) === String(actor));
   const totalPeriodo = data.tecnicos.reduce((sum, item) => sum + item.total, 0);
   const finalizadosPeriodo = data.tecnicos.reduce((sum, item) => sum + item.finalizados, 0);
+  const maxPersona = Math.max(1, ...data.tecnicos.map((item) => item.total));
+
+  // Índice por día: en qué página empieza cada día y cuáles se ven en esta.
+  const total = data.total || 0;
+  const totalPaginas = Math.max(1, Math.ceil(total / PAGINA));
+  const indice = useMemo(() => {
+    let antes = 0;
+    return (data.dias || []).map(({ dia, acciones }) => {
+      const item = { dia, acciones, pagina: Math.floor(antes / PAGINA) + 1 };
+      antes += acciones;
+      return item;
+    });
+  }, [data.dias]);
+  const maxDia = Math.max(1, ...indice.map((item) => item.acciones));
+  const diasEnPagina = new Set(porDia.map(({ dia }) => dia));
+  const irADia = (item) => {
+    if (item.pagina === pagina && !loading) {
+      document.getElementById(`ta-dia-${item.dia}`)?.scrollIntoView({ block: "start", behavior: suave() });
+      return;
+    }
+    destino.current = item.dia;
+    setPagina(item.pagina);
+  };
+  const primero = total ? (pagina - 1) * PAGINA + 1 : 0;
+  const ultimo = Math.min(total, (pagina - 1) * PAGINA + data.items.length);
+  const unaPersona = Boolean(actor);
+  const unaArea = Boolean(categoria);
+
+  // Arriba, compacto (rango y flechas); abajo, con los números de página.
+  const paginador = (abajo) => (totalPaginas > 1 ? <nav className={`ta-pager${abajo ? " is-bottom" : ""}`} aria-label={abajo ? "Páginas del registro, abajo" : "Páginas del registro"}>
+    <p>{primero.toLocaleString("es-HN")}–{ultimo.toLocaleString("es-HN")} <span>de {plural(total, "acción", "acciones")}</span></p>
+    <div>
+      <button type="button" className="ta-step" disabled={pagina <= 1 || loading} onClick={() => irAPagina(pagina - 1)} aria-label="Página anterior"><Icon name="arrowLeft" />{abajo ? <span className="ta-step-label">Anterior</span> : null}</button>
+      {abajo
+        ? paginasVisibles(pagina, totalPaginas).map((n, i) => (n === "…" ? <span key={`gap-${i}`} className="ta-gap" aria-hidden="true">…</span> : <button type="button" key={n} aria-current={n === pagina ? "page" : undefined} aria-label={`Página ${n}`} disabled={loading && n !== pagina} onClick={() => n !== pagina && irAPagina(n)}>{n}</button>))
+        : <span className="ta-of">Página {pagina} de {totalPaginas}</span>}
+      <button type="button" className="ta-step" disabled={pagina >= totalPaginas || loading} onClick={() => irAPagina(pagina + 1)} aria-label="Página siguiente">{abajo ? <span className="ta-step-label">Siguiente</span> : null}<Icon name="arrowRight" /></button>
+    </div>
+  </nav> : null);
 
   return <section className="ta" aria-label="Actividad del equipo">
     <header className="ta-head">
@@ -139,10 +208,10 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
     </header>
 
     <div className="ta-filters">
-      <div className="ta-segmented" role="group" aria-label="Periodo">
+      <div className="ta-field"><span id="ta-periodo">Periodo</span><div className="ta-segmented" role="group" aria-labelledby="ta-periodo">
         {PERIODOS.map(([key, label]) => <button type="button" key={key} aria-pressed={periodo === key} className={periodo === key ? "is-active" : ""} onClick={() => setPeriodo(key)}>{label}</button>)}
         <button type="button" aria-pressed={periodo === "rango"} className={periodo === "rango" ? "is-active" : ""} onClick={() => setPeriodo("rango")}>Fechas</button>
-      </div>
+      </div></div>
       {periodo === "rango" ? <div className="ta-range">
         <label><span>Desde</span><input type="date" value={rango.desde} max={rango.hasta} onChange={(event) => setRango((actual) => ({ ...actual, desde: event.target.value }))} /></label>
         <label><span>Hasta</span><input type="date" value={rango.hasta} min={rango.desde} onChange={(event) => setRango((actual) => ({ ...actual, hasta: event.target.value }))} /></label>
@@ -155,49 +224,75 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
     {error ? <p className="ta-error" role="alert">{error} <button type="button" onClick={cargar}>Reintentar</button></p> : null}
 
     <div className="ta-split">
-      <section className="ta-people" aria-labelledby="ta-people-title">
-        <header><h2 id="ta-people-title">Por persona</h2><p>{totalPeriodo} {totalPeriodo === 1 ? "acción" : "acciones"} en el periodo · {finalizadosPeriodo} {finalizadosPeriodo === 1 ? "trabajo cerrado" : "trabajos cerrados"}</p></header>
-        {data.tecnicos.length ? <table>
-          <thead><tr><th scope="col">Persona</th><th scope="col" className="is-num">Hoy</th><th scope="col" className="is-num">Periodo</th><th scope="col" className="is-num">Cerrados</th><th scope="col" className="is-num">Última</th></tr></thead>
-          <tbody>{data.tecnicos.map((item) => <tr key={item.id} className={String(item.id) === String(actor) ? "is-active" : ""}>
-            <td><button type="button" onClick={() => setActor(String(item.id) === String(actor) ? "" : String(item.id))} title={String(item.id) === String(actor) ? "Ver todo el equipo" : `Ver solo lo de ${item.nombre}`}>{item.nombre}</button></td>
-            <td className="is-num">{item.hoy}</td>
-            <td className="is-num">{item.total}</td>
-            <td className="is-num"><strong className={item.finalizados ? "" : "is-zero"}>{item.finalizados}</strong></td>
-            <td className="is-num ta-muted">{relativo(item.ultima)}</td>
-          </tr>)}</tbody>
-        </table> : <p className="ta-empty">{loading ? "Cargando…" : "Nadie del equipo registró actividad en este periodo."}</p>}
-      </section>
+      <aside className="ta-rail">
+        <section className="ta-people" aria-labelledby="ta-people-title">
+          <header><h2 id="ta-people-title">Por persona</h2><p>{plural(totalPeriodo, "acción", "acciones")} · {plural(finalizadosPeriodo, "trabajo cerrado", "trabajos cerrados")}</p></header>
+          {data.tecnicos.length ? <table>
+            <thead><tr><th scope="col">Persona</th><th scope="col" className="is-num">Hoy</th><th scope="col" className="is-num">Periodo</th><th scope="col" className="is-num">Cerrados</th><th scope="col" className="is-num">Última</th></tr></thead>
+            <tbody>{data.tecnicos.map((item) => {
+              const activa = String(item.id) === String(actor);
+              return <tr key={item.id} className={activa ? "is-active" : ""}>
+                <td><button type="button" aria-pressed={activa} onClick={() => setActor(activa ? "" : String(item.id))} title={activa ? "Ver todo el equipo" : `Ver solo lo de ${item.nombre}`}>{item.nombre}</button><i className="ta-bar" aria-hidden="true"><b style={{ width: `${(item.total / maxPersona) * 100}%` }} /></i></td>
+                <td className={`is-num${item.hoy ? "" : " ta-muted"}`}>{item.hoy}</td>
+                <td className="is-num">{item.total}</td>
+                <td className="is-num"><strong className={item.finalizados ? "" : "is-zero"}>{item.finalizados}</strong></td>
+                <td className="is-num ta-muted">{relativo(item.ultima)}</td>
+              </tr>;
+            })}</tbody>
+          </table> : <p className="ta-empty">{loading ? "Cargando…" : "Nadie del equipo registró actividad en este periodo."}</p>}
+        </section>
 
-      <section className="ta-feed" aria-labelledby="ta-feed-title" aria-busy={loading}>
-        <header><h2 id="ta-feed-title">{personaActiva ? `Lo que hizo ${personaActiva.nombre}` : "Lo que hizo el equipo"}</h2><p>Lo más reciente primero. Lo marcado con <Icon name="checkCircle" /> cierra un trabajo.</p></header>
-        {porDia.length ? porDia.map(({ dia, acciones, trabajos }) => <div className="ta-day" key={dia}>
-          <h3>{tituloDia(dia)}<span>{trabajos.length} {trabajos.length === 1 ? "trabajo" : "trabajos"} · {acciones} {acciones === 1 ? "acción" : "acciones"}</span></h3>
-          <ol>
-            {trabajos.map((trabajo) => {
-              const varias = trabajo.items.length > 1;
-              const abierto = desplegados.has(trabajo.id);
-              const nuevo = trabajo.items.some((item) => recientes.has(item.id));
-              return <li key={trabajo.id} className={`${trabajo.final ? "is-final" : ""} ${varias ? "is-group" : ""} ${nuevo ? "is-new" : ""} ${abierto ? "is-open" : ""}`.trim()}>
-                <div className="ta-row">
-                  <time dateTime={trabajo.hasta}>{rangoHora(trabajo)}</time>
-                  <span className="ta-who">{trabajo.actor_name}</span>
-                  <span className="ta-what">
-                    {trabajo.final ? <Icon name="checkCircle" /> : null}
-                    <span>{varias && trabajo.titulo ? <b>{trabajo.titulo}</b> : null}{varias && trabajo.titulo ? " · " : null}{resumenTrabajo(trabajo)}</span>
-                    {varias ? <button type="button" className="ta-count" aria-expanded={abierto} onClick={() => alternar(trabajo.id)} title={abierto ? "Ocultar el detalle" : "Ver cada acción"}>{trabajo.items.length} acciones<Icon name="chevronDown" /></button> : null}
-                  </span>
-                  <span className="ta-area">{areas[trabajo.categoria] || "Otros"}</span>
-                  {trabajo.enlace ? <button type="button" className="ta-open" onClick={() => onOpen?.({ ...trabajo.items[0], enlace: trabajo.enlace })}>Abrir<Icon name="arrowRight" /></button> : <span />}
-                </div>
-                {varias && abierto ? <ol className="ta-steps">
-                  {[...trabajo.items].reverse().map((item) => <li key={item.id} className={item.final ? "is-final" : ""}><time dateTime={item.created_at}>{hora(item.created_at)}</time><span>{item.summary}</span></li>)}
-                </ol> : null}
-              </li>;
-            })}
-          </ol>
-        </div>) : <p className="ta-empty">{loading ? "Cargando…" : "No hay actividad con estos filtros."}</p>}
-        {data.has_more ? <button type="button" className="ta-more" disabled={masLoading} onClick={cargarMas}>{masLoading ? "Cargando…" : "Cargar más"}</button> : null}
+        {indice.length ? <nav className="ta-days" aria-labelledby="ta-days-title">
+          <header><h2 id="ta-days-title">Por día</h2><p>{plural(indice.length, "día", "días")} con actividad{totalPaginas > 1 ? ` en ${plural(totalPaginas, "página", "páginas")}` : ""}</p></header>
+          <ol>{indice.map((item) => {
+            const aqui = diasEnPagina.has(item.dia);
+            return <li key={item.dia}><button type="button" className={aqui ? "is-here" : ""} aria-current={aqui ? "true" : undefined} onClick={() => irADia(item)} title={`${tituloDia(item.dia)} · página ${item.pagina}`}>
+              <span className="ta-day-name">{diaCorto(item.dia)}</span>
+              <i className="ta-bar" aria-hidden="true"><b style={{ width: `${(item.acciones / maxDia) * 100}%` }} /></i>
+              <span className="ta-day-count">{item.acciones.toLocaleString("es-HN")}</span>
+              {totalPaginas > 1 ? <span className="ta-day-page">p. {item.pagina}</span> : null}
+            </button></li>;
+          })}</ol>
+        </nav> : null}
+      </aside>
+
+      <section className={`ta-feed${unaPersona ? " is-one-person" : ""}${unaArea ? " is-one-area" : ""}`} ref={feedRef} aria-labelledby="ta-feed-title" aria-busy={loading}>
+        <header className="ta-feed-head">
+          <div><h2 id="ta-feed-title">{personaActiva ? `Lo que hizo ${personaActiva.nombre}` : "Lo que hizo el equipo"}</h2><p>Lo más reciente primero. Lo marcado con <Icon name="checkCircle" /> cierra un trabajo.</p></div>
+          {paginador(false)}
+        </header>
+        <div className={loading ? "ta-days-list is-loading" : "ta-days-list"}>
+          {porDia.length ? porDia.map(({ dia, acciones, trabajos }) => {
+            const delDia = indice.find((item) => item.dia === dia)?.acciones || acciones;
+            return <div className="ta-day" key={dia} id={`ta-dia-${dia}`}>
+              <h3>{tituloDia(dia)}<span>{delDia > acciones ? `${plural(delDia, "acción", "acciones")} · ${acciones} en esta página` : `${plural(trabajos.length, "trabajo", "trabajos")} · ${plural(acciones, "acción", "acciones")}`}</span></h3>
+              <ol>
+                {trabajos.map((trabajo) => {
+                  const varias = trabajo.items.length > 1;
+                  const abierto = desplegados.has(trabajo.id);
+                  const nuevo = trabajo.items.some((item) => recientes.has(item.id));
+                  return <li key={trabajo.id} className={`${trabajo.final ? "is-final" : ""} ${varias ? "is-group" : ""} ${nuevo ? "is-new" : ""} ${abierto ? "is-open" : ""}`.trim()}>
+                    <div className="ta-row">
+                      <time dateTime={trabajo.hasta}>{rangoHora(trabajo)}</time>
+                      {unaPersona ? null : <span className="ta-who">{trabajo.actor_name}</span>}
+                      <span className="ta-what">
+                        {trabajo.final ? <Icon name="checkCircle" /> : <i className="ta-dot" aria-hidden="true" />}
+                        <span>{varias && trabajo.titulo ? <b>{trabajo.titulo}</b> : null}{varias && trabajo.titulo ? " · " : null}{resumenTrabajo(trabajo)}</span>
+                        {varias ? <button type="button" className="ta-count" aria-expanded={abierto} onClick={() => alternar(trabajo.id)} title={abierto ? "Ocultar el detalle" : "Ver cada acción"}>{trabajo.items.length} acciones<Icon name="chevronDown" /></button> : null}
+                      </span>
+                      {unaArea ? null : <span className="ta-area">{areas[trabajo.categoria] || "Otros"}</span>}
+                      {trabajo.enlace ? <button type="button" className="ta-open" onClick={() => onOpen?.({ ...trabajo.items[0], enlace: trabajo.enlace })}>Abrir<Icon name="arrowRight" /></button> : <span />}
+                    </div>
+                    {varias && abierto ? <ol className="ta-steps">
+                      {[...trabajo.items].reverse().map((item) => <li key={item.id} className={item.final ? "is-final" : ""}><time dateTime={item.created_at}>{hora(item.created_at)}</time><span>{item.summary}</span></li>)}
+                    </ol> : null}
+                  </li>;
+                })}
+              </ol>
+            </div>;
+          }) : <p className="ta-empty">{loading ? "Cargando…" : "No hay actividad con estos filtros."}</p>}
+        </div>
+        {paginador(true)}
       </section>
     </div>
   </section>;

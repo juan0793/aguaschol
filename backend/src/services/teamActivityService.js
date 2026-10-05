@@ -90,6 +90,19 @@ const fail = (message, status = 400) => Object.assign(new Error(message), { stat
 const clean = (value) => String(value ?? "").trim();
 const fecha = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(clean(value)) ? clean(value) : "");
 
+// Los días se cuentan en la hora de quien mira (tz = minutos de getTimezoneOffset,
+// Honduras = 360). Sin tz se usa la hora de la base, como antes.
+const tzMinutos = (value) => {
+  const minutos = Number(value);
+  return clean(value) !== "" && Number.isFinite(minutos) && Math.abs(minutos) <= 840 ? minutos : null;
+};
+// Inicio (o fin) del día local como instante; mysql2 lo pasa a la hora de la base.
+const limiteDia = (dia, tz, fin = false) => {
+  const [y, m, d] = dia.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d) + tz * 60000 + (fin ? 86400000 - 1000 : 0));
+};
+const diaLocal = (instante, tz) => new Date(instante.getTime() - tz * 60000).toISOString().slice(0, 10);
+
 const filtroCategoria = (categoria) => {
   if (categoria === "otros") {
     const todas = Object.values(CATEGORIAS);
@@ -106,19 +119,22 @@ const filtroCategoria = (categoria) => {
 /**
  * Lista la actividad del equipo (más reciente primero) con un resumen por persona
  * del periodo y cuántos eventos no ha visto este administrador.
- * filtros: { actor, categoria, desde, hasta (YYYY-MM-DD), antes (id para paginar), limit }
+ * filtros: { actor, categoria, desde, hasta (YYYY-MM-DD), tz, pagina (numerada, desde 1),
+ *   antes (id, para la campana), limit }. Con resumen devuelve además el total y
+ *   cuántas acciones hubo cada día (el índice por día de la pantalla).
  */
 export const listTeamActivity = async (filtros = {}, user) => {
   if (user?.role !== "admin") throw fail("Solo administración ve la actividad del equipo.", 403);
   const limit = Math.min(Math.max(Number(filtros.limit) || 50, 1), 200);
-  if (env.useMemoryDb) return { items: [], tecnicos: [], unread: 0, seen_at: null, categorias: Object.fromEntries(Object.entries(CATEGORIAS).map(([key, { label }]) => [key, label])), has_more: false };
+  if (env.useMemoryDb) return { items: [], tecnicos: [], total: 0, dias: [], pagina: 1, por_pagina: limit, unread: 0, seen_at: null, categorias: Object.fromEntries(Object.entries(CATEGORIAS).map(([key, { label }]) => [key, label])), has_more: false };
 
   const where = ["audit_logs.actor_user_id IS NOT NULL", "app_users.role <> 'admin'", "audit_logs.action NOT IN (?)"];
   const params = [ACCIONES_EXCLUIDAS];
   const desde = fecha(filtros.desde);
   const hasta = fecha(filtros.hasta);
-  if (desde) { where.push("audit_logs.created_at >= ?"); params.push(`${desde} 00:00:00`); }
-  if (hasta) { where.push("audit_logs.created_at <= ?"); params.push(`${hasta} 23:59:59`); }
+  const tz = tzMinutos(filtros.tz);
+  if (desde) { where.push("audit_logs.created_at >= ?"); params.push(tz == null ? `${desde} 00:00:00` : limiteDia(desde, tz)); }
+  if (hasta) { where.push("audit_logs.created_at <= ?"); params.push(tz == null ? `${hasta} 23:59:59` : limiteDia(hasta, tz, true)); }
   const periodoWhere = [...where];
   const periodoParams = [...params];
   if (Number(filtros.actor) > 0) { where.push("audit_logs.actor_user_id = ?"); params.push(Number(filtros.actor)); }
@@ -127,22 +143,30 @@ export const listTeamActivity = async (filtros = {}, user) => {
   const listaWhere = [...where];
   const listaParams = [...params];
   if (Number(filtros.antes) > 0) { listaWhere.push("audit_logs.id < ?"); listaParams.push(Number(filtros.antes)); }
+  const pagina = Math.max(Math.floor(Number(filtros.pagina)) || 1, 1);
+  const offset = Number(filtros.antes) > 0 ? 0 : (pagina - 1) * limit;
 
   const pool = getPool();
   const base = "FROM audit_logs JOIN app_users ON app_users.id = audit_logs.actor_user_id";
   // La campana solo pide lo último (resumen=0): se omite el resumen por persona.
   const conResumen = clean(filtros.resumen) !== "0";
-  const [[rows], [personas], [[seen]]] = await Promise.all([
+  const [[rows], [personas], [horas], [[seen]]] = await Promise.all([
     pool.query(
       `SELECT audit_logs.*, COALESCE(app_users.full_name, app_users.username) AS actor_name, app_users.role AS actor_role
-       ${base} WHERE ${listaWhere.join(" AND ")} ORDER BY audit_logs.id DESC LIMIT ?`,
-      [...listaParams, limit + 1]
+       ${base} WHERE ${listaWhere.join(" AND ")} ORDER BY audit_logs.id DESC LIMIT ? OFFSET ?`,
+      [...listaParams, limit + 1, offset]
     ),
     conResumen ? pool.query(
       `SELECT audit_logs.actor_user_id, COALESCE(app_users.full_name, app_users.username) AS nombre, audit_logs.action, audit_logs.details_json,
          audit_logs.created_at >= CURRENT_DATE AS es_hoy, audit_logs.created_at
        ${base} WHERE ${periodoWhere.join(" AND ")} ORDER BY audit_logs.id DESC LIMIT 5000`,
       periodoParams
+    ) : [[]],
+    // Por hora y no por día: así cada hora cae en el día local de quien mira.
+    conResumen ? pool.query(
+      `SELECT DATE_FORMAT(audit_logs.created_at, '%Y-%m-%d %H:00:00') AS hora, COUNT(*) AS acciones
+       ${base} WHERE ${where.join(" AND ")} GROUP BY hora ORDER BY hora DESC`,
+      params
     ) : [[]],
     pool.query("SELECT team_activity_seen_at FROM app_users WHERE id = ? LIMIT 1", [user.id])
   ]);
@@ -155,20 +179,31 @@ export const listTeamActivity = async (filtros = {}, user) => {
   );
 
   // Resumen por persona del periodo (sin el filtro de persona ni de área).
+  const hoyLocal = tz == null ? "" : diaLocal(new Date(), tz);
   const porPersona = new Map();
   for (const row of personas) {
     const id = Number(row.actor_user_id);
     const entry = porPersona.get(id) || { id, nombre: row.nombre, total: 0, hoy: 0, finalizados: 0, ultima: null };
     entry.total += 1;
-    if (Number(row.es_hoy)) entry.hoy += 1;
+    if (tz == null ? Number(row.es_hoy) : diaLocal(new Date(row.created_at), tz) === hoyLocal) entry.hoy += 1;
     if (esFinal(row.action, parseDetails(row.details_json))) entry.finalizados += 1;
     if (!entry.ultima) entry.ultima = row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at;
     porPersona.set(id, entry);
   }
 
+  // Índice por día: la hora sale en la hora de la base, que mysql2 lee como hora local del servidor.
+  const porDia = new Map();
+  for (const { hora, acciones } of horas) {
+    const instante = new Date(String(hora).replace(" ", "T"));
+    const dia = tz == null ? String(hora).slice(0, 10) : diaLocal(instante, tz);
+    porDia.set(dia, (porDia.get(dia) || 0) + Number(acciones));
+  }
+  const dias = [...porDia.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([dia, acciones]) => ({ dia, acciones }));
+
   return {
     items: rows.slice(0, limit).map(mapActividad),
     has_more: rows.length > limit,
+    ...(conResumen ? { total: dias.reduce((sum, item) => sum + item.acciones, 0), dias, pagina, por_pagina: limit } : {}),
     tecnicos: [...porPersona.values()].sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, "es")),
     unread: Number(unread || 0),
     seen_at: seenAt instanceof Date ? seenAt.toISOString() : seenAt,

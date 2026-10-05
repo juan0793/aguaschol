@@ -6,8 +6,8 @@ const router = Router();
 
 router.get("/", async (req, res, next) => {
   try {
-    const { actor, categoria, desde, hasta, antes, limit, resumen } = req.query;
-    res.json(await listTeamActivity({ actor, categoria, desde, hasta, antes, limit, resumen }, req.authUser));
+    const { actor, categoria, desde, hasta, tz, pagina, antes, limit, resumen } = req.query;
+    res.json(await listTeamActivity({ actor, categoria, desde, hasta, tz, pagina, antes, limit, resumen }, req.authUser));
   } catch (error) { next(error); }
 });
 
