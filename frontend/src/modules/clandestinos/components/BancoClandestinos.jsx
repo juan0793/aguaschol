@@ -46,9 +46,14 @@ function DescartePanel({ busy, onCancel, onConfirm }) {
   </form>;
 }
 
-function Candidato({ item, permissions, userId, busy, selectable, selected, onToggle, onSend, onDiscard, onRestore, onOpenFicha }) {
+// Una fila por candidato: clave, padrones, señales de campo y la acción. Lo que
+// necesita lectura (comentario, avisos, motivo de descarte, formularios) se abre
+// debajo de la fila, así la lista se escanea en una pasada.
+function CandidatoFila({ item, permissions, userId, busy, selectable, selected, showBarrio, showTecnico, onToggle, onSend, onDiscard, onRestore, onOpenFicha }) {
   const [clave, setClave] = useState("");
   const [discarding, setDiscarding] = useState(false);
+  const [abierto, setAbierto] = useState(false);
+  const claveInput = useRef(null);
   const pendiente = item.estado === "pendiente";
   const descartado = item.estado === "descartado";
   // La validadora de campo solo trabaja lo que le asignaron.
@@ -61,65 +66,112 @@ function Candidato({ item, permissions, userId, busy, selectable, selected, onTo
   // Solo "registrado" está en Aguas; si no, la cuenta guardada es de otra unidad del mismo lote.
   const enAguas = item.dictamen === "registrado" && (item.aguas_clave || item.aguas_abonado);
   const loteEnAguas = !enAguas && item.aguas_clave;
-  // Lo pendiente que ya tiene técnico se distingue con una franja arriba de la tarjeta.
-  const asignado = pendiente && item.asignado_a != null;
-  const mio = Number(item.asignado_a) === Number(userId);
-  return <article className={`cl-bcard is-${item.dictamen} ${descartado ? "is-descartado" : ""} ${discarding ? "is-discarding" : ""} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""} ${asignado ? "is-asignado" : ""}`.trim()}>
-    {asignado ? <p className="cl-bcard-assigned" title={[`Asignado a ${item.asignado_nombre || "un técnico"}`, fechaCorta(item.asignado_at)].filter(Boolean).join(" · ")}>
-      <Icon name="users" /><span>{mio ? <strong>Asignado a ti</strong> : <>Asignado a <strong>{item.asignado_nombre || "un técnico"}</strong></>}</span>
-      {item.asignado_at ? <small>{fechaCorta(item.asignado_at)}</small> : null}
-    </p> : null}
-    <header>
-      {selectable ? <SpringCheck checked={selected} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${item.clave_catastral || `punto ${item.origen_ref}`}`} /> : null}
-      <span className={`cl-bcard-badge is-${item.dictamen}`} title={`${DICTAMEN_LABELS[item.dictamen] || item.dictamen}: ${item.motivo_dictamen || ""}`}><Icon name={DICTAMEN_ICONS[item.dictamen] || "search"} /></span>
-      <div className="cl-bcard-id">
-        <h3>{item.clave_catastral || "Sin clave"}</h3>
-        <p title={item.barrio_colonia}>{item.barrio_colonia || "Sin barrio"}{item.clave_origen === "plano" ? " · del plano" : ""}</p>
+  const mio = item.asignado_a != null && Number(item.asignado_a) === Number(userId);
+  const desmembracion = item.dictamen === "sin_determinar" && /^Posible desmembración/.test(item.motivo_dictamen || "");
+  const avisos = [item.nota_revision, desmembracion ? item.motivo_dictamen : ""].filter(Boolean);
+  const abierta = abierto || discarding;
+  const id = item.clave_catastral || `punto ${item.origen_ref}`;
+  const enviar = () => {
+    // Sin clave no se puede enviar: se abre la fila con el campo listo para escribirla.
+    if (needsClave && !clave.trim()) { setAbierto(true); requestAnimationFrame(() => claveInput.current?.focus()); return; }
+    onSend(item, clave);
+  };
+  return <article className={`cl-brow is-${item.dictamen} ${descartado ? "is-descartado" : ""} ${abierta ? "is-open" : ""} ${busy ? "is-busy" : ""} ${selected ? "is-selected" : ""}`.trim()}>
+    <div className="cl-brow-main">
+      <span className="cl-brow-check">{selectable ? <SpringCheck checked={selected} onChange={() => onToggle(item)} ariaLabel={`Seleccionar ${id}`} /> : null}</span>
+      <span className="cl-brow-dict" title={`${DICTAMEN_LABELS[item.dictamen] || item.dictamen}${item.motivo_dictamen ? `: ${item.motivo_dictamen}` : ""}`}><Icon name={DICTAMEN_ICONS[item.dictamen] || "search"} /><span className="cl-sr">{DICTAMEN_LABELS[item.dictamen] || item.dictamen}</span></span>
+      <div className="cl-brow-id">
+        <button type="button" className="cl-brow-clave" aria-expanded={abierta} onClick={() => setAbierto((value) => !value)} title="Ver detalle">{item.clave_catastral || <em>Sin clave</em>}</button>
+        <small>{[showBarrio ? item.barrio_colonia || "Sin barrio" : "", `#${item.origen_ref}`, item.clave_origen === "plano" ? "del plano" : ""].filter(Boolean).join(" · ")}</small>
       </div>
-      <div className="cl-bcard-services" aria-label="Servicios observados en campo">
+      <p className={`cl-brow-cell is-alcaldia ${item.alcaldia_propietario ? "is-found" : ""}`.trim()} title={item.alcaldia_propietario ? [item.alcaldia_propietario, item.alcaldia_clave, item.alcaldia_caserio].filter(Boolean).join(" · ") : "No aparece en Alcaldía"}>
+        <span className="cl-brow-label">Alcaldía</span>{item.alcaldia_propietario || "No aparece"}
+      </p>
+      <p className={`cl-brow-cell is-aguas ${enAguas ? "is-found" : ""} ${loteEnAguas ? "is-lote" : ""}`.trim()} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : loteEnAguas ? `Esta unidad no aparece en Aguas. Otra unidad del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : "No aparece en Aguas"}>
+        <span className="cl-brow-label">Aguas</span>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : loteEnAguas ? `Lote sí: ${item.aguas_clave}` : "No aparece"}
+      </p>
+      <div className="cl-brow-campo" aria-label="Lo observado en campo">
         {SERVICES.map(([key, label, icon]) => <span key={key} className={item[key] ? "is-on" : ""} title={`${label}: ${item[key] ? "sí" : "no"}`}><Icon name={icon} /></span>)}
-        {item.lote_baldio ? <span className="cl-bcard-tag" title="Lote baldío">Baldío</span> : null}
+        {item.lote_baldio ? <span className="cl-brow-flag is-text" title="Lote baldío">Baldío</span> : null}
+        {item.comentario_campo ? <span className="cl-brow-flag" title={`Comentario de campo: ${item.comentario_campo}`}><Icon name="notes" /></span> : null}
+        {avisos.length ? <span className="cl-brow-flag is-warn" title={avisos.join(" · ")}><Icon name="warning" /></span> : null}
+        {item.duplicados ? <span className="cl-brow-flag is-text" title={`${item.duplicados} ${item.duplicados === 1 ? "punto de campo más" : "puntos de campo más"} con esta misma clave`}>+{item.duplicados}</span> : null}
       </div>
-    </header>
-    <dl className="cl-bcard-padrones">
-      <div className={item.alcaldia_propietario ? "is-found" : ""} title={item.alcaldia_propietario ? [item.alcaldia_clave, item.alcaldia_caserio].filter(Boolean).join(" · ") : "No aparece en Alcaldía"}>
-        <dt><Icon name="home" /><span>Alcaldía</span></dt>
-        <dd>{item.alcaldia_propietario || "No aparece"}</dd>
+      {showTecnico ? <p className={`cl-brow-tec ${mio ? "is-mine" : ""}`.trim()} title={item.asignado_nombre ? [`Asignado a ${item.asignado_nombre}`, fechaCorta(item.asignado_at)].filter(Boolean).join(" · ") : "Sin asignar"}>{item.asignado_a == null ? <span className="cl-brow-none">Sin asignar</span> : mio ? "Tú" : item.asignado_nombre || "Técnico"}</p> : null}
+      <div className="cl-brow-actions">
+        {canProcess && !discarding ? <button type="button" className="cl-bcard-icon" title="Descartar candidato" aria-label={`Descartar ${id}`} disabled={busy} onClick={() => setDiscarding(true)}><Icon name="archive" /></button> : null}
+        {canSend && !discarding ? <button type="button" className="cl-bcard-go is-soft" disabled={busy} onClick={enviar} aria-label={`Enviar ${id} a ficha`}><Icon name="send" /><span className="cl-brow-go-text">{busy ? "Verificando…" : "Enviar a ficha"}</span></button> : null}
+        {item.estado === "enviado" && item.inmueble_id ? <button type="button" className="cl-bcard-go is-soft" onClick={() => onOpenFicha(item)} aria-label={`Abrir la ficha de ${id}`}><Icon name="eye" /><span className="cl-brow-go-text">Abrir ficha</span></button> : null}
+        {canRestore ? <button type="button" className="cl-bcard-go is-soft" disabled={busy} title="Deshacer el descarte: vuelve a Por revisar" aria-label={`Devolver ${id} al banco`} onClick={() => onRestore(item)}><Icon name="refresh" /><span className="cl-brow-go-text">Devolver</span></button> : null}
+        <button type="button" className="cl-brow-more" aria-expanded={abierta} aria-label={abierta ? `Cerrar detalle de ${id}` : `Ver detalle de ${id}`} onClick={() => { if (discarding) { setDiscarding(false); setAbierto(false); } else setAbierto((value) => !value); }}><Icon name="chevronDown" /></button>
       </div>
-      <div className={enAguas ? "is-found" : ""} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : loteEnAguas ? `Esta unidad no aparece en Aguas. Otra unidad del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : "No aparece en Aguas"}>
-        <dt><Icon name="water" /><span>Aguas</span></dt>
-        <dd>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : "No aparece"}</dd>
-        {loteEnAguas ? <small>Lote sí: {item.aguas_clave}</small> : null}
-      </div>
-    </dl>
-    {item.comentario_campo ? <p className="cl-bcard-note" title={item.comentario_campo}><Icon name="notes" /><span>{item.comentario_campo}</span></p> : null}
-    {item.nota_revision ? <p className="cl-bcard-warn"><Icon name="warning" />{item.nota_revision}</p> : null}
-    {/* Lote desmembrado en Alcaldía: la pista (cuenta del mismo propietario en la manzana) va a la vista. */}
-    {item.dictamen === "sin_determinar" && /^Posible desmembración/.test(item.motivo_dictamen || "") ? <p className="cl-bcard-warn cl-bcard-desm"><Icon name="warning" /><span>{item.motivo_dictamen}</span></p> : null}
-    {/* Copias de la misma clave (otro punto de campo o la misma clave desde Alcaldía): se trabajan aquí, una sola vez. */}
-    {item.duplicados ? <p className="cl-bcard-dup" title="Las copias quedaron en Descartados con el motivo «Duplicado»; sus comentarios de campo pasan a la ficha."><Icon name="records" />{item.duplicados === 1 ? "+1 punto de campo con esta misma clave" : `+${item.duplicados} puntos de campo con esta misma clave`}</p> : null}
-    {descartado ? <div className="cl-bcard-motivo">
-      <span className="cl-bcard-motivo-label"><Icon name="archive" />Motivo del descarte</span>
-      <p>{item.motivo_descarte || "Sin motivo registrado"}</p>
-      {item.procesado_por_nombre || item.procesado_at ? <small>{[item.procesado_por_nombre && `Por ${item.procesado_por_nombre}`, fechaCorta(item.procesado_at)].filter(Boolean).join(" · ")}</small> : null}
+    </div>
+    {descartado ? <p className="cl-brow-line"><Icon name="archive" /><span><strong>Descartado:</strong> {item.motivo_descarte || "Sin motivo registrado"}</span>{item.procesado_por_nombre || item.procesado_at ? <small>{[item.procesado_por_nombre && `Por ${item.procesado_por_nombre}`, fechaCorta(item.procesado_at)].filter(Boolean).join(" · ")}</small> : null}</p> : null}
+    {abierta ? <div className="cl-brow-detail">
+      <dl>
+        <div><dt>Dictamen</dt><dd>{DICTAMEN_LABELS[item.dictamen] || item.dictamen}{item.motivo_dictamen && !desmembracion ? <small>{item.motivo_dictamen}</small> : null}</dd></div>
+        <div><dt>Alcaldía</dt><dd>{item.alcaldia_propietario || "No aparece"}{item.alcaldia_propietario && (item.alcaldia_clave || item.alcaldia_caserio) ? <small>{[item.alcaldia_clave, item.alcaldia_caserio].filter(Boolean).join(" · ")}</small> : null}</dd></div>
+        <div><dt>Aguas</dt><dd>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : "No aparece"}{enAguas || loteEnAguas ? <small>{loteEnAguas ? `Esta unidad no; otra del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ")}</small> : null}</dd></div>
+        <div><dt>Asignado</dt><dd>{item.asignado_a == null ? "Sin asignar" : mio ? "A ti" : item.asignado_nombre || "Técnico"}{item.asignado_at ? <small>Desde {fechaCorta(item.asignado_at)}</small> : null}</dd></div>
+        <div><dt>Ubicación</dt><dd>{item.latitude != null ? <a href={mapUrl(item)} target="_blank" rel="noreferrer"><Icon name="map" />Ver en el mapa</a> : "Sin coordenadas"}<small>Punto #{item.origen_ref} del levantamiento</small></dd></div>
+      </dl>
+      {item.comentario_campo ? <p className="cl-brow-note"><Icon name="notes" /><span><strong>Comentario de campo:</strong> {item.comentario_campo}</span></p> : null}
+      {avisos.map((aviso) => <p key={aviso} className="cl-brow-note is-warn"><Icon name="warning" /><span>{aviso}</span></p>)}
+      {item.duplicados ? <p className="cl-brow-note" title="Las copias quedaron en Descartados con el motivo «Duplicado»; sus comentarios de campo pasan a la ficha."><Icon name="records" /><span>{item.duplicados === 1 ? "+1 punto de campo con esta misma clave" : `+${item.duplicados} puntos de campo con esta misma clave`}; se trabaja aquí una sola vez.</span></p> : null}
+      {discarding ? <DescartePanel busy={busy} onCancel={() => setDiscarding(false)} onConfirm={(motivo) => onDiscard(item, motivo)} /> : needsClave ? <form className="cl-bcard-form" onSubmit={(event) => { event.preventDefault(); if (clave.trim()) onSend(item, clave); }}>
+        <input ref={claveInput} aria-label="Clave catastral" value={clave} onChange={(event) => setClave(event.target.value)} placeholder="Escribe la clave, ej. 89-13-15" />
+        <button type="submit" className="cl-bcard-go" disabled={busy || !clave.trim()}><Icon name="send" />{busy ? "Verificando…" : "Enviar a ficha"}</button>
+      </form> : null}
     </div> : null}
-    {discarding ? <DescartePanel busy={busy} onCancel={() => setDiscarding(false)} onConfirm={(motivo) => onDiscard(item, motivo)} /> : needsClave ? <form className="cl-bcard-form" onSubmit={(event) => { event.preventDefault(); onSend(item, clave); }}>
-      <input aria-label="Clave catastral" value={clave} onChange={(event) => setClave(event.target.value)} placeholder="Escribe la clave, ej. 89-13-15" />
-    </form> : null}
-    <footer>
-      <div className="cl-bcard-meta">
-        {item.latitude != null ? <a href={mapUrl(item)} target="_blank" rel="noreferrer" title="Ver ubicación en el mapa"><Icon name="map" /><span>Mapa</span></a> : <span title="Sin coordenadas"><Icon name="map" /><span>—</span></span>}
-        <span title="Punto del levantamiento en QField"><Icon name="pin" />#{item.origen_ref}</span>
-        {item.asignado_nombre && !asignado ? <span className={`cl-bcard-owner ${Number(item.asignado_a) === Number(userId) ? "is-mine" : ""}`.trim()} title={`Asignado a ${item.asignado_nombre}`}><Icon name="users" />{Number(item.asignado_a) === Number(userId) ? "Tuyo" : item.asignado_nombre.split(" ")[0]}</span> : null}
-      </div>
-      <div className="cl-bcard-actions">
-        {canProcess && !discarding ? <button type="button" className="cl-bcard-icon" title="Descartar candidato" aria-label="Descartar candidato" disabled={busy} onClick={() => setDiscarding(true)}><Icon name="archive" /></button> : null}
-        {canSend && !discarding ? <button type="button" className="cl-bcard-go" disabled={busy || (needsClave && !clave.trim())} onClick={() => onSend(item, clave)}><Icon name="send" />{busy ? "Verificando…" : "Enviar a ficha"}</button> : null}
-        {item.estado === "enviado" && item.inmueble_id ? <button type="button" className="cl-bcard-go is-soft" onClick={() => onOpenFicha(item)}><Icon name="eye" />Abrir ficha</button> : null}
-        {canRestore ? <button type="button" className="cl-bcard-go is-soft" disabled={busy} title="Deshacer el descarte: vuelve a Por revisar" onClick={() => onRestore(item)}><Icon name="refresh" />Devolver al banco</button> : null}
-      </div>
-    </footer>
   </article>;
+}
+
+// Carga del equipo: qué parte de lo ya repartido tiene pendiente cada técnico.
+// Las barras comparten escala (la del más cargado) y la marca fina es el reparto
+// parejo, para ver de un vistazo quién va sobrado y quién puede recibir más.
+function CargaEquipo({ asignaciones, sinAsignar, canAssign, userId, filtro, onVerTecnico, onSinAsignar }) {
+  const repartido = asignaciones.reduce((sum, item) => sum + item.pendientes, 0);
+  const maximo = Math.max(1, ...asignaciones.map((item) => item.pendientes));
+  const parejo = asignaciones.length ? repartido / asignaciones.length : 0;
+  const filas = asignaciones.filter((item) => canAssign || Number(item.id) === Number(userId));
+  if (!filas.length && !canAssign) return null;
+  const porRepartir = sinAsignar + repartido ? Math.round((sinAsignar * 100) / (sinAsignar + repartido)) : 0;
+  const mitad = Math.ceil(filas.length / 2);
+  const columnas = filas.length > 4 ? [filas.slice(0, mitad), filas.slice(mitad)] : [filas];
+  return <section className="cl-carga" aria-labelledby="cl-carga-title">
+    <header>
+      <div>
+        <h3 id="cl-carga-title">{canAssign ? "Carga del equipo" : "Tu carga"}</h3>
+        <p>{repartido ? <>Qué parte de los <strong>{repartido}</strong> pendientes ya repartidos tiene cada técnico. La marca fina es el reparto parejo, {Math.round(parejo)} por técnico.</> : "Todavía no hay pendientes repartidos."}</p>
+      </div>
+      {canAssign ? <button type="button" aria-pressed={filtro === "none"} className={`cl-carga-backlog ${filtro === "none" ? "is-active" : ""} ${sinAsignar ? "" : "is-done"}`.trim()} onClick={onSinAsignar}>
+        <strong>{sinAsignar}</strong>
+        <span>{sinAsignar ? <>sin asignar<small>{porRepartir}% de lo pendiente</small></> : "Todo está repartido"}</span>
+        {sinAsignar ? <em>{filtro === "none" ? "Ver todos" : "Ver para repartir"}<Icon name="arrowRight" /></em> : null}
+      </button> : null}
+    </header>
+    {filas.length ? <div className={`cl-carga-cols ${columnas.length > 1 ? "is-split" : ""}`.trim()}>
+      {columnas.map((columna, index) => <ul key={index} className="cl-carga-list">
+        <li className="cl-carga-th" aria-hidden="true"><span>Técnico</span><span>Carga</span><span /><span>Pend.</span><span>Avance</span></li>
+        {columna.map((item) => {
+          const mine = Number(item.id) === Number(userId);
+          const key = mine ? "mine" : String(item.id);
+          const active = filtro === key || filtro === String(item.id);
+          const carga = repartido ? Math.round((item.pendientes * 100) / repartido) : 0;
+          const sobre = parejo > 0 && item.pendientes > parejo * 1.5;
+          return <li key={item.id}><button type="button" aria-pressed={active} className={`${active ? "is-active" : ""} ${sobre ? "is-high" : ""} ${item.total ? "" : "is-empty"}`.trim()} onClick={() => onVerTecnico(key)}
+            aria-label={`${item.nombre}: ${carga}% de la carga, ${item.pendientes} pendientes, ${item.total ? `${item.avance}% de avance` : "sin nada asignado"}`}
+            title={item.total ? `${item.nombre}: ${item.pendientes} pendientes (${carga}% de lo repartido) · ${item.trabajados} de ${item.total} trabajados: ${item.enviados} a ficha, ${item.descartados} descartados` : `${item.nombre}: sin nada asignado todavía`}>
+            <span className="cl-carga-name">{mine ? `${item.nombre} (tú)` : item.nombre}</span>
+            <span className="cl-carga-bar" aria-hidden="true"><b style={{ width: `${(item.pendientes / maximo) * 100}%` }} />{parejo ? <i style={{ left: `${Math.min(100, (parejo / maximo) * 100)}%` }} /> : null}</span>
+            <strong className="cl-carga-pct">{carga}%</strong>
+            <span className="cl-carga-num">{item.pendientes}</span>
+            <span className="cl-carga-num is-avance">{item.total ? `${item.avance}%` : "—"}</span>
+          </button></li>;
+        })}
+      </ul>)}
+    </div> : <p className="cl-carga-empty">Nadie tiene candidatos asignados. Selecciona en la lista y usa «Asignar o repartir».</p>}
+  </section>;
 }
 
 export default function BancoClandestinos({ api, model, permissions, session, notify, onOpenFicha, onFichaCreated }) {
@@ -164,6 +216,48 @@ export default function BancoClandestinos({ api, model, permissions, session, no
     const soltar = model.filters.asignado === key;
     model.filters.setAsignado(soltar ? "" : key);
     model.filters.setEstado(soltar ? "pendiente" : "");
+  };
+  // "Sin asignar" es lo que hay que repartir: siempre lo pendiente.
+  const verSinAsignar = () => {
+    model.filters.setAsignado(model.filters.asignado === "none" ? "" : "none");
+    model.filters.setEstado("pendiente");
+  };
+  // Con un solo estado y sin filtro de técnico, la lista se agrupa por técnico
+  // (el backend ya la ordena así). Con filtro, el encabezado dice de quién es.
+  const agrupar = canAssign && !model.filters.asignado && Boolean(model.filters.estado);
+  const showTecnico = !agrupar && !model.filters.asignado;
+  const showBarrio = !model.filters.barrio && new Set(model.items.map((item) => item.barrio_colonia)).size > 1;
+  const grupos = useMemo(() => {
+    if (!agrupar) return [{ key: "todos", items: model.items }];
+    const lista = [];
+    for (const item of model.items) {
+      const key = item.asignado_a == null ? "none" : String(item.asignado_a);
+      if (lista.at(-1)?.key !== key) lista.push({ key, nombre: item.asignado_nombre, items: [] });
+      lista.at(-1).items.push(item);
+    }
+    return lista;
+  }, [agrupar, model.items]);
+  const repartido = (model.asignaciones || []).reduce((sum, item) => sum + item.pendientes, 0);
+  const cabeceraGrupo = (grupo) => {
+    const tecnico = model.asignaciones?.find((item) => String(item.id) === grupo.key);
+    const mine = grupo.key !== "none" && Number(grupo.key) === Number(userId);
+    const nombre = grupo.key === "none" ? "Sin asignar" : mine ? "Tus asignaciones" : tecnico?.nombre || grupo.nombre || "Técnico";
+    const enEstado = grupo.key === "none" ? (model.filters.estado === "pendiente" ? model.sin_asignar : null)
+      : tecnico ? { pendiente: tecnico.pendientes, enviado: tecnico.enviados, descartado: tecnico.descartados }[model.filters.estado] : null;
+    const detalle = [
+      enEstado != null ? `${enEstado} ${(ESTADO_LABELS[model.filters.estado] || "").toLowerCase()}` : "",
+      tecnico && model.filters.estado === "pendiente" && repartido ? `${Math.round((tecnico.pendientes * 100) / repartido)}% de la carga` : "",
+      enEstado != null && enEstado > grupo.items.length ? `${grupo.items.length} en esta página` : ""
+    ].filter(Boolean).join(" · ");
+    const seleccionables = grupo.items.filter(isSelectable);
+    const todos = Boolean(seleccionables.length) && seleccionables.every((item) => selected.has(item.id));
+    const alternar = () => setSelected((current) => { const next = new Map(current); seleccionables.forEach((item) => (todos ? next.delete(item.id) : next.set(item.id, item))); return next; });
+    return <header className="cl-brow-group">
+      <span className="cl-brow-check">{seleccionables.length ? <SpringCheck checked={todos} onChange={alternar} ariaLabel={`Seleccionar los de ${nombre} en esta página`} /> : null}</span>
+      <h4>{grupo.key === "none" ? <Icon name="inbox" /> : <Icon name="users" />}{nombre}</h4>
+      {detalle ? <small>{detalle}</small> : null}
+      <button type="button" className="cl-scope-clear" onClick={() => (grupo.key === "none" ? verSinAsignar() : verTecnico(mine ? "mine" : grupo.key))}>{grupo.key === "none" ? "Ver solo sin asignar" : "Ver todo lo suyo"}</button>
+    </header>;
   };
   // Listado de campo: solo clandestinos (o el dictamen elegido); nunca los que están en Aguas.
   // Lo de un técnico se imprime completo, con su avance y lo ya trabajado marcado.
@@ -222,19 +316,6 @@ export default function BancoClandestinos({ api, model, permissions, session, no
       <aside className="cl-banco-flow" aria-label="Avance del banco">
         <h3>Avance</h3>
         {BANCO_FLOW.map(([key, label, icon]) => <button type="button" key={key} aria-pressed={model.filters.estado === key} className={model.filters.estado === key ? "is-active" : ""} onClick={() => model.filters.setEstado(key)}><Icon name={icon} /><span>{label}</span><strong><CountUp value={model.estados?.[key] || 0} /></strong></button>)}
-        {canAssign || model.asignaciones?.length ? <div className="cl-banco-team" aria-label="Asignaciones por técnico">
-          <h4>Técnicos</h4>
-          {canAssign ? <button type="button" aria-pressed={model.filters.asignado === "none"} className={model.filters.asignado === "none" ? "is-active" : ""} onClick={() => model.filters.setAsignado(model.filters.asignado === "none" ? "" : "none")}><Icon name="inbox" /><span>Sin asignar</span><strong><CountUp value={model.sin_asignar || 0} /></strong></button> : null}
-          {(model.asignaciones || []).filter((item) => canAssign || Number(item.id) === Number(userId)).map((item) => {
-            const key = Number(item.id) === Number(userId) ? "mine" : String(item.id);
-            const active = model.filters.asignado === key || model.filters.asignado === String(item.id);
-            return <button type="button" key={item.id} aria-pressed={active} className={`cl-banco-tech ${active ? "is-active" : ""} ${item.pendientes ? "" : "is-done"}`.trim()} title={`${item.nombre}: ${item.trabajados} de ${item.total} trabajados (${item.enviados} a ficha, ${item.descartados} descartados) · ${item.pendientes} pendientes`} onClick={() => verTecnico(key)}>
-              <Icon name="users" />
-              <span className="cl-banco-tech-name">{Number(item.id) === Number(userId) ? "Mis asignaciones" : item.nombre}<i className="cl-banco-tech-bar" aria-hidden="true"><b style={{ width: `${item.avance}%` }} /></i></span>
-              <span className="cl-banco-tech-num"><strong>{item.avance}%</strong><small>{item.pendientes} pend.</small></span>
-            </button>;
-          })}
-        </div> : null}
         {permissions.can_process_banco ? <p className="cl-banco-flow-hint"><Icon name="checkCircle" />Verificar vuelve a revisar los pendientes y manda a descartados los que ya aparecen en Aguas.</p> : null}
         <div className="cl-banco-head-actions">
           <button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={imprimir} title="Imprime el listado de campo con los filtros actuales. Solo clandestinos (o el dictamen elegido); nunca los que aparecen en Aguas."><Icon name="print" />{working === "print" ? "Preparando…" : "Imprimir listado"}</button>
@@ -243,6 +324,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
         </div>
       </aside>
     </section>
+    <CargaEquipo asignaciones={model.asignaciones || []} sinAsignar={model.sin_asignar || 0} canAssign={canAssign} userId={userId} filtro={model.filters.asignado} onVerTecnico={verTecnico} onSinAsignar={verSinAsignar} />
     <div className="cl-toolbar">
       <label className="cl-search"><span>Buscar</span><div><Icon name="search" /><input value={model.filters.query} onChange={(event) => model.filters.setQuery(event.target.value)} placeholder="Clave, propietario, barrio o comentario" /></div></label>
       <label><span>Estado</span><select value={model.filters.estado} onChange={(event) => model.filters.setEstado(event.target.value)}>{ESTADOS.map(([value, label]) => <option key={value || "todos"} value={value}>{label}{value ? ` (${model.estados?.[value] || 0})` : ""}</option>)}</select></label>
@@ -262,14 +344,14 @@ export default function BancoClandestinos({ api, model, permissions, session, no
         <button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={imprimir}><Icon name="print" />{working === "print" ? "Preparando…" : "Imprimir"}</button>
         <button type="button" className="cl-scope-clear" onClick={() => { model.filters.setAsignado(""); model.filters.setEstado("pendiente"); }}>Ver todos</button>
       </div>
-    </div> : model.filters.asignado === "none" ? <p className="cl-banco-scope"><Icon name="inbox" />Sin asignar<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={() => model.filters.setAsignado("")}>Ver todos</button></p> : null}
+    </div> : model.filters.asignado === "none" ? <p className="cl-banco-scope"><Icon name="inbox" />Sin asignar<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={verSinAsignar}>Ver todos</button></p> : null}
     {canAssign && visibleSelectable.length ? <div className={`cl-banco-selbar ${selected.size ? "is-active" : ""}`.trim()}>
       <SpringCheck checked={allVisibleSelected} onChange={toggleVisible} ariaLabel="Seleccionar los de esta página" />
       <span className="cl-banco-selcount">{selected.size ? <><strong>{selected.size}</strong> {selected.size === 1 ? "seleccionado" : "seleccionados"}</> : "Selecciona candidatos para asignarlos a técnicos"}</span>
       {model.total > visibleSelectable.length ? <button type="button" className="cl-quiet" disabled={Boolean(working)} onClick={selectAllFiltered}>{working === "select" ? "Seleccionando…" : `Seleccionar los ${model.total} del filtro`}</button> : null}
     </div> : null}
     {/* Las acciones de la selección flotan abajo: la página es larga y la barra
-        de arriba se pierde al bajar a marcar más tarjetas. */}
+        de arriba se pierde al bajar a marcar más filas. */}
     {canAssign && selected.size ? <div className="cl-banco-float" role="region" aria-label="Acciones de la selección">
       <span className="cl-banco-selcount"><strong>{selected.size}</strong> {selected.size === 1 ? "seleccionado" : "seleccionados"}</span>
       <button type="button" className="cl-quiet" onClick={() => setSelected(new Map())}><Icon name="close" />Limpiar</button>
@@ -278,8 +360,14 @@ export default function BancoClandestinos({ api, model, permissions, session, no
     </div> : null}
     {assigning ? <AsignarTecnicosDialog api={api} ids={selectedIds} notify={notify} onClose={() => setAssigning(false)} onDone={() => { setAssigning(false); setSelected(new Map()); model.reload({ silent: true }); }} /> : null}
     {model.refreshing ? <span className="cl-table-progress cl-banco-progress" role="status" aria-label="Actualizando banco" /> : null}
-    <div className={`cl-banco-list ${model.refreshing ? "is-refreshing" : ""}`.trim()} aria-busy={model.loading || model.refreshing}>
-      {model.loading ? Array.from({ length: 6 }, (_, index) => <div key={index} className="cl-bcard is-skeleton" aria-hidden="true" />) : model.items.length ? model.items.map((item) => <Candidato key={item.id} item={item} permissions={permissions} userId={userId} selectable={isSelectable(item)} selected={selected.has(item.id)} onToggle={toggleSelected} busy={busyId === item.id} onSend={send} onDiscard={discard} onRestore={restore} onOpenFicha={onOpenFicha} />) : <div className="cl-empty-state"><Icon name="inbox" /><strong>No hay candidatos con estos filtros</strong><span>{permissions.can_import_banco ? "Importa el CSV del levantamiento de QField para llenar el banco." : "Cuando administración importe un levantamiento de campo, aparecerá aquí."}</span></div>}
+    <div className={`cl-banco-list ${showTecnico ? "has-tecnico" : ""} ${model.refreshing ? "is-refreshing" : ""}`.trim()} aria-busy={model.loading || model.refreshing}>
+      {model.loading ? Array.from({ length: 8 }, (_, index) => <div key={index} className="cl-brow is-skeleton" aria-hidden="true" />) : model.items.length ? <>
+        <div className="cl-brow-head" aria-hidden="true"><span /><span /><span>Clave</span><span>Alcaldía</span><span>Aguas</span><span>Campo</span>{showTecnico ? <span>Técnico</span> : null}<span /></div>
+        {grupos.map((grupo, index) => <section key={`${grupo.key}-${index}`} className="cl-brow-section" aria-label={grupo.key === "todos" ? "Candidatos" : undefined}>
+          {grupo.key !== "todos" ? cabeceraGrupo(grupo) : null}
+          {grupo.items.map((item) => <CandidatoFila key={item.id} item={item} permissions={permissions} userId={userId} selectable={isSelectable(item)} selected={selected.has(item.id)} showBarrio={showBarrio} showTecnico={showTecnico} onToggle={toggleSelected} busy={busyId === item.id} onSend={send} onDiscard={discard} onRestore={restore} onOpenFicha={onOpenFicha} />)}
+        </section>)}
+      </> : <div className="cl-empty-state"><Icon name="inbox" /><strong>No hay candidatos con estos filtros</strong><span>{permissions.can_import_banco ? "Importa el CSV del levantamiento de QField para llenar el banco." : "Cuando administración importe un levantamiento de campo, aparecerá aquí."}</span></div>}
     </div>
     <footer className="cl-pagination"><span>{model.total} {model.total === 1 ? "candidato" : "candidatos"} · Página {model.page} de {model.total_pages}</span><div><button type="button" disabled={model.page <= 1} onClick={() => model.filters.setPage(model.page - 1)}><Icon name="arrowLeft" />Anterior</button><button type="button" disabled={model.page >= model.total_pages} onClick={() => model.filters.setPage(model.page + 1)}>Siguiente<Icon name="arrowRight" /></button></div></footer>
   </section>;

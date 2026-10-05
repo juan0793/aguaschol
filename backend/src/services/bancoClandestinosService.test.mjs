@@ -156,6 +156,9 @@ test("el avance por técnico cuenta lo enviado a ficha y lo descartado como trab
   ]);
   assert.deepEqual([sindy.id, sindy.total, sindy.trabajados, sindy.pendientes, sindy.avance], [5, 6, 5, 1, 83]);
   assert.deepEqual([diego.total, diego.pendientes, diego.avance], [3, 0, 100]);
+  // Un técnico activo sin nada asignado sale en cero (es el de menos carga).
+  const [, nuevo] = resumirAsignaciones([{ asignado_a: 5, nombre: "Sindy", estado: "pendiente", total: 2 }, { asignado_a: 7, nombre: "Ana", estado: null, total: 0 }, { asignado_a: 5, nombre: "Sindy", estado: null, total: 0 }]);
+  assert.deepEqual([nuevo.id, nuevo.total, nuevo.pendientes, nuevo.avance], [7, 0, 0, 0]);
   // Con 199 de 200 hechos no se muestra 100 %.
   assert.equal(resumirAsignaciones([{ asignado_a: 1, estado: "enviado", total: 199 }, { asignado_a: 1, estado: "pendiente", total: 1 }])[0].avance, 99);
 });

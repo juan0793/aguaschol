@@ -78,6 +78,27 @@ const bancoQa = [
   candidatoQa(2, { clave_catastral: "01-05-21", dictamen: "sin_determinar", aguas_clave: "01-05-10-03", aguas_abonado: "25", motivo_dictamen: "Posible desmembración: PROPIETARIO DE PRUEBA ya tiene cuenta en Aguas en la misma manzana (01-05-10-03 · abonado 25); confirmar en campo si es el mismo predio" }),
   candidatoQa(3, { clave_catastral: "01-07-02", comentario_campo: "Conexión directa a la red" })
 ];
+// ?banco=equipo: el banco con carga real (unos 40 candidatos repartidos entre
+// técnicos inventados), para ver el reparto y la carga de cada uno.
+const TECNICOS_BANCO = [[11, "Técnico Uno", 21, 3, 0], [12, "Técnica Dos", 21, 2, 2], [13, "Técnico Tres", 19, 1, 1], [14, "Técnica Cuatro", 18, 1, 0], [15, "Técnico Cinco", 18, 2, 0], [16, "Técnica Seis", 20, 4, 2], [17, "Técnico Siete", 18, 6, 2], [18, "Técnica Ocho", 20, 9, 2], [0, "Usuario QA", 6, 2, 0]];
+const asignacionesQa = TECNICOS_BANCO.map(([id, nombre, total, enviados, descartados]) => {
+  const pendientes = total - enviados - descartados;
+  return { id: id || 1, nombre, total, enviados, descartados, trabajados: enviados + descartados, pendientes, avance: Math.round(((enviados + descartados) / total) * 100) };
+});
+const bancoEquipoQa = Array.from({ length: 42 }, (_, index) => {
+  const tecnico = index < 30 ? asignacionesQa[index % asignacionesQa.length] : null;
+  return candidatoQa(100 + index, {
+    clave_catastral: `59-${index < 24 ? "09" : "12"}-${String(5 + (index % 24)).padStart(2, "0")}`,
+    barrio_colonia: "Colonia Maria Milgrosa",
+    dictamen: index % 6 === 5 ? "sin_determinar" : "clandestino",
+    motivo_dictamen: "Clave de Alcaldía sin coincidencia en Aguas (Consultas del padrón)",
+    alcaldia_propietario: ["OLMAN PORFIRIO REYES", "DENISE JANETH CRUZ", "FELIX AMADO GALEAS", "LORET SANCHEZ", "CESAR ARMANDO PAZ", "DAMASO DAVID SOTO"][index % 6],
+    agua: index % 3 !== 0, alcantarillado: index % 4 === 0, latitude: index % 5 ? null : 13.3,
+    comentario_campo: index % 7 === 2 ? "Medidor retirado; conexión directa desde la acera" : "",
+    asignado_a: tecnico ? tecnico.id : null, asignado_nombre: tecnico ? tecnico.nombre : "", asignado_at: tecnico ? "2026-10-05T15:00:00Z" : null
+  });
+}).sort((a, b) => (a.asignado_a == null) - (b.asignado_a == null) || a.asignado_nombre.localeCompare(b.asignado_nombre, "es")); // como ORDEN_BANCO
+const equipoTotales = { pendiente: 373, enviado: 30, descartado: 11 };
 const cuerpo = (init) => { try { return JSON.parse(init?.body || "{}"); } catch { return {}; } };
 const deLasQa = (ids = []) => fichasQa.filter((ficha) => ids.map(Number).includes(ficha.id));
 
@@ -112,6 +133,21 @@ window.fetch = (input, init) => {
     return Promise.resolve(respuesta({ user: target, fichas: 3, personal: 1, fichasOmitidas: false }));
   }
   // ?banco=1: candidatos de mentira (con copias y con posible desmembración).
+  if (params.get("banco") === "equipo") {
+    if (url.includes("/clandestinos/banco/tecnicos")) return Promise.resolve(respuesta(asignacionesQa.map((item) => ({ id: item.id, nombre: item.nombre, role: "operator", pendientes: item.pendientes }))));
+    if (url.includes("/clandestinos/banco/asignar")) {
+      const datos = cuerpo(init);
+      const elegidos = asignacionesQa.filter((item) => datos.tecnico_ids?.includes(item.id));
+      const parte = Math.ceil((datos.ids?.length || 0) / Math.max(1, elegidos.length));
+      return Promise.resolve(respuesta({ asignables: datos.ids?.length || 0, omitidos: 0, plan: elegidos.map((item, index) => ({ tecnico: { id: item.id, nombre: item.nombre }, total: Math.max(0, Math.min(parte, (datos.ids?.length || 0) - parte * index)), barrios: [{ barrio: "Colonia Maria Milgrosa", total: parte }], reasignados: 0 })) }));
+    }
+    if (/\/clandestinos\/banco(\?|$)/.test(url)) {
+      const query = new URL(url).searchParams;
+      const asignado = query.get("asignado") || "";
+      const items = bancoEquipoQa.filter((item) => (asignado === "none" ? item.asignado_a == null : asignado === "mine" ? item.asignado_a === 1 : asignado ? String(item.asignado_a) === asignado : true));
+      return Promise.resolve(respuesta({ items, counts: { clandestino: 33, sin_determinar: 9, registrado: 0 }, estados: equipoTotales, total: items.length, page: 1, total_pages: 1, barrios: ["Colonia Maria Milgrosa"], barrio_counts: [{ barrio: "Barrio El Centro", total: 94, clandestino: 72, sin_determinar: 6, registrado: 16 }, { barrio: "Colonia Maria Milgrosa", total: 42, clandestino: 33, sin_determinar: 9, registrado: 0 }], asignaciones: asignacionesQa, sin_asignar: 255 }));
+    }
+  }
   if (params.get("banco") && /\/clandestinos\/banco(\?|$)/.test(url)) {
     return Promise.resolve(respuesta({ items: bancoQa, counts: { clandestino: 2, sin_determinar: 1, registrado: 0 }, estados: { pendiente: 3, enviado: 0, descartado: 2 }, total: bancoQa.length, page: 1, total_pages: 1, barrios: ["Barrio El Centro"], barrio_counts: [], asignaciones: [], sin_asignar: 3 }));
   }

@@ -43,6 +43,14 @@ export default function AsignarTecnicosDialog({ api, ids, notify, onClose, onDon
     } catch (reason) { setError(reason.message); } finally { setSaving(false); }
   };
   const reparto = elegidos.length > 1;
+  // Carga = parte de lo pendiente repartido que tiene cada técnico. Se ordenan de
+  // menos a más carga para que el reparto parejo sea lo primero a la vista.
+  const repartido = (tecnicos || []).reduce((sum, item) => sum + item.pendientes, 0);
+  const maximo = Math.max(1, ...(tecnicos || []).map((item) => item.pendientes));
+  const ordenados = [...(tecnicos || [])].sort((a, b) => a.pendientes - b.pendientes || a.nombre.localeCompare(b.nombre, "es"));
+  const pct = (valor, total) => (total ? Math.round((valor * 100) / total) : 0);
+  // Después de asignar: lo nuevo suma al total; lo reasignado solo cambia de manos.
+  const nuevos = plan ? plan.plan.reduce((sum, item) => sum + item.total - (item.reasignados || 0), 0) : 0;
 
   return createPortal(<div className="cl-assign-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
     <section className="cl-assign" role="dialog" aria-modal="true" aria-labelledby="cl-assign-title">
@@ -56,14 +64,17 @@ export default function AsignarTecnicosDialog({ api, ids, notify, onClose, onDon
       </header>
       <div className="cl-assign-body">
         <div className="cl-assign-col">
-          <h3>Técnicos <small>elige uno para asignar, o varios para repartir</small></h3>
+          <h3>Técnicos <small>de menos a más carga · elige uno para asignar, o varios para repartir</small></h3>
           {tecnicos == null ? <p className="cl-assign-muted">Cargando técnicos…</p> : !tecnicos.length ? <p className="cl-assign-muted">No hay técnicos activos (roles operador o validadora de campo).</p> : <ul className="cl-assign-list">
-            {tecnicos.map((tecnico) => {
+            {ordenados.map((tecnico, index) => {
               const activo = elegidos.includes(tecnico.id);
               return <li key={tecnico.id}><button type="button" aria-pressed={activo} className={activo ? "is-active" : ""} onClick={() => toggle(tecnico.id)}>
                 <span className="cl-assign-check">{activo ? <Icon name="success" /> : null}</span>
-                <span className="cl-assign-name"><strong>{tecnico.nombre}</strong><small>{tecnico.role === "validadora_campo" ? "Validadora de campo" : "Operador"}</small></span>
-                <span className="cl-assign-load" title="Candidatos que ya tiene pendientes">{tecnico.pendientes} pend.</span>
+                <span className="cl-assign-name"><strong>{tecnico.nombre}</strong><small>{tecnico.role === "validadora_campo" ? "Validadora de campo" : "Operador"}{index === 0 && ordenados.length > 1 ? " · menos carga" : ""}</small></span>
+                <span className="cl-assign-load" title={`Tiene ${tecnico.pendientes} pendientes: ${pct(tecnico.pendientes, repartido)}% de lo repartido`}>
+                  <i aria-hidden="true"><b style={{ width: `${(tecnico.pendientes / maximo) * 100}%` }} /></i>
+                  <span><strong>{pct(tecnico.pendientes, repartido)}%</strong> · {tecnico.pendientes} pend.</span>
+                </span>
               </button></li>;
             })}
           </ul>}
@@ -74,7 +85,11 @@ export default function AsignarTecnicosDialog({ api, ids, notify, onClose, onDon
           {!elegidos.length ? <p className="cl-assign-muted">Elige un técnico para ver qué le tocaría.</p> : !plan ? <p className="cl-assign-muted">Calculando…</p> : <>
             <ul className="cl-assign-plan">
               {plan.plan.map((item) => <li key={item.tecnico.id}>
-                <div><strong>{item.tecnico.nombre}</strong><span>{item.total} {item.total === 1 ? "candidato" : "candidatos"}</span></div>
+                <div><strong>{item.tecnico.nombre}</strong><span>+{item.total} {item.total === 1 ? "candidato" : "candidatos"}</span></div>
+                {(() => {
+                  const antes = tecnicos?.find((tecnico) => tecnico.id === item.tecnico.id)?.pendientes || 0;
+                  return <p className="cl-assign-delta">Pendientes {antes} → <strong>{antes + item.total}</strong> · carga {pct(antes, repartido)}% → <strong>{pct(antes + item.total, repartido + nuevos)}%</strong></p>;
+                })()}
                 <p>{item.barrios.slice(0, 5).map((barrio) => <em key={barrio.barrio}>{barrio.barrio} · {barrio.total}</em>)}{item.barrios.length > 5 ? <em>+{item.barrios.length - 5} barrios</em> : null}</p>
                 {item.reasignados ? <small><Icon name="warning" />{item.reasignados} estaban asignados a otra persona y pasan a {item.tecnico.nombre}</small> : null}
               </li>)}

@@ -210,7 +210,7 @@ export default function ResumenClandestinos({ api, onOpenFichas, onOpenBanco, on
               <i className="is-desc" style={{ flexGrow: tecnico.descartados }} />
               <i className="is-pend" style={{ flexGrow: tecnico.pendientes }} />
             </span>
-            <span className="cl-rs-tech-num"><strong>{tecnico.avance}%</strong><small>{tecnico.pendientes ? `${tecnico.pendientes} pend.` : "Terminado"}</small></span>
+            <span className="cl-rs-tech-num"><strong>{tecnico.total ? `${tecnico.avance}%` : "—"}</strong><small>{tecnico.pendientes ? `${tecnico.pendientes} pend.` : tecnico.total ? "Terminado" : "Sin asignar"}</small></span>
           </button></li>)}
         </ul>
         {!tecnicos.length ? <p className="cl-rs-empty">Nadie tiene candidatos asignados todavía. Repártelos desde el Banco.</p> : null}

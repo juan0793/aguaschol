@@ -275,11 +275,14 @@ const bancoFilter = ({ query, dictamen, estado, barrio, asignado }, skip = []) =
 
 const cleanFilters = ({ query = "", dictamen = "", estado = "pendiente", barrio = "", asignado = "" } = {}) =>
   ({ query: clean(query), dictamen: clean(dictamen), estado: clean(estado), barrio: clean(barrio), asignado: clean(asignado) });
-// Con "Todos" los estados (p. ej. lo de un técnico) lo pendiente va primero.
-const ORDEN_BANCO = "ORDER BY FIELD(banco_clandestinos.estado, 'pendiente', 'enviado', 'descartado'), FIELD(banco_clandestinos.dictamen, 'clandestino', 'sin_determinar', 'registrado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral";
+// Con "Todos" los estados (p. ej. lo de un técnico) lo pendiente va primero. Dentro de
+// cada estado se agrupa por técnico (sin asignar al final), para que la lista se lea
+// por persona y un grupo no quede repartido entre páginas.
+const ORDEN_BANCO = "ORDER BY FIELD(banco_clandestinos.estado, 'pendiente', 'enviado', 'descartado'), banco_clandestinos.asignado_a IS NULL, asignado_nombre, FIELD(banco_clandestinos.dictamen, 'clandestino', 'sin_determinar', 'registrado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral";
 
 // Avance por técnico. Filas { asignado_a, nombre, estado, total } -> todo lo que se le
 // asignó, cuánto le queda y cuánto ya trabajó (a ficha o descartado), en porcentaje.
+// Una fila con total 0 (técnico activo sin nada asignado) también sale, con todo en cero.
 // El porcentaje se redondea hacia abajo: 100 % solo cuando no queda ningún pendiente.
 export const resumirAsignaciones = (rows = []) => {
   const porTecnico = new Map();
@@ -343,7 +346,10 @@ export const listBancoClandestinos = async (filters = {}) => {
     pool.query(`SELECT banco_clandestinos.asignado_a, banco_clandestinos.estado, COALESCE(app_users.full_name, app_users.username, '') AS nombre, COUNT(*) AS total
       FROM banco_clandestinos LEFT JOIN app_users ON app_users.id = banco_clandestinos.asignado_a
       WHERE banco_clandestinos.asignado_a IS NOT NULL
-      GROUP BY banco_clandestinos.asignado_a, banco_clandestinos.estado, app_users.full_name, app_users.username`),
+      GROUP BY banco_clandestinos.asignado_a, banco_clandestinos.estado, app_users.full_name, app_users.username
+      UNION ALL
+      SELECT app_users.id, NULL, COALESCE(app_users.full_name, app_users.username, ''), 0
+      FROM app_users WHERE app_users.is_active = 1 AND app_users.role IN (?)`, [TECNICO_ROLES]),
     pool.query("SELECT COUNT(*) AS total FROM banco_clandestinos WHERE estado = 'pendiente' AND asignado_a IS NULL AND dictamen <> 'registrado'")
   ]);
   const total = Number(totalRows[0]?.total || 0);

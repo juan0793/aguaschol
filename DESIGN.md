@@ -179,6 +179,12 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - El aviso de plazos es una línea entre filetes y el plazo de cada fila es texto con color de dato, no una cajita.
   - "Ritmo de trabajo": barras de un solo azul por día, semana, mes o año de levantamiento; el periodo actual va en azul profundo `#0b3f73` y el promedio en una línea discontinua. La lectura del periodo va arriba del gráfico, nunca encima de las barras. A la derecha van los totales (hoy, semana, mes, año) y los barrios con más fichas, que filtran.
   - El listado se agrupa por el mismo periodo, con un encabezado de grupo y su total ("6 fichas · 1 en esta página" si el grupo sigue en otra página).
+- El Banco de clandestinos usa filas en vez de tarjetas (desde 2026-10-05):
+  - Cada candidato es una fila densa con estas columnas: dictamen (icono de color), clave con el punto de campo, propietario en Alcaldía, Aguas, lo observado en campo y la acción. Las columnas dependen del ancho de la lista.
+  - El comentario, los avisos, el motivo de descarte y los formularios se abren debajo de la fila. Así la fila cerrada se lee en una sola pasada.
+  - La lista se agrupa por técnico, con "Sin asignar" al final. El encabezado de cada grupo lleva sus pendientes, su parte de la carga y una casilla para seleccionar el grupo. El backend ordena por técnico para que un grupo no se parta entre páginas.
+  - "Carga del equipo" va a todo el ancho, entre filetes. La carga de un técnico es la parte que le toca de los pendientes ya repartidos. Las barras son azules y comparten la escala del técnico con más carga. Una marca en tinta señala el reparto parejo. El ocre marca a quien pasa de 1,5 veces lo parejo. Lo que falta repartir va aparte, con la cifra "sin asignar".
+  - El diálogo de reparto ordena a los técnicos de menos a más carga. Para cada técnico muestra sus pendientes y su carga antes y después de asignar.
 
 ### Busqueda de clave
 
