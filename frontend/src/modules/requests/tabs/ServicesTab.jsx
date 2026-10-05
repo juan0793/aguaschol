@@ -53,7 +53,7 @@ export default function ServicesTab({ model }) {
   }
 
   const picker = <div className="pq-service-pick" role="group" aria-label="Servicio">
-    <button type="button" aria-pressed={!foco} className={!foco ? "is-active" : ""} onClick={() => setFoco("")}><span>Todos los servicios</span><small>{count(padron.usuarios)} usuarios</small></button>
+    <button type="button" aria-pressed={!foco} className={!foco ? "is-active" : ""} onClick={() => setFoco("")}><span>Todos los servicios</span><small>Comparar los cinco</small></button>
     {SERVICE_COLUMNS.map(([field, label, icon]) => <button type="button" key={field} aria-pressed={foco === field} className={foco === field ? "is-active" : ""} onClick={() => setFoco(field)}>
       <span><Icon name={icon} />{label}</span><small>{count(padron.services[field].active)} · {padron.services[field].percentage}%</small>
     </button>)}
@@ -140,6 +140,6 @@ export default function ServicesTab({ model }) {
         </tbody>
       </table>
     </div>
-    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Elige un servicio arriba para ver solo sus barrios, su deuda y su informe. Toca un encabezado para ordenar; marca barrios para imprimirlos aparte."}</p>
+    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Elige un servicio arriba para ver solo sus barrios, su deuda y su informe."}</p>
   </div>;
 }

@@ -7,7 +7,7 @@ const itemLabels = {
   mapReports: "Reportes de levantamiento",
   planos: "Planos y croquis",
   executiveReport: "Operaciones",
-  requests: "Impresión e informes",
+  requests: "Consultas del padrón",
   logs: "Auditoría",
   notes: "Apuntes",
   railwayUsage: "Uso en Railway",

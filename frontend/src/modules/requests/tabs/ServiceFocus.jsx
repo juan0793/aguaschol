@@ -59,29 +59,23 @@ export default function ServiceFocus({ model, rows, field }) {
   };
   const seleccionVisible = visible.filter((row) => selected.has(row.name)).length;
 
-  const figures = [
-    { key: "con", value: count(resumen.active), label: `usuarios con ${nombre}`, note: `${pct(resumen.percentage)} del padrón` },
-    { key: "sin", value: count(resumen.sin), label: `usuarios sin ${nombre}`, note: `${pct(100 - resumen.percentage)} del padrón` },
-    { key: "barrios", value: `${count(resumen.barriosCon)} de ${count(todos.length)}`, label: `barrios con ${nombre}`, note: barriosSin ? `${count(barriosSin)} sin el servicio` : "todos lo tienen" },
-    { key: "deuda", value: money(resumen.deuda), label: `deuda de las cuentas con ${nombre}`, note: `${count(resumen.deudores)} cuentas con deuda` },
-    { key: "promedio", value: money(resumen.deudores ? resumen.deuda / resumen.deudores : 0), label: "promedio por cuenta con deuda", note: `capital ${money(resumen.capital)}` }
-  ];
+  const promedio = resumen.deudores ? resumen.deuda / resumen.deudores : 0;
 
   return <>
-    <dl className="pq-focus-figures" aria-label={`Resumen de ${nombre}`}>
-      {figures.map((figure) => <div key={figure.key}>
-        <dt>{figure.label}</dt>
-        <dd>{figure.value}</dd>
-        <dd className="pq-focus-note">{figure.note}</dd>
-      </div>)}
-    </dl>
+    {/* El resumen se lee como una frase: quién tiene el servicio, dónde y cuánto deben. */}
+    <p className="pq-focus-summary">
+      <b>{count(resumen.active)}</b> {resumen.active === 1 ? "usuario tiene" : "usuarios tienen"} {nombre} ({pct(resumen.percentage)} del padrón), en <b>{count(resumen.barriosCon)} de {count(todos.length)}</b> barrios.{" "}
+      {resumen.deudores
+        ? <>Sus cuentas deben <b>{money(resumen.deuda)}</b>: {count(resumen.deudores)} {resumen.deudores === 1 ? "cuenta tiene" : "cuentas tienen"} deuda, <b>{money(promedio)}</b> en promedio.</>
+        : "Ninguna de esas cuentas tiene deuda."}
+    </p>
 
     <div className="pq-toolbar">
       <label className="pq-search"><Icon name="search" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar barrio" aria-label="Buscar barrio" /></label>
-      {barriosSin ? <label className="pq-check-toggle"><input type="checkbox" checked={conSin} onChange={(event) => setConSin(event.target.checked)} />Mostrar también los {count(barriosSin)} barrios sin {nombre}</label> : null}
+      {barriosSin ? <label className="pq-check-toggle"><input type="checkbox" checked={conSin} onChange={(event) => setConSin(event.target.checked)} />Incluir los {count(barriosSin)} barrios sin el servicio</label> : null}
       <div className="pq-toolbar-actions">
-        <button type="button" className="pq-btn" onClick={() => model.onPrintServiceFocus(informe())} disabled={!visible.length}><Icon name="print" />Imprimir informe de {nombre}</button>
-        <button type="button" className="pq-btn" onClick={() => model.onDownloadServiceFocusPdf(informe())} disabled={!visible.length || model.downloadingServicesPdf}><Icon name="download" />{model.downloadingServicesPdf ? "Guardando…" : "Guardar PDF"}</button>
+        <button type="button" className="pq-btn" onClick={() => model.onPrintServiceFocus(informe())} disabled={!visible.length} title={`Imprimir el informe de ${nombre}`}><Icon name="print" />Imprimir</button>
+        <button type="button" className="pq-btn" onClick={() => model.onDownloadServiceFocusPdf(informe())} disabled={!visible.length || model.downloadingServicesPdf} title={`Guardar el informe de ${nombre} en PDF`}><Icon name="download" />{model.downloadingServicesPdf ? "Guardando…" : "Guardar PDF"}</button>
       </div>
     </div>
 
@@ -91,6 +85,7 @@ export default function ServiceFocus({ model, rows, field }) {
       <button type="button" className="pq-btn is-primary" disabled={!seleccionVisible} onClick={() => model.onPrintServiceFocus(informe(true))}><Icon name="print" />Imprimir selección</button>
     </div> : null}
 
+    {/* En pantalla, lo esencial. Capital e intereses van en el informe impreso y en el PDF. */}
     <div className="pq-table-wrap">
       <table className="pq-table is-services is-focus-table">
         <thead>
@@ -98,23 +93,19 @@ export default function ServiceFocus({ model, rows, field }) {
             <th className="pq-check"><input type="checkbox" checked={allVisibleSelected} onChange={toggleVisible} aria-label="Seleccionar los barrios visibles" /></th>
             <SortHeader sortKey="name" label="Barrio" sort={sort} onSort={onSort} className="pq-col-name" />
             <SortHeader sortKey="usuarios" label="Usuarios" sort={sort} onSort={onSort} />
-            <SortHeader sortKey="active" label={`Con ${nombre}`} sort={sort} onSort={onSort} className="pq-col-service is-focus" />
-            <SortHeader sortKey="sin" label={`Sin ${nombre}`} sort={sort} onSort={onSort} />
+            <SortHeader sortKey="active" label="Con el servicio" sort={sort} onSort={onSort} className="pq-col-service is-focus" />
+            <SortHeader sortKey="sin" label="Sin el servicio" sort={sort} onSort={onSort} />
             <SortHeader sortKey="deudores" label="Cuentas con deuda" sort={sort} onSort={onSort} />
-            <SortHeader sortKey="capital" label="Capital" sort={sort} onSort={onSort} />
-            <SortHeader sortKey="intereses" label="Intereses" sort={sort} onSort={onSort} />
             <SortHeader sortKey="deuda" label="Deuda" sort={sort} onSort={onSort} className="pq-col-total" />
             <SortHeader sortKey="share" label="Parte de la deuda" sort={sort} onSort={onSort} className="pq-col-share" />
           </tr>
           <tr className="pq-totals">
             <td className="pq-check" />
-            <th scope="row" className="pq-col-name">{query || conSin ? "Total de la lista" : `Total con ${nombre}`}<span className="pq-count">{count(visible.length)} {visible.length === 1 ? "barrio" : "barrios"}</span></th>
+            <th scope="row" className="pq-col-name">Total<span className="pq-count">{count(visible.length)} {visible.length === 1 ? "barrio" : "barrios"}</span></th>
             <td>{count(totals.usuarios)}</td>
-            <td className="pq-col-service is-focus"><span className="pq-cell-service"><b>{count(totals.active)}</b><small>{pct(totals.percentage)}</small><i aria-hidden="true"><em style={{ width: `${Math.min(100, totals.percentage)}%` }} /></i></span></td>
+            <td className="pq-col-service is-focus"><b>{count(totals.active)}</b></td>
             <td>{count(totals.sin)}</td>
             <td>{count(totals.deudores)}</td>
-            <td>{money(totals.capital)}</td>
-            <td>{money(totals.intereses)}</td>
             <td className="pq-col-total"><b>{money(totals.deuda)}</b></td>
             <td className="pq-col-share">{pct(totals.share)}</td>
           </tr>
@@ -127,15 +118,13 @@ export default function ServiceFocus({ model, rows, field }) {
             <td className={`pq-col-service is-focus ${row.active ? "" : "is-zero"}`.trim()}><span className="pq-cell-service"><b>{count(row.active)}</b><small>{pct(row.percentage)}</small><i aria-hidden="true"><em style={{ width: `${Math.min(100, row.percentage)}%` }} /></i></span></td>
             <td className={row.sin ? "" : "is-zero"}>{count(row.sin)}</td>
             <td className={row.deudores ? "" : "is-zero"}>{count(row.deudores)}</td>
-            <td className={row.capital ? "" : "is-zero"}>{money(row.capital)}</td>
-            <td className={row.intereses ? "" : "is-zero"}>{money(row.intereses)}</td>
             <td className="pq-col-total"><b>{money(row.deuda)}</b></td>
             <td className={`pq-col-share ${row.share ? "" : "is-zero"}`.trim()}><span className="pq-share"><small>{pct(row.share)}</small><i aria-hidden="true"><em style={{ width: `${(row.share / maxShare) * 100}%` }} /></i></span></td>
           </tr>)}
-          {!visible.length ? <tr><td colSpan={10} className="pq-table-empty">{query ? `Ningún barrio con ${nombre} coincide con “${query}”.` : `Ningún barrio tiene ${nombre} en el padrón.`}</td></tr> : null}
+          {!visible.length ? <tr><td colSpan={8} className="pq-table-empty">{query ? `Ningún barrio con ${nombre} coincide con “${query}”.` : `Ningún barrio tiene ${nombre} en el padrón.`}</td></tr> : null}
         </tbody>
       </table>
     </div>
-    <p className="pq-note"><Icon name="notes" />La deuda es la de las cuentas que tienen {nombre} activo: el archivo maestro no separa la deuda por concepto facturado, así que una cuenta con varios servicios suma en cada uno. “Parte de la deuda” es cuánto de la deuda de {nombre} de toda la ciudad está en cada barrio.</p>
+    <p className="pq-note"><Icon name="notes" />La deuda es la de las cuentas que tienen {nombre}: el padrón no la separa por servicio. “Parte de la deuda” dice cuánto de esa deuda está en cada barrio.</p>
   </>;
 }

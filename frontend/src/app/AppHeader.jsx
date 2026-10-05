@@ -98,25 +98,23 @@ export default function AppHeader({ model }) {
         >
           <Icon name="menu" />
         </button>
-        {/* En el tablero la barra lleva el título de la página: la marca ya está
-            en el menú lateral y aquí ya se está en el inicio. En los demás módulos
-            la marca es el atajo al inicio (el tablero o la vista de entrada del rol). */}
+        {/* En el tablero la barra lleva el título de la página. En los demás módulos
+            la marca y el atajo al inicio viven en el menú lateral, y el título ya lo
+            dice la página: aquí solo queda el logo circular en el teléfono, donde el
+            menú está escondido. En escritorio la celda queda vacía para no mover la rejilla. */}
         {workspaceView === "dashboard" ? (
           <h1 className="app-topbar-title">{headerMeta.title}</h1>
         ) : (
           <button
             type="button"
-            className="app-topbar-brand"
+            className="app-topbar-brand is-logo-only"
             onClick={() => setWorkspaceView(getDefaultWorkspaceView(session?.user?.role))}
-            aria-label="Ir al inicio"
+            aria-label="Aguas de Choluteca: ir al inicio"
+            title="Ir al inicio"
           >
             <span className="app-brand-mark" aria-hidden="true">
               <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
             </span>
-            <div>
-              <strong>Aguas de Choluteca</strong>
-              <span>{headerMeta.title}</span>
-            </div>
           </button>
         )}
         <div className="app-topbar-kpis">

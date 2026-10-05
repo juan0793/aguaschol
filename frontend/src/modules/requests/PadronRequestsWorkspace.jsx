@@ -39,10 +39,10 @@ export default function PadronRequestsWorkspace({ model }) {
       <header className="pq-header">
         <h1>Consultas del padrón</h1>
         <button type="button" className="pq-btn pq-refresh" onClick={model.onRefresh} disabled={loading} aria-label={loading ? "Actualizando…" : "Actualizar datos"}><Icon name="refresh" className={loading ? "ds-icon-spin" : ""} /><span className="pq-btn-label">{loading ? "Actualizando…" : "Actualizar datos"}</span></button>
+        {/* Una sola línea de estado. El nombre técnico del lote FoxPro no le dice nada a
+            quien consulta: queda en la ayuda emergente. */}
         <p className="pq-source">
-          <span className={`pq-status ${loading ? "is-loading" : model.loadError ? "is-error" : ""}`.trim()} role="status"><i aria-hidden="true" />{loading ? "Leyendo el padrón…" : model.loadError ? "Sin datos del padrón" : "Datos al día"}</span>
-          <span>Fuente <b>{serviceReport?.source?.file_name || "Padrón maestro"}</b></span>
-          {serviceReport?.source?.updated_at ? <span>Actualizado <b>{formatDateTime(serviceReport.source.updated_at)}</b></span> : null}
+          <span className={`pq-status ${loading ? "is-loading" : model.loadError ? "is-error" : ""}`.trim()} role="status" title={`Fuente: ${serviceReport?.source?.file_name || "Padrón maestro"}`}><i aria-hidden="true" /><span>{loading ? "Leyendo el padrón…" : model.loadError ? "Sin datos del padrón" : serviceReport?.source?.updated_at ? <>Padrón actualizado el <b>{formatDateTime(serviceReport.source.updated_at)}</b></> : "Padrón al día"}</span></span>
         </p>
         <dl className="pq-ledger" aria-label="Resumen del padrón">
           {figures.map((figure) => <div key={figure.key} className="pq-figure">

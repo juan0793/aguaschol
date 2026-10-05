@@ -29573,6 +29573,41 @@ button.control-sidebar-home:focus-visible {
   }
 }
 
+/* Barra superior: fuera del tablero solo queda el logo circular, y solo en el
+   teléfono (ahí el menú lateral está escondido). En escritorio la celda queda vacía. */
+.app-topbar .app-topbar-brand.is-logo-only {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.app-topbar .app-topbar-brand.is-logo-only .app-topbar-logo {
+  width: 40px;
+  height: 40px;
+  padding: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(20, 101, 217, 0.14);
+}
+
+@media (max-width: 768px) {
+  .app-topbar .app-topbar-brand.is-logo-only {
+    visibility: visible;
+    pointer-events: auto;
+    border-radius: 50%;
+  }
+
+  /* Sin el nombre al lado del logo, la sesión cabe en la misma fila: la barra mide la mitad. */
+  .app-topbar:has(> .app-topbar-brand.is-logo-only) {
+    grid-template-columns: auto auto minmax(0, 1fr) !important;
+  }
+
+  .app-topbar:has(> .app-topbar-brand.is-logo-only) > .app-topbar-session {
+    grid-column: auto !important;
+    justify-self: end;
+    min-width: 0;
+  }
+}
+
 /* ===========================================================================
    Barra de actividad
    Ocupa el hueco que dejó la barra de auditoría: una línea fina que recorre el

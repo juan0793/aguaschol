@@ -148,10 +148,11 @@ export default function AppSidebar({
     <>
       <aside id="control-sidebar" ref={sidebarRef} className={`control-sidebar no-print ${effectiveCollapsed ? "is-collapsed" : ""} ${mobileOpen ? "is-mobile-open" : ""}`} aria-label="Navegación principal" aria-hidden={isMobile && !mobileOpen ? "true" : undefined} inert={isMobile && !mobileOpen ? "" : undefined}>
         <header className="control-sidebar-header">
-          <button type="button" className="control-sidebar-home" onClick={() => navigate(homeKey)} aria-label="Ir al inicio">
+          {/* Solo el logo, al centro: es la marca y el atajo al inicio. El nombre ya
+              lo dice el propio logo, y repetirlo en texto solo ocupaba espacio. */}
+          <button type="button" className="control-sidebar-home" onClick={() => navigate(homeKey)} aria-label="Aguas de Choluteca: ir al inicio" title="Ir al inicio">
             <span className="app-brand-mark" aria-hidden="true"><img src={logo} alt="" /></span>
           </button>
-          <div><strong>Aguas de Choluteca</strong><span>Panel ejecutivo</span></div>
           <button type="button" className="control-sidebar-toggle" onClick={onToggleCollapsed} aria-label={effectiveCollapsed ? "Expandir menú lateral" : "Contraer menú lateral"} aria-pressed={effectiveCollapsed}><Icon name="arrowLeft" /></button>
         </header>
         <nav className="control-sidebar-navigation">

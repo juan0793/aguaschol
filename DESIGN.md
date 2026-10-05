@@ -190,9 +190,15 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - El registro se pagina con números, de 50 acciones por página. Arriba van el rango ("51–100 de 191 acciones") y las flechas, y abajo los números de página. Un día partido entre páginas dice "27 acciones · 13 en esta página".
   - Lo que cierra un trabajo lleva el icono verde, pero el texto va en tinta para que la lista no se vuelva toda verde. Si se filtra por una persona o por un área, esa columna desaparece de las filas.
   - Los días se cuentan en la hora de quien mira (`tz`), no en la de la base.
+- Marca de la aplicación (desde 2026-10-05):
+  - En el menú lateral va solo el logo, circular y al centro (68px; 46px con el menú contraído). Un clic lleva al inicio. En reposo late cada 5 segundos: un leve pulso del logo y una onda celeste que se apaga. Al pasar el puntero la onda se acelera. Con movimiento reducido queda quieto.
+  - El botón de contraer el menú es una pestaña redonda en el borde del menú.
+  - La barra superior ya no repite la marca ni el título: el título lo dice la página. En el teléfono, donde el menú está escondido, queda el logo circular como atajo al inicio, en la misma fila que la sesión.
+  - El menú usa el mismo nombre que la página: "Consultas del padrón" (antes "Impresión e informes").
 - "Servicios por barrio" en Consultas del padrón permite elegir un servicio (desde 2026-10-05):
   - Arriba de la tabla hay una fila de columnas iguales: "Todos los servicios" y una columna por servicio, cada una con sus usuarios y su porcentaje del padrón. La columna elegida va en azul claro con un filete azul abajo.
-  - Al elegir un servicio, la pantalla muestra sus cifras en línea, entre filetes: usuarios con y sin el servicio, barrios con el servicio, deuda de esas cuentas y el promedio por cuenta con deuda. Debajo va su tabla: con y sin el servicio, cuentas con deuda, capital, intereses, deuda y la parte de la deuda del servicio que cae en cada barrio. Los barrios sin el servicio se ocultan, y una casilla los muestra.
+  - Al elegir un servicio, el resumen va en una sola frase con las cifras en negrita: cuántos usuarios lo tienen, en cuántos barrios, cuánto deben esas cuentas y el promedio por cuenta con deuda. Debajo va su tabla, con usuarios, con y sin el servicio, cuentas con deuda, deuda y la parte de la deuda del servicio que cae en cada barrio. Capital e intereses solo van en el informe. Los barrios sin el servicio se ocultan, y una casilla los incluye.
+  - La línea de estado dice solo "Padrón actualizado el …". El nombre del lote FoxPro va en la ayuda emergente.
   - El informe impreso y el PDF llevan las filas tal como se ven: mismo orden, misma búsqueda o solo los barrios marcados. Al final nombran los barrios sin el servicio.
   - La deuda siempre se rotula como "de las cuentas con el servicio", porque el archivo maestro no separa la deuda por concepto.
 

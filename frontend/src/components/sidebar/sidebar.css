@@ -454,3 +454,99 @@
   .control-sidebar *,
   .page-shell { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---------------------------------------------------------------------------
+   Marca en el menú lateral: solo el logo, circular y al centro (desde 2026-10-05).
+   En reposo late cada pocos segundos: un leve pulso del logo y una onda que se
+   apaga. Al pasar el puntero la onda se acelera. El botón de contraer pasa al
+   borde del menú, como una pestaña, para no descentrar el logo.
+   --------------------------------------------------------------------------- */
+.control-sidebar .control-sidebar-header {
+  display: flex;
+  min-height: 104px;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 14px;
+}
+
+.control-sidebar .control-sidebar-home {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+}
+
+.control-sidebar .control-sidebar-header img {
+  width: 68px;
+  height: 68px;
+  padding: 7px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(118, 200, 255, 0.16), 0 6px 16px rgba(2, 24, 43, 0.28);
+}
+
+.control-sidebar .control-sidebar-home .app-brand-mark::after {
+  inset: -4px;
+  border-color: rgba(118, 200, 255, 0.85);
+  animation: brand-pulse-ring 5.2s cubic-bezier(0.23, 1, 0.32, 1) 1.2s infinite;
+}
+
+.control-sidebar .control-sidebar-home .app-brand-mark img {
+  animation: brand-pulse-beat 5.2s ease-in-out 1.2s infinite;
+}
+
+/* Al pasar el puntero manda la escala del hover y la onda se acelera. */
+.control-sidebar .control-sidebar-home:hover .app-brand-mark img,
+.control-sidebar .control-sidebar-home:focus-visible .app-brand-mark img,
+.control-sidebar .control-sidebar-home:active .app-brand-mark img {
+  animation: none;
+}
+
+.control-sidebar .control-sidebar-home:hover .app-brand-mark::after,
+.control-sidebar .control-sidebar-home:focus-visible .app-brand-mark::after {
+  animation: brand-ripple 1.9s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+.control-sidebar .control-sidebar-toggle {
+  top: calc(50% - 14px);
+  right: -14px;
+  z-index: 3;
+  width: 28px;
+  min-height: 28px;
+  border-radius: 50%;
+  background: var(--sidebar-bg, #062c4d);
+}
+
+.control-sidebar.is-collapsed .control-sidebar-header {
+  min-height: 86px;
+  padding-inline: 8px;
+}
+
+.control-sidebar.is-collapsed .control-sidebar-home,
+.control-sidebar.is-collapsed .control-sidebar-header img {
+  width: 46px;
+  height: 46px;
+}
+
+.control-sidebar.is-collapsed .control-sidebar-header img { padding: 5px; }
+.control-sidebar.is-collapsed .control-sidebar-toggle { top: calc(50% - 14px); }
+
+@keyframes brand-pulse-beat {
+  0%, 14%, 100% { transform: scale(1); }
+  5% { transform: scale(1.045); }
+  9% { transform: scale(0.99); }
+  11% { transform: scale(1.02); }
+}
+
+@keyframes brand-pulse-ring {
+  0% { opacity: 0; transform: scale(0.94); }
+  5% { opacity: 0.55; transform: scale(1); }
+  30% { opacity: 0; transform: scale(1.32); }
+  100% { opacity: 0; transform: scale(1.32); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-sidebar .control-sidebar-home .app-brand-mark img,
+  .control-sidebar .control-sidebar-home .app-brand-mark::after {
+    animation: none !important;
+  }
+}
