@@ -17,6 +17,7 @@ import LoteDetalle from "../components/LoteDetalle";
 import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
 import NoEntregadasTable from "../components/NoEntregadasTable";
 import NoEntregadaDetalle from "../components/NoEntregadaDetalle";
+import ControlDescartes from "../components/ControlDescartes";
 import PersonalCampoTable from "../components/PersonalCampoTable";
 import RepartoBarrios from "../components/RepartoBarrios";
 import ReportesSemanales from "../components/ReportesSemanales";
@@ -33,6 +34,7 @@ const SUBVISTAS = [
   { key: "lotes", label: "Lotes diarios", corto: "Hoy", hint: "Reparto y cierre", icon: "records" },
   { key: "historial", label: "Lotes anteriores", corto: "Anteriores", hint: "Historial", icon: "history" },
   { key: "pendientes", label: "No entregadas", corto: "Pendientes", hint: "Seguimiento", icon: "warning" },
+  { key: "descartes", label: "Control de descartes", corto: "Descartes", hint: "Repetidos", icon: "inbox" },
   { key: "reparto", label: "Reparto por barrio", corto: "Reparto", hint: "Zonas", icon: "map" },
   { key: "personal", label: "Personal de campo", corto: "Personal", hint: "Técnicos", icon: "users" },
   { key: "reportes", label: "Reportes semanales", corto: "Reportes", hint: "Informes", icon: "archive" }
@@ -288,6 +290,7 @@ export default function EntregasPage({ apiFetch, showAlert }) {
   const subvistas = SUBVISTAS.filter((item) => {
     if (item.key === "reportes") return config.permissions.can_generate_report;
     if (item.key === "reparto") return config.permissions.can_manage_reparto;
+    if (item.key === "descartes") return config.permissions.can_view_descartes;
     return true;
   });
   // En la barra inferior del celular caben 5 pestañas con su nombre completo; si hay
@@ -493,6 +496,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
           onOpen={(documento) => setDocumentoAbierto(documento.id)}
           onCicloCerrado={() => { api.config().then(setConfig).catch(() => {}); pendientes.reload(); refrescar(); }}
         />
+      ) : null}
+
+      {vista === "descartes" && config.permissions.can_view_descartes ? (
+        <ControlDescartes api={api} config={config} onOpen={(documento) => setDocumentoAbierto(documento.id)} />
       ) : null}
 
       {vista === "historial" ? (

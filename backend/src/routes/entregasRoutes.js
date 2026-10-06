@@ -3,6 +3,7 @@ import { requireRoles } from "../middleware/authMiddleware.js";
 import {
   cicloCerrar,
   config,
+  descartes,
   intentoCreate,
   loteCerrar,
   loteCreate,
@@ -37,6 +38,7 @@ const router = Router();
 router.get("/config", config);
 router.get("/resumen", resumen);
 router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);
+router.get("/descartes", requireRoles("admin"), descartes);
 
 router.get("/personal", personalList);
 router.post("/personal", requireRoles("admin"), personalCreate);

@@ -26,6 +26,7 @@ export const createEntregasApi = (apiFetch) => ({
   resumen: (params = {}) => apiFetch(`/entregas/resumen${query(params)}`).then(json),
 
   cerrarCiclo: (payload) => apiFetch("/entregas/ciclos/cerrar", { method: "POST", ...jsonBody(payload) }).then(json),
+  descartes: (params = {}) => apiFetch(`/entregas/descartes${query(params)}`).then(json),
 
   personal: (params = {}) => apiFetch(`/entregas/personal${query(params)}`).then(json),
   crearPersonal: (payload) => apiFetch("/entregas/personal", { method: "POST", ...jsonBody(payload) }).then(json),

@@ -900,3 +900,39 @@
 /* Formulario de lote del técnico: barrios limitados al reparto del responsable. */
 .ent-field-nota { color: var(--muted); font-size: 12px; font-weight: 500; }
 .ent-field-aviso { color: #925a08; font-size: 12.5px; font-weight: 650; }
+
+/* Control de descartes (administrador): cifras del dia y del ciclo, repetidos de
+   ciclos anteriores y el registro dia por dia. */
+.ent-descartes-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 14px; }
+.ent-descartes-kpis .ent-kpi { cursor: default; }
+.ent-descartes-kpis .ent-kpi:hover { border-color: var(--ent-borde); box-shadow: none; }
+.ent-descartes-kpis .ent-kpi small { color: var(--muted); font-size: 12px; }
+.ent-descartes-bloque { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--ent-borde); }
+.ent-descartes-bloque h4 { margin: 0; color: var(--navy); font-size: 16px; }
+.ent-descartes-bloque > .ent-list-caption { padding-top: 6px; }
+.ent-repetidos-table th:nth-child(1) { width: 26%; }
+.ent-repetidos-table th:nth-child(2) { width: 28%; }
+.ent-repetidos-table th:nth-child(3) { width: 28%; }
+.ent-repetidos-table th:nth-child(4) { width: 18%; }
+.ent-antecedentes { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ent-antecedentes li { line-height: 1.35; }
+.ent-descartes-mas { margin-top: 10px; }
+.ent-descartes-dia-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.ent-descartes-dia-head h4 { flex: 1 1 auto; align-self: center; }
+.ent-descartes-dia-head .cl-field { min-width: 170px; }
+.ent-descartes-dias { display: flex; gap: 8px; margin-top: 14px; padding-bottom: 4px; overflow-x: auto; scrollbar-width: thin; }
+.ent-descartes-dias button { display: grid; flex: 0 0 auto; gap: 2px; min-width: 112px; min-height: 64px; padding: 8px 12px; border: 1px solid #ccdce9; border-radius: 8px; background: #fff; color: #38536b; font-size: 12px; text-align: left; }
+.ent-descartes-dias button strong { color: var(--navy); font-size: 13px; text-transform: capitalize; }
+.ent-descartes-dias button em { color: var(--danger); font-style: normal; font-weight: 700; }
+.ent-descartes-dias button small { color: var(--muted); }
+.ent-descartes-dias button[aria-pressed="true"] { border-color: #548cbd; background: #e9f2fc; }
+.ent-operational-table tbody tr.is-repetido { background: #fff6f6; }
+.ent-operational-table tbody tr.is-repetido:hover { background: #fdecee; }
+@media (max-width: 760px) {
+  .ent-descartes-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ent-descartes-dia-head .cl-field { flex: 1 1 100%; }
+  /* .cl-table fija la primera celda en 42px y la última en 50px (casilla y acciones
+     en otras tablas); en la tarjeta del celular cada celda ocupa su lugar de la grilla. */
+  .ent-module .ent-operational-table :is(td:first-child, td:last-child) { width: auto; }
+  .ent-module .ent-repetidos-table td:nth-child(n) { grid-column: 1 / -1; }
+}

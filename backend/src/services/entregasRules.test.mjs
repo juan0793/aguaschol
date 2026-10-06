@@ -5,10 +5,12 @@ import {
   agruparPorMotivo,
   agruparPorResponsable,
   agruparSobrantesPorLote,
+  armarControlDescartes,
   assertPuedeAgregarNoEntregadas,
   calcularDestacados,
   calcularEfectividad,
   calcularEntregadas,
+  cicloDeFecha,
   compararIndicador,
   compararPeriodos,
   construirCorreccion,
@@ -525,4 +527,60 @@ test("un sobrante sin nombre capturado va al final de su lote", () => {
     docSobrante({ id: 3, abonado_nombre: "Ana Flores" })
   ]);
   assert.deepEqual(salida.map((item) => item.id), [3, 2, 1]);
+});
+
+test("cicloDeFecha: el corte cubre hasta su fecha inclusive", () => {
+  const cortes = ["2026-09-08", "2026-10-05"];
+  assert.deepEqual(cicloDeFecha("2026-10-06", cortes, "2026-10-06"), {
+    fecha_inicio: "2026-10-06", fecha_fin: "2026-10-06", corte_anterior: "2026-10-05", cerrado: false
+  });
+  // Un lote del mismo dia del corte es del ciclo viejo.
+  assert.deepEqual(cicloDeFecha("2026-10-05", cortes, "2026-10-06"), {
+    fecha_inicio: "2026-09-09", fecha_fin: "2026-10-05", corte_anterior: "2026-09-08", cerrado: true
+  });
+  assert.equal(cicloDeFecha("2026-08-01", cortes, "2026-10-06").fecha_inicio, "");
+  assert.equal(cicloDeFecha("2026-08-01", [], "2026-10-06").fecha_fin, "2026-10-06");
+});
+
+test("armarControlDescartes: repetidos de ciclos anteriores y registro por dia", () => {
+  const doc = (id, fecha, extra = {}) => ({ id, lote_id: id * 10, fecha_lote: fecha, motivo: "CASA_CERRADA", estado: "PENDIENTE", barrio_nombre: "Bo. Centro", responsable_nombre: "Carlos", ...extra });
+  const control = armarControlDescartes({
+    fecha: "2026-10-07",
+    ciclo: { fecha_inicio: "2026-10-06", fecha_fin: "2026-10-08", corte_anterior: "2026-10-05" },
+    cortes: ["2026-09-08", "2026-10-05"],
+    documentos: [
+      doc(1, "2026-10-07", { numero_abonado: "100", clave_catastral: "14-1" }),
+      doc(2, "2026-10-07", { numero_abonado: "200" }),
+      doc(3, "2026-10-08", { numero_abonado: "", clave_catastral: "24-9" }),
+      doc(4, "2026-10-08", { numero_abonado: " 100 " })
+    ],
+    anteriores: [
+      doc(50, "2026-09-20", { numero_abonado: "100", estado: "VENCIDA" }),
+      doc(51, "2026-08-15", { numero_abonado: "999", clave_catastral: "14-1", estado: "VENCIDA" }),
+      doc(52, "2026-09-30", { numero_abonado: "777", clave_catastral: "24-9", estado: "REENTREGADA" })
+    ]
+  });
+
+  assert.deepEqual(control.resumen, { documentos: 4, documentos_repetidos: 3, abonados_repetidos: 2, documentos_dia: 2, repetidos_dia: 1 });
+  assert.deepEqual(control.dias.map((dia) => [dia.fecha, dia.documentos, dia.repetidos]), [["2026-10-08", 2, 2], ["2026-10-07", 2, 1]]);
+  // El del dia: el repetido primero, con sus antecedentes del mas reciente al mas viejo.
+  assert.deepEqual(control.dia.items.map((item) => [item.id, item.repetido]), [[1, true], [2, false]]);
+  assert.deepEqual(control.dia.items[0].anteriores.map((item) => item.id), [50, 51]);
+  assert.equal(control.dia.items[0].ciclos_anteriores, 2);
+  // El abonado 100 aparece dos veces este ciclo y en dos ciclos anteriores: va primero.
+  assert.equal(control.repetidos[0].llave, "100");
+  assert.deepEqual(control.repetidos[0].ciclo_actual.map((item) => item.id), [4, 1]);
+  assert.equal(control.repetidos[0].ciclos_anteriores, 2);
+  assert.equal(control.repetidos[1].llave, "CLAVE:24-9");
+  assert.equal(control.repetidos[1].anteriores[0].estado, "REENTREGADA");
+});
+
+test("armarControlDescartes: sin ciclo anterior no hay repetidos", () => {
+  const control = armarControlDescartes({
+    fecha: "2026-10-07",
+    ciclo: { fecha_inicio: "", fecha_fin: "2026-10-07", corte_anterior: "" },
+    documentos: [{ id: 1, lote_id: 1, fecha_lote: "2026-10-07", numero_abonado: "100", estado: "PENDIENTE" }]
+  });
+  assert.equal(control.resumen.abonados_repetidos, 0);
+  assert.equal(control.dia.items[0].repetido, false);
 });

@@ -9,6 +9,7 @@ import {
   createPersonal,
   deleteLote,
   deleteNoEntregada,
+  getDescartes,
   getEntregasConfig,
   getLoteDetail,
   getNoEntregadaDetail,
@@ -59,6 +60,7 @@ export const personalUpdate = handle(async (req, res) =>
 export const cicloCerrar = handle(async (req, res) =>
   res.json(await cerrarCicloEntregas(req.body || {}, req.authUser))
 );
+export const descartes = handle(async (req, res) => res.json(await getDescartes(req.query, req.authUser)));
 
 export const repartoList = handle(async (req, res) => res.json(await getReparto(req.authUser)));
 export const repartoMapa = handle(async (req, res) => {

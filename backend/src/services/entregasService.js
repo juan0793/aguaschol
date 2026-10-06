@@ -18,9 +18,11 @@ import {
   TIPOS_DOCUMENTO,
   TIPOS_PERSONAL,
   addDays,
+  armarControlDescartes,
   assertPuedeAgregarNoEntregadas,
   calcularEfectividad,
   calcularEntregadas,
+  cicloDeFecha,
   contarNoEntregadasActivas,
   detectarDuplicadosEnLote,
   diffInDays,
@@ -187,6 +189,7 @@ export const getEntregasConfig = async (user) => {
       can_reopen_lote: isAdmin(user),
       can_delete_lote: isAdmin(user),
       can_close_ciclo: isAdmin(user),
+      can_view_descartes: isAdmin(user),
       can_manage_seguimiento: isGestor(user) || Boolean(personalPropio),
       can_generate_report: isGestor(user),
       can_manage_reparto: isGestor(user),
@@ -879,6 +882,56 @@ export const cerrarCicloEntregas = async (payload = {}, user) => {
   }
 
   return { ...(await getCicloVigente()), documentos_vencidos: vencidos };
+};
+
+/* -------------------------------------------------------------------------- */
+/* Control de descartes (solo administrador)                                   */
+/* -------------------------------------------------------------------------- */
+
+const SELECT_DESCARTE = `SELECT documento.id, documento.lote_id, documento.numero_abonado, documento.clave_catastral,
+       documento.abonado_nombre, documento.motivo, documento.observacion, documento.estado,
+       entrega_lotes.fecha AS fecha_lote, entrega_lotes.tipo_documento, entrega_lotes.barrio_codigo,
+       entrega_lotes.barrio_nombre, personal_campo.nombre_completo AS responsable_nombre
+     FROM entrega_no_entregadas AS documento
+     INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
+     LEFT JOIN personal_campo ON personal_campo.id = entrega_lotes.responsable_id`;
+
+// Lo que quedo sin entregar en el ciclo de la fecha pedida, dia por dia, y los
+// abonados que ya habian quedado sin entregar en ciclos anteriores. Los CANCELADOS
+// fueron registros por error y no cuentan en ningun lado.
+export const getDescartes = async (query = {}, user) => {
+  if (!isAdmin(user)) throw fail("Solo un administrador puede ver el control de descartes.", 403);
+  const hoy = jornadaEntregas().fecha;
+  const fecha = toIsoDate(query.fecha) || hoy;
+  if (fecha > hoy) throw fail("La fecha no puede ser futura.");
+
+  const pool = getPool();
+  const [filasCortes] = await pool.query("SELECT fecha_corte FROM entrega_ciclos ORDER BY fecha_corte ASC");
+  const cortes = filasCortes.map((fila) => toIsoDate(fila.fecha_corte));
+  const ciclo = cicloDeFecha(fecha, cortes, hoy);
+
+  const [documentos] = await pool.query(
+    `${SELECT_DESCARTE}
+     WHERE documento.estado <> 'CANCELADA' AND entrega_lotes.fecha >= ? AND entrega_lotes.fecha <= ?
+     ORDER BY entrega_lotes.fecha DESC, documento.id ASC`,
+    [ciclo.fecha_inicio || "1000-01-01", ciclo.fecha_fin]
+  );
+
+  let anteriores = [];
+  if (ciclo.corte_anterior && documentos.length) {
+    const llaves = (campo) => [...new Set(documentos.map((fila) => clean(fila[campo])).filter(Boolean))];
+    const numeros = llaves("numero_abonado");
+    const claves = llaves("clave_catastral");
+    // IN () vacio no es SQL valido: se usa un valor que ningun abonado tiene.
+    [anteriores] = await pool.query(
+      `${SELECT_DESCARTE}
+       WHERE documento.estado <> 'CANCELADA' AND entrega_lotes.fecha <= ?
+         AND (documento.numero_abonado IN (?) OR documento.clave_catastral IN (?))`,
+      [ciclo.corte_anterior, numeros.length ? numeros : ["\u0000"], claves.length ? claves : ["\u0000"]]
+    );
+  }
+
+  return armarControlDescartes({ fecha, ciclo, cortes, documentos, anteriores });
 };
 
 /* -------------------------------------------------------------------------- */

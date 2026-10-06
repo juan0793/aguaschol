@@ -806,3 +806,134 @@ export const construirCorreccion = (reporteOrigen = {}) => {
 
 export const etiquetarVersion = (reporte = {}) =>
   toEntero(reporte.version) > 1 ? `Versión ${reporte.version} - corregida` : "Versión 1";
+
+/* -------------------------------------------------------------------------- */
+/* Control de descartes                                                        */
+/* -------------------------------------------------------------------------- */
+
+const cortesOrdenados = (cortes = []) => [...new Set(cortes.map(toIsoDate).filter(Boolean))].sort();
+
+// Ciclo de facturacion al que pertenece una fecha de lote. El corte cubre hasta
+// su fecha inclusive, asi que un lote del mismo dia del corte es del ciclo viejo.
+export const cicloDeFecha = (fecha, cortes = [], hoy = fecha) => {
+  const ordenados = cortesOrdenados(cortes);
+  const previos = ordenados.filter((corte) => corte < fecha);
+  const corteAnterior = previos[previos.length - 1] || "";
+  const corteSiguiente = ordenados.find((corte) => corte >= fecha) || "";
+  return {
+    fecha_inicio: corteAnterior ? addDays(corteAnterior, 1) : "",
+    fecha_fin: corteSiguiente || hoy,
+    corte_anterior: corteAnterior,
+    cerrado: Boolean(corteSiguiente)
+  };
+};
+
+const llaveAbonado = (valor) => String(valor || "").trim().toUpperCase();
+const masReciente = (a, b) => (a.fecha_lote === b.fecha_lote ? toEntero(b.id) - toEntero(a.id) : a.fecha_lote < b.fecha_lote ? 1 : -1);
+
+const resumirDescarte = (item) => ({
+  id: toEntero(item.id),
+  lote_id: toEntero(item.lote_id),
+  numero_abonado: item.numero_abonado || "",
+  clave_catastral: item.clave_catastral || "",
+  abonado_nombre: item.abonado_nombre || "",
+  motivo: item.motivo,
+  observacion: item.observacion || "",
+  estado: item.estado,
+  fecha_lote: toIsoDate(item.fecha_lote),
+  tipo_documento: item.tipo_documento,
+  barrio_codigo: item.barrio_codigo || "",
+  barrio_nombre: item.barrio_nombre || "",
+  responsable_nombre: item.responsable_nombre || ""
+});
+
+// Arma la vista del administrador: lo que quedo sin entregar cada dia del ciclo y
+// los abonados "repetidos", que ya habian quedado sin entregar en un ciclo de
+// facturacion anterior. Un documento anterior coincide por numero de abonado o
+// por clave catastral; los CANCELADOS (registrados por error) no deben llegar aqui.
+export const armarControlDescartes = ({ fecha, ciclo, cortes = [], documentos = [], anteriores = [] } = {}) => {
+  const ordenados = cortesOrdenados(cortes);
+  const numeroDeCiclo = (dia) => ordenados.filter((corte) => corte < dia).length;
+  const porNumero = new Map();
+  const porClave = new Map();
+  const indexar = (mapa, llave, item) => {
+    if (!llave) return;
+    if (!mapa.has(llave)) mapa.set(llave, []);
+    mapa.get(llave).push(item);
+  };
+  anteriores.map(resumirDescarte).forEach((item) => {
+    indexar(porNumero, llaveAbonado(item.numero_abonado), item);
+    indexar(porClave, llaveAbonado(item.clave_catastral), item);
+  });
+  const anterioresDe = (documento) => {
+    const unicos = new Map();
+    [...(porNumero.get(llaveAbonado(documento.numero_abonado)) || []), ...(porClave.get(llaveAbonado(documento.clave_catastral)) || [])]
+      .forEach((item) => unicos.set(item.id, item));
+    return [...unicos.values()].sort(masReciente);
+  };
+  const contarCiclos = (lista) => new Set(lista.map((item) => numeroDeCiclo(item.fecha_lote))).size;
+
+  const items = documentos.map(resumirDescarte).map((documento) => {
+    const previos = anterioresDe(documento);
+    return { ...documento, repetido: previos.length > 0, ciclos_anteriores: contarCiclos(previos), anteriores: previos };
+  });
+
+  const porDia = new Map();
+  items.forEach((item) => {
+    const dia = porDia.get(item.fecha_lote) || { fecha: item.fecha_lote, documentos: 0, repetidos: 0, lotes: new Set() };
+    dia.documentos += 1;
+    dia.repetidos += item.repetido ? 1 : 0;
+    dia.lotes.add(item.lote_id);
+    porDia.set(item.fecha_lote, dia);
+  });
+  const dias = [...porDia.values()]
+    .map((dia) => ({ ...dia, lotes: dia.lotes.size }))
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+
+  const grupos = new Map();
+  items.filter((item) => item.repetido).forEach((item) => {
+    const llave = llaveAbonado(item.numero_abonado) || `CLAVE:${llaveAbonado(item.clave_catastral)}`;
+    const grupo = grupos.get(llave) || { llave, ciclo_actual: [], anteriores: new Map() };
+    grupo.ciclo_actual.push(item);
+    item.anteriores.forEach((previo) => grupo.anteriores.set(previo.id, previo));
+    grupos.set(llave, grupo);
+  });
+  const repetidos = [...grupos.values()].map((grupo) => {
+    const actuales = grupo.ciclo_actual.sort(masReciente);
+    const previos = [...grupo.anteriores.values()].sort(masReciente);
+    const ultimo = actuales[0];
+    return {
+      llave: grupo.llave,
+      numero_abonado: ultimo.numero_abonado,
+      clave_catastral: ultimo.clave_catastral || previos.find((item) => item.clave_catastral)?.clave_catastral || "",
+      abonado_nombre: ultimo.abonado_nombre || previos.find((item) => item.abonado_nombre)?.abonado_nombre || "",
+      barrio_nombre: ultimo.barrio_nombre,
+      responsable_nombre: ultimo.responsable_nombre,
+      ultima_fecha: ultimo.fecha_lote,
+      ciclos_anteriores: contarCiclos(previos),
+      ciclo_actual: actuales.map(({ anteriores: _omitido, ...resto }) => resto),
+      anteriores: previos
+    };
+  }).sort((a, b) =>
+    b.ciclos_anteriores - a.ciclos_anteriores
+    || (b.anteriores.length + b.ciclo_actual.length) - (a.anteriores.length + a.ciclo_actual.length)
+    || (a.ultima_fecha < b.ultima_fecha ? 1 : a.ultima_fecha > b.ultima_fecha ? -1 : 0));
+
+  const delDia = items.filter((item) => item.fecha_lote === fecha)
+    .sort((a, b) => Number(b.repetido) - Number(a.repetido) || toEntero(a.id) - toEntero(b.id));
+
+  return {
+    fecha,
+    ciclo,
+    resumen: {
+      documentos: items.length,
+      documentos_repetidos: items.filter((item) => item.repetido).length,
+      abonados_repetidos: repetidos.length,
+      documentos_dia: delDia.length,
+      repetidos_dia: delDia.filter((item) => item.repetido).length
+    },
+    dias,
+    dia: { fecha, items: delDia },
+    repetidos
+  };
+};
