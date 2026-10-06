@@ -13,7 +13,7 @@ import {
 const emparejamientoInicial = (plantilla, personal) =>
   Object.fromEntries(Object.keys(plantilla.zonas).map((nombre) => [nombre, emparejarNombre(nombre, personal)?.id || ""]));
 
-// Carga de una vez un reparto de referencia (las hojas o la propuesta). Los
+// Carga de una vez un reparto de referencia (las hojas o el de octubre). Los
 // nombres de la plantilla se emparejan con Personal de campo y se pueden
 // corregir antes de aplicar; aplicar reemplaza el reparto completo.
 export default function RepartoPlantillaDialog({ model, personal = [], notify, onClose }) {

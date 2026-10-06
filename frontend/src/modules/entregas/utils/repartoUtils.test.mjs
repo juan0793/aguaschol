@@ -67,7 +67,7 @@ test("emparejar nombres de plantilla sin adivinar empates", () => {
   assert.equal(emparejarNombre("Oscar Alvarez", personal)?.id, 12);
   // "Luis" solo empata entre Luis Fernando y Luis Mejía.
   assert.equal(emparejarNombre("Luis", personal), null);
-  assert.equal(emparejarNombre("Diego Saldaña", personal), null);
+  assert.equal(emparejarNombre("Diego Zaldaña", personal), null);
 });
 
 test("aplicar plantilla: reparto completo, orden solo donde es real", () => {
