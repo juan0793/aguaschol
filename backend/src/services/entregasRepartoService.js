@@ -60,8 +60,9 @@ const audit = async ({ user, action, entityId, summary, details, executor }) => 
   }
 };
 
-export const getReparto = async (user) => {
-  assertGestor(user);
+// Reparto sin control de permisos, para otros modulos (p. ej. sugerir tecnico en
+// inspecciones). Quien lo use decide quien puede verlo.
+export const leerRepartoBarrios = async () => {
   const [[asignaciones], catalogo] = await Promise.all([
     getPool().query(
       `SELECT barrio_codigo, responsable_id, orden_ruta, updated_at
@@ -69,7 +70,12 @@ export const getReparto = async (user) => {
     ),
     listBarrioCodes().catch(() => [])
   ]);
-  const barrios = armarReparto({ padron: padronPorBarrio(), catalogo, asignaciones });
+  return { asignaciones, barrios: armarReparto({ padron: padronPorBarrio(), catalogo, asignaciones }) };
+};
+
+export const getReparto = async (user) => {
+  assertGestor(user);
+  const { asignaciones, barrios } = await leerRepartoBarrios();
   const actualizado = asignaciones.reduce((max, fila) => {
     const fecha = fila.updated_at ? new Date(fila.updated_at).toISOString() : "";
     return fecha > max ? fecha : max;

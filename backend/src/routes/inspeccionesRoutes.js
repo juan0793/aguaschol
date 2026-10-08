@@ -20,6 +20,7 @@ import {
   removeTecnico,
   resumen,
   stats,
+  sugerenciaTecnico,
   tablero,
   tecnicos,
   tecnicosDeInspeccion,
@@ -30,6 +31,7 @@ const router = Router();
 
 router.get("/config", config);
 router.get("/tecnicos", tecnicos);
+router.get("/sugerencia-tecnico", requireRoles("admin"), sugerenciaTecnico);
 router.get("/resumen", resumen);
 router.get("/stats", requireRoles("admin"), stats);
 router.get("/stats/tablero", requireRoles("admin"), tablero);

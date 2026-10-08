@@ -18,6 +18,7 @@ import {
   updateInspeccion
 } from "../services/inspeccionesService.js";
 import { getInspeccionesStats, getInspeccionesTablero } from "../services/inspeccionesStatsService.js";
+import { sugerirTecnicoInspeccion } from "../services/inspeccionesSugerenciaService.js";
 import {
   attachPrintStatus,
   getPrintData,
@@ -32,6 +33,14 @@ export const config = async (req, res) => res.json(getInspeccionesConfig(req.aut
 export const tecnicos = async (req, res, next) => {
   try {
     res.json(await listTecnicosElegibles());
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const sugerenciaTecnico = async (req, res, next) => {
+  try {
+    res.json(await sugerirTecnicoInspeccion(req.query.clave));
   } catch (error) {
     next(error);
   }
