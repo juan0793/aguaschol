@@ -1025,6 +1025,13 @@
   }
 }
 
+@media (min-width: 769px) {
+  .pg {
+    inset: calc(var(--pg-top, 0px) + var(--app-shell-gap, 16px)) var(--app-shell-gap, 16px) var(--app-shell-gap, 16px) calc(var(--app-sidebar-width, 0px) + var(--app-shell-gap, 16px));
+    border-radius: 16px;
+  }
+}
+
 @media (max-width: 768px) {
   .pg {
     display: block;
@@ -1093,6 +1100,7 @@
   }
 
   .pg-dock {
+    z-index: 900;
     position: absolute;
     right: 0;
     bottom: 0;
