@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { estadoLoteLabel, formatNumber, tipoDocumentoLabel, tipoPersonalLabel } from "../utils/entregasFormatters";
 import { toLocalIsoDate } from "../utils/entregasDate";
@@ -44,8 +44,9 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
     if (!inicial.barrio_codigo) return Boolean(inicial.barrio_nombre);
     return !config.barrios.some((barrioItem) => barrioItem.codigo === inicial.barrio_codigo);
   };
-  const [formOriginal] = useState(() => formDesdeLote(lote));
-  const [barrioLibreOriginal] = useState(() => esBarrioLibre(lote));
+  // Punto de comparación del borrador: el lote cargado o, tras crear uno, el formulario reiniciado.
+  const [formOriginal, setFormOriginal] = useState(() => formDesdeLote(lote));
+  const [barrioLibreOriginal, setBarrioLibreOriginal] = useState(() => esBarrioLibre(lote));
 
   const [draftInicial] = useState(() => readEntregaDraft(sessionUserId, draftId));
   const [form, setForm] = useState(() => ({ ...formOriginal, ...(draftInicial?.form || {}) }));
@@ -53,7 +54,6 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
   const [draftRecuperado, setDraftRecuperado] = useState(Boolean(draftInicial));
   const [draftPersistido, setDraftPersistido] = useState(null);
   const [guardando, setGuardando] = useState(false);
-  const saltarGuardadoRef = useRef(false);
 
   useEffect(() => {
     const draft = readEntregaDraft(sessionUserId, draftId);
@@ -66,10 +66,6 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
   const tieneCambios = JSON.stringify(form) !== JSON.stringify(formOriginal) || barrioLibre !== barrioLibreOriginal;
 
   useEffect(() => {
-    if (saltarGuardadoRef.current) {
-      saltarGuardadoRef.current = false;
-      return;
-    }
     if (!tieneCambios) {
       clearEntregaDraft(sessionUserId, draftId);
       setDraftPersistido(false);
@@ -124,8 +120,10 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
         setDraftPersistido(false);
         setDraftRecuperado(false);
         if (!editando) {
-          saltarGuardadoRef.current = true;
-          setForm({ ...formNuevo, fecha: form.fecha, tipo_documento: form.tipo_documento });
+          const siguiente = { ...formNuevo, fecha: form.fecha, tipo_documento: form.tipo_documento };
+          setFormOriginal(siguiente);
+          setBarrioLibreOriginal(barrioLibre);
+          setForm(siguiente);
         }
       }
     } catch (error) {
