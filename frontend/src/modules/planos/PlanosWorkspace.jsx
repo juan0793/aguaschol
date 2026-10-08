@@ -87,7 +87,13 @@ const usesApiCredentials = (value = "") => {
     return false;
   }
 };
-const fetchAsset = (url) => fetch(url, { credentials: usesApiCredentials(url) ? "include" : "omit" });
+// Los archivos del backend (PDF base, fondos) piden sesion. Con el frontend en otro
+// dominio (www.controlaguas.com) la cookie de medios no viaja, asi que se piden con
+// apiFetch, que manda el token en Authorization.
+const fetchAsset = (url, apiFetch) => {
+  if (apiFetch && usesApiCredentials(url) && url.startsWith(API_URL)) return apiFetch(url.slice(API_URL.length));
+  return fetch(url, { credentials: usesApiCredentials(url) ? "include" : "omit" });
+};
 const isPdf = (value = "") => /\.pdf($|\?)/i.test(value);
 const clampZoom = (value) => Math.min(12, Math.max(0.2, Number(value.toFixed(3))));
 const snapPoint = (start, end) => {
@@ -121,18 +127,26 @@ const normalizeElements = (elements = []) =>
     };
   });
 
-const loadImage = (src) => new Promise((resolve, reject) => {
-  const image = new window.Image();
-  image.crossOrigin = usesApiCredentials(src) ? "use-credentials" : "anonymous";
-  image.onload = () => resolve(image);
-  image.onerror = reject;
-  image.src = src;
-});
+const loadImage = async (src, apiFetch) => {
+  let objectUrl = "";
+  if (apiFetch && usesApiCredentials(src)) {
+    const response = await fetchAsset(src, apiFetch);
+    if (!response.ok) throw new Error("No se pudo cargar la imagen base.");
+    objectUrl = URL.createObjectURL(await response.blob());
+  }
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    if (!objectUrl) image.crossOrigin = usesApiCredentials(src) ? "use-credentials" : "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("No se pudo cargar la imagen base."));
+    image.src = objectUrl || src;
+  });
+};
 
-const renderCroquisBackground = async (baseUrl) => {
+const renderCroquisBackground = async (baseUrl, apiFetch) => {
   if (isPdf(baseUrl)) {
     const pdfjsLib = await loadPdfJs();
-    const bytes = await fetchAsset(baseUrl).then((response) => {
+    const bytes = await fetchAsset(baseUrl, apiFetch).then((response) => {
       if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
       return response.arrayBuffer();
     });
@@ -146,7 +160,7 @@ const renderCroquisBackground = async (baseUrl) => {
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
     return canvas;
   }
-  const image = await loadImage(baseUrl);
+  const image = await loadImage(baseUrl, apiFetch);
   const canvas = document.createElement("canvas");
   canvas.width = image.naturalWidth || image.width;
   canvas.height = image.naturalHeight || image.height;
@@ -154,10 +168,10 @@ const renderCroquisBackground = async (baseUrl) => {
   return canvas;
 };
 
-const downloadVectorCroquis = async ({ barrio, elements, layers = [], versionNumber = 1 }) => {
+const downloadVectorCroquis = async ({ barrio, elements, layers = [], versionNumber = 1, apiFetch }) => {
   const baseUrl = toAssetUrl(barrio?.baseUrl || barrio?.base_url || barrio?.fondo_url || barrio?.archivo_fondo || barrio?.imagen_fondo || barrio?.archivo_pdf);
   if (!baseUrl) throw new Error("Este croquis no tiene archivo base para descargar.");
-  const canvas = await renderCroquisBackground(baseUrl);
+  const canvas = await renderCroquisBackground(baseUrl, apiFetch);
   const svg = buildCroquisSvg({ width: canvas.width, height: canvas.height, backgroundDataUrl: canvas.toDataURL("image/png"), elements, layers });
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
   const link = document.createElement("a");
@@ -185,18 +199,18 @@ const barrioBaseUrl = (barrio = {}) =>
   toAssetUrl(barrio.baseUrl || barrio.base_url || barrio.fondo_url || barrio.archivo_fondo || barrio.imagen_fondo || barrio.archivo_pdf);
 
 // Genera el PDF vectorial (plano base + trazos) y lo devuelve como Blob listo para subir/descargar.
-const buildCroquisPdfBlob = async ({ barrio, elements, layers = [], renderWidth, renderHeight }) => {
+const buildCroquisPdfBlob = async ({ barrio, elements, layers = [], renderWidth, renderHeight, apiFetch }) => {
   const baseUrl = barrioBaseUrl(barrio);
   if (!baseUrl) throw new Error("Este croquis no tiene plano base para exportar.");
   let args;
   if (isPdf(baseUrl)) {
-    const pdfBytes = await fetchAsset(baseUrl).then((response) => {
+    const pdfBytes = await fetchAsset(baseUrl, apiFetch).then((response) => {
       if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
       return response.arrayBuffer();
     });
     args = { pdfBytes, renderWidth, renderHeight };
   } else {
-    const canvas = await renderCroquisBackground(baseUrl);
+    const canvas = await renderCroquisBackground(baseUrl, apiFetch);
     args = { imageDataUrl: canvas.toDataURL("image/png"), renderWidth: canvas.width, renderHeight: canvas.height };
   }
   const bytes = await buildCroquisPdf({ ...args, elements, layers });
@@ -218,7 +232,7 @@ const moveElement = (element, dx, dy) => {
 
 const StatusBadge = ({ status }) => <span className={`planos-status is-${status || "pendiente"}`}>{statusLabel[status] || status || "Pendiente"}</span>;
 
-function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedId, tool, onToolChange, content, activeLayer, layers, polygonDraft, setPolygonDraft, zoom, setZoom, rotation, setRotation, snap, continuousPlacement, precisionMode }) {
+function CanvasCroquis({ apiFetch, barrio, elements, setElements, selectedId, setSelectedId, tool, onToolChange, content, activeLayer, layers, polygonDraft, setPolygonDraft, zoom, setZoom, rotation, setRotation, snap, continuousPlacement, precisionMode }) {
   const shellRef = useRef(null);
   const panRef = useRef(null);
   const pinchRef = useRef(null);
@@ -274,18 +288,14 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
     setBackground((current) => ({ ...current, loading: true, error: "" }));
     (async () => {
       if (!isPdf(baseUrl)) {
-        const image = new window.Image();
-        image.crossOrigin = usesApiCredentials(baseUrl) ? "use-credentials" : "anonymous";
-        image.onload = () => {
-          const next = { image, width: image.naturalWidth || 1000, height: image.naturalHeight || 700 };
-          pdfBackgroundCache.set(baseUrl, next);
-          if (!cancelled) setBackground({ ...next, loading: false, error: "" });
-        };
-        image.src = baseUrl;
+        const image = await loadImage(baseUrl, apiFetch);
+        const next = { image, width: image.naturalWidth || 1000, height: image.naturalHeight || 700 };
+        pdfBackgroundCache.set(baseUrl, next);
+        if (!cancelled) setBackground({ ...next, loading: false, error: "" });
         return;
       }
       const pdfjsLib = await loadPdfJs();
-      const bytes = await fetchAsset(baseUrl).then((response) => {
+      const bytes = await fetchAsset(baseUrl, apiFetch).then((response) => {
         if (!response.ok) throw new Error("No se pudo cargar el PDF base.");
         return response.arrayBuffer();
       });
@@ -308,7 +318,7 @@ function CanvasCroquis({ barrio, elements, setElements, selectedId, setSelectedI
       if (!cancelled) setBackground({ image: null, width: 1000, height: 700, loading: false, error: error.message || "No se pudo preparar el fondo." });
     });
     return () => { cancelled = true; };
-  }, [baseUrl]);
+  }, [apiFetch, baseUrl]);
 
   useEffect(() => {
     setLineDraft(null);
@@ -1117,7 +1127,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         elements: saved.elements,
         layers,
         renderWidth: background.width,
-        renderHeight: background.height
+        renderHeight: background.height,
+        apiFetch
       });
       const filename = croquisFileName(barrio, versionNumber, "pdf");
       if (versionId) {
@@ -1146,7 +1157,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
     setExporting(true);
     try {
       const saved = await saveDraft({ silent: true });
-      await downloadVectorCroquis({ barrio, elements: saved.elements, layers, versionNumber: saved.version?.numero_version || 1 });
+      await downloadVectorCroquis({ barrio, elements: saved.elements, layers, versionNumber: saved.version?.numero_version || 1, apiFetch });
       toast.success("Borrador guardado y SVG descargado.");
     } catch (error) {
       toast.error(error.message || "No se pudo descargar el croquis.");
@@ -1274,7 +1285,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
         })}
       </div> : null}
       <div className="planos-editor-grid">
-        <CanvasCroquis barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} onToolChange={setTool} content={content} activeLayer={activeLayer} layers={layers} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} continuousPlacement={continuousPlacement} precisionMode={precisionMode} />
+        <CanvasCroquis apiFetch={apiFetch} barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} onToolChange={setTool} content={content} activeLayer={activeLayer} layers={layers} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} continuousPlacement={continuousPlacement} precisionMode={precisionMode} />
         <AnimatePresence>
         {selected ? <motion.aside className="planos-properties" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 18 }}>
           <p className="sheet-kicker">Propiedades</p>
@@ -1437,7 +1448,8 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
       if (!response.ok) throw new Error(data.message || "No se pudieron cargar las correcciones.");
       const blob = await buildCroquisPdfBlob({
         barrio: { ...sourceBarrio, ...version, archivo_pdf: version.archivo_pdf || sourceBarrio.archivo_pdf },
-        elements: normalizeElements(data.elements || [])
+        elements: normalizeElements(data.elements || []),
+        apiFetch
       });
       triggerDownload(blob, filename);
       toast.success("PDF actualizado descargado.");

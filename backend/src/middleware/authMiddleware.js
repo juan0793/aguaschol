@@ -55,9 +55,12 @@ export const requireAuth = async (req, res, next) => {
   }
 };
 
+// Archivos privados (PDF, fotos): cookie de medios para <img>/<a>, o el token en
+// Authorization cuando el frontend vive en otro dominio y la cookie Lax no viaja.
 export const requireMediaAuth = async (req, res, next) => {
   try {
-    const token = getCookieToken(req);
+    const header = req.headers.authorization ?? "";
+    const token = (header.startsWith("Bearer ") ? header.slice(7) : "") || getCookieToken(req);
     const user = await getSessionUser(token);
     if (!user) return res.status(401).json({ message: "No autorizado." });
     req.authUser = user;
