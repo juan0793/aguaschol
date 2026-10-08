@@ -1,0 +1,601 @@
+/* Editor de croquis a pantalla completa. Se carga despues de styles.css y todo va
+   bajo .planos-editor para ganar a las reglas generales de planos sin tocarlas. */
+
+.planos-editor {
+  --pe-ink: #10324f;
+  --pe-muted: #5b7690;
+  --pe-line: rgba(16, 50, 79, 0.12);
+  --pe-line-strong: rgba(16, 50, 79, 0.2);
+  --pe-surface: #ffffff;
+  --pe-canvas: #e9f1f8;
+  --pe-accent: #1576d1;
+  --pe-accent-soft: #e6f1fc;
+  --pe-danger: #b42318;
+  --pe-radius: 10px;
+  --pe-rail: 76px;
+  /* Fijo a toda la pantalla: el contenedor del encabezado de la app sigue en el flujo
+     aunque su contenido este oculto y empujaba el editor hacia abajo. */
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  width: auto;
+  height: auto;
+  margin: 0;
+  background: var(--pe-canvas);
+  color: var(--pe-ink);
+}
+
+/* ---------- Barra superior ---------- */
+.planos-editor .planos-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 60px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--pe-line);
+  border-radius: 0;
+  background: var(--pe-surface);
+  box-shadow: none;
+}
+
+.planos-editor .planos-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--pe-line);
+  border-radius: var(--pe-radius);
+  background: var(--pe-surface);
+  color: var(--pe-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.planos-editor .planos-back:hover { background: #f3f7fb; }
+
+.planos-editor .planos-editor-title {
+  flex: 0 1 auto;
+  min-width: 90px;
+  padding-left: 14px;
+  border-left: 1px solid var(--pe-line);
+}
+
+.planos-editor .planos-editor-title .sheet-kicker {
+  margin: 0;
+  color: var(--pe-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.planos-editor .planos-editor-title h2 {
+  margin: 1px 0 0;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planos-editor .planos-editor-badges {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.planos-editor .planos-editor-status {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.planos-editor .planos-editor-status button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  min-height: 0;
+  padding: 0 12px;
+  border: 1px solid var(--pe-line);
+  border-radius: var(--pe-radius);
+  background: var(--pe-surface);
+  color: var(--pe-ink);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.planos-editor .planos-editor-status button:hover:not(:disabled) { background: #f3f7fb; }
+.planos-editor .planos-editor-status button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.planos-editor .planos-export-group {
+  display: inline-flex;
+}
+
+.planos-editor .planos-export-group button:first-child {
+  border-radius: var(--pe-radius) 0 0 var(--pe-radius);
+}
+
+.planos-editor .planos-export-group button + button {
+  margin-left: -1px;
+  border-radius: 0 var(--pe-radius) var(--pe-radius) 0;
+  color: var(--pe-muted);
+}
+
+.planos-editor .planos-editor-status .planos-primary-action {
+  border-color: var(--pe-accent) !important;
+  background: var(--pe-accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(21, 118, 209, 0.3);
+}
+
+.planos-editor .planos-editor-status .planos-primary-action:hover:not(:disabled) { background: #0f64b4 !important; }
+
+/* ---------- Franja de opciones de la herramienta ---------- */
+.planos-editor .planos-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  max-height: none;
+  margin: 0;
+  padding: 7px 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--pe-line);
+  border-radius: 0;
+  background: #f8fbfd;
+  box-shadow: none;
+}
+
+.planos-editor .planos-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--pe-line);
+  border-radius: 999px;
+  background: var(--pe-surface);
+  color: var(--pe-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.planos-editor .planos-toolbar button.is-active {
+  border-color: var(--pe-accent) !important;
+  background: var(--pe-accent-soft) !important;
+  color: #0b4f91 !important;
+}
+
+.planos-editor .planos-layer-select {
+  height: 34px;
+  min-height: 0;
+  padding: 0 4px 0 11px;
+  border: 1px solid var(--pe-line);
+  border-radius: 999px;
+  background: var(--pe-surface);
+  color: var(--pe-muted);
+}
+
+.planos-editor .planos-layer-select select {
+  height: 32px;
+  min-height: 0;
+  padding: 0 22px 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--pe-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.planos-editor .planos-toolbar input {
+  flex: 0 0 220px;
+  min-width: 160px;
+  height: 34px;
+  min-height: 0;
+  padding: 0 12px;
+  border: 1px solid var(--pe-line-strong);
+  border-radius: 999px;
+}
+
+.planos-editor .planos-tool-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--pe-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.planos-editor .planos-tool-hint strong { color: var(--pe-ink); font-size: 13px; }
+.planos-editor .planos-tool-hint span { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Cuerpo: riel de herramientas + lienzo ---------- */
+.planos-editor .planos-editor-body {
+  display: grid;
+  grid-template-columns: var(--pe-rail) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.planos-editor .planos-tool-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--pe-line);
+  background: var(--pe-surface);
+  scrollbar-width: none;
+}
+
+.planos-editor .planos-tool-rail-group {
+  display: grid;
+  gap: 4px;
+}
+
+.planos-editor .planos-tool-rail-group + .planos-tool-rail-group {
+  padding-top: 10px;
+  border-top: 1px solid var(--pe-line);
+}
+
+.planos-editor .planos-tool-rail button {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 100%;
+  padding: 8px 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--pe-radius);
+  background: transparent;
+  color: var(--pe-muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+.planos-editor .planos-tool-rail button:hover { background: #f1f6fb; color: var(--pe-ink); }
+
+.planos-editor .planos-tool-rail button.is-active {
+  border-color: rgba(21, 118, 209, 0.28);
+  background: var(--pe-accent-soft);
+  color: #0b4f91;
+}
+
+.planos-editor .planos-tool-rail button.is-danger.is-active {
+  border-color: rgba(180, 35, 24, 0.3);
+  background: #fdecea;
+  color: var(--pe-danger);
+}
+
+.planos-editor .planos-tool-rail button:focus-visible,
+.planos-editor .planos-view-dock button:focus-visible,
+.planos-editor .planos-editor-head button:focus-visible,
+.planos-editor .planos-toolbar button:focus-visible {
+  outline: 2px solid var(--pe-accent);
+  outline-offset: 2px;
+}
+
+.planos-editor .planos-editor-grid {
+  position: relative;
+  display: block;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+}
+
+.planos-editor .planos-editor-stage {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(16, 50, 79, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 50, 79, 0.05) 1px, transparent 1px),
+    var(--pe-canvas);
+  background-size: 28px 28px;
+}
+
+/* ---------- Controles flotantes ---------- */
+.planos-editor .planos-view-dock {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--pe-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(16, 50, 79, 0.14);
+}
+
+.planos-editor .planos-view-dock button {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pe-ink);
+  cursor: pointer;
+}
+
+.planos-editor .planos-view-dock button:hover:not(:disabled) { background: #eef4fa; }
+.planos-editor .planos-view-dock button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.planos-editor .planos-view-dock-value {
+  min-width: 52px !important;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.planos-editor .planos-view-dock-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--pe-line);
+}
+
+.planos-editor .planos-fit-button {
+  min-height: 0;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--pe-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(16, 50, 79, 0.14);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.planos-editor .planos-layers-panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 16;
+  display: grid;
+  gap: 4px;
+  width: min(340px, calc(100% - 24px));
+  max-height: calc(100% - 84px);
+  padding: 10px;
+  overflow-y: auto;
+  border: 1px solid var(--pe-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 32px rgba(16, 50, 79, 0.16);
+}
+
+.planos-editor .planos-layers-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 6px;
+}
+
+.planos-editor .planos-layers-head button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pe-muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.planos-editor .planos-layer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px 32px;
+  grid-template-areas:
+    "name eye lock"
+    "op op op";
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.planos-editor .planos-layer-row.is-active {
+  border-color: rgba(21, 118, 209, 0.22);
+  background: var(--pe-accent-soft);
+}
+
+.planos-editor .planos-layer-row button {
+  min-height: 0;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--pe-muted);
+}
+
+.planos-editor .planos-layer-row button:hover { background: rgba(16, 50, 79, 0.06); color: var(--pe-ink); }
+
+.planos-editor .planos-layer-row .planos-layer-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  color: var(--pe-ink);
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.planos-editor .planos-layer-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planos-editor .planos-layer-name small {
+  flex: 0 0 auto;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(16, 50, 79, 0.07);
+  color: var(--pe-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.planos-editor .planos-layer-row label {
+  grid-area: op;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 8px 6px;
+  color: var(--pe-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.planos-editor .planos-layer-row label input { flex: 1; accent-color: var(--pe-accent); }
+
+/* La opacidad solo se muestra en la capa activa para que la lista no sea un muro de controles. */
+.planos-editor .planos-layer-row:not(.is-active) label { display: none; }
+
+.planos-editor .planos-properties {
+  top: 12px;
+  right: 12px;
+  max-height: calc(100% - 84px);
+  overflow-y: auto;
+  border: 1px solid var(--pe-line);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(16, 50, 79, 0.16);
+}
+
+/* ---------- Pantallas medianas: acciones solo con icono ---------- */
+@media (max-width: 1180px) {
+  .planos-editor .planos-editor-status button:not(.planos-primary-action) span { display: none; }
+  .planos-editor .planos-editor-status .planos-export-group button + button span { display: inline; }
+  .planos-editor .planos-tool-hint span { display: none; }
+}
+
+/* ---------- Celular ---------- */
+@media (max-width: 760px) {
+  .planos-editor {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
+  .planos-editor .planos-editor-head {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 8px 10px;
+  }
+
+  .planos-editor .planos-back { width: 38px; padding: 0; justify-content: center; }
+  .planos-editor .planos-back-label { display: none; }
+  .planos-editor .planos-editor-title { flex: 1 1 0; padding-left: 10px; }
+  .planos-editor .planos-editor-badges { order: 3; }
+  .planos-editor .planos-editor-status { order: 4; margin-left: auto; }
+  .planos-editor .planos-editor-status .planos-primary-action span { display: none; }
+
+  .planos-editor .planos-toolbar { padding: 6px 10px; }
+  .planos-editor .planos-tool-hint { display: none; }
+
+  .planos-editor .planos-editor-body {
+    display: contents;
+  }
+
+  .planos-editor .planos-tool-rail {
+    flex-direction: row;
+    gap: 8px;
+    padding: 6px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--pe-line);
+  }
+
+  .planos-editor .planos-tool-rail-group {
+    display: flex;
+    gap: 4px;
+  }
+
+  .planos-editor .planos-tool-rail-group + .planos-tool-rail-group {
+    padding: 0 0 0 8px;
+    border-top: 0;
+    border-left: 1px solid var(--pe-line);
+  }
+
+  .planos-editor .planos-tool-rail button { width: 58px; flex: 0 0 auto; }
+
+  .planos-editor .planos-view-dock {
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .planos-editor .planos-fit-button { left: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Acciones de dibujo y precision: por encima de los controles de vista. */
+  .planos-editor .planos-precision-actions,
+  .planos-editor .planos-finish-polygon {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .planos-editor .planos-drawing-actions {
+    right: 10px;
+    bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+    left: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    transform: none;
+  }
+
+  /* Propiedades como hoja inferior, sobre el lienzo. */
+  .planos-editor .planos-properties {
+    position: fixed;
+    top: auto;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    z-index: 40;
+    width: auto;
+    max-height: min(58vh, 430px);
+  }
+
+  .planos-editor .planos-layers-panel {
+    top: 8px;
+    left: 8px;
+    width: calc(100% - 16px);
+    max-height: calc(100% - 76px);
+  }
+
+  /* En el celular el giro se hace con dos dedos: quedan deshacer, rehacer y zoom. */
+  .planos-editor .planos-view-dock > :nth-child(n + 7) { display: none; }
+}

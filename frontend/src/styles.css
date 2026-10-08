@@ -10836,6 +10836,8 @@ body.planos-focus-mode .page-shell {
 
 body.planos-focus-mode .app-sidebar,
 body.planos-focus-mode .app-sidebar-backdrop,
+body.planos-focus-mode .control-sidebar,
+body.planos-focus-mode .control-sidebar-backdrop,
 body.planos-focus-mode .app-bottom-nav,
 body.planos-focus-mode .app-chrome > .search-card,
 body.planos-focus-mode .app-chrome > .app-topbar {
@@ -11679,249 +11681,24 @@ body.planos-focus-mode .page-shell > main {
 }
 
 @media (max-width: 900px) {
-  .planos-workspace,
-  .planos-editor {
+  /* El editor de croquis tiene su propio responsive en modules/planos/planosEditor.css. */
+  .planos-workspace {
     width: min(100% - 1rem, 1500px);
   }
 
   .planos-header,
-  .planos-editor-head,
   .planos-table article {
     grid-template-columns: 1fr;
     align-items: stretch;
   }
 
-  .planos-header,
-  .planos-editor-head {
+  .planos-header {
     display: grid;
-  }
-
-  .planos-editor-head {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-  }
-
-  .planos-editor-status {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
-
-  .planos-editor-status > * {
-    min-width: 0;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .planos-editor-status button,
-  .planos-editor-status .planos-primary-action {
-    width: 100%;
-  }
-
-  .planos-editor-status .planos-primary-action {
-    grid-column: 1 / -1;
   }
 
   .planos-create-card,
-  .planos-picker,
-  .planos-editor-grid {
+  .planos-picker {
     grid-template-columns: 1fr;
-  }
-
-  .planos-editor {
-    width: 100%;
-  }
-
-  .planos-editor-grid {
-    height: auto;
-    min-height: 0;
-    margin-bottom: min(30vh, 230px);
-  }
-
-  .planos-toolbar {
-    position: fixed;
-    right: 0.5rem;
-    bottom: 0.5rem;
-    left: 0.5rem;
-    flex-wrap: wrap;
-    max-height: min(28vh, 220px);
-    overflow-x: hidden;
-    overflow-y: auto;
-    margin: 0;
-    border-radius: 16px;
-    overscroll-behavior: contain;
-  }
-
-  .planos-tool-group {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(42px, 1fr));
-    flex: 1 0 100%;
-    min-width: 0;
-    gap: 0.35rem;
-    padding-right: 0;
-    border-right: 0;
-  }
-
-  .planos-action-group {
-    display: flex;
-    flex-wrap: nowrap;
-    flex: 1 0 100%;
-    min-width: 0;
-    gap: 0.35rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .planos-save-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-left: 0;
-  }
-
-  .planos-toolbar button {
-    justify-content: center;
-    min-height: 38px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.78rem;
-  }
-
-  .planos-tool-group button {
-    min-width: 0;
-    min-height: 44px;
-    padding: 0;
-  }
-
-  .planos-tool-group .planos-tool-label {
-    display: none;
-  }
-
-  .planos-primary-action,
-  .planos-toolbar input {
-    width: 100%;
-  }
-
-  .planos-editor-status {
-    justify-content: flex-end;
-  }
-
-  .planos-editor-status button {
-    min-height: 36px;
-    padding: 0.35rem 0.55rem;
-  }
-
-  .planos-tool-hint {
-    flex: 1 0 100%;
-    min-width: 0;
-    margin-left: 0;
-  }
-
-  .planos-layer-select {
-    flex: 1 0 100%;
-  }
-
-  .planos-view-state {
-    display: none;
-  }
-
-  .planos-history-group,
-  .planos-view-group {
-    flex: 1 0 100%;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-  }
-
-  .planos-history-group button,
-  .planos-view-group button,
-  .planos-action-group button {
-    min-width: 112px;
-  }
-
-  .planos-save-group button {
-    min-width: 0;
-  }
-
-  .planos-layer-select {
-    justify-content: center;
-  }
-
-  .planos-layers-panel {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    max-height: 96px;
-    padding: 0.45rem;
-  }
-
-  .planos-layer-row {
-    grid-template-columns: minmax(100px, 1fr) 36px 36px minmax(64px, 76px);
-  }
-
-  .planos-precision-actions {
-    right: 0.75rem;
-    bottom: calc(min(28vh, 220px) + 1rem);
-    left: 0.75rem;
-    justify-content: center;
-    transform: none;
-  }
-
-  .planos-precision-actions button {
-    flex: 1;
-    min-height: 46px;
-  }
-
-  .planos-drawing-actions {
-    right: 0.75rem;
-    bottom: calc(min(28vh, 220px) + 4.6rem);
-    left: 0.75rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    transform: none;
-  }
-
-  .planos-drawing-actions strong {
-    width: 100%;
-    text-align: center;
-  }
-
-  .planos-nudge-pad {
-    right: 0.75rem;
-    top: 42%;
-    grid-template-columns: repeat(3, 30px);
-  }
-
-  .planos-nudge-pad button {
-    min-height: 30px;
-    padding: 0;
-  }
-
-  .planos-fit-button {
-    top: 0.75rem;
-    right: 0.75rem;
-    bottom: auto;
-    left: auto;
-  }
-
-  .planos-finish-polygon {
-    right: 0.75rem;
-    bottom: calc(min(28vh, 220px) + 1rem);
-  }
-
-  .planos-properties {
-    position: fixed;
-    top: auto;
-    right: 0.5rem;
-    bottom: 0.5rem;
-    left: 0.5rem;
-    z-index: 40;
-    width: auto;
-    max-height: min(58vh, 430px);
-    overflow-y: auto;
-    border-radius: 16px;
-    box-shadow: 0 18px 60px rgba(15, 23, 42, 0.24);
-  }
-
-  .planos-properties button {
-    min-height: 42px;
   }
 }
 

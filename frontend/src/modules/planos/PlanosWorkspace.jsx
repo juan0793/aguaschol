@@ -10,6 +10,7 @@ import { CroquisToolHint } from "./CroquisToolHint";
 import { cloneEditorElement, completePlacementTool, finishLineDraft, moveElementInStack, nextLineDraft, patchEditorLayer, pushEditorHistory, redoEditorHistory, shouldPlaceFromPointerUp, undoEditorHistory } from "./planosEditorHistory";
 import { buildCroquisSvg } from "./planosVectorExport";
 import { buildCroquisPdf } from "./planosPdfExport";
+import "./planosEditor.css";
 
 const pdfBackgroundCache = new Map();
 let pdfJsPromise = null;
@@ -1215,57 +1216,49 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   return (
     <section className="planos-editor">
       <header className="planos-editor-head">
-        <button type="button" className="button-secondary" onClick={closeEditor}><Icon name="arrowLeft" />Volver</button>
-        <div>
-          <p className="sheet-kicker">Editor de Croquis</p>
+        <button type="button" className="planos-back" onClick={closeEditor} aria-label="Volver a Planos y croquis"><Icon name="arrowLeft" /><span className="planos-back-label">Volver</span></button>
+        <div className="planos-editor-title">
+          <p className="sheet-kicker">Croquis{barrio.codigo_barrio ? ` · ${barrio.codigo_barrio}` : ""}</p>
           <h2>{barrio.nombre_barrio}</h2>
         </div>
-        <div className="planos-editor-status">
+        <div className="planos-editor-badges">
           <StatusBadge status={version?.estado || barrio.estado} />
           <CroquisSyncStatus saveState={saveState} />
-          <button type="button" className="button-secondary" onClick={() => saveDraft().then(() => toast.success("Borrador guardado.")).catch(() => {})} disabled={saving}><Save size={16} />{saving ? "Guardando" : "Guardar borrador"}</button>
-          {saveState === "local" ? <button type="button" className="button-secondary" onClick={() => saveDraft().catch(() => {})} disabled={saving}><RotateCw size={16} />Reintentar</button> : null}
-          <button type="button" className="button-secondary" onClick={exportPdf} disabled={saving || exporting}><Download size={16} />{exporting ? "Preparando" : "Guardar en PDF"}</button>
-          <button type="button" className="button-secondary" onClick={downloadDraft} disabled={saving || exporting} title="Descargar como SVG vectorial">SVG</button>
-          <button type="button" className="planos-primary-action" onClick={sendReview} disabled={saving || submitting}><Send size={16} />{submitting ? "Enviando" : "Enviar a revision"}</button>
+        </div>
+        <div className="planos-editor-status">
+          {saveState === "local" ? <button type="button" onClick={() => saveDraft().catch(() => {})} disabled={saving} aria-label="Reintentar guardado" title="Reintentar guardado"><RotateCw size={16} /><span>Reintentar</span></button> : null}
+          <button type="button" onClick={() => saveDraft().then(() => toast.success("Borrador guardado.")).catch(() => {})} disabled={saving} aria-label="Guardar borrador" title="Guardar borrador"><Save size={16} /><span>{saving ? "Guardando" : "Guardar"}</span></button>
+          <div className="planos-export-group" role="group" aria-label="Descargar">
+            <button type="button" onClick={exportPdf} disabled={saving || exporting} aria-label="Descargar en PDF" title="Guardar y descargar en PDF"><Download size={16} /><span>{exporting ? "Preparando" : "PDF"}</span></button>
+            <button type="button" onClick={downloadDraft} disabled={saving || exporting} aria-label="Descargar en SVG" title="Descargar como SVG vectorial"><span>SVG</span></button>
+          </div>
+          <button type="button" className="planos-primary-action" onClick={sendReview} disabled={saving || submitting} aria-label="Enviar a revisión"><Send size={16} /><span>{submitting ? "Enviando" : "Enviar a revisión"}</span></button>
         </div>
       </header>
-      <div className="planos-toolbar">
-        <div className="planos-tool-group">
-          {primaryTools.map(([key, label, ToolIcon]) => (
-            <button key={key} type="button" aria-label={label} title={label} className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
-              <ToolIcon size={16} /><span className="planos-tool-label">{label}</span>
-            </button>
-          ))}
-        </div>
-        <div className="planos-action-group">
-          <button type="button" className={showLayers ? "is-active" : ""} onClick={() => setShowLayers((current) => !current)}><Layers size={16} />Capas</button>
-          <label className="planos-layer-select"><Layers size={16} /><select value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{layerOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-          {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder={tool === "codigo" ? "Numero" : "Texto u observacion"} /> : null}
-          {singlePlacementTools.has(tool) ? <button type="button" className={continuousPlacement ? "is-active" : ""} onClick={() => setContinuousPlacement((current) => !current)}>Colocar varios</button> : null}
-          {placementTools.has(tool) ? <button type="button" className={precisionMode ? "is-active" : ""} onClick={() => setPrecisionMode((current) => !current)}>Precision</button> : null}
-          {secondaryTools.map(([key, label, ToolIcon]) => (
-            <button key={key} type="button" aria-label={label} title={label} className={tool === key ? "is-active" : ""} onClick={() => setTool(key)}>
-              <ToolIcon size={16} />{label}
-            </button>
-          ))}
-        </div>
-        <div className="planos-action-group planos-history-group">
-          <button type="button" onClick={undo} disabled={!canUndo}><Undo2 size={16} />Deshacer</button>
-          <button type="button" onClick={redo} disabled={!canRedo}><Redo2 size={16} />Rehacer</button>
-        </div>
-        <div className="planos-action-group planos-view-group">
-          <button type="button" onClick={() => setZoom((current) => clampZoom(current - 0.5))}><Minus size={16} />Alejar</button>
-          <button type="button" onClick={() => setZoom((current) => clampZoom(current + 0.5))}><Plus size={16} />Acercar</button>
-          <button type="button" onClick={() => setRotation((current) => current - 15)}><RotateCcw size={16} />Girar izq.</button>
-          <button type="button" onClick={() => setRotation((current) => current + 15)}><RotateCw size={16} />Girar der.</button>
-          <button type="button" onClick={() => setRotation(0)}>Restablecer giro</button>
-          {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} onClick={() => setSnap((current) => !current)}>Snap</button> : null}
-        </div>
+      <div className="planos-toolbar" aria-label="Opciones de la herramienta">
+        <label className="planos-layer-select" title="Capa donde se dibuja"><Layers size={16} /><select aria-label="Capa activa" value={activeLayer} onChange={(event) => setActiveLayer(event.target.value)}>{layerOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+        <button type="button" className={showLayers ? "is-active" : ""} onClick={() => setShowLayers((current) => !current)} aria-pressed={showLayers}><Eye size={16} />Capas</button>
+        {["texto", "codigo", "punto"].includes(tool) ? <input value={content} onChange={(event) => setContent(event.target.value)} placeholder={tool === "codigo" ? "Numero" : "Texto u observacion"} aria-label={tool === "codigo" ? "Numero a colocar" : "Texto a colocar"} /> : null}
+        {singlePlacementTools.has(tool) ? <button type="button" className={continuousPlacement ? "is-active" : ""} aria-pressed={continuousPlacement} onClick={() => setContinuousPlacement((current) => !current)}>Colocar varios</button> : null}
+        {placementTools.has(tool) ? <button type="button" className={precisionMode ? "is-active" : ""} aria-pressed={precisionMode} onClick={() => setPrecisionMode((current) => !current)}><Crosshair size={16} />Precisión</button> : null}
+        {tool === "linea" ? <button type="button" className={snap ? "is-active" : ""} aria-pressed={snap} onClick={() => setSnap((current) => !current)} title="Ajusta la línea a ángulos de 45°">Ángulos de 45°</button> : null}
         <CroquisToolHint tool={tool} label={toolLabel[tool]} />
-        <div className="planos-view-state">Zoom {Math.round(zoom * 100)}% · Giro {rotation} deg</div>
       </div>
-      {showLayers ? <div className="planos-layers-panel">
+      <div className="planos-editor-body">
+      <nav className="planos-tool-rail" aria-label="Herramientas">
+        {[primaryTools, secondaryTools].map((grupo, index) => (
+          <div key={index} className="planos-tool-rail-group">
+            {grupo.map(([key, label, ToolIcon]) => (
+              <button key={key} type="button" aria-label={label} title={label} aria-pressed={tool === key} className={`${tool === key ? "is-active" : ""} ${key === "borrar" ? "is-danger" : ""}`} onClick={() => setTool(key)}>
+                <ToolIcon size={18} /><span>{label}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div className="planos-editor-grid">
+      {showLayers ? <div className="planos-layers-panel" aria-label="Capas del croquis">
+        <div className="planos-layers-head"><strong>Capas</strong><button type="button" aria-label="Cerrar capas" onClick={() => setShowLayers(false)}>×</button></div>
         {layers.map((layer) => {
           const count = layer.key === "plano_base" ? 1 : elements.filter((item) => (item.data_json?.capa || "correcciones") === layer.key).length;
           return (
@@ -1284,7 +1277,18 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           );
         })}
       </div> : null}
-      <div className="planos-editor-grid">
+        <div className="planos-view-dock" role="toolbar" aria-label="Vista del plano">
+          <button type="button" onClick={undo} disabled={!canUndo} aria-label="Deshacer" title="Deshacer (Ctrl+Z)"><Undo2 size={16} /></button>
+          <button type="button" onClick={redo} disabled={!canRedo} aria-label="Rehacer" title="Rehacer (Ctrl+Y)"><Redo2 size={16} /></button>
+          <span className="planos-view-dock-sep" aria-hidden="true" />
+          <button type="button" onClick={() => setZoom((current) => clampZoom(current - 0.5))} aria-label="Alejar" title="Alejar"><Minus size={16} /></button>
+          <button type="button" className="planos-view-dock-value" onClick={() => setZoom(1)} aria-label={`Zoom ${Math.round(zoom * 100)} por ciento, volver a 100`} title="Volver a 100%">{Math.round(zoom * 100)}%</button>
+          <button type="button" onClick={() => setZoom((current) => clampZoom(current + 0.5))} aria-label="Acercar" title="Acercar"><Plus size={16} /></button>
+          <span className="planos-view-dock-sep" aria-hidden="true" />
+          <button type="button" onClick={() => setRotation((current) => current - 15)} aria-label="Girar a la izquierda" title="Girar 15° a la izquierda"><RotateCcw size={16} /></button>
+          <button type="button" className="planos-view-dock-value" onClick={() => setRotation(0)} aria-label={`Giro ${rotation} grados, restablecer`} title="Restablecer giro">{rotation}°</button>
+          <button type="button" onClick={() => setRotation((current) => current + 15)} aria-label="Girar a la derecha" title="Girar 15° a la derecha"><RotateCw size={16} /></button>
+        </div>
         <CanvasCroquis apiFetch={apiFetch} barrio={barrio} elements={elements} setElements={commitElements} selectedId={selectedId} setSelectedId={setSelectedId} tool={tool} onToolChange={setTool} content={content} activeLayer={activeLayer} layers={layers} polygonDraft={polygonDraft} setPolygonDraft={setPolygonDraft} zoom={zoom} setZoom={setZoom} rotation={rotation} setRotation={setRotation} snap={snap} continuousPlacement={continuousPlacement} precisionMode={precisionMode} />
         <AnimatePresence>
         {selected ? <motion.aside className="planos-properties" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 18 }}>
@@ -1340,6 +1344,7 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
           </div>
         </motion.aside> : null}
         </AnimatePresence>
+      </div>
       </div>
     </section>
   );
