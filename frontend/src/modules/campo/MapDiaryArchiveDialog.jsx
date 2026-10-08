@@ -45,7 +45,7 @@ export default function MapDiaryArchiveDialog({ model }) {
               <div>
                 <span className="sheet-kicker"><CalendarDays size={14} /> Jornada seleccionada</span>
                 <h3>{selectedArchiveMapDiaryGroup ? formatMapDiaryLabel(selectedArchiveMapDiaryGroup.key) : "Sin jornada"}</h3>
-                <p className="map-diary-archive-points"><MapPin size={15} /> {selectedArchiveMapDiaryGroup?.total || 0} puntos guardados</p>
+                <p className="map-diary-archive-points"><MapPin size={15} /> {selectedArchiveMapDiaryGroup?.total || 0} {(selectedArchiveMapDiaryGroup?.total || 0) === 1 ? "punto guardado" : "puntos guardados"}</p>
               </div>
               <button
                 type="button"
@@ -64,16 +64,16 @@ export default function MapDiaryArchiveDialog({ model }) {
                     <th>#</th>
                     <th>Tipo</th>
                     <th>Referencia</th>
-                    <th>Descripcion</th>
+                    <th>Descripción</th>
                     <th>Coordenadas</th>
-                    <th>Precision</th>
+                    <th>Precisión</th>
                     <th>Hora</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingArchiveMapDiaryPoints ? (
                     <tr>
-                      <td colSpan="7">Cargando datos guardados...</td>
+                      <td colSpan="7">Cargando datos guardados…</td>
                     </tr>
                   ) : archiveMapDiaryPoints.length ? (
                     archiveMapDiaryPoints.map((point, index) => (

@@ -1,0 +1,72 @@
+{
+  "title": "Puntos GPS: elige la estructura",
+  "question": "Las tres respetan tu flujo (ubicarme, la app me acerca, coloco el puntito) y guardan sin señal. Elige cómo se organiza la pantalla en el celular.",
+  "options": [
+    {
+      "id": "sellos",
+      "label": "Sellos de campo",
+      "kicker": "THE ROLL",
+      "lineage": "Sello de oficina: eliges el sello y lo estampas",
+      "thesis": "Eliges el tipo una vez y cada toque en el mapa estampa un punto: diez cajas seguidas son diez toques.",
+      "palette": ["#1465d9", "#0b3f73", "#18a689", "#f2b64a", "#ffffff"],
+      "materials": ["mapa a pantalla completa", "fila de sellos táctiles por tipo", "barra de estado con GPS y envíos"],
+      "viewport": "Mapa a todo lo alto; abajo una fila de seis sellos grandes, uno por tipo; arriba GPS, precisión y puntos por enviar. Detalles opcionales en una hoja que sube después de estampar.",
+      "risk": "Es fácil estampar un punto sin querer: necesita Deshacer siempre a mano.",
+      "wireframe": {
+        "cols": 6,
+        "rows": 12,
+        "regions": [
+          { "label": "GPS ±m · por enviar", "x": 0, "y": 0, "w": 6, "h": 1 },
+          { "label": "mapa a pantalla completa", "x": 0, "y": 1, "w": 6, "h": 8 },
+          { "label": "mi ubicación", "x": 4, "y": 7, "w": 2, "h": 1 },
+          { "label": "hoja: detalles del punto", "x": 0, "y": 9, "w": 6, "h": 1 },
+          { "label": "sellos por tipo", "x": 0, "y": 10, "w": 6, "h": 2, "accent": true }
+        ]
+      }
+    },
+    {
+      "id": "cuaderno",
+      "label": "Cuaderno de jornada",
+      "lineage": "Libreta de campo: mapa arriba, apuntes del día abajo",
+      "thesis": "El mapa y la lista del día son lo mismo: cada punto es una fila con hora, tipo y si ya se envió.",
+      "palette": ["#1465d9", "#0b3f73", "#18a689", "#f2b64a", "#ffffff"],
+      "materials": ["mapa enlazado a la lista", "línea de tiempo de la jornada", "botón fijo Nuevo punto"],
+      "viewport": "Mapa arriba (60%); debajo una hoja con la jornada en orden de hora; botón grande Nuevo punto fijo abajo. En escritorio, la jornada pasa a una columna a la derecha.",
+      "risk": "En celulares chicos el mapa queda más bajo mientras se revisa la lista.",
+      "wireframe": {
+        "cols": 6,
+        "rows": 12,
+        "regions": [
+          { "label": "jornada · GPS · por enviar", "x": 0, "y": 0, "w": 6, "h": 1 },
+          { "label": "mapa", "x": 0, "y": 1, "w": 6, "h": 6 },
+          { "label": "jornada: filas por hora", "x": 0, "y": 7, "w": 6, "h": 4 },
+          { "label": "Nuevo punto", "x": 0, "y": 11, "w": 6, "h": 1, "accent": true }
+        ]
+      }
+    },
+    {
+      "id": "visor",
+      "label": "Visor con mira",
+      "lineage": "Visor de agrimensor: mira fija y lecturas de instrumento",
+      "thesis": "El GPS te acerca y una mira fija al centro coloca el punto exacto sin que el dedo lo tape.",
+      "palette": ["#1465d9", "#0b3f73", "#18a689", "#f2b64a", "#ffffff"],
+      "materials": ["mira central fija", "lecturas tipo instrumento", "botón Marcar grande"],
+      "viewport": "Mapa a todo lo alto con una mira al centro; arriba la precisión (±m) y las coordenadas como lecturas; abajo el tipo y un botón Marcar grande.",
+      "risk": "Mover el mapa bajo la mira en vez de tocar el punto es un hábito nuevo para el técnico.",
+      "wireframe": {
+        "cols": 6,
+        "rows": 12,
+        "regions": [
+          { "label": "±m · lat · lng", "x": 0, "y": 0, "w": 6, "h": 1 },
+          { "label": "mapa que se mueve", "x": 0, "y": 1, "w": 6, "h": 8 },
+          { "label": "mira", "x": 2, "y": 4, "w": 2, "h": 2, "accent": true },
+          { "label": "tipo de punto", "x": 0, "y": 9, "w": 6, "h": 1 },
+          { "label": "Marcar", "x": 0, "y": 10, "w": 6, "h": 2, "accent": true }
+        ]
+      }
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "buildPath": { "value": "code", "toggle": false }
+}

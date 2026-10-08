@@ -455,6 +455,12 @@ const ensureSchema = async () => {
       columnName: "correction_notes",
       definition: "TEXT NULL"
     });
+    // Referencia del celular para no duplicar puntos capturados sin señal al reenviarlos.
+    await ensureColumn(admin, {
+      tableName: "map_points",
+      columnName: "client_ref",
+      definition: "VARCHAR(64) NULL DEFAULT NULL"
+    });
     await admin.query(
       `
         CREATE TABLE IF NOT EXISTS map_point_validation_logs (
@@ -798,6 +804,12 @@ const ensureSchema = async () => {
       tableName: "map_points",
       indexName: "idx_map_points_validated_by",
       columns: ["validated_by"]
+    });
+    await ensureIndex(admin, {
+      tableName: "map_points",
+      indexName: "uq_map_points_client_ref",
+      columns: ["client_ref"],
+      unique: true
     });
     await ensureIndex(admin, {
       tableName: "map_point_validation_logs",

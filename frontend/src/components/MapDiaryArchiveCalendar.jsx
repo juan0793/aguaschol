@@ -70,7 +70,7 @@ export const MapDiaryArchiveCalendar = ({ groups, selectedDateKey, loading, onSe
               className={`${day.total ? "has-work" : ""} ${selectedDateKey === day.key ? "is-active" : ""}`}
               onClick={() => day.total && onSelectDate(day.key)}
               disabled={!day.total || loading}
-              aria-label={day.total ? `${formatMapDiaryLabel(day.key)}, ${day.total} puntos` : formatMapDiaryLabel(day.key)}
+              aria-label={day.total ? `${formatMapDiaryLabel(day.key)}, ${day.total} ${day.total === 1 ? "punto" : "puntos"}` : formatMapDiaryLabel(day.key)}
             >
               <span>{day.day}</span>
               {day.total ? <small>{day.total}</small> : null}
@@ -79,8 +79,8 @@ export const MapDiaryArchiveCalendar = ({ groups, selectedDateKey, loading, onSe
         )}
       </div>
       <div className="map-diary-archive-calendar-summary">
-        <div><strong>{monthGroups.length}</strong><span>jornadas</span></div>
-        <div><strong>{monthPoints}</strong><span>puntos</span></div>
+        <div><strong>{monthGroups.length}</strong><span>{monthGroups.length === 1 ? "jornada" : "jornadas"}</span></div>
+        <div><strong>{monthPoints}</strong><span>{monthPoints === 1 ? "punto" : "puntos"}</span></div>
       </div>
     </section>
   );

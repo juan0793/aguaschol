@@ -11,7 +11,7 @@ export const GEOLOCATION_FALLBACK_OPTIONS = {
 };
 
 export const IOS_GPS_HELP =
-  "En iPhone la ubicacion solo funciona si abres el sistema con HTTPS y das permiso en Safari. Mientras tanto puedes tocar el mapa o escribir latitud y longitud para guardar el punto.";
+  "En iPhone, la ubicación solo funciona si abres el sistema con HTTPS y das permiso en Safari. Mientras tanto, puedes tocar el mapa o escribir latitud y longitud para guardar el punto.";
 
 export const getCurrentPosition = (options) =>
   new Promise((resolve, reject) => {
@@ -28,7 +28,7 @@ export const getGeolocationUnavailableMessage = () => {
     return IOS_GPS_HELP;
   }
 
-  return "Este dispositivo no soporta geolocalizacion. Puedes tocar el mapa o escribir las coordenadas manualmente.";
+  return "Este dispositivo no soporta la geolocalización. Puedes tocar el mapa o escribir las coordenadas manualmente.";
 };
 
 export const getGeolocationErrorMessage = (error) => {
@@ -37,12 +37,12 @@ export const getGeolocationErrorMessage = (error) => {
   }
 
   if (error?.code === error?.PERMISSION_DENIED || error?.code === 1) {
-    return "El navegador bloqueo la ubicacion. En iPhone revisa Ajustes > Safari > Ubicacion y permite el acceso; tambien puedes tocar el mapa para marcar el punto.";
+    return "El navegador bloqueó la ubicación. En iPhone, revisa Ajustes > Safari > Ubicación y permite el acceso; también puedes tocar el mapa para marcar el punto.";
   }
 
   if (error?.code === error?.TIMEOUT || error?.code === 3) {
-    return "El GPS tardo demasiado en responder. Intenta al aire libre, toca el mapa o escribe latitud y longitud para registrar el punto.";
+    return "El GPS tardó demasiado en responder. Intenta al aire libre, toca el mapa o escribe latitud y longitud para registrar el punto.";
   }
 
-  return "No fue posible obtener la ubicacion actual. Puedes tocar el mapa o escribir las coordenadas manualmente.";
+  return "No fue posible obtener la ubicación actual. Puedes tocar el mapa o escribir las coordenadas manualmente.";
 };

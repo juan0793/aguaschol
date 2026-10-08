@@ -95,11 +95,33 @@ const applyBarrioToReference = ({ referenceNote = "", description = "" } = {}) =
   return `${barrio} - ${referenceNote}`;
 };
 
+// Referencia que genera el celular para cada punto capturado sin señal. Si el
+// envío se reintenta (la respuesta se perdió), el servidor devuelve el punto ya
+// guardado en vez de duplicarlo.
+const normalizeClientRef = (value) => {
+  const candidate = String(value ?? "").trim();
+  return /^[a-zA-Z0-9_-]{8,64}$/.test(candidate) ? candidate : null;
+};
+
+// La jornada sale de la hora real de captura, no de la de envío: un punto marcado
+// sin señal el lunes y enviado el martes sigue siendo del lunes. Solo se acepta
+// una captura de los últimos 14 días y nunca futura.
+const MAX_CAPTURE_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+export const resolveCaptureDiaryDate = (capturedAt, now = new Date()) => {
+  const captured = capturedAt ? new Date(capturedAt) : null;
+  const valid = captured && !Number.isNaN(captured.getTime())
+    && captured.getTime() <= now.getTime() + 5 * 60 * 1000
+    && now.getTime() - captured.getTime() <= MAX_CAPTURE_AGE_MS;
+  return getLocalDiaryDateKey(valid ? captured : now);
+};
+
 const normalizePayload = (payload = {}) => {
   const description = String(payload.description ?? "").trim();
   const referenceNote = String(payload.reference ?? payload.reference_note ?? "").trim();
 
   return {
+    client_ref: normalizeClientRef(payload.client_ref),
+    captured_at: payload.captured_at ?? null,
     point_type: String(payload.point_type ?? "caja_registro").trim() || "caja_registro",
     latitude: Number(payload.latitude),
     longitude: Number(payload.longitude),
@@ -466,13 +488,19 @@ export const createMapPoint = async (payload, authUser) => {
   const data = normalizePayload(payload);
   validateCoordinates(data);
 
+  const { client_ref: clientRef, captured_at: capturedAt, ...fields } = data;
+  const diaryDate = resolveCaptureDiaryDate(capturedAt);
+
   if (env.useMemoryDb) {
+    const existing = clientRef ? memoryPoints.find((item) => item.client_ref === clientRef) : null;
+    if (existing) return existing;
     const point = {
       id: memoryPoints.length + 1,
-      ...data,
+      ...fields,
+      client_ref: clientRef,
       created_by: authUser?.id ?? null,
       created_by_name: authUser?.full_name ?? authUser?.username ?? "",
-      diary_date: getLocalDiaryDateKey(new Date()),
+      diary_date: diaryDate,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -481,42 +509,61 @@ export const createMapPoint = async (payload, authUser) => {
   }
 
   const pool = getPool();
-  const [result] = await pool.query(
-    `
-      INSERT INTO map_points (
-        point_type, latitude, longitude, accuracy_meters, description, reference_note, marker_color, is_terminal_point, housing_units, created_by, diary_date
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      data.point_type,
-      data.latitude,
-      data.longitude,
-      data.accuracy_meters,
-      data.description,
-      data.reference_note,
-      data.marker_color,
-      data.is_terminal_point ? 1 : 0,
-      data.housing_units,
-      authUser?.id ?? null,
-      getLocalDiaryDateKey(new Date())
-    ]
-  );
+  const selectPoint = async (column, value) => {
+    const [rows] = await pool.query(
+      `
+        SELECT
+          ${MAP_POINT_SELECT_FIELDS},
+          app_users.full_name AS created_by_name
+        FROM map_points
+        LEFT JOIN app_users ON app_users.id = map_points.created_by
+        WHERE map_points.${column} = ?
+        LIMIT 1
+      `,
+      [value]
+    );
+    return rows[0] ?? null;
+  };
 
-  const [rows] = await pool.query(
-    `
-      SELECT
-        ${MAP_POINT_SELECT_FIELDS},
-        app_users.full_name AS created_by_name
-      FROM map_points
-      LEFT JOIN app_users ON app_users.id = map_points.created_by
-      WHERE map_points.id = ?
-      LIMIT 1
-    `,
-    [result.insertId]
-  );
+  if (clientRef) {
+    const existing = await selectPoint("client_ref", clientRef);
+    if (existing) return existing;
+  }
 
-  const point = rows[0];
+  let result;
+  try {
+    [result] = await pool.query(
+      `
+        INSERT INTO map_points (
+          point_type, latitude, longitude, accuracy_meters, description, reference_note, marker_color, is_terminal_point, housing_units, created_by, diary_date, client_ref
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        fields.point_type,
+        fields.latitude,
+        fields.longitude,
+        fields.accuracy_meters,
+        fields.description,
+        fields.reference_note,
+        fields.marker_color,
+        fields.is_terminal_point ? 1 : 0,
+        fields.housing_units,
+        authUser?.id ?? null,
+        diaryDate,
+        clientRef
+      ]
+    );
+  } catch (error) {
+    // Dos envíos simultáneos del mismo punto: el índice único frena el segundo.
+    if (clientRef && error?.code === "ER_DUP_ENTRY") {
+      const existing = await selectPoint("client_ref", clientRef);
+      if (existing) return existing;
+    }
+    throw error;
+  }
+
+  const point = await selectPoint("id", result.insertId);
   await createAuditLog({
     actorUserId: authUser?.id ?? null,
     actorName: authUser?.full_name ?? authUser?.username ?? "",

@@ -49,3 +49,23 @@ test("exportMapPointsWorkbook builds a formatted, numbered Excel report", async 
   assert.ok(workbook.getWorksheet("por_ubicacion"));
   assert.ok(workbook.getWorksheet("datos"));
 });
+
+test("createMapPoint no duplica un punto reenviado con el mismo client_ref", async () => {
+  const { createMapPoint } = await import("./mapPointService.js");
+  const payload = { point_type: "caja_registro", latitude: 13.31, longitude: -87.18, client_ref: "local-abc12345" };
+  const first = await createMapPoint(payload, { id: 2, full_name: "Tecnico" });
+  const again = await createMapPoint(payload, { id: 2, full_name: "Tecnico" });
+  assert.equal(again.id, first.id);
+  const other = await createMapPoint({ ...payload, client_ref: "local-xyz98765" }, { id: 2, full_name: "Tecnico" });
+  assert.notEqual(other.id, first.id);
+});
+
+test("resolveCaptureDiaryDate usa la hora de captura, salvo futura o muy vieja", async () => {
+  const { resolveCaptureDiaryDate } = await import("./mapPointService.js");
+  const now = new Date("2026-10-09T18:00:00Z");
+  assert.equal(resolveCaptureDiaryDate("2026-10-08T15:00:00Z", now), "2026-10-08");
+  assert.equal(resolveCaptureDiaryDate("2026-10-20T15:00:00Z", now), "2026-10-09");
+  assert.equal(resolveCaptureDiaryDate("2026-08-01T15:00:00Z", now), "2026-10-09");
+  assert.equal(resolveCaptureDiaryDate("no es fecha", now), "2026-10-09");
+  assert.equal(resolveCaptureDiaryDate(null, now), "2026-10-09");
+});

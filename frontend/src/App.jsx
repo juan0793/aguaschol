@@ -108,6 +108,7 @@ import { useAuditState } from "./modules/audit/useAuditState";
 import { useUsersState } from "./modules/users/useUsersState";
 import { usePadronState } from "./modules/padron/usePadronState";
 import { useFieldMapState } from "./modules/campo/useFieldMapState";
+import { useMapPointOutbox } from "./modules/campo/useMapPointOutbox";
 import { useBarrioCodesState } from "./modules/barrios/useBarrioCodesState";
 import { usePadronRequestState } from "./modules/requests/usePadronRequestState";
 import { useDashboardState } from "./modules/dashboard/useDashboardState";
@@ -331,6 +332,17 @@ function App() {
   };
   const apiSession = useApiSession({ clearSession, intentionalLogoutRef, session, sessionInvalidatingRef, setCargandoDatos });
   const { showAlert, apiFetch } = apiSession;
+  // Puntos de campo guardados en el celular hasta que hay señal (Puntos GPS).
+  const mapPointOutbox = useMapPointOutbox({
+    apiFetch,
+    session,
+    setMapPoints: fieldMapState.setMapPoints,
+    setMapDiaryGroupsSummary: fieldMapState.setMapDiaryGroupsSummary,
+    onPointSent: (localId, point) => {
+      fieldMapState.setSelectedMapPointId((current) => (current === localId ? point.id : current));
+      fieldMapState.setEditingMapPointId((current) => (current === localId ? point.id : current));
+    }
+  });
 
   const lookupActions = useLookupActions({
     ...apiSession,
@@ -492,8 +504,10 @@ function App() {
   const { handleLogout } = authActions;
   const fieldMapActions = createFieldMapActions({
     ...apiSession,
+    session,
     ...fieldMapState,
     ...fieldMapPoints,
+    ...mapPointOutbox,
     clearSession,
     isAdmin,
     safeBarrioCodes,
@@ -945,6 +959,7 @@ function App() {
             ...fieldMapPoints,
             ...mapDataLoaders,
             ...appShellState,
+            ...mapPointOutbox,
             isAdmin
           }}
         />

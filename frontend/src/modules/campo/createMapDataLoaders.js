@@ -37,7 +37,7 @@ export function createMapDataLoaders({
       if (!response.ok) {
         if (response.status === 401) {
           clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
+          showAlert("La sesión venció. Ingresa nuevamente.");
           return;
         }
 
@@ -76,7 +76,7 @@ export function createMapDataLoaders({
       if (!response.ok) {
         if (response.status === 401) {
           clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
+          showAlert("La sesión venció. Ingresa nuevamente.");
           return;
         }
 
@@ -116,7 +116,7 @@ export function createMapDataLoaders({
       if (!response.ok) {
         if (response.status === 401) {
           clearSession();
-          showAlert("La sesion vencio. Ingresa nuevamente.");
+          showAlert("La sesión venció. Ingresa nuevamente.");
           return;
         }
 

@@ -9,7 +9,8 @@ import logoAguasCholuteca from "../assets/logo-aguas-choluteca.png";
 // quedaba vacía: la navegación del módulo vive en el menú lateral, y cuenta y
 // contraseña en el menú del usuario. Entregas, Importación y Mi perfil solo
 // repetían lo que ya dice la página.
-const VISTAS_CON_FRANJA = ["dashboard", "logs", "records", "lookup", "map", "padron", "mapReports", "mapAnalytics", "users"];
+// Puntos GPS ("map") no lleva franja: el visor ocupa todo el alto y trae sus propias acciones.
+const VISTAS_CON_FRANJA = ["dashboard", "logs", "records", "lookup", "padron", "mapReports", "mapAnalytics", "users"];
 // Franjas de solo texto: en el celular ese párrafo se oculta y la tarjeta quedaría vacía.
 const VISTAS_SOLO_TEXTO = ["lookup"];
 

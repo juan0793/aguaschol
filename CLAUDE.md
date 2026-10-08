@@ -14,4 +14,13 @@ Rules:
 - El reintento es manual a propósito: las escrituras de entregas todavía no tienen clave de idempotencia y una interrupción de red o un error 5xx puede ocultar un guardado exitoso. Antes de volver a enviar, revisa el lote; el cierre exige reabrir la captura y vuelve a pedir confirmación de duplicados.
 - El avance no presenta el estado vacío junto a un error; el encabezado ya no informa "Todo guardado" para Entregas. En móvil, la pestaña de pendientes usa "Pend." con nombre accesible completo y la barra respeta el área segura.
 - Se ajustaron etiquetas y plurales en el cierre, el corte del ciclo y el reparto. Verificado: `npm run test:entregas` (35 aprobadas) y `npm run build` (correcto; Vite conserva el aviso de chunks grandes).
-- Pendiente de revisión en dispositivo iOS real. La prueba de integración del backend requiere el MySQL local, que no estaba disponible en la revisión anterior.
+- Actualizado el 2026-10-08: la integración de backend se ejecutó contra MySQL local y pasó. Sigue pendiente una revisión en un dispositivo iOS real.
+
+## Nota para Claude: continuación de QA de Puntos GPS (2026-10-08)
+
+- Se completó el CSS faltante de Puntos GPS y se verificó el visor en Chrome móvil a 390 × 844. La banda de coordenadas queda bajo la barra de la app; atribución y escala del mapa quedan encima de la hoja inferior.
+- La cola combina IndexedDB con el respaldo local aunque IndexedDB vuelva a estar disponible, prefiere la copia más reciente y no confirma un punto ni sus cambios si no se pudieron guardar localmente. El indicador distingue puntos por enviar, rechazados y falta de señal.
+- Al fallar sin red la edición de un punto ya enviado, conserva el borrador en `sessionStorage`, por usuario y punto. Para recuperarlo en la misma pestaña, vuelve a abrir ese punto y reintenta con conexión; no se envía automáticamente.
+- Se corrigieron plurales, acentos y mensajes del mapa sin señal. Si no se baja ningún cuadro del mapa, la zona no aparece como guardada. El selector de tipo ahora responde a flechas y los botones de deshacer/detalles y la manija móvil tienen mayor área táctil.
+- Verificado: 11 pruebas dirigidas de cola, recuperación, mosaicos y zonas offline; `npm run build` y `git diff --check` correctos. La compilación mantiene el aviso existente de chunks mayores a 500 kB.
+- Revisión real en iOS sigue pendiente porque el entorno de trabajo es Linux. En la captura web, los mosaicos y algunas llamadas API no cargaron (`Failed to fetch`); la verificación visual confirma la composición, no la disponibilidad de los servicios de mapa.

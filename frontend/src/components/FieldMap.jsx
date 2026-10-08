@@ -7,12 +7,13 @@ import {
   COMMERCIAL_MAP_POINT_COLOR,
   COMMERCIAL_MAP_POINT_TYPE
 } from "../constants/formsAndUi";
+import { buildTileTemplate, createCachedTileLayer } from "../modules/campo/offlineTiles";
+import { pointShapeSvg } from "../modules/campo/pointTypes";
 
 const DEFAULT_CENTER = [13.3017, -87.1889];
 const DEFAULT_ZOOM = 14;
 const MAX_NATIVE_ZOOM = 19;
 const MAX_INTERACTION_ZOOM = 21;
-const TILE_CACHE_BUSTER = "osm-20260407";
 const MOBILE_MEDIA_QUERY = "(max-width: 768px), (pointer: coarse)";
 
 const isFiniteCoordinate = (value) => Number.isFinite(Number(value));
@@ -45,8 +46,20 @@ function FieldMap({
   onEditPoint,
   onSelectPoint,
   onStatusChange,
-  selectedMapPointId
+  selectedMapPointId,
+  // Modo visor (Puntos GPS): la mira la dibuja la pantalla; aquí el mapa avisa su
+  // centro, guarda los mosaicos para usarlos sin señal y muestra el GPS en vivo.
+  visor = false,
+  onAimChange,
+  onReady,
+  userLocation = null,
+  flashPointId = null
 }) {
+  const onAimChangeRef = useRef(onAimChange);
+  const onReadyRef = useRef(onReady);
+  onAimChangeRef.current = onAimChange;
+  onReadyRef.current = onReady;
+  const userLayerRef = useRef(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const tileLayerRef = useRef(null);
@@ -58,10 +71,7 @@ function FieldMap({
   const pointerMovedRef = useRef(false);
   const [isMobileMap, setIsMobileMap] = useState(() => window.matchMedia?.(MOBILE_MEDIA_QUERY).matches ?? false);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
-  const tileTemplate = useMemo(
-    () => `${apiUrl}/map-tiles/{z}/{x}/{y}.png?v=${encodeURIComponent(TILE_CACHE_BUSTER)}`,
-    [apiUrl]
-  );
+  const tileTemplate = useMemo(() => buildTileTemplate(apiUrl), [apiUrl]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia?.(MOBILE_MEDIA_QUERY);
@@ -85,7 +95,7 @@ function FieldMap({
       zoomSnap: isMobileMap ? 0.5 : 0.25,
       zoomDelta: isMobileMap ? 0.75 : 0.5,
       wheelPxPerZoomLevel: 90,
-      zoomControl: true,
+      zoomControl: !visor,
       preferCanvas: true,
       doubleClickZoom: false,
       tapTolerance: isMobileMap ? 10 : 15,
@@ -97,7 +107,7 @@ function FieldMap({
     setZoomLevel(map.getZoom());
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
-    const tileLayer = L.tileLayer(tileTemplate, {
+    const tileOptions = {
       attribution: "OpenStreetMap contributors",
       maxNativeZoom: MAX_NATIVE_ZOOM,
       maxZoom: MAX_INTERACTION_ZOOM,
@@ -105,7 +115,8 @@ function FieldMap({
       updateWhenIdle: true,
       updateWhenZooming: false,
       updateInterval: isMobileMap ? 360 : 220
-    });
+    };
+    const tileLayer = visor ? createCachedTileLayer(L, tileTemplate, tileOptions) : L.tileLayer(tileTemplate, tileOptions);
 
     tileLayer.on("loading", () => {
       if (statusTimerRef.current) return;
@@ -140,9 +151,27 @@ function FieldMap({
     map.on("movestart", () => {
       pointerMovedRef.current = true;
     });
+    // En el visor, tocar un lugar lleva la mira ahí (y acerca si hace falta).
+    const aimAt = (latlng) => {
+      if (map.getZoom() < 18) map.setView(latlng, 19, { animate: true });
+      else map.panTo(latlng, { animate: true, duration: 0.3, easeLinearity: 0.25 });
+    };
+    const emitAim = () => {
+      const center = map.getCenter();
+      onAimChangeRef.current?.({ latitude: center.lat, longitude: center.lng, zoom: map.getZoom() });
+    };
+    if (visor) {
+      map.on("moveend zoomend", emitAim);
+      emitAim();
+    }
+
     map.on("click", (event) => {
       if (isMobileMap && pointerMovedRef.current) {
         pointerMovedRef.current = false;
+        return;
+      }
+      if (visor) {
+        aimAt(event.latlng);
         return;
       }
       updateDraftFromLatLng(event.latlng);
@@ -173,6 +202,10 @@ function FieldMap({
       }
 
       const latlng = map.mouseEventToLatLng(event);
+      if (visor) {
+        aimAt(latlng);
+        return;
+      }
       updateDraftFromLatLng(latlng);
       map.panTo(latlng, { animate: false });
     };
@@ -185,6 +218,17 @@ function FieldMap({
     mapRef.current = map;
     tileLayerRef.current = tileLayer;
     pointLayerRef.current = L.layerGroup().addTo(map);
+    userLayerRef.current = L.layerGroup().addTo(map);
+    onReadyRef.current?.({
+      zoomIn: () => map.zoomIn(),
+      zoomOut: () => map.zoomOut(),
+      flyTo: (latitude, longitude, zoom = map.getZoom()) => map.flyTo([latitude, longitude], zoom, { duration: 0.6 }),
+      getZoom: () => map.getZoom(),
+      getBounds: () => {
+        const bounds = map.getBounds();
+        return { north: bounds.getNorth(), south: bounds.getSouth(), east: bounds.getEast(), west: bounds.getWest() };
+      }
+    });
 
     let resizeFrame = 0;
     const resizeObserver = new ResizeObserver(() => {
@@ -208,6 +252,8 @@ function FieldMap({
       }
       draftMarkerRef.current?.remove();
       accuracyCircleRef.current?.remove();
+      userLayerRef.current?.remove();
+      userLayerRef.current = null;
       pointLayerRef.current?.clearLayers();
       pointLayerRef.current?.remove();
       tileLayerRef.current?.remove();
@@ -219,7 +265,7 @@ function FieldMap({
       accuracyCircleRef.current = null;
       statusTimerRef.current = null;
     };
-  }, [isMobileMap, onDraftChange, onStatusChange, tileTemplate]);
+  }, [isMobileMap, onDraftChange, onStatusChange, tileTemplate, visor]);
 
   useEffect(() => {
     if (!isActive || !mapRef.current) {
@@ -244,6 +290,22 @@ function FieldMap({
       const markerColor = String(getMarkerColor?.(point) || point.marker_color || "#1576d1");
       const isSelected = point.id === selectedMapPointId;
       const isTerminalPoint = Boolean(point.is_terminal_point);
+      if (visor) {
+        const size = isSelected ? 34 : 24;
+        const visorMarker = L.marker([Number(point.latitude), Number(point.longitude)], {
+          keyboard: false,
+          zIndexOffset: isSelected ? 1000 : point.pending ? 500 : 0,
+          icon: L.divIcon({
+            className: `pg-marker${point.id === flashPointId ? " is-new" : ""}${point.pending ? " is-pending" : ""}`,
+            html: pointShapeSvg(point.point_type, { size, pending: point.pending, selected: isSelected }),
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2]
+          })
+        });
+        visorMarker.on("click", () => onSelectPoint(point.id));
+        visorMarker.addTo(pointLayerRef.current);
+        return;
+      }
       const marker = isTerminalPoint
         ? L.marker([Number(point.latitude), Number(point.longitude)], {
             icon: L.divIcon({
@@ -273,10 +335,39 @@ function FieldMap({
       });
       marker.addTo(pointLayerRef.current);
     });
-  }, [getMarkerColor, mapPoints, onEditPoint, onSelectPoint, selectedMapPointId]);
+  }, [flashPointId, getMarkerColor, mapPoints, onEditPoint, onSelectPoint, selectedMapPointId, visor]);
+
+  // GPS en vivo: punto azul y círculo de precisión.
+  useEffect(() => {
+    const layer = userLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    const latitude = Number(userLocation?.latitude);
+    const longitude = Number(userLocation?.longitude);
+    if (!visor || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    const accuracy = Number(userLocation.accuracy);
+    if (Number.isFinite(accuracy) && accuracy > 0) {
+      L.circle([latitude, longitude], {
+        radius: accuracy,
+        color: "#1465d9",
+        weight: 1,
+        fillColor: "#1465d9",
+        fillOpacity: 0.1,
+        interactive: false
+      }).addTo(layer);
+    }
+    L.circleMarker([latitude, longitude], {
+      radius: 7,
+      color: "#ffffff",
+      weight: 3,
+      fillColor: "#1465d9",
+      fillOpacity: 1,
+      interactive: false
+    }).addTo(layer);
+  }, [userLocation?.accuracy, userLocation?.latitude, userLocation?.longitude, visor]);
 
   useEffect(() => {
-    if (!mapRef.current) {
+    if (!mapRef.current || visor) {
       return;
     }
 
@@ -325,7 +416,7 @@ function FieldMap({
       accuracyCircleRef.current?.remove();
       accuracyCircleRef.current = null;
     }
-  }, [mapDraft.accuracy_meters, mapDraft.latitude, mapDraft.longitude, mapDraft.point_type]);
+  }, [mapDraft.accuracy_meters, mapDraft.latitude, mapDraft.longitude, mapDraft.point_type, visor]);
 
   useEffect(() => {
     if (!mapRef.current || !mapFocusRequest) {
@@ -370,6 +461,10 @@ function FieldMap({
     }));
     onStatusChange("Punto fijado");
   };
+
+  if (visor) {
+    return <div ref={containerRef} className="pg-map-canvas" />;
+  }
 
   return (
     <div className="map-canvas-shell">
