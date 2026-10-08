@@ -25,10 +25,6 @@
   max-width: none !important;
 }
 
-.page-shell.sidebar-collapsed > main.pg {
-  left: 0;
-}
-
 .pg *,
 .pg *::before,
 .pg *::after {
