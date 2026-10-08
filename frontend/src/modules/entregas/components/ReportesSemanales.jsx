@@ -192,7 +192,7 @@ export default function ReportesSemanales({ api, config, permissions, notify }) 
         {vista?.snapshot ? (
           <div className="ent-report-summary" aria-label="Resumen actual del informe">
             <article>
-              <span>Recibidas</span>
+              <span>Asignadas</span>
               <strong>{formatNumber(vista.snapshot.totales?.asignadas)}</strong>
             </article>
             <article>

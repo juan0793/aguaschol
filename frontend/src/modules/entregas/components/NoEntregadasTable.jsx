@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../../components/Icon";
-import { estadoClass, estadoDocumentoLabel, formatDate, formatNumber, prioridadPendiente, tipoDocumentoLabel } from "../utils/entregasFormatters";
+import { estadoClass, estadoDocumentoLabel, formatCount, formatDate, formatNumber, prioridadPendiente, tipoDocumentoLabel } from "../utils/entregasFormatters";
 import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
 import { addDaysIso } from "../utils/entregasDate";
 import LatticeLoader from "../../../components/micro/LatticeLoader";
@@ -32,7 +32,7 @@ export default function NoEntregadasTable({ model, config, personal, api, notify
     setCerrando(true);
     try {
       const resultado = await api.cerrarCiclo({ fecha_corte: corte.fecha_corte, motivo: corte.motivo.trim() });
-      notify(`Ciclo cerrado: ${resultado.documentos_vencidos} documento(s) quedaron sin efecto.`);
+      notify(`Ciclo cerrado: ${formatCount(resultado.documentos_vencidos, "documento quedó", "documentos quedaron")} sin efecto.`);
       setCorte(null);
       onCicloCerrado();
     } catch (error) { notify(error.message); }
@@ -75,7 +75,7 @@ export default function NoEntregadasTable({ model, config, personal, api, notify
       <h3>Cerrar ciclo de facturación</h3>
       <p>Marca que facturación ya emitió los documentos del mes nuevo. Los pendientes hasta la fecha de corte quedan sin efecto y salen de la cola de seguimiento; las cifras de los lotes ya cerrados y los informes emitidos no cambian.</p>
       <label className="cl-field">Fecha de corte (inclusive)<input type="date" value={corte.fecha_corte} max={config.jornada?.fecha} min={ciclo.fecha_inicio || undefined} onChange={(event) => setCorte({ ...corte, fecha_corte: event.target.value })} /></label>
-      <p className="ent-corte-preview" role="status">{afectados === null ? "Calculando cuántos documentos quedarían sin efecto…" : afectados === 0 ? "No hay pendientes hasta esa fecha: el corte solo abrirá el ciclo nuevo." : `${formatNumber(afectados)} documento(s) pendientes hasta el ${formatDate(corte.fecha_corte)} quedarán sin efecto.`}</p>
+      <p className="ent-corte-preview" role="status">{afectados === null ? "Calculando cuántos documentos quedarían sin efecto…" : afectados === 0 ? "No hay pendientes hasta esa fecha: el corte solo abrirá el ciclo nuevo." : `${formatCount(afectados, "documento pendiente", "documentos pendientes")} hasta el ${formatDate(corte.fecha_corte)} ${afectados === 1 ? "quedará" : "quedarán"} sin efecto.`}</p>
       {corte.fecha_corte === config.jornada?.fecha ? <p className="cl-alert">Estás cortando en la jornada de hoy: los pendientes registrados hoy también quedarán sin efecto.</p> : null}
       <label className="cl-field">Emisión que abre el ciclo nuevo<textarea rows={2} maxLength={255} value={corte.motivo} onChange={(event) => setCorte({ ...corte, motivo: event.target.value })} placeholder="Ej.: emisión de facturas de octubre" /></label>
       <div className="ent-danger-actions">

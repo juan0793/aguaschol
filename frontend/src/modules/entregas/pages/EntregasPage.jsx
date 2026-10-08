@@ -33,7 +33,7 @@ const SUBVISTAS = [
   { key: "resumen", label: "Resumen", corto: "Resumen", hint: "Efectividad", icon: "dashboard" },
   { key: "lotes", label: "Lotes diarios", corto: "Hoy", hint: "Reparto y cierre", icon: "records" },
   { key: "historial", label: "Lotes anteriores", corto: "Anteriores", hint: "Historial", icon: "history" },
-  { key: "pendientes", label: "No entregadas", corto: "Pendientes", hint: "Seguimiento", icon: "warning" },
+  { key: "pendientes", label: "No entregadas", corto: "Pendientes", cortoMovil: "Pend.", hint: "Seguimiento", icon: "warning" },
   { key: "descartes", label: "Control de descartes", corto: "Descartes", hint: "Repetidos", icon: "inbox" },
   { key: "reparto", label: "Reparto por barrio", corto: "Reparto", hint: "Zonas", icon: "map" },
   { key: "personal", label: "Personal de campo", corto: "Personal", hint: "Técnicos", icon: "users" },
@@ -54,7 +54,7 @@ function Contador({ valor }) {
   </span>;
 }
 
-export default function EntregasPage({ apiFetch, showAlert }) {
+export default function EntregasPage({ apiFetch, session, showAlert }) {
   const api = useMemo(() => createEntregasApi(apiFetch), [apiFetch]);
   const notify = useCallback((mensaje) => showAlert?.(mensaje), [showAlert]);
 
@@ -346,9 +346,9 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
       <nav className="ent-mobile-tabs" aria-label="Navegación móvil de Control de entregas">
         {movilPrincipales.map((item) => (
-          <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} aria-current={vista === item.key ? "page" : undefined} onClick={() => ir(item.key)}>
+          <button key={item.key} type="button" className={vista === item.key ? "is-active" : ""} aria-label={item.label} aria-current={vista === item.key ? "page" : undefined} onClick={() => ir(item.key)}>
             <span className="ent-tab-icono"><Icon name={item.icon} /><Contador valor={contadorDe(item.key)} /></span>
-            <span>{item.corto}</span>
+            <span>{item.cortoMovil || item.corto}</span>
           </button>
         ))}
         {movilExtra.length ? (
@@ -447,8 +447,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
       {vista === "nuevo" && config.permissions.can_create_lote ? (
         <LoteForm
+          key={`lote-${session?.user?.id}-nuevo`}
           config={config}
           personal={personal}
+          sessionUserId={session?.user?.id}
           notify={notify}
           onSaved={crearLote}
           onCancel={() => ir("lotes")}
@@ -457,8 +459,10 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
       {vista === "editar" && loteEnEdicion && config.permissions.can_edit_lote ? (
         <LoteForm
+          key={`lote-${session?.user?.id}-${loteEnEdicion.id}`}
           config={config}
           personal={personal}
+          sessionUserId={session?.user?.id}
           notify={notify}
           lote={loteEnEdicion}
           onSaved={editarLote}
@@ -542,9 +546,11 @@ export default function EntregasPage({ apiFetch, showAlert }) {
 
       {loteEnCierre ? (
         <CierreLoteDialog
+          key={`cierre-${session?.user?.id}-${loteEnCierre.id}`}
           api={api}
           config={config}
           lote={loteEnCierre}
+          sessionUserId={session?.user?.id}
           notify={notify}
           onClose={() => setLoteEnCierre(null)}
           onSaved={(actualizado) => {

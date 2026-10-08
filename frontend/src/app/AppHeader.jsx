@@ -123,7 +123,7 @@ export default function AppHeader({ model }) {
           ))}
         </div>
         <div className="app-topbar-session">
-          {workspaceView !== "dashboard" ? <span className={`app-save-state ${isDirty ? "is-live" : ""}`}>
+          {!["dashboard", "entregas"].includes(workspaceView) ? <span className={`app-save-state ${isDirty ? "is-live" : ""}`}>
             {["lookup", "padron"].includes(workspaceView)
               ? workspaceView === "padron"
                 ? uploadingPadron

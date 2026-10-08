@@ -50,6 +50,8 @@ export const estadoReporteLabel = (value) => ESTADO_REPORTE_LABELS[value] || val
 export const estadoClass = (value) => `is-${String(value || "").toLowerCase()}`;
 
 export const formatNumber = (value) => Number(value || 0).toLocaleString("es-HN");
+export const formatCount = (value, singular, plural = `${singular}s`) =>
+  `${formatNumber(value)} ${Number(value) === 1 ? singular : plural}`;
 
 export const formatPercent = (value) => `${(Number(value) || 0).toFixed(1)}%`;
 

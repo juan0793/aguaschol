@@ -4,28 +4,36 @@ import SlideCommit from "../../../components/micro/SlideCommit";
 import {
   estadoClass,
   estadoDocumentoLabel,
+  formatCount,
   formatDate,
   formatNumber,
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
 import { filaVacia, parsearPegado, posicionesDuplicadas } from "../utils/cierreLoteUtils";
+import { cierreTieneCambiosPendientes, clearEntregaDraft, falloEntregaAmbiguo, readEntregaDraft, saveEntregaDraft } from "../utils/entregaDraftStorage";
 import EntregasDrawer from "./EntregasDrawer";
 
 const ESTADOS_ACTIVOS = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA"];
 
-export default function CierreLoteDialog({ api, config, lote, notify, onClose, onSaved }) {
+export default function CierreLoteDialog({ api, config, lote, notify, onClose, onSaved, sessionUserId }) {
   const motivos = config.motivos;
   const motivoPorDefecto = motivos[0]?.codigo || "CASA_CERRADA";
+  const observacionInicial = lote.observacion_responsable || "";
+  const draftId = `cierre-${lote.id}`;
+  const [draftInicial] = useState(() => readEntregaDraft(sessionUserId, draftId));
   const [detalle, setDetalle] = useState(lote.no_entregadas || []);
-  const [sobrantes, setSobrantes] = useState("");
-  const [observacion, setObservacion] = useState(lote.observacion_responsable || "");
-  const [nuevas, setNuevas] = useState([]);
-  const [pegado, setPegado] = useState("");
-  const [modo, setModo] = useState("manual");
+  const [sobrantes, setSobrantes] = useState(typeof draftInicial?.sobrantes === "string" ? draftInicial.sobrantes : "");
+  const [observacion, setObservacion] = useState(typeof draftInicial?.observacion === "string" ? draftInicial.observacion : observacionInicial);
+  const [nuevas, setNuevas] = useState(Array.isArray(draftInicial?.nuevas) ? draftInicial.nuevas : []);
+  const [pegado, setPegado] = useState(typeof draftInicial?.pegado === "string" ? draftInicial.pegado : "");
+  const [modo, setModo] = useState(draftInicial?.modo === "pegar" ? "pegar" : "manual");
   const [guardando, setGuardando] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [buscando, setBuscando] = useState(-1);
-  const [duplicadosConfirmados, setDuplicadosConfirmados] = useState(false);
+  const [duplicadosConfirmados, setDuplicadosConfirmados] = useState(draftInicial?.duplicadosConfirmados === true);
+  const [draftRecuperado, setDraftRecuperado] = useState(Boolean(draftInicial));
+  const [draftPersistido, setDraftPersistido] = useState(null);
+  const [requiereRecarga, setRequiereRecarga] = useState(false);
 
   useEffect(() => {
     setDetalle(lote.no_entregadas || []);
@@ -57,24 +65,26 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     if (!config.permissions.can_close_own_lote) {
       return "Tu usuario no tiene permiso para cerrar lotes. Pídeselo a un administrador.";
     }
+    if (requiereRecarga) return "No se confirmó qué alcanzó a guardar el servidor. Cierra y vuelve a abrir el lote para revisarlo antes de continuar.";
     if (buscando !== -1) return "Espera a que termine la búsqueda en el padrón.";
     if (sobrantesInvalidos) {
-      return `Escribe cuántos sobrantes trajiste (usa 0 si entregaste todo), entre 0 y ${formatNumber(lote.total_asignadas)}.`;
+      return `Indica cuántos documentos no entregaste (usa 0 si los entregaste todos), entre 0 y ${formatNumber(lote.total_asignadas)}.`;
     }
     if (diferencia > 0) {
-      return `Declaraste ${formatNumber(sobrantesNum)} sobrante(s) y llevas ${formatNumber(identificadas)} identificado(s): falta(n) ${formatNumber(diferencia)} documento(s) por registrar.`;
+      return `Declaraste ${formatCount(sobrantesNum, "documento no entregado", "documentos no entregados")} y has identificado ${formatCount(identificadas, "documento")}: ${diferencia === 1 ? "falta" : "faltan"} ${formatCount(diferencia, "documento")} por registrar.`;
     }
     if (diferencia < 0) {
-      return `Declaraste ${formatNumber(sobrantesNum)} sobrante(s) pero hay ${formatNumber(identificadas)} documento(s) registrados: quita ${formatNumber(Math.abs(diferencia))} o sube los sobrantes.`;
+      return `Declaraste ${formatCount(sobrantesNum, "documento no entregado", "documentos no entregados")} pero hay ${formatCount(identificadas, "documento")} ${identificadas === 1 ? "registrado" : "registrados"}: quita ${formatCount(Math.abs(diferencia), "documento")} o aumenta la cantidad declarada.`;
     }
     if (hayDuplicados && !duplicadosConfirmados) {
-      return `Hay ${formatNumber(duplicados.length)} documento(s) repetidos (mismo abonado y clave). Corrige la fila marcada o confirma que el duplicado es real.`;
+      return `Hay ${formatCount(duplicados.length, "documento duplicado", "documentos duplicados")} (mismo abonado y clave). Corrige la fila marcada o confirma que el duplicado es real.`;
     }
     return null;
   }, [
     lote.estado,
     lote.total_asignadas,
     config.permissions.can_close_own_lote,
+    requiereRecarga,
     buscando,
     sobrantesInvalidos,
     diferencia,
@@ -87,6 +97,30 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
   const puedeCerrar = !guardando && !motivoBloqueo;
   const faltantes = Math.max(diferencia, 0);
+  const hayCambiosPendientes = cierreTieneCambiosPendientes({ sobrantes, observacion, observacionInicial, nuevas, pegado });
+
+  useEffect(() => {
+    if (!hayCambiosPendientes) {
+      clearEntregaDraft(sessionUserId, draftId);
+      setDraftPersistido(false);
+      return;
+    }
+    setDraftPersistido(saveEntregaDraft(sessionUserId, draftId, { sobrantes, observacion, nuevas, pegado, modo, duplicadosConfirmados }));
+  }, [draftId, duplicadosConfirmados, hayCambiosPendientes, modo, nuevas, observacion, pegado, sessionUserId, sobrantes]);
+
+  const persistirCaptura = () => {
+    const guardado = saveEntregaDraft(sessionUserId, draftId, { sobrantes, observacion, nuevas, pegado, modo, duplicadosConfirmados });
+    setDraftPersistido(guardado);
+    return guardado;
+  };
+
+  const solicitarCierre = () => {
+    const guardado = hayCambiosPendientes ? persistirCaptura() : false;
+    if (hayCambiosPendientes && !window.confirm(guardado
+      ? "Hay cambios sin enviar. Se conservarán en esta pestaña para retomarlos después. ¿Quieres salir?"
+      : "Hay cambios sin enviar y no se pudo guardar un borrador local. ¿Quieres descartarlos y salir?")) return;
+    onClose();
+  };
 
   const patchNueva = (index, cambios) =>
     setNuevas((filas) => filas.map((fila, posicion) => (posicion === index ? { ...fila, ...cambios } : fila)));
@@ -145,6 +179,10 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   };
 
   const guardarNuevas = async () => {
+    if (requiereRecarga) {
+      notify("Cierra y vuelve a abrir el lote para comprobar qué registros llegaron antes de continuar.");
+      return false;
+    }
     if (!nuevas.length) return true;
     const incompletas = nuevas.filter((fila) => !fila.numero_abonado.trim() && !fila.clave_catastral.trim());
     if (incompletas.length) {
@@ -195,6 +233,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
       notify(motivoBloqueo);
       throw yaAvisado(motivoBloqueo);
     }
+    persistirCaptura();
     setGuardando(true);
     setCerrando(true);
     try {
@@ -204,9 +243,16 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
         total_sobrantes: Number(sobrantes),
         observacion_responsable: observacion
       });
+      clearEntregaDraft(sessionUserId, draftId);
       onSaved(actualizado);
     } catch (error) {
-      if (!error.avisado) notify(error.message);
+      if (falloEntregaAmbiguo(error)) {
+        setRequiereRecarga(true);
+        setDuplicadosConfirmados(false);
+      }
+      if (!error.avisado) notify(falloEntregaAmbiguo(error)
+        ? `${error.message} Cierra y vuelve a abrir el lote para revisar qué se guardó antes de reintentar.`
+        : error.message);
       throw error;
     } finally {
       setGuardando(false);
@@ -215,18 +261,25 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   };
 
   const guardarDetalle = async () => {
+    persistirCaptura();
     setGuardando(true);
     try {
       if (await guardarNuevas()) notify("Documentos registrados en el lote.");
     } catch (error) {
-      notify(error.message);
+      if (falloEntregaAmbiguo(error)) {
+        setRequiereRecarga(true);
+        setDuplicadosConfirmados(false);
+      }
+      notify(falloEntregaAmbiguo(error)
+        ? `${error.message} Cierra y vuelve a abrir el lote para revisar qué se guardó antes de reintentar.`
+        : error.message);
     } finally {
       setGuardando(false);
     }
   };
 
   return (
-    <EntregasDrawer title={`Cerrar lote ${lote.id}`} busy={guardando} onClose={() => { if (!nuevas.length || window.confirm("Hay documentos sin guardar. ¿Descartar y salir?")) onClose(); }}>
+    <EntregasDrawer title={`Cerrar lote ${lote.id}`} busy={guardando} onClose={solicitarCierre}>
         <header>
           <div>
             <span className="cl-kicker">Cierre de lote</span>
@@ -236,15 +289,17 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               {formatNumber(lote.total_asignadas)} asignadas
             </p>
           </div>
-          <button type="button" className="cl-icon-button" disabled={guardando} onClick={() => { if (!nuevas.length || window.confirm("Hay documentos sin guardar. ¿Descartar y salir?")) onClose(); }} aria-label="Cerrar">
+          <button type="button" className="cl-icon-button" disabled={guardando} onClick={solicitarCierre} aria-label="Cerrar">
             ✕
           </button>
         </header>
 
         <div className="cl-drawer-scroll">
+          {draftRecuperado ? <p className="ent-draft-status" role="status">Se recuperó una captura sin enviar. Revísala y vuelve a cerrarla para guardar los cambios en el servidor.</p> : null}
+          {hayCambiosPendientes ? <p className="ent-draft-status" role="status">{draftPersistido === null ? "Guardando una copia en esta pestaña…" : draftPersistido ? "La captura sin enviar se conserva en esta pestaña. No la cierres hasta enviarla al servidor." : "No se pudo guardar una copia local de esta captura."}</p> : null}
           <div className="ent-cierre-pasos" aria-label="Progreso del cierre">
-            <span className={sobrantes === "" ? "is-active" : "is-done"}>1<small>Sobrantes</small></span>
-            <span className={diferencia === 0 && sobrantes !== "" ? "is-done" : "is-active"}>2<small>No entregadas</small></span>
+            <span className={sobrantes === "" ? "is-active" : "is-done"}>1<small>Cantidad</small></span>
+            <span className={diferencia === 0 && sobrantes !== "" ? "is-done" : "is-active"}>2<small>Detalle</small></span>
             <span className={puedeCerrar ? "is-done" : ""}>3<small>Confirmar</small></span>
           </div>
 
@@ -252,7 +307,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
             <h3>Resultado del recorrido</h3>
             <div className="ent-cierre-kpis">
               <div>
-                <span>Recibidas</span>
+                <span>Asignadas</span>
                 <strong>{formatNumber(lote.total_asignadas)}</strong>
               </div>
               <div>
@@ -267,7 +322,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
             <div className="ent-grid-2">
               <label className="cl-field">
-                Sobrantes / no entregadas
+                No entregadas
                 <div className="ent-stepper">
                   <button
                     type="button"
@@ -279,7 +334,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                   </button>
                   <input
                     type="number"
-                    aria-label="Sobrantes / no entregadas"
+                    aria-label="No entregadas"
                     min="0"
                     max={lote.total_asignadas}
                     step="1"
@@ -297,7 +352,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                   </button>
                 </div>
                 <button type="button" className="cl-secondary ent-quick-zero" onClick={marcarTodoEntregado}>
-                  Todo entregado, cerrar en 0
+                  Registrar 0 no entregadas
                 </button>
               </label>
               <label className="cl-field">
@@ -324,7 +379,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               <div>
                 <h3>Identificar no entregadas</h3>
                 <p>
-                  Identificadas {formatNumber(identificadas)} de {formatNumber(sobrantesNum)} sobrantes.
+                  Registradas {formatNumber(identificadas)} de {formatNumber(sobrantesNum)} no entregadas.
                 </p>
               </div>
               <div className="ent-modo-switch">
@@ -344,8 +399,8 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
             {diferencia !== 0 && sobrantes !== "" ? (
               <p className={`ent-diferencia ${diferencia > 0 ? "is-atencion" : "is-critico"}`}>
                 {diferencia > 0
-                  ? `Faltan ${formatNumber(diferencia)} documento(s) por identificar.`
-                  : `Hay ${formatNumber(Math.abs(diferencia))} documento(s) de más respecto a los sobrantes declarados.`}
+                  ? `${diferencia === 1 ? "Falta" : "Faltan"} ${formatCount(diferencia, "documento")} por identificar.`
+                  : `Hay ${formatCount(Math.abs(diferencia), "documento")} de más respecto a la cantidad declarada.`}
               </p>
             ) : null}
             <div className="ent-cierre-progress">
@@ -356,7 +411,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
             <div className="ent-captura-actions">
               <button type="button" className="cl-secondary" onClick={agregarFaltantes}>
                 <Icon name="plus" />
-                {faltantes > 0 ? `Crear ${formatNumber(Math.min(faltantes, 100))} fila(s) faltante(s)` : "Agregar documento"}
+                {faltantes > 0 ? `Crear ${formatCount(Math.min(faltantes, 100), "fila faltante", "filas faltantes")}` : "Agregar documento"}
               </button>
               <button type="button" className="cl-secondary" onClick={() => setModo("pegar")}>
                 <Icon name="copy" />
@@ -385,7 +440,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
             {hayDuplicados ? (
               <div className="ent-duplicados-aviso">
                 <p>
-                  {formatNumber(duplicados.length)} documento(s) repiten un abonado y clave ya capturados en este lote.
+                  Hay {formatCount(duplicados.length, "documento duplicado", "documentos duplicados")} por coincidencia de abonado y clave en este lote.
                   Corrige la fila marcada o confirma que el duplicado es real.
                 </p>
                 <label>

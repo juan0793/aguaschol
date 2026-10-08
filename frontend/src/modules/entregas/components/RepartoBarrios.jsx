@@ -17,7 +17,7 @@ import {
 
 const MODOS = [
   { clave: "responsable", etiqueta: "Persona" },
-  { clave: "carga", etiqueta: "Carga de la zona" },
+  { clave: "carga", etiqueta: "Carga por persona" },
   { clave: "claves", etiqueta: "Claves por barrio" }
 ];
 

@@ -35,6 +35,7 @@
 .ent-menu-card small { margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 600; }
 .ent-menu-card.is-active { border-color: var(--primary) !important; background: #fff !important; color: var(--primary) !important; }
 .ent-mobile-tabs { display: none; }
+.ent-draft-status { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #d4e1ec; border-radius: 8px; background: #f5f9fd; color: #314960; font-size: 13px; }
 
 /* ---------- Estados propios ---------- */
 .cl-status.is-abierto { background: #e9f2ff; color: var(--primary); }
@@ -419,7 +420,7 @@
 }
 
 @media (max-width: 760px) {
-  .ent-module { padding-bottom: 82px; }
+  .ent-module { padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)); }
   .ent-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ent-kpi { min-height: 74px; padding: 10px 12px; }
   .ent-kpi strong { font-size: 23px; }
@@ -428,7 +429,7 @@
   .ent-module .cl-module-header { gap: 12px; }
   .ent-module .cl-module-header .ent-menu { display: none !important; }
   .ent-header-action, .ent-header-action .cl-primary { width: 100%; }
-  .ent-mobile-tabs { position: fixed; right: 10px; bottom: 10px; left: 10px; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; padding: 6px; border: 1px solid rgba(201,221,244,.9); border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: 0 12px 28px rgba(16,42,67,.16); backdrop-filter: blur(12px); }
+  .ent-mobile-tabs { position: fixed; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 10px; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; padding: 6px; border: 1px solid rgba(201,221,244,.9); border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: 0 12px 28px rgba(16,42,67,.16); backdrop-filter: blur(12px); }
   .ent-mobile-tabs button { display: grid; min-width: 0; min-height: 52px; place-items: center; gap: 2px; padding: 4px 2px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 750; cursor: pointer; }
   .ent-mobile-tabs > button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ent-mobile-mas { position: absolute; right: 6px; bottom: calc(100% + 8px); display: grid; min-width: 220px; gap: 2px; padding: 6px; border: 1px solid rgba(201,221,244,.9); border-radius: 14px; background: #fff; box-shadow: 0 12px 28px rgba(16,42,67,.16); animation: entSlideIn .16s ease both; }

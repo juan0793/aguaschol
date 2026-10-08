@@ -129,7 +129,7 @@ export default function AvanceJornada({ model, fecha, onVerAnteriores, onAbrirLo
             ) : null}
           </li>
         ))}
-        {!filas.length ? <li className="ent-avance-vacio">{loading ? "Cargando la jornada…" : "Todavía no hay lotes repartidos hoy."}</li> : null}
+        {!filas.length && !error ? <li className="ent-avance-vacio">{loading ? "Cargando la jornada…" : "Todavía no hay lotes repartidos hoy."}</li> : null}
       </ul>
       {parciales ? <p className="ent-avance-nota">Se muestran los {formatNumber(lotesHoy.length)} lotes más recientes de hoy; los totales de arriba incluyen los {formatNumber(totalHoy)}.</p> : null}
 

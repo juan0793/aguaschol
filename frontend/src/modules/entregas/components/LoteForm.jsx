@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { estadoLoteLabel, formatNumber, tipoDocumentoLabel, tipoPersonalLabel } from "../utils/entregasFormatters";
 import { toLocalIsoDate } from "../utils/entregasDate";
+import { clearEntregaDraft, falloEntregaAmbiguo, readEntregaDraft, saveEntregaDraft } from "../utils/entregaDraftStorage";
 
 const hoy = toLocalIsoDate;
 const OTRO_BARRIO = "__otro__";
@@ -17,8 +18,9 @@ const FORM_INICIAL = {
 };
 
 // Al crear el lote NO se registra factura por factura: solo el total asignado.
-export default function LoteForm({ config, personal, notify, lote, onSaved, onCancel }) {
+export default function LoteForm({ config, personal, notify, lote, onSaved, onCancel, sessionUserId }) {
   const editando = Boolean(lote?.id);
+  const draftId = `lote-${lote?.id || "nuevo"}`;
   // El técnico (no la oficina) solo abre lotes en los barrios que el reparto le dio
   // al responsable; el servidor lo vuelve a validar. Al editar no se limita.
   const reparto = config.barrios_por_responsable || null;
@@ -42,16 +44,39 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
     if (!inicial.barrio_codigo) return Boolean(inicial.barrio_nombre);
     return !config.barrios.some((barrioItem) => barrioItem.codigo === inicial.barrio_codigo);
   };
+  const [formOriginal] = useState(() => formDesdeLote(lote));
+  const [barrioLibreOriginal] = useState(() => esBarrioLibre(lote));
 
-  const [form, setForm] = useState(() => formDesdeLote(lote));
-  const [barrioLibre, setBarrioLibre] = useState(() => esBarrioLibre(lote));
+  const [draftInicial] = useState(() => readEntregaDraft(sessionUserId, draftId));
+  const [form, setForm] = useState(() => ({ ...formOriginal, ...(draftInicial?.form || {}) }));
+  const [barrioLibre, setBarrioLibre] = useState(() => draftInicial?.barrioLibre ?? barrioLibreOriginal);
+  const [draftRecuperado, setDraftRecuperado] = useState(Boolean(draftInicial));
+  const [draftPersistido, setDraftPersistido] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const saltarGuardadoRef = useRef(false);
 
   useEffect(() => {
-    setForm(formDesdeLote(lote));
-    setBarrioLibre(esBarrioLibre(lote));
+    const draft = readEntregaDraft(sessionUserId, draftId);
+    setForm({ ...formDesdeLote(lote), ...(draft?.form || {}) });
+    setBarrioLibre(draft?.barrioLibre ?? esBarrioLibre(lote));
+    setDraftRecuperado(Boolean(draft));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lote]);
+  }, [lote, sessionUserId, draftId]);
+
+  const tieneCambios = JSON.stringify(form) !== JSON.stringify(formOriginal) || barrioLibre !== barrioLibreOriginal;
+
+  useEffect(() => {
+    if (saltarGuardadoRef.current) {
+      saltarGuardadoRef.current = false;
+      return;
+    }
+    if (!tieneCambios) {
+      clearEntregaDraft(sessionUserId, draftId);
+      setDraftPersistido(false);
+      return;
+    }
+    setDraftPersistido(saveEntregaDraft(sessionUserId, draftId, { form, barrioLibre }));
+  }, [draftId, sessionUserId, tieneCambios, form, barrioLibre]);
 
   const activos = useMemo(
     () => personal.filter((persona) => persona.activo || String(persona.id) === String(form.responsable_id)),
@@ -86,15 +111,30 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
   const submit = async (event) => {
     event.preventDefault();
     if (guardando) return;
+    const borradorDisponible = saveEntregaDraft(sessionUserId, draftId, { form, barrioLibre });
+    setDraftPersistido(borradorDisponible);
     setGuardando(true);
     try {
       const guardado = await onSaved({
         ...form,
         total_asignadas: Number(form.total_asignadas)
       });
-      if (guardado && !editando) setForm({ ...formNuevo, fecha: form.fecha, tipo_documento: form.tipo_documento });
+      if (guardado) {
+        clearEntregaDraft(sessionUserId, draftId);
+        setDraftPersistido(false);
+        setDraftRecuperado(false);
+        if (!editando) {
+          saltarGuardadoRef.current = true;
+          setForm({ ...formNuevo, fecha: form.fecha, tipo_documento: form.tipo_documento });
+        }
+      }
     } catch (error) {
-      notify(error.message);
+      const revisarAntesDeReintentar = falloEntregaAmbiguo(error)
+        ? " Si se interrumpió la conexión durante el envío, revisa primero la lista de lotes para confirmar si ya se creó."
+        : "";
+      notify(borradorDisponible
+        ? `${error.message} El borrador se conserva en esta pestaña; corrige el problema e inténtalo de nuevo.${revisarAntesDeReintentar}`
+        : `${error.message}${revisarAntesDeReintentar}`);
     } finally {
       setGuardando(false);
     }
@@ -102,6 +142,7 @@ export default function LoteForm({ config, personal, notify, lote, onSaved, onCa
 
   return (
     <form className="ent-nuevo-lote" onSubmit={submit}>
+      {draftRecuperado ? <p className="ent-draft-status" role="status">Se recuperó un borrador de esta sesión. Revísalo y vuelve a guardarlo; mantén esta pestaña abierta hasta enviarlo al servidor.</p> : tieneCambios ? <p className="ent-draft-status" role="status">{draftPersistido === null ? "Guardando una copia en esta pestaña…" : draftPersistido ? "El borrador se conserva en esta pestaña. No la cierres hasta enviarlo al servidor." : "No se pudo guardar una copia local del borrador."}</p> : null}
       <section className="ent-card">
         <header className="ent-card-head">
           <div>
