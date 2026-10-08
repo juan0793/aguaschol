@@ -30,6 +30,7 @@ import OfflineZonesPanel from "./OfflineZonesPanel";
 import "./puntos-gps.css";
 
 const LAST_TYPE_KEY = "aguaschol.campo.ultimoTipo";
+const ignoreDraftChange = () => {};
 const readLastType = () => {
   try {
     const value = window.localStorage.getItem(LAST_TYPE_KEY);
@@ -119,7 +120,6 @@ export default function FieldMapWorkspace({ model }) {
   const toastTimerRef = useRef(0);
   const [mapApi, setMapApi] = useState(null);
   const [aim, setAim] = useState(null);
-  const [aimPulse, setAimPulse] = useState(0);
   const [pointType, setPointType] = useState(readLastType);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [showZones, setShowZones] = useState(false);
@@ -151,10 +151,7 @@ export default function FieldMapWorkspace({ model }) {
     setMapApi(api);
   }, []);
 
-  const handleAim = useCallback((next) => {
-    setAim(next);
-    setAimPulse((value) => value + 1);
-  }, []);
+  const handleAim = useCallback((next) => setAim(next), []);
 
   const chooseType = (type) => {
     setPointType(type);
@@ -283,7 +280,7 @@ export default function FieldMapWorkspace({ model }) {
                 mapDraft={mapDraft}
                 mapFocusRequest={mapFocusRequest}
                 mapPoints={canvasPoints}
-                onDraftChange={() => {}}
+                onDraftChange={ignoreDraftChange}
                 onSelectPoint={handleSelectMapPoint}
                 onStatusChange={setMapStatus}
                 selectedMapPointId={selectedMapPointId}
@@ -295,7 +292,7 @@ export default function FieldMapWorkspace({ model }) {
               />
             </Suspense>
           </MapLoadBoundary>
-          <div key={aimPulse} className="pg-reticle" aria-hidden="true" style={{ "--pg-type": typeStyle.color }}>
+          <div className="pg-reticle" aria-hidden="true" style={{ "--pg-type": typeStyle.color }}>
             <span className="pg-reticle-ring" />
             <span className="pg-reticle-cross" />
           </div>
