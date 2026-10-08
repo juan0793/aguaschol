@@ -40,7 +40,7 @@ export const tecnicos = async (req, res, next) => {
 
 export const sugerenciaTecnico = async (req, res, next) => {
   try {
-    res.json(await sugerirTecnicoInspeccion(req.query.clave));
+    res.json(await sugerirTecnicoInspeccion(req.query.clave, Number(req.query.excluir) || null));
   } catch (error) {
     next(error);
   }

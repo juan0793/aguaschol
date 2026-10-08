@@ -38,7 +38,8 @@ const distanciaMetros = (a, b) => Math.round((Math.hypot(a.x - b.x, a.y - b.y) *
 // barrios: filas del reparto ({ codigo, nombre, responsable_id }).
 // personal: personal de campo ({ id, nombre_completo, user_id, activo }).
 // tecnicos: usuarios elegibles para inspecciones ({ id, full_name, inspecciones_activas }).
-export const sugerirTecnicos = ({ clave, barrios = [], personal = [], tecnicos = [], centroides = new Map() } = {}) => {
+// excluirId: usuario que no se sugiere (el responsable actual al reasignar).
+export const sugerirTecnicos = ({ clave, barrios = [], personal = [], tecnicos = [], centroides = new Map(), excluirId = null } = {}) => {
   const codigo = codigoBarrioDeClave(clave);
   const nombreDe = (cod) => barrios.find((fila) => fila.codigo === cod)?.nombre || `Barrio ${cod}`;
   if (!codigo) {
@@ -54,7 +55,7 @@ export const sugerirTecnicos = ({ clave, barrios = [], personal = [], tecnicos =
   const candidatos = [];
   for (const persona of personal) {
     const tecnico = tecnicoDePersona(persona);
-    if (!tecnico) continue;
+    if (!tecnico || (excluirId && Number(tecnico.id) === Number(excluirId))) continue;
     const suyos = barriosDe(persona.id);
     let mejor = null;
     if (suyos.some((fila) => fila.codigo === codigo)) {
@@ -90,7 +91,7 @@ export const sugerirTecnicos = ({ clave, barrios = [], personal = [], tecnicos =
   } else if (!dueno) {
     aviso = "Este barrio no está en el reparto: se sugiere por cercanía.";
   }
-  if (!candidatos.length && !aviso) aviso = "Ningún técnico del reparto tiene un usuario de inspecciones vinculado en Personal de campo.";
+  if (!candidatos.length && !aviso && !personal.some((persona) => tecnicoDePersona(persona))) aviso = "Ningún técnico del reparto tiene un usuario de inspecciones vinculado en Personal de campo.";
 
   return {
     barrio_codigo: codigo,

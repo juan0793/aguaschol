@@ -5,6 +5,7 @@ import InspeccionGpsPanel from "./InspeccionGpsPanel";
 import InspeccionPrintPreview from "./InspeccionPrintPreview";
 import CorregirOrtografia, { SPELLCHECK_PROPS } from "./CorregirOrtografia";
 import PrintBadge from "./PrintBadge";
+import SugerenciasTecnico from "./SugerenciasTecnico";
 import { estadoClass, estadoLabel, formatDate, formatDateTime } from "../utils/inspeccionesFormatters";
 import { createInspectionAutosave } from "../utils/inspectionAutosave";
 import LatticeLoader from "../../../components/micro/LatticeLoader";
@@ -40,6 +41,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
   const [printTipo, setPrintTipo] = useState(null);
   const [nuevoApoyoId, setNuevoApoyoId] = useState("");
   const [nuevoResponsableId, setNuevoResponsableId] = useState("");
+  const [sugerencia, setSugerencia] = useState(null);
   const [seguimientoDetalle, setSeguimientoDetalle] = useState("");
   const [seguimientoFecha, setSeguimientoFecha] = useState("");
   const debounceRef = useRef(null);
@@ -209,6 +211,19 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
       notify(error.message);
     }
   };
+
+  // Para reasignar: tecnicos cercanos segun el reparto, sin el responsable actual.
+  const claveInspeccion = inspeccion?.clave_catastral || "";
+  const responsableActualId = responsable?.tecnico_id || null;
+  useEffect(() => {
+    setSugerencia(null);
+    if (!isAdmin || finalizada || !claveInspeccion) return undefined;
+    let vigente = true;
+    api.sugerenciaTecnico(claveInspeccion, responsableActualId)
+      .then((resultado) => { if (vigente) setSugerencia(resultado); })
+      .catch(() => {});
+    return () => { vigente = false; };
+  }, [api, isAdmin, finalizada, claveInspeccion, responsableActualId]);
 
   const opcionesApoyo = useMemo(
     () => tecnicosElegibles.filter((tecnico) => !participantes.some((item) => item.tecnico_id === tecnico.id)),
@@ -394,6 +409,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
 
           {isAdmin && !finalizada ? (
             <Seccion icon="userCreated" title="Reasignar responsable" tone="admin">
+              <SugerenciasTecnico sugerencia={sugerencia} selectedId={nuevoResponsableId} onSelect={(tecnicoId) => setNuevoResponsableId(String(tecnicoId))} />
               <div className="ins-clave-search">
                 <select value={nuevoResponsableId} onChange={(event) => setNuevoResponsableId(event.target.value)}>
                   <option value="">Selecciona nuevo responsable…</option>

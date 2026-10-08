@@ -40,7 +40,16 @@ const api = {
   historial: async () => HISTORIAL,
   update: async (_id, patch) => ({ ...INSPECCION, ...patch, updated_at: new Date().toISOString() }),
   addGps: async () => ({}),
-  corregirTexto: async (texto) => ({ text: texto })
+  corregirTexto: async (texto) => ({ text: texto }),
+  sugerenciaTecnico: async () => ({
+    barrio_codigo: "43",
+    barrio_nombre: "Col. Venecia",
+    aviso: null,
+    sugerencias: [
+      { tecnico_id: 12, nombre: "Rosa Mejía", inspecciones_activas: 1, es_su_zona: false, distancia_m: 520, barrio_cercano_nombre: "Col. Aterrizaje" },
+      { tecnico_id: 11, nombre: "Diego Andino", inspecciones_activas: 3, es_su_zona: false, distancia_m: 1380, barrio_cercano_nombre: "Bo. Las Colinas" }
+    ]
+  })
 };
 
 const session = { user: { id: 1, role: "admin", full_name: "Administrador" } };

@@ -13,7 +13,7 @@ const centroides = () => {
   return centroidesCache;
 };
 
-export const sugerirTecnicoInspeccion = async (clave) => {
+export const sugerirTecnicoInspeccion = async (clave, excluirId = null) => {
   if (env.useMemoryDb) {
     return { barrio_codigo: "", barrio_nombre: "", sugerencias: [], aviso: "La sugerencia por zona necesita la base de datos." };
   }
@@ -22,5 +22,5 @@ export const sugerirTecnicoInspeccion = async (clave) => {
     getPool().query("SELECT id, nombre_completo, user_id, activo FROM personal_campo"),
     listTecnicosElegibles()
   ]);
-  return sugerirTecnicos({ clave, barrios, personal, tecnicos, centroides: centroides() });
+  return sugerirTecnicos({ clave, barrios, personal, tecnicos, centroides: centroides(), excluirId });
 };

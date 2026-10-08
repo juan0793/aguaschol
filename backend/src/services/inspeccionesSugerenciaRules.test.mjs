@@ -88,6 +88,15 @@ test("personal inactivo o usuario no elegible no se sugiere", () => {
   assert.match(resultado.aviso, /Ana tiene este barrio/);
 });
 
+test("al reasignar no se sugiere al responsable actual", () => {
+  const resultado = sugerir("01-01", { excluirId: 11 });
+  assert.deepEqual(resultado.sugerencias.map((item) => item.nombre), ["Beto Paz"]);
+  assert.equal(resultado.aviso, null);
+  const soloEl = sugerir("01-01", { excluirId: 11, personal: [personal[0]] });
+  assert.equal(soloEl.sugerencias.length, 0);
+  assert.equal(soloEl.aviso, null);
+});
+
 test("clave sin código de barrio", () => {
   const resultado = sugerir("00-00-00");
   assert.equal(resultado.barrio_codigo, "");

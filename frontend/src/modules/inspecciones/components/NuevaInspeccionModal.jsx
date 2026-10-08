@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import TecnicosApoyoSelector from "./TecnicosApoyoSelector";
+import SugerenciasTecnico from "./SugerenciasTecnico";
 import CorregirOrtografia, { SPELLCHECK_PROPS } from "./CorregirOrtografia";
 import { MOTIVOS_SUGERIDOS } from "../utils/inspeccionesFormatters";
-
-const formatDistancia = (metros) =>
-  metros < 1000 ? `${metros} m` : `${(metros / 1000).toLocaleString("es-HN", { maximumFractionDigits: 1 })} km`;
 
 export default function NuevaInspeccionModal({ api, tecnicos, initialData, notify, onClose, onCreated }) {
   const [claveInput, setClaveInput] = useState(initialData?.clave_catastral || "");
@@ -221,31 +219,7 @@ export default function NuevaInspeccionModal({ api, tecnicos, initialData, notif
 
             <section className="ins-form-section">
               <h3>3. Técnico responsable</h3>
-              {sugerencia?.sugerencias?.length ? (
-                <div className="ins-sugerencias" role="group" aria-label={`Técnicos cercanos a ${sugerencia.barrio_nombre}`}>
-                  {sugerencia.sugerencias.map((item, index) => (
-                    <button
-                      key={item.tecnico_id}
-                      type="button"
-                      className={`ins-sugerencia ${responsableId === String(item.tecnico_id) ? "is-active" : ""}`}
-                      aria-pressed={responsableId === String(item.tecnico_id)}
-                      onClick={() => elegirResponsable(item.tecnico_id)}
-                    >
-                      <strong>
-                        {item.nombre}
-                        {index === 0 ? <span className="ins-sugerencia-tag">Sugerido</span> : null}
-                      </strong>
-                      <small>
-                        {item.es_su_zona
-                          ? `${sugerencia.barrio_nombre} está en su zona`
-                          : `Atiende ${item.barrio_cercano_nombre}, a ${formatDistancia(item.distancia_m)}`}
-                      </small>
-                      <em>{item.inspecciones_activas} {item.inspecciones_activas === 1 ? "activa" : "activas"}</em>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {sugerencia?.aviso ? <p className="ins-sugerencia-aviso">{sugerencia.aviso}</p> : null}
+              <SugerenciasTecnico sugerencia={sugerencia} selectedId={responsableId} onSelect={elegirResponsable} />
               <select value={responsableId} onChange={(event) => elegirResponsable(event.target.value)}>
                 <option value="">Selecciona un técnico</option>
                 {tecnicos.map((tecnico) => (
