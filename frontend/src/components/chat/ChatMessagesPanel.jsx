@@ -3,6 +3,7 @@ import { Check, CheckCheck, FileText, Hash, Image as ImageIcon, KeyRound, MapPin
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FILES_URL } from "../../config/api.js";
 import { CHAT_FONT_STORAGE_KEY } from "../../constants/storageKeys.js";
+import { usePrivateFileUrl } from "../../utils/privateFiles.js";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../../utils/profileWebSocket.js";
 
 const DEFAULT_CHANNELS = [
@@ -35,6 +36,25 @@ const resolveFileUrl = (value = "") => {
   const base = FILES_URL || "";
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 };
+
+// El adjunto vive en el backend y pide sesion: se descarga con el token (la cookie
+// no viaja desde www.controlaguas.com) y se muestra como blob.
+function ChatImageAttachment({ src, apiFetch }) {
+  const { url, failed } = usePrivateFileUrl(src, apiFetch);
+  if (!url) {
+    return (
+      <span className="chat-image-attachment is-placeholder" role="img" aria-label="Adjunto del chat">
+        <ImageIcon size={16} />
+        {failed ? "No se pudo cargar la fotografía." : "Cargando fotografía…"}
+      </span>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="chat-image-attachment">
+      <img src={url} alt="Adjunto del chat" />
+    </a>
+  );
+}
 
 const upsertMessage = (messages, message) => {
   if (!message?.id) return messages;
@@ -547,11 +567,7 @@ export function ChatMessagesPanel({
                           <span>{getReplyPreview(message.reply_to)}</span>
                         </button>
                       ) : null}
-                      {imageUrl ? (
-                        <a href={imageUrl} target="_blank" rel="noreferrer" className="chat-image-attachment">
-                          <img src={imageUrl} alt="Adjunto del chat" />
-                        </a>
-                      ) : null}
+                      {imageUrl ? <ChatImageAttachment src={imageUrl} apiFetch={apiFetch} /> : null}
                       {sharedSummary ? (
                         <article className={`chat-shared-summary ${SHARE_TYPES[sharedSummary.type]?.tone || ""}`}>
                           <div className="chat-shared-summary-head">

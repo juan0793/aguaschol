@@ -25001,6 +25001,19 @@ body,
   object-fit: cover;
 }
 
+.chat-image-attachment.is-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 120px;
+  padding: 0.75rem;
+  color: #61788e;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgba(20, 101, 217, 0.04);
+}
+
 .chat-bubble-actions {
   justify-content: flex-end;
   gap: 0.25rem;

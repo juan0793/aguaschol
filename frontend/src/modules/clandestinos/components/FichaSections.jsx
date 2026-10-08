@@ -1,9 +1,16 @@
 import { Icon } from "../../../components/Icon";
+import { usePrivateFileUrl } from "../../../utils/privateFiles";
 
 const Field = ({ label, children, wide = false }) => <label className={wide ? "cl-field is-wide" : "cl-field"}><span>{label}</span>{children}</label>;
+// La foto vive en el backend y pide sesion: se descarga con el token y se muestra como blob.
+const EvidencePhoto = ({ path, apiFetch }) => {
+  const { url, failed } = usePrivateFileUrl(path, apiFetch);
+  if (url) return <img src={url} alt="Evidencia principal del inmueble" />;
+  return <><Icon name="activity" /><p>{failed ? "No se pudo cargar la fotografía." : "Cargando fotografía…"}</p></>;
+};
 const Text = ({ name, value, onChange, ...props }) => <input name={name} value={value ?? ""} onChange={onChange} {...props} />;
 
-export default function FichaSections({ form, onChange, onValidatePadron, history = [], canEditInternal = false }) {
+export default function FichaSections({ form, onChange, onValidatePadron, history = [], canEditInternal = false, apiFetch }) {
   return <div className="cl-sections">
     <details open><summary><span><Icon name="users" />Abonado</span><small>Identificación y contacto</small></summary><div className="cl-fields">
       <Field label="Clave catastral"><Text required name="clave_catastral" value={form.clave_catastral} onChange={onChange} /></Field>
@@ -34,7 +41,7 @@ export default function FichaSections({ form, onChange, onValidatePadron, histor
       <Field label="Técnico"><Text name="levantamiento_datos" value={form.levantamiento_datos} onChange={onChange} /></Field>
       {canEditInternal ? <Field label="Observaciones internas (no se imprimen)" wide><textarea name="observaciones_internas" value={form.observaciones_internas || ""} onChange={onChange} rows="4" /></Field> : null}
     </div></details>
-    <details><summary><span><Icon name="activity" />Evidencias</span><small>Fotografía principal</small></summary><div className="cl-evidence-placeholder">{form.foto_path ? <img src={form.foto_path} alt="Evidencia principal del inmueble" /> : <><Icon name="activity" /><p>La fotografía se administra desde la ficha guardada.</p></>}</div></details>
+    <details><summary><span><Icon name="activity" />Evidencias</span><small>Fotografía principal</small></summary><div className="cl-evidence-placeholder">{form.foto_path ? <EvidencePhoto path={form.foto_path} apiFetch={apiFetch} /> : <><Icon name="activity" /><p>La fotografía se administra desde la ficha guardada.</p></>}</div></details>
     <details><summary><span><Icon name="history" />Historial</span><small>{history.length} movimientos</small></summary><ol className="cl-history">{history.length ? history.map((item) => <li key={item.id}><i /><div><strong>{item.estado_nuevo}</strong><span>{item.motivo || "Cambio de estado"}</span><small>{item.actor_name || "Sistema"} · {new Date(item.created_at).toLocaleString("es-HN")}</small></div></li>) : <li className="is-empty">Todavía no hay cambios de estado.</li>}</ol></details>
   </div>;
 }

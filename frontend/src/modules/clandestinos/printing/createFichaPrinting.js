@@ -399,11 +399,11 @@ export function createFichaPrinting({
         const dataUrl = await fileToDataUrl(selectedFile);
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       } else if (!recordOverride && selectedPhotoUrl) {
-        const dataUrl = await urlToDataUrl(selectedPhotoUrl);
+        const dataUrl = await urlToDataUrl(selectedPhotoUrl, apiFetch);
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       } else if (recordOverride?.foto_path) {
         const photoUrl = buildPhotoUrl(recordOverride.foto_path, recordOverride.updated_at || Date.now());
-        const dataUrl = silent ? await urlToResizedDataUrl(photoUrl) : await urlToDataUrl(photoUrl);
+        const dataUrl = silent ? await urlToResizedDataUrl(photoUrl, apiFetch) : await urlToDataUrl(photoUrl, apiFetch);
         photoMarkup = `<img src="${dataUrl}" alt="Fotografia del inmueble" class="print-photo" />`;
       }
     } catch (_error) {

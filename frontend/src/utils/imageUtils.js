@@ -1,4 +1,4 @@
-import { FILES_URL } from "../config/api.js";
+import { fetchPrivateFile } from "./privateFiles.js";
 
 const loadImageFromFile = (file) =>
   new Promise((resolve, reject) => {
@@ -72,13 +72,11 @@ export const optimizeImageForUpload = async (file) => {
   });
 };
 
-export const urlToDataUrl = async (url) => {
-  const targetOrigin = new URL(url, window.location.href).origin;
-  const filesOrigin = new URL(FILES_URL || window.location.href, window.location.href).origin;
-  const response = await fetch(url, {
-    cache: "no-store",
-    credentials: targetOrigin === filesOrigin ? "include" : "omit"
-  });
+// Con apiFetch, las fotos privadas del backend se piden con el token: la cookie de
+// medios no viaja cuando el frontend vive en otro dominio.
+export const urlToDataUrl = async (url, apiFetch) => {
+  const response = await fetchPrivateFile(url, apiFetch, { cache: "no-store" });
+  if (!response.ok) throw new Error("No fue posible cargar la imagen para impresion.");
   const blob = await response.blob();
 
   return new Promise((resolve, reject) => {
@@ -91,8 +89,8 @@ export const urlToDataUrl = async (url) => {
 
 // Para imprimir muchas fichas: la foto se reduce a ~1000 px en JPEG. Una foto de
 // cámara pesa varios MB y un lote de decenas volvía lenta la vista previa.
-export const urlToResizedDataUrl = async (url, maxDimension = 1000, quality = 0.8) => {
-  const original = await urlToDataUrl(url);
+export const urlToResizedDataUrl = async (url, apiFetch, maxDimension = 1000, quality = 0.8) => {
+  const original = await urlToDataUrl(url, apiFetch);
   try {
     const image = await new Promise((resolve, reject) => {
       const element = new Image();
