@@ -73,9 +73,10 @@ function Preview() {
   const [editingId, setEditingId] = useState(state === "editando" ? diary[0].points[0]?.id : null);
   const [limit, setLimit] = useState(6);
   const [mapStatus, setMapStatus] = useState("Sincronizado");
+  const [marked, setMarked] = useState([]);
 
   const groups = diary.map((group) => ({ key: group.key, total: group.points.length }));
-  const visible = diary.find((group) => group.key === dateKey)?.points || [];
+  const visible = [...marked, ...(diary.find((group) => group.key === dateKey)?.points || [])];
   const selected = visible.find((point) => point.id === selectedId) || null;
 
   const fieldModel = {
@@ -89,6 +90,12 @@ function Preview() {
     handleEditMapPoint: (id) => { setEditingId(id); setSelectedId(id); },
     handleLocateUser: () => setDraft((current) => ({ ...current, latitude: "13.301742", longitude: "-87.188915", accuracy_meters: "6" })),
     handleMapDraftChange: (event) => setDraft((current) => ({ ...current, [event.target.name]: event.target.value })),
+    // Marca en memoria para comprobar que el punto cae bajo la mira.
+    handleMarkPoint: ({ latitude, longitude, accuracy, pointType }) => {
+      const id = 9000 + marked.length;
+      setMarked((current) => [{ id, point_type: pointType, latitude, longitude, accuracy_meters: accuracy, created_at: new Date().toISOString() }, ...current]);
+      return id;
+    },
     handleMapDraftFromMap: (next) => setDraft((current) => ({ ...current, ...next })),
     handleOpenPointInMaps: noop,
     handleSaveMapPoint: (event) => event.preventDefault(),

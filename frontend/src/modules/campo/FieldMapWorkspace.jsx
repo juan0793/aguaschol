@@ -116,6 +116,7 @@ export default function FieldMapWorkspace({ model }) {
 
   const rootRef = useRef(null);
   const mapApiRef = useRef(null);
+  const reticleRef = useRef(null);
   const typeButtonRefs = useRef(new Map());
   const toastTimerRef = useRef(0);
   const [mapApi, setMapApi] = useState(null);
@@ -286,13 +287,14 @@ export default function FieldMapWorkspace({ model }) {
                 selectedMapPointId={selectedMapPointId}
                 visor
                 onAimChange={handleAim}
+                aimRef={reticleRef}
                 onReady={handleReady}
                 userLocation={gps.fix}
                 flashPointId={flashId}
               />
             </Suspense>
           </MapLoadBoundary>
-          <div className="pg-reticle" aria-hidden="true" style={{ "--pg-type": typeStyle.color }}>
+          <div ref={reticleRef} className="pg-reticle" aria-hidden="true" style={{ "--pg-type": typeStyle.color }}>
             <span className="pg-reticle-ring" />
             <span className="pg-reticle-cross" />
           </div>

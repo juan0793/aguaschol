@@ -29,6 +29,22 @@ const invalidateSoon = (map) => {
     timers.forEach((timer) => window.clearTimeout(timer));
   };
 };
+// La mira del visor puede no estar en el centro del mapa (en móvil sube para no quedar
+// bajo la hoja). Todo lo que "apunta" usa su posición real en pantalla.
+const getAimOffset = (map, aimRef) => {
+  const reticle = aimRef?.current;
+  if (!reticle) return L.point(0, 0);
+  const aimBox = reticle.getBoundingClientRect();
+  const mapBox = map.getContainer().getBoundingClientRect();
+  if (!aimBox.width || !mapBox.width || !mapBox.height) return L.point(0, 0);
+  return L.point(
+    aimBox.left + aimBox.width / 2 - (mapBox.left + mapBox.width / 2),
+    aimBox.top + aimBox.height / 2 - (mapBox.top + mapBox.height / 2)
+  );
+};
+// Centro que deja `latlng` justo bajo la mira con el zoom indicado.
+const centerForAim = (map, aimRef, latlng, zoom = map.getZoom()) =>
+  map.unproject(map.project(L.latLng(latlng), zoom).subtract(getAimOffset(map, aimRef)), zoom);
 const getDraftMarkerColor = (draft = {}) => {
   if (draft.point_type === COMMERCIAL_MAP_POINT_TYPE) return COMMERCIAL_MAP_POINT_COLOR;
   if (draft.point_type === ALERT_MAP_POINT_TYPE) return ALERT_MAP_POINT_COLOR;
@@ -51,6 +67,7 @@ function FieldMap({
   // centro, guarda los mosaicos para usarlos sin señal y muestra el GPS en vivo.
   visor = false,
   onAimChange,
+  aimRef,
   onReady,
   userLocation = null,
   flashPointId = null
@@ -153,15 +170,15 @@ function FieldMap({
     });
     // En el visor, tocar un lugar lleva la mira ahí (y acerca si hace falta).
     const aimAt = (latlng) => {
-      if (map.getZoom() < 18) map.setView(latlng, 19, { animate: true });
-      else map.panTo(latlng, { animate: true, duration: 0.3, easeLinearity: 0.25 });
+      if (map.getZoom() < 18) map.setView(centerForAim(map, aimRef, latlng, 19), 19, { animate: true });
+      else map.panTo(centerForAim(map, aimRef, latlng), { animate: true, duration: 0.3, easeLinearity: 0.25 });
     };
     const emitAim = () => {
-      const center = map.getCenter();
-      onAimChangeRef.current?.({ latitude: center.lat, longitude: center.lng, zoom: map.getZoom() });
+      const aim = map.containerPointToLatLng(map.getSize().divideBy(2).add(getAimOffset(map, aimRef)));
+      onAimChangeRef.current?.({ latitude: aim.lat, longitude: aim.lng, zoom: map.getZoom() });
     };
     if (visor) {
-      map.on("moveend zoomend", emitAim);
+      map.on("moveend zoomend resize", emitAim);
       emitAim();
     }
 
@@ -222,7 +239,8 @@ function FieldMap({
     onReadyRef.current?.({
       zoomIn: () => map.zoomIn(),
       zoomOut: () => map.zoomOut(),
-      flyTo: (latitude, longitude, zoom = map.getZoom()) => map.flyTo([latitude, longitude], zoom, { duration: 0.6 }),
+      flyTo: (latitude, longitude, zoom = map.getZoom()) =>
+        map.flyTo(centerForAim(map, aimRef, [latitude, longitude], zoom), zoom, { duration: 0.6 }),
       getZoom: () => map.getZoom(),
       getBounds: () => {
         const bounds = map.getBounds();
@@ -265,7 +283,7 @@ function FieldMap({
       accuracyCircleRef.current = null;
       statusTimerRef.current = null;
     };
-  }, [isMobileMap, onDraftChange, onStatusChange, tileTemplate, visor]);
+  }, [aimRef, isMobileMap, onDraftChange, onStatusChange, tileTemplate, visor]);
 
   useEffect(() => {
     if (!isActive || !mapRef.current) {
@@ -436,7 +454,7 @@ function FieldMap({
     if (mapRef.current.getZoom() !== targetZoom) {
       mapRef.current.setZoom(targetZoom, { animate: false });
     }
-    mapRef.current.panTo([latitude, longitude], {
+    mapRef.current.panTo(visor ? centerForAim(mapRef.current, aimRef, [latitude, longitude]) : [latitude, longitude], {
       animate: true,
       duration: 0.45,
       easeLinearity: 0.25

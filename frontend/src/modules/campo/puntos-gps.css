@@ -20,6 +20,15 @@
   font-size: 14px;
 }
 
+.page-shell > main.pg,
+.pg {
+  /* La hoja móvil baja con transform y deja desborde: clip evita que un foco o
+     scrollIntoView desplace todo el visor. !important por
+     `.page-shell > main { overflow-x: hidden !important }` en móvil. */
+  overflow: hidden !important;
+  overflow: clip !important;
+}
+
 .page-shell > main.pg {
   width: auto !important;
   max-width: none !important;
@@ -31,14 +40,13 @@
   box-sizing: border-box;
 }
 
-.pg button,
-.pg input,
-.pg select,
-.pg textarea {
+/* :where() deja la especificidad en una clase: si fuera `.pg button`, ganaría a
+   `.pg-type`, `.pg-mark`, etc. y todos los botones heredarían 14px y color. */
+.pg :where(button, input, select, textarea) {
   font: inherit;
 }
 
-.pg button {
+.pg :where(button) {
   color: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -58,6 +66,35 @@
   opacity: 0.58;
 }
 
+/* styles.css aplica `button:hover:not(:disabled)` (levanta y sombrea) y
+   `button:active:not(:disabled)`; en móvil el hover queda pegado tras tocar. */
+.pg button:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
+.pg button:active:not(:disabled) {
+  transform: scale(0.98);
+  box-shadow: none;
+}
+
+.pg button.pg-fab:is(:hover, :active):not(:disabled) {
+  box-shadow: 0 4px 13px rgba(22, 40, 59, 0.18);
+}
+
+.pg .pg-fab-group button.pg-fab:is(:hover, :active):not(:disabled) {
+  box-shadow: none;
+}
+
+.pg button.pg-type.is-active:is(:hover, :active):not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--pg-type);
+}
+
+.pg button.pg-mark:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
 .pg-visually-hidden {
   position: absolute;
   width: 1px;
@@ -71,6 +108,8 @@
 
 .pg-stage {
   position: relative;
+  /* Los controles de Leaflet usan z-index 1000; aquí no pueden tapar la hoja. */
+  isolation: isolate;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1147,7 +1186,12 @@
     background: #aab8c7;
   }
 
+  .pg-handle > span:not(.pg-handle-bar) {
+    grid-column: 2;
+  }
+
   .pg-handle svg {
+    grid-column: 3;
     justify-self: end;
     transition: transform 180ms ease;
   }
@@ -1177,9 +1221,10 @@
 
   .pg-type {
     min-height: 50px;
-    padding: 4px 3px;
+    padding: 4px 2px;
     border-radius: 10px;
-    font-size: 9px;
+    font-size: 10px;
+    letter-spacing: -0.01em;
   }
 
   .pg-type span {
@@ -1232,7 +1277,8 @@
 
   .pg-toast {
     right: 10px;
-    bottom: calc(195px + env(safe-area-inset-bottom, 0px));
+    /* Sobre la escala y la atribución del mapa (bottom: 190px). */
+    bottom: calc(226px + env(safe-area-inset-bottom, 0px));
     left: 10px;
     gap: 4px;
     padding: 7px;
