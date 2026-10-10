@@ -1,17 +1,17 @@
 :root {
-  --sidebar-expanded-width: 292px;
-  --sidebar-collapsed-width: 76px;
+  --sidebar-expanded-width: 264px;
+  --sidebar-collapsed-width: 72px;
   --current-sidebar-width: var(--sidebar-expanded-width);
   --sidebar-bg: #062c4d;
-  --sidebar-bg-deep: #031f39;
-  --sidebar-surface: rgba(255, 255, 255, 0.055);
-  --sidebar-surface-hover: rgba(255, 255, 255, 0.09);
-  --sidebar-active: #0873b8;
+  --sidebar-bg-deep: #04223d;
+  --sidebar-hover: rgba(255, 255, 255, 0.07);
+  --sidebar-active-bg: rgba(91, 192, 245, 0.18);
+  --sidebar-active-ink: #ffffff;
   --sidebar-active-border: #42d6f2;
-  --sidebar-text: #f7fbff;
+  --sidebar-text: #eef6fd;
   --sidebar-text-muted: #9fc3de;
-  --sidebar-icon: #b6e3fb;
-  --sidebar-divider: rgba(151, 208, 240, 0.16);
+  --sidebar-icon: #a9d4ef;
+  --sidebar-divider: rgba(151, 208, 240, 0.14);
   --sidebar-motion: 220ms cubic-bezier(.4, 0, .2, 1);
   --shadow-soft: 0 12px 30px rgba(6, 39, 65, 0.14);
   /* styles.css define estos dos en su propio :root; este archivo carga despues y siempre los
@@ -45,33 +45,44 @@
   height: 100dvh;
   flex-direction: column;
   overflow: visible;
-  border-right: 1px solid rgba(90, 185, 232, 0.24);
+  border-right: 1px solid rgba(90, 185, 232, 0.18);
   color: var(--sidebar-text);
-  background: radial-gradient(circle at 18% 0%, rgba(12, 119, 180, 0.24), transparent 31%), linear-gradient(165deg, var(--sidebar-bg) 0%, var(--sidebar-bg-deep) 100%);
-  box-shadow: 4px 0 24px rgba(2, 24, 43, 0.2);
+  background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg-deep) 100%);
   transition: width var(--sidebar-motion), transform var(--sidebar-motion);
 }
 
-.control-sidebar button { font: inherit; }
+/* :where() deja la especificidad en una clase. Con `.control-sidebar button` (0,1,1) el
+   tamaño de cada boton se perdia y las acciones de cuenta salian a 16px. */
+.control-sidebar :where(button) { font: inherit; }
+
+/* styles.css levanta y sombrea todo `button:hover:not(:disabled)` (0,2,1). En el menu no
+   hay botones que floten. */
+.control-sidebar button:hover:not(:disabled),
+.control-sidebar button:active:not(:disabled) { box-shadow: none; transform: none; filter: none; }
+
+/* styles.css da `button .app-icon { margin-right: .45rem }`: descentraba los iconos solos. */
+.control-sidebar .app-icon { margin: 0; }
+
+/* ---------- Encabezado ---------- */
 
 .control-sidebar-header {
   position: relative;
   display: grid;
-  min-height: 86px;
-  grid-template-columns: 48px minmax(0, 1fr);
+  min-height: 68px;
+  grid-template-columns: 40px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 14px 52px 14px 14px;
+  padding: 12px 48px 12px 14px;
   border-bottom: 1px solid var(--sidebar-divider);
   transition: grid-template-columns var(--sidebar-motion), padding var(--sidebar-motion), gap var(--sidebar-motion);
 }
 
 .control-sidebar-header img {
-  width: 48px;
-  height: 48px;
-  padding: 4px;
+  width: 40px;
+  height: 40px;
+  padding: 3px;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fff;
   transition: width var(--sidebar-motion), height var(--sidebar-motion);
 }
@@ -88,57 +99,71 @@
 
 .control-sidebar-header strong {
   overflow: hidden;
-  font-size: 15px;
-  line-height: 1.2;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .control-sidebar-header span,
-.control-sidebar-user small { color: var(--sidebar-text-muted); font-size: 11px; }
+.control-sidebar-user small {
+  overflow: hidden;
+  color: var(--sidebar-text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .control-sidebar-toggle {
   position: absolute;
-  top: 25px;
-  right: 12px;
+  top: 19px;
+  right: 10px;
   display: grid;
-  width: 34px;
-  min-height: 34px;
+  width: 30px;
+  min-height: 30px;
   padding: 0;
   place-items: center;
-  border: 1px solid rgba(150, 214, 247, 0.2);
-  border-radius: 10px;
-  background: rgba(2, 28, 50, 0.34);
-  color: var(--sidebar-icon);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sidebar-text-muted);
   box-shadow: none;
-  transition: right var(--sidebar-motion), top var(--sidebar-motion), background 180ms ease;
+  transition: right var(--sidebar-motion), top var(--sidebar-motion), background 160ms ease, color 160ms ease;
 }
 
-.control-sidebar-toggle:hover,
-.control-sidebar-toggle:active { background: rgba(84, 183, 231, 0.16); transform: none; }
-.control-sidebar-toggle .app-icon { transition: transform var(--sidebar-motion); }
+.control-sidebar-toggle .app-icon { width: 18px; height: 18px; transition: transform var(--sidebar-motion); }
+
+/* ---------- Navegacion ---------- */
 
 .control-sidebar-navigation {
+  display: grid;
   flex: 1;
   min-height: 0;
+  align-content: start;
+  gap: 2px;
   padding: 10px;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-color: rgba(164, 219, 247, 0.3) transparent;
+  scrollbar-color: rgba(164, 219, 247, 0.28) transparent;
   scrollbar-width: thin;
 }
 
 .control-sidebar-navigation::-webkit-scrollbar { width: 5px; }
-.control-sidebar-navigation::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(164, 219, 247, 0.3); }
+.control-sidebar-navigation::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(164, 219, 247, 0.28); }
 
 .control-sidebar-section {
   position: relative;
   display: grid;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--sidebar-divider);
 }
 
-.control-sidebar-section:last-child { border-bottom: 0; }
+.control-sidebar-section-label {
+  padding: 10px 10px 4px;
+  color: var(--sidebar-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
 
 .control-sidebar-group,
 .control-sidebar-item {
@@ -147,7 +172,7 @@
   width: 100%;
   min-width: 0;
   align-items: center;
-  border: 1px solid transparent;
+  border: 0;
   color: var(--sidebar-text);
   background: transparent;
   box-shadow: none;
@@ -155,50 +180,41 @@
 }
 
 .control-sidebar-group {
-  grid-template-columns: 24px minmax(0, 1fr) 18px;
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
   gap: 11px;
-  min-height: 58px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  transition: background 180ms ease, grid-template-columns var(--sidebar-motion), padding var(--sidebar-motion), gap var(--sidebar-motion);
+  min-height: 42px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 650;
+  transition: background 160ms ease, color 160ms ease, grid-template-columns var(--sidebar-motion), padding var(--sidebar-motion), gap var(--sidebar-motion);
 }
-
-.control-sidebar-group:hover,
-.control-sidebar-group:active,
-.control-sidebar-section.has-active > .control-sidebar-group { color: var(--sidebar-text); background: var(--sidebar-surface); transform: none; }
 
 .control-sidebar-group-copy,
 .control-sidebar-item-copy {
-  display: grid;
   min-width: 0;
   max-width: 190px;
   overflow: hidden;
   opacity: 1;
-  line-height: 1.18;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transform: translateX(0);
   transition: max-width var(--sidebar-motion), opacity 140ms ease, transform var(--sidebar-motion), visibility 0s;
 }
 
-.control-sidebar-group-copy strong {
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 720;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.control-sidebar-group .app-icon,
+.control-sidebar-item .app-icon { width: 19px; height: 19px; color: var(--sidebar-icon); transition: color 160ms ease; }
 
-.control-sidebar-group-copy small,
-.control-sidebar-item-copy small {
-  margin-top: 3px;
-  overflow: hidden;
+.control-sidebar-group .control-sidebar-chevron {
+  width: 16px;
+  height: 16px;
   color: var(--sidebar-text-muted);
-  font-size: 10.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  transition: transform var(--sidebar-motion), opacity 140ms ease;
 }
 
-.control-sidebar-chevron { transition: transform var(--sidebar-motion), opacity 140ms ease; }
 .control-sidebar-group[aria-expanded="true"] .control-sidebar-chevron { transform: rotate(90deg); }
+.control-sidebar-section.has-active > .control-sidebar-group .app-icon:not(.control-sidebar-chevron) { color: var(--sidebar-active-border); }
 
 .control-sidebar-group-panel {
   display: grid;
@@ -209,75 +225,75 @@
 
 .control-sidebar-group-panel.is-open { grid-template-rows: 1fr; opacity: 1; }
 
+/* Los subelementos cuelgan de una guia fina alineada con el icono del grupo. */
 .control-sidebar-group-items {
+  position: relative;
   display: grid;
   min-height: 0;
-  gap: 2px;
-  padding: 0 3px 0 28px;
+  gap: 1px;
+  margin-left: 19px;
+  padding: 2px 0 6px 11px;
   overflow: hidden;
+  border-left: 1px solid var(--sidebar-divider);
 }
+
+/* El panel recorta (overflow) para animar la altura: el anillo va por dentro. */
+.control-sidebar-group-items .control-sidebar-item:focus-visible { outline-offset: -2px; }
 
 .control-sidebar-item {
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  gap: 10px;
-  min-height: 44px;
-  padding: 6px 8px;
-  border-radius: 9px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: #d3e6f5;
   font-size: 13px;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  font-weight: 600;
+  transition: background 160ms ease, color 160ms ease;
 }
 
-.control-sidebar-item:hover,
-.control-sidebar-item:active { background: var(--sidebar-surface-hover); transform: none; }
+/* En el menu lateral el icono del subelemento repetia el del grupo; solo se usa en el
+   menu flotante del modo colapsado, donde no hay grupo a la vista. */
+.control-sidebar-item:not(.is-flyout) .app-icon { display: none; }
 
 .control-sidebar-item.is-active {
-  border-color: rgba(72, 195, 239, 0.4);
-  background: linear-gradient(100deg, #0987d2, var(--sidebar-active));
-  box-shadow: inset 4px 0 var(--sidebar-active-border), 0 5px 14px rgba(0, 20, 38, 0.22);
+  color: var(--sidebar-active-ink);
+  background: var(--sidebar-active-bg);
+  font-weight: 700;
 }
-
-.control-sidebar-item .app-icon,
-.control-sidebar-group .app-icon { width: 20px; height: 20px; color: var(--sidebar-icon); }
-.control-sidebar-item.is-active .app-icon { color: #fff; }
-
-.control-sidebar-item-copy strong {
-  display: -webkit-box;
-  overflow: hidden;
-  color: inherit;
-  font-size: 13px;
-  font-weight: 680;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.control-sidebar-item-copy small { margin-top: 2px; }
-.control-sidebar-item.is-active small { color: #d6f3ff; }
 
 .control-sidebar-badge {
   display: inline-flex;
-  min-width: 25px;
-  height: 21px;
+  min-width: 22px;
+  height: 20px;
   padding: 0 6px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(80, 201, 244, 0.48);
   border-radius: 999px;
   color: #e7f8ff;
-  background: rgba(16, 114, 170, 0.7);
-  font-size: 10px;
+  background: rgba(66, 214, 242, 0.2);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
-.control-sidebar-item.is-active .control-sidebar-badge { border-color: rgba(255, 255, 255, 0.32); background: rgba(2, 42, 72, 0.34); }
+@media (hover: hover) {
+  .control-sidebar-toggle:hover { color: #fff; background: var(--sidebar-hover); }
+  .control-sidebar-group:hover,
+  .control-sidebar-item:not(.is-active):hover { color: #fff; background: var(--sidebar-hover); }
+  .control-sidebar-group:hover .app-icon,
+  .control-sidebar-item:hover .app-icon { color: #fff; }
+}
+
+/* ---------- Cuenta ---------- */
 
 .control-sidebar-footer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 6px;
-  padding: 11px 10px;
+  align-items: center;
+  gap: 2px;
+  padding: 10px;
   border-top: 1px solid var(--sidebar-divider);
-  background: rgba(2, 22, 40, 0.34);
   transition: grid-template-columns var(--sidebar-motion), padding var(--sidebar-motion);
 }
 
@@ -285,54 +301,64 @@
   display: grid;
   min-width: 0;
   min-height: 44px;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 9px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  padding: 2px;
+  padding: 4px 6px;
   border: 0;
+  border-radius: 9px;
   color: var(--sidebar-text);
   background: transparent;
   box-shadow: none;
   text-align: left;
+  transition: background 160ms ease;
 }
-
-.control-sidebar-user:hover,
-.control-sidebar-user:active { background: transparent; transform: none; }
 
 .control-sidebar-user > span {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border: 1px solid rgba(142, 215, 250, 0.28);
-  border-radius: 13px;
+  border-radius: 50%;
   color: #fff;
-  background: #28557e;
-  font-size: 18px;
-  font-weight: 800;
+  background: #2a5b86;
+  font-size: 14px;
+  font-weight: 750;
 }
 
-.control-sidebar-user strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.control-sidebar-user strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-.control-sidebar-logout {
+.control-sidebar-account-action {
   display: grid;
-  width: 44px;
-  min-height: 44px;
+  width: 36px;
+  min-height: 36px;
   padding: 0;
   place-items: center;
-  align-self: center;
-  border: 1px solid rgba(141, 168, 196, 0.32);
-  border-radius: 10px;
-  color: #d9effc;
-  background: rgba(255, 255, 255, 0.04);
+  border: 0;
+  border-radius: 8px;
+  color: var(--sidebar-text-muted);
+  background: transparent;
   box-shadow: none;
+  transition: background 160ms ease, color 160ms ease;
 }
 
-.control-sidebar-logout:hover,
-.control-sidebar-logout:active { border-color: rgba(254, 202, 202, 0.52); color: #fff; background: rgba(190, 48, 48, 0.28); transform: none; }
-.control-sidebar-logout > span:not(.app-icon) { display: none; }
-.control-sidebar-password:hover,
-.control-sidebar-password:active { border-color: var(--sidebar-active-border); color: #fff; background: rgba(255, 255, 255, 0.1); }
+.control-sidebar-account-action .app-icon { width: 18px; height: 18px; }
+
+@media (hover: hover) {
+  .control-sidebar-user:hover { background: var(--sidebar-hover); }
+  .control-sidebar-account-action:hover { color: #fff; background: var(--sidebar-hover); }
+  .control-sidebar-account-action.is-logout:hover { color: #fecaca; background: rgba(190, 48, 48, 0.24); }
+}
+
+/* ---------- Foco, ayudas y menu flotante ---------- */
+
 .control-sidebar button:focus-visible { outline: 2px solid var(--sidebar-active-border); outline-offset: 2px; }
 .control-sidebar [data-tooltip] { position: relative; }
 
@@ -343,7 +369,7 @@
   left: calc(100% + 12px);
   width: max-content;
   max-width: 220px;
-  padding: 7px 9px;
+  padding: 6px 9px;
   pointer-events: none;
   border: 1px solid #d4e3ee;
   border-radius: 8px;
@@ -351,13 +377,35 @@
   background: #fff;
   box-shadow: var(--shadow-soft);
   content: attr(data-tooltip);
+  font-size: 12px;
+  font-weight: 600;
   opacity: 0;
   transform: translateY(-50%) translateX(-4px);
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.control-sidebar [data-tooltip]:hover::after,
 .control-sidebar [data-tooltip]:focus-visible::after { opacity: 1; transform: translateY(-50%); }
+
+/* En tabletas tactiles el hover queda pegado tras tocar: la ayuda solo sigue al puntero. */
+@media (hover: hover) {
+  .control-sidebar [data-tooltip]:hover::after { opacity: 1; transform: translateY(-50%); }
+}
+
+/* Con el menu abierto, la ayuda de las acciones de cuenta sale arriba: a la derecha
+   taparia el boton vecino. */
+.control-sidebar:not(.is-collapsed) .control-sidebar-account-action[data-tooltip]::after {
+  top: auto;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: auto;
+  transform: translateY(4px);
+}
+
+.control-sidebar:not(.is-collapsed) .control-sidebar-account-action[data-tooltip]:focus-visible::after { transform: none; }
+
+@media (hover: hover) {
+  .control-sidebar:not(.is-collapsed) .control-sidebar-account-action[data-tooltip]:hover::after { transform: none; }
+}
 
 .control-sidebar-flyout {
   position: absolute;
@@ -365,22 +413,28 @@
   top: 0;
   left: calc(100% + 10px);
   display: grid;
-  width: 254px;
+  width: 240px;
   max-height: min(440px, calc(100vh - 24px));
-  gap: 3px;
-  padding: 8px;
+  gap: 2px;
+  padding: 6px;
   overflow-y: auto;
   border: 1px solid rgba(25, 80, 115, 0.14);
-  border-radius: 13px;
+  border-radius: 12px;
   color: #173247;
-  background: rgba(255, 255, 255, 0.98);
+  background: #fff;
   box-shadow: var(--shadow-soft);
 }
 
-.control-sidebar-flyout > strong { padding: 6px 8px; color: #627a8b; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
-.control-sidebar-flyout .control-sidebar-item { color: #173247; }
-.control-sidebar-flyout .control-sidebar-item .app-icon { color: #2a89ba; }
-.control-sidebar-flyout .control-sidebar-item-copy small { color: #627a8b; }
+.control-sidebar-flyout > strong { padding: 6px 8px 4px; color: #0b3f73; font-size: 13px; font-weight: 750; }
+.control-sidebar-flyout .control-sidebar-item { grid-template-columns: 18px minmax(0, 1fr) auto; color: #173247; }
+.control-sidebar-flyout .control-sidebar-item .app-icon { width: 18px; height: 18px; color: #2a89ba; }
+.control-sidebar-flyout .control-sidebar-item.is-active { color: #0b3f73; background: #eaf2fd; }
+.control-sidebar-flyout .control-sidebar-badge { color: #0b3f73; background: #eaf2fd; }
+
+@media (hover: hover) {
+  .control-sidebar-flyout .control-sidebar-item:not(.is-active):hover { color: #0b3f73; background: #f2f7fd; }
+  .control-sidebar-flyout .control-sidebar-item:hover .app-icon { color: #1465d9; }
+}
 
 .control-sidebar-backdrop {
   position: fixed;
@@ -392,6 +446,8 @@
   box-shadow: none;
 }
 
+/* ---------- Colapsado ---------- */
+
 .control-sidebar.is-collapsed .control-sidebar-header { grid-template-columns: 1fr 0; gap: 0; justify-items: center; padding-inline: 8px; }
 
 .control-sidebar.is-collapsed .control-sidebar-header div,
@@ -399,54 +455,62 @@
 .control-sidebar.is-collapsed .control-sidebar-group-copy,
 .control-sidebar.is-collapsed .control-sidebar-chevron { max-width: 0; visibility: hidden; opacity: 0; transform: translateX(-8px); }
 
-.control-sidebar.is-collapsed .control-sidebar-header img { width: 38px; height: 38px; }
-.control-sidebar.is-collapsed .control-sidebar-toggle { top: 55px; right: -14px; width: 28px; min-height: 28px; background: var(--sidebar-bg); }
-.control-sidebar.is-collapsed .control-sidebar-toggle .app-icon { transform: rotate(180deg); }
-.control-sidebar.is-collapsed .control-sidebar-navigation { padding-inline: 9px; overflow: visible; }
+.control-sidebar.is-collapsed .control-sidebar-header img { width: 36px; height: 36px; }
+.control-sidebar.is-collapsed .control-sidebar-toggle { top: 21px; right: -13px; width: 26px; min-height: 26px; border: 1px solid rgba(150, 214, 247, 0.24); border-radius: 50%; color: var(--sidebar-icon); background: var(--sidebar-bg); }
+.control-sidebar.is-collapsed .control-sidebar-toggle .app-icon { width: 15px; height: 15px; transform: rotate(180deg); }
+.control-sidebar.is-collapsed .control-sidebar-navigation { justify-items: center; padding-inline: 8px; overflow: visible; }
 .control-sidebar.is-collapsed .control-sidebar-section { justify-items: center; }
 
 .control-sidebar.is-collapsed .control-sidebar-group {
-  width: 48px;
-  min-height: 48px;
-  grid-template-columns: 48px minmax(0, 0) 0;
+  width: 44px;
+  min-height: 44px;
+  grid-template-columns: 44px minmax(0, 0) 0;
   gap: 0;
   justify-items: center;
   padding: 0;
 }
 
-.control-sidebar.is-collapsed .control-sidebar-section.has-active > .control-sidebar-group { background: rgba(8, 115, 184, 0.4); box-shadow: inset 3px 0 var(--sidebar-active-border); }
-.control-sidebar.is-collapsed .control-sidebar-footer { grid-template-columns: 1fr; justify-items: center; padding-inline: 8px; }
+.control-sidebar.is-collapsed .control-sidebar-section.has-active > .control-sidebar-group { background: var(--sidebar-active-bg); }
+.control-sidebar.is-collapsed .control-sidebar-section.has-active > .control-sidebar-group .app-icon { color: #fff; }
+.control-sidebar.is-collapsed .control-sidebar-footer { grid-template-columns: 1fr; justify-items: center; gap: 4px; padding-inline: 8px; }
 /* El nombre oculto seguia ocupando una fila: separaba avatar y boton de salir y restaba alto
    al menu en pantallas bajas. */
-.control-sidebar.is-collapsed .control-sidebar-user { grid-template-columns: 1fr; grid-template-rows: auto 0; gap: 0; padding: 0; }
+.control-sidebar.is-collapsed .control-sidebar-user { grid-template-columns: 1fr; grid-template-rows: auto 0; gap: 0; padding: 6px; }
 .control-sidebar.is-collapsed .control-sidebar-user div { overflow: hidden; }
 
 .control-sidebar.is-collapsed .control-sidebar-flyout .control-sidebar-item {
   width: 100%;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
   justify-items: stretch;
-  padding: 6px 8px;
+  padding: 0 8px;
 }
 
-.control-sidebar.is-collapsed .control-sidebar-flyout .control-sidebar-item-copy { display: grid; max-width: 190px; visibility: visible; opacity: 1; transform: none; }
+.control-sidebar.is-collapsed .control-sidebar-flyout .control-sidebar-item-copy { max-width: 190px; visibility: visible; opacity: 1; transform: none; }
+
+/* ---------- Telefono ---------- */
 
 @media (max-width: 768px) {
   .page-shell,
   .page-shell.sidebar-collapsed { --current-sidebar-width: 0px; padding-left: .65rem !important; }
-  .control-sidebar { width: min(88vw, 320px); transform: translateX(-105%); }
+  .control-sidebar { width: min(86vw, 300px); transform: translateX(-105%); box-shadow: 8px 0 28px rgba(2, 24, 43, 0.28); }
   .control-sidebar.is-mobile-open { transform: translateX(0); }
+  .control-sidebar-header { padding-right: 14px; }
   .control-sidebar-toggle { display: none; }
   .control-sidebar-navigation { overscroll-behavior: contain; }
-  /* En táctil no hay tooltip: las dos acciones de cuenta van con su nombre, una
-     por fila debajo del usuario (lado a lado no caben en 320px). */
-  .control-sidebar-footer { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .control-sidebar-logout { width: 100%; grid-template-columns: 20px minmax(0, 1fr); justify-items: start; gap: 10px; padding: 0 12px; font-size: 13px; font-weight: 650; }
-  .control-sidebar-logout > span:not(.app-icon) { display: inline; white-space: nowrap; }
+  /* Objetivos tactiles de 44px; el resto del menu queda igual de compacto. */
+  .control-sidebar-group { min-height: 46px; }
+  .control-sidebar-item { min-height: 42px; font-size: 14px; }
+  .control-sidebar-account-action { width: 44px; min-height: 44px; }
+  .control-sidebar-account-action .app-icon { width: 20px; height: 20px; }
+  .control-sidebar-footer { padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+  .control-sidebar [data-tooltip]::after { display: none; }
 }
 
-@media (max-height: 760px) and (min-width: 769px) {
-  .control-sidebar-group { min-height: 50px; }
-  .control-sidebar-item { min-height: 42px; }
+@media (max-height: 700px) and (min-width: 769px) {
+  .control-sidebar-header { min-height: 60px; padding-block: 10px; }
+  .control-sidebar-toggle { top: 15px; }
+  .control-sidebar.is-collapsed .control-sidebar-toggle { top: 17px; }
+  .control-sidebar-group { min-height: 38px; }
+  .control-sidebar-item { min-height: 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

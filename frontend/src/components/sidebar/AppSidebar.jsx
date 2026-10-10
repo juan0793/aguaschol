@@ -138,8 +138,9 @@ export default function AppSidebar({
         onFocus={() => onPrefetch?.(item.key)}
       >
         <Icon name={item.icon} />
-        <span className="control-sidebar-item-copy"><strong>{item.label}</strong>{item.helper ? <small>{item.helper}</small> : null}</span>
-        {item.badge !== null && item.badge !== undefined ? <span className="control-sidebar-badge" aria-label={`${item.badge} elementos`}>{item.badge}</span> : null}
+        <span className="control-sidebar-item-copy">{item.label}</span>
+        {/* Un conteo en cero solo agrega ruido a la fila. */}
+        {Number(item.badge) > 0 ? <span className="control-sidebar-badge" aria-label={`${item.badge} elementos`}>{item.badge}</span> : null}
       </button>
     );
   };
@@ -165,8 +166,8 @@ export default function AppSidebar({
               <section className={`control-sidebar-section is-group ${activeGroup ? "has-active" : ""}`} key={section.key}>
                 <button type="button" className="control-sidebar-group" aria-expanded={effectiveCollapsed ? flyoutKey === section.key : open} aria-controls={`sidebar-group-${section.key}`} data-tooltip={effectiveCollapsed ? section.title : undefined} onClick={() => toggleGroup(section)}>
                   <Icon name={section.icon} />
-                  <span className="control-sidebar-group-copy"><strong>{section.title}</strong>{section.helper ? <small>{section.helper}</small> : null}</span>
-                  <Icon name="arrowRight" className="control-sidebar-chevron" />
+                  <span className="control-sidebar-group-copy">{section.title}</span>
+                  <Icon name="chevronRight" className="control-sidebar-chevron" />
                 </button>
                 {!effectiveCollapsed ? <div id={`sidebar-group-${section.key}`} className={`control-sidebar-group-panel ${open ? "is-open" : ""}`} aria-hidden={!open} inert={open ? undefined : ""}><div className="control-sidebar-group-items">{section.items.map((item) => renderItem(item))}</div></div> : null}
                 {effectiveCollapsed && flyoutKey === section.key ? <div id={`sidebar-group-${section.key}`} ref={flyoutRef} className="control-sidebar-flyout" role="menu"><strong>{section.title}</strong>{section.items.map((item) => renderItem(item, true))}</div> : null}
@@ -175,12 +176,12 @@ export default function AppSidebar({
           })}
         </nav>
         <footer className="control-sidebar-footer">
-          <button type="button" className="control-sidebar-user" onClick={() => navigate("profile")} data-tooltip={effectiveCollapsed ? `${userName} · ${userRole}` : undefined}>
+          <button type="button" className="control-sidebar-user" onClick={() => navigate("profile")} aria-label={`Mi perfil: ${userName}, ${userRole}`} data-tooltip={effectiveCollapsed ? `${userName} · ${userRole}` : undefined}>
             <span>{String(userName || "U").trim().charAt(0).toUpperCase()}</span>
             <div><strong>{userName}</strong><small>{userRole}</small></div>
           </button>
-          <button type="button" className="control-sidebar-logout control-sidebar-password" onClick={() => { onCloseMobile(); onChangePassword(); }} aria-label="Cambiar contraseña" data-tooltip={effectiveCollapsed ? "Cambiar contraseña" : undefined}><Icon name="auth" /><span>Cambiar contraseña</span></button>
-          <button type="button" className="control-sidebar-logout" onClick={onLogout} aria-label="Cerrar sesión" data-tooltip={effectiveCollapsed ? "Cerrar sesión" : undefined}><Icon name="logout" /><span>Cerrar sesión</span></button>
+          <button type="button" className="control-sidebar-account-action" onClick={() => { onCloseMobile(); onChangePassword(); }} aria-label="Cambiar contraseña" data-tooltip="Cambiar contraseña"><Icon name="key" /></button>
+          <button type="button" className="control-sidebar-account-action is-logout" onClick={onLogout} aria-label="Cerrar sesión" data-tooltip="Cerrar sesión"><Icon name="logout" /></button>
         </footer>
       </aside>
       {mobileOpen ? <button type="button" className="control-sidebar-backdrop no-print" aria-label="Cerrar menú" onClick={onCloseMobile} /> : null}
