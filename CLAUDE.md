@@ -24,3 +24,14 @@ Rules:
 - Se corrigieron plurales, acentos y mensajes del mapa sin señal. Si no se baja ningún cuadro del mapa, la zona no aparece como guardada. El selector de tipo ahora responde a flechas y los botones de deshacer/detalles y la manija móvil tienen mayor área táctil.
 - Verificado: 11 pruebas dirigidas de cola, recuperación, mosaicos y zonas offline; `npm run build` y `git diff --check` correctos. La compilación mantiene el aviso existente de chunks mayores a 500 kB.
 - Revisión real en iOS sigue pendiente porque el entorno de trabajo es Linux. En la captura web, los mosaicos y algunas llamadas API no cargaron (`Failed to fetch`); la verificación visual confirma la composición, no la disponibilidad de los servicios de mapa.
+
+## Nota para Claude: PWA de Control Aguas (2026-10-10)
+
+- Se agregó `frontend/public/manifest.webmanifest`, iconos 192×192, 512×512 y Apple touch, y `frontend/public/sw.js`. `frontend/src/main.jsx` registra el service worker en producción.
+- El service worker precarga el shell y las dependencias estáticas iniciales, y guarda recursos de `/assets/` y `/icons/`. Excluye `/api` y `/uploads` para no persistir respuestas ni fotos privadas.
+- `frontend/server.js` sirve el MIME de `webmanifest` y usa `no-cache` para el HTML, manifiesto y service worker. Solo `/assets/` (con hash) es `immutable`; iconos y demás archivos de `public/` usan `max-age=86400`.
+- La app se renombró de "App Clandestinos" a "Control Aguas", el mismo nombre del login. Las cachés usan el prefijo `controlaguas-`. El service worker pide los iconos primero a la red y limita `controlaguas-assets-v1` a 160 entradas, borrando las más antiguas.
+- Verificado en Chrome con `node frontend/server.js` (`frontend-prod` en `.claude/launch.json`): el service worker queda activo y controla la página, el shell precarga 14 recursos y los encabezados de caché son correctos.
+- Verificado: `node --check public/sw.js`, parseo del manifiesto y `npm run build` correctos. Vite aún informa bundles mayores de 500 kB. No se ejecutó la suite de tests.
+- Alcance offline: carga el shell de la app; búsquedas, registros y fotos requieren conexión. La instalación se ofrece desde el menú del navegador al publicar por HTTPS.
+- Graphify code-only actualizado: 4,870 nodos y 12,373 relaciones. No se analizaron 10 archivos SQL porque falta `tree_sitter_sql`; refrescar nombres de comunidades con IA requiere una clave de proveedor.

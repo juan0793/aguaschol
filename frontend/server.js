@@ -17,6 +17,7 @@ const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -37,9 +38,12 @@ const resolveRequestPath = (urlPath) => {
 const sendFile = async (filePath, res) => {
   const extension = path.extname(filePath).toLowerCase();
   const content = await fs.readFile(filePath);
+  const revalidate = ["index.html", "manifest.webmanifest", "sw.js"].includes(path.basename(filePath));
+  // Solo /assets/ lleva hash en el nombre; iconos y demás archivos de public/ pueden cambiar sin renombrarse.
+  const hashed = path.relative(distDir, filePath).split(path.sep)[0] === "assets";
   res.writeHead(200, {
     "Content-Type": mimeTypes[extension] ?? "application/octet-stream",
-    "Cache-Control": extension === ".html" ? "no-cache" : "public, max-age=31536000, immutable"
+    "Cache-Control": revalidate ? "no-cache" : hashed ? "public, max-age=31536000, immutable" : "public, max-age=86400"
   });
   res.end(content);
 };

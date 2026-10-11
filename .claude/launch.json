@@ -20,6 +20,19 @@
       "runtimeArgs": ["--prefix", "backend", "run", "start"],
       "port": 4000,
       "env": { "FRONTEND_URLS": "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174" }
+    },
+    {
+      "name": "frontend-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["frontend/server.js"],
+      "port": 3000,
+      "env": { "PORT": "3000", "BACKEND_URL": "http://127.0.0.1:4000" }
+    },
+    {
+      "name": "graphify",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "graphify-out"],
+      "port": 8765
     }
   ]
 }
