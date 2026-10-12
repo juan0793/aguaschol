@@ -11,6 +11,7 @@ export const READ_ROUTES = {
   "/api/barrios": /^\/(?:lookup(?:\/[^/]+)?)?\/?$/,
   "/api/transport": /^\/?$/,
   "/api/admin/team-activity": /^\/?$/,
+  "/api/railway": /^\/summary\/?$/,
   "/api/planos": /^\/(?:barrios|versiones|\d+\/elementos)\/?$/,
   "/api/gis": /^\/(?:config|barrios(?:\.geojson|\/\d+(?:\/summary)?)?|manzanas|quebradas|lotes(?:\/\d+)?|catastro(?:\/\d+)?|search|resolve|levantamientos(?:\/\d+)?)\/?$/
 };

@@ -26,6 +26,31 @@
 .manager-indicator-grid small { color: #526a7d; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .manager-indicator-grid small.is-critical { color: #b42318; font-weight: 600; }
 
+/* Consumo de la app en Railway: misma lectura que "Uso en Railway". */
+.manager-cost { margin-bottom: 16px; background: #fff; border: 1px solid #dfe5ec; border-radius: 8px; }
+.manager-cost > header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding: 14px 18px 0; }
+.manager-cost h2 { margin: 0; color: #16283b; font-size: 15px; font-weight: 650; }
+.manager-cost > header p { margin: 0; color: #526a7d; font-size: 13px; }
+.manager-cost > header b { color: #16283b; font-weight: 650; }
+.manager-cost-note { margin: 0; padding: 10px 18px 16px; color: #526a7d; font-size: 13px; }
+.manager-cost-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.manager-cost-grid > div { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 12px 18px 16px; }
+.manager-cost-grid > div + div { border-left: 1px solid #e8ecf1; }
+.manager-cost-grid span { display: flex; align-items: center; gap: 6px; color: #526a7d; font-size: 13px; font-weight: 600; }
+.manager-cost-grid span .app-icon { width: 15px; height: 15px; }
+.manager-cost-grid strong { color: #16283b; font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.manager-cost-grid small { color: #526a7d; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.manager-cost-pace { position: relative; max-width: 360px; height: 10px; margin: 4px 0 0; background: linear-gradient(#e8ecf1, #e8ecf1) left center / 100% 1px no-repeat; }
+.manager-cost-pace b { position: absolute; inset: 1px auto 1px 0; background: #1465d9; border-radius: 0 3px 3px 0; }
+.manager-cost-pace i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #16283b; border-radius: 1px; }
+@media (max-width: 600px) {
+  .manager-cost > header { padding-inline: 14px; }
+  .manager-cost-grid { grid-template-columns: 1fr; }
+  .manager-cost-grid > div { padding: 10px 14px 14px; }
+  .manager-cost-grid > div + div { border-top: 1px solid #e8ecf1; border-left: 0; }
+  .manager-cost-grid strong { font-size: 26px; }
+}
+
 .manager-tracking { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 18px; }
 .manager-tracking article { min-width: 0; padding: 16px 18px; background: white; border: 1px solid #dfe5ec; border-radius: 8px; }
 .manager-tracking .dw-panel-head h2 { margin: 0; color: #16283b; font-size: 15px; font-weight: 650; }

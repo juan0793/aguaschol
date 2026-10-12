@@ -33,6 +33,7 @@ const data = {
   "/clandestinos/fichas": { total: 64, items: [] },
   "/map-points/diary-groups": { groups: [{ key: "2026-10-10", total: 142 }] },
   "/admin/team-activity": { items: [{ id: 1, summary: "Inspección finalizada — prueba", actor_name: "Técnico de prueba" }], total: 1, tecnicos: [], categorias: {}, dias: [] },
+  "/railway/summary": { period: { start: "2026-10-09T06:00:00Z", end: "2026-11-09T06:00:00Z", updatedAt: new Date().toISOString() }, currentUsage: 2.36, estimatedUsage: 18.4 },
   "/barrios": [], "/claves/services/accounts": { cuentas: [], total_cuentas: 0 }
 };
 window.fetch = async (url, options = {}) => {

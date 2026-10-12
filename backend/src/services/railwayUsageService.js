@@ -214,3 +214,21 @@ export const getRailwayUsage = async () => {
     peaks
   };
 };
+
+// Resumen del ciclo para el tablero de Gerencia: solo cifras de costo, sin servicios ni
+// métricas. Se guarda 5 minutos para que cada visita no consulte la API de Railway.
+const SUMMARY_TTL_MS = 5 * 60 * 1000;
+let summaryCache = null;
+export const getRailwaySummary = async (loadUsage = getRailwayUsage, now = Date.now()) => {
+  if (summaryCache && now - summaryCache.at < SUMMARY_TTL_MS) return summaryCache.value;
+  const pending = loadUsage().then((usage) => ({
+    period: usage.period,
+    currentUsage: Number(usage.currentUsage) || 0,
+    estimatedUsage: Number(usage.estimatedUsage) || 0
+  }));
+  summaryCache = { at: now, value: pending };
+  // Un error no se guarda: la siguiente visita vuelve a intentar.
+  pending.catch(() => { if (summaryCache?.value === pending) summaryCache = null; });
+  return pending;
+};
+export const resetRailwaySummaryCache = () => { summaryCache = null; };

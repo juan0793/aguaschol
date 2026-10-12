@@ -6,6 +6,7 @@ import { managerToday, useManagerDashboard } from "./useManagerDashboard";
 import { ModuleSkeleton } from "../../components/ds/Skeleton";
 import { Icon } from "../../components/Icon";
 import ManagerReportControls from "../reports/ManagerReportControls";
+import ManagerPlatformCost from "./ManagerPlatformCost";
 import "../entregas/styles/entregas.css";
 import "./managerDashboard.css";
 
@@ -55,6 +56,7 @@ export default function ManagerDashboardWorkspace({ apiFetch, navigate, reportsO
           </button>)}
         </div>
       </section>
+      <ManagerPlatformCost apiFetch={apiFetch} />
       <section className="manager-tracking">
         <article className="dw-panel"><header className="dw-panel-head"><h2>Entregas de {monthLabel(data.month)}</h2></header><div className="manager-chart-scroll" tabIndex={0} role="region" aria-label="Seguimiento diario de entregas; desplazamiento horizontal"><div style={{ minWidth: Math.max(560, data.deliveries.por_dia.length * 44) }}><GraficoPorDia rows={data.deliveries.por_dia} /></div></div></article>
         <article className="dw-panel"><header className="dw-panel-head"><h2>Carga actual por técnico</h2></header><ul className="manager-workload">{data.inspections.carga_tecnicos.map((item) => { const max = Math.max(1, ...data.inspections.carga_tecnicos.map((row) => Number(row.activas) || 0)); return <li key={item.tecnico_id}><span className="manager-workload-name">{item.nombre || "Sin nombre"}</span><span className="manager-workload-bar" aria-hidden="true"><span style={{ width: `${Math.max(2, (Number(item.activas) || 0) / max * 100)}%` }} /></span><strong aria-label={`${formatNumber(item.activas)} inspecciones activas`}>{formatNumber(item.activas)}</strong></li>; })}</ul>{!data.inspections.carga_tecnicos.length ? <p className="dw-empty">No hay inspecciones activas asignadas.</p> : null}<p className="manager-scope">Incluye inspecciones pendientes de todos los períodos.</p></article>
