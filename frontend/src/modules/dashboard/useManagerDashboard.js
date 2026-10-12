@@ -24,7 +24,9 @@ export function useManagerDashboard(apiFetch, { enabled = true } = {}) {
         inspections: `/inspecciones/resumen?mes=${month}`,
         deliveries: `/entregas/resumen?fecha_desde=${range.from}&fecha_hasta=${range.to}`,
         fichas: "/clandestinos/fichas?limit=1", gps: "/map-points/diary-groups",
-        activity: "/admin/team-activity?limit=5&resumen=0"
+        activity: "/admin/team-activity?limit=5&resumen=0",
+        // Equipo de hoy, en la hora de Honduras (tz = 360).
+        team: `/admin/team-activity?limit=1&tz=360&desde=${managerToday()}&hasta=${managerToday()}`
       };
       const entries = await Promise.all(Object.entries(paths).map(async ([key, path]) => {
         const response = await apiFetch(path, { signal: controller.signal });
