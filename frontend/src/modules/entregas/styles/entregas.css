@@ -947,23 +947,39 @@
 .ent-mes-head p strong { color: var(--navy); font-size: 17px; font-variant-numeric: tabular-nums; }
 .ent-mes-head p span { margin-left: 8px; color: var(--primary); font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ent-mes-track { display: flex; gap: 4px; height: 14px; margin: 10px 0 8px; }
-.ent-mes-grupo { display: flex; flex: 1 1 0; gap: 1px; min-width: 0; overflow: hidden; border-radius: 4px; }
-.ent-mes-grupo i { display: block; flex: 1 1 0; min-width: 2px; background: #e4edf5; transition: background .3s ease, transform .15s ease; }
+.ent-mes-grupo { display: flex; flex: 1 1 0; gap: 1px; min-width: 0; padding: 0; overflow: hidden; border: 0; border-radius: 4px; background: transparent; box-shadow: none; cursor: pointer; transition: outline-color .15s ease; outline: 2px solid transparent; outline-offset: 2px; }
+.ent-mes .ent-mes-track .ent-mes-grupo { height: 100%; min-height: 0; padding: 0; }
+.ent-mes-grupo:hover, .ent-mes-grupo.is-elegido { outline-color: #b9d0ef; }
+.ent-mes-grupo:focus-visible { outline-color: var(--primary); }
+.ent-mes-grupo i { display: block; flex: 1 1 0; min-width: 2px; height: 100%; background: #e4edf5; transition: background .3s ease, transform .15s ease; }
 .ent-mes-grupo i.is-entregado { background: var(--primary); }
 .ent-mes-grupo i.is-en_curso { background: repeating-linear-gradient(135deg, #8db6e6 0 4px, #c9dbf3 4px 8px); }
 .ent-mes-grupo i.is-activo { transform: scaleY(1.35); }
 .ent-mes-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 .ent-mes-pie small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .ent-mes .ent-mes-pie button { min-height: 30px; padding: 0 12px; font-size: 12px; }
-.ent-mes-tecnicos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 18px; margin: 12px 0 0; padding: 0; list-style: none; }
-.ent-mes-tecnico { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
-.ent-mes-tecnico strong { color: var(--navy); font-size: 13px; }
-.ent-mes-tecnico span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.ent-mes-tecnicos ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.ent-mes-tecnicos ul li { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.ent-mes-tecnicos ul li i { width: 8px; height: 8px; flex: none; border-radius: 2px; background: #e4edf5; }
-.ent-mes-tecnicos ul li.is-entregado { color: var(--navy); }
-.ent-mes-tecnicos ul li.is-entregado i { background: var(--primary); }
-.ent-mes-tecnicos ul li.is-en_curso i { background: repeating-linear-gradient(135deg, #8db6e6 0 2px, #c9dbf3 2px 4px); }
+.ent-mes-lista { margin-top: 12px; }
+.ent-mes-filtros { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ent-mes .ent-mes-filtros button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; color: var(--navy); border: 1px solid var(--ent-borde); border-radius: 999px; background: #fff; font-size: 12px; font-weight: 650; cursor: pointer; }
+.ent-mes-filtros button span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ent-mes .ent-mes-filtros button.is-activo { color: var(--primary); border-color: #b9d0ef; background: #eaf2fd; }
+.ent-mes-columnas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ent-mes-columnas h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--navy); font-size: 13px; }
+.ent-mes-columnas h4 span { min-width: 22px; padding: 1px 7px; color: var(--muted); border-radius: 999px; background: #eef3f8; font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.ent-mes-columnas ul { display: grid; max-height: 320px; margin: 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid var(--ent-borde); border-radius: 8px; }
+.ent-mes-columnas li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border-bottom: 1px solid #eef2f6; }
+.ent-mes-columnas li:last-child { border-bottom: 0; }
+.ent-mes-barrio { display: grid; grid-template-columns: 10px minmax(0, 1fr); column-gap: 8px; align-items: center; min-width: 0; }
+.ent-mes-barrio i { grid-row: span 2; width: 10px; height: 10px; border-radius: 2px; background: #e4edf5; }
+.ent-mes-barrio i.is-entregado { background: var(--primary); }
+.ent-mes-barrio i.is-en_curso { background: repeating-linear-gradient(135deg, #8db6e6 0 2px, #c9dbf3 2px 4px); }
+.ent-mes-barrio strong { overflow: hidden; color: var(--navy); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.ent-mes-barrio small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.ent-mes-lotes { display: inline-flex; flex: none; align-items: center; gap: 4px; }
+.ent-mes .ent-mes-lotes button { min-height: 26px; padding: 0 8px; color: var(--primary); border: 1px solid #c9dbf3; border-radius: 6px; background: #f4f8fd; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; }
+.ent-mes .ent-mes-lotes button:hover { background: #eaf2fd; }
+.ent-mes-lotes small { color: var(--muted); font-size: 11px; }
+.ent-mes-vacio { margin: 0; padding: 14px 10px; color: var(--muted); font-size: 12px; border: 1px dashed var(--ent-borde); border-radius: 8px; }
+@media (max-width: 720px) { .ent-mes-columnas { grid-template-columns: 1fr; } }
 .ent-mes .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .ent-mes-grupo i { transition: none; } }

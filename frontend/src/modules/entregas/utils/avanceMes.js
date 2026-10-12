@@ -8,3 +8,13 @@ export const gruposPorTecnico = (barrios = []) => {
   }
   return grupos.map((grupo) => ({ ...grupo, entregados: grupo.barrios.filter((barrio) => barrio.estado === "entregado").length }));
 };
+
+// Lista del avance del mes: lo entregado y lo que falta, de todos o de un técnico.
+// Lo que falta empieza por los barrios con lote abierto, que ya están en camino.
+export const listaAvance = (barrios = [], tecnicoId = null) => {
+  const delTecnico = tecnicoId == null ? barrios : barrios.filter((barrio) => barrio.responsable_id === tecnicoId);
+  return {
+    entregados: delTecnico.filter((barrio) => barrio.estado === "entregado"),
+    faltan: delTecnico.filter((barrio) => barrio.estado !== "entregado").sort((a, b) => (a.estado === "en_curso" ? 0 : 1) - (b.estado === "en_curso" ? 0 : 1))
+  };
+};

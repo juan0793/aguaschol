@@ -945,15 +945,16 @@ export const armarControlDescartes = ({ fecha, ciclo, cortes = [], documentos = 
 // Avance del ciclo sobre los barrios del reparto. Un barrio queda "entregado" cuando
 // tiene al menos un lote cerrado en el ciclo y ninguno abierto; "en_curso" si tiene
 // un lote abierto; "pendiente" si todavía no tiene lotes. `lotes` llega agrupado por
-// barrio y estado: { barrio_codigo, estado, lotes, asignadas, entregadas }.
+// barrio y estado: { barrio_codigo, estado, lotes, asignadas, entregadas, ids }.
 export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde = "", hasta = "" } = {}) => {
   const porBarrio = new Map();
   for (const fila of lotes) {
     const codigo = String(fila.barrio_codigo || "").trim();
     if (!codigo) continue;
-    const entrada = porBarrio.get(codigo) || { abiertos: 0, cerrados: 0, asignadas: 0, entregadas: 0 };
-    if (fila.estado === "ABIERTO") entrada.abiertos += toEntero(fila.lotes);
-    else entrada.cerrados += toEntero(fila.lotes);
+    const entrada = porBarrio.get(codigo) || { abiertos: 0, cerrados: 0, asignadas: 0, entregadas: 0, ids_abiertos: [], ids_cerrados: [] };
+    const ids = String(fila.ids || "").split(",").map(toEntero).filter((id) => id > 0);
+    if (fila.estado === "ABIERTO") { entrada.abiertos += toEntero(fila.lotes); entrada.ids_abiertos.push(...ids); }
+    else { entrada.cerrados += toEntero(fila.lotes); entrada.ids_cerrados.push(...ids); }
     entrada.asignadas += toEntero(fila.asignadas);
     entrada.entregadas += toEntero(fila.entregadas);
     porBarrio.set(codigo, entrada);
@@ -962,7 +963,7 @@ export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde 
   const filas = barrios
     .filter((barrio) => barrio.responsable_id != null)
     .map((barrio) => {
-      const lote = porBarrio.get(String(barrio.codigo)) || { abiertos: 0, cerrados: 0, asignadas: 0, entregadas: 0 };
+      const lote = porBarrio.get(String(barrio.codigo)) || { abiertos: 0, cerrados: 0, asignadas: 0, entregadas: 0, ids_abiertos: [], ids_cerrados: [] };
       const estado = lote.abiertos ? "en_curso" : lote.cerrados ? "entregado" : "pendiente";
       return {
         codigo: String(barrio.codigo),
@@ -973,6 +974,8 @@ export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde 
         orden_ruta: barrio.orden_ruta == null ? null : toEntero(barrio.orden_ruta),
         estado,
         lotes: lote.abiertos + lote.cerrados,
+        lotes_cerrados: lote.ids_cerrados,
+        lotes_abiertos: lote.ids_abiertos,
         asignadas: lote.asignadas,
         entregadas: lote.entregadas
       };

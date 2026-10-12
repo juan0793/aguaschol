@@ -854,6 +854,7 @@ export const getAvanceMes = async (user) => {
   const desde = ciclo.fecha_inicio || `${hoy.slice(0, 7)}-01`;
   const [lotes] = await getPool().query(
     `SELECT barrio_codigo, estado, COUNT(*) AS lotes, SUM(total_asignadas) AS asignadas,
+       GROUP_CONCAT(id ORDER BY fecha DESC, id DESC) AS ids,
        SUM(CASE WHEN estado = 'ABIERTO' THEN 0 ELSE GREATEST(total_asignadas - total_sobrantes, 0) END) AS entregadas
      FROM entrega_lotes WHERE fecha >= ? AND fecha <= ? AND barrio_codigo <> ''
      GROUP BY barrio_codigo, estado`,

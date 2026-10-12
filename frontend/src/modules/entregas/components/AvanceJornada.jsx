@@ -78,7 +78,7 @@ export default function AvanceJornada({ model, fecha, onVerAnteriores, onAbrirLo
 
   return (
     <section className="ent-avance" aria-labelledby="ent-avance-titulo" aria-busy={loading}>
-      <AvanceMes mes={model.mes} />
+      <AvanceMes mes={model.mes} onAbrirLote={onAbrirLote} />
       <div className="cl-inbox-head ent-head-compacta">
         <div>
           <h3 id="ent-avance-titulo">Avance de hoy · {formatFullDate(fecha)}</h3>
