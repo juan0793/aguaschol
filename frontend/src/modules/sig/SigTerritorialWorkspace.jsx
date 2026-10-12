@@ -40,12 +40,14 @@ const bboxFromMap = (map) => {
 function SigOfflineState({ health, datasets = [] }) {
   const checking = health == null;
   const configured = Boolean(health?.configured);
+  // Si no se pudo preguntar el estado (sin red o sin permiso), no se culpa a la configuración.
+  const unreachable = Boolean(health?.unreachable);
   return (
     <section className="sig-offline" role="status">
       <div>
         <span className="cl-kicker">Estado GIS</span>
-        <h2>{checking ? "Verificando conexión GIS" : configured ? "PostGIS no responde" : "GIS_DATABASE_URL pendiente"}</h2>
-        <p>{checking ? "Consultando el estado de la base territorial." : configured ? "La base territorial está configurada, pero no se pudo consultar en este momento." : "Conecta la base GIS para activar mapa, búsqueda, barrios y catastro."}</p>
+        <h2>{checking ? "Verificando conexión GIS" : unreachable ? "No se pudo consultar el SIG" : configured ? "PostGIS no responde" : "GIS_DATABASE_URL pendiente"}</h2>
+        <p>{checking ? "Consultando el estado de la base territorial." : unreachable ? `${health.message || "Sin respuesta del servidor."} Vuelve a abrir la pantalla en un momento.` : configured ? "La base territorial está configurada, pero no se pudo consultar en este momento." : "Conecta la base GIS para activar mapa, búsqueda, barrios y catastro."}</p>
       </div>
       <div className="sig-offline-metrics" aria-label="Capas esperadas">
         <span><strong>{datasets.length}</strong> capas previstas</span>
@@ -543,7 +545,7 @@ export default function SigTerritorialWorkspace({ apiFetch, session, showAlert, 
         setReport(nextReport);
         setCatastroReport(nextCatastroReport);
       }
-    }).catch(() => setHealth({ configured: false, ready: false }));
+    }).catch((error) => { if (!cancelled) setHealth({ configured: false, ready: false, unreachable: true, message: error.message }); });
     return () => { cancelled = true; };
   }, [api, showAlert]);
 

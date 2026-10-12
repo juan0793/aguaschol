@@ -13,7 +13,7 @@ export const READ_ROUTES = {
   "/api/admin/team-activity": /^\/?$/,
   "/api/railway": /^\/summary\/?$/,
   "/api/planos": /^\/(?:barrios|versiones|\d+\/elementos)\/?$/,
-  "/api/gis": /^\/(?:config|barrios(?:\.geojson|\/\d+(?:\/summary)?)?|manzanas|quebradas|lotes(?:\/\d+)?|catastro(?:\/\d+)?|search|resolve|levantamientos(?:\/\d+)?)\/?$/
+  "/api/gis": /^\/(?:config|health|barrios(?:\.geojson|\/report|\/\d+(?:\/summary)?)?|manzanas|quebradas|lotes(?:\/\d+)?|catastro(?:\/report|\/\d+)?|search|resolve|levantamientos(?:\/\d+)?)\/?$/
 };
 export const QUERY_POSTS = {
   "/api/reports": ["/manager"],
