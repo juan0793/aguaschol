@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "../App";
+import { qaManagerReport } from "./gerenciaReportsFixture.js";
 import "../styles.css";
 import "../components/sidebar/sidebar.css";
 import "../styles/audit-console.css";
@@ -42,7 +43,7 @@ window.fetch = async (url, options = {}) => {
   if (failReads && path !== "/auth/me") return new Response(JSON.stringify({ message: "Fallo de lectura simulado en QA." }), { status: 503, headers: { "Content-Type": "application/json" } });
   if (path === "/reports/manager" && options.method === "POST") {
     const filters = JSON.parse(options.body);
-    return new Response(JSON.stringify({ report_id: "RPT-20261012-120000-ABCDEF12", title: "Informe gerencial de prueba", type: filters.type, filters, created_at: "2026-10-12T18:00:00Z", cutoff: "2026-10-10T12:00:00Z", period: { from: `${filters.month}-01`, to: `${filters.month}-12` }, notes: ["Datos sintéticos exclusivamente para QA."], sections: [{ title: "Indicadores de prueba", columns: ["Indicador", "Total"], rows: [["Cuentas de prueba", 20], ["Inspecciones de prueba", 12]] }] }), { status: 201, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(qaManagerReport(filters)), { status: 201, headers: { "Content-Type": "application/json" } });
   }
   if (/^\/reports\/manager\/RPT-.*\/events$/.test(path)) return new Response("{\"ok\":true}", { status: 200, headers: { "Content-Type": "application/json" } });
   const result = data[path];
@@ -56,3 +57,11 @@ window.fetch = async (url, options = {}) => {
   return new Response(JSON.stringify(result ?? { message: "Ruta fuera del fixture QA." }), { status: result == null ? 503 : 200, headers: { "Content-Type": "application/json" } });
 };
 ReactDOM.createRoot(document.getElementById("root")).render(<><div style={{ background: "#fff2cd", padding: "5px 12px", fontSize: 12 }}>QA local · Datos sintéticos. <button type="button" onClick={() => { failReads = true; }}>Simular error de lectura</button> <button type="button" onClick={() => { failReads = false; }}>Restablecer API de prueba</button></div><App /></>);
+// QA: ?vista=informes&informe=<tipo>&pestana=<texto> abre Consultas e informes con los mismos clics de una persona.
+const qaParams = new URLSearchParams(location.search);
+if (qaParams.get("vista") === "informes") {
+  const click = (selector, text) => [...document.querySelectorAll(selector)].find((node) => !text || node.textContent.includes(text))?.click();
+  setTimeout(() => click(".manager-reports-link"), 1200);
+  if (qaParams.get("informe")) setTimeout(() => click(".mr-index button", qaParams.get("informe")), 1800);
+  if (qaParams.get("pestana")) setTimeout(() => click(".mr-tabs button", qaParams.get("pestana")), 2600);
+}

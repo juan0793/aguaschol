@@ -73,7 +73,7 @@ const formatDiaryDateLabel = (value) => {
   const candidate = normalizeDiaryDate(value);
   return candidate ? `${candidate.slice(8, 10)}/${candidate.slice(5, 7)}/${candidate.slice(0, 4)}` : "Todas";
 };
-const getMapPointTypeLabel = (value = "") =>
+export const getMapPointTypeLabel = (value = "") =>
   POINT_TYPE_LABELS[value] || String(value || "").replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 const toArgb = (value, fallback = DEFAULT_MARKER_COLOR) => `FF${normalizeMarkerColor(value || fallback).slice(1).toUpperCase()}`;
 const MAP_POINT_SELECT_FIELDS = `

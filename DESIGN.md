@@ -222,6 +222,14 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - Los meses se escriben con nombre ("octubre de 2026"), nunca "2026-10".
   - "Consumo de la app" va debajo de los indicadores, con lo que cuesta la app en Railway en el ciclo de facturación: consumido, promedio por día, estimado al cierre y la barra de gasto contra calendario de "Uso en Railway". Lee `GET /api/railway/summary` (administración y gerencia; solo cifras de costo, guardadas 5 minutos). Si Railway no responde, el panel lo dice en una línea.
   - "Carga actual por técnico" usa barras azules finas, sin pista y con escala compartida, no el `<meter>` del navegador.
+- "Consultas e informes" de Gerencia (desde 2026-10-12). Usa el lenguaje de análisis:
+  - El tablero no repite el control de informes: lleva un enlace "Consultas e informes" junto al período.
+  - A la izquierda va el índice de informes (Resumen ejecutivo, Cartera por barrio, Fichas clandestinas, Inspecciones, Entregas, Seguimiento GPS y Actividad del equipo), con nombre y una línea que dice qué trae. Bajo 1100px pasa a una fila de botones que se desliza.
+  - Elegir un informe lo prepara solo; cada combinación de informe, mes y barrio se prepara una vez por visita. El botón de recargar vuelve a consultar.
+  - Para que la pantalla no se alargue, el informe va en pestañas: "Resumen" (o "Fichas") con los gráficos, una pestaña por tabla de detalle con su cantidad y, en Fichas clandestinas, "Banco de clandestinos" aparte.
+  - Gráficos: franja de cifras con lectura debajo, barras horizontales con escala y ancho de cifra compartidos, columnas por día o mes (puntero o flechas muestran la lectura arriba) y franja por etapa con los tonos de `etapas.js`. Capital en azul, intereses en ocre `#d59124`; dictamen del banco en rojo, gris y verde.
+  - Tocar una barra abre el detalle filtrado por esa fila. El detalle se busca y se pagina de 12 en 12, con números de página.
+  - Las tablas llevan cifras con separador de miles y estados en español; el PDF sigue saliendo de esas mismas tablas.
 - Prueba de perfil (desde 2026-10-12):
   - El administrador la abre desde la acción "Probar como otro rol" (icono de ojo) del pie del menú lateral; no hay barra fija mientras no se prueba. En escritorio se abre a la derecha del menú, con la sombra de capa flotante. En el teléfono sale como hoja inferior. Cada perfil dice dónde empieza, y el botón nombra la acción: "Ver como Gerente General".
   - Durante la prueba, una barra ocre de 48px queda fija arriba: "Viendo como Gerente General · Solo lectura · Quedan 12 minutos" y el botón en tinta "Volver a administrador" ("Volver" en el teléfono). En los últimos 3 minutos el ocre se intensifica; al vencer la barra pasa a rojo claro.

@@ -3,8 +3,16 @@
 
 /* Franja de herramientas: informe a la izquierda, período a la derecha, sin tarjetas. */
 .manager-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #dfe5ec; }
-.manager-toolbar .manager-reports { flex: 1; min-width: 0; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; }
-.manager-toolbar .manager-reports > p { margin-top: 8px; }
+.manager-toolbar { align-items: flex-end; }
+.manager-reports-link { display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; gap: 10px; align-items: center; max-width: 360px; padding: 10px 12px; color: #16283b; text-align: left; background: #fff; border: 1px solid #dfe5ec; border-radius: 8px; box-shadow: none; cursor: pointer; transition: background 140ms ease, border-color 140ms ease; }
+.manager-reports-link > .app-icon:first-child { width: 18px; height: 18px; color: #1465d9; }
+.manager-reports-link > .app-icon:last-child { width: 16px; height: 16px; color: #5f7184; transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.manager-reports-link span { display: grid; gap: 1px; min-width: 0; }
+.manager-reports-link strong { font-size: 14px; font-weight: 650; }
+.manager-reports-link small { color: #5f7184; font-size: 12px; font-weight: 500; }
+.manager-reports-link:hover { background: #f6f9fc; border-color: #c9d6e3; }
+.manager-reports-link:hover > .app-icon:last-child { transform: translateX(2px); }
+.manager-reports-link:focus-visible { outline: 2px solid #1465d9; outline-offset: 2px; }
 .manager-period { display: grid; gap: 6px; flex-shrink: 0; color: #16283b; font-size: 13px; font-weight: 600; }
 .manager-period input { min-height: 40px; padding: 8px 12px; border: 1px solid #c8d8e4; border-radius: 8px; background: white; color: #14344f; font: inherit; font-weight: 500; }
 .manager-period input:focus-visible { outline: 2px solid #1465d9; outline-offset: 1px; }

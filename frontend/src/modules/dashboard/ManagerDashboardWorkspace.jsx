@@ -5,7 +5,7 @@ import { buildManagerDashboardModel } from "./managerDashboardSelectors.js";
 import { managerToday, useManagerDashboard } from "./useManagerDashboard";
 import { ModuleSkeleton } from "../../components/ds/Skeleton";
 import { Icon } from "../../components/Icon";
-import ManagerReportControls from "../reports/ManagerReportControls";
+import ManagerReportsWorkspace from "../reports/ManagerReportsWorkspace";
 import ManagerPlatformCost from "./ManagerPlatformCost";
 import "../entregas/styles/entregas.css";
 import "./managerDashboard.css";
@@ -30,7 +30,12 @@ function buildIndicators(data) {
 }
 
 export default function ManagerDashboardWorkspace({ apiFetch, navigate, reportsOnly = false }) {
-  const state = useManagerDashboard(apiFetch, { enabled: !reportsOnly });
+  if (reportsOnly) return <ManagerReportsWorkspace apiFetch={apiFetch} />;
+  return <ManagerDashboard apiFetch={apiFetch} navigate={navigate} />;
+}
+
+function ManagerDashboard({ apiFetch, navigate }) {
+  const state = useManagerDashboard(apiFetch, { enabled: true });
   const model = useMemo(() => {
     if (!state.snapshot) return null;
     try { return { data: buildManagerDashboardModel(state.snapshot, navigate) }; }
@@ -39,13 +44,13 @@ export default function ManagerDashboardWorkspace({ apiFetch, navigate, reportsO
   const data = state.snapshot;
   return <section className="manager-dashboard">
     <header className="manager-toolbar">
-      <h2 className="manager-sr-only">{reportsOnly ? "Consultas e informes" : "Gerencia"}</h2>
-      <ManagerReportControls apiFetch={apiFetch} month={state.month} />
+      <h2 className="manager-sr-only">Gerencia</h2>
+      <button type="button" className="manager-reports-link" onClick={() => navigate("requests")}><Icon name="records" /><span><strong>Consultas e informes</strong><small>Gráficos, detalle y PDF de cada área</small></span><Icon name="chevronRight" /></button>
       <label className="manager-period">Período de seguimiento<input type="month" value={state.month} max={managerToday().slice(0, 7)} onChange={(event) => { if (event.target.value) state.setMonth(event.target.value); }} /><small>La cartera usa el corte del padrón.</small></label>
     </header>
     {state.error || model?.error ? <div className="manager-error" role="alert"><p>{state.error || model.error}{data ? ` Se conserva la consulta del período ${data.month}.` : ""}</p><button type="button" onClick={state.refresh} disabled={state.loading}>Reintentar</button></div> : null}
     {!data && state.loading ? <ModuleSkeleton title="Gerencia" /> : null}
-    {!reportsOnly && model?.data ? <>
+    {model?.data ? <>
       <section className="manager-indicators" aria-labelledby="manager-indicators-title">
         <h2 id="manager-indicators-title">Seguimiento de {monthLabel(data.month)}</h2>
         <div className="manager-indicator-grid">
