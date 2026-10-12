@@ -64,6 +64,7 @@ import MapaOperaciones from "./modules/operaciones/MapaOperaciones";
 import AdminWorkspace from "./app/AdminWorkspace";
 import AppHeader from "./app/AppHeader";
 import RolePreviewBar, { RolePreviewPicker } from "./app/RolePreviewControls";
+import UpdateNotice from "./app/UpdateNotice";
 import AuditReportViewerDialog from "./modules/audit/AuditReportViewerDialog";
 import DashboardAlertsDialog from "./modules/dashboard/DashboardAlertsDialog";
 import PrintComparisonDialog from "./modules/clandestinos/dialogs/PrintComparisonDialog";
@@ -745,6 +746,7 @@ function App() {
         model={{ ...auditLoaders, ...auditState }}
       />
       <RolePreviewBar session={session} />
+      <UpdateNotice session={session} />
       {rolePreviewAnchor ? <RolePreviewPicker session={session} anchor={rolePreviewAnchor} onClose={() => setRolePreviewAnchor(null)} /> : null}
       <AppHeader
         model={{

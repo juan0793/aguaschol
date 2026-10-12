@@ -225,6 +225,7 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - El administrador la abre desde la acción "Probar como otro rol" (icono de ojo) del pie del menú lateral; no hay barra fija mientras no se prueba. En escritorio se abre a la derecha del menú, con la sombra de capa flotante. En el teléfono sale como hoja inferior. Cada perfil dice dónde empieza, y el botón nombra la acción: "Ver como Gerente General".
   - Durante la prueba, una barra ocre de 48px queda fija arriba: "Viendo como Gerente General · Solo lectura · Quedan 12 minutos" y el botón en tinta "Volver a administrador" ("Volver" en el teléfono). En los últimos 3 minutos el ocre se intensifica; al vencer la barra pasa a rojo claro.
 
+- Aviso de versión nueva (desde 2026-10-12): toda cuenta con sesión revisa cada 5 minutos, y al volver a la pestaña, si `index.html` publica otro script de entrada. Si cambió, muestra "Hay una nueva actualización disponible", con "Más tarde" (lo pospone una hora) y "Actualizar" (recarga). Nunca recarga solo. En escritorio va abajo a la derecha con la sombra de capa; en el teléfono va arriba, para no tapar la barra de Entregas ni los controles de captura GPS.
 ### Busqueda de clave
 
 La busqueda debe sentirse como herramienta de campo:

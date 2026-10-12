@@ -1,0 +1,40 @@
+/* Aviso flotante de versión nueva: capa sobre el contenido, por eso lleva la sombra de capa. */
+.update-notice {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1100;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  width: min(380px, calc(100vw - 24px));
+  padding: 14px 14px 12px 16px;
+  color: #16283b;
+  background: #fff;
+  border: 1px solid #dfe5ec;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(22, 40, 59, 0.12);
+  font-size: 14px;
+  animation: update-notice-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.update-notice-icon { width: 20px; height: 20px; margin-top: 1px; color: #1465d9; }
+.update-notice-copy { display: grid; gap: 3px; min-width: 0; }
+.update-notice-copy strong { font-weight: 650; line-height: 1.3; }
+.update-notice-copy span { color: #526a7d; font-size: 13px; line-height: 1.4; }
+.update-notice-actions { display: flex; grid-column: 2; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.update-notice-actions button { min-height: 36px; padding: 0 14px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; transition: background 160ms ease, color 160ms ease; }
+.update-notice-later { color: #315069; background: transparent; border: 1px solid #d3dde7; }
+.update-notice-later:hover { color: #16283b; background: #f4f7fb; }
+.update-notice-apply { color: #fff; background: #1465d9; border: 1px solid #1465d9; }
+.update-notice-apply:hover { background: #0b55bd; }
+.update-notice-actions button:focus-visible { outline: 2px solid #0b3f73; outline-offset: 2px; }
+
+@keyframes update-notice-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes update-notice-down { from { opacity: 0; transform: translateY(-10px); } }
+
+@media (max-width: 640px) {
+  /* Arriba en el teléfono: abajo están la barra de Entregas y los controles de captura GPS. */
+  .update-notice { top: calc(10px + env(safe-area-inset-top)); right: 12px; bottom: auto; left: 12px; width: auto; animation-name: update-notice-down; }
+  .update-notice-actions button { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .update-notice { animation: none; } }

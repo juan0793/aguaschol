@@ -7,6 +7,7 @@ import "../styles/audit-console.css";
 
 // Fixtures exclusivamente para esta página QA; ninguna petición sale al backend.
 const user = { id: 9999, role: "gerente", full_name: "Ana Prueba", username: "gerencia.qa", is_active: true };
+if (new URLSearchParams(location.search).has("actualizacion")) window.__controlAguasForceUpdate = true;
 if (new URLSearchParams(location.search).has("bienvenida")) sessionStorage.setItem("aguaschol-bienvenida", "9999");
 if (new URLSearchParams(location.search).has("admin")) Object.assign(user, { role: "admin", full_name: "Administración de prueba", username: "admin.qa" });
 if (new URLSearchParams(location.search).has("role-preview")) user.preview = { original_role: "admin", read_only: true, expires_at: new Date(Date.now() + 15 * 60000).toISOString(), expired: false };

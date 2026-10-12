@@ -46,3 +46,9 @@ Compilación de producción con `VITE_API_URL=/api`, servida por `frontend/serve
 - **Operación en curso:** cambiar de modo no revierte una operación que ya estaba en curso. Es una limitación documentada y no se probó con solicitudes lentas.
 - **Retornos repetidos:** un `DELETE /api/auth/preview` sin prueba activa también registra `auth.preview_ended`, así que dos retornos seguidos dejan dos registros.
 - **Producción:** no se aplicó nada. No hubo push, merge ni despliegue.
+
+## Aviso de actualización
+
+`frontend/src/app/UpdateNotice.jsx` compara el script de entrada de la página (`/assets/index-<hash>.js`) con el que publica `index.html`, pidiéndolo con `cache: "no-store"`. El service worker no intercepta esa petición. La revisión corre 30 segundos después de cargar, cada 5 minutos y al volver a la pestaña, para toda cuenta con sesión. Al cambiar, se muestra "Hay una nueva actualización disponible" con "Más tarde" y "Actualizar". No recarga solo.
+
+Verificado con la compilación de producción servida en local: con el service worker activo, las versiones coinciden sin aviso; tras recompilar, la pestaña abierta detecta la nueva. Las pestañas abiertas antes de este despliegue no tienen el aviso: reciben la versión nueva al recargar, y el aviso funciona desde el siguiente despliegue.
