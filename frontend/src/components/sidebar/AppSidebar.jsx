@@ -25,8 +25,11 @@ export default function AppSidebar({
   onNavigate,
   onPrefetch,
   homeKey = "dashboard",
+  profileKey = "profile",
   onCloseMobile,
   onChangePassword = () => {},
+  onRolePreview = null,
+  rolePreviewOpen = false,
   onLogout
 }) {
   const sidebarRef = useRef(null);
@@ -176,11 +179,12 @@ export default function AppSidebar({
           })}
         </nav>
         <footer className="control-sidebar-footer">
-          <button type="button" className="control-sidebar-user" onClick={() => navigate("profile")} aria-label={`Mi perfil: ${userName}, ${userRole}`} data-tooltip={effectiveCollapsed ? `${userName} · ${userRole}` : undefined}>
+          <button type="button" className="control-sidebar-user" onClick={() => navigate(profileKey)} aria-label={`${profileKey === "dashboard" ? "Gerencia" : "Mi perfil"}: ${userName}, ${userRole}`} data-tooltip={effectiveCollapsed ? `${userName} · ${userRole}` : undefined}>
             <span>{String(userName || "U").trim().charAt(0).toUpperCase()}</span>
             <div><strong>{userName}</strong><small>{userRole}</small></div>
           </button>
-          <button type="button" className="control-sidebar-account-action" onClick={() => { onCloseMobile(); onChangePassword(); }} aria-label="Cambiar contraseña" data-tooltip="Cambiar contraseña"><Icon name="key" /></button>
+          {onRolePreview && <button type="button" className={`control-sidebar-account-action${rolePreviewOpen ? " is-open" : ""}`} onClick={(event) => onRolePreview(event.currentTarget)} aria-label="Probar como otro rol" aria-haspopup="dialog" aria-expanded={rolePreviewOpen} data-tooltip="Probar como otro rol"><Icon name="eye" /></button>}
+          {onChangePassword && <button type="button" className="control-sidebar-account-action" onClick={() => { onCloseMobile(); onChangePassword(); }} aria-label="Cambiar contraseña" data-tooltip="Cambiar contraseña"><Icon name="key" /></button>}
           <button type="button" className="control-sidebar-account-action is-logout" onClick={onLogout} aria-label="Cerrar sesión" data-tooltip="Cerrar sesión"><Icon name="logout" /></button>
         </footer>
       </aside>

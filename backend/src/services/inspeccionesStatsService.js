@@ -1,7 +1,7 @@
 import { queryInspecciones, INSPECCION_STATES } from "./inspeccionesService.js";
 
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
-const isAdmin = (user) => user?.role === "admin";
+import { canReadInstitutionally } from "../utils/permissions.js";
 
 const GROUP_BY_OPTIONS = ["tecnico", "barrio", "motivo", "estado", "periodo"];
 
@@ -30,7 +30,7 @@ const groupKeyFor = (item, agrupar) => {
 };
 
 export const getInspeccionesStats = async (params = {}, user) => {
-  if (!isAdmin(user)) throw fail("Solo administración puede consultar estadísticas.", 403);
+  if (!canReadInstitutionally(user)) throw fail("Solo administración puede consultar estadísticas.", 403);
   const agrupar = GROUP_BY_OPTIONS.includes(params.agrupar) ? params.agrupar : "tecnico";
   const all = applyPeriodoFilter(
     await queryInspecciones({ estado: params.estado, tecnico_id: params.tecnico, barrio: params.barrio, motivo: params.motivo }, user),
@@ -152,7 +152,7 @@ const resumenDelMes = (items, ahora) => {
 };
 
 export const getInspeccionesTablero = async (params = {}, user) => {
-  if (!isAdmin(user)) throw fail("Solo administración puede consultar estadísticas.", 403);
+  if (!canReadInstitutionally(user)) throw fail("Solo administración puede consultar estadísticas.", 403);
 
   const todas = await queryInspecciones({}, user);
   const ahora = new Date();

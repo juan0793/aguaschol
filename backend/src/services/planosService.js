@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { saveUploadedPdf } from "./fileStorageService.js";
+import { assertOperationalWrite } from "../utils/permissions.js";
 
 const memory = {
   barrios: [],
@@ -147,6 +148,7 @@ const ensureDraftVersionMemory = (barrioId, user) => {
 };
 
 const assertCanEditMemory = (barrioId, user) => {
+  assertOperationalWrite(user);
   if (isAdmin(user)) return;
   const assigned = memory.asignaciones.some((item) => Number(item.barrio_id) === Number(barrioId) && Number(item.tecnico_id) === Number(user?.id));
   const draftOwner = memory.versiones.some((item) => Number(item.barrio_id) === Number(barrioId) && Number(item.creado_por) === Number(user?.id) && !["aprobado", "publicado"].includes(item.estado));
@@ -180,6 +182,24 @@ const seedMemoryPlanos = async () => {
 };
 
 export const listPlanosBarrios = async (user) => {
+  if (user?.role === "gerente") {
+    if (env.useMemoryDb) {
+      await seedMemoryPlanos();
+      return memory.barrios.flatMap((barrio) => {
+        const version = [...memory.versiones].filter((v) => v.barrio_id === barrio.id && ["aprobado", "publicado"].includes(v.estado))
+          .sort((a, b) => b.numero_version - a.numero_version)[0];
+        return version ? [{ ...barrio, archivo_pdf: version.archivo_pdf_final, estado: version.estado, latest_version_id: version.id, latest_version_estado: version.estado }] : [];
+      });
+    }
+    const [rows] = await getPool().query(`
+      SELECT b.id, b.codigo_barrio, b.nombre_barrio, v.archivo_pdf_final AS archivo_pdf,
+        v.estado, v.id AS latest_version_id, v.numero_version AS latest_version_number, v.estado AS latest_version_estado
+      FROM planos_barrios b JOIN planos_versiones v ON v.id = (
+        SELECT pv.id FROM planos_versiones pv WHERE pv.barrio_id = b.id AND pv.estado IN ('aprobado', 'publicado')
+        ORDER BY pv.numero_version DESC LIMIT 1
+      ) ORDER BY b.codigo_barrio, b.nombre_barrio`);
+    return rows;
+  }
   if (env.useMemoryDb) {
     await seedMemoryPlanos();
     return memory.barrios.map((barrio) => {
@@ -212,6 +232,7 @@ export const listPlanosBarrios = async (user) => {
 };
 
 export const createPlanoBarrio = async (payload, filePath, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) fail("Solo administradores pueden crear barrios.", 403);
   const barrio = normalizeBarrio(payload, filePath);
   if (env.useMemoryDb) {
@@ -239,6 +260,7 @@ export const createPlanoBarrio = async (payload, filePath, user) => {
 };
 
 export const updatePlanoBarrio = async (id, payload, filePath, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) fail("Solo administradores pueden editar barrios.", 403);
   const current = (await listPlanosBarrios(user)).find((barrio) => Number(barrio.id) === Number(id));
   if (!current) fail("Barrio no encontrado.", 404);
@@ -260,6 +282,7 @@ export const updatePlanoBarrio = async (id, payload, filePath, user) => {
 };
 
 export const assignPlanoBarrio = async (payload, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) fail("Solo administradores pueden asignar croquis.", 403);
   const barrioId = Number(payload.barrio_id);
   const tecnicoId = Number(payload.tecnico_id);
@@ -330,6 +353,7 @@ const ensureDraftVersion = async (barrioId, user, db) => {
 };
 
 const assertCanEdit = async (barrioId, user, db) => {
+  assertOperationalWrite(user);
   if (env.useMemoryDb) return assertCanEditMemory(barrioId, user);
   db ||= getPool();
   if (isAdmin(user)) return;
@@ -350,6 +374,13 @@ const assertCanEdit = async (barrioId, user, db) => {
 };
 
 export const listPlanoElements = async (barrioId, user, versionId = null) => {
+  if (user?.role === "gerente") {
+    const versions = (await listPlanoVersions(barrioId, user)).sort((a, b) => b.numero_version - a.numero_version);
+    const version = versionId ? versions.find((v) => Number(v.id) === Number(versionId)) : versions[0];
+    if (versionId && !version) fail("Version no autorizada para Gerencia General.", 403);
+    if (!version) return { version: null, elements: [] };
+    versionId = version.id;
+  }
   if (env.useMemoryDb) {
     const version = versionId
       ? memory.versiones.find((item) => Number(item.id) === Number(versionId) && Number(item.barrio_id) === Number(barrioId)) || null
@@ -371,6 +402,7 @@ export const listPlanoElements = async (barrioId, user, versionId = null) => {
 };
 
 export const savePlanoDraft = async (barrioId, elements = [], user) => {
+  assertOperationalWrite(user);
   if (!Array.isArray(elements)) fail("La lista de elementos es invalida.", 422);
   if (elements.length > MAX_DRAFT_ELEMENTS) fail("El croquis tiene demasiados elementos.", 413);
   const normalized = elements.map((element) => normalizeElement(element, user));
@@ -427,6 +459,7 @@ export const savePlanoDraft = async (barrioId, elements = [], user) => {
 };
 
 export const createPlanoElement = async (barrioId, payload, user) => {
+  assertOperationalWrite(user);
   await assertCanEdit(barrioId, user);
   const version = await ensureDraftVersion(barrioId, user);
   const element = normalizeElement(payload, user);
@@ -446,6 +479,7 @@ export const createPlanoElement = async (barrioId, payload, user) => {
 };
 
 export const updatePlanoElement = async (id, payload, user) => {
+  assertOperationalWrite(user);
   const element = normalizeElement({ ...payload, id }, user);
   if (env.useMemoryDb) {
     const row = memory.elementos.find((item) => Number(item.id) === Number(id));
@@ -465,6 +499,7 @@ export const updatePlanoElement = async (id, payload, user) => {
 };
 
 export const deletePlanoElement = async (id, user) => {
+  assertOperationalWrite(user);
   if (env.useMemoryDb) {
     const row = memory.elementos.find((item) => Number(item.id) === Number(id));
     if (!row) fail("Elemento no encontrado.", 404);
@@ -480,6 +515,7 @@ export const deletePlanoElement = async (id, user) => {
 };
 
 export const sendPlanoToReview = async (barrioId, user) => {
+  assertOperationalWrite(user);
   await assertCanEdit(barrioId, user);
   const current = await listPlanoElements(barrioId, user);
   if (!current.version || !current.elements.length) fail("No puedes enviar a revision un croquis sin cambios.");
@@ -514,6 +550,7 @@ export const listPendingPlanoReviews = async (user) => {
 };
 
 export const reviewPlanoVersion = async (versionId, action, payload, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) fail("Solo supervisores pueden revisar croquis.", 403);
   const estado = normalizeReviewState(action === "aprobar" ? "aprobado" : action === "publicar" ? "publicado" : "devuelto");
   const observacion = normalizeText(payload.observacion || payload.observacion_revision || "");
@@ -546,6 +583,7 @@ export const reviewPlanoVersion = async (versionId, action, payload, user) => {
 };
 
 export const savePlanoFinalPdf = async (versionId, file, user) => {
+  assertOperationalWrite(user);
   if (!file?.buffer?.length) fail("No se recibio ningun PDF.");
   const pdfPath = await savePlanoPdf(file);
   if (!pdfPath) fail("No se pudo guardar el PDF.");
@@ -577,9 +615,14 @@ export const savePlanoFinalPdf = async (versionId, file, user) => {
 };
 
 export const listPlanoVersions = async (barrioId, user) => {
-  if (env.useMemoryDb) return memory.versiones.filter((version) => !barrioId || Number(version.barrio_id) === Number(barrioId));
+  if (env.useMemoryDb) return memory.versiones.filter((version) =>
+    (!barrioId || Number(version.barrio_id) === Number(barrioId)) &&
+    (user?.role !== "gerente" || ["aprobado", "publicado"].includes(version.estado)));
   const params = [];
-  const where = barrioId ? "WHERE v.barrio_id = ?" : "";
+  const filters = [];
+  if (barrioId) filters.push("v.barrio_id = ?");
+  if (user?.role === "gerente") filters.push("v.estado IN ('aprobado', 'publicado')");
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
   if (barrioId) params.push(barrioId);
   const [rows] = await getPool().query(
     `

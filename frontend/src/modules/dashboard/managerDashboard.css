@@ -1,0 +1,55 @@
+.manager-dashboard { min-width: 0; padding: 18px 24px; --primary: #1576d1; --navy: #14344f; --muted: #526a7d; --ent-borde: #d8e3eb; --ent-superficie: #fff; --ent-tenue: #f1f5f9; --icon-bg: #e8f2fc; }
+.manager-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Franja de herramientas: informe a la izquierda, período a la derecha, sin tarjetas. */
+.manager-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #dfe5ec; }
+.manager-toolbar .manager-reports { flex: 1; min-width: 0; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; }
+.manager-toolbar .manager-reports > p { margin-top: 8px; }
+.manager-period { display: grid; gap: 6px; flex-shrink: 0; color: #16283b; font-size: 13px; font-weight: 600; }
+.manager-period input { min-height: 40px; padding: 8px 12px; border: 1px solid #c8d8e4; border-radius: 8px; background: white; color: #14344f; font: inherit; font-weight: 500; }
+.manager-period input:focus-visible { outline: 2px solid #1465d9; outline-offset: 1px; }
+.manager-period small { color: #526a7d; font-size: 12px; font-weight: 400; }
+.manager-scope { color: #526a7d; font-size: 13px; }
+
+/* Indicadores del mes: un solo panel plano, columnas separadas por filetes. */
+.manager-indicators { margin-bottom: 16px; background: #fff; border: 1px solid #dfe5ec; border-radius: 8px; }
+.manager-indicators > h2 { margin: 0; padding: 14px 18px 0; color: #16283b; font-size: 15px; font-weight: 650; }
+.manager-indicator-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.manager-indicator-grid button { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 12px 18px 16px; color: #16283b; text-align: left; background: transparent; border: 0; border-radius: 0; box-shadow: none; cursor: pointer; transition: background 140ms ease; }
+.manager-indicator-grid button + button { border-left: 1px solid #e8ecf1; }
+.manager-indicator-grid button:hover { background: #f6f9fc; }
+.manager-indicator-grid button:focus-visible { outline: 2px solid #1465d9; outline-offset: -2px; }
+.manager-indicator-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #526a7d; font-size: 13px; font-weight: 600; }
+.manager-indicator-go { width: 16px; height: 16px; color: #1465d9; opacity: 0; transform: translateX(-4px); transition: opacity 140ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.manager-indicator-grid button:hover .manager-indicator-go, .manager-indicator-grid button:focus-visible .manager-indicator-go { opacity: 1; transform: none; }
+.manager-indicator-grid strong { color: #16283b; font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.manager-indicator-grid small { color: #526a7d; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.manager-indicator-grid small.is-critical { color: #b42318; font-weight: 600; }
+
+.manager-tracking { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 18px; }
+.manager-tracking article { min-width: 0; padding: 16px 18px; background: white; border: 1px solid #dfe5ec; border-radius: 8px; }
+.manager-tracking .dw-panel-head h2 { margin: 0; color: #16283b; font-size: 15px; font-weight: 650; }
+.manager-chart-scroll .ent-chart { border: 0; padding: 0; }
+.manager-chart-scroll { overflow-x: auto; }
+.manager-chart-scroll .ent-chart-bars { min-width: 560px; }
+.manager-workload { list-style: none; padding: 0; max-height: 220px; overflow: auto; }
+.manager-workload { margin: 4px 0 0; }
+.manager-workload li { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) 36px; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #eef2f6; color: #16283b; font-size: 13px; }
+.manager-workload li:last-child { border-bottom: 0; }
+.manager-workload-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manager-workload-bar { display: block; height: 6px; }
+.manager-workload-bar span { display: block; height: 100%; background: #1465d9; border-radius: 0 3px 3px 0; }
+.manager-workload strong { text-align: right; font-variant-numeric: tabular-nums; }
+.manager-error { padding: 12px 16px; background: #fff5e5; border: 1px solid #deb87c; border-radius: 6px; margin-bottom: 14px; }
+.manager-error button { background: #14344f; color: white; padding: 8px 12px; }
+.manager-dashboard .dashboard-workspace { padding: 0; }
+.manager-dashboard .dw-overview { grid-template-columns: 1fr; }
+.dashboard-workspace button[hidden] { display: none !important; }
+@media (max-width: 900px) {
+  .manager-tracking { grid-template-columns: 1fr; }
+  .manager-indicator-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-indicator-grid button:nth-child(3) { border-left: 0; }
+  .manager-indicator-grid button:nth-child(n+3) { border-top: 1px solid #e8ecf1; }
+  .manager-toolbar { flex-direction: column-reverse; align-items: stretch; gap: 14px; }
+}
+@media (max-width: 600px) { .manager-dashboard { padding: 12px; } .manager-indicator-grid button { padding: 10px 14px 14px; } .manager-indicator-grid strong { font-size: 26px; } .manager-indicators > h2 { padding-inline: 14px; } }

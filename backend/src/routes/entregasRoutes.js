@@ -38,14 +38,14 @@ const router = Router();
 router.get("/config", config);
 router.get("/resumen", resumen);
 router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);
-router.get("/descartes", requireRoles("admin"), descartes);
+router.get("/descartes", requireRoles("admin", "gerente"), descartes);
 
 router.get("/personal", personalList);
 router.post("/personal", requireRoles("admin"), personalCreate);
 router.patch("/personal/:id", requireRoles("admin"), personalUpdate);
 
-router.get("/reparto", requireRoles("admin", "operator"), repartoList);
-router.get("/reparto/mapa", requireRoles("admin", "operator"), repartoMapa);
+router.get("/reparto", requireRoles("admin", "operator", "gerente"), repartoList);
+router.get("/reparto/mapa", requireRoles("admin", "operator", "gerente"), repartoMapa);
 router.put("/reparto/barrios/:codigo", requireRoles("admin", "operator"), repartoBarrioUpdate);
 router.post("/reparto/lote", requireRoles("admin", "operator"), repartoLoteUpdate);
 
@@ -64,10 +64,10 @@ router.patch("/no-entregadas/:id", noEntregadaUpdate);
 router.delete("/no-entregadas/:id", noEntregadaRemove);
 router.post("/no-entregadas/:id/intentos", intentoCreate);
 
-router.get("/reportes/semanales", requireRoles("admin", "operator"), reportesList);
-router.get("/reportes/semanales/preview", requireRoles("admin", "operator"), reportePreview);
+router.get("/reportes/semanales", requireRoles("admin", "operator", "gerente"), reportesList);
+router.get("/reportes/semanales/preview", requireRoles("admin", "operator", "gerente"), reportePreview);
 router.post("/reportes/semanales", requireRoles("admin", "operator"), reporteCreate);
-router.get("/reportes/semanales/:id", requireRoles("admin", "operator"), reporteDetail);
+router.get("/reportes/semanales/:id", requireRoles("admin", "operator", "gerente"), reporteDetail);
 router.post("/reportes/semanales/:id/correccion", requireRoles("admin"), reporteCorreccion);
 router.post("/reportes/semanales/:id/anular", requireRoles("admin"), reporteAnular);
 

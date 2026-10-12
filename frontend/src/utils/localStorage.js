@@ -1,6 +1,8 @@
 import { LOOKUP_HISTORY_STORAGE_KEY, RECORD_ALERT_NOTIFICATION_STORAGE_KEY } from "../constants/storageKeys.js";
+import { hasStoredRolePreview } from "./rolePreview.js";
 
 export const loadStoredLookupHistory = () => {
+  if (hasStoredRolePreview()) return [];
   const saved = window.localStorage.getItem(LOOKUP_HISTORY_STORAGE_KEY);
   if (!saved) return [];
 
@@ -13,6 +15,7 @@ export const loadStoredLookupHistory = () => {
 };
 
 export const loadStoredRecordNotifications = () => {
+  if (hasStoredRolePreview()) return {};
   const saved = window.localStorage.getItem(RECORD_ALERT_NOTIFICATION_STORAGE_KEY);
   if (!saved) return {};
 

@@ -289,7 +289,9 @@
 
 .control-sidebar-footer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
   align-items: center;
   gap: 2px;
   padding: 10px;
@@ -356,6 +358,8 @@
   .control-sidebar-account-action:hover { color: #fff; background: var(--sidebar-hover); }
   .control-sidebar-account-action.is-logout:hover { color: #fecaca; background: rgba(190, 48, 48, 0.24); }
 }
+
+.control-sidebar-account-action.is-open { color: #fff; background: var(--sidebar-active-bg); }
 
 /* ---------- Foco, ayudas y menu flotante ---------- */
 
@@ -472,7 +476,7 @@
 
 .control-sidebar.is-collapsed .control-sidebar-section.has-active > .control-sidebar-group { background: var(--sidebar-active-bg); }
 .control-sidebar.is-collapsed .control-sidebar-section.has-active > .control-sidebar-group .app-icon { color: #fff; }
-.control-sidebar.is-collapsed .control-sidebar-footer { grid-template-columns: 1fr; justify-items: center; gap: 4px; padding-inline: 8px; }
+.control-sidebar.is-collapsed .control-sidebar-footer { grid-template-columns: 1fr; grid-auto-flow: row; justify-items: center; gap: 4px; padding-inline: 8px; }
 /* El nombre oculto seguia ocupando una fila: separaba avatar y boton de salir y restaba alto
    al menu en pantallas bajas. */
 .control-sidebar.is-collapsed .control-sidebar-user { grid-template-columns: 1fr; grid-template-rows: auto 0; gap: 0; padding: 6px; }

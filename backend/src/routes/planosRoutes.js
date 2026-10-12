@@ -17,12 +17,13 @@ import {
   updatePlanoBarrioHandler
 } from "../controllers/planosController.js";
 import { pdfUpload } from "../middleware/upload.js";
+import { requireAdmin } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
 router.get("/barrios", listPlanosBarriosHandler);
-router.post("/barrios", pdfUpload.single("pdf"), createPlanoBarrioHandler);
-router.put("/barrios/:id", pdfUpload.single("pdf"), updatePlanoBarrioHandler);
+router.post("/barrios", requireAdmin, pdfUpload.single("pdf"), createPlanoBarrioHandler);
+router.put("/barrios/:id", requireAdmin, pdfUpload.single("pdf"), updatePlanoBarrioHandler);
 router.post("/asignaciones", assignPlanoBarrioHandler);
 router.get("/asignaciones/mias", listMyPlanoAssignmentsHandler);
 router.get("/revision/pendientes", listPendingPlanoReviewsHandler);

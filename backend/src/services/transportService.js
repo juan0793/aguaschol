@@ -1,3 +1,4 @@
+import { assertOperationalWrite } from "../utils/permissions.js";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
@@ -239,7 +240,7 @@ const attachPositionsToRoutes = (routes, positions) => {
 };
 
 const getMemoryRoutesForUser = (authUser) => {
-  if (authUser?.role === "admin") {
+  if (["admin", "gerente"].includes(authUser?.role)) {
     return [...memoryRoutes];
   }
 
@@ -374,9 +375,9 @@ export const listTransportRoutes = async (authUser) => {
   }
 
   const pool = getPool();
-  const isAdmin = authUser?.role === "admin";
-  const whereClause = isAdmin ? "" : "WHERE transport_routes.assigned_user_id = ?";
-  const params = isAdmin ? [] : [authUser?.id ?? 0];
+  const canReadAll = ["admin", "gerente"].includes(authUser?.role);
+  const whereClause = canReadAll ? "" : "WHERE transport_routes.assigned_user_id = ?";
+  const params = canReadAll ? [] : [authUser?.id ?? 0];
   const [rows] = await pool.query(
     `
       SELECT
@@ -400,6 +401,7 @@ export const listTransportRoutes = async (authUser) => {
 };
 
 export const createTransportRoute = async (payload, authUser) => {
+  assertOperationalWrite(authUser);
   const data = normalizeRoutePayload(payload);
   await ensureAssignedTransportUser(data.assigned_user_id);
 
@@ -463,6 +465,7 @@ export const createTransportRoute = async (payload, authUser) => {
 };
 
 export const updateTransportRoute = async (routeId, payload, authUser) => {
+  assertOperationalWrite(authUser);
   const current = await getRouteOrFail(routeId);
   const data = normalizeRoutePayload(payload);
   await ensureAssignedTransportUser(data.assigned_user_id);
@@ -531,6 +534,7 @@ export const updateTransportRoute = async (routeId, payload, authUser) => {
 };
 
 export const startTransportRoute = async (routeId, authUser) => {
+  assertOperationalWrite(authUser);
   const route = await getRouteOrFail(routeId);
   assertRouteAccess(route, authUser);
 
@@ -586,6 +590,7 @@ export const startTransportRoute = async (routeId, authUser) => {
 };
 
 export const completeTransportRoute = async (routeId, authUser) => {
+  assertOperationalWrite(authUser);
   const route = await getRouteOrFail(routeId);
   assertRouteAccess(route, authUser);
 
@@ -631,6 +636,7 @@ export const completeTransportRoute = async (routeId, authUser) => {
 };
 
 export const addTransportRoutePosition = async (routeId, payload, authUser) => {
+  assertOperationalWrite(authUser);
   const route = await getRouteOrFail(routeId);
   assertRouteAccess(route, authUser);
 

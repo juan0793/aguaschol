@@ -63,15 +63,16 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
 
   const userId = session?.user?.id;
   const isAdmin = session?.user?.role === "admin";
+  const readOnly = session?.user?.role === "gerente" || Boolean(session?.user?.preview);
   const participantes = inspeccion?.participantes || [];
   const responsable = participantes.find((item) => item.rol === "RESPONSABLE");
   const apoyos = participantes.filter((item) => item.rol === "APOYO");
   const isResponsable = responsable?.tecnico_id === userId;
   const isApoyo = apoyos.some((item) => item.tecnico_id === userId);
-  const puedeGestionar = isAdmin || isResponsable;
-  const puedeFinalizar = puedeGestionar || isApoyo;
+  const puedeGestionar = !readOnly && (isAdmin || isResponsable);
+  const puedeFinalizar = !readOnly && (puedeGestionar || isApoyo);
   const finalizada = inspeccion?.estado === "FINALIZADA";
-  const bloqueadaParaTecnico = finalizada && !isAdmin;
+  const bloqueadaParaTecnico = readOnly || (finalizada && !isAdmin);
   const textoLibreBloqueado = bloqueadaParaTecnico || (!isAdmin && !isResponsable && !isApoyo);
 
   const cargar = async () => {
@@ -331,7 +332,7 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
               api={api}
               inspeccionId={id}
               puntos={gpsPuntos}
-              readOnly={finalizada || (!isAdmin && !isResponsable && !isApoyo)}
+              readOnly={readOnly || finalizada || (!isAdmin && !isResponsable && !isApoyo)}
               onRegistered={cargar}
               notify={notify}
             />
@@ -428,8 +429,8 @@ export default function InspeccionDetallePanel({ api, session, id, tecnicosElegi
               <PrintBadge etiqueta="Reporte" estado={inspeccion.print_status?.REPORTE} />
             </div>
             <div className="cl-drawer-main-actions" style={{ justifyContent: "flex-start", marginTop: 10 }}>
-              <button type="button" className="cl-secondary" onClick={() => setPrintTipo("orden")}><Icon name="print" />Orden de inspección</button>
-              <button type="button" className="cl-secondary" onClick={() => setPrintTipo("reporte")}><Icon name="print" />Reporte de inspección</button>
+              <button type="button" className="cl-secondary" disabled={readOnly} onClick={() => setPrintTipo("orden")}><Icon name="print" />Orden de inspección</button>
+              <button type="button" className="cl-secondary" disabled={readOnly} onClick={() => setPrintTipo("reporte")}><Icon name="print" />Reporte de inspección</button>
             </div>
           </Seccion>
 

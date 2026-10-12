@@ -23,6 +23,8 @@ import {
 } from "./entregasRules.js";
 
 const clean = (value) => String(value ?? "").trim();
+import { assertOperationalWrite } from "../utils/permissions.js";
+
 const isGestor = (user) => ["admin", "operator"].includes(user?.role);
 const isAdmin = (user) => user?.role === "admin";
 
@@ -159,7 +161,7 @@ const marcarLotesRevisados = async (executor, lotes) => {
 /* -------------------------------------------------------------------------- */
 
 export const previewReporteSemanal = async (query = {}, user) => {
-  if (!isGestor(user)) throw fail("No tienes permiso para generar informes semanales.", 403);
+  if (!isGestor(user) && user?.role !== "gerente") throw fail("No tienes permiso para consultar informes semanales.", 403);
   const rango = resolverRango(query);
   const tipo = TIPOS_DOCUMENTO.includes(clean(query.tipo_documento)) ? clean(query.tipo_documento) : "";
 
@@ -228,6 +230,7 @@ const insertarReporte = async ({
 };
 
 export const generarReporteSemanal = async (payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isGestor(user)) throw fail("No tienes permiso para generar informes semanales.", 403);
   const rango = resolverRango(payload);
   const tipo = TIPOS_DOCUMENTO.includes(clean(payload.tipo_documento)) ? clean(payload.tipo_documento) : "";
@@ -282,6 +285,7 @@ export const generarReporteSemanal = async (payload = {}, user) => {
 };
 
 export const generarCorreccion = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo un administrador puede emitir versiones corregidas.", 403);
   const original = await cargarReporte(id);
   const correccion = construirCorreccion(original);
@@ -341,6 +345,7 @@ export const generarCorreccion = async (id, payload = {}, user) => {
 };
 
 export const anularReporte = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo un administrador puede anular un informe.", 403);
   const reporte = await cargarReporte(id);
   await getPool().query("UPDATE reportes_semanales_entregas SET estado = 'ANULADO', motivo_correccion = ? WHERE id = ?", [
@@ -454,7 +459,7 @@ export const listReportesSemanales = async (query = {}) => {
 
 // Siempre devuelve el snapshot guardado: un informe historico no se recalcula.
 export const getReporteSemanal = async (id, user) => {
-  if (!isGestor(user)) throw fail("No tienes permiso para consultar informes semanales.", 403);
+  if (!isGestor(user) && user?.role !== "gerente") throw fail("No tienes permiso para consultar informes semanales.", 403);
   const row = await cargarReporte(id);
   const [versiones] = await getPool().query(
     `SELECT id, version, estado, fecha_generacion, motivo_correccion

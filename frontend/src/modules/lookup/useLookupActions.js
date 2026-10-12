@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { LOOKUP_HISTORY_STORAGE_KEY } from "../../constants/storageKeys";
 import { MAX_LOOKUP_HISTORY_ITEMS } from "../../constants/formsAndUi";
 import { getLookupValidationMessage, isLookupQueryReady, sanitizeLookupInput } from "../../utils/claveAndLookup";
+import { hasStoredRolePreview } from "../../utils/rolePreview.js";
 
 export function useLookupActions({
   apiFetch,
@@ -23,7 +24,7 @@ export function useLookupActions({
   workspaceView
 }) {
   const persistLookupHistory = (nextHistory) => {
-    window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
+    if (!hasStoredRolePreview()) window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
     setLookupHistory(nextHistory);
   };
 
@@ -158,7 +159,7 @@ export function useLookupActions({
               )
           )
         ].slice(0, MAX_LOOKUP_HISTORY_ITEMS);
-        window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
+        if (!hasStoredRolePreview()) window.localStorage.setItem(LOOKUP_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
         return nextHistory;
       });
     } catch (error) {

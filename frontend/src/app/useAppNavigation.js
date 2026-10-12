@@ -1,8 +1,11 @@
 import { useMemo } from "react";
 import { buildSidebarSections } from "../components/sidebar/sidebarConfig";
+import { MANAGER_NAVIGATION } from "../utils/roleAccess.js";
 
 export function useAppNavigation({
+  previewRole,
   isAdmin,
+  isManager,
   isFieldValidator,
   mapPointsTotal,
   mapReportData,
@@ -49,7 +52,7 @@ export function useAppNavigation({
             cardClass: "search-card-dashboard",
             toplineLabel: "Centro administrativo",
             // Mismo nombre que en el menú lateral: la pantalla se llama Tablero.
-            title: "Tablero",
+            title: isManager ? "Gerencia" : "Tablero",
             lead: "Resumen operativo con actividad reciente y accesos rápidos para gestionar toda la plataforma.",
             kicker: "Visión general"
           },
@@ -174,7 +177,7 @@ export function useAppNavigation({
           kicker: "Operación segura"
         }
       ),
-    [workspaceView]
+    [workspaceView, isManager]
   );
 
   const adminWorkspaceItems = useMemo(
@@ -239,7 +242,7 @@ export function useAppNavigation({
   }, [adminWorkspaceItems]);
   const moduleNavigationItems = useMemo(
     () =>
-      (isAdmin
+      (previewRole === "transport" ? [{ key: "transport", label: "Transporte", icon: "map", helper: "Consulta de rutas" }] : isManager ? MANAGER_NAVIGATION : isAdmin
         ? [
             { key: "profile", label: "Mi perfil", icon: "users", group: "principal", helper: "Estadisticas y mensajes" },
             { key: "railwayUsage", label: "Uso en Railway", icon: "barChart", group: "principal", helper: "Consumo y horas pico" },
@@ -273,9 +276,11 @@ export function useAppNavigation({
               ? [{ key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" }]
               : []),
             { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" }
-          ]),
+          ]).filter((item) => !previewRole || item.key !== "profile"),
     [
       isAdmin,
+      isManager,
+      previewRole,
       isFieldValidator,
       padronRequestResult?.summary?.total_registros,
       mapReportData.totalPoints,
@@ -318,16 +323,17 @@ export function useAppNavigation({
     };
     const normalizeItem = (item) => ({
       ...item,
-      badge: badgeByKey[item.key] ?? null
+      badge: isManager ? null : badgeByKey[item.key] ?? null
     });
     const items = moduleNavigationItems.map(normalizeItem);
-    const dashboardItem = isAdmin
-      ? { key: "dashboard", label: "Tablero", icon: "dashboard", helper: "Control", badge: null }
+    const dashboardItem = isAdmin || isManager
+      ? { key: "dashboard", label: isManager ? "Gerencia" : "Tablero", icon: "dashboard", helper: "Control", badge: null }
       : null;
 
-    return buildSidebarSections(items, dashboardItem);
+    return buildSidebarSections(items, dashboardItem).map((section) => ({ ...section, items: section.items.map((item) => isManager && item.key === "requests" ? { ...item, label: "Consultas e informes" } : item) }));
   }, [
     isAdmin,
+    isManager,
     mapReportData.totalPoints,
     mapReportData.totalZones,
     moduleNavigationItems,

@@ -1,10 +1,12 @@
 import { WebSocketServer } from "ws";
 import { getSessionUser } from "./authService.js";
+import { registerSessionSocket } from "../utils/sessionSockets.js";
 
 let websocketServer = null;
 const profileClients = new Set();
 
 const sendEvent = (socket, event) => {
+  if (socket.authRevoked) return;
   try {
     socket.send(JSON.stringify(event));
   } catch (error) {
@@ -40,9 +42,10 @@ export const initializeProfileRealtime = ({ server }) => {
     try {
       const url = new URL(request.url, "http://localhost");
       const token = url.searchParams.get("token") ?? "";
+      registerSessionSocket(token, socket);
       const user = await getSessionUser(token);
 
-      if (!user) {
+      if (!user || user.role === "gerente" || user.preview || socket.authRevoked) {
         socket.close(1008, "No autorizado");
         return;
       }
@@ -75,6 +78,7 @@ export const initializeProfileRealtime = ({ server }) => {
       );
 
       socket.on("message", (raw) => {
+        if (socket.authRevoked) return;
         try {
           const data = JSON.parse(raw.toString());
 

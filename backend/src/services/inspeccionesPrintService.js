@@ -1,3 +1,4 @@
+import { assertOperationalWrite } from "../utils/permissions.js";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
@@ -89,6 +90,7 @@ export const getPrintData = async (id, tipo, user) => {
 };
 
 export const registerPrintEvent = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   const inspeccion = await getInspeccionDetail(id, user);
   const tipoDocumento = String(payload.tipo_documento ?? "").toUpperCase();
   const accion = String(payload.accion ?? "").toUpperCase();

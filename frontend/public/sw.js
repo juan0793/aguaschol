@@ -1,5 +1,5 @@
-const SHELL_CACHE = "controlaguas-shell-v1";
-const ASSET_CACHE = "controlaguas-assets-v1";
+const SHELL_CACHE = "controlaguas-shell-v2";
+const ASSET_CACHE = "controlaguas-assets-v2";
 const APP_CACHES = [SHELL_CACHE, ASSET_CACHE];
 const MAX_ASSET_ENTRIES = 160;
 const SHELL_FILES = [
@@ -33,7 +33,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
-  if (/^\/(api|uploads)(\/|$)/.test(url.pathname)) return;
+  if (/^\/(api|uploads|planos-pdf)(\/|$)/.test(url.pathname) || request.headers?.has("Authorization")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(fetchNavigation(request));
@@ -104,7 +104,7 @@ async function cacheAsset(cache, url, visitedAssets) {
 async function fetchNavigation(request) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && !/private|no-store/i.test(response.headers.get("Cache-Control") || "")) {
       const cache = await caches.open(SHELL_CACHE);
       await cache.put("/", response.clone());
     }

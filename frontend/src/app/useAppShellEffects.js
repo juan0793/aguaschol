@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEY, SIDEBAR_COLLAPSED_STORAGE_KEY } from "../constants/st
 import { getDefaultWorkspaceView } from "../utils/appShell";
 import { getPathForWorkspaceView } from "../components/sidebar/sidebarConfig";
 import { installSearchScrollGuard } from "../utils/searchScrollGuard";
+import { MANAGER_NAVIGATION } from "../utils/roleAccess.js";
+import { sessionMode } from "../utils/rolePreview.js";
 
 export function useAppShellEffects({
   apiFetch,
@@ -56,6 +58,7 @@ export function useAppShellEffects({
     if (!session?.token) return undefined;
 
     let cancelled = false;
+    let verifiedOnce = false;
     const refreshStoredSession = async () => {
       try {
         const response = await fetch(`${API_URL}/auth/me`, {
@@ -74,12 +77,17 @@ export function useAppShellEffects({
           return;
         }
         if (!response.ok) {
-          setSessionVerified(true);
+          if (!verifiedOnce) setSessionVerified(false);
           return;
         }
 
         const data = await response.json();
         if (!data?.user) return;
+        if (sessionMode(session) !== sessionMode({ user: data.user })) {
+          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ ...session, user: data.user }));
+          window.location.reload();
+          return;
+        }
 
         setSession((current) => {
           if (current?.token !== session.token) return current;
@@ -88,16 +96,30 @@ export function useAppShellEffects({
           return nextSession;
         });
         sessionInvalidatingRef.current = false;
+        verifiedOnce = true;
         setSessionVerified(true);
       } catch {
-        // Keep the stored session if the API is temporarily unreachable.
-        setSessionVerified(true);
+        setSessionVerified(verifiedOnce || (!session.user?.preview && session.user?.role !== "admin"));
       }
     };
 
     refreshStoredSession();
+    const timer = session.user?.preview || session.user?.role === "admin" ? window.setInterval(refreshStoredSession, 60000) : null;
+    const handleVisibility = () => { if (document.visibilityState === "visible") refreshStoredSession(); };
+    const handleStorage = (event) => {
+      if (event.key === AUTH_STORAGE_KEY && event.oldValue !== event.newValue) {
+        let next;
+        try { next = JSON.parse(event.newValue); } catch { next = null; }
+        if (next?.token !== session.token || sessionMode(next) !== sessionMode(session)) window.location.reload();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("storage", handleStorage);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("storage", handleStorage);
     };
   }, [session?.token, showAlert]);
 
@@ -114,7 +136,7 @@ export function useAppShellEffects({
 
   // Cargar conteo de mensajes sin leer periodicamente
   useEffect(() => {
-    if (!isAuthenticated || !session?.user?.id) return;
+    if (!isAuthenticated || !session?.user?.id || session.user.role === "gerente" || session.user.preview) return;
 
     const loadUnreadMessagesCount = async () => {
       try {
@@ -138,15 +160,15 @@ export function useAppShellEffects({
     const intervalId = window.setInterval(loadUnreadMessagesCount, 30000);
 
     return () => window.clearInterval(intervalId);
-  }, [isAuthenticated, session?.user?.id, apiFetch]);
+  }, [isAuthenticated, session?.user?.id, session?.user?.role, apiFetch]);
 
   useEffect(() => {
-    const allowedViews = isFieldValidator
+    const allowedViews = session?.user?.preview && session.user.role === "transport" ? ["transport"] : session?.user?.role === "gerente" ? ["dashboard", ...MANAGER_NAVIGATION.map((item) => item.key)] : isFieldValidator
       ? ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "fieldValidation", "planos"]
       : ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "planos"];
     if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
       const defaultView = getDefaultWorkspaceView(session?.user?.role);
-      setWorkspaceView(allowedViews.includes(defaultView) ? defaultView : "records");
+      setWorkspaceView(allowedViews.includes(defaultView) ? defaultView : allowedViews[0]);
     }
   }, [isAuthenticated, isAdmin, isFieldValidator, session?.user?.role, workspaceView]);
 

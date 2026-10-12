@@ -134,7 +134,7 @@ const ensureRoleEnum = async (connection) => {
   await connection.query(
     `
       ALTER TABLE ${escapeIdentifier("app_users")}
-      MODIFY COLUMN ${escapeIdentifier("role")} ENUM('admin', 'operator', 'transport', 'validadora_campo') NOT NULL DEFAULT 'operator'
+      MODIFY COLUMN ${escapeIdentifier("role")} ENUM('admin', 'operator', 'transport', 'validadora_campo', 'gerente') NOT NULL DEFAULT 'operator'
     `
   );
 };
@@ -320,6 +320,8 @@ const ensureSchema = async () => {
     await admin.query(schemaSql);
     await seedPlanosBarrios(admin);
     await ensureRoleEnum(admin);
+    await ensureColumn(admin, { tableName: "auth_sessions", columnName: "preview_role", definition: "VARCHAR(32) NULL" });
+    await ensureColumn(admin, { tableName: "auth_sessions", columnName: "preview_expires_at", definition: "TIMESTAMP NULL" });
     await ensurePlanoElementTypeEnum(admin);
     await ensureEntregaEstadoEnum(admin);
     await ensureColumn(admin, {

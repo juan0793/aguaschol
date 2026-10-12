@@ -1,0 +1,109 @@
+/* Prueba de perfil: barra mientras dura y selector desde el menú de cuenta. */
+.role-preview-bar {
+  --rp-ink: #5a3d0a;
+  --rp-soft: #7a5a1c;
+  grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 12px 6px 18px;
+  color: var(--rp-ink);
+  background: #fff4d6;
+  border-bottom: 1px solid #ecd08f;
+  font-size: 14px;
+}
+.role-preview-bar.is-ending { background: #ffe9c2; border-color: #e3b25f; }
+.role-preview-bar.is-expired { --rp-ink: #7c2020; --rp-soft: #8f3a3a; background: #fde8e6; border-color: #eab4ae; }
+.role-preview-bar-icon { flex: none; width: 18px; height: 18px; color: var(--rp-soft); }
+.role-preview-bar-copy { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; row-gap: 2px; min-width: 0; margin: 0; line-height: 1.35; }
+.role-preview-bar-copy strong { font-weight: 700; }
+.role-preview-bar-meta { color: var(--rp-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+.role-preview-bar-error { margin: 0; color: #922d22; font-size: 13px; }
+.role-preview-bar-exit {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 0 14px 0 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #16283b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.role-preview-bar-exit .app-icon { width: 16px; height: 16px; }
+.role-preview-bar-exit:hover { background: #0b3f73; }
+.role-preview-bar-exit:focus-visible { outline: 2px solid #1465d9; outline-offset: 2px; }
+.role-preview-bar-exit:disabled { cursor: progress; opacity: 0.75; }
+.role-preview-short { display: none; }
+
+.role-preview-picker {
+  position: fixed;
+  z-index: 1200;
+  display: grid;
+  gap: 12px;
+  width: min(360px, calc(100vw - 24px));
+  margin: 0;
+  padding: 16px;
+  color: #16283b;
+  background: #fff;
+  border: 1px solid #dfe5ec;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(22, 40, 59, 0.12);
+  font-size: 14px;
+  animation: role-preview-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.role-preview-picker header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.role-preview-picker h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.role-preview-close { display: grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 0; border-radius: 8px; color: #526a7d; background: transparent; cursor: pointer; }
+.role-preview-close:hover { color: #16283b; background: #eef3f9; }
+.role-preview-close .app-icon { width: 16px; height: 16px; }
+.role-preview-picker fieldset { display: grid; gap: 4px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.role-preview-picker label { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; cursor: pointer; transition: background 140ms ease, border-color 140ms ease; }
+.role-preview-picker label:hover { background: #f4f7fb; }
+.role-preview-picker label.is-selected { background: #eef4fc; border-color: #b9d0ef; }
+.role-preview-picker input { flex: none; width: 16px; height: 16px; margin: 2px 0 0; accent-color: #1465d9; }
+.role-preview-picker label span { display: grid; gap: 2px; }
+.role-preview-picker label strong { font-weight: 650; }
+.role-preview-picker label small { color: #526a7d; font-size: 13px; line-height: 1.4; }
+.role-preview-picker label:has(input:focus-visible) { outline: 2px solid #1465d9; outline-offset: 1px; }
+.role-preview-note { margin: 0; padding-top: 12px; border-top: 1px solid #e8ecf1; color: #526a7d; font-size: 13px; line-height: 1.45; }
+.role-preview-picker-error { margin: 0; color: #a42c2c; font-size: 13px; }
+.role-preview-start { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border: 0; border-radius: 8px; color: #fff; background: #1465d9; font: inherit; font-weight: 650; cursor: pointer; transition: background 160ms ease; }
+.role-preview-start:hover { background: #0b55bd; }
+.role-preview-start:focus-visible { outline: 2px solid #0b3f73; outline-offset: 2px; }
+.role-preview-start:disabled { cursor: progress; opacity: 0.75; }
+.role-preview-start .app-icon { width: 17px; height: 17px; }
+.role-preview-picker .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.role-preview-scrim { position: fixed; inset: 0; z-index: 1190; background: rgba(4, 34, 61, 0.36); animation: role-preview-fade 180ms ease-out; }
+.role-preview-picker.is-sheet { right: 0; bottom: 0; left: 0; width: auto; padding: 18px 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 14px 14px 0 0; border-width: 1px 0 0; animation-name: role-preview-up; }
+
+@keyframes role-preview-in { from { opacity: 0; transform: translateX(-6px); } }
+@keyframes role-preview-up { from { transform: translateY(24px); opacity: 0; } }
+@keyframes role-preview-fade { from { opacity: 0; } }
+
+@media (max-width: 640px) {
+  .role-preview-bar { gap: 10px; padding: 6px 8px 6px 12px; font-size: 13px; }
+  .role-preview-bar-meta { font-size: 12px; }
+  .role-preview-long { display: none; }
+  .role-preview-short { display: inline; }
+  .role-preview-bar-exit { min-height: 40px; padding: 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .role-preview-picker, .role-preview-scrim { animation: none; }
+}
+
+.role-preview-expired { max-width: 460px; margin: 18vh auto 0; padding: 0 20px; color: #16283b; }
+.role-preview-expired h1 { margin: 0 0 8px; font-size: 20px; font-weight: 650; }
+.role-preview-expired p { margin: 0; color: #526a7d; line-height: 1.5; }

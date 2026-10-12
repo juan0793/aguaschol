@@ -705,7 +705,7 @@ export const enviarClavesAlcaldiaAlBanco = async ({ claves = [] } = {}, user, { 
 
 // Qué claves de un origen ya están en el banco y en qué estado (para marcarlas en la lista).
 export const listarRefsBanco = async ({ origen = "" } = {}, user) => {
-  if (!canProcess(user)) throw fail("Tu rol no puede consultar el banco.", 403);
+  if (!canProcess(user) && user?.role !== "gerente") throw fail("Tu rol no puede consultar el banco.", 403);
   origen = clean(origen).slice(0, 40);
   if (!origen) throw fail("Indica el origen.");
   const rows = env.useMemoryDb

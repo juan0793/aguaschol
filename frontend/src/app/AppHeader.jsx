@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
+import { greetingFor, isWelcomeVisit } from "../utils/greeting";
 import { NotificationCenter } from "../components/NotificationCenter.jsx";
 import { abrirMisAsignaciones } from "../modules/clandestinos/hooks/useBanco";
 import { formatMapDiaryLabel } from "../utils/datesAndBusiness";
@@ -82,6 +84,14 @@ export default function AppHeader({ model }) {
     abrirActividadEquipo
   } = model;
 
+  const isManager = session?.user?.role === "gerente";
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (!isManager) return undefined;
+    const timer = window.setInterval(() => setNow(new Date()), 60000);
+    return () => window.clearInterval(timer);
+  }, [isManager]);
+
   return (
     <header className={`hero app-chrome no-print ${isAdmin ? "hero-admin" : ""} ${workspaceView !== "dashboard" ? "hero-module" : ""} ${workspaceView === "logs" ? "hero-logs-terminal" : ""}`}>
       <div className="app-topbar">
@@ -100,7 +110,12 @@ export default function AppHeader({ model }) {
             el logo circular, al centro, como atajo al inicio. El hueco guarda su celda
             en la rejilla para que la sesión no se mueva. */}
         {workspaceView === "dashboard" ? (
-          <h1 className="app-topbar-title">{headerMeta.title}</h1>
+          isManager ? (
+            <div className="app-topbar-greeting">
+              <h1 className="app-topbar-title">{greetingFor({ fullName: session?.user?.full_name, username: session?.user?.username, firstVisit: isWelcomeVisit(session?.user), now })}</h1>
+              <span>Gerencia</span>
+            </div>
+          ) : <h1 className="app-topbar-title">{headerMeta.title}</h1>
         ) : (<>
           <span className="app-topbar-slot" aria-hidden="true" />
           <button
@@ -139,7 +154,7 @@ export default function AppHeader({ model }) {
                 ? "Cambios sin guardar"
                 : "Todo guardado"}
           </span> : null}
-          <NotificationCenter
+          {!isManager ? <NotificationCenter
             apiFetch={apiFetch}
             session={session}
             unreadCount={unreadMessagesCount}
@@ -161,22 +176,22 @@ export default function AppHeader({ model }) {
               setWorkspaceView("profile");
               setNotificationUserId(userId);
             }}
-          />
+          /> : <span className="panel-pill">Solo lectura</span>}
           <button type="button" className="app-user-chip" aria-haspopup="menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu((current) => !current)}>
             <Icon name="users" />
             {session?.user?.full_name || session?.user?.username || "Sesion activa"}
           </button>
           {showUserMenu ? (
             <div className="app-user-menu" role="menu">
-              <button type="button" role="menuitem" onClick={() => { setWorkspaceView("profile"); setShowUserMenu(false); }}><Icon name="users" />Mi perfil</button>
-              <button type="button" role="menuitem" onClick={() => { setShowPasswordModal(true); setShowUserMenu(false); }}><Icon name="auth" />Cambiar contraseña</button>
+              {!isManager ? <button type="button" role="menuitem" onClick={() => { setWorkspaceView("profile"); setShowUserMenu(false); }}><Icon name="users" />Mi perfil</button> : null}
+              {!session.user.preview && <button type="button" role="menuitem" onClick={() => { setShowPasswordModal(true); setShowUserMenu(false); }}><Icon name="auth" />Cambiar contraseña</button>}
               <button type="button" role="menuitem" onClick={handleLogout}><Icon name="logout" />Cerrar sesión</button>
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className={`search-card ${headerMeta.cardClass} ${VISTAS_CON_FRANJA.includes(workspaceView) ? "" : "is-hidden"} ${VISTAS_SOLO_TEXTO.includes(workspaceView) ? "is-text-only" : ""}`}>
+      <div className={`search-card ${headerMeta.cardClass} ${!isManager && VISTAS_CON_FRANJA.includes(workspaceView) ? "" : "is-hidden"} ${VISTAS_SOLO_TEXTO.includes(workspaceView) ? "is-text-only" : ""}`}>
         <div className="search-card-head">
           <span>{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</span>
           <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>

@@ -1,5 +1,8 @@
 import { getSessionUser } from "../services/authService.js";
 import { env } from "../config/env.js";
+import { requireManagerAccess } from "./managerAccess.js";
+import { assertManagerFileAccess } from "../services/managerFileService.js";
+import { requireRolePreviewAccess } from "./rolePreviewAccess.js";
 
 const MEDIA_COOKIE_NAME = "aguaschol_media_session";
 const mediaCookieOptions = {
@@ -49,7 +52,8 @@ export const requireAuth = async (req, res, next) => {
     req.authToken = token;
     req.authUser = user;
     setMediaSessionCookie(res, token);
-    return next();
+    res.setHeader("Cache-Control", "private, no-store");
+    return requireRolePreviewAccess(req, res, () => requireManagerAccess(req, res, next));
   } catch (error) {
     return next(error);
   }
@@ -64,7 +68,12 @@ export const requireMediaAuth = async (req, res, next) => {
     const user = await getSessionUser(token);
     if (!user) return res.status(401).json({ message: "No autorizado." });
     req.authUser = user;
-    return next();
+    res.setHeader("Cache-Control", "private, no-store");
+    if (user.role === "gerente" || user.preview) {
+      res.setHeader("Cache-Control", "private, no-store");
+      await assertManagerFileAccess(`${req.baseUrl}${req.path}`);
+    }
+    return requireRolePreviewAccess(req, res, () => requireManagerAccess(req, res, next));
   } catch (error) {
     return next(error);
   }

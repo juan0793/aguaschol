@@ -305,7 +305,7 @@ export default function LookupWorkspace({ model }) {
                 <Icon name="refresh" />
                 Limpiar
               </button>
-              <button type="button" className="button-secondary" onClick={handleDownloadPadron} disabled={downloadingPadron}>
+              <button type="button" className="button-secondary"  hidden={model.readOnly} onClick={handleDownloadPadron} disabled={downloadingPadron}>
                 <Icon name="records" />
                 Descargar padrón
               </button>
@@ -382,7 +382,7 @@ export default function LookupWorkspace({ model }) {
 
               {!lookupResult.exists && lookupResult.field === "clave" ? (
                 <div className="lookup-match-actions">
-                  <button
+                  <button hidden={model.readOnly}
                     type="button"
                     onClick={() =>
                       startNewRecordFromLookup(
@@ -476,7 +476,7 @@ export default function LookupWorkspace({ model }) {
                               </div>
                             </div>
                             <div className="lookup-match-actions">
-                              <button
+                              <button hidden={model.readOnly}
                                 type="button"
                                 className="button-secondary"
                                 onClick={() =>
@@ -577,7 +577,7 @@ export default function LookupWorkspace({ model }) {
                             </div>
                           </details>
                           <div className="lookup-match-actions">
-                            <button
+                            <button hidden={model.readOnly}
                               type="button"
                               className="button-secondary"
                               onClick={() =>
@@ -594,13 +594,13 @@ export default function LookupWorkspace({ model }) {
                               <Icon name="copy" />
                               Copiar al formulario
                             </button>
-                            <button type="button" className="button-secondary" onClick={() => handlePrintLookupMatchReport(match)}>
+                            <button type="button" className="button-secondary"  hidden={model.readOnly} onClick={() => handlePrintLookupMatchReport(match)}>
                               <Icon name="records" />
                               Generar reporte
                             </button>
                             <button
                               type="button"
-                              onClick={() => openLookupMatchInRecord(match)}
+                               hidden={model.readOnly} onClick={() => openLookupMatchInRecord(match)}
                             >
                               <Icon name="search" />
                               Actualizar ficha

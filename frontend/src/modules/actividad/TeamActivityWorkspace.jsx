@@ -88,9 +88,9 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
       if (mio !== turno.current) return;
       setData(body);
       // Ver la pantalla cuenta como haber visto la actividad: la campana vuelve a cero.
-      apiFetch("/admin/team-activity/seen", { method: "POST" }).catch(() => {});
+      if (session?.user?.role !== "gerente") apiFetch("/admin/team-activity/seen", { method: "POST" }).catch(() => {});
     } catch (reason) { if (mio === turno.current) setError(reason.message); } finally { if (mio === turno.current) setLoading(false); }
-  }, [apiFetch, pedir]);
+  }, [apiFetch, pedir, session?.user?.role]);
   useEffect(() => { cargar(); }, [cargar]);
 
   // Al cambiar de página se sube al inicio del registro; desde el índice, al día elegido.
@@ -109,7 +109,7 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
   useEffect(() => { filtrosRef.current = { ...filtros, pagina }; }, [filtros, pagina]);
   const sessionToken = session?.token || session?.sessionToken || "";
   useEffect(() => {
-    if (!sessionToken) return undefined;
+    if (!sessionToken || session?.user?.role === "gerente" || session?.user?.preview) return undefined;
     const manager = getSharedProfileWebSocketManager(sessionToken);
     if (!manager) return undefined;
     const entra = (activity) => {
@@ -138,7 +138,7 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
     manager.on("team_activity", entra);
     manager.connect().catch(() => {});
     return () => { manager.off("team_activity", entra); releaseSharedProfileWebSocketManager(sessionToken); };
-  }, [sessionToken]);
+  }, [sessionToken, session?.user?.role]);
 
   // Por día y, dentro de cada día, por trabajo: lo que una persona hizo sobre el mismo
   // registro en pocos minutos va en una línea que se despliega con cada acción.

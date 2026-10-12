@@ -15,21 +15,21 @@ import {
   uploadAlcaldia,
   uploadPadron
 } from "../controllers/claveLookupController.js";
-import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
+import { requireAdmin, requireAuth, requireRoles } from "../middleware/authMiddleware.js";
 import { padronUpload } from "../middleware/padronUpload.js";
 
 const router = Router();
 
-router.get("/meta", requireAdmin, getPadronMeta);
-router.get("/alcaldia/meta", requireAdmin, getAlcaldiaMeta);
-router.get("/alcaldia/compare", requireAdmin, compareAlcaldia);
+router.get("/meta", requireRoles("admin", "gerente"), getPadronMeta);
+router.get("/alcaldia/meta", requireRoles("admin", "gerente"), getAlcaldiaMeta);
+router.get("/alcaldia/compare", requireRoles("admin", "gerente"), compareAlcaldia);
 router.get("/alcaldia/search", searchAlcaldia);
 router.get("/alcaldia/search/:clave", searchAlcaldia);
 router.post("/alcaldia/upload", requireAdmin, padronUpload.single("padron"), uploadAlcaldia);
-router.get("/requests/meta", requireAdmin, getPadronRequestMeta);
-router.post("/requests/run", requireAdmin, runPadronRequest);
-router.get("/services/report", requireAdmin, getPadronServiceReport);
-router.get("/services/accounts", requireAdmin, getPadronServiceAccounts);
+router.get("/requests/meta", requireRoles("admin", "gerente"), getPadronRequestMeta);
+router.post("/requests/run", requireRoles("admin", "gerente"), runPadronRequest);
+router.get("/services/report", requireRoles("admin", "gerente"), getPadronServiceReport);
+router.get("/services/accounts", requireRoles("admin", "gerente"), getPadronServiceAccounts);
 router.get("/download", requireAuth, downloadPadron);
 router.post("/reprocess", requireAdmin, reprocessPadron);
 router.post("/sync", requireAdmin, syncPadron);

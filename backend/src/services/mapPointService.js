@@ -1,3 +1,4 @@
+import { assertOperationalWrite } from "../utils/permissions.js";
 import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
@@ -485,6 +486,7 @@ export const exportMapPointsWorkbook = async ({ date = "" } = {}) => {
 };
 
 export const createMapPoint = async (payload, authUser) => {
+  assertOperationalWrite(authUser);
   const data = normalizePayload(payload);
   validateCoordinates(data);
 
@@ -585,6 +587,7 @@ export const createMapPoint = async (payload, authUser) => {
 };
 
 export const updateMapPoint = async (id, payload, authUser) => {
+  assertOperationalWrite(authUser);
   const data = normalizePayload(payload);
   validateCoordinates(data);
 
@@ -704,6 +707,7 @@ export const updateMapPoint = async (id, payload, authUser) => {
 };
 
 export const deleteMapPoint = async (id, authUser) => {
+  assertOperationalWrite(authUser);
   if (env.useMemoryDb) {
     const index = memoryPoints.findIndex((point) => point.id === Number(id));
     if (index === -1) {

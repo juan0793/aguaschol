@@ -11,7 +11,7 @@ import { requireAdmin, requireRoles } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
-router.get("/", requireRoles("admin", "transport"), listTransportRoutesHandler);
+router.get("/", requireRoles("admin", "transport", "gerente"), listTransportRoutesHandler);
 router.post("/", requireAdmin, createTransportRouteHandler);
 router.put("/:id", requireAdmin, updateTransportRouteHandler);
 router.post("/:id/start", requireRoles("admin", "transport"), startTransportRouteHandler);

@@ -2,6 +2,7 @@ import { API_URL } from "../config/api";
 import { AUTH_STORAGE_KEY } from "../constants/storageKeys";
 import { getWorkspaceViewByRole, readJsonResponse } from "../utils/appShell";
 import { pause } from "../utils/printDocument";
+import { markWelcome } from "../utils/greeting";
 
 export function createAuthActions({
   apiFetch,
@@ -61,6 +62,7 @@ export function createAuthActions({
       }
 
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+      markWelcome(data.user);
       sessionInvalidatingRef.current = false;
       setSessionVerified(true);
       setAuthFx({ mode: "login", text: "Abriendo sesión..." });

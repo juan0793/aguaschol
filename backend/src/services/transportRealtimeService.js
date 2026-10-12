@@ -1,5 +1,6 @@
 import { WebSocketServer } from "ws";
 import { getSessionUser } from "./authService.js";
+import { registerSessionSocket } from "../utils/sessionSockets.js";
 
 let websocketServer = null;
 const transportClients = new Set();
@@ -25,6 +26,7 @@ const canReceiveRouteEvent = (client, route) => {
 };
 
 const sendEvent = (socket, payload) => {
+  if (socket?.authRevoked) return;
   if (!socket || socket.readyState !== 1) {
     return;
   }
@@ -55,9 +57,10 @@ export const initializeTransportRealtime = ({ server }) => {
     try {
       const url = new URL(request.url, "http://localhost");
       const token = url.searchParams.get("token") ?? "";
+      registerSessionSocket(token, socket);
       const user = await getSessionUser(token);
 
-      if (!user || !["admin", "transport"].includes(user.role)) {
+      if (!user || user.preview || socket.authRevoked || !["admin", "transport"].includes(user.role)) {
         socket.close(1008, "No autorizado");
         return;
       }

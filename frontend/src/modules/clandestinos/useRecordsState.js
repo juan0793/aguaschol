@@ -3,11 +3,13 @@ import { DRAFT_STORAGE_KEY } from "../../constants/storageKeys";
 import { emptyForm } from "../../constants/formsAndUi";
 import { hasDraftContent } from "../../utils/records";
 import { loadStoredRecordNotifications } from "../../utils/localStorage";
+import { hasStoredRolePreview } from "../../utils/rolePreview.js";
 
 export function useRecordsState() {
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [draftForm, setDraftForm] = useState(() => {
+    if (hasStoredRolePreview()) return null;
     const saved = window.localStorage.getItem(DRAFT_STORAGE_KEY);
     if (!saved) return null;
 

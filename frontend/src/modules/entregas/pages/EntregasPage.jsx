@@ -473,7 +473,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
         />
       ) : null}
 
-      {vista === "lotes" ? <MisLotesPorCerrar lotes={misLotesAbiertos} propioId={propioId} onCerrar={abrirCierre} onAbrir={abrirDetalle} /> : null}
+      {vista === "lotes" && config.permissions.can_close_own_lote ? <MisLotesPorCerrar lotes={misLotesAbiertos} propioId={propioId} onCerrar={abrirCierre} onAbrir={abrirDetalle} /> : null}
 
       {vista === "lotes" && config.permissions.can_view_all ? (
         <AvanceJornada model={avance} fecha={config.jornada?.fecha || toLocalIsoDate()} onVerAnteriores={() => ir("historial")} onAbrirLote={abrirDetalle} />

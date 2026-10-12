@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   full_name VARCHAR(180) NOT NULL,
   email VARCHAR(180) NOT NULL UNIQUE,
   username VARCHAR(120) NOT NULL UNIQUE,
-  role ENUM('admin', 'operator', 'transport', 'validadora_campo') NOT NULL DEFAULT 'operator',
+  role ENUM('admin', 'operator', 'transport', 'validadora_campo', 'gerente') NOT NULL DEFAULT 'operator',
   password_hash VARCHAR(255) NOT NULL,
   force_password_change TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   user_id INT UNSIGNED NOT NULL,
   token CHAR(64) NOT NULL UNIQUE,
   expires_at TIMESTAMP NOT NULL,
+  preview_role VARCHAR(32) NULL,
+  preview_expires_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_auth_sessions_user
     FOREIGN KEY (user_id) REFERENCES app_users(id)

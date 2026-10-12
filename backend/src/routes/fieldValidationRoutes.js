@@ -11,10 +11,10 @@ import { requireRoles } from "../middleware/authMiddleware.js";
 const router = Router();
 const allowFieldValidation = requireRoles("admin", "validadora_campo");
 
-router.get("/", allowFieldValidation, listFieldValidationPointsHandler);
-router.post("/analytics", allowFieldValidation, fieldAnalyticsHandler);
+router.get("/", requireRoles("admin", "validadora_campo", "gerente"), listFieldValidationPointsHandler);
+router.post("/analytics", requireRoles("admin", "validadora_campo", "gerente"), fieldAnalyticsHandler);
 // Hallazgos del levantamiento (Reportes de levantamiento, solo administración).
-router.get("/findings", requireRoles("admin"), fieldFindingsHandler);
+router.get("/findings", requireRoles("admin", "gerente"), fieldFindingsHandler);
 router.post("/findings/banco", requireRoles("admin"), fieldFindingsToBancoHandler);
 router.put("/:id", allowFieldValidation, validateFieldPointHandler);
 

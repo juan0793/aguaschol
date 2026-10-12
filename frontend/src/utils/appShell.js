@@ -1,4 +1,5 @@
 import { getWorkspaceViewFromPath } from "../components/sidebar/sidebarConfig";
+import { canOpenWorkspace } from "./roleAccess.js";
 
 export const readJsonResponse = async (response, fallbackMessage = "La API no devolvio una respuesta JSON valida.") => {
   const text = await response.text();
@@ -15,9 +16,12 @@ export const readJsonResponse = async (response, fallbackMessage = "La API no de
   }
 };
 
-export const getDefaultWorkspaceView = (role) => (role === "admin" ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "inspecciones" : "records");
+export const getDefaultWorkspaceView = (role) => (["admin", "gerente"].includes(role) ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "inspecciones" : "records");
 
-export const getWorkspaceViewByRole = (role) => getWorkspaceViewFromPath(window.location.pathname) ?? getDefaultWorkspaceView(role);
+export const getWorkspaceViewByRole = (role) => {
+  const view = getWorkspaceViewFromPath(window.location.pathname);
+  return view && canOpenWorkspace(role, view) ? view : getDefaultWorkspaceView(role);
+};
 
 export const getAlertDetails = (text) => {
   const value = String(text || "").toLowerCase();

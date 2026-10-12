@@ -29495,3 +29495,6 @@ button.control-sidebar-home:focus-visible {
     font-size: 0.72rem;
   }
 }
+
+.lookup-layout button[hidden] { display: none !important; }
+.field-control-point-form { border: 0; margin: 0; padding: 0; min-width: 0; }

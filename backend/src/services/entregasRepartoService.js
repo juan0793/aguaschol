@@ -74,7 +74,7 @@ export const leerRepartoBarrios = async () => {
 };
 
 export const getReparto = async (user) => {
-  assertGestor(user);
+  if (user?.role !== "gerente") assertGestor(user);
   const { asignaciones, barrios } = await leerRepartoBarrios();
   const actualizado = asignaciones.reduce((max, fila) => {
     const fecha = fila.updated_at ? new Date(fila.updated_at).toISOString() : "";

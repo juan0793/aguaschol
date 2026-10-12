@@ -2,6 +2,7 @@ import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { env } from "../config/env.js";
 import { generateToken, hashPassword, hashToken, verifyPassword } from "../utils/password.js";
+import { applyRolePreview } from "./rolePreviewService.js";
 
 const sanitizeUser = (user) => ({
   id: user.id,
@@ -11,7 +12,8 @@ const sanitizeUser = (user) => ({
   role: user.role,
   force_password_change: Boolean(user.force_password_change),
   is_active: Boolean(user.is_active),
-  last_login_at: user.last_login_at
+  last_login_at: user.last_login_at,
+  ...(user.preview ? { preview: user.preview } : {})
 });
 
 export const loginUser = async ({ username, password }) => {
@@ -70,7 +72,8 @@ export const loginUser = async ({ username, password }) => {
 
   return {
     token,
-    user: sanitizeUser({ ...user, last_login_at: new Date().toISOString() })
+    // last_login_at se leyó antes de actualizarlo: si estaba vacío, es el primer ingreso.
+    user: { ...sanitizeUser({ ...user, last_login_at: new Date().toISOString() }), first_login: !user.last_login_at }
   };
 };
 
@@ -79,7 +82,7 @@ export const logoutUser = async (token, actorUser) => {
 
   const pool = getPool();
   const storedToken = hashToken(token);
-  await pool.query("DELETE FROM auth_sessions WHERE token IN (?, ?)", [storedToken, token]);
+  await pool.query("DELETE FROM auth_sessions WHERE token = ?", [storedToken]);
 
   await createAuditLog({
     actorUserId: actorUser?.id ?? null,
@@ -203,16 +206,19 @@ export const changeOwnPassword = async ({ userId, currentPassword, newPassword }
   return sanitizeUser(updatedRows[0]);
 };
 
-export const getSessionUser = async (token) => {
+export const getSessionUser = async (token, executor) => {
   if (!token) return null;
 
-  const pool = getPool();
+  const pool = executor || getPool();
   const storedToken = hashToken(token);
   const [rows] = await pool.query(
     `
       SELECT
         auth_sessions.token,
         auth_sessions.expires_at,
+        auth_sessions.preview_role,
+        auth_sessions.preview_expires_at,
+        UNIX_TIMESTAMP(auth_sessions.preview_expires_at) AS preview_expires_epoch,
         app_users.id,
         app_users.full_name,
         app_users.email,
@@ -223,13 +229,14 @@ export const getSessionUser = async (token) => {
         app_users.last_login_at
       FROM auth_sessions
       INNER JOIN app_users ON app_users.id = auth_sessions.user_id
-      WHERE auth_sessions.token IN (?, ?)
+      WHERE auth_sessions.token = ?
         AND auth_sessions.expires_at > NOW()
         AND app_users.is_active = 1
       LIMIT 1
     `,
-    [storedToken, token]
+    [storedToken]
   );
 
-  return rows[0] ? sanitizeUser(rows[0]) : null;
+  const user = rows[0] ? applyRolePreview(rows[0]) : null;
+  return user ? sanitizeUser(user) : null;
 };

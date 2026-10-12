@@ -1,3 +1,4 @@
+import { canOpenWorkspace } from "./utils/roleAccess.js";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@blossom-carousel/core/style.css";
 import { Toaster } from "sonner";
@@ -39,6 +40,7 @@ import {
   RailwayUsageWorkspace,
   TeamActivityWorkspace,
   PlanosWorkspace,
+  ManagerDashboardWorkspace,
   DashboardWorkspace,
   TransportWorkspace,
   ImportacionWorkspace,
@@ -61,6 +63,7 @@ import LookupWorkspace from "./modules/lookup/LookupWorkspace";
 import MapaOperaciones from "./modules/operaciones/MapaOperaciones";
 import AdminWorkspace from "./app/AdminWorkspace";
 import AppHeader from "./app/AppHeader";
+import RolePreviewBar, { RolePreviewPicker } from "./app/RolePreviewControls";
 import AuditReportViewerDialog from "./modules/audit/AuditReportViewerDialog";
 import DashboardAlertsDialog from "./modules/dashboard/DashboardAlertsDialog";
 import PrintComparisonDialog from "./modules/clandestinos/dialogs/PrintComparisonDialog";
@@ -182,6 +185,7 @@ function App() {
     dashboardConnectionStatus,
     setDashboardConnectionStatus
   } = dashboardState;
+  const [rolePreviewAnchor, setRolePreviewAnchor] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)
       ?? window.localStorage.getItem("aguaschol-sidebar-collapsed");
@@ -232,6 +236,8 @@ function App() {
   const { auditLogs, setAuditLogs, loadingLogs, auditFilters, auditFiltersQuery } = auditState;
   const isAuthenticated = Boolean(session?.token) && sessionVerified;
   const isAdmin = session?.user?.role === "admin";
+  const isManager = session?.user?.role === "gerente";
+  const isReadOnly = isManager || Boolean(session?.user?.preview);
   const isTransport = session?.user?.role === "transport";
   const isFieldValidator = session?.user?.role === "validadora_campo";
   const mustChangePassword = Boolean(session?.user?.force_password_change);
@@ -531,6 +537,8 @@ function App() {
     safeRecords
   });
   const appNavigation = useAppNavigation({
+    previewRole: session?.user?.preview ? session.user.role : null,
+    isManager,
     ...mapDiaryData,
     ...mapReportModel,
     ...padronState,
@@ -583,7 +591,7 @@ function App() {
     ...appShellState,
     getRecordBarrioName,
     isAdmin,
-    isAuthenticated,
+    isAuthenticated: isAuthenticated && !isReadOnly,
     localSelectedPhotoUrl,
     safeBarrioCodes
   });
@@ -597,7 +605,7 @@ function App() {
     ...fieldMapPoints,
     ...appShellState,
     isAdmin,
-    isAuthenticated,
+    isAuthenticated: isAuthenticated && !isReadOnly,
     mapPointsRequestRef,
     safeBarrioCodes
   });
@@ -660,6 +668,9 @@ function App() {
       />
     );
   }
+
+  if (isManager && !canOpenWorkspace("gerente", workspaceView)) return <ModuleSkeleton title="Gerencia" />;
+  if (session.user.preview?.expired) return <><RolePreviewBar session={session} /><section className="role-preview-expired"><h1>La prueba de perfil venció</h1><p>Vuelve a administrador para seguir trabajando. Tu cuenta nunca dejó de ser administradora.</p></section></>;
 
   return (
     <div
@@ -733,6 +744,8 @@ function App() {
       <AuditReportViewerDialog
         model={{ ...auditLoaders, ...auditState }}
       />
+      <RolePreviewBar session={session} />
+      {rolePreviewAnchor ? <RolePreviewPicker session={session} anchor={rolePreviewAnchor} onClose={() => setRolePreviewAnchor(null)} /> : null}
       <AppHeader
         model={{
           ...mapDiaryData,
@@ -782,12 +795,17 @@ function App() {
         onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         onNavigate={setWorkspaceView}
         onPrefetch={prefetchModule}
-        homeKey={getDefaultWorkspaceView(session?.user?.role)}
+        homeKey={session.user.preview && isTransport ? "transport" : getDefaultWorkspaceView(session?.user?.role)}
+        profileKey={isManager ? "dashboard" : session.user.preview ? (isTransport ? "transport" : "inspecciones") : "profile"}
         onCloseMobile={closeMobileModuleMenu}
-        onChangePassword={() => setShowPasswordModal(true)}
+        onChangePassword={session.user.preview ? null : () => setShowPasswordModal(true)}
+        onRolePreview={session.user.role === "admin" && !session.user.preview ? (anchor) => setRolePreviewAnchor((current) => (current ? null : anchor)) : null}
+        rolePreviewOpen={Boolean(rolePreviewAnchor)}
         onLogout={handleLogout}
       />
-      {workspaceView === "dashboard" ? (
+      {isManager && ["dashboard", "requests"].includes(workspaceView) ? (
+        <Suspense fallback={<ModuleSkeleton title="Gerencia" />}><ManagerDashboardWorkspace apiFetch={apiFetch} navigate={setWorkspaceView} reportsOnly={workspaceView === "requests"} /></Suspense>
+      ) : workspaceView === "dashboard" ? (
         <Suspense fallback={<ModuleSkeleton title="el tablero" />}>
           <DashboardWorkspace model={{
             userName: session?.user?.full_name || session?.user?.username || "admin",
@@ -840,7 +858,7 @@ function App() {
             />
           </Suspense>
         </main>
-      ) : workspaceView === "teamActivity" && isAdmin ? (
+      ) : workspaceView === "teamActivity" && (isAdmin || isManager) ? (
         <main className="team-activity-layout">
           <Suspense fallback={<ModuleSkeleton title="la actividad del equipo" toolbar={false} rows={6} />}>
             <TeamActivityWorkspace apiFetch={apiFetch} session={session} onOpen={abrirActividadEquipo} />
@@ -938,7 +956,8 @@ function App() {
             ...padronState,
             ...padronAdminActions,
             ...lookupActions,
-            ...lookupState
+            ...lookupState,
+            readOnly: isReadOnly
           }}
         />
       ) : workspaceView === "importacion" ? (
@@ -965,11 +984,12 @@ function App() {
         />
       ) : workspaceView === "planos" ? (
         <Suspense fallback={<ModuleSkeleton title="planos y croquis" toolbar={false} rows={4} />}>
-          <PlanosWorkspace apiFetch={apiFetch} isAdmin={isAdmin} users={safeUsers} />
+          <PlanosWorkspace apiFetch={apiFetch} isAdmin={isAdmin} readOnly={isReadOnly} users={safeUsers} />
         </Suspense>
       ) : workspaceView === "fieldValidation" ? (
         <Suspense fallback={<ModuleSkeleton title="la validación de campo" />}>
           <FieldValidationWorkspace
+            readOnly={isReadOnly}
             apiFetch={apiFetch}
             apiUrl={API_URL}
             barrioCodes={safeBarrioCodes}

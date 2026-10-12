@@ -7,8 +7,28 @@ import {
 } from "../middleware/authMiddleware.js";
 import { clearLoginFailures, limitLoginAttempts, recordLoginFailure } from "../middleware/loginRateLimit.js";
 import { changeOwnPassword, getSessionUser, loginUser, logoutAllSessions, logoutUser } from "../services/authService.js";
+import { changeRolePreview } from "../services/rolePreviewService.js";
+import { createRateLimit } from "../middleware/rateLimit.js";
 
 const router = Router();
+const previewLimit = createRateLimit({ windowMs: 60000, max: 12 });
+router.post("/preview", requireAuth, requireAdmin, previewLimit, async (req, res, next) => {
+  try {
+    if (!req.body || Object.keys(req.body).some((key) => key !== "role") || typeof req.body.role !== "string") {
+      return res.status(400).json({ message: "Selecciona un perfil de prueba válido." });
+    }
+    await changeRolePreview(req.authToken, req.body.role);
+    res.setHeader("Clear-Site-Data", '"cache"');
+    res.json({ user: await getSessionUser(req.authToken) });
+  } catch (error) { next(error); }
+});
+router.delete("/preview", requireAuth, previewLimit, async (req, res, next) => {
+  try {
+    await changeRolePreview(req.authToken, null);
+    res.setHeader("Clear-Site-Data", '"cache"');
+    res.json({ user: await getSessionUser(req.authToken) });
+  } catch (error) { next(error); }
+});
 
 router.get("/me", requireAuth, (req, res) => {
   res.json({ user: req.authUser });

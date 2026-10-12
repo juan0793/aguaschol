@@ -5,7 +5,7 @@ import path from "node:path";
 import { getDatabaseStatus } from "./config/db.js";
 import { env } from "./config/env.js";
 import { getMapTileHandler } from "./controllers/mapTileController.js";
-import { requireAdmin, requireAuth, requireMediaAuth } from "./middleware/authMiddleware.js";
+import { requireAdmin, requireAuth, requireMediaAuth, requireRoles } from "./middleware/authMiddleware.js";
 import barrioCodeRoutes from "./routes/barrioCodeRoutes.js";
 import claveLookupRoutes from "./routes/claveLookupRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -26,6 +26,7 @@ import notesRoutes from "./routes/notesRoutes.js";
 import railwayRoutes from "./routes/railwayRoutes.js";
 import teamActivityRoutes from "./routes/teamActivityRoutes.js";
 import gisRoutes from "./modules/gis/gis.routes.js";
+import managerReportRoutes from "./routes/managerReportRoutes.js";
 import { readStoredFile } from "./services/fileStorageService.js";
 
 const app = express();
@@ -93,7 +94,9 @@ app.use(
 );
 app.use("/api/integracion/foxpro", foxProImportRoutes);
 app.use(express.json({ limit: "8mb" }));
-const privateAssetHeaders = (res) => res.setHeader("Cache-Control", "private, max-age=300");
+const privateAssetHeaders = (res) => {
+  if (!String(res.getHeader("Cache-Control") || "").includes("no-store")) res.setHeader("Cache-Control", "private, max-age=300");
+};
 const serveUpload = async (req, res, next) => {
   try {
     const file = await readStoredFile(`/uploads/${req.params.fileName}`);
@@ -174,9 +177,10 @@ app.get("/", (_req, res) => {
 app.get("/api/map-tiles/:z/:x/:y.png", getMapTileHandler);
 
 app.use("/api/auth", authRoutes);
+app.use("/api/reports", requireAuth, managerReportRoutes);
 app.use("/api/admin/notes", requireAuth, notesRoutes);
 app.use("/api/admin/railway", requireAuth, requireAdmin, railwayRoutes);
-app.use("/api/admin/team-activity", requireAuth, requireAdmin, teamActivityRoutes);
+app.use("/api/admin/team-activity", requireAuth, requireRoles("admin", "gerente"), teamActivityRoutes);
 app.use("/api/ai", requireAuth, aiRoutes);
 app.use("/api/barrios", requireAuth, barrioCodeRoutes);
 app.use("/api/claves", requireAuth, claveLookupRoutes);

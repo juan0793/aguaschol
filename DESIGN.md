@@ -215,6 +215,15 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - La línea de estado dice solo "Padrón actualizado el …". El nombre del lote FoxPro va en la ayuda emergente.
   - El informe impreso y el PDF llevan las filas tal como se ven: mismo orden, misma búsqueda o solo los barrios marcados. Al final nombran los barrios sin el servicio.
   - La deuda siempre se rotula como "de las cuentas con el servicio", porque el archivo maestro no separa la deuda por concepto.
+- "Gerencia General" (desde 2026-10-12). Usa el lenguaje de análisis:
+  - El encabezado saluda con el primer nombre y debajo dice "Gerencia": "Te damos la bienvenida, Ana" en el primer ingreso de la cuenta; después "Buenos días" (5:00 a 11:59), "Buenas tardes" (12:00 a 18:59) o "Buenas noches", en la hora de Honduras. La insignia de la derecha dice solo "Solo lectura". El menú lateral y la pantalla se llaman "Gerencia".
+  - La pantalla no lleva título visible: el saludo ya la identifica y el título queda solo para lectores de pantalla. Arriba va una franja plana, sin tarjeta: el informe a la izquierda y el período a la derecha, con la nota "La cartera usa el corte del padrón". Un filete de 1px la separa del resto.
+  - Los indicadores del mes van en un solo panel ("Seguimiento de octubre de 2026"), con columnas separadas por filetes y sin filete de color arriba. Cada cifra lleva una lectura real: el mes anterior en inspecciones, el porcentaje de lo asignado en entregados y los vencidos en pendientes, en rojo solo si hay. Al pasar el puntero aparece un chevrón que lleva al módulo.
+  - Los meses se escriben con nombre ("octubre de 2026"), nunca "2026-10".
+  - "Carga actual por técnico" usa barras azules finas, sin pista y con escala compartida, no el `<meter>` del navegador.
+- Prueba de perfil (desde 2026-10-12):
+  - El administrador la abre desde la acción "Probar como otro rol" (icono de ojo) del pie del menú lateral; no hay barra fija mientras no se prueba. En escritorio se abre a la derecha del menú, con la sombra de capa flotante. En el teléfono sale como hoja inferior. Cada perfil dice dónde empieza, y el botón nombra la acción: "Ver como Gerente General".
+  - Durante la prueba, una barra ocre de 48px queda fija arriba: "Viendo como Gerente General · Solo lectura · Quedan 12 minutos" y el botón en tinta "Volver a administrador" ("Volver" en el teléfono). En los últimos 3 minutos el ocre se intensifica; al vencer la barra pasa a rojo claro.
 
 ### Busqueda de clave
 

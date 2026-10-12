@@ -1,3 +1,4 @@
+import { assertOperationalWrite } from "../utils/permissions.js";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
@@ -174,6 +175,7 @@ export const listFieldPointsForAnalytics = async ({
 };
 
 export const validateFieldPoint = async (id, payload = {}, authUser) => {
+  assertOperationalWrite(authUser);
   if (env.useMemoryDb) {
     const error = new Error("La validacion de campo requiere base de datos persistente.");
     error.status = 503;

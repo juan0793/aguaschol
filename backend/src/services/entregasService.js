@@ -38,9 +38,12 @@ import {
 } from "./entregasRules.js";
 
 const clean = (value) => String(value ?? "").trim();
+import { assertOperationalWrite } from "../utils/permissions.js";
+
 const isAdmin = (user) => user?.role === "admin";
 // "Gestor" = quien administra la operacion diaria (admin u operador autorizado).
 const isGestor = (user) => ["admin", "operator"].includes(user?.role);
+const canReadAll = (user) => isGestor(user) || user?.role === "gerente";
 const PAGE_SIZE = 12;
 
 const audit = async ({ user, action, entityId, summary, details, executor }) => {
@@ -182,19 +185,19 @@ export const getEntregasConfig = async (user) => {
     barrios_por_responsable: barriosPorResponsable,
     permissions: {
       can_manage_personal: isAdmin(user),
-      can_create_lote: isGestor(user) || Boolean(personalPropio),
-      can_edit_lote: Boolean(personalPropio) || isGestor(user),
-      can_close_own_lote: Boolean(personalPropio) || isGestor(user),
+      can_create_lote: !user?.preview && user?.role !== "gerente" && (isGestor(user) || Boolean(personalPropio)),
+      can_edit_lote: !user?.preview && user?.role !== "gerente" && (Boolean(personalPropio) || isGestor(user)),
+      can_close_own_lote: !user?.preview && user?.role !== "gerente" && (Boolean(personalPropio) || isGestor(user)),
       can_force_close: isAdmin(user),
       can_reopen_lote: isAdmin(user),
       can_delete_lote: isAdmin(user),
       can_close_ciclo: isAdmin(user),
-      can_view_descartes: isAdmin(user),
-      can_manage_seguimiento: isGestor(user) || Boolean(personalPropio),
-      can_generate_report: isGestor(user),
-      can_manage_reparto: isGestor(user),
+      can_view_descartes: isAdmin(user) || user?.role === "gerente",
+      can_manage_seguimiento: !user?.preview && user?.role !== "gerente" && (isGestor(user) || Boolean(personalPropio)),
+      can_generate_report: !user?.preview && isGestor(user),
+      can_manage_reparto: !user?.preview && isGestor(user),
       can_correct_report: isAdmin(user),
-      can_view_all: isGestor(user)
+      can_view_all: canReadAll(user)
     }
   };
 };
@@ -268,7 +271,7 @@ export const listPersonal = async (query = {}, user) => {
     };
   });
 
-  if (isGestor(user)) return mapped;
+  if (canReadAll(user)) return mapped;
   const personalPropio = await getPersonalDelUsuario(user);
   if (!personalPropio) return [];
   // El técnico solo ve a quienes puede asignar un lote: él mismo y quien no tiene usuario.
@@ -311,6 +314,7 @@ const assertUsuarioDisponible = async (userId, personalId = null) => {
 };
 
 export const createPersonal = async (payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo administradores pueden registrar personal de campo.", 403);
   const data = validarPersonalPayload(payload);
   await assertUsuarioDisponible(data.user_id);
@@ -333,6 +337,7 @@ export const createPersonal = async (payload = {}, user) => {
 };
 
 export const updatePersonal = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo administradores pueden editar personal de campo.", 403);
   const personalId = toEntero(id);
   const [[actual]] = await getPool().query("SELECT * FROM personal_campo WHERE id = ? LIMIT 1", [personalId]);
@@ -381,7 +386,7 @@ const resolverBarrio = async (payload = {}) => {
 // Un gestor ve todo; un tecnico con usuario ve solo sus lotes. Si el usuario no
 // esta vinculado a personal_campo no vemos nada (lista vacia, no un error duro).
 const alcanceLotes = async (user) => {
-  if (isGestor(user)) return { filtro: "", params: [] };
+  if (canReadAll(user)) return { filtro: "", params: [] };
   const personal = await getPersonalDelUsuario(user);
   if (!personal) return { filtro: "1 = 0", params: [] };
   return {
@@ -509,7 +514,7 @@ const cargarLote = async (id, executor = getPool(), forUpdate = false) => {
 };
 
 const assertPuedeVerLote = async (lote, user) => {
-  if (isGestor(user)) return;
+  if (canReadAll(user)) return;
   if (!user?.id) throw fail("No tienes acceso a este lote.", 403);
   if (lote.responsable_user_id && Number(lote.responsable_user_id) === Number(user.id)) return;
   // Lote de alguien sin usuario: lo puede trabajar cualquier técnico con usuario.
@@ -525,6 +530,7 @@ export const getLoteDetail = async (id, user) => {
 };
 
 export const createLote = async (payload = {}, user) => {
+  assertOperationalWrite(user);
   const gestor = isGestor(user);
   const personalPropio = gestor ? null : await getPersonalDelUsuario(user);
   if (!gestor && !personalPropio) throw fail("No tienes permiso para crear lotes.", 403);
@@ -588,6 +594,7 @@ export const createLote = async (payload = {}, user) => {
 };
 
 export const updateLote = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   const lote = await cargarLote(id);
   await assertPuedeVerLote(lote, user);
   if (lote.estado !== "ABIERTO" && !isAdmin(user)) {
@@ -661,6 +668,7 @@ export const updateLote = async (id, payload = {}, user) => {
 // transaccion con bloqueo de filas, para que un alta/baja de no-entregadas
 // concurrente no deje el lote cerrado con un total_sobrantes desactualizado.
 export const cerrarLote = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   let lote, sobrantes;
   const observacion = clean(payload.observacion_responsable);
 
@@ -717,6 +725,7 @@ const exigirMotivo = (payload, mensaje) => {
 // COUNT(activas) == total_sobrantes sigue firme y el lote vuelve a admitir
 // edicion, altas de no entregadas y un cierre corregido.
 export const reabrirLote = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo un administrador puede reabrir un lote.", 403);
   const motivo = exigirMotivo(payload, "Explica por qué se reabre el lote (mínimo 5 caracteres).");
 
@@ -764,6 +773,7 @@ export const reabrirLote = async (id, payload = {}, user) => {
 // centro de notificaciones. La auditoria guarda el lote completo por si hay que
 // reconstruirlo.
 export const deleteLote = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo un administrador puede eliminar un lote.", 403);
   const motivo = exigirMotivo(payload, "Explica por qué se elimina el lote (mínimo 5 caracteres).");
 
@@ -835,6 +845,7 @@ export const getCicloVigente = async (executor = getPool()) => {
 // sigue contando como no entregada del lote -asi las cifras de lotes ya cerrados
 // no se mueven- pero sale de la cola de seguimiento.
 export const cerrarCicloEntregas = async (payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo un administrador puede cerrar el ciclo de facturación.", 403);
   const motivo = exigirMotivo(payload, "Indica de qué emisión se trata (mínimo 5 caracteres).");
   const hoy = jornadaEntregas().fecha;
@@ -900,7 +911,7 @@ const SELECT_DESCARTE = `SELECT documento.id, documento.lote_id, documento.numer
 // abonados que ya habian quedado sin entregar en ciclos anteriores. Los CANCELADOS
 // fueron registros por error y no cuentan en ningun lado.
 export const getDescartes = async (query = {}, user) => {
-  if (!isAdmin(user)) throw fail("Solo un administrador puede ver el control de descartes.", 403);
+  if (!["admin", "gerente"].includes(user?.role)) throw fail("Solo administración y Gerencia pueden ver el control de descartes.", 403);
   const hoy = jornadaEntregas().fecha;
   const fecha = toIsoDate(query.fecha) || hoy;
   if (fecha > hoy) throw fail("La fecha no puede ser futura.");
@@ -975,6 +986,7 @@ const mapNoEntregadaRow = (row) => ({
 });
 
 export const createNoEntregadas = async (loteId, payload = {}, user) => {
+  assertOperationalWrite(user);
   const lote = await cargarLote(loteId);
   await assertPuedeVerLote(lote, user);
 
@@ -1209,6 +1221,7 @@ export const getNoEntregadaDetail = async (id, user) => {
 };
 
 export const updateNoEntregada = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   const documento = await cargarNoEntregada(id);
   await assertPuedeVerLote(documento, user);
   assertLoteEditable(documento, user);
@@ -1282,6 +1295,7 @@ export const updateNoEntregada = async (id, payload = {}, user) => {
 };
 
 export const deleteNoEntregada = async (id, user) => {
+  assertOperationalWrite(user);
   const documento = await cargarNoEntregada(id);
   await assertPuedeVerLote(documento, user);
   if (documento.lote_estado !== "ABIERTO" && !isAdmin(user)) {
@@ -1324,6 +1338,7 @@ export const deleteNoEntregada = async (id, user) => {
 /* -------------------------------------------------------------------------- */
 
 export const registrarIntento = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   const documento = await cargarNoEntregada(id);
   await assertPuedeVerLote(documento, user);
   assertLoteEditable(documento, user);

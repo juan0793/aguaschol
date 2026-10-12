@@ -7,7 +7,7 @@ import { emitToRoles } from "./profileRealtimeService.js";
 // reciben en la campana en tiempo real y lo consultan en "Actividad del equipo".
 
 // Sesiones y chat no son trabajo: no se notifican ni se listan.
-export const ACCIONES_EXCLUIDAS = ["auth.login", "auth.logout", "auth.logout_all", "auth.password_changed", "profile.message_sent", "profile.general_message_sent", "profile.achievement_awarded"];
+export const ACCIONES_EXCLUIDAS = ["auth.login", "auth.logout", "auth.logout_all", "auth.password_changed", "profile.message_sent", "profile.general_message_sent", "profile.achievement_awarded", "report.manager.prepared", "report.manager.pdf_generated", "report.manager.download_requested"];
 
 // Lo que cierra un trabajo: suena y sale un aviso emergente. Lo demás solo llega a la campana.
 const FINALES = new Set([
@@ -124,7 +124,7 @@ const filtroCategoria = (categoria) => {
  *   cuántas acciones hubo cada día (el índice por día de la pantalla).
  */
 export const listTeamActivity = async (filtros = {}, user) => {
-  if (user?.role !== "admin") throw fail("Solo administración ve la actividad del equipo.", 403);
+  if (!["admin", "gerente"].includes(user?.role)) throw fail("Solo administración ve la actividad del equipo.", 403);
   const limit = Math.min(Math.max(Number(filtros.limit) || 50, 1), 200);
   if (env.useMemoryDb) return { items: [], tecnicos: [], total: 0, dias: [], pagina: 1, por_pagina: limit, unread: 0, seen_at: null, categorias: Object.fromEntries(Object.entries(CATEGORIAS).map(([key, { label }]) => [key, label])), has_more: false };
 

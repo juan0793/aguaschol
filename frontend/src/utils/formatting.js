@@ -63,6 +63,7 @@ export const roleLabel = (role) =>
   (
     {
       admin: "Administrador",
+      gerente: "Gerente General",
       transport: "Transporte",
       validadora_campo: "Validacion campo",
       operator: "Operador"

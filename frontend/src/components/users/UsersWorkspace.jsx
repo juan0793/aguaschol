@@ -200,7 +200,8 @@ const USER_FILTERS = [
   { key: "all", label: "Todos" },
   { key: "online", label: "En línea" },
   { key: "admin", label: "Administradores" },
-  { key: "operator", label: "Operadores" }
+  { key: "operator", label: "Operadores" },
+  { key: "gerente", label: "Gerencia" }
 ];
 
 export function UsersSidebar({
@@ -218,6 +219,7 @@ export function UsersSidebar({
       if (activeFilter === "online") return user.is_online;
       if (activeFilter === "admin") return user.role === "admin";
       if (activeFilter === "operator") return user.role === "operator";
+      if (activeFilter === "gerente") return user.role === "gerente";
       return true;
     })
     .filter((user) =>
@@ -307,6 +309,7 @@ export function UsersSidebar({
 }
 
 const ROLE_DESCRIPTIONS = {
+  gerente: "Consulta y supervisión institucional de solo lectura. No administra usuarios ni modifica datos operativos.",
   admin: "Control total: gestiona usuarios, padrones y configuraciones del sistema.",
   operator: "Puede gestionar operaciones diarias del sistema.",
   validadora_campo: "Valida y confirma la informacion levantada en campo.",
@@ -498,6 +501,7 @@ export function UsersContent({
                   <span className="users-input-wrap">
                     <Icon name="auth" />
                     <select name="role" value={userForm.role} onChange={handleUserFormChange}>
+                      <option value="gerente">Gerente General</option>
                       <option value="operator">Operador</option>
                       <option value="validadora_campo">Validacion campo</option>
                       <option value="transport">Transporte</option>
@@ -615,6 +619,7 @@ export function UsersContent({
                         onChange={(event) => handleUpdateUserRole(selectedUser, event.target.value)}
                         disabled={session?.user?.id === selectedUser.id || savingUserRoleId === selectedUser.id}
                       >
+                        <option value="gerente">Gerente General</option>
                         <option value="operator">Operador</option>
                         <option value="validadora_campo">Validacion campo</option>
                         <option value="transport">Transporte</option>
@@ -738,6 +743,7 @@ export function UsersContent({
                         onChange={(event) => handleUpdateUserRole(selectedUser, event.target.value)}
                         disabled={session?.user?.id === selectedUser.id || savingUserRoleId === selectedUser.id}
                       >
+                        <option value="gerente">Gerente General</option>
                         <option value="operator">Operador</option>
                         <option value="validadora_campo">Validacion campo</option>
                         <option value="transport">Transporte</option>

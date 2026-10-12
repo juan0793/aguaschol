@@ -21,6 +21,8 @@ export const MOTIVOS_SUGERIDOS = [
 
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const clean = (value) => String(value ?? "").trim();
+import { canReadInstitutionally, assertOperationalWrite } from "../utils/permissions.js";
+
 const isAdmin = (user) => user?.role === "admin";
 const nowIso = () => new Date().toISOString();
 const MYSQL_DATETIME_COLUMNS = new Set(["fecha_inicio", "fecha_finalizacion"]);
@@ -250,7 +252,7 @@ const loadWithParticipantes = async (id) => {
 };
 
 const assertViewAccess = (inspeccion, participantes, user) => {
-  if (isAdmin(user)) return;
+  if (canReadInstitutionally(user)) return;
   if (!isActiveParticipant(participantes, user?.id) && !isResponsableDirecto(inspeccion, user?.id)) {
     throw fail("No participas en esta inspección.", 403);
   }
@@ -264,7 +266,7 @@ export const getInspeccionesConfig = (user) => ({
   permissions: {
     can_create: isAdmin(user),
     can_reassign: isAdmin(user),
-    can_view_stats: isAdmin(user),
+    can_view_stats: canReadInstitutionally(user),
     can_manage: isAdmin(user)
   }
 });
@@ -309,7 +311,7 @@ export const queryInspecciones = async (filters = {}, user) => {
   const tecnicoId = Number(filters.tecnico_id) || 0;
   const fechaDesde = clean(filters.fecha_desde);
   const fechaHasta = clean(filters.fecha_hasta);
-  const scopedUserId = isAdmin(user) ? 0 : Number(user?.id) || 0;
+  const scopedUserId = canReadInstitutionally(user) ? 0 : Number(user?.id) || 0;
 
   if (env.useMemoryDb) {
     return memoryInspecciones
@@ -448,8 +450,8 @@ const loadActividadMes = async (mes, visibleItems, user) => {
         return { id: row.id, inspeccion_id: item.id, numero_inspeccion: item.numero_inspeccion, estado_anterior: row.estado_anterior, estado_nuevo: row.estado_nuevo, created_at: row.created_at, tecnico_responsable_nombre: item.tecnico_responsable_nombre || "" };
       });
   }
-  if (!isAdmin(user) && !byId.size) return [];
-  const scope = isAdmin(user) ? "" : "AND historial_estados.entidad_id IN (?)";
+  if (!canReadInstitutionally(user) && !byId.size) return [];
+  const scope = canReadInstitutionally(user) ? "" : "AND historial_estados.entidad_id IN (?)";
   const [rows] = await getPool().query(
     `SELECT historial_estados.id, historial_estados.entidad_id AS inspeccion_id, historial_estados.estado_anterior,
         historial_estados.estado_nuevo, historial_estados.created_at, inspecciones.numero_inspeccion,
@@ -460,7 +462,7 @@ const loadActividadMes = async (mes, visibleItems, user) => {
      WHERE historial_estados.entidad_tipo = 'inspeccion' AND historial_estados.created_at >= ? AND historial_estados.created_at < ? ${scope}
      ORDER BY historial_estados.created_at DESC, historial_estados.id DESC
      LIMIT ${ACTIVIDAD_LIMIT}`,
-    isAdmin(user) ? [desde, hasta] : [desde, hasta, [...byId.keys()]]
+    canReadInstitutionally(user) ? [desde, hasta] : [desde, hasta, [...byId.keys()]]
   );
   return rows;
 };
@@ -528,7 +530,7 @@ export const getResumenInspecciones = async (user, { mes = "", now = new Date() 
     creadas_mes_anterior: creadasEn(mesAnterior).length,
     creadas_finalizadas: distribucion.FINALIZADA,
     distribucion_creadas: distribucion,
-    carga_tecnicos: isAdmin(user) ? [...carga.values()].sort((a, b) => b.activas - a.activas || a.nombre.localeCompare(b.nombre, "es")) : [],
+    carga_tecnicos: canReadInstitutionally(user) ? [...carga.values()].sort((a, b) => b.activas - a.activas || a.nombre.localeCompare(b.nombre, "es")) : [],
     bandeja,
     actividad: await loadActividadMes(mesSeleccionado, all, user)
   };
@@ -549,6 +551,7 @@ export const getInspeccionDetail = async (id, user) => {
 };
 
 export const createInspeccion = async (payload = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo administración puede crear inspecciones.", 403);
   const claveCatastral = clean(payload.clave_catastral);
   if (!claveCatastral) throw fail("La clave catastral es obligatoria.");
@@ -676,6 +679,7 @@ const autoStartIfNeeded = async (inspeccion, user, reason) => {
 };
 
 export const updateInspeccion = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
   if (inspeccion.estado === "FINALIZADA" && !isAdmin(user)) throw fail("La inspección ya fue finalizada.", 409);
@@ -713,6 +717,7 @@ export const updateInspeccion = async (id, payload = {}, user) => {
 };
 
 export const deleteInspeccion = async (id, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo administración puede eliminar inspecciones.", 403);
   const inspeccion = await findInspeccionRaw(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
@@ -739,6 +744,7 @@ export const deleteInspeccion = async (id, user) => {
 };
 
 export const changeEstado = async (id, { estado, motivo = "" } = {}, user) => {
+  assertOperationalWrite(user);
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
   if (!isAdmin(user) && !isResponsable(participantes, user.id)) throw fail("Solo el técnico responsable o administración pueden cambiar el estado.", 403);
@@ -756,6 +762,7 @@ export const changeEstado = async (id, { estado, motivo = "" } = {}, user) => {
 };
 
 export const finalizarInspeccion = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
   if (!isAdmin(user) && !isActiveParticipant(participantes, user.id)) throw fail("Solo un técnico asignado o administración pueden finalizar la inspección.", 403);
@@ -794,6 +801,7 @@ export const finalizarInspeccion = async (id, payload = {}, user) => {
 };
 
 export const reasignarInspeccion = async (id, { tecnico_responsable_id } = {}, user) => {
+  assertOperationalWrite(user);
   if (!isAdmin(user)) throw fail("Solo administración puede reasignar una inspección.", 403);
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
@@ -846,6 +854,7 @@ export const listParticipantesHandler = async (id, user) => {
 };
 
 export const addParticipante = async (id, { tecnico_id } = {}, user) => {
+  assertOperationalWrite(user);
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
   if (inspeccion.estado === "FINALIZADA") throw fail("No se pueden agregar técnicos a una inspección finalizada.", 409);
@@ -864,6 +873,7 @@ export const addParticipante = async (id, { tecnico_id } = {}, user) => {
 };
 
 export const removeParticipante = async (id, tecnicoId, user) => {
+  assertOperationalWrite(user);
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
   if (!isAdmin(user) && !isResponsable(participantes, user.id)) throw fail("Solo el técnico responsable o administración pueden quitar un apoyo.", 403);
@@ -903,6 +913,7 @@ export const listGps = async (id, user) => {
 };
 
 export const addGps = async (id, payload = {}, user) => {
+  assertOperationalWrite(user);
   const { inspeccion, participantes } = await loadWithParticipantes(id);
   if (!inspeccion) throw fail("Inspección no encontrada.", 404);
   if (inspeccion.estado === "FINALIZADA") throw fail("No se pueden registrar puntos GPS en una inspección finalizada.", 409);

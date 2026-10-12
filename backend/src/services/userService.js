@@ -2,6 +2,7 @@ import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { sendPasswordResetEmail, sendUserCreatedEmail } from "./emailService.js";
 import { generatePassword, hashPassword } from "../utils/password.js";
+import { normalizeUserRole } from "../utils/userRoles.js";
 
 const sanitizeUser = (user) => ({
   id: user.id,
@@ -19,14 +20,8 @@ const sanitizeUser = (user) => ({
   updated_at: user.updated_at
 });
 
-const USER_ROLES = new Set(["admin", "operator", "transport", "validadora_campo"]);
 const USERNAME_BASE_MAX_LENGTH = 8;
 const USERNAME_MAX_LENGTH = 10;
-
-const normalizeRole = (role) => {
-  const cleanRole = String(role ?? "operator").trim();
-  return USER_ROLES.has(cleanRole) ? cleanRole : "operator";
-};
 
 const makeUsername = async (email) => {
   const pool = getPool();
@@ -91,10 +86,10 @@ export const listUsers = async () => {
 };
 
 export const createUser = async ({ full_name, email, role = "operator" }, actorUser) => {
+  const cleanRole = normalizeUserRole(role);
   const pool = getPool();
   const cleanName = full_name?.trim();
   const cleanEmail = email?.trim().toLowerCase();
-  const cleanRole = normalizeRole(role);
 
   if (!cleanName || !cleanEmail) {
     const error = new Error("Nombre completo y correo son obligatorios.");
@@ -219,9 +214,9 @@ export const updateUserName = async (userId, fullName, actorUser) => {
 };
 
 export const updateUserRole = async (userId, role, actorUser) => {
+  const cleanRole = normalizeUserRole(role);
   const pool = getPool();
   const targetId = Number(userId);
-  const cleanRole = normalizeRole(role);
 
   if (!Number.isInteger(targetId) || targetId <= 0) {
     const error = new Error("Usuario invalido.");

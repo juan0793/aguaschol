@@ -54,7 +54,7 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
     }
 
     const { revalidate, ...fetchOptions } = options;
-    const cacheKey = revalidate ? `${fetchOptions.method ?? "GET"} ${path}` : "";
+    const cacheKey = revalidate && !session?.user?.preview ? `${session?.token} ${session?.user?.role} ${fetchOptions.method ?? "GET"} ${path}` : "";
     const cached = cacheKey ? apiRevalidateCacheRef.current.get(cacheKey) : null;
 
     if (cached?.etag) {
@@ -99,7 +99,7 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
     } finally {
       marcarPeticionFin();
     }
-  }, [session?.token, marcarPeticionInicio, marcarPeticionFin]);
+  }, [session?.token, session?.user?.role, session?.user?.preview, marcarPeticionInicio, marcarPeticionFin]);
 
   return { showAlert, apiFetch };
 }

@@ -448,7 +448,7 @@ export default function DashboardWorkspace({ model }) {
     model.navigate(view);
   };
 
-  const printSelection = () =>
+  const printSelection = () => model.canExport !== false &&
     printDocument(
       "Sumatoria de barrios",
       `${dashboardReportHeader("Sumatoria de barrios seleccionados", selectedBarrios.join(" · "))}<section class="print-section">${reportSectionTitle("chart", "Resumen de mora")}<div class="print-grid print-grid-five"><div class="print-field"><strong>Abonados</strong><span>${whole(selectedDebt.records)}</span></div>${[["Capital", selectedDebt.capital], ["Intereses", selectedDebt.intereses], ["Mora total", selectedDebt.total]].map(([label, value]) => `<div class="print-field"><strong>${label}</strong><span>${escapeHtml(formatCurrency(value))}</span></div>`).join("")}<div class="print-field"><strong>Cuentas con mora</strong><span>${whole(selectedDebt.deudores)}</span></div><div class="print-field"><strong>Cuentas con mora alta</strong><span>${whole(selectedDebt.criticos)}</span></div></div></section><section class="print-section">${reportSectionTitle("records", "Detalle por barrio")}<table class="field-report-table data-report-table"><thead><tr><th>Barrio</th><th>Abonados</th><th>Cuentas con mora</th><th>Mora alta</th><th>Capital</th><th>Intereses</th><th>Mora total</th></tr></thead><tbody>${selectedRows.map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${whole(row.records)}</td><td>${whole(row.debt?.deudores)}</td><td>${whole(row.debt?.criticos)}</td><td>${escapeHtml(formatCurrency(row.debt?.capital))}</td><td>${escapeHtml(formatCurrency(row.debt?.intereses))}</td><td>${escapeHtml(formatCurrency(row.debt?.total))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedDebt.records)}</th><th>${whole(selectedDebt.deudores)}</th><th>${whole(selectedDebt.criticos)}</th><th>${escapeHtml(formatCurrency(selectedDebt.capital))}</th><th>${escapeHtml(formatCurrency(selectedDebt.intereses))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section><section class="print-section">${reportSectionTitle("water", "Servicios consolidados")}<table class="field-report-table data-report-table"><thead><tr><th>Servicio</th><th>Activos</th><th>Inactivos</th><th>Sin dato</th><th>Mora asociada</th></tr></thead><tbody>${selectedServices.map((service) => `<tr><td>${escapeHtml(service.label)}</td><td>${whole(service.active)}</td><td>${whole(service.inactive)}</td><td>${whole(service.unknown)}</td><td>${escapeHtml(formatCurrency(service.debt))}</td></tr>`).join("")}</tbody><tfoot><tr><th>Total</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.active, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.inactive, 0))}</th><th>${whole(selectedServices.reduce((sum, item) => sum + item.unknown, 0))}</th><th>${escapeHtml(formatCurrency(selectedDebt.total))}</th></tr></tfoot></table></section>`,
@@ -456,6 +456,7 @@ export default function DashboardWorkspace({ model }) {
     );
 
   const printDebtRanking = () => {
+    if (model.canExport === false) return;
     const rows = debtRankingAll(model.debtBarrios, debtMetric);
     if (!rows.length) return;
     printDocument(
@@ -488,6 +489,7 @@ export default function DashboardWorkspace({ model }) {
     );
 
   const printServiceDebt = async (service) => {
+    if (model.canExport === false) return;
     const rows = barriosDeServicio(model.debtBarrios, service.field);
     const accountRows = cuentasPorServicio[service.field]?.datos?.cuentas || [];
     let detailedAccounts = accountRows;
@@ -559,7 +561,7 @@ export default function DashboardWorkspace({ model }) {
           <div className="dw-resumen-monto">
             <header>
               <h2 className="dw-eyebrow">Cartera en mora</h2>
-              <button type="button" className="dw-icon-button" onClick={printDebtSummary} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
+              <button type="button" className="dw-icon-button" onClick={printDebtSummary} hidden={model.canExport === false} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
                 <Icon name="print" />
               </button>
             </header>
@@ -647,7 +649,7 @@ export default function DashboardWorkspace({ model }) {
           </div>
         </article>
 
-        <button
+        {!model.hideDeadlines ? <button
           type="button"
           className={["dw-plazos", alertCount ? "has-alerts" : "", plazos[0].value ? "has-overdue" : ""].filter(Boolean).join(" ")}
           aria-label={alertCount ? `Plazos de fichas: ${alertCount} con plazo crítico (${plazos.map((item) => `${item.value} ${item.label.toLowerCase()}`).join(", ")}). Revisar fichas` : "Plazos de fichas: ninguna vencida ni por vencer. Ver fichas"}
@@ -688,11 +690,11 @@ export default function DashboardWorkspace({ model }) {
             {alertCount ? "Revisar fichas" : "Ver fichas"}
             <Icon name="arrowRight" />
           </span>
-        </button>
+        </button> : null}
       </section>
 
       <nav className="dw-actions" aria-label="Acciones rápidas">
-        {QUICK_ACTIONS.map(([view, icon, label]) => (
+        {(model.quickActions || QUICK_ACTIONS).map(([view, icon, label]) => (
           <button type="button" key={view} onClick={() => model.navigate(view)}>
             <Icon name={icon} />
             {label}
@@ -903,7 +905,7 @@ export default function DashboardWorkspace({ model }) {
                           <section className="dw-services">
                             <header>
                               <strong>Servicios consolidados</strong>
-                              <button type="button" className="dw-button-secondary" onClick={printSelection}>
+                              <button type="button" className="dw-button-secondary" onClick={printSelection} hidden={model.canExport === false}>
                                 <Icon name="print" />
                                 Imprimir sumatoria
                               </button>
@@ -990,11 +992,11 @@ export default function DashboardWorkspace({ model }) {
 
 
                     <footer className="dw-panel-foot">
-                      <button type="button" className="dw-button-secondary" onClick={printDebtRanking} disabled={!ranking.length}>
+                      <button type="button" className="dw-button-secondary" onClick={printDebtRanking} hidden={model.canExport === false} disabled={!ranking.length}>
                         <Icon name="print" />
                         Imprimir mora por barrio
                       </button>
-                      <button type="button" className="dw-link" onClick={() => model.navigate("mapReports")}>
+                      <button type="button" className="dw-link" onClick={() => model.navigate(model.hideDeadlines ? "fieldValidation" : "mapReports")}>
                         Ver informe
                       </button>
                     </footer>
@@ -1067,7 +1069,7 @@ export default function DashboardWorkspace({ model }) {
                                       </button>
                                     ) : null}
                                     <div className="dw-service-drill-actions">
-                                      <button type="button" className="dw-button-secondary" onClick={() => printServiceDebt(service)}>
+                                      <button type="button" className="dw-button-secondary" onClick={() => printServiceDebt(service)} hidden={model.canExport === false}>
                                         <Icon name="print" />
                                         Ver / imprimir PDF
                                       </button>
@@ -1085,7 +1087,7 @@ export default function DashboardWorkspace({ model }) {
                   <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
                 </section>
                 <footer className="dw-panel-foot">
-                  <button type="button" className="dw-button-secondary" onClick={printDebtSummary}>
+                  <button type="button" className="dw-button-secondary" onClick={printDebtSummary} hidden={model.canExport === false}>
                     <Icon name="print" />
                     Ver / imprimir resumen PDF
                   </button>
@@ -1168,7 +1170,7 @@ export default function DashboardWorkspace({ model }) {
               <ul className="dw-list">
                 {fieldMetrics.map((item) => (
                   <li key={item.key}>
-                    <button type="button" className={item.tone || ""} onClick={() => navigate(FIELD_VIEWS[item.key] || "users")}>
+                    <button type="button" className={item.tone || ""} onClick={() => navigate(item.targetView || FIELD_VIEWS[item.key] || "users")}>
                       <Icon name={item.icon} />
                       <span>
                         <strong>{item.label}</strong>

@@ -1350,8 +1350,8 @@ function EditorCroquis({ apiFetch, barrio, onClose }) {
   );
 }
 
-export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] }) {
-  const [tab, setTab] = useState("mios");
+export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [], readOnly = false }) {
+  const [tab, setTab] = useState(readOnly ? "mapas" : "mios");
   const [barrios, setBarrios] = useState([]);
   const [mios, setMios] = useState([]);
   const [revision, setRevision] = useState([]);
@@ -1364,7 +1364,7 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
   const load = async () => {
     const [barriosRes, miosRes, historialRes] = await Promise.all([
       apiFetch("/planos/barrios"),
-      apiFetch("/planos/asignaciones/mias"),
+      readOnly ? Promise.resolve(new Response(JSON.stringify({ barrios: [] }))) : apiFetch("/planos/asignaciones/mias"),
       apiFetch("/planos/versiones")
     ]);
     setBarrios((await barriosRes.json()).barrios || []);
@@ -1477,11 +1477,11 @@ export default function PlanosWorkspace({ apiFetch, isAdmin = false, users = [] 
       <div className="planos-header">
         <div>
           <p className="sheet-kicker">Planos y Croquis</p>
-          <h2>Actualizacion editable de barrios</h2>
-          <p>PDF base + capa editable JSON para revision y publicacion.</p>
+          <h2>{readOnly ? "Planos autorizados" : "Actualizacion editable de barrios"}</h2>
+          <p>{readOnly ? "Versiones aprobadas y publicadas para consulta institucional." : "PDF base + capa editable JSON para revision y publicacion."}</p>
         </div>
         <div className="planos-tabs">
-          {["mios", "barrios", "revision", "mapas", "historial"].map((key) => (
+          {(readOnly ? ["mapas", "historial"] : ["mios", "barrios", "revision", "mapas", "historial"]).map((key) => (
             <button key={key} type="button" className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}>
               {key === "mios" ? "Mis Croquis" : key === "barrios" ? "Barrios" : key === "revision" ? "Planos finalizados" : key === "mapas" ? "Mapas Actualizados" : "Historial"}
             </button>

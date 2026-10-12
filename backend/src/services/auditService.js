@@ -142,9 +142,10 @@ export const createReportArchive = async ({
   pageMargin = "10mm",
   bodyClassName = "",
   bodyMarkup,
-  actorUserId = null
+  actorUserId = null,
+  executor
 } = {}) => {
-  const pool = getPool();
+  const pool = executor || getPool();
   await pool.query(
     `
       INSERT INTO report_archives (

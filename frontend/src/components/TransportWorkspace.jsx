@@ -127,7 +127,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
 
     return selectedRoute?.route_path ?? [];
   }, [isAdmin, routeForm.route_path, selectedRoute]);
-  const canTrackRoute = !isAdmin && Boolean(selectedRoute);
+  const canTrackRoute = !isAdmin && !session?.user?.preview && Boolean(selectedRoute);
   const latestPosition = selectedRoute?.latest_position ?? null;
 
   const handleUnauthorized = () => {
@@ -230,7 +230,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
   }, [isActive]);
 
   useEffect(() => {
-    if (!isActive || !session?.token || !WS_URL) {
+    if (!isActive || !session?.token || session.user?.preview || !WS_URL) {
       return undefined;
     }
 
@@ -780,7 +780,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
                   type="button"
                   className="button-secondary"
                   onClick={() => callRouteAction(selectedRoute.id, "complete", "Ruta marcada como completada.")}
-                  disabled={!selectedRoute}
+                  disabled={Boolean(session?.user?.preview) || !selectedRoute}
                 >
                   <Icon name="success" />
                   Cerrar recorrido
@@ -789,7 +789,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
                   type="button"
                   className="button-secondary"
                   onClick={() => runSimulation("on-route")}
-                  disabled={!selectedRoute || simulationMode != null || savingPosition}
+                  disabled={Boolean(session?.user?.preview) || !selectedRoute || simulationMode != null || savingPosition}
                 >
                   <Icon name="map" />
                   Simular ruta
@@ -798,7 +798,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
                   type="button"
                   className="button-secondary"
                   onClick={() => runSimulation("off-route")}
-                  disabled={!selectedRoute || simulationMode != null || savingPosition}
+                  disabled={Boolean(session?.user?.preview) || !selectedRoute || simulationMode != null || savingPosition}
                 >
                   <Icon name="warning" />
                   Simular desvio

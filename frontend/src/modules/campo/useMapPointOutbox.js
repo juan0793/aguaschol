@@ -38,14 +38,14 @@ export function useMapPointOutbox({ apiFetch, session, setMapPoints, setMapDiary
 
   useEffect(() => {
     let cancelled = false;
-    loadOutbox(userId).then((loaded) => {
+    (session?.user?.preview ? Promise.resolve([]) : loadOutbox(userId)).then((loaded) => {
       if (!cancelled) commit(loaded);
     });
     return () => { cancelled = true; };
-  }, [commit, userId]);
+  }, [commit, userId, session?.user?.preview]);
 
   const syncNow = useCallback(async () => {
-    if (syncingRef.current || !session?.token) return;
+    if (syncingRef.current || !session?.token || session.user?.role === "gerente" || session.user?.preview) return;
     const ready = itemsRef.current.filter((item) => isReadyToSend(item));
     if (!ready.length) return;
     syncingRef.current = true;
@@ -96,7 +96,7 @@ export function useMapPointOutbox({ apiFetch, session, setMapPoints, setMapDiary
       syncingRef.current = false;
       setSyncing(false);
     }
-  }, [apiFetch, commit, session?.token, setMapDiaryGroupsSummary, setMapPoints]);
+  }, [apiFetch, commit, session?.token, session?.user?.role, setMapDiaryGroupsSummary, setMapPoints]);
 
   // Reintentos: al volver la señal, al volver a la pestaña y cada 20 s mientras quede algo.
   useEffect(() => {
@@ -126,15 +126,17 @@ export function useMapPointOutbox({ apiFetch, session, setMapPoints, setMapDiary
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
   const enqueue = useCallback(async (payload) => {
+    if (session?.user?.preview) throw new Error("Modo de prueba: no se guardan puntos pendientes.");
     const item = createOutboxItem({ payload, userId });
     const stored = await saveOutboxItem(item);
     if (!stored) return { item, stored: false };
     commit((current) => [...current, item]);
     scheduleSync();
     return { item, stored };
-  }, [commit, scheduleSync, userId]);
+  }, [commit, scheduleSync, userId, session?.user?.preview]);
 
   const updatePending = useCallback(async (localId, patch) => {
+    if (session?.user?.preview) return false;
     const item = itemsRef.current.find((entry) => entry.localId === localId);
     if (!item) return false;
     // Corregir un punto rechazado lo devuelve a la cola.
@@ -143,13 +145,14 @@ export function useMapPointOutbox({ apiFetch, session, setMapPoints, setMapDiary
     commit((current) => current.map((entry) => (entry.localId === localId ? updated : entry)));
     scheduleSync();
     return true;
-  }, [commit, scheduleSync]);
+  }, [commit, scheduleSync, session?.user?.preview]);
 
   const discard = useCallback(async (localId) => {
+    if (session?.user?.preview) return false;
     if (!(await deleteOutboxItem(localId))) return false;
     commit((current) => current.filter((entry) => entry.localId !== localId));
     return true;
-  }, [commit]);
+  }, [commit, session?.user?.preview]);
 
   const pendingPoints = useMemo(() => items.map(outboxItemToPoint), [items]);
   const rejectedCount = items.filter((item) => item.status === "rechazado").length;

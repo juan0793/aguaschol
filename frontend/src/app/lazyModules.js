@@ -22,6 +22,7 @@ export const RailwayUsageWorkspace = lazy(() => import("../components/RailwayUsa
 export const TeamActivityWorkspace = lazy(() => import("../modules/actividad/TeamActivityWorkspace"));
 
 export const PlanosWorkspace = lazy(() => import("../modules/planos/PlanosWorkspace"));
+export const ManagerDashboardWorkspace = lazy(() => import("../modules/dashboard/ManagerDashboardWorkspace"));
 
 export const ReportsWorkspace = lazy(() => import("../modules/reports/ReportsWorkspace"));
 

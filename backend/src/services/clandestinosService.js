@@ -306,7 +306,7 @@ const fichasActivas = async (ids) => {
 // Fichas completas y al día, en el orden pedido (para imprimir lo que hay en la base,
 // no lo que quedó en la selección de la bandeja).
 export const getFichasByIds = async (ids = [], user) => {
-  if (!canReview(user)) throw fail("Tu rol no puede imprimir fichas en lote.", 403);
+  if (!canReview(user) && user?.role !== "gerente") throw fail("Tu rol no puede consultar fichas en lote.", 403);
   const selected = idsDelLote(ids, "consultar");
   const { found, skipped } = await fichasActivas(selected);
   return { items: found, skipped };
