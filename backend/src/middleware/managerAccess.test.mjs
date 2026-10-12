@@ -18,7 +18,7 @@ test("Gerencia consulta módulos autorizados con respuestas no almacenables", ()
     ["/api/inmuebles", "/"], ["/api/inmuebles", "/clave/01-02-03"],
     ["/api/clandestinos", "/fichas"], ["/api/clandestinos", "/fichas/ritmo"],
     ["/api/inspecciones", "/stats/tablero"], ["/api/inspecciones", "/7/gps"],
-    ["/api/entregas", "/lotes/4"], ["/api/entregas", "/reportes/semanales/preview"],
+    ["/api/entregas", "/lotes/4"], ["/api/entregas", "/avance-mes"], ["/api/entregas", "/reportes/semanales/preview"],
     ["/api/claves", "/services/report"], ["/api/field-validation", "/findings"],
     ["/api/gis", "/lotes/12"], ["/api/gis", "/health"], ["/api/gis", "/barrios/report"], ["/api/gis", "/catastro/report"], ["/api/map-points", "/"],
     ["/api/planos", "/versiones"], ["/api/transport", "/"],

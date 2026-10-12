@@ -10,7 +10,7 @@ import { addDaysIso } from "../utils/entregasDate.js";
 const LIMITE_LOTES_HOY = 100;
 
 export const useAvanceJornada = (api, { activo = true, fecha = "", desdeAnterior = "" } = {}) => {
-  const [data, setData] = useState({ lotesHoy: [], resumenHoy: null, totalHoy: 0, anterior: null, totalAnterior: 0 });
+  const [data, setData] = useState({ lotesHoy: [], resumenHoy: null, totalHoy: 0, anterior: null, totalAnterior: 0, mes: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const requestId = useRef(0);
@@ -21,9 +21,11 @@ export const useAvanceJornada = (api, { activo = true, fecha = "", desdeAnterior
     setLoading(true);
     setError("");
     try {
-      const [hoy, anterior] = await Promise.all([
+      // El avance del mes va aparte: si falla, la barra de hoy sigue funcionando.
+      const [hoy, anterior, mes] = await Promise.all([
         api.lotes({ fecha_desde: fecha, fecha_hasta: fecha, limit: LIMITE_LOTES_HOY }),
-        api.lotes({ fecha_desde: desdeAnterior, fecha_hasta: addDaysIso(fecha, -1), limit: 1 })
+        api.lotes({ fecha_desde: desdeAnterior, fecha_hasta: addDaysIso(fecha, -1), limit: 1 }),
+        api.avanceMes ? api.avanceMes().catch(() => null) : Promise.resolve(null)
       ]);
       if (id !== requestId.current) return; // respuesta obsoleta
       setData({
@@ -31,7 +33,8 @@ export const useAvanceJornada = (api, { activo = true, fecha = "", desdeAnterior
         resumenHoy: hoy.resumen || null,
         totalHoy: Number(hoy.total) || 0,
         anterior: anterior.resumen || null,
-        totalAnterior: Number(anterior.total) || 0
+        totalAnterior: Number(anterior.total) || 0,
+        mes
       });
     } catch (reason) {
       if (id === requestId.current) setError(reason.message);

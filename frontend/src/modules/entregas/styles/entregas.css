@@ -937,3 +937,33 @@
   .ent-module .ent-operational-table :is(td:first-child, td:last-child) { width: auto; }
   .ent-module .ent-repetidos-table td:nth-child(n) { grid-column: 1 / -1; }
 }
+
+/* Avance del mes: un tramo por barrio del reparto, agrupado por técnico. */
+.ent-mes { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--ent-borde); }
+.ent-mes-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; }
+.ent-mes-head h3 { margin: 0; color: var(--navy); font-size: 15px; }
+.ent-mes-head small { color: var(--muted); font-size: 12px; }
+.ent-mes-head p { margin: 0; color: var(--muted); font-size: 13px; }
+.ent-mes-head p strong { color: var(--navy); font-size: 17px; font-variant-numeric: tabular-nums; }
+.ent-mes-head p span { margin-left: 8px; color: var(--primary); font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ent-mes-track { display: flex; gap: 4px; height: 14px; margin: 10px 0 8px; }
+.ent-mes-grupo { display: flex; flex: 1 1 0; gap: 1px; min-width: 0; overflow: hidden; border-radius: 4px; }
+.ent-mes-grupo i { display: block; flex: 1 1 0; min-width: 2px; background: #e4edf5; transition: background .3s ease, transform .15s ease; }
+.ent-mes-grupo i.is-entregado { background: var(--primary); }
+.ent-mes-grupo i.is-en_curso { background: repeating-linear-gradient(135deg, #8db6e6 0 4px, #c9dbf3 4px 8px); }
+.ent-mes-grupo i.is-activo { transform: scaleY(1.35); }
+.ent-mes-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.ent-mes-pie small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ent-mes .ent-mes-pie button { min-height: 30px; padding: 0 12px; font-size: 12px; }
+.ent-mes-tecnicos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 18px; margin: 12px 0 0; padding: 0; list-style: none; }
+.ent-mes-tecnico { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.ent-mes-tecnico strong { color: var(--navy); font-size: 13px; }
+.ent-mes-tecnico span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ent-mes-tecnicos ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ent-mes-tecnicos ul li { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.ent-mes-tecnicos ul li i { width: 8px; height: 8px; flex: none; border-radius: 2px; background: #e4edf5; }
+.ent-mes-tecnicos ul li.is-entregado { color: var(--navy); }
+.ent-mes-tecnicos ul li.is-entregado i { background: var(--primary); }
+.ent-mes-tecnicos ul li.is-en_curso i { background: repeating-linear-gradient(135deg, #8db6e6 0 2px, #c9dbf3 2px 4px); }
+.ent-mes .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .ent-mes-grupo i { transition: none; } }

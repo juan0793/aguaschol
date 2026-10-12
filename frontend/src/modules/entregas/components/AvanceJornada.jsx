@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AvanceMes from "./AvanceMes";
 import { Icon } from "../../../components/Icon";
 import { avanceDeResumen, avancePorResponsable } from "../selectors/entregasSelectors";
 import { estadoClass, estadoLoteLabel, formatDate, formatFullDate, formatNumber, formatPercent, tipoDocumentoLabel } from "../utils/entregasFormatters";
@@ -77,6 +78,7 @@ export default function AvanceJornada({ model, fecha, onVerAnteriores, onAbrirLo
 
   return (
     <section className="ent-avance" aria-labelledby="ent-avance-titulo" aria-busy={loading}>
+      <AvanceMes mes={model.mes} />
       <div className="cl-inbox-head ent-head-compacta">
         <div>
           <h3 id="ent-avance-titulo">Avance de hoy · {formatFullDate(fecha)}</h3>

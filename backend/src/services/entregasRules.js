@@ -937,3 +937,61 @@ export const armarControlDescartes = ({ fecha, ciclo, cortes = [], documentos = 
     repetidos
   };
 };
+
+/* -------------------------------------------------------------------------- */
+/* Avance del mes por barrio                                                   */
+/* -------------------------------------------------------------------------- */
+
+// Avance del ciclo sobre los barrios del reparto. Un barrio queda "entregado" cuando
+// tiene al menos un lote cerrado en el ciclo y ninguno abierto; "en_curso" si tiene
+// un lote abierto; "pendiente" si todavía no tiene lotes. `lotes` llega agrupado por
+// barrio y estado: { barrio_codigo, estado, lotes, asignadas, entregadas }.
+export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde = "", hasta = "" } = {}) => {
+  const porBarrio = new Map();
+  for (const fila of lotes) {
+    const codigo = String(fila.barrio_codigo || "").trim();
+    if (!codigo) continue;
+    const entrada = porBarrio.get(codigo) || { abiertos: 0, cerrados: 0, asignadas: 0, entregadas: 0 };
+    if (fila.estado === "ABIERTO") entrada.abiertos += toEntero(fila.lotes);
+    else entrada.cerrados += toEntero(fila.lotes);
+    entrada.asignadas += toEntero(fila.asignadas);
+    entrada.entregadas += toEntero(fila.entregadas);
+    porBarrio.set(codigo, entrada);
+  }
+  const nombres = new Map(personal.map((persona) => [toEntero(persona.id), persona.nombre_completo || ""]));
+  const filas = barrios
+    .filter((barrio) => barrio.responsable_id != null)
+    .map((barrio) => {
+      const lote = porBarrio.get(String(barrio.codigo)) || { abiertos: 0, cerrados: 0, asignadas: 0, entregadas: 0 };
+      const estado = lote.abiertos ? "en_curso" : lote.cerrados ? "entregado" : "pendiente";
+      return {
+        codigo: String(barrio.codigo),
+        nombre: barrio.nombre || `Barrio ${barrio.codigo}`,
+        claves: toEntero(barrio.claves),
+        responsable_id: toEntero(barrio.responsable_id),
+        responsable_nombre: nombres.get(toEntero(barrio.responsable_id)) || "Sin nombre",
+        orden_ruta: barrio.orden_ruta == null ? null : toEntero(barrio.orden_ruta),
+        estado,
+        lotes: lote.abiertos + lote.cerrados,
+        asignadas: lote.asignadas,
+        entregadas: lote.entregadas
+      };
+    })
+    // Agrupado por técnico, y dentro de cada uno por su orden de ruta o por nombre.
+    .sort((a, b) => a.responsable_nombre.localeCompare(b.responsable_nombre, "es")
+      || (a.orden_ruta ?? 9999) - (b.orden_ruta ?? 9999)
+      || a.nombre.localeCompare(b.nombre, "es"));
+  const contar = (estado) => filas.filter((fila) => fila.estado === estado).length;
+  const entregados = contar("entregado");
+  return {
+    desde,
+    hasta,
+    total: filas.length,
+    entregados,
+    en_curso: contar("en_curso"),
+    pendientes: contar("pendiente"),
+    porcentaje: filas.length ? Math.round((entregados / filas.length) * 1000) / 10 : 0,
+    documentos_entregados: filas.reduce((suma, fila) => suma + fila.entregadas, 0),
+    barrios: filas
+  };
+};

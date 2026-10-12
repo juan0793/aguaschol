@@ -21,7 +21,8 @@ import {
   registrarIntento,
   updateLote,
   updateNoEntregada,
-  updatePersonal
+  updatePersonal,
+  getAvanceMes
 } from "../services/entregasService.js";
 import {
   anularReporte,
@@ -48,6 +49,7 @@ const handle = (fn) => async (req, res, next) => {
 
 export const config = handle(async (req, res) => res.json(await getEntregasConfig(req.authUser)));
 export const resumen = handle(async (req, res) => res.json(await getResumen(req.query, req.authUser)));
+export const avanceMes = handle(async (req, res) => res.json(await getAvanceMes(req.authUser)));
 
 export const personalList = handle(async (req, res) => res.json(await listPersonal(req.query, req.authUser)));
 export const personalCreate = handle(async (req, res) =>

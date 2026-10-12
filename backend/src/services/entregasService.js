@@ -8,6 +8,7 @@ import { jornadaEntregas } from "./entregasReminderService.js";
 import { createAuditLog } from "./auditService.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 import { listBarrioCodes } from "./barrioCodeService.js";
+import { leerRepartoBarrios } from "./entregasRepartoService.js";
 import {
   ESTADOS_LOTE,
   ESTADOS_NO_ENTREGADA,
@@ -34,7 +35,8 @@ import {
   validarConsistenciaDetalle,
   validarMotivo,
   validarSobrantes,
-  validarTotalAsignado
+  validarTotalAsignado,
+  armarAvanceMes
 } from "./entregasRules.js";
 
 const clean = (value) => String(value ?? "").trim();
@@ -837,6 +839,27 @@ export const getCicloVigente = async (executor = getPool()) => {
       }
       : null
   };
+};
+
+// Avance del mes: qué barrios del reparto ya se entregaron en el ciclo vigente. Sin
+// cortes declarados, el ciclo es el mes calendario en curso.
+export const getAvanceMes = async (user) => {
+  if (!canReadAll(user)) throw fail("Solo quien ve a todo el equipo consulta el avance del mes.", 403);
+  const hoy = jornadaEntregas().fecha;
+  const [{ barrios }, ciclo, [personal]] = await Promise.all([
+    leerRepartoBarrios(),
+    getCicloVigente(),
+    getPool().query("SELECT id, nombre_completo FROM personal_campo")
+  ]);
+  const desde = ciclo.fecha_inicio || `${hoy.slice(0, 7)}-01`;
+  const [lotes] = await getPool().query(
+    `SELECT barrio_codigo, estado, COUNT(*) AS lotes, SUM(total_asignadas) AS asignadas,
+       SUM(CASE WHEN estado = 'ABIERTO' THEN 0 ELSE GREATEST(total_asignadas - total_sobrantes, 0) END) AS entregadas
+     FROM entrega_lotes WHERE fecha >= ? AND fecha <= ? AND barrio_codigo <> ''
+     GROUP BY barrio_codigo, estado`,
+    [desde, hoy]
+  );
+  return { ...armarAvanceMes({ barrios, lotes, personal, desde, hasta: hoy }), ciclo_declarado: Boolean(ciclo.fecha_inicio) };
 };
 
 // Cuando facturacion emite los documentos del mes nuevo, los pendientes del ciclo

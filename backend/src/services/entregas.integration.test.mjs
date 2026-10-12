@@ -176,6 +176,12 @@ test("MySQL real: permisos, cierre concurrente, correcciones, recordatorios y re
     assert.equal((await service.cerrarLote(delOtro.id, { total_sobrantes: 0 }, tecnico)).estado, "CERRADO");
     // La oficina no queda limitada por el reparto.
     assert.ok((await service.createLote({ ...loteSinUsuario, barrio_codigo: barrioB.codigo }, gestor)).id);
+    // Avance del mes: los barrios del reparto y su estado en el ciclo, contra MySQL real.
+    const avanceMes = await service.getAvanceMes(admin);
+    assert.ok(avanceMes.total >= 1);
+    assert.equal(avanceMes.entregados + avanceMes.en_curso + avanceMes.pendientes, avanceMes.total);
+    assert.ok(avanceMes.barrios.every((fila) => ["entregado", "en_curso", "pendiente"].includes(fila.estado) && fila.responsable_nombre));
+    await assert.rejects(service.getAvanceMes(otro), { status: 403 });
     console.log(`QA MySQL verificado: ${database}`);
   } finally {
     if (pool) await pool.end();

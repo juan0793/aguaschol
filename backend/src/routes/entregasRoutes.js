@@ -30,13 +30,15 @@ import {
   repartoLoteUpdate,
   repartoMapa,
   reportesList,
-  resumen
+  resumen,
+  avanceMes
 } from "../controllers/entregasController.js";
 
 const router = Router();
 
 router.get("/config", config);
 router.get("/resumen", resumen);
+router.get("/avance-mes", avanceMes);
 router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);
 router.get("/descartes", requireRoles("admin", "gerente"), descartes);
 
