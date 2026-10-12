@@ -10,7 +10,7 @@ import { emitToRoles } from "./profileRealtimeService.js";
 export const ACCIONES_EXCLUIDAS = ["auth.login", "auth.logout", "auth.logout_all", "auth.password_changed", "profile.message_sent", "profile.general_message_sent", "profile.achievement_awarded", "report.manager.prepared", "report.manager.pdf_generated", "report.manager.download_requested"];
 
 // Lo que cierra un trabajo: suena y sale un aviso emergente. Lo demás solo llega a la campana.
-const FINALES = new Set([
+export const FINALES = new Set([
   "banco_clandestinos.sent_to_ficha",
   "banco_clandestinos.discarded",
   "inspeccion.finalized",
@@ -140,6 +140,9 @@ export const listTeamActivity = async (filtros = {}, user) => {
   if (Number(filtros.actor) > 0) { where.push("audit_logs.actor_user_id = ?"); params.push(Number(filtros.actor)); }
   const categoria = filtroCategoria(clean(filtros.categoria));
   if (categoria) { where.push(categoria.sql); params.push(...categoria.params); }
+  // hitos=1: solo trabajos cerrados (inspección finalizada, lote cerrado...), lo que sigue Gerencia.
+  const soloHitos = clean(filtros.hitos) === "1";
+  if (soloHitos) { where.push("audit_logs.action IN (?)"); params.push([...FINALES]); }
   const listaWhere = [...where];
   const listaParams = [...params];
   if (Number(filtros.antes) > 0) { listaWhere.push("audit_logs.id < ?"); listaParams.push(Number(filtros.antes)); }
@@ -174,8 +177,8 @@ export const listTeamActivity = async (filtros = {}, user) => {
   // Sin vistas previas se cuentan solo los últimos 7 días, no toda la historia.
   const desdeNoLeidos = seenAt || new Date(Date.now() - 7 * 86400000);
   const [[{ unread }]] = await pool.query(
-    `SELECT COUNT(*) AS unread ${base} WHERE app_users.role <> 'admin' AND audit_logs.action NOT IN (?) AND audit_logs.created_at > ?`,
-    [ACCIONES_EXCLUIDAS, desdeNoLeidos]
+    `SELECT COUNT(*) AS unread ${base} WHERE app_users.role <> 'admin' AND audit_logs.action NOT IN (?) AND audit_logs.created_at > ?${soloHitos ? " AND audit_logs.action IN (?)" : ""}`,
+    [ACCIONES_EXCLUIDAS, desdeNoLeidos, ...(soloHitos ? [[...FINALES]] : [])]
   );
 
   // Resumen por persona del periodo (sin el filtro de persona ni de área).
@@ -213,7 +216,7 @@ export const listTeamActivity = async (filtros = {}, user) => {
 
 // El administrador ya vio la actividad hasta ahora: la campana vuelve a cero.
 export const markTeamActivitySeen = async (user) => {
-  if (user?.role !== "admin") throw fail("Solo administración ve la actividad del equipo.", 403);
+  if (!["admin", "gerente"].includes(user?.role)) throw fail("Solo administración y Gerencia ven la actividad del equipo.", 403);
   if (env.useMemoryDb) return { seen_at: new Date().toISOString() };
   await getPool().query("UPDATE app_users SET team_activity_seen_at = CURRENT_TIMESTAMP WHERE id = ?", [user.id]);
   return { seen_at: new Date().toISOString() };

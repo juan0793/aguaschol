@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { greetingFor, isWelcomeVisit } from "../utils/greeting";
+import ManagerNotifications from "./ManagerNotifications";
 import { NotificationCenter } from "../components/NotificationCenter.jsx";
 import { abrirMisAsignaciones } from "../modules/clandestinos/hooks/useBanco";
 import { formatMapDiaryLabel } from "../utils/datesAndBusiness";
@@ -176,7 +177,7 @@ export default function AppHeader({ model }) {
               setWorkspaceView("profile");
               setNotificationUserId(userId);
             }}
-          /> : <span className="panel-pill">Solo lectura</span>}
+          /> : <><ManagerNotifications apiFetch={apiFetch} session={session} onOpenView={setWorkspaceView} /><span className="panel-pill">Solo lectura</span></>}
           <button type="button" className="app-user-chip" aria-haspopup="menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu((current) => !current)}>
             <Icon name="users" />
             {session?.user?.full_name || session?.user?.username || "Sesion activa"}

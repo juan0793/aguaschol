@@ -76,3 +76,12 @@ test("Gerencia accede a informes y eventos delimitados, sin habilitar rutas de e
   assert.equal(invoke("/api/reports", "POST", "/manager/nuevo/events").status, 403);
   assert.equal(invoke("/api/reports", "DELETE", "/manager/RPT-20261012-120000-ABCDEF12").status, 403);
 });
+
+test("Gerencia marca como vista su campana, pero no escribe otra cosa en la actividad del equipo", () => {
+  assert.equal(invoke("/api/admin/team-activity", "POST", "/seen").continued, true);
+  for (const [method, path] of [["POST", "/"], ["DELETE", "/seen"], ["PUT", "/seen"], ["POST", "/otra"]]) {
+    const result = invoke("/api/admin/team-activity", method, path);
+    assert.equal(result.continued, false, `${method} ${path}`);
+    assert.equal(result.status, 403);
+  }
+});

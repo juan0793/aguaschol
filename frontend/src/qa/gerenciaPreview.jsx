@@ -24,6 +24,7 @@ const qaPath = location.pathname;
 const replaceHistory = history.replaceState.bind(history);
 history.replaceState = (state, title, url) => replaceHistory(state, title, `${qaPath}${new URL(url || location.href, location.href).hash}`);
 let failReads = false;
+let qaHitosPolls = 0;
 const barrio = (name, count) => ({ barrio_colonia: name, total_registros: count, deuda: { capital: 6000, intereses: 3000, total: 9000, deudores: 6, criticos: 2 }, servicios: [{ field: "agua", label: "Agua potable", active: count, inactive: 0, unknown: 0, deuda: { total: 9000 } }] });
 const data = {
   "/auth/me": { user },
@@ -41,6 +42,19 @@ window.fetch = async (url, options = {}) => {
   if (options.signal?.aborted) throw new DOMException("Cancelado", "AbortError");
   const path = new URL(String(url), location.origin).pathname.replace(/^\/api/, "");
   if (failReads && path !== "/auth/me") return new Response(JSON.stringify({ message: "Fallo de lectura simulado en QA." }), { status: 503, headers: { "Content-Type": "application/json" } });
+  if (path === "/admin/team-activity" && String(url).includes("hitos=1")) {
+    qaHitosPolls += 1;
+    const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
+    const base = [
+      { id: 101, action: "inspeccion.finalized", categoria: "inspecciones", actor_name: "Técnico de prueba A", summary: "Inspección #28 finalizada", enlace: { view: "inspecciones" }, created_at: ago(6) },
+      { id: 100, action: "LOTE_CERRADO", categoria: "entregas", actor_name: "Técnico de prueba B", summary: "Lote BO. de prueba A · 52 de 60", enlace: { view: "entregas", loteId: 9 }, created_at: ago(34) },
+      { id: 99, action: "banco_clandestinos.sent_to_ficha", categoria: "fichas", actor_name: "Técnico de prueba C", summary: "Clave 00-00-014 pasó a ficha", enlace: { view: "banco" }, created_at: ago(95) },
+      { id: 98, action: "technical_report.created", categoria: "fichas", actor_name: "Técnico de prueba A", summary: "Reporte técnico en Colonia de prueba D", enlace: null, created_at: ago(180) }
+    ];
+    const items = qaHitosPolls > 1 ? [{ id: 102, action: "LOTE_CERRADO", categoria: "entregas", actor_name: "Técnico de prueba D", summary: "Lote Barrio de prueba E · 15 de 30", enlace: { view: "entregas", loteId: 10 }, created_at: ago(0) }, ...base] : base;
+    return new Response(JSON.stringify({ items, unread: qaHitosPolls > 1 ? 3 : 2, seen_at: ago(60), has_more: false, tecnicos: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+  if (path === "/admin/team-activity/seen") return new Response(JSON.stringify({ seen_at: new Date().toISOString() }), { status: 200, headers: { "Content-Type": "application/json" } });
   if (path === "/reports/manager" && options.method === "POST") {
     const filters = JSON.parse(options.body);
     return new Response(JSON.stringify(qaManagerReport(filters)), { status: 201, headers: { "Content-Type": "application/json" } });
@@ -65,3 +79,7 @@ if (qaParams.get("vista") === "informes") {
   if (qaParams.get("informe")) setTimeout(() => click(".mr-index button", qaParams.get("informe")), 1800);
   if (qaParams.get("pestana")) setTimeout(() => click(".mr-tabs button", qaParams.get("pestana")), 2600);
 }
+// QA: ?gerencia=cartera abre la pestaña "Cartera y padrón".
+if (qaParams.get("gerencia") === "cartera") setTimeout(() => [...document.querySelectorAll(".manager-tabs button")].find((node) => node.textContent.includes("Cartera"))?.click(), 1400);
+// QA: ?campana=1 abre la campana de Gerencia.
+if (qaParams.get("campana") === "1") setTimeout(() => document.querySelector(".mn-bell")?.click(), 2000);

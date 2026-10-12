@@ -32,7 +32,8 @@ export const requireManagerAccess = (req, res, next) => {
   const accountAction = req.baseUrl === "/api/auth" && (
     (req.method === "GET" && req.path === "/me") ||
     (req.method === "POST" && ["/logout", "/change-password"].includes(req.path))
-  );
+  ) || (req.baseUrl === "/api/admin/team-activity" && req.method === "POST" && req.path === "/seen");
+  // "Visto" de la campana solo mueve la marca de la propia cuenta; no toca datos operativos.
   if (accountAction) return next();
 
   const path = req.path.replace(/\/$/, "") || "/";

@@ -523,7 +523,8 @@ export default function DashboardWorkspace({ model }) {
             <span className="dw-status-date is-missing">Sin fecha de corte registrada</span>
           )}
         </p>
-        <div className="dw-status-side">
+        {/* Gerencia ya muestra la actualización arriba de sus pestañas. */}
+        {model.hideSync ? null : <div className="dw-status-side">
           {model.onlineUsers.length ? (
             <div
               className="dw-team"
@@ -547,7 +548,7 @@ export default function DashboardWorkspace({ model }) {
           <button type="button" className="dw-refresh" onClick={model.refresh} disabled={model.manualRefreshing} aria-label="Actualizar las cifras del tablero">
             <Icon name="refresh" className={model.manualRefreshing ? "ds-icon-spin" : ""} />Actualizar
           </button>
-        </div>
+        </div>}
       </section>
 
       {/* La cartera es la cifra que define el dia: va primero y con mas peso.
@@ -693,14 +694,14 @@ export default function DashboardWorkspace({ model }) {
         </button> : null}
       </section>
 
-      <nav className="dw-actions" aria-label="Acciones rápidas">
+      {(model.quickActions || QUICK_ACTIONS).length ? <nav className="dw-actions" aria-label="Acciones rápidas">
         {(model.quickActions || QUICK_ACTIONS).map(([view, icon, label]) => (
           <button type="button" key={view} onClick={() => model.navigate(view)}>
             <Icon name={icon} />
             {label}
           </button>
         ))}
-      </nav>
+      </nav> : null}
 
       {/* Columna ancha para el analisis de la mora; la angosta para lo que se
           atiende hoy. El separador reparte el ancho entre ambas: se arrastra,
@@ -1186,7 +1187,7 @@ export default function DashboardWorkspace({ model }) {
             </article>
           ) : null}
 
-          <article className="dw-panel dw-feed">
+          {model.aside ? model.aside : <article className="dw-panel dw-feed">
                     <header className="dw-panel-head">
                       <div>
                         <h2>Actividad reciente</h2>
@@ -1206,7 +1207,7 @@ export default function DashboardWorkspace({ model }) {
                       ))}
                     </ul>
                     {!model.feed.length ? <p className="dw-empty">Aún no hay actividad reciente.</p> : null}
-                  </article>
+                  </article>}
         </aside>
       </div>
     </main>

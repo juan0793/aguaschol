@@ -1,0 +1,68 @@
+/* Campana y panel "En vivo" de Gerencia. Capa flotante con la sombra de capa. */
+.mn { position: relative; }
+.mn-bell { position: relative; display: grid; width: 40px; height: 40px; padding: 0; place-items: center; color: #315069; background: #fff; border: 1px solid #dfe5ec; border-radius: 50%; box-shadow: none; cursor: pointer; transition: background 140ms ease, color 140ms ease; }
+.mn-bell:hover { color: #16283b; background: #f4f7fb; }
+.mn-bell:focus-visible { outline: 2px solid #1465d9; outline-offset: 2px; }
+.mn-bell.has-unread { color: #1465d9; }
+.mn-bell b { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; color: #fff; background: #c2414b; border: 2px solid #fff; border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 14px; text-align: center; animation: mn-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes mn-pop { from { transform: scale(0.4); } }
+
+.mn-panel { position: absolute; top: calc(100% + 10px); right: 0; z-index: 1150; display: grid; width: min(400px, calc(100vw - 24px)); max-height: min(560px, calc(100vh - 120px)); overflow: hidden; grid-template-rows: auto minmax(0, 1fr) auto; color: #16283b; background: #fff; border: 1px solid #dfe5ec; border-radius: 12px; box-shadow: 0 6px 18px rgba(22, 40, 59, 0.12); animation: mn-in 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes mn-in { from { opacity: 0; transform: translateY(-6px); } }
+.mn-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; border-bottom: 1px solid #e8ecf1; }
+.mn-panel h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.mn-panel header p, .ml-head p { display: flex; align-items: center; gap: 6px; margin: 3px 0 0; color: #5f7184; font-size: 12px; }
+.mn-live { position: relative; width: 8px; height: 8px; background: #18a689; border-radius: 50%; }
+.mn-live::after { position: absolute; inset: -4px; border: 2px solid #18a689; border-radius: 50%; opacity: 0; content: ""; animation: mn-ping 2.4s ease-out infinite; }
+.mn-live.is-error { background: #b42318; }
+.mn-live.is-error::after { display: none; }
+@keyframes mn-ping { 0% { opacity: 0.6; transform: scale(0.6); } 100% { opacity: 0; transform: scale(1.6); } }
+.mn-mute { display: grid; width: 32px; height: 32px; padding: 0; place-items: center; color: #5f7184; background: transparent; border: 0; border-radius: 8px; cursor: pointer; }
+.mn-mute:hover { color: #16283b; background: #eef2f6; }
+.mn-panel ul { margin: 0; padding: 6px; overflow-y: auto; list-style: none; }
+.mn-empty, .ml-empty { margin: 0; padding: 22px 16px; color: #5f7184; font-size: 13px; text-align: center; }
+.mn-panel li button, .ml-list li button { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 9px 10px; color: inherit; text-align: left; background: transparent; border: 0; border-radius: 8px; font: inherit; cursor: pointer; transition: background 140ms ease; }
+.mn-panel li button:hover, .ml-list li button:hover { background: #f4f7fb; }
+.mn-panel li button:focus-visible, .ml-list li button:focus-visible { outline: 2px solid #1465d9; outline-offset: -2px; }
+.mn-icon { display: grid; width: 34px; height: 34px; place-items: center; color: #1465d9; background: #eaf2fd; border-radius: 50%; }
+.mn-icon .app-icon { width: 16px; height: 16px; }
+.mn-icon.is-green { color: #13805e; background: #e3f5ee; }
+.mn-icon.is-red { color: #b42318; background: #fcebea; }
+.mn-icon.is-amber { color: #9a5a06; background: #fdf1de; }
+.mn-icon.is-slate { color: #3d5166; background: #eef1f5; }
+.mn-text { display: grid; gap: 2px; min-width: 0; }
+.mn-text strong { font-size: 13px; font-weight: 650; }
+.mn-text span { overflow: hidden; color: #5f7184; font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.mn-time { display: inline-flex; align-items: center; gap: 6px; color: #5f7184; font-size: 11px; white-space: nowrap; }
+.mn-dot { width: 7px; height: 7px; background: #1465d9; border-radius: 50%; }
+.mn-panel footer { padding: 8px; border-top: 1px solid #e8ecf1; }
+.mn-panel footer button, .ml-all { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 36px; color: #1465d9; background: transparent; border: 0; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.mn-panel footer button:hover, .ml-all:hover { background: #f4f8fd; }
+.mn-panel footer .app-icon, .ml-all .app-icon { width: 15px; height: 15px; }
+
+/* Panel "En vivo" dentro de Cartera y padrón */
+.ml { display: grid; gap: 10px; }
+.ml-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ml-head h2 { margin: 0; color: #16283b; font-size: 15px; font-weight: 650; }
+.ml-refresh { display: grid; width: 32px; height: 32px; padding: 0; place-items: center; color: #5f7184; background: #fff; border: 1px solid #dfe5ec; border-radius: 8px; cursor: pointer; }
+.ml-refresh:hover { color: #16283b; background: #f4f7fb; }
+.ml-refresh .app-icon { width: 15px; height: 15px; }
+.ml-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.ml-filters button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; color: #315069; background: #fff; border: 1px solid #dfe5ec; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: background 140ms ease, border-color 140ms ease, color 140ms ease; }
+.ml-filters button span { color: #5f7184; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ml-filters button:hover { background: #f4f7fb; }
+.ml-filters button.is-active { color: #1465d9; background: #eaf2fd; border-color: #b9d0ef; }
+.ml-filters button.is-active span { color: #1465d9; }
+.ml-filters button:focus-visible { outline: 2px solid #1465d9; outline-offset: 2px; }
+.ml-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ml-list li { border-radius: 8px; }
+.ml-list li.is-fresh { animation: ml-fresh 2.4s ease-out; }
+@keyframes ml-fresh { 0% { background: #dbeafe; } 100% { background: transparent; } }
+
+@media (max-width: 640px) {
+  .mn-panel { position: fixed; top: 64px; right: 12px; left: 12px; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mn-bell b, .mn-panel, .ml-list li.is-fresh { animation: none; }
+  .mn-live::after { animation: none; }
+}

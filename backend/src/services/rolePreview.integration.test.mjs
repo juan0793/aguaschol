@@ -98,6 +98,18 @@ test("MySQL real: perfiles de prueba, permisos, vencimiento, concurrencia, audit
       assert.equal((await api("POST", "/api/auth/preview", real[role], { role: "operator" })).status, 403, `${role} no inicia prueba`);
     }
 
+    // Campana de Gerencia: solo trabajos cerrados (hitos=1) y puede marcarlos como vistos.
+    const [[operatorRow]] = await pool.query("SELECT id FROM app_users WHERE username = 'operator_qa'");
+    await pool.query("INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, summary) VALUES (?, 'LOTE_CERRADO', 'entrega', '1', 'Lote cerrado de prueba'), (?, 'inspeccion.details_updated', 'inspeccion', '2', 'Detalles de prueba')", [operatorRow.id, operatorRow.id]);
+    const hitos = await api("GET", "/api/admin/team-activity?resumen=0&hitos=1&limit=10", real.gerente);
+    assert.equal(hitos.status, 200);
+    assert.deepEqual(hitos.data.items.map((item) => item.action), ["LOTE_CERRADO"]);
+    assert.equal(hitos.data.unread, 1);
+    assert.equal((await api("GET", "/api/admin/team-activity?resumen=0&limit=10", real.gerente)).data.items.length, 2);
+    assert.equal((await api("POST", "/api/admin/team-activity/seen", real.gerente)).status, 200);
+    assert.equal((await api("GET", "/api/admin/team-activity?resumen=0&hitos=1&limit=10", real.gerente)).data.unread, 0);
+    assert.equal((await api("POST", "/api/admin/team-activity/seen", real.operator)).status, 403);
+
     // Administrador con dos sesiones independientes; solo la sesión A cambia de perfil.
     const adminA = await login("admin", "preview-local-qa");
     const adminB = await login("admin", "preview-local-qa");
