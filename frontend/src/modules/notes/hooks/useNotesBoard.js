@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { compareNotes, matchesQuery, matchesView } from "../utils/notesOrder";
+import { compareNotes, matchesFilters, matchesQuery, matchesView } from "../utils/notesOrder";
 
 const PAGE_SIZE = 40;
 const SEARCH_DEBOUNCE_MS = 300;
 const TOAST_MS = 7000;
 const SORT_STORAGE_KEY = "aguas.notes.sort.v1";
+const SUMMARY_DEBOUNCE_MS = 500;
+const NO_FILTERS = { color: "", category: "" };
 
 const readSort = () => {
   try {
@@ -36,11 +38,14 @@ export const useNotesBoard = (api) => {
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [filters, setFiltersState] = useState(NO_FILTERS);
+  const [summary, setSummary] = useState(null);
 
   const recordsRef = useRef(records);
   recordsRef.current = records;
   const queues = useRef(new Map());
   const toastTimer = useRef(null);
+  const summaryTimer = useRef(null);
   const trimmedQuery = query.trim();
 
   // Al cambiar de vista se vacia el listado para mostrar el esqueleto en lugar de notas de la
@@ -52,6 +57,17 @@ export const useNotesBoard = (api) => {
     setSearchIds(null);
     setViewState(value);
   };
+
+  // Color y categoria filtran en el servidor; el listado se vacia igual que al cambiar de vista.
+  const setFilters = (changes) => {
+    const next = { ...filters, ...changes };
+    if (next.color === filters.color && next.category === filters.category) return;
+    setBaseIds([]);
+    setBaseCursor(null);
+    setSearchIds(null);
+    setFiltersState(next);
+  };
+  const clearFilters = () => setFilters(NO_FILTERS);
 
   const setSort = (value) => {
     setSortState(value);
@@ -76,9 +92,11 @@ export const useNotesBoard = (api) => {
   const listParams = useMemo(() => ({
     archived: view === "archived" ? "1" : "",
     pinned: view === "pinned" ? "1" : "",
+    color: filters.color,
+    category: filters.category,
     sort,
     limit: PAGE_SIZE
-  }), [view, sort]);
+  }), [view, sort, filters]);
 
   const merge = (notes) => setRecords((current) => ({ ...current, ...byId(notes) }));
 
@@ -109,6 +127,20 @@ export const useNotesBoard = (api) => {
   }, [loadBase]);
 
   useEffect(loadCategories, [loadCategories]);
+
+  // Conteos del encabezado y los filtros. Tras cada cambio se piden de nuevo, agrupando las
+  // rafagas (fijar varias notas seguidas) en una sola consulta.
+  const loadSummary = useCallback(() => {
+    api.summary().then(setSummary).catch(() => {});
+  }, [api]);
+  const refreshSummary = useCallback(() => {
+    clearTimeout(summaryTimer.current);
+    summaryTimer.current = setTimeout(loadSummary, SUMMARY_DEBOUNCE_MS);
+  }, [loadSummary]);
+  useEffect(() => {
+    loadSummary();
+    return () => clearTimeout(summaryTimer.current);
+  }, [loadSummary]);
 
   // Busqueda en dos capas: el filtro local responde al instante y la consulta al servidor
   // (con debounce) la reemplaza para incluir notas que aun no se han cargado.
@@ -163,9 +195,9 @@ export const useNotesBoard = (api) => {
     return ids
       .map((id) => records[id])
       .filter(Boolean)
-      .filter((note) => !note.deleted && matchesView(note, view) && (searchIds && trimmedQuery ? true : matchesQuery(note, trimmedQuery)))
+      .filter((note) => !note.deleted && matchesView(note, view) && matchesFilters(note, filters) && (searchIds && trimmedQuery ? true : matchesQuery(note, trimmedQuery)))
       .sort(compareNotes(sort));
-  }, [baseIds, records, searchIds, sort, trimmedQuery, view]);
+  }, [baseIds, filters, records, searchIds, sort, trimmedQuery, view]);
 
   // Serializa las escrituras de una misma nota para que cada una lleve el updated_at vigente.
   const enqueue = (id, task) => {
@@ -194,6 +226,7 @@ export const useNotesBoard = (api) => {
       });
       if (view === "archived") setView("all");
       if (category) loadCategories();
+      refreshSummary();
       return created;
     } catch (reason) {
       setRecords((current) => {
@@ -216,6 +249,7 @@ export const useNotesBoard = (api) => {
       }));
       upsert(saved);
       if ("category" in changes) loadCategories();
+      if (["is_pinned", "is_archived", "color", "category"].some((key) => key in changes)) refreshSummary();
       return saved;
     } catch (reason) {
       if (optimistic) patchLocal(id, Object.fromEntries(Object.keys(changes).map((key) => [key, previous[key]])));
@@ -247,6 +281,7 @@ export const useNotesBoard = (api) => {
     patchLocal(note.id, { deleted: true });
     try {
       await enqueue(note.id, () => api.remove(note.id));
+      refreshSummary();
       showToast("Apunte eliminado", {
         label: "Deshacer",
         run: async () => {
@@ -254,6 +289,7 @@ export const useNotesBoard = (api) => {
             const restored = await api.restore(note.id);
             upsert({ ...restored, deleted: false });
             if (!baseIds.includes(note.id)) setBaseIds((current) => [...current, note.id]);
+            refreshSummary();
           } catch (reason) {
             showToast(reason.message);
           }
@@ -270,6 +306,7 @@ export const useNotesBoard = (api) => {
       const copy = await api.duplicate(note.id);
       setRecords((current) => ({ ...current, [copy.id]: { ...copy, created_here: true } }));
       if (view !== "all") setView("all");
+      refreshSummary();
       showToast("Apunte duplicado");
       return copy;
     } catch (reason) {
@@ -304,7 +341,7 @@ export const useNotesBoard = (api) => {
   const searchPending = Boolean(trimmedQuery) && searchIds === null;
 
   return {
-    view, setView, sort, setSort, query, setQuery,
+    view, setView, sort, setSort, query, setQuery, filters, setFilters, clearFilters, summary,
     records, visibleNotes, loading, loadingMore, hasMore, loadMore, error, searchPending,
     categories, toast, showToast, dismissToast,
     create, update, upsert, togglePin, setColor, archive, unarchive, remove, duplicate, move, addLink,

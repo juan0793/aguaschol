@@ -4,6 +4,7 @@ import {
   deleteNote,
   duplicateNote,
   getNote,
+  getNotesSummary,
   listCategories,
   listNotes,
   moveNote,
@@ -27,6 +28,7 @@ const handle = (action, status = 200) => async (req, res, next) => {
 
 export const list = handle((req) => listNotes(req.authUser, req.query));
 export const categories = handle(async (req) => ({ items: await listCategories(req.authUser) }));
+export const summary = handle((req) => getNotesSummary(req.authUser));
 export const detail = handle((req) => getNote(req.authUser, req.params.id));
 export const create = handle((req) => createNote(req.authUser, req.body), 201);
 export const update = handle((req) => updateNote(req.authUser, req.params.id, req.body));

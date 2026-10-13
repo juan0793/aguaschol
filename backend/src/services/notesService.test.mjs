@@ -10,6 +10,7 @@ import {
   deleteNote,
   duplicateNote,
   getNote,
+  getNotesSummary,
   listCategories,
   listNotes,
   moveNote,
@@ -185,6 +186,33 @@ test("orden por fecha no altera sort_order y la categoría reutiliza la escritur
   assert.deepEqual(keys(await listNotes(admin, { sort: "manual" })), ["A editada", "B"]);
   assert.deepEqual(keys(await listNotes(admin, { sort: "created" })), ["B", "A editada"]);
   assert.deepEqual(await listCategories(admin), ["Proveedores"]);
+});
+
+test("filtra por color y categoría, y el resumen cuenta activos, fijados, archivados y semana", async () => {
+  const a = await createNote(admin, { content: "Proveedor de tubería", color: "azul", category: "Proveedores" });
+  await createNote(admin, { content: "Llamar a ferretería", color: "azul", category: "proveedores" });
+  const c = await createNote(admin, { content: "Reunión de cartera", color: "verde", category: "Cartera" });
+  const d = await createNote(admin, { content: "Archivada", color: "azul" });
+  await createNote(otroAdmin, { content: "Ajena", color: "azul", category: "Proveedores" });
+  await updateNote(admin, a.id, { is_pinned: true });
+  await updateNote(admin, d.id, { is_archived: true });
+
+  assert.deepEqual(keys(await listNotes(admin, { color: "azul" })).sort(), ["Llamar a ferretería", "Proveedor de tubería"]);
+  assert.deepEqual(keys(await listNotes(admin, { category: "PROVEEDORES" })).sort(), ["Llamar a ferretería", "Proveedor de tubería"]);
+  assert.deepEqual(keys(await listNotes(admin, { color: "verde", category: "Cartera" })), ["Reunión de cartera"]);
+  assert.deepEqual(keys(await listNotes(admin, { color: "azul", archived: "1" })), ["Archivada"]);
+  assert.equal((await listNotes(admin, { color: "rojo" })).items.length, 3, "un color desconocido no filtra");
+
+  const summary = await getNotesSummary(admin);
+  assert.equal(summary.activos, 3);
+  assert.equal(summary.fijados, 1);
+  assert.equal(summary.archivados, 1);
+  assert.equal(summary.semana, 3);
+  assert.deepEqual(summary.colores, { azul: 2, verde: 1 });
+  assert.deepEqual(summary.categorias, [{ nombre: "Proveedores", total: 2 }, { nombre: "Cartera", total: 1 }]);
+  await deleteNote(admin, c.id);
+  assert.equal((await getNotesSummary(admin, new Date(Date.now() + 8 * 24 * 3600 * 1000))).semana, 0);
+  assert.equal((await getNotesSummary(admin)).activos, 2, "las borradas no cuentan");
 });
 
 test("cada envío crea su propio vínculo y la nota sigue en el tablero", async () => {

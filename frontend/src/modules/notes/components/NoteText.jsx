@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useSyncExternalStore } from "react";
 import { tokenizeNoteContent } from "../utils/noteContent";
+import { highlightParts } from "../utils/notesOrder";
 
 const COARSE_QUERY = "(pointer: coarse)";
 const subscribeCoarse = (callback) => {
@@ -9,12 +10,18 @@ const subscribeCoarse = (callback) => {
 };
 const isCoarse = () => window.matchMedia(COARSE_QUERY).matches;
 
+/** Texto con las coincidencias de la busqueda marcadas; sin busqueda devuelve el texto tal cual. */
+export function Highlight({ text, query }) {
+  if (!query?.trim()) return text;
+  return highlightParts(text, query).map((part, index) => (part.match ? <mark key={index} className="note-mark">{part.text}</mark> : <Fragment key={index}>{part.text}</Fragment>));
+}
+
 /**
  * Texto de un apunte con enlaces y telefonos detectados. Cada segmento es texto de React (se
  * escapa); nunca se inyecta HTML. En pantallas tactiles un telefono abre el marcador; con
  * mouse, un clic lo copia.
  */
-export default function NoteText({ text, className = "", onCopyPhone }) {
+export default function NoteText({ text, className = "", onCopyPhone, highlight = "" }) {
   const segments = useMemo(() => tokenizeNoteContent(text), [text]);
   const coarse = useSyncExternalStore(subscribeCoarse, isCoarse, () => false);
   const stop = (event) => event.stopPropagation();
@@ -43,7 +50,7 @@ export default function NoteText({ text, className = "", onCopyPhone }) {
             </button>
           );
         }
-        return <Fragment key={index}>{segment.value}</Fragment>;
+        return <Fragment key={index}><Highlight text={segment.value} query={highlight} /></Fragment>;
       })}
     </div>
   );

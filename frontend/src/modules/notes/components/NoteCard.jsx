@@ -2,8 +2,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import ActionMenu from "./ActionMenu";
 import ColorPicker from "./ColorPicker";
-import NoteText from "./NoteText";
-import { formatNoteShortDate, noteLinkLabel } from "../utils/notesOrder";
+import NoteText, { Highlight } from "./NoteText";
+import { formatNoteLongDate, formatNoteRelative, noteLinkLabel } from "../utils/notesOrder";
 
 // Grid de alturas naturales sin masonry: filas de 8 px y cada tarjeta ocupa las filas que mide
 // su contenido mas el espacio vertical entre tarjetas. El orden del DOM sigue siendo lineal.
@@ -37,7 +37,9 @@ export default function NoteCard({
   selected = false,
   ghost = false,
   dragState,
-  actions
+  actions,
+  highlight = "",
+  now
 }) {
   const contentRef = useRef(null);
   const [clamped, setClamped] = useState(false);
@@ -106,7 +108,7 @@ export default function NoteCard({
       <header className={`note-card-head ${note.title ? "" : "is-bare"}`}>
         {note.is_pinned ? <span className="note-pin-flag" title="Fijado"><Icon name="pin" /><span className="note-sr">Fijado</span></span> : null}
         <h3 id={headingId} className={note.title ? "note-card-title" : "note-sr"}>
-          {note.title || note.content.split("\n")[0].slice(0, 80)}
+          {note.title ? <Highlight text={note.title} query={highlight} /> : note.content.split("\n")[0].slice(0, 80)}
         </h3>
         {actions && !ghost ? (
           <div className="note-card-actions">
@@ -143,7 +145,7 @@ export default function NoteCard({
       </header>
 
       <div ref={contentRef} className={`note-card-content ${clamped ? "is-clamped" : ""}`}>
-        <NoteText text={note.content} onCopyPhone={(segment) => actions?.onCopyPhone(segment)} />
+        <NoteText text={note.content} highlight={highlight} onCopyPhone={(segment) => actions?.onCopyPhone(segment)} />
       </div>
 
       {note.links?.length ? (
@@ -154,8 +156,22 @@ export default function NoteCard({
       ) : null}
 
       <footer className="note-card-foot">
-        <time dateTime={note.updated_at}>{pending ? "Guardando…" : formatNoteShortDate(note.updated_at)}</time>
-        {note.category ? <span className="note-chip">{note.category}</span> : null}
+        <time dateTime={note.updated_at} title={pending ? undefined : `Editado el ${formatNoteLongDate(note.updated_at)}`}>
+          {pending ? "Guardando…" : formatNoteRelative(note.updated_at, now)}
+        </time>
+        {note.category && actions?.onFilterCategory && !ghost ? (
+          <button
+            type="button"
+            className="note-chip is-filter"
+            title={`Ver solo «${note.category}»`}
+            onClick={(event) => {
+              event.stopPropagation();
+              actions.onFilterCategory(note.category);
+            }}
+          >
+            <Highlight text={note.category} query={highlight} />
+          </button>
+        ) : note.category ? <span className="note-chip">{note.category}</span> : null}
         {note.is_archived ? <span className="note-chip is-archived">Archivado</span> : null}
       </footer>
     </article>

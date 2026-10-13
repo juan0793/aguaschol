@@ -244,6 +244,14 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - El símbolo de las fallas es la "Gota rota" (`components/icons/GotaRota.jsx`): la gota de Aguas partida, con el trazo de los iconos de la app. Va en el encabezado, en el menú y en las fallas rechazadas (404, 409…); "sin conexión" y "error del servidor" conservan su icono para distinguirse.
   - En el encabezado de administración y Gerencia, junto a la campana, va ese icono propio: tenue sin pendientes; rojo con su contador cuando hay fallas sin revisar, con un leve vaivén cada pocos segundos. Al tocarlo muestra las últimas, con un punto por tipo (ocre sin conexión, rojo rechazada, vino error del servidor).
   - La pantalla (Gestión → Fallas del equipo) abre con una franja de cifras por tipo que sirve de filtro, "Sin revisar / Todas" y persona. Cada fila: icono del tipo, acción, persona, código legible ("409 · ya había cambiado"), mensaje y hace cuánto. Administración marca una o todas como revisadas; Gerencia solo consulta.
+- Tablero de Apuntes (rediseño del 2026-10-13):
+  - Encabezado con conteos vivos ("10 apuntes activos · 8 nuevos esta semana"), selector Tarjetas/Lista y botón "Atajos". "Todos / Fijados / Archivados" llevan su número. Debajo, filtros de un clic: un punto por color con su cantidad y una pastilla por categoría; "Quitar filtros" aparece solo con alguno activo. La categoría de una tarjeta también filtra al tocarla.
+  - El color de un apunte es tinte del 7 % más el borde teñido de ese color; ya no lleva barra lateral. Al pasar el mouse, los controles flotan sobre la esquina y el título usa todo el ancho; en táctil siguen en su fila.
+  - Con "Orden manual" hay Fijados y Otros apuntes. Ordenado por fecha, el resto se agrupa en Hoy, Ayer, Esta semana, Este mes y Anteriores (hora de Honduras). La fecha es relativa ("Hace 5 min", "Ayer") y muestra la completa al pasar el mouse. La búsqueda resalta las coincidencias aunque se escriba sin tilde.
+  - Movimiento: al fijar, archivar, filtrar o reordenar, cada tarjeta se desliza desde donde estaba hasta su nuevo lugar (FLIP, 340 ms, curva de salida exponencial); las nuevas entran con un fundido corto, escalonado con tope. Con "reducir movimiento" no hay desplazamientos.
+  - Teclado: N nuevo, / buscar, ? atajos; sobre una tarjeta, flechas para moverse, Enter abre, F fija, A archiva, D duplica, C copia y Supr elimina (con "Deshacer"). El foco sigue a la tarjeta al fijarla y pasa a la vecina al archivar o eliminar. En teléfono no se muestra el botón de atajos.
+  - Con un filtro activo, el apunte nuevo toma ese color y esa categoría. La creación rápida sugiere las categorías existentes.
+  - QA: `frontend/qa-apuntes.html` con datos en memoria (`?vista=lista`, `?orden=updated`, `?filtro=Entregas&nuevo=1`, `?oscuro=1`).
 ### Busqueda de clave
 
 La busqueda debe sentirse como herramienta de campo:

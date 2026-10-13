@@ -14,6 +14,7 @@ export const createNotesApi = (apiFetch) => ({
     return apiFetch(`/admin/notes?${query}`, options).then(json);
   },
   categories: () => apiFetch("/admin/notes/categories").then(json),
+  summary: () => apiFetch("/admin/notes/summary").then(json),
   create: (payload) => apiFetch("/admin/notes", { method: "POST", ...body(payload) }).then(json),
   update: (id, payload) => apiFetch(`/admin/notes/${id}`, { method: "PATCH", ...body(payload) }).then(json),
   move: (id, payload) => apiFetch(`/admin/notes/${id}/move`, { method: "PATCH", ...body(payload) }).then(json),

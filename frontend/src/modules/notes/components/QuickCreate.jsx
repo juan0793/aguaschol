@@ -1,9 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import ColorPicker from "./ColorPicker";
 
 const DRAFT_KEY = "aguas.notes.draft.v1";
-const EMPTY = { title: "", content: "", color: "default" };
+const EMPTY = { title: "", content: "", color: "default", category: "" };
 
 const readDraft = () => {
   try {
@@ -14,7 +14,7 @@ const readDraft = () => {
 };
 const writeDraft = (draft) => {
   try {
-    if (draft.content || draft.title) window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    if (draft.content || draft.title || draft.category) window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     else window.localStorage.removeItem(DRAFT_KEY);
   } catch {
     // Si el almacenamiento local no esta disponible solo se pierde la recuperacion del borrador.
@@ -24,9 +24,11 @@ const writeDraft = (draft) => {
 /**
  * Creacion rapida: solo el contenido es obligatorio. Al enfocarse muestra titulo y color;
  * Ctrl/Cmd+Enter guarda y deja el campo listo para la siguiente nota; Escape lo colapsa.
- * El borrador sobrevive a cerrar la pestaña.
+ * El borrador sobrevive a cerrar la pestaña. Con un filtro de color o categoria activo, el
+ * apunte nuevo los hereda para que aparezca en la vista que se esta mirando.
  */
-const QuickCreate = forwardRef(function QuickCreate({ onCreate, onError }, ref) {
+const QuickCreate = forwardRef(function QuickCreate({ onCreate, onError, categories = [], preset = {} }, ref) {
+  const listId = useId();
   const [draft, setDraft] = useState(readDraft);
   const [expanded, setExpanded] = useState(() => Boolean(readDraft().content || readDraft().title));
   const rootRef = useRef(null);
@@ -61,7 +63,12 @@ const QuickCreate = forwardRef(function QuickCreate({ onCreate, onError }, ref) 
     setDraft(EMPTY);
     contentRef.current?.focus();
     try {
-      await onCreate({ title: pending.title.trim(), content: pending.content, color: pending.color });
+      await onCreate({
+        title: pending.title.trim(),
+        content: pending.content,
+        color: pending.color === "default" && preset.color ? preset.color : pending.color,
+        category: pending.category.trim() || preset.category || ""
+      });
     } catch (reason) {
       setDraft((current) => (current.content || current.title ? current : pending));
       onError?.(reason.message);
@@ -80,7 +87,7 @@ const QuickCreate = forwardRef(function QuickCreate({ onCreate, onError }, ref) 
       aria-label="Crear apunte"
       onFocus={() => setExpanded(true)}
       onBlur={(event) => {
-        if (!rootRef.current?.contains(event.relatedTarget) && !draft.content && !draft.title) setExpanded(false);
+        if (!rootRef.current?.contains(event.relatedTarget) && !draft.content && !draft.title && !draft.category) setExpanded(false);
       }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -123,8 +130,21 @@ const QuickCreate = forwardRef(function QuickCreate({ onCreate, onError }, ref) 
       </div>
       {expanded ? (
         <div className="notes-quick-foot">
-          <ColorPicker compact value={draft.color} onChange={(color) => change("color", color)} />
-          <span className="notes-quick-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> para guardar</span>
+          <ColorPicker compact value={draft.color === "default" && preset.color ? preset.color : draft.color} onChange={(color) => change("color", color)} />
+          <label className="notes-quick-category">
+            <span className="note-sr">Categoría</span>
+            <input
+              list={listId}
+              maxLength={60}
+              placeholder={preset.category || "Categoría"}
+              value={draft.category}
+              onChange={(event) => change("category", event.target.value)}
+            />
+            <datalist id={listId}>
+              {categories.map((category) => <option key={category} value={category} />)}
+            </datalist>
+          </label>
+          <span className="notes-quick-hint" title="Guardar con Ctrl + Enter"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
           <button type="button" className="note-button" onClick={collapse}>Cerrar</button>
           <button type="button" className="note-button is-primary" disabled={!hasText} onClick={save}>
             <Icon name="plus" />

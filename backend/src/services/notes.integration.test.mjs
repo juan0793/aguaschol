@@ -58,6 +58,18 @@ test("MySQL real: listado, cursor, búsqueda, mover con un UPDATE, conflictos, v
     for (let index = 0; index < 45; index += 1) await notes.createNote(admin, { content: `Relleno ${index}` });
     assert.deepEqual((await notes.listNotes(admin, { q: "porton" })).items.map((note) => note.id), [a.id]);
     assert.deepEqual((await notes.listNotes(admin, { q: "compras" })).items.map((note) => note.id), [b.id]);
+
+    // Filtros por categoría y color, y resumen agrupado (ONLY_FULL_GROUP_BY incluido).
+    await notes.updateNote(admin, a.id, { color: "verde" });
+    assert.deepEqual((await notes.listNotes(admin, { category: "compras" })).items.map((note) => note.id), [b.id]);
+    assert.deepEqual((await notes.listNotes(admin, { color: "verde" })).items.map((note) => note.id), [a.id]);
+    const summary = await notes.getNotesSummary(admin);
+    assert.equal(summary.activos, 47);
+    assert.equal(summary.archivados, 1);
+    assert.equal(summary.fijados, 0);
+    assert.equal(summary.semana, 47);
+    assert.deepEqual(summary.colores, { default: 46, verde: 1 });
+    assert.deepEqual(summary.categorias, [{ nombre: "Compras", total: 1 }]);
     assert.equal((await notes.listNotes(admin, { q: "50%" })).items.length, 0, "los comodines se escapan");
     for (const sort of ["manual", "updated", "created"]) {
       const seen = new Set();

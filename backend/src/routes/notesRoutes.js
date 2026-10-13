@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAdmin } from "../middleware/authMiddleware.js";
 import { createRateLimit } from "../middleware/rateLimit.js";
-import { categories, create, detail, duplicate, link, list, move, remove, restore, update } from "../controllers/notesController.js";
+import { categories, create, summary, detail, duplicate, link, list, move, remove, restore, update } from "../controllers/notesController.js";
 
 const router = Router();
 const limitCreate = createRateLimit({ windowMs: 60_000, max: 60 });
@@ -13,6 +13,7 @@ router.use(requireAdmin);
 
 router.get("/", limitSearchOnly, list);
 router.get("/categories", categories);
+router.get("/summary", summary);
 router.post("/", limitCreate, create);
 router.get("/:id", detail);
 router.patch("/:id", update);

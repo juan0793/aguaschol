@@ -243,6 +243,8 @@ export const listNotes = async (user, filters = {}) => {
   const sort = NOTE_SORTS.includes(filters.sort) ? filters.sort : "manual";
   const limit = Math.min(Math.max(Number(filters.limit) || PAGE_DEFAULT, 1), PAGE_MAX);
   const cursor = decodeCursor(filters.cursor, sort);
+  const color = NOTE_COLORS.includes(clean(filters.color)) ? clean(filters.color) : "";
+  const category = clean(filters.category).replace(/\s+/g, " ").slice(0, CATEGORY_MAX);
 
   let pinnedRows = [];
   let pageRows = [];
@@ -253,6 +255,8 @@ export const listNotes = async (user, filters = {}) => {
       if (note.user_id !== Number(user.id) || note.deleted_at) return false;
       if (Boolean(note.is_archived) !== archived) return false;
       if (needle && ![note.title, note.content, note.category].some((field) => fold(field).includes(needle))) return false;
+      if (color && (note.color || "default") !== color) return false;
+      if (category && fold(note.category) !== fold(category)) return false;
       return true;
     });
     const ordered = [...base].sort(compareMemory(sort));
@@ -265,6 +269,14 @@ export const listNotes = async (user, filters = {}) => {
       const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
       where.push("(title LIKE ? OR content LIKE ? OR category LIKE ?)");
       params.push(like, like, like);
+    }
+    if (color) {
+      where.push("color = ?");
+      params.push(color);
+    }
+    if (category) {
+      where.push("category = ?");
+      params.push(category);
     }
     const { column, direction } = SORT_SQL[sort];
     const orderBy = `ORDER BY ${column} ${direction}, id ${direction}`;
@@ -292,7 +304,9 @@ export const listNotes = async (user, filters = {}) => {
     items,
     next_cursor: hasMore ? encodeCursor(page[page.length - 1], sort) : null,
     sort,
-    q
+    q,
+    color,
+    category
   };
 };
 
@@ -313,6 +327,60 @@ export const listCategories = async (user) => {
     [user.id]
   );
   return rows.map((row) => row.category);
+};
+
+const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Conteos del tablero para el encabezado y los filtros: activos, fijados, archivados, creados
+ * en los ultimos 7 dias, y activos por color y por categoria.
+ */
+export const getNotesSummary = async (user, now = new Date()) => {
+  const desde = new Date(now.getTime() - SEMANA_MS);
+  let rows;
+  if (env.useMemoryDb) {
+    const groups = new Map();
+    memoryNotes
+      .filter((note) => note.user_id === Number(user.id) && !note.deleted_at)
+      .forEach((note) => {
+        const key = JSON.stringify([Number(note.is_archived), Number(note.is_pinned), note.color || "default", note.category || "", new Date(note.created_at) >= desde ? 1 : 0]);
+        groups.set(key, (groups.get(key) || 0) + 1);
+      });
+    rows = [...groups.entries()].map(([key, total]) => {
+      const [archived, pinned, color, category, recent] = JSON.parse(key);
+      return { is_archived: archived, is_pinned: pinned, color, category, recent, total };
+    });
+  } else {
+    [rows] = await getPool().query(
+      `SELECT is_archived, is_pinned, color, cat AS category, recent, COUNT(*) AS total
+       FROM (
+         SELECT is_archived, is_pinned, color, COALESCE(category, '') AS cat, created_at >= ? AS recent
+         FROM admin_notes WHERE user_id = ? AND deleted_at IS NULL
+       ) AS notas
+       GROUP BY is_archived, is_pinned, color, cat, recent`,
+      [desde, user.id]
+    );
+  }
+  const summary = { activos: 0, fijados: 0, archivados: 0, semana: 0, colores: {}, categorias: [] };
+  const categorias = new Map();
+  for (const row of rows) {
+    const total = Number(row.total);
+    if (Number(row.is_archived)) {
+      summary.archivados += total;
+      continue;
+    }
+    summary.activos += total;
+    if (Number(row.is_pinned)) summary.fijados += total;
+    if (Number(row.recent)) summary.semana += total;
+    const color = row.color || "default";
+    summary.colores[color] = (summary.colores[color] || 0) + total;
+    if (row.category) categorias.set(row.category, (categorias.get(row.category) || 0) + total);
+  }
+  summary.categorias = [...categorias.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
+    .slice(0, 50)
+    .map(([nombre, total]) => ({ nombre, total }));
+  return summary;
 };
 
 // --- Mutaciones ------------------------------------------------------------------------------
