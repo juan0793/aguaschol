@@ -95,6 +95,20 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     duplicados.length
   ]);
 
+  // En el teléfono el pie debe ser bajo para que la cantidad y el detalle quepan en
+  // pantalla: allí se muestra esta versión corta del motivo (el detalle ya está arriba).
+  const motivoCorto = useMemo(() => {
+    if (!motivoBloqueo) return null;
+    if (lote.estado !== "ABIERTO") return "El lote ya está cerrado.";
+    if (!config.permissions.can_close_own_lote) return "Sin permiso para cerrar lotes.";
+    if (requiereRecarga) return "Cierra y vuelve a abrir el lote.";
+    if (buscando !== -1) return "Buscando en el padrón…";
+    if (sobrantesInvalidos) return "Indica cuántas no entregaste (0 si entregaste todas).";
+    if (diferencia > 0) return `${diferencia === 1 ? "Falta" : "Faltan"} ${formatCount(diferencia, "documento")} por registrar.`;
+    if (diferencia < 0) return `Sobra ${formatCount(Math.abs(diferencia), "documento")} en el detalle.`;
+    return "Revisa los documentos duplicados.";
+  }, [motivoBloqueo, lote.estado, config.permissions.can_close_own_lote, requiereRecarga, buscando, sobrantesInvalidos, diferencia]);
+
   const puedeCerrar = !guardando && !motivoBloqueo;
   const faltantes = Math.max(diferencia, 0);
   const hayCambiosPendientes = cierreTieneCambiosPendientes({ sobrantes, observacion, observacionInicial, nuevas, pegado });
@@ -296,7 +310,6 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
         <div className="cl-drawer-scroll">
           {draftRecuperado ? <p className="ent-draft-status" role="status">Se recuperó una captura sin enviar. Revísala y vuelve a cerrarla para guardar los cambios en el servidor.</p> : null}
-          {hayCambiosPendientes ? <p className="ent-draft-status" role="status">{draftPersistido === null ? "Guardando una copia en esta pestaña…" : draftPersistido ? "La captura sin enviar se conserva en esta pestaña. No la cierres hasta enviarla al servidor." : "No se pudo guardar una copia local de esta captura."}</p> : null}
           <div className="ent-cierre-pasos" aria-label="Progreso del cierre">
             <span className={sobrantes === "" ? "is-active" : "is-done"}>1<small>Cantidad</small></span>
             <span className={diferencia === 0 && sobrantes !== "" ? "is-done" : "is-active"}>2<small>Detalle</small></span>
@@ -569,16 +582,21 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               </div>
             ) : null}
           </section>
+          {/* Aviso secundario: va al final para no empujar la cantidad y el detalle en el teléfono. */}
+          {hayCambiosPendientes ? <p className="ent-draft-status" role="status">{draftPersistido === null ? "Guardando una copia en esta pestaña…" : draftPersistido ? "La captura sin enviar se conserva en esta pestaña. No la cierres hasta enviarla al servidor." : "No se pudo guardar una copia local de esta captura."}</p> : null}
         </div>
 
         <footer className="ent-drawer-footer">
-          <button type="button" className="cl-secondary" onClick={guardarDetalle} disabled={guardando || !nuevas.length}>
-            Guardar detalle
-          </button>
+          {nuevas.length ? (
+            <button type="button" className="cl-secondary ent-guardar-detalle" onClick={guardarDetalle} disabled={guardando}>
+              Guardar detalle
+            </button>
+          ) : null}
           <div className="ent-cerrar-wrap">
             {!guardando && motivoBloqueo ? (
               <p className="cl-alert ent-cerrar-motivo" id="ent-cerrar-motivo" role="status">
-                No se puede cerrar todavía: {motivoBloqueo}
+                <span className="ent-motivo-largo">No se puede cerrar todavía: {motivoBloqueo}</span>
+                <span className="ent-motivo-corto">{motivoCorto}</span>
               </p>
             ) : null}
             <SlideCommit

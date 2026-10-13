@@ -50,8 +50,13 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
   // Fallas sin señal: se envían a "Fallas del equipo" al volver la conexión, o tras una
   // respuesta buena, como mucho cada 30 s. Van con fetch directo para no anotarse a sí mismas.
   const ultimoEnvioFallasRef = useRef(0);
+  // El usuario se lee de una ref: al revisar la sesión (p. ej. al volver a la app) llega un
+  // objeto nuevo con los mismos datos, y si apiFetch dependiera de él cambiaría de identidad
+  // y cada pantalla volvería a cargar todo, perdiendo lo que el técnico estaba capturando.
+  const usuarioRef = useRef(session?.user);
+  usuarioRef.current = session?.user;
   const enviarFallas = useCallback(() => {
-    const user = session?.user;
+    const user = usuarioRef.current;
     if (!user?.id || !session?.token || !fallasPendientes(user.id).length || Date.now() - ultimoEnvioFallasRef.current < 30000) return;
     ultimoEnvioFallasRef.current = Date.now();
     enviarFallasPendientes(user.id, async (fallas) => {
@@ -62,7 +67,7 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
       });
       return response.ok;
     });
-  }, [session?.token, session?.user]);
+  }, [session?.token]);
   useEffect(() => {
     const alVolver = () => { ultimoEnvioFallasRef.current = 0; enviarFallas(); };
     window.addEventListener("online", alVolver);
@@ -97,7 +102,7 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
         });
       } catch (error) {
         // La petición ni siquiera salió (sin señal): queda anotada para "Fallas del equipo".
-        if (error?.name !== "AbortError") anotarFallaSinSenal(session?.user, { metodo: fetchOptions.method || "GET", ruta: path, mensaje: "Sin conexión con el servidor." });
+        if (error?.name !== "AbortError") anotarFallaSinSenal(usuarioRef.current, { metodo: fetchOptions.method || "GET", ruta: path, mensaje: "Sin conexión con el servidor." });
         throw error;
       }
       if (response.ok) enviarFallas();
@@ -131,7 +136,7 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
     } finally {
       marcarPeticionFin();
     }
-  }, [session?.token, session?.user, marcarPeticionInicio, marcarPeticionFin, enviarFallas]);
+  }, [session?.token, session?.user?.role, session?.user?.preview, marcarPeticionInicio, marcarPeticionFin, enviarFallas]);
 
   return { showAlert, apiFetch };
 }
