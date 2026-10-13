@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Icono de la app Control Aguas: gota con visto bueno. A sangre completa; el sistema
+       recorta las esquinas. La gota cabe en el círculo seguro de Android (radio 40 %). -->
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#0a2f9e"/>
+      <stop offset=".55" stop-color="#1465d9"/>
+      <stop offset="1" stop-color="#1fa2f2"/>
+    </linearGradient>
+    <radialGradient id="brillo" cx="1024" cy="0" r="820" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3ff0dc" stop-opacity=".9"/>
+      <stop offset=".4" stop-color="#22c8f0" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#2bd4f0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gota" x1="0" y1="200" x2="0" y2="840" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".5" stop-color="#ecfaff"/>
+      <stop offset="1" stop-color="#9fe2ff"/>
+    </linearGradient>
+    <filter id="sombra" x="-30%" y="-20%" width="160%" height="150%">
+      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#021a5c" flood-opacity=".38"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#fondo)"/>
+  <rect width="1024" height="1024" fill="url(#brillo)"/>
+  <path filter="url(#sombra)" fill="url(#gota)"
+    d="M512 196C512 196 744 430 744 612C744 740 640 842 512 842C384 842 280 740 280 612C280 430 512 196 512 196Z"/>
+  <path d="M420 642L490 710L618 580" fill="none" stroke="#0d47c2" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -25,6 +25,14 @@ El proyecto puede tomar de shadcn/ui la sobriedad de dashboard: cards blancas, b
 
 No asumir que shadcn debe instalarse por defecto. La app actual usa React + Vite + CSS puro; instalar shadcn completo implica agregar Tailwind, configurar aliases y posiblemente migrar a TypeScript. Para cambios visuales incrementales, preferir adaptar el estilo con CSS existente.
 
+### Icono de la app y logo de la empresa (desde 2026-10-13)
+
+- El escudo de Aguas de Choluteca sigue siendo el logo de la empresa: login, menú, barra superior, avisos e informes.
+- La app instalada (PWA), el favicon y la pestaña usan su propio icono: una gota clara con un visto bueno azul profundo (`#0d47c2`), sobre un degradado azul (`#0a2f9e` → `#1465d9` → `#1fa2f2`) con un resplandor turquesa en la esquina superior derecha.
+- La fuente es `frontend/public/icons/app-icon.svg`, a sangre completa: el sistema recorta las esquinas, así que el archivo no lleva margen ni esquinas redondeadas. La gota cabe en el círculo seguro de Android (radio 40 %), por eso el mismo PNG de 512 sirve como `maskable`.
+- `favicon.svg` es la versión para 16–32 px: gota más grande, check más grueso, sin sombra ni brillo.
+- Los PNG (512, 192, Apple 180 y favicon 32) se generan desde los SVG. Comparación con la propuesta original en `docs/qa/icono-app-comparacion.png`.
+
 ## 2. Paleta de color
 
 Usar la paleta actual como base. No cambiar el caracter azul institucional del sistema sin una razon fuerte.

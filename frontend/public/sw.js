@@ -1,12 +1,14 @@
-const SHELL_CACHE = "controlaguas-shell-v2";
-const ASSET_CACHE = "controlaguas-assets-v2";
+const SHELL_CACHE = "controlaguas-shell-v3";
+const ASSET_CACHE = "controlaguas-assets-v3";
 const APP_CACHES = [SHELL_CACHE, ASSET_CACHE];
 const MAX_ASSET_ENTRIES = 160;
 const SHELL_FILES = [
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
-  "/icons/apple-touch-icon.png"
+  "/icons/apple-touch-icon.png",
+  "/icons/favicon.svg",
+  "/icons/favicon-32.png"
 ];
 
 self.addEventListener("install", (event) => {
