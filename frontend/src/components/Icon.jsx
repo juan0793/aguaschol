@@ -52,6 +52,7 @@ import {
   Wifi,
   X
 } from "lucide-react";
+import GotaRota from "./icons/GotaRota";
 
   const icons = {
   dashboard: LayoutDashboard,
@@ -109,7 +110,8 @@ import {
   pin: Pin,
   grip: GripVertical,
   send: Send,
-  spellCheck: SpellCheck
+  spellCheck: SpellCheck,
+  fallas: GotaRota
 };
 
 export const Icon = ({ name, className = "" }) => {

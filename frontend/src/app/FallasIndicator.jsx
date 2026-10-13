@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle } from "lucide-react";
 import { Icon } from "../components/Icon";
+import GotaRota from "../components/icons/GotaRota";
 import { FALLAS_CAMBIARON, haceCuanto, tipoFalla } from "../utils/fallasFormato";
 import "./fallas.css";
 
@@ -45,7 +45,7 @@ export default function FallasIndicator({ apiFetch, onOpenView }) {
   return <div className="fi" ref={ref}>
     <button type="button" className={`fi-button${pendientes ? " has-fallas" : ""}`} onClick={() => setOpen((value) => !value)} aria-haspopup="dialog" aria-expanded={open}
       aria-label={pendientes ? `Fallas del equipo: ${pendientes} sin revisar` : "Fallas del equipo: ninguna pendiente"} title={pendientes ? `${pendientes} fallas sin revisar` : "Sin fallas pendientes"}>
-      <AlertTriangle size={18} strokeWidth={1.9} aria-hidden="true" />
+      <GotaRota size={19} strokeWidth={1.9} />
       {pendientes ? <b key={pendientes}>{pendientes > 99 ? "99+" : pendientes}</b> : null}
     </button>
     {open ? <section className="fi-panel" role="dialog" aria-label="Fallas del equipo">

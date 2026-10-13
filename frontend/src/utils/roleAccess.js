@@ -8,7 +8,7 @@ export const MANAGER_NAVIGATION = [
   { key: "fieldValidation", label: "Puntos GPS", icon: "map", helper: "Consulta territorial" },
   { key: "planos", label: "Planos autorizados", icon: "map", helper: "Aprobados y publicados" },
   { key: "teamActivity", label: "Actividad del equipo", icon: "users", helper: "Seguimiento institucional" },
-  { key: "fallas", label: "Fallas del equipo", icon: "warning", helper: "Lo que no se pudo guardar" }
+  { key: "fallas", label: "Fallas del equipo", icon: "fallas", helper: "Lo que no se pudo guardar" }
 ];
 
 export const canOpenWorkspace = (role, view) => role !== "gerente" || view === "dashboard" || MANAGER_NAVIGATION.some((item) => item.key === view);

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCheck, ServerCrash, WifiOff, XCircle } from "lucide-react";
+import { CheckCheck, ServerCrash, WifiOff } from "lucide-react";
+import GotaRota from "../../components/icons/GotaRota";
 import { Icon } from "../../components/Icon";
 import { FALLAS_CAMBIARON, TIPOS_FALLA, codigoLegible, haceCuanto, tipoFalla } from "../../utils/fallasFormato";
 import "../../app/fallas.css";
 import "./fallasWorkspace.css";
 
-const ICONOS = { sin_conexion: WifiOff, rechazada: XCircle, error_servidor: ServerCrash };
+const ICONOS = { sin_conexion: WifiOff, rechazada: GotaRota, error_servidor: ServerCrash };
 const POR_PAGINA = 30;
 const fechaCompleta = (iso) => new Date(iso).toLocaleString("es-HN", { timeZone: "America/Tegucigalpa", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
@@ -91,7 +92,7 @@ export default function FallasWorkspace({ apiFetch, session }) {
     {data?.items.length ? <ol className="fw-lista">
       {data.items.map((falla) => {
         const tipo = tipoFalla(falla.tipo);
-        const IconoTipo = ICONOS[falla.tipo] || XCircle;
+        const IconoTipo = ICONOS[falla.tipo] || GotaRota;
         return <li key={falla.id} className={falla.revisada ? "is-revisada" : ""}>
           <span className={`fw-icono is-${tipo.tono}`} aria-hidden="true"><IconoTipo size={17} /></span>
           <div className="fw-cuerpo">
