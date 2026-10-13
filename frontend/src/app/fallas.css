@@ -1,0 +1,34 @@
+/* Icono de fallas del equipo (encabezado) y pantalla "Fallas del equipo". */
+.fi { position: relative; }
+.fi-button { position: relative; display: grid; width: 40px; height: 40px; padding: 0; place-items: center; color: #9aa9b8; background: #fff; border: 1px solid #dfe5ec; border-radius: 50%; box-shadow: none; cursor: pointer; transition: color 140ms ease, background 140ms ease, border-color 140ms ease; }
+.fi-button:hover { color: #5f7184; background: #f4f7fb; }
+.fi-button:focus-visible { outline: 2px solid #1465d9; outline-offset: 2px; }
+.fi-button.has-fallas { color: #b42318; background: #fff5f4; border-color: #f2c4bf; }
+.fi-button.has-fallas svg { animation: fi-nudge 3.2s ease-in-out infinite; }
+.fi-button b { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; color: #fff; background: #b42318; border: 2px solid #fff; border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 14px; text-align: center; animation: fi-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes fi-pop { from { transform: scale(0.4); } }
+@keyframes fi-nudge { 0%, 88%, 100% { transform: rotate(0); } 91% { transform: rotate(-10deg); } 94% { transform: rotate(9deg); } 97% { transform: rotate(-4deg); } }
+
+.fi-panel { position: absolute; top: calc(100% + 10px); right: 0; z-index: 1150; display: grid; width: min(380px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 120px)); overflow: hidden; grid-template-rows: auto minmax(0, 1fr) auto; color: #16283b; background: #fff; border: 1px solid #dfe5ec; border-radius: 12px; box-shadow: 0 6px 18px rgba(22, 40, 59, 0.12); animation: fi-in 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes fi-in { from { opacity: 0; transform: translateY(-6px); } }
+.fi-panel > header { padding: 14px 16px 10px; border-bottom: 1px solid #e8ecf1; }
+.fi-panel h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.fi-panel header p { margin: 3px 0 0; color: #5f7184; font-size: 12px; }
+.fi-panel ul { margin: 0; padding: 6px; overflow-y: auto; list-style: none; }
+.fi-panel li button { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 9px 10px; color: inherit; text-align: left; background: transparent; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
+.fi-panel li button:hover { background: #f4f7fb; }
+.fi-empty { margin: 0; padding: 22px 16px; color: #5f7184; font-size: 13px; text-align: center; }
+.fi-dot { width: 10px; height: 10px; border-radius: 50%; background: #b42318; }
+.fi-dot.is-amber { background: #c98a1d; }
+.fi-dot.is-dark { background: #5c1a14; }
+.fi-text { display: grid; gap: 2px; min-width: 0; }
+.fi-text strong { overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.fi-text span { overflow: hidden; color: #5f7184; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.fi-time { color: #5f7184; font-size: 11px; white-space: nowrap; }
+.fi-panel footer { padding: 8px; border-top: 1px solid #e8ecf1; }
+.fi-panel footer button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 36px; color: #1465d9; background: transparent; border: 0; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.fi-panel footer button:hover { background: #f4f8fd; }
+.fi-panel footer .app-icon { width: 15px; height: 15px; }
+
+@media (max-width: 640px) { .fi-panel { position: fixed; top: 64px; right: 12px; left: 12px; width: auto; } }
+@media (prefers-reduced-motion: reduce) { .fi-button b, .fi-panel, .fi-button.has-fallas svg { animation: none; } }

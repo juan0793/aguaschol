@@ -22,7 +22,7 @@ test("Gerencia consulta módulos autorizados con respuestas no almacenables", ()
     ["/api/claves", "/services/report"], ["/api/field-validation", "/findings"],
     ["/api/gis", "/lotes/12"], ["/api/gis", "/health"], ["/api/gis", "/barrios/report"], ["/api/gis", "/catastro/report"], ["/api/map-points", "/"],
     ["/api/planos", "/versiones"], ["/api/transport", "/"],
-    ["/api/admin/team-activity", "/"], ["/api/barrios", "/lookup"], ["/api/railway", "/summary"]
+    ["/api/admin/team-activity", "/"], ["/api/barrios", "/lookup"], ["/api/railway", "/summary"], ["/api/fallas", "/"]
   ]) {
     for (const method of ["GET", "HEAD"]) {
       const result = invoke(base, method, path);

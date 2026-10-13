@@ -20,6 +20,7 @@ export const MyProfileWorkspace = lazy(() => import("../components/profile/MyPro
 export const RailwayUsageWorkspace = lazy(() => import("../components/RailwayUsageWorkspace"));
 
 export const TeamActivityWorkspace = lazy(() => import("../modules/actividad/TeamActivityWorkspace"));
+export const FallasWorkspace = lazy(() => import("../modules/fallas/FallasWorkspace"));
 
 export const PlanosWorkspace = lazy(() => import("../modules/planos/PlanosWorkspace"));
 export const ManagerDashboardWorkspace = lazy(() => import("../modules/dashboard/ManagerDashboardWorkspace"));
@@ -61,7 +62,8 @@ export const MODULE_LOADERS = {
   planos: () => import("../modules/planos/PlanosWorkspace"),
   profile: () => import("../components/profile/MyProfileWorkspace"),
   railwayUsage: () => import("../components/RailwayUsageWorkspace"),
-  teamActivity: () => import("../modules/actividad/TeamActivityWorkspace")
+  teamActivity: () => import("../modules/actividad/TeamActivityWorkspace"),
+  fallas: () => import("../modules/fallas/FallasWorkspace")
 };
 
 // Un fallo aquí no es un error de la app: el módulo se volverá a pedir al entrar.

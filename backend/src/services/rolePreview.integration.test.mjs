@@ -110,6 +110,27 @@ test("MySQL real: perfiles de prueba, permisos, vencimiento, concurrencia, audit
     assert.equal((await api("GET", "/api/admin/team-activity?resumen=0&hitos=1&limit=10", real.gerente)).data.unread, 0);
     assert.equal((await api("POST", "/api/admin/team-activity/seen", real.operator)).status, 403);
 
+    // Fallas del equipo: lo que el servidor rechaza y lo que el teléfono anotó sin señal.
+    const adminFallas = await login("admin", "preview-local-qa");
+    const antes = (await api("GET", "/api/fallas", adminFallas)).data.sin_revisar;
+    assert.equal((await api("POST", "/api/entregas/lotes/999999/cerrar", real.operator, { total_sobrantes: 0 })).status, 404);
+    assert.equal((await api("POST", "/api/fallas", real.validadora_campo, { fallas: [{ metodo: "POST", ruta: "/map-points", ocurrido_en: new Date().toISOString(), veces: 2 }] })).status, 201);
+    await new Promise((resolve) => setTimeout(resolve, 400)); // el registro del servidor es posterior a la respuesta
+    const fallas = await api("GET", "/api/fallas", adminFallas);
+    assert.equal(fallas.status, 200);
+    const cierre = fallas.data.items.find((item) => item.accion === "Cerrar lote #999999");
+    assert.ok(cierre, "la falla del cierre quedó registrada");
+    assert.deepEqual([cierre.tipo, cierre.codigo, cierre.origen, cierre.user_rol], ["rechazada", 404, "servidor", "operator"]);
+    const sinSenal = fallas.data.items.find((item) => item.tipo === "sin_conexion");
+    assert.deepEqual([sinSenal.accion, sinSenal.veces, sinSenal.origen], ["Guardar punto GPS", 2, "dispositivo"]);
+    assert.equal(fallas.data.sin_revisar, antes + 2);
+    assert.equal((await api("GET", "/api/fallas", real.gerente)).status, 200);
+    assert.equal((await api("POST", "/api/fallas/revisadas", real.gerente, { todas: true })).status, 403);
+    assert.equal((await api("GET", "/api/fallas", real.operator)).status, 403);
+    assert.equal((await api("POST", "/api/fallas/revisadas", adminFallas, { todas: true })).data.revisadas, antes + 2);
+    assert.equal((await api("GET", "/api/fallas", adminFallas)).data.sin_revisar, 0);
+    assert.equal((await api("POST", "/api/auth/logout", adminFallas)).status, 200);
+
     // Administrador con dos sesiones independientes; solo la sesión A cambia de perfil.
     const adminA = await login("admin", "preview-local-qa");
     const adminB = await login("admin", "preview-local-qa");

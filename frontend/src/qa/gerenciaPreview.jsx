@@ -25,6 +25,7 @@ const replaceHistory = history.replaceState.bind(history);
 history.replaceState = (state, title, url) => replaceHistory(state, title, `${qaPath}${new URL(url || location.href, location.href).hash}`);
 let failReads = false;
 let qaHitosPolls = 0;
+let qaFallasRevisadas = false;
 const barrio = (name, count) => ({ barrio_colonia: name, total_registros: count, deuda: { capital: 6000, intereses: 3000, total: 9000, deudores: 6, criticos: 2 }, servicios: [{ field: "agua", label: "Agua potable", active: count, inactive: 0, unknown: 0, deuda: { total: 9000 } }] });
 const data = {
   "/auth/me": { user },
@@ -55,6 +56,17 @@ window.fetch = async (url, options = {}) => {
     return new Response(JSON.stringify({ items, unread: qaHitosPolls > 1 ? 3 : 2, seen_at: ago(60), has_more: false, tecnicos: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
   }
   if (path === "/admin/team-activity/seen") return new Response(JSON.stringify({ seen_at: new Date().toISOString() }), { status: 200, headers: { "Content-Type": "application/json" } });
+  if (path === "/fallas/revisadas") { qaFallasRevisadas = true; return new Response(JSON.stringify({ revisadas: 4 }), { status: 200, headers: { "Content-Type": "application/json" } }); }
+  if (path === "/fallas") {
+    const hace = (min) => new Date(Date.now() - min * 60000).toISOString();
+    const items = qaFallasRevisadas ? [] : [
+      { id: 4, user_id: 11, user_nombre: "Técnico de prueba A", user_rol: "operator", origen: "dispositivo", tipo: "sin_conexion", metodo: "POST", ruta: "/api/map-points", accion: "Guardar punto GPS", codigo: null, mensaje: "Sin conexión con el servidor.", veces: 3, ocurrido_en: hace(12), revisada: false },
+      { id: 3, user_id: 12, user_nombre: "Técnico de prueba B", user_rol: "validadora_campo", origen: "servidor", tipo: "rechazada", metodo: "POST", ruta: "/api/entregas/lotes/41/cerrar", accion: "Cerrar lote #41", codigo: 409, mensaje: "El lote ya estaba cerrado.", veces: 1, ocurrido_en: hace(48), revisada: false },
+      { id: 2, user_id: 13, user_nombre: "Técnico de prueba C", user_rol: "operator", origen: "servidor", tipo: "rechazada", metodo: "POST", ruta: "/api/inspecciones/28/finalizar", accion: "Finalizar inspección #28", codigo: 404, mensaje: "Inspección no encontrada.", veces: 1, ocurrido_en: hace(130), revisada: false },
+      { id: 1, user_id: 11, user_nombre: "Técnico de prueba A", user_rol: "operator", origen: "servidor", tipo: "error_servidor", metodo: "PUT", ruta: "/api/inmuebles/12", accion: "Editar ficha #12", codigo: 500, mensaje: "Error interno del servidor.", veces: 2, ocurrido_en: hace(300), revisada: false }
+    ];
+    return new Response(JSON.stringify({ items, total: items.length, sin_revisar: items.length, por_tipo: qaFallasRevisadas ? {} : { sin_conexion: 1, rechazada: 2, error_servidor: 1 }, personas: [{ id: 11, nombre: "Técnico de prueba A", sin_revisar: 2, total: 2 }, { id: 12, nombre: "Técnico de prueba B", sin_revisar: 1, total: 1 }, { id: 13, nombre: "Técnico de prueba C", sin_revisar: 1, total: 1 }], pagina: 1, por_pagina: 30 }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
   if (path === "/reports/manager" && options.method === "POST") {
     const filters = JSON.parse(options.body);
     return new Response(JSON.stringify(qaManagerReport(filters)), { status: 201, headers: { "Content-Type": "application/json" } });
@@ -83,3 +95,8 @@ if (qaParams.get("vista") === "informes") {
 if (qaParams.get("gerencia") === "cartera") setTimeout(() => [...document.querySelectorAll(".manager-tabs button")].find((node) => node.textContent.includes("Cartera"))?.click(), 1400);
 // QA: ?campana=1 abre la campana de Gerencia.
 if (qaParams.get("campana") === "1") setTimeout(() => document.querySelector(".mn-bell")?.click(), 2000);
+// QA: ?fallas abre "Fallas del equipo"; ?fallas=icono abre el panel del icono.
+if (qaParams.has("fallas")) {
+  setTimeout(() => document.querySelector(".fi-button")?.click(), 1800);
+  if (qaParams.get("fallas") === "pantalla") setTimeout(() => document.querySelector(".fi-panel footer button")?.click(), 2400);
+}

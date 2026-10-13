@@ -39,6 +39,7 @@ import {
   MyProfileWorkspace,
   RailwayUsageWorkspace,
   TeamActivityWorkspace,
+  FallasWorkspace,
   PlanosWorkspace,
   ManagerDashboardWorkspace,
   DashboardWorkspace,
@@ -864,6 +865,12 @@ function App() {
         <main className="team-activity-layout">
           <Suspense fallback={<ModuleSkeleton title="la actividad del equipo" toolbar={false} rows={6} />}>
             <TeamActivityWorkspace apiFetch={apiFetch} session={session} onOpen={abrirActividadEquipo} />
+          </Suspense>
+        </main>
+      ) : workspaceView === "fallas" && (isAdmin || isManager) ? (
+        <main className="team-activity-layout">
+          <Suspense fallback={<ModuleSkeleton title="las fallas del equipo" toolbar={false} rows={6} />}>
+            <FallasWorkspace apiFetch={apiFetch} session={session} />
           </Suspense>
         </main>
       ) : workspaceView === "railwayUsage" ? (

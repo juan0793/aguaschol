@@ -1,0 +1,73 @@
+/* Pantalla "Fallas del equipo": lenguaje de análisis, filas densas, el color es dato. */
+.fw { --fw-ink: #16283b; --fw-muted: #5f7184; --fw-line: #dfe5ec; --fw-soft: #eef2f6; --fw-red: #b42318; --fw-amber: #9a5a06; --fw-dark: #5c1a14; max-width: 1180px; padding: 18px 24px 28px; color: var(--fw-ink); }
+.fw-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; margin-bottom: 16px; }
+.fw-head h1 { margin: 0; font-size: 22px; font-weight: 700; }
+.fw-head p { max-width: 640px; margin: 4px 0 0; color: var(--fw-muted); font-size: 13px; line-height: 1.5; }
+.fw-revisar-todo { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 14px; color: #fff; background: #1465d9; border: 0; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.fw-revisar-todo:hover { background: #0b55bd; }
+.fw-revisar-todo:disabled { opacity: .6; cursor: progress; }
+
+.fw-tipos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 14px; overflow: hidden; background: #fff; border: 1px solid var(--fw-line); border-radius: 8px; }
+.fw .fw-tipos button { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icono cifra" "label label" "detalle detalle"; align-content: start; gap: 2px 8px; min-height: 0; padding: 14px 16px; color: var(--fw-ink); text-align: left; background: transparent; border: 0; border-radius: 0; box-shadow: -1px 0 0 var(--fw-soft); font: inherit; cursor: pointer; transition: background 140ms ease; }
+.fw .fw-tipos button:first-child { grid-template-areas: "cifra cifra" "label label"; }
+.fw-tipos button:hover { background: #f8fafc; }
+.fw-tipos button.is-activo { background: #eef4fc; box-shadow: inset 0 -2px 0 #1465d9; }
+.fw-tipos button svg { grid-area: icono; align-self: center; }
+.fw-tipos strong { grid-area: cifra; font-size: 24px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fw-tipos span { grid-area: label; color: var(--fw-muted); font-size: 13px; font-weight: 600; }
+.fw-tipos small { grid-area: detalle; color: var(--fw-muted); font-size: 11px; }
+.fw-tipos .is-red svg { color: var(--fw-red); }
+.fw-tipos .is-amber svg { color: #c98a1d; }
+.fw-tipos .is-dark svg { color: var(--fw-dark); }
+
+.fw-filtros { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin-bottom: 12px; }
+.fw-estado { display: inline-flex; padding: 3px; background: #eef2f6; border-radius: 8px; }
+.fw .fw-estado button { min-height: 32px; padding: 0 12px; color: var(--fw-muted); background: transparent; border: 0; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.fw .fw-estado button.is-activo { color: var(--fw-ink); background: #fff; box-shadow: 0 1px 2px rgba(22, 40, 59, 0.08); }
+.fw-filtros label { display: grid; gap: 4px; color: var(--fw-muted); font-size: 12px; font-weight: 600; }
+.fw .fw-filtros select { min-width: 220px; min-height: 38px; height: 38px; padding: 4px 10px; color: var(--fw-ink); background: #fff; border: 1px solid #c8d8e4; border-radius: 8px; font: inherit; font-size: 13px; }
+.fw .fw-recargar { display: grid; width: 38px; height: 38px; min-height: 38px; padding: 0; place-items: center; margin-left: auto; color: var(--fw-muted); background: #fff; border: 1px solid var(--fw-line); border-radius: 8px; cursor: pointer; }
+.fw-recargar .app-icon { width: 16px; height: 16px; }
+
+.fw-error { padding: 10px 14px; color: #8a2a1f; background: #fdf1ee; border: 1px solid #f0c8bf; border-radius: 8px; font-size: 13px; }
+.fw-vacio { display: grid; justify-items: center; gap: 6px; padding: 40px 20px; color: var(--fw-muted); text-align: center; background: #fff; border: 1px dashed var(--fw-line); border-radius: 8px; }
+.fw-vacio svg { color: #18a689; }
+.fw-vacio strong { color: var(--fw-ink); font-size: 15px; }
+
+.fw-lista { margin: 0; padding: 0; overflow: hidden; list-style: none; background: #fff; border: 1px solid var(--fw-line); border-radius: 8px; }
+.fw-lista li { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 16px; border-bottom: 1px solid var(--fw-soft); }
+.fw-lista li:last-child { border-bottom: 0; }
+.fw-lista li.is-revisada { opacity: .62; }
+.fw-icono { display: grid; width: 36px; height: 36px; place-items: center; color: var(--fw-red); background: #fdeceb; border-radius: 50%; }
+.fw-icono.is-amber { color: #9a5a06; background: #fdf1de; }
+.fw-icono.is-dark { color: #fff; background: var(--fw-dark); }
+.fw-cuerpo { display: grid; gap: 3px; min-width: 0; }
+.fw-cuerpo p { margin: 0; }
+.fw-accion { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.fw-accion strong { font-weight: 650; }
+.fw-veces { padding: 1px 8px; color: var(--fw-muted); background: #eef2f6; border-radius: 999px; font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.fw-quien { color: var(--fw-muted); font-size: 12px; }
+.fw-tipo { font-weight: 650; }
+.fw-tipo.is-red { color: var(--fw-red); }
+.fw-tipo.is-amber { color: var(--fw-amber); }
+.fw-tipo.is-dark { color: var(--fw-dark); }
+.fw-mensaje { overflow: hidden; color: #2b3d50; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.fw-lado { display: grid; justify-items: end; gap: 6px; }
+.fw-lado time { color: var(--fw-muted); font-size: 12px; white-space: nowrap; }
+.fw .fw-lado button { min-height: 30px; padding: 0 10px; color: #1465d9; background: #fff; border: 1px solid #c9dbf3; border-radius: 6px; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.fw .fw-lado button:hover { background: #f4f8fd; }
+.fw-ok { color: #13805e; font-size: 12px; font-weight: 650; }
+
+.fw-paginas { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 10px; color: var(--fw-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fw .fw-paginas button { display: grid; width: 32px; height: 32px; min-height: 32px; padding: 0; place-items: center; color: var(--fw-ink); background: #fff; border: 1px solid var(--fw-line); border-radius: 6px; cursor: pointer; }
+.fw .fw-paginas button:disabled { opacity: .45; cursor: default; }
+.fw-paginas .app-icon { width: 15px; height: 15px; }
+
+@media (max-width: 760px) {
+  .fw { padding: 14px 12px 24px; }
+  .fw-tipos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fw-lista li { grid-template-columns: 32px minmax(0, 1fr); }
+  .fw-lado { grid-column: 2; justify-items: start; grid-auto-flow: column; align-items: center; }
+  .fw .fw-filtros select { min-width: 0; width: 100%; }
+  .fw-filtros label { flex: 1 1 100%; }
+}

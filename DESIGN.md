@@ -239,6 +239,10 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - Durante la prueba, una barra ocre de 48px queda fija arriba: "Viendo como Gerente General · Solo lectura · Quedan 12 minutos" y el botón en tinta "Volver a administrador" ("Volver" en el teléfono). En los últimos 3 minutos el ocre se intensifica; al vencer la barra pasa a rojo claro.
 
 - Aviso de versión nueva (desde 2026-10-12): toda cuenta con sesión revisa cada 5 minutos, y al volver a la pestaña, si `index.html` publica otro script de entrada. Si cambió, muestra "Hay una nueva actualización disponible", con "Más tarde" (lo pospone una hora) y "Actualizar" (recarga). Nunca recarga solo. En escritorio va abajo a la derecha con la sombra de capa; en el teléfono va arriba, para no tapar la barra de Entregas ni los controles de captura GPS.
+- "Fallas del equipo" (desde 2026-10-13). Lo que técnicos y operadores intentaron guardar y no se pudo:
+  - Se registra sola: el servidor anota toda acción que guarda algo y falla (404, 409, datos no válidos…) y cualquier error 500; el teléfono anota lo que ni siquiera salió por falta de señal y lo envía al volver la conexión. Nunca se guarda lo que la persona escribió, solo la acción ("Cerrar lote #41"), el motivo y cuántas veces pasó. No cuentan administración, Gerencia, la prueba de perfil ni la sesión (ingresar, contraseña).
+  - En el encabezado de administración y Gerencia, junto a la campana, va un icono de alerta propio: tenue sin pendientes; rojo con su contador cuando hay fallas sin revisar, con un leve vaivén cada pocos segundos. Al tocarlo muestra las últimas, con un punto por tipo (ocre sin conexión, rojo rechazada, vino error del servidor).
+  - La pantalla (Gestión → Fallas del equipo) abre con una franja de cifras por tipo que sirve de filtro, "Sin revisar / Todas" y persona. Cada fila: icono del tipo, acción, persona, código legible ("409 · ya había cambiado"), mensaje y hace cuánto. Administración marca una o todas como revisadas; Gerencia solo consulta.
 ### Busqueda de clave
 
 La busqueda debe sentirse como herramienta de campo:

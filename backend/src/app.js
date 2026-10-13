@@ -24,6 +24,8 @@ import inspeccionesRoutes from "./routes/inspeccionesRoutes.js";
 import entregasRoutes from "./routes/entregasRoutes.js";
 import notesRoutes from "./routes/notesRoutes.js";
 import railwayRoutes, { railwaySummaryRouter } from "./routes/railwayRoutes.js";
+import fallasRoutes from "./routes/fallasRoutes.js";
+import { capturarFallas } from "./middleware/fallasCapture.js";
 import teamActivityRoutes from "./routes/teamActivityRoutes.js";
 import gisRoutes from "./modules/gis/gis.routes.js";
 import managerReportRoutes from "./routes/managerReportRoutes.js";
@@ -94,6 +96,7 @@ app.use(
 );
 app.use("/api/integracion/foxpro", foxProImportRoutes);
 app.use(express.json({ limit: "8mb" }));
+app.use("/api", capturarFallas);
 const privateAssetHeaders = (res) => {
   if (!String(res.getHeader("Cache-Control") || "").includes("no-store")) res.setHeader("Cache-Control", "private, max-age=300");
 };
@@ -181,6 +184,7 @@ app.use("/api/reports", requireAuth, managerReportRoutes);
 app.use("/api/admin/notes", requireAuth, notesRoutes);
 app.use("/api/admin/railway", requireAuth, requireAdmin, railwayRoutes);
 app.use("/api/railway", requireAuth, requireRoles("admin", "gerente"), railwaySummaryRouter);
+app.use("/api/fallas", requireAuth, fallasRoutes);
 app.use("/api/admin/team-activity", requireAuth, requireRoles("admin", "gerente"), teamActivityRoutes);
 app.use("/api/ai", requireAuth, aiRoutes);
 app.use("/api/barrios", requireAuth, barrioCodeRoutes);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { greetingFor, isWelcomeVisit } from "../utils/greeting";
 import ManagerNotifications from "./ManagerNotifications";
+import FallasIndicator from "./FallasIndicator";
 import { NotificationCenter } from "../components/NotificationCenter.jsx";
 import { abrirMisAsignaciones } from "../modules/clandestinos/hooks/useBanco";
 import { formatMapDiaryLabel } from "../utils/datesAndBusiness";
@@ -155,6 +156,7 @@ export default function AppHeader({ model }) {
                 ? "Cambios sin guardar"
                 : "Todo guardado"}
           </span> : null}
+          {(isAdmin || isManager) && !session?.user?.preview ? <FallasIndicator apiFetch={apiFetch} onOpenView={setWorkspaceView} /> : null}
           {!isManager ? <NotificationCenter
             apiFetch={apiFetch}
             session={session}

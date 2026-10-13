@@ -1,7 +1,8 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { API_URL } from "../config/api";
 import { getAlertDetails } from "../utils/appShell";
 import { toast } from "sonner";
+import { anotarFallaSinSenal, enviarFallasPendientes, fallasPendientes } from "../utils/fallasPendientes";
 
 export function useApiSession({ clearSession, intentionalLogoutRef, session, sessionInvalidatingRef, setCargandoDatos }) {
   const peticionesEnCursoRef = useRef(0);
@@ -46,6 +47,29 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
   // lo ya recibido. Solo para las rutas que se sondean, via `revalidate: true`.
   const apiRevalidateCacheRef = useRef(new Map());
 
+  // Fallas sin señal: se envían a "Fallas del equipo" al volver la conexión, o tras una
+  // respuesta buena, como mucho cada 30 s. Van con fetch directo para no anotarse a sí mismas.
+  const ultimoEnvioFallasRef = useRef(0);
+  const enviarFallas = useCallback(() => {
+    const user = session?.user;
+    if (!user?.id || !session?.token || !fallasPendientes(user.id).length || Date.now() - ultimoEnvioFallasRef.current < 30000) return;
+    ultimoEnvioFallasRef.current = Date.now();
+    enviarFallasPendientes(user.id, async (fallas) => {
+      const response = await fetch(`${API_URL}/fallas`, {
+        method: "POST", credentials: "include", cache: "no-store",
+        headers: { Authorization: `Bearer ${session.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fallas })
+      });
+      return response.ok;
+    });
+  }, [session?.token, session?.user]);
+  useEffect(() => {
+    const alVolver = () => { ultimoEnvioFallasRef.current = 0; enviarFallas(); };
+    window.addEventListener("online", alVolver);
+    enviarFallas();
+    return () => window.removeEventListener("online", alVolver);
+  }, [enviarFallas]);
+
   const apiFetch = useCallback(async (path, options = {}) => {
     const headers = new Headers(options.headers ?? {});
 
@@ -63,12 +87,20 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
 
     marcarPeticionInicio();
     try {
-      const response = await fetch(`${API_URL}${path}`, {
-        ...fetchOptions,
-        cache: fetchOptions.cache ?? "no-store",
-        credentials: fetchOptions.credentials ?? "include",
-        headers
-      });
+      let response;
+      try {
+        response = await fetch(`${API_URL}${path}`, {
+          ...fetchOptions,
+          cache: fetchOptions.cache ?? "no-store",
+          credentials: fetchOptions.credentials ?? "include",
+          headers
+        });
+      } catch (error) {
+        // La petición ni siquiera salió (sin señal): queda anotada para "Fallas del equipo".
+        if (error?.name !== "AbortError") anotarFallaSinSenal(session?.user, { metodo: fetchOptions.method || "GET", ruta: path, mensaje: "Sin conexión con el servidor." });
+        throw error;
+      }
+      if (response.ok) enviarFallas();
 
       if (cacheKey) {
         if (response.status === 304 && cached) {
@@ -99,7 +131,7 @@ export function useApiSession({ clearSession, intentionalLogoutRef, session, ses
     } finally {
       marcarPeticionFin();
     }
-  }, [session?.token, session?.user?.role, session?.user?.preview, marcarPeticionInicio, marcarPeticionFin]);
+  }, [session?.token, session?.user, marcarPeticionInicio, marcarPeticionFin, enviarFallas]);
 
   return { showAlert, apiFetch };
 }

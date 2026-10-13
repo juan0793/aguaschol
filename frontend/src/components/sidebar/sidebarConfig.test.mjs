@@ -23,7 +23,9 @@ assert.equal(getWorkspaceViewFromPath("/USUARIOS/"), "users");
 assert.equal(getWorkspaceViewFromPath("/desconocido"), null);
 assert.equal(getPathForWorkspaceView("dashboard"), "/dashboard");
 assert.equal(getPathForWorkspaceView("records"), "/clandestinos");
-assert.equal(getPathForWorkspaceView("executiveReport"), "/");
+assert.equal(getPathForWorkspaceView("executiveReport"), "/operaciones");
+assert.equal(getPathForWorkspaceView("fallas"), "/fallas-equipo");
+assert.equal(getPathForWorkspaceView("vistaSinRuta"), "/");
 for (const view of ["dashboard", "profile", "inspecciones", "users", "notes", "records"]) {
   assert.equal(getWorkspaceViewFromPath(getPathForWorkspaceView(view)), view);
 }
