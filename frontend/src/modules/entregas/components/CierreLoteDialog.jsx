@@ -34,7 +34,13 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const doc = esNota ? "nota de cobro" : "factura";
   const [draftInicial] = useState(() => readEntregaDraft(sessionUserId, draftId));
   const [detalle, setDetalle] = useState(lote.no_entregadas || []);
-  const [sobrantes, setSobrantes] = useState(typeof draftInicial?.sobrantes === "string" ? draftInicial.sobrantes : "");
+  // Sin borrador, un lote con sobrantes ya guardados (reabierto o "Guardar sin cerrar")
+  // arranca con esa cantidad para no pedirla de nuevo.
+  const [sobrantes, setSobrantes] = useState(() => {
+    if (typeof draftInicial?.sobrantes === "string") return draftInicial.sobrantes;
+    const guardados = (lote.no_entregadas || []).filter((item) => ESTADOS_ACTIVOS.includes(item.estado)).length;
+    return guardados ? String(guardados) : "";
+  });
   const [observacion, setObservacion] = useState(typeof draftInicial?.observacion === "string" ? draftInicial.observacion : observacionInicial);
   const [nuevas, setNuevas] = useState(Array.isArray(draftInicial?.nuevas) ? draftInicial.nuevas : []);
   const [pegado, setPegado] = useState(typeof draftInicial?.pegado === "string" ? draftInicial.pegado : "");
@@ -59,6 +65,10 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const guardadasActivas = useMemo(() => detalle.filter((item) => ESTADOS_ACTIVOS.includes(item.estado)).length, [detalle]);
   const identificadas = guardadasActivas + nuevas.length;
   const incompletas = useMemo(() => nuevas.filter(filaIncompleta).length, [nuevas]);
+  const sinNota = useMemo(
+    () => nuevas.filter((fila) => motivos.find((item) => item.codigo === fila.motivo)?.requiere_observacion && !fila.observacion.trim()).length,
+    [nuevas, motivos]
+  );
   // El backend rechaza el alta si un abonado/clave se repite dentro del lote, y
   // ese rechazo ocurre justo al cerrar: lo detectamos antes para que la ficha
   // conflictiva se vea y el cierre no falle sin explicacion.
@@ -78,14 +88,16 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     if (!config.permissions.can_close_own_lote) return { largo: "Tu usuario no tiene permiso para cerrar lotes. Pídeselo a un administrador.", corto: "Sin permiso para cerrar lotes." };
     if (requiereRecarga) return { largo: "No se confirmó qué alcanzó a guardar el servidor. Cierra y vuelve a abrir el lote para revisarlo antes de continuar.", corto: "Cierra y vuelve a abrir el lote." };
     if (buscando !== -1) return { largo: "Espera a que termine la búsqueda en el padrón.", corto: "Buscando en el padrón…" };
-    if (sobrantes === "") return { largo: `Responde arriba si te sobraron ${docs}.`, corto: `¿Te sobraron ${docs}? Responde arriba.` };
+    if (sobrantes === "" && !eligioSobrantes) return { largo: `Responde arriba si te sobraron ${docs}.`, corto: `¿Te sobraron ${docs}? Responde arriba.` };
+    if (sobrantes === "" || (eligioSobrantes && sobrantesNum === 0)) return { largo: `Indica cuántas ${docs} te sobraron, o elige "No" si entregaste todas.`, corto: "Indica cuántas te sobraron." };
     if (sobrantesInvalidos) return { largo: `Los sobrantes van de 0 a ${formatNumber(total)}.`, corto: `Sobrantes entre 0 y ${formatNumber(total)}.` };
     if (diferencia > 0) return { largo: `Indicaste ${formatCount(sobrantesNum, "sobrante")} y hay ${formatCount(identificadas, "ficha")}: ${diferencia === 1 ? "falta" : "faltan"} ${formatNumber(diferencia)}.`, corto: `${diferencia === 1 ? "Falta" : "Faltan"} ${formatCount(diferencia, "sobrante")} por anotar.` };
     if (diferencia < 0) return { largo: `Hay ${formatCount(identificadas, "sobrante anotado", "sobrantes anotados")} pero indicaste ${formatNumber(sobrantesNum)}: quita ${formatNumber(Math.abs(diferencia))} o sube la cantidad.`, corto: `Sobran ${formatNumber(Math.abs(diferencia))} fichas: revisa la cantidad.` };
     if (incompletas) return { largo: `Anota el abonado o la clave de cada sobrante: ${incompletas === 1 ? "falta 1 ficha" : `faltan ${formatNumber(incompletas)} fichas`}.`, corto: `Falta el abonado o la clave en ${formatCount(incompletas, "ficha")}.` };
+    if (sinNota) return { largo: `Escribe la nota de ${sinNota === 1 ? "la ficha" : `las ${formatNumber(sinNota)} fichas`} con motivo "Otro".`, corto: `Falta la nota en ${formatCount(sinNota, "ficha")} con "Otro".` };
     if (hayDuplicados && !duplicadosConfirmados) return { largo: `Hay ${formatCount(duplicados.length, "sobrante repetido", "sobrantes repetidos")} (mismo abonado y clave). Corrígelo o confirma que es real.`, corto: "Revisa los sobrantes repetidos." };
     return null;
-  }, [lote.estado, config.permissions.can_close_own_lote, requiereRecarga, buscando, sobrantes, sobrantesInvalidos, total, docs, diferencia, sobrantesNum, identificadas, incompletas, hayDuplicados, duplicadosConfirmados, duplicados.length]);
+  }, [lote.estado, config.permissions.can_close_own_lote, requiereRecarga, buscando, sobrantes, eligioSobrantes, sobrantesInvalidos, total, docs, diferencia, sobrantesNum, identificadas, incompletas, sinNota, hayDuplicados, duplicadosConfirmados, duplicados.length]);
 
   const hayCambiosPendientes = cierreTieneCambiosPendientes({ sobrantes, observacion, observacionInicial, nuevas, pegado });
 
