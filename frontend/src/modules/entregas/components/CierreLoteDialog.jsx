@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import SlideCommit from "../../../components/micro/SlideCommit";
 import {
@@ -6,20 +6,32 @@ import {
   estadoDocumentoLabel,
   formatCount,
   formatDate,
-  formatNumber,
-  tipoDocumentoLabel
+  formatNumber
 } from "../utils/entregasFormatters";
 import { filaVacia, parsearPegado, posicionesDuplicadas } from "../utils/cierreLoteUtils";
 import { cierreTieneCambiosPendientes, clearEntregaDraft, falloEntregaAmbiguo, readEntregaDraft, saveEntregaDraft } from "../utils/entregaDraftStorage";
 import EntregasDrawer from "./EntregasDrawer";
 
 const ESTADOS_ACTIVOS = ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA"];
+const MAX_FILAS = 100;
+const filaTieneDatos = (fila) => Boolean(fila.numero_abonado.trim() || fila.clave_catastral.trim() || fila.observacion.trim());
+const filaIncompleta = (fila) => !fila.numero_abonado.trim() && !fila.clave_catastral.trim();
 
+/**
+ * Cierre de un lote, pensado primero para el técnico en el teléfono. Lo primero es una
+ * pregunta con dos respuestas grandes: "¿Te sobraron facturas?". Si sobraron, al indicar
+ * cuántas aparece una ficha por cada sobrante, sin botones intermedios. Las palabras son las
+ * del técnico ("sobrantes"), no las del sistema ("no entregadas").
+ */
 export default function CierreLoteDialog({ api, config, lote, notify, onClose, onSaved, sessionUserId }) {
   const motivos = config.motivos;
   const motivoPorDefecto = motivos[0]?.codigo || "CASA_CERRADA";
   const observacionInicial = lote.observacion_responsable || "";
   const draftId = `cierre-${lote.id}`;
+  const total = Number(lote.total_asignadas) || 0;
+  const esNota = lote.tipo_documento === "NOTA_COBRO";
+  const docs = esNota ? "notas de cobro" : "facturas";
+  const doc = esNota ? "nota de cobro" : "factura";
   const [draftInicial] = useState(() => readEntregaDraft(sessionUserId, draftId));
   const [detalle, setDetalle] = useState(lote.no_entregadas || []);
   const [sobrantes, setSobrantes] = useState(typeof draftInicial?.sobrantes === "string" ? draftInicial.sobrantes : "");
@@ -34,83 +46,47 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   const [draftRecuperado, setDraftRecuperado] = useState(Boolean(draftInicial));
   const [draftPersistido, setDraftPersistido] = useState(null);
   const [requiereRecarga, setRequiereRecarga] = useState(false);
+  // "Sí, me sobraron" sigue elegido aunque la cantidad baje a 0 mientras se corrige.
+  const [eligioSobrantes, setEligioSobrantes] = useState(
+    () => Number(draftInicial?.sobrantes || 0) > 0 || (lote.no_entregadas || []).some((item) => ESTADOS_ACTIVOS.includes(item.estado))
+  );
+  const cantidadRef = useRef(null);
 
   useEffect(() => {
     setDetalle(lote.no_entregadas || []);
   }, [lote]);
 
-  const identificadas = useMemo(
-    () => detalle.filter((item) => ESTADOS_ACTIVOS.includes(item.estado)).length + nuevas.length,
-    [detalle, nuevas]
-  );
+  const guardadasActivas = useMemo(() => detalle.filter((item) => ESTADOS_ACTIVOS.includes(item.estado)).length, [detalle]);
+  const identificadas = guardadasActivas + nuevas.length;
+  const incompletas = useMemo(() => nuevas.filter(filaIncompleta).length, [nuevas]);
   // El backend rechaza el alta si un abonado/clave se repite dentro del lote, y
-  // ese rechazo ocurre justo al pulsar "Cerrar lote": lo detectamos antes para
-  // que la fila conflictiva se vea y el cierre no falle sin explicacion.
+  // ese rechazo ocurre justo al cerrar: lo detectamos antes para que la ficha
+  // conflictiva se vea y el cierre no falle sin explicacion.
   const duplicados = useMemo(() => posicionesDuplicadas(nuevas, detalle), [nuevas, detalle]);
   const hayDuplicados = duplicados.length > 0;
 
   const sobrantesNum = Number(sobrantes || 0);
-  const entregadas = Math.max(Number(lote.total_asignadas) - (Number.isFinite(sobrantesNum) ? sobrantesNum : 0), 0);
+  const entregadas = Math.max(total - (Number.isFinite(sobrantesNum) ? sobrantesNum : 0), 0);
   const diferencia = sobrantesNum - identificadas;
-  const sobrantesInvalidos =
-    sobrantes === "" || !Number.isSafeInteger(sobrantesNum) || sobrantesNum < 0 || sobrantesNum > Number(lote.total_asignadas);
-  const progreso = sobrantesNum > 0 ? Math.min((identificadas / sobrantesNum) * 100, 100) : 100;
-  // Un unico lugar decide si el lote puede cerrarse y, sobre todo, por que no.
-  // El motivo se muestra siempre junto al boton: un boton apagado sin
-  // explicacion es lo que hacia parecer que el cierre "no hace nada".
-  const motivoBloqueo = useMemo(() => {
-    if (lote.estado !== "ABIERTO") {
-      return "Este lote ya está cerrado o revisado. Un administrador debe reabrirlo para corregir el cierre.";
-    }
-    if (!config.permissions.can_close_own_lote) {
-      return "Tu usuario no tiene permiso para cerrar lotes. Pídeselo a un administrador.";
-    }
-    if (requiereRecarga) return "No se confirmó qué alcanzó a guardar el servidor. Cierra y vuelve a abrir el lote para revisarlo antes de continuar.";
-    if (buscando !== -1) return "Espera a que termine la búsqueda en el padrón.";
-    if (sobrantesInvalidos) {
-      return `Indica cuántos documentos no entregaste (usa 0 si los entregaste todos), entre 0 y ${formatNumber(lote.total_asignadas)}.`;
-    }
-    if (diferencia > 0) {
-      return `Declaraste ${formatCount(sobrantesNum, "documento no entregado", "documentos no entregados")} y has identificado ${formatCount(identificadas, "documento")}: ${diferencia === 1 ? "falta" : "faltan"} ${formatCount(diferencia, "documento")} por registrar.`;
-    }
-    if (diferencia < 0) {
-      return `Declaraste ${formatCount(sobrantesNum, "documento no entregado", "documentos no entregados")} pero hay ${formatCount(identificadas, "documento")} ${identificadas === 1 ? "registrado" : "registrados"}: quita ${formatCount(Math.abs(diferencia), "documento")} o aumenta la cantidad declarada.`;
-    }
-    if (hayDuplicados && !duplicadosConfirmados) {
-      return `Hay ${formatCount(duplicados.length, "documento duplicado", "documentos duplicados")} (mismo abonado y clave). Corrige la fila marcada o confirma que el duplicado es real.`;
-    }
+  const sobrantesInvalidos = sobrantes === "" || !Number.isSafeInteger(sobrantesNum) || sobrantesNum < 0 || sobrantesNum > total;
+  const respuesta = sobrantes === "" && !eligioSobrantes ? null : eligioSobrantes ? "sobraron" : "todas";
+
+  // Un unico lugar decide si el lote puede cerrarse y, sobre todo, por que no. El motivo
+  // largo va en escritorio; en el teléfono el pie lleva la versión corta.
+  const bloqueo = useMemo(() => {
+    if (lote.estado !== "ABIERTO") return { largo: "Este lote ya está cerrado o revisado. Un administrador debe reabrirlo para corregir el cierre.", corto: "El lote ya está cerrado." };
+    if (!config.permissions.can_close_own_lote) return { largo: "Tu usuario no tiene permiso para cerrar lotes. Pídeselo a un administrador.", corto: "Sin permiso para cerrar lotes." };
+    if (requiereRecarga) return { largo: "No se confirmó qué alcanzó a guardar el servidor. Cierra y vuelve a abrir el lote para revisarlo antes de continuar.", corto: "Cierra y vuelve a abrir el lote." };
+    if (buscando !== -1) return { largo: "Espera a que termine la búsqueda en el padrón.", corto: "Buscando en el padrón…" };
+    if (sobrantes === "") return { largo: `Responde arriba si te sobraron ${docs}.`, corto: `¿Te sobraron ${docs}? Responde arriba.` };
+    if (sobrantesInvalidos) return { largo: `Los sobrantes van de 0 a ${formatNumber(total)}.`, corto: `Sobrantes entre 0 y ${formatNumber(total)}.` };
+    if (diferencia > 0) return { largo: `Indicaste ${formatCount(sobrantesNum, "sobrante")} y hay ${formatCount(identificadas, "ficha")}: ${diferencia === 1 ? "falta" : "faltan"} ${formatNumber(diferencia)}.`, corto: `${diferencia === 1 ? "Falta" : "Faltan"} ${formatCount(diferencia, "sobrante")} por anotar.` };
+    if (diferencia < 0) return { largo: `Hay ${formatCount(identificadas, "sobrante anotado", "sobrantes anotados")} pero indicaste ${formatNumber(sobrantesNum)}: quita ${formatNumber(Math.abs(diferencia))} o sube la cantidad.`, corto: `Sobran ${formatNumber(Math.abs(diferencia))} fichas: revisa la cantidad.` };
+    if (incompletas) return { largo: `Anota el abonado o la clave de cada sobrante: ${incompletas === 1 ? "falta 1 ficha" : `faltan ${formatNumber(incompletas)} fichas`}.`, corto: `Falta el abonado o la clave en ${formatCount(incompletas, "ficha")}.` };
+    if (hayDuplicados && !duplicadosConfirmados) return { largo: `Hay ${formatCount(duplicados.length, "sobrante repetido", "sobrantes repetidos")} (mismo abonado y clave). Corrígelo o confirma que es real.`, corto: "Revisa los sobrantes repetidos." };
     return null;
-  }, [
-    lote.estado,
-    lote.total_asignadas,
-    config.permissions.can_close_own_lote,
-    requiereRecarga,
-    buscando,
-    sobrantesInvalidos,
-    diferencia,
-    sobrantesNum,
-    identificadas,
-    hayDuplicados,
-    duplicadosConfirmados,
-    duplicados.length
-  ]);
+  }, [lote.estado, config.permissions.can_close_own_lote, requiereRecarga, buscando, sobrantes, sobrantesInvalidos, total, docs, diferencia, sobrantesNum, identificadas, incompletas, hayDuplicados, duplicadosConfirmados, duplicados.length]);
 
-  // En el teléfono el pie debe ser bajo para que la cantidad y el detalle quepan en
-  // pantalla: allí se muestra esta versión corta del motivo (el detalle ya está arriba).
-  const motivoCorto = useMemo(() => {
-    if (!motivoBloqueo) return null;
-    if (lote.estado !== "ABIERTO") return "El lote ya está cerrado.";
-    if (!config.permissions.can_close_own_lote) return "Sin permiso para cerrar lotes.";
-    if (requiereRecarga) return "Cierra y vuelve a abrir el lote.";
-    if (buscando !== -1) return "Buscando en el padrón…";
-    if (sobrantesInvalidos) return "Indica cuántas no entregaste (0 si entregaste todas).";
-    if (diferencia > 0) return `${diferencia === 1 ? "Falta" : "Faltan"} ${formatCount(diferencia, "documento")} por registrar.`;
-    if (diferencia < 0) return `Sobra ${formatCount(Math.abs(diferencia), "documento")} en el detalle.`;
-    return "Revisa los documentos duplicados.";
-  }, [motivoBloqueo, lote.estado, config.permissions.can_close_own_lote, requiereRecarga, buscando, sobrantesInvalidos, diferencia]);
-
-  const puedeCerrar = !guardando && !motivoBloqueo;
-  const faltantes = Math.max(diferencia, 0);
   const hayCambiosPendientes = cierreTieneCambiosPendientes({ sobrantes, observacion, observacionInicial, nuevas, pegado });
 
   useEffect(() => {
@@ -136,8 +112,50 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     onClose();
   };
 
+  // La cantidad manda: al subirla aparecen fichas vacías hasta igualarla; al bajarla se
+  // quitan solo fichas vacías del final, nunca una con datos.
+  const cambiarSobrantes = (valor) => {
+    setSobrantes(valor);
+    const n = Number(valor);
+    if (valor === "" || !Number.isSafeInteger(n) || n < 0 || n > total) return;
+    const objetivo = Math.min(Math.max(n - guardadasActivas, 0), MAX_FILAS);
+    setNuevas((filas) => {
+      if (filas.length < objetivo) return [...filas, ...Array.from({ length: objetivo - filas.length }, () => filaVacia(motivoPorDefecto))];
+      const resultado = [...filas];
+      while (resultado.length > objetivo && !filaTieneDatos(resultado[resultado.length - 1])) resultado.pop();
+      return resultado;
+    });
+  };
+
+  const elegirTodas = () => {
+    if (guardadasActivas > 0 || nuevas.some(filaTieneDatos)) {
+      notify("Ya hay sobrantes anotados. Quítalos primero si de verdad entregaste todas.");
+      return;
+    }
+    setEligioSobrantes(false);
+    setNuevas([]);
+    setSobrantes("0");
+  };
+
+  const elegirSobrantes = () => {
+    setEligioSobrantes(true);
+    if (sobrantesNum < 1) cambiarSobrantes("1");
+    setTimeout(() => cantidadRef.current?.select(), 0);
+  };
+
   const patchNueva = (index, cambios) =>
     setNuevas((filas) => filas.map((fila, posicion) => (posicion === index ? { ...fila, ...cambios } : fila)));
+
+  const quitarFila = (index) => {
+    setNuevas((filas) => filas.filter((_unused, posicion) => posicion !== index));
+    setSobrantes((actual) => String(Math.max(Number(actual || 0) - 1, 0)));
+  };
+
+  const agregarOtro = () => {
+    if (identificadas >= total || nuevas.length >= MAX_FILAS) return;
+    setNuevas((filas) => [...filas, filaVacia(motivoPorDefecto)]);
+    setSobrantes(String(Math.max(sobrantesNum, identificadas) + 1));
+  };
 
   // Autocompleta clave y nombre a partir del padrón ya existente en el sistema.
   const buscarAbonado = async (index, valor, campo) => {
@@ -164,32 +182,21 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
   const agregarPegado = () => {
     const filas = parsearPegado(pegado, motivos);
-    if (identificadas + filas.length > lote.total_asignadas) { notify("El detalle no puede superar las asignadas."); return; }
     if (!filas.length) {
       notify("No se reconoció ninguna fila en el texto pegado.");
       return;
     }
-    setNuevas((actuales) => [...actuales, ...filas]);
-    const totalPegado = identificadas + filas.length;
-    if (sobrantes === "" || sobrantesNum < totalPegado) setSobrantes(String(totalPegado));
-    setPegado("");
-    setModo("manual");
-  };
-
-  const agregarFaltantes = () => {
-    const total = Math.min(Number.isSafeInteger(faltantes) ? faltantes || 1 : 1, 100, Number(lote.total_asignadas) - identificadas);
-    if (total <= 0) return;
-    setNuevas((filas) => [...filas, ...Array.from({ length: total }, () => filaVacia(motivoPorDefecto))]);
-    if (sobrantes === "" || faltantes === 0) setSobrantes(String(identificadas + total));
-  };
-
-  const marcarTodoEntregado = () => {
-    if (identificadas > 0) {
-      notify("Ya hay no entregadas registradas. Quita esas filas si el lote realmente cerró en cero.");
+    // Las fichas vacías que había se reemplazan por las pegadas.
+    const conDatos = nuevas.filter(filaTieneDatos);
+    if (guardadasActivas + conDatos.length + filas.length > total) {
+      notify(`Los sobrantes no pueden pasar de ${formatNumber(total)}.`);
       return;
     }
-    setSobrantes("0");
-    setNuevas([]);
+    setNuevas([...conDatos, ...filas]);
+    setSobrantes(String(guardadasActivas + conDatos.length + filas.length));
+    setEligioSobrantes(true);
+    setPegado("");
+    setModo("manual");
   };
 
   const guardarNuevas = async () => {
@@ -198,21 +205,19 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
       return false;
     }
     if (!nuevas.length) return true;
-    const incompletas = nuevas.filter((fila) => !fila.numero_abonado.trim() && !fila.clave_catastral.trim());
-    if (incompletas.length) {
-      notify("Cada documento necesita número de abonado o clave catastral.");
+    if (nuevas.some(filaIncompleta)) {
+      notify("Cada sobrante necesita número de abonado o clave catastral.");
       return false;
     }
     const sinObservacion = nuevas.filter(
       (fila) => motivos.find((item) => item.codigo === fila.motivo)?.requiere_observacion && !fila.observacion.trim()
     );
     if (sinObservacion.length) {
-      notify('Los documentos con motivo "Otro" necesitan una observación.');
+      notify('Los sobrantes con motivo "Otro" necesitan una nota.');
       return false;
     }
-
     if (hayDuplicados && !duplicadosConfirmados) {
-      notify("Hay documentos repetidos (mismo abonado y clave). Corrígelos o confirma que van duplicados.");
+      notify("Hay sobrantes repetidos (mismo abonado y clave). Corrígelos o confirma que van duplicados.");
       return false;
     }
 
@@ -230,6 +235,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     try {
       await api.eliminarNoEntregada(documento.id);
       setDetalle((filas) => filas.filter((fila) => fila.id !== documento.id));
+      setSobrantes((actual) => String(Math.max(Number(actual || 0) - 1, 0)));
     } catch (error) {
       notify(error.message);
     }
@@ -243,16 +249,16 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
 
   const cerrar = async () => {
     if (guardando) throw yaAvisado("Espera a que termine la operación en curso.");
-    if (motivoBloqueo) {
-      notify(motivoBloqueo);
-      throw yaAvisado(motivoBloqueo);
+    if (bloqueo) {
+      notify(bloqueo.largo);
+      throw yaAvisado(bloqueo.largo);
     }
     persistirCaptura();
     setGuardando(true);
     setCerrando(true);
     try {
       // guardarNuevas ya explica el motivo cuando devuelve false.
-      if (!(await guardarNuevas())) throw yaAvisado("Revisa el detalle antes de cerrar.");
+      if (!(await guardarNuevas())) throw yaAvisado("Revisa los sobrantes antes de cerrar.");
       const actualizado = await api.cerrarLote(lote.id, {
         total_sobrantes: Number(sobrantes),
         observacion_responsable: observacion
@@ -278,7 +284,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     persistirCaptura();
     setGuardando(true);
     try {
-      if (await guardarNuevas()) notify("Documentos registrados en el lote.");
+      if (await guardarNuevas()) notify("Sobrantes guardados en el lote.");
     } catch (error) {
       if (falloEntregaAmbiguo(error)) {
         setRequiereRecarga(true);
@@ -292,325 +298,234 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
     }
   };
 
+  const etiquetaMotivo = (codigo) => motivos.find((item) => item.codigo === codigo)?.etiqueta || codigo;
+  const anotadas = identificadas - incompletas;
+  const mostrarSobrantes = respuesta === "sobraron" || detalle.length > 0 || nuevas.length > 0;
+
   return (
     <EntregasDrawer title={`Cerrar lote ${lote.id}`} busy={guardando} onClose={solicitarCierre}>
-        <header>
-          <div>
-            <span className="cl-kicker">Cierre de lote</span>
-            <h2>{lote.responsable_nombre}</h2>
-            <p>
-              {lote.barrio_nombre} · {tipoDocumentoLabel(lote.tipo_documento)} · {formatDate(lote.fecha)} ·{" "}
-              {formatNumber(lote.total_asignadas)} asignadas
-            </p>
+      <header className="ent-cierre-head">
+        <div>
+          <h2>Cerrar lote · {lote.barrio_nombre}</h2>
+          <p>Lote #{lote.id} · {lote.responsable_nombre} · {formatDate(lote.fecha)}</p>
+        </div>
+        <button type="button" className="cl-icon-button" disabled={guardando} onClick={solicitarCierre} aria-label="Cerrar">
+          ✕
+        </button>
+      </header>
+
+      <div className="cl-drawer-scroll ent-cierre">
+        {draftRecuperado ? (
+          <p className="ent-draft-status" role="status">
+            Se recuperó lo que habías anotado sin enviar. Revísalo y desliza para cerrar.
+            <button type="button" className="cl-link" onClick={() => setDraftRecuperado(false)}>Entendido</button>
+          </p>
+        ) : null}
+
+        <section className={`ent-cierre-pregunta ${respuesta ? `is-${respuesta}` : ""}`} aria-labelledby="ent-cierre-pregunta">
+          <h3 id="ent-cierre-pregunta">¿Te sobraron {docs}?</h3>
+          <p>Llevaste {formatCount(total, doc, docs)} a {lote.barrio_nombre}.</p>
+          <div className="ent-cierre-respuestas" role="group" aria-labelledby="ent-cierre-pregunta">
+            <button type="button" aria-pressed={respuesta === "todas"} onClick={elegirTodas}>
+              <Icon name="checkCircle" />
+              <span><strong>No</strong><small>Entregué todas</small></span>
+            </button>
+            <button type="button" aria-pressed={respuesta === "sobraron"} onClick={elegirSobrantes}>
+              <Icon name="warning" />
+              <span><strong>Sí</strong><small>Me sobraron</small></span>
+            </button>
           </div>
-          <button type="button" className="cl-icon-button" disabled={guardando} onClick={solicitarCierre} aria-label="Cerrar">
-            ✕
-          </button>
-        </header>
 
-        <div className="cl-drawer-scroll">
-          {draftRecuperado ? <p className="ent-draft-status" role="status">Se recuperó una captura sin enviar. Revísala y vuelve a cerrarla para guardar los cambios en el servidor.</p> : null}
-          <div className="ent-cierre-pasos" aria-label="Progreso del cierre">
-            <span className={sobrantes === "" ? "is-active" : "is-done"}>1<small>Cantidad</small></span>
-            <span className={diferencia === 0 && sobrantes !== "" ? "is-done" : "is-active"}>2<small>Detalle</small></span>
-            <span className={puedeCerrar ? "is-done" : ""}>3<small>Confirmar</small></span>
-          </div>
-
-          <section className="ent-card ent-cierre-resumen">
-            <h3>Resultado del recorrido</h3>
-            <div className="ent-cierre-kpis">
-              <div>
-                <span>Asignadas</span>
-                <strong>{formatNumber(lote.total_asignadas)}</strong>
-              </div>
-              <div>
-                <span>Entregadas</span>
-                <strong>{formatNumber(entregadas)}</strong>
-              </div>
-              <div className={diferencia === 0 && sobrantes !== "" ? "is-ok" : "is-alert"}>
-                <span>Por registrar</span>
-                <strong>{formatNumber(Math.max(diferencia, 0))}</strong>
-              </div>
-            </div>
-
-            <div className="ent-grid-2">
-              <label className="cl-field">
-                No entregadas
-                <div className="ent-stepper">
-                  <button
-                    type="button"
-                    aria-label="Restar sobrante"
-                    onClick={() => setSobrantes(String(Math.max(sobrantesNum - 1, 0)))}
-                    disabled={sobrantesInvalidos && sobrantes !== ""}
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    aria-label="No entregadas"
-                    min="0"
-                    max={lote.total_asignadas}
-                    step="1"
-                    inputMode="numeric"
-                    value={sobrantes}
-                    onChange={(event) => setSobrantes(event.target.value)}
-                  />
-                  <button
-                    type="button"
-                    aria-label="Sumar sobrante"
-                    onClick={() => setSobrantes(String(Math.min(sobrantesNum + 1, Number(lote.total_asignadas))))}
-                    disabled={sobrantesNum >= Number(lote.total_asignadas)}
-                  >
-                    +
-                  </button>
-                </div>
-                <button type="button" className="cl-secondary ent-quick-zero" onClick={marcarTodoEntregado}>
-                  Registrar 0 no entregadas
-                </button>
-              </label>
-              <label className="cl-field">
-                Entregadas (calculado)
-                <input type="text" value={formatNumber(entregadas)} readOnly />
-              </label>
-              <label className="cl-field is-wide">
-                Observación del responsable
-                <textarea
-                  rows={3}
-                  value={observacion}
-                  onChange={(event) => setObservacion(event.target.value)}
-                  placeholder="Ej. Varias viviendas se encontraron cerradas durante el recorrido de la mañana."
+          {respuesta === "sobraron" ? (
+            <div className="ent-cierre-cantidad">
+              <label htmlFor="ent-cierre-cantidad">¿Cuántas te sobraron?</label>
+              <div className="ent-stepper">
+                <button type="button" aria-label="Una menos" onClick={() => cambiarSobrantes(String(Math.max(sobrantesNum - 1, 0)))} disabled={sobrantesNum <= 0}>−</button>
+                <input
+                  id="ent-cierre-cantidad"
+                  ref={cantidadRef}
+                  type="number"
+                  aria-label="Sobrantes"
+                  min="0"
+                  max={total}
+                  step="1"
+                  inputMode="numeric"
+                  value={sobrantes}
+                  onChange={(event) => cambiarSobrantes(event.target.value)}
                 />
-              </label>
+                <button type="button" aria-label="Una más" onClick={() => cambiarSobrantes(String(Math.min(sobrantesNum + 1, total)))} disabled={sobrantesNum >= total}>+</button>
+              </div>
             </div>
-            {sobrantesInvalidos ? (
-              <p className="cl-alert">Los sobrantes deben estar entre 0 y {formatNumber(lote.total_asignadas)}.</p>
-            ) : null}
-          </section>
+          ) : null}
 
-          <section className="ent-card">
-            <header className="ent-card-head">
-              <div>
-                <h3>Identificar no entregadas</h3>
-                <p>
-                  Registradas {formatNumber(identificadas)} de {formatNumber(sobrantesNum)} no entregadas.
-                </p>
-              </div>
-              <div className="ent-modo-switch">
-                <button
-                  type="button"
-                  className={modo === "manual" ? "is-active" : ""}
-                  onClick={() => setModo("manual")}
-                >
-                  Agregar manualmente
-                </button>
-                <button type="button" className={modo === "pegar" ? "is-active" : ""} onClick={() => setModo("pegar")}>
-                  Pegar varias filas
-                </button>
-              </div>
+          {respuesta ? (
+            <p className="ent-cierre-cuenta">
+              Entregadas <strong>{formatNumber(entregadas)}</strong> de {formatNumber(total)}
+              {sobrantesNum > 0 ? <> · Sobrantes <strong>{formatNumber(sobrantesNum)}</strong></> : null}
+            </p>
+          ) : null}
+          {sobrantes !== "" && sobrantesInvalidos ? <p className="cl-alert">Los sobrantes van de 0 a {formatNumber(total)}.</p> : null}
+        </section>
+
+        {mostrarSobrantes ? (
+          <section className="ent-cierre-sobrantes" aria-labelledby="ent-cierre-sobrantes">
+            <header>
+              <h3 id="ent-cierre-sobrantes">Anota cada sobrante</h3>
+              <span className={anotadas === sobrantesNum && sobrantesNum > 0 ? "is-ok" : ""}>
+                {formatNumber(anotadas)} de {formatNumber(sobrantesNum)}
+              </span>
             </header>
+            <p className="ent-cierre-ayuda">Con el número de abonado o la clave basta; el nombre se completa solo si está en el padrón.</p>
 
-            {diferencia !== 0 && sobrantes !== "" ? (
-              <p className={`ent-diferencia ${diferencia > 0 ? "is-atencion" : "is-critico"}`}>
-                {diferencia > 0
-                  ? `${diferencia === 1 ? "Falta" : "Faltan"} ${formatCount(diferencia, "documento")} por identificar.`
-                  : `Hay ${formatCount(Math.abs(diferencia), "documento")} de más respecto a la cantidad declarada.`}
-              </p>
+            {hayDuplicados ? (
+              <label className="ent-duplicados-aviso">
+                <input type="checkbox" checked={duplicadosConfirmados} onChange={(event) => setDuplicadosConfirmados(event.target.checked)} />
+                <span>Hay {formatCount(duplicados.length, "sobrante repetido", "sobrantes repetidos")} con el mismo abonado y clave. Marca aquí si de verdad van repetidos.</span>
+              </label>
             ) : null}
-            <div className="ent-cierre-progress">
-              <span>{formatNumber(identificadas)} / {formatNumber(sobrantesNum)} registradas</span>
-              <i><em style={{ width: `${progreso}%` }} /></i>
-            </div>
 
-            <div className="ent-captura-actions">
-              <button type="button" className="cl-secondary" onClick={agregarFaltantes}>
-                <Icon name="plus" />
-                {faltantes > 0 ? `Crear ${formatCount(Math.min(faltantes, 100), "fila faltante", "filas faltantes")}` : "Agregar documento"}
+            <ol className="ent-sobrantes-lista">
+              {detalle.map((documento, index) => (
+                <li key={documento.id} className="ent-sobrante is-guardado">
+                  <header>
+                    <strong>Sobrante {index + 1}</strong>
+                    <span className={`cl-status ${estadoClass(documento.estado)}`}><i />{estadoDocumentoLabel(documento.estado)}</span>
+                    {lote.estado === "ABIERTO" ? (
+                      <button type="button" className="ent-sobrante-quitar" onClick={() => eliminarExistente(documento)} aria-label={`Quitar sobrante ${index + 1}`}>
+                        <Icon name="trash" />
+                      </button>
+                    ) : null}
+                  </header>
+                  <p>
+                    {documento.numero_abonado ? <>Abonado <b>{documento.numero_abonado}</b></> : null}
+                    {documento.clave_catastral ? <> · Clave <b>{documento.clave_catastral}</b></> : null}
+                    {" · "}{etiquetaMotivo(documento.motivo)}
+                  </p>
+                </li>
+              ))}
+              {nuevas.map((fila, index) => {
+                const numero = guardadasActivas + index + 1;
+                const requiereNota = motivos.find((item) => item.codigo === fila.motivo)?.requiere_observacion;
+                const duplicada = duplicados.includes(index);
+                return (
+                  <li key={`nueva-${index}`} className={`ent-sobrante ${duplicada ? "is-duplicada" : ""}`}>
+                    <header>
+                      <strong>Sobrante {numero}{sobrantesNum ? <small> de {formatNumber(sobrantesNum)}</small> : null}</strong>
+                      {duplicada ? <span className="ent-dup-hint">Repetido</span> : null}
+                      <button type="button" className="ent-sobrante-quitar" onClick={() => quitarFila(index)} aria-label={`Quitar sobrante ${numero}`}>
+                        <Icon name="trash" />
+                      </button>
+                    </header>
+                    <div className="ent-sobrante-campos">
+                      <label>
+                        <span>Abonado</span>
+                        <input
+                          value={fila.numero_abonado}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          onChange={(event) => patchNueva(index, { numero_abonado: event.target.value })}
+                          onBlur={(event) => buscarAbonado(index, event.target.value, "abonado")}
+                          placeholder="10245"
+                        />
+                      </label>
+                      <label>
+                        <span>Clave catastral</span>
+                        <input
+                          value={fila.clave_catastral}
+                          autoComplete="off"
+                          onChange={(event) => patchNueva(index, { clave_catastral: event.target.value })}
+                          onBlur={(event) => buscarAbonado(index, event.target.value, "clave")}
+                          placeholder="10-20-03-04"
+                        />
+                      </label>
+                      <label className="is-wide">
+                        <span>¿Por qué no se entregó?</span>
+                        <select value={fila.motivo} onChange={(event) => patchNueva(index, { motivo: event.target.value })}>
+                          {motivos.map((motivo) => <option key={motivo.codigo} value={motivo.codigo}>{motivo.etiqueta}</option>)}
+                        </select>
+                      </label>
+                      <label className="is-wide">
+                        <span>Nota {requiereNota ? "(obligatoria)" : "(opcional)"}</span>
+                        <textarea
+                          rows={requiereNota || fila.observacion ? 2 : 1}
+                          value={fila.observacion}
+                          onChange={(event) => patchNueva(index, { observacion: event.target.value })}
+                          placeholder="Ej. portón con candado"
+                        />
+                      </label>
+                    </div>
+                    {buscando === index ? <small className="ent-sobrante-info">Buscando en el padrón…</small> : null}
+                    {fila.abonado_nombre && buscando !== index ? <small className="ent-sobrante-info">{fila.abonado_nombre}</small> : null}
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="ent-sobrantes-acciones">
+              <button type="button" className="cl-secondary" onClick={agregarOtro} disabled={identificadas >= total}>
+                <Icon name="plus" />Otro sobrante
               </button>
-              <button type="button" className="cl-secondary" onClick={() => setModo("pegar")}>
-                <Icon name="copy" />
-                Pegar listado
+              <button type="button" className="cl-link" onClick={() => setModo(modo === "pegar" ? "manual" : "pegar")}>
+                {modo === "pegar" ? "Cancelar pegado" : "Pegar un listado"}
               </button>
             </div>
 
             {modo === "pegar" ? (
               <div className="ent-pegado">
                 <label className="cl-field">
-                  Pega una fila por documento (abonado, clave, motivo)
+                  Una línea por sobrante: abonado, clave y motivo
                   <textarea
-                    rows={6}
+                    rows={5}
                     value={pegado}
                     onChange={(event) => setPegado(event.target.value)}
                     placeholder={"10245\t10-20-03-04\tCasa cerrada\n10287\t10-20-03-18\tDirección no encontrada"}
                   />
                 </label>
-                <button type="button" className="cl-secondary" onClick={agregarPegado}>
-                  <Icon name="plus" />
-                  Agregar filas
-                </button>
-              </div>
-            ) : null}
-
-            {hayDuplicados ? (
-              <div className="ent-duplicados-aviso">
-                <p>
-                  Hay {formatCount(duplicados.length, "documento duplicado", "documentos duplicados")} por coincidencia de abonado y clave en este lote.
-                  Corrige la fila marcada o confirma que el duplicado es real.
-                </p>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={duplicadosConfirmados}
-                    onChange={(event) => setDuplicadosConfirmados(event.target.checked)}
-                  />
-                  Sí, este lote lleva documentos repetidos
-                </label>
-              </div>
-            ) : null}
-
-            {nuevas.length ? (
-              <div className="cl-table-wrap">
-                <table className="cl-table ent-table ent-captura ent-captura-table">
-                  <thead>
-                    <tr>
-                      <th>Abonado</th>
-                      <th>Clave catastral</th>
-                      <th>Motivo</th>
-                      <th>¿Por qué no se entregó?</th>
-                      <th aria-label="Quitar" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {nuevas.map((fila, index) => (
-                      // eslint-disable-next-line react/no-array-index-key
-                      <tr key={`nueva-${index}`} className={duplicados.includes(index) ? "is-duplicada" : ""}>
-                        <td>
-                          <input
-                            value={fila.numero_abonado}
-                            aria-label={`Abonado, fila ${index + 1}`}
-                            onChange={(event) => patchNueva(index, { numero_abonado: event.target.value })}
-                            onBlur={(event) => buscarAbonado(index, event.target.value, "abonado")}
-                            placeholder="10245"
-                          />
-                          {fila.abonado_nombre ? <small>{fila.abonado_nombre}</small> : null}
-                          {duplicados.includes(index) ? <small className="ent-dup-hint">Repetido en este lote</small> : null}
-                        </td>
-                        <td>
-                          <input
-                            value={fila.clave_catastral}
-                            aria-label={`Clave catastral, fila ${index + 1}`}
-                            onChange={(event) => patchNueva(index, { clave_catastral: event.target.value })}
-                            onBlur={(event) => buscarAbonado(index, event.target.value, "clave")}
-                            placeholder="10-20-03-04"
-                          />
-                          {buscando === index ? <small>Buscando en padrón…</small> : null}
-                        </td>
-                        <td>
-                          <select value={fila.motivo} onChange={(event) => patchNueva(index, { motivo: event.target.value })}>
-                            {motivos.map((motivo) => (
-                              <option key={motivo.codigo} value={motivo.codigo}>
-                                {motivo.etiqueta}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <textarea
-                            rows={2}
-                            aria-label={`Por qué no se entregó, fila ${index + 1}`}
-                            value={fila.observacion}
-                            onChange={(event) => patchNueva(index, { observacion: event.target.value })}
-                            placeholder="Describe qué ocurrió en esta entrega"
-                          />
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="cl-icon-button"
-                            onClick={() => setNuevas((filas) => filas.filter((_unused, posicion) => posicion !== index))}
-                            aria-label="Quitar fila"
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-
-            {detalle.length ? (
-              <div className="cl-table-wrap ent-detalle-guardado">
-                <table className="cl-table ent-table ent-detalle-table">
-                  <thead>
-                    <tr>
-                      <th>Abonado</th>
-                      <th>Clave</th>
-                      <th>Motivo</th>
-                      <th>Estado</th>
-                      <th aria-label="Acciones" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detalle.map((documento) => (
-                      <tr key={documento.id}>
-                        <td>{documento.numero_abonado || "—"}</td>
-                        <td>{documento.clave_catastral || "—"}</td>
-                        <td>{motivos.find((item) => item.codigo === documento.motivo)?.etiqueta || documento.motivo}</td>
-                        <td>
-                          <span className={`cl-status ${estadoClass(documento.estado)}`}>
-                            <i />
-                            {estadoDocumentoLabel(documento.estado)}
-                          </span>
-                        </td>
-                        <td>
-                          {lote.estado === "ABIERTO" ? (
-                            <button
-                              type="button"
-                              className="cl-icon-button"
-                              onClick={() => eliminarExistente(documento)}
-                              aria-label="Eliminar documento"
-                            >
-                              ✕
-                            </button>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <button type="button" className="cl-secondary" onClick={agregarPegado}><Icon name="plus" />Agregar al lote</button>
               </div>
             ) : null}
           </section>
-          {/* Aviso secundario: va al final para no empujar la cantidad y el detalle en el teléfono. */}
-          {hayCambiosPendientes ? <p className="ent-draft-status" role="status">{draftPersistido === null ? "Guardando una copia en esta pestaña…" : draftPersistido ? "La captura sin enviar se conserva en esta pestaña. No la cierres hasta enviarla al servidor." : "No se pudo guardar una copia local de esta captura."}</p> : null}
-        </div>
+        ) : null}
 
-        <footer className="ent-drawer-footer">
-          {nuevas.length ? (
-            <button type="button" className="cl-secondary ent-guardar-detalle" onClick={guardarDetalle} disabled={guardando}>
-              Guardar detalle
-            </button>
+        <label className="cl-field ent-cierre-nota">
+          Observación del recorrido (opcional)
+          <textarea
+            rows={2}
+            value={observacion}
+            onChange={(event) => setObservacion(event.target.value)}
+            placeholder="Ej. Varias viviendas cerradas por la mañana."
+          />
+        </label>
+
+        {/* Aviso secundario: va al final para no empujar la pregunta en el teléfono. */}
+        {hayCambiosPendientes ? <p className="ent-draft-status" role="status">{draftPersistido === null ? "Guardando una copia en esta pestaña…" : draftPersistido ? "Lo anotado se conserva en esta pestaña hasta que cierres el lote." : "No se pudo guardar una copia local de lo anotado."}</p> : null}
+      </div>
+
+      <footer className="ent-drawer-footer">
+        {nuevas.some(filaTieneDatos) && lote.estado === "ABIERTO" ? (
+          <button type="button" className="cl-secondary ent-guardar-detalle" onClick={guardarDetalle} disabled={guardando}>
+            Guardar sin cerrar
+          </button>
+        ) : null}
+        <div className="ent-cerrar-wrap">
+          {!guardando && bloqueo ? (
+            <p className="cl-alert ent-cerrar-motivo" id="ent-cerrar-motivo" role="status">
+              <span className="ent-motivo-largo">No se puede cerrar todavía: {bloqueo.largo}</span>
+              <span className="ent-motivo-corto">{bloqueo.corto}</span>
+            </p>
           ) : null}
-          <div className="ent-cerrar-wrap">
-            {!guardando && motivoBloqueo ? (
-              <p className="cl-alert ent-cerrar-motivo" id="ent-cerrar-motivo" role="status">
-                <span className="ent-motivo-largo">No se puede cerrar todavía: {motivoBloqueo}</span>
-                <span className="ent-motivo-corto">{motivoCorto}</span>
-              </p>
-            ) : null}
-            <SlideCommit
-              label="Desliza para cerrar el lote"
-              doneLabel="Lote cerrado"
-              errorLabel="No se pudo cerrar el lote"
-              width="fill"
-              onConfirm={cerrar}
-              disabled={Boolean(motivoBloqueo) || (guardando && !cerrando)}
-              title={motivoBloqueo || undefined}
-              describedBy={motivoBloqueo ? "ent-cerrar-motivo" : undefined}
-            />
-          </div>
-        </footer>
+          <SlideCommit
+            label="Desliza para cerrar el lote"
+            doneLabel="Lote cerrado"
+            errorLabel="No se pudo cerrar el lote"
+            width="fill"
+            onConfirm={cerrar}
+            disabled={Boolean(bloqueo) || (guardando && !cerrando)}
+            title={bloqueo?.largo || undefined}
+            describedBy={bloqueo ? "ent-cerrar-motivo" : undefined}
+          />
+        </div>
+      </footer>
     </EntregasDrawer>
   );
 }
