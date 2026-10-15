@@ -112,3 +112,32 @@ export const normalizarRespuesta = (payload = {}) => {
 };
 
 export const etiquetaMotivo = (codigo) => MOTIVOS_RECLAMO.find((motivo) => motivo.codigo === codigo)?.etiqueta || codigo;
+
+// A quién avisa la campana al registrar un reclamo: al responsable (si tiene usuario)
+// y a todo el equipo de campo, una vez por persona y nunca a quien lo registró.
+// tecnicos: [{ id }] usuarios activos de campo.
+export const armarAvisosReclamo = ({ reclamo, responsableUserId = null, tecnicos = [], autorId = null } = {}) => {
+  const quien = [
+    reclamo.numero_abonado ? `abonado ${reclamo.numero_abonado}` : "",
+    reclamo.clave_catastral ? `(${reclamo.clave_catastral})` : ""
+  ].filter(Boolean).join(" ") || "sin clave";
+  const documentos = reclamo.tipo_documento === "NOTA_COBRO"
+    ? `${reclamo.cantidad} ${reclamo.cantidad === 1 ? "nota de cobro" : "notas de cobro"}`
+    : `${reclamo.cantidad} ${reclamo.cantidad === 1 ? "factura" : "facturas"}`;
+  const resumen = `${quien}${reclamo.barrio_nombre ? `, ${reclamo.barrio_nombre}` : ""} · ${reclamo.motivo_etiqueta} · ${documentos}`;
+  const nombre = reclamo.responsable?.nombre;
+  const responsable = toEntero(responsableUserId) || null;
+  const destinos = new Map();
+  if (responsable && responsable !== toEntero(autorId)) {
+    destinos.set(responsable, `Reclamo de entrega para ti: ${resumen}. Escribe qué pasó en Reclamos de entrega.`);
+  }
+  const paraEquipo = nombre
+    ? `Nuevo reclamo de entrega para ${nombre}${responsable ? "" : " (no tiene usuario en la app)"}: ${resumen}.`
+    : `Nuevo reclamo de entrega sin técnico asignado: ${resumen}.`;
+  for (const tecnico of tecnicos) {
+    const id = toEntero(tecnico?.id);
+    if (!id || id === toEntero(autorId) || destinos.has(id)) continue;
+    destinos.set(id, paraEquipo);
+  }
+  return [...destinos].map(([recipient_user_id, body]) => ({ recipient_user_id, body: body.slice(0, 2000) }));
+};

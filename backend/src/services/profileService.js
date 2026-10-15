@@ -284,6 +284,7 @@ export const normalizeMessage = (message) => ({
   parent_message_id: message.parent_message_id,
   body: message.body,
   entrega_lote_id: message.entrega_lote_id ?? null,
+  entrega_reclamo_id: message.entrega_reclamo_id ?? null,
   banco_asignacion: Boolean(message.banco_asignacion),
   read_at: message.read_at,
   created_at: message.created_at,
@@ -486,6 +487,9 @@ export const getProfile = async ({ authUser, userId }) => {
     const [asignaciones] = await pool.query("SELECT message_id FROM banco_asignacion_avisos WHERE message_id IN (?)", [messages.map((item) => item.id)]);
     const avisosBanco = new Set(asignaciones.map((item) => Number(item.message_id)));
     messages.forEach((item) => { item.banco_asignacion = avisosBanco.has(Number(item.id)); });
+    const [avisosReclamo] = await pool.query("SELECT message_id, reclamo_id FROM entrega_reclamo_avisos WHERE message_id IN (?)", [messages.map((item) => item.id)]);
+    const reclamos = new Map(avisosReclamo.map((item) => [Number(item.message_id), item.reclamo_id]));
+    messages.forEach((item) => { item.entrega_reclamo_id = reclamos.get(Number(item.id)) || null; });
   }
   const [generalMessages] = await pool.query(
     `

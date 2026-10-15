@@ -79,3 +79,14 @@ test("la respuesta del técnico no puede quedar vacía", () => {
   assert.throws(() => normalizarRespuesta({ respuesta: "  ok " }), /mínimo 5/);
   assert.equal(normalizarRespuesta({ respuesta: "  La dejé con la vecina.  " }), "La dejé con la vecina.");
 });
+
+test("el aviso va al responsable y a todo el equipo, una vez y sin el autor", async () => {
+  const { armarAvisosReclamo } = await import("./entregasReclamosRules.js");
+  const reclamo = { numero_abonado: "17752", clave_catastral: "42-12-10-01", barrio_nombre: "Barrio El Estruendo", motivo_etiqueta: "Otro", tipo_documento: "FACTURA", cantidad: 1, responsable: { nombre: "Elmer Gómez" } };
+  const avisos = armarAvisosReclamo({ reclamo, responsableUserId: 9, tecnicos: [{ id: 9 }, { id: 4 }, { id: 1 }], autorId: 1 });
+  assert.deepEqual(avisos.map((aviso) => aviso.recipient_user_id), [9, 4]);
+  assert.match(avisos[0].body, /^Reclamo de entrega para ti: abonado 17752 \(42-12-10-01\), Barrio El Estruendo · Otro · 1 factura\./);
+  assert.match(avisos[1].body, /^Nuevo reclamo de entrega para Elmer Gómez: /);
+  const sinUsuario = armarAvisosReclamo({ reclamo, tecnicos: [{ id: 4 }] });
+  assert.match(sinUsuario[0].body, /Elmer Gómez \(no tiene usuario en la app\)/);
+});

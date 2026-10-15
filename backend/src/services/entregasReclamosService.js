@@ -5,9 +5,11 @@
 // entregasReclamosRules.js.
 
 import { getPool } from "../config/db.js";
+import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
 import { getMasterRecords, normalizeLookupKey } from "./claveLookupService.js";
 import { jornadaEntregas } from "./entregasReminderService.js";
+import { emitProfileMessage } from "./profileRealtimeService.js";
 import { leerRepartoBarrios } from "./entregasRepartoService.js";
 import { codigoBarrioDeClave } from "./entregasRepartoRules.js";
 import { getCicloVigente } from "./entregasService.js";
@@ -15,6 +17,7 @@ import { fail, toEntero, toIsoDate } from "./entregasRules.js";
 import {
   MAX_COINCIDENCIAS,
   MOTIVOS_RECLAMO,
+  armarAvisosReclamo,
   buscarEnPadron,
   elegirResponsable,
   etiquetaMotivo,
@@ -294,6 +297,42 @@ export const listReclamos = async (query = {}, user) => {
 /* Escrituras                                                                  */
 /* -------------------------------------------------------------------------- */
 
+// Campana: el responsable y todo el equipo de campo se enteran del reclamo nuevo. Un
+// aviso que falla nunca deshace el reclamo ya guardado.
+const avisarReclamo = async (reclamo, responsableUserId, user) => {
+  if (env.useMemoryDb) return 0;
+  try {
+    const pool = getPool();
+    const [tecnicos] = await pool.query("SELECT id FROM app_users WHERE is_active = 1 AND role IN ('operator', 'validadora_campo')");
+    const avisos = armarAvisosReclamo({ reclamo, responsableUserId, tecnicos, autorId: user?.id });
+    const remitente = nombreDe(user) || "Oficina";
+    for (const aviso of avisos) {
+      const [resultado] = await pool.query(
+        "INSERT INTO user_profile_messages (sender_user_id, recipient_user_id, body) VALUES (?, ?, ?)",
+        [user?.id ?? null, aviso.recipient_user_id, aviso.body]
+      );
+      await pool.query(
+        "INSERT INTO entrega_reclamo_avisos (message_id, reclamo_id, recipient_user_id) VALUES (?, ?, ?)",
+        [resultado.insertId, reclamo.id, aviso.recipient_user_id]
+      );
+      emitProfileMessage({
+        id: resultado.insertId,
+        sender_user_id: user?.id ?? null,
+        sender_name: remitente,
+        recipient_user_id: aviso.recipient_user_id,
+        body: aviso.body,
+        entrega_reclamo_id: reclamo.id,
+        read_at: null,
+        created_at: new Date().toISOString()
+      });
+    }
+    return avisos.length;
+  } catch (error) {
+    console.error(`Aviso del reclamo #${reclamo.id} fallido:`, error.message);
+    return 0;
+  }
+};
+
 const leerReclamo = async (id, executor = getPool()) => {
   const [filas] = await executor.query(`${SELECT_RECLAMO} WHERE reclamo.id = ? LIMIT 1`, [toEntero(id)]);
   if (!filas[0]) throw fail("El reclamo no existe o ya fue eliminado.", 404);
@@ -346,6 +385,8 @@ export const crearReclamo = async (payload = {}, user) => {
     ]
   );
   const reclamo = mapReclamo(await leerReclamo(resultado.insertId));
+  const responsableUserId = responsableId ? contexto.personal.get(responsableId)?.user_id ?? null : null;
+  reclamo.avisados = await avisarReclamo(reclamo, responsableUserId, user);
   await audit({
     user,
     action: "entrega_reclamo_creado",

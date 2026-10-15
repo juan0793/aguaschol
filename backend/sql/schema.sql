@@ -1051,6 +1051,17 @@ CREATE TABLE IF NOT EXISTS entrega_reclamos (
   CONSTRAINT fk_entrega_reclamos_creador FOREIGN KEY (created_by) REFERENCES app_users(id) ON DELETE SET NULL
 );
 
+-- Avisos de reclamo: que mensaje de la campana corresponde a que reclamo, para que
+-- al tocarlo se abra la pantalla de reclamos y no el perfil de quien lo envio.
+CREATE TABLE IF NOT EXISTS entrega_reclamo_avisos (
+  message_id INT UNSIGNED NOT NULL PRIMARY KEY,
+  reclamo_id INT UNSIGNED NOT NULL,
+  recipient_user_id INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_entrega_reclamo_avisos_reclamo (reclamo_id),
+  KEY idx_entrega_reclamo_avisos_recipient (recipient_user_id)
+);
+
 -- Apuntes: tablero personal del administrador. Todo se filtra por user_id del usuario
 -- autenticado. sort_order es fraccionario para que reordenar actualice una sola fila;
 -- deleted_at permite deshacer y una tarea purga lo borrado hace mas de 30 dias.

@@ -168,6 +168,7 @@ export default function AppHeader({ model }) {
               window.location.hash = `entregas/lotes?lote=${Number(loteId)}`;
               setWorkspaceView("entregas");
             }}
+            onReclamoNotification={() => setWorkspaceView("reclamos")}
             onBancoNotification={() => {
               abrirMisAsignaciones();
               window.location.hash = "clandestinos/banco";
