@@ -1,11 +1,27 @@
-import { lazy } from "react";
+import { createElement, lazy } from "react";
+
+// Si el módulo no se puede bajar (sin señal y sin copia guardada en el teléfono), se
+// muestra este aviso en vez de dejar la app en blanco.
+function ModuloNoDisponible() {
+  const sinRed = typeof navigator !== "undefined" && navigator.onLine === false;
+  return createElement("section", { className: "module-unavailable", role: "alert" },
+    createElement("strong", null, "Esta pantalla no se pudo abrir"),
+    createElement("p", null, sinRed
+      ? "No hay señal y esta pantalla todavía no está guardada en el teléfono. Ábrela una vez con conexión y después funcionará sin señal."
+      : "No se pudo descargar esta parte de la app. Revisa la conexión e intenta de nuevo."),
+    createElement("button", { type: "button", onClick: () => window.location.reload() }, "Reintentar"));
+}
 
 export const lazyWithRetry = (loader) => lazy(async () => {
   try {
     return await loader();
-  } catch (error) {
+  } catch {
     await new Promise((resolve) => window.setTimeout(resolve, 350));
-    return loader();
+    try {
+      return await loader();
+    } catch {
+      return { default: ModuloNoDisponible };
+    }
   }
 });
 
@@ -13,29 +29,29 @@ export const FieldMap = lazyWithRetry(() => import("../components/FieldMap"));
 
 export const MapPrintDialog = lazyWithRetry(() => import("../components/MapPrintDialog"));
 
-export const FieldValidationWorkspace = lazy(() => import("../components/FieldValidationWorkspace"));
+export const FieldValidationWorkspace = lazyWithRetry(() => import("../components/FieldValidationWorkspace"));
 
-export const MyProfileWorkspace = lazy(() => import("../components/profile/MyProfileWorkspace"));
+export const MyProfileWorkspace = lazyWithRetry(() => import("../components/profile/MyProfileWorkspace"));
 
-export const RailwayUsageWorkspace = lazy(() => import("../components/RailwayUsageWorkspace"));
+export const RailwayUsageWorkspace = lazyWithRetry(() => import("../components/RailwayUsageWorkspace"));
 
-export const TeamActivityWorkspace = lazy(() => import("../modules/actividad/TeamActivityWorkspace"));
-export const FallasWorkspace = lazy(() => import("../modules/fallas/FallasWorkspace"));
+export const TeamActivityWorkspace = lazyWithRetry(() => import("../modules/actividad/TeamActivityWorkspace"));
+export const FallasWorkspace = lazyWithRetry(() => import("../modules/fallas/FallasWorkspace"));
 
-export const PlanosWorkspace = lazy(() => import("../modules/planos/PlanosWorkspace"));
-export const ManagerDashboardWorkspace = lazy(() => import("../modules/dashboard/ManagerDashboardWorkspace"));
+export const PlanosWorkspace = lazyWithRetry(() => import("../modules/planos/PlanosWorkspace"));
+export const ManagerDashboardWorkspace = lazyWithRetry(() => import("../modules/dashboard/ManagerDashboardWorkspace"));
 
-export const ReportsWorkspace = lazy(() => import("../modules/reports/ReportsWorkspace"));
+export const ReportsWorkspace = lazyWithRetry(() => import("../modules/reports/ReportsWorkspace"));
 
-export const PadronRequestsWorkspace = lazy(() => import("../modules/requests/PadronRequestsWorkspace"));
+export const PadronRequestsWorkspace = lazyWithRetry(() => import("../modules/requests/PadronRequestsWorkspace"));
 
-export const DashboardWorkspace = lazy(() => import("../modules/dashboard/DashboardWorkspace"));
+export const DashboardWorkspace = lazyWithRetry(() => import("../modules/dashboard/DashboardWorkspace"));
 
-export const TransportWorkspace = lazy(() => import("../components/TransportWorkspace"));
+export const TransportWorkspace = lazyWithRetry(() => import("../components/TransportWorkspace"));
 
-export const ImportacionWorkspace = lazy(() => import("../components/ImportacionWorkspace"));
+export const ImportacionWorkspace = lazyWithRetry(() => import("../components/ImportacionWorkspace"));
 
-export const SigTerritorialWorkspace = lazy(() => import("../modules/sig/SigTerritorialWorkspace"));
+export const SigTerritorialWorkspace = lazyWithRetry(() => import("../modules/sig/SigTerritorialWorkspace"));
 
 export const ClandestinosPage = lazyWithRetry(() => import("../modules/clandestinos/pages/ClandestinosPage"));
 

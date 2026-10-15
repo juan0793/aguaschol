@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
-import { DIAS_ATRASO, documentos, fechaCorta, inicial, leerJson, nombrePropio, origenTexto } from "./reclamosFormato";
+import { DIAS_ATRASO, documentos, fechaCorta, inicial, leerJson, nombrePropio, origenTexto, textoError } from "./reclamosFormato";
 
 const MAX_CANTIDAD = 24;
 
@@ -27,7 +27,7 @@ export default function BuscarEntrega({ apiFetch, puedeRegistrar, motivos, onReg
       setEstado({ cargando: false, error: "", resultado });
       if (!tipo) { setElegido(0); setFormAbierto(false); }
     } catch (error) {
-      setEstado({ cargando: false, error: error.message, resultado: tipo ? estado.resultado : null });
+      setEstado({ cargando: false, error: textoError(error, "Sin conexión: la consulta necesita señal."), resultado: tipo ? estado.resultado : null });
     }
   };
 
@@ -183,7 +183,7 @@ function FormReclamo({ apiFetch, item, motivos, onTipo, onCancelar, onGuardado }
       }), "No se pudo registrar el reclamo.");
       onGuardado(reclamo);
     } catch (reason) {
-      setError(`${reason.message} Lo escrito sigue aquí; revisa la lista antes de volver a enviarlo.`);
+      setError(`${textoError(reason, "Sin conexión: el reclamo no se registró.")} Lo escrito sigue aquí; revisa la lista antes de volver a enviarlo.`);
     } finally {
       setEnviando(false);
     }

@@ -13,6 +13,7 @@ import {
   inicial,
   leerBorrador,
   leerJson,
+  textoError,
   nombrePropio,
   origenTexto,
   periodoHn,
@@ -49,7 +50,7 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
       setData(cuerpo);
       setError("");
     } catch (reason) {
-      if (numero === pedido.current && !silencioso) setError(reason.message);
+      if (numero === pedido.current && !silencioso) setError(textoError(reason));
     } finally {
       if (numero === pedido.current) setCargando(false);
     }
@@ -300,7 +301,7 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, onAccion
       await onAccion(ruta, opciones, mensaje);
       return true;
     } catch (reason) {
-      setError(reason.message);
+      setError(textoError(reason, "Sin conexión: no se guardó. Inténtalo cuando vuelva la señal."));
       return false;
     } finally {
       setOcupado("");

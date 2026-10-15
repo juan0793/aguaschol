@@ -82,6 +82,12 @@ export const guardarBorrador = (userId, reclamoId, texto) => {
   } catch { /* sin almacenamiento: el texto sigue en pantalla */ }
 };
 
+// Sin señal, fetch falla con un TypeError en inglés ("Failed to fetch"); se dice en
+// palabras del equipo.
+export const SIN_CONEXION = "Sin conexión. Se cargará cuando vuelva la señal.";
+export const textoError = (error, sinRed = SIN_CONEXION) =>
+  error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(error?.message || "") ? sinRed : error?.message || "Algo falló.";
+
 export const leerJson = async (response, mensaje) => {
   const cuerpo = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(cuerpo.message || mensaje);

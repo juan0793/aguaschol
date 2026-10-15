@@ -35,3 +35,10 @@ Rules:
 - Verificado: `node --check public/sw.js`, parseo del manifiesto y `npm run build` correctos. Vite aún informa bundles mayores de 500 kB. No se ejecutó la suite de tests.
 - Alcance offline: carga el shell de la app; búsquedas, registros y fotos requieren conexión. La instalación se ofrece desde el menú del navegador al publicar por HTTPS.
 - Graphify code-only actualizado: 4,870 nodos y 12,373 relaciones. No se analizaron 10 archivos SQL porque falta `tree_sitter_sql`; refrescar nombres de comunidades con IA requiere una clave de proveedor.
+
+## Nota para Claude: verificación sin conexión (2026-10-15)
+
+- `sw.js` (cachés v5) precarga también los módulos de `import()` dinámico (Reclamos, Inspecciones, Entregas, Fichas, mapa), salvo lo pesado de oficina (`NO_PRECARGAR`: PDF, Planos, MapLibre). Se repite cuando llega un `index.html` nuevo y borra lo de versiones viejas: cada despliegue cambia los hash sin cambiar `sw.js`.
+- `lazyWithRetry` devuelve el aviso "Esta pantalla no se pudo abrir" en vez de dejar la app en blanco cuando un módulo no se puede bajar.
+- "Guardar zona" se cancelaba sola: el efecto de `OfflineZonesPanel` dependía de `onClose` (nuevo en cada render). Arreglado.
+- Verificado en local con `frontend-prod` apagando servidores: el técnico entra sin red, el mapa usa la zona guardada (y amplía el detalle), Reclamos abre y dice "Sin conexión", un punto marcado sin red se envía solo al volver la conexión. Las sesiones de administrador y de prueba de perfil siguen exigiendo validar en línea (se quedan en "Validando sesión…" sin red).

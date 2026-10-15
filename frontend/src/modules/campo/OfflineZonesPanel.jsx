@@ -27,19 +27,23 @@ export default function OfflineZonesPanel({ apiUrl, mapApi, onClose }) {
   const [message, setMessage] = useState("");
   const abortRef = useRef(null);
   const closeRef = useRef(null);
+  // onClose llega nuevo en cada render del mapa: si fuera dependencia del efecto, cada
+  // render limpiaría el efecto y cancelaría la descarga en curso.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
     closeRef.current?.focus();
     const bounds = mapApi?.getBounds?.();
     if (bounds) setPlan({ ...planZoneDownload(bounds), bounds });
     estimateMapStorage().then(setStorage);
-    const handleKey = (event) => { if (event.key === "Escape") onClose(); };
+    const handleKey = (event) => { if (event.key === "Escape") onCloseRef.current?.(); };
     window.addEventListener("keydown", handleKey);
-    return () => {
-      window.removeEventListener("keydown", handleKey);
-      abortRef.current?.abort();
-    };
-  }, [mapApi, onClose]);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [mapApi]);
+
+  // La descarga solo se cancela al cerrar el panel (o con su botón Cancelar).
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const save = async () => {
     if (!plan || plan.tooLarge) return;

@@ -1,7 +1,10 @@
-const SHELL_CACHE = "controlaguas-shell-v4";
-const ASSET_CACHE = "controlaguas-assets-v4";
+const SHELL_CACHE = "controlaguas-shell-v5";
+const ASSET_CACHE = "controlaguas-assets-v5";
 const APP_CACHES = [SHELL_CACHE, ASSET_CACHE];
 const MAX_ASSET_ENTRIES = 160;
+// Lo pesado y de oficina (PDF, planos, SIG con MapLibre) no se guarda de antemano:
+// se baja la primera vez que se abre con señal. Lo demás de la app queda listo sin red.
+const NO_PRECARGAR = /^(pdf\.worker|pdf-|jspdf|html2canvas|maplibre-gl|PlanosWorkspace)/;
 const SHELL_FILES = [
   "/manifest.webmanifest",
   "/icons/icon-192.png?v=2",
@@ -38,7 +41,7 @@ self.addEventListener("fetch", (event) => {
   if (/^\/(api|uploads|planos-pdf)(\/|$)/.test(url.pathname) || request.headers?.has("Authorization")) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(fetchNavigation(request));
+    event.respondWith(fetchNavigation(request, event));
     return;
   }
 
@@ -49,12 +52,20 @@ self.addEventListener("fetch", (event) => {
 });
 
 async function cacheAppShell() {
-  const cache = await caches.open(SHELL_CACHE);
   const response = await fetch("/", { cache: "reload" });
   if (!response.ok) throw new Error("No fue posible guardar la app para uso sin conexión.");
-
+  const cache = await caches.open(SHELL_CACHE);
   await cache.put("/", response.clone());
-  const html = await response.text();
+  await precacheBuild(await response.text());
+  await self.skipWaiting();
+}
+
+// Guarda todo lo que la versión publicada necesita para abrir sin red: el arranque y
+// también los módulos que se cargan al entrar a cada pantalla (import() dinámico).
+// Se repite cuando llega un index.html nuevo, porque cada despliegue cambia los
+// nombres con hash sin cambiar este archivo; al final borra lo de versiones viejas.
+async function precacheBuild(html) {
+  const cache = await caches.open(SHELL_CACHE);
   const entryAssets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
     .map((match) => new URL(match[1], self.location.origin))
     .filter((url) => url.origin === self.location.origin && url.pathname.startsWith("/assets/"));
@@ -64,29 +75,40 @@ async function cacheAppShell() {
     ...SHELL_FILES.map((url) => cacheAsset(cache, url, visitedAssets)),
     ...entryAssets.map((url) => cacheAsset(cache, url.href, visitedAssets))
   ]);
-  await self.skipWaiting();
+
+  const keys = await cache.keys();
+  await Promise.all(keys
+    .filter((request) => new URL(request.url).pathname.startsWith("/assets/") && !visitedAssets.has(request.url))
+    .map((request) => cache.delete(request)));
 }
+
+const assetReferences = (source, isScript) => isScript
+  // Importaciones estáticas, import("./x.js") y la lista de dependencias de Vite ("assets/x.css").
+  ? [...source.matchAll(/["'`]((?:\.\.?\/|\/?assets\/)[\w.@~-]+\.(?:js|css|woff2?|webp|png|svg))["'`]/g)].map((match) => match[1])
+  : [...source.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map((match) => match[1]);
 
 async function cacheAsset(cache, url, visitedAssets) {
   const assetUrl = new URL(url, self.location.origin);
   if (visitedAssets.has(assetUrl.href)) return;
+  if (assetUrl.pathname.startsWith("/assets/") && NO_PRECARGAR.test(assetUrl.pathname.slice("/assets/".length))) return;
   visitedAssets.add(assetUrl.href);
 
   try {
-    const response = await fetch(assetUrl.href);
-    if (!response.ok) return;
+    // Lo ya guardado no se vuelve a bajar: solo se lee para seguir sus dependencias.
+    let response = await cache.match(assetUrl.href);
+    const stored = Boolean(response);
+    if (!response) {
+      response = await fetch(assetUrl.href);
+      if (!response.ok) return;
+    }
 
     const isScript = assetUrl.pathname.endsWith(".js");
     const isStyle = assetUrl.pathname.endsWith(".css");
     const source = isScript || isStyle ? await response.clone().text() : "";
-    const references = isScript
-      ? [...source.matchAll(/(?:\bfrom\s*|\bimport\s*)["']([^"']+)["']/g)]
-      : isStyle
-        ? [...source.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)]
-        : [];
-    const dependencies = references.flatMap((match) => {
+    const dependencies = (isScript || isStyle ? assetReferences(source, isScript) : []).flatMap((reference) => {
       try {
-        const dependency = new URL(match[1], assetUrl);
+        // Las rutas "assets/x" de Vite son desde la raíz; las "./x" desde el propio archivo.
+        const dependency = /^assets\//.test(reference) ? new URL(`/${reference}`, self.location.origin) : new URL(reference, assetUrl);
         return dependency.origin === self.location.origin &&
           (dependency.pathname.startsWith("/assets/") || dependency.pathname.startsWith("/icons/"))
           ? [dependency.href]
@@ -96,19 +118,23 @@ async function cacheAsset(cache, url, visitedAssets) {
       }
     });
 
-    await cache.put(assetUrl.href, response);
+    if (!stored) await cache.put(assetUrl.href, response);
     await Promise.all(dependencies.map((dependency) => cacheAsset(cache, dependency, visitedAssets)));
   } catch {
     // Los recursos opcionales se guardan al cargarse cuando vuelve la conexión.
   }
 }
 
-async function fetchNavigation(request) {
+async function fetchNavigation(request, event) {
   try {
     const response = await fetch(request);
     if (response.ok && !/private|no-store/i.test(response.headers.get("Cache-Control") || "")) {
       const cache = await caches.open(SHELL_CACHE);
+      const previous = await cache.match("/");
+      const html = await response.clone().text();
       await cache.put("/", response.clone());
+      // Versión nueva publicada: deja listos sus módulos para el próximo uso sin señal.
+      if (!previous || (await previous.text()) !== html) event.waitUntil(precacheBuild(html).catch(() => {}));
     }
     return response;
   } catch {
