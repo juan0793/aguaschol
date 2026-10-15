@@ -22,6 +22,9 @@
 .rc :focus-visible { outline: 2px solid var(--rc-blue); outline-offset: 2px; }
 .rc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
+/* El equipo de campo solo ve sus reclamos activos: título y lista, en una columna. */
+.rc.is-campo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "lista"; max-width: 1100px; }
+
 /* ---------- Encabezado ---------- */
 .rc-head { grid-area: head; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .rc-head h1 { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.2; }
@@ -252,6 +255,15 @@
 .rc-vacio strong { color: var(--rc-ink); font-size: 15px; }
 .rc-vacio span { max-width: 52ch; line-height: 1.5; }
 
+/* ---------- Archivo por día, mes o año ---------- */
+.rc-periodo { display: inline-flex; flex: none; padding: 3px; background: var(--rc-soft); border-radius: 8px; }
+.rc .rc-periodo button { min-height: 32px; padding: 0 12px; color: var(--rc-muted); background: transparent; border: 0; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.rc .rc-periodo button.is-activo { color: var(--rc-ink); background: #fff; box-shadow: 0 1px 2px rgba(22, 40, 59, 0.08); }
+.rc-archivo { display: grid; gap: 18px; }
+.rc-grupo-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 8px; font-size: 14px; font-weight: 650; }
+.rc-grupo-head span::first-letter { text-transform: uppercase; }
+.rc-grupo-head small { color: var(--rc-muted); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
 .rc-lista.is-cargando li { display: grid; grid-template-columns: 1.15fr 1.1fr 1fr 168px; gap: 16px; padding: 18px 16px; border-bottom: 1px solid var(--rc-soft); }
 .rc-lista.is-cargando span { height: 12px; border-radius: 4px; background: linear-gradient(90deg, var(--rc-soft), #f6f8fb, var(--rc-soft)); background-size: 200% 100%; animation: rc-pulso 1.2s ease-in-out infinite; }
 @keyframes rc-pulso { to { background-position: -200% 0; } }
@@ -274,8 +286,6 @@
 
 @media (max-width: 1080px) {
   .rc { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "franja" "buscar" "lista" "equipo"; }
-  /* En campo lo primero son los reclamos; la consulta de quién entregó va después. */
-  .rc.is-campo { grid-template-areas: "head" "franja" "lista" "buscar" "equipo"; }
 }
 
 @media (max-width: 640px) {
@@ -296,6 +306,9 @@
   .rc-filtro-texto { flex: 1; min-width: 0; }
   .rc .rc-filtro-texto input { width: 100%; }
   .rc .rc-lista-filtros select { width: 116px; }
+  .rc-lista-filtros:has(.rc-periodo) { flex-wrap: wrap; }
+  .rc-periodo { width: 100%; }
+  .rc .rc-periodo button { flex: 1; }
   .rc-fila { padding: 14px 12px; }
   .rc-fila-acciones { justify-content: stretch; }
   .rc-fila-acciones .rc-boton:not(.is-discreto) { flex: 1; min-height: 44px; }

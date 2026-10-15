@@ -15,12 +15,14 @@ import {
   leerJson,
   nombrePropio,
   origenTexto,
-  plural
+  periodoHn,
+  plural,
+  tituloPeriodo
 } from "./reclamosFormato";
 import "./reclamos.css";
 
 const REFRESCO_MS = 60000;
-const FILTRO_INICIAL = { estado: "ABIERTOS", responsable: "", q: "", pagina: 1 };
+const FILTRO_INICIAL = { estado: "ABIERTOS", responsable: "", q: "", pagina: 1, agrupar: "dia" };
 
 // Reclamos de entrega: pantalla de inicio de los técnicos. Todo el equipo ve todos los
 // reclamos; el técnico escribe qué pasó y la oficina los registra y los cierra.
@@ -41,6 +43,7 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
       const params = new URLSearchParams({ estado: filtros.estado, pagina: String(filtros.pagina) });
       if (filtros.responsable) params.set("responsable", filtros.responsable);
       if (filtros.q) params.set("q", filtros.q);
+      if (filtros.estado === "CERRADO") params.set("agrupar", filtros.agrupar);
       const cuerpo = await leerJson(await apiFetch(`/entregas/reclamos?${params}`), "No se pudieron cargar los reclamos.");
       if (numero !== pedido.current) return;
       setData(cuerpo);
@@ -85,9 +88,12 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
 
   const permisos = data?.permisos || {};
   const resumen = data?.resumen || {};
+  // La oficina se sabe por la sesión, para que el técnico nunca vea el tablero mientras carga.
+  const oficina = user?.role === "admin" && !user?.preview;
   const esTecnico = ["operator", "validadora_campo"].includes(user?.role);
   const antiguo = resumen.mas_antiguo_sin_respuesta;
   const diasAntiguo = antiguo ? diasDesde(antiguo) : 0;
+  const enArchivo = filtros.estado === "CERRADO";
 
   const franja = [
     {
@@ -97,52 +103,64 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
       detalle: resumen.sin_respuesta ? `El más antiguo: ${haceCuanto(antiguo)}` : "Nadie espera respuesta",
       tono: resumen.sin_respuesta ? (diasAntiguo > DIAS_ATRASO ? "rojo" : "ocre") : "verde"
     },
-    { clave: "RESPONDIDO", cifra: resumen.respondido, label: "Respondidos", detalle: "Esperan que la oficina los cierre", tono: "azul" },
-    { clave: "CERRADO", cifra: resumen.cerrado_ciclo, label: "Cerrados", detalle: data?.ciclo_desde ? `Desde el ${fechaCorta(data.ciclo_desde)}` : "En este ciclo", tono: "verde" }
+    { clave: "RESPONDIDO", cifra: resumen.respondido, label: "Respondidos", detalle: "Esperan que la oficina los archive", tono: "azul" },
+    { clave: "CERRADO", cifra: resumen.cerrado_ciclo, label: "Archivados", detalle: data?.ciclo_desde ? `Desde el ${fechaCorta(data.ciclo_desde)}` : "En este ciclo", tono: "verde" }
   ];
 
   const filtroPersona = data?.por_tecnico?.find((fila) => String(fila.id ?? "sin") === filtros.responsable);
-  const titulosLista = { ABIERTOS: "Reclamos abiertos", SIN_RESPUESTA: "Sin respuesta", RESPONDIDO: "Respondidos", CERRADO: "Cerrados", TODOS: "Todos los reclamos" };
+  const titulosLista = { ABIERTOS: oficina ? "Reclamos abiertos" : "Reclamos activos", SIN_RESPUESTA: "Sin respuesta", RESPONDIDO: "Respondidos", CERRADO: "Archivo" };
   const total = data?.total || 0;
   const desde = total ? (filtros.pagina - 1) * (data?.por_pagina || 30) + 1 : 0;
   const hasta = Math.min(filtros.pagina * (data?.por_pagina || 30), total);
+  const grupos = enArchivo && data?.periodos ? agruparPorPeriodo(data.items, data.periodos, data.agrupar || filtros.agrupar) : null;
+  const filas = (lista) => lista.map((reclamo) => <ReclamoFila
+    key={reclamo.id}
+    reclamo={reclamo}
+    userId={user?.id}
+    permisos={permisos}
+    esTecnico={esTecnico}
+    resaltado={resaltado === reclamo.id}
+    onAccion={accion}
+  />);
 
-  return <section className={`rc${data && !permisos.registrar ? " is-campo" : ""}`} aria-labelledby="rc-titulo" aria-busy={cargando}>
+  return <section className={`rc${oficina ? "" : " is-campo"}`} aria-labelledby="rc-titulo" aria-busy={cargando}>
     <header className="rc-head">
       <div>
         <h1 id="rc-titulo">Reclamos de entrega</h1>
-        <p>{permisos.registrar
+        <p>{oficina
           ? "Escribe la clave o el abonado que reclama: el sistema dice qué técnico entregó ese barrio y el reclamo le llega a todo el equipo."
           : "Facturas y notas de cobro que el abonado dice que no recibió. Revisa el reclamo y escribe qué pasó con esa entrega."}</p>
       </div>
       <button type="button" className="rc-icono-boton" onClick={() => cargar()} disabled={cargando} aria-label="Actualizar" title="Actualizar"><Icon name="refresh" /></button>
     </header>
 
-    <div className="rc-franja" role="group" aria-label="Filtrar por estado">
-      {franja.map((celda) => {
-        const activa = filtros.estado === celda.clave;
-        return <button type="button" key={celda.clave} className={`is-${celda.tono}${activa ? " is-activo" : ""}`} aria-pressed={activa} onClick={() => cambiar({ estado: activa ? "ABIERTOS" : celda.clave })}>
-          <strong>{data ? celda.cifra ?? 0 : "—"}</strong>
-          <span>{celda.label}</span>
-          <small>{data ? celda.detalle : "Cargando…"}</small>
-        </button>;
-      })}
-    </div>
+    {oficina ? <>
+      <div className="rc-franja" role="group" aria-label="Filtrar por estado">
+        {franja.map((celda) => {
+          const activa = filtros.estado === celda.clave;
+          return <button type="button" key={celda.clave} className={`is-${celda.tono}${activa ? " is-activo" : ""}`} aria-pressed={activa} onClick={() => cambiar({ estado: activa ? "ABIERTOS" : celda.clave })}>
+            <strong>{data ? celda.cifra ?? 0 : "—"}</strong>
+            <span>{celda.label}</span>
+            <small>{data ? celda.detalle : "Cargando…"}</small>
+          </button>;
+        })}
+      </div>
 
-    <BuscarEntrega
-      apiFetch={apiFetch}
-      puedeRegistrar={Boolean(permisos.registrar)}
-      motivos={data?.motivos || []}
-      onVerReclamo={verReclamo}
-      onRegistrado={(reclamo) => {
-        showAlert?.(`Reclamo #${reclamo.id} registrado${reclamo.responsable ? ` para ${reclamo.responsable.nombre}` : ""}.`);
-        setResaltado(reclamo.id);
-        setBusqueda("");
-        setFiltros(FILTRO_INICIAL);
-        cargar({ silencioso: true });
-      }}
-    />
-    <PorTecnico filas={data?.por_tecnico} activo={filtros.responsable} onElegir={(id) => cambiar({ responsable: filtros.responsable === id ? "" : id })} />
+      <BuscarEntrega
+        apiFetch={apiFetch}
+        puedeRegistrar={Boolean(permisos.registrar)}
+        motivos={data?.motivos || []}
+        onVerReclamo={verReclamo}
+        onRegistrado={(reclamo) => {
+          showAlert?.(`Reclamo #${reclamo.id} registrado${reclamo.responsable ? ` para ${reclamo.responsable.nombre}` : ""}.`);
+          setResaltado(reclamo.id);
+          setBusqueda("");
+          setFiltros(FILTRO_INICIAL);
+          cargar({ silencioso: true });
+        }}
+      />
+      <PorTecnico filas={data?.por_tecnico} activo={filtros.responsable} onElegir={(id) => cambiar({ responsable: filtros.responsable === id ? "" : id })} />
+    </> : null}
 
     <section className="rc-lista-zona" aria-labelledby="rc-lista-titulo">
       <div className="rc-lista-head">
@@ -151,19 +169,21 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
           {filtroPersona ? <span> · {filtroPersona.nombre}</span> : null}
         </h2>
         <div className="rc-lista-filtros">
+          {enArchivo ? <div className="rc-periodo" role="group" aria-label="Agrupar el archivo">
+            {[["dia", "Día"], ["mes", "Mes"], ["anio", "Año"]].map(([valor, label]) => <button type="button" key={valor} className={filtros.agrupar === valor ? "is-activo" : ""} aria-pressed={filtros.agrupar === valor} onClick={() => cambiar({ agrupar: valor })}>{label}</button>)}
+          </div> : null}
           <label className="rc-filtro-texto">
             <span className="rc-sr">Buscar en la lista</span>
             <Icon name="search" />
             <input value={busqueda} onChange={(event) => setBusqueda(event.target.value)} placeholder="Clave, abonado o barrio" />
           </label>
           <select value={filtros.estado} onChange={(event) => cambiar({ estado: event.target.value })} aria-label="Estado">
-            <option value="ABIERTOS">Abiertos</option>
+            <option value="ABIERTOS">{oficina ? "Abiertos" : "Activos"}</option>
             <option value="SIN_RESPUESTA">Sin respuesta</option>
             <option value="RESPONDIDO">Respondidos</option>
-            <option value="CERRADO">Cerrados</option>
-            <option value="TODOS">Todos</option>
+            {oficina ? <option value="CERRADO">Archivados</option> : null}
           </select>
-          {filtros.responsable || filtros.q || filtros.estado !== "ABIERTOS"
+          {oficina && (filtros.responsable || filtros.q || filtros.estado !== "ABIERTOS")
             ? <button type="button" className="rc-enlace" onClick={() => { setBusqueda(""); setFiltros(FILTRO_INICIAL); }}>Quitar filtros</button> : null}
         </div>
       </div>
@@ -174,25 +194,27 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
 
       {data && !data.items.length && !error ? <div className="rc-vacio">
         <Icon name="success" />
-        <strong>{filtros.q || filtros.responsable ? "Nada con estos filtros" : filtros.estado === "CERRADO" ? "Todavía no hay reclamos cerrados" : "Ningún reclamo pendiente"}</strong>
+        <strong>{filtros.q || filtros.responsable ? "Nada con estos filtros" : enArchivo ? "Todavía no hay reclamos archivados" : "Ningún reclamo pendiente"}</strong>
         <span>{filtros.q || filtros.responsable
           ? "Prueba con otra clave o quita los filtros."
-          : permisos.registrar
-            ? "Cuando un abonado reclame, busca su clave arriba y registra el reclamo."
-            : "Cuando la oficina registre un reclamo aparecerá aquí, con el técnico que entregó esa factura."}</span>
+          : enArchivo
+            ? "Cuando archives un reclamo, se guarda aquí por día, mes y año."
+            : oficina
+              ? "Cuando un abonado reclame, busca su clave arriba y registra el reclamo."
+              : "Cuando la oficina registre un reclamo aparecerá aquí, con el técnico que entregó esa factura."}</span>
       </div> : null}
 
-      {data?.items.length ? <ol className="rc-lista">
-        {data.items.map((reclamo) => <ReclamoFila
-          key={reclamo.id}
-          reclamo={reclamo}
-          userId={user?.id}
-          permisos={permisos}
-          esTecnico={esTecnico}
-          resaltado={resaltado === reclamo.id}
-          onAccion={accion}
-        />)}
-      </ol> : null}
+      {grupos?.length ? <div className="rc-archivo">
+        {grupos.map((grupo) => <section key={grupo.periodo} className="rc-grupo" aria-label={grupo.titulo}>
+          <h3 className="rc-grupo-head">
+            <span>{grupo.titulo}</span>
+            <small>{plural(grupo.total, "reclamo", "reclamos")}{grupo.items.length < grupo.total ? ` · ${grupo.items.length} en esta página` : ""}</small>
+          </h3>
+          <ol className="rc-lista">{filas(grupo.items)}</ol>
+        </section>)}
+      </div> : null}
+
+      {!grupos && data?.items.length ? <ol className="rc-lista">{filas(data.items)}</ol> : null}
 
       {total > (data?.por_pagina || 30) ? <nav className="rc-paginas" aria-label="Páginas">
         <span>{desde}–{hasta} de {total}</span>
@@ -202,6 +224,18 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
     </section>
   </section>;
 }
+
+// Junta las filas de la página bajo su periodo de archivo, con el total de cada periodo.
+const agruparPorPeriodo = (items, periodos, agrupar) => {
+  const totales = new Map(periodos.map((item) => [item.periodo, item.total]));
+  const grupos = new Map();
+  for (const item of items) {
+    const periodo = periodoHn(item.cerrado_en, agrupar);
+    if (!grupos.has(periodo)) grupos.set(periodo, { periodo, titulo: tituloPeriodo(periodo, agrupar), total: totales.get(periodo) || 0, items: [] });
+    grupos.get(periodo).items.push(item);
+  }
+  return [...grupos.values()].map((grupo) => ({ ...grupo, total: Math.max(grupo.total, grupo.items.length) }));
+};
 
 // Carga del equipo: una barra por técnico, todas en la misma escala. Ocre lo que espera
 // respuesta, azul lo respondido y verde lo cerrado en el ciclo. Tocar una fila filtra.
@@ -219,7 +253,7 @@ function PorTecnico({ filas, activo, onElegir }) {
         const resumen = [
           fila.sin_respuesta ? plural(fila.sin_respuesta, "sin respuesta", "sin respuesta") : "",
           fila.respondido ? plural(fila.respondido, "respondido", "respondidos") : "",
-          fila.cerrado ? plural(fila.cerrado, "cerrado", "cerrados") : ""
+          fila.cerrado ? plural(fila.cerrado, "archivado", "archivados") : ""
         ].filter(Boolean).join(" · ");
         return <li key={id}>
           <button type="button" className={activo === id ? "is-activo" : ""} aria-pressed={activo === id} onClick={() => onElegir(id)} aria-label={`${fila.nombre}: ${resumen}`}>
@@ -235,7 +269,7 @@ function PorTecnico({ filas, activo, onElegir }) {
         </li>;
       })}
     </ul> : null}
-    {lista.length ? <p className="rc-leyenda" aria-hidden="true"><span className="is-ocre">Sin respuesta</span><span className="is-azul">Respondido</span><span className="is-verde">Cerrado</span></p> : null}
+    {lista.length ? <p className="rc-leyenda" aria-hidden="true"><span className="is-ocre">Sin respuesta</span><span className="is-azul">Respondido</span><span className="is-verde">Archivado</span></p> : null}
   </section>;
 }
 
@@ -315,9 +349,9 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, onAccion
     {reclamo.respuesta && !editando ? <div className="rc-respuesta">
       <p className="rc-respuesta-quien"><Icon name="send" />{reclamo.respondido_por_nombre || "El técnico"} respondió <time dateTime={reclamo.respondido_en} title={fechaHora(reclamo.respondido_en)}>{haceCuanto(reclamo.respondido_en)}</time></p>
       <p className="rc-respuesta-texto">{reclamo.respuesta}</p>
-      {reclamo.estado === "CERRADO" ? <p className="rc-respuesta-cierre">Cerrado por {reclamo.cerrado_por_nombre || "la oficina"} {haceCuanto(reclamo.cerrado_en)}.</p> : null}
+      {reclamo.estado === "CERRADO" ? <p className="rc-respuesta-cierre">Archivado por {reclamo.cerrado_por_nombre || "la oficina"} {haceCuanto(reclamo.cerrado_en)}.</p> : null}
     </div> : null}
-    {!reclamo.respuesta && reclamo.estado === "CERRADO" && !editando ? <p className="rc-respuesta-cierre is-suelto">Cerrado por {reclamo.cerrado_por_nombre || "la oficina"} {haceCuanto(reclamo.cerrado_en)}, sin respuesta del técnico.</p> : null}
+    {!reclamo.respuesta && reclamo.estado === "CERRADO" && !editando ? <p className="rc-respuesta-cierre is-suelto">Archivado por {reclamo.cerrado_por_nombre || "la oficina"} {haceCuanto(reclamo.cerrado_en)}, sin respuesta del técnico.</p> : null}
 
     {editando ? <form className="rc-responder" onSubmit={responder}>
       <label htmlFor={`rc-resp-${reclamo.id}`}>¿Qué pasó con {reclamo.cantidad === 1 ? "esta entrega" : "estas entregas"}?</label>
@@ -342,12 +376,12 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, onAccion
         <Icon name={reclamo.respuesta ? "edit" : "send"} />{reclamo.respuesta ? "Cambiar respuesta" : borrador ? "Seguir respuesta" : "Responder"}
       </button> : null}
       {permisos.cerrar && reclamo.estado !== "CERRADO" ? <button type="button" className={`rc-boton${reclamo.estado === "RESPONDIDO" ? " is-primario" : ""}`} disabled={Boolean(ocupado)}
-        onClick={() => correr("cerrar", `/entregas/reclamos/${reclamo.id}/cerrar`, { method: "POST" }, "No se pudo cerrar el reclamo.")}>
-        <Icon name="checkCircle" />{ocupado === "cerrar" ? "Cerrando…" : "Cerrar reclamo"}
+        onClick={() => correr("cerrar", `/entregas/reclamos/${reclamo.id}/cerrar`, { method: "POST" }, "No se pudo archivar el reclamo.")}>
+        <Icon name="archive" />{ocupado === "cerrar" ? "Archivando…" : "Archivar"}
       </button> : null}
       {permisos.cerrar && reclamo.estado === "CERRADO" ? <button type="button" className="rc-boton" disabled={Boolean(ocupado)}
-        onClick={() => correr("reabrir", `/entregas/reclamos/${reclamo.id}/reabrir`, { method: "POST" }, "No se pudo reabrir el reclamo.")}>
-        <Icon name="history" />{ocupado === "reabrir" ? "Reabriendo…" : "Reabrir"}
+        onClick={() => correr("reabrir", `/entregas/reclamos/${reclamo.id}/reabrir`, { method: "POST" }, "No se pudo sacar del archivo.")}>
+        <Icon name="history" />{ocupado === "reabrir" ? "Sacando…" : "Sacar del archivo"}
       </button> : null}
       {permisos.cerrar ? (confirmarBorrar
         ? <span className="rc-confirmar">¿Eliminar el reclamo #{reclamo.id}?

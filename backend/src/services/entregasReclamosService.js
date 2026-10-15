@@ -18,6 +18,7 @@ import {
   MAX_COINCIDENCIAS,
   MOTIVOS_RECLAMO,
   armarAvisosReclamo,
+  contarPorPeriodo,
   buscarEnPadron,
   elegirResponsable,
   etiquetaMotivo,
@@ -33,6 +34,8 @@ const POR_PAGINA = 30;
 
 const puedeVer = (user) => ["admin", "operator", "validadora_campo", "gerente"].includes(user?.role);
 const esOficina = (user) => user?.role === "admin" && !user?.preview;
+// El archivo (reclamos cerrados) es de la oficina y de Gerencia; el equipo de campo solo ve lo activo.
+const veArchivo = (user) => (user?.role === "admin" || user?.role === "gerente") && !user?.preview;
 const puedeResponder = (user) => ["admin", "operator", "validadora_campo"].includes(user?.role) && !user?.preview;
 
 const assertVer = (user) => {
@@ -40,7 +43,7 @@ const assertVer = (user) => {
 };
 const assertOficina = (user) => {
   assertOperationalWrite(user);
-  if (!esOficina(user)) throw fail("Solo la oficina registra, cierra o elimina reclamos.", 403);
+  if (!esOficina(user)) throw fail("Solo la oficina registra, archiva o elimina reclamos.", 403);
 };
 
 const audit = async ({ user, action, entityId, summary, details }) => {
@@ -221,7 +224,10 @@ export const listReclamos = async (query = {}, user) => {
   const pagina = Math.max(toEntero(query.pagina), 1);
   const filtros = [];
   const params = [];
-  const estado = clean(query.estado);
+  const archivo = veArchivo(user);
+  const pedido = clean(query.estado);
+  const estado = !archivo && (pedido === "CERRADO" || pedido === "TODOS") ? "ABIERTOS" : pedido;
+  const agrupar = ["dia", "mes", "anio"].includes(clean(query.agrupar)) ? clean(query.agrupar) : "dia";
   if (estado === "SIN_RESPUESTA" || estado === "RESPONDIDO" || estado === "CERRADO") {
     filtros.push("reclamo.estado = ?");
     params.push(estado);
@@ -266,6 +272,13 @@ export const listReclamos = async (query = {}, user) => {
       [desde, desde]
     )
   ]);
+  // El archivo se ordena por día, mes o año del cierre (hora de Honduras), con el total
+  // de cada periodo aunque la página solo muestre una parte.
+  let periodos = null;
+  if (archivo && estado === "CERRADO") {
+    const [cierres] = await pool.query(`SELECT reclamo.cerrado_en FROM entrega_reclamos AS reclamo ${donde}`, params);
+    periodos = contarPorPeriodo(cierres.map((fila) => fila.cerrado_en), agrupar);
+  }
   const porEstado = Object.fromEntries(estados.map((fila) => [fila.estado, fila]));
   return {
     items: filas.map(mapReclamo),
@@ -288,8 +301,11 @@ export const listReclamos = async (query = {}, user) => {
         cerrado: toEntero(fila.cerrado)
       }))
       .sort((a, b) => (a.id == null) - (b.id == null) || b.sin_respuesta - a.sin_respuesta || b.respondido - a.respondido || a.nombre.localeCompare(b.nombre, "es")),
+    estado,
+    agrupar,
+    periodos,
     motivos: MOTIVOS_RECLAMO,
-    permisos: { registrar: esOficina(user), responder: puedeResponder(user), cerrar: esOficina(user) }
+    permisos: { registrar: esOficina(user), responder: puedeResponder(user), cerrar: esOficina(user), archivo }
   };
 };
 
@@ -402,7 +418,7 @@ export const responderReclamo = async (id, payload = {}, user) => {
   if (!puedeResponder(user)) throw fail("Tu perfil no responde reclamos.", 403);
   const respuesta = normalizarRespuesta(payload);
   const actual = await leerReclamo(id);
-  if (actual.estado === "CERRADO") throw fail("La oficina ya cerró este reclamo. Pide que lo reabran para cambiar la respuesta.", 409);
+  if (actual.estado === "CERRADO") throw fail("La oficina ya archivó este reclamo. Pide que lo saquen del archivo para cambiar la respuesta.", 409);
   await getPool().query(
     `UPDATE entrega_reclamos SET respuesta = ?, estado = 'RESPONDIDO', respondido_por = ?, respondido_por_nombre = ?, respondido_en = CURRENT_TIMESTAMP
      WHERE id = ?`,

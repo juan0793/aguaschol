@@ -90,3 +90,13 @@ test("el aviso va al responsable y a todo el equipo, una vez y sin el autor", as
   const sinUsuario = armarAvisosReclamo({ reclamo, tecnicos: [{ id: 4 }] });
   assert.match(sinUsuario[0].body, /Elmer Gómez \(no tiene usuario en la app\)/);
 });
+
+test("el archivo cuenta por día, mes y año en hora de Honduras", async () => {
+  const { contarPorPeriodo, periodoDe } = await import("./entregasReclamosRules.js");
+  // 02:00 UTC del 16 es todavía el 15 en Honduras (UTC-6).
+  assert.equal(periodoDe("2026-10-16T02:00:00Z", "dia"), "2026-10-15");
+  const fechas = ["2026-10-16T02:00:00Z", "2026-10-15T15:00:00Z", "2026-09-30T12:00:00Z", "2025-12-31T23:00:00Z"];
+  assert.deepEqual(contarPorPeriodo(fechas, "dia").map((item) => [item.periodo, item.total]), [["2026-10-15", 2], ["2026-09-30", 1], ["2025-12-31", 1]]);
+  assert.deepEqual(contarPorPeriodo(fechas, "mes").map((item) => item.periodo), ["2026-10", "2026-09", "2025-12"]);
+  assert.deepEqual(contarPorPeriodo(fechas, "anio"), [{ periodo: "2026", total: 3 }, { periodo: "2025", total: 1 }]);
+});

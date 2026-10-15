@@ -4,7 +4,7 @@ const ZONA = "America/Tegucigalpa";
 export const ESTADOS = {
   SIN_RESPUESTA: { label: "Sin respuesta", tono: "ocre" },
   RESPONDIDO: { label: "Respondido", tono: "azul" },
-  CERRADO: { label: "Cerrado", tono: "verde" }
+  CERRADO: { label: "Archivado", tono: "verde" }
 };
 
 // Un reclamo sin respuesta de más de 3 días ya es atraso real.
@@ -31,6 +31,25 @@ export function haceCuanto(iso, ahora = Date.now()) {
   const dias = Math.floor(horas / 24);
   return dias === 1 ? "ayer" : `hace ${dias} días`;
 }
+
+// Periodo del archivo en hora de Honduras: "2026-10-15", "2026-10" o "2026".
+const PARTES_HN = new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" });
+export const periodoHn = (iso, agrupar = "dia") => {
+  if (!iso) return "";
+  const dia = PARTES_HN.format(new Date(iso));
+  return agrupar === "anio" ? dia.slice(0, 4) : agrupar === "mes" ? dia.slice(0, 7) : dia;
+};
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+export const tituloPeriodo = (periodo, agrupar = "dia") => {
+  const [anio, mes, dia] = String(periodo).split("-");
+  if (agrupar === "anio") return anio;
+  if (agrupar === "mes") return `${MESES[Number(mes) - 1]} de ${anio}`;
+  const hoy = periodoHn(new Date().toISOString());
+  const ayer = periodoHn(new Date(Date.now() - 86400000).toISOString());
+  const fecha = `${Number(dia)} de ${MESES[Number(mes) - 1]} de ${anio}`;
+  return periodo === hoy ? `Hoy · ${fecha}` : periodo === ayer ? `Ayer · ${fecha}` : fecha;
+};
 
 export const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 

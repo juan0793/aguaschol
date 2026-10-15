@@ -111,6 +111,25 @@ export const normalizarRespuesta = (payload = {}) => {
   return respuesta;
 };
 
+// Llave del periodo de una fecha en hora de Honduras: "2026-10-15", "2026-10" o "2026".
+const PARTES_HN = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Tegucigalpa", year: "numeric", month: "2-digit", day: "2-digit" });
+export const periodoDe = (fecha, agrupar = "dia") => {
+  const instante = fecha instanceof Date ? fecha : new Date(fecha);
+  if (!fecha || Number.isNaN(instante.getTime())) return "";
+  const dia = PARTES_HN.format(instante);
+  return agrupar === "anio" ? dia.slice(0, 4) : agrupar === "mes" ? dia.slice(0, 7) : dia;
+};
+
+// [{ periodo, total }] del más reciente al más antiguo.
+export const contarPorPeriodo = (fechas = [], agrupar = "dia") => {
+  const conteo = new Map();
+  for (const fecha of fechas) {
+    const periodo = periodoDe(fecha, agrupar);
+    if (periodo) conteo.set(periodo, (conteo.get(periodo) || 0) + 1);
+  }
+  return [...conteo].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([periodo, total]) => ({ periodo, total }));
+};
+
 export const etiquetaMotivo = (codigo) => MOTIVOS_RECLAMO.find((motivo) => motivo.codigo === codigo)?.etiqueta || codigo;
 
 // A quién avisa la campana al registrar un reclamo: al responsable (si tiene usuario)
