@@ -164,8 +164,8 @@ export function useAppShellEffects({
 
   useEffect(() => {
     const allowedViews = session?.user?.preview && session.user.role === "transport" ? ["transport"] : session?.user?.role === "gerente" ? ["dashboard", ...MANAGER_NAVIGATION.map((item) => item.key)] : isFieldValidator
-      ? ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "fieldValidation", "planos"]
-      : ["profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "planos"];
+      ? ["reclamos", "profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "fieldValidation", "planos"]
+      : ["reclamos", "profile", "inspecciones", "entregas", "records", "lookup", "sigTerritorial", "map", "planos"];
     if (isAuthenticated && !isAdmin && !allowedViews.includes(workspaceView)) {
       const defaultView = getDefaultWorkspaceView(session?.user?.role);
       setWorkspaceView(allowedViews.includes(defaultView) ? defaultView : allowedViews[0]);

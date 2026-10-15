@@ -1,6 +1,7 @@
 const itemLabels = {
   inspecciones: "Inspecciones",
   entregas: "Control de entregas",
+  reclamos: "Reclamos de entrega",
   sigTerritorial: "SIG Territorial",
   records: "Fichas clandestinas",
   fieldValidation: "Control territorial GPS",
@@ -23,6 +24,7 @@ const routeViews = {
   "/uso-railway": "railwayUsage",
   "/inspecciones": "inspecciones",
   "/entregas": "entregas",
+  "/reclamos": "reclamos",
   "/clandestinos": "records",
   "/buscar": "lookup",
   "/sig-territorial": "sigTerritorial",
@@ -54,7 +56,7 @@ export const buildSidebarSections = (items = [], dashboardItem = null) => {
 
   return [
     { key: "dashboard", title: "Dashboard", helper: "Vista general", icon: "home", collapsible: true, items: [dashboardItem, ...take(["notes"])].filter(Boolean) },
-    { key: "operacion", title: "Operación", helper: "Procesos diarios", icon: "activity", collapsible: true, items: take(["inspecciones", "entregas", "records", "lookup"]) },
+    { key: "operacion", title: "Operación", helper: "Procesos diarios", icon: "activity", collapsible: true, items: take(["reclamos", "inspecciones", "entregas", "records", "lookup"]) },
     { key: "gestion", title: "Gestión", helper: "Datos y administración", icon: "records", collapsible: true, items: take(["requests", "barrioCodes", "padron", "importacion", "teamActivity", "fallas", "logs", "users"]) },
     { key: "territorio", title: "Territorio", helper: "Mapas y zonas", icon: "map", collapsible: true, items: take(["sigTerritorial", "map", "fieldValidation", "mapReports", "planos"]) },
     { key: "sistema", title: "Sistema", helper: "Cuenta y configuración", icon: "settings", collapsible: true, items: take(["profile", "railwayUsage"]) }

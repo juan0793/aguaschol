@@ -49,6 +49,7 @@ import {
   ClandestinosPage,
   InspeccionesPage,
   EntregasPage,
+  ReclamosWorkspace,
   NotesPage,
   prefetchModule
 } from "./app/lazyModules";
@@ -912,6 +913,12 @@ function App() {
       <Suspense fallback={<ModuleSkeleton title="Control de entregas" />}>
         <EntregasPage apiFetch={apiFetch} session={session} showAlert={showAlert} />
       </Suspense>
+      ) : workspaceView === "reclamos" && !isTransport ? (
+      <main className="reclamos-layout">
+        <Suspense fallback={<ModuleSkeleton title="los reclamos de entrega" toolbar={false} rows={6} />}>
+          <ReclamosWorkspace apiFetch={apiFetch} session={session} showAlert={showAlert} />
+        </Suspense>
+      </main>
       ) : workspaceView === "notes" && isAdmin ? (
       <Suspense fallback={<ModuleSkeleton title="Apuntes" />}>
         <NotesPage

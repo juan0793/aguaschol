@@ -16,6 +16,7 @@ const ACCIONES = [
   [/^(?:PATCH|PUT) \/api\/entregas\/lotes\/(\d+)$/, (m) => `Editar lote #${m[1]}`],
   [/^POST \/api\/entregas\/no-entregadas\/(\d+)\/intentos$/, (m) => `Registrar intento de entrega #${m[1]}`],
   [/^(?:PATCH|PUT) \/api\/entregas\/no-entregadas\/(\d+)$/, (m) => `Editar documento no entregado #${m[1]}`],
+  [/^POST \/api\/entregas\/reclamos\/(\d+)\/respuesta$/, (m) => `Responder el reclamo #${m[1]}`],
   [/^POST \/api\/inspecciones$/, () => "Crear inspección"],
   [/^POST \/api\/inspecciones\/(\d+)\/finalizar$/, (m) => `Finalizar inspección #${m[1]}`],
   [/^(?:POST|PATCH|PUT) \/api\/inspecciones\/(\d+)\/estado$/, (m) => `Cambiar estado de la inspección #${m[1]}`],

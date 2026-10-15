@@ -43,6 +43,8 @@ export const InspeccionesPage = lazyWithRetry(() => import("../modules/inspeccio
 
 export const EntregasPage = lazyWithRetry(() => import("../modules/entregas/pages/EntregasPage"));
 
+export const ReclamosWorkspace = lazyWithRetry(() => import("../modules/reclamos/ReclamosWorkspace"));
+
 export const NotesPage = lazyWithRetry(() => import("../modules/notes/pages/NotesPage"));
 
 // Los módulos viajan en su propio archivo, así que la primera visita cuesta una
@@ -53,6 +55,7 @@ export const MODULE_LOADERS = {
   notes: () => import("../modules/notes/pages/NotesPage"),
   inspecciones: () => import("../modules/inspecciones/pages/InspeccionesPage"),
   entregas: () => import("../modules/entregas/pages/EntregasPage"),
+  reclamos: () => import("../modules/reclamos/ReclamosWorkspace"),
   records: () => import("../modules/clandestinos/pages/ClandestinosPage"),
   importacion: () => import("../components/ImportacionWorkspace"),
   sigTerritorial: () => import("../modules/sig/SigTerritorialWorkspace"),

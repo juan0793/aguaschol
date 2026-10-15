@@ -50,7 +50,8 @@ import {
   Users,
   Waves,
   Wifi,
-  X
+  X,
+  MessageSquareWarning
 } from "lucide-react";
 import GotaRota from "./icons/GotaRota";
 
@@ -111,7 +112,8 @@ import GotaRota from "./icons/GotaRota";
   grip: GripVertical,
   send: Send,
   spellCheck: SpellCheck,
-  fallas: GotaRota
+  fallas: GotaRota,
+  reclamos: MessageSquareWarning
 };
 
 export const Icon = ({ name, className = "" }) => {

@@ -16,7 +16,7 @@ export const readJsonResponse = async (response, fallbackMessage = "La API no de
   }
 };
 
-export const getDefaultWorkspaceView = (role) => (["admin", "gerente"].includes(role) ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "inspecciones" : "records");
+export const getDefaultWorkspaceView = (role) => (["admin", "gerente"].includes(role) ? "dashboard" : ["operator", "validadora_campo"].includes(role) ? "reclamos" : "records");
 
 export const getWorkspaceViewByRole = (role) => {
   const view = getWorkspaceViewFromPath(window.location.pathname);
