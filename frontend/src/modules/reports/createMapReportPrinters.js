@@ -92,12 +92,12 @@ export function createMapReportPrinters({
     const padronNames = tipo === "census"
       ? (await buildMapReportPadronData({ zones: jornadas.flatMap((jornada) => jornada.data.zones) })).padronNames
       : {};
-    // Mapa de la zona trabajada (solo en el técnico: el censo es sin coordenadas). Un mapa
-    // oficial adjunto en Configurar tiene prioridad sobre el general dibujado.
+    // Mapa de la zona trabajada (técnico y censo). Un mapa oficial adjunto en Configurar
+    // tiene prioridad sobre el general dibujado.
     let mapaGeneral = "";
     let leyendaGeneral = null;
     const mapasPorDia = {};
-    if (tipo !== "census") {
+    {
       const puntosDe = (jornada) => jornada.data.zones.flatMap((zona) => zona.items);
       const varias = jornadas.length > 1;
       const colorDia = Object.fromEntries(jornadas.map((jornada, indice) => [jornada.dateKey, COLORES_DIA[indice % COLORES_DIA.length]]));
@@ -331,7 +331,8 @@ export function createMapReportPrinters({
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
     const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
     const reportNotes = mapReportSettings.report_notes.trim();
-    const mapImageDataUrl = mapReportSettings.map_image_data_url || "";
+    const mapImageDataUrl = mapReportSettings.map_image_data_url ||
+      (await dibujarMapaPuntos({ points: reportData.zones.flatMap((zona) => zona.items), apiUrl: API_URL }).catch(() => ""));
     const zonesMarkup = reportData.zones
       .map(
         (zone, index) => `

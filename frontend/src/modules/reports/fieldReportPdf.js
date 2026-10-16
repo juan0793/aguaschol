@@ -190,7 +190,8 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
   y += 3.5;
 
   // ---------- Resumen ----------
-  const anchoResumen = mapImageDataUrl ? util * 0.42 : util;
+  // En horizontal (técnico) el mapa va al lado del resumen; en vertical (censo), debajo.
+  const anchoResumen = mapImageDataUrl && tecnico ? util * 0.42 : util;
   const inicioResumen = y;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -236,7 +237,22 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
     y = (doc.lastAutoTable?.finalY ?? y) + 6;
   }
 
-  if (mapImageDataUrl) {
+  if (mapImageDataUrl && !tecnico) {
+    const altoMapa = Math.min(100, util * (820 / 1400));
+    const anchoMapa = altoMapa * (1400 / 820);
+    if (y + altoMapa + 18 > alto - PIE - 4) y = (doc.addPage("letter", "portrait"), 16);
+    try {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...AZUL_PROFUNDO);
+      doc.text(varias ? "Zona trabajada en las jornadas" : "Zona trabajada en la jornada", MARGEN, y);
+      ponerMapa(mapImageDataUrl, MARGEN, y + 2, anchoMapa, altoMapa);
+      const leyenda = leyendaGeneral || leyendaDeTipos(jornadas.flatMap((jornada) => jornada.data.zones));
+      y = (leyenda.length ? dibujarLeyenda(leyenda, MARGEN, y + altoMapa + 7, util) : y + altoMapa + 4) + 5;
+    } catch { /* sin mapa, el informe sigue */ }
+  }
+
+  if (mapImageDataUrl && tecnico) {
     // Zona trabajada: a la derecha del resumen, con su leyenda debajo.
     const xMapa = MARGEN + anchoResumen + 6;
     const anchoMapa = ancho - MARGEN - xMapa;
@@ -315,7 +331,15 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
 
       // Mapa del día a la izquierda; a la derecha, sus barrios y la leyenda de tipos.
       const mapaDia = mapasPorDia[jornada.dateKey];
-      if (mapaDia) {
+      if (mapaDia && !tecnico) {
+        // En vertical: el mapa a todo el ancho y la leyenda debajo; los barrios siguen en las tablas.
+        const altoMapa = Math.min(95, util * (640 / 1200));
+        const anchoMapa = altoMapa * (1200 / 640);
+        try {
+          ponerMapa(mapaDia, MARGEN, y, anchoMapa, altoMapa);
+          y = dibujarLeyenda(leyendaDeTipos(jornada.data.zones), MARGEN, y + altoMapa + 5, util) + 5;
+        } catch { /* sin mapa del día, siguen las tablas */ }
+      } else if (mapaDia) {
         const anchoMapa = util * 0.6;
         const altoMapa = anchoMapa * (640 / 1200);
         try {
