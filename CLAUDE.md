@@ -42,3 +42,11 @@ Rules:
 - `lazyWithRetry` devuelve el aviso "Esta pantalla no se pudo abrir" en vez de dejar la app en blanco cuando un módulo no se puede bajar.
 - "Guardar zona" se cancelaba sola: el efecto de `OfflineZonesPanel` dependía de `onClose` (nuevo en cada render). Arreglado.
 - Verificado en local con `frontend-prod` apagando servidores: el técnico entra sin red, el mapa usa la zona guardada (y amplía el detalle), Reclamos abre y dice "Sin conexión", un punto marcado sin red se envía solo al volver la conexión. Las sesiones de administrador y de prueba de perfil siguen exigiendo validar en línea (se quedan en "Validando sesión…" sin red).
+
+## Nota para Claude: informe de campo de varias jornadas (2026-10-16)
+
+- "Generar documento" de Reportes de levantamiento tiene el paso "Jornadas" para Técnico con coordenadas y Censo: se marcan varias, los barrios se suman entre días y la salida pasa a PDF (Imprimir y Vista previa quedan solo para una jornada). El Resumen ligero sigue siendo de una jornada.
+- El PDF de técnico y censo sale de `modules/reports/fieldReportPdf.js` (una o varias jornadas): encabezado con la(s) jornada(s), resumen por tipo y por jornada, cada día en su propia hoja, filas que no se parten, "Página X de Y" y nombre de archivo con la fecha de la jornada. Sin columna "Marca" ni recuadro "Mapa no disponible".
+- Los datos de otras jornadas se arman con `utils/mapReportBuilder.js` (el mismo que usa `useMapReportData`) y `loadReportJornadas` en `createMapReportPrinters.js` (puntos por `/map-points?date=` y contexto por `/map-points/context`). Textos de fechas y unión de barrios en `utils/informeJornadas.js` (con pruebas).
+- Verificado en local con 24 puntos de prueba en tres jornadas: técnico de 3 jornadas (7 hojas), censo de varias jornadas y técnico de una jornada. La impresión HTML de una jornada no cambió.
+- Mapa: la captura `captureReportMapImage` nunca funcionó en la pantalla actual (`reportMapCaptureRef` no está conectada a ningún elemento). Ahora `utils/reportMapImage.js` dibuja el mapa: encuadra los puntos, usa los mosaicos de `/api/map-tiles` con la caché de Puntos GPS y pinta cada punto con la figura de su tipo (o el color del día). Va en el técnico (general en la hoja 1 y uno por día), en la impresión HTML de una jornada y en el Ente regulador. El censo no lleva mapa. Un mapa adjunto en Configurar tiene prioridad.

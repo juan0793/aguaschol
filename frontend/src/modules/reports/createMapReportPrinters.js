@@ -27,6 +27,12 @@ import { formatDateTime, formatMapDiaryLabel } from "../../utils/datesAndBusines
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import { printDocument, saveReportPdf } from "../../utils/printDocument";
 import { urlToDataUrl } from "../../utils/imageUtils";
+import { crearInformeCampoPdf } from "./fieldReportPdf";
+import { fechaLarga, nombreArchivoInforme } from "./utils/informeJornadas";
+import { COLORES_DIA, dibujarMapaPuntos } from "./utils/reportMapImage";
+import { API_URL } from "../../config/api";
+import { applyMapReportZoneOverrides, buildMapReportData } from "./utils/mapReportBuilder";
+import { selectReportZones } from "./utils/reportSelectors";
 
 export function createMapReportPrinters({
   activeMapDiaryDateKey,
@@ -35,10 +41,101 @@ export function createMapReportPrinters({
   captureReportMapImage,
   getSelectedCajaTotal,
   getSelectedMapReportData,
+  mapPointContexts = {},
+  mapReportPrintData,
   mapReportSettings,
   mapReportStaff,
+  safeBarrioCodes = [],
   showAlert
 }) {
+  // Datos del informe para varias jornadas. La jornada activa usa lo que ya está en
+  // pantalla; las otras se piden a la API con su contexto (barrio y referencias).
+  const loadReportJornadas = async (claves = []) => {
+    const unicas = [...new Set(claves.filter(Boolean))].sort();
+    const otras = unicas.filter((dateKey) => dateKey !== activeMapDiaryDateKey);
+    const puntosPorDia = await Promise.all(otras.map(async (dateKey) => {
+      const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
+      const data = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(data.message || `No se pudieron cargar los puntos del ${formatMapDiaryLabel(dateKey)}.`);
+      return { dateKey, points: Array.isArray(data) ? data : [] };
+    }));
+    const todos = puntosPorDia.flatMap((dia) => dia.points);
+    let contextos = {};
+    if (todos.length) {
+      try {
+        const response = await apiFetch("/map-points/context", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ points: todos.map((point) => ({ latitude: point.latitude, longitude: point.longitude })) })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) contextos = Object.fromEntries((Array.isArray(data.contexts) ? data.contexts : []).map((context) => [context.key, context]));
+      } catch {
+        // Sin contexto, el barrio sale de la clave de cada punto.
+      }
+    }
+    return unicas.map((dateKey) => {
+      if (dateKey === activeMapDiaryDateKey && mapReportPrintData) return { dateKey, data: mapReportPrintData };
+      const dia = puntosPorDia.find((item) => item.dateKey === dateKey);
+      const data = buildMapReportData({ points: dia?.points || [], contexts: { ...mapPointContexts, ...contextos }, barrioCodes: safeBarrioCodes });
+      return { dateKey, data: applyMapReportZoneOverrides(data, mapReportSettings) };
+    });
+  };
+
+  // Informe de campo en PDF (técnico o censo) de una o varias jornadas.
+  const descargarInformeCampo = async ({ tipo, includedZoneKeys, jornadas: claves } = {}) => {
+    const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+    const lista = Array.isArray(claves) && claves.length ? claves : [activeMapDiaryDateKey].filter(Boolean);
+    const soloActiva = lista.length === 1 && lista[0] === activeMapDiaryDateKey;
+    const crudas = soloActiva ? [{ dateKey: activeMapDiaryDateKey, data: mapReportPrintData }] : await loadReportJornadas(lista);
+    const jornadas = crudas.map((jornada) => ({ ...jornada, data: selectReportZones(jornada.data, includedZoneKeys, getMapPointTypeLabel) }));
+    const padronNames = tipo === "census"
+      ? (await buildMapReportPadronData({ zones: jornadas.flatMap((jornada) => jornada.data.zones) })).padronNames
+      : {};
+    // Mapa de la zona trabajada (solo en el técnico: el censo es sin coordenadas). Un mapa
+    // oficial adjunto en Configurar tiene prioridad sobre el general dibujado.
+    let mapaGeneral = "";
+    let leyendaGeneral = null;
+    const mapasPorDia = {};
+    if (tipo !== "census") {
+      const puntosDe = (jornada) => jornada.data.zones.flatMap((zona) => zona.items);
+      const varias = jornadas.length > 1;
+      const colorDia = Object.fromEntries(jornadas.map((jornada, indice) => [jornada.dateKey, COLORES_DIA[indice % COLORES_DIA.length]]));
+      const conDia = jornadas.flatMap((jornada) => puntosDe(jornada).map((punto) => ({ ...punto, __jornada: jornada.dateKey })));
+      mapaGeneral = mapReportSettings.map_image_data_url || await dibujarMapaPuntos({
+        points: conDia,
+        apiUrl: API_URL,
+        colorDe: varias ? (punto) => colorDia[punto.__jornada] : null
+      }).catch(() => "");
+      if (varias && !mapReportSettings.map_image_data_url) {
+        leyendaGeneral = jornadas.map((jornada, indice) => ({ label: `Día ${indice + 1} · ${fechaLarga(jornada.dateKey)}`, color: colorDia[jornada.dateKey] }));
+      }
+      if (varias) {
+        for (const jornada of jornadas) {
+          mapasPorDia[jornada.dateKey] = await dibujarMapaPuntos({ points: puntosDe(jornada), apiUrl: API_URL, ancho: 1200, alto: 640 }).catch(() => "");
+        }
+      }
+    }
+    let logoDataUrl = "";
+    try { logoDataUrl = await urlToDataUrl(logoAguasCholuteca); } catch { logoDataUrl = ""; }
+    const doc = crearInformeCampoPdf({
+      jsPDF,
+      autoTable: autoTableModule.default,
+      tipo,
+      jornadas,
+      settings: mapReportSettings,
+      staff: mapReportStaff,
+      padronNames,
+      logoDataUrl,
+      mapaGeneral,
+      leyendaGeneral,
+      mapasPorDia,
+      generadoEn: formatDateTime(new Date().toISOString())
+    });
+    saveReportPdf(doc, nombreArchivoInforme(tipo === "census" ? "reporte-censo" : "reporte-campo", jornadas.map((jornada) => jornada.dateKey)));
+    return jornadas;
+  };
+
   const handleDownloadMapReport = async () => {
     try {
       const response = await apiFetch(`/map-points/export?date=${encodeURIComponent(activeMapDiaryDateKey)}`);
@@ -65,8 +162,10 @@ export function createMapReportPrinters({
 
   const handlePrintMapFieldReport = async ({ includedZoneKeys } = {}) => {
     const generatedAt = formatDateTime(new Date().toISOString());
-    const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
     const reportData = getSelectedMapReportData(includedZoneKeys);
+    // La captura de pantalla del mapa ya no existe en Reportes: se dibuja el mapa de los puntos.
+    const mapImageDataUrl = mapReportSettings.map_image_data_url ||
+      (await dibujarMapaPuntos({ points: reportData.zones.flatMap((zona) => zona.items), apiUrl: API_URL }).catch(() => ""));
     const reportCajaTotal = getSelectedCajaTotal(reportData);
     const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
     const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
@@ -214,213 +313,10 @@ export function createMapReportPrinters({
     );
   };
 
-  const handleDownloadMapFieldPdf = async ({ includedZoneKeys } = {}) => {
+  const handleDownloadMapFieldPdf = async (opciones = {}) => {
     try {
-      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-      const autoTable = autoTableModule.default;
-      const document = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "letter",
-        compress: true
-      });
-      const generatedAt = formatDateTime(new Date().toISOString());
-      const mapImageDataUrl = mapReportSettings.map_image_data_url || (await captureReportMapImage());
-      const reportData = getSelectedMapReportData(includedZoneKeys);
-      const reportCajaTotal = getSelectedCajaTotal(reportData);
-      const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
-      const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
-      const reportNotes = mapReportSettings.report_notes.trim();
-      const addPdfPageFooter = () => {
-        const pageWidth = document.internal.pageSize.getWidth();
-        const pageHeight = document.internal.pageSize.getHeight();
-        const currentPage = document.getCurrentPageInfo().pageNumber;
-        document.setFont("helvetica", "normal");
-        document.setFontSize(9);
-        document.setTextColor(69, 96, 122);
-        document.text(`Pagina ${currentPage}`, pageWidth - 14, pageHeight - 8, { align: "right" });
-      };
-
-      try {
-        const logoDataUrl = await urlToDataUrl(logoAguasCholuteca);
-        document.addImage(logoDataUrl, "PNG", 14, 10, 20, 20);
-      } catch {
-        // Keep the report generation going even if the logo cannot be embedded.
-      }
-
-      document.setFont("helvetica", "bold");
-      document.setFontSize(16);
-      document.text(reportTitle, 38, 16);
-      document.setFontSize(9.5);
-      document.setTextColor(64, 91, 117);
-      document.text(reportSubtitle, 38, 22);
-
-      document.setTextColor(22, 50, 74);
-      document.setFont("helvetica", "normal");
-      document.text(`Generado: ${generatedAt}`, 14, 36);
-      document.text(`Total de puntos: ${reportData.totalPoints}`, 86, 36);
-      document.text(`Total de barrios: ${reportData.totalZones}`, 138, 36);
-      document.text(document.splitTextToSize(`Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}`, 116), 14, 42);
-      document.text(`Ingeniero de datos: ${mapReportStaff.data_engineer || "--"}`, 138, 42);
-      document.text(`Cajas de registro: ${reportCajaTotal}`, 14, 56);
-
-      if (mapImageDataUrl) {
-        const mapImageType = mapImageDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-        document.setFillColor(237, 245, 252);
-        document.roundedRect(154, 48, 104, 48, 3, 3, "F");
-        document.addImage(mapImageDataUrl, mapImageType, 156, 50, 100, 44);
-      } else {
-        document.setFillColor(237, 245, 252);
-        document.roundedRect(154, 48, 104, 48, 3, 3, "F");
-        document.setFont("helvetica", "normal");
-        document.setFontSize(9);
-        document.setTextColor(69, 96, 122);
-        document.text("Mapa no disponible", 206, 73, { align: "center" });
-      }
-
-      autoTable(document, {
-        startY: 62,
-        head: [["Resumen", "Cantidad"]],
-        body: Object.entries(reportData.totalsByType).length
-          ? Object.entries(reportData.totalsByType)
-          : [["Sin puntos", "0"]],
-        theme: "grid",
-        styles: {
-          fontSize: 8.5,
-          cellPadding: 2.6,
-          textColor: [24, 42, 60]
-        },
-        headStyles: {
-          fillColor: [21, 118, 209],
-          textColor: [255, 255, 255],
-          fontStyle: "bold"
-        },
-        columnStyles: {
-          0: { cellWidth: 54 },
-          1: { cellWidth: 20, halign: "center" }
-        },
-        margin: { left: 14, right: 14 }
-      });
-
-      addPdfPageFooter();
-      let currentY = (document.lastAutoTable?.finalY ?? 58) + 6;
-      if (reportNotes) {
-        document.setFont("helvetica", "bold");
-        document.setFontSize(9);
-        document.setTextColor(16, 55, 91);
-        document.text("Observaciones del censo", 14, currentY);
-        document.setFont("helvetica", "normal");
-        document.setFontSize(8.5);
-        document.setTextColor(69, 96, 122);
-        const noteLines = document.splitTextToSize(reportNotes, 130);
-        document.text(noteLines, 14, currentY + 5);
-        currentY += Math.min(22, noteLines.length * 4 + 9);
-      }
-
-      for (let index = 0; index < reportData.zones.length; index += 1) {
-        const zone = reportData.zones[index];
-
-        if (currentY > 175) {
-          document.addPage("letter", "landscape");
-          addPdfPageFooter();
-          currentY = 16;
-        }
-
-        document.setFillColor(237, 245, 252);
-        document.roundedRect(14, currentY, 250, 16, 3, 3, "F");
-        document.setFont("helvetica", "bold");
-        document.setFontSize(11.5);
-        document.setTextColor(16, 55, 91);
-        document.text(`${zone.displayKicker || `Zona ${index + 1}`}: ${zone.displayName || zone.zone}`, 18, currentY + 6);
-        document.setFont("helvetica", "normal");
-        document.setFontSize(8.5);
-        document.text(`Referencia sugerida: ${zone.displayReference || "Sin contexto cercano"}`, 18, currentY + 11);
-        document.text(`Ubicacion completa: ${zone.displayLocation || "Sin direccion ampliada"}`, 128, currentY + 11);
-
-        autoTable(document, {
-          startY: currentY + 20,
-          head: [[
-            "#",
-            "Tipo",
-            "Marca",
-            "Latitud",
-            "Longitud",
-            "Precision",
-            "Referencia cercana",
-            "Referencia",
-            "Descripcion",
-            "Fecha"
-          ]],
-          body: zone.items.map((point, pointIndex) => {
-            const row = [
-              String(pointIndex + 1),
-              getMapPointTypeLabel(point.point_type),
-              point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1",
-              formatCoordinate(point.latitude),
-              formatCoordinate(point.longitude),
-              point.accuracy_meters ? `${point.accuracy_meters} m` : "--",
-              point.suggested_reference || "--",
-              getMapPointReferenceNote(point) || "--",
-              getMapPointTechnicalDescription(point) || "--",
-              formatDateTime(point.created_at)
-            ];
-            row.rawPoint = point;
-            return row;
-          }),
-          theme: "grid",
-          styles: {
-            fontSize: 7.6,
-            cellPadding: 2.1,
-            textColor: [28, 44, 62],
-            overflow: "linebreak"
-          },
-          headStyles: {
-            fillColor: [21, 118, 209],
-            textColor: [255, 255, 255],
-            fontStyle: "bold"
-          },
-          alternateRowStyles: {
-            fillColor: [248, 251, 255]
-          },
-          didParseCell: (data) => {
-            if (data.section !== "body") return;
-            const rawPoint = data.row.raw?.rawPoint;
-            if (isAlertReportPoint(rawPoint)) {
-              data.cell.styles.textColor = REPORT_POINT_ALERT_RGB;
-              data.cell.styles.fillColor = REPORT_POINT_ALERT_FILL_RGB;
-              data.cell.styles.lineColor = REPORT_POINT_ALERT_BORDER_RGB;
-            } else if (isRedReportPoint(rawPoint)) {
-              data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
-              data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
-              data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
-            } else {
-              return;
-            }
-            if (data.column.index === 1 || data.column.index === 2) {
-              data.cell.styles.fontStyle = "bold";
-            }
-          },
-          margin: { left: 14, right: 14 },
-          columnStyles: {
-            0: { cellWidth: 8, halign: "center" },
-            1: { cellWidth: 22 },
-            2: { cellWidth: 14 },
-            3: { cellWidth: 18 },
-            4: { cellWidth: 18 },
-            5: { cellWidth: 16 },
-            6: { cellWidth: 31 },
-            7: { cellWidth: 34 },
-            8: { cellWidth: 55 },
-            9: { cellWidth: 24 }
-          }
-        });
-
-        currentY = (document.lastAutoTable?.finalY ?? currentY + 20) + 7;
-        addPdfPageFooter();
-      }
-
-      saveReportPdf(document, `reporte-campo-${new Date().toISOString().slice(0, 10)}.pdf`);
-      showAlert("Reporte PDF descargado.");
+      const jornadas = await descargarInformeCampo({ ...opciones, tipo: "technical" });
+      showAlert(jornadas.length > 1 ? `Reporte PDF de ${jornadas.length} jornadas descargado.` : "Reporte PDF descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el reporte PDF.");
     }
@@ -530,182 +426,10 @@ export function createMapReportPrinters({
     );
   };
 
-  const handleDownloadMapCensusPdf = async ({ includedZoneKeys } = {}) => {
+  const handleDownloadMapCensusPdf = async (opciones = {}) => {
     try {
-      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-      const autoTable = autoTableModule.default;
-      const document = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "letter",
-        compress: true
-      });
-      const reportData = getSelectedMapReportData(includedZoneKeys);
-      const { padronNames } = await buildMapReportPadronData(reportData);
-      const generatedAt = formatDateTime(new Date().toISOString());
-      const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
-      const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
-      const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
-      const reportNotes = mapReportSettings.report_notes.trim();
-      const pageWidth = document.internal.pageSize.getWidth();
-      const pageHeight = document.internal.pageSize.getHeight();
-      const addPageFooter = () => {
-        const currentPage = document.getCurrentPageInfo().pageNumber;
-        document.setFont("helvetica", "normal");
-        document.setFontSize(8.5);
-        document.setTextColor(69, 96, 122);
-        document.text(`Pagina ${currentPage}`, pageWidth - 14, pageHeight - 8, { align: "right" });
-      };
-
-      try {
-        const logoDataUrl = await urlToDataUrl(logoAguasCholuteca);
-        document.addImage(logoDataUrl, "PNG", 14, 10, 18, 18);
-      } catch {
-        // Keep the report generation going even if the logo cannot be embedded.
-      }
-
-      document.setFont("helvetica", "bold");
-      document.setFontSize(15);
-      document.setTextColor(18, 59, 93);
-      document.text(reportTitle, 36, 15);
-      document.setFont("helvetica", "normal");
-      document.setFontSize(9);
-      document.setTextColor(64, 91, 117);
-      document.text(reportSubtitle, 36, 21);
-      document.text(document.splitTextToSize(reportDescription, 150), 36, 26);
-
-      document.setFillColor(237, 245, 252);
-      document.roundedRect(14, 38, 188, 22, 3, 3, "F");
-      document.setFontSize(8.8);
-      document.setTextColor(22, 50, 74);
-      document.text(`Tipo: Reporte de censo sin coordenadas`, 18, 45);
-      document.text(`Generado: ${generatedAt}`, 18, 51);
-      document.text(`Total de puntos: ${reportData.totalPoints}`, 102, 45);
-      document.text(`Zonas / manzanas: ${reportData.totalZones}`, 102, 51);
-      document.text(document.splitTextToSize(`Tecnicos: ${getMapReportTechniciansLabel(mapReportStaff)}`, 178), 18, 57);
-
-      const chartRows = getMapReportTypeChartRows(reportData);
-      let currentY = 66;
-      if (chartRows.length) {
-        const maxChartValue = Math.max(1, ...chartRows.map(([, total]) => Number(total || 0)));
-        document.setFont("helvetica", "bold");
-        document.setFontSize(9);
-        document.setTextColor(16, 55, 91);
-        document.text("Distribucion de puntos", 14, currentY);
-        chartRows.forEach(([label, total], index) => {
-          const rowY = currentY + 6 + index * 5;
-          document.setFont("helvetica", "normal");
-          document.setFontSize(7.5);
-          document.setTextColor(45, 75, 101);
-          document.text(String(label).slice(0, 25), 14, rowY);
-          document.setFillColor(224, 235, 245);
-          document.roundedRect(62, rowY - 2.7, 120, 3, 1.5, 1.5, "F");
-          document.setFillColor(21, 118, 209);
-          document.roundedRect(62, rowY - 2.7, Math.max(4, (Number(total || 0) / maxChartValue) * 120), 3, 1.5, 1.5, "F");
-          document.text(String(total), 198, rowY, { align: "right" });
-        });
-        currentY += chartRows.length * 5 + 10;
-      }
-      if (reportNotes) {
-        document.setFont("helvetica", "bold");
-        document.setFontSize(9);
-        document.setTextColor(16, 55, 91);
-        document.text("Observaciones del censo", 14, currentY);
-        document.setFont("helvetica", "normal");
-        document.setFontSize(8.5);
-        document.setTextColor(69, 96, 122);
-        const noteLines = document.splitTextToSize(reportNotes, 180);
-        document.text(noteLines, 14, currentY + 5);
-        currentY += Math.min(24, noteLines.length * 4 + 10);
-      }
-
-      addPageFooter();
-
-      for (let index = 0; index < reportData.zones.length; index += 1) {
-        const zone = reportData.zones[index];
-        if (currentY > 235) {
-          document.addPage("letter", "portrait");
-          addPageFooter();
-          currentY = 16;
-        }
-
-        document.setFillColor(237, 245, 252);
-        document.roundedRect(14, currentY, 188, 13, 3, 3, "F");
-        document.setFont("helvetica", "bold");
-        document.setFontSize(10.5);
-        document.setTextColor(16, 55, 91);
-        document.text(`${zone.displayKicker || `Zona ${index + 1}`}: ${zone.displayName || zone.zone}`, 18, currentY + 6);
-        document.setFont("helvetica", "normal");
-        document.setFontSize(8.2);
-        document.text(`Ubicacion: ${zone.displayLocation || "Sin referencia"}`, 18, currentY + 11);
-
-        autoTable(document, {
-          startY: currentY + 17,
-          head: [["#", "Barrio / sector", "Clave / abonado", "Nombre en padron", "Tipo", "Referencia", "Descripcion"]],
-          body: zone.items.map((point, pointIndex) => {
-            const row = [
-              String(pointIndex + 1),
-              zone.displayName || zone.zone || "--",
-              getMapPointReportReferenceLabel(point),
-              getMapPointPadronNames(point, padronNames),
-              getMapPointTypeLabel(point.point_type),
-              getMapPointReferenceNote(point) || zone.displayLocation || "--",
-              getMapPointTechnicalDescription(point) || "--"
-            ];
-            row.rawPoint = point;
-            return row;
-          }),
-          theme: "grid",
-          styles: {
-            fontSize: 7.5,
-            cellPadding: 2,
-            textColor: [28, 44, 62],
-            overflow: "linebreak"
-          },
-          headStyles: {
-            fillColor: [21, 118, 209],
-            textColor: [255, 255, 255],
-            fontStyle: "bold"
-          },
-          alternateRowStyles: {
-            fillColor: [248, 251, 255]
-          },
-          didParseCell: (data) => {
-            if (data.section !== "body") return;
-            const rawPoint = data.row.raw?.rawPoint;
-            if (isAlertReportPoint(rawPoint)) {
-              data.cell.styles.textColor = REPORT_POINT_ALERT_RGB;
-              data.cell.styles.fillColor = REPORT_POINT_ALERT_FILL_RGB;
-              data.cell.styles.lineColor = REPORT_POINT_ALERT_BORDER_RGB;
-            } else if (isRedReportPoint(rawPoint)) {
-              data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
-              data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
-              data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
-            } else {
-              return;
-            }
-            if (data.column.index === 1 || data.column.index === 2) {
-              data.cell.styles.fontStyle = "bold";
-            }
-          },
-          margin: { left: 14, right: 14 },
-          columnStyles: {
-            0: { cellWidth: 8, halign: "center" },
-            1: { cellWidth: 27 },
-            2: { cellWidth: 25 },
-            3: { cellWidth: 35 },
-            4: { cellWidth: 22 },
-            5: { cellWidth: 28 },
-            6: { cellWidth: 43 }
-          }
-        });
-
-        currentY = (document.lastAutoTable?.finalY ?? currentY + 22) + 7;
-        addPageFooter();
-      }
-
-      saveReportPdf(document, `reporte-censo-sin-coordenadas-${new Date().toISOString().slice(0, 10)}.pdf`);
-      showAlert("Reporte de censo sin coordenadas descargado.");
+      const jornadas = await descargarInformeCampo({ ...opciones, tipo: "census" });
+      showAlert(jornadas.length > 1 ? `Censo de ${jornadas.length} jornadas descargado.` : "Reporte de censo sin coordenadas descargado.");
     } catch (error) {
       showAlert(error.message || "No fue posible descargar el reporte de censo.");
     }
@@ -1058,6 +782,7 @@ export function createMapReportPrinters({
   };
 
   return {
+    loadReportJornadas,
     handleDownloadMapReport,
     handlePrintMapFieldReport,
     handleDownloadMapFieldPdf,

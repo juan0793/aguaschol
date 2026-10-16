@@ -454,7 +454,8 @@ function App() {
     ...fieldDebtReports,
     ...reportMapActions,
     ...mapReportModel,
-    ...fieldMapState
+    ...fieldMapState,
+    safeBarrioCodes
   });
   const printBatchSelection = usePrintBatchSelection({ ...recordsState, ...recordFilterModel, getRecordBarrioName, safeRecords });
   const recordLoaders = createRecordLoaders({ ...apiSession, ...recordsState, clearSession, isAdmin, isAuthenticated });

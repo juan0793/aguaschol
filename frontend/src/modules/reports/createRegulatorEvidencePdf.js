@@ -12,6 +12,8 @@ import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import { roleLabel } from "../../utils/formatting";
 import { saveReportPdf } from "../../utils/printDocument";
 import { urlToDataUrl } from "../../utils/imageUtils";
+import { dibujarMapaPuntos } from "./utils/reportMapImage";
+import { API_URL } from "../../config/api";
 
 export function createRegulatorEvidencePdf({
   activeMapDiaryDateKey,
@@ -51,12 +53,6 @@ export function createRegulatorEvidencePdf({
       const generatedAt = formatDateTime(generatedAtIso);
       const reportTitle = "Resumen de trabajo realizado";
       const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
-      const mapImageDataUrl =
-        mapReportSettings.map_image_data_url ||
-        (await Promise.race([
-          captureReportMapImage(),
-          new Promise((resolve) => window.setTimeout(() => resolve(""), 3500))
-        ]));
       const pageWidth = document.internal.pageSize.getWidth();
       const pageHeight = document.internal.pageSize.getHeight();
       const maxPages = 5;
@@ -79,6 +75,10 @@ export function createRegulatorEvidencePdf({
       const evidencePoints = journeyEntries
         .flatMap((entry) => entry.points.map((point) => ({ ...point, evidence_date_key: entry.dateKey })))
         .sort((left, right) => new Date(right.updated_at || right.created_at) - new Date(left.updated_at || left.created_at));
+      // Mapa de la zona trabajada: el adjunto oficial o, si no hay, el dibujado con los puntos.
+      const mapImageDataUrl =
+        mapReportSettings.map_image_data_url ||
+        (await dibujarMapaPuntos({ points: evidencePoints, apiUrl: API_URL, ancho: 1400, alto: 800 }).catch(() => ""));
       let evidenceContexts = {};
       if (evidencePoints.length && isAdmin) {
         try {
