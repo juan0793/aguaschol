@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "../../components/Icon";
 import BuscarEntrega from "./BuscarEntrega";
+import ReclamosImpresion from "./ReclamosImpresion";
 import {
   DIAS_ATRASO,
   ESTADOS,
@@ -35,6 +37,10 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [resaltado, setResaltado] = useState(null);
+  // Reclamos juntados con "+" para imprimir varios a la vez. Se guardan completos para
+  // poder imprimirlos aunque ya no estén en la página o el filtro actual.
+  const [seleccion, setSeleccion] = useState(() => new Map());
+  const [impresion, setImpresion] = useState(null);
   const pedido = useRef(0);
 
   const cargar = useCallback(async ({ silencioso = false } = {}) => {
@@ -70,6 +76,45 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
     const espera = window.setTimeout(() => setFiltros((actual) => (actual.q === busqueda.trim() ? actual : { ...actual, q: busqueda.trim(), pagina: 1 })), 320);
     return () => window.clearTimeout(espera);
   }, [busqueda]);
+
+  const alternar = (reclamo) => setSeleccion((actual) => {
+    const siguiente = new Map(actual);
+    if (siguiente.has(reclamo.id)) siguiente.delete(reclamo.id);
+    else siguiente.set(reclamo.id, reclamo);
+    return siguiente;
+  });
+  const imprimir = (lista) => {
+    const vigentes = new Map((data?.items || []).map((item) => [item.id, item]));
+    setImpresion({ reclamos: lista.map((item) => vigentes.get(item.id) || item), en: fechaHora(new Date().toISOString()) });
+  };
+
+  // La ficha se monta fuera de pantalla; cuando su logo está listo se marca <body>
+  // (saca la app del flujo) y se imprime. Al terminar se desmonta.
+  useEffect(() => {
+    if (!impresion) return undefined;
+    let vivo = true;
+    const limpiar = () => {
+      document.body.classList.remove("rc-imprimiendo");
+      if (vivo) setImpresion(null);
+    };
+    // Safari no siempre avisa "afterprint": también se limpia al salir del modo impresión.
+    const modoImpresion = window.matchMedia?.("print");
+    const alSalirDeImpresion = (evento) => { if (!evento.matches) limpiar(); };
+    const imagenes = [...document.querySelectorAll(".rc-imp-portal img")];
+    Promise.all(imagenes.map((imagen) => imagen.decode?.().catch(() => {}))).then(() => {
+      if (!vivo) return;
+      document.body.classList.add("rc-imprimiendo");
+      window.addEventListener("afterprint", limpiar, { once: true });
+      modoImpresion?.addEventListener?.("change", alSalirDeImpresion);
+      window.print();
+    });
+    return () => {
+      vivo = false;
+      window.removeEventListener("afterprint", limpiar);
+      modoImpresion?.removeEventListener?.("change", alSalirDeImpresion);
+      document.body.classList.remove("rc-imprimiendo");
+    };
+  }, [impresion]);
 
   const cambiar = (cambio) => setFiltros((actual) => ({ ...actual, ...cambio, pagina: cambio.pagina ?? 1 }));
   const reemplazar = (reclamo) => setData((actual) => actual && ({ ...actual, items: actual.items.map((item) => (item.id === reclamo.id ? reclamo : item)) }));
@@ -121,8 +166,12 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
     permisos={permisos}
     esTecnico={esTecnico}
     resaltado={resaltado === reclamo.id}
+    elegido={seleccion.has(reclamo.id)}
+    onElegir={() => alternar(reclamo)}
+    onImprimir={() => imprimir([reclamo])}
     onAccion={accion}
   />);
+  const sinElegirEnPagina = (data?.items || []).filter((item) => !seleccion.has(item.id));
 
   return <section className={`rc${oficina ? "" : " is-campo"}`} aria-labelledby="rc-titulo" aria-busy={cargando}>
     <header className="rc-head">
@@ -217,12 +266,26 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
 
       {!grupos && data?.items.length ? <ol className="rc-lista">{filas(data.items)}</ol> : null}
 
+      {seleccion.size ? <div className="rc-seleccion" role="region" aria-label="Reclamos para imprimir">
+        <Icon name="print" />
+        <strong>{plural(seleccion.size, "reclamo", "reclamos")} para imprimir</strong>
+        {sinElegirEnPagina.length ? <button type="button" className="rc-enlace" onClick={() => setSeleccion((actual) => new Map([...actual, ...sinElegirEnPagina.map((item) => [item.id, item])]))}>{sinElegirEnPagina.length === 1 ? "Agregar el que falta de esta página" : `Agregar los ${sinElegirEnPagina.length} de esta página`}</button> : null}
+        <button type="button" className="rc-enlace" onClick={() => setSeleccion(new Map())}>Quitar todos</button>
+        <button type="button" className="rc-boton is-primario" onClick={() => imprimir([...seleccion.values()])}><Icon name="print" />Imprimir {seleccion.size}</button>
+      </div> : null}
+
       {total > (data?.por_pagina || 30) ? <nav className="rc-paginas" aria-label="Páginas">
         <span>{desde}–{hasta} de {total}</span>
         <button type="button" onClick={() => cambiar({ pagina: filtros.pagina - 1 })} disabled={filtros.pagina === 1} aria-label="Página anterior"><Icon name="arrowLeft" /></button>
         <button type="button" onClick={() => cambiar({ pagina: filtros.pagina + 1 })} disabled={hasta >= total} aria-label="Página siguiente"><Icon name="arrowRight" /></button>
       </nav> : null}
     </section>
+    {impresion ? createPortal(
+      <div className="rc-imp-portal">
+        <ReclamosImpresion reclamos={impresion.reclamos} impresoEn={impresion.en} impresoPor={user?.full_name || user?.username || ""} />
+      </div>,
+      document.body
+    ) : null}
   </section>;
 }
 
@@ -274,7 +337,7 @@ function PorTecnico({ filas, activo, onElegir }) {
   </section>;
 }
 
-function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, onAccion }) {
+function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, elegido, onElegir, onImprimir, onAccion }) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState("");
   const [ocupado, setOcupado] = useState("");
@@ -318,7 +381,7 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, onAccion
   };
 
   const nombre = reclamo.abonado_nombre ? nombrePropio(reclamo.abonado_nombre) : "Sin nombre en el padrón";
-  const clase = ["rc-fila", `is-${reclamo.estado.toLowerCase()}`, atrasado ? "is-atrasado" : "", resaltado ? "is-nuevo" : ""].filter(Boolean).join(" ");
+  const clase = ["rc-fila", `is-${reclamo.estado.toLowerCase()}`, atrasado ? "is-atrasado" : "", resaltado ? "is-nuevo" : "", elegido ? "is-elegido" : ""].filter(Boolean).join(" ");
 
   return <li className={clase}>
     <div className="rc-fila-principal">
@@ -372,7 +435,17 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, onAccion
       </div>
     </form> : null}
 
-    {!editando && (puedeResponder || permisos.cerrar) ? <div className="rc-fila-acciones">
+    {!editando ? <div className="rc-fila-acciones">
+      <span className="rc-fila-imprimir">
+        <button type="button" className={`rc-boton is-cuadrado${elegido ? " is-elegido" : ""}`} onClick={onElegir} aria-pressed={elegido}
+          aria-label={elegido ? `Quitar el reclamo #${reclamo.id} de la impresión` : `Agregar el reclamo #${reclamo.id} para imprimir varios`}
+          title={elegido ? "Quitar de la impresión" : "Agregar para imprimir varios"}>
+          <Icon name={elegido ? "checkCircle" : "plus"} />
+        </button>
+        <button type="button" className="rc-boton is-imprimir" onClick={onImprimir} aria-label={`Imprimir el reclamo #${reclamo.id}`} title="Imprimir este reclamo">
+          <Icon name="print" /><span className="rc-texto-imprimir">Imprimir</span>
+        </button>
+      </span>
       {puedeResponder ? <button type="button" className={`rc-boton${reclamo.respuesta ? "" : esTecnico ? " is-primario" : ""}`} onClick={abrir}>
         <Icon name={reclamo.respuesta ? "edit" : "send"} />{reclamo.respuesta ? "Cambiar respuesta" : borrador ? "Seguir respuesta" : "Responder"}
       </button> : null}

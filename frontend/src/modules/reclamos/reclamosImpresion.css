@@ -1,0 +1,76 @@
+/* Ficha impresa del reclamo de entrega. Documento institucional (DESIGN.md §6-7):
+   blanco, bordes finos, encabezado con logo, campos vacíos con "--" y firmas al
+   final. Se lee igual en blanco y negro: el estado va en texto, no solo en color. */
+
+/* La ficha se monta como hija directa de <body> (portal) y espera fuera de la vista,
+   para que el logo ya esté cargado cuando se dispare la impresión. */
+.rc-imp-portal { position: absolute; top: 0; left: -10000px; width: 760px; }
+
+.rc-imp {
+  --imp-azul: #1465d9;
+  --imp-azul-profundo: #0b3f73;
+  --imp-tinta: #16242f;
+  --imp-tinta-suave: #5b6b7a;
+  --imp-borde: #c9d5e0;
+  --imp-fondo: #eef4fb;
+  display: grid;
+  gap: 8mm;
+  color: var(--imp-tinta);
+  font-family: "Plus Jakarta Sans", system-ui, "Segoe UI", Arial, sans-serif;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+.rc-imp p { margin: 0; }
+
+.rc-imp-ficha { padding: 0 0 4mm; break-inside: avoid; page-break-inside: avoid; }
+/* Entre fichas, una línea de corte discreta para separarlas a mano. */
+.rc-imp-ficha + .rc-imp-ficha { padding-top: 6mm; border-top: 1px dashed var(--imp-borde); }
+
+.rc-imp-cabeza { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 2px solid var(--imp-azul-profundo); }
+.rc-imp-cabeza img { width: 40px; height: auto; }
+.rc-imp-titulo { flex: 1; min-width: 0; }
+.rc-imp-titulo span { display: block; color: var(--imp-tinta-suave); font-size: 8.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.rc-imp-titulo h1 { margin: 1px 0 0; color: var(--imp-azul-profundo); font-size: 15px; font-weight: 750; }
+.rc-imp-estado { text-align: right; }
+.rc-imp-estado strong { display: block; color: var(--imp-azul-profundo); font-size: 11px; font-weight: 750; }
+.rc-imp-estado span { color: var(--imp-tinta-suave); font-size: 9px; }
+
+.rc-imp-datos { width: 100%; margin-bottom: 10px; border-collapse: collapse; table-layout: fixed; }
+.rc-imp-datos th, .rc-imp-datos td { padding: 4px 8px; border: 1px solid var(--imp-borde); text-align: left; vertical-align: top; }
+.rc-imp-datos th { width: 19%; background: var(--imp-fondo); color: var(--imp-azul-profundo); font-size: 9px; font-weight: 700; }
+.rc-imp-datos td { font-size: 10.5px; overflow-wrap: anywhere; }
+.rc-imp-datos td.is-nombre { font-size: 12px; font-weight: 700; }
+.rc-imp-datos td.is-num { font-weight: 650; font-variant-numeric: tabular-nums; }
+.rc-imp-datos strong { font-weight: 700; }
+.rc-imp-origen { color: var(--imp-tinta-suave); }
+
+.rc-imp-bloque { margin-bottom: 9px; }
+.rc-imp-bloque h2 { margin: 0 0 3px; padding: 3px 8px; background: var(--imp-fondo); color: var(--imp-azul-profundo); font-size: 9px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+.rc-imp-bloque > p { padding: 0 8px; white-space: pre-line; overflow-wrap: anywhere; }
+.rc-imp-meta { margin-top: 3px !important; color: var(--imp-tinta-suave); font-size: 9px; }
+.rc-imp-renglones { display: grid; gap: 0; padding: 0 8px; }
+.rc-imp-renglones i { display: block; height: 22px; border-bottom: 1px solid var(--imp-borde); }
+
+.rc-imp-firmas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; margin-top: 14px; padding: 0 20px; }
+.rc-imp-firmas > div { text-align: center; }
+.rc-imp-firmas i { display: block; height: 26px; border-bottom: 1px solid var(--imp-tinta); }
+.rc-imp-firmas span { display: block; padding-top: 4px; font-size: 9.5px; font-weight: 700; }
+.rc-imp-firmas small { display: block; color: var(--imp-tinta-suave); font-size: 8.5px; }
+
+.rc-imp-pie { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; color: var(--imp-tinta-suave); font-size: 8.5px; }
+
+@media print {
+  /* Página con nombre, para que el @page de otros módulos (el SIG imprime en
+     horizontal) no le gane a esta. */
+  @page rc-reclamo { size: letter portrait; margin: 12mm 14mm; }
+  .rc-imp { page: rc-reclamo; }
+
+  /* Con la marca en <body>, la app sale del flujo y solo queda la ficha: así no
+     se paginan hojas en blanco con el alto de la pantalla. */
+  body.rc-imprimiendo > #root { display: none !important; }
+  body.rc-imprimiendo { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  body.rc-imprimiendo .rc-imp-portal { position: static !important; left: auto !important; width: auto !important; }
+  body:not(.rc-imprimiendo) .rc-imp-portal { display: none !important; }
+
+  .rc-imp-datos th, .rc-imp-bloque h2 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

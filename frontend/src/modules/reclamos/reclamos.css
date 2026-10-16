@@ -248,6 +248,23 @@
 .rc-responder { display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rc-soft); }
 .rc-responder label { font-size: 13px; font-weight: 650; }
 .rc-fila-acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.rc-fila-imprimir { display: inline-flex; gap: 6px; margin-right: auto; }
+.rc .rc-boton.is-cuadrado { width: 38px; padding: 0; color: var(--rc-muted); }
+.rc .rc-boton.is-cuadrado:hover { color: var(--rc-blue); }
+.rc .rc-boton.is-cuadrado.is-elegido { color: #fff; background: var(--rc-blue); border-color: var(--rc-blue); }
+.rc .rc-boton.is-imprimir { color: var(--rc-muted); }
+.rc .rc-boton.is-imprimir:hover { color: var(--rc-blue); }
+.rc-fila.is-elegido { background: #f4f8fe; }
+
+/* Selección para imprimir: capa flotante pegada al pie mientras se recorre la lista. */
+.rc-seleccion {
+  position: sticky; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  margin-top: 12px; padding: 10px 12px 10px 16px; background: #fff; border: 1px solid #c9dbf3; border-radius: 8px; box-shadow: 0 6px 18px rgba(22, 40, 59, 0.12);
+}
+.rc-seleccion > .app-icon { width: 16px; height: 16px; color: var(--rc-blue); }
+.rc-seleccion strong { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.rc-seleccion .rc-boton.is-primario { margin-left: auto; }
+
 .rc-confirmar { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--rc-red-ink); font-size: 13px; font-weight: 600; }
 
 .rc-vacio { display: grid; justify-items: center; gap: 6px; padding: 40px 20px; color: var(--rc-muted); text-align: center; background: #fff; border: 1px dashed var(--rc-line); border-radius: 8px; font-size: 13px; }
@@ -311,7 +328,12 @@
   .rc .rc-periodo button { flex: 1; }
   .rc-fila { padding: 14px 12px; }
   .rc-fila-acciones { justify-content: stretch; }
-  .rc-fila-acciones .rc-boton:not(.is-discreto) { flex: 1; min-height: 44px; }
+  .rc-fila-acciones .rc-boton:not(.is-discreto):not(.is-cuadrado):not(.is-imprimir) { flex: 1; min-height: 44px; }
+  .rc .rc-boton.is-cuadrado, .rc .rc-boton.is-imprimir { width: 44px; min-height: 44px; padding: 0; }
+  .rc-fila-imprimir { margin-right: 0; }
+  .rc-texto-imprimir { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .rc-seleccion { padding: 10px 12px; }
+  .rc-seleccion .rc-boton.is-primario { flex: 1 1 100%; min-height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -319,5 +341,5 @@
 }
 
 @media print {
-  .rc-buscar, .rc-icono-boton, .rc-fila-acciones, .rc-lista-filtros { display: none !important; }
+  .rc-buscar, .rc-icono-boton, .rc-fila-acciones, .rc-lista-filtros, .rc-seleccion { display: none !important; }
 }
