@@ -99,22 +99,29 @@ export const getMapReportTechniciansLabel = (staff) => {
   return names.length ? names.join(" / ") : "--";
 };
 
-export const getMapReportBarrioZone = (point = {}, context = null, barrios = []) => {
-  const rawZone = String(context?.zone || deriveMapPointZone(point) || "").trim();
+// Código de barrio del punto: el primer tramo de su clave. También acepta claves que el
+// técnico escribe con manzana de tres cifras (113-112-06), que no son claves del padrón.
+export const getMapReportBarrioCode = (point = {}, context = null) => {
   const source = [
-    rawZone,
+    String(context?.zone || deriveMapPointZone(point) || "").trim(),
     point.reference_note,
     point.reference,
     point.description
   ].filter(Boolean).join(" ");
   const clave = extractClaveFromText(source);
-  const barrio = getBarrioNameFromClave(clave, barrios);
+  if (clave) return clave.split("-").filter(Boolean)[0] || "";
+  return source.match(/(?<!\d)(\d{2,3})-\d{2,3}-\d{2,3}(?!\d)/)?.[1] || "";
+};
 
-  if (!barrio) {
-    return rawZone || "Zona no especificada";
-  }
+export const getMapReportBarrioZone = (point = {}, context = null, barrios = []) => {
+  const rawZone = String(context?.zone || deriveMapPointZone(point) || "").trim();
+  const prefix = getMapReportBarrioCode(point, context);
+  const barrio = getBarrioNameFromClave(prefix, barrios);
 
-  const prefix = String(clave || "").split("-").filter(Boolean)[0] || "";
+  // Código que no está en el catálogo de barrios: los puntos se agrupan por el código
+  // (no uno por clave) hasta que se registre su nombre.
+  if (!barrio && prefix) return `${prefix} - Sin nombre en el catálogo`;
+  if (!barrio) return rawZone || "Zona no especificada";
   return `${prefix} - ${barrio}`;
 };
 

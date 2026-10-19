@@ -51,3 +51,63 @@ export const foliosDelInforme = (jornadas = []) => {
 };
 
 export const claveMapaBarrio = (dateKey, zona) => `${dateKey}|${zona.overrideKey || zona.zone}`;
+
+// Proyección de OpenStreetMap en píxeles del mundo a un zoom dado.
+const TILE = 256;
+export const mundoX = (lng, z) => ((lng + 180) / 360) * TILE * 2 ** z;
+export const mundoY = (lat, z) => {
+  const rad = (lat * Math.PI) / 180;
+  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * TILE * 2 ** z;
+};
+
+const coordenadas = (punto) => {
+  if (punto.latitude == null || punto.longitude == null || punto.latitude === "" || punto.longitude === "") return null;
+  const lat = Number(punto.latitude);
+  const lng = Number(punto.longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 85 ? { lat, lng } : null;
+};
+
+// Dentro de una hoja: primero por clave (manzana y lote seguidos), luego de norte a sur.
+const ordenarHoja = (puntos, claveDe) => [...puntos].sort((a, b) => {
+  const claveA = claveDe(a);
+  const claveB = claveDe(b);
+  if (claveA && claveB && claveA !== claveB) return claveA.localeCompare(claveB, "es", { numeric: true });
+  if (Boolean(claveA) !== Boolean(claveB)) return claveA ? -1 : 1;
+  const posA = coordenadas(a);
+  const posB = coordenadas(b);
+  if (posA && posB) return posB.lat - posA.lat || posA.lng - posB.lng;
+  return 0;
+});
+
+/**
+ * Divide los puntos de un barrio en hojas del mapa: cada hoja es lo que cabe en el lienzo
+ * a zoom 19, la escala en que se leen los números casa por casa. Las hojas van de norte a
+ * sur y de oeste a este; los puntos sin coordenadas quedan en la última.
+ * @returns {object[][]}  puntos de cada hoja, ya ordenados
+ */
+export const dividirEnHojas = (puntos = [], { ancho = 1500, alto = 860, margen = 70, zoom = 19, claveDe = () => "" } = {}) => {
+  const conPosicion = puntos.filter(coordenadas);
+  const sinPosicion = puntos.filter((punto) => !coordenadas(punto));
+  if (!conPosicion.length) return puntos.length ? [ordenarHoja(puntos, claveDe)] : [];
+  const xs = conPosicion.map((punto) => mundoX(Number(punto.longitude), zoom));
+  const ys = conPosicion.map((punto) => mundoY(Number(punto.latitude), zoom));
+  const anchoCelda = ancho - margen * 2;
+  const altoCelda = alto - margen * 2;
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  if (Math.max(...xs) - minX <= anchoCelda && Math.max(...ys) - minY <= altoCelda) return [ordenarHoja(puntos, claveDe)];
+
+  const celdas = new Map();
+  conPosicion.forEach((punto, indice) => {
+    const fila = Math.floor((ys[indice] - minY) / altoCelda);
+    const columna = Math.floor((xs[indice] - minX) / anchoCelda);
+    const clave = `${fila}:${columna}`;
+    if (!celdas.has(clave)) celdas.set(clave, { fila, columna, puntos: [] });
+    celdas.get(clave).puntos.push(punto);
+  });
+  const hojas = [...celdas.values()]
+    .sort((a, b) => a.fila - b.fila || a.columna - b.columna)
+    .map((celda) => celda.puntos);
+  if (sinPosicion.length) hojas[hojas.length - 1].push(...sinPosicion);
+  return hojas.map((hoja) => ordenarHoja(hoja, claveDe));
+};

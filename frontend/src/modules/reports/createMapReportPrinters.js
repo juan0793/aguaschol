@@ -30,7 +30,7 @@ import { urlToDataUrl } from "../../utils/imageUtils";
 import { crearInformeCampoPdf } from "./fieldReportPdf";
 import { fechaLarga, nombreArchivoInforme } from "./utils/informeJornadas";
 import { COLORES_DIA, dibujarMapaPuntos } from "./utils/reportMapImage";
-import { claveMapaBarrio, foliosDelInforme } from "./utils/etiquetasMapa";
+import { claveMapaBarrio, dividirEnHojas, foliosDelInforme } from "./utils/etiquetasMapa";
 import { API_URL } from "../../config/api";
 import { applyMapReportZoneOverrides, buildMapReportData } from "./utils/mapReportBuilder";
 import { selectReportZones } from "./utils/reportSelectors";
@@ -115,7 +115,17 @@ export function createMapReportPrinters({
     const crudas = soloActiva
       ? [{ dateKey: activeMapDiaryDateKey, data: mapReportPrintData }]
       : mismasCargadas ? jornadasCargadas : await loadReportJornadas(lista, { onProgreso });
-    const jornadas = crudas.map((jornada) => ({ ...jornada, data: selectReportZones(jornada.data, includedZoneKeys, getMapPointTypeLabel) }));
+    // Con mapa de cada barrio, el barrio se parte en hojas del mapa y sus puntos se ordenan
+    // hoja por hoja: así los folios de cada hoja quedan seguidos en la tabla.
+    const jornadas = crudas.map((jornada) => {
+      const data = selectReportZones(jornada.data, includedZoneKeys, getMapPointTypeLabel);
+      if (!mapaPorBarrio) return { ...jornada, data };
+      const zones = data.zones.map((zona) => {
+        const hojas = dividirEnHojas(zona.items, { claveDe: (punto) => punto.report_key || "" });
+        return { ...zona, items: hojas.flat(), hojas };
+      });
+      return { ...jornada, data: { ...data, zones } };
+    });
     onProgreso?.("Dibujando los mapas…");
     // Padrón, mapas y logo a la vez: cada mapa espera sus mosaicos por la red.
     const padronPromesa = tipo === "census"
@@ -136,26 +146,35 @@ export function createMapReportPrinters({
         await dibujarMapaPuntos({ points: puntosDe(jornada), apiUrl: API_URL, ancho: 1200, alto: 640 }).catch(() => "")
       ]))
       : Promise.resolve([]);
-    // Mapa de cada barrio con sus puntos numerados como en la tabla (para el catastro).
-    // De cuatro en cuatro, para no pedir todos los mosaicos de golpe.
+    // Mapa de cada hoja del barrio con sus puntos numerados como en la tabla (para el
+    // catastro). De cuatro en cuatro, para no pedir todos los mosaicos de golpe.
     const folios = foliosDelInforme(jornadas);
-    const barriosConMapa = mapaPorBarrio
-      ? jornadas.flatMap((jornada) => jornada.data.zones.map((zona) => ({ clave: claveMapaBarrio(jornada.dateKey, zona), zona })))
-      : [];
+    const hojasConMapa = jornadas.flatMap((jornada) => jornada.data.zones.flatMap((zona) => (zona.hojas || []).map((puntos, indice) => ({
+      clave: claveMapaBarrio(jornada.dateKey, zona),
+      indice,
+      total: zona.hojas.length,
+      puntos
+    }))));
     const mapasBarrioPromesa = (async () => {
       const listos = [];
-      for (let inicio = 0; inicio < barriosConMapa.length; inicio += 4) {
-        listos.push(...await Promise.all(barriosConMapa.slice(inicio, inicio + 4).map(async ({ clave, zona }) => [
-          clave,
-          await dibujarMapaPuntos({ points: zona.items, apiUrl: API_URL, ancho: 1500, alto: 860, calidad: 0.8, etiquetaDe: (punto) => folios.get(punto) }).catch(() => "")
-        ])));
-        if (barriosConMapa.length > 4) onProgreso?.(`Mapas de barrio: ${Math.min(inicio + 4, barriosConMapa.length)} de ${barriosConMapa.length}…`);
+      for (let inicio = 0; inicio < hojasConMapa.length; inicio += 4) {
+        listos.push(...await Promise.all(hojasConMapa.slice(inicio, inicio + 4).map(async (hoja) => {
+          const numeros = hoja.puntos.map((punto) => folios.get(punto)).filter(Boolean);
+          const imagen = await dibujarMapaPuntos({ points: hoja.puntos, apiUrl: API_URL, ancho: 1500, alto: 860, calidad: 0.8, etiquetaDe: (punto) => folios.get(punto) }).catch(() => "");
+          return { ...hoja, imagen, desde: Math.min(...numeros), hasta: Math.max(...numeros) };
+        })));
+        if (hojasConMapa.length > 4) onProgreso?.(`Hojas del mapa: ${Math.min(inicio + 4, hojasConMapa.length)} de ${hojasConMapa.length}…`);
       }
       return listos;
     })();
     const [padronNames, mapaGeneral, mapasDia, mapasBarrio] = await Promise.all([padronPromesa, mapaGeneralPromesa, mapasDiaPromesa, mapasBarrioPromesa]);
     const mapasPorDia = Object.fromEntries(mapasDia);
-    const mapasPorBarrio = Object.fromEntries(mapasBarrio);
+    // Por barrio, sus hojas en orden: [{ imagen, indice, total, desde, hasta }].
+    const mapasPorBarrio = {};
+    for (const hoja of mapasBarrio) {
+      if (!hoja.imagen) continue;
+      (mapasPorBarrio[hoja.clave] ||= []).push(hoja);
+    }
     const leyendaGeneral = varias && !mapReportSettings.map_image_data_url
       ? jornadas.map((jornada, indice) => ({ label: `Día ${indice + 1} · ${fechaLarga(jornada.dateKey)}`, color: colorDia[jornada.dateKey] }))
       : null;

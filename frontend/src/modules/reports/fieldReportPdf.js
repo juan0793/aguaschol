@@ -68,6 +68,7 @@ const cajasDe = (data) => data.zones.reduce((total, zone) => total + zone.items.
 const estiloPunto = (data) => {
   if (data.section !== "body") return;
   const punto = data.row.raw?.rawPoint;
+  if (!punto) return;
   if (isAlertReportPoint(punto)) {
     data.cell.styles.textColor = REPORT_POINT_ALERT_RGB;
     data.cell.styles.fillColor = REPORT_POINT_ALERT_FILL_RGB;
@@ -296,6 +297,7 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
     const datos = [
       ["Folios", numeros.length ? `${Math.min(...numeros)} al ${Math.max(...numeros)}` : "--"],
       ["Puntos", String(zona.items.length)],
+      ...((zona.hojas?.length || 0) > 1 ? [["Hojas del mapa", String(zona.hojas.length)]] : []),
       ["Claves registradas", String(zona.clavesTotal ?? 0)],
       ["Cajas de registro", String(zona.items.filter((punto) => punto.point_type === "caja_registro").length)]
     ];
@@ -440,8 +442,11 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
       const ubicacion = doc.splitTextToSize(`Ubicación: ${zona.displayLocation || "Sin dirección ampliada"}`, util - 8);
       const lineas = tecnico ? [...referencia, ...ubicacion] : ubicacion;
       const altoBanda = 8 + lineas.length * 3.8;
-      const conMapa = Boolean(mapasPorBarrio[claveMapaBarrio(jornada.dateKey, zona)]);
-      const altoMapaBarrio = !conMapa ? 0 : tecnico ? util * 0.64 * (860 / 1500) + 6 : util * (860 / 1500) + 40;
+      const hojasMapa = mapasPorBarrio[claveMapaBarrio(jornada.dateKey, zona)] || [];
+      const anchoMapaTec = util * 0.64;
+      const altoMapaTec = anchoMapaTec * (860 / 1500);
+      const altoMapaCen = util * (860 / 1500);
+      const altoMapaBarrio = !hojasMapa.length ? 0 : tecnico ? altoMapaTec + 6 : altoMapaCen + 40;
       if (y + altoBanda + altoMapaBarrio + 22 > alto - PIE - 4) y = nuevaHoja();
 
       doc.setFillColor(...BANDA);
@@ -462,34 +467,65 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
 
       // Mapa del barrio con los folios de la tabla: en horizontal, a la izquierda con el
       // resumen a la derecha; en vertical, a todo el ancho con el resumen en dos columnas.
-      const mapaBarrio = mapasPorBarrio[claveMapaBarrio(jornada.dateKey, zona)];
-      if (mapaBarrio) {
+      // Un barrio grande trae varias hojas del mapa; las demás siguen, una por bloque.
+      const rotuloHoja = (hoja) => `Hoja ${hoja.indice + 1} de ${hoja.total} · folios ${hoja.desde === hoja.hasta ? hoja.desde : `${hoja.desde} al ${hoja.hasta}`}`;
+      hojasMapa.forEach((hoja, posicion) => {
         try {
+          const altoBloque = tecnico ? altoMapaTec + 6 : altoMapaCen + (posicion === 0 ? 40 : 10);
+          if (posicion > 0 && inicioTabla + altoBloque > alto - PIE - 4) inicioTabla = nuevaHoja();
           if (tecnico) {
-            const anchoMapa = util * 0.64;
-            const altoMapa = anchoMapa * (860 / 1500);
-            ponerMapa(mapaBarrio, MARGEN, inicioTabla + 1, anchoMapa, altoMapa);
-            const xLado = MARGEN + anchoMapa + 7;
-            resumenBarrio(zona, xLado, inicioTabla + 5, ancho - MARGEN - xLado);
-            inicioTabla += altoMapa + 6;
+            ponerMapa(hoja.imagen, MARGEN, inicioTabla + 1, anchoMapaTec, altoMapaTec);
+            const xLado = MARGEN + anchoMapaTec + 7;
+            const anchoLado = ancho - MARGEN - xLado;
+            let yLado = inicioTabla + 5;
+            if (hoja.total > 1) {
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(9.5);
+              doc.setTextColor(...AZUL_PROFUNDO);
+              doc.text(doc.splitTextToSize(rotuloHoja(hoja), anchoLado), xLado, yLado);
+              yLado += 9;
+            }
+            if (posicion === 0) resumenBarrio(zona, xLado, yLado, anchoLado);
+            else {
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(8.4);
+              doc.setTextColor(...TENUE);
+              doc.text(`${zona.displayName || zona.zone}`, xLado, yLado, { maxWidth: anchoLado });
+              doc.text(plural(hoja.puntos.length, "punto en esta hoja", "puntos en esta hoja"), xLado, yLado + 5);
+            }
+            inicioTabla += altoMapaTec + 6;
           } else {
-            const altoMapa = util * (860 / 1500);
-            ponerMapa(mapaBarrio, MARGEN, inicioTabla + 1, util, altoMapa);
-            const finResumen = resumenBarrio(zona, MARGEN, inicioTabla + altoMapa + 7, util, { columnas: 2 });
-            inicioTabla = finResumen + 2;
+            ponerMapa(hoja.imagen, MARGEN, inicioTabla + 1, util, altoMapaCen);
+            let yPie = inicioTabla + altoMapaCen + 6;
+            if (hoja.total > 1) {
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(9);
+              doc.setTextColor(...AZUL_PROFUNDO);
+              doc.text(rotuloHoja(hoja), MARGEN, yPie);
+              yPie += 5.5;
+            }
+            inicioTabla = posicion === 0 ? resumenBarrio(zona, MARGEN, yPie + 1, util, { columnas: 2 }) + 2 : yPie + 1;
           }
-        } catch { /* sin mapa del barrio, sigue la tabla */ }
-      }
+        } catch { /* sin esta hoja del mapa, sigue el informe */ }
+      });
+      if (hojasMapa.length && inicioTabla + 22 > alto - PIE - 4) inicioTabla = nuevaHoja();
+
+      // Con varias hojas, la tabla lleva un subtítulo al empezar los puntos de cada una.
+      const inicioDeHoja = new Map(hojasMapa.length > 1 ? hojasMapa.map((hoja) => [hoja.puntos[0], hoja]) : []);
+      const filas = [];
+      zona.items.forEach((punto, indice) => {
+        const hoja = inicioDeHoja.get(punto);
+        if (hoja) filas.push([{ content: rotuloHoja(hoja), colSpan: columnas.head[0].length, styles: { fillColor: BANDA, textColor: AZUL_PROFUNDO, fontStyle: "bold" } }]);
+        const fila = columnas.fila(punto, indice, zona);
+        fila.rawPoint = punto;
+        filas.push(fila);
+      });
 
       autoTable(doc, {
         ...tablaBase,
         startY: inicioTabla,
         head: columnas.head,
-        body: zona.items.map((punto, indice) => {
-          const fila = columnas.fila(punto, indice, zona);
-          fila.rawPoint = punto;
-          return fila;
-        }),
+        body: filas,
         didParseCell: estiloPunto,
         columnStyles: columnas.estilos,
         margin: { left: MARGEN, right: MARGEN, top: 16, bottom: PIE + 4 }

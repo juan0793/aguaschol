@@ -4,18 +4,12 @@
 // guardados, igual dibuja los puntos sobre un fondo claro: se ve dónde se trabajó.
 import { buildTileTemplate, loadTileBlob, tileUrl } from "../../campo/offlineTiles";
 import { getPointTypeStyle, pointShapeSvg } from "../../campo/pointTypes";
-import { ubicarEtiquetas } from "./etiquetasMapa";
+import { mundoX, mundoY, ubicarEtiquetas } from "./etiquetasMapa";
 
 const TILE = 256;
 const ZOOM_MIN = 12;
 const ZOOM_MAX = 18;
 const ZOOM_ETIQUETAS = 20;
-
-const mundoX = (lng, z) => ((lng + 180) / 360) * TILE * 2 ** z;
-const mundoY = (lat, z) => {
-  const rad = (lat * Math.PI) / 180;
-  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * TILE * 2 ** z;
-};
 
 const cargarImagen = (src) => new Promise((resolve, reject) => {
   const imagen = new Image();

@@ -3,16 +3,49 @@
 // que se juntan en un mismo informe.
 import { getMapPointContextKey, getMapPointTypeLabel } from "../../../utils/mapField";
 import {
+  getMapReportBarrioCode,
   getMapReportBarrioZone,
   getMapReportPointClave,
   getMapReportZoneOverrideKey,
   getMapZoneClavesLabel
 } from "../../../utils/mapReport";
 
+const metrosEntre = (a, b) => {
+  const lat = ((Number(a.latitude) + Number(b.latitude)) / 2) * (Math.PI / 180);
+  const dx = (Number(a.longitude) - Number(b.longitude)) * 111320 * Math.cos(lat);
+  const dy = (Number(a.latitude) - Number(b.latitude)) * 110540;
+  return Math.hypot(dx, dy);
+};
+const RADIO_VECINO_M = 250;
+
+// Barrio de cada punto. El que no trae clave toma el barrio del punto con clave más
+// cercano (a menos de 250 m) en vez de quedar como una zona suelta con su descripción.
+export const zonasDePuntos = (points = [], contexts = {}, barrioCodes = []) => {
+  const zonas = new Map();
+  const conCodigo = [];
+  const sinCodigo = [];
+  points.forEach((point) => {
+    const context = contexts[getMapPointContextKey(point)] ?? null;
+    zonas.set(point, getMapReportBarrioZone(point, context, barrioCodes));
+    (getMapReportBarrioCode(point, context) ? conCodigo : sinCodigo).push(point);
+  });
+  sinCodigo.forEach((point) => {
+    let cercano = null;
+    let distancia = RADIO_VECINO_M;
+    conCodigo.forEach((otro) => {
+      const metros = metrosEntre(point, otro);
+      if (metros <= distancia) { distancia = metros; cercano = otro; }
+    });
+    if (cercano) zonas.set(point, zonas.get(cercano));
+  });
+  return zonas;
+};
+
 export const buildMapReportData = ({ points = [], contexts = {}, barrioCodes = [] } = {}) => {
+  const zonaDe = zonasDePuntos(points, contexts, barrioCodes);
   const sorted = [...points].sort((left, right) => {
-    const leftZone = getMapReportBarrioZone(left, contexts[getMapPointContextKey(left)] ?? null, barrioCodes);
-    const rightZone = getMapReportBarrioZone(right, contexts[getMapPointContextKey(right)] ?? null, barrioCodes);
+    const leftZone = zonaDe.get(left);
+    const rightZone = zonaDe.get(right);
     const zoneDiff = leftZone.localeCompare(rightZone, "es");
     if (zoneDiff !== 0) return zoneDiff;
     return new Date(right.created_at) - new Date(left.created_at);
@@ -27,7 +60,7 @@ export const buildMapReportData = ({ points = [], contexts = {}, barrioCodes = [
 
   sorted.forEach((point) => {
     const context = contexts[getMapPointContextKey(point)] ?? null;
-    const zone = getMapReportBarrioZone(point, context, barrioCodes);
+    const zone = zonaDe.get(point);
     const pointClave = getMapReportPointClave(point, context);
     const current = zoneMap.get(zone) ?? {
       zone,
