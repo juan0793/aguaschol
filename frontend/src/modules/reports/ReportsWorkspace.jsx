@@ -275,7 +275,7 @@ export default function ReportsWorkspace({ model }) {
           <strong>{documentType === "regulator" ? "Informe para ente regulador" : esperandoJornadas ? "Cargando jornadas…" : `${includedPoints.toLocaleString("es-HN")} ${includedPoints === 1 ? "punto" : "puntos"} · ${barriosIncluidos.length} ${barriosIncluidos.length === 1 ? "barrio" : "barrios"}`}</strong>
           <small>{documentType === "regulator" ? formatMapDiaryLabel(model.activeDateKey) : textoDeJornadas}</small>
         </div>
-        {documentType !== "regulator" && !variasJornadas ? <button type="button" className="button-secondary" onClick={() => generate({ preview: true })} disabled={!includedZones.length}><Icon name="eye" />Vista previa</button> : null}
+        {documentType !== "regulator" && !variasJornadas ? <button type="button" className="button-secondary rg-preview" onClick={() => generate({ preview: true })} disabled={!includedZones.length} aria-label="Vista previa" title="Vista previa"><Icon name="eye" /><span className="rg-btn-text">Vista previa</span></button> : null}
         <button type="button" className="rg-primary" onClick={() => generate()} disabled={Boolean(progreso) || ((!barriosIncluidos.length || esperandoJornadas) && documentType !== "regulator")} aria-busy={Boolean(progreso) || esperandoJornadas}><Icon name={documentType === "regulator" || documentFormat === "pdf" || variasJornadas ? "download" : "print"} />{progreso || (esperandoJornadas ? "Cargando…" : documentType === "regulator" ? "Descargar informe" : documentFormat === "pdf" || variasJornadas ? "Descargar PDF" : "Imprimir")}</button>
       </footer>
     </ReportDialog>

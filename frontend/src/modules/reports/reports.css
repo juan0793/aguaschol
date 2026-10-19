@@ -493,7 +493,11 @@
   .rg-type { grid-template-columns: 32px minmax(0, 1fr); gap: 0.6rem; padding: 0.5rem 0.6rem 0.5rem 0.5rem; }
   .rg-type-icon { width: 32px; height: 32px; border-radius: 8px; }
   .rg-type-icon .app-icon { width: 17px; height: 17px; }
-  .report-generator-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .report-generator-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: stretch; }
+  .report-generator-actions button { min-width: 0; padding-inline: 0.75rem; }
+  .report-generator-actions .rg-primary { white-space: normal; line-height: 1.2; }
+  .report-generator-actions .rg-preview { width: 46px; padding-inline: 0; }
+  .rg-preview .rg-btn-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .rg-footer-summary { grid-column: 1 / -1; margin: 0; }
   .report-generator-actions .rg-primary:only-of-type, .report-generator-actions > .rg-footer-summary + .rg-primary { grid-column: 1 / -1; }
 }
