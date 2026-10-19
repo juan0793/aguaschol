@@ -1,6 +1,7 @@
 // Informe de campo en PDF (técnico con coordenadas o censo sin coordenadas) para una o
 // varias jornadas. Con varias jornadas, cada día empieza en su propia hoja, para poder
-// adjuntar los puntos día por día; al inicio va el resumen de todas.
+// adjuntar los puntos día por día; al inicio va el resumen de todas. Cada punto lleva un
+// folio único en el informe, y el mapa de su barrio lo muestra con ese mismo número.
 import {
   REPORT_POINT_ALERT_BORDER_RGB,
   REPORT_POINT_ALERT_FILL_RGB,
@@ -19,6 +20,7 @@ import {
 import { formatCoordinate, getMapPointTypeLabel } from "../../utils/mapField";
 import { fechaConDia, fechaLarga, textoJornadas } from "./utils/informeJornadas";
 import { getPointTypeStyle } from "../campo/pointTypes";
+import { claveMapaBarrio } from "./utils/etiquetasMapa";
 
 const ZONA = "America/Tegucigalpa";
 const AZUL_PROFUNDO = [11, 63, 115];
@@ -94,7 +96,7 @@ const tablaBase = {
  * @param {"technical"|"census"} opciones.tipo
  * @param {{ dateKey: string, data: object }[]} opciones.jornadas  ya filtradas por barrio
  */
-export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jornadas = [], settings = {}, staff = {}, padronNames = {}, logoDataUrl = "", mapaGeneral = "", leyendaGeneral = null, mapasPorDia = {}, generadoEn = "" }) {
+export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jornadas = [], settings = {}, staff = {}, padronNames = {}, logoDataUrl = "", mapaGeneral = "", leyendaGeneral = null, mapasPorDia = {}, mapasPorBarrio = {}, folios = null, generadoEn = "" }) {
   const mapImageDataUrl = mapaGeneral;
   const tecnico = tipo !== "census";
   const doc = new jsPDF({ orientation: tecnico ? "landscape" : "portrait", unit: "mm", format: "letter", compress: true });
@@ -283,11 +285,61 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
   }
 
   // ---------- Detalle por jornada y barrio ----------
+  const folioDe = (punto, indice) => String(folios?.get(punto) ?? indice + 1);
+
+  // Al lado (o debajo) del mapa del barrio: folios, puntos por tipo y datos del barrio.
+  const resumenBarrio = (zona, xInicio, yInicio, anchoTotal, { columnas = 1 } = {}) => {
+    const anchoLado = columnas === 2 ? anchoTotal / 2 - 6 : anchoTotal;
+    let x = xInicio;
+    let yLado = yInicio;
+    const numeros = zona.items.map((punto) => folios?.get(punto)).filter(Boolean);
+    const datos = [
+      ["Folios", numeros.length ? `${Math.min(...numeros)} al ${Math.max(...numeros)}` : "--"],
+      ["Puntos", String(zona.items.length)],
+      ["Claves registradas", String(zona.clavesTotal ?? 0)],
+      ["Cajas de registro", String(zona.items.filter((punto) => punto.point_type === "caja_registro").length)]
+    ];
+    if (tecnico) datos.push(["Precisión promedio", zona.averageAccuracy != null ? `${zona.averageAccuracy} m` : "--"]);
+    doc.setFontSize(8.4);
+    for (const [etiqueta, valor] of datos) {
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...TENUE);
+      doc.text(etiqueta, x, yLado);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...TINTA);
+      doc.text(valor, x + anchoLado, yLado, { align: "right" });
+      yLado += 4.8;
+    }
+    const finDatos = yLado;
+    if (columnas === 2) { x = xInicio + anchoTotal / 2 + 6; yLado = yInicio; } else yLado += 2;
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...AZUL_PROFUNDO);
+    doc.text("Puntos por tipo", x, yLado);
+    yLado += 5;
+    const porTipo = new Map();
+    for (const punto of zona.items) {
+      const etiqueta = getMapPointTypeLabel(punto.point_type);
+      const actual = porTipo.get(etiqueta) || { color: getPointTypeStyle(punto.point_type).color, total: 0 };
+      actual.total += 1;
+      porTipo.set(etiqueta, actual);
+    }
+    for (const [etiqueta, { color, total }] of [...porTipo].sort((a, b) => b[1].total - a[1].total)) {
+      doc.setFillColor(...rgb(color));
+      doc.roundedRect(x, yLado - 2.9, 5, 3.6, 1.6, 1.6, "F");
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...TINTA);
+      doc.text(doc.splitTextToSize(etiqueta, anchoLado - 16)[0], x + 7, yLado);
+      doc.setTextColor(...TENUE);
+      doc.text(String(total), x + anchoLado, yLado, { align: "right" });
+      yLado += 4.6;
+    }
+    return Math.max(yLado, finDatos);
+  };
   const columnas = tecnico
     ? {
       head: [["#", "Tipo", "Latitud", "Longitud", "Precisión", "Referencia cercana", "Referencia", "Descripción", "Hora"]],
       fila: (punto, indice) => [
-        String(indice + 1),
+        folioDe(punto, indice),
         `${getMapPointTypeLabel(punto.point_type)}${punto.is_terminal_point ? " · pin final" : ""}`,
         formatCoordinate(punto.latitude),
         formatCoordinate(punto.longitude),
@@ -297,19 +349,19 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
         getMapPointTechnicalDescription(punto) || "--",
         hora(punto.created_at)
       ],
-      estilos: { 0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: 26 }, 2: { cellWidth: 19 }, 3: { cellWidth: 19 }, 4: { cellWidth: 18 }, 5: { cellWidth: 36 }, 6: { cellWidth: 35 }, 8: { cellWidth: 17 } }
+      estilos: { 0: { cellWidth: 10, halign: "center", fontStyle: "bold" }, 1: { cellWidth: 26 }, 2: { cellWidth: 19 }, 3: { cellWidth: 19 }, 4: { cellWidth: 18 }, 5: { cellWidth: 36 }, 6: { cellWidth: 35 }, 8: { cellWidth: 17 } }
     }
     : {
       head: [["#", "Clave / abonado", "Nombre en padrón", "Tipo", "Referencia", "Descripción"]],
       fila: (punto, indice, zona) => [
-        String(indice + 1),
+        folioDe(punto, indice),
         getMapPointReportReferenceLabel(punto),
         getMapPointPadronNames(punto, padronNames),
         getMapPointTypeLabel(punto.point_type),
         getMapPointReferenceNote(punto) || zona.displayLocation || "--",
         getMapPointTechnicalDescription(punto) || "--"
       ],
-      estilos: { 0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: 28 }, 2: { cellWidth: 38 }, 3: { cellWidth: 24 }, 4: { cellWidth: 34 } }
+      estilos: { 0: { cellWidth: 10, halign: "center", fontStyle: "bold" }, 1: { cellWidth: 28 }, 2: { cellWidth: 38 }, 3: { cellWidth: 24 }, 4: { cellWidth: 34 } }
     };
 
   const nuevaHoja = () => { doc.addPage("letter", tecnico ? "landscape" : "portrait"); return 16; };
@@ -388,7 +440,9 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
       const ubicacion = doc.splitTextToSize(`Ubicación: ${zona.displayLocation || "Sin dirección ampliada"}`, util - 8);
       const lineas = tecnico ? [...referencia, ...ubicacion] : ubicacion;
       const altoBanda = 8 + lineas.length * 3.8;
-      if (y + altoBanda + 22 > alto - PIE - 4) y = nuevaHoja();
+      const conMapa = Boolean(mapasPorBarrio[claveMapaBarrio(jornada.dateKey, zona)]);
+      const altoMapaBarrio = !conMapa ? 0 : tecnico ? util * 0.64 * (860 / 1500) + 6 : util * (860 / 1500) + 40;
+      if (y + altoBanda + altoMapaBarrio + 22 > alto - PIE - 4) y = nuevaHoja();
 
       doc.setFillColor(...BANDA);
       doc.rect(MARGEN, y, util, altoBanda, "F");
@@ -404,10 +458,32 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
       doc.text(plural(zona.items.length, "punto", "puntos"), ancho - MARGEN - 4, y + 5.5, { align: "right" });
       doc.setFontSize(8.4);
       doc.text(lineas, MARGEN + 4, y + 9.6);
+      let inicioTabla = y + altoBanda + 2;
+
+      // Mapa del barrio con los folios de la tabla: en horizontal, a la izquierda con el
+      // resumen a la derecha; en vertical, a todo el ancho con el resumen en dos columnas.
+      const mapaBarrio = mapasPorBarrio[claveMapaBarrio(jornada.dateKey, zona)];
+      if (mapaBarrio) {
+        try {
+          if (tecnico) {
+            const anchoMapa = util * 0.64;
+            const altoMapa = anchoMapa * (860 / 1500);
+            ponerMapa(mapaBarrio, MARGEN, inicioTabla + 1, anchoMapa, altoMapa);
+            const xLado = MARGEN + anchoMapa + 7;
+            resumenBarrio(zona, xLado, inicioTabla + 5, ancho - MARGEN - xLado);
+            inicioTabla += altoMapa + 6;
+          } else {
+            const altoMapa = util * (860 / 1500);
+            ponerMapa(mapaBarrio, MARGEN, inicioTabla + 1, util, altoMapa);
+            const finResumen = resumenBarrio(zona, MARGEN, inicioTabla + altoMapa + 7, util, { columnas: 2 });
+            inicioTabla = finResumen + 2;
+          }
+        } catch { /* sin mapa del barrio, sigue la tabla */ }
+      }
 
       autoTable(doc, {
         ...tablaBase,
-        startY: y + altoBanda + 2,
+        startY: inicioTabla,
         head: columnas.head,
         body: zona.items.map((punto, indice) => {
           const fila = columnas.fila(punto, indice, zona);

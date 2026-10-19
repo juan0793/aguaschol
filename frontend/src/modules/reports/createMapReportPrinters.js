@@ -30,6 +30,7 @@ import { urlToDataUrl } from "../../utils/imageUtils";
 import { crearInformeCampoPdf } from "./fieldReportPdf";
 import { fechaLarga, nombreArchivoInforme } from "./utils/informeJornadas";
 import { COLORES_DIA, dibujarMapaPuntos } from "./utils/reportMapImage";
+import { claveMapaBarrio, foliosDelInforme } from "./utils/etiquetasMapa";
 import { API_URL } from "../../config/api";
 import { applyMapReportZoneOverrides, buildMapReportData } from "./utils/mapReportBuilder";
 import { selectReportZones } from "./utils/reportSelectors";
@@ -105,7 +106,7 @@ export function createMapReportPrinters({
   // Informe de campo en PDF (técnico o censo) de una o varias jornadas.
   // `jornadasCargadas`: las que el diálogo ya cargó para listar los barrios; si son las
   // mismas jornadas se usan tal cual y no se vuelven a pedir.
-  const descargarInformeCampo = async ({ tipo, includedZoneKeys, jornadas: claves, jornadasCargadas, onProgreso } = {}) => {
+  const descargarInformeCampo = async ({ tipo, includedZoneKeys, jornadas: claves, jornadasCargadas, onProgreso, mapaPorBarrio = true } = {}) => {
     const modulosPdf = Promise.all([import("jspdf"), import("jspdf-autotable")]);
     const lista = Array.isArray(claves) && claves.length ? claves : [activeMapDiaryDateKey].filter(Boolean);
     const soloActiva = lista.length === 1 && lista[0] === activeMapDiaryDateKey;
@@ -115,7 +116,7 @@ export function createMapReportPrinters({
       ? [{ dateKey: activeMapDiaryDateKey, data: mapReportPrintData }]
       : mismasCargadas ? jornadasCargadas : await loadReportJornadas(lista, { onProgreso });
     const jornadas = crudas.map((jornada) => ({ ...jornada, data: selectReportZones(jornada.data, includedZoneKeys, getMapPointTypeLabel) }));
-    onProgreso?.(jornadas.length > 1 ? `Dibujando ${jornadas.length + 1} mapas…` : "Dibujando el mapa…");
+    onProgreso?.("Dibujando los mapas…");
     // Padrón, mapas y logo a la vez: cada mapa espera sus mosaicos por la red.
     const padronPromesa = tipo === "census"
       ? buildMapReportPadronData({ zones: jornadas.flatMap((jornada) => jornada.data.zones) }).then((datos) => datos.padronNames)
@@ -135,8 +136,26 @@ export function createMapReportPrinters({
         await dibujarMapaPuntos({ points: puntosDe(jornada), apiUrl: API_URL, ancho: 1200, alto: 640 }).catch(() => "")
       ]))
       : Promise.resolve([]);
-    const [padronNames, mapaGeneral, mapasDia] = await Promise.all([padronPromesa, mapaGeneralPromesa, mapasDiaPromesa]);
+    // Mapa de cada barrio con sus puntos numerados como en la tabla (para el catastro).
+    // De cuatro en cuatro, para no pedir todos los mosaicos de golpe.
+    const folios = foliosDelInforme(jornadas);
+    const barriosConMapa = mapaPorBarrio
+      ? jornadas.flatMap((jornada) => jornada.data.zones.map((zona) => ({ clave: claveMapaBarrio(jornada.dateKey, zona), zona })))
+      : [];
+    const mapasBarrioPromesa = (async () => {
+      const listos = [];
+      for (let inicio = 0; inicio < barriosConMapa.length; inicio += 4) {
+        listos.push(...await Promise.all(barriosConMapa.slice(inicio, inicio + 4).map(async ({ clave, zona }) => [
+          clave,
+          await dibujarMapaPuntos({ points: zona.items, apiUrl: API_URL, ancho: 1500, alto: 860, calidad: 0.8, etiquetaDe: (punto) => folios.get(punto) }).catch(() => "")
+        ])));
+        if (barriosConMapa.length > 4) onProgreso?.(`Mapas de barrio: ${Math.min(inicio + 4, barriosConMapa.length)} de ${barriosConMapa.length}…`);
+      }
+      return listos;
+    })();
+    const [padronNames, mapaGeneral, mapasDia, mapasBarrio] = await Promise.all([padronPromesa, mapaGeneralPromesa, mapasDiaPromesa, mapasBarrioPromesa]);
     const mapasPorDia = Object.fromEntries(mapasDia);
+    const mapasPorBarrio = Object.fromEntries(mapasBarrio);
     const leyendaGeneral = varias && !mapReportSettings.map_image_data_url
       ? jornadas.map((jornada, indice) => ({ label: `Día ${indice + 1} · ${fechaLarga(jornada.dateKey)}`, color: colorDia[jornada.dateKey] }))
       : null;
@@ -156,6 +175,8 @@ export function createMapReportPrinters({
       mapaGeneral,
       leyendaGeneral,
       mapasPorDia,
+      mapasPorBarrio,
+      folios,
       generadoEn: formatDateTime(new Date().toISOString())
     });
     saveReportPdf(doc, nombreArchivoInforme(tipo === "census" ? "reporte-censo" : "reporte-campo", jornadas.map((jornada) => jornada.dateKey)));

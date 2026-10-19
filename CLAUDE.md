@@ -57,3 +57,10 @@ Rules:
 - `mapPointContextService.js` ahora guarda cada respuesta en la tabla `map_point_contexts` (celda de ~11 m, 4 decimales), usa una sola cola a 1 consulta/s (política de Nominatim), espera como máximo 6 s y omite lo que falte (el barrio sale de la clave); la cola sigue llenando la caché en segundo plano. Al crear un punto se deja su consulta en cola.
 - En el frontend, los puntos por jornada se conservan 2 minutos y solo se piden contextos desconocidos; la descarga reusa las jornadas que el diálogo ya cargó; mapas, padrón y módulos de PDF se preparan a la vez, y el botón muestra el paso en curso.
 - Verificado: 4 pruebas nuevas del servicio, `npm test` del backend (295), `npm run build`, y medición contra MySQL local con puntos sintéticos (en frío 6 s y el resto en segundo plano; con caché, instantáneo). No se probó el diálogo con sesión iniciada.
+
+## Nota para Claude: mapa de cada barrio con folios (2026-10-19)
+
+- El PDF de técnico y censo (una o varias jornadas) numera cada punto con un folio único del informe (`foliosDelInforme` en `modules/reports/utils/etiquetasMapa.js`: jornada → barrio → punto). La columna "#" muestra ese folio.
+- Con la casilla "Mapa de cada barrio" (activada por defecto en "Generar documento"), cada barrio abre con su mapa ampliado: cada punto es una etiqueta con su folio, del color de su tipo; si dos se enciman, `ubicarEtiquetas` corre la etiqueta y la une al sitio exacto con una línea. Al lado (técnico) o debajo (censo) va un resumen: rango de folios, puntos, claves, cajas, precisión y puntos por tipo.
+- `dibujarMapaPuntos` acepta `etiquetaDe` y en ese modo acerca hasta zoom 20, ampliando mosaicos de zoom 18. Los mapas de barrio se dibujan de cuatro en cuatro.
+- Verificado con una página de prueba temporal (puntos sintéticos en Choluteca, 3 barrios en 2 jornadas, técnico y censo, 7 hojas cada uno) renderizada con PyMuPDF; pruebas de `etiquetasMapa` y `npm run build`. No se probó con sesión iniciada ni con datos reales; la impresión HTML de una jornada no lleva estos mapas.
