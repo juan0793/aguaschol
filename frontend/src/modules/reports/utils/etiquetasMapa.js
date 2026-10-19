@@ -85,7 +85,7 @@ const ordenarHoja = (puntos, claveDe) => [...puntos].sort((a, b) => {
  * sur y de oeste a este; los puntos sin coordenadas quedan en la última.
  * @returns {object[][]}  puntos de cada hoja, ya ordenados
  */
-export const dividirEnHojas = (puntos = [], { ancho = 1500, alto = 860, margen = 70, zoom = 19, claveDe = () => "" } = {}) => {
+export const dividirEnHojas = (puntos = [], { ancho = 1500, alto = 860, margen = 70, zoom = 19, minimo = 12, claveDe = () => "" } = {}) => {
   const conPosicion = puntos.filter(coordenadas);
   const sinPosicion = puntos.filter((punto) => !coordenadas(punto));
   if (!conPosicion.length) return puntos.length ? [ordenarHoja(puntos, claveDe)] : [];
@@ -105,9 +105,86 @@ export const dividirEnHojas = (puntos = [], { ancho = 1500, alto = 860, margen =
     if (!celdas.has(clave)) celdas.set(clave, { fila, columna, puntos: [] });
     celdas.get(clave).puntos.push(punto);
   });
-  const hojas = [...celdas.values()]
+  // Una celda con pocos puntos se une a la vecina más cercana si juntas caben en una
+  // hoja a un zoom menos: así no salen hojas con tres puntos.
+  const posicion = new Map(conPosicion.map((punto, indice) => [punto, { x: xs[indice], y: ys[indice] }]));
+  const limites = (lista) => {
+    const px = lista.map((punto) => posicion.get(punto));
+    return { x0: Math.min(...px.map((p) => p.x)), x1: Math.max(...px.map((p) => p.x)), y0: Math.min(...px.map((p) => p.y)), y1: Math.max(...px.map((p) => p.y)) };
+  };
+  const centro = (lista) => { const l = limites(lista); return { x: (l.x0 + l.x1) / 2, y: (l.y0 + l.y1) / 2 }; };
+  let grupos = [...celdas.values()];
+  for (;;) {
+    const chica = grupos.filter((grupo) => grupo.puntos.length < minimo && !grupo.fija).sort((a, b) => a.puntos.length - b.puntos.length)[0];
+    if (!chica || grupos.length < 2) break;
+    const c = centro(chica.puntos);
+    const candidatas = grupos
+      .filter((grupo) => grupo !== chica)
+      .map((grupo) => {
+        const unidos = limites([...grupo.puntos, ...chica.puntos]);
+        const cabe = unidos.x1 - unidos.x0 <= anchoCelda * 2 && unidos.y1 - unidos.y0 <= altoCelda * 2;
+        const otro = centro(grupo.puntos);
+        return { grupo, cabe, distancia: Math.hypot(otro.x - c.x, otro.y - c.y) };
+      })
+      .filter((item) => item.cabe)
+      .sort((a, b) => a.distancia - b.distancia);
+    if (!candidatas.length) { chica.fija = true; continue; }
+    const destino = candidatas[0].grupo;
+    destino.puntos.push(...chica.puntos);
+    destino.fila = Math.min(destino.fila, chica.fila);
+    destino.columna = Math.min(destino.columna, chica.columna);
+    grupos = grupos.filter((grupo) => grupo !== chica);
+  }
+  const hojas = grupos
     .sort((a, b) => a.fila - b.fila || a.columna - b.columna)
     .map((celda) => celda.puntos);
   if (sinPosicion.length) hojas[hojas.length - 1].push(...sinPosicion);
   return hojas.map((hoja) => ordenarHoja(hoja, claveDe));
+};
+
+// Un barrio que aparece en varias jornadas se une en uno solo: el informe se ordena por
+// zona y el día pasa a ser un dato de cada punto (`__dia`).
+export const unirBarrios = (jornadas = []) => {
+  const barrios = new Map();
+  for (const jornada of jornadas) {
+    for (const zona of jornada.data?.zones || []) {
+      const clave = zona.overrideKey || zona.zone;
+      if (!barrios.has(clave)) barrios.set(clave, { ...zona, items: [], dias: [] });
+      const barrio = barrios.get(clave);
+      barrio.items.push(...(zona.items || []).map((punto) => ({ ...punto, __dia: jornada.dateKey })));
+      if (!barrio.dias.includes(jornada.dateKey)) barrio.dias.push(jornada.dateKey);
+    }
+  }
+  return [...barrios.values()].map((barrio) => {
+    const precisiones = barrio.items.map((punto) => Number(punto.accuracy_meters)).filter((valor) => Number.isFinite(valor) && valor > 0);
+    return {
+      ...barrio,
+      clavesTotal: new Set(barrio.items.map((punto) => punto.report_key).filter(Boolean)).size,
+      averageAccuracy: precisiones.length ? Number((precisiones.reduce((t, v) => t + v, 0) / precisiones.length).toFixed(1)) : null
+    };
+  });
+};
+
+/**
+ * Láminas del informe de catastro: cada barrio se parte en hojas del mapa y cada hoja es
+ * una lámina con número único (L1, L2…). Los folios siguen el orden barrio → lámina →
+ * punto, y es el mismo orden de las tablas.
+ * @returns {{ barrios: object[], laminas: object[], folios: Map }}
+ */
+export const armarLaminas = (barrios = [], { conMapa = true, claveDe = () => "", ancho = 1800, alto = 800 } = {}) => {
+  const folios = new Map();
+  const laminas = [];
+  let folio = 0;
+  const resultado = barrios.map((barrio) => {
+    const hojas = conMapa ? dividirEnHojas(barrio.items, { claveDe, ancho, alto }) : [ordenarHoja(barrio.items, claveDe)];
+    const propias = hojas.map((puntos) => {
+      const desde = folio + 1;
+      puntos.forEach((punto) => { folio += 1; folios.set(punto, folio); });
+      const lamina = { numero: laminas.length + 1, barrio: barrio.overrideKey || barrio.zone, puntos, desde, hasta: folio };
+      laminas.push(lamina);
+      return lamina;
+    });
+    return { ...barrio, items: hojas.flat(), laminas: propias };
+  });
+  return { barrios: resultado, laminas, folios };
 };

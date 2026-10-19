@@ -30,7 +30,7 @@ import { urlToDataUrl } from "../../utils/imageUtils";
 import { crearInformeCampoPdf } from "./fieldReportPdf";
 import { fechaLarga, nombreArchivoInforme } from "./utils/informeJornadas";
 import { COLORES_DIA, dibujarMapaPuntos } from "./utils/reportMapImage";
-import { claveMapaBarrio, dividirEnHojas, foliosDelInforme } from "./utils/etiquetasMapa";
+import { armarLaminas, unirBarrios } from "./utils/etiquetasMapa";
 import { API_URL } from "../../config/api";
 import { applyMapReportZoneOverrides, buildMapReportData } from "./utils/mapReportBuilder";
 import { selectReportZones } from "./utils/reportSelectors";
@@ -105,8 +105,9 @@ export function createMapReportPrinters({
 
   // Informe de campo en PDF (técnico o censo) de una o varias jornadas.
   // `jornadasCargadas`: las que el diálogo ya cargó para listar los barrios; si son las
-  // mismas jornadas se usan tal cual y no se vuelven a pedir.
-  const descargarInformeCampo = async ({ tipo, includedZoneKeys, jornadas: claves, jornadasCargadas, onProgreso, mapaPorBarrio = true } = {}) => {
+  // mismas jornadas se usan tal cual y no se vuelven a pedir. Con `imprimir` el mismo PDF
+  // va directo al diálogo de impresión en vez de descargarse.
+  const descargarInformeCampo = async ({ tipo, includedZoneKeys, jornadas: claves, jornadasCargadas, onProgreso, mapaPorBarrio = true, imprimir = false } = {}) => {
     const modulosPdf = Promise.all([import("jspdf"), import("jspdf-autotable")]);
     const lista = Array.isArray(claves) && claves.length ? claves : [activeMapDiaryDateKey].filter(Boolean);
     const soloActiva = lista.length === 1 && lista[0] === activeMapDiaryDateKey;
@@ -115,66 +116,41 @@ export function createMapReportPrinters({
     const crudas = soloActiva
       ? [{ dateKey: activeMapDiaryDateKey, data: mapReportPrintData }]
       : mismasCargadas ? jornadasCargadas : await loadReportJornadas(lista, { onProgreso });
-    // Con mapa de cada barrio, el barrio se parte en hojas del mapa y sus puntos se ordenan
-    // hoja por hoja: así los folios de cada hoja quedan seguidos en la tabla.
-    const jornadas = crudas.map((jornada) => {
-      const data = selectReportZones(jornada.data, includedZoneKeys, getMapPointTypeLabel);
-      if (!mapaPorBarrio) return { ...jornada, data };
-      const zones = data.zones.map((zona) => {
-        const hojas = dividirEnHojas(zona.items, { claveDe: (punto) => punto.report_key || "" });
-        return { ...zona, items: hojas.flat(), hojas };
-      });
-      return { ...jornada, data: { ...data, zones } };
-    });
+    const jornadas = crudas.map((jornada) => ({ ...jornada, data: selectReportZones(jornada.data, includedZoneKeys, getMapPointTypeLabel) }));
+    // Cada barrio una sola vez (aunque se trabajó en varios días), partido en láminas.
+    const { barrios, laminas, folios } = armarLaminas(unirBarrios(jornadas), { conMapa: mapaPorBarrio, claveDe: (punto) => punto.report_key || "" });
     onProgreso?.("Dibujando los mapas…");
     // Padrón, mapas y logo a la vez: cada mapa espera sus mosaicos por la red.
     const padronPromesa = tipo === "census"
-      ? buildMapReportPadronData({ zones: jornadas.flatMap((jornada) => jornada.data.zones) }).then((datos) => datos.padronNames)
+      ? buildMapReportPadronData({ zones: barrios }).then((datos) => datos.padronNames)
       : Promise.resolve({});
-    // Mapa de la zona trabajada (técnico y censo). Un mapa oficial adjunto en Configurar
-    // tiene prioridad sobre el general dibujado.
-    const puntosDe = (jornada) => jornada.data.zones.flatMap((zona) => zona.items);
+    // Mapa general con el índice de láminas. Un mapa oficial adjunto en Configurar tiene
+    // prioridad sobre el dibujado.
     const varias = jornadas.length > 1;
     const colorDia = Object.fromEntries(jornadas.map((jornada, indice) => [jornada.dateKey, COLORES_DIA[indice % COLORES_DIA.length]]));
-    const conDia = jornadas.flatMap((jornada) => puntosDe(jornada).map((punto) => ({ ...punto, __jornada: jornada.dateKey })));
     const mapaGeneralPromesa = mapReportSettings.map_image_data_url
       ? Promise.resolve(mapReportSettings.map_image_data_url)
-      : dibujarMapaPuntos({ points: conDia, apiUrl: API_URL, colorDe: varias ? (punto) => colorDia[punto.__jornada] : null }).catch(() => "");
-    const mapasDiaPromesa = varias
-      ? Promise.all(jornadas.map(async (jornada) => [
-        jornada.dateKey,
-        await dibujarMapaPuntos({ points: puntosDe(jornada), apiUrl: API_URL, ancho: 1200, alto: 640 }).catch(() => "")
-      ]))
-      : Promise.resolve([]);
-    // Mapa de cada hoja del barrio con sus puntos numerados como en la tabla (para el
-    // catastro). De cuatro en cuatro, para no pedir todos los mosaicos de golpe.
-    const folios = foliosDelInforme(jornadas);
-    const hojasConMapa = jornadas.flatMap((jornada) => jornada.data.zones.flatMap((zona) => (zona.hojas || []).map((puntos, indice) => ({
-      clave: claveMapaBarrio(jornada.dateKey, zona),
-      indice,
-      total: zona.hojas.length,
-      puntos
-    }))));
-    const mapasBarrioPromesa = (async () => {
-      const listos = [];
-      for (let inicio = 0; inicio < hojasConMapa.length; inicio += 4) {
-        listos.push(...await Promise.all(hojasConMapa.slice(inicio, inicio + 4).map(async (hoja) => {
-          const numeros = hoja.puntos.map((punto) => folios.get(punto)).filter(Boolean);
-          const imagen = await dibujarMapaPuntos({ points: hoja.puntos, apiUrl: API_URL, ancho: 1500, alto: 860, calidad: 0.8, etiquetaDe: (punto) => folios.get(punto) }).catch(() => "");
-          return { ...hoja, imagen, desde: Math.min(...numeros), hasta: Math.max(...numeros) };
-        })));
-        if (hojasConMapa.length > 4) onProgreso?.(`Hojas del mapa: ${Math.min(inicio + 4, hojasConMapa.length)} de ${hojasConMapa.length}…`);
+      : dibujarMapaPuntos({
+        points: barrios.flatMap((barrio) => barrio.items),
+        apiUrl: API_URL,
+        colorDe: varias ? (punto) => colorDia[punto.__dia] : null,
+        marcos: mapaPorBarrio ? laminas.map((lamina) => ({ puntos: lamina.puntos, etiqueta: `L${lamina.numero}` })) : []
+      }).catch(() => "");
+    // Lámina: los puntos numerados como en la tabla. De cuatro en cuatro, para no pedir
+    // todos los mosaicos de golpe.
+    const laminasPromesa = (async () => {
+      if (!mapaPorBarrio) return laminas;
+      const listas = [];
+      for (let inicio = 0; inicio < laminas.length; inicio += 4) {
+        listas.push(...await Promise.all(laminas.slice(inicio, inicio + 4).map(async (lamina) => ({
+          ...lamina,
+          imagen: await dibujarMapaPuntos({ points: lamina.puntos, apiUrl: API_URL, ancho: 1800, alto: 800, calidad: 0.8, etiquetaDe: (punto) => folios.get(punto) }).catch(() => "")
+        }))));
+        if (laminas.length > 4) onProgreso?.(`Láminas: ${Math.min(inicio + 4, laminas.length)} de ${laminas.length}…`);
       }
-      return listos;
+      return listas;
     })();
-    const [padronNames, mapaGeneral, mapasDia, mapasBarrio] = await Promise.all([padronPromesa, mapaGeneralPromesa, mapasDiaPromesa, mapasBarrioPromesa]);
-    const mapasPorDia = Object.fromEntries(mapasDia);
-    // Por barrio, sus hojas en orden: [{ imagen, indice, total, desde, hasta }].
-    const mapasPorBarrio = {};
-    for (const hoja of mapasBarrio) {
-      if (!hoja.imagen) continue;
-      (mapasPorBarrio[hoja.clave] ||= []).push(hoja);
-    }
+    const [padronNames, mapaGeneral, laminasListas] = await Promise.all([padronPromesa, mapaGeneralPromesa, laminasPromesa]);
     const leyendaGeneral = varias && !mapReportSettings.map_image_data_url
       ? jornadas.map((jornada, indice) => ({ label: `Día ${indice + 1} · ${fechaLarga(jornada.dateKey)}`, color: colorDia[jornada.dateKey] }))
       : null;
@@ -187,19 +163,54 @@ export function createMapReportPrinters({
       autoTable: autoTableModule.default,
       tipo,
       jornadas,
+      barrios,
+      laminas: laminasListas,
+      folios,
       settings: mapReportSettings,
       staff: mapReportStaff,
       padronNames,
       logoDataUrl,
       mapaGeneral,
       leyendaGeneral,
-      mapasPorDia,
-      mapasPorBarrio,
-      folios,
       generadoEn: formatDateTime(new Date().toISOString())
     });
-    saveReportPdf(doc, nombreArchivoInforme(tipo === "census" ? "reporte-censo" : "reporte-campo", jornadas.map((jornada) => jornada.dateKey)));
+    const nombre = nombreArchivoInforme(tipo === "census" ? "reporte-censo" : "reporte-campo", jornadas.map((jornada) => jornada.dateKey));
+    if (imprimir) await imprimirPdf(doc, nombre);
+    else saveReportPdf(doc, nombre);
     return jornadas;
+  };
+
+  // El PDF se carga en un marco oculto de la misma página y se abre el diálogo de
+  // impresión (sin ventanas emergentes que el navegador bloquee). Si no se puede, se descarga.
+  const imprimirPdf = (doc, nombre) => new Promise((resolve) => {
+    doc.setProperties?.({ title: nombre.replace(/\.pdf$/i, "") });
+    const url = URL.createObjectURL(doc.output("blob"));
+    const marco = document.createElement("iframe");
+    marco.setAttribute("aria-hidden", "true");
+    marco.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+    const limpiar = () => setTimeout(() => { marco.remove(); URL.revokeObjectURL(url); }, 120000);
+    marco.onload = () => {
+      try {
+        marco.contentWindow.focus();
+        marco.contentWindow.print();
+      } catch {
+        saveReportPdf(doc, nombre);
+      }
+      limpiar();
+      resolve();
+    };
+    marco.onerror = () => { saveReportPdf(doc, nombre); limpiar(); resolve(); };
+    marco.src = url;
+    document.body.append(marco);
+  });
+
+  // Imprimir usa el mismo PDF que la descarga.
+  const imprimirInformeCampo = async (tipo, opciones = {}) => {
+    try {
+      await descargarInformeCampo({ ...opciones, tipo, imprimir: true });
+    } catch (error) {
+      showAlert(error.message || "No fue posible preparar el informe para imprimir.");
+    }
   };
 
   const handleDownloadMapReport = async () => {
@@ -226,158 +237,7 @@ export function createMapReportPrinters({
     }
   };
 
-  const handlePrintMapFieldReport = async ({ includedZoneKeys } = {}) => {
-    const generatedAt = formatDateTime(new Date().toISOString());
-    const reportData = getSelectedMapReportData(includedZoneKeys);
-    // La captura de pantalla del mapa ya no existe en Reportes: se dibuja el mapa de los puntos.
-    const mapImageDataUrl = mapReportSettings.map_image_data_url ||
-      (await dibujarMapaPuntos({ points: reportData.zones.flatMap((zona) => zona.items), apiUrl: API_URL }).catch(() => ""));
-    const reportCajaTotal = getSelectedCajaTotal(reportData);
-    const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
-    const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
-    const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
-    const reportNotes = mapReportSettings.report_notes.trim();
-    const totalsMarkup = Object.entries(reportData.totalsByType)
-      .map(
-        ([label, total]) => `
-          <div class="field-report-total-chip">
-            <strong>${label}</strong>
-            <span>${total}</span>
-          </div>
-        `
-      )
-      .join("");
-    const portadaMarkup = `
-      <section class="field-report-cover">
-        <div class="field-report-cover-copy">
-          <span class="field-report-kicker">Resumen de operaciones</span>
-          <h2>Levantamiento consolidado de puntos de campo</h2>
-          <p>Vista institucional del trabajo levantado, lista para seguimiento y revision administrativa.</p>
-          <div class="field-report-cover-metrics">
-            <div>
-              <strong>Total de puntos</strong>
-              <span>${reportData.totalPoints}</span>
-            </div>
-            <div>
-              <strong>Total de barrios</strong>
-              <span>${reportData.totalZones}</span>
-            </div>
-            <div>
-              <strong>Cajas de registro</strong>
-              <span>${reportCajaTotal}</span>
-            </div>
-          </div>
-          ${buildMapReportStaffMarkup(mapReportStaff)}
-        </div>
-        <div class="field-report-cover-map">
-          ${
-            mapImageDataUrl
-              ? `<img src="${mapImageDataUrl}" alt="Mapa visual del levantamiento" class="field-report-map-image" />`
-              : `<div class="field-report-map-fallback">No fue posible capturar la vista del mapa para esta impresion.</div>`
-          }
-        </div>
-      </section>
-    `;
-
-    const zonesMarkup = reportData.zones
-      .map(
-        (zone, index) => `
-          <section class="field-report-zone">
-            <div class="field-report-zone-head">
-              <div>
-                <span class="field-report-zone-kicker">${escapeHtml(zone.displayKicker || `Zona ${index + 1}`)}</span>
-                <h3>${escapeHtml(zone.displayName || zone.zone)}</h3>
-                <p>Referencia sugerida: ${escapeHtml(zone.displayReference || "Sin contexto cercano")}</p>
-                <p>Ubicacion completa: ${escapeHtml(zone.displayLocation || "Sin direccion ampliada")}</p>
-              </div>
-              <div class="field-report-zone-meta">
-                <span>Total: ${zone.total}</span>
-                <span>Tipos: ${zone.pointTypesLabel || "--"}</span>
-                <span>Precision prom.: ${zone.averageAccuracy ?? "--"} m</span>
-              </div>
-            </div>
-            <table class="field-report-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Tipo</th>
-                  <th>Marca</th>
-                  <th>Latitud</th>
-                  <th>Longitud</th>
-                  <th>Precision</th>
-                  <th>Barrio</th>
-                  <th>Referencia cercana</th>
-                  <th>Referencia</th>
-                  <th>Descripcion</th>
-                  <th>Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${zone.items
-                  .map(
-                    (point, pointIndex) => `
-                      <tr class="${getReportPointRowClassName(point)}">
-                        <td>${pointIndex + 1}</td>
-                        <td>${getMapPointTypeLabel(point.point_type)}</td>
-                        <td>
-                          <span class="field-report-color-chip" style="--point-color: ${escapeHtml(point.marker_color || "#1576d1")}"></span>
-                          ${point.is_terminal_point ? "Pin final" : point.marker_color || "#1576d1"}
-                        </td>
-                        <td>${formatCoordinate(point.latitude)}</td>
-                        <td>${formatCoordinate(point.longitude)}</td>
-                        <td>${point.accuracy_meters ? `${point.accuracy_meters} m` : "--"}</td>
-                        <td>${escapeHtml(point.report_zone_label || point.suggested_zone || zone.zone)}</td>
-                        <td>${escapeHtml(point.suggested_reference || "--")}</td>
-                        <td>${escapeHtml(getMapPointReferenceNote(point) || "--")}</td>
-                        <td>${escapeHtml(getMapPointTechnicalDescription(point) || "--")}</td>
-                        <td>${formatDateTime(point.created_at)}</td>
-                      </tr>
-                    `
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </section>
-        `
-      )
-      .join("");
-
-    await printDocument(
-      reportTitle,
-      `
-        <div class="field-report-shell">
-          <header class="field-report-header">
-            <div class="field-report-brand">
-              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
-              <div>
-                <p class="field-report-kicker">${escapeHtml(reportSubtitle)}</p>
-                <h1>${escapeHtml(reportTitle)}</h1>
-                <p>${escapeHtml(reportDescription)}</p>
-              </div>
-            </div>
-            <div class="field-report-meta">
-              <span>Generado: ${generatedAt}</span>
-              <span>Total de puntos: ${reportData.totalPoints}</span>
-              <span>Total de barrios: ${reportData.totalZones}</span>
-            </div>
-            ${buildMapReportStaffMarkup(mapReportStaff)}
-          </header>
-          ${portadaMarkup}
-          <section class="field-report-summary">
-            ${totalsMarkup || '<div class="field-report-total-chip"><strong>Sin puntos</strong><span>0</span></div>'}
-          </section>
-          ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones del censo</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
-          ${zonesMarkup || '<p class="field-report-empty">No hay puntos guardados para generar el reporte.</p>'}
-        </div>
-      `,
-      {
-        pageSize: "Letter landscape",
-        pageMargin: "8mm",
-        bodyClassName: "field-report-body",
-        showPageFooter: true
-      }
-    );
-  };
+  const handlePrintMapFieldReport = (opciones = {}) => imprimirInformeCampo("technical", opciones?.nativeEvent ? {} : opciones);
 
   const handleDownloadMapFieldPdf = async (opciones = {}) => {
     try {
@@ -388,110 +248,7 @@ export function createMapReportPrinters({
     }
   };
 
-  const handlePrintMapCensusReport = async ({ includedZoneKeys } = {}) => {
-    const generatedAt = formatDateTime(new Date().toISOString());
-    const reportData = getSelectedMapReportData(includedZoneKeys);
-    const reportCajaTotal = getSelectedCajaTotal(reportData);
-    const { padronNames } = await buildMapReportPadronData(reportData);
-    const reportTitle = mapReportSettings.title.trim() || defaultMapReportSettings.title;
-    const reportSubtitle = mapReportSettings.subtitle.trim() || defaultMapReportSettings.subtitle;
-    const reportDescription = mapReportSettings.description.trim() || defaultMapReportSettings.description;
-    const reportNotes = mapReportSettings.report_notes.trim();
-    const mapImageDataUrl = mapReportSettings.map_image_data_url ||
-      (await dibujarMapaPuntos({ points: reportData.zones.flatMap((zona) => zona.items), apiUrl: API_URL }).catch(() => ""));
-    const zonesMarkup = reportData.zones
-      .map(
-        (zone, index) => `
-          <section class="field-report-zone census-report-zone">
-            <div class="field-report-zone-head census-report-zone-head">
-              <div>
-                <span class="field-report-zone-kicker">${escapeHtml(zone.displayKicker || `Zona ${index + 1}`)}</span>
-                <h3>${escapeHtml(zone.displayName || zone.zone)}</h3>
-                <p>Ubicación: ${escapeHtml(zone.displayLocation || "Sin referencia")}</p>
-              </div>
-              <div class="field-report-zone-meta">
-                <span>Puntos: ${zone.total}</span>
-              </div>
-            </div>
-            <table class="field-report-table census-report-table map-points-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Barrio / sector</th>
-                  <th>Clave / abonado</th>
-                  <th>Nombre en padrón</th>
-                  <th>Tipo</th>
-                  <th>Referencia</th>
-                  <th>Descripción</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${zone.items
-                  .map(
-                    (point, pointIndex) => `
-                      <tr class="${getReportPointRowClassName(point)}">
-                        <td>${pointIndex + 1}</td>
-                        <td>${escapeHtml(zone.displayName || zone.zone || "--")}</td>
-                        <td>${escapeHtml(getMapPointReportReferenceLabel(point))}</td>
-                        <td>${escapeHtml(getMapPointPadronNames(point, padronNames))}</td>
-                        <td>${escapeHtml(getMapPointTypeLabel(point.point_type))}</td>
-                        <td>${escapeHtml(getMapPointReferenceNote(point) || zone.displayLocation || "--")}</td>
-                        <td>${escapeHtml(getMapPointTechnicalDescription(point) || "--")}</td>
-                      </tr>
-                    `
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </section>
-        `
-      )
-      .join("");
-
-    await printDocument(
-      `${reportTitle} - Censo sin coordenadas`,
-      `
-        <div class="field-report-shell census-report-shell">
-          <header class="field-report-header census-report-header">
-            <div class="field-report-brand">
-              <img src="${logoAguasCholuteca}" alt="Logo Aguas de Choluteca" class="print-logo" />
-              <div>
-                <p class="field-report-kicker">${escapeHtml(reportSubtitle)}</p>
-                <h1>${escapeHtml(reportTitle)}</h1>
-                <p>${escapeHtml(reportDescription)}</p>
-              </div>
-            </div>
-            <div class="field-report-meta">
-              <span>Tipo: Reporte de censo sin coordenadas</span>
-              <span>Generado: ${generatedAt}</span>
-              <span>Total de puntos: ${reportData.totalPoints}</span>
-              <span>Zonas / manzanas: ${reportData.totalZones}</span>
-            </div>
-            ${buildMapReportStaffMarkup(mapReportStaff)}
-          </header>
-          ${
-            mapImageDataUrl
-              ? `<section class="census-report-map"><img src="${mapImageDataUrl}" alt="Mapa del censo" class="field-report-map-image" /></section>`
-              : ""
-          }
-          <section class="field-report-summary">
-            <div class="field-report-total-chip"><strong>Total de puntos</strong><span>${reportData.totalPoints}</span></div>
-            <div class="field-report-total-chip"><strong>Zonas / manzanas</strong><span>${reportData.totalZones}</span></div>
-            <div class="field-report-total-chip"><strong>Cajas de registro</strong><span>${reportCajaTotal}</span></div>
-          </section>
-          ${buildMapReportTypeChartMarkup(reportData)}
-          ${reportNotes ? `<section class="field-report-notes"><strong>Observaciones del censo</strong><p>${escapeHtml(reportNotes)}</p></section>` : ""}
-          ${zonesMarkup || '<p class="field-report-empty">No hay puntos guardados para generar el reporte.</p>'}
-        </div>
-      `,
-      {
-        pageSize: "Letter portrait",
-        pageMargin: "10mm",
-        bodyClassName: "field-report-body census-report-body",
-        showPageFooter: true
-      }
-    );
-  };
+  const handlePrintMapCensusReport = (opciones = {}) => imprimirInformeCampo("census", opciones?.nativeEvent ? {} : opciones);
 
   const handleDownloadMapCensusPdf = async (opciones = {}) => {
     try {

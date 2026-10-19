@@ -119,17 +119,17 @@ export default function ReportsWorkspace({ model }) {
   const generate = ({ preview = false, format = documentFormat } = {}) => {
     if (preview) { setGeneratorOpen(false); setPreviewOpen(true); return; }
     const actions = {
-      technical: format === "pdf" || variasJornadas ? model.onDownloadTechnical : model.onPrintTechnical,
+      technical: format === "pdf" ? model.onDownloadTechnical : model.onPrintTechnical,
       brief: format === "pdf" ? model.onDownloadBrief : model.onPrintBrief,
-      census: format === "pdf" || variasJornadas ? model.onDownloadCensus : model.onPrintCensus,
+      census: format === "pdf" ? model.onDownloadCensus : model.onPrintCensus,
       regulator: model.onDownloadRegulator
     };
     const accion = actions[documentType];
     if (!accion) return;
     const conJornadas = variasJornadas
       ? { jornadas: jornadasInforme, jornadasCargadas: datosJornadas.clave === claveJornadas ? datosJornadas.jornadas : null, onProgreso: setProgreso }
-      : {};
-    setProgreso(variasJornadas ? "Preparando el informe…" : "");
+      : admiteJornadas ? { onProgreso: setProgreso } : {};
+    setProgreso(admiteJornadas ? "Preparando el informe…" : "");
     Promise.resolve(accion({ ...reportOptions, includedZoneKeys, ...conJornadas })).finally(() => setProgreso(""));
   };
 
@@ -177,7 +177,7 @@ export default function ReportsWorkspace({ model }) {
               <span className="rg-count"><strong>{jornadasInforme.length}</strong> {jornadasInforme.length === 1 ? "elegida" : "elegidas"}</span>
               {variasJornadas ? <button type="button" className="report-link" onClick={() => setJornadasInforme([model.activeDateKey].filter(Boolean))}>Solo la de pantalla</button> : null}
             </div>
-            {variasJornadas ? <p className="rg-hint">Cada día va en su propia hoja del PDF.</p> : null}
+            {variasJornadas ? <p className="rg-hint">Cada barrio sale una sola vez; el día queda en cada punto.</p> : null}
             <div className="rg-checklist rg-days">
               {jornadasConPuntos.slice(0, limiteJornadas).map((day) => (
                 <label key={day.key} className={jornadasInforme.includes(day.key) ? "is-checked" : ""}>
@@ -217,13 +217,13 @@ export default function ReportsWorkspace({ model }) {
           </section>
         ) : null}
 
-        {(admiteJornadas && (documentFormat === "pdf" || variasJornadas)) || documentType === "brief" ? (
+        {admiteJornadas || documentType === "brief" ? (
           <section className="rg-section" aria-labelledby="rg-opciones">
             <h3 id="rg-opciones" className="rg-title"><Icon name="settings" />Opciones</h3>
             <div className="rg-options">
               {admiteJornadas ? (
                 <label className="rg-option">
-                  <span><strong>Mapa de cada barrio</strong><small>Hojas del mapa a escala, con cada punto numerado igual que en la tabla.</small></span>
+                  <span><strong>Láminas con mapa</strong><small>Cada barrio en láminas: un mapa a escala con los puntos numerados y debajo su tabla. Sin ellas, solo las tablas.</small></span>
                   <input type="checkbox" role="switch" checked={reportOptions.mapaPorBarrio} onChange={(event) => setReportOptions((current) => ({ ...current, mapaPorBarrio: event.target.checked }))} />
                 </label>
               ) : null}
@@ -243,7 +243,7 @@ export default function ReportsWorkspace({ model }) {
           </section>
         ) : null}
 
-        {documentType !== "regulator" && !variasJornadas ? (
+        {documentType !== "regulator" ? (
           <section className="rg-section" aria-labelledby="rg-salida">
             <h3 id="rg-salida" className="rg-title">Salida</h3>
             <div className="rg-segmented" role="radiogroup" aria-labelledby="rg-salida">
@@ -276,7 +276,7 @@ export default function ReportsWorkspace({ model }) {
           <small>{documentType === "regulator" ? formatMapDiaryLabel(model.activeDateKey) : textoDeJornadas}</small>
         </div>
         {documentType !== "regulator" && !variasJornadas ? <button type="button" className="button-secondary rg-preview" onClick={() => generate({ preview: true })} disabled={!includedZones.length} aria-label="Vista previa" title="Vista previa"><Icon name="eye" /><span className="rg-btn-text">Vista previa</span></button> : null}
-        <button type="button" className="rg-primary" onClick={() => generate()} disabled={Boolean(progreso) || ((!barriosIncluidos.length || esperandoJornadas) && documentType !== "regulator")} aria-busy={Boolean(progreso) || esperandoJornadas}><Icon name={documentType === "regulator" || documentFormat === "pdf" || variasJornadas ? "download" : "print"} />{progreso || (esperandoJornadas ? "Cargando…" : documentType === "regulator" ? "Descargar informe" : documentFormat === "pdf" || variasJornadas ? "Descargar PDF" : "Imprimir")}</button>
+        <button type="button" className="rg-primary" onClick={() => generate()} disabled={Boolean(progreso) || ((!barriosIncluidos.length || esperandoJornadas) && documentType !== "regulator")} aria-busy={Boolean(progreso) || esperandoJornadas}><Icon name={documentType === "regulator" || documentFormat === "pdf" ? "download" : "print"} />{progreso || (esperandoJornadas ? "Cargando…" : documentType === "regulator" ? "Descargar informe" : documentFormat === "pdf" ? "Descargar PDF" : "Imprimir")}</button>
       </footer>
     </ReportDialog>
 

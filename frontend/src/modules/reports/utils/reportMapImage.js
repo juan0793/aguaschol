@@ -35,9 +35,10 @@ const elegirZoom = (puntos, ancho, alto, margen, zoomMax = ZOOM_MAX) => {
  * @param {object[]} opciones.points  puntos con latitude/longitude/point_type
  * @param {(punto) => string} [opciones.colorDe]  color fijo por punto (p. ej. por día); sin él, figura y color del tipo
  * @param {(punto) => string} [opciones.etiquetaDe]  número de cada punto (mapa de barrio): etiqueta del color de su tipo
+ * @param {{ puntos: object[], etiqueta: string }[]} [opciones.marcos]  recuadros rotulados (índice de láminas)
  * @returns {Promise<string>} data URL JPEG, o "" si no hay puntos con coordenadas
  */
-export async function dibujarMapaPuntos({ points = [], apiUrl = "", ancho = 1400, alto = 820, colorDe = null, etiquetaDe = null, calidad = 0.86 } = {}) {
+export async function dibujarMapaPuntos({ points = [], apiUrl = "", ancho = 1400, alto = 820, colorDe = null, etiquetaDe = null, marcos = [], calidad = 0.86 } = {}) {
   const puntos = points
     .map((punto) => ({ punto, lat: Number(punto.latitude), lng: Number(punto.longitude) }))
     .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng) && Math.abs(item.lat) <= 85);
@@ -83,6 +84,7 @@ export async function dibujarMapaPuntos({ points = [], apiUrl = "", ancho = 1400
     ctx.fillRect(0, 0, ancho, alto);
   }
 
+  if (marcos.length) dibujarMarcos(ctx, marcos, (lat, lng) => ({ x: mundoX(lng, z) - izquierda, y: mundoY(lat, z) - arriba }));
   if (etiquetaDe) dibujarEtiquetas(ctx, puntos.map((item) => ({ ...item, x: mundoX(item.lng, z) - izquierda, y: mundoY(item.lat, z) - arriba })), etiquetaDe, ancho, alto);
 
   // Puntos: figura del tipo (como en Puntos GPS) o círculo del color indicado.
@@ -180,3 +182,40 @@ function dibujarEtiquetas(ctx, puntos, etiquetaDe, ancho, alto) {
 }
 
 export const COLORES_DIA = ["#1465d9", "#d59124", "#18a689", "#8a4fb8", "#c0392b", "#0f8a7e", "#64748b"];
+
+// Índice de láminas: un recuadro por lámina, con su rótulo en la esquina.
+function dibujarMarcos(ctx, marcos, aPixel) {
+  const holgura = 12;
+  const cajas = marcos.map((marco) => {
+    const px = marco.puntos
+      .map((punto) => ({ lat: Number(punto.latitude), lng: Number(punto.longitude) }))
+      .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && p.lat !== 0)
+      .map((p) => aPixel(p.lat, p.lng));
+    if (!px.length) return null;
+    const x0 = Math.min(...px.map((p) => p.x)) - holgura;
+    const y0 = Math.min(...px.map((p) => p.y)) - holgura;
+    const x1 = Math.max(...px.map((p) => p.x)) + holgura;
+    const y1 = Math.max(...px.map((p) => p.y)) + holgura;
+    return { x0, y0, x1, y1, etiqueta: marco.etiqueta };
+  }).filter(Boolean);
+  ctx.save();
+  for (const caja of cajas) {
+    ctx.fillStyle = "rgba(20, 101, 217, 0.07)";
+    ctx.fillRect(caja.x0, caja.y0, caja.x1 - caja.x0, caja.y1 - caja.y0);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "rgba(11, 63, 115, 0.85)";
+    ctx.setLineDash([10, 6]);
+    ctx.strokeRect(caja.x0, caja.y0, caja.x1 - caja.x0, caja.y1 - caja.y0);
+  }
+  ctx.setLineDash([]);
+  ctx.font = "700 19px Arial, sans-serif";
+  ctx.textBaseline = "middle";
+  for (const caja of cajas) {
+    const ancho = ctx.measureText(caja.etiqueta).width + 14;
+    ctx.fillStyle = "#0b3f73";
+    ctx.fillRect(caja.x0, caja.y0 - 26, ancho, 26);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(caja.etiqueta, caja.x0 + 7, caja.y0 - 12);
+  }
+  ctx.restore();
+}

@@ -1,7 +1,11 @@
 // Informe de campo en PDF (técnico con coordenadas o censo sin coordenadas) para una o
-// varias jornadas. Con varias jornadas, cada día empieza en su propia hoja, para poder
-// adjuntar los puntos día por día; al inicio va el resumen de todas. Cada punto lleva un
-// folio único en el informe, y el mapa de su barrio lo muestra con ese mismo número.
+// varias jornadas, pensado para el catastro: se ordena por zona, no por día.
+//
+// - Hoja 1: datos, resumen por tipo y por jornada, y el mapa general con el índice de
+//   láminas (un recuadro por lámina).
+// - Después, cada barrio una sola vez (aunque se haya trabajado en varios días), partido en
+//   láminas: cada lámina es un mapa a todo el ancho con los puntos numerados y, debajo, la
+//   tabla de esos puntos. El folio del mapa es el "#" de la tabla y el día es una columna.
 import {
   REPORT_POINT_ALERT_BORDER_RGB,
   REPORT_POINT_ALERT_FILL_RGB,
@@ -17,10 +21,9 @@ import {
   isAlertReportPoint,
   isRedReportPoint
 } from "../../utils/mapReport";
-import { formatCoordinate, getMapPointTypeLabel } from "../../utils/mapField";
+import { getMapPointTypeLabel } from "../../utils/mapField";
 import { fechaConDia, fechaLarga, textoJornadas } from "./utils/informeJornadas";
 import { getPointTypeStyle } from "../campo/pointTypes";
-import { claveMapaBarrio } from "./utils/etiquetasMapa";
 
 const ZONA = "America/Tegucigalpa";
 const AZUL_PROFUNDO = [11, 63, 115];
@@ -29,31 +32,52 @@ const TINTA = [22, 36, 47];
 const TENUE = [91, 107, 122];
 const BANDA = [238, 244, 251];
 const BORDE = [201, 213, 224];
+const FILETE = [223, 229, 236];
 const MARGEN = 14;
 const PIE = 14;
+// Proporción de la imagen de cada lámina (1800 × 800 px).
+const PROPORCION_LAMINA = 800 / 1800;
 
-const hora = (iso) =>
-  iso ? new Intl.DateTimeFormat("es-HN", { timeZone: ZONA, hour: "numeric", minute: "2-digit" }).format(new Date(iso)) : "--";
+const fechaCorta = new Intl.DateTimeFormat("es-HN", { timeZone: ZONA, day: "numeric", month: "short" });
+const horaCorta = new Intl.DateTimeFormat("es-HN", { timeZone: ZONA, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const fechaHora = (punto) => {
+  const fecha = punto.created_at ? new Date(punto.created_at) : null;
+  if (!fecha || Number.isNaN(fecha.getTime())) return punto.__dia ? fechaCorta.format(new Date(`${punto.__dia}T12:00:00`)).replace(".", "") : "--";
+  return `${fechaCorta.format(fecha).replace(".", "")} ${horaCorta.format(fecha)}`;
+};
 
 const rgb = (hex) => {
   const limpio = String(hex || "#1465d9").replace("#", "");
   return [0, 2, 4].map((inicio) => parseInt(limpio.slice(inicio, inicio + 2), 16) || 0);
 };
 
+const plural = (n, uno, varios) => `${n.toLocaleString("es-HN")} ${n === 1 ? uno : varios}`;
+
+const coordenada = (valor) => {
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero.toFixed(6) : "--";
+};
+
+// La descripción del técnico suele empezar con la clave: ya va en su columna.
+const CLAVE_AL_INICIO = /^\s*-?\d{2,3}-\d{2,3}-\d{2,3}(?:-\d{2})?\s*[,.;:-]?\s*/;
+const descripcionDe = (punto) => {
+  const texto = (getMapPointTechnicalDescription(punto) || "").replace(CLAVE_AL_INICIO, "").replace(/\s+/g, " ").trim();
+  const referencia = getMapPointReferenceNote(punto);
+  const partes = [texto, referencia && !texto.includes(referencia) ? `Ref.: ${referencia}` : ""].filter(Boolean);
+  return partes.join(" · ") || "--";
+};
+
+const tipoCorto = (tipo) => getPointTypeStyle(tipo).short || getMapPointTypeLabel(tipo);
+
 // Tipos de punto presentes, con el color con que se dibujan en el mapa.
-const leyendaDeTipos = (zonas) => {
+const leyendaDeTipos = (puntos) => {
   const vistos = new Map();
-  for (const zona of zonas) {
-    for (const punto of zona.items) {
-      const estilo = getPointTypeStyle(punto.point_type);
-      const etiqueta = getMapPointTypeLabel(punto.point_type);
-      if (!vistos.has(etiqueta)) vistos.set(etiqueta, estilo.color);
-    }
+  for (const punto of puntos) {
+    const etiqueta = getMapPointTypeLabel(punto.point_type);
+    if (!vistos.has(etiqueta)) vistos.set(etiqueta, getPointTypeStyle(punto.point_type).color);
   }
   return [...vistos].map(([label, color]) => ({ label, color }));
 };
-
-const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
 const totalesPorTipo = (jornadas) => {
   const totales = {};
@@ -63,7 +87,8 @@ const totalesPorTipo = (jornadas) => {
   return Object.entries(totales).sort((a, b) => b[1] - a[1]);
 };
 
-const cajasDe = (data) => data.zones.reduce((total, zone) => total + zone.items.filter((point) => point.point_type === "caja_registro").length, 0);
+const esCaja = (punto) => punto.point_type === "caja_registro";
+const cajasDe = (data) => data.zones.reduce((total, zone) => total + zone.items.filter(esCaja).length, 0);
 
 const estiloPunto = (data) => {
   if (data.section !== "body") return;
@@ -77,33 +102,34 @@ const estiloPunto = (data) => {
     data.cell.styles.textColor = REPORT_POINT_DANGER_RGB;
     data.cell.styles.fillColor = REPORT_POINT_DANGER_FILL_RGB;
     data.cell.styles.lineColor = REPORT_POINT_DANGER_BORDER_RGB;
-  } else {
-    return;
   }
-  if (data.column.index === 1) data.cell.styles.fontStyle = "bold";
 };
 
 const tablaBase = {
   theme: "grid",
   showHead: "everyPage",
   rowPageBreak: "avoid",
-  styles: { font: "helvetica", fontSize: 7.6, cellPadding: 1.8, textColor: TINTA, lineColor: BORDE, lineWidth: 0.2, overflow: "linebreak", valign: "top" },
-  headStyles: { fillColor: AZUL, textColor: [255, 255, 255], fontStyle: "bold" },
+  styles: { font: "helvetica", fontSize: 7.2, cellPadding: { top: 1.2, bottom: 1.2, left: 1.4, right: 1.4 }, textColor: TINTA, lineColor: FILETE, lineWidth: 0.2, overflow: "linebreak", valign: "top" },
+  headStyles: { fillColor: AZUL_PROFUNDO, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.2 },
   alternateRowStyles: { fillColor: [248, 251, 255] }
 };
 
 /**
  * @param {object} opciones
  * @param {"technical"|"census"} opciones.tipo
- * @param {{ dateKey: string, data: object }[]} opciones.jornadas  ya filtradas por barrio
+ * @param {{ dateKey: string, data: object }[]} opciones.jornadas  ya filtradas por barrio (para los resúmenes)
+ * @param {object[]} opciones.barrios  barrios unidos entre jornadas, con `laminas` y `items` en orden de folio
+ * @param {object[]} opciones.laminas  láminas con `imagen` (puede faltar si no hay mapa)
+ * @param {Map} opciones.folios  folio de cada punto
  */
-export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jornadas = [], settings = {}, staff = {}, padronNames = {}, logoDataUrl = "", mapaGeneral = "", leyendaGeneral = null, mapasPorDia = {}, mapasPorBarrio = {}, folios = null, generadoEn = "" }) {
-  const mapImageDataUrl = mapaGeneral;
+export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jornadas = [], barrios = [], laminas = [], folios = new Map(), settings = {}, staff = {}, padronNames = {}, logoDataUrl = "", mapaGeneral = "", leyendaGeneral = null, generadoEn = "" }) {
   const tecnico = tipo !== "census";
-  const doc = new jsPDF({ orientation: tecnico ? "landscape" : "portrait", unit: "mm", format: "letter", compress: true });
+  const orientacion = tecnico ? "landscape" : "portrait";
+  const doc = new jsPDF({ orientation: orientacion, unit: "mm", format: "letter", compress: true });
   const ancho = doc.internal.pageSize.getWidth();
   const alto = doc.internal.pageSize.getHeight();
   const util = ancho - MARGEN * 2;
+  const limiteInferior = alto - PIE - 4;
   const varias = jornadas.length > 1;
   const claves = jornadas.map((jornada) => jornada.dateKey);
   const jornadasTexto = textoJornadas(claves);
@@ -111,31 +137,39 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
   const subtitulo = String(settings.subtitle || "").trim() || "Aguas de Choluteca, S.A. de C.V.";
   const notas = String(settings.report_notes || "").trim();
   const totalPuntos = jornadas.reduce((total, jornada) => total + jornada.data.totalPoints, 0);
-  const barrios = new Set(jornadas.flatMap((jornada) => jornada.data.zones.map((zone) => zone.overrideKey || zone.zone)));
   const totalCajas = jornadas.reduce((total, jornada) => total + cajasDe(jornada.data), 0);
+  const imagenDe = new Map(laminas.filter((lamina) => lamina.imagen).map((lamina) => [lamina.numero, lamina.imagen]));
+  const conLaminas = imagenDe.size > 0;
+  const nuevaHoja = () => { doc.addPage("letter", orientacion); return 16; };
+  const titulito = (texto, x, yTexto) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...AZUL_PROFUNDO);
+    doc.text(texto, x, yTexto);
+  };
 
   // Leyenda: un punto de color y su nombre, en renglones que no pasan del ancho dado.
-  const dibujarLeyenda = (items, x, yInicio, anchoMax) => {
-    let cx = x;
-    let cy = yInicio;
+  const dibujarLeyenda = (items, x, yInicio, anchoMax, { alinearDerecha = false } = {}) => {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.8);
-    for (const { label, color } of items) {
-      const anchoItem = doc.getTextWidth(label) + 5.5;
-      if (cx + anchoItem > x + anchoMax && cx > x) { cx = x; cy += 4.4; }
+    doc.setFontSize(7.6);
+    const medidas = items.map((item) => doc.getTextWidth(item.label) + 5.5);
+    let cx = alinearDerecha ? x + anchoMax - Math.min(anchoMax, medidas.reduce((t, m) => t + m + 3.5, -3.5)) : x;
+    let cy = yInicio;
+    items.forEach(({ label, color }, indice) => {
+      if (cx + medidas[indice] > x + anchoMax && cx > x) { cx = x; cy += 4.2; }
       doc.setFillColor(...rgb(color));
-      doc.circle(cx + 1.5, cy - 1.1, 1.4, "F");
+      doc.circle(cx + 1.5, cy - 1.1, 1.35, "F");
       doc.setTextColor(...TINTA);
       doc.text(label, cx + 4, cy);
-      cx += anchoItem + 3.5;
-    }
+      cx += medidas[indice] + 3.5;
+    });
     return cy + 2;
   };
   const ponerMapa = (imagen, x, yMapa, anchoMapa, altoMapa) => {
+    doc.addImage(imagen, imagen.startsWith("data:image/jpeg") ? "JPEG" : "PNG", x, yMapa, anchoMapa, altoMapa);
     doc.setDrawColor(...BORDE);
     doc.setLineWidth(0.3);
     doc.rect(x, yMapa, anchoMapa, altoMapa);
-    doc.addImage(imagen, imagen.startsWith("data:image/jpeg") ? "JPEG" : "PNG", x + 0.4, yMapa + 0.4, anchoMapa - 0.8, altoMapa - 0.8);
   };
 
   // ---------- Encabezado ----------
@@ -165,9 +199,10 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
   // Ficha de datos: etiqueta tenue arriba, valor en tinta.
   const ficha = [
     [varias ? "Jornadas" : "Jornada", varias ? `${jornadas.length} jornadas` : fechaLarga(claves[0] || "")],
-    ["Puntos", String(totalPuntos)],
-    ["Barrios", String(barrios.size)],
-    ["Cajas de registro", String(totalCajas)],
+    ["Puntos", totalPuntos.toLocaleString("es-HN")],
+    ["Barrios", String(barrios.length)],
+    ...(conLaminas ? [["Láminas", String(laminas.length)]] : []),
+    ["Cajas de registro", totalCajas.toLocaleString("es-HN")],
     ["Técnicos", getMapReportTechniciansLabel(staff) || "--"],
     ["Ingeniero de datos", staff.data_engineer || "--"],
     ["Generado", generadoEn || "--"]
@@ -192,345 +227,222 @@ export function crearInformeCampoPdf({ jsPDF, autoTable, tipo = "technical", jor
   }
   y += 3.5;
 
-  // ---------- Resumen ----------
-  // En horizontal (técnico) el mapa va al lado del resumen; en vertical (censo), debajo.
-  const anchoResumen = mapImageDataUrl && tecnico ? util * 0.42 : util;
+  // ---------- Resumen e índice de láminas ----------
+  // En horizontal (técnico) el mapa va a la derecha; en vertical (censo), debajo.
+  const anchoResumen = mapaGeneral && tecnico ? util * 0.38 : util;
   const inicioResumen = y;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...AZUL_PROFUNDO);
-  doc.text("Resumen por tipo de punto", MARGEN, y);
-  const tipos = totalesPorTipo(jornadas);
-  autoTable(doc, {
-    ...tablaBase,
-    startY: y + 2,
-    head: [["Tipo de punto", "Puntos"]],
-    body: tipos.length ? tipos.map(([tipoPunto, total]) => [tipoPunto, String(total)]) : [["Sin puntos", "0"]],
-    styles: { ...tablaBase.styles, fontSize: 8.2 },
-    columnStyles: { 1: { halign: "right", cellWidth: 20 } },
-    tableWidth: Math.min(90, anchoResumen),
-    margin: { left: MARGEN, right: MARGEN }
-  });
-  y = (doc.lastAutoTable?.finalY ?? y) + 6;
-
-  if (varias) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(...AZUL_PROFUNDO);
-    doc.text("Resumen por jornada", MARGEN, y);
+  const tablaResumen = (cabeza, filas, opciones = {}) => {
     autoTable(doc, {
       ...tablaBase,
       startY: y + 2,
-      head: [["Día", "Fecha", "Puntos", "Barrios", "Cajas"]],
-      body: jornadas.map((jornada, indice) => [
-        `Día ${indice + 1}`,
-        fechaConDia(jornada.dateKey),
-        String(jornada.data.totalPoints),
-        String(jornada.data.totalZones),
-        String(cajasDe(jornada.data))
-      ]),
-      foot: [["Total", "", String(totalPuntos), String(barrios.size), String(totalCajas)]],
-      footStyles: { fillColor: BANDA, textColor: AZUL_PROFUNDO, fontStyle: "bold" },
-      didParseCell: (data) => { if (data.section === "foot" && data.column.index >= 2) data.cell.styles.halign = "right"; },
-      styles: { ...tablaBase.styles, fontSize: 8.2 },
-      columnStyles: { 0: { cellWidth: 13 }, 2: { halign: "right", cellWidth: 15 }, 3: { halign: "right", cellWidth: 15 }, 4: { halign: "right", cellWidth: 14 } },
-      tableWidth: Math.min(150, anchoResumen),
-      margin: { left: MARGEN, right: MARGEN }
+      head: [cabeza],
+      body: filas,
+      styles: { ...tablaBase.styles, fontSize: 7.8 },
+      headStyles: { ...tablaBase.headStyles, fontSize: 7.8 },
+      tableWidth: anchoResumen,
+      margin: { left: MARGEN, right: ancho - MARGEN - anchoResumen },
+      ...opciones
     });
     y = (doc.lastAutoTable?.finalY ?? y) + 6;
+  };
+
+  const dibujarMapaGeneral = () => {
+    if (!mapaGeneral) return;
+    try {
+      const leyenda = leyendaGeneral || leyendaDeTipos(barrios.flatMap((barrio) => barrio.items));
+      const tituloMapa = conLaminas ? "Zona trabajada e índice de láminas" : varias ? "Zona trabajada en las jornadas" : "Zona trabajada en la jornada";
+      if (tecnico) {
+        const xMapa = MARGEN + anchoResumen + 7;
+        const anchoMapa = ancho - MARGEN - xMapa;
+        const altoMapa = Math.min(limiteInferior - inicioResumen - 14, anchoMapa * (820 / 1400));
+        titulito(tituloMapa, xMapa, inicioResumen);
+        ponerMapa(mapaGeneral, xMapa, inicioResumen + 2, anchoMapa, altoMapa);
+        if (leyenda.length) dibujarLeyenda(leyenda, xMapa, inicioResumen + altoMapa + 7, anchoMapa);
+      } else {
+        const altoMapa = util * (820 / 1400);
+        if (y + altoMapa + 16 > limiteInferior) y = nuevaHoja();
+        titulito(tituloMapa, MARGEN, y);
+        ponerMapa(mapaGeneral, MARGEN, y + 2, util, altoMapa);
+        y = (leyenda.length ? dibujarLeyenda(leyenda, MARGEN, y + altoMapa + 7, util) : y + altoMapa + 4) + 5;
+      }
+    } catch { /* sin mapa, el informe sigue */ }
+  };
+
+  if (!tecnico) dibujarMapaGeneral();
+
+  titulito("Puntos por tipo", MARGEN, y);
+  const tipos = totalesPorTipo(jornadas);
+  tablaResumen(["Tipo de punto", "Puntos"], tipos.length ? tipos.map(([tipoPunto, total]) => [tipoPunto, total.toLocaleString("es-HN")]) : [["Sin puntos", "0"]], {
+    columnStyles: { 1: { halign: "right", cellWidth: 18 } }
+  });
+
+  if (varias) {
+    titulito("Puntos por jornada", MARGEN, y);
+    tablaResumen(["Día", "Fecha", "Puntos", "Cajas"], jornadas.map((jornada, indice) => [
+      String(indice + 1),
+      fechaConDia(jornada.dateKey),
+      jornada.data.totalPoints.toLocaleString("es-HN"),
+      cajasDe(jornada.data).toLocaleString("es-HN")
+    ]), {
+      foot: [["", "Total", totalPuntos.toLocaleString("es-HN"), totalCajas.toLocaleString("es-HN")]],
+      footStyles: { fillColor: BANDA, textColor: AZUL_PROFUNDO, fontStyle: "bold", fontSize: 7.8 },
+      didParseCell: (data) => { if (data.section === "foot" && data.column.index >= 2) data.cell.styles.halign = "right"; },
+      columnStyles: { 0: { cellWidth: 9, halign: "center" }, 2: { halign: "right", cellWidth: 15 }, 3: { halign: "right", cellWidth: 13 } }
+    });
   }
 
-  if (mapImageDataUrl && !tecnico) {
-    const altoMapa = Math.min(100, util * (820 / 1400));
-    const anchoMapa = altoMapa * (1400 / 820);
-    if (y + altoMapa + 18 > alto - PIE - 4) y = (doc.addPage("letter", "portrait"), 16);
-    try {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(...AZUL_PROFUNDO);
-      doc.text(varias ? "Zona trabajada en las jornadas" : "Zona trabajada en la jornada", MARGEN, y);
-      ponerMapa(mapImageDataUrl, MARGEN, y + 2, anchoMapa, altoMapa);
-      const leyenda = leyendaGeneral || leyendaDeTipos(jornadas.flatMap((jornada) => jornada.data.zones));
-      y = (leyenda.length ? dibujarLeyenda(leyenda, MARGEN, y + altoMapa + 7, util) : y + altoMapa + 4) + 5;
-    } catch { /* sin mapa, el informe sigue */ }
+  if (conLaminas) {
+    titulito("Índice de láminas", MARGEN, y);
+    const porBarrio = new Map(barrios.map((barrio) => [barrio.overrideKey || barrio.zone, barrio.displayName || barrio.zone]));
+    tablaResumen(["Lámina", "Barrio", "Folios", "Puntos"], laminas.map((lamina) => [
+      `L${lamina.numero}`,
+      porBarrio.get(lamina.barrio) || lamina.barrio,
+      lamina.desde === lamina.hasta ? String(lamina.desde) : `${lamina.desde}–${lamina.hasta}`,
+      lamina.puntos.length.toLocaleString("es-HN")
+    ]), {
+      columnStyles: { 0: { cellWidth: 13, fontStyle: "bold" }, 2: { cellWidth: 20 }, 3: { halign: "right", cellWidth: 14 } }
+    });
   }
 
-  if (mapImageDataUrl && tecnico) {
-    // Zona trabajada: a la derecha del resumen, con su leyenda debajo.
-    const xMapa = MARGEN + anchoResumen + 6;
-    const anchoMapa = ancho - MARGEN - xMapa;
-    const altoMapa = Math.min(alto - inicioResumen - PIE - 22, anchoMapa * (820 / 1400));
-    try {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(...AZUL_PROFUNDO);
-      doc.text(varias ? "Zona trabajada en las jornadas" : "Zona trabajada en la jornada", xMapa, inicioResumen);
-      ponerMapa(mapImageDataUrl, xMapa, inicioResumen + 2, anchoMapa, altoMapa);
-      const leyenda = leyendaGeneral || leyendaDeTipos(jornadas.flatMap((jornada) => jornada.data.zones));
-      const finLeyenda = leyenda.length ? dibujarLeyenda(leyenda, xMapa, inicioResumen + altoMapa + 7, anchoMapa) : inicioResumen + altoMapa + 4;
-      y = Math.max(y, finLeyenda + 4);
-    } catch { /* sin mapa, el informe sigue */ }
-  }
+  if (tecnico) dibujarMapaGeneral();
 
   if (notas) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(...AZUL_PROFUNDO);
-    doc.text("Observaciones", MARGEN, y);
+    const lineas = doc.splitTextToSize(notas, anchoResumen);
+    if (y + lineas.length * 4 + 8 > limiteInferior) y = nuevaHoja();
+    titulito("Observaciones", MARGEN, y);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.6);
     doc.setTextColor(...TINTA);
-    const lineas = doc.splitTextToSize(notas, util);
     doc.text(lineas, MARGEN, y + 5);
     y += lineas.length * 4 + 9;
   }
 
-  // ---------- Detalle por jornada y barrio ----------
-  const folioDe = (punto, indice) => String(folios?.get(punto) ?? indice + 1);
-
-  // Al lado (o debajo) del mapa del barrio: folios, puntos por tipo y datos del barrio.
-  const resumenBarrio = (zona, xInicio, yInicio, anchoTotal, { columnas = 1 } = {}) => {
-    const anchoLado = columnas === 2 ? anchoTotal / 2 - 6 : anchoTotal;
-    let x = xInicio;
-    let yLado = yInicio;
-    const numeros = zona.items.map((punto) => folios?.get(punto)).filter(Boolean);
-    const datos = [
-      ["Folios", numeros.length ? `${Math.min(...numeros)} al ${Math.max(...numeros)}` : "--"],
-      ["Puntos", String(zona.items.length)],
-      ...((zona.hojas?.length || 0) > 1 ? [["Hojas del mapa", String(zona.hojas.length)]] : []),
-      ["Claves registradas", String(zona.clavesTotal ?? 0)],
-      ["Cajas de registro", String(zona.items.filter((punto) => punto.point_type === "caja_registro").length)]
-    ];
-    if (tecnico) datos.push(["Precisión promedio", zona.averageAccuracy != null ? `${zona.averageAccuracy} m` : "--"]);
-    doc.setFontSize(8.4);
-    for (const [etiqueta, valor] of datos) {
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...TENUE);
-      doc.text(etiqueta, x, yLado);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...TINTA);
-      doc.text(valor, x + anchoLado, yLado, { align: "right" });
-      yLado += 4.8;
-    }
-    const finDatos = yLado;
-    if (columnas === 2) { x = xInicio + anchoTotal / 2 + 6; yLado = yInicio; } else yLado += 2;
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...AZUL_PROFUNDO);
-    doc.text("Puntos por tipo", x, yLado);
-    yLado += 5;
-    const porTipo = new Map();
-    for (const punto of zona.items) {
-      const etiqueta = getMapPointTypeLabel(punto.point_type);
-      const actual = porTipo.get(etiqueta) || { color: getPointTypeStyle(punto.point_type).color, total: 0 };
-      actual.total += 1;
-      porTipo.set(etiqueta, actual);
-    }
-    for (const [etiqueta, { color, total }] of [...porTipo].sort((a, b) => b[1].total - a[1].total)) {
-      doc.setFillColor(...rgb(color));
-      doc.roundedRect(x, yLado - 2.9, 5, 3.6, 1.6, 1.6, "F");
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...TINTA);
-      doc.text(doc.splitTextToSize(etiqueta, anchoLado - 16)[0], x + 7, yLado);
-      doc.setTextColor(...TENUE);
-      doc.text(String(total), x + anchoLado, yLado, { align: "right" });
-      yLado += 4.6;
-    }
-    return Math.max(yLado, finDatos);
-  };
+  // ---------- Tabla de puntos ----------
   const columnas = tecnico
     ? {
-      head: [["#", "Tipo", "Latitud", "Longitud", "Precisión", "Referencia cercana", "Referencia", "Descripción", "Hora"]],
-      fila: (punto, indice) => [
-        folioDe(punto, indice),
-        `${getMapPointTypeLabel(punto.point_type)}${punto.is_terminal_point ? " · pin final" : ""}`,
-        formatCoordinate(punto.latitude),
-        formatCoordinate(punto.longitude),
-        punto.accuracy_meters ? `${punto.accuracy_meters} m` : "--",
-        punto.suggested_reference || "--",
-        getMapPointReferenceNote(punto) || "--",
-        getMapPointTechnicalDescription(punto) || "--",
-        hora(punto.created_at)
+      head: [["#", "Clave", "Tipo", "Descripción", "Coordenadas", "± m", "Fecha"]],
+      fila: (punto) => [
+        String(folios.get(punto) ?? ""),
+        punto.report_key || "--",
+        tipoCorto(punto.point_type),
+        descripcionDe(punto),
+        `${coordenada(punto.latitude)}, ${coordenada(punto.longitude)}`,
+        Number(punto.accuracy_meters) > 0 ? Number(punto.accuracy_meters).toLocaleString("es-HN", { maximumFractionDigits: 1 }) : "--",
+        fechaHora(punto)
       ],
-      estilos: { 0: { cellWidth: 10, halign: "center", fontStyle: "bold" }, 1: { cellWidth: 26 }, 2: { cellWidth: 19 }, 3: { cellWidth: 19 }, 4: { cellWidth: 18 }, 5: { cellWidth: 36 }, 6: { cellWidth: 35 }, 8: { cellWidth: 17 } }
+      estilos: { 0: { cellWidth: 10, halign: "center", fontStyle: "bold" }, 1: { cellWidth: 22, fontStyle: "bold" }, 2: { cellWidth: 20 }, 4: { cellWidth: 34, fontSize: 6.8 }, 5: { cellWidth: 9, halign: "right", fontSize: 6.8 }, 6: { cellWidth: 18, fontSize: 6.8 } }
     }
     : {
-      head: [["#", "Clave / abonado", "Nombre en padrón", "Tipo", "Referencia", "Descripción"]],
-      fila: (punto, indice, zona) => [
-        folioDe(punto, indice),
+      head: [["#", "Clave / abonado", "Nombre en padrón", "Tipo", "Descripción", "Fecha"]],
+      fila: (punto) => [
+        String(folios.get(punto) ?? ""),
         getMapPointReportReferenceLabel(punto),
         getMapPointPadronNames(punto, padronNames),
-        getMapPointTypeLabel(punto.point_type),
-        getMapPointReferenceNote(punto) || zona.displayLocation || "--",
-        getMapPointTechnicalDescription(punto) || "--"
+        tipoCorto(punto.point_type),
+        descripcionDe(punto),
+        fechaHora(punto)
       ],
-      estilos: { 0: { cellWidth: 10, halign: "center", fontStyle: "bold" }, 1: { cellWidth: 28 }, 2: { cellWidth: 38 }, 3: { cellWidth: 24 }, 4: { cellWidth: 34 } }
+      estilos: { 0: { cellWidth: 10, halign: "center", fontStyle: "bold" }, 1: { cellWidth: 26, fontStyle: "bold" }, 2: { cellWidth: 36 }, 3: { cellWidth: 19 }, 5: { cellWidth: 18, fontSize: 6.8 } }
     };
+  const columnaTipo = tecnico ? 2 : 3;
+  const tablaDePuntos = (puntos, startY) => {
+    autoTable(doc, {
+      ...tablaBase,
+      startY,
+      head: columnas.head,
+      body: puntos.map((punto) => Object.assign(columnas.fila(punto), { rawPoint: punto })),
+      didParseCell: (data) => {
+        estiloPunto(data);
+        if (data.section === "body" && data.column.index === columnaTipo) data.cell.styles.cellPadding = { top: 1.2, bottom: 1.2, left: 4.2, right: 1.2 };
+      },
+      // Un punto del color del tipo, como en el mapa.
+      didDrawCell: (data) => {
+        if (data.section !== "body" || data.column.index !== columnaTipo) return;
+        const punto = data.row.raw?.rawPoint;
+        if (!punto) return;
+        doc.setFillColor(...rgb(getPointTypeStyle(punto.point_type).color));
+        doc.circle(data.cell.x + 2.2, data.cell.y + 2.75, 1.05, "F");
+      },
+      columnStyles: columnas.estilos,
+      margin: { left: MARGEN, right: MARGEN, top: 16, bottom: PIE + 4 }
+    });
+    return (doc.lastAutoTable?.finalY ?? startY + 20) + 6;
+  };
 
-  const nuevaHoja = () => { doc.addPage("letter", tecnico ? "landscape" : "portrait"); return 16; };
+  // ---------- Barrios y láminas ----------
+  const anchoLamina = util;
+  const altoLamina = util * PROPORCION_LAMINA;
+  // En horizontal el mapa general ocupa la columna derecha de la hoja 1: los barrios
+  // empiezan en otra hoja. En vertical siguen donde termina el índice si caben.
+  if (tecnico) y = nuevaHoja();
+  else y += 4;
+  barrios.forEach((barrio) => {
+    const propias = (barrio.laminas || []).filter((lamina) => imagenDe.has(lamina.numero));
+    const referencia = String(barrio.displayReference || "").trim();
+    const datos = [
+      plural(barrio.items.length, "punto", "puntos"),
+      `${plural(barrio.clavesTotal ?? 0, "clave", "claves")}`,
+      plural(barrio.items.filter(esCaja).length, "caja", "cajas"),
+      tecnico && barrio.averageAccuracy != null ? `precisión promedio ${barrio.averageAccuracy} m` : "",
+      varias && barrio.dias?.length ? (barrio.dias.length === 1 ? fechaLarga(barrio.dias[0]) : `${barrio.dias.length} jornadas`) : ""
+    ].filter(Boolean).join(" · ");
+    doc.setFontSize(8);
+    const lineaRef = tecnico && referencia ? doc.splitTextToSize(`Referencia: ${referencia}`, util - 8)[0] : "";
+    const altoBanda = lineaRef ? 15 : 11;
+    const primerBloque = propias.length ? altoLamina + 10 : 0;
+    if (y > 16 && y + altoBanda + primerBloque + 18 > limiteInferior) y = nuevaHoja();
 
-  jornadas.forEach((jornada, indiceDia) => {
-    if (varias) {
-      // Cada día en su propia hoja: se puede separar y adjuntar por día.
-      y = nuevaHoja();
-      doc.setFillColor(...AZUL_PROFUNDO);
-      doc.rect(MARGEN, y, util, 11, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(255, 255, 255);
-      doc.text(`Día ${indiceDia + 1} · ${fechaConDia(jornada.dateKey)}`, MARGEN + 4, y + 7.2);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text(`${plural(jornada.data.totalPoints, "punto", "puntos")} · ${plural(jornada.data.totalZones, "barrio", "barrios")}`, ancho - MARGEN - 4, y + 7.2, { align: "right" });
-      y += 16;
-
-      // Mapa del día a la izquierda; a la derecha, sus barrios y la leyenda de tipos.
-      const mapaDia = mapasPorDia[jornada.dateKey];
-      if (mapaDia && !tecnico) {
-        // En vertical: el mapa a todo el ancho y la leyenda debajo; los barrios siguen en las tablas.
-        const altoMapa = Math.min(95, util * (640 / 1200));
-        const anchoMapa = altoMapa * (1200 / 640);
-        try {
-          ponerMapa(mapaDia, MARGEN, y, anchoMapa, altoMapa);
-          y = dibujarLeyenda(leyendaDeTipos(jornada.data.zones), MARGEN, y + altoMapa + 5, util) + 5;
-        } catch { /* sin mapa del día, siguen las tablas */ }
-      } else if (mapaDia) {
-        const anchoMapa = util * 0.6;
-        const altoMapa = anchoMapa * (640 / 1200);
-        try {
-          ponerMapa(mapaDia, MARGEN, y, anchoMapa, altoMapa);
-          const xLado = MARGEN + anchoMapa + 8;
-          const anchoLado = ancho - MARGEN - xLado;
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.setTextColor(...AZUL_PROFUNDO);
-          doc.text("Barrios del día", xLado, y + 4);
-          let yLado = y + 9.5;
-          doc.setFontSize(8.4);
-          for (const zona of jornada.data.zones) {
-            if (yLado > y + altoMapa - 22) { doc.setFont("helvetica", "normal"); doc.setTextColor(...TENUE); doc.text(`y ${plural(jornada.data.zones.length - jornada.data.zones.indexOf(zona), "barrio", "barrios")} más`, xLado, yLado); yLado += 4.6; break; }
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(...TINTA);
-            doc.text(doc.splitTextToSize(zona.displayName || zona.zone, anchoLado - 18)[0], xLado, yLado);
-            doc.setTextColor(...TENUE);
-            doc.text(String(zona.items.length), ancho - MARGEN, yLado, { align: "right" });
-            yLado += 4.6;
-          }
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(8.4);
-          doc.setTextColor(...AZUL_PROFUNDO);
-          doc.text("Tipos de punto", xLado, yLado + 3);
-          dibujarLeyenda(leyendaDeTipos(jornada.data.zones), xLado, yLado + 8, anchoLado);
-          y += altoMapa + 7;
-        } catch { /* sin mapa del día, siguen las tablas */ }
-      }
-    } else if (y > alto - 60) {
-      y = nuevaHoja();
+    // Encabezado del barrio: nombre y láminas arriba, cifras debajo.
+    doc.setFillColor(...BANDA);
+    doc.rect(MARGEN, y, util, altoBanda, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...AZUL_PROFUNDO);
+    doc.text(barrio.displayName || barrio.zone, MARGEN + 3.5, y + 5.6);
+    if (propias.length) {
+      doc.setFontSize(8.5);
+      const rango = propias.length === 1 ? `Lámina L${propias[0].numero}` : `Láminas L${propias[0].numero} a L${propias[propias.length - 1].numero}`;
+      doc.text(rango, ancho - MARGEN - 3.5, y + 5.6, { align: "right" });
     }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TENUE);
+    doc.text(datos, MARGEN + 3.5, y + 9.6);
+    if (lineaRef) doc.text(lineaRef, MARGEN + 3.5, y + 13.4);
+    y += altoBanda + 4;
 
-    if (!jornada.data.zones.length) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...TENUE);
-      doc.text("Esta jornada no tiene puntos en los barrios elegidos.", MARGEN, y + 4);
-      y += 10;
+    if (!propias.length) {
+      y = tablaDePuntos(barrio.items, y);
       return;
     }
-
-    jornada.data.zones.forEach((zona, indiceZona) => {
-      doc.setFontSize(8.4);
-      const referencia = doc.splitTextToSize(`Referencia sugerida: ${zona.displayReference || "Sin contexto cercano"}`, util - 8);
-      const ubicacion = doc.splitTextToSize(`Ubicación: ${zona.displayLocation || "Sin dirección ampliada"}`, util - 8);
-      const lineas = tecnico ? [...referencia, ...ubicacion] : ubicacion;
-      const altoBanda = 8 + lineas.length * 3.8;
-      const hojasMapa = mapasPorBarrio[claveMapaBarrio(jornada.dateKey, zona)] || [];
-      const anchoMapaTec = util * 0.64;
-      const altoMapaTec = anchoMapaTec * (860 / 1500);
-      const altoMapaCen = util * (860 / 1500);
-      const altoMapaBarrio = !hojasMapa.length ? 0 : tecnico ? altoMapaTec + 6 : altoMapaCen + 40;
-      if (y + altoBanda + altoMapaBarrio + 22 > alto - PIE - 4) y = nuevaHoja();
-
-      doc.setFillColor(...BANDA);
-      doc.rect(MARGEN, y, util, altoBanda, "F");
-      doc.setFillColor(...AZUL);
-      doc.rect(MARGEN, y, 1.2, altoBanda, "F");
+    propias.forEach((lamina) => {
+      // El mapa se achica (hasta el 70 %) si así cabe en lo que queda de la hoja.
+      const disponible = limiteInferior - y - 26;
+      const escala = disponible >= altoLamina ? 1 : disponible >= altoLamina * 0.7 ? disponible / altoLamina : 0;
+      if (!escala) y = nuevaHoja();
+      const factor = escala || 1;
+      // Rótulo de la lámina a la izquierda y los tipos presentes a la derecha.
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
+      doc.setFontSize(9.5);
       doc.setTextColor(...AZUL_PROFUNDO);
-      doc.text(`${zona.displayKicker || `Zona ${indiceZona + 1}`}: ${zona.displayName || zona.zone}`, MARGEN + 4, y + 5.5);
+      const rotulo = `Lámina L${lamina.numero}`;
+      doc.text(rotulo, MARGEN, y + 3);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setTextColor(...TENUE);
-      doc.text(plural(zona.items.length, "punto", "puntos"), ancho - MARGEN - 4, y + 5.5, { align: "right" });
-      doc.setFontSize(8.4);
-      doc.text(lineas, MARGEN + 4, y + 9.6);
-      let inicioTabla = y + altoBanda + 2;
-
-      // Mapa del barrio con los folios de la tabla: en horizontal, a la izquierda con el
-      // resumen a la derecha; en vertical, a todo el ancho con el resumen en dos columnas.
-      // Un barrio grande trae varias hojas del mapa; las demás siguen, una por bloque.
-      const rotuloHoja = (hoja) => `Hoja ${hoja.indice + 1} de ${hoja.total} · folios ${hoja.desde === hoja.hasta ? hoja.desde : `${hoja.desde} al ${hoja.hasta}`}`;
-      hojasMapa.forEach((hoja, posicion) => {
-        try {
-          const altoBloque = tecnico ? altoMapaTec + 6 : altoMapaCen + (posicion === 0 ? 40 : 10);
-          if (posicion > 0 && inicioTabla + altoBloque > alto - PIE - 4) inicioTabla = nuevaHoja();
-          if (tecnico) {
-            ponerMapa(hoja.imagen, MARGEN, inicioTabla + 1, anchoMapaTec, altoMapaTec);
-            const xLado = MARGEN + anchoMapaTec + 7;
-            const anchoLado = ancho - MARGEN - xLado;
-            let yLado = inicioTabla + 5;
-            if (hoja.total > 1) {
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(9.5);
-              doc.setTextColor(...AZUL_PROFUNDO);
-              doc.text(doc.splitTextToSize(rotuloHoja(hoja), anchoLado), xLado, yLado);
-              yLado += 9;
-            }
-            if (posicion === 0) resumenBarrio(zona, xLado, yLado, anchoLado);
-            else {
-              doc.setFont("helvetica", "normal");
-              doc.setFontSize(8.4);
-              doc.setTextColor(...TENUE);
-              doc.text(`${zona.displayName || zona.zone}`, xLado, yLado, { maxWidth: anchoLado });
-              doc.text(plural(hoja.puntos.length, "punto en esta hoja", "puntos en esta hoja"), xLado, yLado + 5);
-            }
-            inicioTabla += altoMapaTec + 6;
-          } else {
-            ponerMapa(hoja.imagen, MARGEN, inicioTabla + 1, util, altoMapaCen);
-            let yPie = inicioTabla + altoMapaCen + 6;
-            if (hoja.total > 1) {
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(9);
-              doc.setTextColor(...AZUL_PROFUNDO);
-              doc.text(rotuloHoja(hoja), MARGEN, yPie);
-              yPie += 5.5;
-            }
-            inicioTabla = posicion === 0 ? resumenBarrio(zona, MARGEN, yPie + 1, util, { columnas: 2 }) + 2 : yPie + 1;
-          }
-        } catch { /* sin esta hoja del mapa, sigue el informe */ }
-      });
-      if (hojasMapa.length && inicioTabla + 22 > alto - PIE - 4) inicioTabla = nuevaHoja();
-
-      // Con varias hojas, la tabla lleva un subtítulo al empezar los puntos de cada una.
-      const inicioDeHoja = new Map(hojasMapa.length > 1 ? hojasMapa.map((hoja) => [hoja.puntos[0], hoja]) : []);
-      const filas = [];
-      zona.items.forEach((punto, indice) => {
-        const hoja = inicioDeHoja.get(punto);
-        if (hoja) filas.push([{ content: rotuloHoja(hoja), colSpan: columnas.head[0].length, styles: { fillColor: BANDA, textColor: AZUL_PROFUNDO, fontStyle: "bold" } }]);
-        const fila = columnas.fila(punto, indice, zona);
-        fila.rawPoint = punto;
-        filas.push(fila);
-      });
-
-      autoTable(doc, {
-        ...tablaBase,
-        startY: inicioTabla,
-        head: columnas.head,
-        body: filas,
-        didParseCell: estiloPunto,
-        columnStyles: columnas.estilos,
-        margin: { left: MARGEN, right: MARGEN, top: 16, bottom: PIE + 4 }
-      });
-      y = (doc.lastAutoTable?.finalY ?? y + 20) + 7;
+      const detalle = ` · folios ${lamina.desde === lamina.hasta ? lamina.desde : `${lamina.desde} al ${lamina.hasta}`} · ${plural(lamina.puntos.length, "punto", "puntos")}`;
+      doc.setFontSize(9.5);
+      const anchoRotulo = doc.getTextWidth(rotulo);
+      doc.setFontSize(8);
+      doc.text(detalle.trim(), MARGEN + anchoRotulo + 1.6, y + 3);
+      dibujarLeyenda(leyendaDeTipos(lamina.puntos), MARGEN + util * 0.45, y + 3, util * 0.55, { alinearDerecha: true });
+      try {
+        ponerMapa(imagenDe.get(lamina.numero), MARGEN, y + 5.5, anchoLamina * factor, altoLamina * factor);
+        y += altoLamina * factor + 9;
+      } catch {
+        y += 7;
+      }
+      y = tablaDePuntos(lamina.puntos, y);
     });
   });
 
