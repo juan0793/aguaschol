@@ -270,6 +270,14 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - Teclado: N nuevo, / buscar, ? atajos; sobre una tarjeta, flechas para moverse, Enter abre, F fija, A archiva, D duplica, C copia y Supr elimina (con "Deshacer"). El foco sigue a la tarjeta al fijarla y pasa a la vecina al archivar o eliminar. En teléfono no se muestra el botón de atajos.
   - Con un filtro activo, el apunte nuevo toma ese color y esa categoría. La creación rápida sugiere las categorías existentes.
   - QA: `frontend/qa-apuntes.html` con datos en memoria (`?vista=lista`, `?orden=updated`, `?filtro=Entregas&nuevo=1`, `?oscuro=1`).
+- "Generar documento" de Reportes GPS (rediseño 2026-10-19). Panel lateral de 500px (hoja inferior en el teléfono), sin numeración de pasos ni cajas por sección: secciones planas separadas por filetes, en el orden en que se decide.
+  - "Tipo de documento" primero: cuatro filas con icono del sistema en un recuadro (técnico `map`, censo `users`, resumen `records`, regulador `auth`); la elegida va en azul claro con el recuadro en azul y el icono en blanco.
+  - "Jornadas" (técnico y censo) y "Barrios": título con icono, la cifra elegida al lado y los enlaces a la derecha; casillas en dos columnas, lo no marcado queda tenue. Mientras cargan las jornadas todo dice "Cargando…", nunca "sin puntos".
+  - "Opciones" con interruptores (mapa de cada barrio; claves compartidas y deuda en el resumen ligero) y "Salida" como control segmentado (PDF o Imprimir), solo cuando hay elección.
+  - El encabezado del documento (título, subtítulo, descripción) va plegado al final y muestra el título actual.
+  - Pie fijo: a la izquierda lo que sale ("98 puntos · 3 barrios" y la jornada), a la derecha "Vista previa" y la acción principal, que muestra el paso en curso al generar. No hay "Cancelar": cierran la X, Esc y el fondo.
+  - QA: `frontend/qa-generar-documento.html?abrir=1` (datos simulados).
+
 ### Busqueda de clave
 
 La busqueda debe sentirse como herramienta de campo:

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Icon } from "../../components/Icon";
 
 export default function ReportDialog({ open, onClose, title, children, variant = "modal", labelledBy }) {
   const panelRef = useRef(null);
@@ -34,7 +35,7 @@ export default function ReportDialog({ open, onClose, title, children, variant =
   return (
     <div className={`reports-dialog-backdrop is-${variant}`} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section ref={panelRef} className={`reports-dialog reports-dialog-${variant}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <header><h2 id={titleId}>{title}</h2><button type="button" className="reports-icon-button" onClick={onClose} aria-label="Cerrar">×</button></header>
+        <header><h2 id={titleId}>{title}</h2><button type="button" className="reports-icon-button" onClick={onClose} aria-label="Cerrar"><Icon name="close" /></button></header>
         {children}
       </section>
     </div>

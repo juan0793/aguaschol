@@ -18,10 +18,10 @@ import "../../components/ds/design-system.css";
 import "./reports.css";
 
 const DOCUMENT_TYPES = [
-  ["technical", "Técnico con coordenadas", "Coordenadas, referencias y datos de campo."],
-  ["brief", "Resumen ligero", "Listado compacto para revisión rápida."],
-  ["census", "Censo sin coordenadas", "Referencias y datos del padrón, sin GPS."],
-  ["regulator", "Ente regulador", "Consolida jornadas y personal técnico."]
+  ["technical", "Técnico con coordenadas", "Coordenadas, referencias y datos de campo.", "map"],
+  ["census", "Censo sin coordenadas", "Clave, nombre en el padrón y referencias, sin GPS.", "users"],
+  ["brief", "Resumen ligero", "Listado compacto para revisión rápida.", "records"],
+  ["regulator", "Ente regulador", "Consolida jornadas y personal técnico.", "auth"]
 ];
 
 export default function ReportsWorkspace({ model }) {
@@ -68,6 +68,8 @@ export default function ReportsWorkspace({ model }) {
   const admiteJornadas = documentType === "technical" || documentType === "census";
   const variasJornadas = admiteJornadas && (jornadasInforme.length > 1 || (jornadasInforme.length === 1 && jornadasInforme[0] !== model.activeDateKey));
   const claveJornadas = [...jornadasInforme].sort().join(",");
+  // Entre que se marca una jornada y llegan sus puntos, todo cuenta como "cargando".
+  const esperandoJornadas = variasJornadas && (cargandoJornadas || (datosJornadas.clave !== claveJornadas && !datosJornadas.error));
 
   // Con otras jornadas, sus puntos se piden para mostrar los barrios de todas.
   useEffect(() => {
@@ -155,17 +157,127 @@ export default function ReportsWorkspace({ model }) {
 
     <ReportDialog open={generatorOpen} onClose={() => setGeneratorOpen(false)} title="Generar documento" variant="drawer">
       <div className="report-generator">
-        <div className="report-generator-intro"><span>{variasJornadas ? `${jornadasInforme.length === 1 ? "Jornada" : `${jornadasInforme.length} jornadas`} del informe` : "Jornada seleccionada"}</span><strong>{textoDeJornadas}</strong><p>Elige el formato, las jornadas y los barrios que debe incluir el documento.</p></div>
-        <fieldset className="report-generator-heading"><legend>1 · Encabezado</legend><label><span>Título del documento</span><input name="title" value={model.settings.title} onChange={model.onSettingsChange} /></label><label><span>Institución o subtítulo</span><input name="subtitle" value={model.settings.subtitle} onChange={model.onSettingsChange} /></label><label><span>Descripción</span><textarea name="description" rows="2" value={model.settings.description} onChange={model.onSettingsChange} /></label></fieldset>
-        <fieldset className="report-generator-types"><legend>2 · Tipo de reporte</legend><div className="report-type-grid" role="radiogroup" aria-label="Tipo de reporte">{DOCUMENT_TYPES.map(([value, label, detail]) => <label key={value} className={`report-type-card ${documentType === value ? "is-selected" : ""}`}><input type="radio" name="documentType" value={value} checked={documentType === value} onChange={(event) => setDocumentType(event.target.value)} /><span><strong>{label}</strong><small>{detail}</small></span></label>)}</div></fieldset>
-        {admiteJornadas ? <fieldset className="report-zone-selector report-jornadas"><legend>3 · Jornadas</legend><div className="report-zone-selector-head"><span><strong>{jornadasInforme.length}</strong> {jornadasInforme.length === 1 ? "jornada" : "jornadas"} · cada día va en su propia hoja</span><div><button type="button" className="report-link" onClick={() => setJornadasInforme([model.activeDateKey].filter(Boolean))}>Solo la de pantalla</button></div></div><div className="report-zone-checklist">{jornadasConPuntos.slice(0, limiteJornadas).map((day) => <label key={day.key} className={jornadasInforme.includes(day.key) ? "" : "is-excluded"}><input type="checkbox" checked={jornadasInforme.includes(day.key)} onChange={() => alternarJornada(day.key)} /><span><strong>{day.label}{day.key === model.activeDateKey ? " · en pantalla" : ""}</strong><small>{day.total} {Number(day.total) === 1 ? "punto" : "puntos"}</small></span></label>)}</div>{limiteJornadas < jornadasConPuntos.length ? <button type="button" className="report-link" onClick={() => setLimiteJornadas((valor) => valor + 14)}>Ver más jornadas</button> : null}</fieldset> : null}
-        <fieldset className="report-generator-format" disabled={documentType === "regulator" || variasJornadas}><legend>{admiteJornadas ? "4" : "3"} · Salida del documento</legend><div className="report-format-options"><label className={documentFormat === "pdf" ? "is-selected" : ""}><input type="radio" name="documentFormat" value="pdf" checked={documentFormat === "pdf"} onChange={(event) => setDocumentFormat(event.target.value)} /><span><strong>Descargar PDF</strong><small>Guardar como archivo</small></span></label><label className={documentFormat === "print" ? "is-selected" : ""}><input type="radio" name="documentFormat" value="print" checked={documentFormat === "print"} onChange={(event) => setDocumentFormat(event.target.value)} /><span><strong>Imprimir</strong><small>Enviar a una impresora</small></span></label></div>{documentType === "regulator" ? <small className="report-format-hint">Este tipo se descarga directamente como PDF.</small> : variasJornadas ? <small className="report-format-hint">Con otras jornadas el informe se descarga en PDF; desde el PDF puedes imprimirlo.</small> : null}</fieldset>
-        {documentType !== "regulator" ? <fieldset className="report-zone-selector"><legend>{admiteJornadas ? "5" : "4"} · Barrios y puntos</legend><div className="report-zone-selector-head"><span><strong>{includedPoints.toLocaleString("es-HN")}</strong> puntos · {barriosIncluidos.length} de {barriosDisponibles.length} barrios</span><div><button type="button" className="report-link" onClick={() => setExcludedZones([])}>Todos</button><button type="button" className="report-link" onClick={() => setExcludedZones(barriosDisponibles.map((zone) => zone.overrideKey))}>Ninguno</button></div></div>{cargandoJornadas ? <p className="report-generator-empty">Cargando los puntos de las jornadas…</p> : null}{datosJornadas.error && variasJornadas ? <p className="report-generator-empty">{datosJornadas.error}</p> : null}<div className="report-zone-checklist">{barriosDisponibles.map((zone) => <label key={zone.overrideKey} className={excludedZones.includes(zone.overrideKey) ? "is-excluded" : ""}><input type="checkbox" checked={!excludedZones.includes(zone.overrideKey)} onChange={() => toggleZone(zone.overrideKey)} /><span><strong>{zone.displayName}</strong><small>{zone.total} {zone.total === 1 ? "punto" : "puntos"}{variasJornadas && zone.dias > 1 ? ` · ${zone.dias} días` : ""}</small></span></label>)}</div>{!barriosDisponibles.length && !cargandoJornadas ? <p className="report-generator-empty">{variasJornadas ? "Estas jornadas no tienen puntos guardados." : "No hay puntos guardados para esta jornada."}</p> : null}<button type="button" className="button-secondary report-edit-points" onClick={() => { setGeneratorOpen(false); setTab("records"); }}>Revisar datos de los puntos</button></fieldset> : null}
-        {admiteJornadas && (documentFormat === "pdf" || variasJornadas) ? <fieldset className="report-generator-options"><legend>Para el catastro</legend><label><input type="checkbox" checked={reportOptions.mapaPorBarrio} onChange={(event) => setReportOptions((current) => ({ ...current, mapaPorBarrio: event.target.checked }))} /><span><strong>Mapa de cada barrio</strong><small>Antes de cada tabla, el barrio ampliado con cada punto numerado igual que en la tabla. Suma una hoja por barrio.</small></span></label></fieldset> : null}
-        {documentType === "brief" ? <fieldset className="report-generator-options"><legend>Agregar al final</legend><label><input type="checkbox" checked={reportOptions.sharedKeys} onChange={(event) => setReportOptions((current) => ({ ...current, sharedKeys: event.target.checked }))} /><span><strong>Claves compartidas</strong><small>Lista abonados agrupados por la misma clave catastral base.</small></span></label><label><input type="checkbox" checked={reportOptions.debtSummary} onChange={(event) => setReportOptions((current) => ({ ...current, debtSummary: event.target.checked }))} /><span><strong>Deuda de abonados</strong><small>Agrega un listado compacto y el total adeudado.</small></span></label></fieldset> : null}
-        <div className="report-generator-summary"><span>Incluido en el documento</span><strong>{documentType === "regulator" ? "Informe para ente regulador" : `${includedPoints.toLocaleString("es-HN")} puntos en ${barriosIncluidos.length} barrios`}</strong><small>{documentType === "regulator" ? formatMapDiaryLabel(model.activeDateKey) : textoDeJornadas} · {documentFormat === "pdf" || documentType === "regulator" || variasJornadas ? "PDF" : "Impresión"}</small></div>
+        <section className="rg-section" aria-labelledby="rg-tipo">
+          <h3 id="rg-tipo" className="rg-title">Tipo de documento</h3>
+          <div className="rg-types" role="radiogroup" aria-labelledby="rg-tipo">
+            {DOCUMENT_TYPES.map(([value, label, detail, icon]) => (
+              <label key={value} className={`rg-type ${documentType === value ? "is-selected" : ""}`}>
+                <input type="radio" name="documentType" value={value} checked={documentType === value} onChange={(event) => setDocumentType(event.target.value)} />
+                <span className="rg-type-icon"><Icon name={icon} /></span>
+                <span className="rg-type-text"><strong>{label}</strong><small>{detail}</small></span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        {admiteJornadas ? (
+          <section className="rg-section" aria-labelledby="rg-jornadas">
+            <div className="rg-head">
+              <h3 id="rg-jornadas" className="rg-title"><Icon name="calendar" />Jornadas</h3>
+              <span className="rg-count"><strong>{jornadasInforme.length}</strong> {jornadasInforme.length === 1 ? "elegida" : "elegidas"}</span>
+              {variasJornadas ? <button type="button" className="report-link" onClick={() => setJornadasInforme([model.activeDateKey].filter(Boolean))}>Solo la de pantalla</button> : null}
+            </div>
+            {variasJornadas ? <p className="rg-hint">Cada día va en su propia hoja del PDF.</p> : null}
+            <div className="rg-checklist rg-days">
+              {jornadasConPuntos.slice(0, limiteJornadas).map((day) => (
+                <label key={day.key} className={jornadasInforme.includes(day.key) ? "is-checked" : ""}>
+                  <input type="checkbox" checked={jornadasInforme.includes(day.key)} onChange={() => alternarJornada(day.key)} />
+                  <span><strong>{day.label}</strong><small>{Number(day.total).toLocaleString("es-HN")} {Number(day.total) === 1 ? "punto" : "puntos"}{day.key === model.activeDateKey ? " · en pantalla" : ""}</small></span>
+                </label>
+              ))}
+            </div>
+            {limiteJornadas < jornadasConPuntos.length ? <button type="button" className="report-link rg-more" onClick={() => setLimiteJornadas((valor) => valor + 14)}>Ver más jornadas</button> : null}
+          </section>
+        ) : null}
+
+        {documentType !== "regulator" ? (
+          <section className="rg-section" aria-labelledby="rg-barrios">
+            <div className="rg-head">
+              <h3 id="rg-barrios" className="rg-title"><Icon name="map" />Barrios</h3>
+              <span className="rg-count"><strong>{barriosIncluidos.length}</strong> de {barriosDisponibles.length}</span>
+              <span className="rg-links">
+                <button type="button" className="report-link" onClick={() => setExcludedZones([])}>Todos</button>
+                <button type="button" className="report-link" onClick={() => setExcludedZones(barriosDisponibles.map((zone) => zone.overrideKey))}>Ninguno</button>
+              </span>
+            </div>
+            {esperandoJornadas ? <p className="rg-hint is-loading">Cargando los puntos de las jornadas…</p> : null}
+            {datosJornadas.error && variasJornadas ? <p className="rg-hint is-error">{datosJornadas.error}</p> : null}
+            {!esperandoJornadas && barriosDisponibles.length ? (
+              <div className="rg-checklist">
+                {barriosDisponibles.map((zone) => (
+                  <label key={zone.overrideKey} className={excludedZones.includes(zone.overrideKey) ? "" : "is-checked"}>
+                    <input type="checkbox" checked={!excludedZones.includes(zone.overrideKey)} onChange={() => toggleZone(zone.overrideKey)} />
+                    <span><strong title={zone.displayName}>{zone.displayName}</strong><small>{zone.total.toLocaleString("es-HN")} {zone.total === 1 ? "punto" : "puntos"}{variasJornadas && zone.dias > 1 ? ` · ${zone.dias} días` : ""}</small></span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            {!barriosDisponibles.length && !esperandoJornadas ? <p className="rg-hint">{variasJornadas ? "Estas jornadas no tienen puntos guardados." : "No hay puntos guardados para esta jornada."}</p> : null}
+            <button type="button" className="report-link rg-more" onClick={() => { setGeneratorOpen(false); setTab("records"); }}><Icon name="edit" />Revisar datos de los puntos</button>
+          </section>
+        ) : null}
+
+        {(admiteJornadas && (documentFormat === "pdf" || variasJornadas)) || documentType === "brief" ? (
+          <section className="rg-section" aria-labelledby="rg-opciones">
+            <h3 id="rg-opciones" className="rg-title"><Icon name="settings" />Opciones</h3>
+            <div className="rg-options">
+              {admiteJornadas ? (
+                <label className="rg-option">
+                  <span><strong>Mapa de cada barrio</strong><small>Hojas del mapa a escala, con cada punto numerado igual que en la tabla.</small></span>
+                  <input type="checkbox" role="switch" checked={reportOptions.mapaPorBarrio} onChange={(event) => setReportOptions((current) => ({ ...current, mapaPorBarrio: event.target.checked }))} />
+                </label>
+              ) : null}
+              {documentType === "brief" ? (
+                <>
+                  <label className="rg-option">
+                    <span><strong>Claves compartidas</strong><small>Al final, los abonados agrupados por la misma clave catastral base.</small></span>
+                    <input type="checkbox" role="switch" checked={reportOptions.sharedKeys} onChange={(event) => setReportOptions((current) => ({ ...current, sharedKeys: event.target.checked }))} />
+                  </label>
+                  <label className="rg-option">
+                    <span><strong>Deuda de abonados</strong><small>Al final, un listado compacto y el total adeudado.</small></span>
+                    <input type="checkbox" role="switch" checked={reportOptions.debtSummary} onChange={(event) => setReportOptions((current) => ({ ...current, debtSummary: event.target.checked }))} />
+                  </label>
+                </>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {documentType !== "regulator" && !variasJornadas ? (
+          <section className="rg-section" aria-labelledby="rg-salida">
+            <h3 id="rg-salida" className="rg-title">Salida</h3>
+            <div className="rg-segmented" role="radiogroup" aria-labelledby="rg-salida">
+              {[["pdf", "Descargar PDF", "download"], ["print", "Imprimir", "print"]].map(([value, label, icon]) => (
+                <label key={value} className={documentFormat === value ? "is-selected" : ""}>
+                  <input type="radio" name="documentFormat" value={value} checked={documentFormat === value} onChange={(event) => setDocumentFormat(event.target.value)} />
+                  <Icon name={icon} />{label}
+                </label>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <details className="rg-section rg-heading">
+          <summary>
+            <span className="rg-title"><Icon name="edit" />Encabezado del documento</span>
+            <span className="rg-heading-value">{model.settings.title || "Sin título"}</span>
+            <Icon name="chevronDown" className="rg-chevron" />
+          </summary>
+          <div className="rg-fields">
+            <label><span>Título</span><input name="title" value={model.settings.title} onChange={model.onSettingsChange} /></label>
+            <label><span>Institución o subtítulo</span><input name="subtitle" value={model.settings.subtitle} onChange={model.onSettingsChange} /></label>
+            <label><span>Descripción</span><textarea name="description" rows="3" value={model.settings.description} onChange={model.onSettingsChange} /></label>
+          </div>
+        </details>
       </div>
-      <footer className="reports-dialog-actions report-generator-actions"><button type="button" className="button-secondary" onClick={() => setGeneratorOpen(false)}>Cancelar</button>{documentType !== "regulator" && !variasJornadas ? <button type="button" className="button-secondary" onClick={() => generate({ preview: true })} disabled={!includedZones.length}><Icon name="search" />Vista previa</button> : null}<button type="button" onClick={() => generate()} disabled={Boolean(progreso) || ((!barriosIncluidos.length || cargandoJornadas) && documentType !== "regulator")} aria-busy={Boolean(progreso) || cargandoJornadas}><Icon name={documentType === "regulator" || documentFormat === "pdf" || variasJornadas ? "download" : "print"} />{progreso || (cargandoJornadas && variasJornadas ? "Cargando jornadas…" : documentType === "regulator" ? "Descargar informe" : documentFormat === "pdf" || variasJornadas ? "Descargar PDF" : "Imprimir documento")}</button></footer>
+      <footer className="reports-dialog-actions report-generator-actions">
+        <div className="rg-footer-summary" aria-live="polite">
+          <strong>{documentType === "regulator" ? "Informe para ente regulador" : esperandoJornadas ? "Cargando jornadas…" : `${includedPoints.toLocaleString("es-HN")} ${includedPoints === 1 ? "punto" : "puntos"} · ${barriosIncluidos.length} ${barriosIncluidos.length === 1 ? "barrio" : "barrios"}`}</strong>
+          <small>{documentType === "regulator" ? formatMapDiaryLabel(model.activeDateKey) : textoDeJornadas}</small>
+        </div>
+        {documentType !== "regulator" && !variasJornadas ? <button type="button" className="button-secondary" onClick={() => generate({ preview: true })} disabled={!includedZones.length}><Icon name="eye" />Vista previa</button> : null}
+        <button type="button" className="rg-primary" onClick={() => generate()} disabled={Boolean(progreso) || ((!barriosIncluidos.length || esperandoJornadas) && documentType !== "regulator")} aria-busy={Boolean(progreso) || esperandoJornadas}><Icon name={documentType === "regulator" || documentFormat === "pdf" || variasJornadas ? "download" : "print"} />{progreso || (esperandoJornadas ? "Cargando…" : documentType === "regulator" ? "Descargar informe" : documentFormat === "pdf" || variasJornadas ? "Descargar PDF" : "Imprimir")}</button>
+      </footer>
     </ReportDialog>
 
     <ReportDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Configuración del reporte" variant="drawer">

@@ -171,7 +171,7 @@
 .reports-dialog > header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.1rem; background: var(--ds-surface); border-bottom: 1px solid var(--ds-border); }
 .reports-dialog h2 { margin: 0; font-size: 1.1rem; }
 .reports-icon-button { width: 32px; height: 32px; padding: 0; border-radius: 50%; background: var(--ds-surface-subtle); color: var(--ds-blue-deep); box-shadow: none; }
-.reports-dialog-drawer { position: absolute; right: 0; top: 0; height: 100%; max-height: none; width: min(460px, 100vw); border-radius: var(--ds-radius-lg) 0 0 var(--ds-radius-lg); animation: report-drawer-in 200ms ease; }
+.reports-dialog-drawer { position: absolute; right: 0; top: 0; height: 100%; max-height: none; width: min(500px, 100%); border-radius: var(--ds-radius-lg) 0 0 var(--ds-radius-lg); animation: report-drawer-in 200ms ease; }
 .reports-dialog-preview { width: min(1200px, 98vw); height: 96vh; max-height: 96vh; }
 .reports-dialog-actions { position: sticky; bottom: 0; display: flex; gap: 0.5rem; padding: 0.9rem 1.1rem; background: var(--ds-surface); border-top: 1px solid var(--ds-border); justify-content: flex-end; }
 
@@ -185,30 +185,9 @@
 
 .report-generator, .report-settings-form { display: grid; gap: 0.9rem; padding: 1rem 1.1rem; }
 .report-generator fieldset, .report-settings-form fieldset { display: grid; gap: 0.55rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-sm); padding: 0.85rem; }
-.report-generator label { display: flex; gap: 0.55rem; }
-.report-generator input[type="radio"], .report-generator input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; flex: 0 0 18px; margin: 1px 0 0; accent-color: var(--ds-blue); }
-.report-generator-heading label { display: grid; gap: 0.25rem; font-weight: 650; }
-.report-generator-heading input, .report-generator-heading textarea { width: 100%; }
-.report-generator-intro { display: grid; gap: 0.15rem; padding: 0.1rem 0 0.2rem; }
-.report-generator-intro > span, .report-generator-summary > span { color: var(--ds-text-muted); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-.report-generator-intro > strong { color: var(--ds-text); font-size: 1rem; }
-.report-generator-intro p { margin: 0.1rem 0 0; color: var(--ds-text-muted); font-size: 0.82rem; line-height: 1.4; }
-.report-generator legend { padding: 0 0.25rem; color: var(--ds-text); font-size: 0.78rem; font-weight: 800; }
-.report-type-grid, .report-format-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; }
-.report-generator .report-type-card, .report-generator .report-format-options label { position: relative; align-items: flex-start; min-width: 0; min-height: 76px; padding: 0.65rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-input); background: var(--ds-surface); cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
-.report-generator .report-type-card:hover, .report-generator .report-format-options label:hover { border-color: var(--ds-blue); }
-.report-generator .report-type-card.is-selected, .report-generator .report-format-options label.is-selected { border-color: var(--ds-blue); background: var(--ds-blue-soft); }
-.report-type-card > span, .report-format-options label > span { display: grid; gap: 0.2rem; min-width: 0; }
-.report-type-card strong, .report-format-options strong { color: var(--ds-text); font-size: 0.76rem; line-height: 1.25; }
-.report-type-card small, .report-format-options small { color: var(--ds-text-muted); font-size: 0.67rem; font-weight: 400; line-height: 1.35; }
-.report-generator-format:disabled { opacity: 0.68; }
-.report-format-hint { color: var(--ds-text-muted); font-size: 0.72rem; }
 .report-generator-options label { align-items: flex-start; padding: 0.6rem; border-radius: var(--ds-radius-input); background: var(--ds-surface-subtle); }
 .report-generator-options label > span { display: grid; gap: 0.1rem; }
 .report-generator-options small { color: var(--ds-text-muted); font-weight: 400; }
-.report-generator-summary { display: grid; gap: 0.2rem; padding: 0.75rem 0.85rem; border-left: 3px solid var(--ds-blue); background: var(--ds-blue-soft); border-radius: 0 var(--ds-radius-sm) var(--ds-radius-sm) 0; }
-.report-generator-summary > strong { color: var(--ds-text); font-size: 0.9rem; }
-.report-generator-summary > small { color: var(--ds-text-muted); font-size: 0.72rem; }
 .report-zone-selector-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; color: var(--ds-text-muted); font-size: 0.78rem; }
 .report-zone-selector-head > div { display: flex; gap: 0.75rem; }
 .report-zone-selector-head strong { color: var(--ds-text); font-variant-numeric: tabular-nums; }
@@ -218,8 +197,6 @@
 .report-zone-checklist label span { display: grid; gap: 0.05rem; min-width: 0; }
 .report-zone-checklist label strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .report-zone-checklist label small { color: var(--ds-text-muted); font-weight: 500; }
-.report-generator-empty { margin: 0; color: var(--ds-text-muted); font-size: 0.82rem; }
-.report-edit-points { justify-self: start; }
 .report-settings-form > label, .report-settings-form fieldset > label { display: grid; gap: 0.3rem; font-weight: 650; }
 .report-settings-form label span { display: flex; gap: 0.3rem; }
 .report-settings-form label span input { flex: 1; }
@@ -270,7 +247,7 @@
   .reports-primary-actions { position: static; }
   .report-day-modal-filters { grid-template-columns: 1fr; }
   .reports-dialog-backdrop { padding: 0; }
-  .reports-dialog { width: 100vw; height: 100vh; max-height: none; border-radius: 0; }
+  .reports-dialog { width: 100%; height: 100vh; max-height: none; border-radius: 0; }
   .reports-dialog-drawer { top: auto; bottom: 0; height: auto; max-height: 92vh; border-radius: var(--ds-radius-lg) var(--ds-radius-lg) 0 0; }
   .reports-dialog-preview { height: 100vh; }
   .report-preview-stage { height: calc(100vh - 150px); padding: 1rem; }
@@ -278,12 +255,6 @@
   .report-preview-actions span { display: none; }
   .report-preview-page { transform-origin: top left; }
   .report-zone-checklist { grid-template-columns: 1fr; }
-  .report-generator { gap: 0.7rem; padding: 0.8rem; }
-  .report-generator fieldset { padding: 0.7rem; }
-  .report-type-grid, .report-format-options { grid-template-columns: 1fr; }
-  .report-generator .report-type-card, .report-generator .report-format-options label { min-height: 0; }
-  .report-generator-actions { display: grid; grid-template-columns: 1fr 1fr; }
-  .report-generator-actions > button:first-child { grid-column: 1 / -1; }
   .report-debt-chart > div { grid-template-columns: 110px 1fr 90px; }
   .reports-tabs { padding-left: 0.3rem; }
 }
@@ -425,4 +396,108 @@
   .reports-workspace .rp-day, .reports-workspace .rp-day-trigger { width: 100%; min-width: 0; }
   .reports-workspace .rp-day-trigger strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .reports-workspace .rp-day-caret { margin-left: auto; }
+}
+
+
+/* ---------- Generar documento (rediseño 2026-10-19) ----------
+   Secciones planas separadas por filetes, en el orden en que se decide: tipo, jornadas,
+   barrios, opciones y salida. El encabezado del documento va plegado al final y el pie
+   fijo lleva el resumen y la acción. */
+.reports-dialog > header .reports-icon-button .app-icon { width: 18px; height: 18px; }
+.report-generator { display: block; padding: 0 1.15rem; }
+.rg-section { padding: 1rem 0 1.1rem; border-top: 1px solid var(--ds-border); }
+.rg-section:first-child { border-top: 0; padding-top: 0.9rem; }
+.rg-title { display: flex; align-items: center; gap: 0.45rem; margin: 0 0 0.65rem; color: var(--ds-text); font-size: 0.9rem; font-weight: 700; line-height: 1.3; }
+.rg-title .app-icon { width: 16px; height: 16px; color: var(--ds-blue); }
+.rg-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.75rem; margin-bottom: 0.65rem; }
+.rg-head .rg-title { margin: 0; }
+.rg-count { margin-right: auto; color: var(--ds-text-muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.rg-count strong { color: var(--ds-text); font-weight: 700; }
+.rg-links { display: flex; gap: 0.9rem; }
+.report-generator .report-link { font-size: 0.8rem; }
+.report-generator .report-link:focus-visible { outline: 2px solid var(--ds-blue); outline-offset: 3px; border-radius: 4px; }
+.rg-hint { margin: -0.3rem 0 0.65rem; color: var(--ds-text-muted); font-size: 0.78rem; line-height: 1.4; }
+.rg-hint.is-error { color: var(--ds-danger); }
+.rg-more { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.7rem; }
+.rg-more .app-icon { width: 14px; height: 14px; }
+
+/* Tipo de documento: filas con icono; la elegida en azul claro. */
+.rg-types { display: grid; gap: 0.4rem; }
+.rg-type { position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem 0.6rem 0.6rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-input); background: var(--ds-surface); cursor: pointer; transition: border-color 0.16s ease, background-color 0.16s ease; }
+.rg-type:hover { border-color: var(--ds-border-strong); }
+.rg-type input, .rg-segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.rg-type:has(input:focus-visible), .rg-segmented label:has(input:focus-visible) { outline: 2px solid var(--ds-blue); outline-offset: 2px; }
+.rg-type-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 9px; background: var(--ds-surface-subtle); color: var(--ds-blue-deep); transition: background-color 0.16s ease, color 0.16s ease; }
+.rg-type-icon .app-icon { width: 19px; height: 19px; }
+.rg-type-text { display: grid; gap: 0.1rem; min-width: 0; }
+.rg-type-text strong { color: var(--ds-text); font-size: 0.88rem; font-weight: 700; line-height: 1.3; }
+.rg-type-text small { color: var(--ds-text-muted); font-size: 0.76rem; line-height: 1.35; }
+.rg-type.is-selected { border-color: var(--ds-blue); background: var(--ds-blue-soft); }
+.rg-type.is-selected .rg-type-icon { background: var(--ds-blue); color: #fff; }
+
+/* Jornadas y barrios: casillas en dos columnas; lo no elegido queda tenue. */
+.rg-checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem; max-height: 232px; overflow: auto; padding: 2px; margin: -2px; scrollbar-width: thin; scrollbar-color: var(--ds-border-strong) transparent; }
+.rg-checklist label { display: flex; align-items: center; gap: 0.6rem; min-width: 0; padding: 0.5rem 0.6rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-input); background: var(--ds-surface-subtle); cursor: pointer; transition: border-color 0.16s ease, background-color 0.16s ease; }
+.rg-checklist label:hover { border-color: var(--ds-border-strong); }
+.rg-checklist label.is-checked { border-color: color-mix(in srgb, var(--ds-blue) 40%, transparent); background: var(--ds-surface); }
+.rg-checklist input { width: 16px; height: 16px; flex: 0 0 16px; margin: 0; accent-color: var(--ds-blue); }
+.rg-checklist label > span { display: grid; gap: 0.05rem; min-width: 0; }
+.rg-checklist strong { overflow: hidden; color: var(--ds-text-muted); font-size: 0.82rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.rg-checklist label.is-checked strong { color: var(--ds-text); }
+.rg-checklist small { color: var(--ds-text-muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+
+/* Opciones: interruptores. */
+.rg-options { display: grid; gap: 0.4rem; }
+.rg-option { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.65rem 0.75rem; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-input); cursor: pointer; }
+.rg-option > span { display: grid; gap: 0.1rem; min-width: 0; }
+.rg-option strong { color: var(--ds-text); font-size: 0.86rem; font-weight: 700; }
+.rg-option small { color: var(--ds-text-muted); font-size: 0.76rem; line-height: 1.35; }
+.rg-option input[role="switch"] { appearance: none; position: relative; flex: 0 0 38px; width: 38px; height: 22px; margin: 0; border-radius: 999px; background: var(--ds-border-strong); cursor: pointer; transition: background-color 0.18s ease; }
+.rg-option input[role="switch"]::before { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(22, 40, 59, 0.25); transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.rg-option input[role="switch"]:checked { background: var(--ds-blue); }
+.rg-option input[role="switch"]:checked::before { transform: translateX(16px); }
+.rg-option input[role="switch"]:focus-visible { outline: 2px solid var(--ds-blue); outline-offset: 2px; }
+
+/* Salida: control segmentado. */
+.rg-segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-input); background: var(--ds-surface-subtle); }
+.rg-segmented label { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.5rem 0.6rem; border-radius: calc(var(--ds-radius-input) - 3px); color: var(--ds-text-muted); font-size: 0.84rem; font-weight: 650; cursor: pointer; transition: background-color 0.16s ease, color 0.16s ease; }
+.rg-segmented label .app-icon { width: 16px; height: 16px; }
+.rg-segmented label.is-selected { background: var(--ds-surface); color: var(--ds-blue-deep); box-shadow: 0 1px 3px rgba(22, 40, 59, 0.12); }
+
+/* Encabezado del documento: plegado; al cerrarlo muestra el título actual. */
+.rg-heading summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; list-style: none; cursor: pointer; }
+.rg-heading summary::-webkit-details-marker { display: none; }
+.rg-heading summary .rg-title { margin: 0; }
+.rg-heading summary:focus-visible { outline: 2px solid var(--ds-blue); outline-offset: 4px; border-radius: 4px; }
+.rg-heading-value { overflow: hidden; color: var(--ds-text-muted); font-size: 0.8rem; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.rg-heading[open] .rg-heading-value { visibility: hidden; }
+.rg-chevron { width: 16px; height: 16px; color: var(--ds-text-muted); transition: transform 0.2s ease; }
+.rg-heading[open] .rg-chevron { transform: rotate(180deg); }
+.rg-fields { display: grid; gap: 0.7rem; margin-top: 0.85rem; }
+.rg-fields label { display: grid; gap: 0.3rem; }
+.rg-fields label > span { color: var(--ds-text); font-size: 0.8rem; font-weight: 650; }
+.rg-fields input, .rg-fields textarea { width: 100%; }
+
+/* Pie: resumen a la izquierda y la acción principal a la derecha. */
+.report-generator-actions { align-items: center; gap: 0.6rem; padding-bottom: calc(0.9rem + env(safe-area-inset-bottom)); }
+.rg-footer-summary { display: grid; gap: 0.1rem; min-width: 0; margin-right: auto; }
+.rg-footer-summary strong { color: var(--ds-text); font-size: 0.92rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rg-footer-summary small { overflow: hidden; color: var(--ds-text-muted); font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
+.report-generator-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; white-space: nowrap; }
+.report-generator-actions button .app-icon { width: 16px; height: 16px; }
+.rg-primary[aria-busy="true"] { cursor: progress; }
+
+@media (max-width: 640px) {
+  .report-generator { padding: 0 0.9rem; }
+  .rg-checklist { grid-template-columns: 1fr; max-height: 200px; }
+  .rg-type { grid-template-columns: 32px minmax(0, 1fr); gap: 0.6rem; padding: 0.5rem 0.6rem 0.5rem 0.5rem; }
+  .rg-type-icon { width: 32px; height: 32px; border-radius: 8px; }
+  .rg-type-icon .app-icon { width: 17px; height: 17px; }
+  .report-generator-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .rg-footer-summary { grid-column: 1 / -1; margin: 0; }
+  .report-generator-actions .rg-primary:only-of-type, .report-generator-actions > .rg-footer-summary + .rg-primary { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rg-type, .rg-type-icon, .rg-checklist label, .rg-segmented label, .rg-chevron, .rg-option input[role="switch"], .rg-option input[role="switch"]::before { transition: none; }
 }
