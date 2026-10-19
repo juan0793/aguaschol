@@ -21,7 +21,7 @@ import {
 } from "../../utils/mapReport";
 import { defaultMapReportSettings } from "../../constants/formsAndUi";
 import { escapeHtml } from "../../utils/html";
-import { formatCoordinate, getMapPointTypeLabel } from "../../utils/mapField";
+import { formatCoordinate, getMapPointContextKey, getMapPointTypeLabel } from "../../utils/mapField";
 import { formatCurrency } from "../../utils/formatting";
 import { formatDateTime, formatMapDiaryLabel } from "../../utils/datesAndBusiness";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
@@ -33,6 +33,12 @@ import { COLORES_DIA, dibujarMapaPuntos } from "./utils/reportMapImage";
 import { API_URL } from "../../config/api";
 import { applyMapReportZoneOverrides, buildMapReportData } from "./utils/mapReportBuilder";
 import { selectReportZones } from "./utils/reportSelectors";
+
+// Se conservan entre renders (la fábrica se vuelve a crear en cada uno): marcar otra
+// jornada en el diálogo solo pide la nueva, y un barrio ya consultado no se pide otra vez.
+const PUNTOS_VIGENCIA_MS = 2 * 60 * 1000;
+const puntosPorJornada = new Map(); // dateKey -> { points, at }
+const contextosConocidos = {};
 
 export function createMapReportPrinters({
   activeMapDiaryDateKey,
@@ -50,72 +56,92 @@ export function createMapReportPrinters({
 }) {
   // Datos del informe para varias jornadas. La jornada activa usa lo que ya está en
   // pantalla; las otras se piden a la API con su contexto (barrio y referencias).
-  const loadReportJornadas = async (claves = []) => {
+  const cargarPuntosJornada = async (dateKey) => {
+    const guardada = puntosPorJornada.get(dateKey);
+    if (guardada && Date.now() - guardada.at < PUNTOS_VIGENCIA_MS) return guardada.points;
+    const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
+    const data = await response.json().catch(() => []);
+    if (!response.ok) throw new Error(data.message || `No se pudieron cargar los puntos del ${formatMapDiaryLabel(dateKey)}.`);
+    const points = Array.isArray(data) ? data : [];
+    puntosPorJornada.set(dateKey, { points, at: Date.now() });
+    return points;
+  };
+
+  const loadReportJornadas = async (claves = [], { onProgreso } = {}) => {
     const unicas = [...new Set(claves.filter(Boolean))].sort();
     const otras = unicas.filter((dateKey) => dateKey !== activeMapDiaryDateKey);
-    const puntosPorDia = await Promise.all(otras.map(async (dateKey) => {
-      const response = await apiFetch(`/map-points?date=${encodeURIComponent(dateKey)}`);
-      const data = await response.json().catch(() => []);
-      if (!response.ok) throw new Error(data.message || `No se pudieron cargar los puntos del ${formatMapDiaryLabel(dateKey)}.`);
-      return { dateKey, points: Array.isArray(data) ? data : [] };
-    }));
-    const todos = puntosPorDia.flatMap((dia) => dia.points);
-    let contextos = {};
-    if (todos.length) {
+    onProgreso?.("Cargando puntos de las jornadas…");
+    const puntosPorDia = await Promise.all(otras.map(async (dateKey) => ({ dateKey, points: await cargarPuntosJornada(dateKey) })));
+    // Solo se piden los barrios que todavía no se conocen.
+    const sinContexto = puntosPorDia
+      .flatMap((dia) => dia.points)
+      .filter((point) => {
+        const clave = getMapPointContextKey(point);
+        return clave && !mapPointContexts[clave] && !contextosConocidos[clave];
+      });
+    if (sinContexto.length) {
+      onProgreso?.("Buscando barrios y referencias…");
       try {
         const response = await apiFetch("/map-points/context", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ points: todos.map((point) => ({ latitude: point.latitude, longitude: point.longitude })) })
+          body: JSON.stringify({ points: sinContexto.map((point) => ({ latitude: point.latitude, longitude: point.longitude })) })
         });
         const data = await response.json().catch(() => ({}));
-        if (response.ok) contextos = Object.fromEntries((Array.isArray(data.contexts) ? data.contexts : []).map((context) => [context.key, context]));
+        if (response.ok) (Array.isArray(data.contexts) ? data.contexts : []).forEach((context) => { contextosConocidos[context.key] = context; });
       } catch {
         // Sin contexto, el barrio sale de la clave de cada punto.
       }
     }
+    const contextos = { ...mapPointContexts, ...contextosConocidos };
     return unicas.map((dateKey) => {
       if (dateKey === activeMapDiaryDateKey && mapReportPrintData) return { dateKey, data: mapReportPrintData };
       const dia = puntosPorDia.find((item) => item.dateKey === dateKey);
-      const data = buildMapReportData({ points: dia?.points || [], contexts: { ...mapPointContexts, ...contextos }, barrioCodes: safeBarrioCodes });
+      const data = buildMapReportData({ points: dia?.points || [], contexts: contextos, barrioCodes: safeBarrioCodes });
       return { dateKey, data: applyMapReportZoneOverrides(data, mapReportSettings) };
     });
   };
 
   // Informe de campo en PDF (técnico o censo) de una o varias jornadas.
-  const descargarInformeCampo = async ({ tipo, includedZoneKeys, jornadas: claves } = {}) => {
-    const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+  // `jornadasCargadas`: las que el diálogo ya cargó para listar los barrios; si son las
+  // mismas jornadas se usan tal cual y no se vuelven a pedir.
+  const descargarInformeCampo = async ({ tipo, includedZoneKeys, jornadas: claves, jornadasCargadas, onProgreso } = {}) => {
+    const modulosPdf = Promise.all([import("jspdf"), import("jspdf-autotable")]);
     const lista = Array.isArray(claves) && claves.length ? claves : [activeMapDiaryDateKey].filter(Boolean);
     const soloActiva = lista.length === 1 && lista[0] === activeMapDiaryDateKey;
-    const crudas = soloActiva ? [{ dateKey: activeMapDiaryDateKey, data: mapReportPrintData }] : await loadReportJornadas(lista);
+    const mismasCargadas = Array.isArray(jornadasCargadas) && jornadasCargadas.length
+      && [...new Set(lista)].sort().join(",") === jornadasCargadas.map((jornada) => jornada.dateKey).join(",");
+    const crudas = soloActiva
+      ? [{ dateKey: activeMapDiaryDateKey, data: mapReportPrintData }]
+      : mismasCargadas ? jornadasCargadas : await loadReportJornadas(lista, { onProgreso });
     const jornadas = crudas.map((jornada) => ({ ...jornada, data: selectReportZones(jornada.data, includedZoneKeys, getMapPointTypeLabel) }));
-    const padronNames = tipo === "census"
-      ? (await buildMapReportPadronData({ zones: jornadas.flatMap((jornada) => jornada.data.zones) })).padronNames
-      : {};
+    onProgreso?.(jornadas.length > 1 ? `Dibujando ${jornadas.length + 1} mapas…` : "Dibujando el mapa…");
+    // Padrón, mapas y logo a la vez: cada mapa espera sus mosaicos por la red.
+    const padronPromesa = tipo === "census"
+      ? buildMapReportPadronData({ zones: jornadas.flatMap((jornada) => jornada.data.zones) }).then((datos) => datos.padronNames)
+      : Promise.resolve({});
     // Mapa de la zona trabajada (técnico y censo). Un mapa oficial adjunto en Configurar
     // tiene prioridad sobre el general dibujado.
-    let mapaGeneral = "";
-    let leyendaGeneral = null;
-    const mapasPorDia = {};
-    {
-      const puntosDe = (jornada) => jornada.data.zones.flatMap((zona) => zona.items);
-      const varias = jornadas.length > 1;
-      const colorDia = Object.fromEntries(jornadas.map((jornada, indice) => [jornada.dateKey, COLORES_DIA[indice % COLORES_DIA.length]]));
-      const conDia = jornadas.flatMap((jornada) => puntosDe(jornada).map((punto) => ({ ...punto, __jornada: jornada.dateKey })));
-      mapaGeneral = mapReportSettings.map_image_data_url || await dibujarMapaPuntos({
-        points: conDia,
-        apiUrl: API_URL,
-        colorDe: varias ? (punto) => colorDia[punto.__jornada] : null
-      }).catch(() => "");
-      if (varias && !mapReportSettings.map_image_data_url) {
-        leyendaGeneral = jornadas.map((jornada, indice) => ({ label: `Día ${indice + 1} · ${fechaLarga(jornada.dateKey)}`, color: colorDia[jornada.dateKey] }));
-      }
-      if (varias) {
-        for (const jornada of jornadas) {
-          mapasPorDia[jornada.dateKey] = await dibujarMapaPuntos({ points: puntosDe(jornada), apiUrl: API_URL, ancho: 1200, alto: 640 }).catch(() => "");
-        }
-      }
-    }
+    const puntosDe = (jornada) => jornada.data.zones.flatMap((zona) => zona.items);
+    const varias = jornadas.length > 1;
+    const colorDia = Object.fromEntries(jornadas.map((jornada, indice) => [jornada.dateKey, COLORES_DIA[indice % COLORES_DIA.length]]));
+    const conDia = jornadas.flatMap((jornada) => puntosDe(jornada).map((punto) => ({ ...punto, __jornada: jornada.dateKey })));
+    const mapaGeneralPromesa = mapReportSettings.map_image_data_url
+      ? Promise.resolve(mapReportSettings.map_image_data_url)
+      : dibujarMapaPuntos({ points: conDia, apiUrl: API_URL, colorDe: varias ? (punto) => colorDia[punto.__jornada] : null }).catch(() => "");
+    const mapasDiaPromesa = varias
+      ? Promise.all(jornadas.map(async (jornada) => [
+        jornada.dateKey,
+        await dibujarMapaPuntos({ points: puntosDe(jornada), apiUrl: API_URL, ancho: 1200, alto: 640 }).catch(() => "")
+      ]))
+      : Promise.resolve([]);
+    const [padronNames, mapaGeneral, mapasDia] = await Promise.all([padronPromesa, mapaGeneralPromesa, mapasDiaPromesa]);
+    const mapasPorDia = Object.fromEntries(mapasDia);
+    const leyendaGeneral = varias && !mapReportSettings.map_image_data_url
+      ? jornadas.map((jornada, indice) => ({ label: `Día ${indice + 1} · ${fechaLarga(jornada.dateKey)}`, color: colorDia[jornada.dateKey] }))
+      : null;
+    onProgreso?.("Armando el PDF…");
+    const [{ jsPDF }, autoTableModule] = await modulosPdf;
     let logoDataUrl = "";
     try { logoDataUrl = await urlToDataUrl(logoAguasCholuteca); } catch { logoDataUrl = ""; }
     const doc = crearInformeCampoPdf({

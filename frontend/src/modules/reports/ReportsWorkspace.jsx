@@ -44,6 +44,7 @@ export default function ReportsWorkspace({ model }) {
   const [jornadasInforme, setJornadasInforme] = useState(() => [model.activeDateKey].filter(Boolean));
   const [datosJornadas, setDatosJornadas] = useState({ clave: "", jornadas: [], error: "" });
   const [cargandoJornadas, setCargandoJornadas] = useState(false);
+  const [progreso, setProgreso] = useState("");
   const [limiteJornadas, setLimiteJornadas] = useState(14);
   const cargarJornadasRef = useRef(model.onLoadJornadas);
   cargarJornadasRef.current = model.onLoadJornadas;
@@ -121,7 +122,13 @@ export default function ReportsWorkspace({ model }) {
       census: format === "pdf" || variasJornadas ? model.onDownloadCensus : model.onPrintCensus,
       regulator: model.onDownloadRegulator
     };
-    actions[documentType]?.({ ...reportOptions, includedZoneKeys, ...(variasJornadas ? { jornadas: jornadasInforme } : {}) });
+    const accion = actions[documentType];
+    if (!accion) return;
+    const conJornadas = variasJornadas
+      ? { jornadas: jornadasInforme, jornadasCargadas: datosJornadas.clave === claveJornadas ? datosJornadas.jornadas : null, onProgreso: setProgreso }
+      : {};
+    setProgreso(variasJornadas ? "Preparando el informe…" : "");
+    Promise.resolve(accion({ ...reportOptions, includedZoneKeys, ...conJornadas })).finally(() => setProgreso(""));
   };
 
   const toggleZone = (zoneKey) => {
@@ -157,7 +164,7 @@ export default function ReportsWorkspace({ model }) {
         {documentType === "brief" ? <fieldset className="report-generator-options"><legend>Agregar al final</legend><label><input type="checkbox" checked={reportOptions.sharedKeys} onChange={(event) => setReportOptions((current) => ({ ...current, sharedKeys: event.target.checked }))} /><span><strong>Claves compartidas</strong><small>Lista abonados agrupados por la misma clave catastral base.</small></span></label><label><input type="checkbox" checked={reportOptions.debtSummary} onChange={(event) => setReportOptions((current) => ({ ...current, debtSummary: event.target.checked }))} /><span><strong>Deuda de abonados</strong><small>Agrega un listado compacto y el total adeudado.</small></span></label></fieldset> : null}
         <div className="report-generator-summary"><span>Incluido en el documento</span><strong>{documentType === "regulator" ? "Informe para ente regulador" : `${includedPoints.toLocaleString("es-HN")} puntos en ${barriosIncluidos.length} barrios`}</strong><small>{documentType === "regulator" ? formatMapDiaryLabel(model.activeDateKey) : textoDeJornadas} · {documentFormat === "pdf" || documentType === "regulator" || variasJornadas ? "PDF" : "Impresión"}</small></div>
       </div>
-      <footer className="reports-dialog-actions report-generator-actions"><button type="button" className="button-secondary" onClick={() => setGeneratorOpen(false)}>Cancelar</button>{documentType !== "regulator" && !variasJornadas ? <button type="button" className="button-secondary" onClick={() => generate({ preview: true })} disabled={!includedZones.length}><Icon name="search" />Vista previa</button> : null}<button type="button" onClick={() => generate()} disabled={(!barriosIncluidos.length || cargandoJornadas) && documentType !== "regulator"}><Icon name={documentType === "regulator" || documentFormat === "pdf" || variasJornadas ? "download" : "print"} />{documentType === "regulator" ? "Descargar informe" : documentFormat === "pdf" || variasJornadas ? "Descargar PDF" : "Imprimir documento"}</button></footer>
+      <footer className="reports-dialog-actions report-generator-actions"><button type="button" className="button-secondary" onClick={() => setGeneratorOpen(false)}>Cancelar</button>{documentType !== "regulator" && !variasJornadas ? <button type="button" className="button-secondary" onClick={() => generate({ preview: true })} disabled={!includedZones.length}><Icon name="search" />Vista previa</button> : null}<button type="button" onClick={() => generate()} disabled={Boolean(progreso) || ((!barriosIncluidos.length || cargandoJornadas) && documentType !== "regulator")} aria-busy={Boolean(progreso) || cargandoJornadas}><Icon name={documentType === "regulator" || documentFormat === "pdf" || variasJornadas ? "download" : "print"} />{progreso || (cargandoJornadas && variasJornadas ? "Cargando jornadas…" : documentType === "regulator" ? "Descargar informe" : documentFormat === "pdf" || variasJornadas ? "Descargar PDF" : "Imprimir documento")}</button></footer>
     </ReportDialog>
 
     <ReportDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Configuración del reporte" variant="drawer">

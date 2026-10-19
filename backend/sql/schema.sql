@@ -658,6 +658,14 @@ CREATE TABLE IF NOT EXISTS map_point_validation_logs (
   KEY idx_map_point_validation_logs_validator (validator_user_id)
 );
 
+CREATE TABLE IF NOT EXISTS map_point_contexts (
+  cell_key VARCHAR(32) NOT NULL PRIMARY KEY,
+  zone VARCHAR(255) NOT NULL DEFAULT '',
+  reference VARCHAR(255) NOT NULL DEFAULT '',
+  display_name VARCHAR(600) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS transport_routes (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(180) NOT NULL,

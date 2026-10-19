@@ -6,7 +6,7 @@ import {
   listMapPoints,
   updateMapPoint
 } from "../services/mapPointService.js";
-import { fetchMapPointContexts } from "../services/mapPointContextService.js";
+import { fetchMapPointContexts, prefetchMapPointContexts } from "../services/mapPointContextService.js";
 
 export const listMapPointsHandler = async (req, res, next) => {
   try {
@@ -30,6 +30,8 @@ export const createMapPointHandler = async (req, res, next) => {
   try {
     const point = await createMapPoint(req.body ?? {}, req.authUser);
     res.status(201).json(point);
+    // Su barrio y referencia quedan listos para el informe sin hacer esperar a nadie.
+    prefetchMapPointContexts([point]);
   } catch (error) {
     next(error);
   }

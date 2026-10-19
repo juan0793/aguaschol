@@ -484,6 +484,18 @@ const ensureSchema = async () => {
         )
       `
     );
+    // Barrio y referencia de Nominatim por celda de ~11 m: se consulta una sola vez.
+    await admin.query(
+      `
+        CREATE TABLE IF NOT EXISTS map_point_contexts (
+          cell_key VARCHAR(32) NOT NULL PRIMARY KEY,
+          zone VARCHAR(255) NOT NULL DEFAULT '',
+          reference VARCHAR(255) NOT NULL DEFAULT '',
+          display_name VARCHAR(600) NOT NULL DEFAULT '',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `
+    );
     await admin.query(
       `
         UPDATE map_points
