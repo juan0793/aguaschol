@@ -1,0 +1,197 @@
+/* Pantalla "Pozos": usa la bandeja del sistema (clases cl-* de clandestinos.css, como Inspecciones).
+   Aquí solo va lo propio: tabla de mediciones, orden por columna, vista de mapa y cajón del pozo. */
+.pz-module { min-height: calc(100vh - 80px); }
+.pz-module .sr-only, .pz-drawer .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pz-module ::selection, .pz-drawer ::selection { color: #fff; background: var(--primary, #1769e0); }
+
+/* Encabezado: estado de la actualización automática */
+.pz-acciones { display: flex; align-items: center; gap: 12px; }
+.pz-sync { display: inline-flex; align-items: center; gap: 7px; min-width: 150px; justify-content: flex-end; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pz-sync i { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--success); }
+.pz-sync.is-activo i { background: var(--primary); animation: pz-pulso 1s ease-in-out infinite; }
+.pz-sync.is-error { color: var(--danger); }
+.pz-sync.is-error i { background: var(--danger); }
+@keyframes pz-pulso { 50% { opacity: .35; transform: scale(.8); } }
+
+/* Barra de búsqueda: búsqueda, colonia y el cambio Lista/Mapa en una sola fila estable */
+.pz-module .cl-inbox .pz-toolbar { grid-template-columns: minmax(260px, 1fr) minmax(200px, 280px) auto; }
+.pz-modo { display: grid; gap: 6px; color: var(--navy); font-size: 12px; font-weight: 750; }
+.pz-modo > div { display: inline-flex; justify-self: start; padding: 3px; border: 1px solid #c9ddf4; border-radius: 11px; background: #fff; }
+.pz-module .pz-modo button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; box-shadow: none; cursor: pointer; transition: background-color .16s ease, color .16s ease; }
+.pz-module .pz-modo button:hover:not(.is-active) { color: var(--primary); transform: none; box-shadow: none; }
+.pz-module .pz-modo button.is-active { background: var(--navy); color: #fff; }
+.pz-modo .app-icon { width: 15px; height: 15px; margin: 0; }
+
+/* Métricas de las mediciones: misma franja plana que "Servicios registrados" de Clandestinos */
+.pz-metricas .cl-service-stat dt { color: var(--muted); font-size: 12px; font-weight: 650; }
+.pz-metricas .cl-service-stat dd { display: grid; gap: 1px; margin: 4px 0 0; }
+.pz-metricas .cl-service-stat strong { font-size: 20px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.pz-metricas .cl-service-stat strong small { color: var(--muted); font-size: 12px; font-weight: 600; }
+.pz-metricas .cl-service-stat dd span { font-size: 12px; font-variant-numeric: tabular-nums; }
+.pz-metricas .pz-fuera { color: var(--danger); font-weight: 700; }
+.pz-metricas .pz-dentro { color: var(--success); font-weight: 650; }
+
+/* Tabla de pozos: índice, orden por columna y mediciones alineadas a la derecha. Todas las columnas
+   se ven a cualquier ancho (la tabla de fichas oculta algunas bajo 1120 px): si no caben, la tabla
+   se desplaza de lado con el índice y el pozo fijos a la izquierda. */
+.pz-module .pz-tabla-wrap { min-height: 420px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.pz-module .pz-tabla { min-width: 1080px; table-layout: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pz-module .pz-tabla th, .pz-module .pz-tabla td { display: table-cell; width: auto; overflow-wrap: normal; }
+.pz-module .pz-tabla .pz-indice { position: sticky; left: 0; z-index: 2; width: 46px; min-width: 46px; background: #fff; }
+.pz-module .pz-tabla .pz-col-pozo { position: sticky; left: 46px; z-index: 2; background: #fff; box-shadow: 1px 0 0 var(--rs-rule, #dfe5ec); }
+.pz-module .pz-tabla thead .pz-col-pozo { z-index: 3; }
+.pz-module .pz-tabla tbody tr:hover .pz-indice, .pz-module .pz-tabla tbody tr:hover .pz-col-pozo { background: var(--rs-hover, #f3f6f9); }
+/* Sombra en el borde derecho mientras quedan columnas por ver; desaparece al llegar al final. */
+.pz-module .pz-tabla-wrap {
+  background:
+    linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right center / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 100% 50%, rgba(16, 42, 67, 0.18), transparent) right center / 14px 100% no-repeat scroll;
+}
+
+/* Variante plana (la de Fichas): cinco pestañas en columnas iguales con su cifra. */
+.is-flat.pz-module .cl-indicators { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@container (min-width: 601px) and (max-width: 1040px) {
+  .is-flat.pz-module .cl-indicators { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .is-flat.pz-module .cl-indicators button:nth-child(n + 5) { border-top: 0; }
+  .is-flat.pz-module .cl-indicators button:nth-child(4n + 1) { padding-left: 12px; }
+  .is-flat.pz-module .cl-indicators button:first-child { padding-left: 0; }
+}
+.is-flat.pz-module .pz-metricas .cl-service-stat strong { font-size: 22px; }
+.pz-sin-medir { margin: 0; padding: 10px 0; color: var(--muted); font-size: 13px; border-top: 1px solid #e4edf5; }
+.pz-module .pz-tabla thead th { position: sticky; top: 0; z-index: 1; padding: 0; }
+.is-flat.pz-module .pz-tabla .pz-orden { color: #52677c; font-size: 12px; font-weight: 650; }
+.pz-module .pz-tabla th.pz-indice { padding: 10px 8px 10px 2px; color: #52677c; font-size: 12px; }
+.pz-module .pz-tabla .pz-orden { display: inline-flex; align-items: center; gap: 4px; width: 100%; min-height: 44px; padding: 0 8px; border: 0; border-radius: 0; background: transparent; color: var(--navy); font-size: 13px; font-weight: 750; white-space: nowrap; box-shadow: none; cursor: pointer; }
+.pz-module .pz-tabla .pz-orden:hover { color: var(--primary); transform: none; box-shadow: none; }
+.pz-tabla th.pz-num .pz-orden { justify-content: flex-end; }
+.pz-orden small { color: var(--muted); font-size: 11px; font-weight: 600; }
+.pz-orden .app-icon { width: 13px; height: 13px; margin: 0; opacity: 0; transition: opacity .14s ease, transform .14s ease; }
+.pz-orden:hover .app-icon { opacity: .45; }
+.pz-tabla th[aria-sort="ascending"] .pz-orden .app-icon { opacity: 1; transform: rotate(180deg); }
+.pz-tabla th[aria-sort="descending"] .pz-orden .app-icon { opacity: 1; }
+.pz-tabla th[aria-sort="ascending"] .pz-orden, .pz-tabla th[aria-sort="descending"] .pz-orden { color: var(--primary); }
+.pz-tabla td { padding: 8px; }
+.pz-module .pz-tabla td:last-child { padding-right: 12px; }
+.pz-tabla td.pz-indice { padding-left: 2px; color: var(--muted); font-size: 12px; }
+.pz-tabla td.pz-num { text-align: right; white-space: nowrap; color: var(--navy); }
+.pz-tabla td.pz-num.is-vacio { color: #a7b6c6; }
+.pz-tabla td.pz-num.is-fuera { color: var(--danger); font-weight: 750; }
+.pz-tabla .pz-pozo { width: 200px; min-width: 0; }
+.pz-tabla .pz-pozo strong { display: inline-flex; align-items: center; gap: 6px; color: var(--navy); font-size: 13px; }
+.pz-tabla .pz-pozo strong .app-icon { width: 14px; height: 14px; color: var(--alert); }
+.pz-tabla .pz-pozo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pz-tabla .pz-colonia { min-width: 130px; color: var(--text); }
+.pz-tabla .cl-icon-button { width: 36px; min-height: 36px; }
+.pz-pagina { display: inline-flex; align-items: center; min-width: 54px; justify-content: center; color: var(--navy); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pz-module .pz-reintentar { margin-left: 8px; min-height: 30px; padding: 0 10px; border: 1px solid #efc6ca; border-radius: 8px; background: #fff; color: var(--danger); font-weight: 700; box-shadow: none; }
+
+/* Vista de mapa: alto fijo para que cambiar de vista no mueva el resto */
+.pz-vista-mapa { display: grid; gap: 8px; }
+.pz-nota { color: var(--muted); font-size: 12px; }
+.pz-fuente { margin-top: 16px !important; color: var(--muted); font-size: 12px; }
+.pz-fuente .app-icon { width: 13px; height: 13px; color: var(--alert); vertical-align: -2px; }
+
+.pz-mapa { position: relative; height: 620px; overflow: hidden; background: #e6ecf2; border: 1px solid #d8e5f1; border-radius: 13px; }
+.pz-mapa.is-compacto { height: 100%; min-height: 300px; border-radius: 12px; }
+.pz-mapa-lienzo { position: absolute; inset: 0; }
+.pz-capas { position: absolute; top: 10px; right: 10px; z-index: 500; display: inline-flex; padding: 3px; background: #fff; border-radius: 9px; box-shadow: 0 1px 4px rgba(11, 30, 52, 0.22); }
+.pz-capas button { min-height: 30px !important; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #627d98; font: 700 12px/1 Inter, system-ui, sans-serif; box-shadow: none; cursor: pointer; }
+.pz-capas button:hover { transform: none; box-shadow: none; color: #1769e0; }
+.pz-capas button.is-activo { background: #102a43; color: #fff; }
+.pz-leyenda { position: absolute; right: 10px; bottom: 22px; z-index: 500; display: flex; gap: 12px; padding: 6px 10px; color: #102a43; background: rgba(255, 255, 255, 0.94); border-radius: 7px; box-shadow: 0 1px 4px rgba(11, 30, 52, 0.18); font-size: 11px; font-weight: 650; }
+.pz-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.pz-pin { display: inline-block; width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(11, 30, 52, 0.45); }
+.pz-pin.is-uso { background: #1769e0; }
+.pz-pin.is-sin-dato { background: #7b8a9a; }
+.pz-pin-shell { background: none; border: 0; }
+.pz-pin-shell .pz-pin { width: 100%; height: 100%; box-sizing: border-box; cursor: pointer; transition: transform 160ms cubic-bezier(.22, 1, .36, 1); }
+.pz-pin-shell .pz-pin.is-activo { border-width: 3px; box-shadow: 0 0 0 4px rgba(23, 105, 224, 0.32), 0 2px 6px rgba(11, 30, 52, 0.5); }
+.pz-pin-shell:hover .pz-pin { transform: scale(1.25); }
+.leaflet-tooltip.pz-tooltip { padding: 4px 8px; color: #102a43; background: #fff; border: 1px solid #d8e5f1; border-radius: 6px; box-shadow: 0 2px 8px rgba(11, 30, 52, 0.16); font: 12px/1.4 Inter, system-ui, sans-serif; }
+
+/* Cajón del pozo */
+.pz-drawer-backdrop .pz-drawer { width: min(1040px, calc(100vw - 48px)); height: min(88vh, 780px); }
+.pz-drawer > header { align-items: flex-start; gap: 16px; }
+.pz-drawer-id { display: grid; gap: 4px; min-width: 0; }
+.pz-drawer-id h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0; color: var(--navy); font-size: 20px; line-height: 1.25; }
+.pz-drawer-id p { margin: 0; color: var(--muted); font-size: 13px; }
+.pz-codigo { color: var(--primary); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pz-estados { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pz-drawer-cuerpo { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr); gap: 22px; flex: 1; min-height: 0; overflow-y: auto; }
+.pz-drawer-datos { display: grid; align-content: start; gap: 18px; min-width: 0; }
+.pz-drawer-datos h3 { margin: 0 0 6px; color: var(--navy); font-size: 14px; font-weight: 750; }
+.pz-datos, .pz-mediciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0 16px; margin: 0; }
+.pz-dato, .pz-medicion { padding: 8px 0; border-top: 1px solid #e4edf5; }
+.pz-dato.is-ancho { grid-column: 1 / -1; }
+.pz-dato dt, .pz-medicion dt { color: var(--muted); font-size: 12px; font-weight: 650; }
+.pz-dato dd, .pz-medicion dd { margin: 2px 0 0; color: var(--navy); font-size: 14px; overflow-wrap: anywhere; }
+.pz-medicion strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.pz-medicion dd > span { margin-left: 4px; color: var(--muted); font-size: 12px; }
+.pz-medicion small { display: flex; align-items: center; gap: 4px; color: var(--success); font-size: 11px; font-weight: 650; }
+.pz-medicion small .app-icon { width: 12px; height: 12px; }
+.pz-medicion.is-fuera strong, .pz-medicion.is-fuera small { color: var(--danger); }
+.pz-observaciones { max-width: 72ch; margin: 0; color: var(--text); font-size: 13px; line-height: 1.55; }
+.pz-drawer-mapa { display: grid; grid-template-rows: minmax(300px, 1fr) auto; gap: 10px; min-height: 0; }
+.pz-sin-mapa { display: grid; place-items: center; align-content: center; gap: 6px; min-height: 300px; padding: 24px; color: var(--muted); text-align: center; border: 1px dashed #c9ddf4; border-radius: 12px; }
+.pz-sin-mapa .app-icon { width: 26px; height: 26px; color: var(--alert); }
+.pz-sin-mapa strong { color: var(--navy); }
+.pz-maps { justify-self: start; text-decoration: none; }
+.pz-drawer-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-top: 1px solid #e3ecf4; color: var(--muted); font-size: 13px; }
+.pz-drawer-pie > div { display: flex; gap: 8px; }
+
+@media (max-width: 1120px) {
+  .pz-module .cl-inbox .pz-toolbar { grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) auto; }
+}
+@media (max-width: 860px) {
+  .pz-drawer-cuerpo { grid-template-columns: minmax(0, 1fr); }
+  .pz-drawer-mapa { grid-template-rows: 280px auto; }
+}
+@media (max-width: 760px) {
+  /* Colonia y Lista/Mapa comparten fila para que la tabla suba. */
+  .pz-module .cl-inbox .pz-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .pz-module .cl-inbox .pz-toolbar .cl-search { grid-column: 1 / -1; }
+  .pz-modo { grid-column: auto; }
+  .pz-module .pz-modo button { padding: 0 10px; }
+  /* En el teléfono las mediciones se ven sin desplazar: Colonia, Uso y Diámetro van en el filtro y la ficha. */
+  .pz-module .pz-tabla { min-width: 0; }
+  .pz-module .pz-tabla .pz-indice { position: static; width: 34px; min-width: 34px; padding-left: 0; padding-right: 4px; }
+  .pz-module .pz-tabla .pz-col-pozo { left: 0; }
+  .pz-tabla .pz-pozo { width: 108px; }
+  .pz-module .pz-tabla th:nth-child(3), .pz-module .pz-tabla td:nth-child(3),
+  .pz-module .pz-tabla th:nth-child(4), .pz-module .pz-tabla td:nth-child(4),
+  .pz-module .pz-tabla th:nth-child(7), .pz-module .pz-tabla td:nth-child(7),
+  .pz-module .pz-tabla th:nth-child(10), .pz-module .pz-tabla td:nth-child(10),
+  .pz-module .pz-tabla th:nth-child(12), .pz-module .pz-tabla td:nth-child(12),
+  .pz-module .pz-tabla th:nth-child(13), .pz-module .pz-tabla td:nth-child(13),
+  .pz-module .pz-tabla th:nth-child(14), .pz-module .pz-tabla td:nth-child(14) { display: none; }
+  .pz-module .pz-tabla td.pz-num { padding: 8px 6px; }
+  .pz-module .pz-tabla .pz-orden { padding: 0 6px; }
+  .pz-orden small { display: none; }
+  .pz-acciones { width: 100%; justify-content: space-between; }
+  .pz-sync { justify-content: flex-start; min-width: 0; }
+  .pz-mapa { height: 420px; }
+  .pz-drawer-backdrop .pz-drawer { width: 100%; height: 100%; border-radius: 0; }
+  .pz-drawer-pie { padding: 10px 14px; }
+  .pz-drawer-pie > span { display: none; }
+  .pz-drawer-pie > div { width: 100%; }
+  .pz-drawer-pie > div > button { flex: 1 1 0; }
+}
+.pz-indicadores .is-short, .pz-tabla .is-short { display: none; }
+@media (max-width: 600px) {
+  .is-flat.pz-module .cl-indicators { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .is-flat.pz-module .cl-indicators button { min-height: 64px; padding: 10px 6px 8px; }
+  .is-flat.pz-module .cl-indicators button:first-child { padding-left: 0; }
+  .is-flat.pz-module .cl-indicators button:nth-child(n) { border-top: 0; }
+  .is-flat.pz-module .cl-indicators button strong { font-size: 20px; }
+  .pz-indicadores .is-long { display: none; }
+  .pz-indicadores .is-short { display: inline; }
+  .pz-tabla .is-long { display: none; }
+  .pz-tabla .is-short { display: inline; }
+  .pz-module .pz-tabla .pz-indice { width: 28px; min-width: 28px; }
+  .pz-tabla .pz-pozo { width: 96px; }
+  .pz-module .pz-tabla td.pz-num { padding: 6px 5px; }
+  .pz-module .pz-tabla .pz-orden { padding: 0 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pz-sync.is-activo i, .pz-pin-shell .pz-pin, .pz-orden .app-icon { animation: none; transition: none; }
+}

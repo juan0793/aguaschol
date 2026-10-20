@@ -412,3 +412,20 @@ Cuando se pida mejorar una pantalla:
 Prompt interno sugerido:
 
 > Mejora esta pantalla siguiendo `DESIGN.md`: sistema institucional de Aguas de Choluteca, operativo, claro, imprimible cuando aplique, sin estilo de landing page, usando la paleta azul existente y manteniendo los componentes simples.
+
+### Pozos (desde 2026-10-20)
+
+- Extensión del mundo de la bandeja de Clandestinos/Fichas en su variante plana (`cl-module is-flat`). Sin concept roll ni clave de semilla, porque el mundo se hereda.
+- Sin tarjetas. La pantalla tiene, en este orden:
+  - encabezado con alcance y chips de filtro;
+  - búsqueda con etiqueta, Colonia y Lista/Mapa;
+  - cinco pestañas en columnas iguales con su cifra y la marca azul deslizante (en teléfono, con etiquetas cortas);
+  - franja de métricas entre filetes: promedio, rango, número de pozos y cuántos quedan fuera del valor guía;
+  - tabla indexada de 20 filas con orden por columna.
+- La ficha se abre en el cajón del sistema (`cl-drawer`).
+- Las mediciones llevan decimales fijos por columna, con los puntos alineados. Un vacío se muestra como "—". El rojo se usa solo para pH fuera de 6.5–8.5 y TDS por encima de 1 g/L.
+- No salta:
+  - el alto se congela y se suelta (`alturaSuave`) al cambiar de pestaña, colonia, página, orden o vista, y tiene un piso mientras se busca;
+  - el refresco automático (cada 60 s y al volver a la pestaña) es silencioso: barra de 2 px. Un fallo se avisa en el indicador "Al día / Sin conexión", nunca con un aviso que empuje la tabla.
+- En teléfono, Pozo queda fijo a la izquierda y se ven Prof., Nivel, pH y TDS; el resto está en la ficha. Una sombra en el borde derecho indica que hay más columnas.
+

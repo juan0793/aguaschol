@@ -41,6 +41,7 @@ import {
   TeamActivityWorkspace,
   FallasWorkspace,
   PlanosWorkspace,
+  PozosWorkspace,
   ManagerDashboardWorkspace,
   DashboardWorkspace,
   TransportWorkspace,
@@ -869,6 +870,10 @@ function App() {
             <TeamActivityWorkspace apiFetch={apiFetch} session={session} onOpen={abrirActividadEquipo} />
           </Suspense>
         </main>
+      ) : workspaceView === "pozos" && (isAdmin || isManager) ? (
+        <Suspense fallback={<ModuleSkeleton title="los pozos" />}>
+          <PozosWorkspace apiFetch={apiFetch} />
+        </Suspense>
       ) : workspaceView === "fallas" && (isAdmin || isManager) ? (
         <main className="team-activity-layout">
           <Suspense fallback={<ModuleSkeleton title="las fallas del equipo" toolbar={false} rows={6} />}>

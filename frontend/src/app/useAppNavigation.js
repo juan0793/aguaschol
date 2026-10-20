@@ -256,6 +256,7 @@ export function useAppNavigation({
             { key: "fieldValidation", label: "Control territorial GPS", icon: "success", group: "gps", helper: "Historico y zonas" },
             { key: "mapReports", label: "Reportes GPS", icon: "records", group: "gps", helper: `${mapReportData.totalZones} zonas` },
             { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
+            { key: "pozos", label: "Pozos", icon: "water", group: "gps", helper: "Inventario y calidad del agua" },
             { key: "requests", label: "Consultas del padrón", icon: "dashboard", group: "control", helper: "Servicios, abonados y Alcaldía" },
             { key: "barrioCodes", label: "Barrios", icon: "map", group: "control", helper: `${safeBarrioCodes.length} codigos` },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },

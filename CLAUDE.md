@@ -75,3 +75,27 @@ Rules:
 - Cada lámina: rótulo, tipos presentes, mapa a todo el ancho (se achica hasta el 70 % si así cabe) y su tabla de una línea por punto: # · Clave · Tipo (punto de color) · Descripción (sin la clave del inicio; con "Ref.:" si hay) · Coordenadas · ± m · Fecha (censo: clave/abonado y nombre en padrón). Ya no hay portada por día ni "Referencia cercana" por fila (va una vez en el encabezado del barrio).
 - "Imprimir" de técnico y censo usa el mismo PDF: se carga en un iframe oculto y llama a `print()`; si falla, se descarga. Las versiones HTML de impresión de esos dos se quitaron.
 - Con los 508 puntos reales del 14 al 16 de octubre: técnico 49 → 28 hojas, censo 22. No se vio el diálogo de impresión del sistema (el panel del navegador no lo muestra).
+
+## Nota para Claude: pantalla Pozos (2026-10-20)
+
+- Menú "Pozos" en Territorio, solo administración y Gerencia (`/pozos`, vista `pozos`, `modules/pozos/`). Es solo consulta y usa la bandeja plana del sistema (`cl-module is-flat`, como Fichas):
+  - búsqueda (acepta "032"), Colonia y Lista/Mapa;
+  - pestañas Todos / En uso / Con calidad medida / Fuera del valor guía / Por revisar;
+  - franja de métricas de las mediciones;
+  - tabla indexada de 20 filas con orden por columna;
+  - ficha en `cl-drawer` (`PozoDetalle.jsx`, con mapa Leaflet y flechas ← →).
+- Detalles del diseño en DESIGN.md, sección "Pozos".
+- Datos:
+  - el archivo es `backend/data/pozos-choluteca.json`, generado del shapefile "Pozos Choluteca Part1" con `backend/scripts/convertir_pozos_shp.py` (Python de QGIS);
+  - un 0 en una medición se guarda como null;
+  - `GET /api/pozos` (`pozosRoutes.js`, `pozosService.js`) usa `requireRoles("admin","gerente")` y está en la lista cerrada de `managerAccess.js`;
+  - el servicio vuelve a leer el JSON cuando cambia su fecha de modificación y devuelve `actualizado`.
+- Actualización sin F5: la pantalla consulta cada 60 s y al volver a la pestaña, en silencio. Solo reemplaza los datos si cambió `actualizado`.
+- 65 pozos reales: Pchol.-032 trae la Y con un dígito de más (no va al mapa) y 18 códigos se repiten en pozos distintos.
+- Verificado:
+  - pruebas de `pozosService` (3) y `pozosFiltros` (10);
+  - `npm test` del backend (298);
+  - `npm run build`;
+  - `frontend/qa-pozos.html` (datos de prueba) capturado a 1440 y 390 px;
+  - revisión del agente de diseño de impeccable: en la segunda ronda, 6 de 8 arreglos resueltos; los 2 parciales (TDS en el teléfono y el registro en DESIGN.md) se corrigieron después, sin tercera revisión.
+- No se probó con sesión iniciada.

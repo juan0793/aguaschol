@@ -39,6 +39,7 @@ export const TeamActivityWorkspace = lazyWithRetry(() => import("../modules/acti
 export const FallasWorkspace = lazyWithRetry(() => import("../modules/fallas/FallasWorkspace"));
 
 export const PlanosWorkspace = lazyWithRetry(() => import("../modules/planos/PlanosWorkspace"));
+export const PozosWorkspace = lazyWithRetry(() => import("../modules/pozos/PozosWorkspace"));
 export const ManagerDashboardWorkspace = lazyWithRetry(() => import("../modules/dashboard/ManagerDashboardWorkspace"));
 
 export const ReportsWorkspace = lazyWithRetry(() => import("../modules/reports/ReportsWorkspace"));
@@ -79,6 +80,7 @@ export const MODULE_LOADERS = {
   fieldValidation: () => import("../components/FieldValidationWorkspace"),
   mapReports: () => import("../modules/reports/ReportsWorkspace"),
   planos: () => import("../modules/planos/PlanosWorkspace"),
+  pozos: () => import("../modules/pozos/PozosWorkspace"),
   profile: () => import("../components/profile/MyProfileWorkspace"),
   railwayUsage: () => import("../components/RailwayUsageWorkspace"),
   teamActivity: () => import("../modules/actividad/TeamActivityWorkspace"),

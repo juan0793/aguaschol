@@ -22,7 +22,7 @@ test("Gerencia consulta módulos autorizados con respuestas no almacenables", ()
     ["/api/claves", "/services/report"], ["/api/field-validation", "/findings"],
     ["/api/gis", "/lotes/12"], ["/api/gis", "/health"], ["/api/gis", "/barrios/report"], ["/api/gis", "/catastro/report"], ["/api/map-points", "/"],
     ["/api/planos", "/versiones"], ["/api/transport", "/"],
-    ["/api/admin/team-activity", "/"], ["/api/barrios", "/lookup"], ["/api/railway", "/summary"], ["/api/fallas", "/"]
+    ["/api/admin/team-activity", "/"], ["/api/barrios", "/lookup"], ["/api/railway", "/summary"], ["/api/fallas", "/"], ["/api/pozos", "/"]
   ]) {
     for (const method of ["GET", "HEAD"]) {
       const result = invoke(base, method, path);
@@ -33,7 +33,7 @@ test("Gerencia consulta módulos autorizados con respuestas no almacenables", ()
 });
 
 test("Gerencia no modifica datos ni accede a administración o exportaciones masivas", () => {
-  for (const base of ["/api/inspecciones", "/api/entregas", "/api/clandestinos", "/api/inmuebles", "/api/claves", "/api/planos", "/api/map-points", "/api/transport", "/api/field-validation"]) {
+  for (const base of ["/api/inspecciones", "/api/entregas", "/api/clandestinos", "/api/inmuebles", "/api/claves", "/api/planos", "/api/map-points", "/api/transport", "/api/field-validation", "/api/pozos"]) {
     for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
       assert.equal(invoke(base, method, "/").status, 403, `${method} ${base}`);
     }

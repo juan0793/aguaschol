@@ -15,6 +15,7 @@ export const READ_ROUTES = {
   "/api/railway": /^\/summary\/?$/,
   "/api/fallas": /^\/?$/,
   "/api/planos": /^\/(?:barrios|versiones|\d+\/elementos)\/?$/,
+  "/api/pozos": /^\/?$/,
   "/api/gis": /^\/(?:config|health|barrios(?:\.geojson|\/report|\/\d+(?:\/summary)?)?|manzanas|quebradas|lotes(?:\/\d+)?|catastro(?:\/report|\/\d+)?|search|resolve|levantamientos(?:\/\d+)?)\/?$/
 };
 export const QUERY_POSTS = {
