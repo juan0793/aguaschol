@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../../components/Icon";
-import { estadoClass, estadoDocumentoLabel, formatCount, formatDate, formatNumber, prioridadPendiente, tipoDocumentoLabel } from "../utils/entregasFormatters";
+import { estadoClass, estadoDocumentoLabel, formatCount, formatDate, formatLempiras, formatNumber, prioridadPendiente, tipoDocumentoLabel } from "../utils/entregasFormatters";
 import { NO_ENTREGADAS_FILTROS_INICIALES } from "../hooks/useNoEntregadas";
 import { addDaysIso } from "../utils/entregasDate";
 import LatticeLoader from "../../../components/micro/LatticeLoader";
@@ -38,6 +38,7 @@ export default function NoEntregadasTable({ model, config, personal, api, notify
     } catch (error) { notify(error.message); }
     finally { setCerrando(false); }
   };
+  const verSaldo = Boolean(config.permissions.can_view_saldo);
   const count = Object.entries(filters).filter(([key, value]) => !["estado", "q"].includes(key) && value).length;
   // Cuenta en vivo lo que el corte dejaria sin efecto, para poder verlo antes de
   // confirmar en vez de despues.
@@ -104,12 +105,13 @@ export default function NoEntregadasTable({ model, config, personal, api, notify
       <p className="ent-list-caption" role="status">{loading ? "Actualizando…" : `${formatNumber(total)} documentos · más antiguos primero`}</p>
     </div>
     {error ? <p className="cl-alert" role="alert">{error} <button type="button" onClick={model.reload}>Reintentar</button></p> : null}
-    <table className="cl-table ent-operational-table ent-documents-table"><thead><tr><th>Abonado / clave</th><th>Recorrido</th><th>Motivo</th><th>Seguimiento</th><th>Estado</th></tr></thead><tbody>
+    <table className={`cl-table ent-operational-table ent-documents-table${verSaldo ? " has-saldo" : ""}`}><thead><tr><th>Abonado / clave</th><th>Recorrido</th><th>Motivo</th><th>Seguimiento</th>{verSaldo ? <th className="ent-col-saldo">Saldo</th> : null}<th>Estado</th></tr></thead><tbody>
       {items.map((item) => <tr key={item.id} className={item.estado === "PENDIENTE" ? prioridadPendiente(item.dias_pendiente, item.intentos) : ""} onClick={() => onOpen(item)}>
         <td data-label="Abonado"><button type="button" className="ent-row-link" onClick={(event) => { event.stopPropagation(); onOpen(item); }}><strong>{item.numero_abonado || item.clave_catastral}</strong><span>{item.abonado_nombre || "Sin nombre registrado"}</span><small>{item.clave_catastral || "Sin clave"}</small></button></td>
         <td data-label="Recorrido"><strong>{item.barrio_nombre}</strong><small>{item.responsable_nombre}</small><small>{tipoDocumentoLabel(item.tipo_documento)} · Lote #{item.lote_id}</small></td>
         <td data-label="Motivo">{config.motivos.find((motivo) => motivo.codigo === item.motivo)?.etiqueta || item.motivo}</td>
         <td data-label="Seguimiento"><strong>{formatNumber(item.dias_pendiente)} días</strong><small>{item.intentos} intentos · {item.fecha_ultimo_intento ? `Último ${formatDate(item.fecha_ultimo_intento)}` : "Sin intento"}</small><small>Desde {formatDate(item.fecha_lote)}</small></td>
+        {verSaldo ? <td data-label="Saldo" className="ent-col-saldo">{item.saldo?.encontrado ? <><strong>{formatLempiras(item.saldo.total)}</strong><small className={item.saldo.mora > 0 ? "is-mora" : undefined}>Mora {formatLempiras(item.saldo.mora)}</small></> : <small>Sin registro en el padrón</small>}</td> : null}
         <td data-label="Estado"><span className={`cl-status ${estadoClass(item.estado)}`}>{estadoDocumentoLabel(item.estado)}</span></td>
       </tr>)}
     </tbody></table>

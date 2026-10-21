@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
+import AvisoTecnico from "./AvisoTecnico";
 import IntentosTimeline from "./IntentosTimeline";
 import EntregasDrawer from "./EntregasDrawer";
 import { toLocalIsoDate } from "../utils/entregasDate";
@@ -7,6 +8,8 @@ import {
   estadoClass,
   estadoDocumentoLabel,
   formatDate,
+  formatDateTime,
+  formatLempiras,
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
 
@@ -20,24 +23,36 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
   const [guardando, setGuardando] = useState(false);
   const puedeGestionar = permissions.can_manage_seguimiento && (documento?.lote_estado !== "REVISADO" || permissions.can_force_close) && documento?.estado !== "CANCELADA";
 
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    try {
-      const data = await api.noEntregada(id);
-      setDocumento(data);
-      setObservacion(data.observacion || "");
-      setIntento((actual) => ({ ...actual, responsable_id: String(data.responsable_id || "") }));
-    } catch (error) {
-      notify(error.message);
-      onClose();
-    } finally {
-      setCargando(false);
-    }
-  }, [api, id, notify, onClose]);
+  const puedeAvisar = permissions.can_send_aviso && config.plantillas_aviso?.length > 0 && documento?.estado !== "CANCELADA";
+
+  // El padre crea onClose y notify en cada render: si la carga dependiera de ellos,
+  // cada redibujo de la pagina (foco de la ventana, refresco de contadores) volvia a
+  // pedir el documento y el cajon parpadeaba en "Cargando seguimiento…".
+  const onCloseRef = useRef(onClose);
+  const notifyRef = useRef(notify);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    notifyRef.current = notify;
+  });
 
   useEffect(() => {
-    cargar();
-  }, [cargar]);
+    let vigente = true;
+    setCargando(true);
+    api.noEntregada(id)
+      .then((data) => {
+        if (!vigente) return;
+        setDocumento(data);
+        setObservacion(data.observacion || "");
+        setIntento((actual) => ({ ...actual, responsable_id: String(data.responsable_id || "") }));
+      })
+      .catch((error) => {
+        if (!vigente) return;
+        notifyRef.current(error.message);
+        onCloseRef.current();
+      })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, [api, id]);
 
   const registrarIntento = async (event) => {
     event.preventDefault();
@@ -114,6 +129,20 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
                 </div>
               </section>
 
+              {documento.saldo ? (
+                <section className="ent-card ent-saldo-documento" aria-label="Saldo en el padrón">
+                  {documento.saldo.encontrado ? (
+                    <dl className="ent-saldo-cifras">
+                      <div><dt>Saldo total</dt><dd>{formatLempiras(documento.saldo.total)}</dd></div>
+                      <div><dt>Capital</dt><dd>{formatLempiras(documento.saldo.capital)}</dd></div>
+                      <div className="is-mora"><dt>Mora</dt><dd>{formatLempiras(documento.saldo.mora)}</dd></div>
+                    </dl>
+                  ) : (
+                    <p>Este documento no tiene registro en el padrón vigente: no se conoce su saldo.</p>
+                  )}
+                </section>
+              ) : null}
+
               <section className="ent-card">
                 <h3>Historial</h3>
                 <IntentosTimeline
@@ -124,6 +153,34 @@ export default function NoEntregadaDetalle({ api, config, id, personal, permissi
                   }}
                 />
               </section>
+
+              {puedeAvisar || documento.avisos?.length ? (
+                <section className="ent-card">
+                  <h3>Avisos al técnico</h3>
+                  {documento.avisos?.length ? (
+                    <ul className="ent-avisos">
+                      {documento.avisos.map((aviso) => (
+                        <li key={aviso.id}>
+                          <p>{aviso.body}</p>
+                          <small>
+                            {formatDateTime(aviso.created_at)} · {aviso.remitente_nombre || "Oficina"} → {aviso.destinatario_nombre || "Técnico"} ·{" "}
+                            <span className={aviso.leido ? "is-leido" : "is-sin-leer"}>{aviso.leido ? "Leído" : "Sin leer"}</span>
+                          </small>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {puedeAvisar ? (
+                    <AvisoTecnico
+                      api={api}
+                      documento={documento}
+                      plantillas={config.plantillas_aviso}
+                      notify={notify}
+                      onEnviado={setDocumento}
+                    />
+                  ) : null}
+                </section>
+              ) : null}
 
               {puedeGestionar ? (
                 <>

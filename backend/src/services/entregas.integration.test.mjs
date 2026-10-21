@@ -76,6 +76,33 @@ test("MySQL real: permisos, cierre concurrente, correcciones, recordatorios y re
     await assert.rejects(service.createNoEntregadas(lote.id, { items: [{ numero_abonado: "10003", motivo: "OTRO", observacion: "Prueba" }] }, tecnico));
     await service.createNoEntregadas(lote.id, { correccion_admin: true, items: [{ numero_abonado: "10003", motivo: "OTRO", observacion: "Prueba" }] }, admin);
     assert.equal((await service.getLoteDetail(lote.id, admin)).total_sobrantes, 3);
+    // Saldo del padrón y avisos al técnico: administración y Gerencia sí; el técnico no ve montos.
+    const padron = await import("./claveLookupService.js");
+    const padronPrevio = padron.getMasterRecords();
+    padron.activateMasterRecordsInMemory([
+      { clave_catastral: "05-12-003-01", abonado: "10001", valor: 300, intereses: 50 },
+      { clave_catastral: "05-12-003-02", abonado: "10002", valor: 200, intereses: 75.5 }
+    ]);
+    const [gerenteRow] = await pool.query("INSERT INTO app_users (username, full_name, email, role, password_hash, is_active) VALUES ('gerente_qa', 'Gerente QA', 'gerente_qa@example.test', 'gerente', 'qa', 1)");
+    const gerente = { id: gerenteRow.insertId, role: "gerente", full_name: "Gerente QA" };
+    assert.deepEqual((await service.getLoteDetail(lote.id, gerente)).saldo_sobrantes, { cuentas: 3, con_saldo: 2, sin_padron: 1, capital: 500, mora: 125.5, total: 625.5, total_pendiente: 275.5 });
+    const vistaTecnico = await service.getLoteDetail(lote.id, tecnico);
+    assert.equal(vistaTecnico.saldo_sobrantes, undefined);
+    assert.equal(vistaTecnico.no_entregadas[0].saldo, undefined);
+    assert.equal((await service.listLotes({}, admin)).items.find((item) => item.id === lote.id).saldo_sobrantes.total, 625.5);
+    assert.equal((await service.listNoEntregadas({ q: "10002" }, gerente)).items[0].saldo.mora, 75.5);
+    const pendiente = withDetail.no_entregadas[1];
+    await assert.rejects(service.avisarTecnicoDocumento(pendiente.id, { plantilla: "ENTREGAR_HOY" }, gestor), { status: 403 });
+    await assert.rejects(service.avisarTecnicoDocumento(pendiente.id, { plantilla: "ENTREGAR_HOY" }, { ...gerente, preview: {} }), { status: 403 });
+    await assert.rejects(service.avisarTecnicoDocumento(pendiente.id, { plantilla: "OTRO" }, gerente), /mínimo 5/);
+    const avisado = await service.avisarTecnicoDocumento(pendiente.id, { plantilla: "EN_PERSONA", nota: "Hoy mismo" }, gerente);
+    assert.equal(avisado.avisos.length, 1);
+    assert.equal(avisado.avisos[0].leido, false);
+    assert.doesNotMatch(avisado.avisos[0].body, /275|75\.5/);
+    const [[mensaje]] = await pool.query("SELECT recipient_user_id FROM user_profile_messages WHERE id = ?", [avisado.avisos[0].id]);
+    assert.equal(mensaje.recipient_user_id, tecnico.id);
+    assert.equal((await service.getNoEntregadaDetail(pendiente.id, tecnico)).avisos.length, 1);
+    if (padronPrevio.length) padron.activateMasterRecordsInMemory(padronPrevio);
     const report = await reports.generarReporteSemanal({ fecha_inicio: hoy, fecha_fin: hoy }, admin);
     const snapshot = JSON.stringify(report.snapshot);
     assert.equal((await service.getLoteDetail(lote.id, admin)).estado, "REVISADO");

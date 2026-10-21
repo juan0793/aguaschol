@@ -1064,3 +1064,50 @@
 @media (max-width: 720px) { .ent-mes-columnas { grid-template-columns: 1fr; } }
 .ent-mes .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .ent-mes-grupo i { transition: none; } }
+
+/* Saldo del padron en lo no entregado (solo administracion y Gerencia) y avisos al tecnico. */
+.ent-operational-table.has-saldo th:nth-child(1) { width: 20%; }
+.ent-operational-table.has-saldo th:nth-child(2) { width: 19%; }
+.ent-operational-table.has-saldo th:nth-child(3) { width: 21%; }
+.ent-operational-table.has-saldo th:nth-child(4) { width: 15%; }
+.ent-operational-table.has-saldo th:nth-child(5) { width: 14%; }
+.ent-operational-table.has-saldo th:nth-child(6) { width: 11%; }
+.ent-col-saldo strong { font-variant-numeric: tabular-nums; color: #153b60; }
+.ent-module .ent-operational-table small.is-mora, .ent-detail-documents small.is-mora { color: #a12b31; }
+.ent-saldo-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.ent-saldo-cifras > div { min-width: 0; }
+.ent-saldo-cifras dt { color: #52677c; font-size: 12px; font-weight: 700; }
+.ent-saldo-cifras dd { margin: 4px 0 0; font-size: 20px; line-height: 1.15; font-weight: 750; color: #153b60; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ent-saldo-cifras .is-mora dd { color: #a12b31; }
+.ent-saldo-lote .ent-card-head { align-items: baseline; margin-bottom: 10px; }
+.ent-saldo-lote .ent-card-head small { color: #52677c; }
+.ent-saldo-lote > p { margin: 12px 0 0; color: #52677c; font-size: 13px; }
+.ent-saldo-lote > p strong { color: #153b60; font-variant-numeric: tabular-nums; }
+.ent-detail-documents li.has-saldo { grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; }
+.ent-sobrante-datos { display: grid; gap: 4px; min-width: 0; }
+.ent-sobrante-datos p { margin: 2px 0 0; }
+.ent-sobrante-saldo { display: grid; gap: 2px; justify-items: end; align-content: start; text-align: right; }
+.ent-sobrante-saldo strong { font-variant-numeric: tabular-nums; color: #153b60; }
+.ent-sobrante-saldo small { font-variant-numeric: tabular-nums; }
+.ent-sobrante-acciones { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.ent-sobrante-acciones .cl-quiet { min-height: 36px; }
+.ent-aviso-hecho { color: #168779 !important; font-weight: 700; }
+.ent-detail-documents .ent-aviso { grid-column: 1 / -1; margin-top: 6px; padding: 12px; border: 1px solid #dce6ef; border-radius: 8px; background: #f8fafc; }
+.ent-aviso { display: grid; gap: 10px; }
+.ent-aviso-texto { margin: 0; padding: 8px 12px; border-left: 3px solid #2563eb; background: #eff5ff; color: #153b60; font-size: 13px; }
+.ent-aviso-acciones { display: flex; justify-content: flex-end; gap: 10px; }
+.ent-aviso-acciones .cl-primary { display: inline-flex; align-items: center; gap: 8px; }
+.ent-avisos { margin: 0 0 14px; padding: 0; list-style: none; }
+.ent-avisos li { padding: 10px 0; border-bottom: 1px solid #e1e9f0; }
+.ent-avisos li:last-child { border-bottom: 0; }
+.ent-avisos:last-child { margin-bottom: 0; }
+.ent-avisos p { margin: 0 0 4px; color: #153b60; }
+.ent-avisos small { color: #52677c; }
+.ent-avisos .is-sin-leer { color: #a15c07; font-weight: 700; }
+.ent-avisos .is-leido { color: #168779; font-weight: 700; }
+@media (max-width: 560px) {
+  .ent-saldo-cifras { grid-template-columns: 1fr 1fr; }
+  .ent-saldo-cifras > div:first-child { grid-column: 1 / -1; }
+  .ent-detail-documents li.has-saldo { grid-template-columns: minmax(0, 1fr); }
+  .ent-sobrante-saldo { justify-items: start; text-align: left; }
+}

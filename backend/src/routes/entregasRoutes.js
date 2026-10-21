@@ -5,6 +5,7 @@ import {
   config,
   descartes,
   intentoCreate,
+  avisoDocumentoCreate,
   loteCerrar,
   loteCreate,
   loteDetail,
@@ -65,6 +66,7 @@ router.get("/no-entregadas/:id", noEntregadaDetail);
 router.patch("/no-entregadas/:id", noEntregadaUpdate);
 router.delete("/no-entregadas/:id", noEntregadaRemove);
 router.post("/no-entregadas/:id/intentos", intentoCreate);
+router.post("/no-entregadas/:id/avisos", requireRoles("admin", "gerente"), avisoDocumentoCreate);
 
 router.get("/reportes/semanales", requireRoles("admin", "operator", "gerente"), reportesList);
 router.get("/reportes/semanales/preview", requireRoles("admin", "operator", "gerente"), reportePreview);

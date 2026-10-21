@@ -9,6 +9,8 @@ import { createAuditLog } from "./auditService.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 import { listBarrioCodes } from "./barrioCodeService.js";
 import { leerRepartoBarrios } from "./entregasRepartoService.js";
+import { getMasterRecords, getMasterVersion, normalizeLookupKey } from "./claveLookupService.js";
+import { PLANTILLAS_AVISO, indexarPadron, normalizarAviso, saldoDeDocumento, sumarSaldos, textoAviso } from "./entregasSaldoRules.js";
 import {
   ESTADOS_LOTE,
   ESTADOS_NO_ENTREGADA,
@@ -46,6 +48,9 @@ const isAdmin = (user) => user?.role === "admin";
 // "Gestor" = quien administra la operacion diaria (admin u operador autorizado).
 const isGestor = (user) => ["admin", "operator"].includes(user?.role);
 const canReadAll = (user) => isGestor(user) || user?.role === "gerente";
+// Saldo y mora del padron, y avisos al tecnico: solo administracion y Gerencia.
+const veSaldo = (user) => isAdmin(user) || user?.role === "gerente";
+const puedeAvisar = (user) => !user?.preview && veSaldo(user);
 const PAGE_SIZE = 12;
 
 const audit = async ({ user, action, entityId, summary, details, executor }) => {
@@ -185,6 +190,7 @@ export const getEntregasConfig = async (user) => {
     ciclo,
     personal_vinculado: personalPropio,
     barrios_por_responsable: barriosPorResponsable,
+    plantillas_aviso: puedeAvisar(user) ? PLANTILLAS_AVISO : [],
     permissions: {
       can_manage_personal: isAdmin(user),
       can_create_lote: !user?.preview && user?.role !== "gerente" && (isGestor(user) || Boolean(personalPropio)),
@@ -199,7 +205,9 @@ export const getEntregasConfig = async (user) => {
       can_generate_report: !user?.preview && isGestor(user),
       can_manage_reparto: !user?.preview && isGestor(user),
       can_correct_report: isAdmin(user),
-      can_view_all: canReadAll(user)
+      can_view_all: canReadAll(user),
+      can_view_saldo: veSaldo(user),
+      can_send_aviso: puedeAvisar(user)
     }
   };
 };
@@ -480,13 +488,29 @@ export const listLotes = async (query = {}, user) => {
 
   const total = toEntero(conteo.total);
   return {
-    items: rows.map(mapLoteRow),
+    items: await conSaldoDeLotes(rows.map(mapLoteRow), user),
     resumen: { ...Object.fromEntries(Object.entries(conteo).map(([key, value]) => [key, Number(value)])), efectividad: calcularEfectividad(conteo.entregadas, conteo.asignadas) },
     total,
     page,
     limit,
     total_pages: Math.max(Math.ceil(total / limit), 1)
   };
+};
+
+// Total de lo que dejo cada lote de la pagina, para la columna de la tabla.
+const conSaldoDeLotes = async (lotes, user) => {
+  if (!veSaldo(user) || !lotes.length) return lotes;
+  const [documentos] = await getPool().query(
+    "SELECT lote_id, numero_abonado, clave_catastral, estado FROM entrega_no_entregadas WHERE lote_id IN (?) AND estado <> 'CANCELADA'",
+    [lotes.map((lote) => lote.id)]
+  );
+  const porLote = new Map();
+  for (const documento of conSaldo(documentos, user)) {
+    const loteId = toEntero(documento.lote_id);
+    if (!porLote.has(loteId)) porLote.set(loteId, []);
+    porLote.get(loteId).push(documento);
+  }
+  return lotes.map((lote) => ({ ...lote, saldo_sobrantes: sumarSaldos(porLote.get(toEntero(lote.id)) || []) }));
 };
 
 const mapLoteRow = (row) => ({
@@ -527,8 +551,12 @@ const assertPuedeVerLote = async (lote, user) => {
 export const getLoteDetail = async (id, user) => {
   const lote = await cargarLote(id);
   await assertPuedeVerLote(lote, user);
-  const noEntregadas = await listNoEntregadasDeLote(lote.id);
-  return { ...mapLoteRow(lote), no_entregadas: noEntregadas };
+  const noEntregadas = conSaldo(await listNoEntregadasDeLote(lote.id), user);
+  return {
+    ...mapLoteRow(lote),
+    no_entregadas: noEntregadas,
+    ...(veSaldo(user) ? { saldo_sobrantes: sumarSaldos(noEntregadas) } : {})
+  };
 };
 
 export const createLote = async (payload = {}, user) => {
@@ -793,6 +821,7 @@ export const deleteLote = async (id, payload = {}, user) => {
        WHERE aviso.lote_id = ?`,
       [lote.id]
     );
+    await borrarAvisosDeDocumentos(connection, "documento.lote_id = ?", lote.id);
     await connection.query("DELETE FROM entrega_lotes WHERE id = ?", [lote.id]);
     await audit({
       user,
@@ -1009,6 +1038,30 @@ const mapNoEntregadaRow = (row) => ({
   fecha_entrega_final: toIsoDate(row.fecha_entrega_final)
 });
 
+// Los avisos al tecnico no tienen llave foranea: se borran con su documento para no
+// dejar en la campana mensajes que abren un documento inexistente.
+const borrarAvisosDeDocumentos = (executor, condicion, valor) =>
+  executor.query(
+    `DELETE messages, aviso FROM entrega_documento_avisos aviso
+     INNER JOIN entrega_no_entregadas documento ON documento.id = aviso.no_entregada_id
+     LEFT JOIN user_profile_messages messages ON messages.id = aviso.message_id
+     WHERE ${condicion}`,
+    [valor]
+  );
+
+// El indice del padron se rehace solo cuando cambia su version.
+let padronSaldos = { version: null, indice: null };
+const indiceSaldos = () => {
+  const version = getMasterVersion();
+  if (padronSaldos.version !== version) padronSaldos = { version, indice: indexarPadron(getMasterRecords()) };
+  return padronSaldos.indice;
+};
+const conSaldo = (documentos, user) => {
+  if (!veSaldo(user)) return documentos;
+  const indice = indiceSaldos();
+  return documentos.map((documento) => ({ ...documento, saldo: saldoDeDocumento(indice, documento, normalizeLookupKey) }));
+};
+
 export const createNoEntregadas = async (loteId, payload = {}, user) => {
   assertOperationalWrite(user);
   const lote = await cargarLote(loteId);
@@ -1194,7 +1247,7 @@ export const listNoEntregadas = async (query = {}, user) => {
 
   const total = toEntero(conteo.total);
   return {
-    items: rows.map((row) => ({ ...mapNoEntregadaRow(row), dias_pendiente: Math.max(toEntero(row.dias_pendiente), 0) })),
+    items: conSaldo(rows.map((row) => ({ ...mapNoEntregadaRow(row), dias_pendiente: Math.max(toEntero(row.dias_pendiente), 0) })), user),
     total,
     page,
     limit,
@@ -1238,10 +1291,68 @@ export const getNoEntregadaDetail = async (id, user) => {
     [documento.id]
   );
 
+  const [avisos] = await getPool().query(
+    `SELECT aviso.message_id AS id, aviso.plantilla, aviso.created_at, mensaje.body, mensaje.read_at,
+            remitente.full_name AS remitente_nombre, destinatario.full_name AS destinatario_nombre
+     FROM entrega_documento_avisos AS aviso
+     LEFT JOIN user_profile_messages AS mensaje ON mensaje.id = aviso.message_id
+     LEFT JOIN app_users AS remitente ON remitente.id = aviso.sender_user_id
+     LEFT JOIN app_users AS destinatario ON destinatario.id = aviso.recipient_user_id
+     WHERE aviso.no_entregada_id = ?
+     ORDER BY aviso.created_at DESC, aviso.message_id DESC`,
+    [documento.id]
+  );
+
+  const [conDatos] = conSaldo([mapNoEntregadaRow({ ...documento, intentos: intentos.length })], user);
   return {
-    ...mapNoEntregadaRow({ ...documento, intentos: intentos.length }),
-    intentos_detalle: intentos.map((item) => ({ ...item, fecha: toIsoDate(item.fecha) }))
+    ...conDatos,
+    intentos_detalle: intentos.map((item) => ({ ...item, fecha: toIsoDate(item.fecha) })),
+    avisos: avisos.map((aviso) => ({ ...aviso, leido: Boolean(aviso.read_at) }))
   };
+};
+
+// Administracion o Gerencia avisan al tecnico del lote con un mensaje predefinido.
+// Llega a su campana y al tocarlo abre este documento.
+export const avisarTecnicoDocumento = async (id, payload = {}, user) => {
+  if (!puedeAvisar(user)) throw fail("Solo administración y Gerencia envían avisos al técnico.", 403);
+  const aviso = normalizarAviso(payload);
+  const documento = await cargarNoEntregada(id);
+  if (documento.estado === "CANCELADA") throw fail("El seguimiento de este documento está cancelado.");
+  if (!documento.responsable_user_id) {
+    throw fail(`${documento.responsable_nombre || "El responsable del lote"} no tiene usuario en la app; el aviso no le llegaría.`);
+  }
+  const body = textoAviso(aviso, documento);
+  const connection = await getPool().getConnection();
+  let messageId;
+  try {
+    await connection.beginTransaction();
+    const [resultado] = await connection.query(
+      "INSERT INTO user_profile_messages (sender_user_id, recipient_user_id, body) VALUES (?, ?, ?)",
+      [user.id, documento.responsable_user_id, body]
+    );
+    messageId = resultado.insertId;
+    await connection.query(
+      "INSERT INTO entrega_documento_avisos (message_id, no_entregada_id, recipient_user_id, sender_user_id, plantilla) VALUES (?, ?, ?, ?, ?)",
+      [messageId, documento.id, documento.responsable_user_id, user.id, aviso.plantilla]
+    );
+    await audit({ user, action: "AVISO_DOCUMENTO", entityId: documento.lote_id, summary: `Aviso al técnico por el documento #${documento.id}`, details: { no_entregada_id: documento.id, ...aviso }, executor: connection });
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally { connection.release(); }
+
+  emitProfileMessage({
+    id: messageId,
+    sender_user_id: user.id,
+    sender_name: user.full_name || user.username || "Oficina",
+    recipient_user_id: toEntero(documento.responsable_user_id),
+    body,
+    entrega_documento_id: documento.id,
+    read_at: null,
+    created_at: new Date().toISOString()
+  });
+  return getNoEntregadaDetail(documento.id, user);
 };
 
 export const updateNoEntregada = async (id, payload = {}, user) => {
@@ -1334,6 +1445,7 @@ export const deleteNoEntregada = async (id, user) => {
     if (actual.estado !== "ABIERTO" && !isAdmin(user)) {
       throw fail("El lote ya está cerrado. Pide a un administrador que lo reabra para corregirlo.", 409);
     }
+    await borrarAvisosDeDocumentos(connection, "documento.id = ?", documento.id);
     await connection.query("DELETE FROM entrega_no_entregadas WHERE id = ?", [documento.id]);
     if (actual.estado !== "ABIERTO") {
       await recalcularTotalSobrantes(connection, documento.lote_id);

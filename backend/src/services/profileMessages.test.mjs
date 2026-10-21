@@ -48,3 +48,8 @@ test("los campos que ya viajaban siguen viajando", () => {
   assert.equal(salida.sender_role, "");
   assert.equal(salida.recipient_name, "");
 });
+
+test("normalizeMessage conserva el documento del aviso al técnico", () => {
+  assert.equal(normalizeMessage({ id: 18, entrega_documento_id: 31 }).entrega_documento_id, 31);
+  assert.equal(normalizeMessage({ id: 19 }).entrega_documento_id, null);
+});

@@ -85,3 +85,10 @@ test("Gerencia marca como vista su campana, pero no escribe otra cosa en la acti
     assert.equal(result.status, 403);
   }
 });
+
+test("Gerencia avisa al técnico de un documento no entregado y nada más de entregas", () => {
+  assert.equal(invoke("/api/entregas", "POST", "/no-entregadas/31/avisos").continued, true);
+  for (const [method, path] of [["PATCH", "/no-entregadas/31"], ["POST", "/no-entregadas/31/intentos"], ["POST", "/no-entregadas/x/avisos"], ["DELETE", "/no-entregadas/31/avisos"]]) {
+    assert.equal(invoke("/api/entregas", method, path).status, 403, `${method} ${path}`);
+  }
+});

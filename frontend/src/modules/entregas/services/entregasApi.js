@@ -57,6 +57,8 @@ export const createEntregasApi = (apiFetch) => ({
   eliminarNoEntregada: (id) => apiFetch(`/entregas/no-entregadas/${id}`, { method: "DELETE" }).then(json),
   registrarIntento: (id, payload) =>
     apiFetch(`/entregas/no-entregadas/${id}/intentos`, { method: "POST", ...jsonBody(payload) }).then(json),
+  avisarTecnico: (id, payload) =>
+    apiFetch(`/entregas/no-entregadas/${id}/avisos`, { method: "POST", ...jsonBody(payload) }).then(json),
 
   reportes: (params = {}) => apiFetch(`/entregas/reportes/semanales${query(params)}`).then(json),
   reportePreview: (params = {}) => apiFetch(`/entregas/reportes/semanales/preview${query(params)}`).then(json),

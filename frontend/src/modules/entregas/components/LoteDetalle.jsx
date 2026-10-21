@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import AvisoTecnico from "./AvisoTecnico";
 import EntregasDrawer from "./EntregasDrawer";
 import LoteSobrantesPrint from "../print/LoteSobrantesPrint";
-import { estadoLoteLabel, formatDate, formatNumber, tipoDocumentoLabel } from "../utils/entregasFormatters";
+import { estadoDocumentoLabel, estadoLoteLabel, formatCount, formatDate, formatLempiras, formatNumber, tipoDocumentoLabel } from "../utils/entregasFormatters";
 
 // Textos de la marcha atras administrativa. Reabrir es la unica via de vuelta de
 // un lote cerrado; eliminar exige que ya este abierto, para que el motivo del
@@ -24,17 +25,22 @@ const ACCIONES = {
   }
 };
 
-export default function LoteDetalle({ lote, permissions, motivos = [], api, notify, onClose, onEdit, onCerrar, onChanged, onDeleted }) {
+export default function LoteDetalle({ lote, permissions, motivos = [], plantillas = [], api, notify, onClose, onEdit, onCerrar, onChanged, onDeleted }) {
   const [nota, setNota] = useState(lote.observacion_responsable || "");
   const [saving, setSaving] = useState(false);
   const [accion, setAccion] = useState("");
   const [motivo, setMotivo] = useState("");
+  // Documento con el formulario de aviso abierto y los que ya recibieron uno aqui.
+  const [avisando, setAvisando] = useState(null);
+  const [avisados, setAvisados] = useState(() => new Set());
   // El acta se monta fuera de pantalla en cuanto el lote tiene sobrantes, para
   // que el logo ya este cargado cuando se dispare la impresion. `intento` solo
   // existe para volver a imprimir sin cambiar nada mas.
   const [impresion, setImpresion] = useState({ en: "", intento: 0 });
   const abierto = lote.estado === "ABIERTO";
   const sobrantes = lote.no_entregadas || [];
+  const saldo = lote.saldo_sobrantes;
+  const puedeAvisar = permissions.can_send_aviso && plantillas.length > 0;
 
   useEffect(() => {
     if (!impresion.intento) return undefined;
@@ -90,7 +96,21 @@ export default function LoteDetalle({ lote, permissions, motivos = [], api, noti
       {!abierto ? <p className="ent-close-receipt">Cerrado por <strong>{lote.closed_by_nombre || `Usuario #${lote.closed_by || "—"}`}</strong><br />{lote.closed_at ? new Date(lote.closed_at).toLocaleString("es-HN") : "Sin fecha de cierre registrada"}</p> : <p className="cl-alert">Este lote debe cerrarse al finalizar el recorrido. Una justificación no sustituye el cierre.</p>}
       <section className="ent-card"><h3>Observaciones</h3><p>{lote.observacion_inicial || "Sin observaciones iniciales."}</p><p>{lote.observacion_responsable || "Sin observaciones del responsable."}</p></section>
       {abierto && permissions.can_edit_lote ? <section className="ent-card"><label className="cl-field">Justificar cierre pendiente<textarea rows={3} value={nota} onChange={(event) => setNota(event.target.value)} placeholder="Explica por qué el recorrido sigue abierto" /></label><button type="button" className="cl-secondary" disabled={saving || !nota.trim()} onClick={guardarNota}>Guardar justificación</button></section> : null}
-      <section className="ent-card"><div className="ent-card-head"><h3>Documentos no entregados ({sobrantes.length})</h3>{sobrantes.length ? <button type="button" className="cl-secondary" onClick={imprimirSobrantes}>Imprimir acta</button> : null}</div>{sobrantes.length ? <ul className="ent-detail-documents">{sobrantes.map((item) => <li key={item.id}><strong>{item.numero_abonado || item.clave_catastral}</strong><span>{item.abonado_nombre || item.clave_catastral}</span><small>{motivos.find((opcion) => opcion.codigo === item.motivo)?.etiqueta || String(item.motivo || "").replaceAll("_", " ")} · {item.estado.replaceAll("_", " ")}</small>{item.observacion ? <p>{item.observacion}</p> : null}</li>)}</ul> : <p>No se han registrado documentos sobrantes.</p>}</section>
+      {saldo && sobrantes.length ? <section className="ent-card ent-saldo-lote" aria-labelledby={`ent-saldo-${lote.id}`}>
+        <div className="ent-card-head"><h3 id={`ent-saldo-${lote.id}`}>Saldo de lo no entregado</h3><small>Según el padrón vigente</small></div>
+        <dl className="ent-saldo-cifras">
+          <div><dt>Saldo total</dt><dd>{formatLempiras(saldo.total)}</dd></div>
+          <div><dt>Capital</dt><dd>{formatLempiras(saldo.capital)}</dd></div>
+          <div className="is-mora"><dt>Mora</dt><dd>{formatLempiras(saldo.mora)}</dd></div>
+        </dl>
+        <p>{formatNumber(saldo.con_saldo)} de {formatCount(saldo.cuentas, "cuenta")} con saldo · Pendiente de entregar: <strong>{formatLempiras(saldo.total_pendiente)}</strong>{saldo.sin_padron ? ` · ${formatCount(saldo.sin_padron, "documento", "documentos")} sin registro en el padrón` : ""}</p>
+      </section> : null}
+      <section className="ent-card"><div className="ent-card-head"><h3>Documentos no entregados ({sobrantes.length})</h3>{sobrantes.length ? <button type="button" className="cl-secondary" onClick={imprimirSobrantes}>Imprimir acta</button> : null}</div>{sobrantes.length ? <ul className="ent-detail-documents">{sobrantes.map((item) => <li key={item.id} className={item.saldo ? "has-saldo" : undefined}>
+        <div className="ent-sobrante-datos"><strong>{item.numero_abonado || item.clave_catastral}</strong><span>{item.abonado_nombre || item.clave_catastral}</span><small>{motivos.find((opcion) => opcion.codigo === item.motivo)?.etiqueta || String(item.motivo || "").replaceAll("_", " ")} · {estadoDocumentoLabel(item.estado)}</small>{item.observacion ? <p>{item.observacion}</p> : null}</div>
+        {item.saldo ? <div className="ent-sobrante-saldo">{item.saldo.encontrado ? <><strong>{formatLempiras(item.saldo.total)}</strong><small>Capital {formatLempiras(item.saldo.capital)}</small><small className={item.saldo.mora > 0 ? "is-mora" : undefined}>Mora {formatLempiras(item.saldo.mora)}</small></> : <small>Sin registro en el padrón</small>}</div> : null}
+        {puedeAvisar && item.estado !== "CANCELADA" && avisando !== item.id ? <div className="ent-sobrante-acciones">{avisados.has(item.id) ? <small className="ent-aviso-hecho">Aviso enviado</small> : null}<button type="button" className="cl-quiet" onClick={() => setAvisando(item.id)}>Avisar al técnico</button></div> : null}
+        {avisando === item.id ? <AvisoTecnico api={api} documento={{ id: item.id, responsable_nombre: lote.responsable_nombre }} plantillas={plantillas} notify={notify} onCancel={() => setAvisando(null)} onEnviado={() => { setAvisados((actual) => new Set(actual).add(item.id)); setAvisando(null); }} /> : null}
+      </li>)}</ul> : <p>No se han registrado documentos sobrantes.</p>}</section>
       {dialogo ? <section className={`ent-card ent-danger-zone${accion === "eliminar" ? " is-critical" : ""}`}><h3>{dialogo.titulo}</h3><p>{dialogo.aviso}</p><label className="cl-field">{dialogo.etiqueta}<textarea rows={2} autoFocus value={motivo} onChange={(event) => setMotivo(event.target.value)} maxLength={255} placeholder="Queda registrado en la auditoría" /></label><div className="ent-danger-actions"><button type="button" className="cl-quiet" disabled={saving} onClick={() => pedir("")}>Cancelar</button><button type="button" className={accion === "eliminar" ? "cl-danger" : "cl-primary"} disabled={saving || motivo.trim().length < 5} onClick={confirmarAccion}>{saving ? "Procesando…" : dialogo.confirmar}</button></div></section> : null}
       {!dialogo && (permissions.can_reopen_lote || permissions.can_delete_lote) ? <section className="ent-card ent-danger-zone"><h3>Corrección administrativa</h3><p>{abierto ? "Usa el borrado solo para lotes cargados por error." : "Reabre el lote si el cierre quedó mal registrado."}</p><div className="ent-danger-actions">{!abierto && permissions.can_reopen_lote ? <button type="button" className="cl-secondary" onClick={() => pedir("reabrir")}>Reabrir lote</button> : null}{abierto && permissions.can_delete_lote ? <button type="button" className="cl-secondary" onClick={() => pedir("eliminar")}>Eliminar lote</button> : null}</div></section> : null}
     </div>

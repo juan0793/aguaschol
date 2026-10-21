@@ -1,5 +1,7 @@
 // Formateadores de presentacion del modulo Control de Entregas.
 
+import { formatCurrency } from "../../../utils/currency.js";
+
 export const TIPO_DOCUMENTO_LABELS = {
   FACTURA: "Factura",
   NOTA_COBRO: "Nota de cobro"
@@ -54,6 +56,9 @@ export const formatCount = (value, singular, plural = `${singular}s`) =>
   `${formatNumber(value)} ${Number(value) === 1 ? singular : plural}`;
 
 export const formatPercent = (value) => `${(Number(value) || 0).toFixed(1)}%`;
+
+// Saldo del padron (capital + mora). Solo llega para administracion y Gerencia.
+export const formatLempiras = (value) => formatCurrency(Number(value) || 0);
 
 export const formatDate = (value) => {
   if (!value) return "—";

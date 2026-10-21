@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../../components/Icon";
-import { estadoClass, estadoLoteLabel, formatDate, formatNumber, formatPercent, tipoDocumentoLabel } from "../utils/entregasFormatters";
+import { estadoClass, estadoLoteLabel, formatDate, formatLempiras, formatNumber, formatPercent, tipoDocumentoLabel } from "../utils/entregasFormatters";
 import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
 import LatticeLoader from "../../../components/micro/LatticeLoader";
 
@@ -30,6 +30,7 @@ export default function LotesTable({ model, config, personal, permissions, histo
   const baseRango = historial ? { fecha_desde: "", fecha_hasta: ayer } : { fecha_desde: hoy, fecha_hasta: hoy };
   const extraCount = [filters.tipo_documento, filters.barrio_codigo, filters.responsable_id].filter(Boolean).length
     + (filters.fecha_desde !== baseRango.fecha_desde || filters.fecha_hasta !== baseRango.fecha_hasta ? 1 : 0);
+  const verSaldo = Boolean(permissions.can_view_saldo);
   const metrics = [["Lotes", total], ["Responsables", resumen?.responsables], ["Asignadas", resumen?.asignadas], ["Por cerrar", resumen?.abiertos], ["Efectividad", resumen ? formatPercent(resumen.efectividad) : "—"]];
   return (
     <section className="cl-inbox ent-operational-inbox" aria-busy={loading}>
@@ -60,8 +61,8 @@ export default function LotesTable({ model, config, personal, permissions, histo
         <div className="ent-list-caption" role="status"><span>{loading ? "Actualizando…" : `${formatNumber(total)} lotes · ${filters.fecha_desde ? formatDate(filters.fecha_desde) : "Inicio"} — ${filters.fecha_hasta ? formatDate(filters.fecha_hasta) : "Todas las fechas"}`}</span><small>Entregas confirmadas al cerrar</small></div>
       </div>
       {error ? <p className="cl-alert" role="alert">{error} <button type="button" onClick={model.reload}>Reintentar</button></p> : null}
-      <table className="cl-table ent-operational-table">
-        <thead><tr><th>Lote / responsable</th><th>Recorrido</th><th>Resultado</th><th>Estado</th><th><span className="sr-only">Acciones</span></th></tr></thead>
+      <table className={`cl-table ent-operational-table${verSaldo ? " has-saldo" : ""}`}>
+        <thead><tr><th>Lote / responsable</th><th>Recorrido</th><th>Resultado</th>{verSaldo ? <th className="ent-col-saldo">Saldo no entregado</th> : null}<th>Estado</th><th><span className="sr-only">Acciones</span></th></tr></thead>
         <tbody>{items.map((lote) => {
           const abierto = lote.estado === "ABIERTO";
           const atrasado = abierto && lote.fecha < hoy;
@@ -69,6 +70,7 @@ export default function LotesTable({ model, config, personal, permissions, histo
             <td data-label="Lote"><button className="ent-row-link" type="button" onClick={(event) => { event.stopPropagation(); onOpen(lote); }}><strong>{lote.responsable_nombre || "Sin responsable"}</strong><small>#{lote.id} · {formatDate(lote.fecha)}</small></button></td>
             <td data-label="Recorrido"><strong>{lote.barrio_nombre}</strong><small>{tipoDocumentoLabel(lote.tipo_documento)}</small></td>
             <td data-label="Resultado" className="ent-progress-cell"><div className="ent-progress-label"><strong>{abierto ? `${formatNumber(lote.total_asignadas)} asignadas` : `${formatNumber(lote.total_entregadas)} / ${formatNumber(lote.total_asignadas)}`}</strong><span>{abierto ? "Por confirmar" : formatPercent(lote.efectividad)}</span></div>{abierto ? <div className="ent-progress-track is-unconfirmed" /> : <progress max="100" value={lote.efectividad} aria-label={`Efectividad del lote ${lote.id}`} />}<small>{abierto ? `${formatNumber(lote.total_detalle)} no entregadas registradas` : `${formatNumber(lote.total_sobrantes)} no entregadas · ${formatNumber(lote.pendientes)} pendientes`}</small></td>
+            {verSaldo ? <td data-label="Saldo no entregado" className="ent-col-saldo">{lote.saldo_sobrantes?.cuentas ? <><strong>{formatLempiras(lote.saldo_sobrantes.total)}</strong><small className={lote.saldo_sobrantes.mora > 0 ? "is-mora" : undefined}>Mora {formatLempiras(lote.saldo_sobrantes.mora)}</small></> : <small>—</small>}</td> : null}
             <td data-label="Estado"><span className={`cl-status ${atrasado ? "is-overdue" : estadoClass(lote.estado)}`}>{atrasado ? "Cierre atrasado" : estadoLoteLabel(lote.estado)}</span>{atrasado ? <small>Requiere cierre</small> : null}</td>
             <td className="ent-row-action">{abierto && permissions.can_close_own_lote ? <button className="cl-secondary" type="button" onClick={(event) => { event.stopPropagation(); onCerrar(lote); }}>Cerrar lote<Icon name="arrowRight" /></button> : <span aria-hidden="true">→</span>}</td>
           </tr>;

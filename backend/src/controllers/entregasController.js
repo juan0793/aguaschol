@@ -19,6 +19,7 @@ import {
   listPersonal,
   reabrirLote,
   registrarIntento,
+  avisarTecnicoDocumento,
   updateLote,
   updateNoEntregada,
   updatePersonal,
@@ -123,4 +124,7 @@ export const reporteCorreccion = handle(async (req, res) =>
 );
 export const reporteAnular = handle(async (req, res) =>
   res.json(await anularReporte(req.params.id, req.body || {}, req.authUser))
+);
+export const avisoDocumentoCreate = handle(async (req, res) =>
+  res.status(201).json(await avisarTecnicoDocumento(req.params.id, req.body || {}, req.authUser))
 );

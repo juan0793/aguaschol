@@ -26,6 +26,12 @@ export const QUERY_POSTS = {
   "/api/clandestinos": ["/fichas/por-ids", "/fichas/compare-padrones"]
 };
 
+// Escrituras puntuales que Gerencia sí hace. Hoy solo una: avisar al técnico de un
+// documento no entregado (la campana del técnico; no cambia datos de entregas).
+export const MANAGER_WRITES = {
+  "/api/entregas": [/^\/no-entregadas\/\d+\/avisos$/]
+};
+
 export const requireManagerAccess = (req, res, next) => {
   if (req.authUser?.role !== "gerente") return next();
   if (req.authUser.preview && req.baseUrl === "/api/auth" && req.method === "DELETE" && req.path === "/preview") return next();
@@ -45,7 +51,8 @@ export const requireManagerAccess = (req, res, next) => {
     (["/planos-pdf", "/api/planos-pdf"].includes(req.baseUrl) && /^\/[^/]+$/.test(path));
   const query = req.method === "POST" && (QUERY_POSTS[req.baseUrl]?.includes(path) ||
     (req.baseUrl === "/api/reports" && /^\/manager\/RPT-\d{8}-\d{6}-[A-F0-9]{8}\/events$/.test(path)));
-  if ((read && (READ_ROUTES[req.baseUrl]?.test(path) || media)) || query) return next();
+  const write = req.method === "POST" && Boolean(MANAGER_WRITES[req.baseUrl]?.some((ruta) => ruta.test(path)));
+  if ((read && (READ_ROUTES[req.baseUrl]?.test(path) || media)) || query || write) return next();
 
   return res.status(403).json({ message: "Gerencia General no tiene permiso para esta operación." });
 };

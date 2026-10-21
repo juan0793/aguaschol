@@ -139,12 +139,15 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
     api.config().then(setConfig).catch((error) => setConfigError(error.message));
   }, [api, notify]);
 
+  // Solo la primera configuración dispara estas cargas: el refresco de cada minuto
+  // y el de volver a la ventana traen otro objeto y no deben recargarlo todo.
+  const configLista = Boolean(config);
   useEffect(() => {
-    if (!config) return;
+    if (!configLista) return;
     cargarPersonal();
     cargarResumen();
     cargarLotesAbiertosPrevios();
-  }, [cargarLotesAbiertosPrevios, cargarPersonal, cargarResumen, config]);
+  }, [cargarLotesAbiertosPrevios, cargarPersonal, cargarResumen, configLista]);
 
   useEffect(() => {
     if (!config) return;
@@ -154,7 +157,10 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
       // La barra de avance se mueve mientras los tecnicos cierran: entra al
       // mismo pulso (no hace nada si la vista Hoy no esta abierta).
       avance.reload();
-      api.config().then(setConfig).catch(() => {});
+      // Si nada cambió se conserva el mismo objeto y la pantalla no se redibuja.
+      api.config()
+        .then((nueva) => setConfig((actual) => (JSON.stringify(actual) === JSON.stringify(nueva) ? actual : nueva)))
+        .catch(() => {});
     };
     const timer = setInterval(actualizar, 60_000);
     window.addEventListener("focus", actualizar);
@@ -168,8 +174,12 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
 
   useEffect(() => {
     const abrirEnlace = () => {
-      const id = new URLSearchParams(window.location.hash.split("?")[1]).get("lote");
+      const parametros = new URLSearchParams(window.location.hash.split("?")[1]);
+      const id = parametros.get("lote");
       if (config && /^\d+$/.test(id || "")) abrirDetalle({ id });
+      // Aviso de la oficina en la campana del técnico: abre el documento.
+      const documento = parametros.get("documento");
+      if (config && /^\d+$/.test(documento || "")) setDocumentoAbierto(Number(documento));
     };
     abrirEnlace();
     window.addEventListener("hashchange", abrirEnlace);
@@ -569,7 +579,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
         />
       ) : null}
 
-      {loteDetalle ? <LoteDetalle key={loteDetalle.id} lote={loteDetalle} permissions={config.permissions} motivos={config.motivos} api={api} notify={notify} onClose={cerrarDetalle} onEdit={abrirEdicion} onCerrar={abrirCierre} onChanged={() => { abrirDetalle(loteDetalle); refrescar(); }} onDeleted={() => { cerrarDetalle(); refrescar(); }} /> : null}
+      {loteDetalle ? <LoteDetalle key={loteDetalle.id} lote={loteDetalle} permissions={config.permissions} motivos={config.motivos} plantillas={config.plantillas_aviso} api={api} notify={notify} onClose={cerrarDetalle} onEdit={abrirEdicion} onCerrar={abrirCierre} onChanged={() => { abrirDetalle(loteDetalle); refrescar(); }} onDeleted={() => { cerrarDetalle(); refrescar(); }} /> : null}
 
       {documentoAbierto ? (
         <NoEntregadaDetalle
@@ -579,7 +589,10 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
           personal={personal}
           permissions={config.permissions}
           notify={notify}
-          onClose={() => setDocumentoAbierto(null)}
+          onClose={() => {
+            setDocumentoAbierto(null);
+            if (window.location.hash.includes("?documento=")) window.history.replaceState(null, "", "#entregas/pendientes");
+          }}
           onChanged={() => {
             pendientes.reload();
             cargarResumen();
