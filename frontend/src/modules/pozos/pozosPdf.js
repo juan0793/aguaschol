@@ -8,6 +8,7 @@
 // - calidad: pH y TDS contra el valor guía, solo pozos medidos (vertical).
 // - levantamiento: lo que falta medir, por colonia, con mapa y casillas para campo (vertical).
 import { CALIDADES, DATOS, RANGOS, calidadDe, faltantesDe, formatoNumero, fueraDeRango, histograma, pozosPorColonia } from "./pozosFiltros.js";
+import { conductividadDe } from "./pozosQuimica.js";
 
 const TINTA = [16, 42, 67];
 const TENUE = [82, 103, 124];
@@ -421,7 +422,7 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
         y += 22;
         const otras = [
           ["Salinidad", numero(pozo.salinidad, 2)], ["Temperatura", conUnidad(pozo.temperatura_c, "°C", 1)],
-          ["Oxígeno disuelto", conUnidad(pozo.oxigeno_disuelto, "%", 1)], ["Cloro residual", numero(pozo.cloro_residual, 2)], ["Conductividad", pozo.conductividad || "--"]
+          ["Oxígeno disuelto", conUnidad(pozo.oxigeno_disuelto, "%", 1)], ["Cloro residual", numero(pozo.cloro_residual, 2)], ["Conductividad", conductividadDe(pozo) ? `${formatoNumero(conductividadDe(pozo).spc, 0)} µS/cm` : "--"]
         ];
         const anchoOtra = util / otras.length;
         otras.forEach(([etiqueta, valor], columna) => {

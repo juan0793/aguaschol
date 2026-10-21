@@ -128,12 +128,24 @@
 .pz-drawer-datos { display: grid; align-content: start; gap: 18px; min-width: 0; }
 .pz-drawer-datos h3 { margin: 0 0 6px; color: var(--navy); font-size: 14px; font-weight: 750; }
 .pz-datos, .pz-mediciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0 16px; margin: 0; }
-.pz-dato, .pz-medicion { padding: 8px 0; border-top: 1px solid #e4edf5; }
+.pz-mediciones { gap: 6px; padding: 0; list-style: none; }
+.pz-dato { padding: 8px 0; border-top: 1px solid #e4edf5; }
 .pz-dato.is-ancho { grid-column: 1 / -1; }
-.pz-dato dt, .pz-medicion dt { color: var(--muted); font-size: 12px; font-weight: 650; }
-.pz-dato dd, .pz-medicion dd { margin: 2px 0 0; color: var(--navy); font-size: 14px; overflow-wrap: anywhere; }
+.pz-dato dt { color: var(--muted); font-size: 12px; font-weight: 650; }
+.pz-dato dd { margin: 2px 0 0; color: var(--navy); font-size: 14px; overflow-wrap: anywhere; }
+/* Medición: un botón con su lectura; el borde azul marca la abierta. */
+.pz-drawer .pz-medicion { display: grid; align-content: start; gap: 2px; width: 100%; height: 100%; min-height: 0; padding: 9px 10px 8px; border: 1px solid #e4edf5; border-radius: 9px; background: #fff; color: var(--navy); font: inherit; text-align: left; box-shadow: none; cursor: pointer; transition: border-color .14s ease, background-color .14s ease; }
+.pz-drawer .pz-medicion:hover:not(:disabled) { border-color: #b9d2ef; background: #f6faff; transform: none; box-shadow: none; }
+.pz-drawer .pz-medicion.is-activa { border-color: var(--primary); background: #eef5fe; box-shadow: inset 0 0 0 1px var(--primary); }
+.pz-drawer .pz-medicion:disabled { cursor: default; opacity: 1; background: #fafcfe; }
+.pz-m-label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.pz-m-label .app-icon { width: 13px; height: 13px; color: var(--warning, #9a5a06); }
+.pz-m-valor { color: var(--navy); font-size: 14px; }
 .pz-medicion strong { font-size: 18px; font-variant-numeric: tabular-nums; }
-.pz-medicion dd > span { margin-left: 4px; color: var(--muted); font-size: 12px; }
+.pz-m-valor > span { margin-left: 4px; color: var(--muted); font-size: 12px; }
+.pz-m-detalle { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.pz-m-abrir { margin-top: 2px; color: var(--primary); font-size: 11px; font-weight: 700; }
+.pz-m-ayuda { margin: -2px 0 8px; color: var(--muted); font-size: 12px; }
 .pz-medicion small { display: flex; align-items: center; gap: 4px; color: var(--success); font-size: 11px; font-weight: 650; }
 .pz-medicion small .app-icon { width: 12px; height: 12px; }
 .pz-medicion.is-fuera strong, .pz-medicion.is-fuera small { color: var(--danger); }
@@ -341,4 +353,75 @@
 @media (prefers-reduced-motion: reduce) {
   .pz-punto, .pz-columna i, .pz-hallazgos .app-icon { transition: none; }
   .pz-descargas-menu, .pz-exportar .app-icon { animation: none; }
+}
+
+/* Lectura química de una medición (PozoQuimica.jsx), debajo de las mediciones. */
+.pz-q { --pz-q-tono: var(--primary); display: grid; gap: 10px; margin-top: 10px; padding: 14px 16px 16px; border: 1px solid #d8e5f1; border-radius: 12px; background: #fbfdff; animation: pz-q-entra .2s cubic-bezier(.22, 1, .36, 1); }
+.pz-q.is-fuera { --pz-q-tono: var(--pz-fuera); }
+.pz-q.is-dentro { --pz-q-tono: #12806a; }
+.pz-q.is-atencion { --pz-q-tono: #9a5a06; }
+.pz-q.is-info, .pz-q.is-no_detectado, .pz-q.is-sin { --pz-q-tono: #52677c; }
+@keyframes pz-q-entra { from { opacity: 0; transform: translateY(-4px); } }
+.pz-q > header { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: start; gap: 10px; }
+.pz-q h3 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 750; }
+.pz-q-valor-grande { margin: 2px 0 0; color: var(--pz-q-tono); font-size: 26px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.pz-q-estado { align-self: center; padding: 4px 10px; border: 1px solid currentColor; border-radius: 999px; color: var(--pz-q-tono); font-size: 12px; font-weight: 750; white-space: nowrap; }
+.pz-q .cl-icon-button { width: 34px; min-height: 34px; }
+.pz-q p { margin: 0; }
+.pz-q-que { color: var(--text); font-size: 13px; }
+.pz-q-resumen { max-width: 72ch; color: var(--text); font-size: 13.5px; line-height: 1.55; }
+.pz-q-resumen strong { color: var(--pz-q-tono); }
+.pz-q-regla { display: flex; align-items: flex-start; gap: 7px; max-width: 72ch; color: var(--navy); font-size: 12.5px; line-height: 1.5; }
+.pz-q-regla .app-icon { flex: none; width: 14px; height: 14px; margin-top: 2px; color: #0e5e6f; }
+.pz-q-nota { max-width: 72ch; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.pz-q-nota strong { color: var(--navy); }
+.pz-q-pie { padding-top: 10px; border-top: 1px solid var(--pz-regla); color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.pz-q-revisar { display: grid; gap: 6px; margin: 0; padding: 10px 12px; list-style: none; background: #fff8eb; border-radius: 8px; color: #6b4206; font-size: 12.5px; line-height: 1.45; }
+.pz-q-revisar li { display: flex; gap: 7px; }
+.pz-q-revisar .app-icon { flex: none; width: 14px; height: 14px; margin-top: 2px; color: var(--warning, #9a5a06); }
+
+/* Escala del parámetro: bandas con significado, referencias y la marca del valor. */
+.pz-q-escala { padding: 18px 0 2px; }
+.pz-q-pista { position: relative; height: 10px; border-radius: 5px; background: #edf2f7; }
+.pz-q-banda { position: absolute; top: 0; bottom: 0; background: rgba(24, 166, 137, 0.28); }
+.pz-q-banda.is-neutro { background: rgba(82, 103, 124, 0.16); }
+.pz-q-banda small, .pz-q-referencia small { position: absolute; bottom: calc(100% + 3px); left: 0; color: #4b6075; font-size: 10.5px; font-weight: 650; white-space: nowrap; }
+.pz-q-referencia { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #9fb0c2; }
+.pz-q-referencia.is-fuerte { background: var(--pz-fuera); }
+.pz-q-referencia small { top: calc(100% + 4px); bottom: auto; transform: translateX(-50%); }
+.pz-q-referencia.is-derecha small { transform: translateX(-100%); }
+.pz-q-valor { position: absolute; top: -7px; width: 4px; height: 24px; margin-left: -2px; border-radius: 2px; background: var(--pz-q-tono); box-shadow: 0 0 0 2px #fff; transition: left .3s cubic-bezier(.22, 1, .36, 1); }
+.pz-q-valor b { position: absolute; top: calc(100% + 3px); left: 50%; transform: translateX(-50%); color: var(--pz-q-tono); font-size: 11px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pz-q-extremos { display: flex; justify-content: space-between; margin-top: 22px; color: #8597a9; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+
+/* pH: reparto del carbono disuelto (franja, curvas y control para probar otro pH). */
+.pz-q-carbonato { display: grid; gap: 8px; padding: 12px 0 2px; border-top: 1px solid var(--pz-regla); }
+.pz-q-carbonato h4 { margin: 0; color: var(--navy); font-size: 13.5px; font-weight: 750; }
+.pz-q-reparto { display: grid; gap: 8px; }
+.pz-q-franja { display: flex; gap: 2px; height: 14px; overflow: hidden; border-radius: 4px; }
+.pz-q-franja span { min-width: 3px; transition: flex-grow .25s cubic-bezier(.22, 1, .36, 1); }
+.pz-q-reparto ul { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; color: var(--text); font-size: 12.5px; }
+.pz-q-reparto li { display: inline-flex; align-items: center; gap: 6px; }
+.pz-q-reparto li i { width: 10px; height: 10px; border-radius: 3px; }
+.pz-q-reparto li strong { color: var(--navy); font-variant-numeric: tabular-nums; }
+.pz-q-curvas { display: block; width: 100%; height: auto; }
+.pz-q-zona { fill: rgba(24, 166, 137, 0.08); }
+.pz-q-rotulo { font-size: 12px; font-weight: 750; }
+.pz-q-cursor { stroke: var(--navy); stroke-width: 1.5; }
+.pz-q-medido { stroke: #8597a9; stroke-width: 1; stroke-dasharray: 3 3; }
+.pz-q-control { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.pz-q-control > span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.pz-q-control strong { color: var(--navy); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pz-q-control em { font-style: normal; }
+.pz-drawer .pz-q-control button { min-height: 28px; padding: 0 10px; border: 1px solid #c9ddf4; border-radius: 7px; background: #fff; color: var(--primary); font-size: 12px; font-weight: 700; box-shadow: none; cursor: pointer; }
+.pz-q-control input[type="range"] { width: 100%; accent-color: var(--navy); }
+@media (max-width: 600px) {
+  .pz-q { padding: 12px; }
+  .pz-q > header { grid-template-columns: minmax(0, 1fr) auto; }
+  .pz-q-estado { grid-row: 2; grid-column: 1 / -1; justify-self: start; }
+  .pz-q-banda small { font-size: 9.5px; }
+  .pz-q-rotulo { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pz-q, .pz-q-valor, .pz-q-franja span { animation: none; transition: none; }
 }

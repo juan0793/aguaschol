@@ -433,6 +433,12 @@ Prompt interno sugerido:
   - el alto se congela y se suelta (`alturaSuave`) al cambiar de pestaña, colonia, calidad, dato que falta, página, orden o vista, y tiene un piso mientras se busca;
   - el refresco automático (cada 60 s y al volver a la pestaña) es silencioso: barra de 2 px. Un fallo se avisa en el indicador "Al día / Sin conexión", nunca con un aviso que empuje la tabla.
 - En teléfono, Pozo queda fijo a la izquierda y se ven Prof., Nivel, pH, TDS y Temp.; el resto está en la ficha. Una sombra en el borde derecho indica que hay más columnas.
+- Lectura química (desde 2026-10-21): en la ficha, cada medición es un botón con borde fino; la elegida lleva borde azul y abre debajo un panel (no un modal, porque la ficha ya es una capa). El panel muestra:
+  - el valor grande en el tono de su veredicto: teal dentro, rojo fuera, ocre atención y gris referencia o no detectado;
+  - qué mide y una escala con bandas con significado ("Recomendado", "Sabor bueno (OMS)", "Agua dulce"), referencias ("Máximo norma", "Agua de mar") y la marca del valor; la conductividad y la salinidad van en escala logarítmica;
+  - el resumen, la regla de la norma o de la OMS con su icono, los avisos del dato en ocre claro y un pie con los límites de la medición.
+  - En el pH, además, "Cómo está el carbono disuelto a este pH": franja y curvas de CO₂ (naranja `#e0702a`), bicarbonato (azul) y carbonato (teal `#12a08a`), validadas con el script de dataviz y rotuladas sobre la curva, con un control para probar otro pH y volver al medido. Son proporciones calculadas del pH, no concentraciones.
+  - Una medición con un dato dudoso lleva un icono de aviso junto a su nombre.
 - Informes en PDF (`modules/pozos/pozosPdf.js`, desde 2026-10-21). Identidad propia de hoja técnica, distinta de los informes institucionales de campo:
   - encabezado con el logo, el sello "AGUAS DE CHOLUTECA · RED DE POZOS" en teal `#0e5e6f`, el título (se achica si no cabe) y a la derecha el bloque del código del documento (POZ-INV, POZ-FIC, POZ-CAL, POZ-LEV); debajo, doble filete teal ("nivel de agua"). Las hojas siguientes llevan el encabezado compacto;
   - al pie de cada hoja, un cajetín como en un plano: fuente y valor guía de la norma a la izquierda; Documento, Generado y "Hoja X de Y" a la derecha;

@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../components/Icon";
+import PozoQuimica from "./PozoQuimica";
 import PozosMapa from "./PozosMapa";
+import { conductividadDe, revisionesDelDato } from "./pozosQuimica";
 import { RANGOS, calidadDe, conCalidad, faltantesDe, formatoNumero, fueraDeRango } from "./pozosFiltros";
 
 const NADA = () => {};
@@ -21,24 +23,29 @@ function Escala({ campo, valor }) {
   </span>;
 }
 
-function Medicion({ campo, label, valor, unidad = "", decimales = 2 }) {
+// Cada medición es un botón: abre debajo su lectura (qué mide, la norma y qué significa).
+function Medicion({ campo, label, valor, unidad = "", decimales = 2, detalle = "", revisar = false, activa, onElegir }) {
   const fuera = fueraDeRango(campo, valor);
   const rango = RANGOS[campo];
   const hay = valor !== null && valor !== undefined;
-  return <div className={`pz-medicion${fuera ? " is-fuera" : ""}${rango ? " is-con-guia" : ""}`}>
-    <dt>{label}</dt>
-    <dd>
-      <strong>{formatoNumero(valor, decimales)}</strong>{hay && unidad ? <span>{unidad}</span> : null}
+  return <li>
+    <button type="button" className={`pz-medicion${fuera ? " is-fuera" : ""}${activa ? " is-activa" : ""}`} aria-expanded={activa} aria-controls={activa ? "pz-lectura-quimica" : undefined} disabled={!hay} onClick={() => onElegir(campo)}>
+      <span className="pz-m-label">{label}{revisar ? <Icon name="warning" /> : null}</span>
+      <span className="pz-m-valor"><strong>{formatoNumero(valor, decimales)}</strong>{hay && unidad ? <span>{unidad}</span> : null}</span>
+      {detalle ? <span className="pz-m-detalle">{detalle}</span> : null}
       {rango && hay ? <Escala campo={campo} valor={valor} /> : null}
       {rango && hay ? <small>{fuera ? <Icon name="warning" /> : null}{fuera ? "Fuera del valor guía" : "Dentro del valor guía"} ({rango.texto})</small> : null}
-    </dd>
-  </div>;
+      {hay ? <span className="pz-m-abrir" aria-hidden="true">{activa ? "Ocultar" : "Qué significa"}</span> : null}
+    </button>
+  </li>;
 }
 
 // Ficha de un pozo en el cajón del sistema (el mismo de Clandestinos e Inspecciones):
 // se abre encima de la bandeja, así la lista no se mueve. Flechas ← → recorren la lista filtrada.
 export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSiguiente, onCerrar, onFicha }) {
   const cerrarRef = useRef(null);
+  const [lectura, setLectura] = useState(null);
+  useEffect(() => { setLectura(null); }, [pozo?.id]);
   const soloEste = useMemo(() => (pozo?.coordenada_valida ? [pozo] : []), [pozo]);
 
   useEffect(() => {
@@ -55,6 +62,10 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
   if (!pozo) return null;
   const mapsUrl = pozo.coordenada_valida ? `https://www.google.com/maps?q=${pozo.latitud},${pozo.longitud}` : null;
   const faltan = faltantesDe(pozo);
+  const conductividad = conductividadDe(pozo);
+  const revisar = new Set(revisionesDelDato(pozo).map((aviso) => aviso.campo));
+  const elegir = (campo) => setLectura((actual) => (actual === campo ? null : campo));
+  const comun = (campo) => ({ campo, revisar: revisar.has(campo), activa: lectura === campo, onElegir: elegir });
 
   return createPortal(<div className="cl-drawer-backdrop pz-drawer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onCerrar()}>
     <aside className="cl-drawer pz-drawer" role="dialog" aria-modal="true" aria-labelledby="pz-drawer-titulo">
@@ -77,15 +88,19 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
           {faltan.length ? <p className="pz-faltan"><Icon name="flag" /><span><strong>Falta levantar:</strong> {faltan.join(", ")}.</span></p> : null}
           <section aria-labelledby="pz-sec-calidad">
             <h3 id="pz-sec-calidad">Calidad del agua</h3>
-            {!conCalidad(pozo) ? <p className="pz-sin-medir">No hay mediciones de calidad para este pozo.</p> : <dl className="pz-mediciones">
-              <Medicion campo="ph" label="pH" valor={pozo.ph} />
-              <Medicion campo="tds_g_l" label="Sólidos disueltos (TDS)" valor={pozo.tds_g_l} unidad="g/L" decimales={3} />
-              <Medicion campo="salinidad" label="Salinidad" valor={pozo.salinidad} />
-              <Medicion campo="temperatura_c" label="Temperatura" valor={pozo.temperatura_c} unidad="°C" decimales={1} />
-              <Medicion campo="oxigeno_disuelto" label="Oxígeno disuelto" valor={pozo.oxigeno_disuelto} unidad="%" decimales={1} />
-              <Medicion campo="cloro_residual" label="Cloro residual" valor={pozo.cloro_residual} />
-              <div className="pz-medicion"><dt>Conductividad</dt><dd><strong>{pozo.conductividad || "—"}</strong></dd></div>
-            </dl>}
+            {!conCalidad(pozo) ? <p className="pz-sin-medir">No hay mediciones de calidad para este pozo.</p> : <>
+              <p className="pz-m-ayuda">Toca una medición para ver qué significa y qué dice la norma.</p>
+              <ul className="pz-mediciones">
+                <Medicion {...comun("ph")} label="pH" valor={pozo.ph} />
+                <Medicion {...comun("tds_g_l")} label="Sólidos disueltos (TDS)" valor={pozo.tds_g_l} unidad="g/L" decimales={3} />
+                <Medicion {...comun("conductividad")} label="Conductividad" valor={conductividad?.spc ?? null} unidad="µS/cm" decimales={0} detalle={conductividad ? `a 25 °C${conductividad.temperatura ? ` · ${formatoNumero(conductividad.temperatura, 0)} a la muestra` : ""}` : ""} />
+                <Medicion {...comun("salinidad")} label="Salinidad" valor={pozo.salinidad} unidad="ppt" />
+                <Medicion {...comun("temperatura_c")} label="Temperatura" valor={pozo.temperatura_c} unidad="°C" decimales={1} />
+                <Medicion {...comun("oxigeno_disuelto")} label="Oxígeno disuelto" valor={pozo.oxigeno_disuelto} unidad="%" decimales={1} />
+                <Medicion {...comun("cloro_residual")} label="Cloro residual" valor={pozo.cloro_residual} unidad="mg/L" />
+              </ul>
+              {lectura ? <PozoQuimica campo={lectura} pozo={pozo} onCerrar={() => setLectura(null)} /> : null}
+            </>}
           </section>
           <section aria-labelledby="pz-sec-pozo">
             <h3 id="pz-sec-pozo">Pozo y bomba</h3>
