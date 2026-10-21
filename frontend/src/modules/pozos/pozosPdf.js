@@ -536,8 +536,9 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
     ["Datos por levantar", String(grupos.reduce((suma, grupo) => suma + grupo.datos, 0))],
     ["Sin coordenada válida", String(grupos.reduce((suma, grupo) => suma + grupo.items.filter((item) => !item.pozo.coordenada_valida).length, 0))]
   ], y);
-  texto("Una hoja por colonia, para repartirlas entre los técnicos. Cada casilla vacía es un dato que falta: márquela al levantarlo y anote el valor en Notas de campo. Las columnas con «sí» ya están registradas.", MARGEN, y - 2, { tam: 7.6, color: TENUE, max: util });
-  y += 5;
+  const nota = partir("Una hoja por colonia, para repartirlas entre los técnicos. Cada casilla vacía es un dato que falta: márquela al levantarlo y anote el valor en Notas de campo. Las columnas con «sí» ya están registradas.", util, 7.6);
+  texto(nota, MARGEN, y - 2, { tam: 7.6, color: TENUE });
+  y += nota.length * 3.4 + 4;
   const cortos = { profundidad_m: "Prof.", nivel_freatico_m: "Nivel", diametro_pulg: "Diám.", ph: "pH", tds_g_l: "TDS", temperatura_c: "Temp.", en_uso: "Uso", coordenada: "Coord." };
   grupos.forEach((grupo, indice) => {
     const imagen = mapas.get(grupo.colonia) || "";
