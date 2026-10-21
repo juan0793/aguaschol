@@ -1,3 +1,7 @@
+/* Colores de los gráficos y del mapa (paleta validada con el script de dataviz: pasa en luz;
+   teal y gris van siempre con leyenda o rótulo). */
+.pz-module, .pz-drawer { --pz-azul: #1465d9; --pz-dentro: #18a689; --pz-fuera: #c92a3a; --pz-sin: #a3b1c0; --pz-ocre: #d59124; --pz-regla: #e3ebf3; }
+
 /* Pantalla "Pozos": usa la bandeja del sistema (clases cl-* de clandestinos.css, como Inspecciones).
    Aquí solo va lo propio: tabla de mediciones, orden por columna, vista de mapa y cajón del pozo. */
 .pz-module { min-height: calc(100vh - 80px); }
@@ -13,11 +17,11 @@
 .pz-sync.is-error i { background: var(--danger); }
 @keyframes pz-pulso { 50% { opacity: .35; transform: scale(.8); } }
 
-/* Barra de búsqueda: búsqueda, colonia y el cambio Lista/Mapa en una sola fila estable */
-.pz-module .cl-inbox .pz-toolbar { grid-template-columns: minmax(260px, 1fr) minmax(200px, 280px) auto; }
+/* Barra de búsqueda: búsqueda, colonia, calidad, dato que falta y la vista, en una fila estable */
+.pz-module .cl-inbox .pz-toolbar { grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(140px, 190px)) auto; }
 .pz-modo { display: grid; gap: 6px; color: var(--navy); font-size: 12px; font-weight: 750; }
 .pz-modo > div { display: inline-flex; justify-self: start; padding: 3px; border: 1px solid #c9ddf4; border-radius: 11px; background: #fff; }
-.pz-module .pz-modo button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; box-shadow: none; cursor: pointer; transition: background-color .16s ease, color .16s ease; }
+.pz-module .pz-modo button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; box-shadow: none; cursor: pointer; transition: background-color .16s ease, color .16s ease; }
 .pz-module .pz-modo button:hover:not(.is-active) { color: var(--primary); transform: none; box-shadow: none; }
 .pz-module .pz-modo button.is-active { background: var(--navy); color: #fff; }
 .pz-modo .app-icon { width: 15px; height: 15px; margin: 0; }
@@ -35,7 +39,7 @@
    se ven a cualquier ancho (la tabla de fichas oculta algunas bajo 1120 px): si no caben, la tabla
    se desplaza de lado con el índice y el pozo fijos a la izquierda. */
 .pz-module .pz-tabla-wrap { min-height: 420px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
-.pz-module .pz-tabla { min-width: 1080px; table-layout: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pz-module .pz-tabla { min-width: 1180px; table-layout: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
 .pz-module .pz-tabla th, .pz-module .pz-tabla td { display: table-cell; width: auto; overflow-wrap: normal; }
 .pz-module .pz-tabla .pz-indice { position: sticky; left: 0; z-index: 2; width: 46px; min-width: 46px; background: #fff; }
 .pz-module .pz-tabla .pz-col-pozo { position: sticky; left: 46px; z-index: 2; background: #fff; box-shadow: 1px 0 0 var(--rs-rule, #dfe5ec); }
@@ -91,7 +95,9 @@
 .pz-fuente { margin-top: 16px !important; color: var(--muted); font-size: 12px; }
 .pz-fuente .app-icon { width: 13px; height: 13px; color: var(--alert); vertical-align: -2px; }
 
-.pz-mapa { position: relative; height: 620px; overflow: hidden; background: #e6ecf2; border: 1px solid #d8e5f1; border-radius: 13px; }
+/* Leaflet usa capas 400 a 1000: `isolation` las encierra en el mapa para que no pasen por encima
+   de la ficha (capa 100), la barra de la app ni el menú Descargar. */
+.pz-mapa { position: relative; isolation: isolate; z-index: 0; height: 620px; overflow: hidden; background: #e6ecf2; border: 1px solid #d8e5f1; border-radius: 13px; }
 .pz-mapa.is-compacto { height: 100%; min-height: 300px; border-radius: 12px; }
 .pz-mapa-lienzo { position: absolute; inset: 0; }
 .pz-capas { position: absolute; top: 10px; right: 10px; z-index: 500; display: inline-flex; padding: 3px; background: #fff; border-radius: 9px; box-shadow: 0 1px 4px rgba(11, 30, 52, 0.22); }
@@ -101,8 +107,9 @@
 .pz-leyenda { position: absolute; right: 10px; bottom: 22px; z-index: 500; display: flex; gap: 12px; padding: 6px 10px; color: #102a43; background: rgba(255, 255, 255, 0.94); border-radius: 7px; box-shadow: 0 1px 4px rgba(11, 30, 52, 0.18); font-size: 11px; font-weight: 650; }
 .pz-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
 .pz-pin { display: inline-block; width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(11, 30, 52, 0.45); }
-.pz-pin.is-uso { background: #1769e0; }
-.pz-pin.is-sin-dato { background: #7b8a9a; }
+.pz-pin.is-dentro { background: var(--pz-dentro); }
+.pz-pin.is-fuera { background: var(--pz-fuera); }
+.pz-pin.is-sin { background: var(--pz-sin); }
 .pz-pin-shell { background: none; border: 0; }
 .pz-pin-shell .pz-pin { width: 100%; height: 100%; box-sizing: border-box; cursor: pointer; transition: transform 160ms cubic-bezier(.22, 1, .36, 1); }
 .pz-pin-shell .pz-pin.is-activo { border-width: 3px; box-shadow: 0 0 0 4px rgba(23, 105, 224, 0.32), 0 2px 6px rgba(11, 30, 52, 0.5); }
@@ -139,19 +146,23 @@
 .pz-drawer-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-top: 1px solid #e3ecf4; color: var(--muted); font-size: 13px; }
 .pz-drawer-pie > div { display: flex; gap: 8px; }
 
-@media (max-width: 1120px) {
-  .pz-module .cl-inbox .pz-toolbar { grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) auto; }
+@media (max-width: 1320px) {
+  .pz-module .cl-inbox .pz-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+  .pz-module .cl-inbox .pz-toolbar .cl-search { grid-column: 1 / -1; }
 }
 @media (max-width: 860px) {
   .pz-drawer-cuerpo { grid-template-columns: minmax(0, 1fr); }
   .pz-drawer-mapa { grid-template-rows: 280px auto; }
 }
 @media (max-width: 760px) {
-  /* Colonia y Lista/Mapa comparten fila para que la tabla suba. */
-  .pz-module .cl-inbox .pz-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
-  .pz-module .cl-inbox .pz-toolbar .cl-search { grid-column: 1 / -1; }
-  .pz-modo { grid-column: auto; }
-  .pz-module .pz-modo button { padding: 0 10px; }
+  /* Búsqueda arriba, los tres filtros debajo y la vista a todo el ancho. */
+  .pz-module .cl-inbox .pz-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+  .pz-module .cl-inbox .pz-toolbar .cl-search, .pz-modo { grid-column: 1 / -1; }
+  .pz-modo > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); justify-self: stretch; }
+  .pz-module .pz-modo button { justify-content: center; padding: 0 6px; }
+  .pz-modo .app-icon { display: none; }
+  .pz-exportar span { display: none; }
+  .pz-descargas-menu { position: fixed; top: auto; right: 12px; left: 12px; bottom: 12px; width: auto; }
   /* En el teléfono las mediciones se ven sin desplazar: Colonia, Uso y Diámetro van en el filtro y la ficha. */
   .pz-module .pz-tabla { min-width: 0; }
   .pz-module .pz-tabla .pz-indice { position: static; width: 34px; min-width: 34px; padding-left: 0; padding-right: 4px; }
@@ -159,11 +170,12 @@
   .pz-tabla .pz-pozo { width: 108px; }
   .pz-module .pz-tabla th:nth-child(3), .pz-module .pz-tabla td:nth-child(3),
   .pz-module .pz-tabla th:nth-child(4), .pz-module .pz-tabla td:nth-child(4),
-  .pz-module .pz-tabla th:nth-child(7), .pz-module .pz-tabla td:nth-child(7),
-  .pz-module .pz-tabla th:nth-child(10), .pz-module .pz-tabla td:nth-child(10),
-  .pz-module .pz-tabla th:nth-child(12), .pz-module .pz-tabla td:nth-child(12),
+  .pz-module .pz-tabla th:nth-child(5), .pz-module .pz-tabla td:nth-child(5),
+  .pz-module .pz-tabla th:nth-child(8), .pz-module .pz-tabla td:nth-child(8),
+  .pz-module .pz-tabla th:nth-child(11), .pz-module .pz-tabla td:nth-child(11),
   .pz-module .pz-tabla th:nth-child(13), .pz-module .pz-tabla td:nth-child(13),
-  .pz-module .pz-tabla th:nth-child(14), .pz-module .pz-tabla td:nth-child(14) { display: none; }
+  .pz-module .pz-tabla th:nth-child(14), .pz-module .pz-tabla td:nth-child(14),
+  .pz-module .pz-tabla th:nth-child(15), .pz-module .pz-tabla td:nth-child(15) { display: none; }
   .pz-module .pz-tabla td.pz-num { padding: 8px 6px; }
   .pz-module .pz-tabla .pz-orden { padding: 0 6px; }
   .pz-orden small { display: none; }
@@ -194,4 +206,139 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .pz-sync.is-activo i, .pz-pin-shell .pz-pin, .pz-orden .app-icon { animation: none; transition: none; }
+}
+
+/* Descargas: un botón con su menú de informes. */
+.pz-descargas { position: relative; }
+.pz-descargas-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; display: grid; width: 320px; padding: 6px; background: #fff; border: 1px solid #d8e5f1; border-radius: 12px; box-shadow: 0 14px 34px rgba(11, 30, 52, 0.18); transform-origin: top right; animation: pz-menu .16s cubic-bezier(.22, 1, .36, 1); }
+.pz-descargas-menu > p { margin: 4px 10px 6px; color: var(--muted); font-size: 12px; }
+.pz-module .pz-descargas-menu button { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); text-align: left; box-shadow: none; cursor: pointer; }
+.pz-module .pz-descargas-menu button:hover, .pz-module .pz-descargas-menu button:focus-visible { background: #eef5fe; transform: none; box-shadow: none; }
+.pz-descargas-menu button .app-icon { width: 16px; height: 16px; margin: 2px 0 0; color: #0e5e6f; }
+.pz-descargas-menu strong { display: block; color: var(--navy); font-size: 13px; }
+.pz-descargas-menu small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+.pz-descargas-menu button:last-child { margin-top: 4px; border-top: 1px solid var(--pz-regla); border-radius: 0 0 8px 8px; }
+.pz-exportar.is-generando .app-icon { animation: pz-giro 1s linear infinite; }
+@keyframes pz-menu { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes pz-giro { to { transform: rotate(360deg); } }
+.pz-drawer-pie > div > .pz-ficha-pdf { margin-right: auto; }
+
+/* Resumen y Análisis: paneles planos en dos columnas, separados por filetes (la bandeja no usa tarjetas). */
+.pz-tablero { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--pz-regla); }
+.pz-panel { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 18px 22px 22px 0; border-bottom: 1px solid var(--pz-regla); }
+.pz-panel:nth-child(2n) { padding: 18px 0 22px 22px; border-left: 1px solid var(--pz-regla); }
+.pz-panel > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pz-panel h3 { margin: 0; color: var(--navy); font-size: 15px; font-weight: 750; text-wrap: balance; }
+.pz-panel-nota { margin: -6px 0 0; color: var(--muted); font-size: 12px; }
+.pz-vacio-panel { margin: 0; padding: 18px 0; color: var(--muted); font-size: 13px; }
+.pz-figura { position: relative; min-width: 0; }
+
+/* Barras horizontales: etiqueta, barra y cifra en columnas fijas para que todas compartan escala. */
+.pz-barras { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.pz-module .pz-barras button { display: grid; grid-template-columns: minmax(96px, 34%) minmax(0, 1fr) 52px; align-items: center; gap: 12px; width: 100%; min-height: 34px; padding: 3px 6px; border: 0; border-radius: 7px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; box-shadow: none; cursor: pointer; }
+.pz-module .pz-barras button:hover:not(:disabled), .pz-module .pz-barras button.is-activa { background: #eef5fe; transform: none; box-shadow: none; }
+.pz-module .pz-barras button:disabled { cursor: default; opacity: 1; }
+.pz-module .pz-barras button.is-activa .pz-barra-etiqueta { color: var(--pz-azul); font-weight: 750; }
+.pz-barra-etiqueta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pz-barra-pista { display: flex; align-items: center; height: 12px; }
+.pz-barra-pista.is-con-pista { border-radius: 4px; background: #edf2f7; }
+.pz-barra-pista > i { display: block; height: 100%; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--pz-azul); }
+.pz-barra-pista.is-con-pista > i { border-radius: 4px; }
+.pz-barras strong { color: var(--navy); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+.pz-barras strong small { color: var(--muted); font-size: 11px; font-weight: 600; }
+.pz-apilada { display: flex; gap: 2px; height: 100%; min-width: 2px; }
+.pz-apilada i { display: block; min-width: 3px; height: 100%; background: var(--pz-sin); }
+.pz-apilada i:last-child { border-radius: 0 4px 4px 0; }
+.pz-apilada i.is-dentro, .pz-leyenda-lista i.is-dentro, .pz-columna.is-dentro i { background: var(--pz-dentro); }
+.pz-apilada i.is-fuera, .pz-leyenda-lista i.is-fuera, .pz-columna.is-fuera i { background: var(--pz-fuera); }
+.pz-leyenda-lista i.is-sin { background: var(--pz-sin); }
+
+/* Uso: cifra, franja al 100 % y leyenda con cantidades. */
+.pz-uso { display: grid; gap: 12px; }
+.pz-uso-cifra { margin: 0; color: var(--muted); font-size: 13px; }
+.pz-uso-cifra strong { margin-right: 4px; color: var(--navy); font-size: 28px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.pz-franja { display: flex; gap: 2px; height: 14px; }
+.pz-franja span { min-width: 4px; background: var(--pz-sin); outline-offset: 2px; }
+.pz-franja span:first-child { border-radius: 4px 0 0 4px; }
+.pz-franja span:last-child { border-radius: 0 4px 4px 0; }
+.pz-franja span:only-child { border-radius: 4px; }
+.pz-franja .is-en_uso, .pz-leyenda-lista i.is-en_uso { background: var(--pz-azul); }
+.pz-franja .is-fuera_de_uso, .pz-leyenda-lista i.is-fuera_de_uso { background: var(--pz-ocre); }
+.pz-leyenda-lista i.is-sin_dato { background: var(--pz-sin); }
+.pz-leyenda-lista { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; color: var(--text); font-size: 13px; }
+.pz-leyenda-lista li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 44px; align-items: center; gap: 8px; }
+.pz-leyenda-lista i { width: 10px; height: 10px; border-radius: 3px; }
+.pz-leyenda-lista strong { color: var(--navy); font-variant-numeric: tabular-nums; }
+.pz-leyenda-lista span { color: var(--muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.pz-leyenda-lista.is-linea { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 12px; }
+.pz-leyenda-lista.is-linea li { display: inline-flex; gap: 6px; }
+
+/* Para atender: una fila por hallazgo, con su cifra; lleva a la lista filtrada. */
+.pz-hallazgos { display: grid; margin: 0; padding: 0; list-style: none; }
+.pz-hallazgos li + li { border-top: 1px solid var(--pz-regla); }
+.pz-module .pz-hallazgos button { display: grid; grid-template-columns: 18px 34px minmax(0, 1fr) 16px; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 4px 6px; border: 0; border-radius: 7px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; box-shadow: none; cursor: pointer; }
+.pz-module .pz-hallazgos button:hover { background: #eef5fe; transform: none; box-shadow: none; }
+.pz-hallazgos .app-icon { width: 16px; height: 16px; margin: 0; }
+.pz-hallazgos .app-icon:last-child { color: #9fb0c2; transition: transform .16s cubic-bezier(.22, 1, .36, 1), color .16s ease; }
+.pz-module .pz-hallazgos button:hover .app-icon:last-child { color: var(--pz-azul); transform: translateX(3px); }
+.pz-hallazgos strong { color: var(--navy); font-size: 15px; font-variant-numeric: tabular-nums; text-align: right; }
+.pz-hallazgos .is-peligro .app-icon:first-child { color: var(--danger); }
+.pz-hallazgos .is-peligro strong { color: var(--danger); }
+.pz-hallazgos .is-atencion .app-icon:first-child { color: var(--warning, #9a5a06); }
+.pz-hallazgos .is-revisar .app-icon:first-child { color: var(--pz-azul); }
+
+/* Histograma: columnas finas con la cifra encima y el eje con los cortes. */
+.pz-histograma { display: grid; gap: 6px; }
+.pz-histograma-plot { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 2px; height: 168px; padding-top: 18px; border-bottom: 1px solid #c9d6e3; }
+.pz-columna { position: relative; display: flex; align-items: flex-end; justify-content: center; height: 100%; outline-offset: 2px; cursor: default; }
+.pz-columna i { display: block; width: min(100%, 34px); height: var(--alto, 0%); min-height: 0; border-radius: 4px 4px 0 0; transition: filter .14s ease; }
+.pz-columna:hover i, .pz-columna:focus-visible i { filter: brightness(0.9); }
+.pz-columna-cifra { position: absolute; bottom: calc(var(--alto, 0%) + 4px); color: var(--navy); font-size: 11px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.pz-histograma-eje { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.pz-histograma-eje span { margin-left: -1ch; white-space: nowrap; }
+.pz-histograma-eje span:first-child { margin-left: 0; }
+
+/* Dispersión pH contra TDS */
+.pz-dispersion { display: grid; gap: 6px; }
+.pz-dispersion svg { display: block; width: 100%; height: auto; overflow: visible; }
+.pz-zona-guia { fill: rgba(24, 166, 137, 0.08); stroke: rgba(24, 166, 137, 0.45); stroke-width: 1; }
+.pz-zona-texto { fill: #12806a; font-size: 11px; font-weight: 700; }
+.pz-reja { stroke: #edf2f7; stroke-width: 1; }
+.pz-eje-texto { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.pz-eje-titulo { fill: var(--navy); font-size: 11px; font-weight: 700; }
+.pz-punto { stroke: #fff; stroke-width: 2; cursor: pointer; transition: r .14s cubic-bezier(.22, 1, .36, 1); }
+.pz-punto.is-dentro { fill: var(--pz-dentro); }
+.pz-punto.is-fuera { fill: var(--pz-fuera); }
+.pz-punto:hover, .pz-punto:focus-visible { r: 7px; outline: none; stroke: var(--navy); }
+
+/* Lectura flotante de cualquier marca */
+.pz-lectura { position: absolute; z-index: 5; max-width: 260px; padding: 6px 9px; transform: translate(-50%, calc(-100% - 8px)); color: #fff; background: #102a43; border-radius: 7px; box-shadow: 0 6px 18px rgba(11, 30, 52, 0.22); font-size: 12px; font-weight: 600; line-height: 1.35; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
+
+/* Análisis: la franja de promedios queda arriba de los gráficos. */
+.pz-analisis { display: grid; gap: 4px; }
+
+/* Ficha: escala del valor guía bajo pH y TDS, y lo que falta levantar. */
+.pz-escala { position: relative; display: block; height: 6px; margin: 8px 0 6px; border-radius: 3px; background: #edf2f7; }
+.pz-escala-guia { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: rgba(24, 166, 137, 0.35); }
+.pz-escala-marca { position: absolute; top: -4px; width: 4px; height: 14px; margin-left: -2px; border-radius: 2px; background: var(--navy); box-shadow: 0 0 0 2px #fff; }
+.pz-medicion.is-fuera .pz-escala-marca { background: var(--danger); }
+.pz-faltan { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; color: var(--text); background: #fff8eb; border-radius: 8px; font-size: 13px; line-height: 1.45; }
+.pz-faltan .app-icon { flex: none; width: 15px; height: 15px; margin-top: 2px; color: var(--warning, #9a5a06); }
+.pz-faltan strong { color: var(--navy); }
+
+@media (max-width: 900px) {
+  .pz-tablero { grid-template-columns: minmax(0, 1fr); }
+  .pz-panel, .pz-panel:nth-child(2n) { padding: 16px 0 18px; border-left: 0; }
+}
+@media (max-width: 600px) {
+  .pz-module .pz-barras button { grid-template-columns: minmax(84px, 38%) minmax(0, 1fr) 44px; gap: 8px; }
+  .pz-histograma-plot { height: 140px; }
+  .pz-histograma-eje { font-size: 10px; }
+  .pz-lectura { white-space: normal; }
+  /* El SVG se achica con el ancho: rótulos más grandes en sus unidades para que sigan legibles. */
+  .pz-eje-texto, .pz-eje-titulo, .pz-zona-texto { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pz-punto, .pz-columna i, .pz-hallazgos .app-icon { transition: none; }
+  .pz-descargas-menu, .pz-exportar .app-icon { animation: none; }
 }

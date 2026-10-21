@@ -413,19 +413,32 @@ Prompt interno sugerido:
 
 > Mejora esta pantalla siguiendo `DESIGN.md`: sistema institucional de Aguas de Choluteca, operativo, claro, imprimible cuando aplique, sin estilo de landing page, usando la paleta azul existente y manteniendo los componentes simples.
 
-### Pozos (desde 2026-10-20)
+### Pozos (desde 2026-10-20; Resumen y Análisis desde 2026-10-21)
 
 - Extensión del mundo de la bandeja de Clandestinos/Fichas en su variante plana (`cl-module is-flat`). Sin concept roll ni clave de semilla, porque el mundo se hereda.
 - Sin tarjetas. La pantalla tiene, en este orden:
-  - encabezado con alcance y chips de filtro;
-  - búsqueda con etiqueta, Colonia y Lista/Mapa;
-  - cinco pestañas en columnas iguales con su cifra y la marca azul deslizante (en teléfono, con etiquetas cortas);
-  - franja de métricas entre filetes: promedio, rango, número de pozos y cuántos quedan fuera del valor guía;
-  - tabla indexada de 20 filas con orden por columna.
-- La ficha se abre en el cajón del sistema (`cl-drawer`).
+  - encabezado con alcance y chips de filtro (colonia, calidad, dato que falta, búsqueda), estado "Al día", Actualizar y "Descargar": un menú con los cuatro informes en PDF y la tabla CSV, siempre de los pozos filtrados en el orden de la lista (en el teléfono, solo el icono y el menú como hoja al pie);
+  - búsqueda con etiqueta y los filtros Colonia, Calidad (dentro / fuera del valor guía / sin medición) y "Le falta" (profundidad, nivel freático, diámetro, pH, TDS, temperatura, estado de uso, coordenada válida), más "Ver como": Resumen · Lista · Mapa · Análisis (Resumen al entrar). Bajo 1320 px la búsqueda va en su propia fila; en el teléfono la vista ocupa todo el ancho y sin iconos;
+  - cinco pestañas en columnas iguales con su cifra y la marca azul deslizante: son las cifras de arriba y también filtran;
+  - la vista elegida. Filtros y pestañas valen para las cuatro.
+- Resumen y Análisis usan el lenguaje de análisis del tablero sin tarjetas: paneles en dos columnas separados por filetes (una columna bajo 900 px), título de 15 px y una nota que dice qué se toca.
+  - Resumen: "Pozos por colonia" (barras horizontales en azul con escala y cifra compartidas, cinco colonias y "Otras"), "Estado de uso" (cifra en % y franja al 100 % con leyenda; no dona), "Datos levantados" (cuántos tienen cada dato, con pista) y "Para atender" (una fila por hallazgo con icono, cifra y flecha). Tocar una colonia filtra; tocar un dato o un hallazgo abre la Lista con ese filtro.
+  - Análisis: arriba la franja de promedios de las mediciones; debajo, histogramas de pH y TDS con cortes fijos (teal dentro, rojo fuera del valor guía, cifra sobre cada columna), "pH contra TDS" (un punto por pozo con aro blanco de 2 px y el recuadro de la zona guía; tocar un punto abre la ficha) y "Calidad por colonia" (barra apilada con separación de 2 px).
+  - Toda marca muestra su lectura en un globo tinta al pasar el puntero o con el foco.
+- Paleta de los gráficos (validada con el script de dataviz; teal y gris llevan siempre leyenda o rótulo): azul `#1465d9` una sola serie, teal `#18a689` dentro del valor guía, rojo `#c92a3a` fuera, gris `#a3b1c0` sin medición o sin dato, ocre `#d59124` fuera de uso. Los mismos tonos pintan los puntos del mapa (por calidad) y su leyenda.
+- La lista lleva la columna Calidad después de Uso, con la etiqueta del sistema (verde dentro, roja fuera, gris sin medición) y se puede ordenar.
+- La ficha se abre en el cajón del sistema (`cl-drawer`). Arriba dice la calidad del pozo y, si falta algo, una franja ocre "Falta levantar: …". pH y TDS llevan una escala con la banda del valor guía y una marca en la medición (roja si queda fuera).
 - Las mediciones llevan decimales fijos por columna, con los puntos alineados. Un vacío se muestra como "—". El rojo se usa solo para pH fuera de 6.5–8.5 y TDS por encima de 1 g/L.
 - No salta:
-  - el alto se congela y se suelta (`alturaSuave`) al cambiar de pestaña, colonia, página, orden o vista, y tiene un piso mientras se busca;
+  - el alto se congela y se suelta (`alturaSuave`) al cambiar de pestaña, colonia, calidad, dato que falta, página, orden o vista, y tiene un piso mientras se busca;
   - el refresco automático (cada 60 s y al volver a la pestaña) es silencioso: barra de 2 px. Un fallo se avisa en el indicador "Al día / Sin conexión", nunca con un aviso que empuje la tabla.
-- En teléfono, Pozo queda fijo a la izquierda y se ven Prof., Nivel, pH y TDS; el resto está en la ficha. Una sombra en el borde derecho indica que hay más columnas.
+- En teléfono, Pozo queda fijo a la izquierda y se ven Prof., Nivel, pH, TDS y Temp.; el resto está en la ficha. Una sombra en el borde derecho indica que hay más columnas.
+- Informes en PDF (`modules/pozos/pozosPdf.js`, desde 2026-10-21). Identidad propia de hoja técnica, distinta de los informes institucionales de campo:
+  - encabezado con el logo, el sello "AGUAS DE CHOLUTECA · RED DE POZOS" en teal `#0e5e6f`, el título (se achica si no cabe) y a la derecha el bloque del código del documento (POZ-INV, POZ-FIC, POZ-CAL, POZ-LEV); debajo, doble filete teal ("nivel de agua"). Las hojas siguientes llevan el encabezado compacto;
+  - al pie de cada hoja, un cajetín como en un plano: fuente y valor guía de la norma a la izquierda; Documento, Generado y "Hoja X de Y" a la derecha;
+  - cifras grandes separadas por filetes, subtítulos en teal, tablas con cabecera teal y celdas de pH/TDS fuera del valor guía en rojo sobre rosa tenue; los mismos colores de calidad de la pantalla; Helvetica, como el resto de los PDF;
+  - Inventario (horizontal): cifras, pozos por colonia, uso y calidad en franjas, mapa general por calidad y la tabla de todos los pozos.
+  - Fichas (vertical, una hoja por pozo; también "Ficha PDF" en el cajón): sellos de estado, Pozo y bomba, Ubicación, su mapa, pH y TDS con escala y banda del valor guía, las demás mediciones, "Falta levantar" en ocre claro, observaciones y renglones de verificación en campo.
+  - Calidad (vertical): cifras, recuadro de la norma, histogramas de pH y TDS, mapa de los medidos y la tabla, primero los que están fuera.
+  - Levantamiento (vertical): una hoja por colonia para repartir en campo, con mapa de etiquetas por código y una casilla vacía por dato que falta ("sí" si ya está), notas de campo y firma del técnico.
 

@@ -72,3 +72,46 @@ test("muestra — cuando no hay dato, decimales fijos para columnas y el tiempo 
   assert.equal(haceCuanto(new Date(ahora - 20000).toISOString(), ahora), "hace un momento");
   assert.equal(haceCuanto(new Date(ahora - 5 * 60000).toISOString(), ahora), "hace 5 min");
 });
+
+test("calidad, filtros de calidad y de datos que faltan", async () => {
+  const { calidadDe, faltantesDe } = await import("./pozosFiltros.js");
+  assert.deepEqual(pozos.map(calidadDe), ["fuera", "sin", "fuera"]);
+  assert.deepEqual(filtrarPozos([...pozos, { ...pozos[0], id: 4, ph: 7 }], { calidad: "dentro" }).map((p) => p.id), [4]);
+  assert.deepEqual(filtrarPozos(pozos, { falta: "profundidad_m" }).map((p) => p.id), [1]);
+  assert.deepEqual(filtrarPozos(pozos, { falta: "coordenada" }).map((p) => p.id), [2]);
+  assert.deepEqual(filtrarPozos(pozos, { falta: "en_uso" }).map((p) => p.id), [3]);
+  assert.ok(faltantesDe(pozos[1]).includes("Coordenada válida"));
+});
+
+test("histograma con cortes fijos y extremos abiertos", async () => {
+  const { histograma } = await import("./pozosFiltros.js");
+  const barras = histograma([{ ph: 3 }, { ph: 6.3 }, { ph: 6.5 }, { ph: 12 }, { ph: null }], "ph");
+  assert.equal(barras.reduce((suma, barra) => suma + barra.n, 0), 4);
+  assert.equal(barras[0].n, 1);
+  assert.equal(barras.find((barra) => barra.desde === 6).n, 1);
+  assert.equal(barras.find((barra) => barra.desde === 6.5).n, 1);
+  assert.equal(barras.at(-1).n, 1);
+  assert.equal(barras.find((barra) => barra.desde === 6).fuera, true);
+  assert.equal(barras.find((barra) => barra.desde === 7).fuera, false);
+});
+
+test("colonias con 'Otras', calidad por colonia y uso", async () => {
+  const { pozosPorColonia, calidadPorColonia, conteoUso } = await import("./pozosFiltros.js");
+  const muchos = ["A", "A", "A", "B", "B", "C", "D", "E"].map((colonia, i) => ({ id: i, colonia, ph: i % 2 ? 7 : null }));
+  assert.deepEqual(pozosPorColonia(muchos, 3), [{ colonia: "A", total: 3 }, { colonia: "B", total: 2 }, { colonia: "Otras", total: 3, otras: 3 }]);
+  const calidad = calidadPorColonia(muchos, 3);
+  assert.deepEqual(calidad[0], { colonia: "A", dentro: 1, fuera: 0, sin: 2, total: 3 });
+  assert.equal(calidad.at(-1).total, 3);
+  assert.deepEqual(conteoUso(pozos), { en_uso: 2, fuera_de_uso: 0, sin_dato: 1 });
+});
+
+test("hallazgos solo con lo que existe y CSV con comillas y BOM", async () => {
+  const { hallazgos, pozosCsv } = await import("./pozosFiltros.js");
+  const lista = hallazgos(pozos);
+  assert.deepEqual(lista.map((item) => [item.clave, item.n]), [["ph", 1], ["tds", 1], ["sin_calidad", 1], ["profundidad", 1], ["uso", 1], ["coordenada", 1], ["repetido", 2]]);
+  assert.equal(lista[0].texto, "pozo con pH fuera de 6.5 a 8.5");
+  const csv = pozosCsv([{ ...pozos[0], observaciones: 'Dijo "sellado", sin datos' }]);
+  assert.ok(csv.startsWith("﻿Código,Nombre,Colonia"));
+  assert.match(csv, /"Dijo ""sellado"", sin datos"/);
+  assert.equal(csv.split("\r\n").length, 2);
+});

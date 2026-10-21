@@ -28,6 +28,31 @@ export const porRevisar = (pozo) => Boolean(pozo?.codigo_repetido || !pozo?.coor
 export const conCalidad = (pozo) => ["ph", "tds_g_l", "salinidad", "temperatura_c"].some((campo) => tieneValor(pozo?.[campo]));
 export const fueraDeGuia = (pozo) => fueraDeRango("ph", pozo?.ph) || fueraDeRango("tds_g_l", pozo?.tds_g_l);
 
+// Estado de calidad de un pozo: sin pH ni TDS no se puede juzgar contra el valor guía.
+export const CALIDADES = [
+  { clave: "dentro", label: "Dentro del valor guía" },
+  { clave: "fuera", label: "Fuera del valor guía" },
+  { clave: "sin", label: "Sin medición" }
+];
+export const calidadDe = (pozo) => {
+  if (!tieneValor(pozo?.ph) && !tieneValor(pozo?.tds_g_l)) return "sin";
+  return fueraDeGuia(pozo) ? "fuera" : "dentro";
+};
+
+// Datos que la encuesta debía levantar en cada pozo. "Le falta" filtra los que no lo tienen,
+// para planificar la próxima visita de campo.
+export const DATOS = [
+  { clave: "profundidad_m", label: "Profundidad", tiene: (pozo) => tieneValor(pozo.profundidad_m) },
+  { clave: "nivel_freatico_m", label: "Nivel freático", tiene: (pozo) => tieneValor(pozo.nivel_freatico_m) },
+  { clave: "diametro_pulg", label: "Diámetro", tiene: (pozo) => tieneValor(pozo.diametro_pulg) },
+  { clave: "ph", label: "pH", tiene: (pozo) => tieneValor(pozo.ph) },
+  { clave: "tds_g_l", label: "TDS", tiene: (pozo) => tieneValor(pozo.tds_g_l) },
+  { clave: "temperatura_c", label: "Temperatura", tiene: (pozo) => tieneValor(pozo.temperatura_c) },
+  { clave: "en_uso", label: "Estado de uso", tiene: (pozo) => pozo.en_uso === true || pozo.en_uso === false },
+  { clave: "coordenada", label: "Coordenada válida", tiene: (pozo) => Boolean(pozo.coordenada_valida) }
+];
+export const faltantesDe = (pozo) => DATOS.filter((dato) => !dato.tiene(pozo)).map((dato) => dato.label);
+
 // Pestañas de la bandeja (como las etapas de Clandestinos): cada una es un filtro con su conteo.
 export const VISTAS = [
   { clave: "todos", label: "Todos", corto: "Todos", cumple: () => true },
@@ -50,9 +75,9 @@ export const coloniasDe = (pozos = []) => {
     .sort((a, b) => a.colonia.localeCompare(b.colonia, "es"));
 };
 
-export const FILTROS_INICIALES = { texto: "", colonia: "", vista: "todos" };
+export const FILTROS_INICIALES = { texto: "", colonia: "", vista: "todos", calidad: "", falta: "" };
 
-export const filtrarPozos = (pozos = [], { texto = "", colonia = "", vista = "todos" } = {}) => {
+export const filtrarPozos = (pozos = [], { texto = "", colonia = "", vista = "todos", calidad = "", falta = "" } = {}) => {
   const buscado = normalizar(texto);
   const regla = VISTAS.find((item) => item.clave === vista)?.cumple ?? (() => true);
   const digitos = buscado.replace(/\D/g, "");
@@ -60,6 +85,8 @@ export const filtrarPozos = (pozos = [], { texto = "", colonia = "", vista = "to
   return pozos.filter((pozo) => {
     if (!regla(pozo)) return false;
     if (colonia && (pozo.colonia || "Sin colonia") !== colonia) return false;
+    if (calidad && calidadDe(pozo) !== calidad) return false;
+    if (falta && DATOS.find((dato) => dato.clave === falta)?.tiene(pozo) !== false) return false;
     if (!buscado) return true;
     // "032", "pchol 32" y "Pchol.-032" encuentran el mismo pozo.
     if (buscaCodigo) return Number(String(pozo.codigo || "").replace(/\D/g, "")) === Number(digitos);
@@ -73,6 +100,7 @@ export const COLUMNAS_ORDEN = {
   nombre: (pozo) => normalizar(pozo.nombre) || null,
   colonia: (pozo) => normalizar(pozo.colonia) || null,
   en_uso: (pozo) => (pozo.en_uso ? 1 : null),
+  calidad: (pozo) => ({ fuera: 1, dentro: 2 })[calidadDe(pozo)] ?? null,
   profundidad_m: (pozo) => pozo.profundidad_m,
   nivel_freatico_m: (pozo) => pozo.nivel_freatico_m,
   diametro_pulg: (pozo) => pozo.diametro_pulg,
@@ -146,3 +174,101 @@ export const haceCuanto = (fecha, ahora = Date.now()) => {
   if (horas < 24) return `hace ${horas} h`;
   return new Date(fecha).toLocaleDateString("es-HN", { day: "numeric", month: "short" });
 };
+
+// ---- Resumen y análisis -------------------------------------------------------------
+
+// Pozos por colonia, de más a menos; las que no entran en `tope` se juntan en "Otras".
+export const pozosPorColonia = (pozos = [], tope = 6) => {
+  const filas = coloniasDe(pozos).sort((a, b) => b.total - a.total || a.colonia.localeCompare(b.colonia, "es"));
+  if (filas.length <= tope) return filas;
+  const resto = filas.slice(tope - 1);
+  return [...filas.slice(0, tope - 1), { colonia: "Otras", total: resto.reduce((suma, fila) => suma + fila.total, 0), otras: resto.length }];
+};
+
+export const conteoUso = (pozos = []) => ({
+  en_uso: pozos.filter((pozo) => pozo.en_uso === true).length,
+  fuera_de_uso: pozos.filter((pozo) => pozo.en_uso === false).length,
+  sin_dato: pozos.filter((pozo) => pozo.en_uso !== true && pozo.en_uso !== false).length
+});
+
+export const coberturaDatos = (pozos = []) => DATOS.map((dato) => ({ ...dato, n: pozos.filter(dato.tiene).length, total: pozos.length }));
+
+// Cortes fijos para que dos filtros distintos se puedan comparar a simple vista.
+export const CORTES = {
+  ph: [4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5],
+  tds_g_l: [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+};
+
+// Histograma: cada barra cuenta los valores en [desde, hasta). Lo que cae fuera de los
+// cortes entra en la primera o la última barra, que quedan abiertas.
+export const histograma = (pozos = [], campo) => {
+  const cortes = CORTES[campo];
+  const barras = cortes.slice(0, -1).map((desde, i) => ({
+    desde, hasta: cortes[i + 1], n: 0,
+    abiertaAbajo: i === 0, abiertaArriba: i === cortes.length - 2,
+    fuera: fueraDeRango(campo, (desde + cortes[i + 1]) / 2)
+  }));
+  pozos.forEach((pozo) => {
+    const valor = pozo[campo];
+    if (!tieneValor(valor) || !Number.isFinite(Number(valor))) return;
+    const siguiente = cortes.findIndex((corte) => Number(valor) < corte);
+    const i = siguiente < 0 ? barras.length - 1 : Math.max(0, siguiente - 1);
+    barras[i].n += 1;
+  });
+  return barras;
+};
+
+export const calidadPorColonia = (pozos = [], tope = 6) => {
+  const grupos = new Map();
+  pozos.forEach((pozo) => {
+    const colonia = pozo.colonia || "Sin colonia";
+    const fila = grupos.get(colonia) || { colonia, dentro: 0, fuera: 0, sin: 0, total: 0 };
+    fila[calidadDe(pozo)] += 1;
+    fila.total += 1;
+    grupos.set(colonia, fila);
+  });
+  const filas = [...grupos.values()].sort((a, b) => b.total - a.total || a.colonia.localeCompare(b.colonia, "es"));
+  if (filas.length <= tope) return filas;
+  const otras = filas.slice(tope - 1).reduce((suma, fila) => ({
+    ...suma, dentro: suma.dentro + fila.dentro, fuera: suma.fuera + fila.fuera, sin: suma.sin + fila.sin, total: suma.total + fila.total
+  }), { colonia: "Otras", dentro: 0, fuera: 0, sin: 0, total: 0, otras: filas.length - tope + 1 });
+  return [...filas.slice(0, tope - 1), otras];
+};
+
+// Lo que conviene atender, con el filtro que lleva a esos pozos. Solo aparece lo que existe.
+export const hallazgos = (pozos = []) => {
+  const cuenta = (regla) => pozos.filter(regla).length;
+  const lista = [
+    { clave: "ph", tono: "peligro", n: cuenta((pozo) => fueraDeRango("ph", pozo.ph)), texto: (n) => `${n === 1 ? "pozo" : "pozos"} con pH fuera de 6.5 a 8.5`, filtro: { calidad: "fuera" } },
+    { clave: "tds", tono: "peligro", n: cuenta((pozo) => fueraDeRango("tds_g_l", pozo.tds_g_l)), texto: (n) => `${n === 1 ? "pozo" : "pozos"} con TDS mayor a 1 g/L`, filtro: { calidad: "fuera" } },
+    { clave: "sin_calidad", tono: "atencion", n: cuenta((pozo) => calidadDe(pozo) === "sin"), texto: () => "sin medición de calidad", filtro: { calidad: "sin" } },
+    { clave: "profundidad", tono: "atencion", n: cuenta((pozo) => !tieneValor(pozo.profundidad_m)), texto: () => "sin profundidad registrada", filtro: { falta: "profundidad_m" } },
+    { clave: "uso", tono: "atencion", n: cuenta((pozo) => pozo.en_uso !== true && pozo.en_uso !== false), texto: () => "sin dato de uso", filtro: { falta: "en_uso" } },
+    { clave: "coordenada", tono: "revisar", n: cuenta((pozo) => !pozo.coordenada_valida), texto: (n) => `${n === 1 ? "coordenada" : "coordenadas"} fuera de Choluteca`, filtro: { falta: "coordenada" } },
+    { clave: "repetido", tono: "revisar", n: cuenta((pozo) => pozo.codigo_repetido), texto: (n) => `${n === 1 ? "pozo comparte" : "pozos comparten"} código con otro`, filtro: { vista: "revisar" } }
+  ];
+  return lista.filter((item) => item.n > 0).map((item) => ({ ...item, texto: item.texto(item.n) }));
+};
+
+// CSV para abrir en Excel: BOM para que respete tildes, coma como separador y punto decimal.
+const COLUMNAS_CSV = [
+  ["Código", (pozo) => pozo.codigo], ["Nombre", (pozo) => pozo.nombre], ["Colonia", (pozo) => pozo.colonia],
+  ["En uso", (pozo) => (pozo.en_uso === true ? "Sí" : pozo.en_uso === false ? "No" : "")],
+  ["Calidad", (pozo) => CALIDADES.find((item) => item.clave === calidadDe(pozo))?.label],
+  ["Profundidad (m)", (pozo) => pozo.profundidad_m], ["Nivel freático (m)", (pozo) => pozo.nivel_freatico_m],
+  ["Diámetro (pulg)", (pozo) => pozo.diametro_pulg], ["Bomba", (pozo) => pozo.tipo_bomba],
+  ["pH", (pozo) => pozo.ph], ["TDS (g/L)", (pozo) => pozo.tds_g_l], ["Salinidad", (pozo) => pozo.salinidad],
+  ["Temperatura (°C)", (pozo) => pozo.temperatura_c], ["Oxígeno disuelto (%)", (pozo) => pozo.oxigeno_disuelto],
+  ["Conductividad", (pozo) => pozo.conductividad], ["Cloro residual", (pozo) => pozo.cloro_residual],
+  ["Latitud", (pozo) => (pozo.coordenada_valida ? pozo.latitud : "")], ["Longitud", (pozo) => (pozo.coordenada_valida ? pozo.longitud : "")],
+  ["UTM X", (pozo) => pozo.utm_x], ["UTM Y", (pozo) => pozo.utm_y], ["Elevación (m)", (pozo) => pozo.elevacion_m],
+  ["Datos que faltan", (pozo) => faltantesDe(pozo).join("; ")], ["Observaciones", (pozo) => pozo.observaciones]
+];
+const celdaCsv = (valor) => {
+  if (!tieneValor(valor)) return "";
+  const texto = String(valor);
+  return /[",\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+};
+export const pozosCsv = (pozos = []) => "﻿" + [COLUMNAS_CSV.map(([titulo]) => titulo), ...pozos.map((pozo) => COLUMNAS_CSV.map(([, valor]) => valor(pozo)))]
+  .map((fila) => fila.map(celdaCsv).join(","))
+  .join("\r\n");

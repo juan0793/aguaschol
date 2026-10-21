@@ -34,7 +34,7 @@ const elegirZoom = (puntos, ancho, alto, margen, zoomMax = ZOOM_MAX) => {
  * @param {object} opciones
  * @param {object[]} opciones.points  puntos con latitude/longitude/point_type
  * @param {(punto) => string} [opciones.colorDe]  color fijo por punto (p. ej. por día); sin él, figura y color del tipo
- * @param {(punto) => string} [opciones.etiquetaDe]  número de cada punto (mapa de barrio): etiqueta del color de su tipo
+ * @param {(punto) => string} [opciones.etiquetaDe]  número de cada punto (mapa de barrio): etiqueta del color de su tipo, o de `colorDe` si se da
  * @param {{ puntos: object[], etiqueta: string }[]} [opciones.marcos]  recuadros rotulados (índice de láminas)
  * @returns {Promise<string>} data URL JPEG, o "" si no hay puntos con coordenadas
  */
@@ -85,7 +85,7 @@ export async function dibujarMapaPuntos({ points = [], apiUrl = "", ancho = 1400
   }
 
   if (marcos.length) dibujarMarcos(ctx, marcos, (lat, lng) => ({ x: mundoX(lng, z) - izquierda, y: mundoY(lat, z) - arriba }));
-  if (etiquetaDe) dibujarEtiquetas(ctx, puntos.map((item) => ({ ...item, x: mundoX(item.lng, z) - izquierda, y: mundoY(item.lat, z) - arriba })), etiquetaDe, ancho, alto);
+  if (etiquetaDe) dibujarEtiquetas(ctx, puntos.map((item) => ({ ...item, x: mundoX(item.lng, z) - izquierda, y: mundoY(item.lat, z) - arriba })), etiquetaDe, ancho, alto, colorDe);
 
   // Puntos: figura del tipo (como en Puntos GPS) o círculo del color indicado.
   const figuras = new Map();
@@ -126,7 +126,8 @@ export async function dibujarMapaPuntos({ points = [], apiUrl = "", ancho = 1400
 // tipo. Si dos puntos quedan muy juntos, la etiqueta se corre y una línea la une al sitio
 // exacto, marcado con un punto.
 const ALTO_ETIQUETA = 34;
-function dibujarEtiquetas(ctx, puntos, etiquetaDe, ancho, alto) {
+function dibujarEtiquetas(ctx, puntos, etiquetaDe, ancho, alto, colorDe = null) {
+  const colorEtiqueta = (punto) => colorDe?.(punto) || getPointTypeStyle(punto.point_type).color;
   ctx.font = "700 21px Arial, sans-serif";
   const datos = puntos.map((item) => {
     const texto = String(etiquetaDe(item.punto) ?? "");
@@ -148,7 +149,7 @@ function dibujarEtiquetas(ctx, puntos, etiquetaDe, ancho, alto) {
     if (!lugares[indice].movida) return;
     ctx.beginPath();
     ctx.arc(item.x, item.y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = getPointTypeStyle(item.punto.point_type).color;
+    ctx.fillStyle = colorEtiqueta(item.punto);
     ctx.fill();
     ctx.lineWidth = 2;
     ctx.strokeStyle = "#ffffff";
@@ -169,7 +170,7 @@ function dibujarEtiquetas(ctx, puntos, etiquetaDe, ancho, alto) {
     ctx.arcTo(izquierda, arriba + ALTO_ETIQUETA, izquierda, arriba, radio);
     ctx.arcTo(izquierda, arriba, izquierda + item.ancho, arriba, radio);
     ctx.closePath();
-    ctx.fillStyle = getPointTypeStyle(item.punto.point_type).color;
+    ctx.fillStyle = colorEtiqueta(item.punto);
     ctx.fill();
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = "#ffffff";

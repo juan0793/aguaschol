@@ -2,20 +2,34 @@ import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../components/Icon";
 import PozosMapa from "./PozosMapa";
-import { RANGOS, conCalidad, formatoNumero, fueraDeRango } from "./pozosFiltros";
+import { RANGOS, calidadDe, conCalidad, faltantesDe, formatoNumero, fueraDeRango } from "./pozosFiltros";
 
 const NADA = () => {};
 const Dato = ({ label, children, ancho = false }) => <div className={`pz-dato${ancho ? " is-ancho" : ""}`}><dt>{label}</dt><dd>{children ?? "—"}</dd></div>;
 const conUnidad = (valor, unidad, decimales = 2) => (valor === null || valor === undefined ? null : `${formatoNumero(valor, decimales)} ${unidad}`);
 
+// Escala de pH y TDS: la banda es el valor guía y la marca, la medición del pozo.
+const ESCALAS = { ph: { min: 4, max: 10 }, tds_g_l: { min: 0, max: 2 } };
+function Escala({ campo, valor }) {
+  const escala = ESCALAS[campo];
+  const rango = RANGOS[campo];
+  const pos = (numero) => `${((Math.min(Math.max(numero, escala.min), escala.max) - escala.min) / (escala.max - escala.min)) * 100}%`;
+  const desde = rango.min ?? escala.min;
+  return <span className="pz-escala" aria-hidden="true">
+    <i className="pz-escala-guia" style={{ left: pos(desde), width: `calc(${pos(rango.max)} - ${pos(desde)})` }} />
+    <i className="pz-escala-marca" style={{ left: pos(valor) }} />
+  </span>;
+}
+
 function Medicion({ campo, label, valor, unidad = "", decimales = 2 }) {
   const fuera = fueraDeRango(campo, valor);
   const rango = RANGOS[campo];
   const hay = valor !== null && valor !== undefined;
-  return <div className={`pz-medicion${fuera ? " is-fuera" : ""}`}>
+  return <div className={`pz-medicion${fuera ? " is-fuera" : ""}${rango ? " is-con-guia" : ""}`}>
     <dt>{label}</dt>
     <dd>
       <strong>{formatoNumero(valor, decimales)}</strong>{hay && unidad ? <span>{unidad}</span> : null}
+      {rango && hay ? <Escala campo={campo} valor={valor} /> : null}
       {rango && hay ? <small>{fuera ? <Icon name="warning" /> : null}{fuera ? "Fuera del valor guía" : "Dentro del valor guía"} ({rango.texto})</small> : null}
     </dd>
   </div>;
@@ -23,7 +37,7 @@ function Medicion({ campo, label, valor, unidad = "", decimales = 2 }) {
 
 // Ficha de un pozo en el cajón del sistema (el mismo de Clandestinos e Inspecciones):
 // se abre encima de la bandeja, así la lista no se mueve. Flechas ← → recorren la lista filtrada.
-export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSiguiente, onCerrar }) {
+export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSiguiente, onCerrar, onFicha }) {
   const cerrarRef = useRef(null);
   const soloEste = useMemo(() => (pozo?.coordenada_valida ? [pozo] : []), [pozo]);
 
@@ -40,6 +54,7 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
 
   if (!pozo) return null;
   const mapsUrl = pozo.coordenada_valida ? `https://www.google.com/maps?q=${pozo.latitud},${pozo.longitud}` : null;
+  const faltan = faltantesDe(pozo);
 
   return createPortal(<div className="cl-drawer-backdrop pz-drawer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onCerrar()}>
     <aside className="cl-drawer pz-drawer" role="dialog" aria-modal="true" aria-labelledby="pz-drawer-titulo">
@@ -49,7 +64,7 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
           <p>{[pozo.colonia, pozo.municipio].filter(Boolean).join(" · ") || "Sin colonia"}</p>
           <div className="pz-estados">
             <span className={`cl-status ${pozo.en_uso ? "is-approved" : ""}`}><i />{pozo.en_uso ? "En uso" : "Sin dato de uso"}</span>
-            <span className={`cl-status ${conCalidad(pozo) ? "is-review" : ""}`}><i />{conCalidad(pozo) ? "Calidad medida" : "Sin mediciones de calidad"}</span>
+            <span className={`cl-status ${{ dentro: "is-approved", fuera: "is-discarded", sin: "" }[calidadDe(pozo)]}`}><i />{{ dentro: "Dentro del valor guía", fuera: "Fuera del valor guía", sin: "Sin medición de calidad" }[calidadDe(pozo)]}</span>
             {pozo.codigo_repetido ? <span className="cl-status is-info_requested"><i />Código repetido en otro pozo</span> : null}
             {!pozo.coordenada_valida ? <span className="cl-status is-info_requested"><i />Coordenada fuera de Choluteca</span> : null}
           </div>
@@ -59,6 +74,7 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
 
       <div className="cl-drawer-scroll pz-drawer-cuerpo">
         <div className="pz-drawer-datos">
+          {faltan.length ? <p className="pz-faltan"><Icon name="flag" /><span><strong>Falta levantar:</strong> {faltan.join(", ")}.</span></p> : null}
           <section aria-labelledby="pz-sec-calidad">
             <h3 id="pz-sec-calidad">Calidad del agua</h3>
             {!conCalidad(pozo) ? <p className="pz-sin-medir">No hay mediciones de calidad para este pozo.</p> : <dl className="pz-mediciones">
@@ -99,6 +115,7 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
       <footer className="pz-drawer-pie">
         <span>Pozo {posicion} de {total} en la lista</span>
         <div>
+          <button type="button" className="cl-secondary pz-ficha-pdf" onClick={onFicha} disabled={!onFicha}><Icon name="print" />{onFicha ? "Ficha PDF" : "Generando…"}</button>
           <button type="button" className="cl-secondary" onClick={onAnterior} disabled={!onAnterior}><Icon name="arrowLeft" />Anterior</button>
           <button type="button" className="cl-secondary" onClick={onSiguiente} disabled={!onSiguiente}>Siguiente<Icon name="arrowRight" /></button>
         </div>

@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { API_URL } from "../../config/api";
 import { escapeHtml } from "../../utils/html";
+import { CALIDADES, calidadDe, formatoNumero } from "./pozosFiltros";
 
 const CAPAS = {
   imagery: { label: "Satélite", attribution: "Esri, Maxar, Earthstar Geographics" },
@@ -11,7 +12,7 @@ const CAPAS = {
 const CENTRO_CHOLUTECA = [13.3017, -87.1889];
 
 const icono = (pozo, activo) => {
-  const tono = pozo.en_uso ? "is-uso" : "is-sin-dato";
+  const tono = `is-${calidadDe(pozo)}`;
   const tamano = activo ? 22 : 14;
   return L.divIcon({
     className: "pz-pin-shell",
@@ -19,6 +20,13 @@ const icono = (pozo, activo) => {
     iconSize: [tamano, tamano],
     iconAnchor: [tamano / 2, tamano / 2]
   });
+};
+
+// El color del punto es su calidad (la misma de la lista y los gráficos).
+const lecturaDe = (pozo) => {
+  const medidas = [pozo.ph != null ? `pH ${formatoNumero(pozo.ph, 2)}` : "", pozo.tds_g_l != null ? `TDS ${formatoNumero(pozo.tds_g_l, 3)} g/L` : ""].filter(Boolean).join(" · ");
+  const calidad = CALIDADES.find((item) => item.clave === calidadDe(pozo))?.label;
+  return `<strong>${escapeHtml(pozo.codigo)}</strong> · ${escapeHtml(pozo.nombre || "Sin nombre")}<br><span>${escapeHtml(medidas ? `${medidas} · ${calidad}` : calidad)}${pozo.en_uso ? "" : " · sin dato de uso"}</span>`;
 };
 
 // Mapa de la pantalla Pozos: mosaicos por /api/map-tiles (como Puntos GPS), un círculo por pozo
@@ -71,7 +79,7 @@ export default function PozosMapa({ pozos, seleccionadoId, onSeleccionar, compac
     const marcadores = new Map();
     pozos.forEach((pozo) => {
       const marcador = L.marker([pozo.latitud, pozo.longitud], { icon: icono(pozo, false), keyboard: false, riseOnHover: true });
-      marcador.bindTooltip(`<strong>${escapeHtml(pozo.codigo)}</strong> · ${escapeHtml(pozo.nombre || "Sin nombre")}`, { direction: "top", offset: [0, -8], className: "pz-tooltip" });
+      marcador.bindTooltip(lecturaDe(pozo), { direction: "top", offset: [0, -8], className: "pz-tooltip" });
       marcador.on("click", () => onSeleccionar(pozo.id));
       marcador.addTo(grupo);
       marcadores.set(pozo.id, { marcador, pozo });
@@ -104,8 +112,7 @@ export default function PozosMapa({ pozos, seleccionadoId, onSeleccionar, compac
       {Object.entries(CAPAS).map(([clave, info]) => <button type="button" key={clave} className={capa === clave ? "is-activo" : ""} aria-pressed={capa === clave} onClick={() => setCapa(clave)}>{info.label}</button>)}
     </div>
     {compacto ? null : <div className="pz-leyenda" aria-hidden="true">
-      <span><i className="pz-pin is-uso" />En uso</span>
-      <span><i className="pz-pin is-sin-dato" />Sin dato de uso</span>
+      {CALIDADES.map((calidad) => <span key={calidad.clave}><i className={`pz-pin is-${calidad.clave}`} />{calidad.label}</span>)}
     </div>}
   </div>;
 }

@@ -18,7 +18,7 @@
     "test:manager-reports": "node --test src/modules/reports/managerReportPdf.test.mjs src/modules/reports/managerReportFormat.test.mjs",
     "test:dashboard": "node --test src/modules/dashboard/managerOverview.test.mjs src/modules/dashboard/managerPlatformCost.test.mjs src/modules/dashboard/managerDashboardSelectors.test.mjs src/modules/dashboard/dashboardSelectors.test.mjs src/modules/dashboard/debtRankingPrint.test.mjs src/modules/dashboard/dotPlotLayout.test.mjs",
     "test:railway": "node --test src/components/railwayUsageCharts.test.mjs",
-    "test:pozos": "node --test src/modules/pozos/pozosFiltros.test.mjs",
+    "test:pozos": "node --test src/modules/pozos/pozosFiltros.test.mjs src/modules/pozos/pozosPdf.test.mjs",
     "test:sig": "node --test src/modules/sig/utils/sigZoomRules.test.mjs src/modules/sig/utils/sigGeojson.test.mjs src/modules/sig/utils/loteTerritorial.test.mjs",
     "test:clandestinos": "node --test src/utils/records.test.mjs src/modules/clandestinos/services/bancoPrint.test.mjs src/modules/clandestinos/printing/loteImpresion.test.mjs",
     "test:notes": "node --test src/modules/notes/utils/noteContent.test.mjs",
