@@ -48,7 +48,7 @@ export function BarrasColonia({ filas, activa, onElegir }) {
         return <li key={fila.colonia}>
           <button type="button" className={activa === fila.colonia ? "is-activa" : undefined} disabled={Boolean(fila.otras)} aria-label={fila.otras ? texto : `${texto}. Ver solo esta colonia`} {...props(texto)} onClick={() => onElegir(fila.colonia)}>
             <span className="pz-barra-etiqueta">{fila.colonia}</span>
-            <span className="pz-barra-pista"><i style={{ width: `${(fila.total / maximo) * 100}%` }} /></span>
+            <span className="pz-barra-pista"><i style={{ "--escala": fila.total / maximo }} /></span>
             <strong>{fila.total}</strong>
           </button>
         </li>;
@@ -78,6 +78,21 @@ export function FranjaUso({ uso, total }) {
   </div>;
 }
 
+// Calidad: la misma franja al 100 %, con dentro, fuera y sin medición.
+export function FranjaCalidad({ conteos, total }) {
+  const { figuraRef, props, globo } = useLectura();
+  const partes = CALIDADES.map((calidad) => ({ clave: calidad.clave, label: calidad.label, n: conteos[calidad.clave] || 0 })).filter((parte) => parte.n > 0);
+  return <div ref={figuraRef} className="pz-figura pz-uso">
+    <div className="pz-franja" role="img" aria-label={partes.map((parte) => `${parte.label}: ${parte.n}`).join(", ")}>
+      {partes.map((parte) => <span key={parte.clave} className={`is-${parte.clave}`} style={{ flexGrow: parte.n }} tabIndex={0} {...props(`${parte.label}: ${plural(parte.n, "pozo", "pozos")} (${porcentaje(parte.n, total)} %)`)} />)}
+    </div>
+    <ul className="pz-leyenda-lista">
+      {partes.map((parte) => <li key={parte.clave}><i className={`is-${parte.clave}`} />{parte.label}<strong>{parte.n}</strong><span>{porcentaje(parte.n, total)} %</span></li>)}
+    </ul>
+    {globo}
+  </div>;
+}
+
 // Cobertura: cuántos pozos tienen cada dato. Tocar una fila muestra los que no lo tienen.
 export function Cobertura({ filas, activa, onElegir }) {
   const { figuraRef, props, globo } = useLectura();
@@ -89,7 +104,7 @@ export function Cobertura({ filas, activa, onElegir }) {
         return <li key={fila.clave}>
           <button type="button" className={activa === fila.clave ? "is-activa" : undefined} disabled={!faltan} aria-label={faltan ? `${texto}. Ver los ${faltan} que no lo tienen` : texto} {...props(faltan ? `${texto} · faltan ${faltan}` : texto)} onClick={() => onElegir(fila.clave)}>
             <span className="pz-barra-etiqueta">{fila.label}</span>
-            <span className="pz-barra-pista is-con-pista"><i style={{ width: `${porcentaje(fila.n, fila.total)}%` }} /></span>
+            <span className="pz-barra-pista is-con-pista"><i style={{ "--escala": fila.total ? fila.n / fila.total : 0 }} /></span>
             <strong>{fila.n}<small>/{fila.total}</small></strong>
           </button>
         </li>;
@@ -133,7 +148,7 @@ export function Histograma({ barras, campo, unidad = "", decimales = 1 }) {
     <div className="pz-histograma-plot">
       {barras.map((barra) => {
         const texto = `${tramo(barra)}${unidad ? ` ${unidad}` : ""}: ${plural(barra.n, "pozo", "pozos")} · ${barra.fuera ? "fuera del valor guía" : "dentro del valor guía"}`;
-        return <div key={barra.desde} className={`pz-columna${barra.fuera ? " is-fuera" : " is-dentro"}`} style={{ "--alto": `${(barra.n / maximo) * 100}%` }} tabIndex={0} aria-label={texto} {...props(texto)}>
+        return <div key={barra.desde} className={`pz-columna${barra.fuera ? " is-fuera" : " is-dentro"}`} style={{ "--alto": `${(barra.n / maximo) * 100}%`, "--escala": barra.n / maximo }} tabIndex={0} aria-label={texto} {...props(texto)}>
           {barra.n ? <span className="pz-columna-cifra">{barra.n}</span> : null}
           <i />
         </div>;
@@ -200,7 +215,7 @@ export function CalidadPorColonia({ filas, activa, onElegir }) {
           aria-label={`${fila.colonia}: ${CALIDADES.map((calidad) => `${fila[calidad.clave]} ${calidad.label.toLowerCase()}`).join(", ")}${fila.otras ? "" : ". Ver solo esta colonia"}`}>
           <span className="pz-barra-etiqueta">{fila.colonia}</span>
           <span className="pz-barra-pista">
-            <span className="pz-apilada" style={{ width: `${(fila.total / maximo) * 100}%` }}>
+            <span className="pz-apilada" style={{ "--escala": fila.total / maximo }}>
               {CALIDADES.map((calidad) => (fila[calidad.clave] ? <i key={calidad.clave} className={`is-${calidad.clave}`} style={{ flexGrow: fila[calidad.clave] }} {...props(`${fila.colonia} · ${calidad.label}: ${plural(fila[calidad.clave], "pozo", "pozos")}`)} /> : null))}
             </span>
           </span>

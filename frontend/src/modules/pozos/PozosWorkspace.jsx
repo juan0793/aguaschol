@@ -4,7 +4,7 @@ import { TableSkeleton } from "../../components/ds/Skeleton";
 import { congelarAltura, soltarAltura } from "../clandestinos/alturaSuave";
 import PozoDetalle from "./PozoDetalle";
 import PozosMapa from "./PozosMapa";
-import { BarrasColonia, CalidadPorColonia, Cobertura, Dispersion, FranjaUso, Hallazgos, Histograma, Panel } from "./PozosGraficos";
+import { BarrasColonia, CalidadPorColonia, Cobertura, Dispersion, FranjaCalidad, FranjaUso, Hallazgos, Histograma, Panel } from "./PozosGraficos";
 import {
   CALIDADES, DATOS, FILTROS_INICIALES, VISTAS, calidadDe, calidadPorColonia, coberturaDatos, coloniasDe, contarVistas, conteoUso,
   filtrarPozos, formatoNumero, fueraDeRango, hallazgos, haceCuanto, histograma, ordenarPozos, paginar, pozosCsv, pozosPorColonia, resumenMetricas
@@ -131,7 +131,8 @@ export default function PozosWorkspace({ apiFetch }) {
     hallazgos: hallazgos(filtrados),
     ph: histograma(filtrados, "ph"),
     tds: histograma(filtrados, "tds_g_l"),
-    calidad: calidadPorColonia(filtrados)
+    calidad: calidadPorColonia(filtrados),
+    conteoCalidad: CALIDADES.reduce((cuenta, calidad) => ({ ...cuenta, [calidad.clave]: filtrados.filter((pozo) => calidadDe(pozo) === calidad.clave).length }), {})
   } : null), [filtrados, modo]);
 
   // Alto estable, como en Fichas: cambiar de pestaña, colonia, página, orden o vista congela el alto
@@ -298,18 +299,20 @@ export default function PozosWorkspace({ apiFetch }) {
       {fallaInforme ? <p className="cl-alert" role="alert">{fallaInforme} <button type="button" className="pz-reintentar" onClick={() => setFallaInforme("")}>Cerrar</button></p> : null}
       {error && !data ? <p className="cl-alert" role="alert">{error} <button type="button" className="pz-reintentar" onClick={() => cargar()}>Reintentar</button></p> : null}
 
-      {modo === "resumen" && graficos ? <div className="pz-tablero">
-        <Panel id="pz-g-colonias" titulo="Pozos por colonia" nota="Toca una colonia para ver solo sus pozos.">
+      {/* Resumen: una franja compacta de cuatro paneles y, debajo, la misma tabla de la Lista. */}
+      {modo === "resumen" && graficos ? <div className="pz-tablero is-compacto">
+        <Panel id="pz-g-colonias" titulo="Pozos por colonia" nota="Toca una para filtrar.">
           <BarrasColonia filas={graficos.colonias} activa={filtros.colonia} onElegir={alternar("colonia")} />
         </Panel>
-        <Panel id="pz-g-uso" titulo="Estado de uso">
+        <Panel id="pz-g-uso" titulo="Uso y calidad">
           <FranjaUso uso={graficos.uso} total={filtrados.length} />
+          <FranjaCalidad conteos={graficos.conteoCalidad} total={filtrados.length} />
         </Panel>
-        <Panel id="pz-g-cobertura" titulo="Datos levantados" nota="Cuántos pozos tienen cada dato. Toca uno para ver los que les falta.">
-          <Cobertura filas={graficos.cobertura} activa={filtros.falta} onElegir={(clave) => verEnLista({ falta: filtros.falta === clave ? "" : clave })} />
+        <Panel id="pz-g-cobertura" titulo="Datos levantados" nota="Toca uno para ver a quién le falta.">
+          <Cobertura filas={graficos.cobertura} activa={filtros.falta} onElegir={(clave) => cambiar({ falta: filtros.falta === clave ? "" : clave })} />
         </Panel>
-        <Panel id="pz-g-hallazgos" titulo="Para atender" nota="Cada línea abre la lista con esos pozos.">
-          <Hallazgos items={graficos.hallazgos} onElegir={verEnLista} />
+        <Panel id="pz-g-hallazgos" titulo="Para atender" nota="Cada línea filtra la tabla.">
+          <Hallazgos items={graficos.hallazgos} onElegir={(filtro) => cambiar(filtro)} />
         </Panel>
       </div> : null}
 
@@ -351,7 +354,7 @@ export default function PozosWorkspace({ apiFetch }) {
         <p className="pz-nota">{enMapa.length} de {filtrados.length} pozos en el mapa{filtrados.length > enMapa.length ? ` · ${filtrados.length - enMapa.length} sin coordenada válida (búscalos en la lista)` : ""}. Toca un punto para abrir su ficha.</p>
       </div> : null}
 
-      {modo === "lista" ? <>
+      {modo === "lista" || modo === "resumen" ? <>
         <div ref={tablaRef} className={`cl-table-wrap pz-tabla-wrap${actualizando ? " is-refreshing" : ""}`} aria-busy={cargando || actualizando}>
           {actualizando ? <span className="cl-table-progress" role="status" aria-label="Actualizando pozos" /> : null}
           <table className="cl-table pz-tabla">
