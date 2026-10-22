@@ -3,7 +3,44 @@ import { Icon } from "../../../components/Icon";
 import TecnicosApoyoSelector from "./TecnicosApoyoSelector";
 import SugerenciasTecnico from "./SugerenciasTecnico";
 import CorregirOrtografia, { SPELLCHECK_PROPS } from "./CorregirOrtografia";
-import { MOTIVOS_SUGERIDOS } from "../utils/inspeccionesFormatters";
+import { MOTIVOS_SUGERIDOS, estadoLabel, formatShortDate, titleCase } from "../utils/inspeccionesFormatters";
+
+const ABIERTAS = ["ASIGNADA", "EN_PROCESO", "SEGUIMIENTO"];
+
+// Inspecciones que ya tiene la clave. Una clave puede tener varias cuentas: alarma solo si la
+// abierta es de la cuenta elegida o si alguna de las dos es general de la clave; las de otras
+// cuentas se muestran como referencia.
+const esGeneral = (item) => Boolean(Number(item.inspeccion_general)) || !String(item.abonado_numero || "").trim();
+function PreviasDeLaClave({ previas, abonado, general }) {
+  if (!previas?.length) return null;
+  const elegida = general || abonado;
+  const cubre = (item) => general || esGeneral(item) || String(item.abonado_numero).trim() === String(abonado);
+  const deEsta = elegida ? previas.filter(cubre) : previas;
+  const otras = elegida ? previas.filter((item) => !cubre(item)) : [];
+  const abiertas = deEsta.filter((item) => ABIERTAS.includes(item.estado));
+  const cerradas = deEsta.filter((item) => !ABIERTAS.includes(item.estado));
+  const otrasAbiertas = otras.filter((item) => ABIERTAS.includes(item.estado));
+  const sujeto = !elegida ? "Esta clave" : general ? "Esta clave (inspección general)" : "Esta cuenta";
+  const titulo = abiertas.length
+    ? `${sujeto} ya tiene ${abiertas.length === 1 ? "una inspección abierta" : `${abiertas.length} inspecciones abiertas`}. Revisa antes de crear otra.`
+    : cerradas.length ? `${sujeto} se inspeccionó ${cerradas.length === 1 ? "una vez" : `${cerradas.length} veces`} antes.` : "";
+  const fila = (item) => <li key={item.id}>
+    <span className="ins-previas-numero">{item.numero_inspeccion}</span>
+    <span>{estadoLabel(item.estado)} · {titleCase(item.tecnico_responsable_nombre) || "Sin técnico"} · {formatShortDate(item.fecha_finalizacion || item.fecha_asignacion)}</span>
+    <small>{esGeneral(item) ? "General de la clave" : `Abonado ${item.abonado_numero}`} · {item.motivo || "Sin motivo"}</small>
+  </li>;
+  return <div className="ins-previas-grupo">
+    {titulo ? <div className={`ins-previas${abiertas.length ? " is-abierta" : ""}`} role="status">
+      <strong><Icon name={abiertas.length ? "warning" : "history"} />{titulo}</strong>
+      <ul>{[...abiertas, ...cerradas.slice(0, 3)].map(fila)}</ul>
+      {cerradas.length > 3 ? <small>Y {cerradas.length - 3} más en el historial de Inspecciones.</small> : null}
+    </div> : null}
+    {otrasAbiertas.length ? <div className="ins-previas is-otras" role="status">
+      <strong><Icon name="users" />{otrasAbiertas.length === 1 ? "Otra cuenta de esta clave tiene una inspección abierta" : `Otras cuentas de esta clave tienen ${otrasAbiertas.length} inspecciones abiertas`} (no es la misma visita).</strong>
+      <ul>{otrasAbiertas.map(fila)}</ul>
+    </div> : null}
+  </div>;
+}
 
 export default function NuevaInspeccionModal({ api, tecnicos, initialData, notify, onClose, onCreated }) {
   const [claveInput, setClaveInput] = useState(initialData?.clave_catastral || "");
@@ -20,6 +57,7 @@ export default function NuevaInspeccionModal({ api, tecnicos, initialData, notif
   const [sugerencia, setSugerencia] = useState(null);
   const [apoyos, setApoyos] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [previas, setPrevias] = useState(null);
 
   const buscarClave = async (event) => {
     event?.preventDefault();
@@ -70,6 +108,22 @@ export default function NuevaInspeccionModal({ api, tecnicos, initialData, notif
         setResponsable((actual) => (actual.id && !actual.auto
           ? actual
           : { id: primero ? String(primero.tecnico_id) : "", auto: Boolean(primero) }));
+      })
+      .catch(() => {});
+    return () => { vigente = false; };
+  }, [api, lookup]);
+
+  // Lo que ya existe en esta clave (solo coincidencias exactas; el filtro del servidor es parcial).
+  useEffect(() => {
+    const clave = lookup?.exists ? lookup.normalized_query : "";
+    setPrevias(null);
+    if (!clave) return undefined;
+    let vigente = true;
+    api.list({ clave, limit: 50 })
+      .then((resultado) => {
+        if (!vigente) return;
+        const mismas = (resultado.items || []).filter((item) => item.clave_catastral === clave);
+        setPrevias(mismas.sort((a, b) => new Date(b.fecha_asignacion || 0) - new Date(a.fecha_asignacion || 0)));
       })
       .catch(() => {});
     return () => { vigente = false; };
@@ -147,6 +201,7 @@ export default function NuevaInspeccionModal({ api, tecnicos, initialData, notif
                 </button>
               </div>
               {lookup && !lookup.exists ? <p className="cl-alert">No se encontró la clave catastral en el padrón.</p> : null}
+              <PreviasDeLaClave previas={previas} abonado={inspeccionGeneral ? "" : abonadoSeleccionado} general={inspeccionGeneral} />
               {lookup?.exists ? (
                 <div className="ins-abonados-list">
                   <label className="ins-apoyo-chip">

@@ -1,3 +1,4 @@
+import { repeticionesDe } from "./inspeccionesRepeticion.js";
 import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
@@ -485,9 +486,15 @@ export const getResumenInspecciones = async (user, { mes = "", now = new Date() 
       return {
         id: item.id,
         numero_inspeccion: item.numero_inspeccion,
+        clave_catastral: item.clave_catastral,
+        inspeccion_general: Boolean(Number(item.inspeccion_general)),
+        abonado_numero: item.abonado_numero || "",
         abonado_nombre_snapshot: item.abonado_nombre_snapshot,
+        barrio_snapshot: item.barrio_snapshot || "",
         motivo: item.motivo,
         estado: item.estado,
+        // Otras inspecciones de la misma clave, para no repetir la visita sin saberlo.
+        repeticion: repeticionesDe(item, all),
         tecnico_responsable_nombre: item.tecnico_responsable_nombre || "",
         fecha_asignacion: item.fecha_asignacion,
         fecha_estado: desde,

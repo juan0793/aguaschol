@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import {
   BANDEJA_FILTROS,
@@ -105,21 +105,52 @@ function EstadosBar({ data, filtro, onFiltro }) {
 
 /* --- D. Bandeja "Requieren acción" ----------------------------------------------- */
 
-function BandejaRow({ item, onOpen }) {
-  const abonado = titleCase(item.abonado_nombre_snapshot) || "General";
+// Aviso de la misma clave. Una clave puede tener varias cuentas: solo es "posible repetida" si es
+// la misma cuenta o una inspección general de la clave; otra cuenta abierta se informa sin alarma.
+function avisoRepeticion(repeticion, enGrupo) {
+  if (!repeticion) return null;
+  const [repetida, ...masRepetidas] = repeticion.repetidas || [];
+  if (repetida) {
+    const que = repetida.inspeccion_general ? "una general de la clave" : "misma cuenta";
+    const quien = enGrupo ? "" : titleCase(repetida.tecnico_responsable_nombre);
+    return { tono: "is-repetida", icono: "warning", texto: `Repite a ${repetida.numero_inspeccion}${masRepetidas.length ? ` y ${masRepetidas.length} más` : ""} (${que})${quien ? ` · ${quien}` : ""}` };
+  }
+  const [otra, ...masOtras] = repeticion.otras_cuentas || [];
+  // Agrupada, la otra cuenta ya se ve en el mismo grupo.
+  if (otra && !enGrupo) {
+    return { tono: "is-cuenta", icono: "users", texto: `Otra cuenta en esta clave: ${otra.numero_inspeccion} · abonado ${otra.abonado_numero}${masOtras.length ? ` y ${masOtras.length} más` : ""}` };
+  }
+  if (repeticion.ultima_finalizada) {
+    return { tono: "is-previa", icono: "history", texto: `Inspeccionada antes: ${repeticion.ultima_finalizada.numero_inspeccion} · ${formatShortDate(repeticion.ultima_finalizada.fecha)}` };
+  }
+  return null;
+}
+
+function BandejaRow({ item, onOpen, enGrupo = false }) {
+  const general = item.inspeccion_general || !item.abonado_nombre_snapshot;
+  const abonado = general ? "Inspección general de la clave" : titleCase(item.abonado_nombre_snapshot);
   const tecnico = titleCase(item.tecnico_responsable_nombre) || "Sin técnico";
   const antiguedad = antiguedadLabel(item.antiguedad_dias);
+  const detalle = [item.motivo || "Sin motivo", enGrupo ? "" : titleCase(item.barrio_snapshot)].filter(Boolean).join(" · ");
+  const aviso = avisoRepeticion(item.repeticion, enGrupo);
   return (
     <li>
       <button
         type="button"
-        className="ins-row"
+        className={`ins-row${enGrupo ? " is-en-grupo" : ""}`}
         onClick={() => onOpen(item)}
-        aria-label={`${item.numero_inspeccion}, ${abonado}, ${estadoLabel(item.estado)}, ${antiguedadLargaLabel(item.antiguedad_dias)}`}
+        aria-label={`Clave ${item.clave_catastral || "sin registrar"}, ${item.numero_inspeccion}, ${abonado}${!general && item.abonado_numero ? `, abonado ${item.abonado_numero}` : ""}, ${estadoLabel(item.estado)}, ${antiguedadLargaLabel(item.antiguedad_dias)}${aviso ? `. ${aviso.texto}` : ""}`}
       >
-        <span className="ins-row-id">{item.numero_inspeccion}</span>
-        <span className="ins-row-name">{abonado}</span>
-        <span className="ins-row-motivo">{item.motivo || "Sin motivo"}</span>
+        <span className="ins-row-id">
+          {enGrupo ? null : <span className="ins-row-clave">{item.clave_catastral || "Sin clave"}</span>}
+          <span className="ins-row-numero">{item.numero_inspeccion}</span>
+        </span>
+        <span className="ins-row-name">
+          {abonado}
+          {!general && item.abonado_numero ? <small className="ins-row-cuenta">Abonado {item.abonado_numero}</small> : null}
+        </span>
+        <span className="ins-row-motivo">{detalle}</span>
+        {aviso ? <span className={`ins-row-aviso ${aviso.tono}`}><Icon name={aviso.icono} />{aviso.texto}</span> : null}
         <span className="ins-row-tecnico">
           <span className="ins-avatar" aria-hidden="true">{initial(tecnico)}</span>
           <span className="ins-row-tecnico-name">{tecnico}</span>
@@ -139,11 +170,77 @@ function BandejaRow({ item, onOpen }) {
   );
 }
 
+// Agrupadas por clave: los grupos siguen el orden de su inspección más antigua (la urgencia se
+// conserva) y dentro de cada uno van de la más antigua a la más reciente. Una clave de relleno
+// no agrupa nada.
+const claveDeGrupo = (item) => (/[1-9]/.test(String(item.clave_catastral || "")) ? item.clave_catastral : `sin-clave-${item.id}`);
+const agruparPorClave = (items) => {
+  const grupos = new Map();
+  items.forEach((item) => {
+    const clave = claveDeGrupo(item);
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push(item);
+  });
+  return [...grupos.entries()].map(([clave, lista]) => ({ clave, items: lista }));
+};
+const recortar = (grupos, maximo) => {
+  const salida = [];
+  let usados = 0;
+  for (const grupo of grupos) {
+    if (usados >= maximo) break;
+    const items = grupo.items.slice(0, maximo - usados);
+    usados += items.length;
+    salida.push({ ...grupo, items, ocultas: grupo.items.length - items.length });
+  }
+  return salida;
+};
+
+function GrupoClave({ grupo, onOpen }) {
+  const [primero] = grupo.items;
+  const cuentas = new Set(grupo.items.map((item) => (item.inspeccion_general || !item.abonado_numero ? "general" : item.abonado_numero)));
+  const repetida = grupo.items.some((item) => item.repeticion?.repetidas?.length);
+  const total = grupo.items.length + (grupo.ocultas || 0);
+  return (
+    <li className={`ins-grupo${repetida ? " is-repetida" : ""}`}>
+      <div className="ins-grupo-head">
+        <strong className="ins-row-clave">{primero.clave_catastral}</strong>
+        {primero.barrio_snapshot ? <span>{titleCase(primero.barrio_snapshot)}</span> : null}
+        <span className="ins-grupo-cuenta">
+          {total} abiertas · {cuentas.size === 1 ? (cuentas.has("general") ? "general de la clave" : "una sola cuenta") : `${cuentas.size} cuentas`}
+        </span>
+        {repetida ? <span className="ins-grupo-alerta"><Icon name="warning" />Posible inspección repetida</span> : null}
+      </div>
+      <ul className="ins-grupo-rows">
+        {grupo.items.map((item) => <BandejaRow key={item.id} item={item} onOpen={onOpen} enGrupo />)}
+      </ul>
+    </li>
+  );
+}
+
+const ORDENES = [
+  { key: "clave", label: "Agrupar por clave" },
+  { key: "antiguedad", label: "Solo por antigüedad" }
+];
+const ORDEN_GUARDADO = "inspecciones.bandeja.orden";
+const ordenInicial = () => {
+  try { return ORDENES.some((opcion) => opcion.key === localStorage.getItem(ORDEN_GUARDADO)) ? localStorage.getItem(ORDEN_GUARDADO) : "clave"; } catch { return "clave"; }
+};
+
 function Bandeja({ data, loading, filtro, onFiltro, onOpen, onVerTodas }) {
+  const [orden, setOrdenEstado] = useState(ordenInicial);
+  const setOrden = (valor) => {
+    setOrdenEstado(valor);
+    try { localStorage.setItem(ORDEN_GUARDADO, valor); } catch { /* la preferencia es opcional */ }
+  };
   const bandeja = data?.bandeja || [];
   const conteo = Object.fromEntries(BANDEJA_FILTROS.map((f) => [f.key, f.estado ? bandeja.filter((item) => item.estado === f.estado).length : bandeja.length]));
   const estado = BANDEJA_FILTROS.find((f) => f.key === filtro)?.estado || "";
-  const visibles = (estado ? bandeja.filter((item) => item.estado === estado) : bandeja).slice(0, BANDEJA_MAX);
+  const filtradas = estado ? bandeja.filter((item) => item.estado === estado) : bandeja;
+  const grupos = orden === "clave"
+    ? recortar(agruparPorClave(filtradas), BANDEJA_MAX)
+    : filtradas.slice(0, BANDEJA_MAX).map((item) => ({ clave: `i-${item.id}`, items: [item] }));
+  const visibles = grupos.reduce((suma, grupo) => suma + grupo.items.length, 0);
+  const posiblesRepetidas = filtradas.filter((item) => item.repeticion?.repetidas?.length).length;
   const vacia = BANDEJA_VACIA[filtro] || BANDEJA_VACIA[""];
 
   return (
@@ -165,8 +262,15 @@ function Bandeja({ data, loading, filtro, onFiltro, onOpen, onVerTodas }) {
         <button type="button" className="ins-link ins-bandeja-all-top" onClick={onVerTodas}>Ver todas</button>
       </header>
 
+      <div className="ins-bandeja-barra">
+        <div className="ins-orden" role="group" aria-label="Cómo ordenar">
+          {ORDENES.map((opcion) => <button key={opcion.key} type="button" aria-pressed={orden === opcion.key} className={orden === opcion.key ? "is-active" : ""} onClick={() => setOrden(opcion.key)}>{opcion.label}</button>)}
+        </div>
+        {posiblesRepetidas ? <span className="ins-bandeja-alerta"><Icon name="warning" />{posiblesRepetidas === 1 ? "1 posible repetida" : `${posiblesRepetidas} posibles repetidas`}: misma cuenta o inspección general en la misma clave</span> : null}
+      </div>
+
       <div className="ins-cols" aria-hidden="true">
-        <span>Inspección</span>
+        <span>{orden === "clave" ? "Inspección" : "Clave / inspección"}</span>
         <span>Abonado y motivo</span>
         <span>Técnico</span>
         <span>Antigüedad</span>
@@ -178,9 +282,11 @@ function Bandeja({ data, loading, filtro, onFiltro, onOpen, onVerTodas }) {
         <ul className="ins-rows" aria-busy="true" aria-label="Cargando inspecciones">
           {[0, 1, 2].map((key) => <li key={key} className="ins-row-skeleton"><span /><span /><span /></li>)}
         </ul>
-      ) : visibles.length ? (
+      ) : visibles ? (
         <ul className="ins-rows">
-          {visibles.map((item) => <BandejaRow key={item.id} item={item} onOpen={onOpen} />)}
+          {grupos.map((grupo) => (grupo.items.length > 1
+            ? <GrupoClave key={grupo.clave} grupo={grupo} onOpen={onOpen} />
+            : <BandejaRow key={grupo.items[0].id} item={grupo.items[0]} onOpen={onOpen} />))}
         </ul>
       ) : (
         <div className="ins-empty">
@@ -191,7 +297,10 @@ function Bandeja({ data, loading, filtro, onFiltro, onOpen, onVerTodas }) {
       )}
 
       <footer className="ins-card-foot">
-        <span>Ordenadas de la más antigua a la más reciente{(conteo[filtro] ?? 0) > BANDEJA_MAX ? ` · primeras ${BANDEJA_MAX} de ${conteo[filtro]}` : ""}</span>
+        <span>
+          {(conteo[filtro] ?? 0) > BANDEJA_MAX ? `Primeras ${BANDEJA_MAX} de ${conteo[filtro]}` : `${conteo[filtro] ?? 0} en total`}
+          {orden === "clave" ? " · las claves con más de una inspección van juntas, la más antigua primero" : " · de la más antigua a la más reciente"}
+        </span>
         <button type="button" className="ins-link" onClick={onVerTodas}>
           Ver todas las inspecciones
           <Icon name="arrowRight" />
