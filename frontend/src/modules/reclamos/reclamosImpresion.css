@@ -70,6 +70,11 @@
   body.rc-imprimiendo > #root { display: none !important; }
   body.rc-imprimiendo { margin: 0 !important; padding: 0 !important; background: #fff !important; }
   body.rc-imprimiendo .rc-imp-portal { position: static !important; left: auto !important; width: auto !important; }
+  /* clandestinos.css (cargada por Fichas, Pozos o Reportes) imprime con `body * { visibility:
+     hidden }`. Si ya se abrió alguna de esas pantallas, la ficha quedaba invisible y la hoja
+     salía en blanco: se devuelve la visibilidad a la ficha, como hace el acta de Entregas. */
+  body.rc-imprimiendo .rc-imp-portal,
+  body.rc-imprimiendo .rc-imp-portal * { visibility: visible !important; }
   body:not(.rc-imprimiendo) .rc-imp-portal { display: none !important; }
 
   .rc-imp-datos th, .rc-imp-bloque h2 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
