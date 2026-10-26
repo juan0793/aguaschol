@@ -88,19 +88,22 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
     setImpresion({ reclamos: lista.map((item) => vigentes.get(item.id) || item), en: fechaHora(new Date().toISOString()) });
   };
 
-  // Antes de armar la ficha se pide al SIG dónde queda cada clave. Si no responde, la
-  // ficha sale igual, sin mapa.
+  // Antes de armar la ficha se pide al SIG dónde queda cada clave y, a Entregas, si el
+  // documento quedó como sobrante en algún lote. Si algo no responde, la ficha sale igual
+  // (sin mapa o sin el sobrante).
   useEffect(() => {
     if (!impresion || impresion.ubicaciones) return undefined;
     let vivo = true;
     const claves = [...new Set(impresion.reclamos.map((reclamo) => reclamo.clave_catastral).filter(Boolean))];
-    const pedido = claves.length
-      ? apiFetch(`/entregas/reclamos/ubicaciones?${new URLSearchParams({ claves: claves.join(",") })}`)
-        .then((respuesta) => leerJson(respuesta, ""))
-        .then((cuerpo) => cuerpo.ubicaciones || {})
-      : Promise.resolve({});
-    pedido.catch(() => ({})).then((ubicaciones) => {
-      if (vivo) setImpresion((actual) => actual && { ...actual, ubicaciones });
+    const pedir = (ruta, campo) => apiFetch(ruta)
+      .then((respuesta) => leerJson(respuesta, ""))
+      .then((cuerpo) => cuerpo[campo] || {})
+      .catch(() => ({}));
+    Promise.all([
+      claves.length ? pedir(`/entregas/reclamos/ubicaciones?${new URLSearchParams({ claves: claves.join(",") })}`, "ubicaciones") : {},
+      pedir(`/entregas/reclamos/sobrantes?${new URLSearchParams({ ids: impresion.reclamos.map((reclamo) => reclamo.id).join(",") })}`, "sobrantes")
+    ]).then(([ubicaciones, sobrantes]) => {
+      if (vivo) setImpresion((actual) => actual && { ...actual, ubicaciones, sobrantes });
     });
     return () => { vivo = false; };
   }, [apiFetch, impresion]);
@@ -301,7 +304,7 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
     </section>
     {impresion?.ubicaciones ? createPortal(
       <div className="rc-imp-portal">
-        <ReclamosImpresion reclamos={impresion.reclamos} ubicaciones={impresion.ubicaciones} onListo={fichaLista}
+        <ReclamosImpresion reclamos={impresion.reclamos} ubicaciones={impresion.ubicaciones} sobrantes={impresion.sobrantes} onListo={fichaLista}
           impresoEn={impresion.en} impresoPor={user?.full_name || user?.username || ""} />
       </div>,
       document.body

@@ -325,6 +325,38 @@ export const ubicacionesReclamos = async (query = {}, user) => {
   }
 };
 
+// Documento sobrante de cada reclamo, para la ficha impresa: el del mismo abonado o clave
+// y tipo de documento que quedó sin entregar en el lote más reciente hasta el día del
+// reclamo (60 días atrás como máximo). El reclamo no guarda el vínculo: se busca al imprimir.
+export const sobrantesReclamos = async (query = {}, user) => {
+  assertVer(user);
+  const ids = [...new Set(clean(query.ids).split(",").map(toEntero).filter((id) => id > 0))].slice(0, 60);
+  if (!ids.length) return { sobrantes: {} };
+  const [filas] = await getPool().query(
+    `SELECT reclamo.id AS reclamo_id, documento.id, documento.motivo, entrega_motivos.etiqueta AS motivo_etiqueta,
+       entrega_lotes.id AS lote_id, entrega_lotes.fecha
+     FROM entrega_reclamos AS reclamo
+     INNER JOIN entrega_no_entregadas AS documento
+       ON (reclamo.clave_catastral <> '' AND documento.clave_catastral = reclamo.clave_catastral)
+       OR (reclamo.numero_abonado <> '' AND documento.numero_abonado = reclamo.numero_abonado)
+     INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
+     LEFT JOIN entrega_motivos ON entrega_motivos.codigo = documento.motivo
+     WHERE reclamo.id IN (${ids.map(() => "?").join(", ")})
+       AND (entrega_lotes.tipo_documento IS NULL OR entrega_lotes.tipo_documento = reclamo.tipo_documento)
+       AND entrega_lotes.fecha <= DATE(reclamo.created_at) + INTERVAL 1 DAY
+       AND entrega_lotes.fecha >= DATE(reclamo.created_at) - INTERVAL 60 DAY
+     ORDER BY entrega_lotes.fecha DESC, documento.id DESC`,
+    ids
+  );
+  const sobrantes = {};
+  filas.forEach((fila) => {
+    const id = toEntero(fila.reclamo_id);
+    if (sobrantes[id]) return;
+    sobrantes[id] = { id: toEntero(fila.id), lote_id: toEntero(fila.lote_id), fecha: toIsoDate(fila.fecha), motivo: fila.motivo_etiqueta || fila.motivo || "" };
+  });
+  return { sobrantes };
+};
+
 /* -------------------------------------------------------------------------- */
 /* Escrituras                                                                  */
 /* -------------------------------------------------------------------------- */

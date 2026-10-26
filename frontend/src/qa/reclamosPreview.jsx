@@ -38,9 +38,16 @@ const data = {
   estado: "ABIERTOS"
 };
 
-const apiFetch = async () => {
+// La ficha impresa pide además dónde queda cada clave (sin SIG aquí) y el documento sobrante:
+// los reclamos 101 y 103 quedaron como sobrante en un lote.
+const respuestas = {
+  "/entregas/reclamos/ubicaciones": { ubicaciones: {} },
+  "/entregas/reclamos/sobrantes": { sobrantes: { 101: { id: 7, lote_id: 41, fecha: hace(9).slice(0, 10), motivo: "Casa cerrada" }, 103: { id: 9, lote_id: 43, fecha: hace(12).slice(0, 10), motivo: "Dirección incorrecta" } } }
+};
+const apiFetch = async (ruta = "") => {
   await new Promise((resolve) => window.setTimeout(resolve, 150));
-  return new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } });
+  const cuerpo = respuestas[String(ruta).split("?")[0]] || data;
+  return new Response(JSON.stringify(cuerpo), { status: 200, headers: { "Content-Type": "application/json" } });
 };
 const session = { user: { id: 1, role: "admin", full_name: "Administración de prueba" } };
 ReactDOM.createRoot(document.getElementById("root")).render(<ReclamosWorkspace apiFetch={apiFetch} session={session} showAlert={() => {}} />);

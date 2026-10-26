@@ -18,6 +18,13 @@ export const fechaCorta = (valor) => {
   return fecha.toLocaleDateString("es-HN", { timeZone: ZONA, day: "numeric", month: "long" });
 };
 
+// "martes 14 de octubre de 2026": el día de la semana va primero para ubicar la jornada.
+export const fechaConDia = (valor) => {
+  if (!valor) return "";
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(valor) ? new Date(`${valor}T12:00:00`) : new Date(valor);
+  return fecha.toLocaleDateString("es-HN", { timeZone: ZONA, weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(",", "");
+};
+
 export const fechaHora = (iso) =>
   iso ? new Date(iso).toLocaleString("es-HN", { timeZone: ZONA, day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }) : "";
 

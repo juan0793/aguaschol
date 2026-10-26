@@ -7,6 +7,7 @@ import {
   listReclamos,
   reabrirReclamo,
   responderReclamo,
+  sobrantesReclamos,
   ubicacionesReclamos
 } from "../services/entregasReclamosService.js";
 
@@ -20,6 +21,7 @@ const handle = (fn, status = 200) => async (req, res, next) => {
 router.get("/", handle((req) => listReclamos(req.query, req.authUser)));
 router.get("/buscar", handle((req) => buscarEntrega(req.query, req.authUser)));
 router.get("/ubicaciones", handle((req) => ubicacionesReclamos(req.query, req.authUser)));
+router.get("/sobrantes", handle((req) => sobrantesReclamos(req.query, req.authUser)));
 router.post("/", handle((req) => crearReclamo(req.body, req.authUser), 201));
 router.post("/:id/respuesta", handle((req) => responderReclamo(req.params.id, req.body, req.authUser)));
 router.post("/:id/cerrar", handle((req) => cerrarReclamo(req.params.id, req.authUser)));

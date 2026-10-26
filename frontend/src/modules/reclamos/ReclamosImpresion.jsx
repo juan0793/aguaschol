@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import ReclamoMapaCaptura from "./ReclamoMapaCaptura";
-import { ESTADOS, documentos, fechaHora, nombrePropio, origenTexto } from "./reclamosFormato";
+import { ESTADOS, documentos, fechaConDia, fechaHora, nombrePropio, origenTexto } from "./reclamosFormato";
 import "./reclamosImpresion.css";
 
 const valor = (texto) => (String(texto ?? "").trim() ? texto : "--");
@@ -12,7 +12,9 @@ const valor = (texto) => (String(texto ?? "").trim() ? texto : "--");
 // <footer>: la regla global de impresión los oculta.
 // Con `ubicaciones` (clave -> { lat, lng }) cada ficha lleva un mapita con el punto de la
 // clave; `onListo` avisa cuando todos los mapas ya son imagen y se puede imprimir.
-export default function ReclamosImpresion({ reclamos = [], ubicaciones = {}, impresoPor = "", impresoEn = "", onListo }) {
+// Con `sobrantes` (id del reclamo -> { lote_id, fecha, motivo }) la ficha dice en qué lote,
+// qué día y en qué fecha el documento quedó como sobrante.
+export default function ReclamosImpresion({ reclamos = [], ubicaciones = {}, sobrantes = {}, impresoPor = "", impresoEn = "", onListo }) {
   const [mapas, setMapas] = useState({});
   const pendientes = [...new Set(reclamos.map((reclamo) => reclamo.clave_catastral))]
     .filter((clave) => ubicaciones[clave] && !(clave in mapas));
@@ -31,6 +33,7 @@ export default function ReclamosImpresion({ reclamos = [], ubicaciones = {}, imp
         const estado = ESTADOS[reclamo.estado] || ESTADOS.SIN_RESPUESTA;
         const ubicacion = ubicaciones[reclamo.clave_catastral];
         const mapa = mapas[reclamo.clave_catastral];
+        const sobrante = sobrantes[reclamo.id];
         return (
           <article key={reclamo.id} className="rc-imp-ficha">
             <div className="rc-imp-cabeza">
@@ -70,6 +73,13 @@ export default function ReclamosImpresion({ reclamos = [], ubicaciones = {}, imp
                     <th>Registrado por</th>
                     <td>{valor(reclamo.created_by_nombre)}</td>
                   </tr>
+                  {sobrante ? <tr>
+                    <th>{reclamo.tipo_documento === "NOTA_COBRO" ? "Nota sobrante" : "Factura sobrante"}</th>
+                    <td colSpan={3}>
+                      <strong>Lote #{sobrante.lote_id} · {fechaConDia(sobrante.fecha)}</strong>
+                      {sobrante.motivo ? <span className="rc-imp-origen"> · {String(sobrante.motivo).toLowerCase()}</span> : null}
+                    </td>
+                  </tr> : null}
                   <tr>
                     <th>Técnico responsable</th>
                     <td colSpan={3}>
