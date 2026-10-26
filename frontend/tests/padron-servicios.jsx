@@ -19,6 +19,22 @@ const barrios = NOMBRES.map((nombre, i) => {
   return { barrio_colonia: nombre, total_registros: total, deuda: { capital: deudaTotal * 0.82, intereses: deudaTotal * 0.18, total: deudaTotal, deudores: Math.round(total * 0.75) }, servicios };
 });
 const totalRecords = barrios.reduce((sum, b) => sum + b.total_registros, 0);
+const ETIQUETAS = { agua: 'Agua potable', alcantarillado: 'Alcantarillado', barrido: 'Barrido', recoleccion: 'Recoleccion de desechos', desechos_peligrosos: 'Desechos peligrosos' };
+const serviceRows = CAMPOS.map((field) => {
+  const suma = (key) => barrios.reduce((total, b) => { const s = b.servicios.find((x) => x.field === field); return total + (key.startsWith('deuda.') ? s.deuda[key.slice(6)] : s[key]); }, 0);
+  const active = suma('active');
+  return { field, label: ETIQUETAS[field], active, inactive: suma('inactive'), unknown: field === 'agua' ? 2 : 0, percentage: Number(((active / totalRecords) * 100).toFixed(1)), deuda: { capital: suma('deuda.capital'), intereses: suma('deuda.intereses'), total: suma('deuda.total'), deudores: suma('deuda.deudores') } };
+}).sort((a, b) => b.active - a.active);
+// Cuentas ficticias de un barrio para el listado de abonados.
+const NOMBRES_ABONADOS = ['MARIA JOSE CASTILLO', 'JUAN CARLOS MEJIA', 'ROSA AMELIA ZELAYA', 'PEDRO ANTONIO LOPEZ', 'GLORIA ESPERANZA VINDEL', 'CARLOS ROBERTO SIERRA', 'ANA LUCIA MARTINEZ', 'JOSE LUIS ORDOÑEZ'];
+const cuentasDe = (barrio, i) => Array.from({ length: 18 + i * 3 }, (_, n) => ({
+  clave_catastral: `${10 + i}-${String(1 + (n % 9)).padStart(2, '0')}-${String(n + 1).padStart(2, '0')}-01`, abonado: String(4000 + i * 200 + n), nombre: NOMBRES_ABONADOS[(n + i) % NOMBRES_ABONADOS.length],
+  servicios: { agua: n % 3 !== 0, alcantarillado: n % 2 === 0, barrido: n % 5 === 0, recoleccion: n % 4 !== 1, desechos_peligrosos: n === 7 }, tarifa: 180 + n * 7, intereses: 0, total: n % 4 === 0 ? 0 : 350 + n * 91.5
+}));
+const apiFetch = async (url) => {
+  const nombres = new URL(url, 'http://x').searchParams.get('barrios').split('|');
+  return { ok: true, json: async () => ({ ok: true, barrios: nombres.map((nombre) => ({ barrio_colonia: nombre, rows: cuentasDe(nombre, NOMBRES.indexOf(nombre)) })) }) };
+};
 
 function App() {
   const [selectedBarrios, setSelected] = useState([]);
@@ -28,7 +44,8 @@ function App() {
   const printers = createPadronReportPrinters({ padronServiceReport: { generated_at: new Date().toISOString(), source: { file_name: 'Lote de prueba' } }, setDownloadingAguasServicePdf: () => {}, showAlert: (message) => { window.__aviso = message; } });
   const model = {
     serviceReport: { summary: { total_barrios: barrios.length }, source: { file_name: 'Lote de prueba', updated_at: new Date().toISOString() } },
-    serviceData: { barrios, hasData: true, totalRecords, deuda: { total: barrios.reduce((s, b) => s + b.deuda.total, 0), deudores: 15000 }, profiles: { water_without_sewer: 3436, sewer_without_water: 4143 } },
+    serviceData: { barrios, serviceRows, hasData: true, totalRecords, deuda: { capital: barrios.reduce((s, b) => s + b.deuda.capital, 0), intereses: barrios.reduce((s, b) => s + b.deuda.intereses, 0), total: barrios.reduce((s, b) => s + b.deuda.total, 0), deudores: 15000 }, profiles: { all_core_services: 2210, water_without_sewer: 3436, sewer_without_water: 4143, no_core_services: 512 } },
+    apiFetch, notify: (message) => { window.__aviso = message; }, formatClave: (row) => row.clave_catastral,
     loadingServices: false, loadError: '', onRefresh: () => {},
     selectedServiceField: field, onSelectService: setField,
     selectedBarrios, onSetSelectedBarrios: setSelected,

@@ -3,6 +3,7 @@ import {
   compareAlcaldia,
   downloadPadron,
   getAlcaldiaMeta,
+  getPadronBarrioAccounts,
   getPadronMeta,
   getPadronRequestMeta,
   getPadronServiceAccounts,
@@ -30,6 +31,7 @@ router.get("/requests/meta", requireRoles("admin", "gerente"), getPadronRequestM
 router.post("/requests/run", requireRoles("admin", "gerente"), runPadronRequest);
 router.get("/services/report", requireRoles("admin", "gerente"), getPadronServiceReport);
 router.get("/services/accounts", requireRoles("admin", "gerente"), getPadronServiceAccounts);
+router.get("/services/barrio-accounts", requireRoles("admin", "gerente"), getPadronBarrioAccounts);
 router.get("/download", requireAuth, downloadPadron);
 router.post("/reprocess", requireAdmin, reprocessPadron);
 router.post("/sync", requireAdmin, syncPadron);

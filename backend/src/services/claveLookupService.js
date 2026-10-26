@@ -1169,6 +1169,37 @@ export const getServiceAccounts = async ({ field = "", barrio = "", limit = 25 }
   };
 };
 
+// Listado de abonados de uno o varios barrios, con el nombre exacto del informe de
+// servicios: cada cuenta con sus cinco servicios (S/N) y lo que debe.
+export const getBarrioAccounts = async ({ barrios = [] } = {}) => {
+  const pedidos = [...new Set((Array.isArray(barrios) ? barrios : [barrios]).map((barrio) => String(barrio ?? "").trim()).filter(Boolean))].slice(0, 40);
+  if (!pedidos.length) {
+    const error = new Error("Elige al menos un barrio.");
+    error.status = 400;
+    throw error;
+  }
+
+  const porBarrio = new Map(pedidos.map((barrio) => [barrio, []]));
+  masterRecords.forEach((record) => {
+    const cuentas = porBarrio.get(resolveBarrioFromRecord(record, "Sin barrio"));
+    if (!cuentas) return;
+    cuentas.push({
+      clave_catastral: record.clave_catastral,
+      abonado: record.abonado ?? "",
+      nombre: record.inquilino || record.nombre || "",
+      servicios: Object.fromEntries(MASTER_SERVICE_FIELDS.map(([campo]) => [campo, isActiveServiceFlag(record[campo])])),
+      tarifa: Number(record.valor ?? 0),
+      intereses: Number(record.intereses ?? 0),
+      total: Number(record.total ?? 0)
+    });
+  });
+
+  return {
+    ok: true,
+    barrios: pedidos.map((barrio) => ({ barrio_colonia: barrio, rows: sortByClave(porBarrio.get(barrio)) }))
+  };
+};
+
 export const uploadClavePadron = async ({ buffer, originalName = "" }, options = {}) => {
   if (!buffer || !buffer.length) {
     const error = new Error("Debes seleccionar un archivo de padron maestro.");

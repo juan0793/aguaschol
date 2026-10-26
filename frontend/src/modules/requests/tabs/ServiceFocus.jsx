@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { formatCurrency } from "../../../utils/formatting";
+import { imprimirServicio } from "../padronInformes";
 import { buildServiceFocusRows, serviceLabel, sortServiceFocusRows, sumServiceFocusRows } from "../utils/serviceTable";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
@@ -57,6 +58,7 @@ export default function ServiceFocus({ model, rows, field }) {
       filtro: onlySelected ? "Barrios seleccionados por el operador" : [query.trim() ? `Barrios que contienen “${query.trim()}”` : "", conSin ? `Incluye barrios sin ${nombre}` : `Solo barrios con ${nombre}`].filter(Boolean).join(" · ")
     };
   };
+  const imprimir = (onlySelected = false) => imprimirServicio(informe(onlySelected), model.serviceReport?.source?.updated_at);
   const seleccionVisible = visible.filter((row) => selected.has(row.name)).length;
 
   const promedio = resumen.deudores ? resumen.deuda / resumen.deudores : 0;
@@ -74,15 +76,14 @@ export default function ServiceFocus({ model, rows, field }) {
       <label className="pq-search"><Icon name="search" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar barrio" aria-label="Buscar barrio" /></label>
       {barriosSin ? <label className="pq-check-toggle"><input type="checkbox" checked={conSin} onChange={(event) => setConSin(event.target.checked)} />Incluir los {count(barriosSin)} barrios sin el servicio</label> : null}
       <div className="pq-toolbar-actions">
-        <button type="button" className="pq-btn" onClick={() => model.onPrintServiceFocus(informe())} disabled={!visible.length} title={`Imprimir el informe de ${nombre}`}><Icon name="print" />Imprimir</button>
-        <button type="button" className="pq-btn" onClick={() => model.onDownloadServiceFocusPdf(informe())} disabled={!visible.length || model.downloadingServicesPdf} title={`Guardar el informe de ${nombre} en PDF`}><Icon name="download" />{model.downloadingServicesPdf ? "Guardando…" : "Guardar PDF"}</button>
+        <button type="button" className="pq-btn" onClick={() => imprimir()} disabled={!visible.length} title={`Imprimir o guardar como PDF el informe de ${nombre}`}><Icon name="print" />Imprimir / PDF</button>
       </div>
     </div>
 
     {model.selectedBarrios.length ? <div className="pq-selection" role="status">
       <span><strong>{seleccionVisible}</strong> {seleccionVisible === 1 ? "barrio marcado" : "barrios marcados"} en esta lista para imprimir aparte</span>
       <button type="button" className="pq-link" onClick={() => model.onSetSelectedBarrios([])}>Quitar selección</button>
-      <button type="button" className="pq-btn is-primary" disabled={!seleccionVisible} onClick={() => model.onPrintServiceFocus(informe(true))}><Icon name="print" />Imprimir selección</button>
+      <button type="button" className="pq-btn is-primary" disabled={!seleccionVisible} onClick={() => imprimir(true)}><Icon name="print" />Imprimir selección</button>
     </div> : null}
 
     {/* En pantalla, lo esencial. Capital e intereses van en el informe impreso y en el PDF. */}

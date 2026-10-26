@@ -70,6 +70,11 @@
 .pq-workspace .pq-tabs button:hover:not(:disabled) { background: var(--ds-surface-subtle, #f1f5f9); box-shadow: none; transform: none; color: var(--ds-text, #102a43); }
 .pq-workspace .pq-tabs button.is-active { background: #fff; box-shadow: inset 0 -2px var(--ds-blue, #1769e0); color: var(--ds-blue, #1769e0); }
 .pq-workspace .pq-tabs button.is-active .app-icon { color: var(--ds-blue, #1769e0); }
+/* Las consultas van en grupos (Servicios, Listados, Cruces) separados por una línea fina;
+   el nombre del grupo es una etiqueta pequeña, no un botón. */
+.pq-workspace .pq-tabs-group { display: flex; flex: none; align-items: center; gap: 2px; }
+.pq-workspace .pq-tabs-group + .pq-tabs-group { margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--ds-border, #e3ebf3); }
+.pq-workspace .pq-tabs-group > span { padding: 0 6px 0 2px; color: var(--ds-text-faint, #94a3b8); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
 .pq-workspace .pq-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; padding: 16px; animation: pq-tab-in 160ms ease; }
 .pq-workspace .pq-panel.is-table { gap: 12px; padding: 12px 16px 16px; }
 @keyframes pq-tab-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
@@ -93,6 +98,7 @@
    abre su propia vista: barrios, deuda e informe de ese servicio. */
 .pq-workspace .pq-service-pick { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; background: #fff; }
 .pq-workspace .pq-service-pick button { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: 56px; width: auto; margin: 0; padding: 8px 14px; border: 0; border-left: 1px solid var(--ds-border, #e3ebf3); border-radius: 0; background: #fff; box-shadow: none; color: var(--ds-text, #102a43); text-align: left; cursor: pointer; transition: background-color 0.15s ease; }
+.pq-workspace .pq-service-pick.is-five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .pq-workspace .pq-service-pick button:first-child { border-left: 0; }
 .pq-workspace .pq-service-pick button:hover:not(:disabled) { background: #f7fafd; box-shadow: none; transform: none; }
 .pq-workspace .pq-service-pick button:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
@@ -169,6 +175,13 @@
 .pq-workspace .pq-table.is-listado tbody th { color: var(--ds-text, #102a43); font-weight: 650; white-space: normal; min-width: 200px; }
 .pq-workspace .pq-table.is-listado thead tr:first-child th, .pq-workspace .pq-table.is-compare thead tr:first-child th { height: auto; padding: 10px 12px; }
 .pq-workspace .pq-table.is-compare tbody tr { cursor: pointer; }
+/* Tablas sin orden por columna (resumen y barrios): el encabezado lleva su propio relleno. */
+.pq-workspace .pq-table.is-resumen thead tr:first-child th, .pq-workspace .pq-table.is-barrios thead tr:first-child th:not(.pq-check) { padding: 0 12px; }
+.pq-workspace .pq-table.is-resumen tbody .pq-col-name { white-space: normal; }
+.pq-workspace .pq-table .pq-foot > * { border-top: 2px solid var(--ds-border-strong, #cfdce8); border-bottom: 0; color: var(--ds-text, #102a43); font-weight: 800; }
+.pq-workspace .pq-table .pq-foot .pq-col-name { color: var(--ds-text-muted, #627d98); font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase; }
+.pq-workspace .pq-table .pq-foot .pq-count { display: block; font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.pq-workspace .pq-table .pq-row-action { width: 1%; padding-top: 0; padding-bottom: 0; }
 .pq-workspace .pq-table.is-compare td { white-space: normal; }
 
 /* ---------- Listado de abonados ---------- */

@@ -2,6 +2,7 @@ import {
   compareAlcaldiaWithAguas,
   exportClavePadronWorkbook,
   getAguasServiceReport,
+  getBarrioAccounts,
   getServiceAccounts,
   getAlcaldiaLookupMeta,
   generatePadronRequestReport,
@@ -86,6 +87,15 @@ export const getPadronServiceAccounts = async (req, res, next) => {
       limit: req.query.limit
     });
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPadronBarrioAccounts = async (req, res, next) => {
+  try {
+    noStore(res);
+    res.json(await getBarrioAccounts({ barrios: String(req.query.barrios ?? "").split("|") }));
   } catch (error) {
     next(error);
   }

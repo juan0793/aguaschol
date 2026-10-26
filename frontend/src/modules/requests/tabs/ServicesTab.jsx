@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { formatCurrency } from "../../../utils/formatting";
 import { SERVICE_COLUMNS, buildServiceRows, sortServiceRows, sumServiceRows } from "../utils/serviceTable";
-import ServiceFocus from "./ServiceFocus";
+import { imprimirTodosServicios } from "../padronInformes";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
@@ -23,10 +23,7 @@ export default function ServicesTab({ model }) {
   // Usuarios: cuántos tienen cada servicio. Deuda: cuánto deben esas cuentas.
   const [view, setView] = useState("usuarios");
   const [sort, setSort] = useState({ key: "usuarios", dir: "desc" });
-  // Servicio elegido arriba de la tabla: vacío es "todos"; uno abre su propia vista e informe.
-  const [foco, setFoco] = useState("");
   const rows = useMemo(() => buildServiceRows(serviceData.barrios), [serviceData.barrios]);
-  const padron = useMemo(() => sumServiceRows(rows), [rows]);
   const visible = useMemo(() => {
     const text = query.trim().toLowerCase();
     return sortServiceRows(text ? rows.filter((row) => row.name.toLowerCase().includes(text)) : rows, { ...sort, view });
@@ -52,22 +49,14 @@ export default function ServicesTab({ model }) {
     return <div className="pq-panel"><div className="pq-empty"><Icon name="water" /><strong>{model.loadingServices ? "Leyendo el padrón maestro…" : "Sin datos de servicios"}</strong><span>{model.loadingServices ? "Calculando servicios y deuda por barrio." : "Actualiza los datos para calcular los servicios del padrón activo."}</span>{!model.loadingServices ? <button type="button" className="pq-btn" onClick={model.onRefresh}><Icon name="refresh" />Actualizar datos</button> : null}</div></div>;
   }
 
-  const picker = <div className="pq-service-pick" role="group" aria-label="Servicio">
-    <button type="button" aria-pressed={!foco} className={!foco ? "is-active" : ""} onClick={() => setFoco("")}><span>Todos los servicios</span><small>Comparar los cinco</small></button>
-    {SERVICE_COLUMNS.map(([field, label, icon]) => <button type="button" key={field} aria-pressed={foco === field} className={foco === field ? "is-active" : ""} onClick={() => setFoco(field)}>
-      <span><Icon name={icon} />{label}</span><small>{count(padron.services[field].active)} · {padron.services[field].percentage}%</small>
-    </button>)}
-  </div>;
-
-  if (foco) {
-    return <div className="pq-panel is-table">
-      {picker}
-      <ServiceFocus key={foco} model={model} rows={rows} field={foco} />
-    </div>;
-  }
+  // El informe lleva las filas como están en pantalla (o solo las marcadas).
+  const imprimir = (soloSeleccion = false) => {
+    const filas = soloSeleccion ? visible.filter((row) => selected.has(row.name)) : visible;
+    const filtro = soloSeleccion ? "<b>Barrios seleccionados por el operador</b>" : query.trim() ? `<b>Barrios que contienen</b> “${query.trim().replace(/[<>&]/g, "")}”` : "";
+    imprimirTodosServicios({ rows: filas, vista: view, filtro, padronActualizado: model.serviceReport?.source?.updated_at });
+  };
 
   return <div className="pq-panel is-table">
-    {picker}
     <div className="pq-toolbar">
       <label className="pq-search"><Icon name="search" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar barrio" aria-label="Buscar barrio" /></label>
       <div className="pq-segmented" role="group" aria-label="Qué mostrar en la tabla">
@@ -75,15 +64,14 @@ export default function ServicesTab({ model }) {
         <button type="button" aria-pressed={view === "deuda"} className={view === "deuda" ? "is-active" : ""} onClick={() => { setView("deuda"); if (sort.key === "usuarios") setSort({ key: "deuda", dir: "desc" }); }}>Deuda por servicio</button>
       </div>
       <div className="pq-toolbar-actions">
-        <button type="button" className="pq-btn" onClick={() => model.onPrintServices()}><Icon name="print" />Imprimir informe</button>
-        <button type="button" className="pq-btn" onClick={model.onDownloadServicesPdf} disabled={model.downloadingServicesPdf}><Icon name="download" />{model.downloadingServicesPdf ? "Guardando…" : "Guardar PDF"}</button>
+        <button type="button" className="pq-btn" onClick={() => imprimir()} disabled={!visible.length} title="Imprimir o guardar como PDF"><Icon name="print" />Imprimir / PDF</button>
       </div>
     </div>
 
     {model.selectedBarrios.length ? <div className="pq-selection" role="status">
       <span><strong>{model.selectedBarrios.length}</strong> {model.selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"} para imprimir aparte</span>
       <button type="button" className="pq-link" onClick={() => model.onSetSelectedBarrios([])}>Quitar selección</button>
-      <button type="button" className="pq-btn is-primary" onClick={() => model.onPrintServices({ onlySelected: true })}><Icon name="print" />Imprimir selección</button>
+      <button type="button" className="pq-btn is-primary" onClick={() => imprimir(true)}><Icon name="print" />Imprimir selección</button>
     </div> : null}
 
     <div className="pq-table-wrap">
@@ -140,6 +128,6 @@ export default function ServicesTab({ model }) {
         </tbody>
       </table>
     </div>
-    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Elige un servicio arriba para ver solo sus barrios, su deuda y su informe."}</p>
+    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Para un solo servicio, usa la consulta “Por servicio”."}</p>
   </div>;
 }

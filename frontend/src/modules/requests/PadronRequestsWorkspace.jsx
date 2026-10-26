@@ -4,24 +4,36 @@ import LiveNumber from "../../components/micro/LiveNumber";
 import { formatCurrency } from "../../utils/formatting";
 import { formatDateTime } from "../../utils/datesAndBusiness";
 import ServicesTab from "./tabs/ServicesTab";
+import ServicioTab from "./tabs/ServicioTab";
+import ResumenTab from "./tabs/ResumenTab";
+import BarriosTab from "./tabs/BarriosTab";
 import ListadoTab from "./tabs/ListadoTab";
 import ComparativoTab from "./tabs/ComparativoTab";
 import "../../components/ds/design-system.css";
 import "./requests.css";
 
-// Consultas del padrón maestro: servicios y deuda por barrio, listados de
-// abonados y el comparativo con Alcaldía. Antes cada cosa vivía en una ventana
-// modal detrás de una tarjeta; ahora son pestañas con los datos a la vista.
-const TABS = [
-  ["servicios", "Servicios por barrio", "water"],
-  ["listado", "Listado de abonados", "users"],
-  ["comparativo", "Alcaldía vs Aguas", "barChart"]
+// Consultas del padrón maestro, agrupadas como el resto de consultas del sistema:
+// las de servicios (todos, uno solo y el resumen con totales), los listados (barrios
+// y abonados, sin totales de la empresa) y el cruce con Alcaldía.
+const CONSULTAS = [
+  ["Servicios", [
+    ["todos", "Todos los servicios", "water"],
+    ["servicio", "Por servicio", "sewer"],
+    ["resumen", "Resumen de servicios", "barChart"]
+  ]],
+  ["Listados", [
+    ["barrios", "Barrios", "map"],
+    ["abonados", "Abonados", "users"]
+  ]],
+  ["Cruces", [
+    ["comparativo", "Alcaldía vs Aguas", "activity"]
+  ]]
 ];
 
 const money = (value) => formatCurrency(Number(value) || 0);
 
 export default function PadronRequestsWorkspace({ model }) {
-  const [tab, setTab] = useState("servicios");
+  const [tab, setTab] = useState("todos");
   const { serviceData, serviceReport } = model;
   const loading = model.loadingServices || model.loadingComparison;
   // Cifras del padrón como una línea de libro contable, no como tarjetas: la
@@ -59,10 +71,16 @@ export default function PadronRequestsWorkspace({ model }) {
       </div> : null}
 
       <nav className="pq-tabs" role="tablist" aria-label="Consultas del padrón">
-        {TABS.map(([key, label, icon]) => <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}><Icon name={icon} />{label}</button>)}
+        {CONSULTAS.map(([grupo, consultas]) => <div key={grupo} className="pq-tabs-group" role="presentation">
+          <span aria-hidden="true">{grupo}</span>
+          {consultas.map(([key, label, icon]) => <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? "is-active" : ""} onClick={() => setTab(key)}><Icon name={icon} />{label}</button>)}
+        </div>)}
       </nav>
-      {tab === "servicios" ? <ServicesTab model={model} /> : null}
-      {tab === "listado" ? <ListadoTab model={model} /> : null}
+      {tab === "todos" ? <ServicesTab model={model} /> : null}
+      {tab === "servicio" ? <ServicioTab model={model} /> : null}
+      {tab === "resumen" ? <ResumenTab model={model} /> : null}
+      {tab === "barrios" ? <BarriosTab model={model} /> : null}
+      {tab === "abonados" ? <ListadoTab model={model} /> : null}
       {tab === "comparativo" ? <ComparativoTab model={model} /> : null}
     </div>
   </section>;
