@@ -1,6 +1,7 @@
 import { Icon } from "../../../components/Icon";
 import { formatCurrency } from "../../../utils/formatting";
 import { imprimirResumenServicios } from "../padronInformes";
+import SalidaBotones from "./SalidaBotones";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
@@ -20,14 +21,14 @@ export default function ResumenTab({ model }) {
     return <div className="pq-panel"><div className="pq-empty"><Icon name="barChart" /><strong>{model.loadingServices ? "Leyendo el padrón maestro…" : "Sin datos de servicios"}</strong><span>Actualiza los datos para ver el resumen.</span></div></div>;
   }
 
-  const imprimir = () => imprimirResumenServicios({
+  const salida = (modo) => imprimirResumenServicios({
     servicios,
     totalUsuarios: total,
     totalBarrios: serviceReport?.summary?.total_barrios,
     deuda,
     perfiles,
     padronActualizado: serviceReport?.source?.updated_at
-  });
+  }, modo);
   const combinaciones = [
     ["Con agua, alcantarillado, barrido y recolección", perfiles.all_core_services],
     ["Con agua y sin alcantarillado", perfiles.water_without_sewer],
@@ -39,7 +40,7 @@ export default function ResumenTab({ model }) {
     <div className="pq-toolbar">
       <p className="pq-focus-summary">Totales de los cinco servicios sobre <b>{count(total)}</b> usuarios del padrón. La cartera de cada servicio es la de las cuentas que lo tienen activo.</p>
       <div className="pq-toolbar-actions">
-        <button type="button" className="pq-btn" onClick={imprimir} title="Imprimir o guardar como PDF"><Icon name="print" />Imprimir / PDF</button>
+        <SalidaBotones onSalida={salida} notify={model.notify} />
       </div>
     </div>
     <div className="pq-table-wrap">

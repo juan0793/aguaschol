@@ -182,6 +182,7 @@
 .pq-workspace .pq-table .pq-foot .pq-col-name { color: var(--ds-text-muted, #627d98); font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase; }
 .pq-workspace .pq-table .pq-foot .pq-count { display: block; font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .pq-workspace .pq-table .pq-row-action { width: 1%; padding-top: 0; padding-bottom: 0; }
+.pq-workspace .pq-table .pq-row-links { display: inline-flex; align-items: center; gap: 12px; }
 .pq-workspace .pq-table.is-compare td { white-space: normal; }
 
 /* ---------- Listado de abonados ---------- */

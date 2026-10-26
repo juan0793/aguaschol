@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { SERVICE_COLUMNS, buildServiceRows } from "../utils/serviceTable";
 import { imprimirAbonadosBarrios, imprimirListadoBarrios } from "../padronInformes";
+import SalidaBotones from "./SalidaBotones";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 // Tope del backend por consulta: más barrios se imprimen en otra tanda.
@@ -32,14 +33,14 @@ export default function BarriosTab({ model }) {
     return next;
   });
 
-  const imprimirGeneral = () => imprimirListadoBarrios({
+  const salidaGeneral = (modo) => imprimirListadoBarrios({
     rows: visible,
     filtro: query.trim() ? `Barrios que contienen “${query.trim()}”` : "",
     padronActualizado
-  });
+  }, modo);
 
   // Trae del padrón las cuentas de los barrios pedidos (en el orden de la tabla) y las imprime.
-  const imprimirAbonados = async (nombres, clave) => {
+  const imprimirAbonados = async (nombres, clave, modo = "imprimir") => {
     if (!nombres.length || !model.apiFetch) return;
     if (nombres.length > MAX_BARRIOS) {
       model.notify?.(`Marca hasta ${MAX_BARRIOS} barrios por listado.`);
@@ -50,7 +51,7 @@ export default function BarriosTab({ model }) {
       const response = await model.apiFetch(`/claves/services/barrio-accounts?${new URLSearchParams({ barrios: nombres.join("|") })}`);
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "No se pudo leer el padrón.");
-      await imprimirAbonadosBarrios({ barrios: body.barrios || [], formatClave: model.formatClave, conSaldo, padronActualizado });
+      await imprimirAbonadosBarrios({ barrios: body.barrios || [], formatClave: model.formatClave, conSaldo, padronActualizado }, modo);
     } catch (error) {
       model.notify?.(error.message || "No se pudo generar el listado de abonados.");
     } finally {
@@ -59,6 +60,7 @@ export default function BarriosTab({ model }) {
   };
   const marcadosEnOrden = visible.filter((row) => marcados.has(row.name)).map((row) => row.name);
   const marcadosOcultos = marcados.size - marcadosEnOrden.length;
+  const nombresMarcados = [...marcadosEnOrden, ...[...marcados].filter((name) => !marcadosEnOrden.includes(name))];
 
   if (!serviceData.hasData) {
     return <div className="pq-panel"><div className="pq-empty"><Icon name="map" /><strong>{model.loadingServices ? "Leyendo el padrón maestro…" : "Sin datos del padrón"}</strong><span>Actualiza los datos para listar los barrios.</span></div></div>;
@@ -72,7 +74,7 @@ export default function BarriosTab({ model }) {
         <button type="button" aria-pressed={orden === "usuarios"} className={orden === "usuarios" ? "is-active" : ""} onClick={() => setOrden("usuarios")}>Por usuarios</button>
       </div>
       <div className="pq-toolbar-actions">
-        <button type="button" className="pq-btn" onClick={imprimirGeneral} disabled={!visible.length} title="Listado de barrios sin totales de la empresa"><Icon name="print" />Imprimir listado de barrios</button>
+        <SalidaBotones onSalida={salidaGeneral} disabled={!visible.length} notify={model.notify} imprimir="Imprimir listado" />
       </div>
     </div>
 
@@ -80,8 +82,11 @@ export default function BarriosTab({ model }) {
       <span><strong>{marcados.size}</strong> {marcados.size === 1 ? "barrio marcado" : "barrios marcados"} para el listado de abonados{marcadosOcultos ? ` (${marcadosOcultos} fuera de la búsqueda)` : ""}</span>
       <label className="pq-check-toggle"><input type="checkbox" checked={conSaldo} onChange={(event) => setConSaldo(event.target.checked)} />Con el saldo de cada cuenta</label>
       <button type="button" className="pq-link" onClick={() => setMarcados(new Set())}>Quitar marcas</button>
-      <button type="button" className="pq-btn is-primary" disabled={Boolean(cargando)} onClick={() => imprimirAbonados([...marcadosEnOrden, ...[...marcados].filter((name) => !marcadosEnOrden.includes(name))], "marcados")}>
-        <Icon name="users" className={cargando === "marcados" ? "ds-icon-spin" : ""} />{cargando === "marcados" ? "Preparando…" : "Listado de abonados"}
+      <button type="button" className="pq-btn is-primary" disabled={Boolean(cargando)} onClick={() => imprimirAbonados(nombresMarcados, "marcados")}>
+        <Icon name="print" className={cargando === "marcados" ? "ds-icon-spin" : ""} />{cargando === "marcados" ? "Preparando…" : "Imprimir abonados"}
+      </button>
+      <button type="button" className="pq-btn is-primary" disabled={Boolean(cargando)} onClick={() => imprimirAbonados(nombresMarcados, "marcados-pdf", "pdf")}>
+        <Icon name="download" className={cargando === "marcados-pdf" ? "ds-icon-spin" : ""} />{cargando === "marcados-pdf" ? "Guardando PDF…" : "Guardar PDF"}
       </button>
     </div> : null}
 
@@ -103,9 +108,14 @@ export default function BarriosTab({ model }) {
             <td><b>{count(row.usuarios)}</b></td>
             {SERVICE_COLUMNS.map(([field]) => <td key={field} className={row.services[field].active ? "" : "is-zero"}>{count(row.services[field].active)}</td>)}
             <td className="pq-row-action">
-              <button type="button" className="pq-link" disabled={Boolean(cargando)} onClick={() => imprimirAbonados([row.name], row.name)} title={`Imprimir los abonados de ${row.name}`}>
-                {cargando === row.name ? "Preparando…" : "Abonados"}
-              </button>
+              <span className="pq-row-links">
+                <button type="button" className="pq-link" disabled={Boolean(cargando)} onClick={() => imprimirAbonados([row.name], row.name)} title={`Imprimir los abonados de ${row.name}`}>
+                  {cargando === row.name ? "Preparando…" : "Abonados"}
+                </button>
+                <button type="button" className="pq-link" disabled={Boolean(cargando)} onClick={() => imprimirAbonados([row.name], `${row.name}-pdf`, "pdf")} title={`Guardar en PDF los abonados de ${row.name}`}>
+                  {cargando === `${row.name}-pdf` ? "Guardando…" : "PDF"}
+                </button>
+              </span>
             </td>
           </tr>)}
           {!visible.length ? <tr><td colSpan={9} className="pq-table-empty">Ningún barrio coincide con “{query}”.</td></tr> : null}

@@ -3,6 +3,7 @@ import { Icon } from "../../../components/Icon";
 import { formatCurrency } from "../../../utils/formatting";
 import { SERVICE_COLUMNS, buildServiceRows, sortServiceRows, sumServiceRows } from "../utils/serviceTable";
 import { imprimirTodosServicios } from "../padronInformes";
+import SalidaBotones from "./SalidaBotones";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
@@ -50,10 +51,10 @@ export default function ServicesTab({ model }) {
   }
 
   // El informe lleva las filas como están en pantalla (o solo las marcadas).
-  const imprimir = (soloSeleccion = false) => {
+  const salida = (soloSeleccion) => (modo) => {
     const filas = soloSeleccion ? visible.filter((row) => selected.has(row.name)) : visible;
-    const filtro = soloSeleccion ? "<b>Barrios seleccionados por el operador</b>" : query.trim() ? `<b>Barrios que contienen</b> “${query.trim().replace(/[<>&]/g, "")}”` : "";
-    imprimirTodosServicios({ rows: filas, vista: view, filtro, padronActualizado: model.serviceReport?.source?.updated_at });
+    const filtro = soloSeleccion ? [["Barrios", "seleccionados por el operador"]] : query.trim() ? [["Barrios que contienen", `“${query.trim()}”`]] : [];
+    return imprimirTodosServicios({ rows: filas, vista: view, filtro, padronActualizado: model.serviceReport?.source?.updated_at }, modo);
   };
 
   return <div className="pq-panel is-table">
@@ -64,14 +65,14 @@ export default function ServicesTab({ model }) {
         <button type="button" aria-pressed={view === "deuda"} className={view === "deuda" ? "is-active" : ""} onClick={() => { setView("deuda"); if (sort.key === "usuarios") setSort({ key: "deuda", dir: "desc" }); }}>Deuda por servicio</button>
       </div>
       <div className="pq-toolbar-actions">
-        <button type="button" className="pq-btn" onClick={() => imprimir()} disabled={!visible.length} title="Imprimir o guardar como PDF"><Icon name="print" />Imprimir / PDF</button>
+        <SalidaBotones onSalida={salida(false)} disabled={!visible.length} notify={model.notify} />
       </div>
     </div>
 
     {model.selectedBarrios.length ? <div className="pq-selection" role="status">
       <span><strong>{model.selectedBarrios.length}</strong> {model.selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"} para imprimir aparte</span>
       <button type="button" className="pq-link" onClick={() => model.onSetSelectedBarrios([])}>Quitar selección</button>
-      <button type="button" className="pq-btn is-primary" onClick={() => imprimir(true)}><Icon name="print" />Imprimir selección</button>
+      <SalidaBotones onSalida={salida(true)} notify={model.notify} imprimir="Imprimir selección" primario />
     </div> : null}
 
     <div className="pq-table-wrap">

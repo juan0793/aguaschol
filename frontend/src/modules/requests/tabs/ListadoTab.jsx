@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { formatCurrency } from "../../../utils/formatting";
 import { imprimirListadoAbonados } from "../padronInformes";
+import SalidaBotones from "./SalidaBotones";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
@@ -69,7 +70,7 @@ export default function ListadoTab({ model }) {
         <header className="pq-results-head">
           <div><span className="pq-kicker">3 · Resultado</span><h2>{result.request?.title || "Listado del padrón"}</h2>{result.request?.description ? <p>{result.request.description}</p> : null}</div>
           <div className="pq-results-actions">
-            <button type="button" className="pq-btn" onClick={() => imprimirListadoAbonados(result, model.formatClave, model.serviceReport?.source?.updated_at)} title="Imprimir o guardar como PDF, sin totales de la empresa"><Icon name="print" />Imprimir / PDF</button>
+            <SalidaBotones onSalida={(modo) => imprimirListadoAbonados(result, model.formatClave, model.serviceReport?.source?.updated_at, modo)} notify={model.notify} />
           </div>
         </header>
         <dl className="pq-summary">
