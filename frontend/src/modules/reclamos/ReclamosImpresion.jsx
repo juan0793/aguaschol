@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useState } from "react";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
+import ReclamoMapaCaptura from "./ReclamoMapaCaptura";
 import { ESTADOS, documentos, fechaHora, nombrePropio, origenTexto } from "./reclamosFormato";
 import "./reclamosImpresion.css";
 
@@ -8,11 +10,27 @@ const valor = (texto) => (String(texto ?? "").trim() ? texto : "--");
 // archivar. Cada ficha lleva su encabezado para poder separarse; varias fichas
 // comparten hoja si caben y ninguna se parte entre dos páginas. Sin <header> ni
 // <footer>: la regla global de impresión los oculta.
-export default function ReclamosImpresion({ reclamos = [], impresoPor = "", impresoEn = "" }) {
+// Con `ubicaciones` (clave -> { lat, lng }) cada ficha lleva un mapita con el punto de la
+// clave; `onListo` avisa cuando todos los mapas ya son imagen y se puede imprimir.
+export default function ReclamosImpresion({ reclamos = [], ubicaciones = {}, impresoPor = "", impresoEn = "", onListo }) {
+  const [mapas, setMapas] = useState({});
+  const pendientes = [...new Set(reclamos.map((reclamo) => reclamo.clave_catastral))]
+    .filter((clave) => ubicaciones[clave] && !(clave in mapas));
+  const guardarMapa = useCallback((clave, imagen) => setMapas((actual) => ({ ...actual, [clave]: imagen })), []);
+
+  useEffect(() => {
+    if (!pendientes.length) onListo?.();
+  }, [pendientes.length, onListo]);
+
   return (
     <div className="rc-imp">
+      {pendientes.map((clave) => (
+        <ReclamoMapaCaptura key={clave} clave={clave} ubicacion={ubicaciones[clave]} onCapture={guardarMapa} />
+      ))}
       {reclamos.map((reclamo) => {
         const estado = ESTADOS[reclamo.estado] || ESTADOS.SIN_RESPUESTA;
+        const ubicacion = ubicaciones[reclamo.clave_catastral];
+        const mapa = mapas[reclamo.clave_catastral];
         return (
           <article key={reclamo.id} className="rc-imp-ficha">
             <div className="rc-imp-cabeza">
@@ -27,39 +45,47 @@ export default function ReclamosImpresion({ reclamos = [], impresoPor = "", impr
               </div>
             </div>
 
-            <table className="rc-imp-datos">
-              <tbody>
-                <tr>
-                  <th>Abonado</th>
-                  <td colSpan={3} className="is-nombre">{reclamo.abonado_nombre ? nombrePropio(reclamo.abonado_nombre) : "--"}</td>
-                </tr>
-                <tr>
-                  <th>Clave catastral</th>
-                  <td className="is-num">{valor(reclamo.clave_catastral)}</td>
-                  <th>N.º de abonado</th>
-                  <td className="is-num">{valor(reclamo.numero_abonado)}</td>
-                </tr>
-                <tr>
-                  <th>Barrio</th>
-                  <td>{valor(reclamo.barrio_nombre)}</td>
-                  <th>Documento</th>
-                  <td>{documentos(reclamo.cantidad, reclamo.tipo_documento)}</td>
-                </tr>
-                <tr>
-                  <th>Motivo</th>
-                  <td>{valor(reclamo.motivo_etiqueta)}</td>
-                  <th>Registrado por</th>
-                  <td>{valor(reclamo.created_by_nombre)}</td>
-                </tr>
-                <tr>
-                  <th>Técnico responsable</th>
-                  <td colSpan={3}>
-                    <strong>{reclamo.responsable?.nombre || "Sin técnico asignado"}</strong>
-                    <span className="rc-imp-origen"> · {origenTexto({ origen: reclamo.responsable_origen, lote: reclamo.lote })}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="rc-imp-datos-fila">
+              <table className="rc-imp-datos">
+                <tbody>
+                  <tr>
+                    <th>Abonado</th>
+                    <td colSpan={3} className="is-nombre">{reclamo.abonado_nombre ? nombrePropio(reclamo.abonado_nombre) : "--"}</td>
+                  </tr>
+                  <tr>
+                    <th>Clave catastral</th>
+                    <td className="is-num">{valor(reclamo.clave_catastral)}</td>
+                    <th>N.º de abonado</th>
+                    <td className="is-num">{valor(reclamo.numero_abonado)}</td>
+                  </tr>
+                  <tr>
+                    <th>Barrio</th>
+                    <td>{valor(reclamo.barrio_nombre)}</td>
+                    <th>Documento</th>
+                    <td>{documentos(reclamo.cantidad, reclamo.tipo_documento)}</td>
+                  </tr>
+                  <tr>
+                    <th>Motivo</th>
+                    <td>{valor(reclamo.motivo_etiqueta)}</td>
+                    <th>Registrado por</th>
+                    <td>{valor(reclamo.created_by_nombre)}</td>
+                  </tr>
+                  <tr>
+                    <th>Técnico responsable</th>
+                    <td colSpan={3}>
+                      <strong>{reclamo.responsable?.nombre || "Sin técnico asignado"}</strong>
+                      <span className="rc-imp-origen"> · {origenTexto({ origen: reclamo.responsable_origen, lote: reclamo.lote })}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              {mapa ? (
+                <figure className="rc-imp-mapa">
+                  <img src={mapa} alt={`Ubicación de la clave ${reclamo.clave_catastral}`} />
+                  <figcaption>{ubicacion.lat.toFixed(5)}, {ubicacion.lng.toFixed(5)}</figcaption>
+                </figure>
+              ) : null}
+            </div>
 
             <div className="rc-imp-bloque">
               <h2>Lo que dijo el abonado</h2>
@@ -86,8 +112,7 @@ export default function ReclamosImpresion({ reclamos = [], impresoPor = "", impr
             </div>
 
             <div className="rc-imp-firmas">
-              <div><i /><span>Técnico responsable</span><small>{reclamo.responsable?.nombre || "Nombre y firma"}</small></div>
-              <div><i /><span>Oficina</span><small>Nombre y firma</small></div>
+              <div><span>{reclamo.responsable?.nombre || "Sin técnico asignado"}</span><small>Técnico responsable</small></div>
             </div>
 
             <div className="rc-imp-pie">

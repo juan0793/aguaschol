@@ -35,7 +35,9 @@
 .rc-imp-estado strong { display: block; color: var(--imp-azul-profundo); font-size: 11px; font-weight: 750; }
 .rc-imp-estado span { color: var(--imp-tinta-suave); font-size: 9px; }
 
-.rc-imp-datos { width: 100%; margin-bottom: 10px; border-collapse: collapse; table-layout: fixed; }
+/* Datos a la izquierda y, si la clave está en el SIG, el mapita con su punto a la derecha. */
+.rc-imp-datos-fila { display: flex; align-items: stretch; gap: 8px; margin-bottom: 10px; }
+.rc-imp-datos { flex: 1; min-width: 0; width: 100%; border-collapse: collapse; table-layout: fixed; }
 .rc-imp-datos th, .rc-imp-datos td { padding: 4px 8px; border: 1px solid var(--imp-borde); text-align: left; vertical-align: top; }
 .rc-imp-datos th { width: 19%; background: var(--imp-fondo); color: var(--imp-azul-profundo); font-size: 9px; font-weight: 700; }
 .rc-imp-datos td { font-size: 10.5px; overflow-wrap: anywhere; }
@@ -44,6 +46,12 @@
 .rc-imp-datos strong { font-weight: 700; }
 .rc-imp-origen { color: var(--imp-tinta-suave); }
 
+.rc-imp-mapa { display: flex; flex: 0 0 150px; flex-direction: column; margin: 0; }
+.rc-imp-mapa img { display: block; flex: 1; width: 150px; min-height: 0; border: 1px solid var(--imp-borde); object-fit: cover; }
+.rc-imp-mapa figcaption { padding-top: 2px; color: var(--imp-tinta-suave); font-size: 8px; font-variant-numeric: tabular-nums; text-align: center; }
+/* El mapa vivo se arma fuera de la vista solo para fotografiarlo. */
+.rc-imp-mapa-captura { position: fixed; top: 0; left: -10000px; width: 300px; height: 240px; overflow: hidden; background: #dce7f2; }
+
 .rc-imp-bloque { margin-bottom: 9px; }
 .rc-imp-bloque h2 { margin: 0 0 3px; padding: 3px 8px; background: var(--imp-fondo); color: var(--imp-azul-profundo); font-size: 9px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
 .rc-imp-bloque > p { padding: 0 8px; white-space: pre-line; overflow-wrap: anywhere; }
@@ -51,10 +59,10 @@
 .rc-imp-renglones { display: grid; gap: 0; padding: 0 8px; }
 .rc-imp-renglones i { display: block; height: 22px; border-bottom: 1px solid var(--imp-borde); }
 
-.rc-imp-firmas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; margin-top: 14px; padding: 0 20px; }
+/* Sin línea de firma: solo el nombre del técnico responsable. */
+.rc-imp-firmas { display: grid; grid-template-columns: minmax(0, 260px); justify-content: center; margin-top: 14px; }
 .rc-imp-firmas > div { text-align: center; }
-.rc-imp-firmas i { display: block; height: 26px; border-bottom: 1px solid var(--imp-tinta); }
-.rc-imp-firmas span { display: block; padding-top: 4px; font-size: 9.5px; font-weight: 700; }
+.rc-imp-firmas span { display: block; font-size: 9.5px; font-weight: 700; }
 .rc-imp-firmas small { display: block; color: var(--imp-tinta-suave); font-size: 8.5px; }
 
 .rc-imp-pie { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; color: var(--imp-tinta-suave); font-size: 8.5px; }
@@ -77,5 +85,5 @@
   body.rc-imprimiendo .rc-imp-portal * { visibility: visible !important; }
   body:not(.rc-imprimiendo) .rc-imp-portal { display: none !important; }
 
-  .rc-imp-datos th, .rc-imp-bloque h2 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rc-imp-datos th, .rc-imp-bloque h2, .rc-imp-mapa img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

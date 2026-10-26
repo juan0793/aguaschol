@@ -6,6 +6,8 @@
 
 import { getPool } from "../config/db.js";
 import { env } from "../config/env.js";
+import { isGisConfigured } from "../config/gisDb.js";
+import { ubicarClaves } from "../modules/gis/gis.repository.js";
 import { createAuditLog } from "./auditService.js";
 import { getMasterRecords, normalizeLookupKey } from "./claveLookupService.js";
 import { jornadaEntregas } from "./entregasReminderService.js";
@@ -307,6 +309,20 @@ export const listReclamos = async (query = {}, user) => {
     motivos: MOTIVOS_RECLAMO,
     permisos: { registrar: esOficina(user), responder: puedeResponder(user), cerrar: esOficina(user), archivo }
   };
+};
+
+// Ubicación de las claves para el mapita de la ficha impresa. El SIG es opcional: si no
+// está configurado o falla, la ficha se imprime sin mapa.
+export const ubicacionesReclamos = async (query = {}, user) => {
+  assertVer(user);
+  const claves = clean(query.claves).split(",").map(clean).filter(Boolean).slice(0, 60);
+  if (!claves.length || !isGisConfigured()) return { ubicaciones: {} };
+  try {
+    return { ubicaciones: await ubicarClaves(claves) };
+  } catch (error) {
+    console.error("Ubicación de claves para reclamos fallida:", error.message);
+    return { ubicaciones: {} };
+  }
 };
 
 /* -------------------------------------------------------------------------- */

@@ -88,10 +88,29 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
     setImpresion({ reclamos: lista.map((item) => vigentes.get(item.id) || item), en: fechaHora(new Date().toISOString()) });
   };
 
-  // La ficha se monta fuera de pantalla; cuando su logo está listo se marca <body>
-  // (saca la app del flujo) y se imprime. Al terminar se desmonta.
+  // Antes de armar la ficha se pide al SIG dónde queda cada clave. Si no responde, la
+  // ficha sale igual, sin mapa.
   useEffect(() => {
-    if (!impresion) return undefined;
+    if (!impresion || impresion.ubicaciones) return undefined;
+    let vivo = true;
+    const claves = [...new Set(impresion.reclamos.map((reclamo) => reclamo.clave_catastral).filter(Boolean))];
+    const pedido = claves.length
+      ? apiFetch(`/entregas/reclamos/ubicaciones?${new URLSearchParams({ claves: claves.join(",") })}`)
+        .then((respuesta) => leerJson(respuesta, ""))
+        .then((cuerpo) => cuerpo.ubicaciones || {})
+      : Promise.resolve({});
+    pedido.catch(() => ({})).then((ubicaciones) => {
+      if (vivo) setImpresion((actual) => actual && { ...actual, ubicaciones });
+    });
+    return () => { vivo = false; };
+  }, [apiFetch, impresion]);
+  const fichaLista = useCallback(() => setImpresion((actual) => (actual && !actual.lista ? { ...actual, lista: true } : actual)), []);
+
+  // La ficha se monta fuera de pantalla; cuando sus mapas y su logo están listos se marca
+  // <body> (saca la app del flujo) y se imprime. Al terminar se desmonta.
+  const fichaImprimible = Boolean(impresion?.lista);
+  useEffect(() => {
+    if (!fichaImprimible) return undefined;
     let vivo = true;
     const limpiar = () => {
       document.body.classList.remove("rc-imprimiendo");
@@ -114,7 +133,7 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
       modoImpresion?.removeEventListener?.("change", alSalirDeImpresion);
       document.body.classList.remove("rc-imprimiendo");
     };
-  }, [impresion]);
+  }, [fichaImprimible]);
 
   const cambiar = (cambio) => setFiltros((actual) => ({ ...actual, ...cambio, pagina: cambio.pagina ?? 1 }));
   const reemplazar = (reclamo) => setData((actual) => actual && ({ ...actual, items: actual.items.map((item) => (item.id === reclamo.id ? reclamo : item)) }));
@@ -280,9 +299,10 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
         <button type="button" onClick={() => cambiar({ pagina: filtros.pagina + 1 })} disabled={hasta >= total} aria-label="Página siguiente"><Icon name="arrowRight" /></button>
       </nav> : null}
     </section>
-    {impresion ? createPortal(
+    {impresion?.ubicaciones ? createPortal(
       <div className="rc-imp-portal">
-        <ReclamosImpresion reclamos={impresion.reclamos} impresoEn={impresion.en} impresoPor={user?.full_name || user?.username || ""} />
+        <ReclamosImpresion reclamos={impresion.reclamos} ubicaciones={impresion.ubicaciones} onListo={fichaLista}
+          impresoEn={impresion.en} impresoPor={user?.full_name || user?.username || ""} />
       </div>,
       document.body
     ) : null}

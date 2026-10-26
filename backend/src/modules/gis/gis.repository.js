@@ -256,6 +256,33 @@ export const resolveClaveGis = async (clave = "") => {
   return null;
 };
 
+// Punto (WGS84) de cada clave: el punto de catastro y, si no hay, el lote. Solo la clave
+// exacta o sus subdivisiones (clave-xx): la base de manzana pondría el punto en otra casa.
+export const ubicarClaves = async (claves = []) => {
+  const lista = [...new Set(claves.map((clave) => String(clave ?? "").trim()).filter(Boolean))];
+  if (!lista.length) return {};
+  const { rows } = await getGisPool().query(
+    `SELECT pedida.clave, ST_Y(ubicacion.punto) lat, ST_X(ubicacion.punto) lng, ubicacion.fuente
+     FROM unnest($1::text[]) AS pedida(clave)
+     CROSS JOIN LATERAL (
+       SELECT ST_Transform(ST_PointOnSurface(geom), 4326) punto, fuente
+       FROM (
+         SELECT geom, 'catastro' fuente, 0 orden, clave_catastral = pedida.clave exacta, id
+         FROM gis_catastro_puntos
+         WHERE clave_catastral = pedida.clave OR clave_catastral LIKE pedida.clave || '-%'
+         UNION ALL
+         SELECT geom, 'lote', 1, clave_catastral = pedida.clave, id
+         FROM gis_lotes
+         WHERE activo = TRUE AND (clave_catastral = pedida.clave OR clave_catastral LIKE pedida.clave || '-%')
+       ) candidatos
+       ORDER BY orden, exacta DESC, id
+       LIMIT 1
+     ) ubicacion`,
+    [lista]
+  );
+  return Object.fromEntries(rows.map((fila) => [fila.clave, { lat: Number(fila.lat), lng: Number(fila.lng), fuente: fila.fuente }]));
+};
+
 const findPadron = (clave = "", abonado = "") => {
   const base = buildClaveBase(clave);
   return getMasterRecords().find((item) =>
