@@ -82,7 +82,10 @@ export default function ReclamosImpresion({ reclamos = [], ubicaciones = {}, imp
               {mapa ? (
                 <figure className="rc-imp-mapa">
                   <img src={mapa} alt={`Ubicación de la clave ${reclamo.clave_catastral}`} />
-                  <figcaption>{ubicacion.lat.toFixed(5)}, {ubicacion.lng.toFixed(5)}</figcaption>
+                  <figcaption>
+                    {ubicacion.aproximada ? <strong>Ubicación aproximada · predio {ubicacion.predio}</strong> : null}
+                    {ubicacion.lat.toFixed(5)}, {ubicacion.lng.toFixed(5)}
+                  </figcaption>
                 </figure>
               ) : null}
             </div>

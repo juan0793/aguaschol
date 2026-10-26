@@ -256,31 +256,48 @@ export const resolveClaveGis = async (clave = "") => {
   return null;
 };
 
-// Punto (WGS84) de cada clave: el punto de catastro y, si no hay, el lote. Solo la clave
-// exacta o sus subdivisiones (clave-xx): la base de manzana pondría el punto en otra casa.
+// Punto (WGS84) de cada clave: el punto de catastro y, si no hay, el lote, con la clave
+// exacta o sus subdivisiones (clave-xx, solo con clave completa). Si la cuenta no se levantó, se usa su predio
+// (las tres primeras partes: 23-17-13 de 23-17-13-03): el lote o el centro de las otras
+// cuentas del predio, marcado como aproximado.
 export const ubicarClaves = async (claves = []) => {
   const lista = [...new Set(claves.map((clave) => String(clave ?? "").trim()).filter(Boolean))];
   if (!lista.length) return {};
   const { rows } = await getGisPool().query(
-    `SELECT pedida.clave, ST_Y(ubicacion.punto) lat, ST_X(ubicacion.punto) lng, ubicacion.fuente
-     FROM unnest($1::text[]) AS pedida(clave)
+    `SELECT pedida.clave, pedida.base, ST_Y(ubicacion.punto) lat, ST_X(ubicacion.punto) lng, ubicacion.fuente, ubicacion.aproximada
+     FROM unnest($1::text[], $2::text[]) AS pedida(clave, base)
      CROSS JOIN LATERAL (
-       SELECT ST_Transform(ST_PointOnSurface(geom), 4326) punto, fuente
+       SELECT ST_Transform(ST_PointOnSurface(geom), 4326) punto, fuente, orden >= 2 aproximada
        FROM (
          SELECT geom, 'catastro' fuente, 0 orden, clave_catastral = pedida.clave exacta, id
          FROM gis_catastro_puntos
-         WHERE clave_catastral = pedida.clave OR clave_catastral LIKE pedida.clave || '-%'
+         WHERE clave_catastral = pedida.clave OR (pedida.base <> '' AND clave_catastral LIKE pedida.clave || '-%')
          UNION ALL
          SELECT geom, 'lote', 1, clave_catastral = pedida.clave, id
          FROM gis_lotes
-         WHERE activo = TRUE AND (clave_catastral = pedida.clave OR clave_catastral LIKE pedida.clave || '-%')
+         WHERE activo = TRUE AND (clave_catastral = pedida.clave OR (pedida.base <> '' AND clave_catastral LIKE pedida.clave || '-%'))
+         UNION ALL
+         SELECT geom, 'lote', 2, FALSE, id
+         FROM gis_lotes
+         WHERE activo = TRUE AND pedida.base <> '' AND pedida.base <> pedida.clave AND clave_catastral = pedida.base
+         UNION ALL
+         SELECT ST_Centroid(ST_Collect(geom)), 'catastro', 3, FALSE, MIN(id)
+         FROM gis_catastro_puntos
+         WHERE pedida.base <> '' AND pedida.base <> pedida.clave AND clave_base = pedida.base
+         HAVING COUNT(*) > 0
        ) candidatos
        ORDER BY orden, exacta DESC, id
        LIMIT 1
      ) ubicacion`,
-    [lista]
+    [lista, lista.map(buildClaveBase)]
   );
-  return Object.fromEntries(rows.map((fila) => [fila.clave, { lat: Number(fila.lat), lng: Number(fila.lng), fuente: fila.fuente }]));
+  return Object.fromEntries(rows.map((fila) => [fila.clave, {
+    lat: Number(fila.lat),
+    lng: Number(fila.lng),
+    fuente: fila.fuente,
+    aproximada: Boolean(fila.aproximada),
+    predio: fila.aproximada ? fila.base : ""
+  }]));
 };
 
 const findPadron = (clave = "", abonado = "") => {
