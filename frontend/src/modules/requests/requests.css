@@ -373,7 +373,7 @@
 .pq-workspace .pq-abo-quien span { color: var(--ds-text-muted, #627d98); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 12px; }
 .pq-workspace .pq-abo-saldo { display: grid; gap: 1px; justify-items: end; color: var(--ds-text, #102a43); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pq-workspace .pq-abo-saldo small { color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 600; }
-.pq-workspace .pq-abo-saldo small em { color: #9a6518; font-style: normal; }
+.pq-workspace .pq-abo-saldo small em, .pq-workspace .pq-abo-pie em { color: #9a6518; font-style: normal; }
 .pq-workspace .pq-abo-saldo.is-zero b { color: #9fb3c8; font-weight: 600; }
 .pq-workspace .pq-abo-servicios { display: flex; flex-wrap: wrap; grid-column: 1 / -1; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .pq-workspace .pq-abo-servicios li { padding: 2px 7px; border: 1px solid #e4ebf2; border-radius: 99px; color: #9fb3c8; font-size: 11.5px; font-weight: 600; text-decoration: line-through; text-decoration-color: rgba(159, 179, 200, 0.6); }

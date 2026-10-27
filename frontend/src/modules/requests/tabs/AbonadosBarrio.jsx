@@ -8,6 +8,8 @@ import SalidaBotones from "./SalidaBotones";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
+// "L 390.90 capital − L 0.40 intereses": un interés negativo (saldo a favor) resta, sin "+ -L".
+const desglose = (capital, intereses) => <>{money(capital)} capital {intereses < 0 ? "−" : "+"} <em>{money(Math.abs(intereses))} intereses</em></>;
 const sinAcentos = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // Abonados ya leídos de la versión vigente del padrón (su fecha), por barrio: volver
@@ -139,7 +141,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
                   </div>
                   <div className={Number(row.total) ? "pq-abo-saldo" : "pq-abo-saldo is-zero"}>
                     <b>{money(row.total)}</b>
-                    {Number(row.intereses) ? <small>{money(row.tarifa)} capital + <em>{money(row.intereses)} intereses</em></small> : null}
+                    {Number(row.intereses) ? <small>{desglose(Number(row.tarifa) || 0, Number(row.intereses))}</small> : null}
                   </div>
                   <ul className="pq-abo-servicios" aria-label="Servicios">
                     {SERVICE_COLUMNS.map(([campo, etiqueta]) => <li key={campo} className={`${row.servicios?.[campo] ? "is-on" : ""} ${campo === field ? "is-focus" : ""}`.trim()}>
@@ -151,7 +153,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
       </div>
 
       <footer className="pq-abo-pie">
-        <span className="pq-count">{count(visibles.length)} {visibles.length === 1 ? "abonado" : "abonados"} · saldo {money(saldo)}{intereses ? <> (capital {money(capital)} + intereses {money(intereses)})</> : null}</span>
+        <span className="pq-count">{count(visibles.length)} {visibles.length === 1 ? "abonado" : "abonados"} · saldo {money(saldo)}{intereses ? <> ({desglose(capital, intereses)})</> : null}</span>
         <div className="pq-toolbar-actions">
           <SalidaBotones onSalida={salida} disabled={estado.cargando || !visibles.length} notify={model.notify} />
         </div>
