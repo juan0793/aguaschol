@@ -132,6 +132,6 @@ export default function ServicesTab({ model }) {
       </table>
     </div>
     <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Para un solo servicio, usa la consulta “Por servicio”."} Doble clic en un barrio para ver sus abonados.</p>
-    {abonadosDe ? <AbonadosBarrio barrio={abonadosDe} model={model} onClose={() => setAbonadosDe("")} /> : null}
+    {abonadosDe ? <AbonadosBarrio key={abonadosDe} barrio={abonadosDe} model={model} onClose={() => setAbonadosDe("")} /> : null}
   </div>;
 }

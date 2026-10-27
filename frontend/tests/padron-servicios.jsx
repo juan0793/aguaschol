@@ -27,23 +27,40 @@ const serviceRows = CAMPOS.map((field) => {
 }).sort((a, b) => b.active - a.active);
 // Cuentas ficticias de un barrio para el listado de abonados.
 const NOMBRES_ABONADOS = ['MARIA JOSE CASTILLO', 'JUAN CARLOS MEJIA', 'ROSA AMELIA ZELAYA', 'PEDRO ANTONIO LOPEZ', 'GLORIA ESPERANZA VINDEL', 'CARLOS ROBERTO SIERRA', 'ANA LUCIA MARTINEZ', 'JOSE LUIS ORDOÑEZ'];
-const cuentasDe = (barrio, i) => Array.from({ length: 18 + i * 3 }, (_, n) => ({
-  clave_catastral: `${10 + i}-${String(1 + (n % 9)).padStart(2, '0')}-${String(n + 1).padStart(2, '0')}-01`, abonado: String(4000 + i * 200 + n), nombre: NOMBRES_ABONADOS[(n + i) % NOMBRES_ABONADOS.length],
-  servicios: { agua: n % 3 !== 0, alcantarillado: n % 2 === 0, barrido: n % 5 === 0, recoleccion: n % 4 !== 1, desechos_peligrosos: n === 7 }, tarifa: 180 + n * 7, intereses: 0, total: n % 4 === 0 ? 0 : 350 + n * 91.5
-}));
+// Como en el padrón real, el saldo (total) es capital (tarifa) más intereses. La versión
+// del padrón va en el nombre de los abonados para saber de qué consulta salió cada lista.
+const cuentasDe = (barrio, i, version) => Array.from({ length: 18 + i * 3 }, (_, n) => {
+  const tarifa = n % 4 === 0 ? 0 : 180 + n * 7;
+  const intereses = n % 4 === 0 || n % 3 === 0 ? 0 : 60 + n * 12.25;
+  return {
+    clave_catastral: `${10 + i}-${String(1 + (n % 9)).padStart(2, '0')}-${String(n + 1).padStart(2, '0')}-01`, abonado: String(4000 + i * 200 + n), nombre: `${NOMBRES_ABONADOS[(n + i) % NOMBRES_ABONADOS.length]}${version > 1 ? ` v${version}` : ''}`,
+    servicios: { agua: n % 3 !== 0, alcantarillado: n % 2 === 0, barrido: n % 5 === 0, recoleccion: n % 4 !== 1, desechos_peligrosos: n === 7 }, tarifa, intereses, total: tarifa + intereses
+  };
+});
+// Pruebas de carrera: window.__demoras = { [barrio]: ms } retrasa la respuesta de ese barrio
+// y window.__registro guarda cada consulta (barrio y versión del padrón al pedirla).
 const apiFetch = async (url) => {
+  window.__pedidos = (window.__pedidos || 0) + 1;
   const nombres = new URL(url, 'http://x').searchParams.get('barrios').split('|');
-  return { ok: true, json: async () => ({ ok: true, barrios: nombres.map((nombre) => ({ barrio_colonia: nombre, rows: cuentasDe(nombre, NOMBRES.indexOf(nombre)) })) }) };
+  const version = window.__versionPadron || 1;
+  (window.__registro = window.__registro || []).push({ barrios: nombres, version });
+  const demora = Math.max(0, ...nombres.map((nombre) => window.__demoras?.[nombre] || 0));
+  if (demora) await new Promise((resolve) => setTimeout(resolve, demora));
+  return { ok: true, json: async () => ({ ok: true, barrios: nombres.map((nombre) => ({ barrio_colonia: nombre, rows: cuentasDe(nombre, NOMBRES.indexOf(nombre), version) })) }) };
 };
 
 function App() {
   const [selectedBarrios, setSelected] = useState([]);
+  // Fija entre redibujos, como la del servidor. window.__actualizarPadron() simula que se
+  // cargó un padrón nuevo: cambia la fecha y la versión que devuelven las consultas.
+  const [padronActualizado, setPadronActualizado] = useState(() => new Date(Date.now() - 60000).toISOString());
+  window.__actualizarPadron = () => { window.__versionPadron = (window.__versionPadron || 1) + 1; setPadronActualizado(new Date().toISOString()); };
   const [field, setField] = useState('agua');
   const log = (name) => (payload) => { window.__ultimoInforme = { name, payload }; document.title = `${name}: ${payload?.label || ''} ${payload?.rows?.length || 0} filas`; };
   // Los informes de un servicio usan los generadores reales; el aviso queda en window para revisarlo.
   const printers = createPadronReportPrinters({ padronServiceReport: { generated_at: new Date().toISOString(), source: { file_name: 'Lote de prueba' } }, setDownloadingAguasServicePdf: () => {}, showAlert: (message) => { window.__aviso = message; } });
   const model = {
-    serviceReport: { summary: { total_barrios: barrios.length }, source: { file_name: 'Lote de prueba', updated_at: new Date().toISOString() } },
+    serviceReport: { summary: { total_barrios: barrios.length }, source: { file_name: 'Lote de prueba', updated_at: padronActualizado } },
     serviceData: { barrios, serviceRows, hasData: true, totalRecords, deuda: { capital: barrios.reduce((s, b) => s + b.deuda.capital, 0), intereses: barrios.reduce((s, b) => s + b.deuda.intereses, 0), total: barrios.reduce((s, b) => s + b.deuda.total, 0), deudores: 15000 }, profiles: { all_core_services: 2210, water_without_sewer: 3436, sewer_without_water: 4143, no_core_services: 512 } },
     apiFetch, notify: (message) => { window.__aviso = message; }, formatClave: (row) => row.clave_catastral,
     loadingServices: false, loadError: '', onRefresh: () => {},

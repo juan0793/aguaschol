@@ -130,6 +130,6 @@ export default function ServiceFocus({ model, rows, field }) {
       </table>
     </div>
     <p className="pq-note"><Icon name="notes" />La deuda es la de las cuentas que tienen {nombre}: el padrón no la separa por servicio. “Parte de la deuda” dice cuánto de esa deuda está en cada barrio. Doble clic en un barrio para ver sus abonados.</p>
-    {abonadosDe ? <AbonadosBarrio barrio={abonadosDe} field={field} model={model} onClose={() => setAbonadosDe("")} /> : null}
+    {abonadosDe ? <AbonadosBarrio key={abonadosDe} barrio={abonadosDe} field={field} model={model} onClose={() => setAbonadosDe("")} /> : null}
   </>;
 }

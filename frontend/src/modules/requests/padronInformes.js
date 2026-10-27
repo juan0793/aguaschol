@@ -160,7 +160,7 @@ export const imprimirListadoBarrios = ({ rows = [], filtro = "", padronActualiza
 }, modo);
 
 // 5. Abonados de uno o varios barrios: cada barrio en su hoja, sin totales de la empresa.
-export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => row.clave_catastral, conSaldo = true, padronActualizado = "" }, modo) => {
+export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => row.clave_catastral, conSaldo = true, conDesglose = false, padronActualizado = "" }, modo) => {
   const marca = (activo) => (activo ? celda("Sí") : celda("—", { cero: true }));
   const columnas = [
     { titulo: "#", alinear: "suave" },
@@ -168,7 +168,9 @@ export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => r
     { titulo: "Abonado", alinear: "mono" },
     { titulo: "Nombre" },
     ...SERVICE_COLUMNS.map(([, etiqueta]) => ({ titulo: etiqueta, alinear: "centro" })),
-    ...(conSaldo ? [num("Saldo")] : [])
+    // El saldo del padrón ya incluye los intereses: el desglose va antes, sin sumarse otra vez.
+    ...(conSaldo && conDesglose ? [num("Capital"), num("Intereses")] : []),
+    ...(conSaldo ? [num(conDesglose ? "Saldo total" : "Saldo")] : [])
   ];
   const solo = barrios.length === 1;
   return salidaPadron({
@@ -190,6 +192,7 @@ export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => r
         row.abonado || "--",
         row.nombre || "Sin nombre",
         ...SERVICE_COLUMNS.map(([campo]) => marca(row.servicios?.[campo])),
+        ...(conSaldo && conDesglose ? [conCero(row.tarifa, docMoney(row.tarifa)), conCero(row.intereses, docMoney(row.intereses))] : []),
         ...(conSaldo ? [conCero(row.total, docMoney(row.total))] : [])
       ])
     }))

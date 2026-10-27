@@ -8,7 +8,19 @@ import SalidaBotones from "./SalidaBotones";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
-const sinAcentos = (value) => String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const sinAcentos = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+// Abonados ya leídos de la versión vigente del padrón (su fecha), por barrio: volver
+// a abrir un barrio es inmediato. Si la fecha cambia, todo lo anterior se descarta;
+// sin fecha no se guarda nada, porque no habría cómo saber que quedó viejo.
+const leidos = { version: "", porBarrio: new Map() };
+export const leerGuardado = (version, barrio) => (version && leidos.version === version ? leidos.porBarrio.get(barrio) : undefined);
+export const guardarLeido = (version, barrio, rows) => {
+  if (!version) return;
+  if (leidos.version !== version) leidos.porBarrio = new Map();
+  leidos.version = version;
+  leidos.porBarrio.set(barrio, rows);
+};
 
 // Propiedades de una fila de barrio que abre sus abonados con doble clic o Enter.
 // La casilla de selección no cuenta: marcarla dos veces seguidas no abre el panel.
@@ -30,27 +42,44 @@ export const filaAbreAbonados = (name, abrir) => {
 // panel lateral. Se filtran por nombre (también abonado o clave) y, si se abrió desde
 // "Por servicio", por quienes tienen ese servicio. Lo filtrado es lo que se imprime.
 export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
-  const [estado, setEstado] = useState({ cargando: true, error: "", rows: [] });
+  const actualizado = model.serviceReport?.source?.updated_at || "";
+  const llave = `${actualizado}|${barrio}`;
+  // Cada respuesta queda marcada con la llave (versión y barrio) que la pidió; lo que
+  // se muestra es siempre de la llave actual, nunca de un barrio o padrón anterior.
+  const [respuesta, setRespuesta] = useState(null);
+  const guardado = leerGuardado(actualizado, barrio);
+  const estado = guardado ? { cargando: false, error: "", rows: guardado }
+    : respuesta?.llave === llave ? respuesta
+      : { cargando: true, error: "", rows: [] };
   const [query, setQuery] = useState("");
   const [soloServicio, setSoloServicio] = useState(false);
   const buscador = useRef(null);
   const origen = useRef(document.activeElement);
   const servicio = field ? serviceLabel(field).toLowerCase() : "";
+  // `model` se arma de nuevo en cada redibujo de la app: si la carga dependiera de él,
+  // cada redibujo cancelaría la consulta en curso y el panel no terminaría de cargar.
+  const apiFetch = useRef(model.apiFetch);
+  apiFetch.current = model.apiFetch;
 
   useEffect(() => {
+    if (leerGuardado(actualizado, barrio)) return undefined;
+    // Una respuesta que llega después de cambiar de barrio o de padrón se descarta entera.
     let vigente = true;
     (async () => {
       try {
-        const response = await model.apiFetch(`/claves/services/barrio-accounts?${new URLSearchParams({ barrios: barrio })}`);
+        const response = await apiFetch.current(`/claves/services/barrio-accounts?${new URLSearchParams({ barrios: barrio })}`);
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.message || "No se pudo leer el padrón.");
-        if (vigente) setEstado({ cargando: false, error: "", rows: body.barrios?.[0]?.rows || [] });
+        if (!vigente) return;
+        const rows = body.barrios?.[0]?.rows || [];
+        guardarLeido(actualizado, barrio, rows);
+        setRespuesta({ llave, cargando: false, error: "", rows });
       } catch (error) {
-        if (vigente) setEstado({ cargando: false, error: error.message || "No se pudo leer el padrón.", rows: [] });
+        if (vigente) setRespuesta({ llave, cargando: false, error: error.message || "No se pudo leer el padrón.", rows: [] });
       }
     })();
     return () => { vigente = false; };
-  }, [barrio, model]);
+  }, [barrio, llave, actualizado]);
 
   useEffect(() => {
     buscador.current?.focus();
@@ -66,12 +95,17 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
     return estado.rows.filter((row) => (!soloServicio || row.servicios?.[field])
       && (!texto || [row.nombre, row.abonado, row.clave_catastral].some((valor) => sinAcentos(valor).includes(texto))));
   }, [estado.rows, query, soloServicio, field]);
+  // En el padrón el saldo (`total`) ya es capital (`tarifa`, el campo `valor`) más
+  // intereses: se muestran como desglose, nunca se vuelven a sumar.
   const saldo = visibles.reduce((suma, row) => suma + Number(row.total || 0), 0);
+  const capital = visibles.reduce((suma, row) => suma + Number(row.tarifa || 0), 0);
+  const intereses = visibles.reduce((suma, row) => suma + Number(row.intereses || 0), 0);
 
   const salida = (modo) => imprimirAbonadosBarrios({
     barrios: [{ barrio_colonia: barrio, rows: visibles }],
     formatClave: model.formatClave,
-    padronActualizado: model.serviceReport?.source?.updated_at
+    conDesglose: true,
+    padronActualizado: actualizado
   }, modo);
 
   return createPortal(<div className="pq-workspace pq-abo-capa" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -103,7 +137,10 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
                     <strong>{row.nombre || "Sin nombre"}</strong>
                     <span>Abonado {row.abonado || "--"} · {model.formatClave?.({ ...row, barrio_colonia: barrio }) || row.clave_catastral || "--"}</span>
                   </div>
-                  <b className={Number(row.total) ? "pq-abo-saldo" : "pq-abo-saldo is-zero"}>{money(row.total)}</b>
+                  <div className={Number(row.total) ? "pq-abo-saldo" : "pq-abo-saldo is-zero"}>
+                    <b>{money(row.total)}</b>
+                    {Number(row.intereses) ? <small>{money(row.tarifa)} capital + <em>{money(row.intereses)} intereses</em></small> : null}
+                  </div>
                   <ul className="pq-abo-servicios" aria-label="Servicios">
                     {SERVICE_COLUMNS.map(([campo, etiqueta]) => <li key={campo} className={`${row.servicios?.[campo] ? "is-on" : ""} ${campo === field ? "is-focus" : ""}`.trim()}>
                       {etiqueta}<span className="sr-only">{row.servicios?.[campo] ? ": sí" : ": no"}</span>
@@ -114,7 +151,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
       </div>
 
       <footer className="pq-abo-pie">
-        <span className="pq-count">{count(visibles.length)} {visibles.length === 1 ? "abonado" : "abonados"} · saldo {money(saldo)}</span>
+        <span className="pq-count">{count(visibles.length)} {visibles.length === 1 ? "abonado" : "abonados"} · saldo {money(saldo)}{intereses ? <> (capital {money(capital)} + intereses {money(intereses)})</> : null}</span>
         <div className="pq-toolbar-actions">
           <SalidaBotones onSalida={salida} disabled={estado.cargando || !visibles.length} notify={model.notify} />
         </div>
