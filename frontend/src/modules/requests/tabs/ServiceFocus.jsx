@@ -3,6 +3,7 @@ import { Icon } from "../../../components/Icon";
 import { formatCurrency } from "../../../utils/formatting";
 import { imprimirServicio } from "../padronInformes";
 import SalidaBotones from "./SalidaBotones";
+import AbonadosBarrio, { filaAbreAbonados } from "./AbonadosBarrio";
 import { buildServiceFocusRows, serviceLabel, sortServiceFocusRows, sumServiceFocusRows } from "../utils/serviceTable";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
@@ -25,6 +26,7 @@ export default function ServiceFocus({ model, rows, field }) {
   const [query, setQuery] = useState("");
   const [conSin, setConSin] = useState(false);
   const [sort, setSort] = useState({ key: "active", dir: "desc" });
+  const [abonadosDe, setAbonadosDe] = useState("");
 
   const todos = useMemo(() => buildServiceFocusRows(rows, field), [rows, field]);
   const resumen = useMemo(() => sumServiceFocusRows(todos), [todos]);
@@ -113,7 +115,7 @@ export default function ServiceFocus({ model, rows, field }) {
           </tr>
         </thead>
         <tbody>
-          {visible.map((row) => <tr key={row.name} className={`${selected.has(row.name) ? "is-selected" : ""} ${row.active ? "" : "is-without"}`.trim()}>
+          {visible.map((row) => <tr key={row.name} className={`is-openable ${selected.has(row.name) ? "is-selected" : ""} ${row.active ? "" : "is-without"}`.trim()} {...filaAbreAbonados(row.name, setAbonadosDe)}>
             <td className="pq-check"><input type="checkbox" checked={selected.has(row.name)} onChange={() => model.onToggleBarrio(row.name)} aria-label={`Seleccionar ${row.name}`} /></td>
             <th scope="row" className="pq-col-name">{row.name}</th>
             <td>{count(row.usuarios)}</td>
@@ -127,6 +129,7 @@ export default function ServiceFocus({ model, rows, field }) {
         </tbody>
       </table>
     </div>
-    <p className="pq-note"><Icon name="notes" />La deuda es la de las cuentas que tienen {nombre}: el padrón no la separa por servicio. “Parte de la deuda” dice cuánto de esa deuda está en cada barrio.</p>
+    <p className="pq-note"><Icon name="notes" />La deuda es la de las cuentas que tienen {nombre}: el padrón no la separa por servicio. “Parte de la deuda” dice cuánto de esa deuda está en cada barrio. Doble clic en un barrio para ver sus abonados.</p>
+    {abonadosDe ? <AbonadosBarrio barrio={abonadosDe} field={field} model={model} onClose={() => setAbonadosDe("")} /> : null}
   </>;
 }

@@ -4,6 +4,7 @@ import { formatCurrency } from "../../../utils/formatting";
 import { SERVICE_COLUMNS, buildServiceRows, sortServiceRows, sumServiceRows } from "../utils/serviceTable";
 import { imprimirTodosServicios } from "../padronInformes";
 import SalidaBotones from "./SalidaBotones";
+import AbonadosBarrio, { filaAbreAbonados } from "./AbonadosBarrio";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
 const money = (value) => formatCurrency(Number(value) || 0);
@@ -24,6 +25,7 @@ export default function ServicesTab({ model }) {
   // Usuarios: cuántos tienen cada servicio. Deuda: cuánto deben esas cuentas.
   const [view, setView] = useState("usuarios");
   const [sort, setSort] = useState({ key: "usuarios", dir: "desc" });
+  const [abonadosDe, setAbonadosDe] = useState("");
   const rows = useMemo(() => buildServiceRows(serviceData.barrios), [serviceData.barrios]);
   const visible = useMemo(() => {
     const text = query.trim().toLowerCase();
@@ -107,7 +109,7 @@ export default function ServicesTab({ model }) {
           </tr>
         </thead>
         <tbody>
-          {visible.map((row) => <tr key={row.name} className={selected.has(row.name) ? "is-selected" : ""}>
+          {visible.map((row) => <tr key={row.name} className={`is-openable ${selected.has(row.name) ? "is-selected" : ""}`.trim()} {...filaAbreAbonados(row.name, setAbonadosDe)}>
             <td className="pq-check"><input type="checkbox" checked={selected.has(row.name)} onChange={() => model.onToggleBarrio(row.name)} aria-label={`Seleccionar ${row.name}`} /></td>
             <th scope="row" className="pq-col-name">{row.name}</th>
             {view === "usuarios" ? <td>{count(row.usuarios)}</td> : <>
@@ -129,6 +131,7 @@ export default function ServicesTab({ model }) {
         </tbody>
       </table>
     </div>
-    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Para un solo servicio, usa la consulta “Por servicio”."}</p>
+    <p className="pq-note"><Icon name="notes" />{view === "deuda" ? "Una misma cuenta suma en cada servicio que tiene activo: el archivo maestro no separa la deuda por concepto facturado." : "Para un solo servicio, usa la consulta “Por servicio”."} Doble clic en un barrio para ver sus abonados.</p>
+    {abonadosDe ? <AbonadosBarrio barrio={abonadosDe} model={model} onClose={() => setAbonadosDe("")} /> : null}
   </div>;
 }

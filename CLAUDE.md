@@ -148,3 +148,9 @@ Rules:
 - Causa: `clandestinos.css` imprimía con `body * { visibility: hidden }` sin condición y esa hoja queda cargada al abrir Fichas, Pozos o Reportes; después, la ficha de Reclamos (portal `.rc-imp-portal`) salía invisible y la hoja en blanco.
 - Arreglo en el origen: la regla ahora es `body:where(:has(.cl-print-preview)) *`, solo con la vista previa de fichas abierta; `:where()` conserva la prioridad original para que `.cl-print-preview` siga ganando. Además, `reclamosImpresion.css` devuelve la visibilidad a su portal (como el acta de Entregas).
 - Verificado en `qa-reclamos.html` cargando `clandestinos.css` y aplicando todas las reglas `@media print` como hoja normal: ficha de Reclamos visible (antes `hidden`); con la vista previa de fichas, la vista previa visible y el resto oculto, como antes. No se vio el diálogo de impresión real.
+
+## Nota para Claude: abonados de un barrio con doble clic (2026-10-27)
+
+- En Consultas del padrón, "Todos los servicios" y "Por servicio": doble clic (o Enter con la fila enfocada) en un barrio abre `tabs/AbonadosBarrio.jsx`, un panel lateral con todos sus abonados (`/claves/services/barrio-accounts`, el mismo de la pestaña Barrios). Busca por nombre, abonado o clave sin importar acentos; desde "Por servicio" también filtra "Con <servicio>". Imprimir y Guardar PDF salen con lo filtrado (`imprimirAbonadosBarrios`). La casilla de selección no abre el panel.
+- El panel se monta con `createPortal` dentro de un `div.pq-workspace` para heredar los estilos del módulo (`.pq-abo-*` en `requests.css`).
+- Verificado en `tests/padron-servicios.html` (datos ficticios) a 1008 y 375 px: abre, filtra, Escape y ✕ cierran y devuelven el foco a la fila, el PDF se genera; `npm run build` correcto. No se probó con sesión iniciada ni con el padrón real.
