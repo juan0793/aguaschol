@@ -351,38 +351,104 @@
 .pq-workspace .pq-table tbody tr.is-openable:focus-visible > * { background: #eef5ff; }
 .pq-workspace .pq-table tbody tr.is-openable:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
 .pq-workspace.pq-abo-capa { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: flex-end; padding: 0; background: rgba(16, 42, 67, 0.32); animation: pqAboFade 0.16s ease; }
-.pq-workspace .pq-abo { display: flex; flex-direction: column; width: min(640px, 100%); height: 100%; background: #fff; box-shadow: -18px 0 48px rgba(16, 42, 67, 0.22); animation: pqAboEntra 0.22s ease; }
-.pq-workspace .pq-abo-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; }
-.pq-workspace .pq-abo-head > div { display: grid; gap: 3px; min-width: 0; }
-.pq-workspace .pq-abo-head h2 { margin: 0; color: var(--ds-text, #102a43); font-size: 19px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
-.pq-workspace .pq-abo-head p { margin: 0; color: var(--ds-text-muted, #627d98); font-size: 13px; font-variant-numeric: tabular-nums; }
-.pq-workspace .pq-abo-cerrar { display: inline-grid; place-items: center; flex: none; width: 36px; min-height: 36px; margin: 0; padding: 0; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 10px; background: #fff; box-shadow: none; color: var(--ds-text, #243b53); cursor: pointer; }
+.pq-workspace .pq-abo { display: flex; flex-direction: column; width: min(880px, 100%); height: 100%; background: #fff; box-shadow: -18px 0 48px rgba(16, 42, 67, 0.22); animation: pqAboEntra 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.pq-workspace .pq-abo ::selection { background: rgba(20, 101, 217, 0.18); }
+
+/* Encabezado: barrio, padrón y lo que debe el barrio. */
+.pq-workspace .pq-abo-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 12px; padding: 20px 24px 16px; }
+.pq-workspace .pq-abo-titulo { display: grid; gap: 4px; min-width: 0; }
+.pq-workspace .pq-abo-titulo h2 { margin: 0; color: #0b3f73; font-size: 21px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.pq-workspace .pq-abo-titulo p { margin: 0; color: var(--ds-text-muted, #627d98); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-abo-cerrar { display: inline-grid; align-self: start; place-items: center; width: 36px; min-height: 36px; margin: 0; padding: 0; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 10px; background: #fff; box-shadow: none; color: var(--ds-text, #243b53); cursor: pointer; }
 .pq-workspace .pq-abo-cerrar:hover { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue-soft, #eef5ff); box-shadow: none; transform: none; }
 .pq-workspace .pq-abo-cerrar .app-icon { width: 16px; height: 16px; margin: 0; }
-.pq-workspace .pq-abo-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 0 20px 12px; border-bottom: 1px solid var(--ds-border, #dbe6f0); }
-.pq-workspace .pq-abo-tools .pq-search { flex: 1 1 240px; }
-.pq-workspace .pq-abo-cuerpo { flex: 1; min-height: 0; overflow: auto; }
-.pq-workspace .pq-abo-vacio { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 40px 20px; color: var(--ds-text-muted, #627d98); text-align: center; }
-.pq-workspace .pq-abo-vacio.is-error { color: #b8323e; }
-.pq-workspace .pq-abo-vacio .app-icon { width: 16px; height: 16px; }
+.pq-workspace .pq-abo-cuenta { display: grid; grid-column: 1 / -1; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 28px; padding: 14px 16px; border: 1px solid #dce7f3; border-radius: 12px; background: #f5f9fe; }
+.pq-workspace .pq-abo-cuenta-total { display: grid; gap: 2px; }
+.pq-workspace .pq-abo-cuenta-total span, .pq-workspace .pq-abo-cuenta-cifras dt { color: #4f6b85; font-size: 12px; font-weight: 700; }
+.pq-workspace .pq-abo-cuenta-total strong { color: #0b3f73; font-size: 26px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pq-workspace .pq-abo-cuenta-partes { display: flex; flex-wrap: wrap; gap: 6px 16px; min-width: 0; color: var(--ds-text, #243b53); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-abo-cuenta-partes > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pq-workspace .pq-abo-cuenta-partes small { color: #4f6b85; font-size: 12px; }
+.pq-workspace .pq-abo-cuenta-partes i:not(.pq-abo-barra) { width: 8px; height: 8px; border-radius: 2px; }
+.pq-workspace .pq-abo-cuenta-partes .is-capital { background: #1465d9; }
+.pq-workspace .pq-abo-cuenta-partes .is-intereses { background: #d59124; }
+.pq-workspace .pq-abo-barra { display: flex; flex: 1 1 100%; height: 8px; overflow: hidden; border-radius: 99px; background: #e3ebf4; }
+.pq-workspace .pq-abo-barra em { background: #1465d9; transition: width 0.3s ease; }
+.pq-workspace .pq-abo-barra b { background: #d59124; transition: width 0.3s ease; }
+.pq-workspace .pq-abo-cuenta-cifras { display: flex; gap: 0; margin: 0; }
+.pq-workspace .pq-abo-cuenta-cifras div { display: grid; gap: 2px; padding: 0 14px; border-left: 1px solid #dce7f3; }
+.pq-workspace .pq-abo-cuenta-cifras div:first-child { padding-left: 0; border-left: 0; }
+.pq-workspace .pq-abo-cuenta-cifras dd { margin: 0; color: #0b3f73; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* Búsqueda, orden y filtros. */
+.pq-workspace .pq-abo-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 0 24px 14px; border-bottom: 1px solid var(--ds-border, #dbe6f0); }
+.pq-workspace .pq-abo-tools .pq-search { flex: 1 1 280px; }
+.pq-workspace .pq-abo-orden { display: inline-flex; align-items: center; gap: 8px; color: #4f6b85; font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-abo-orden select { min-height: 38px; width: auto; margin: 0; padding: 0 30px 0 10px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 10px; background-color: #fff; box-shadow: none; color: var(--ds-text, #102a43); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.pq-workspace .pq-abo-orden select:focus-visible { border-color: var(--ds-blue, #1769e0); outline: 0; box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.12); }
+.pq-workspace .pq-abo-estados button { display: inline-flex; align-items: baseline; gap: 6px; }
+.pq-workspace .pq-abo-estados button:not(.is-active) { color: #4f6b85; }
+.pq-workspace .pq-abo-estados button small { color: inherit; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; opacity: 0.8; }
+
+/* Lista: columnas fijas para leer de arriba abajo. */
+.pq-workspace .pq-abo-cuerpo { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #c3d3e3 transparent; scrollbar-width: thin; }
+.pq-workspace .pq-abo-cols, .pq-workspace .pq-abo-fila { display: grid; grid-template-columns: 136px minmax(0, 1fr) 124px 98px 116px 16px; align-items: center; column-gap: 14px; padding: 0 24px; }
+.pq-workspace .pq-abo-cols { position: sticky; top: 0; z-index: 1; min-height: 34px; border-bottom: 1px solid var(--ds-border, #dbe6f0); background: #f7fafd; color: #4f6b85; font-size: 11.5px; font-weight: 700; }
+.pq-workspace .pq-abo-cols .is-num { text-align: right; }
 .pq-workspace .pq-abo-lista { margin: 0; padding: 0; list-style: none; }
-.pq-workspace .pq-abo-lista > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; padding: 11px 20px; border-bottom: 1px solid #edf2f7; }
-.pq-workspace .pq-abo-lista > li:hover { background: #f7fafd; }
-.pq-workspace .pq-abo-quien { display: grid; gap: 2px; min-width: 0; }
-.pq-workspace .pq-abo-quien strong { color: var(--ds-text, #102a43); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
-.pq-workspace .pq-abo-quien span { color: var(--ds-text-muted, #627d98); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 12px; }
-.pq-workspace .pq-abo-saldo { display: grid; gap: 1px; justify-items: end; color: var(--ds-text, #102a43); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pq-workspace .pq-abo-saldo small { color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 600; }
-.pq-workspace .pq-abo-saldo small em, .pq-workspace .pq-abo-pie em { color: #9a6518; font-style: normal; }
-.pq-workspace .pq-abo-saldo.is-zero b { color: #9fb3c8; font-weight: 600; }
-.pq-workspace .pq-abo-servicios { display: flex; flex-wrap: wrap; grid-column: 1 / -1; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.pq-workspace .pq-abo-servicios li { padding: 2px 7px; border: 1px solid #e4ebf2; border-radius: 99px; color: #9fb3c8; font-size: 11.5px; font-weight: 600; text-decoration: line-through; text-decoration-color: rgba(159, 179, 200, 0.6); }
-.pq-workspace .pq-abo-servicios li.is-on { border-color: #cfe0f5; background: #f2f7fd; color: #24507f; text-decoration: none; }
-.pq-workspace .pq-abo-servicios li.is-focus.is-on { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue, #1769e0); color: #fff; }
-.pq-workspace .pq-abo-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 20px; border-top: 1px solid var(--ds-border, #dbe6f0); background: rgba(255, 255, 255, 0.98); box-shadow: 0 -8px 22px rgba(16, 42, 67, 0.06); }
-.pq-workspace .pq-abo .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Con 1,500 abonados el navegador solo dibuja las filas que están a la vista. */
+.pq-workspace .pq-abo-lista > li { border-bottom: 1px solid #edf2f7; content-visibility: auto; contain-intrinsic-size: auto 48px; }
+.pq-workspace .pq-abo-fila { width: 100%; min-height: 48px; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--ds-text, #102a43); font-size: 13.5px; text-align: left; cursor: pointer; }
+.pq-workspace .pq-abo-fila:hover { background: #f5f9fe; box-shadow: none; transform: none; }
+.pq-workspace .pq-abo-fila:focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; background: #f5f9fe; }
+.pq-workspace .pq-abo-lista > li.is-abierta { background: #f5f9fe; }
+.pq-workspace .pq-abo-id { display: grid; gap: 1px; min-width: 0; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-abo-id b { color: #0b3f73; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.pq-workspace .pq-abo-id small { color: #4f6b85; font-size: 11.5px; }
+.pq-workspace .pq-abo-nombre { min-width: 0; overflow: hidden; color: var(--ds-text, #102a43); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.pq-workspace .pq-abo-srv { display: inline-flex; gap: 4px; }
+.pq-workspace .pq-abo-srv i { display: inline-grid; place-items: center; width: 21px; height: 21px; border: 1px solid #e1e9f1; border-radius: 6px; color: #b6c6d6; }
+.pq-workspace .pq-abo-srv i .app-icon { width: 12px; height: 12px; margin: 0; }
+.pq-workspace .pq-abo-srv i.is-on { border-color: #c9dcf3; background: #e9f2fd; color: #0b3f73; }
+.pq-workspace .pq-abo-srv i.is-focus.is-on { border-color: #1465d9; background: #1465d9; color: #fff; }
+.pq-workspace .pq-abo-int { color: #9a6518; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.pq-workspace .pq-abo-int.is-cero { color: #587089; font-weight: 500; }
+.pq-workspace .pq-abo-saldo { display: grid; justify-items: end; color: #0b2f55; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pq-workspace .pq-abo-saldo small { font-size: 11px; font-weight: 700; }
+.pq-workspace .pq-abo-saldo.is-al-dia { color: #4f6b85; font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-abo-saldo.is-a-favor { color: #0f7a63; }
+.pq-workspace .pq-abo-flecha { width: 14px; height: 14px; margin: 0; color: #8aa0b5; transition: transform 0.2s ease; }
+.pq-workspace .pq-abo-lista > li.is-abierta .pq-abo-flecha { transform: rotate(180deg); color: #1465d9; }
+
+/* Ficha de un abonado, abierta en su fila. */
+.pq-workspace .pq-abo-ficha { display: grid; gap: 12px; padding: 4px 24px 16px 174px; animation: pqAboFicha 0.18s ease; }
+.pq-workspace .pq-abo-ficha dl { display: grid; grid-template-columns: repeat(3, minmax(0, max-content)); gap: 8px 28px; margin: 0; }
+.pq-workspace .pq-abo-ficha dl div { display: grid; gap: 1px; }
+.pq-workspace .pq-abo-ficha dl .is-ancho { grid-column: 1 / -1; }
+.pq-workspace .pq-abo-ficha dt { color: #4f6b85; font-size: 11.5px; font-weight: 700; }
+.pq-workspace .pq-abo-ficha dd { margin: 0; color: var(--ds-text, #102a43); font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-abo-ficha dd.is-intereses { color: #9a6518; }
+.pq-workspace .pq-abo-ficha dd b { color: #0b2f55; font-size: 15px; font-weight: 800; }
+.pq-workspace .pq-abo-ficha-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Estados: cargando, error y vacío. */
+.pq-workspace .pq-abo-lista.is-cargando > li { display: flex; align-items: center; gap: 24px; min-height: 48px; padding: 0 24px; }
+.pq-workspace .pq-abo-hueso { display: block; height: 10px; border-radius: 99px; background: linear-gradient(90deg, #edf2f7 25%, #f6f9fc 50%, #edf2f7 75%) 0 0 / 200% 100%; animation: pqAboHueso 1.2s ease-in-out infinite; }
+.pq-workspace .pq-abo-hueso.is-corto { width: 84px; margin-left: auto; }
+.pq-workspace .pq-abo-vacio { display: grid; justify-items: center; gap: 12px; padding: 44px 24px; color: #4f6b85; text-align: center; }
+.pq-workspace .pq-abo-vacio p { max-width: 46ch; margin: 0; }
+.pq-workspace .pq-abo-vacio.is-error p { color: #b8323e; }
+
+/* Pie: lo que se ve y lo que se imprime. */
+.pq-workspace .pq-abo-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 24px; border-top: 1px solid var(--ds-border, #dbe6f0); background: #fff; box-shadow: 0 -8px 22px rgba(16, 42, 67, 0.06); }
+.pq-workspace .pq-abo-pie-resumen { display: grid; gap: 2px; min-width: 0; color: #4f6b85; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-abo-pie-resumen b { color: var(--ds-text, #102a43); }
+.pq-workspace .pq-abo-pie-resumen > span:last-child { color: var(--ds-text, #243b53); font-weight: 700; }
+.pq-workspace .pq-abo-pie em { color: #9a6518; font-style: normal; }
 @keyframes pqAboFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pqAboEntra { from { transform: translateX(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@keyframes pqAboEntra { from { transform: translateX(32px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@keyframes pqAboFicha { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes pqAboHueso { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
@@ -430,14 +496,32 @@
   .pq-workspace .pq-bars .pq-bar { grid-column: 1 / -1; grid-row: 2; }
   .pq-workspace .pq-table .pq-col-name { min-width: 132px; max-width: 150px; white-space: normal; }
   .pq-workspace .pq-table-wrap { max-height: 78vh; }
-  .pq-workspace .pq-abo-head, .pq-workspace .pq-abo-tools, .pq-workspace .pq-abo-pie, .pq-workspace .pq-abo-lista > li { padding-right: 16px; padding-left: 16px; }
-  .pq-workspace .pq-abo-tools .pq-segmented { width: 100%; }
-  .pq-workspace .pq-abo-tools .pq-segmented button { flex: 1 1 0; }
-  /* El desglose baja de línea para no robarle el ancho al nombre; el pie también. */
-  .pq-workspace .pq-abo-saldo small { max-width: 9.5em; white-space: normal; text-align: right; }
-  .pq-workspace .pq-abo-pie .pq-count { white-space: normal; }
+  /* En el teléfono cada abonado ocupa dos líneas: quién y cuánto; clave, intereses y servicios. */
+  .pq-workspace .pq-abo-head, .pq-workspace .pq-abo-tools, .pq-workspace .pq-abo-pie { padding-right: 16px; padding-left: 16px; }
+  .pq-workspace .pq-abo-head { padding-top: 16px; }
+  .pq-workspace .pq-abo-cuenta { grid-template-columns: minmax(0, 1fr) auto; padding: 12px; }
+  .pq-workspace .pq-abo-cuenta-total strong { font-size: 22px; }
+  .pq-workspace .pq-abo-cuenta-partes { grid-column: 1 / -1; grid-row: 2; }
+  .pq-workspace .pq-abo-tools .pq-search { flex-basis: 100%; }
+  .pq-workspace .pq-abo-estados { flex: 1 1 100%; order: 1; overflow-x: auto; }
+  .pq-workspace .pq-abo-tools .pq-check-toggle { order: 2; }
+  .pq-workspace .pq-abo-orden { order: 3; margin-left: auto; }
+  .pq-workspace .pq-abo-orden > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .pq-workspace .pq-abo-estados button { flex: 1 0 auto; }
+  .pq-workspace .pq-abo-cols { display: none; }
+  .pq-workspace .pq-abo-fila { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nombre saldo" "id int" "srv flecha"; row-gap: 4px; padding: 10px 16px; }
+  .pq-workspace .pq-abo-nombre { grid-area: nombre; white-space: normal; }
+  .pq-workspace .pq-abo-saldo { grid-area: saldo; }
+  .pq-workspace .pq-abo-id { grid-area: id; display: flex; gap: 8px; }
+  .pq-workspace .pq-abo-int { grid-area: int; font-size: 12px; }
+  .pq-workspace .pq-abo-srv { grid-area: srv; }
+  .pq-workspace .pq-abo-flecha { grid-area: flecha; justify-self: end; }
+  .pq-workspace .pq-abo-ficha { padding: 2px 16px 14px; }
+  .pq-workspace .pq-abo-ficha dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pq-workspace .pq-abo-ficha-acciones .pq-btn { flex: 1 1 auto; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pq-workspace .pq-panel, .pq-workspace.pq-abo-capa, .pq-workspace .pq-abo { animation: none; }
+  .pq-workspace .pq-panel, .pq-workspace.pq-abo-capa, .pq-workspace .pq-abo, .pq-workspace .pq-abo-ficha, .pq-workspace .pq-abo-hueso { animation: none; }
+  .pq-workspace .pq-abo-flecha, .pq-workspace .pq-abo-barra em, .pq-workspace .pq-abo-barra b { transition: none; }
   .pq-workspace .pq-bar i, .pq-workspace .pq-table thead th > button .app-icon { transition: none; }
 }

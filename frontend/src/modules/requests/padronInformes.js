@@ -160,7 +160,7 @@ export const imprimirListadoBarrios = ({ rows = [], filtro = "", padronActualiza
 }, modo);
 
 // 5. Abonados de uno o varios barrios: cada barrio en su hoja, sin totales de la empresa.
-export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => row.clave_catastral, conSaldo = true, conDesglose = false, padronActualizado = "" }, modo) => {
+export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => row.clave_catastral, conSaldo = true, conDesglose = false, filtro = [], padronActualizado = "" }, modo) => {
   const marca = (activo) => (activo ? celda("Sí") : celda("—", { cero: true }));
   const columnas = [
     { titulo: "#", alinear: "suave" },
@@ -177,7 +177,8 @@ export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => r
     tipo: "Listado de abonados por barrio",
     titulo: solo ? `Abonados de ${barrios[0].barrio_colonia}` : "Abonados por barrio",
     subtitulo: solo ? "Cuentas del barrio con sus servicios." : `Cuentas de ${barrios.length} barrios con sus servicios.`,
-    filtro: solo ? [] : [["Barrios", barrios.map((barrio) => barrio.barrio_colonia).join(" · ")]],
+    // Una lista filtrada lo dice, para que no pase por el barrio completo.
+    filtro: solo ? filtro : [["Barrios", barrios.map((barrio) => barrio.barrio_colonia).join(" · ")], ...filtro],
     padronActualizado,
     orientacion: "landscape",
     secciones: barrios.map((barrio, indice) => ({
@@ -194,8 +195,60 @@ export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => r
         ...SERVICE_COLUMNS.map(([campo]) => marca(row.servicios?.[campo])),
         ...(conSaldo && conDesglose ? [conCero(row.tarifa, docMoney(row.tarifa)), conCero(row.intereses, docMoney(row.intereses))] : []),
         ...(conSaldo ? [conCero(row.total, docMoney(row.total))] : [])
-      ])
+      ]),
+      // Con el desglose, la fila de totales cuadra con el pie del panel.
+      pie: conSaldo && conDesglose && barrio.rows.length ? (() => {
+        const suma = (campo) => barrio.rows.reduce((total, row) => total + Number(row[campo] || 0), 0);
+        return [celda(""), celda(""), celda(""), celda("Total", { negrita: true }), ...SERVICE_COLUMNS.map(() => celda("")),
+          celda(docMoney(suma("tarifa")), { negrita: true }), celda(docMoney(suma("intereses")), { negrita: true }), celda(docMoney(suma("total")), { negrita: true })];
+      })() : null
     }))
+  }, modo);
+};
+
+// 5b. Un abonado: su cuenta en una hoja, para atender un reclamo o entregarla en mano.
+// El saldo del padrón ya es capital más intereses; las cifras lo dicen en ese orden.
+export const imprimirAbonado = ({ row = {}, barrio = "", formatClave = (cuenta) => cuenta.clave_catastral, padronActualizado = "" }, modo) => {
+  const clave = formatClave({ ...row, barrio_colonia: barrio }) || row.clave_catastral || "--";
+  const servicios = SERVICE_COLUMNS.filter(([campo]) => row.servicios?.[campo]).map(([, etiqueta]) => etiqueta);
+  return salidaPadron({
+    tipo: "Estado de cuenta del abonado",
+    titulo: row.nombre || "Abonado sin nombre",
+    subtitulo: `Abonado ${row.abonado || "--"} · Clave ${clave} · ${barrio}`,
+    padronActualizado,
+    cifras: [
+      [docMoney(row.total), "Saldo total"],
+      [docMoney(row.tarifa), "Capital"],
+      [docMoney(row.intereses), "Intereses"],
+      [servicios.length ? docCount(servicios.length) : "0", servicios.length === 1 ? "Servicio activo" : "Servicios activos"]
+    ],
+    secciones: [
+      {
+        titulo: "Datos de la cuenta",
+        columnas: [{ titulo: "Dato" }, { titulo: "Valor" }],
+        filas: [
+          ["Nombre en el padrón", row.nombre || "Sin nombre"],
+          ["Número de abonado", celda(row.abonado || "--")],
+          ["Clave catastral", celda(clave)],
+          ["Barrio o colonia", barrio || "--"]
+        ]
+      },
+      {
+        titulo: "Servicios",
+        detalle: servicios.length ? servicios.join(" · ") : "Sin servicios activos",
+        columnas: [{ titulo: "Servicio" }, { titulo: "Estado", alinear: "centro" }],
+        filas: SERVICE_COLUMNS.map(([campo, etiqueta]) => [etiqueta, row.servicios?.[campo] ? celda("Activo") : celda("No", { cero: true })])
+      },
+      {
+        titulo: "Saldo",
+        columnas: [{ titulo: "Concepto" }, num("Monto")],
+        filas: [
+          ["Capital", conCero(row.tarifa, docMoney(row.tarifa))],
+          ["Intereses", conCero(row.intereses, docMoney(row.intereses))]
+        ],
+        pie: [celda("Saldo total", { negrita: true }), celda(docMoney(row.total), { negrita: true })]
+      }
+    ]
   }, modo);
 };
 
