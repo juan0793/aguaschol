@@ -55,6 +55,9 @@ function App() {
   // Fija entre redibujos, como la del servidor. window.__actualizarPadron() simula que se
   // cargó un padrón nuevo: cambia la fecha y la versión que devuelven las consultas.
   const [padronActualizado, setPadronActualizado] = useState(() => new Date(Date.now() - 60000).toISOString());
+  // window.__redibujar() redibuja la app como lo hacen la sincronización y los avisos en producción.
+  const [, setRedibujos] = useState(0);
+  window.__redibujar = () => setRedibujos((n) => n + 1);
   window.__actualizarPadron = () => { window.__versionPadron = (window.__versionPadron || 1) + 1; setPadronActualizado(new Date().toISOString()); };
   const [field, setField] = useState('agua');
   const log = (name) => (payload) => { window.__ultimoInforme = { name, payload }; document.title = `${name}: ${payload?.label || ''} ${payload?.rows?.length || 0} filas`; };

@@ -1,0 +1,102 @@
+/* Estado de cuenta de un abonado (hoja carta). Documento institucional (DESIGN.md):
+   blanco, filetes finos, encabezado con logo y firmas al final. Se lee igual en
+   blanco y negro: el estado del saldo y de cada servicio va en texto, no solo en color. */
+
+/* La hoja se monta como hija directa de <body> (portal) y espera fuera de la vista,
+   para que el logo ya esté cargado cuando se abre el diálogo de impresión. */
+.pq-ec-portal { position: absolute; top: 0; left: -10000px; width: 760px; background: #fff; }
+
+.pq-ec {
+  --ec-azul: #1465d9;
+  --ec-profundo: #0b3f73;
+  --ec-tinta: #16242f;
+  --ec-suave: #566676;
+  --ec-filete: #d3dde7;
+  --ec-fondo: #f2f7fd;
+  --ec-ocre: #c07f15;
+  --ec-ocre-texto: #8a5a0c;
+  --ec-verde: #0f7a63;
+  display: grid;
+  gap: 18px;
+  color: var(--ec-tinta);
+  font-family: "Plus Jakarta Sans", system-ui, "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.pq-ec p, .pq-ec h1, .pq-ec h2, .pq-ec h3, .pq-ec dl, .pq-ec dd { margin: 0; }
+.pq-ec-rotulo { color: var(--ec-suave); font-size: 9.5px; font-weight: 700; }
+
+.pq-ec-cabeza { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; border-bottom: 2px solid var(--ec-profundo); }
+.pq-ec-cabeza img { width: 46px; height: auto; }
+.pq-ec-empresa { flex: 1; min-width: 0; }
+.pq-ec-empresa span { color: var(--ec-suave); font-size: 10px; font-weight: 700; }
+.pq-ec-empresa h1 { color: var(--ec-profundo); font-size: 22px; font-weight: 800; line-height: 1.15; }
+.pq-ec-meta { display: grid; gap: 3px; text-align: right; }
+.pq-ec-meta div { display: flex; justify-content: flex-end; gap: 6px; }
+.pq-ec-meta dt { color: var(--ec-suave); font-size: 9.5px; font-weight: 700; }
+.pq-ec-meta dd { font-size: 10px; font-weight: 600; }
+
+.pq-ec-abonado { display: grid; gap: 6px; }
+.pq-ec-abonado h2 { color: var(--ec-tinta); font-size: 18px; font-weight: 800; line-height: 1.2; }
+.pq-ec-datos { display: grid; grid-template-columns: 1fr 1.2fr 1.6fr; margin-top: 4px; border-top: 1px solid var(--ec-filete); border-bottom: 1px solid var(--ec-filete); }
+.pq-ec-datos div { display: grid; gap: 2px; padding: 8px 12px; border-left: 1px solid var(--ec-filete); }
+.pq-ec-datos div:first-child { padding-left: 0; border-left: 0; }
+.pq-ec-datos dt { color: var(--ec-suave); font-size: 9.5px; font-weight: 700; }
+.pq-ec-datos dd { font-size: 12px; font-weight: 700; }
+.pq-ec-datos dd.is-mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+/* El saldo: la cifra grande a la izquierda y de qué se compone a la derecha. */
+.pq-ec-saldo { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 24px; align-items: center; padding: 18px 20px; border: 1px solid #cfe0f3; border-radius: 8px; background: var(--ec-fondo); }
+.pq-ec-total { display: grid; gap: 4px; }
+.pq-ec-total strong { color: var(--ec-profundo); font-size: 30px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pq-ec.is-a-favor .pq-ec-total strong { color: var(--ec-verde); }
+.pq-ec.is-al-dia .pq-ec-total strong { color: var(--ec-suave); }
+.pq-ec-nota { color: var(--ec-suave); font-size: 10px; }
+.pq-ec-partes { display: grid; gap: 10px; }
+.pq-ec-barra { display: flex; height: 10px; overflow: hidden; border-radius: 99px; background: #dfe8f2; }
+.pq-ec-barra i { background: var(--ec-azul); }
+.pq-ec-barra b { background: var(--ec-ocre); }
+.pq-ec-partes table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pq-ec-partes th, .pq-ec-partes td { padding: 4px 0; text-align: right; }
+.pq-ec-partes th { display: flex; align-items: center; gap: 7px; color: var(--ec-tinta); font-size: 11px; font-weight: 600; text-align: left; }
+.pq-ec-partes th i { width: 9px; height: 9px; border-radius: 2px; }
+.pq-ec-partes th i.is-capital { background: var(--ec-azul); }
+.pq-ec-partes th i.is-intereses { background: var(--ec-ocre); }
+.pq-ec-partes td { font-size: 12px; font-weight: 700; }
+.pq-ec-partes tr:nth-child(2) td:nth-child(2) { color: var(--ec-ocre-texto); }
+.pq-ec-partes .pq-ec-pct { width: 44px; color: var(--ec-suave); font-size: 10px; font-weight: 600; }
+.pq-ec-partes tr.is-total th, .pq-ec-partes tr.is-total td { padding-top: 7px; border-top: 1px solid #cfe0f3; color: var(--ec-profundo); font-size: 12.5px; font-weight: 800; }
+
+.pq-ec-servicios { display: grid; gap: 8px; }
+.pq-ec-servicios h3 { color: var(--ec-profundo); font-size: 12px; font-weight: 800; }
+.pq-ec-servicios ul { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pq-ec-servicios li { display: grid; gap: 3px; padding: 8px 10px; border: 1px solid var(--ec-filete); border-radius: 6px; }
+.pq-ec-servicios li span { font-size: 10px; font-weight: 600; line-height: 1.25; }
+.pq-ec-servicios li b { color: var(--ec-suave); font-size: 10px; font-weight: 700; }
+.pq-ec-servicios li.is-activo { border-color: #b9d1ef; background: var(--ec-fondo); }
+.pq-ec-servicios li.is-activo b { color: var(--ec-profundo); }
+
+.pq-ec-firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding-top: 36px; color: var(--ec-suave); font-size: 10px; }
+.pq-ec-firmas div { display: grid; gap: 6px; }
+.pq-ec-firmas span { display: block; border-top: 1px solid var(--ec-tinta); }
+
+.pq-ec-pie { display: flex; justify-content: space-between; gap: 16px; padding-top: 8px; border-top: 1px solid var(--ec-filete); color: var(--ec-suave); font-size: 9px; }
+.pq-ec-pie b { color: var(--ec-tinta); }
+
+@media print {
+  /* Página con nombre, para que el @page de otros módulos no le gane a esta. */
+  @page pq-estado-cuenta { size: letter portrait; margin: 14mm 16mm; }
+  .pq-ec { page: pq-estado-cuenta; break-inside: avoid; }
+
+  /* Con la marca en <body>, solo queda la hoja: ni la app ni el panel de abonados. */
+  body.pq-ec-imprimiendo > :not(.pq-ec-portal) { display: none !important; }
+  body.pq-ec-imprimiendo { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  body.pq-ec-imprimiendo .pq-ec-portal { position: static !important; left: auto !important; width: auto !important; }
+  /* clandestinos.css imprime con `body * { visibility: hidden }` si ya se abrió Fichas,
+     Pozos o Reportes: se devuelve la visibilidad a la hoja, como en Reclamos. */
+  body.pq-ec-imprimiendo .pq-ec-portal,
+  body.pq-ec-imprimiendo .pq-ec-portal * { visibility: visible !important; }
+  body:not(.pq-ec-imprimiendo) .pq-ec-portal { display: none !important; }
+
+  .pq-ec-saldo, .pq-ec-barra, .pq-ec-barra *, .pq-ec-partes th i, .pq-ec-servicios li.is-activo { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

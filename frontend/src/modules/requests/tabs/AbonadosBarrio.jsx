@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../../components/Icon";
 import { formatCurrency } from "../../../utils/formatting";
-import { imprimirAbonado, imprimirAbonadosBarrios } from "../padronInformes";
+import EstadoCuentaImpresion from "../estadoCuenta/EstadoCuentaImpresion";
+import { armarEstadoCuenta } from "../estadoCuenta/estadoCuentaDatos";
+import { imprimirAbonadosBarrios } from "../padronInformes";
+import { announceReportGenerated, createReportId } from "../../../utils/printDocument";
 import { ESTADOS_SALDO, ORDENES, coincide, estadoSaldo, ordenarAbonados, resumirAbonados } from "../utils/abonadosBarrio";
 import { SERVICE_COLUMNS, serviceLabel } from "../utils/serviceTable";
 import SalidaBotones from "./SalidaBotones";
@@ -113,10 +116,17 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
     return () => { vigente = false; };
   }, [barrio, llave, actualizado, intento]);
 
-  // Mientras el panel está abierto, lo de atrás no recibe foco ni clics.
+  // Mientras el panel está abierto, lo que había detrás al abrirlo no recibe foco ni
+  // clics. Corre una sola vez: `onClose` cambia en cada redibujo de la app, y repetir
+  // el efecto dejaba inerte lo que se abre después encima (la impresión) y movía el foco.
+  const cerrar = useRef(onClose);
+  cerrar.current = onClose;
   useEffect(() => {
     buscador.current?.focus();
-    const alTeclear = (event) => { if (event.key === "Escape") onClose(); };
+    // Escape cierra el panel solo si no hay otra capa abierta encima de él.
+    const alTeclear = (event) => {
+      if (event.key === "Escape" && document.body.lastElementChild === capa.current) cerrar.current();
+    };
     document.addEventListener("keydown", alTeclear);
     const inertes = [...document.body.children].filter((nodo) => nodo !== capa.current && !nodo.inert);
     inertes.forEach((nodo) => { nodo.inert = true; });
@@ -126,7 +136,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
       inertes.forEach((nodo) => { nodo.inert = false; });
       anterior?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   const barrioResumen = useMemo(() => resumirAbonados(estado.rows), [estado.rows]);
   const conServicio = useMemo(() => (field ? estado.rows.filter((row) => row.servicios?.[field]).length : 0), [estado.rows, field]);
@@ -167,7 +177,48 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
     filtro: filtrado ? [...filtrosActivos, ["Resultado", `${count(visibles.length)} de ${count(estado.rows.length)} abonados`], ["Orden", ORDENES.find(([clave]) => clave === orden)?.[1]]] : [],
     padronActualizado: actualizado
   }, modo);
-  const salidaUno = (row, modo) => imprimirAbonado({ row, barrio, formatClave: model.formatClave, padronActualizado: actualizado }, modo);
+  // Estado de cuenta de un abonado. Imprimir abre el diálogo del sistema con la hoja
+  // (sin la vista previa antigua); el PDF se dibuja con el mismo diseño.
+  const [hoja, setHoja] = useState(null);
+  const estadoDe = (row) => armarEstadoCuenta({ row, barrio, clave: claveDe(row), padronActualizado: actualizado, reportId: createReportId() });
+  const salidaUno = async (row, modo) => {
+    if (modo === "pdf") {
+      try {
+        const { descargarEstadoCuentaPdf } = await import("../estadoCuenta/estadoCuentaPdf");
+        await descargarEstadoCuentaPdf(estadoDe(row));
+      } catch (error) {
+        model.notify?.(error.message || "No se pudo generar el PDF.");
+      }
+      return;
+    }
+    setHoja(estadoDe(row));
+  };
+  useEffect(() => {
+    if (!hoja) return undefined;
+    let vivo = true;
+    const limpiar = () => {
+      document.body.classList.remove("pq-ec-imprimiendo");
+      if (vivo) setHoja(null);
+    };
+    // Safari no siempre avisa "afterprint": también se limpia al salir del modo impresión.
+    const modoImpresion = window.matchMedia?.("print");
+    const alSalir = (evento) => { if (!evento.matches) limpiar(); };
+    const imagenes = [...document.querySelectorAll(".pq-ec-portal img")];
+    Promise.all(imagenes.map((imagen) => imagen.decode?.().catch(() => {}))).then(() => {
+      if (!vivo) return;
+      document.body.classList.add("pq-ec-imprimiendo");
+      window.addEventListener("afterprint", limpiar, { once: true });
+      modoImpresion?.addEventListener?.("change", alSalir);
+      announceReportGenerated({ reportId: hoja.reportId, title: `Estado de cuenta · ${hoja.nombre}`, reportType: "estado-cuenta-abonado" });
+      window.print();
+    });
+    return () => {
+      vivo = false;
+      window.removeEventListener("afterprint", limpiar);
+      modoImpresion?.removeEventListener?.("change", alSalir);
+      document.body.classList.remove("pq-ec-imprimiendo");
+    };
+  }, [hoja]);
   const copiarClave = async (row) => {
     try {
       await navigator.clipboard.writeText(claveDe(row));
@@ -188,7 +239,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
     filas[Math.max(0, Math.min(filas.length - 1, destino))]?.focus();
   };
 
-  return createPortal(<div ref={capa} className="pq-workspace pq-abo-capa" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+  return <>{hoja ? createPortal(<div className="pq-ec-portal"><EstadoCuentaImpresion datos={hoja} /></div>, document.body) : null}{createPortal(<div ref={capa} className="pq-workspace pq-abo-capa" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <aside className="pq-abo" role="dialog" aria-modal="true" aria-labelledby="pq-abo-titulo">
       <header className="pq-abo-head">
         <div className="pq-abo-titulo">
@@ -266,7 +317,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
                       </dl>
                       <div className="pq-abo-ficha-acciones">
                         <button type="button" className="pq-btn is-primary" onClick={() => salidaUno(row, "imprimir")}><Icon name="print" />Imprimir estado de cuenta</button>
-                        <button type="button" className="pq-btn" onClick={() => salidaUno(row, "pdf").catch((error) => model.notify?.(error.message || "No se pudo generar el PDF."))}><Icon name="download" />PDF</button>
+                        <button type="button" className="pq-btn" onClick={() => salidaUno(row, "pdf")}><Icon name="download" />PDF</button>
                         <button type="button" className="pq-btn" onClick={() => copiarClave(row)}><Icon name="copy" />Copiar clave</button>
                       </div>
                     </div> : null}
@@ -289,5 +340,5 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
         </div>
       </footer>
     </aside>
-  </div>, document.body);
+  </div>, document.body)}</>;
 }

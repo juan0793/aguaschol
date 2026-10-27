@@ -206,52 +206,6 @@ export const imprimirAbonadosBarrios = ({ barrios = [], formatClave = (row) => r
   }, modo);
 };
 
-// 5b. Un abonado: su cuenta en una hoja, para atender un reclamo o entregarla en mano.
-// El saldo del padrón ya es capital más intereses; las cifras lo dicen en ese orden.
-export const imprimirAbonado = ({ row = {}, barrio = "", formatClave = (cuenta) => cuenta.clave_catastral, padronActualizado = "" }, modo) => {
-  const clave = formatClave({ ...row, barrio_colonia: barrio }) || row.clave_catastral || "--";
-  const servicios = SERVICE_COLUMNS.filter(([campo]) => row.servicios?.[campo]).map(([, etiqueta]) => etiqueta);
-  return salidaPadron({
-    tipo: "Estado de cuenta del abonado",
-    titulo: row.nombre || "Abonado sin nombre",
-    subtitulo: `Abonado ${row.abonado || "--"} · Clave ${clave} · ${barrio}`,
-    padronActualizado,
-    cifras: [
-      [docMoney(row.total), "Saldo total"],
-      [docMoney(row.tarifa), "Capital"],
-      [docMoney(row.intereses), "Intereses"],
-      [servicios.length ? docCount(servicios.length) : "0", servicios.length === 1 ? "Servicio activo" : "Servicios activos"]
-    ],
-    secciones: [
-      {
-        titulo: "Datos de la cuenta",
-        columnas: [{ titulo: "Dato" }, { titulo: "Valor" }],
-        filas: [
-          ["Nombre en el padrón", row.nombre || "Sin nombre"],
-          ["Número de abonado", celda(row.abonado || "--")],
-          ["Clave catastral", celda(clave)],
-          ["Barrio o colonia", barrio || "--"]
-        ]
-      },
-      {
-        titulo: "Servicios",
-        detalle: servicios.length ? servicios.join(" · ") : "Sin servicios activos",
-        columnas: [{ titulo: "Servicio" }, { titulo: "Estado", alinear: "centro" }],
-        filas: SERVICE_COLUMNS.map(([campo, etiqueta]) => [etiqueta, row.servicios?.[campo] ? celda("Activo") : celda("No", { cero: true })])
-      },
-      {
-        titulo: "Saldo",
-        columnas: [{ titulo: "Concepto" }, num("Monto")],
-        filas: [
-          ["Capital", conCero(row.tarifa, docMoney(row.tarifa))],
-          ["Intereses", conCero(row.intereses, docMoney(row.intereses))]
-        ],
-        pie: [celda("Saldo total", { negrita: true }), celda(docMoney(row.total), { negrita: true })]
-      }
-    ]
-  }, modo);
-};
-
 // 6. Consulta de abonados por palabras clave: agrupada por barrio, sin totales de la empresa.
 export const imprimirListadoAbonados = (resultado = {}, formatClave = (row) => row.clave_catastral, padronActualizado = "", modo) => {
   const barrios = resultado.summary?.barrios || [];
