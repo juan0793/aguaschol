@@ -142,12 +142,14 @@ test("MySQL real: permisos, cierre concurrente, correcciones, recordatorios y re
     const conBarrios = await service.getResumen({ fecha_desde: addDays(hoy, -7), fecha_hasta: hoy }, admin);
     assert.ok(conBarrios.por_barrio.length >= 2);
     assert.ok(conBarrios.por_barrio[0].sobrantes >= conBarrios.por_barrio[1].sobrantes);
-    const centro = conBarrios.por_barrio.find((fila) => fila.barrio_nombre === "BO. EL CENTRO");
+    // "BO. EL CENTRO" escrito a mano se guarda con el codigo y el nombre del catalogo.
+    const centro = conBarrios.por_barrio.find((fila) => fila.barrio_codigo === "14");
+    assert.equal(centro.barrio_nombre, "Barrio El Centro");
     assert.equal(centro.sobrantes, 3);
     assert.equal(centro.asignadas, 10);
     assert.equal(centro.tasa_sobrante, 30);
     // Un barrio sin sobrantes aparece igual, en cero, no desaparece del ranking.
-    const libertad = conBarrios.por_barrio.find((fila) => fila.barrio_nombre === "BO. LA LIBERTAD");
+    const libertad = conBarrios.por_barrio.find((fila) => fila.barrio_codigo === "24");
     assert.equal(libertad.sobrantes, 0);
     assert.ok(libertad.asignadas > 0);
 

@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   agruparPadronPorBarrio,
   armarReparto,
+  barrioPorNombre,
+  barriosParaLotes,
   codigoBarrioDeClave,
   nombreBarrioLegible,
   normalizarAsignacion
@@ -67,4 +69,38 @@ test("normalizarAsignacion valida codigo, responsable y orden", () => {
   assert.throws(() => normalizarAsignacion({}, "x1"), /código de barrio/);
   assert.throws(() => normalizarAsignacion({ responsable_id: "-2" }, "14"), /responsable/);
   assert.throws(() => normalizarAsignacion({ responsable_id: "2", orden_ruta: "0" }, "14"), /orden de ruta/);
+});
+
+// Caso real (oct 2026): Brisas del Rio (110), Las Acacias II (67), Youteender (106)
+// y San Carlos (57) estaban en el reparto pero no en el catalogo; se escribian a
+// mano y el lote quedaba sin codigo, fuera del avance del mes.
+test("barriosParaLotes suma al catalogo los barrios del reparto que solo estan en el padron", () => {
+  const catalogo = [{ codigo: "24", barrio: "Bo. La Libertad", activo: true }, { codigo: "04", barrio: "Brisas del Sur" }];
+  const reparto = [
+    { codigo: "24", nombre: "Otro nombre" },
+    { codigo: "110", nombre: "Bo. Brisas del Rio" },
+    { codigo: "57", nombre: "Col. San Carlos" }
+  ];
+  assert.deepEqual(barriosParaLotes(catalogo, reparto), [
+    { codigo: "04", barrio: "Brisas del Sur" },
+    { codigo: "24", barrio: "Bo. La Libertad" },
+    { codigo: "57", barrio: "Col. San Carlos" },
+    { codigo: "110", barrio: "Bo. Brisas del Rio" }
+  ]);
+});
+
+test("barrioPorNombre reconoce un nombre escrito a mano sin prefijo ni acentos", () => {
+  const lista = [
+    { codigo: "110", barrio: "Bo. Brisas del Rio" },
+    { codigo: "57", barrio: "Col. San Carlos" },
+    { codigo: "106", barrio: "Youteender" },
+    { codigo: "30", barrio: "Col. El Carmen" },
+    { codigo: "31", barrio: "Bo. El Carmen" }
+  ];
+  assert.equal(barrioPorNombre(lista, "Brisas del río")?.codigo, "110");
+  assert.equal(barrioPorNombre(lista, "colonia san carlos")?.codigo, "57");
+  assert.equal(barrioPorNombre(lista, "YOUTEENDER")?.codigo, "106");
+  assert.equal(barrioPorNombre(lista, "El Carmen"), null, "dos barrios con el mismo nombre: no adivina");
+  assert.equal(barrioPorNombre(lista, "Acacias etapa 2"), null);
+  assert.equal(barrioPorNombre(lista, ""), null);
 });

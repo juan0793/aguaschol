@@ -2,7 +2,7 @@
 // por codigo de barrio y validan las asignaciones. Sin acceso a BD para poder
 // probarlas sin MySQL.
 
-import { fail, toEntero } from "./entregasRules.js";
+import { fail, normalizarTexto, toEntero } from "./entregasRules.js";
 
 const clean = (value) => String(value ?? "").trim();
 
@@ -93,6 +93,37 @@ export const armarReparto = ({ padron = [], catalogo = [], asignaciones = [] } =
     if (!fila.nombre) fila.nombre = catalogo.find((item) => clean(item.codigo) === codigo)?.barrio || `Barrio ${codigo}`;
   }
   return [...porCodigo.values()].map((fila) => ({ ...fila, nombre: fila.nombre || `Barrio ${fila.codigo}` })).sort(ordenCodigo);
+};
+
+// Barrios para abrir un lote: el catalogo de codigos mas los barrios del reparto
+// que solo existen en el padron. Sin estos, la oficina los escribia a mano y el
+// lote quedaba sin codigo, fuera del avance del mes.
+export const barriosParaLotes = (catalogo = [], reparto = []) => {
+  const lista = catalogo
+    .map((item) => ({ codigo: clean(item.codigo), barrio: clean(item.barrio) }))
+    .filter((item) => item.codigo);
+  const conocidos = new Set(lista.map((item) => item.codigo));
+  for (const barrio of reparto) {
+    const codigo = clean(barrio.codigo);
+    if (!codigo || conocidos.has(codigo)) continue;
+    conocidos.add(codigo);
+    lista.push({ codigo, barrio: clean(barrio.nombre) || `Barrio ${codigo}` });
+  }
+  return lista.sort(ordenCodigo);
+};
+
+// "Brisas del rio" y "Bo. Brisas del Río" son la misma llave: sin prefijo, acentos
+// ni mayusculas.
+const llaveNombre = (texto) =>
+  normalizarTexto(nombreBarrioLegible(texto)).replace(/^(bo|col|res|lot)\.\s*/, "");
+
+// Un nombre escrito a mano que corresponde a un solo barrio conocido. Si dos
+// barrios comparten el nombre no se adivina: devuelve null.
+export const barrioPorNombre = (lista = [], nombre = "") => {
+  const llave = llaveNombre(nombre);
+  if (!llave) return null;
+  const hallados = lista.filter((item) => llaveNombre(item.barrio) === llave);
+  return hallados.length === 1 ? hallados[0] : null;
 };
 
 // Normaliza una asignacion recibida por la API. responsable_id vacio = quitar

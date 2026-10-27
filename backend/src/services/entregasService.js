@@ -9,6 +9,7 @@ import { createAuditLog } from "./auditService.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 import { listBarrioCodes } from "./barrioCodeService.js";
 import { leerRepartoBarrios } from "./entregasRepartoService.js";
+import { barrioPorNombre, barriosParaLotes } from "./entregasRepartoRules.js";
 import { getMasterRecords, getMasterVersion, normalizeLookupKey } from "./claveLookupService.js";
 import { PLANTILLAS_AVISO, indexarPadron, normalizarAviso, saldoDeDocumento, sumarSaldos, textoAviso } from "./entregasSaldoRules.js";
 import {
@@ -169,7 +170,7 @@ export const getEntregasConfig = async (user) => {
   const [motivos, personalPropio, barrios, ciclo] = await Promise.all([
     listMotivos(),
     getPersonalDelUsuario(user),
-    listBarrioCodes().catch(() => []),
+    listarBarriosParaLotes(),
     getCicloVigente()
   ]);
   // El técnico solo puede abrir lotes en los barrios que el reparto le dio al
@@ -185,7 +186,7 @@ export const getEntregasConfig = async (user) => {
     resultados_intento: RESULTADOS_INTENTO,
     tipos_personal: TIPOS_PERSONAL,
     motivos,
-    barrios: barrios.map((item) => ({ codigo: item.codigo, barrio: item.barrio })),
+    barrios,
     semana_actual: semanaPorDefecto(jornadaEntregas().fecha),
     ciclo,
     personal_vinculado: personalPropio,
@@ -378,17 +379,30 @@ export const updatePersonal = async (id, payload = {}, user) => {
 /* Lotes                                                                       */
 /* -------------------------------------------------------------------------- */
 
+// Catalogo de codigos mas los barrios del reparto que solo estan en el padron.
+const listarBarriosParaLotes = async () => {
+  const [catalogo, reparto] = await Promise.all([
+    listBarrioCodes().catch(() => []),
+    leerRepartoBarrios().then(({ barrios }) => barrios).catch(() => [])
+  ]);
+  return barriosParaLotes(catalogo, reparto);
+};
+
 const resolverBarrio = async (payload = {}) => {
   const codigo = clean(payload.barrio_codigo);
   const nombreManual = clean(payload.barrio_nombre);
   if (!codigo && !nombreManual) throw fail("El barrio es obligatorio.");
 
-  const catalogo = await listBarrioCodes().catch(() => []);
-  const encontrado = catalogo.find((item) => String(item.codigo) === codigo);
+  const catalogo = await listarBarriosParaLotes();
+  // Un nombre escrito a mano que es un barrio conocido se guarda con su codigo:
+  // sin codigo el lote no cuenta en el avance del mes.
+  const encontrado = codigo
+    ? catalogo.find((item) => item.codigo === codigo)
+    : barrioPorNombre(catalogo, nombreManual);
   if (codigo && !encontrado && !nombreManual) throw fail("El barrio indicado no existe en el catálogo.", 404);
 
   return {
-    barrio_codigo: codigo.slice(0, 10),
+    barrio_codigo: (encontrado?.codigo || codigo).slice(0, 10),
     barrio_nombre: (encontrado?.barrio || nombreManual).slice(0, 180)
   };
 };
