@@ -15,7 +15,9 @@ const fechaPadron = (iso) => {
 };
 // "L 390.90 capital − L 0.40 intereses": un interés negativo (saldo a favor) resta, sin "+ -L".
 const desglose = (capital, intereses) => <>{money(capital)} capital {intereses < 0 ? "−" : "+"} <em>{money(Math.abs(intereses))} intereses</em></>;
-const ETIQUETA_ESTADO = { "al-dia": "Al día", "a-favor": "A favor" };
+// Un barrio grande tiene 1,500 abonados: se dibujan por tandas al bajar, para que el
+// panel abra al instante. Totales, filtros e impresión usan siempre la lista completa.
+const TANDA = 120;
 
 // Abonados ya leídos de la versión vigente del padrón (su fecha), por barrio: volver
 // a abrir un barrio es inmediato. Si la fecha cambia, todo lo anterior se descarta;
@@ -82,6 +84,8 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
   const capa = useRef(null);
   const buscador = useRef(null);
   const lista = useRef(null);
+  const cuerpo = useRef(null);
+  const centinela = useRef(null);
   const origen = useRef(document.activeElement);
   const servicio = field ? serviceLabel(field).toLowerCase() : "";
   // `model` se arma de nuevo en cada redibujo de la app: si la carga dependiera de él,
@@ -131,6 +135,20 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
     && coincide(row, query)), orden), [estado.rows, filtroSaldo, soloServicio, field, query, orden]);
   const vistos = useMemo(() => resumirAbonados(visibles), [visibles]);
   const filtrado = visibles.length !== estado.rows.length;
+  // La tanda vuelve a la primera cuando cambia lo que se ve (barrio, filtros u orden).
+  const firma = `${llave}|${filtroSaldo}|${soloServicio}|${query}|${orden}`;
+  const [tanda, setTanda] = useState({ firma, n: TANDA });
+  const limite = tanda.firma === firma ? tanda.n : TANDA;
+  const quedan = Math.max(visibles.length - limite, 0);
+  const mostrarMas = () => setTanda({ firma, n: limite + TANDA * 2 });
+  useEffect(() => {
+    if (!quedan || !centinela.current || typeof IntersectionObserver === "undefined") return undefined;
+    const observador = new IntersectionObserver((entradas) => {
+      if (entradas.some((entrada) => entrada.isIntersecting)) setTanda({ firma, n: limite + TANDA * 2 });
+    }, { root: cuerpo.current, rootMargin: "600px 0px" });
+    observador.observe(centinela.current);
+    return () => observador.disconnect();
+  }, [quedan, firma, limite]);
   const parteIntereses = barrioResumen.capital + barrioResumen.intereses > 0 && barrioResumen.intereses > 0
     ? Math.min(100, (barrioResumen.intereses / (barrioResumen.capital + barrioResumen.intereses)) * 100) : 0;
 
@@ -213,7 +231,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
         {field ? <label className="pq-check-toggle"><input type="checkbox" checked={soloServicio} onChange={(event) => setSoloServicio(event.target.checked)} />Solo con {servicio}</label> : null}
       </div>
 
-      <div className="pq-abo-cuerpo">
+      <div className="pq-abo-cuerpo" ref={cuerpo}>
         <div className="pq-abo-cols" aria-hidden="true">
           <span>Clave · abonado</span><span>Nombre</span><span>Servicios</span><span className="is-num">Intereses</span><span className="is-num">Saldo</span><span />
         </div>
@@ -226,7 +244,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
               {estado.rows.length ? <button type="button" className="pq-btn" onClick={limpiar}>Ver todos los abonados</button> : null}
             </div>
               : <ol className="pq-abo-lista" ref={lista} aria-label={`Abonados de ${barrio}`}>
-                {visibles.map((row) => {
+                {visibles.slice(0, limite).map((row) => {
                   const id = `${row.clave_catastral}-${row.abonado}`;
                   const abiertaEsta = abierta === id;
                   const tono = estadoSaldo(row);
@@ -254,6 +272,9 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
                     </div> : null}
                   </li>;
                 })}
+                {quedan ? <li className="pq-abo-mas" ref={centinela}>
+                  <button type="button" className="pq-link" onClick={mostrarMas}>Mostrar {count(Math.min(quedan, TANDA * 2))} más · faltan {count(quedan)}</button>
+                </li> : null}
               </ol>}
       </div>
 

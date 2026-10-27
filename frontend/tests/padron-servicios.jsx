@@ -29,7 +29,7 @@ const serviceRows = CAMPOS.map((field) => {
 const NOMBRES_ABONADOS = ['MARIA JOSE CASTILLO', 'JUAN CARLOS MEJIA', 'ROSA AMELIA ZELAYA', 'PEDRO ANTONIO LOPEZ', 'GLORIA ESPERANZA VINDEL', 'CARLOS ROBERTO SIERRA', 'ANA LUCIA MARTINEZ', 'JOSE LUIS ORDOÑEZ'];
 // Como en el padrón real, el saldo (total) es capital (tarifa) más intereses. La versión
 // del padrón va en el nombre de los abonados para saber de qué consulta salió cada lista.
-const cuentasDe = (barrio, i, version) => Array.from({ length: 18 + i * 3 }, (_, n) => {
+const cuentasDe = (barrio, i, version) => Array.from({ length: window.__abonadosPorBarrio || 18 + i * 3 }, (_, n) => {
   const tarifa = n % 4 === 0 ? 0 : 180 + n * 7;
   const intereses = n % 4 === 0 || n % 3 === 0 ? 0 : 60 + n * 12.25;
   return {
@@ -37,6 +37,7 @@ const cuentasDe = (barrio, i, version) => Array.from({ length: 18 + i * 3 }, (_,
     servicios: { agua: n % 3 !== 0, alcantarillado: n % 2 === 0, barrido: n % 5 === 0, recoleccion: n % 4 !== 1, desechos_peligrosos: n === 7 }, tarifa, intereses, total: tarifa + intereses
   };
 });
+// window.__abonadosPorBarrio = 1500 simula un barrio grande.
 // Pruebas de carrera: window.__demoras = { [barrio]: ms } retrasa la respuesta de ese barrio
 // y window.__registro guarda cada consulta (barrio y versión del padrón al pedirla).
 const apiFetch = async (url) => {
