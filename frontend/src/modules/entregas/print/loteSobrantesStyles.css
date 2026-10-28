@@ -26,9 +26,16 @@
      hueco: el documento sigue midiendo lo que mide la pagina entera de Entregas
      y todo ese alto se pagina vacio. Con display:none el arbol de la app sale
      del FLUJO y el acta queda como unico contenido. */
-  body.ent-imprimiendo-acta > #root { display: none !important; }
-  /* Sin el margen por defecto del body, que empujaba el acta a una segunda hoja. */
-  body.ent-imprimiendo-acta { margin: 0 !important; padding: 0 !important; }
+  /* No basta con #root: el cajón del lote es un diálogo de Radix montado en <body>
+     (fuera de #root), y salía impreso en lugar del acta, con sus botones y su barra
+     de desplazamiento. Se oculta todo lo que no sea el acta. */
+  body.ent-imprimiendo-acta > :not(.ent-acta-portal) { display: none !important; }
+  /* Sin el margen por defecto del body, que empujaba el acta a una segunda hoja.
+     El cajón abierto bloquea el desplazamiento (overflow: hidden en body y html):
+     impreso, eso recortaba el acta a la primera hoja. */
+  html:has(body.ent-imprimiendo-acta),
+  body.ent-imprimiendo-acta { height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+  body.ent-imprimiendo-acta { pointer-events: auto !important; }
 
   body.ent-imprimiendo-acta .ent-acta-portal {
     position: static !important;
