@@ -4,6 +4,9 @@ import {
   cicloCerrar,
   config,
   descartes,
+  exclusionesList,
+  exclusionesCreate,
+  exclusionRemove,
   intentoCreate,
   avisoDocumentoCreate,
   loteCerrar,
@@ -42,6 +45,9 @@ router.get("/resumen", resumen);
 router.get("/avance-mes", avanceMes);
 router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);
 router.get("/descartes", requireRoles("admin", "gerente"), descartes);
+router.get("/exclusiones", requireRoles("admin", "gerente"), exclusionesList);
+router.post("/exclusiones", requireRoles("admin"), exclusionesCreate);
+router.delete("/exclusiones/:id", requireRoles("admin"), exclusionRemove);
 
 router.get("/personal", personalList);
 router.post("/personal", requireRoles("admin"), personalCreate);

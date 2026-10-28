@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { filaVacia, parsearPegado, posicionesDuplicadas } from "./cierreLoteUtils.js";
+import { exclusionDe, filaVacia, llaveExclusion, parsearPegado, posicionesDuplicadas } from "./cierreLoteUtils.js";
 
 const motivos = [
   { codigo: "CASA_CERRADA", etiqueta: "Casa cerrada" },
@@ -48,4 +48,22 @@ test("detecta choques contra el detalle ya guardado sin distinguir mayusculas ni
 test("ignora filas todavia vacias", () => {
   const vacias = [filaVacia("CASA_CERRADA"), filaVacia("CASA_CERRADA")];
   assert.deepEqual(posicionesDuplicadas(vacias, []), []);
+});
+
+test("exclusiones: misma llave que el backend", () => {
+  assert.equal(llaveExclusion("CLAVE", " 25-11-08-03 "), "25110803");
+  assert.equal(llaveExclusion("ABONADO", " 0123 "), "123");
+  assert.equal(llaveExclusion("OTRO", "123"), "");
+});
+
+test("exclusiones: un sobrante coincide por abonado o por clave", () => {
+  const exclusiones = [
+    { id: 1, tipo: "ABONADO", llave: "5838", nota: "" },
+    { id: 2, tipo: "CLAVE", llave: "28380903", nota: "Grandes clientes" }
+  ];
+  assert.equal(exclusionDe({ numero_abonado: "05838", clave_catastral: "" }, exclusiones).id, 1);
+  assert.equal(exclusionDe({ numero_abonado: "", clave_catastral: "28-38-09-03" }, exclusiones).id, 2);
+  assert.equal(exclusionDe({ numero_abonado: "28380903", clave_catastral: "" }, exclusiones), null);
+  assert.equal(exclusionDe({ numero_abonado: "", clave_catastral: "" }, exclusiones), null);
+  assert.equal(exclusionDe({ numero_abonado: "5838" }, undefined), null);
 });

@@ -52,3 +52,22 @@ export const posicionesDuplicadas = (filas = [], existentes = []) => {
   });
   return posiciones;
 };
+
+// Exclusiones: claves y abonados cuya factura entrega otro departamento. Misma regla
+// que el backend (entregasExclusionesRules.js): la clave se compara por sus cifras y
+// el abonado sin espacios ni ceros a la izquierda.
+export const llaveExclusion = (tipo, valor) => {
+  const texto = String(valor ?? "").trim();
+  if (tipo === "CLAVE") return texto.replace(/\D/g, "");
+  if (tipo === "ABONADO") return texto.replace(/\s+/g, "").toUpperCase().replace(/^0+(?=.)/, "");
+  return "";
+};
+
+// La exclusión que corresponde a un sobrante (por abonado o por clave), o null.
+export const exclusionDe = (fila = {}, exclusiones = []) => {
+  const abonado = llaveExclusion("ABONADO", fila.numero_abonado);
+  const clave = llaveExclusion("CLAVE", fila.clave_catastral);
+  if (!abonado && !clave) return null;
+  return exclusiones.find((item) => (item.tipo === "ABONADO" && abonado && item.llave === abonado)
+    || (item.tipo === "CLAVE" && clave && item.llave === clave)) || null;
+};

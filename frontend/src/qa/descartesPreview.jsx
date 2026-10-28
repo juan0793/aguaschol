@@ -78,15 +78,45 @@ const config = {
   tipos_documento: ["FACTURA", "NOTA_COBRO"], jornada: { fecha: HOY }, estados_lote: ["ABIERTO", "CERRADO"], estados_no_entregada: ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA", "CANCELADA", "VENCIDA"],
   estados_en_seguimiento: ["PENDIENTE"], resultados_intento: [], tipos_personal: [], motivos, barrios: barrios.map((barrio) => ({ codigo: barrio.codigo, nombre: barrio.nombre })),
   semana_actual: { fecha_inicio: "2026-10-26", fecha_fin: "2026-11-01" }, ciclo: { ...ciclo, dias_abierto: 27 }, personal_vinculado: null, barrios_por_responsable: {}, plantillas_aviso: [],
-  permissions: { can_manage_personal: true, can_create_lote: true, can_edit_lote: true, can_close_own_lote: true, can_force_close: true, can_reopen_lote: true, can_delete_lote: true, can_close_ciclo: true, can_view_descartes: true, can_manage_seguimiento: true, can_generate_report: true, can_manage_reparto: true, can_correct_report: true, can_view_all: true, can_view_saldo: false, can_send_aviso: false }
+  permissions: { can_manage_personal: true, can_create_lote: true, can_edit_lote: true, can_close_own_lote: true, can_force_close: true, can_reopen_lote: true, can_delete_lote: true, can_close_ciclo: true, can_view_descartes: true, can_manage_exclusiones: true, can_manage_seguimiento: true, can_generate_report: true, can_manage_reparto: true, can_correct_report: true, can_view_all: true, can_view_saldo: false, can_send_aviso: false }
+};
+
+// Exclusiones en memoria (el banco no guarda nada): alta en lote y baja por id.
+let exclusiones = [
+  { id: 1, tipo: "ABONADO", valor: "20045", llave: "20045", nota: "Grandes clientes", created_by_nombre: "Administración de prueba", created_at: "2026-10-20T15:00:00Z" },
+  { id: 2, tipo: "CLAVE", valor: "99-10-02-07", llave: "99100207", nota: "", created_by_nombre: "Administración de prueba", created_at: "2026-10-21T15:00:00Z" }
+];
+let siguienteExclusion = 3;
+const llaveDe = (tipo, valor) => (tipo === "CLAVE" ? String(valor).replace(/\D/g, "") : String(valor).replace(/\s+/g, "").replace(/^0+(?=.)/, ""));
+const exclusionesApi = (metodo, camino, cuerpo) => {
+  if (metodo === "DELETE") {
+    exclusiones = exclusiones.filter((item) => item.id !== Number(camino.split("/").pop()));
+    return { exclusiones };
+  }
+  if (metodo === "POST") {
+    const { tipo, valores, nota } = JSON.parse(cuerpo || "{}");
+    const invalidos = [];
+    let agregadas = 0;
+    let repetidas = 0;
+    String(valores).split(/[\n,;\t ]+/).filter(Boolean).forEach((valor) => {
+      const llave = llaveDe(tipo, valor);
+      if (tipo === "CLAVE" ? llave.length < 6 : !llave) { invalidos.push(valor); return; }
+      if (exclusiones.some((item) => item.tipo === tipo && item.llave === llave)) { repetidas += 1; return; }
+      exclusiones = [...exclusiones, { id: siguienteExclusion++, tipo, valor, llave, nota: nota || "", created_by_nombre: "Administración de prueba", created_at: new Date().toISOString() }];
+      agregadas += 1;
+    });
+    return { agregadas, repetidas, invalidos, exclusiones };
+  }
+  return { exclusiones };
 };
 
 window.__registro = { descartes: 0, otras: [] };
 const respuesta = (cuerpo) => new Response(JSON.stringify(cuerpo), { status: 200, headers: { "Content-Type": "application/json" } });
-const apiFetch = async (ruta = "") => {
+const apiFetch = async (ruta = "", opciones = {}) => {
   await new Promise((resolve) => window.setTimeout(resolve, 120));
   const [camino, consulta = ""] = String(ruta).split("?");
-  if (camino === "/entregas/config") return respuesta(config);
+  if (camino === "/entregas/config") return respuesta({ ...config, exclusiones });
+  if (camino.startsWith("/entregas/exclusiones")) return respuesta(exclusionesApi(opciones.method || "GET", camino, opciones.body));
   if (camino === "/entregas/descartes") {
     window.__registro.descartes += 1;
     return respuesta(descartes(new URLSearchParams(consulta).get("fecha") || HOY));
@@ -94,6 +124,17 @@ const apiFetch = async (ruta = "") => {
   window.__registro.otras.push(camino);
   if (camino === "/entregas/resumen") return respuesta({ periodo: { fecha_inicio: "2026-10-26", fecha_fin: "2026-11-01" }, por_dia: [], totales: {} });
   if (camino === "/entregas/personal") return respuesta([]);
+  // Detalle de un lote cerrado con sus sobrantes, para probar el acta impresa:
+  // abre `qa-descartes.html#entregas/lotes?lote=141`.
+  const lote = camino.match(/^\/entregas\/lotes\/(\d+)$/);
+  if (lote) {
+    const delLote = items.slice(0, 18).map((item) => ({ ...item, lote_id: Number(lote[1]), saldo: { encontrado: true, total: 1520.5, capital: 980, mora: 540.5 } }));
+    return respuesta({
+      id: Number(lote[1]), estado: "CERRADO", fecha: "2026-10-27", tipo_documento: "FACTURA", barrio_nombre: "Bo. de Prueba", responsable_nombre: "Técnico Prueba Uno",
+      total_asignadas: 240, total_entregadas: 222, total_sobrantes: delLote.length, closed_by_nombre: "Técnico Prueba Uno", closed_at: "2026-10-27T22:10:00Z",
+      no_entregadas: delLote, saldo_sobrantes: { total: 27369, capital: 17640, mora: 9729, total_pendiente: 27369, con_saldo: 18, cuentas: 18, sin_padron: 0 }
+    });
+  }
   const documento = camino.match(/^\/entregas\/no-entregadas\/(\d+)$/);
   if (documento) return respuesta({ ...items.find((item) => item.id === Number(documento[1])), intentos: [], avisos: [] });
   return respuesta({ items: [], total: 0 });

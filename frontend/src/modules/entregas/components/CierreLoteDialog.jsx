@@ -8,7 +8,7 @@ import {
   formatDate,
   formatNumber
 } from "../utils/entregasFormatters";
-import { filaVacia, parsearPegado, posicionesDuplicadas } from "../utils/cierreLoteUtils";
+import { exclusionDe, filaVacia, parsearPegado, posicionesDuplicadas } from "../utils/cierreLoteUtils";
 import { cierreTieneCambiosPendientes, clearEntregaDraft, falloEntregaAmbiguo, readEntregaDraft, saveEntregaDraft } from "../utils/entregaDraftStorage";
 import EntregasDrawer from "./EntregasDrawer";
 
@@ -23,6 +23,19 @@ const filaIncompleta = (fila) => !fila.numero_abonado.trim() && !fila.clave_cata
  * cuántas aparece una ficha por cada sobrante, sin botones intermedios. Las palabras son las
  * del técnico ("sobrantes"), no las del sistema ("no entregadas").
  */
+// Aviso al técnico: este documento lo entrega otro departamento (lista de Exclusiones).
+function AvisoOtroDepartamento({ exclusion }) {
+  return (
+    <p className="ent-sobrante-otro-depto" role="note">
+      <Icon name="warning" />
+      <span>
+        <strong>Esta factura la entrega otro departamento de la empresa.</strong>
+        {exclusion.nota ? `${exclusion.nota} · ` : ""}{exclusion.tipo === "CLAVE" ? "Clave" : "Abonado"} {exclusion.valor} en la lista de exclusiones.
+      </span>
+    </p>
+  );
+}
+
 export default function CierreLoteDialog({ api, config, lote, notify, onClose, onSaved, sessionUserId }) {
   const motivos = config.motivos;
   const motivoPorDefecto = motivos[0]?.codigo || "CASA_CERRADA";
@@ -74,6 +87,9 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
   // conflictiva se vea y el cierre no falle sin explicacion.
   const duplicados = useMemo(() => posicionesDuplicadas(nuevas, detalle), [nuevas, detalle]);
   const hayDuplicados = duplicados.length > 0;
+  // Sobrantes cuya factura entrega otro departamento: solo se avisa, no bloquea.
+  const exclusiones = config.exclusiones || [];
+  const otroDepartamento = useMemo(() => [...detalle, ...nuevas].filter((fila) => exclusionDe(fila, exclusiones)).length, [detalle, nuevas, exclusiones]);
 
   const sobrantesNum = Number(sobrantes || 0);
   const entregadas = Math.max(total - (Number.isFinite(sobrantesNum) ? sobrantesNum : 0), 0);
@@ -396,9 +412,17 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
               </label>
             ) : null}
 
+            {otroDepartamento ? (
+              <p className="ent-cierre-otro-depto" role="status">
+                {otroDepartamento === 1 ? "1 sobrante es una factura que entrega otro departamento de la empresa." : `${formatNumber(otroDepartamento)} sobrantes son facturas que entrega otro departamento de la empresa.`}
+              </p>
+            ) : null}
+
             <ol className="ent-sobrantes-lista">
-              {detalle.map((documento, index) => (
-                <li key={documento.id} className="ent-sobrante is-guardado">
+              {detalle.map((documento, index) => {
+                const excluida = exclusionDe(documento, exclusiones);
+                return (
+                <li key={documento.id} className={`ent-sobrante is-guardado${excluida ? " is-otro-depto" : ""}`}>
                   <header>
                     <strong>Sobrante {index + 1}</strong>
                     <span className={`cl-status ${estadoClass(documento.estado)}`}><i />{estadoDocumentoLabel(documento.estado)}</span>
@@ -413,14 +437,17 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                     {documento.clave_catastral ? <> · Clave <b>{documento.clave_catastral}</b></> : null}
                     {" · "}{etiquetaMotivo(documento.motivo)}
                   </p>
+                  {excluida ? <AvisoOtroDepartamento exclusion={excluida} /> : null}
                 </li>
-              ))}
+                );
+              })}
               {nuevas.map((fila, index) => {
                 const numero = guardadasActivas + index + 1;
                 const requiereNota = motivos.find((item) => item.codigo === fila.motivo)?.requiere_observacion;
                 const duplicada = duplicados.includes(index);
+                const excluida = exclusionDe(fila, exclusiones);
                 return (
-                  <li key={`nueva-${index}`} className={`ent-sobrante ${duplicada ? "is-duplicada" : ""}`}>
+                  <li key={`nueva-${index}`} className={`ent-sobrante${duplicada ? " is-duplicada" : ""}${excluida ? " is-otro-depto" : ""}`}>
                     <header>
                       <strong>Sobrante {numero}{sobrantesNum ? <small> de {formatNumber(sobrantesNum)}</small> : null}</strong>
                       {duplicada ? <span className="ent-dup-hint">Repetido</span> : null}
@@ -468,6 +495,7 @@ export default function CierreLoteDialog({ api, config, lote, notify, onClose, o
                     </div>
                     {buscando === index ? <small className="ent-sobrante-info">Buscando en el padrón…</small> : null}
                     {fila.abonado_nombre && buscando !== index ? <small className="ent-sobrante-info">{fila.abonado_nombre}</small> : null}
+                    {excluida ? <AvisoOtroDepartamento exclusion={excluida} /> : null}
                   </li>
                 );
               })}

@@ -28,6 +28,9 @@ export const createEntregasApi = (apiFetch) => ({
 
   cerrarCiclo: (payload) => apiFetch("/entregas/ciclos/cerrar", { method: "POST", ...jsonBody(payload) }).then(json),
   descartes: (params = {}) => apiFetch(`/entregas/descartes${query(params)}`).then(json),
+  exclusiones: () => apiFetch("/entregas/exclusiones").then(json),
+  agregarExclusiones: (payload) => apiFetch("/entregas/exclusiones", { method: "POST", ...jsonBody(payload) }).then(json),
+  quitarExclusion: (id) => apiFetch(`/entregas/exclusiones/${id}`, { method: "DELETE" }).then(json),
 
   personal: (params = {}) => apiFetch(`/entregas/personal${query(params)}`).then(json),
   crearPersonal: (payload) => apiFetch("/entregas/personal", { method: "POST", ...jsonBody(payload) }).then(json),

@@ -9,6 +9,7 @@ import { createAuditLog } from "./auditService.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 import { listBarrioCodes } from "./barrioCodeService.js";
 import { leerRepartoBarrios } from "./entregasRepartoService.js";
+import { exclusionesParaConfig } from "./entregasExclusionesService.js";
 import { barrioPorNombre, barriosParaLotes } from "./entregasRepartoRules.js";
 import { getMasterRecords, getMasterVersion, normalizeLookupKey } from "./claveLookupService.js";
 import { PLANTILLAS_AVISO, indexarPadron, normalizarAviso, saldoDeDocumento, sumarSaldos, textoAviso } from "./entregasSaldoRules.js";
@@ -167,11 +168,12 @@ const barriosDelRepartoPara = async (personalPropio) => {
 };
 
 export const getEntregasConfig = async (user) => {
-  const [motivos, personalPropio, barrios, ciclo] = await Promise.all([
+  const [motivos, personalPropio, barrios, ciclo, exclusiones] = await Promise.all([
     listMotivos(),
     getPersonalDelUsuario(user),
     listarBarriosParaLotes(),
-    getCicloVigente()
+    getCicloVigente(),
+    exclusionesParaConfig()
   ]);
   // El técnico solo puede abrir lotes en los barrios que el reparto le dio al
   // responsable: el formulario necesita saber cuáles son, sin abrir todo el reparto.
@@ -192,6 +194,8 @@ export const getEntregasConfig = async (user) => {
     personal_vinculado: personalPropio,
     barrios_por_responsable: barriosPorResponsable,
     plantillas_aviso: puedeAvisar(user) ? PLANTILLAS_AVISO : [],
+    // Claves y abonados que entrega otro departamento: el cierre avisa al técnico.
+    exclusiones,
     permissions: {
       can_manage_personal: isAdmin(user),
       can_create_lote: !user?.preview && user?.role !== "gerente" && (isGestor(user) || Boolean(personalPropio)),
@@ -202,6 +206,7 @@ export const getEntregasConfig = async (user) => {
       can_delete_lote: isAdmin(user),
       can_close_ciclo: isAdmin(user),
       can_view_descartes: isAdmin(user) || user?.role === "gerente",
+      can_manage_exclusiones: !user?.preview && isAdmin(user),
       can_manage_seguimiento: !user?.preview && user?.role !== "gerente" && (isGestor(user) || Boolean(personalPropio)),
       can_generate_report: !user?.preview && isGestor(user),
       can_manage_reparto: !user?.preview && isGestor(user),

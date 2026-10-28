@@ -11,7 +11,12 @@ const motivos = [
   ["CASA_CERRADA", "Casa cerrada"], ["DIRECCION_NO_ENCONTRADA", "Dirección no encontrada"], ["PREDIO_DESHABITADO", "Predio deshabitado"],
   ["ABONADO_NO_LOCALIZADO", "Abonado no localizado"], ["DATOS_INCONSISTENTES", "Datos inconsistentes"], ["RECHAZO_RECEPCION", "Rechazo de recepción"], ["OTRO", "Otro"]
 ].map(([codigo, etiqueta]) => ({ codigo, etiqueta, requiere_observacion: codigo === "OTRO" }));
-const config = { motivos, permissions: { can_close_own_lote: true } };
+// Exclusiones ficticias: el abonado 20045 y la clave 99-10-02-07 los entrega otro departamento.
+const exclusiones = [
+  { id: 1, tipo: "ABONADO", valor: "20045", llave: "20045", nota: "Grandes clientes" },
+  { id: 2, tipo: "CLAVE", valor: "99-10-02-07", llave: "99100207", nota: "" }
+];
+const config = { motivos, exclusiones, permissions: { can_close_own_lote: true } };
 const lote = { id: 141, estado: "ABIERTO", responsable_nombre: "Melissa", barrio_nombre: "BO. EL ESTADIO", tipo_documento: "FACTURA", fecha: "2026-10-13", total_asignadas: 40, no_entregadas: [], observacion_responsable: "" };
 let siguiente = 1;
 const api = {

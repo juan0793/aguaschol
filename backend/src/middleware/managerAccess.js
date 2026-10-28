@@ -4,7 +4,7 @@ export const READ_ROUTES = {
   "/api/inmuebles": /^\/(?:summary|clave\/[^/]+|\d+\/(?:history|aviso))?\/?$/,
   "/api/clandestinos": /^\/(?:config|fichas(?:\/ritmo)?|reportes|history\/[^/]+\/\d+|banco(?:\/(?:listado|refs))?)\/?$/,
   "/api/inspecciones": /^\/(?:config|tecnicos|resumen|stats(?:\/tablero)?|\d+(?:\/(?:tecnicos|gps|historial|print-data|print-history))?)?\/?$/,
-  "/api/entregas": /^\/(?:config|resumen|avance-mes|descartes|personal|reparto(?:\/mapa)?|lotes(?:\/\d+)?|no-entregadas(?:\/\d+)?|reportes\/semanales(?:\/(?:preview|\d+))?)\/?$/,
+  "/api/entregas": /^\/(?:config|resumen|avance-mes|descartes|exclusiones|personal|reparto(?:\/mapa)?|lotes(?:\/\d+)?|no-entregadas(?:\/\d+)?|reportes\/semanales(?:\/(?:preview|\d+))?)\/?$/,
   "/api/entregas/reclamos": /^\/(?:buscar)?\/?$/,
   "/api/claves": /^\/(?:meta|alcaldia\/(?:meta|compare|search(?:\/[^/]+)?)|requests\/meta|services\/(?:report|accounts)|search(?:\/[^/]+)?)\/?$/,
   "/api/field-validation": /^\/(?:findings)?\/?$/,

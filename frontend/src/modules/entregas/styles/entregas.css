@@ -1159,6 +1159,63 @@
   .ent-desc-tabla:not(.is-abonados) .ent-desc-c-antes { grid-column: 2; justify-self: end; }
 }
 
+/* Exclusiones (2026-10-28): claves y abonados que entrega otro departamento. Mismo
+   lenguaje plano que Descartes: título sin etiqueta encima, formulario entre filetes
+   y la lista como tabla de una línea por exclusión. */
+.ent-exc-head { margin-bottom: 14px; }
+.ent-exc-head h2 { margin: 0; color: var(--navy); font-size: 20px; font-weight: 750; line-height: 1.2; }
+.ent-exc-head p { max-width: 72ch; margin: 4px 0 0; color: #52677c; font-size: 13px; line-height: 1.45; }
+.ent-exc-head q { color: #8a5a0c; font-weight: 650; quotes: "“" "”"; }
+
+.ent-exc-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px 20px; align-items: start; padding: 14px 0 16px; border-top: 1px solid var(--ent-borde); border-bottom: 1px solid var(--ent-borde); }
+.ent-exc-tipo { grid-column: 1 / -1; display: inline-flex; justify-self: start; padding: 3px; border: 1px solid #c9d8e6; border-radius: 9px; background: #f3f7fb; }
+.ent-exc-tipo button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 7px; background: transparent; color: #38536b; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+.ent-exc-tipo button[aria-pressed="true"] { background: #fff; color: #12518d; box-shadow: 0 1px 2px rgba(16, 42, 67, .12); }
+.ent-exc-form textarea { min-height: 104px; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 13px; resize: vertical; }
+.ent-exc-enviar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.ent-exc-enviar .cl-primary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.ent-exc-resultado { margin: 0; color: #0f6e57; font-size: 13px; font-weight: 650; }
+.ent-exc-resultado.is-error { color: var(--danger); }
+.ent-exc-solo-lectura { margin: 0; padding: 10px 0; border-top: 1px solid var(--ent-borde); border-bottom: 1px solid var(--ent-borde); color: #52677c; font-size: 13px; }
+
+.ent-exc-lista { margin-top: 16px; }
+.ent-exc-lista-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
+.ent-exc-lista-head h3 { margin: 0; color: var(--navy); font-size: 15px; font-weight: 750; }
+.ent-exc-lista-head > span { color: #52677c; font-size: 12.5px; }
+.ent-exc-buscar { margin-left: auto; }
+.ent-exc-buscar input { width: 260px; max-width: 100%; min-height: 38px; padding: 0 10px; border: 1px solid #c9d8e6; border-radius: 8px; color: var(--navy); font: inherit; font-size: 13px; }
+.ent-exc-tabla { width: 100%; border-collapse: separate; border-spacing: 0; color: var(--navy); font-size: 13px; }
+.ent-exc-tabla th { padding: 9px 10px; border-bottom: 1px solid #c9d8e6; background: #f1f5f9; color: #52677c; font-size: 12px; font-weight: 700; text-align: left; }
+.ent-exc-tabla td { height: 44px; padding: 4px 10px; border-bottom: 1px solid #e6edf3; vertical-align: middle; }
+.ent-exc-tabla th:first-child { width: 90px; }
+.ent-exc-valor { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ent-exc-vacio { color: #6b7d8f; }
+.ent-exc-quien { color: #52677c; font-size: 12.5px; }
+.ent-exc-accion { width: 1%; text-align: right; white-space: nowrap; }
+.ent-exc-accion .cl-quiet { min-height: 36px; }
+
+/* Aviso en la ficha del sobrante del cierre: el documento lo entrega otro departamento. */
+.ent-sobrante-otro-depto { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; padding: 9px 11px; border: 1px solid #efd3a0; border-radius: 8px; background: #fff8ea; color: #6f4a0a; font-size: 13px; line-height: 1.4; }
+.ent-sobrante-otro-depto .app-icon { flex: 0 0 auto; margin-top: 1px; color: #8a5a0c; }
+.ent-sobrante-otro-depto strong { display: block; color: #6f4a0a; }
+.ent-sobrante.is-otro-depto { border-color: #e6c27e; }
+.ent-cierre-otro-depto { margin: 0 0 12px; color: #6f4a0a; font-size: 13px; font-weight: 650; }
+
+@media (max-width: 760px) {
+  .ent-exc-form { grid-template-columns: minmax(0, 1fr); }
+  .ent-exc-tipo { display: grid; grid-template-columns: 1fr 1fr; justify-self: stretch; }
+  .ent-exc-buscar { flex: 1 1 100%; margin-left: 0; }
+  .ent-exc-buscar input { width: 100%; }
+  .ent-exc-tabla thead { display: none; }
+  .ent-exc-tabla, .ent-exc-tabla tbody { display: block; }
+  .ent-exc-tabla tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 10px 0; border-bottom: 1px solid #e6edf3; }
+  .ent-exc-tabla td { display: block; height: auto; padding: 0; border: 0; }
+  .ent-exc-tabla td:first-child { grid-column: 1; color: #52677c; font-size: 12px; }
+  .ent-exc-tabla .ent-exc-valor { grid-column: 1; }
+  .ent-exc-tabla td:nth-child(3), .ent-exc-tabla .ent-exc-quien { grid-column: 1; }
+  .ent-exc-tabla .ent-exc-accion { grid-column: 2; grid-row: 1 / span 4; align-self: center; width: auto; }
+}
+
 /* Avance del mes: un tramo por barrio del reparto, agrupado por técnico. */
 .ent-mes { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--ent-borde); }
 .ent-mes-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; }
