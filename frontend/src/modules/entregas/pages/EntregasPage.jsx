@@ -34,7 +34,7 @@ const SUBVISTAS = [
   { key: "lotes", label: "Lotes diarios", corto: "Hoy", hint: "Reparto y cierre", icon: "records" },
   { key: "historial", label: "Lotes anteriores", corto: "Anteriores", hint: "Historial", icon: "history" },
   { key: "pendientes", label: "No entregadas", corto: "Pendientes", cortoMovil: "Pend.", hint: "Seguimiento", icon: "warning" },
-  { key: "descartes", label: "Control de descartes", corto: "Descartes", hint: "Repetidos", icon: "inbox" },
+  { key: "descartes", label: "Descartes", corto: "Descartes", hint: "Sin entregar y repetidos", icon: "inbox" },
   { key: "reparto", label: "Reparto por barrio", corto: "Reparto", hint: "Zonas", icon: "map" },
   { key: "personal", label: "Personal de campo", corto: "Personal", hint: "Técnicos", icon: "users" },
   { key: "reportes", label: "Reportes semanales", corto: "Reportes", hint: "Informes", icon: "archive" }
@@ -513,7 +513,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
       ) : null}
 
       {vista === "descartes" && config.permissions.can_view_descartes ? (
-        <ControlDescartes api={api} config={config} onOpen={(documento) => setDocumentoAbierto(documento.id)} />
+        <ControlDescartes api={api} config={config} notify={notify} onOpen={(documento) => setDocumentoAbierto(documento.id)} />
       ) : null}
 
       {vista === "historial" ? (

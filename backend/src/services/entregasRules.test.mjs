@@ -573,6 +573,20 @@ test("armarControlDescartes: repetidos de ciclos anteriores y registro por dia",
   assert.equal(control.repetidos[0].ciclos_anteriores, 2);
   assert.equal(control.repetidos[1].llave, "CLAVE:24-9");
   assert.equal(control.repetidos[1].anteriores[0].estado, "REENTREGADA");
+  // Todo el ciclo para los filtros de la pantalla: del dia mas reciente al mas viejo,
+  // los repetidos primero dentro de cada dia, y con el id del responsable.
+  assert.deepEqual(control.items.map((item) => item.id), [3, 4, 1, 2]);
+  assert.equal(control.items[0].responsable_id, null);
+});
+
+test("armarControlDescartes: conserva el id del responsable del lote", () => {
+  const control = armarControlDescartes({
+    fecha: "2026-10-07",
+    ciclo: { fecha_inicio: "", fecha_fin: "2026-10-07", corte_anterior: "" },
+    documentos: [{ id: 1, lote_id: 1, fecha_lote: "2026-10-07", numero_abonado: "100", estado: "PENDIENTE", responsable_id: "12", responsable_nombre: "Ana" }]
+  });
+  assert.equal(control.items[0].responsable_id, 12);
+  assert.equal(control.items[0].responsable_nombre, "Ana");
 });
 
 test("armarControlDescartes: sin ciclo anterior no hay repetidos", () => {

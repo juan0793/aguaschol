@@ -983,40 +983,161 @@
 .ent-field-nota { color: var(--muted); font-size: 12px; font-weight: 500; }
 .ent-field-aviso { color: #925a08; font-size: 12.5px; font-weight: 650; }
 
-/* Control de descartes (administrador): cifras del dia y del ciclo, repetidos de
-   ciclos anteriores y el registro dia por dia. */
-.ent-descartes-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 14px; }
-.ent-descartes-kpis .ent-kpi { cursor: default; }
-.ent-descartes-kpis .ent-kpi:hover { border-color: var(--ent-borde); box-shadow: none; }
-.ent-descartes-kpis .ent-kpi small { color: var(--muted); font-size: 12px; }
-.ent-descartes-bloque { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--ent-borde); }
-.ent-descartes-bloque h4 { margin: 0; color: var(--navy); font-size: 16px; }
-.ent-descartes-bloque > .ent-list-caption { padding-top: 6px; }
-.ent-repetidos-table th:nth-child(1) { width: 26%; }
-.ent-repetidos-table th:nth-child(2) { width: 28%; }
-.ent-repetidos-table th:nth-child(3) { width: 28%; }
-.ent-repetidos-table th:nth-child(4) { width: 18%; }
-.ent-antecedentes { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.ent-antecedentes li { line-height: 1.35; }
-.ent-descartes-mas { margin-top: 10px; }
-.ent-descartes-dia-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-.ent-descartes-dia-head h4 { flex: 1 1 auto; align-self: center; }
-.ent-descartes-dia-head .cl-field { min-width: 170px; }
-.ent-descartes-dias { display: flex; gap: 8px; margin-top: 14px; padding-bottom: 4px; overflow-x: auto; scrollbar-width: thin; }
-.ent-descartes-dias button { display: grid; flex: 0 0 auto; gap: 2px; min-width: 112px; min-height: 64px; padding: 8px 12px; border: 1px solid #ccdce9; border-radius: 8px; background: #fff; color: #38536b; font-size: 12px; text-align: left; }
-.ent-descartes-dias button strong { color: var(--navy); font-size: 13px; text-transform: capitalize; }
-.ent-descartes-dias button em { color: var(--danger); font-style: normal; font-weight: 700; }
-.ent-descartes-dias button small { color: var(--muted); }
+/* Descartes (administración y Gerencia), rediseño del 2026-10-28 tras la crítica de
+   impeccable (24/40): título sin etiqueta encima, el ciclo en una línea sin filete
+   lateral, tres cifras, una línea por documento con el encabezado fijo, y "repetido"
+   siempre en rojo (insignia, cifra, días y totales), sin teñir la fila. */
+.ent-descartes { --desc-repetido: var(--danger); --desc-repetido-fondo: #fdeef0; --desc-filtros-alto: 86px; }
+.ent-desc-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; margin-bottom: 14px; }
+.ent-desc-head > div:first-child { flex: 1 1 360px; }
+.ent-desc-head h2 { margin: 0; color: var(--navy); font-size: 20px; font-weight: 750; line-height: 1.2; }
+.ent-desc-head p { max-width: 72ch; margin: 4px 0 0; color: #52677c; font-size: 13px; line-height: 1.45; }
+.ent-desc-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ent-desc-acciones .cl-secondary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+
+/* El ciclo: una línea de texto; ocre cuando se mira uno anterior. */
+.ent-desc-ciclo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0 10px; border-bottom: 1px solid var(--ent-borde); color: #38536b; font-size: 13px; }
+.ent-desc-ciclo > .app-icon { flex: 0 0 auto; color: #5a7894; }
+.ent-desc-ciclo-texto { flex: 1 1 320px; min-width: 0; }
+.ent-desc-ciclo-texto strong { color: #153b60; }
+.ent-desc-ciclo.is-anterior { margin-bottom: 4px; padding: 8px 12px; border: 1px solid #efd3a0; border-radius: 8px; background: #fff8ea; }
+.ent-desc-ciclo.is-anterior > .app-icon, .ent-desc-ciclo .ent-desc-ciclo-aviso { color: #8a5a0c; }
+.ent-desc-ciclo .cl-secondary { min-height: 36px; padding: 0 12px; font-size: 12.5px; }
+.ent-desc-otro-dia { display: inline-flex; align-items: center; gap: 8px; color: #52677c; font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+.ent-desc-otro-dia input { min-height: 36px; padding: 0 8px; border: 1px solid #c9d8e6; border-radius: 8px; background: #fff; color: var(--navy); font: inherit; font-weight: 500; }
+
+.ent-desc-filtros { padding: 10px 0; border-bottom: 1px solid var(--ent-borde); }
+.ent-desc-filtros .ent-search-row { flex-wrap: wrap; }
+.ent-desc-filtros .ent-search-row > label:not(.ent-search-field):not(.ent-check) { flex: 0 1 210px; }
+.ent-desc-filtros .ent-search-field { min-width: 220px; }
+.ent-desc-check { flex: 0 0 auto; min-height: 44px; color: var(--navy); font-size: 13px; font-weight: 650; white-space: nowrap; }
+
+/* Selector de vista: dos segmentos del mismo control. */
+.ent-desc-vista { display: grid; gap: 6px; flex: 0 0 auto; }
+.ent-desc-vista > span { color: var(--navy); font-size: 13px; font-weight: 700; }
+.ent-desc-vista > div { display: inline-flex; padding: 3px; border: 1px solid #c9d8e6; border-radius: 9px; background: #f3f7fb; }
+.ent-desc-vista button { min-height: 38px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #38536b; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+.ent-desc-vista button:hover { color: var(--navy); }
+.ent-desc-vista button[aria-pressed="true"] { background: #fff; color: #12518d; box-shadow: 0 1px 2px rgba(16, 42, 67, .12); }
+
+/* Franja de días: "Todo el ciclo" separado de los días por un filete. */
+.ent-descartes-dias { display: flex; gap: 8px; margin-top: 12px; padding: 0 0 6px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #b9cbe0 transparent; }
+.ent-descartes-dias button { display: grid; flex: 0 0 auto; gap: 2px; min-width: 112px; min-height: 64px; padding: 8px 12px; border: 1px solid #ccdce9; border-radius: 8px; background: #fff; color: #38536b; font-size: 12px; text-align: left; cursor: pointer; }
+.ent-descartes-dias button:hover { border-color: #8fb3d6; }
+.ent-descartes-dias button strong { color: var(--navy); font-size: 13px; font-variant-numeric: tabular-nums; }
+.ent-descartes-dias button em { color: var(--desc-repetido); font-style: normal; font-weight: 700; }
+.ent-descartes-dias button small { color: #5d7084; }
 .ent-descartes-dias button[aria-pressed="true"] { border-color: #548cbd; background: #e9f2fc; }
-.ent-operational-table tbody tr.is-repetido { background: #fff6f6; }
-.ent-operational-table tbody tr.is-repetido:hover { background: #fdecee; }
+.ent-descartes-dias .ent-desc-dia-ciclo { position: relative; min-width: 132px; margin-right: 9px; }
+.ent-descartes-dias .ent-desc-dia-ciclo::after { content: ""; position: absolute; top: 8px; right: -10px; bottom: 8px; width: 1px; background: #cddce8; }
+
+/* Tres cifras planas: solo lo que no repiten la franja ni los totales. */
+.ent-desc-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 14px 0 0; border-top: 1px solid var(--ent-borde); border-bottom: 1px solid var(--ent-borde); }
+.ent-desc-cifras > div { display: grid; gap: 2px; padding: 12px 16px; border-left: 1px solid var(--ent-borde); }
+.ent-desc-cifras > div:first-child { padding-left: 0; border-left: 0; }
+.ent-desc-cifras dt { color: #52677c; font-size: 12px; font-weight: 700; }
+.ent-desc-cifras dd { margin: 0; color: var(--navy); font-size: 28px; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ent-desc-cifras span { color: #52677c; font-size: 12.5px; }
+.ent-desc-cifras .is-repetido dd { color: var(--desc-repetido); }
+.ent-desc-cifras .is-sin-responsable dd, .ent-desc-cifras .is-sin-responsable span { color: #8a5a0c; }
+
+/* La lista a la izquierda y los totales al lado, fijos al recorrerla. */
+.ent-desc-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.ent-desc-lista { min-width: 0; }
+.ent-desc-lado { position: sticky; top: calc(var(--desc-filtros-alto) + 12px); display: grid; gap: 14px; margin-top: 12px; max-height: calc(100vh - var(--desc-filtros-alto) - 24px); overflow-y: auto; scrollbar-width: thin; }
+
+/* Una línea por documento. El encabezado queda fijo bajo los filtros. */
+.ent-desc-tabla { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; color: var(--navy); font-size: 13px; }
+.ent-desc-tabla th { position: sticky; top: var(--desc-filtros-alto); z-index: 2; padding: 9px 10px; border-bottom: 1px solid #c9d8e6; background: #f1f5f9; color: #52677c; font-size: 12px; font-weight: 700; text-align: left; white-space: nowrap; }
+.ent-desc-tabla td { height: 48px; padding: 4px 10px; border-bottom: 1px solid #e6edf3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.ent-desc-tabla tbody tr { cursor: pointer; }
+.ent-desc-tabla tbody tr:hover td { background: #f2f7fc; }
+.ent-desc-tabla th:nth-child(1) { width: 116px; }
+.ent-desc-tabla th:nth-child(3) { width: 13%; }
+.ent-desc-tabla th:nth-child(4) { width: 13%; }
+.ent-desc-tabla:not(.sin-dia):not(.is-abonados) th:nth-child(5) { width: 84px; }
+.ent-desc-tabla:not(.is-abonados) th:nth-last-child(3) { width: 12%; }
+.ent-desc-tabla:not(.is-abonados) th:nth-last-child(2) { width: 144px; }
+.ent-desc-tabla:not(.is-abonados) th:last-child { width: 104px; }
+.ent-desc-tabla.is-abonados :is(th:nth-child(3), th:nth-child(4)) { width: 17%; }
+.ent-desc-tabla.is-abonados th:nth-child(5) { width: 18%; }
+.ent-desc-tabla.is-abonados th:nth-child(6) { width: 150px; }
+.ent-desc-c-abonado button { display: grid; gap: 1px; width: 100%; min-height: 40px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ent-desc-c-abonado strong { color: #12518d; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ent-desc-c-abonado span { overflow: hidden; color: #52677c; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 12px; text-overflow: ellipsis; }
+.ent-desc-c-nombre { font-weight: 600; }
+.ent-desc-c-dia, .ent-desc-c-ciclo { color: #38536b; font-variant-numeric: tabular-nums; }
+.ent-desc-sin-tecnico { color: #8a5a0c; font-weight: 650; }
+.ent-desc-sin-antes { color: #6b7d8f; }
+.ent-desc-c-antes small { margin-left: 6px; color: #52677c; font-size: 12px; }
+.ent-repetido-tag { display: inline-block; max-width: 100%; padding: 3px 8px; overflow: hidden; border-radius: 999px; background: var(--desc-repetido-fondo); color: var(--desc-repetido); font-size: 12px; font-weight: 750; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
+.ent-desc-tabla .cl-status { max-width: 100%; overflow: hidden; font-size: 12px; text-overflow: ellipsis; }
+.ent-desc-mas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ent-desc-vacio { display: grid; justify-items: center; gap: 10px; }
+/* Barrio, técnico y día en una línea: solo en el teléfono. */
+.ent-desc-tabla td.ent-desc-c-meta { display: none; }
+
+.ent-desc-totales { padding: 12px 12px 10px; border: 1px solid var(--ent-borde); border-radius: 10px; background: #fff; }
+.ent-desc-totales-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.ent-desc-totales-head h3 { margin: 0; color: var(--navy); font-size: 14px; font-weight: 750; }
+.ent-desc-totales-head .cl-quiet { min-height: 32px; padding: 0 8px; font-size: 12px; }
+.ent-desc-totales-cols,
+.ent-desc-totales li button,
+.ent-desc-totales-total { display: grid; grid-template-columns: minmax(0, 1fr) 62px 58px; align-items: center; gap: 6px; }
+.ent-desc-totales-cols { padding: 0 6px 4px; border-bottom: 1px solid var(--ent-borde); color: #52677c; font-size: 12px; font-weight: 700; text-align: right; }
+.ent-desc-totales ul { display: grid; margin: 0; padding: 0; list-style: none; }
+.ent-desc-totales li button { width: 100%; min-height: 40px; padding: 5px 6px; border: 0; border-bottom: 1px solid #edf2f7; border-radius: 0; background: transparent; color: var(--navy); font-size: 12.5px; text-align: left; cursor: pointer; }
+.ent-desc-totales li button:hover { background: #f4f8fc; }
+.ent-desc-totales li button[aria-pressed="true"] { background: #e9f2fc; box-shadow: inset 2px 0 #1472c3; }
+.ent-desc-totales-nombre { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.ent-desc-totales-nombre i { display: block; height: 3px; border-radius: 99px; background: #7da9d6; transform: scaleX(var(--parte, 0)); transform-origin: left; }
+.ent-desc-totales li strong,
+.ent-desc-totales li em,
+.ent-desc-totales-total strong,
+.ent-desc-totales-total em { font-style: normal; font-variant-numeric: tabular-nums; text-align: right; }
+.ent-desc-totales li strong { color: var(--navy); font-weight: 750; }
+.ent-desc-totales li em { color: var(--desc-repetido); font-weight: 700; }
+.ent-desc-totales li em.is-cero { color: #8496a8; font-weight: 500; }
+.ent-desc-totales-mas { min-height: 36px; margin-top: 4px; padding: 0 6px; font-size: 12px; }
+.ent-desc-totales-total { margin: 6px 0 0; padding: 6px 6px 0; border-top: 1.5px solid #9db7cf; color: var(--navy); font-size: 12.5px; font-weight: 750; }
+.ent-desc-totales-total em { color: var(--desc-repetido); }
+.ent-desc-totales-vacio { margin: 6px 0 0; color: #52677c; font-size: 12.5px; }
+
+@media (max-width: 1080px) {
+  .ent-desc-cuerpo { grid-template-columns: minmax(0, 1fr); }
+  /* Sin columna lateral, los totales van antes de la lista, uno al lado del otro. */
+  .ent-desc-lado { position: static; order: -1; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; overflow: visible; }
+  .ent-desc-tabla th:nth-child(3), .ent-desc-tabla td:nth-child(3) { display: none; }
+}
+
 @media (max-width: 760px) {
-  .ent-descartes-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ent-descartes-dia-head .cl-field { flex: 1 1 100%; }
-  /* .cl-table fija la primera celda en 42px y la última en 50px (casilla y acciones
-     en otras tablas); en la tarjeta del celular cada celda ocupa su lugar de la grilla. */
-  .ent-module .ent-operational-table :is(td:first-child, td:last-child) { width: auto; }
-  .ent-module .ent-repetidos-table td:nth-child(n) { grid-column: 1 / -1; }
+  .ent-desc-acciones { width: 100%; }
+  .ent-desc-acciones .cl-secondary { flex: 1 1 0; justify-content: center; }
+  .ent-desc-otro-dia { flex: 1 1 100%; justify-content: space-between; }
+  /* En el teléfono los filtros ocupan media pantalla: no quedan fijos arriba. */
+  .ent-desc-filtros { position: static; }
+  .ent-desc-filtros .ent-search-row > label:not(.ent-check), .ent-desc-filtros .ent-search-field { flex: 1 1 100%; min-width: 0; }
+  .ent-desc-vista { flex: 1 1 100%; }
+  .ent-desc-vista > div { display: grid; grid-template-columns: 1fr 1fr; }
+  .ent-desc-cifras > div { padding: 10px 8px; }
+  .ent-desc-cifras dd { font-size: 22px; }
+  .ent-desc-cifras span { font-size: 12px; }
+  /* En el teléfono la lista va primero y los totales al final, como en Reclamos. */
+  .ent-desc-lado { order: 0; grid-template-columns: minmax(0, 1fr); }
+
+  /* Cada documento en tres líneas compactas: quién, dónde y qué pasó. */
+  .ent-desc-tabla, .ent-desc-tabla tbody { display: block; }
+  .ent-desc-tabla thead { display: none; }
+  .ent-desc-tabla tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 10px 2px; border-bottom: 1px solid #e6edf3; }
+  .ent-desc-tabla td { display: block; height: auto; padding: 0; border: 0; }
+  .ent-desc-tabla .ent-desc-c-abonado { grid-column: 1; grid-row: 1; }
+  .ent-desc-tabla .ent-desc-c-abonado button { display: flex; align-items: baseline; gap: 8px; min-height: 32px; }
+  .ent-desc-tabla .ent-desc-c-estado, .ent-desc-tabla.is-abonados .ent-desc-c-antes { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
+  .ent-desc-tabla .ent-desc-c-nombre { grid-column: 1 / -1; }
+  .ent-desc-tabla td:is(.ent-desc-c-barrio, .ent-desc-c-tecnico, .ent-desc-c-dia, .ent-desc-c-ciclo) { display: none; }
+  .ent-desc-tabla td.ent-desc-c-meta { display: block; grid-column: 1 / -1; color: #52677c; font-size: 12.5px; }
+  .ent-desc-tabla .ent-desc-c-motivo { grid-column: 1; color: #38536b; font-size: 12.5px; }
+  .ent-desc-tabla:not(.is-abonados) .ent-desc-c-antes { grid-column: 2; justify-self: end; }
 }
 
 /* Avance del mes: un tramo por barrio del reparto, agrupado por técnico. */

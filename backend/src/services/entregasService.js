@@ -969,7 +969,7 @@ export const cerrarCicloEntregas = async (payload = {}, user) => {
 const SELECT_DESCARTE = `SELECT documento.id, documento.lote_id, documento.numero_abonado, documento.clave_catastral,
        documento.abonado_nombre, documento.motivo, documento.observacion, documento.estado,
        entrega_lotes.fecha AS fecha_lote, entrega_lotes.tipo_documento, entrega_lotes.barrio_codigo,
-       entrega_lotes.barrio_nombre, personal_campo.nombre_completo AS responsable_nombre
+       entrega_lotes.barrio_nombre, entrega_lotes.responsable_id, personal_campo.nombre_completo AS responsable_nombre
      FROM entrega_no_entregadas AS documento
      INNER JOIN entrega_lotes ON entrega_lotes.id = documento.lote_id
      LEFT JOIN personal_campo ON personal_campo.id = entrega_lotes.responsable_id`;

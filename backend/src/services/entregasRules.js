@@ -844,6 +844,7 @@ const resumirDescarte = (item) => ({
   tipo_documento: item.tipo_documento,
   barrio_codigo: item.barrio_codigo || "",
   barrio_nombre: item.barrio_nombre || "",
+  responsable_id: toEntero(item.responsable_id) || null,
   responsable_nombre: item.responsable_nombre || ""
 });
 
@@ -919,8 +920,10 @@ export const armarControlDescartes = ({ fecha, ciclo, cortes = [], documentos = 
     || (b.anteriores.length + b.ciclo_actual.length) - (a.anteriores.length + a.ciclo_actual.length)
     || (a.ultima_fecha < b.ultima_fecha ? 1 : a.ultima_fecha > b.ultima_fecha ? -1 : 0));
 
-  const delDia = items.filter((item) => item.fecha_lote === fecha)
-    .sort((a, b) => Number(b.repetido) - Number(a.repetido) || toEntero(a.id) - toEntero(b.id));
+  // Del dia mas reciente al mas viejo y, dentro de cada dia, los repetidos primero.
+  const repetidosPrimero = (a, b) => Number(b.repetido) - Number(a.repetido) || toEntero(a.id) - toEntero(b.id);
+  const delCiclo = [...items].sort((a, b) => (a.fecha_lote === b.fecha_lote ? repetidosPrimero(a, b) : a.fecha_lote < b.fecha_lote ? 1 : -1));
+  const delDia = delCiclo.filter((item) => item.fecha_lote === fecha);
 
   return {
     fecha,
@@ -934,6 +937,9 @@ export const armarControlDescartes = ({ fecha, ciclo, cortes = [], documentos = 
     },
     dias,
     dia: { fecha, items: delDia },
+    // Todo lo del ciclo: la pantalla filtra por dia, barrio, tecnico y abonado sin
+    // volver a pedirlo.
+    items: delCiclo,
     repetidos
   };
 };
