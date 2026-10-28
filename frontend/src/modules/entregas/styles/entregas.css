@@ -1072,7 +1072,21 @@
 .ent-desc-c-antes small { margin-left: 6px; color: #52677c; font-size: 12px; }
 .ent-repetido-tag { display: inline-block; max-width: 100%; padding: 3px 8px; overflow: hidden; border-radius: 999px; background: var(--desc-repetido-fondo); color: var(--desc-repetido); font-size: 12px; font-weight: 750; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
 .ent-desc-tabla .cl-status { max-width: 100%; overflow: hidden; font-size: 12px; text-overflow: ellipsis; }
-.ent-desc-mas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+/* Encabezado de la lista: lo que se ve y cuántas filas por página. */
+.ent-desc-lista { scroll-margin-top: calc(var(--desc-filtros-alto) + 8px); }
+.ent-desc-lista-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
+.ent-desc-filas { display: inline-flex; align-items: center; gap: 8px; color: #52677c; font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+.ent-desc-filas select { min-height: 34px; padding: 0 26px 0 10px; border: 1px solid #c9d8e6; border-radius: 8px; background-color: #fff; color: var(--navy); font: inherit; font-weight: 650; }
+
+/* Índice de páginas: rango a la izquierda, flechas y números a la derecha. */
+.ent-desc-paginas { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; color: #52677c; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.ent-desc-paginas > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.ent-desc-paginas button { display: grid; min-width: 36px; height: 36px; min-height: 36px; padding: 0 8px; place-items: center; border: 1px solid #ccdce9; border-radius: 8px; background: #fff; color: var(--navy); font: inherit; font-weight: 650; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
+.ent-desc-paginas button:hover:not(:disabled) { border-color: #8fb3d6; background: #f4f8fc; }
+.ent-desc-paginas button:disabled { opacity: .45; cursor: default; }
+.ent-desc-paginas button[aria-current="page"] { border-color: #12518d; background: #12518d; color: #fff; }
+.ent-desc-paginas .app-icon { width: 15px; height: 15px; }
+.ent-desc-salto { min-width: 20px; text-align: center; }
 .ent-desc-vacio { display: grid; justify-items: center; gap: 10px; }
 /* Barrio, técnico y día en una línea: solo en el teléfono. */
 .ent-desc-tabla td.ent-desc-c-meta { display: none; }
@@ -1124,6 +1138,11 @@
   .ent-desc-cifras span { font-size: 12px; }
   /* En el teléfono la lista va primero y los totales al final, como en Reclamos. */
   .ent-desc-lado { order: 0; grid-template-columns: minmax(0, 1fr); }
+  .ent-desc-lista { scroll-margin-top: 8px; }
+  .ent-desc-paginas { justify-content: center; }
+  .ent-desc-paginas > div { gap: 3px; }
+  .ent-desc-paginas button { min-width: 34px; height: 40px; padding: 0 6px; }
+  .ent-desc-salto { min-width: 12px; }
 
   /* Cada documento en tres líneas compactas: quién, dónde y qué pasó. */
   .ent-desc-tabla, .ent-desc-tabla tbody { display: block; }

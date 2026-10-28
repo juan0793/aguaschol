@@ -180,3 +180,23 @@ export const antecedenteTexto = (item) => {
   const ciclos = Number(item.ciclos_anteriores) || 1;
   return `Repetido · ${ciclos === 1 ? "1 ciclo anterior" : `${ciclos} ciclos anteriores`}`;
 };
+
+// Páginas de la lista: el tamaño lo elige quien mira.
+export const FILAS_POR_PAGINA = [10, 25, 50, 100];
+
+export const paginar = (lista = [], pagina = 1, porPagina = 25) => {
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / porPagina));
+  const actual = Math.min(Math.max(1, Number(pagina) || 1), totalPaginas);
+  const inicio = (actual - 1) * porPagina;
+  const items = lista.slice(inicio, inicio + porPagina);
+  return { items, pagina: actual, totalPaginas, desde: items.length ? inicio + 1 : 0, hasta: inicio + items.length, total: lista.length };
+};
+
+// Índice de páginas: la primera, la última y `vecinos` a cada lado de la actual (dos
+// en escritorio, una en el teléfono); los saltos van como "…". Si caben todas, van todas.
+export const indicePaginas = (actual, total, vecinos = 2) => {
+  if (total <= vecinos * 2 + 3) return Array.from({ length: total }, (_, i) => i + 1);
+  const desde = Math.max(2, Math.min(actual - vecinos, total - (vecinos * 2 + 1)));
+  const hasta = Math.min(total - 1, Math.max(actual + vecinos, vecinos * 2 + 2));
+  return [1, desde > 2 ? "…" : null, ...Array.from({ length: hasta - desde + 1 }, (_, i) => desde + i), hasta < total - 1 ? "…" : null, total].filter((pagina) => pagina !== null);
+};

@@ -7,6 +7,8 @@ import {
   columnasImpresas,
   describirFiltros,
   diasDescartes,
+  indicePaginas,
+  paginar,
   filtrarDescartes,
   filtrarSinDia,
   hayFiltros,
@@ -134,4 +136,26 @@ test("descartes: antecedentes en una línea", () => {
   assert.equal(antecedenteTexto({ repetido: false }), "Sin antecedentes");
   assert.equal(antecedenteTexto({ repetido: true, ciclos_anteriores: 1 }), "Repetido · 1 ciclo anterior");
   assert.equal(antecedenteTexto({ repetido: true, ciclos_anteriores: 3 }), "Repetido · 3 ciclos anteriores");
+});
+
+test("descartes: páginas de la lista", () => {
+  const lista = Array.from({ length: 53 }, (_, i) => i + 1);
+  assert.deepEqual(paginar(lista, 1, 25), { items: lista.slice(0, 25), pagina: 1, totalPaginas: 3, desde: 1, hasta: 25, total: 53 });
+  assert.deepEqual(paginar(lista, 3, 25).items, [51, 52, 53]);
+  // Una página que ya no existe (se achicó la lista) cae en la última.
+  assert.equal(paginar(lista, 9, 25).pagina, 3);
+  assert.deepEqual(paginar([], 1, 25), { items: [], pagina: 1, totalPaginas: 1, desde: 0, hasta: 0, total: 0 });
+});
+
+test("descartes: índice de páginas con saltos", () => {
+  assert.deepEqual(indicePaginas(1, 5), [1, 2, 3, 4, 5]);
+  assert.deepEqual(indicePaginas(1, 14), [1, 2, 3, 4, 5, 6, "…", 14]);
+  assert.deepEqual(indicePaginas(7, 14), [1, "…", 5, 6, 7, 8, 9, "…", 14]);
+  assert.deepEqual(indicePaginas(14, 14), [1, "…", 9, 10, 11, 12, 13, 14]);
+  assert.deepEqual(indicePaginas(4, 8), [1, 2, 3, 4, 5, 6, 7, 8].slice(0, 6).concat(["…", 8]));
+  // En el teléfono, una página a cada lado.
+  assert.deepEqual(indicePaginas(5, 60, 1), [1, "…", 4, 5, 6, "…", 60]);
+  assert.deepEqual(indicePaginas(1, 60, 1), [1, 2, 3, 4, "…", 60]);
+  assert.deepEqual(indicePaginas(60, 60, 1), [1, "…", 57, 58, 59, 60]);
+  assert.deepEqual(indicePaginas(2, 5, 1), [1, 2, 3, 4, 5]);
 });

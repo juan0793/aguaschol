@@ -5,6 +5,7 @@ import LatticeLoader from "../../../components/micro/LatticeLoader";
 import DescartesPrint from "../print/DescartesPrint";
 import {
   DESCARTES_FILTROS_INICIALES,
+  FILAS_POR_PAGINA,
   abonadosRepetidos,
   antecedenteTexto,
   columnasImpresas,
@@ -13,7 +14,9 @@ import {
   diasDescartes,
   filtrarSinDia,
   hayFiltros,
+  indicePaginas,
   opcionesDescartes,
+  paginar,
   totalesDescartes
 } from "../utils/descartes";
 import { estadoClass, estadoDocumentoLabel, formatDate, formatNumber, tipoDocumentoLabel } from "../utils/entregasFormatters";
@@ -24,7 +27,16 @@ import { estadoClass, estadoDocumentoLabel, formatDate, formatNumber, tipoDocume
 // técnico, búsqueda y "solo repetidos" se filtran aquí, y las cifras, el reparto
 // por técnico y por barrio, el impreso y el PDF siguen a esos filtros. La lista se
 // lee por documento o por abonado repetido, con los mismos filtros.
-const TANDA = 200;
+// Filas por página: lo elige quien mira y se recuerda en su navegador.
+const LLAVE_FILAS = "controlaguas.descartes.filasPorPagina";
+const leerFilasPorPagina = () => {
+  try {
+    const guardado = Number(window.localStorage.getItem(LLAVE_FILAS));
+    return FILAS_POR_PAGINA.includes(guardado) ? guardado : 25;
+  } catch {
+    return 25;
+  }
+};
 const TOTALES_VISIBLES = 5;
 
 const plural = (n, uno, varios) => `${formatNumber(n)} ${n === 1 ? uno : varios}`;
@@ -66,6 +78,20 @@ function TotalesPor({ titulo, filas, activa, onElegir }) {
   </section>;
 }
 
+// En el teléfono el índice de páginas lleva menos números para caber en una línea.
+const ANGOSTO = "(max-width: 760px)";
+function useAngosto() {
+  const [angosto, setAngosto] = useState(() => window.matchMedia?.(ANGOSTO).matches || false);
+  useEffect(() => {
+    const consulta = window.matchMedia?.(ANGOSTO);
+    if (!consulta) return undefined;
+    const cambio = (evento) => setAngosto(evento.matches);
+    consulta.addEventListener?.("change", cambio);
+    return () => consulta.removeEventListener?.("change", cambio);
+  }, []);
+  return angosto;
+}
+
 export default function ControlDescartes({ api, config, onOpen, notify }) {
   const hoy = config.jornada?.fecha || "";
   // La fecha consultada define el ciclo; el día elegido solo filtra dentro de él.
@@ -76,7 +102,10 @@ export default function ControlDescartes({ api, config, onOpen, notify }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recarga, setRecarga] = useState(0);
-  const [visibles, setVisibles] = useState(TANDA);
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPaginaEstado] = useState(leerFilasPorPagina);
+  const listaRef = useRef(null);
+  const angosto = useAngosto();
   const [hoja, setHoja] = useState(null);
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const seccion = useRef(null);
@@ -110,8 +139,26 @@ export default function ControlDescartes({ api, config, onOpen, notify }) {
 
   const setFiltros = (cambio) => {
     setFiltrosEstado((actual) => ({ ...actual, ...cambio }));
-    setVisibles(TANDA);
+    setPagina(1);
   };
+  const setPorPagina = (valor) => {
+    setPorPaginaEstado(valor);
+    setPagina(1);
+    try { window.localStorage.setItem(LLAVE_FILAS, String(valor)); } catch { /* sin almacenamiento */ }
+  };
+  // Al cambiar de página desde el índice de abajo, la lista vuelve a su inicio una vez
+  // dibujada la página nueva. Salto directo: el contenido cambia entero.
+  const subirAlCambiar = useRef(false);
+  const irAPagina = (numero) => {
+    subirAlCambiar.current = true;
+    setPagina(numero);
+  };
+  useEffect(() => {
+    if (!subirAlCambiar.current) return;
+    subirAlCambiar.current = false;
+    const lista = listaRef.current;
+    if (lista && lista.getBoundingClientRect().top < 0) lista.scrollIntoView({ block: "start" });
+  }, [pagina]);
   const otroCiclo = consulta !== hoy;
   const volverAlCiclo = () => { setConsulta(hoy); setFiltros({ dia: "" }); };
   const limpiar = () => { setFiltros(DESCARTES_FILTROS_INICIALES); setConsulta(hoy); };
@@ -138,7 +185,8 @@ export default function ControlDescartes({ api, config, onOpen, notify }) {
   const porAbonado = modo === "abonados";
   const filtrado = hayFiltros({ ...filtros, dia: "" });
   const filas = porAbonado ? grupos : lista;
-  const enLaLista = filas.slice(0, visibles);
+  const pag = paginar(filas, pagina, porPagina);
+  const enLaLista = pag.items;
   const periodo = filtros.dia ? `el ${formatDate(filtros.dia)}` : "en el ciclo";
   const caption = loading ? "Actualizando…" : porAbonado
     ? `${plural(grupos.length, "abonado repetido", "abonados repetidos")} ${periodo}${filtrado ? " con estos filtros" : ""}${grupos.length ? " · los de más ciclos primero" : ""}`
@@ -256,8 +304,8 @@ export default function ControlDescartes({ api, config, onOpen, notify }) {
           <div className="ent-desc-vista" role="group" aria-label="Ver la lista">
             <span>Ver</span>
             <div>
-              <button type="button" aria-pressed={!porAbonado} onClick={() => { setModo("documentos"); setVisibles(TANDA); }}>Documentos</button>
-              <button type="button" aria-pressed={porAbonado} onClick={() => { setModo("abonados"); setVisibles(TANDA); }}>Abonados repetidos</button>
+              <button type="button" aria-pressed={!porAbonado} onClick={() => { setModo("documentos"); setPagina(1); }}>Documentos</button>
+              <button type="button" aria-pressed={porAbonado} onClick={() => { setModo("abonados"); setPagina(1); }}>Abonados repetidos</button>
             </div>
           </div>
           {porAbonado ? null : <label className="ent-check ent-desc-check"><input type="checkbox" checked={filtros.soloRepetidos} onChange={(event) => setFiltros({ soloRepetidos: event.target.checked })} />Solo repetidos</label>}
@@ -290,8 +338,13 @@ export default function ControlDescartes({ api, config, onOpen, notify }) {
       </dl>
 
       <div className="ent-desc-cuerpo">
-        <div className="ent-desc-lista">
-          <p className="ent-list-caption" role="status">{caption}</p>
+        <div className="ent-desc-lista" ref={listaRef}>
+          <div className="ent-desc-lista-head">
+            <p className="ent-list-caption" role="status">{caption}{!loading && pag.totalPaginas > 1 ? ` · viendo ${formatNumber(pag.desde)}–${formatNumber(pag.hasta)}` : ""}</p>
+            {filas.length > FILAS_POR_PAGINA[0] ? <label className="ent-desc-filas">Filas por página
+              <select value={porPagina} onChange={(event) => setPorPagina(Number(event.target.value))}>{FILAS_POR_PAGINA.map((valor) => <option key={valor} value={valor}>{valor}</option>)}</select>
+            </label> : null}
+          </div>
           {!filas.length ? (loading ? null : vacio) : porAbonado
             ? <table className="ent-desc-tabla is-abonados">
               <thead><tr><th>Abonado / clave</th><th>Nombre</th><th>Barrio</th><th>Técnico</th><th>Este ciclo</th><th>Antes</th></tr></thead>
@@ -325,10 +378,16 @@ export default function ControlDescartes({ api, config, onOpen, notify }) {
                 </tr>)}
               </tbody>
             </table>}
-          {filas.length > visibles ? <div className="ent-desc-mas">
-            <button type="button" className="cl-secondary" onClick={() => setVisibles((n) => n + TANDA)}>Mostrar {formatNumber(Math.min(TANDA, filas.length - visibles))} más</button>
-            <button type="button" className="cl-quiet" onClick={() => setVisibles(filas.length)}>Mostrar todos ({formatNumber(filas.length)})</button>
-          </div> : null}
+          {pag.totalPaginas > 1 ? <nav className="ent-desc-paginas" aria-label="Páginas de la lista">
+            <span className="ent-desc-rango">{formatNumber(pag.desde)}–{formatNumber(pag.hasta)} de {formatNumber(pag.total)}</span>
+            <div>
+              <button type="button" onClick={() => irAPagina(pag.pagina - 1)} disabled={pag.pagina <= 1} aria-label="Página anterior"><Icon name="arrowLeft" /></button>
+              {indicePaginas(pag.pagina, pag.totalPaginas, angosto ? 1 : 2).map((numero, indice) => (numero === "…"
+                ? <span key={`salto-${indice}`} className="ent-desc-salto" aria-hidden="true">…</span>
+                : <button key={numero} type="button" aria-current={numero === pag.pagina ? "page" : undefined} aria-label={`Página ${numero}`} onClick={() => irAPagina(numero)}>{numero}</button>))}
+              <button type="button" onClick={() => irAPagina(pag.pagina + 1)} disabled={pag.pagina >= pag.totalPaginas} aria-label="Página siguiente"><Icon name="arrowRight" /></button>
+            </div>
+          </nav> : null}
         </div>
 
         <aside className="ent-desc-lado" aria-label={`Totales de lo filtrado ${periodo}`}>
