@@ -1182,13 +1182,39 @@
 .ent-exc-lista-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
 .ent-exc-lista-head h3 { margin: 0; color: var(--navy); font-size: 15px; font-weight: 750; }
 .ent-exc-lista-head > span { color: #52677c; font-size: 12.5px; }
-.ent-exc-buscar { margin-left: auto; }
-.ent-exc-buscar input { width: 260px; max-width: 100%; min-height: 38px; padding: 0 10px; border: 1px solid #c9d8e6; border-radius: 8px; color: var(--navy); font: inherit; font-size: 13px; }
+.ent-exc-salidas { display: flex; gap: 8px; margin-left: auto; }
+.ent-exc-salidas .cl-secondary { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; }
+
+/* Cifras de lo filtrado: planas, como las de Descartes. */
+.ent-exc-cifras { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 6px 0 4px; padding: 10px 0; border-top: 1px solid var(--ent-borde); border-bottom: 1px solid var(--ent-borde); }
+.ent-exc-cifras > div { min-width: 0; }
+.ent-exc-cifras dt { color: #52677c; font-size: 12px; font-weight: 650; }
+.ent-exc-cifras dd { margin: 2px 0 0; color: var(--navy); font-size: 22px; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ent-exc-cifras .is-entregada dd { color: #0f6e57; }
+.ent-exc-cifras .is-sobrante dd { color: #8a5a0c; }
+.ent-exc-cifras dd.ent-exc-desglose { color: #52677c; font-size: 12px; font-weight: 600; }
+.ent-exc-nota { max-width: 80ch; margin: 6px 0 10px; color: #52677c; font-size: 12.5px; line-height: 1.45; }
+.ent-exc-filtros { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.ent-exc-buscar { display: block; flex: 0 1 340px; }
+.ent-exc-estado { display: block; flex: 0 1 230px; }
+.ent-exc-buscar input, .ent-exc-estado select { width: 100%; min-height: 38px; padding: 0 10px; border: 1px solid #c9d8e6; border-radius: 8px; background: #fff; color: var(--navy); font: inherit; font-size: 13px; }
+
 .ent-exc-tabla { width: 100%; border-collapse: separate; border-spacing: 0; color: var(--navy); font-size: 13px; }
 .ent-exc-tabla th { padding: 9px 10px; border-bottom: 1px solid #c9d8e6; background: #f1f5f9; color: #52677c; font-size: 12px; font-weight: 700; text-align: left; }
-.ent-exc-tabla td { height: 44px; padding: 4px 10px; border-bottom: 1px solid #e6edf3; vertical-align: middle; }
-.ent-exc-tabla th:first-child { width: 90px; }
+.ent-exc-tabla th.is-num { text-align: right; }
+.ent-exc-tabla td { height: 44px; padding: 7px 10px; border-bottom: 1px solid #e6edf3; vertical-align: top; }
+.ent-exc-tabla small { display: block; margin-top: 1px; color: #52677c; font-size: 12px; line-height: 1.35; }
 .ent-exc-valor { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ent-exc-tipo-txt { color: #6b7d8f; font-size: 12px; }
+.ent-exc-cuenta strong { display: block; margin-top: 1px; font-weight: 650; }
+.ent-exc-saldo { text-align: right; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ent-exc-estado-txt { font-weight: 700; }
+.ent-exc-estado-txt.is-entregada { color: #0f6e57; }
+.ent-exc-estado-txt.is-sobrante { color: #8a5a0c; }
+.ent-exc-estado-txt.is-abierto { color: #12518d; }
+.ent-exc-estado-txt.is-neutro { color: #52677c; }
+.ent-exc-entrega { min-width: 220px; }
+.ent-exc-motivo { color: #38536b; }
 .ent-exc-vacio { color: #6b7d8f; }
 .ent-exc-quien { color: #52677c; font-size: 12.5px; }
 .ent-exc-accion { width: 1%; text-align: right; white-space: nowrap; }
@@ -1204,16 +1230,20 @@
 @media (max-width: 760px) {
   .ent-exc-form { grid-template-columns: minmax(0, 1fr); }
   .ent-exc-tipo { display: grid; grid-template-columns: 1fr 1fr; justify-self: stretch; }
-  .ent-exc-buscar { flex: 1 1 100%; margin-left: 0; }
-  .ent-exc-buscar input { width: 100%; }
+  .ent-exc-salidas { flex: 1 1 100%; margin-left: 0; }
+  .ent-exc-salidas .cl-secondary { flex: 1 1 0; justify-content: center; min-height: 44px; }
+  .ent-exc-cifras { gap: 10px 24px; }
+  .ent-exc-cifras dd { font-size: 19px; }
+  .ent-exc-filtros > label { flex: 1 1 100%; }
+  .ent-exc-buscar input, .ent-exc-estado select { width: 100%; min-height: 44px; }
   .ent-exc-tabla thead { display: none; }
   .ent-exc-tabla, .ent-exc-tabla tbody { display: block; }
-  .ent-exc-tabla tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 10px 0; border-bottom: 1px solid #e6edf3; }
-  .ent-exc-tabla td { display: block; height: auto; padding: 0; border: 0; }
-  .ent-exc-tabla td:first-child { grid-column: 1; color: #52677c; font-size: 12px; }
-  .ent-exc-tabla .ent-exc-valor { grid-column: 1; }
-  .ent-exc-tabla td:nth-child(3), .ent-exc-tabla .ent-exc-quien { grid-column: 1; }
-  .ent-exc-tabla .ent-exc-accion { grid-column: 2; grid-row: 1 / span 4; align-self: center; width: auto; }
+  .ent-exc-tabla tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid #e6edf3; }
+  .ent-exc-tabla td { display: block; grid-column: 1; height: auto; min-width: 0; padding: 0; border: 0; }
+  .ent-exc-tabla .ent-exc-saldo { grid-column: 2; grid-row: 1; text-align: right; }
+  .ent-exc-tabla .ent-exc-motivo, .ent-exc-tabla .ent-exc-quien { font-size: 12px; }
+  .ent-exc-tabla .ent-exc-accion { grid-column: 2; grid-row: 2 / span 3; align-self: end; width: auto; }
+  .ent-exc-tabla .ent-exc-accion .cl-quiet { min-height: 44px; }
 }
 
 /* Avance del mes: un tramo por barrio del reparto, agrupado por técnico. */

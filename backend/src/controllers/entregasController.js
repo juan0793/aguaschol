@@ -33,7 +33,7 @@ import {
   listReportesSemanales,
   previewReporteSemanal
 } from "../services/entregasReportService.js";
-import { agregarExclusiones, eliminarExclusion, listExclusiones } from "../services/entregasExclusionesService.js";
+import { agregarExclusiones, eliminarExclusion, listExclusionesConDetalle } from "../services/entregasExclusionesService.js";
 import {
   getReparto,
   getRepartoMapa,
@@ -65,7 +65,7 @@ export const cicloCerrar = handle(async (req, res) =>
   res.json(await cerrarCicloEntregas(req.body || {}, req.authUser))
 );
 export const descartes = handle(async (req, res) => res.json(await getDescartes(req.query, req.authUser)));
-export const exclusionesList = handle(async (req, res) => res.json({ exclusiones: await listExclusiones() }));
+export const exclusionesList = handle(async (req, res) => res.json(await listExclusionesConDetalle(req.authUser)));
 export const exclusionesCreate = handle(async (req, res) => res.status(201).json(await agregarExclusiones(req.body, req.authUser)));
 export const exclusionRemove = handle(async (req, res) => res.json(await eliminarExclusion(req.params.id, req.authUser)));
 

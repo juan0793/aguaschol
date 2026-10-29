@@ -78,20 +78,39 @@ const config = {
   tipos_documento: ["FACTURA", "NOTA_COBRO"], jornada: { fecha: HOY }, estados_lote: ["ABIERTO", "CERRADO"], estados_no_entregada: ["PENDIENTE", "REENTREGADA", "NO_LOCALIZADA", "CANCELADA", "VENCIDA"],
   estados_en_seguimiento: ["PENDIENTE"], resultados_intento: [], tipos_personal: [], motivos, barrios: barrios.map((barrio) => ({ codigo: barrio.codigo, nombre: barrio.nombre })),
   semana_actual: { fecha_inicio: "2026-10-26", fecha_fin: "2026-11-01" }, ciclo: { ...ciclo, dias_abierto: 27 }, personal_vinculado: null, barrios_por_responsable: {}, plantillas_aviso: [],
-  permissions: { can_manage_personal: true, can_create_lote: true, can_edit_lote: true, can_close_own_lote: true, can_force_close: true, can_reopen_lote: true, can_delete_lote: true, can_close_ciclo: true, can_view_descartes: true, can_manage_exclusiones: true, can_manage_seguimiento: true, can_generate_report: true, can_manage_reparto: true, can_correct_report: true, can_view_all: true, can_view_saldo: false, can_send_aviso: false }
+  permissions: { can_manage_personal: true, can_create_lote: true, can_edit_lote: true, can_close_own_lote: true, can_force_close: true, can_reopen_lote: true, can_delete_lote: true, can_close_ciclo: true, can_view_descartes: true, can_manage_exclusiones: true, can_manage_seguimiento: true, can_generate_report: true, can_manage_reparto: true, can_correct_report: true, can_view_all: true, can_view_saldo: new URLSearchParams(window.location.search).has("saldo"), can_send_aviso: false }
 };
 
 // Exclusiones en memoria (el banco no guarda nada): alta en lote y baja por id.
 let exclusiones = [
   { id: 1, tipo: "ABONADO", valor: "20045", llave: "20045", nota: "Grandes clientes", created_by_nombre: "Administración de prueba", created_at: "2026-10-20T15:00:00Z" },
-  { id: 2, tipo: "CLAVE", valor: "99-10-02-07", llave: "99100207", nota: "", created_by_nombre: "Administración de prueba", created_at: "2026-10-21T15:00:00Z" }
+  { id: 2, tipo: "CLAVE", valor: "99-10-02-07", llave: "99100207", nota: "", created_by_nombre: "Administración de prueba", created_at: "2026-10-21T15:00:00Z" },
+  ...[10134, 10234, 1094, 1178, 12419, 12980, 13332].map((valor, indice) => ({ id: indice + 3, tipo: "ABONADO", valor: String(valor), llave: String(valor), nota: "", created_by_nombre: "admin", created_at: "2026-10-29T15:00:00Z" }))
 ];
-let siguienteExclusion = 3;
+let siguienteExclusion = 10;
+// Detalle ficticio de cada exclusión, como lo arma el servidor (detallarExclusiones):
+// cuenta del padrón, saldo y entrega del ciclo, repartidos por id para ver cada estado.
+const ESTADOS_FICTICIOS = ["ENTREGADA", "SOBRANTE", "REENTREGADA", "SIN_LOTE", "LOTE_ABIERTO", "SIN_BARRIO"];
+const TECNICOS_FICTICIOS = ["Elmer Gómez", "Sayma Lorena", "Oscar Álvarez"];
+const conDetalle = (lista) => lista.map((item) => {
+  const estado = ESTADOS_FICTICIOS[(item.id - 1) % ESTADOS_FICTICIOS.length];
+  const sinPadron = estado === "SIN_BARRIO";
+  const capital = 8000 + item.id * 1375.5;
+  const mora = 2500 + item.id * 611.25;
+  return {
+    ...item,
+    cuentas: sinPadron ? [] : [{ abonado: item.tipo === "ABONADO" ? item.valor : String(20000 + item.id), clave_catastral: item.tipo === "CLAVE" ? item.valor : `99-${String(10 + item.id).padStart(2, "0")}-01-83`, nombre: `ESCUELA DE PRUEBA ${item.id}`, barrio: "BO. DE PRUEBA" }],
+    barrio_codigo: sinPadron ? "" : "99",
+    ...(config.permissions.can_view_saldo && !sinPadron ? { saldo: { capital, mora, total: capital + mora } } : {}),
+    entrega: sinPadron ? { estado } : { estado, tecnico: TECNICOS_FICTICIOS[item.id % 3], fecha: "2026-10-20", fecha_entrega_final: "2026-10-23", documento_estado: "PENDIENTE", lote_id: 140 + item.id },
+    sin_entregar_antes: item.id % 4 === 0 ? 2 : 0
+  };
+});
 const llaveDe = (tipo, valor) => (tipo === "CLAVE" ? String(valor).replace(/\D/g, "") : String(valor).replace(/\s+/g, "").replace(/^0+(?=.)/, ""));
 const exclusionesApi = (metodo, camino, cuerpo) => {
   if (metodo === "DELETE") {
     exclusiones = exclusiones.filter((item) => item.id !== Number(camino.split("/").pop()));
-    return { exclusiones };
+    return { exclusiones: conDetalle(exclusiones), ciclo: CICLO_EXCLUSIONES };
   }
   if (metodo === "POST") {
     const { tipo, valores, nota } = JSON.parse(cuerpo || "{}");
@@ -105,10 +124,11 @@ const exclusionesApi = (metodo, camino, cuerpo) => {
       exclusiones = [...exclusiones, { id: siguienteExclusion++, tipo, valor, llave, nota: nota || "", created_by_nombre: "Administración de prueba", created_at: new Date().toISOString() }];
       agregadas += 1;
     });
-    return { agregadas, repetidas, invalidos, exclusiones };
+    return { agregadas, repetidas, invalidos, exclusiones: conDetalle(exclusiones), ciclo: CICLO_EXCLUSIONES };
   }
-  return { exclusiones };
+  return { exclusiones: conDetalle(exclusiones), ciclo: CICLO_EXCLUSIONES };
 };
+const CICLO_EXCLUSIONES = { desde: "2026-10-03", hasta: HOY, declarado: true };
 
 window.__registro = { descartes: 0, otras: [] };
 const respuesta = (cuerpo) => new Response(JSON.stringify(cuerpo), { status: 200, headers: { "Content-Type": "application/json" } });

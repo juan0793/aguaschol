@@ -59,3 +59,145 @@ export const exclusionDeDocumento = (documento = {}, exclusiones = []) => {
   return exclusiones.find((item) => (item.tipo === "ABONADO" && abonado && item.llave === abonado)
     || (item.tipo === "CLAVE" && clave && item.llave === clave)) || null;
 };
+
+/* -------------------------------------------------------------------------- */
+/* Detalle de cada exclusión: cuenta del padrón y entrega del ciclo            */
+/* -------------------------------------------------------------------------- */
+
+const redondear = (valor) => Number(Number(valor || 0).toFixed(2));
+
+// Índice del padrón por las mismas llaves que las exclusiones. Una clave puede tener
+// varias cuentas; un abonado repetido se queda con todas sus filas.
+export const indexarCuentas = (registros = []) => {
+  const porAbonado = new Map();
+  const porClave = new Map();
+  const agregar = (mapa, llave, registro) => {
+    if (!llave) return;
+    if (!mapa.has(llave)) mapa.set(llave, []);
+    mapa.get(llave).push(registro);
+  };
+  for (const registro of registros) {
+    agregar(porAbonado, llaveExclusion("ABONADO", registro?.abonado), registro);
+    agregar(porClave, llaveExclusion("CLAVE", registro?.clave_catastral), registro);
+  }
+  return { porAbonado, porClave };
+};
+
+// El barrio es el primer tramo de la clave ("14-30-08-84" → "14"), como en el reparto.
+export const barrioDeClave = (clave) => {
+  const texto = String(clave ?? "").trim();
+  return texto.includes("-") ? texto.split("-")[0].replace(/\D/g, "") : "";
+};
+
+const cuentaVisible = (registro, conSaldo) => ({
+  abonado: String(registro.abonado ?? "").trim(),
+  clave_catastral: String(registro.clave_catastral ?? "").trim(),
+  nombre: String(registro.inquilino || registro.nombre || "").trim(),
+  barrio: String(registro.barrio_colonia ?? "").trim(),
+  ...(conSaldo ? {
+    capital: redondear(registro.valor),
+    mora: redondear(registro.intereses),
+    total: redondear(registro.total ?? Number(registro.valor || 0) + Number(registro.intereses || 0))
+  } : {})
+});
+
+// Un documento es de la exclusión por su propia llave. Si el técnico lo anotó sin esa
+// llave (sin abonado o sin clave), vale la otra del padrón: así una cuenta excluida
+// por abonado no arrastra a otra cuenta con la misma clave.
+const esDeLaExclusion = (documento, exclusion, cuentas) => {
+  const abonado = llaveExclusion("ABONADO", documento.numero_abonado);
+  const clave = llaveExclusion("CLAVE", documento.clave_catastral);
+  if (exclusion.tipo === "ABONADO") {
+    if (abonado) return abonado === exclusion.llave;
+    return Boolean(clave) && cuentas.some((cuenta) => llaveExclusion("CLAVE", cuenta.clave_catastral) === clave);
+  }
+  if (clave) return clave === exclusion.llave;
+  return Boolean(abonado) && cuentas.some((cuenta) => llaveExclusion("ABONADO", cuenta.abonado) === abonado);
+};
+
+const masReciente = (a, b) => String(b.fecha || "").localeCompare(String(a.fecha || "")) || Number(b.id || 0) - Number(a.id || 0);
+
+// Qué pasó con la cuenta en el ciclo vigente. Una factura entregada no deja registro
+// propio: el lote guarda cuántas se repartieron y anota solo las que sobraron. Por
+// eso, si el barrio tuvo un lote cerrado y la cuenta no quedó de sobrante, el técnico
+// la contó como entregada.
+//   SOBRANTE     anotada como no entregada (sigue pendiente, no localizada o vencida)
+//   REENTREGADA  anotada como no entregada y entregada después
+//   ENTREGADA    el barrio tuvo un lote cerrado y la cuenta no quedó de sobrante
+//   LOTE_ABIERTO el barrio tiene un lote todavía abierto
+//   SIN_LOTE     el barrio no tuvo lote en el ciclo
+//   SIN_BARRIO   no se sabe el barrio (la cuenta no está en el padrón)
+export const entregaDelCiclo = ({ documentos = [], lotes = [], barrio = "" }) => {
+  const documento = [...documentos].sort(masReciente)[0];
+  if (documento) {
+    return {
+      estado: documento.estado === "REENTREGADA" ? "REENTREGADA" : "SOBRANTE",
+      documento_estado: documento.estado,
+      tecnico: documento.tecnico || "",
+      fecha: documento.fecha || "",
+      fecha_entrega_final: documento.fecha_entrega_final || "",
+      lote_id: documento.lote_id ?? null,
+      tipo_documento: documento.tipo_documento || ""
+    };
+  }
+  const ordenados = [...lotes].sort(masReciente);
+  const cerrado = ordenados.find((lote) => lote.estado !== "ABIERTO");
+  const lote = cerrado || ordenados[0];
+  if (lote) {
+    return {
+      estado: cerrado ? "ENTREGADA" : "LOTE_ABIERTO",
+      tecnico: lote.tecnico || "",
+      fecha: lote.fecha || "",
+      lote_id: lote.id ?? null,
+      tipo_documento: lote.tipo_documento || ""
+    };
+  }
+  return { estado: barrio ? "SIN_LOTE" : "SIN_BARRIO" };
+};
+
+// Junta todo por exclusión: sus cuentas del padrón (con saldo solo si el usuario lo
+// ve), la entrega del ciclo y cuántas veces quedó sin entregar en ciclos anteriores.
+// `documentos` trae lo anotado como no entregado (sin cancelados) con `fecha` del
+// lote; `lotes`, los del ciclo con su `barrio_codigo`.
+export const detallarExclusiones = ({ exclusiones = [], indice, documentos = [], lotes = [], desde = "", conSaldo = false }) => {
+  const lotesPorBarrio = new Map();
+  for (const lote of lotes) {
+    const codigo = String(lote.barrio_codigo || "");
+    if (!lotesPorBarrio.has(codigo)) lotesPorBarrio.set(codigo, []);
+    lotesPorBarrio.get(codigo).push(lote);
+  }
+  return exclusiones.map((exclusion) => {
+    const registros = (exclusion.tipo === "ABONADO" ? indice?.porAbonado : indice?.porClave)?.get(exclusion.llave) || [];
+    const cuentas = registros.map((registro) => cuentaVisible(registro, conSaldo));
+    const barrio = barrioDeClave(cuentas[0]?.clave_catastral) || (exclusion.tipo === "CLAVE" ? barrioDeClave(exclusion.valor) : "");
+    const suyos = documentos.filter((documento) => esDeLaExclusion(documento, exclusion, cuentas));
+    const delCiclo = suyos.filter((documento) => !desde || String(documento.fecha || "") >= desde);
+    const saldo = conSaldo
+      ? cuentas.reduce((suma, cuenta) => ({ capital: redondear(suma.capital + cuenta.capital), mora: redondear(suma.mora + cuenta.mora), total: redondear(suma.total + cuenta.total) }), { capital: 0, mora: 0, total: 0 })
+      : null;
+    return {
+      ...exclusion,
+      cuentas,
+      barrio_codigo: barrio,
+      ...(saldo ? { saldo } : {}),
+      entrega: entregaDelCiclo({ documentos: delCiclo, lotes: lotesPorBarrio.get(barrio) || [], barrio }),
+      sin_entregar_antes: suyos.length - delCiclo.length
+    };
+  });
+};
+
+// Cifras de la lista: cuántas están en el padrón, cómo van en el ciclo y su saldo.
+export const resumenExclusiones = (detalle = []) => {
+  const resumen = { total: detalle.length, sin_padron: 0, por_estado: {}, capital: 0, mora: 0, saldo: 0 };
+  for (const item of detalle) {
+    if (!item.cuentas?.length) resumen.sin_padron += 1;
+    const estado = item.entrega?.estado || "SIN_BARRIO";
+    resumen.por_estado[estado] = (resumen.por_estado[estado] || 0) + 1;
+    if (item.saldo) {
+      resumen.capital += item.saldo.capital;
+      resumen.mora += item.saldo.mora;
+      resumen.saldo += item.saldo.total;
+    }
+  }
+  return { ...resumen, capital: redondear(resumen.capital), mora: redondear(resumen.mora), saldo: redondear(resumen.saldo) };
+};
