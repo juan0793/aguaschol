@@ -1128,3 +1128,6 @@
 @media (prefers-reduced-motion: reduce) {
   .cl-lote-docs button, .cl-plazo-presets button, .cl-lote-progreso progress::-webkit-progress-value { transition: none; }
 }
+
+/* Aviso de caracteres disponibles bajo un campo de la ficha. */
+.cl-field-count { color: #8a5a00; font-size: 11.5px; font-weight: 650; }

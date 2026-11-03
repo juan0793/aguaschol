@@ -107,9 +107,20 @@ export const dictaminarCandidato = ({ clave_catastral = "", abonado_campo = "" }
   const abonado = clean(abonado_campo);
   const alcaldia = clave ? index.alcaldiaExacta.get(clave) || index.alcaldiaLote.get(baseDe(clave)) || null : null;
 
+  // En QField el técnico suele anotar en "abonado" la cuenta de al lado o la del lote
+  // original ("pegado con el código 4314", "desmembramiento de la 4535"), no la de la
+  // casa. Esa cuenta solo prueba que está registrada si su clave es la misma del punto;
+  // si no, queda sin determinar con la cuenta como pista y el técnico decide en campo.
+  // Antes daba "registrado" y Verificar lo mandaba a descartados.
   const porAbonado = abonado ? index.aguasAbonado.get(abonado) : null;
   if (porAbonado) {
-    return { dictamen: "registrado", motivo_dictamen: `El abonado ${abonado} existe en el padrón de Aguas`, ...snapshot(porAbonado, alcaldia) };
+    const misma = clave && normalizarClaveBanco(porAbonado.clave_catastral) === clave;
+    if (misma) return { dictamen: "registrado", motivo_dictamen: `El abonado ${abonado} existe en Aguas con esta misma clave`, ...snapshot(porAbonado, alcaldia) };
+    return {
+      dictamen: "sin_determinar",
+      motivo_dictamen: `Cuenta anotada en campo: el abonado ${abonado} existe en Aguas (${[clean(porAbonado.clave_catastral), clean(porAbonado.inquilino || porAbonado.nombre)].filter(Boolean).join(" · ")}); confirmar si es la de esta casa o una vecina`,
+      ...snapshot(porAbonado, alcaldia)
+    };
   }
   if (!clave) {
     return { dictamen: "sin_determinar", motivo_dictamen: "Sin clave catastral para verificar", ...snapshot(null, null) };
@@ -181,12 +192,21 @@ export const parseCsv = (text = "") => {
 // "14-08-04-05 según Alcaldía..."). Solo cuenta si va con guiones: "6518" es un abonado.
 const claveEnTexto = (value = "") => normalizarClaveBanco(clean(value).match(/\b\d{1,3}-\d{1,3}-\d{1,3}(?:-\d{1,3})?\b/)?.[0]);
 
+// En QField a veces se describe la casa en el campo "abonado" (80 caracteres en la base).
+// Si no cabe, el texto completo pasa al comentario de campo y en abonado queda solo el
+// número o la clave con que empieza, en vez de cortarlo a la mitad.
+const ABONADO_MAX = 80;
+const abonadoYNota = (row) => {
+  const texto = clean(row.abonado_campo || row.abonado);
+  if (texto.length <= ABONADO_MAX) return { abonado: texto, nota: "" };
+  return { abonado: texto.match(/^[\d-]{1,20}/)?.[0] || "", nota: `Anotado en abonado: ${texto}` };
+};
 export const candidatoDesdeFila = (row) => ({
   origen_ref: clean(row.origen_ref || row.fid || row.fid_qfield),
   clave_catastral: normalizarClaveBanco(row.clave_catastral || row.clave || row.clave_usada) || claveEnTexto(row.abonado_campo || row.abonado),
   clave_origen: clean(row.clave_origen || row.origen_clave).slice(0, 20),
-  comentario_campo: clean(row.comentario_campo || row.comentario),
-  abonado_campo: clean(row.abonado_campo || row.abonado).slice(0, 80),
+  comentario_campo: [clean(row.comentario_campo || row.comentario), abonadoYNota(row).nota].filter(Boolean).join(" · "),
+  abonado_campo: abonadoYNota(row).abonado,
   barrio_colonia: normalizarBarrio(row.barrio_colonia || row.colonia).slice(0, 180),
   agua: flag(row.agua),
   alcantarillado: flag(row.alcantarillado),

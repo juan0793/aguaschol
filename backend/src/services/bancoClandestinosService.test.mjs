@@ -40,8 +40,14 @@ test("una unidad sin cuenta en un lote registrado es clandestina, con el lote co
   assert.match(result.motivo_dictamen, /No aparece en Aguas; el lote 14-08-02 sí/);
 });
 
-test("el abonado registrado manda aunque la clave no exista", () => {
-  assert.equal(dictaminarCandidato({ clave_catastral: "999-01-01", abonado_campo: "7317" }, index).dictamen, "registrado");
+test("el abonado anotado en campo es una pista, salvo que su clave sea la misma", () => {
+  // La cuenta de la casa de al lado o del lote original no prueba que esta casa pague.
+  const vecina = dictaminarCandidato({ clave_catastral: "999-01-01", abonado_campo: "7317" }, index);
+  assert.equal(vecina.dictamen, "sin_determinar");
+  assert.match(vecina.motivo_dictamen, /Cuenta anotada en campo: el abonado 7317 existe en Aguas \(22-35-01-01 · LUCILA\)/);
+  assert.equal(vecina.aguas_abonado, "7317");
+  assert.equal(dictaminarCandidato({ clave_catastral: "", abonado_campo: "7317" }, index).dictamen, "sin_determinar");
+  assert.equal(dictaminarCandidato({ clave_catastral: "22-35-01-01", abonado_campo: "7317" }, index).dictamen, "registrado");
 });
 
 test("sin clave queda sin determinar; una clave fuera de ambos padrones es clandestina", () => {
@@ -407,4 +413,12 @@ test("la clave escrita en el campo del abonado se usa si falta la clave", () => 
   assert.equal(candidatoDesdeFila({ origen_ref: "a", abonado_campo: "14-08-04-05 Segun alcaldia pertenece a Santos" }).clave_catastral, "14-08-04-05");
   assert.equal(candidatoDesdeFila({ origen_ref: "a", abonado_campo: "6518" }).clave_catastral, "");
   assert.equal(candidatoDesdeFila({ origen_ref: "a", clave_catastral: "22-35-01", abonado_campo: "89-13-13" }).clave_catastral, "22-35-01");
+});
+
+test("una descripción larga escrita en abonado pasa completa al comentario", () => {
+  const texto = "14-08-04-05 Segun alcaldia de choluteca pertenece a Santos Rutilia perez es tienda con dos cuartos atras";
+  const candidato = candidatoDesdeFila({ origen_ref: "larga-1", abonado: texto, comentario: "Casa esquinera" });
+  assert.equal(candidato.abonado_campo, "14-08-04-05");
+  assert.equal(candidato.comentario_campo, `Casa esquinera · Anotado en abonado: ${texto}`);
+  assert.equal(candidatoDesdeFila({ origen_ref: "corta-1", abonado: "6518" }).abonado_campo, "6518");
 });

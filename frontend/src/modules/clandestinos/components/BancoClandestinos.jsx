@@ -65,10 +65,12 @@ function CandidatoFila({ item, permissions, userId, busy, selectable, selected, 
   const needsClave = canSend && !item.clave_catastral;
   // Solo "registrado" está en Aguas; si no, la cuenta guardada es de otra unidad del mismo lote.
   const enAguas = item.dictamen === "registrado" && (item.aguas_clave || item.aguas_abonado);
-  const loteEnAguas = !enAguas && item.aguas_clave;
+  // El técnico anotó una cuenta (vecina o del lote original): es pista, no registro.
+  const cuentaCampo = item.dictamen === "sin_determinar" && /^Cuenta anotada en campo/.test(item.motivo_dictamen || "");
+  const loteEnAguas = !enAguas && !cuentaCampo && item.aguas_clave;
   const mio = item.asignado_a != null && Number(item.asignado_a) === Number(userId);
   const desmembracion = item.dictamen === "sin_determinar" && /^Posible desmembración/.test(item.motivo_dictamen || "");
-  const avisos = [item.nota_revision, desmembracion ? item.motivo_dictamen : ""].filter(Boolean);
+  const avisos = [item.nota_revision, desmembracion || cuentaCampo ? item.motivo_dictamen : ""].filter(Boolean);
   const abierta = abierto || discarding;
   const id = item.clave_catastral || `punto ${item.origen_ref}`;
   const enviar = () => {
@@ -87,8 +89,8 @@ function CandidatoFila({ item, permissions, userId, busy, selectable, selected, 
       <p className={`cl-brow-cell is-alcaldia ${item.alcaldia_propietario ? "is-found" : ""}`.trim()} title={item.alcaldia_propietario ? [item.alcaldia_propietario, item.alcaldia_clave, item.alcaldia_caserio].filter(Boolean).join(" · ") : "No aparece en Alcaldía"}>
         <span className="cl-brow-label">Alcaldía</span>{item.alcaldia_propietario || "No aparece"}
       </p>
-      <p className={`cl-brow-cell is-aguas ${enAguas ? "is-found" : ""} ${loteEnAguas ? "is-lote" : ""}`.trim()} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : loteEnAguas ? `Esta unidad no aparece en Aguas. Otra unidad del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : "No aparece en Aguas"}>
-        <span className="cl-brow-label">Aguas</span>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : loteEnAguas ? `Lote sí: ${item.aguas_clave}` : "No aparece"}
+      <p className={`cl-brow-cell is-aguas ${enAguas ? "is-found" : ""} ${loteEnAguas ? "is-lote" : ""}`.trim()} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : cuentaCampo ? item.motivo_dictamen : loteEnAguas ? `Esta unidad no aparece en Aguas. Otra unidad del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : "No aparece en Aguas"}>
+        <span className="cl-brow-label">Aguas</span>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : cuentaCampo ? `Anotó abonado ${item.aguas_abonado}` : loteEnAguas ? `Lote sí: ${item.aguas_clave}` : "No aparece"}
       </p>
       <div className="cl-brow-campo" aria-label="Lo observado en campo">
         {SERVICES.map(([key, label, icon]) => <span key={key} className={item[key] ? "is-on" : ""} title={`${label}: ${item[key] ? "sí" : "no"}`}><Icon name={icon} /></span>)}
@@ -109,7 +111,7 @@ function CandidatoFila({ item, permissions, userId, busy, selectable, selected, 
     {descartado ? <p className="cl-brow-line"><Icon name="archive" /><span><strong>Descartado:</strong> {item.motivo_descarte || "Sin motivo registrado"}</span>{item.procesado_por_nombre || item.procesado_at ? <small>{[item.procesado_por_nombre && `Por ${item.procesado_por_nombre}`, fechaCorta(item.procesado_at)].filter(Boolean).join(" · ")}</small> : null}</p> : null}
     {abierta ? <div className="cl-brow-detail">
       <dl>
-        <div><dt>Dictamen</dt><dd>{DICTAMEN_LABELS[item.dictamen] || item.dictamen}{item.motivo_dictamen && !desmembracion ? <small>{item.motivo_dictamen}</small> : null}</dd></div>
+        <div><dt>Dictamen</dt><dd>{DICTAMEN_LABELS[item.dictamen] || item.dictamen}{item.motivo_dictamen && !desmembracion && !cuentaCampo ? <small>{item.motivo_dictamen}</small> : null}</dd></div>
         <div><dt>Alcaldía</dt><dd>{item.alcaldia_propietario || "No aparece"}{item.alcaldia_propietario && (item.alcaldia_clave || item.alcaldia_caserio) ? <small>{[item.alcaldia_clave, item.alcaldia_caserio].filter(Boolean).join(" · ")}</small> : null}</dd></div>
         <div><dt>Aguas</dt><dd>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : "No aparece"}{enAguas || loteEnAguas ? <small>{loteEnAguas ? `Esta unidad no; otra del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ")}</small> : null}</dd></div>
         <div><dt>Asignado</dt><dd>{item.asignado_a == null ? "Sin asignar" : mio ? "A ti" : item.asignado_nombre || "Técnico"}{item.asignado_at ? <small>Desde {fechaCorta(item.asignado_at)}</small> : null}</dd></div>
