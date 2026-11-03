@@ -20,6 +20,7 @@ test("el operador confirma el hallazgo de la visita, pero no regulariza", async 
   if ((ficha.estado_operativo || "pending") !== "pending") await changeFichaState(ficha.id, { state: "pending" }, admin);
   await changeFichaState(ficha.id, { state: "visit" }, reviewer);
   assert.equal((await changeFichaState(ficha.id, { state: "confirmed" }, reviewer)).estado_operativo, "confirmed");
+  assert.equal((await changeFichaState(ficha.id, { state: "confirmed" }, reviewer)).estado_operativo, "confirmed");
   await assert.rejects(() => changeFichaState(ficha.id, { state: "regularization" }, reviewer), (error) => error.status === 403);
   await changeFichaState(ficha.id, { state: "regularization" }, admin);
   // Devolver una regularización a confirmada sigue siendo de administración.

@@ -2,7 +2,7 @@ import { env } from "../config/env.js";
 import { getPool } from "../config/db.js";
 import { createAuditLog } from "./auditService.js";
 import { getAlcaldiaRecords, getMasterRecords, getMasterVersion } from "./claveLookupService.js";
-import { createInmueble, getByClave, listInmuebles } from "./inmuebleService.js";
+import { createInmueble, getByClave, getById, listInmuebles } from "./inmuebleService.js";
 import { likeValue } from "../utils/normalize.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 
@@ -754,16 +754,18 @@ export const verificarBancoClandestinos = async (user, { index } = {}) => {
   return summary;
 };
 
-const marcarProcesado = async (id, { estado, inmueble_id = null, motivo_descarte = "", clave_catastral }, user) => {
+const marcarProcesado = async (id, { estado, inmueble_id = null, motivo_descarte = "", clave_catastral }, user, expectedEstado = null) => {
   if (env.useMemoryDb) {
     const item = memoryBanco.find((candidate) => candidate.id === Number(id));
+    if (!item || (expectedEstado && item.estado !== expectedEstado)) return false;
     Object.assign(item, { estado, inmueble_id, motivo_descarte, procesado_por: user?.id || null, procesado_at: estado === "pendiente" ? null : new Date().toISOString(), updated_at: new Date().toISOString() }, clave_catastral ? { clave_catastral } : {});
-    return;
+    return true;
   }
-  await getPool().query(
-    `UPDATE banco_clandestinos SET estado = ?, inmueble_id = ?, motivo_descarte = ?, procesado_por = ?, procesado_at = ${estado === "pendiente" ? "NULL" : "CURRENT_TIMESTAMP"}${clave_catastral ? ", clave_catastral = ?" : ""} WHERE id = ?`,
-    [estado, inmueble_id, motivo_descarte, user?.id || null, ...(clave_catastral ? [clave_catastral] : []), id]
+  const [result] = await getPool().query(
+    `UPDATE banco_clandestinos SET estado = ?, inmueble_id = ?, motivo_descarte = ?, procesado_por = ?, procesado_at = ${estado === "pendiente" ? "NULL" : "CURRENT_TIMESTAMP"}${clave_catastral ? ", clave_catastral = ?" : ""} WHERE id = ?${expectedEstado ? " AND estado = ?" : ""}`,
+    [estado, inmueble_id, motivo_descarte, user?.id || null, ...(clave_catastral ? [clave_catastral] : []), id, ...(expectedEstado ? [expectedEstado] : [])]
   );
+  return result.affectedRows > 0;
 };
 
 // Quién levantó la ficha ("Responsable" y "Levantamiento de datos" en la ficha técnica):
@@ -806,7 +808,14 @@ export const enviarCandidatoAFicha = async (id, { clave_catastral = "" } = {}, u
   const candidato = await getCandidato(id);
   if (!candidato) throw fail("Candidato no encontrado.", 404);
   if (!canWork(user, candidato)) throw fail("Tu rol no puede enviar candidatos a ficha.", 403);
-  if (candidato.estado !== "pendiente") throw fail("Este candidato ya fue procesado.", 409);
+  if (candidato.estado !== "pendiente") {
+    // Reintento después de una respuesta perdida: el envío ya terminó en el servidor.
+    if (candidato.estado === "enviado" && candidato.inmueble_id) {
+      const ficha = await getById(candidato.inmueble_id, { includeArchived: false });
+      if (ficha) return { candidato, ficha, ficha_existente: true };
+    }
+    throw fail("Este candidato ya fue procesado.", 409);
+  }
   const clave = normalizarClaveBanco(clave_catastral) || candidato.clave_catastral;
   if (clean(clave_catastral) && !normalizarClaveBanco(clave_catastral)) throw fail("La clave debe tener 3 o 4 bloques numéricos, por ejemplo 89-13-15.");
   if (!clave) throw fail("Escribe la clave catastral antes de enviarlo a ficha.");
@@ -819,6 +828,15 @@ export const enviarCandidatoAFicha = async (id, { clave_catastral = "" } = {}, u
   const actualizado = { ...candidato, ...verificacion };
 
   const responsable = responsableDeFicha(candidato, user);
+  const finalizarEnvio = async (ficha, fichaExistente) => {
+    const actualizadoBanco = await marcarProcesado(id, { estado: "enviado", inmueble_id: ficha.id, clave_catastral: clave }, user, "pendiente");
+    if (!actualizadoBanco) {
+      const actual = await getCandidato(id);
+      if (actual?.estado === "enviado" && Number(actual.inmueble_id) === Number(ficha.id)) return { candidato: actual, ficha, ficha_existente: true };
+      throw fail("Este candidato ya fue procesado.", 409);
+    }
+    return { candidato: await getCandidato(id), ficha, ficha_existente: fichaExistente };
+  };
   const existente = await getByClave(clave);
   if (existente) {
     // La ficha ya existía: si nadie figura como responsable, queda quien la trabajó desde el banco.
@@ -826,22 +844,25 @@ export const enviarCandidatoAFicha = async (id, { clave_catastral = "" } = {}, u
       if (env.useMemoryDb) existente.levantamiento_datos = responsable;
       else await getPool().query("UPDATE inmuebles_clandestinos SET levantamiento_datos = ? WHERE id = ? AND levantamiento_datos = ''", [responsable, existente.id]);
     }
-    await marcarProcesado(id, { estado: "enviado", inmueble_id: existente.id, clave_catastral: clave }, user);
-    return { candidato: await getCandidato(id), ficha: existente, ficha_existente: true };
+    return finalizarEnvio(existente, true);
   }
   let ficha;
+  let fichaExistente = false;
   try {
     const copias = env.useMemoryDb
       ? memoryBanco.filter((item) => item.duplicado_de === Number(id))
       : (await getPool().query("SELECT origen, origen_ref, comentario_campo FROM banco_clandestinos WHERE duplicado_de = ? ORDER BY id", [id]))[0];
     ficha = await createInmueble(fichaDesdeCandidato(actualizado, clave, responsable, copias), { actorUserId: user?.id });
   } catch (error) {
-    if (error.status === 409 || error.code === "ER_DUP_ENTRY") throw fail(`Ya existe una ficha archivada con la clave ${clave}. Restáurala desde archivados.`, 409);
-    throw error;
+    if (error.status === 409 || error.code === "ER_DUP_ENTRY") {
+      ficha = await getByClave(clave);
+      if (!ficha) throw fail(`Ya existe una ficha archivada con la clave ${clave}. Restáurala desde archivados.`, 409);
+      fichaExistente = true;
+    } else throw error;
   }
-  await marcarProcesado(id, { estado: "enviado", inmueble_id: ficha.id, clave_catastral: clave }, user);
-  if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.sent_to_ficha", entityType: "inmueble", entityId: ficha.id, summary: `Banco → ficha ${clave} (${verificacion.dictamen})`, details: { candidato_id: Number(id), dictamen: verificacion.dictamen } });
-  return { candidato: await getCandidato(id), ficha, ficha_existente: false };
+  const result = await finalizarEnvio(ficha, fichaExistente);
+  if (!fichaExistente && !env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "banco_clandestinos.sent_to_ficha", entityType: "inmueble", entityId: ficha.id, summary: `Banco → ficha ${clave} (${verificacion.dictamen})`, details: { candidato_id: Number(id), dictamen: verificacion.dictamen } });
+  return result;
 };
 
 export const descartarCandidato = async (id, { motivo = "" } = {}, user) => {

@@ -91,7 +91,9 @@ test("enviar a ficha crea la ficha y saca al candidato del banco", async () => {
   // Quien la mandó a ficha queda como responsable del levantamiento.
   assert.equal(ficha.levantamiento_datos, "Técnico");
   assert.equal((await listBancoClandestinos({ query: "Casa sin cuenta" })).total, 0);
-  await assert.rejects(() => enviarCandidatoAFicha(items[0].id, {}, tecnico), (error) => error.status === 409);
+  const retry = await enviarCandidatoAFicha(items[0].id, {}, tecnico);
+  assert.equal(retry.ficha_existente, true);
+  assert.equal(retry.ficha.id, result.ficha.id);
 });
 
 test("sin clave pide escribirla; con la clave del técnico sí se envía", async () => {

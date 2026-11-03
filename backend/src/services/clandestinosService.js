@@ -405,22 +405,46 @@ export const changeFichaState = async (id, { state, reason = "" }, user) => {
   if (!FICHA_STATES.includes(state)) throw fail("Estado de ficha no válido.");
   if (["regularization", "regularized", "discarded"].includes(state) && user?.role !== "admin") throw fail("Solo administración puede regularizar o descartar fichas.", 403);
   if (state === "discarded" && !clean(reason)) throw fail("El motivo es obligatorio para descartar una ficha.");
-  const current = await getById(id, { includeArchived: false });
-  if (!current) throw fail("Ficha no encontrada.", 404);
-  const previous = current.estado_operativo || "pending";
-  if (previous === state) return current;
-  // El operador confirma el hallazgo de la visita; devolver una regularización
-  // a "confirmada" sigue siendo de administración.
-  if (state === "confirmed" && previous !== "visit" && user?.role !== "admin") throw fail("Solo administración puede devolver una ficha a confirmada.", 403);
-  if (!FICHA_TRANSITIONS[previous]?.includes(state)) throw fail(`La transición ${previous} → ${state} no está permitida.`, 409);
+  const motivo = clean(reason);
   if (env.useMemoryDb) {
+    const current = await getById(id, { includeArchived: false });
+    if (!current) throw fail("Ficha no encontrada.", 404);
+    const previous = current.estado_operativo || "pending";
+    if (previous === state) return current;
+    // El operador confirma el hallazgo de la visita; devolver una regularización
+    // a "confirmada" sigue siendo de administración.
+    if (state === "confirmed" && previous !== "visit" && user?.role !== "admin") throw fail("Solo administración puede devolver una ficha a confirmada.", 403);
+    if (!FICHA_TRANSITIONS[previous]?.includes(state)) throw fail(`La transición ${previous} → ${state} no está permitida.`, 409);
     current.estado_operativo = state;
     current.updated_at = new Date().toISOString();
-  } else {
-    await getPool().query("UPDATE inmuebles_clandestinos SET estado_operativo = ? WHERE id = ? AND archived_at IS NULL", [state, id]);
+    await addHistory({ entityType: "ficha", entityId: id, previous, next: state, reason: motivo, user });
+    return current;
   }
-  await addHistory({ entityType: "ficha", entityId: id, previous, next: state, reason: clean(reason), user });
-  if (!env.useMemoryDb) await createAuditLog({ actorUserId: user?.id, action: "inmueble.state_changed", entityType: "inmueble", entityId: id, summary: `Ficha ${current.clave_catastral}: ${previous} → ${state}`, details: { previous, next: state, reason: clean(reason) } });
+
+  const connection = await getPool().getConnection();
+  let current;
+  let previous;
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.query("SELECT * FROM inmuebles_clandestinos WHERE id = ? AND archived_at IS NULL FOR UPDATE", [id]);
+    current = rows[0];
+    if (!current) throw fail("Ficha no encontrada.", 404);
+    previous = current.estado_operativo || "pending";
+    if (previous === state) {
+      await connection.commit();
+      return current;
+    }
+    // El bloqueo conserva la etapa real del servidor cuando llega una petición atrasada.
+    if (state === "confirmed" && previous !== "visit" && user?.role !== "admin") throw fail("Solo administración puede devolver una ficha a confirmada.", 403);
+    if (!FICHA_TRANSITIONS[previous]?.includes(state)) throw fail(`La transición ${previous} → ${state} no está permitida.`, 409);
+    await connection.query("UPDATE inmuebles_clandestinos SET estado_operativo = ? WHERE id = ? AND estado_operativo = ? AND archived_at IS NULL", [state, id, previous]);
+    await connection.query("INSERT INTO historial_estados (entidad_tipo, entidad_id, estado_anterior, estado_nuevo, motivo, usuario_id) VALUES (?, ?, ?, ?, ?, ?)", ["ficha", id, previous, state, motivo, user?.id || null]);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback().catch(() => {});
+    throw error;
+  } finally { connection.release(); }
+  await createAuditLog({ actorUserId: user?.id, action: "inmueble.state_changed", entityType: "inmueble", entityId: id, summary: `Ficha ${current.clave_catastral}: ${previous} → ${state}`, details: { previous, next: state, reason: motivo } });
   return { ...(await getById(id, { includeArchived: false })), estado_operativo: state };
 };
 
