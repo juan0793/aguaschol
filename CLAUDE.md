@@ -211,3 +211,10 @@ Rules:
 - `candidatoDesdeFila`: si falta la clave, toma una clave con guiones escrita en el campo del abonado ("89-13-13"); un número suelto sigue siendo abonado.
 - Sin cambiar (decisión del 30/9): una clave de 4 bloques sin coincidencia exacta es clandestina aunque el lote tenga cuenta. En Aguas el 4.º bloque suele ser un código (01, 99, 03), no una unidad; caso dudoso: 14-04-08-41 con el lote como 14-04-08-83.
 - Verificado: `npm test` del backend (324) y la consulta de agrupación contra MySQL local (solo lectura). No se probó contra producción.
+
+## Nota para Claude: el operador confirma el hallazgo de la visita (2026-11-03)
+
+- Síntoma: en la ficha, etapa Visita, "Confirmar hallazgo" quedaba apagado sin explicación para el operador; Visita → Confirmada era solo de administración.
+- Decisión del usuario: el operador también confirma el hallazgo. Regularizar, cerrar, descartar y devolver una regularización a Confirmada siguen siendo de administración (`changeFichaState` en `clandestinosService.js`).
+- `FichaDrawer.jsx`: el botón solo se apaga para regularizar o cerrar sin permiso, y entonces dice "Solo administración puede avanzar esta etapa."
+- Verificado: `npm test` del backend (325, con una prueba nueva del flujo) y `npm run build`. No se probó con sesión iniciada.

@@ -403,12 +403,15 @@ const addHistory = async ({ entityType, entityId, previous = "", next, reason = 
 export const changeFichaState = async (id, { state, reason = "" }, user) => {
   if (!canReview(user)) throw fail("Tu rol no puede modificar el estado de una ficha.", 403);
   if (!FICHA_STATES.includes(state)) throw fail("Estado de ficha no válido.");
-  if (["confirmed", "regularization", "regularized", "discarded"].includes(state) && user?.role !== "admin") throw fail("Solo administración puede confirmar, regularizar o descartar fichas.", 403);
+  if (["regularization", "regularized", "discarded"].includes(state) && user?.role !== "admin") throw fail("Solo administración puede regularizar o descartar fichas.", 403);
   if (state === "discarded" && !clean(reason)) throw fail("El motivo es obligatorio para descartar una ficha.");
   const current = await getById(id, { includeArchived: false });
   if (!current) throw fail("Ficha no encontrada.", 404);
   const previous = current.estado_operativo || "pending";
   if (previous === state) return current;
+  // El operador confirma el hallazgo de la visita; devolver una regularización
+  // a "confirmada" sigue siendo de administración.
+  if (state === "confirmed" && previous !== "visit" && user?.role !== "admin") throw fail("Solo administración puede devolver una ficha a confirmada.", 403);
   if (!FICHA_TRANSITIONS[previous]?.includes(state)) throw fail(`La transición ${previous} → ${state} no está permitida.`, 409);
   if (env.useMemoryDb) {
     current.estado_operativo = state;

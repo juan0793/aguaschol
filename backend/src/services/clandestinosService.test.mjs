@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { changeReportState, createTechnicalReport, getClandestinosConfig, getFichasByIds, markAvisosImpresos, setAvisoLote, listClandestinosFichas, listTechnicalReports, summarizePadronComparison } from "./clandestinosService.js";
+import { changeFichaState, changeReportState, createTechnicalReport, getClandestinosConfig, getFichasByIds, markAvisosImpresos, setAvisoLote, listClandestinosFichas, listTechnicalReports, summarizePadronComparison } from "./clandestinosService.js";
 
 const technician = { id: 7, role: "validadora_campo", full_name: "Técnica de campo" };
 const reviewer = { id: 8, role: "operator", full_name: "Revisor" };
@@ -12,6 +12,18 @@ test("los permisos separan campo, revisión y administración", () => {
   assert.equal(field.can_review_report, false);
   assert.equal(review.can_review_report, true);
   assert.equal(review.can_confirm_or_regularize, false);
+});
+
+test("el operador confirma el hallazgo de la visita, pero no regulariza", async () => {
+  const { items: [ficha] } = await listClandestinosFichas({ limit: 1 });
+  const admin = { id: 1, role: "admin", full_name: "Administración" };
+  if ((ficha.estado_operativo || "pending") !== "pending") await changeFichaState(ficha.id, { state: "pending" }, admin);
+  await changeFichaState(ficha.id, { state: "visit" }, reviewer);
+  assert.equal((await changeFichaState(ficha.id, { state: "confirmed" }, reviewer)).estado_operativo, "confirmed");
+  await assert.rejects(() => changeFichaState(ficha.id, { state: "regularization" }, reviewer), (error) => error.status === 403);
+  await changeFichaState(ficha.id, { state: "regularization" }, admin);
+  // Devolver una regularización a confirmada sigue siendo de administración.
+  await assert.rejects(() => changeFichaState(ficha.id, { state: "confirmed" }, reviewer), (error) => error.status === 403);
 });
 
 test("enviar un reporte no modifica el padrón maestro", async () => {
