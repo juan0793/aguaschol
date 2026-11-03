@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { agruparDuplicadosBanco, mismoPropietario, palabrasNombre, asignarCandidatos, buildPadronIndex, planDuplicados, resumirAsignaciones, responsableDeFicha, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
+import { agruparDuplicadosBanco, candidatoDesdeFila, mismoPropietario, palabrasNombre, asignarCandidatos, buildPadronIndex, planDuplicados, resumirAsignaciones, responsableDeFicha, candidatoDesdeAlcaldia, enviarClavesAlcaldiaAlBanco, listarRefsBanco, descartarCandidato, quitarAsignacion, repartirCandidatos, resumirBarrios, dictaminarCandidato, enviarCandidatoAFicha, importBancoClandestinos, listBancoClandestinos, normalizarBarrio, normalizarClaveBanco, parseCsv, restaurarCandidato, verificarBancoClandestinos } from "./bancoClandestinosService.js";
 import { createInmueble, getByClave } from "./inmuebleService.js";
 
 const admin = { id: 1, role: "admin", full_name: "Administración" };
@@ -344,4 +344,42 @@ test("mismo propietario: 3 palabras en común o el nombre corto completo", () =>
   assert.equal(mismoPropietario(palabrasNombre("Candida Rodriguez"), palabrasNombre("CANDIDA RODRIGUEZ")), true);
   assert.equal(mismoPropietario(palabrasNombre("Oscar Rene Rodriguez Nuñez"), palabrasNombre("OSCAR RODRIGUEZ MEJIA")), false);
   assert.equal(mismoPropietario(palabrasNombre("Diana Rodriguez Garcia"), palabrasNombre("Rodriguez Garcia Luis")), false);
+});
+
+test("duplicados: una clave descartada a mano es principal; una copia ya agrupada no", () => {
+  const plan = planDuplicados([
+    { id: 1, clave_catastral: "41-01-01", estado: "descartado", duplicado_de: null },
+    { id: 2, clave_catastral: "41-01-01", estado: "pendiente", asignado_a: 9, latitude: 13.3, comentario_campo: "casa" },
+    { id: 3, clave_catastral: "41-01-02", estado: "descartado", duplicado_de: 4 },
+    { id: 4, clave_catastral: "41-01-02", estado: "pendiente" },
+    { id: 5, clave_catastral: "41-01-03", estado: "descartado", duplicado_de: null },
+    { id: 6, clave_catastral: "41-01-03", estado: "enviado" },
+    { id: 7, clave_catastral: "41-01-03", estado: "pendiente" }
+  ]);
+  assert.deepEqual(plan.map(({ id, principal, principal_estado }) => [id, principal, principal_estado]), [[2, 1, "descartado"], [7, 6, "enviado"]]);
+});
+
+test("una clave descartada no vuelve a Por revisar si llega otro punto con ella", async () => {
+  await importBancoClandestinos({ csv: "origen_ref,clave_catastral\nr-1,996-03-03", lote: "descarte" }, admin);
+  const [original] = (await listBancoClandestinos({ query: "996-03-03" })).items;
+  await descartarCandidato(original.id, { motivo: "Tiene servicio con otro nombre" }, tecnico);
+  const result = await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo\nr-2,996-03-03,Otra vez", lote: "descarte" }, admin);
+  assert.equal(result.nuevos, 1);
+  assert.equal(result.duplicados, 1);
+  assert.equal((await listBancoClandestinos({ query: "996-03-03" })).total, 0);
+  const descartados = await listBancoClandestinos({ query: "996-03-03", estado: "descartado" });
+  const copia = descartados.items.find((item) => item.origen_ref === "r-2");
+  assert.equal(copia.duplicado_de, original.id);
+  assert.match(copia.motivo_descarte, /ya se había descartado/);
+  // Si alguien la devuelve, queda pendiente y no se vuelve a agrupar sola.
+  await restaurarCandidato(copia.id, tecnico);
+  assert.equal(await agruparDuplicadosBanco(), 0);
+  assert.equal((await listBancoClandestinos({ query: "996-03-03" })).total, 1);
+});
+
+test("la clave escrita en el campo del abonado se usa si falta la clave", () => {
+  assert.equal(candidatoDesdeFila({ origen_ref: "a", abonado_campo: "89-13-13" }).clave_catastral, "89-13-13");
+  assert.equal(candidatoDesdeFila({ origen_ref: "a", abonado_campo: "14-08-04-05 Segun alcaldia pertenece a Santos" }).clave_catastral, "14-08-04-05");
+  assert.equal(candidatoDesdeFila({ origen_ref: "a", abonado_campo: "6518" }).clave_catastral, "");
+  assert.equal(candidatoDesdeFila({ origen_ref: "a", clave_catastral: "22-35-01", abonado_campo: "89-13-13" }).clave_catastral, "22-35-01");
 });

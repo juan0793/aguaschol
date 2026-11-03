@@ -695,14 +695,15 @@ const ensureSchema = async () => {
              NULLIF(procesador.full_name, ''), procesador.username), 180)
        WHERE inmuebles_clandestinos.levantamiento_datos = '' AND banco_clandestinos.procesado_por IS NOT NULL`
     );
-    // Clandestino = no aparece en Aguas: "probable" y las claves fuera de ambos
-    // padrones pasan a clandestino (idempotente; despues ya no quedan filas que coincidan).
-    // MySQL asigna de izquierda a derecha: el motivo va antes de cambiar el dictamen.
+    // Clandestino = no aparece en Aguas: el viejo dictamen "probable" pasa a clandestino.
+    // Solo "probable": "sin determinar" con clave es un dictamen vigente (posible
+    // desmembración, el propietario ya tiene cuenta en Aguas). Antes esta migración
+    // también lo tomaba y, en cada arranque, lo devolvía a clandestino.
     await admin.query(
       `UPDATE banco_clandestinos SET
-         motivo_dictamen = IF(dictamen = 'probable', CONCAT('No aparece en Aguas; el lote sí (', aguas_clave, ')'), 'No aparece en Aguas ni en Alcaldía'),
+         motivo_dictamen = CONCAT('No aparece en Aguas; el lote sí (', aguas_clave, ')'),
          dictamen = 'clandestino'
-       WHERE dictamen = 'probable' OR (dictamen = 'sin_determinar' AND clave_catastral <> '')`
+       WHERE dictamen = 'probable'`
     );
     await ensureIndex(admin, {
       tableName: "auth_sessions",

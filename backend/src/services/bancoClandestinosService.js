@@ -172,9 +172,13 @@ export const parseCsv = (text = "") => {
   return body.map((values) => Object.fromEntries(keys.map((key, position) => [key, values[position] ?? ""])));
 };
 
+// En QField a veces la clave se escribe en el campo del abonado ("89-13-13" o
+// "14-08-04-05 según Alcaldía..."). Solo cuenta si va con guiones: "6518" es un abonado.
+const claveEnTexto = (value = "") => normalizarClaveBanco(clean(value).match(/\b\d{1,3}-\d{1,3}-\d{1,3}(?:-\d{1,3})?\b/)?.[0]);
+
 export const candidatoDesdeFila = (row) => ({
   origen_ref: clean(row.origen_ref || row.fid || row.fid_qfield),
-  clave_catastral: normalizarClaveBanco(row.clave_catastral || row.clave || row.clave_usada),
+  clave_catastral: normalizarClaveBanco(row.clave_catastral || row.clave || row.clave_usada) || claveEnTexto(row.abonado_campo || row.abonado),
   clave_origen: clean(row.clave_origen || row.origen_clave).slice(0, 20),
   comentario_campo: clean(row.comentario_campo || row.comentario),
   abonado_campo: clean(row.abonado_campo || row.abonado).slice(0, 80),
@@ -531,16 +535,20 @@ export const importBancoClandestinos = async ({ csv = "", origen = "qfield", lot
 // Por clave, uno queda como principal y las demás copias pendientes pasan a descartadas
 // con duplicado_de = principal: no se reparten ni cuentan en el avance, su comentario
 // de campo viaja a la ficha del principal y se pueden devolver si no eran duplicados.
+// Una clave descartada a mano también cuenta: si la misma clave vuelve a llegar (otro
+// punto de QField, otro técnico), la copia nueva queda descartada junto a ella en vez
+// de volver a "Por revisar". Las copias ya agrupadas (duplicado_de) no son principales.
 const pesoPrincipal = (item) =>
-  (item.estado === "enviado" ? 8 : 0) + (item.asignado_a != null ? 4 : 0) + (item.latitude != null ? 2 : 0) + (clean(item.comentario_campo) ? 1 : 0);
+  (item.estado === "enviado" ? 16 : 0) + (item.estado === "descartado" ? 8 : 0) + (item.asignado_a != null ? 4 : 0) + (item.latitude != null ? 2 : 0) + (clean(item.comentario_campo) ? 1 : 0);
+const descarteManual = (row) => row.estado === "descartado" && row.duplicado_de == null;
 
-// rows: candidatos pendientes o enviados con clave. Devuelve [{ id, principal, clave }]
-// con las copias pendientes que hay que agrupar.
+// rows: candidatos con clave (pendientes, enviados o descartados a mano). Devuelve
+// [{ id, principal, principal_estado, clave }] con las copias pendientes que hay que agrupar.
 export const planDuplicados = (rows = []) => {
   const porClave = new Map();
   for (const row of rows) {
     const clave = clean(row.clave_catastral);
-    if (!clave || Number(row.no_duplicado) || !["pendiente", "enviado"].includes(row.estado)) continue;
+    if (!clave || Number(row.no_duplicado) || !(["pendiente", "enviado"].includes(row.estado) || descarteManual(row))) continue;
     porClave.set(clave, [...(porClave.get(clave) || []), row]);
   }
   const plan = [];
@@ -549,29 +557,31 @@ export const planDuplicados = (rows = []) => {
     const principal = [...grupo].sort((a, b) => pesoPrincipal(b) - pesoPrincipal(a) || Number(a.id) - Number(b.id))[0];
     grupo
       .filter((item) => item !== principal && item.estado === "pendiente")
-      .forEach((item) => plan.push({ id: Number(item.id), principal: Number(principal.id), clave }));
+      .forEach((item) => plan.push({ id: Number(item.id), principal: Number(principal.id), principal_estado: principal.estado, clave }));
   }
   return plan;
 };
 
 export const agruparDuplicadosBanco = async () => {
   const rows = env.useMemoryDb
-    ? memoryBanco.filter((item) => ["pendiente", "enviado"].includes(item.estado) && item.clave_catastral)
+    ? memoryBanco.filter((item) => (["pendiente", "enviado"].includes(item.estado) || descarteManual(item)) && item.clave_catastral)
     : (await getPool().query(
-      `SELECT id, clave_catastral, estado, asignado_a, latitude, comentario_campo, no_duplicado
+      `SELECT id, clave_catastral, estado, asignado_a, latitude, comentario_campo, no_duplicado, duplicado_de
          FROM banco_clandestinos
-        WHERE estado IN ('pendiente', 'enviado') AND clave_catastral <> '' AND no_duplicado = 0
+        WHERE (estado IN ('pendiente', 'enviado') OR (estado = 'descartado' AND duplicado_de IS NULL))
+          AND clave_catastral <> '' AND no_duplicado = 0
           AND clave_catastral IN (
             SELECT clave_catastral FROM (
               SELECT clave_catastral FROM banco_clandestinos
-               WHERE estado IN ('pendiente', 'enviado') AND clave_catastral <> '' AND no_duplicado = 0
-               GROUP BY clave_catastral HAVING COUNT(*) > 1
-            ) AS repetidas
+               WHERE estado = 'pendiente' AND clave_catastral <> '' AND no_duplicado = 0
+            ) AS pendientes
           )`
     ))[0];
   const plan = planDuplicados(rows);
-  for (const { id, principal } of plan) {
-    const motivo = `Duplicado: misma clave que el candidato #${principal}`;
+  for (const { id, principal, principal_estado } of plan) {
+    const motivo = principal_estado === "descartado"
+      ? `Duplicado: la clave ya se había descartado (candidato #${principal})`
+      : `Duplicado: misma clave que el candidato #${principal}`;
     if (env.useMemoryDb) {
       const item = memoryBanco.find((candidate) => candidate.id === id);
       Object.assign(item, { estado: "descartado", duplicado_de: principal, motivo_descarte: motivo, asignado_a: null, asignado_por: null, asignado_at: null, procesado_at: new Date().toISOString() });
