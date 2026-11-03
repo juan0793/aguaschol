@@ -1,0 +1,64 @@
+.app-gps-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 30px;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(22, 116, 95, 0.14);
+  background: #eef7f2;
+  color: #16745f;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.app-gps-chip i {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.app-gps-chip.is-activo i::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: app-gps-pulso 2.4s ease-out infinite;
+}
+
+.app-gps-chip.is-buscando {
+  background: #f4f6f9;
+  color: #5b6b7d;
+  border-color: rgba(91, 107, 125, 0.16);
+}
+
+.app-gps-chip.is-sin-permiso {
+  background: #fff6e8;
+  color: #8a5a00;
+  border-color: rgba(138, 90, 0, 0.18);
+}
+
+@keyframes app-gps-pulso {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-gps-chip.is-activo i::after { animation: none; }
+}
+
+/* En el teléfono solo el punto: el texto va en el nombre accesible y el título. */
+@media (max-width: 560px) {
+  .app-gps-chip {
+    width: 30px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+    gap: 0;
+  }
+}

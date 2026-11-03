@@ -46,10 +46,27 @@ if (!params.has('empty')) {
     }
   }
 }
+// Mapa del equipo: técnicos con recorrido alrededor de Choluteca y candidatos asignados.
+const ruido = (n) => { const x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); };
+const MAPA_TECNICOS = [[9, 'diego', 13.3065, -87.1985, 1], [5, 'Sindy Sauceda', 13.2955, -87.1855, 2], [7, 'Melisa maradiaga', 13.3125, -87.1795, 9], [12, 'Elmer Gomez', 13.2905, -87.2035, 45], [11, 'oscar ivan alvarez', null, null, null]];
+const mapaDatos = () => ({
+  fecha: isoLocal(new Date()), hoy: true, limite: 4000,
+  tecnicos: MAPA_TECNICOS.map(([id, nombre, lat, lng, min]) => {
+    const rastro = lat == null ? [] : Array.from({ length: 40 }, (_, i) => ({ latitude: lat - 0.006 + i * 0.00015 + (ruido(id * 100 + i) - 0.5) * 0.0006, longitude: lng - 0.004 + i * 0.0001 + (ruido(id * 300 + i) - 0.5) * 0.0006, accuracy: 6, at: hace(min + (40 - i) * 4) }));
+    return { id, nombre, role: 'validadora_campo', ubicacion: rastro.at(-1) ? { ...rastro.at(-1), at: hace(min), accuracy: 4 + (id % 9) } : null, rastro };
+  }),
+  candidatos: MAPA_TECNICOS.flatMap(([id, , lat, lng], t) => Array.from({ length: 26 }, (_, n) => ({
+    id: 9000 + t * 100 + n, tecnico_id: id, clave: `${30 + t}-${String(n % 40).padStart(2, '0')}-${String(10 + n).padStart(2, '0')}`, barrio: ['Barrio El Centro', 'Col. Las Colinas', 'Barrio Cabañas'][n % 3],
+    dictamen: n % 4 ? 'clandestino' : 'sin_determinar', estado: n % 5 === 0 ? 'enviado' : n % 7 === 0 ? 'descartado' : 'pendiente',
+    latitude: (lat ?? 13.3) + (ruido(id * 7 + n) - 0.5) * 0.014, longitude: (lng ?? -87.19) + (ruido(id * 11 + n) - 0.5) * 0.014
+  })))
+});
 const isoLocal = (value) => { const d = new Date(value); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 const apiFetch = async (path) => {
   const url = new URL(path, location.origin);
   if (url.pathname.endsWith('/seen')) return new Response('{}', {status: 200});
+  if (url.pathname.endsWith('/mapa')) return new Response(JSON.stringify(mapaDatos()), {status: 200, headers: {'Content-Type': 'application/json'}});
+  if (url.pathname.endsWith('barrios.geojson')) return new Response('{}', {status: 404});
   const actor = url.searchParams.get('actor'), categoria = url.searchParams.get('categoria');
   const limit = Number(url.searchParams.get('limit')) || 50, pagina = Number(url.searchParams.get('pagina')) || 1;
   const todos = ITEMS.filter((i) => (!actor || String(i.actor_id) === actor) && (!categoria || i.categoria === categoria));

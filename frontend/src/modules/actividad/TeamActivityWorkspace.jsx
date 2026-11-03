@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../../utils/profileWebSocket.js";
 import { agruparActividad, resumenTrabajo } from "./agruparActividad";
+import { lazyWithRetry } from "../../app/lazyModules";
 import "./actividad.css";
 
 // Actividad del equipo: lo que hicieron en el sistema los técnicos y operadores
@@ -10,6 +11,10 @@ import "./actividad.css";
 const PERIODOS = [["hoy", "Hoy", 0], ["7d", "7 días", 6], ["30d", "30 días", 29]];
 const AREAS_POR_DEFECTO = { fichas: "Fichas y banco", inspecciones: "Inspecciones", entregas: "Entregas", campo: "GPS y planos", padron: "Padrón y barrios" };
 const PAGINA = 50;
+const EquipoMapa = lazyWithRetry(() => import("./EquipoMapa"));
+// Registro o mapa: se recuerda por navegador (solo una comodidad).
+const VISTA_KEY = "controlaguas.actividad.vista";
+const leerVista = () => { try { return localStorage.getItem(VISTA_KEY) === "mapa" ? "mapa" : "registro"; } catch { return "registro"; } };
 const TZ = new Date().getTimezoneOffset();
 
 const isoDia = (date) => {
@@ -56,6 +61,8 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [recientes, setRecientes] = useState(() => new Set());
+  const [vista, setVistaState] = useState(leerVista);
+  const setVista = (valor) => { setVistaState(valor); try { localStorage.setItem(VISTA_KEY, valor); } catch { /* sin almacenamiento */ } };
 
   const filtros = useMemo(() => {
     const def = PERIODOS.find(([key]) => key === periodo);
@@ -202,10 +209,17 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
     <header className="ta-head">
       <div>
         <h1>Actividad del equipo</h1>
-        <p>Lo que hacen en el sistema técnicos y operadores, al momento. <span className="ta-live"><i aria-hidden="true" />En vivo</span></p>
+        <p>{vista === "mapa" ? "Dónde andan los técnicos y los candidatos del banco que tienen asignados." : "Lo que hacen en el sistema técnicos y operadores, al momento."} <span className="ta-live"><i aria-hidden="true" />En vivo</span></p>
       </div>
-      <button type="button" className="ta-quiet" disabled={loading} onClick={cargar}><Icon name="refresh" />{loading ? "Actualizando…" : "Actualizar"}</button>
+      <div className="ta-head-actions">
+        <div className="ta-segmented ta-vista" role="group" aria-label="Vista">
+          {[["registro", "Registro"], ["mapa", "Mapa"]].map(([key, label]) => <button type="button" key={key} aria-pressed={vista === key} className={vista === key ? "is-active" : ""} onClick={() => setVista(key)}>{label}</button>)}
+        </div>
+        {vista === "registro" ? <button type="button" className="ta-quiet" disabled={loading} onClick={cargar}><Icon name="refresh" />{loading ? "Actualizando…" : "Actualizar"}</button> : null}
+      </div>
     </header>
+
+    {vista === "mapa" ? <div className="ta-mapa"><Suspense fallback={<p className="ta-empty">Abriendo el mapa…</p>}><EquipoMapa apiFetch={apiFetch} session={session} /></Suspense></div> : <>
 
     <div className="ta-filters">
       <div className="ta-field"><span id="ta-periodo">Periodo</span><div className="ta-segmented" role="group" aria-labelledby="ta-periodo">
@@ -295,5 +309,6 @@ export default function TeamActivityWorkspace({ apiFetch, session, onOpen }) {
         {paginador(true)}
       </section>
     </div>
+    </>}
   </section>;
 }

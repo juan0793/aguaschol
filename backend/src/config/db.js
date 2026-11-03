@@ -484,6 +484,23 @@ const ensureSchema = async () => {
         )
       `
     );
+    // GPS del teléfono de los técnicos (mapa del equipo); se purga a los 30 días.
+    await admin.query(
+      `
+        CREATE TABLE IF NOT EXISTS tecnico_ubicaciones (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          user_id INT UNSIGNED NOT NULL,
+          latitude DECIMAL(10,7) NOT NULL,
+          longitude DECIMAL(10,7) NOT NULL,
+          accuracy_m INT UNSIGNED NULL,
+          heading SMALLINT UNSIGNED NULL,
+          speed DECIMAL(6,1) NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          KEY idx_tecnico_ubicaciones_usuario (user_id, created_at),
+          KEY idx_tecnico_ubicaciones_fecha (created_at)
+        )
+      `
+    );
     // Barrio y referencia de Nominatim por celda de ~11 m: se consulta una sola vez.
     await admin.query(
       `

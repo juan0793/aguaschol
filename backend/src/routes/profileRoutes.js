@@ -10,6 +10,7 @@ import {
   updateGeneralProfileMessagePinHandler
 } from "../controllers/profileController.js";
 import { imageUpload } from "../middleware/upload.js";
+import { registrarUbicacion } from "../services/teamLocationService.js";
 
 const router = Router();
 
@@ -21,5 +22,9 @@ router.delete("/messages/general/:id", deleteGeneralProfileMessageHandler);
 router.patch("/messages/general/read", markGeneralProfileMessagesReadHandler);
 router.patch("/messages/:id/read", markProfileMessageReadHandler);
 router.post("/achievements", awardProfileAchievementHandler);
+// GPS del teléfono del técnico para el mapa del equipo (el servicio valida el rol).
+router.post("/ubicacion", async (req, res, next) => {
+  try { res.json(await registrarUbicacion(req.body, req.authUser)); } catch (error) { next(error); }
+});
 
 export default router;

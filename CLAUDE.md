@@ -218,3 +218,28 @@ Rules:
 - Decisión del usuario: el operador también confirma el hallazgo. Regularizar, cerrar, descartar y devolver una regularización a Confirmada siguen siendo de administración (`changeFichaState` en `clandestinosService.js`).
 - `FichaDrawer.jsx`: el botón solo se apaga para regularizar o cerrar sin permiso, y entonces dice "Solo administración puede avanzar esta etapa."
 - Verificado: `npm test` del backend (325, con una prueba nueva del flujo) y `npm run build`. No se probó con sesión iniciada.
+
+## Nota para Claude: mapa del equipo con GPS en vivo (2026-11-03)
+
+- Pedido del usuario: en Actividad del equipo, un mapa "más renderizado" (no el de levantamiento) con los clandestinos asignados a cada técnico como puntos iluminados y el GPS del teléfono de cada uno.
+- Actividad del equipo tiene "Registro / Mapa" en el encabezado (se recuerda en `localStorage` como `controlaguas.actividad.vista`). El mapa es `modules/actividad/EquipoMapa.jsx` (MapLibre, cargado solo al abrir la vista) y sus reglas puras están en `equipoMapaDatos.js` (4 pruebas).
+  - Fondo "Nocturno": las calles de OpenStreetMap del proxy `/api/map-tiles`, invertidas con `raster-brightness-min` > `raster-brightness-max`. CARTO `dark_all` ya pide clave y devuelve "API KEY REQUIRED". "Satélite" usa Esri, oscurecido.
+  - Puntos: un pendiente asignado brilla con el color de su técnico y late. Un candidato revisado ese día es un anillo de color si pasó a ficha y gris si se descartó.
+  - Técnico: marca con iniciales, onda, rótulo "hace N min · ±m", círculo de precisión y el recorrido del día.
+  - Columna con los técnicos: tocar uno lo filtra y encuadra el mapa en él. La lista muestra cifras y un selector de día.
+- GPS: `app/UbicacionCompartida.jsx`, en el encabezado, para `operator` y `validadora_campo` sin vista previa de rol. Solo funciona en teléfonos y tabletas (`pointer: coarse`), con la app abierta y visible.
+  - Envía `POST /api/profile/ubicacion` cada 2 min si el técnico está quieto, o cada 30 s como máximo si avanzó 25 m. No manda lecturas con más de 200 m de error.
+  - Muestra "Ubicación compartida" (en el teléfono, solo el punto) o "Ubicación sin permiso".
+- Backend: `services/teamLocationService.js` (4 pruebas) y la tabla `tecnico_ubicaciones` (`schema.sql` y arranque de `db.js`).
+  - Guarda una lectura cada 2 min o cada 15 m y purga lo que tenga más de 30 días.
+  - Emite `team.location` a los administradores por el WebSocket de perfil (`team_location` en `profileWebSocket.js`).
+  - `GET /api/admin/team-activity/mapa?fecha=&tz=` devuelve los técnicos con su última ubicación y el recorrido del día (400 puntos como máximo), junto con los candidatos con coordenadas pendientes asignados o revisados ese día. Gerencia lo puede leer (`managerAccess.js`).
+- En vivo: la administración ve las lecturas al instante y recarga los candidatos 2 s después de una acción del banco. Como respaldo, la pantalla se refresca cada 5 min (Gerencia, que no tiene WebSocket, cada 2 min) y solo con la pestaña visible. "En línea" significa una señal en los últimos 4 min.
+- Costo (pedido del usuario: que no suba la factura de Railway): son unos 30 envíos por hora por técnico quieto y 120 por hora caminando. Cada envío es una consulta de sesión y un INSERT de unos 300 bytes. El costo de CPU y de salida es despreciable. Lo más pesado es abrir el mapa: los mosaicos pasan por el proxy, pero el navegador los guarda un día.
+- Verificado:
+  - `npm test` del backend (329) y pruebas de `modules/actividad` (7).
+  - `npm run build`.
+  - Consultas contra MySQL local: 11 ms. La base local no tiene asignaciones, así que el mapa salió sin candidatos.
+  - `frontend/tests/actividad-equipo.html` (datos ficticios del mapa) a 1440 px y 375 px.
+- No se probó el GPS real en un teléfono ni con sesión iniciada.
+- MapLibre fija `.maplibregl-map { position: relative }`. Por eso el contenedor usa `.em-lienzo > .em-mapa` para quedar absoluto; si no, el mapa queda con alto cero.

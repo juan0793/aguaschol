@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon";
 import { greetingFor, isWelcomeVisit } from "../utils/greeting";
 import ManagerNotifications from "./ManagerNotifications";
 import FallasIndicator from "./FallasIndicator";
+import UbicacionCompartida from "./UbicacionCompartida";
 import { NotificationCenter } from "../components/NotificationCenter.jsx";
 import { abrirMisAsignaciones } from "../modules/clandestinos/hooks/useBanco";
 import { formatMapDiaryLabel } from "../utils/datesAndBusiness";
@@ -156,6 +157,7 @@ export default function AppHeader({ model }) {
                 ? "Cambios sin guardar"
                 : "Todo guardado"}
           </span> : null}
+          {["operator", "validadora_campo"].includes(session?.user?.role) && !session?.user?.preview ? <UbicacionCompartida apiFetch={apiFetch} /> : null}
           {(isAdmin || isManager) && !session?.user?.preview ? <FallasIndicator apiFetch={apiFetch} onOpenView={setWorkspaceView} /> : null}
           {!isManager ? <NotificationCenter
             apiFetch={apiFetch}

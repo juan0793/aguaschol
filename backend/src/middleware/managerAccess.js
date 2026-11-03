@@ -11,7 +11,7 @@ export const READ_ROUTES = {
   "/api/map-points": /^\/(?:diary-groups)?\/?$/,
   "/api/barrios": /^\/(?:lookup(?:\/[^/]+)?)?\/?$/,
   "/api/transport": /^\/?$/,
-  "/api/admin/team-activity": /^\/?$/,
+  "/api/admin/team-activity": /^\/(?:mapa)?\/?$/,
   "/api/railway": /^\/summary\/?$/,
   "/api/fallas": /^\/?$/,
   "/api/planos": /^\/(?:barrios|versiones|\d+\/elementos)\/?$/,

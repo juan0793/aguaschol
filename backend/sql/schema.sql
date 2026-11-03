@@ -666,6 +666,20 @@ CREATE TABLE IF NOT EXISTS map_point_contexts (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- GPS del teléfono de los técnicos mientras tienen la app abierta (mapa del equipo; 30 días).
+CREATE TABLE IF NOT EXISTS tecnico_ubicaciones (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  accuracy_m INT UNSIGNED NULL,
+  heading SMALLINT UNSIGNED NULL,
+  speed DECIMAL(6,1) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_tecnico_ubicaciones_usuario (user_id, created_at),
+  KEY idx_tecnico_ubicaciones_fecha (created_at)
+);
+
 CREATE TABLE IF NOT EXISTS transport_routes (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(180) NOT NULL,
