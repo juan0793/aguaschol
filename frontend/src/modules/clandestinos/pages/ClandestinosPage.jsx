@@ -28,8 +28,9 @@ export default function ClandestinosPage({ apiFetch, session, showAlert, navigat
   const readOnly = session?.user?.role === "gerente" || Boolean(session?.user?.preview);
   const api = useMemo(() => createClandestinosApi(apiFetch), [apiFetch]); const [tab, setTab] = useState(() => readOnly ? "fichas" : tabFromHash()); const [config, setConfig] = useState(null); const [drawer, setDrawer] = useState(undefined); const [selected, setSelected] = useState(new Map()); const [loteOpen, setLoteOpen] = useState(false); const [comparison, setComparison] = useState(null); const [bulkLoading, setBulkLoading] = useState(false);
   const fichas = useFichas(api, true);
-  // La validadora de campo entra directo a lo que le asignaron.
-  const banco = useBanco(api, tab === "banco", { defaultAsignado: session?.user?.role === "validadora_campo" ? "mine" : "" });
+  // Cada técnico (operador o validadora) solo ve lo que le asignaron; el servidor también lo exige.
+  const soloLoMio = ["operator", "validadora_campo"].includes(session?.user?.role);
+  const banco = useBanco(api, tab === "banco", { defaultAsignado: soloLoMio ? "mine" : "", fijo: soloLoMio });
   const reportes = useReportes(api, tab === "reportes");
   useEffect(() => { api.config().then(setConfig).catch((error) => showAlert(error.message)); }, [api]);
   useEffect(() => { const change = () => setTab(readOnly && ["impresiones", "configuracion"].includes(tabFromHash()) ? "fichas" : tabFromHash()); addEventListener("hashchange", change); return () => removeEventListener("hashchange", change); }, []);

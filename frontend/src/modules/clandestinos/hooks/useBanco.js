@@ -10,9 +10,12 @@ export const abrirMisAsignaciones = () => {
   dispatchEvent(new CustomEvent(BANCO_MIS_ASIGNACIONES));
 };
 
-export const useBanco = (api, active = true, { defaultAsignado = "" } = {}) => {
+// fijo: el técnico siempre ve "mine"; un filtro guardado de antes no lo cambia.
+export const useBanco = (api, active = true, { defaultAsignado = "", fijo = false } = {}) => {
   const saved = useMemo(restore, []);
-  const [asignado, setAsignado] = useState(saved.asignado ?? defaultAsignado);
+  const [asignadoElegido, setAsignadoElegido] = useState(saved.asignado ?? defaultAsignado);
+  const asignado = fijo ? "mine" : asignadoElegido;
+  const setAsignado = useCallback((value) => { if (!fijo) setAsignadoElegido(value); }, [fijo]);
   const [query, setQuery] = useState(saved.query || "");
   const [dictamen, setDictamen] = useState(saved.dictamen || "");
   const [estado, setEstado] = useState(saved.estado ?? "pendiente");

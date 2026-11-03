@@ -37,9 +37,11 @@ export const getClandestinosConfig = (user) => ({
     can_confirm_or_regularize: user?.role === "admin",
     can_discard: user?.role === "admin",
     can_manage_configuration: user?.role === "admin",
-    can_process_banco: canReview(user),
+    // Solo administración ve todo el banco, lo verifica y lo reparte; cada técnico
+    // (operador o validadora) solo ve y trabaja lo que le asignaron.
+    can_process_banco: user?.role === "admin",
     can_import_banco: user?.role === "admin",
-    can_assign_banco: canReview(user),
+    can_assign_banco: user?.role === "admin",
     // La validadora de campo solo trabaja lo que le asignaron.
     can_work_assigned_banco: ["admin", "operator", "validadora_campo"].includes(user?.role)
   }

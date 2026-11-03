@@ -20,8 +20,8 @@ export const linkReport = async (req, res, next) => { try { res.json(await linkT
 export const evidence = async (req, res, next) => { try { res.status(201).json(await attachReportEvidence(req.params.id, req.file, req.body?.description, req.authUser)); } catch (error) { next(error); } };
 // "mine" en el filtro de asignación se resuelve con la sesión, nunca con un id del cliente.
 const bancoFiltros = (req) => ({ query: req.query.q, dictamen: req.query.dictamen, estado: req.query.estado ?? "pendiente", barrio: req.query.barrio, asignado: req.query.asignado === "mine" ? String(req.authUser?.id || -1) : req.query.asignado, page: req.query.page, limit: req.query.limit });
-export const banco = async (req, res, next) => { try { res.json(await listBancoClandestinos(bancoFiltros(req))); } catch (error) { next(error); } };
-export const bancoListado = async (req, res, next) => { try { res.json(await listadoBancoClandestinos(bancoFiltros(req))); } catch (error) { next(error); } };
+export const banco = async (req, res, next) => { try { res.json(await listBancoClandestinos(bancoFiltros(req), req.authUser)); } catch (error) { next(error); } };
+export const bancoListado = async (req, res, next) => { try { res.json(await listadoBancoClandestinos(bancoFiltros(req), req.authUser)); } catch (error) { next(error); } };
 export const bancoTecnicos = async (req, res, next) => { try { res.json(await listTecnicosBanco(req.authUser)); } catch (error) { next(error); } };
 export const bancoAssign = async (req, res, next) => { try { res.json(await asignarCandidatos(req.body || {}, req.authUser)); } catch (error) { next(error); } };
 export const bancoUnassign = async (req, res, next) => { try { res.json(await quitarAsignacion(req.body || {}, req.authUser)); } catch (error) { next(error); } };

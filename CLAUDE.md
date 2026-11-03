@@ -243,3 +243,20 @@ Rules:
   - `frontend/tests/actividad-equipo.html` (datos ficticios del mapa) a 1440 px y 375 px.
 - No se probó el GPS real en un teléfono ni con sesión iniciada.
 - MapLibre fija `.maplibregl-map { position: relative }`. Por eso el contenedor usa `.em-lienzo > .em-mapa` para quedar absoluto; si no, el mapa queda con alto cero.
+
+## Nota para Claude: el banco del técnico, solo lo suyo y en orden de recorrido (2026-11-03)
+
+- Síntoma: un técnico dijo que su flujo cambió. Los operadores veían los candidatos de todo el equipo, y la lista salía ordenada por técnico y dictamen, así que un barrio quedaba partido.
+- Decisión del usuario: solo administración ve todo el banco, lo verifica y lo reparte. Operadores y validadoras ven y trabajan solo lo que tienen asignado.
+  - `bancoClandestinosService.js`: `canProcess` y `canAssign` quedan solo para admin. `canWork` acepta a cualquier técnico (`TECNICO_ROLES`) sobre lo suyo. `canFeed` (admin y operador) sigue permitiendo enviar claves desde el cruce con Alcaldía y consultar refs.
+  - `soloLoSuyo(user)` aplica a todo rol que no sea admin ni gerente. `listBancoClandestinos(filters, user)` y `listadoBancoClandestinos` fuerzan `asignado = user.id` sin importar el filtro que llegue. También quedan dentro de lo suyo las cifras de estados, barrios y carga, y `sin_asignar` vale 0.
+  - Gerencia sigue viendo todo. Las llamadas internas sin usuario (por ejemplo `managerReportService`) también.
+  - En `/clandestinos/config`, `can_process_banco` y `can_assign_banco` quedan solo para admin.
+- Orden: lo de un solo técnico (`asignado` = un id o "mine") sale con `ORDEN_TECNICO`: primero lo pendiente, luego por barrio y después por clave. Para la base en memoria se usa `ordenTecnico`.
+- `BancoClandestinos.jsx`: el técnico ve su lista agrupada por barrio, con encabezados de barrio y número de candidatos. No ve "Carga del equipo", "Ver todos" ni el aviso "Ver mis asignaciones".
+- `useBanco` lleva `fijo`: para operadores y validadoras el filtro siempre es "mine", aunque haya otro guardado en `sessionStorage`.
+- Verificado:
+  - `npm test` del backend (330), con dos pruebas nuevas: que cada técnico vea solo lo suyo y el orden de recorrido.
+  - `npm run build`.
+  - `frontend/tests/banco-tecnico.html` (vista del técnico con datos ficticios).
+- No se probó con sesión iniciada.
