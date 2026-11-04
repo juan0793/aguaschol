@@ -15,6 +15,8 @@ import {
   uploadClavePadron,
   verifyClavePadronIntegrity
 } from "../services/claveLookupService.js";
+import { getBarriosSinAguas, getClavesDeBarrioAlcaldia } from "../services/barriosSinAguasService.js";
+import { compararLotesPadron } from "../services/padronLotesService.js";
 
 const noStore = (res) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -219,5 +221,32 @@ export const downloadPadron = async (_req, res, next) => {
     return res.send(exportResult.buffer);
   } catch (error) {
     return next(error);
+  }
+};
+
+export const getBarriosSinAguasHandler = async (_req, res, next) => {
+  try {
+    noStore(res);
+    res.json(await getBarriosSinAguas());
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getClavesBarrioAlcaldiaHandler = async (req, res, next) => {
+  try {
+    noStore(res);
+    res.json(await getClavesDeBarrioAlcaldia(req.query.barrio));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getComparacionLotesHandler = async (req, res, next) => {
+  try {
+    noStore(res);
+    res.json(await compararLotesPadron({ anterior: String(req.query.anterior || "").trim() }));
+  } catch (error) {
+    next(error);
   }
 };

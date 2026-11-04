@@ -1,6 +1,9 @@
 import { Router } from "express";
 import {
   compareAlcaldia,
+  getBarriosSinAguasHandler,
+  getClavesBarrioAlcaldiaHandler,
+  getComparacionLotesHandler,
   downloadPadron,
   getAlcaldiaMeta,
   getPadronBarrioAccounts,
@@ -24,6 +27,9 @@ const router = Router();
 router.get("/meta", requireRoles("admin", "gerente"), getPadronMeta);
 router.get("/alcaldia/meta", requireRoles("admin", "gerente"), getAlcaldiaMeta);
 router.get("/alcaldia/compare", requireRoles("admin", "gerente"), compareAlcaldia);
+router.get("/alcaldia/barrios-sin-aguas", requireRoles("admin", "gerente"), getBarriosSinAguasHandler);
+router.get("/alcaldia/barrios-sin-aguas/claves", requireRoles("admin", "gerente"), getClavesBarrioAlcaldiaHandler);
+router.get("/padron/lotes/comparacion", requireRoles("admin", "gerente"), getComparacionLotesHandler);
 router.get("/alcaldia/search", searchAlcaldia);
 router.get("/alcaldia/search/:clave", searchAlcaldia);
 router.post("/alcaldia/upload", requireAdmin, padronUpload.single("padron"), uploadAlcaldia);

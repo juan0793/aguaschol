@@ -21,7 +21,9 @@ const FUERA_FONDO = [253, 236, 238];
 const OCRE_FONDO = [255, 247, 232];
 const OCRE = [154, 90, 6];
 const MARGEN = 14;
-const ALTO_CAJETIN = 13;
+const ALTO_CAJETIN = 17;
+// Quien elabora los informes de pozos: va en el cajetín de cada hoja.
+export const ELABORADO_POR = "Ing. Juan Ordoñez Bonilla · Catastro";
 
 export const TIPOS_INFORME = {
   inventario: { titulo: "Inventario de pozos", codigo: "POZ-INV", orientacion: "landscape", archivo: "inventario-pozos" },
@@ -33,7 +35,6 @@ export const TIPOS_INFORME = {
 
 const NORMA = "Valores guía: pH de 6.5 a 8.5 y sólidos totales disueltos (TDS) hasta 1 g/L (1000 mg/L), Norma Técnica Nacional para la Calidad del Agua Potable de Honduras.";
 const REGLAMENTO = "Reglamento de la Ley General de Aguas: arts. 57, 135, 136, 140, 155, 157, 220 y 222 b. Verificar con el área legal.";
-export const ELABORADO_POR = "Ing. Juan Ordoñez Bonilla · Catastro";
 const ETIQUETA_CALIDAD = { dentro: "Dentro del valor guía", fuera: "Fuera del valor guía", sin: "Sin medición" };
 const ESTADO_LEGAL = { al_dia: "Al día", por_vencer: "Por vencer", vencido: "Vencido", sin_permiso: "Sin permiso", no_requiere: "No requiere", por_definir: "Por definir" };
 const USO_LEGAL = { domiciliario: "Domiciliario", comunitario: "Comunitario", industrial_comercial: "Industrial/comercial", purificadora: "Purificadora", agroforestal: "Agroforestal", sanitario: "Sanitario", turistico: "Turístico", otro: "Otro", sin_dato: "Sin dato" };
@@ -154,12 +155,18 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
       const celdas = [["Documento", info.codigo, 26], ["Generado", generadoEn || "--", 44], ["Hoja", `${hoja} de ${total}`, 20]];
       let cx = ancho - MARGEN - celdas.reduce((suma, celda) => suma + celda[2], 0);
       doc.line(cx, y, cx, y + ALTO_CAJETIN);
-      texto(`Fuente: ${fuente || "encuesta de pozos de Choluteca"} · ${ELABORADO_POR}.`, MARGEN + 2.5, y + 4.4, { tam: 6.1, color: TENUE, max: cx - MARGEN - 5 });
-      texto(tipo === "legal" ? REGLAMENTO : NORMA, MARGEN + 2.5, y + 8.2, { tam: 5.8, color: TENUE, max: cx - MARGEN - 5 });
+      const anchoTexto = cx - MARGEN - 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      const etiquetaElaborado = "Elaborado por: ";
+      texto(etiquetaElaborado, MARGEN + 2.5, y + 4.6, { tam: 6.8, color: TENUE });
+      texto(ELABORADO_POR, MARGEN + 2.5 + doc.getTextWidth(etiquetaElaborado), y + 4.6, { tam: 6.8, negrita: true });
+      texto(`Fuente: ${fuente || "encuesta de pozos de Choluteca"}.`, MARGEN + 2.5, y + 8.6, { tam: 6.4, color: TENUE, max: anchoTexto });
+      texto(tipo === "legal" ? REGLAMENTO : NORMA, MARGEN + 2.5, y + 12.2, { tam: 5.8, color: TENUE, max: anchoTexto });
       celdas.forEach(([etiqueta, valor, anchoCelda], indice) => {
         if (indice) doc.line(cx, y, cx, y + ALTO_CAJETIN);
-        texto(etiqueta.toUpperCase(), cx + 2, y + 4, { tam: 5.4, negrita: true, color: TENUE });
-        texto(valor, cx + 2, y + 9.2, { tam: 7.6, negrita: true, color: indice === 0 ? AGUA : TINTA, max: anchoCelda - 3 });
+        texto(etiqueta.toUpperCase(), cx + 2, y + 5.2, { tam: 5.4, negrita: true, color: TENUE });
+        texto(valor, cx + 2, y + 11, { tam: 7.6, negrita: true, color: indice === 0 ? AGUA : TINTA, max: anchoCelda - 3 });
         cx += anchoCelda;
       });
     }

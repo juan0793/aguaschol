@@ -243,3 +243,40 @@ Rules:
   - `frontend/tests/actividad-equipo.html` (datos ficticios del mapa) a 1440 px y 375 px.
 - No se probó el GPS real en un teléfono ni con sesión iniciada.
 - MapLibre fija `.maplibregl-map { position: relative }`. Por eso el contenedor usa `.em-lienzo > .em-mapa` para quedar absoluto; si no, el mapa queda con alto cero.
+
+## Nota para Claude: el banco del técnico, solo lo suyo y en orden de recorrido (2026-11-03)
+
+- Síntoma: un técnico dijo que su flujo cambió. Los operadores veían los candidatos de todo el equipo, y la lista salía ordenada por técnico y dictamen, así que un barrio quedaba partido.
+- Decisión del usuario: solo administración ve todo el banco, lo verifica y lo reparte. Operadores y validadoras ven y trabajan solo lo que tienen asignado.
+  - `bancoClandestinosService.js`: `canProcess` y `canAssign` quedan solo para admin. `canWork` acepta a cualquier técnico (`TECNICO_ROLES`) sobre lo suyo. `canFeed` (admin y operador) sigue permitiendo enviar claves desde el cruce con Alcaldía y consultar refs.
+  - `soloLoSuyo(user)` aplica a todo rol que no sea admin ni gerente. `listBancoClandestinos(filters, user)` y `listadoBancoClandestinos` fuerzan `asignado = user.id` sin importar el filtro que llegue. También quedan dentro de lo suyo las cifras de estados, barrios y carga, y `sin_asignar` vale 0.
+  - Gerencia sigue viendo todo. Las llamadas internas sin usuario (por ejemplo `managerReportService`) también.
+  - En `/clandestinos/config`, `can_process_banco` y `can_assign_banco` quedan solo para admin.
+- Orden: lo de un solo técnico (`asignado` = un id o "mine") sale con `ORDEN_TECNICO`: primero lo pendiente, luego por barrio y después por clave. Para la base en memoria se usa `ordenTecnico`.
+- `BancoClandestinos.jsx`: el técnico ve su lista agrupada por barrio, con encabezados de barrio y número de candidatos. No ve "Carga del equipo", "Ver todos" ni el aviso "Ver mis asignaciones".
+- `useBanco` lleva `fijo`: para operadores y validadoras el filtro siempre es "mine", aunque haya otro guardado en `sessionStorage`.
+- Verificado:
+  - `npm test` del backend (330), con dos pruebas nuevas: que cada técnico vea solo lo suyo y el orden de recorrido.
+  - `npm run build`.
+  - `frontend/tests/banco-tecnico.html` (vista del técnico con datos ficticios).
+- No se probó con sesión iniciada.
+
+## Nota para Claude: abonado anotado en campo y textos largos (2026-11-03)
+
+- Síntoma 1: algunas claves asignadas solo dejaban "Descartar".
+  - Causa: estaban como "registrado" porque el número del campo "abonado" de QField existía en Aguas. Los técnicos anotan ahí la cuenta vecina o la del lote original, por ejemplo "pegado con el código 4314" o "desmembramiento de la 4535". "Registrado" no deja enviar a ficha, y Verificar lo mandaba a descartados.
+  - Ahora `dictaminarCandidato` da "registrado" por abonado solo si la clave de esa cuenta es la misma del punto. Si no, queda "sin_determinar" con el motivo "Cuenta anotada en campo: …" y la cuenta como pista.
+  - En la fila se ve "Anotó abonado N" con el aviso. Antes salía "Lote sí".
+  - Con la base local: 19 pendientes pasan de registrado a sin determinar. Otros 48 siguen registrados porque su clave está en Aguas.
+  - Después de desplegar hay que dar Verificar una vez.
+- Síntoma 2: "no pueden describir bien las viviendas porque les da un error".
+  - Causa: MySQL rechazaba la ficha entera con "Data too long for column …", en inglés, porque "Actividad" era VARCHAR(120) y teléfono, identidad y código sector eran VARCHAR(40).
+  - El arranque de `db.js` agranda esas columnas con `ensureVarcharLength`: actividad 500 y las otras tres 80. También quedó en `schema.sql`.
+  - `FichaSections.jsx`: `LIMITES_FICHA` pone `maxLength` a cada campo. "Actividad / descripción de la vivienda" pasa a ser un área de texto con aviso de caracteres disponibles.
+  - `errorHandler.js` responde `ER_DATA_TOO_LONG` con un 400 que dice en español qué campo acortar.
+  - Importación de QField: un texto de más de 80 caracteres en "abonado" ya no se corta. Pasa entero al comentario de campo ("Anotado en abonado: …") y en abonado queda el número o la clave con que empieza.
+- Verificado:
+  - `npm test` del backend (331).
+  - `npm run build`.
+  - Simulación del dictamen nuevo sobre los pendientes de la base local (solo lectura).
+- No se probó con sesión iniciada ni contra producción.

@@ -65,10 +65,12 @@ function CandidatoFila({ item, permissions, userId, busy, selectable, selected, 
   const needsClave = canSend && !item.clave_catastral;
   // Solo "registrado" está en Aguas; si no, la cuenta guardada es de otra unidad del mismo lote.
   const enAguas = item.dictamen === "registrado" && (item.aguas_clave || item.aguas_abonado);
-  const loteEnAguas = !enAguas && item.aguas_clave;
+  // El técnico anotó una cuenta (vecina o del lote original): es pista, no registro.
+  const cuentaCampo = item.dictamen === "sin_determinar" && /^Cuenta anotada en campo/.test(item.motivo_dictamen || "");
+  const loteEnAguas = !enAguas && !cuentaCampo && item.aguas_clave;
   const mio = item.asignado_a != null && Number(item.asignado_a) === Number(userId);
   const desmembracion = item.dictamen === "sin_determinar" && /^Posible desmembración/.test(item.motivo_dictamen || "");
-  const avisos = [item.nota_revision, desmembracion ? item.motivo_dictamen : ""].filter(Boolean);
+  const avisos = [item.nota_revision, desmembracion || cuentaCampo ? item.motivo_dictamen : ""].filter(Boolean);
   const abierta = abierto || discarding;
   const id = item.clave_catastral || `punto ${item.origen_ref}`;
   const enviar = () => {
@@ -87,8 +89,8 @@ function CandidatoFila({ item, permissions, userId, busy, selectable, selected, 
       <p className={`cl-brow-cell is-alcaldia ${item.alcaldia_propietario ? "is-found" : ""}`.trim()} title={item.alcaldia_propietario ? [item.alcaldia_propietario, item.alcaldia_clave, item.alcaldia_caserio].filter(Boolean).join(" · ") : "No aparece en Alcaldía"}>
         <span className="cl-brow-label">Alcaldía</span>{item.alcaldia_propietario || "No aparece"}
       </p>
-      <p className={`cl-brow-cell is-aguas ${enAguas ? "is-found" : ""} ${loteEnAguas ? "is-lote" : ""}`.trim()} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : loteEnAguas ? `Esta unidad no aparece en Aguas. Otra unidad del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : "No aparece en Aguas"}>
-        <span className="cl-brow-label">Aguas</span>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : loteEnAguas ? `Lote sí: ${item.aguas_clave}` : "No aparece"}
+      <p className={`cl-brow-cell is-aguas ${enAguas ? "is-found" : ""} ${loteEnAguas ? "is-lote" : ""}`.trim()} title={enAguas ? [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ") : cuentaCampo ? item.motivo_dictamen : loteEnAguas ? `Esta unidad no aparece en Aguas. Otra unidad del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : "No aparece en Aguas"}>
+        <span className="cl-brow-label">Aguas</span>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : cuentaCampo ? `Anotó abonado ${item.aguas_abonado}` : loteEnAguas ? `Lote sí: ${item.aguas_clave}` : "No aparece"}
       </p>
       <div className="cl-brow-campo" aria-label="Lo observado en campo">
         {SERVICES.map(([key, label, icon]) => <span key={key} className={item[key] ? "is-on" : ""} title={`${label}: ${item[key] ? "sí" : "no"}`}><Icon name={icon} /></span>)}
@@ -109,7 +111,7 @@ function CandidatoFila({ item, permissions, userId, busy, selectable, selected, 
     {descartado ? <p className="cl-brow-line"><Icon name="archive" /><span><strong>Descartado:</strong> {item.motivo_descarte || "Sin motivo registrado"}</span>{item.procesado_por_nombre || item.procesado_at ? <small>{[item.procesado_por_nombre && `Por ${item.procesado_por_nombre}`, fechaCorta(item.procesado_at)].filter(Boolean).join(" · ")}</small> : null}</p> : null}
     {abierta ? <div className="cl-brow-detail">
       <dl>
-        <div><dt>Dictamen</dt><dd>{DICTAMEN_LABELS[item.dictamen] || item.dictamen}{item.motivo_dictamen && !desmembracion ? <small>{item.motivo_dictamen}</small> : null}</dd></div>
+        <div><dt>Dictamen</dt><dd>{DICTAMEN_LABELS[item.dictamen] || item.dictamen}{item.motivo_dictamen && !desmembracion && !cuentaCampo ? <small>{item.motivo_dictamen}</small> : null}</dd></div>
         <div><dt>Alcaldía</dt><dd>{item.alcaldia_propietario || "No aparece"}{item.alcaldia_propietario && (item.alcaldia_clave || item.alcaldia_caserio) ? <small>{[item.alcaldia_clave, item.alcaldia_caserio].filter(Boolean).join(" · ")}</small> : null}</dd></div>
         <div><dt>Aguas</dt><dd>{enAguas ? item.aguas_inquilino || `Abonado ${item.aguas_abonado || item.aguas_clave}` : "No aparece"}{enAguas || loteEnAguas ? <small>{loteEnAguas ? `Esta unidad no; otra del lote sí: ${[item.aguas_clave, item.aguas_inquilino].filter(Boolean).join(" · ")}` : [item.aguas_clave, item.aguas_abonado && `abonado ${item.aguas_abonado}`].filter(Boolean).join(" · ")}</small> : null}</dd></div>
         <div><dt>Asignado</dt><dd>{item.asignado_a == null ? "Sin asignar" : mio ? "A ti" : item.asignado_nombre || "Técnico"}{item.asignado_at ? <small>Desde {fechaCorta(item.asignado_at)}</small> : null}</dd></div>
@@ -180,6 +182,8 @@ export default function BancoClandestinos({ api, model, permissions, session, no
   const fileInput = useRef(null);
   const userId = session?.user?.id;
   const canAssign = Boolean(permissions.can_assign_banco);
+  // El técnico solo ve lo suyo: sin "Ver todos" ni la carga del equipo.
+  const soloLoMio = !canAssign && ["operator", "validadora_campo"].includes(session?.user?.role);
   // Selección para asignar: solo lo que todavía hay que convertir en ficha.
   const [selected, setSelected] = useState(() => new Map());
   const [assigning, setAssigning] = useState(false);
@@ -225,9 +229,20 @@ export default function BancoClandestinos({ api, model, permissions, session, no
   // Con un solo estado y sin filtro de técnico, la lista se agrupa por técnico
   // (el backend ya la ordena así). Con filtro, el encabezado dice de quién es.
   const agrupar = canAssign && !model.filters.asignado && Boolean(model.filters.estado);
+  // Lo de un técnico llega ordenado como recorrido (estado, barrio, clave): va por barrio.
+  const porBarrio = Number(model.filters.asignado) > 0 || model.filters.asignado === "mine";
   const showTecnico = !agrupar && !model.filters.asignado;
-  const showBarrio = !model.filters.barrio && new Set(model.items.map((item) => item.barrio_colonia)).size > 1;
+  const showBarrio = !porBarrio && !model.filters.barrio && new Set(model.items.map((item) => item.barrio_colonia)).size > 1;
   const grupos = useMemo(() => {
+    if (porBarrio) {
+      const lista = [];
+      for (const item of model.items) {
+        const key = `barrio|${item.estado}|${item.barrio_colonia || ""}`;
+        if (lista.at(-1)?.key !== key) lista.push({ key, barrio: item.barrio_colonia || "Sin barrio", estado: item.estado, items: [] });
+        lista.at(-1).items.push(item);
+      }
+      return lista;
+    }
     if (!agrupar) return [{ key: "todos", items: model.items }];
     const lista = [];
     for (const item of model.items) {
@@ -236,9 +251,18 @@ export default function BancoClandestinos({ api, model, permissions, session, no
       lista.at(-1).items.push(item);
     }
     return lista;
-  }, [agrupar, model.items]);
+  }, [agrupar, porBarrio, model.items]);
   const repartido = (model.asignaciones || []).reduce((sum, item) => sum + item.pendientes, 0);
   const cabeceraGrupo = (grupo) => {
+    if (grupo.barrio) {
+      const conEstado = !model.filters.estado ? `${ESTADO_LABELS[grupo.estado] || grupo.estado} · ` : "";
+      return <header className="cl-brow-group is-barrio">
+        <span className="cl-brow-check" />
+        <h4><Icon name="map" />{grupo.barrio}</h4>
+        <small>{conEstado}{grupo.items.length} {grupo.items.length === 1 ? "candidato" : "candidatos"}{model.total_pages > 1 ? " en esta página" : ""}</small>
+        <span />
+      </header>;
+    }
     const tecnico = model.asignaciones?.find((item) => String(item.id) === grupo.key);
     const mine = grupo.key !== "none" && Number(grupo.key) === Number(userId);
     const nombre = grupo.key === "none" ? "Sin asignar" : mine ? "Tus asignaciones" : tecnico?.nombre || grupo.nombre || "Técnico";
@@ -324,7 +348,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
         </div>
       </aside>
     </section>
-    <CargaEquipo asignaciones={model.asignaciones || []} sinAsignar={model.sin_asignar || 0} canAssign={canAssign} userId={userId} filtro={model.filters.asignado} onVerTecnico={verTecnico} onSinAsignar={verSinAsignar} />
+    {soloLoMio ? null : <CargaEquipo asignaciones={model.asignaciones || []} sinAsignar={model.sin_asignar || 0} canAssign={canAssign} userId={userId} filtro={model.filters.asignado} onVerTecnico={verTecnico} onSinAsignar={verSinAsignar} />}
     <div className="cl-toolbar">
       <label className="cl-search"><span>Buscar</span><div><Icon name="search" /><input value={model.filters.query} onChange={(event) => model.filters.setQuery(event.target.value)} placeholder="Clave, propietario, barrio o comentario" /></div></label>
       <label><span>Estado</span><select value={model.filters.estado} onChange={(event) => model.filters.setEstado(event.target.value)}>{ESTADOS.map(([value, label]) => <option key={value || "todos"} value={value}>{label}{value ? ` (${model.estados?.[value] || 0})` : ""}</option>)}</select></label>
@@ -332,7 +356,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
       <button type="button" className="cl-quiet" onClick={model.filters.clear}><Icon name="refresh" />Limpiar</button>
     </div>
     {model.error ? <p className="cl-alert">{model.error}</p> : null}
-    {misPendientes && model.filters.asignado !== "mine" ? <div className="cl-banco-mine" role="status"><Icon name="users" /><span><strong>Tienes {misPendientes} {misPendientes === 1 ? "candidato asignado" : "candidatos asignados"}</strong> para convertir en ficha.</span><button type="button" className="cl-primary" onClick={() => { model.filters.setEstado("pendiente"); model.filters.setAsignado("mine"); }}>Ver mis asignaciones<Icon name="arrowRight" /></button></div> : null}
+    {misPendientes && !soloLoMio && model.filters.asignado !== "mine" ? <div className="cl-banco-mine" role="status"><Icon name="users" /><span><strong>Tienes {misPendientes} {misPendientes === 1 ? "candidato asignado" : "candidatos asignados"}</strong> para convertir en ficha.</span><button type="button" className="cl-primary" onClick={() => { model.filters.setEstado("pendiente"); model.filters.setAsignado("mine"); }}>Ver mis asignaciones<Icon name="arrowRight" /></button></div> : null}
     {asignadoNombre ? <div className="cl-banco-scope is-tecnico">
       <p><Icon name="users" />{model.filters.asignado === "mine" ? "Mis asignaciones" : `Asignados a ${asignadoNombre}`}<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}{model.filters.estado ? ` · ${(ESTADO_LABELS[model.filters.estado] || "").toLowerCase()}` : ""}</span></p>
       {tecnicoActivo ? <div className="cl-banco-scope-avance" aria-label={`Avance ${tecnicoActivo.avance}%`}>
@@ -342,7 +366,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
       </div> : null}
       <div className="cl-banco-scope-actions">
         <button type="button" className="cl-secondary" disabled={Boolean(working)} onClick={imprimir}><Icon name="print" />{working === "print" ? "Preparando…" : "Imprimir"}</button>
-        <button type="button" className="cl-scope-clear" onClick={() => { model.filters.setAsignado(""); model.filters.setEstado("pendiente"); }}>Ver todos</button>
+        {soloLoMio ? null : <button type="button" className="cl-scope-clear" onClick={() => { model.filters.setAsignado(""); model.filters.setEstado("pendiente"); }}>Ver todos</button>}
       </div>
     </div> : model.filters.asignado === "none" ? <p className="cl-banco-scope"><Icon name="inbox" />Sin asignar<span>{model.total} {model.total === 1 ? "candidato" : "candidatos"}</span><button type="button" className="cl-scope-clear" onClick={verSinAsignar}>Ver todos</button></p> : null}
     {canAssign && visibleSelectable.length ? <div className={`cl-banco-selbar ${selected.size ? "is-active" : ""}`.trim()}>
@@ -367,7 +391,7 @@ export default function BancoClandestinos({ api, model, permissions, session, no
           {grupo.key !== "todos" ? cabeceraGrupo(grupo) : null}
           {grupo.items.map((item) => <CandidatoFila key={item.id} item={item} permissions={permissions} userId={userId} selectable={isSelectable(item)} selected={selected.has(item.id)} showBarrio={showBarrio} showTecnico={showTecnico} onToggle={toggleSelected} busy={busyId === item.id} onSend={send} onDiscard={discard} onRestore={restore} onOpenFicha={onOpenFicha} />)}
         </section>)}
-      </> : <div className="cl-empty-state"><Icon name="inbox" /><strong>No hay candidatos con estos filtros</strong><span>{permissions.can_import_banco ? "Importa el CSV del levantamiento de QField para llenar el banco." : "Cuando administración importe un levantamiento de campo, aparecerá aquí."}</span></div>}
+      </> : <div className="cl-empty-state"><Icon name="inbox" /><strong>No hay candidatos con estos filtros</strong><span>{permissions.can_import_banco ? "Importa el CSV del levantamiento de QField para llenar el banco." : soloLoMio ? "Aquí aparecen los candidatos que administración te asigne." : "Cuando administración importe un levantamiento de campo, aparecerá aquí."}</span></div>}
     </div>
     <footer className="cl-pagination"><span>{model.total} {model.total === 1 ? "candidato" : "candidatos"} · Página {model.page} de {model.total_pages}</span><div><button type="button" disabled={model.page <= 1} onClick={() => model.filters.setPage(model.page - 1)}><Icon name="arrowLeft" />Anterior</button><button type="button" disabled={model.page >= model.total_pages} onClick={() => model.filters.setPage(model.page + 1)}>Siguiente<Icon name="arrowRight" /></button></div></footer>
   </section>;

@@ -880,6 +880,16 @@ export const getAlcaldiaRecords = ({ reload = false } = {}) => {
   return alcaldiaRecords;
 };
 
+// Version liviana del padron de Alcaldia (sin releer los 29 MB): cambia al subir otro archivo.
+export const getAlcaldiaVersion = () => {
+  try {
+    return `${fs.statSync(alcaldiaMetaPath).mtimeMs}:${fs.statSync(alcaldiaPath).mtimeMs}`;
+  } catch {
+    return "sin-alcaldia";
+  }
+};
+export const getAlcaldiaMetaInMemory = () => ({ ...alcaldiaMeta, total_records: Number(alcaldiaMeta.total_records) || alcaldiaRecords.length });
+
 // Cambia cuando se importa o reprocesa el padron. Sirve para invalidar indices derivados.
 export const getMasterVersion = () =>
   `${masterMeta.updated_at || "sin-fecha"}:${masterRecords.length}`;
@@ -1020,7 +1030,8 @@ export const getAguasServiceReport = async () => {
       barrio_colonia: barrio,
       total_registros: 0,
       deuda: emptyDebt(),
-      servicios: emptyServiceTotals()
+      servicios: emptyServiceTotals(),
+      combinaciones: new Map()
     };
 
     barrioStats.total_registros += 1;
@@ -1077,6 +1088,19 @@ export const getAguasServiceReport = async () => {
     if (!hasWater && hasSewer) profiles.sewer_without_water += 1;
     if (!hasWater && !hasSewer && !hasSweep && !hasCollection) profiles.no_core_services += 1;
 
+    // Usuarios por combinación de servicios ("10000" = solo agua, en el orden de
+    // MASTER_SERVICE_FIELDS), con lo que deben. Con esto el cliente responde
+    // "con agua y sin los demás" o cualquier otra mezcla, barrio por barrio.
+    const combinacion = MASTER_SERVICE_FIELDS.map(([field]) => (isActiveServiceFlag(record[field]) ? "1" : "0")).join("");
+    const grupo = barrioStats.combinaciones.get(combinacion) ?? { clave: combinacion, ...emptyDebt(), usuarios: 0 };
+    grupo.usuarios += 1;
+    grupo.capital += deuda.capital;
+    grupo.intereses += deuda.intereses;
+    grupo.total += deuda.total;
+    if (deuda.total > 0) grupo.deudores += 1;
+    if (deuda.total >= 1000) grupo.criticos += 1;
+    barrioStats.combinaciones.set(combinacion, grupo);
+
     barriosMap.set(barrio, barrioStats);
   });
 
@@ -1097,7 +1121,10 @@ export const getAguasServiceReport = async () => {
       deuda: Object.fromEntries(
         Object.entries(barrio.deuda).map(([key, value]) => [key, ["deudores", "criticos"].includes(key) ? value : Number(value.toFixed(2))])
       ),
-      servicios: withPercentages(barrio.servicios, barrio.total_registros)
+      servicios: withPercentages(barrio.servicios, barrio.total_registros),
+      combinaciones: [...barrio.combinaciones.values()]
+        .map((grupo) => ({ ...grupo, capital: Number(grupo.capital.toFixed(2)), intereses: Number(grupo.intereses.toFixed(2)), total: Number(grupo.total.toFixed(2)) }))
+        .sort((left, right) => right.usuarios - left.usuarios || left.clave.localeCompare(right.clave))
     }))
     .sort((left, right) => right.total_registros - left.total_registros || left.barrio_colonia.localeCompare(right.barrio_colonia, "es"));
 

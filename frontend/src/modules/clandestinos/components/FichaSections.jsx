@@ -8,7 +8,12 @@ const EvidencePhoto = ({ path, apiFetch }) => {
   if (url) return <img src={url} alt="Evidencia principal del inmueble" />;
   return <><Icon name="activity" /><p>{failed ? "No se pudo cargar la fotografía." : "Cargando fotografía…"}</p></>;
 };
-const Text = ({ name, value, onChange, ...props }) => <input name={name} value={value ?? ""} onChange={onChange} {...props} />;
+// Lo que cabe en cada columna de la base: el campo no deja escribir de más (antes el
+// servidor rechazaba la ficha entera con un error de "Data too long").
+export const LIMITES_FICHA = { clave_catastral: 30, abonado: 180, nombre_catastral: 180, inquilino: 180, identidad: 80, telefono: 80, barrio_colonia: 180, actividad: 500, codigo_sector: 80, firmante_aviso: 180, cargo_firmante: 180, levantamiento_datos: 180 };
+const Text = ({ name, value, onChange, ...props }) => <input name={name} value={value ?? ""} onChange={onChange} maxLength={LIMITES_FICHA[name]} {...props} />;
+// Cuenta los caracteres solo cuando ya falta poco para el límite.
+const Restan = ({ value = "", max }) => (String(value).length > max * 0.8 ? <small className="cl-field-count" aria-live="polite">{max - String(value).length} caracteres disponibles</small> : null);
 
 export default function FichaSections({ form, onChange, onValidatePadron, history = [], canEditInternal = false, apiFetch }) {
   return <div className="cl-sections">
@@ -26,7 +31,7 @@ export default function FichaSections({ form, onChange, onValidatePadron, histor
       <Field label="Barrio / colonia" wide><Text name="barrio_colonia" value={form.barrio_colonia} onChange={onChange} /></Field>
       <Field label="Situación"><select name="situacion_inmueble" value={form.situacion_inmueble || "Habitado"} onChange={onChange}><option>Habitado</option><option>Deshabitado</option><option>En construcción</option></select></Field>
       <Field label="Uso del suelo"><select name="uso_suelo" value={form.uso_suelo || "Residencial"} onChange={onChange}><option>Residencial</option><option>Comercial</option><option>Mixto</option><option>Industrial</option></select></Field>
-      <Field label="Actividad"><Text name="actividad" value={form.actividad} onChange={onChange} /></Field>
+      <Field label="Actividad / descripción de la vivienda" wide><textarea name="actividad" value={form.actividad || ""} onChange={onChange} rows="2" maxLength={LIMITES_FICHA.actividad} placeholder="Ej. casa de dos plantas con local comercial al frente" /><Restan value={form.actividad} max={LIMITES_FICHA.actividad} /></Field>
       <Field label="Código sector"><Text name="codigo_sector" value={form.codigo_sector} onChange={onChange} /></Field>
     </div></details>
     <details open><summary><span><Icon name="water" />Servicios</span><small>Conexiones detectadas</small></summary><div className="cl-service-grid">

@@ -10,6 +10,7 @@ const itemLabels = {
   pozos: "Pozos",
   executiveReport: "Mapa de operaciones",
   requests: "Consultas del padrón",
+  barriosSinAguas: "Barrios sin Aguas",
   logs: "Auditoría",
   notes: "Apuntes",
   railwayUsage: "Uso en Railway",
@@ -35,6 +36,7 @@ const routeViews = {
   "/planos": "planos",
   "/pozos": "pozos",
   "/informes": "requests",
+  "/barrios-sin-aguas": "barriosSinAguas",
   "/barrios": "barrioCodes",
   "/padron": "padron",
   "/importacion": "importacion",
@@ -59,7 +61,7 @@ export const buildSidebarSections = (items = [], dashboardItem = null) => {
   return [
     { key: "dashboard", title: "Dashboard", helper: "Vista general", icon: "home", collapsible: true, items: [dashboardItem, ...take(["notes"])].filter(Boolean) },
     { key: "operacion", title: "Operación", helper: "Procesos diarios", icon: "activity", collapsible: true, items: take(["reclamos", "inspecciones", "entregas", "records", "lookup"]) },
-    { key: "gestion", title: "Gestión", helper: "Datos y administración", icon: "records", collapsible: true, items: take(["requests", "barrioCodes", "padron", "importacion", "teamActivity", "fallas", "logs", "users"]) },
+    { key: "gestion", title: "Gestión", helper: "Datos y administración", icon: "records", collapsible: true, items: take(["requests", "barriosSinAguas", "barrioCodes", "padron", "importacion", "teamActivity", "fallas", "logs", "users"]) },
     { key: "territorio", title: "Territorio", helper: "Mapas y zonas", icon: "map", collapsible: true, items: take(["sigTerritorial", "map", "fieldValidation", "mapReports", "planos", "pozos"]) },
     { key: "sistema", title: "Sistema", helper: "Cuenta y configuración", icon: "settings", collapsible: true, items: take(["profile", "railwayUsage"]) }
   ].filter((section) => section.items.length);

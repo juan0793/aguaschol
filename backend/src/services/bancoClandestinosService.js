@@ -32,12 +32,17 @@ export const normalizarBarrio = (value = "") => clean(value)
   .split(" ")
   .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
   .join(" ");
-const canProcess = (user) => ["admin", "operator"].includes(user?.role);
-// Quien reparte el trabajo; y quienes pueden recibirlo (los mismos de Inspecciones).
-const canAssign = (user) => ["admin", "operator"].includes(user?.role);
+// Solo administración ve todo el banco, lo verifica y lo reparte (decisión del 3/11).
+const canProcess = (user) => user?.role === "admin";
+const canAssign = canProcess;
+// Quien todavía puede alimentar el banco desde otras pantallas (cruce con Alcaldía, refs).
+const canFeed = (user) => ["admin", "operator"].includes(user?.role);
+// Quienes reciben trabajo (los mismos de Inspecciones).
 export const TECNICO_ROLES = ["operator", "validadora_campo"];
-// La validadora de campo solo trabaja los candidatos que le asignaron.
-const canWork = (user, candidato) => canProcess(user) || (user?.role === "validadora_campo" && Number(candidato?.asignado_a) === Number(user?.id));
+// Cada técnico (operador o validadora) solo ve y trabaja los candidatos que le asignaron.
+// Gerencia ve todo, sin escribir; las llamadas internas sin usuario también ven todo.
+export const soloLoSuyo = (user) => Boolean(user) && !["admin", "gerente"].includes(user.role);
+const canWork = (user, candidato) => canProcess(user) || (TECNICO_ROLES.includes(user?.role) && Number(candidato?.asignado_a) === Number(user?.id));
 
 // "89-13-15", "89 13 15" o "089-13-15-1" -> bloques de al menos dos digitos; "" si no es clave.
 export const normalizarClaveBanco = (value = "") => {
@@ -102,9 +107,20 @@ export const dictaminarCandidato = ({ clave_catastral = "", abonado_campo = "" }
   const abonado = clean(abonado_campo);
   const alcaldia = clave ? index.alcaldiaExacta.get(clave) || index.alcaldiaLote.get(baseDe(clave)) || null : null;
 
+  // En QField el técnico suele anotar en "abonado" la cuenta de al lado o la del lote
+  // original ("pegado con el código 4314", "desmembramiento de la 4535"), no la de la
+  // casa. Esa cuenta solo prueba que está registrada si su clave es la misma del punto;
+  // si no, queda sin determinar con la cuenta como pista y el técnico decide en campo.
+  // Antes daba "registrado" y Verificar lo mandaba a descartados.
   const porAbonado = abonado ? index.aguasAbonado.get(abonado) : null;
   if (porAbonado) {
-    return { dictamen: "registrado", motivo_dictamen: `El abonado ${abonado} existe en el padrón de Aguas`, ...snapshot(porAbonado, alcaldia) };
+    const misma = clave && normalizarClaveBanco(porAbonado.clave_catastral) === clave;
+    if (misma) return { dictamen: "registrado", motivo_dictamen: `El abonado ${abonado} existe en Aguas con esta misma clave`, ...snapshot(porAbonado, alcaldia) };
+    return {
+      dictamen: "sin_determinar",
+      motivo_dictamen: `Cuenta anotada en campo: el abonado ${abonado} existe en Aguas (${[clean(porAbonado.clave_catastral), clean(porAbonado.inquilino || porAbonado.nombre)].filter(Boolean).join(" · ")}); confirmar si es la de esta casa o una vecina`,
+      ...snapshot(porAbonado, alcaldia)
+    };
   }
   if (!clave) {
     return { dictamen: "sin_determinar", motivo_dictamen: "Sin clave catastral para verificar", ...snapshot(null, null) };
@@ -176,12 +192,21 @@ export const parseCsv = (text = "") => {
 // "14-08-04-05 según Alcaldía..."). Solo cuenta si va con guiones: "6518" es un abonado.
 const claveEnTexto = (value = "") => normalizarClaveBanco(clean(value).match(/\b\d{1,3}-\d{1,3}-\d{1,3}(?:-\d{1,3})?\b/)?.[0]);
 
+// En QField a veces se describe la casa en el campo "abonado" (80 caracteres en la base).
+// Si no cabe, el texto completo pasa al comentario de campo y en abonado queda solo el
+// número o la clave con que empieza, en vez de cortarlo a la mitad.
+const ABONADO_MAX = 80;
+const abonadoYNota = (row) => {
+  const texto = clean(row.abonado_campo || row.abonado);
+  if (texto.length <= ABONADO_MAX) return { abonado: texto, nota: "" };
+  return { abonado: texto.match(/^[\d-]{1,20}/)?.[0] || "", nota: `Anotado en abonado: ${texto}` };
+};
 export const candidatoDesdeFila = (row) => ({
   origen_ref: clean(row.origen_ref || row.fid || row.fid_qfield),
   clave_catastral: normalizarClaveBanco(row.clave_catastral || row.clave || row.clave_usada) || claveEnTexto(row.abonado_campo || row.abonado),
   clave_origen: clean(row.clave_origen || row.origen_clave).slice(0, 20),
-  comentario_campo: clean(row.comentario_campo || row.comentario),
-  abonado_campo: clean(row.abonado_campo || row.abonado).slice(0, 80),
+  comentario_campo: [clean(row.comentario_campo || row.comentario), abonadoYNota(row).nota].filter(Boolean).join(" · "),
+  abonado_campo: abonadoYNota(row).abonado,
   barrio_colonia: normalizarBarrio(row.barrio_colonia || row.colonia).slice(0, 180),
   agua: flag(row.agua),
   alcantarillado: flag(row.alcantarillado),
@@ -282,6 +307,14 @@ const cleanFilters = ({ query = "", dictamen = "", estado = "pendiente", barrio 
 // Con "Todos" los estados (p. ej. lo de un técnico) lo pendiente va primero. Dentro de
 // cada estado se agrupa por técnico (sin asignar al final), para que la lista se lea
 // por persona y un grupo no quede repartido entre páginas.
+// Lo de un solo técnico se lee como recorrido: pendiente primero, luego por barrio y por
+// clave (manzana y lote seguidos), sin partir un barrio por el dictamen.
+const ORDEN_TECNICO = "ORDER BY FIELD(banco_clandestinos.estado, 'pendiente', 'enviado', 'descartado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral, banco_clandestinos.id";
+const ESTADOS_ORDEN = ["pendiente", "enviado", "descartado"];
+const ordenTecnico = (a, b) => ESTADOS_ORDEN.indexOf(a.estado) - ESTADOS_ORDEN.indexOf(b.estado)
+  || (a.barrio_colonia || "").localeCompare(b.barrio_colonia || "", "es")
+  || (a.clave_catastral || "").localeCompare(b.clave_catastral || "", "es", { numeric: true })
+  || a.id - b.id;
 const ORDEN_BANCO = "ORDER BY FIELD(banco_clandestinos.estado, 'pendiente', 'enviado', 'descartado'), banco_clandestinos.asignado_a IS NULL, asignado_nombre, FIELD(banco_clandestinos.dictamen, 'clandestino', 'sin_determinar', 'registrado'), banco_clandestinos.barrio_colonia, banco_clandestinos.clave_catastral";
 
 // Avance por técnico. Filas { asignado_a, nombre, estado, total } -> todo lo que se le
@@ -308,9 +341,16 @@ export const resumirAsignaciones = (rows = []) => {
     .sort((a, b) => b.pendientes - a.pendientes || a.nombre.localeCompare(b.nombre, "es"));
 };
 
-export const listBancoClandestinos = async (filters = {}) => {
+export const listBancoClandestinos = async (filters = {}, user = null) => {
   await agruparSiToca();
-  const { query, dictamen, estado, barrio, asignado } = cleanFilters(filters);
+  const propio = soloLoSuyo(user);
+  const { query, dictamen, estado, barrio, asignado: pedido } = cleanFilters(filters);
+  const asignado = propio ? String(Number(user.id) || -1) : pedido;
+  const unTecnico = Number(asignado) > 0;
+  // Todo lo que se cuenta (estados, barrios, carga) queda dentro de lo suyo.
+  const alcance = propio
+    ? { where: "banco_clandestinos.asignado_a = ?", params: [Number(user.id) || -1], test: (item) => Number(item.asignado_a) === Number(user.id) }
+    : { where: "1 = 1", params: [], test: () => true };
   const safeLimit = Math.min(Math.max(Number(filters.limit) || 25, 5), 200);
   const requestedPage = Math.max(Number(filters.page) || 1, 1);
   const values = { query, dictamen, estado, barrio, asignado };
@@ -319,11 +359,13 @@ export const listBancoClandestinos = async (filters = {}) => {
   const barrioFilter = bancoFilter(values, ["barrio"]);
 
   if (env.useMemoryDb) {
-    const scoped = memoryBanco.filter(scopedFilter.test);
-    const filtered = memoryBanco.filter(fullFilter.test);
+    const visibles = memoryBanco.filter(alcance.test);
+    const scoped = visibles.filter(scopedFilter.test);
+    const filtered = visibles.filter(fullFilter.test);
+    if (unTecnico) filtered.sort(ordenTecnico);
     const totalPages = Math.max(1, Math.ceil(filtered.length / safeLimit));
     const currentPage = Math.min(requestedPage, totalPages);
-    const asignados = memoryBanco.filter((item) => item.asignado_a != null);
+    const asignados = visibles.filter((item) => item.asignado_a != null);
     const porTecnico = [...new Set(asignados.map((item) => `${item.asignado_a}|${item.estado}`))].map((key) => {
       const [id, estado] = key.split("|");
       return { asignado_a: Number(id), estado, total: asignados.filter((item) => Number(item.asignado_a) === Number(id) && item.estado === estado).length };
@@ -332,35 +374,35 @@ export const listBancoClandestinos = async (filters = {}) => {
       items: filtered.slice((currentPage - 1) * safeLimit, currentPage * safeLimit).map(mapCandidato),
       total: filtered.length, page: currentPage, total_pages: totalPages,
       counts: Object.fromEntries(BANCO_DICTAMENES.map((key) => [key, scoped.filter((item) => item.dictamen === key).length])),
-      estados: Object.fromEntries(BANCO_ESTADOS.map((key) => [key, memoryBanco.filter((item) => item.estado === key).length])),
-      barrios: [...new Set(memoryBanco.map((item) => item.barrio_colonia).filter(Boolean))].sort(),
-      barrio_counts: resumirBarrios(memoryBanco.filter((item) => item.barrio_colonia && barrioFilter.test(item)).map((item) => ({ barrio_colonia: item.barrio_colonia, dictamen: item.dictamen, total: 1 }))),
+      estados: Object.fromEntries(BANCO_ESTADOS.map((key) => [key, visibles.filter((item) => item.estado === key).length])),
+      barrios: [...new Set(visibles.map((item) => item.barrio_colonia).filter(Boolean))].sort(),
+      barrio_counts: resumirBarrios(visibles.filter((item) => item.barrio_colonia && barrioFilter.test(item)).map((item) => ({ barrio_colonia: item.barrio_colonia, dictamen: item.dictamen, total: 1 }))),
       asignaciones: resumirAsignaciones(porTecnico),
-      sin_asignar: memoryBanco.filter((item) => item.estado === "pendiente" && item.asignado_a == null && item.dictamen !== "registrado").length
+      sin_asignar: propio ? 0 : memoryBanco.filter((item) => item.estado === "pendiente" && item.asignado_a == null && item.dictamen !== "registrado").length
     };
   }
 
   const pool = getPool();
   const [[countRows], [estadoRows], [barrioRows], [totalRows], [barrioCountRows], [asignacionRows], [sinAsignarRows]] = await Promise.all([
     pool.query(`SELECT dictamen, COUNT(*) AS total FROM banco_clandestinos WHERE ${scopedFilter.where} GROUP BY dictamen`, scopedFilter.params),
-    pool.query("SELECT estado, COUNT(*) AS total FROM banco_clandestinos GROUP BY estado"),
-    pool.query("SELECT DISTINCT barrio_colonia FROM banco_clandestinos WHERE barrio_colonia <> '' ORDER BY barrio_colonia"),
+    pool.query(`SELECT estado, COUNT(*) AS total FROM banco_clandestinos WHERE ${alcance.where} GROUP BY estado`, alcance.params),
+    pool.query(`SELECT DISTINCT barrio_colonia FROM banco_clandestinos WHERE barrio_colonia <> '' AND ${alcance.where} ORDER BY barrio_colonia`, alcance.params),
     pool.query(`SELECT COUNT(*) AS total FROM banco_clandestinos WHERE ${fullFilter.where}`, fullFilter.params),
     pool.query(`SELECT barrio_colonia, dictamen, COUNT(*) AS total FROM banco_clandestinos WHERE ${barrioFilter.where} AND barrio_colonia <> '' GROUP BY barrio_colonia, dictamen`, barrioFilter.params),
     pool.query(`SELECT banco_clandestinos.asignado_a, banco_clandestinos.estado, COALESCE(app_users.full_name, app_users.username, '') AS nombre, COUNT(*) AS total
       FROM banco_clandestinos LEFT JOIN app_users ON app_users.id = banco_clandestinos.asignado_a
-      WHERE banco_clandestinos.asignado_a IS NOT NULL
+      WHERE banco_clandestinos.asignado_a IS NOT NULL AND ${alcance.where}
       GROUP BY banco_clandestinos.asignado_a, banco_clandestinos.estado, app_users.full_name, app_users.username
       UNION ALL
       SELECT app_users.id, NULL, COALESCE(app_users.full_name, app_users.username, ''), 0
-      FROM app_users WHERE app_users.is_active = 1 AND app_users.role IN (?)`, [TECNICO_ROLES]),
-    pool.query("SELECT COUNT(*) AS total FROM banco_clandestinos WHERE estado = 'pendiente' AND asignado_a IS NULL AND dictamen <> 'registrado'")
+      FROM app_users WHERE app_users.is_active = 1 AND app_users.role IN (?)${propio ? " AND app_users.id = ?" : ""}`, [...alcance.params, TECNICO_ROLES, ...(propio ? [Number(user.id)] : [])]),
+    propio ? Promise.resolve([[{ total: 0 }]]) : pool.query("SELECT COUNT(*) AS total FROM banco_clandestinos WHERE estado = 'pendiente' AND asignado_a IS NULL AND dictamen <> 'registrado'")
   ]);
   const total = Number(totalRows[0]?.total || 0);
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
   const currentPage = Math.min(requestedPage, totalPages);
   const [items] = await pool.query(
-    `${CANDIDATO_SELECT} WHERE ${fullFilter.where} ${ORDEN_BANCO} LIMIT ? OFFSET ?`,
+    `${CANDIDATO_SELECT} WHERE ${fullFilter.where} ${unTecnico ? ORDEN_TECNICO : ORDEN_BANCO} LIMIT ? OFFSET ?`,
     [...fullFilter.params, safeLimit, (currentPage - 1) * safeLimit]
   );
   return {
@@ -378,8 +420,9 @@ export const listBancoClandestinos = async (filters = {}) => {
 // Todos los candidatos que cumplen el filtro, sin paginar: para imprimir el
 // listado y para "seleccionar todos". Ordenados por barrio y clave.
 const MAX_LISTADO = 3000;
-export const listadoBancoClandestinos = async (filters = {}) => {
+export const listadoBancoClandestinos = async (filters = {}, user = null) => {
   const values = cleanFilters(filters);
+  if (soloLoSuyo(user)) values.asignado = String(Number(user.id) || -1);
   const { where, params, test } = bancoFilter(values);
   const porBarrio = (a, b) => (a.barrio_colonia || "").localeCompare(b.barrio_colonia || "", "es") || (a.clave_catastral || "").localeCompare(b.clave_catastral || "", "es", { numeric: true });
   if (env.useMemoryDb) return { items: memoryBanco.filter(test).sort(porBarrio).slice(0, MAX_LISTADO).map(mapCandidato), limite: MAX_LISTADO };
@@ -688,7 +731,7 @@ const clavesConTrabajo = async (claves = [], origen = "") => {
  * (registros se puede inyectar en pruebas).
  */
 export const enviarClavesAlcaldiaAlBanco = async ({ claves = [] } = {}, user, { registros } = {}) => {
-  if (!canProcess(user)) throw fail("Tu rol no puede enviar al banco.", 403);
+  if (!canFeed(user)) throw fail("Tu rol no puede enviar al banco.", 403);
   const elegidas = new Set((Array.isArray(claves) ? claves : []).map(clean).filter(Boolean));
   if (!elegidas.size) throw fail("Elige al menos una clave.");
   if (elegidas.size > MAX_IMPORT_ROWS) throw fail(`Se pueden enviar hasta ${MAX_IMPORT_ROWS} claves a la vez.`, 413);
@@ -715,7 +758,7 @@ export const enviarClavesAlcaldiaAlBanco = async ({ claves = [] } = {}, user, { 
 
 // Qué claves de un origen ya están en el banco y en qué estado (para marcarlas en la lista).
 export const listarRefsBanco = async ({ origen = "" } = {}, user) => {
-  if (!canProcess(user) && user?.role !== "gerente") throw fail("Tu rol no puede consultar el banco.", 403);
+  if (!canFeed(user) && user?.role !== "gerente") throw fail("Tu rol no puede consultar el banco.", 403);
   origen = clean(origen).slice(0, 40);
   if (!origen) throw fail("Indica el origen.");
   const rows = env.useMemoryDb

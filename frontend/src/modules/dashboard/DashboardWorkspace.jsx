@@ -8,6 +8,7 @@ import { printDocument } from "../../utils/printDocument";
 import { clampSplit, debtRankingAll, filterBarriosByQuery, formatCompactCurrency, interestPerCapital, ofEachTen, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import ServiceDotPlot from "./ServiceDotPlot";
+import { CambiosDelLote, deltaCuentas, deltaMonto, fechaCorta, imprimirComparacionLotes, nivelesPrevios, useLotesComparacion } from "./LotesCambios";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
 
@@ -253,6 +254,8 @@ export default function DashboardWorkspace({ model }) {
   const [selectedBarrios, setSelectedBarrios] = useState([]);
   const [selectedDetailsOpen, setSelectedDetailsOpen] = useState(false);
   const [barrioAbierto, setBarrioAbierto] = useState("");
+  // Diferencias con el lote FoxPro anterior; se vuelven a pedir con cada corte nuevo.
+  const lotes = useLotesComparacion(model.fetchLotesComparacion, model.padronTotals?.updatedAt || "");
 
   // El padron entero ordenado por la metrica activa. El top 5 sale de aca, pero
   // la busqueda necesita la lista completa para encontrar barrios que no entran
@@ -317,11 +320,13 @@ export default function DashboardWorkspace({ model }) {
   // Niveles de la regla: todos a la escala del padron, para que se lea cuanto
   // baja cada uno y no solo su cifra.
   const padronRecords = Number(model.padronTotals.records || 0);
+  // Cada nivel trae, si hay lote anterior, cuánto era antes y cuánto cambió.
+  const previos = nivelesPrevios(lotes);
   const niveles = [
     { key: "padron", label: "cuentas", value: padronRecords, share: padronRecords ? 100 : 0, note: `en el padrón · ${whole(model.padronTotals.barrios)} barrios` },
     { key: "mora", label: "con mora", value: Number(debt.deudores || 0), share: debtorShare, note: `${oneDecimal(debtorShare)} del padrón` },
     { key: "critica", label: "con mora alta", value: Number(debt.criticos || 0), share: percent(debt.criticos, padronRecords), note: `${oneDecimal(criticalShare)} de las con mora` }
-  ];
+  ].map((nivel) => ({ ...nivel, previo: previos?.[nivel.key] || null }));
   const cuentasAlDia = Math.max(0, padronRecords - Number(debt.deudores || 0));
   const promedioPorCuenta = Number(debt.deudores || 0) ? debtTotal / Number(debt.deudores) : 0;
   const interesPorLempira = interestPerCapital(debt.intereses, debt.capital);
@@ -569,6 +574,12 @@ export default function DashboardWorkspace({ model }) {
             <p className="dw-cartera-total">
               <Amount value={debtTotal} className="is-hero" compact flash=".dw-resumen-monto" />
               <small className="dw-cartera-exact dw-figure">{formatCurrency(debtTotal)}</small>
+              {previos?.total.cambio ? (
+                <small className={`dw-cartera-cambio ${previos.total.cambio > 0 ? "is-sube" : "is-baja"}`} title={`Lote anterior: ${formatCurrency(previos.total.antes)}`}>
+                  <Icon name={previos.total.cambio > 0 ? "arrowUp" : "arrowDown"} />
+                  <b className="dw-figure">{deltaMonto(previos.total.cambio)}</b> desde el lote anterior
+                </small>
+              ) : null}
             </p>
             <div
               className="dw-cartera-bar"
@@ -615,30 +626,49 @@ export default function DashboardWorkspace({ model }) {
                 Promedio por cuenta con mora <Amount value={promedioPorCuenta} compact />
               </span>
             </header>
-            {/* Regla graduada: marcas cada 25 % del padron, como una regla de nivel. */}
-            <div className="dw-regla" aria-hidden="true">
-              {[0, 25, 50, 75, 100].map((mark) => (
-                <span key={mark} style={{ left: `${mark}%` }}>{mark}%</span>
-              ))}
-            </div>
-            <ol className="dw-niveles-lista">
-              {niveles.map((nivel) => (
-                <li key={nivel.key} className={`is-${nivel.key}`}>
-                  <span className="dw-nivel-texto">
-                    <LiveWhole value={nivel.value} flash=".dw-niveles-lista li" />
-                    <span>{nivel.label}</span>
-                    <small className="dw-figure">{nivel.note}</small>
-                  </span>
-                  <i
-                    className="dw-nivel-barra"
-                    role="img"
-                    aria-label={`${whole(nivel.value)} ${nivel.label}, ${oneDecimal(nivel.share)} del padrón`}
-                  >
-                    <b style={{ width: `${Math.min(100, nivel.share)}%` }} />
-                  </i>
-                </li>
-              ))}
+            {/* Cada nivel es una barra a la escala del padrón, con su porcentaje al
+                final; la marca en tinta es donde estaba en el lote anterior y la
+                columna de la derecha dice cuánto cambió. */}
+            <ol className={`dw-niveles-lista ${previos ? "has-previo" : ""}`.trim()}>
+              {niveles.map((nivel) => {
+                const cambio = nivel.previo?.cambio ?? null;
+                const tono = nivel.key === "padron" || !cambio ? "is-igual" : cambio > 0 ? "is-sube" : "is-baja";
+                const antes = nivel.previo ? percent(nivel.previo.antes, padronRecords) : null;
+                return (
+                  <li key={nivel.key} className={`is-${nivel.key}`}>
+                    <span className="dw-nivel-texto">
+                      <LiveWhole value={nivel.value} flash=".dw-niveles-lista li" />
+                      <span>{nivel.label}</span>
+                      <small className="dw-figure">{nivel.note}</small>
+                    </span>
+                    <span
+                      className="dw-nivel-barra"
+                      role="img"
+                      aria-label={`${whole(nivel.value)} ${nivel.label}, ${oneDecimal(nivel.share)} del padrón${nivel.previo ? `; en el lote anterior eran ${whole(nivel.previo.antes)}` : ""}`}
+                    >
+                      <b style={{ width: `${Math.min(100, nivel.share)}%` }} />
+                      {antes != null && nivel.key !== "padron" ? <em className="dw-nivel-antes" style={{ left: `${Math.min(100, antes)}%` }} title={`Lote anterior: ${whole(nivel.previo.antes)}`} /> : null}
+                      <small className="dw-nivel-pct dw-figure" style={{ left: `${Math.min(100, nivel.share)}%` }}>{nivel.key === "padron" ? "100%" : oneDecimal(nivel.share)}</small>
+                    </span>
+                    {previos ? (
+                      <span className={`dw-nivel-cambio ${tono}`} title={cambio ? `${deltaCuentas(cambio)} desde el lote anterior` : "Igual que en el lote anterior"}>
+                        {cambio ? <Icon name={cambio > 0 ? "arrowUp" : "arrowDown"} /> : null}
+                        <b className="dw-figure">{cambio ? deltaCuentas(cambio) : "igual"}</b>
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ol>
+            <div className="dw-niveles-eje" aria-hidden="true">
+              {[0, 25, 50, 75, 100].map((mark) => <span key={mark} style={{ left: `${mark}%` }}>{mark}%</span>)}
+            </div>
+            {previos ? (
+              <p className="dw-niveles-leyenda">
+                <i className="is-actual" aria-hidden="true" />este lote
+                <i className="is-antes" aria-hidden="true" />lote anterior{previos.lote?.codigo ? ` (${previos.lote.codigo}${fechaCorta(previos.lote.fecha_extraccion || previos.lote.fecha_aplicacion) ? `, ${fechaCorta(previos.lote.fecha_extraccion || previos.lote.fecha_aplicacion)}` : ""})` : ""}
+              </p>
+            ) : null}
             <p className="dw-lectura">
               {ofEachTen(debt.criticos, debt.deudores) ? (
                 <>
@@ -693,6 +723,9 @@ export default function DashboardWorkspace({ model }) {
           </span>
         </button> : null}
       </section>
+
+      {/* Lo que cambió entre el lote FoxPro activo y el anterior. */}
+      <CambiosDelLote lotes={lotes} navigate={model.canImport === false ? null : model.navigate} onPrint={model.canExport === false ? null : (data) => imprimirComparacionLotes(data)} />
 
       {(model.quickActions || QUICK_ACTIONS).length ? <nav className="dw-actions" aria-label="Acciones rápidas">
         {(model.quickActions || QUICK_ACTIONS).map(([view, icon, label]) => (

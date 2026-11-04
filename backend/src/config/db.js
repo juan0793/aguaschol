@@ -102,6 +102,16 @@ const ensureIndex = async (connection, { tableName, indexName, columns, unique =
   }
 };
 
+// Agranda una columna VARCHAR que quedó corta; no hace nada si ya mide eso o más.
+const ensureVarcharLength = async (connection, { tableName, columnName, length, definition }) => {
+  const [rows] = await connection.query(
+    "SELECT character_maximum_length AS largo FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ? LIMIT 1",
+    [env.dbName, tableName, columnName]
+  );
+  if (!rows.length || Number(rows[0].largo) >= length) return;
+  await connection.query(`ALTER TABLE ${escapeIdentifier(tableName)} MODIFY COLUMN ${escapeIdentifier(columnName)} VARCHAR(${Number(length)}) ${definition}`);
+};
+
 const ensureColumn = async (connection, { tableName, columnName, definition }) => {
   const [rows] = await connection.query(
     `
@@ -348,6 +358,10 @@ const ensureSchema = async () => {
     await ensureColumn(admin, { tableName: "auth_sessions", columnName: "preview_role", definition: "VARCHAR(32) NULL" });
     await ensureColumn(admin, { tableName: "auth_sessions", columnName: "preview_expires_at", definition: "TIMESTAMP NULL" });
     await ensurePlanoElementTypeEnum(admin);
+    // La ficha se quedaba corta al describir la vivienda o anotar varios teléfonos (2026-11-03).
+    for (const [columnName, length] of [["actividad", 500], ["telefono", 80], ["identidad", 80], ["codigo_sector", 80]]) {
+      await ensureVarcharLength(admin, { tableName: "inmuebles_clandestinos", columnName, length, definition: "NOT NULL DEFAULT ''" });
+    }
     await ensureEntregaEstadoEnum(admin);
     await ensureColumn(admin, {
       tableName: "app_users",

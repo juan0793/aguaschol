@@ -1,0 +1,178 @@
+/* "Barrios sin Aguas" (desde 2026-11-04): lenguaje de análisis del tablero, sin tarjetas.
+   Rojo = claves sin registro en Aguas (lo que falta), azul = lo que ya está en Aguas. */
+.bsa {
+  --bsa-ink: #16283b;
+  --bsa-body: #2b3d50;
+  --bsa-muted: #5f7184;
+  --bsa-line: #dfe5ec;
+  --bsa-soft: #edf0f4;
+  --bsa-tint: #f5f7fa;
+  --bsa-blue: #1465d9;
+  --bsa-red: #9b202d;
+  --bsa-red-soft: #f6e7e8;
+  display: grid;
+  gap: 16px;
+  max-width: 1280px;
+  padding: 18px 24px 32px;
+  color: var(--bsa-body);
+  font-size: 13px;
+}
+.bsa > *, .bsa-claves > *, .bsa-lista { min-width: 0; }
+.bsa h1, .bsa h2, .bsa p { margin: 0; }
+.bsa-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; }
+.bsa-head h1 { color: var(--bsa-ink); font-size: 22px; font-weight: 700; }
+.bsa-head p { max-width: 720px; margin-top: 4px; color: var(--bsa-muted); line-height: 1.55; }
+.bsa-head p b { color: var(--bsa-ink); font-weight: 650; }
+.bsa-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.bsa .bsa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid var(--bsa-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--bsa-ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.bsa .bsa-btn:hover:not(:disabled) { border-color: #c5d0dc; background: var(--bsa-tint); }
+.bsa .bsa-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+.bsa .bsa-btn.is-primario { border-color: var(--bsa-blue); background: var(--bsa-blue); color: #fff; }
+.bsa .bsa-btn.is-primario:hover:not(:disabled) { border-color: #0b55bd; background: #0b55bd; }
+.bsa .bsa-btn.is-icono { width: 36px; padding: 0; justify-content: center; color: var(--bsa-muted); }
+.bsa-btn .app-icon { width: 16px; height: 16px; }
+.bsa-error { padding: 10px 14px; border: 1px solid #f0c8bf; border-radius: 8px; background: #fdf1ee; color: #8a2a1f; }
+.bsa-vacio { padding: 28px 0; color: var(--bsa-muted); text-align: center; }
+.bsa-nota { margin-top: 8px !important; color: var(--bsa-muted); font-size: 12px; }
+.bsa-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Criterio: cuatro columnas iguales con su cifra; la elegida lleva el filete azul abajo. */
+.bsa-criterios { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--bsa-line); border-radius: 8px; background: #fff; }
+.bsa .bsa-criterios button {
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: -1px 0 0 var(--bsa-soft);
+  color: var(--bsa-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.bsa .bsa-criterios button:hover { background: #f8fafc; }
+.bsa .bsa-criterios button.is-activo { background: #eef4fc; box-shadow: inset 0 -2px 0 var(--bsa-blue); }
+.bsa-criterios strong { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.bsa-criterios span { color: var(--bsa-muted); font-size: 12.5px; font-weight: 600; }
+
+.bsa-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0; border-block: 1px solid var(--bsa-line); }
+.bsa-cifras div { display: grid; align-content: start; gap: 1px; padding: 12px 16px; }
+.bsa-cifras div + div { border-left: 1px solid var(--bsa-soft); }
+.bsa-cifras dt { order: 2; color: var(--bsa-body); font-size: 12.5px; font-weight: 600; }
+.bsa-cifras dd { order: 1; margin: 0; color: var(--bsa-ink); font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bsa-cifras dd span { color: var(--bsa-muted); font-weight: 400; }
+.bsa-cifras small { order: 3; color: var(--bsa-muted); font-size: 11.5px; }
+
+/* Dónde se concentran: una barra por barrio a la escala del más grande, partida en lo que
+   falta (rojo) y lo que ya está en Aguas (azul claro). */
+.bsa-chart > header, .bsa-lista > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 8px; }
+.bsa h2 { color: var(--bsa-ink); font-size: 15px; font-weight: 650; }
+.bsa-leyenda { display: flex; align-items: center; gap: 6px; color: var(--bsa-muted); font-size: 12px; }
+.bsa-leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.bsa-leyenda i + i, .bsa-leyenda i:not(:first-child) { margin-left: 10px; }
+.bsa i.is-fuera { background: var(--bsa-red); }
+.bsa i.is-dentro { background: #a9c7ec; }
+.bsa-chart ol { display: grid; margin: 0; padding: 0; list-style: none; }
+.bsa .bsa-chart li button {
+  display: grid;
+  grid-template-columns: minmax(10rem, 17rem) minmax(0, 1fr) 4.5rem;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-top: 1px solid var(--bsa-soft);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bsa .bsa-chart li button:hover { background: var(--bsa-tint); }
+.bsa-chart-nombre { display: grid; min-width: 0; }
+.bsa-chart-nombre strong, .bsa-chart-nombre small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bsa-chart-nombre strong { color: var(--bsa-ink); font-size: 12.5px; font-weight: 650; }
+.bsa-chart-nombre small { color: #8a5a06; font-size: 11px; }
+.bsa-chart-barra { display: flex; min-width: 2px; height: 12px; overflow: hidden; border-radius: 0 3px 3px 0; }
+.bsa-chart-barra i { display: block; min-width: 1px; height: 100%; }
+.bsa-chart li b { color: var(--bsa-ink); font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; }
+
+/* Lista de barrios. */
+.bsa-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.bsa-buscar { display: inline-flex; align-items: center; gap: 6px; min-width: 15rem; height: 34px; padding: 0 10px; border: 1px solid #c8d8e4; border-radius: 8px; background: #fff; color: var(--bsa-muted); }
+.bsa-buscar .app-icon { width: 15px; height: 15px; flex: none; }
+.bsa .bsa-buscar input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; color: var(--bsa-ink); font: inherit; outline: none; box-shadow: none; }
+.bsa-buscar:focus-within { border-color: var(--bsa-blue); box-shadow: 0 0 0 3px rgba(20, 101, 217, 0.14); }
+.bsa-seg { display: inline-flex; padding: 3px; border-radius: 8px; background: #eef2f6; }
+.bsa .bsa-seg button { min-height: 28px; padding: 0 11px; border: 0; border-radius: 6px; background: transparent; color: var(--bsa-muted); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; }
+.bsa .bsa-seg button.is-activo { background: #fff; box-shadow: 0 1px 2px rgba(22, 40, 59, 0.08); color: var(--bsa-ink); }
+.bsa-seg b { margin-left: 3px; font-variant-numeric: tabular-nums; }
+.bsa-check { display: inline-flex; align-items: center; gap: 6px; color: var(--bsa-body); font-size: 12.5px; cursor: pointer; }
+.bsa-marcas { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 8px !important; padding: 7px 0; border-block: 1px solid var(--bsa-soft); }
+.bsa-marcas b { color: var(--bsa-ink); }
+.bsa .bsa-marcas button { padding: 0; border: 0; background: none; color: var(--bsa-blue); font: inherit; font-weight: 650; cursor: pointer; }
+
+.bsa-tabla-wrap { overflow-x: auto; border: 1px solid var(--bsa-line); border-radius: 8px; background: #fff; }
+.bsa-tabla { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.bsa-tabla.is-barrios { min-width: 860px; }
+.bsa-tabla.is-barrios tbody th { min-width: 11rem; }
+.bsa-tabla th, .bsa-tabla td { padding: 8px 10px; border-bottom: 1px solid var(--bsa-soft); text-align: left; vertical-align: middle; }
+.bsa-tabla thead th { position: sticky; top: 0; z-index: 1; background: var(--bsa-tint); color: var(--bsa-muted); font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+.bsa-tabla tbody tr:last-child > * { border-bottom: 0; }
+.bsa-tabla tbody tr:hover { background: #fafbfd; }
+.bsa-tabla tbody tr.is-marcado { background: #f1f6fd; }
+.bsa-tabla .is-num { text-align: right; white-space: nowrap; }
+.bsa-tabla .is-check { width: 34px; padding-right: 0; }
+.bsa-tabla .is-mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 12px; white-space: nowrap; }
+.bsa-tabla .is-suave { color: var(--bsa-muted); }
+.bsa-tabla .is-cero { color: #a0acb8; }
+.bsa-tabla small { margin-left: 3px; color: var(--bsa-muted); font-size: 11px; }
+.bsa-tabla tbody th { color: var(--bsa-ink); font-weight: 650; }
+.bsa-tabla tbody th small { display: block; margin: 1px 0 0; font-weight: 400; }
+.bsa .bsa-tabla thead button { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.bsa .bsa-tabla thead button.is-activo { color: var(--bsa-blue); }
+.bsa-tabla thead .app-icon { width: 13px; height: 13px; }
+.bsa-cob { display: inline-block; width: 44px; height: 4px; margin-right: 8px; overflow: hidden; vertical-align: middle; border-radius: 2px; background: var(--bsa-red-soft); }
+.bsa-cob i { display: block; height: 100%; background: var(--bsa-blue); }
+.bsa-parecido { display: grid; color: #8a5a06; font-weight: 600; }
+.bsa-parecido small { margin: 0; font-weight: 400; }
+.bsa .bsa-link { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--bsa-blue); font: inherit; font-weight: 650; white-space: nowrap; cursor: pointer; }
+.bsa-link .app-icon { width: 14px; height: 14px; }
+.bsa-si { color: var(--bsa-blue); font-weight: 650; }
+.bsa-no { color: var(--bsa-red); font-weight: 650; }
+
+/* Claves de un barrio. */
+.bsa-claves { display: grid; gap: 12px; }
+.bsa-claves > header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+.bsa-claves h2 { margin-top: 6px; font-size: 19px; }
+.bsa-claves header p { margin-top: 3px; color: var(--bsa-muted); }
+.bsa .bsa-volver { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--bsa-blue); font: inherit; font-weight: 650; cursor: pointer; }
+.bsa-volver .app-icon { width: 14px; height: 14px; }
+.bsa-claves .bsa-aviso { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: #8a5a06; }
+.bsa-aviso .app-icon { width: 15px; height: 15px; flex: none; }
+.bsa-aviso b { color: var(--bsa-ink); }
+
+@media (max-width: 900px) {
+  .bsa { padding: 14px 14px 28px; }
+  .bsa-criterios, .bsa-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bsa-cifras div:nth-child(3) { border-left: 0; }
+  .bsa .bsa-chart li button { grid-template-columns: minmax(0, 1fr) 4rem; }
+  .bsa-chart-barra { grid-column: 1 / -1; grid-row: 2; }
+}

@@ -29,6 +29,9 @@ export const buildServiceRows = (barrios = []) =>
           total: num(barrio.deuda?.total),
           deudores: num(barrio.deuda?.deudores)
         },
+        // Usuarios por combinación de servicios ({ clave: "10000", usuarios, deudores,
+        // capital, intereses, total }). Un backend anterior no las manda: null.
+        combinaciones: Array.isArray(barrio.combinaciones) ? barrio.combinaciones : null,
         services: Object.fromEntries(SERVICE_COLUMNS.map(([field]) => [field, {
           active: num(byField[field]?.active),
           percentage: num(byField[field]?.percentage),
@@ -121,6 +124,74 @@ export const sortServiceFocusRows = (rows = [], { key = "active", dir = "desc" }
     const byValue = campo === "name" ? left.name.localeCompare(right.name, "es") : left[campo] - right[campo];
     return byValue * direction || left.name.localeCompare(right.name, "es");
   });
+};
+
+// ---------- Combinación de servicios ----------
+// Cada servicio se pide "con", "sin" o "igual" (da igual). Así se responde "con agua y
+// sin los demás" o "alcantarillado sin agua". El backend cuenta los usuarios por
+// combinación con una clave de cinco dígitos en el orden de SERVICE_COLUMNS
+// ("10000" = solo agua); debe ser el mismo orden que MASTER_SERVICE_FIELDS.
+
+export const ESTADOS_SERVICIO = [["con", "Con"], ["sin", "Sin"], ["igual", "Da igual"]];
+const NOMBRE_CORTO = { agua: "agua", alcantarillado: "alcantarillado", barrido: "barrido", recoleccion: "recolección", desechos_peligrosos: "desechos peligrosos" };
+
+export const combinacionDe = (estados = {}) => Object.fromEntries(SERVICE_COLUMNS.map(([campo]) => [campo, ["con", "sin"].includes(estados[campo]) ? estados[campo] : "igual"]));
+
+// Atajos de las preguntas que más se hacen. "Solo agua" deja fuera a todos los demás.
+export const ATAJOS_COMBINACION = [
+  ["solo-agua", "Solo agua", { agua: "con", alcantarillado: "sin", barrido: "sin", recoleccion: "sin", desechos_peligrosos: "sin" }],
+  ["agua-sin-alc", "Agua sin alcantarillado", { agua: "con", alcantarillado: "sin" }],
+  ["alc-sin-agua", "Alcantarillado sin agua", { agua: "sin", alcantarillado: "con" }],
+  ["ninguno", "Ningún servicio", { agua: "sin", alcantarillado: "sin", barrido: "sin", recoleccion: "sin", desechos_peligrosos: "sin" }]
+].map(([key, label, estados]) => ({ key, label, combinacion: combinacionDe(estados) }));
+
+export const mismaCombinacion = (a = {}, b = {}) => SERVICE_COLUMNS.every(([campo]) => (a[campo] || "igual") === (b[campo] || "igual"));
+
+// tiene(campo) -> si el usuario (o la combinación) tiene ese servicio.
+export const cumpleCombinacion = (combinacion = {}, tiene = () => false) =>
+  SERVICE_COLUMNS.every(([campo]) => !["con", "sin"].includes(combinacion[campo]) || (combinacion[campo] === "con") === Boolean(tiene(campo)));
+const cumpleClave = (combinacion, clave = "") => cumpleCombinacion(combinacion, (campo) => clave[SERVICE_COLUMNS.findIndex(([key]) => key === campo)] === "1");
+
+// Si la combinación pide un solo servicio y lo demás da igual, se lee como hoy:
+// "Con el servicio" / "Sin el servicio".
+export const servicioUnico = (combinacion = {}) => {
+  const pedidos = SERVICE_COLUMNS.filter(([campo]) => ["con", "sin"].includes(combinacion[campo]));
+  return pedidos.length === 1 && combinacion[pedidos[0][0]] === "con" ? pedidos[0][0] : "";
+};
+
+const enLista = (nombres, ultima) => (nombres.length < 2 ? nombres.join("") : `${nombres.slice(0, -1).join(", ")} ${ultima} ${nombres.at(-1)}`);
+// "con agua y sin alcantarillado, barrido ni recolección"; "" si todo da igual.
+export const fraseCombinacion = (combinacion = {}) => {
+  const con = SERVICE_COLUMNS.filter(([campo]) => combinacion[campo] === "con").map(([campo]) => NOMBRE_CORTO[campo]);
+  const sin = SERVICE_COLUMNS.filter(([campo]) => combinacion[campo] === "sin").map(([campo]) => NOMBRE_CORTO[campo]);
+  return [con.length ? `con ${enLista(con, "y")}` : "", sin.length ? `sin ${enLista(sin, "ni")}` : ""].filter(Boolean).join(" y ");
+};
+
+// Filas por barrio con la forma de buildServiceFocusRows: `active` son los usuarios que
+// cumplen la combinación y la deuda es la de sus cuentas. Sin las combinaciones del
+// backend solo se puede responder un servicio a la vez: { rows: null } si no alcanza.
+export const buildCombinacionRows = (rows = [], combinacion = {}) => {
+  const unico = servicioUnico(combinacion);
+  const conDatos = rows.length > 0 && rows.every((row) => Array.isArray(row.combinaciones));
+  if (!conDatos) return unico ? { rows: buildServiceFocusRows(rows, unico), exacta: true } : { rows: null, exacta: false };
+  const base = rows.map((row) => {
+    const suma = row.combinaciones.filter((grupo) => cumpleClave(combinacion, grupo.clave)).reduce((acc, grupo) => ({
+      active: acc.active + num(grupo.usuarios),
+      deudores: acc.deudores + num(grupo.deudores),
+      capital: acc.capital + num(grupo.capital),
+      intereses: acc.intereses + num(grupo.intereses),
+      deuda: acc.deuda + num(grupo.total)
+    }), { active: 0, deudores: 0, capital: 0, intereses: 0, deuda: 0 });
+    return {
+      name: row.name,
+      usuarios: row.usuarios,
+      ...suma,
+      sin: Math.max(0, row.usuarios - suma.active),
+      percentage: row.usuarios ? Number(((suma.active / row.usuarios) * 100).toFixed(1)) : 0
+    };
+  });
+  const totalDeuda = base.reduce((sum, row) => sum + row.deuda, 0);
+  return { rows: base.map((row) => ({ ...row, share: totalDeuda ? (row.deuda / totalDeuda) * 100 : 0 })), exacta: true };
 };
 
 export const sumServiceFocusRows = (rows = []) => {

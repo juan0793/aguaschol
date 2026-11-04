@@ -40,8 +40,14 @@ test("una unidad sin cuenta en un lote registrado es clandestina, con el lote co
   assert.match(result.motivo_dictamen, /No aparece en Aguas; el lote 14-08-02 sí/);
 });
 
-test("el abonado registrado manda aunque la clave no exista", () => {
-  assert.equal(dictaminarCandidato({ clave_catastral: "999-01-01", abonado_campo: "7317" }, index).dictamen, "registrado");
+test("el abonado anotado en campo es una pista, salvo que su clave sea la misma", () => {
+  // La cuenta de la casa de al lado o del lote original no prueba que esta casa pague.
+  const vecina = dictaminarCandidato({ clave_catastral: "999-01-01", abonado_campo: "7317" }, index);
+  assert.equal(vecina.dictamen, "sin_determinar");
+  assert.match(vecina.motivo_dictamen, /Cuenta anotada en campo: el abonado 7317 existe en Aguas \(22-35-01-01 · LUCILA\)/);
+  assert.equal(vecina.aguas_abonado, "7317");
+  assert.equal(dictaminarCandidato({ clave_catastral: "", abonado_campo: "7317" }, index).dictamen, "sin_determinar");
+  assert.equal(dictaminarCandidato({ clave_catastral: "22-35-01-01", abonado_campo: "7317" }, index).dictamen, "registrado");
 });
 
 test("sin clave queda sin determinar; una clave fuera de ambos padrones es clandestina", () => {
@@ -81,7 +87,7 @@ test("solo administración importa y la reimportación no duplica", async () => 
 test("enviar a ficha crea la ficha y saca al candidato del banco", async () => {
   const { items } = await listBancoClandestinos({ query: "Casa sin cuenta" });
   await assert.rejects(() => enviarCandidatoAFicha(items[0].id, {}, campo), (error) => error.status === 403);
-  const result = await enviarCandidatoAFicha(items[0].id, {}, tecnico);
+  const result = await enviarCandidatoAFicha(items[0].id, {}, admin);
   assert.equal(result.ficha_existente, false);
   assert.equal(result.candidato.estado, "enviado");
   assert.equal(result.candidato.inmueble_id, result.ficha.id);
@@ -89,17 +95,17 @@ test("enviar a ficha crea la ficha y saca al candidato del banco", async () => {
   assert.equal(ficha.conexion_agua, "Si");
   assert.match(ficha.comentarios, /Casa sin cuenta/);
   // Quien la mandó a ficha queda como responsable del levantamiento.
-  assert.equal(ficha.levantamiento_datos, "Técnico");
+  assert.equal(ficha.levantamiento_datos, "Administración");
   assert.equal((await listBancoClandestinos({ query: "Casa sin cuenta" })).total, 0);
-  const retry = await enviarCandidatoAFicha(items[0].id, {}, tecnico);
+  const retry = await enviarCandidatoAFicha(items[0].id, {}, admin);
   assert.equal(retry.ficha_existente, true);
   assert.equal(retry.ficha.id, result.ficha.id);
 });
 
 test("sin clave pide escribirla; con la clave del técnico sí se envía", async () => {
   const { items } = await listBancoClandestinos({ query: "Solar baldío" });
-  await assert.rejects(() => enviarCandidatoAFicha(items[0].id, {}, tecnico), /Escribe la clave/);
-  const result = await enviarCandidatoAFicha(items[0].id, { clave_catastral: "997 1 2" }, tecnico);
+  await assert.rejects(() => enviarCandidatoAFicha(items[0].id, {}, admin), /Escribe la clave/);
+  const result = await enviarCandidatoAFicha(items[0].id, { clave_catastral: "997 1 2" }, admin);
   assert.equal(result.ficha.clave_catastral, "997-01-02");
   assert.equal(result.candidato.clave_catastral, "997-01-02");
 });
@@ -122,17 +128,17 @@ test("una clave que ya tiene ficha se agrupa como copia; si se devuelve, se vinc
   const { items } = await listBancoClandestinos({ query: "Mismo predio" });
   assert.equal(items.length, 1);
   assert.equal(items[0].duplicado_de, null);
-  const result = await enviarCandidatoAFicha(items[0].id, {}, tecnico);
+  const result = await enviarCandidatoAFicha(items[0].id, {}, admin);
   assert.equal(result.ficha_existente, true);
   assert.equal(result.ficha.clave_catastral, "997-01-01");
 });
 
 test("descartar exige motivo y se puede devolver al banco", async () => {
   const { items } = await listBancoClandestinos({ query: "Otra casa" });
-  await assert.rejects(() => descartarCandidato(items[0].id, {}, tecnico), /motivo/);
-  const discarded = await descartarCandidato(items[0].id, { motivo: "No hay conexión" }, tecnico);
+  await assert.rejects(() => descartarCandidato(items[0].id, {}, admin), /motivo/);
+  const discarded = await descartarCandidato(items[0].id, { motivo: "No hay conexión" }, admin);
   assert.equal(discarded.estado, "descartado");
-  assert.equal((await restaurarCandidato(items[0].id, tecnico)).estado, "pendiente");
+  assert.equal((await restaurarCandidato(items[0].id, admin)).estado, "pendiente");
 });
 
 test("unifica abreviaturas de barrio al estilo de Alcaldía", () => {
@@ -181,7 +187,7 @@ test("resume los barrios con más candidatos y su desglose por dictamen", () => 
 test("verificar descarta a los que aparecen en Aguas y deja a los demás", async () => {
   await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo\nv-1,22-35-01-01,Casa de Lucila\nv-2,89-13-15,Casa de Hilda", lote: "verificacion" }, admin);
   await assert.rejects(() => verificarBancoClandestinos(campo, { index }), (error) => error.status === 403);
-  const result = await verificarBancoClandestinos(tecnico, { index });
+  const result = await verificarBancoClandestinos(admin, { index });
   assert.ok(result.descartados >= 1);
   const [lucila] = (await listBancoClandestinos({ query: "Casa de Lucila", estado: "" })).items;
   assert.equal(lucila.estado, "descartado");
@@ -203,6 +209,18 @@ test("repartir deja bloques vecinos por barrio y cargas parejas", () => {
   const plan = repartirCandidatos(candidatos, [7, 8]);
   assert.deepEqual(plan.map((item) => item.items.map((candidato) => candidato.id)), [[3, 2, 4], [1, 5]]);
   assert.deepEqual(repartirCandidatos(candidatos, []), []);
+});
+
+test("la lista de un técnico va por barrio y clave, con lo pendiente primero", async () => {
+  const csv = "origen_ref,clave_catastral,comentario_campo,barrio_colonia\nruta-1,994-02-10,Ruta uno,Barrio Zeta\nruta-2,994-01-05,Ruta dos,Barrio Alfa\nruta-3,994-01-02,Ruta tres,Barrio Alfa\nruta-4,994-03-01,Ruta cuatro,Barrio Alfa";
+  const ruta4 = { id: 4, role: "validadora_campo", full_name: "Ruta" };
+  await importBancoClandestinos({ csv, lote: "ruta" }, admin);
+  const { items } = await listBancoClandestinos({ query: "Ruta" });
+  await asignarCandidatos({ ids: items.map((item) => item.id), tecnico_ids: [ruta4.id] }, admin);
+  const cuatro = items.find((item) => item.clave_catastral === "994-03-01");
+  await descartarCandidato(cuatro.id, { motivo: "No aplica" }, ruta4);
+  const ruta = await listBancoClandestinos({ query: "Ruta", estado: "" }, ruta4);
+  assert.deepEqual(ruta.items.map((item) => item.clave_catastral), ["994-01-02", "994-01-05", "994-02-10", "994-03-01"]);
 });
 
 test("asignar reparte, ignora los ya procesados y la validadora solo trabaja lo suyo", async () => {
@@ -234,6 +252,17 @@ test("asignar reparte, ignora los ya procesados y la validadora solo trabaja lo 
 
   const result = await enviarCandidatoAFicha(propio.id, {}, campo);
   assert.equal(result.candidato.estado, "enviado");
+
+  // Cada técnico ve solo lo suyo aunque pida otro filtro; el operador ya no reparte.
+  const vistaCampo = await listBancoClandestinos({ query: "Asignable", asignado: "", estado: "" }, campo);
+  assert.deepEqual(vistaCampo.items.map((item) => item.id), [propio.id]);
+  assert.equal(vistaCampo.sin_asignar, 0);
+  assert.deepEqual(vistaCampo.asignaciones.map((item) => item.id), [campo.id]);
+  const vistaOperador = await listBancoClandestinos({ query: "Asignable", asignado: "none" }, tecnico);
+  assert.ok(vistaOperador.items.length && vistaOperador.items.every((item) => item.asignado_a === tecnico.id));
+  assert.equal((await listBancoClandestinos({ query: "Asignable", estado: "" }, { id: 9, role: "gerente" })).total, 3);
+  await assert.rejects(() => asignarCandidatos({ ids, tecnico_ids: [campo.id] }, tecnico), (error) => error.status === 403);
+  await assert.rejects(() => verificarBancoClandestinos(tecnico, { index }), (error) => error.status === 403);
 
   const pendientes = ids.filter((id) => id !== propio.id);
   assert.equal((await quitarAsignacion({ ids: pendientes }, admin)).liberados, 2);
@@ -319,7 +348,7 @@ test("duplicados: dos puntos de campo de la misma clave se reparten una sola vez
   assert.equal(pendientes.items[0].comentario_campo, "Casa esquinera");
   assert.equal(pendientes.items[0].duplicados, 1);
   assert.equal(await agruparDuplicadosBanco(), 0);
-  const { ficha } = await enviarCandidatoAFicha(pendientes.items[0].id, {}, tecnico);
+  const { ficha } = await enviarCandidatoAFicha(pendientes.items[0].id, {}, admin);
   assert.match(ficha.comentarios, /También levantado \(qfield #d-2\): Medidor tapado/);
 });
 
@@ -364,7 +393,7 @@ test("duplicados: una clave descartada a mano es principal; una copia ya agrupad
 test("una clave descartada no vuelve a Por revisar si llega otro punto con ella", async () => {
   await importBancoClandestinos({ csv: "origen_ref,clave_catastral\nr-1,996-03-03", lote: "descarte" }, admin);
   const [original] = (await listBancoClandestinos({ query: "996-03-03" })).items;
-  await descartarCandidato(original.id, { motivo: "Tiene servicio con otro nombre" }, tecnico);
+  await descartarCandidato(original.id, { motivo: "Tiene servicio con otro nombre" }, admin);
   const result = await importBancoClandestinos({ csv: "origen_ref,clave_catastral,comentario_campo\nr-2,996-03-03,Otra vez", lote: "descarte" }, admin);
   assert.equal(result.nuevos, 1);
   assert.equal(result.duplicados, 1);
@@ -374,7 +403,7 @@ test("una clave descartada no vuelve a Por revisar si llega otro punto con ella"
   assert.equal(copia.duplicado_de, original.id);
   assert.match(copia.motivo_descarte, /ya se había descartado/);
   // Si alguien la devuelve, queda pendiente y no se vuelve a agrupar sola.
-  await restaurarCandidato(copia.id, tecnico);
+  await restaurarCandidato(copia.id, admin);
   assert.equal(await agruparDuplicadosBanco(), 0);
   assert.equal((await listBancoClandestinos({ query: "996-03-03" })).total, 1);
 });
@@ -384,4 +413,12 @@ test("la clave escrita en el campo del abonado se usa si falta la clave", () => 
   assert.equal(candidatoDesdeFila({ origen_ref: "a", abonado_campo: "14-08-04-05 Segun alcaldia pertenece a Santos" }).clave_catastral, "14-08-04-05");
   assert.equal(candidatoDesdeFila({ origen_ref: "a", abonado_campo: "6518" }).clave_catastral, "");
   assert.equal(candidatoDesdeFila({ origen_ref: "a", clave_catastral: "22-35-01", abonado_campo: "89-13-13" }).clave_catastral, "22-35-01");
+});
+
+test("una descripción larga escrita en abonado pasa completa al comentario", () => {
+  const texto = "14-08-04-05 Segun alcaldia de choluteca pertenece a Santos Rutilia perez es tienda con dos cuartos atras";
+  const candidato = candidatoDesdeFila({ origen_ref: "larga-1", abonado: texto, comentario: "Casa esquinera" });
+  assert.equal(candidato.abonado_campo, "14-08-04-05");
+  assert.equal(candidato.comentario_campo, `Casa esquinera · Anotado en abonado: ${texto}`);
+  assert.equal(candidatoDesdeFila({ origen_ref: "corta-1", abonado: "6518" }).abonado_campo, "6518");
 });

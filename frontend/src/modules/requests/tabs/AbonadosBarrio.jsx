@@ -7,7 +7,7 @@ import { armarEstadoCuenta } from "../estadoCuenta/estadoCuentaDatos";
 import { imprimirAbonadosBarrios } from "../padronInformes";
 import { announceReportGenerated, createReportId } from "../../../utils/printDocument";
 import { ESTADOS_SALDO, ORDENES, coincide, estadoSaldo, ordenarAbonados, resumirAbonados } from "../utils/abonadosBarrio";
-import { SERVICE_COLUMNS, serviceLabel } from "../utils/serviceTable";
+import { SERVICE_COLUMNS, combinacionDe, cumpleCombinacion, fraseCombinacion, serviceLabel, servicioUnico } from "../utils/serviceTable";
 import SalidaBotones from "./SalidaBotones";
 
 const count = (value) => Number(value || 0).toLocaleString("es-HN");
@@ -51,10 +51,10 @@ export const filaAbreAbonados = (name, abrir) => {
 };
 
 // Los cinco servicios en posición fija: se leen como una columna. El activo va lleno,
-// el elegido en "Por servicio" en azul; el inactivo queda como trazo tenue.
-function Servicios({ row, field }) {
+// los pedidos con "Con" en "Por servicio" en azul; el inactivo queda como trazo tenue.
+function Servicios({ row, focus = [] }) {
   return <span className="pq-abo-srv" role="img" aria-label={`Servicios: ${SERVICE_COLUMNS.filter(([campo]) => row.servicios?.[campo]).map(([, etiqueta]) => etiqueta).join(", ") || "ninguno"}`}>
-    {SERVICE_COLUMNS.map(([campo, etiqueta, icono]) => <i key={campo} className={`${row.servicios?.[campo] ? "is-on" : ""} ${campo === field ? "is-focus" : ""}`.trim()} title={`${etiqueta}: ${row.servicios?.[campo] ? "sí" : "no"}`}><Icon name={icono} /></i>)}
+    {SERVICE_COLUMNS.map(([campo, etiqueta, icono]) => <i key={campo} className={`${row.servicios?.[campo] ? "is-on" : ""} ${focus.includes(campo) ? "is-focus" : ""}`.trim()} title={`${etiqueta}: ${row.servicios?.[campo] ? "sí" : "no"}`}><Icon name={icono} /></i>)}
   </span>;
 }
 
@@ -68,7 +68,14 @@ function Saldo({ row }) {
 // Doble clic en un barrio de las tablas de servicios: el estado de cuenta del barrio.
 // Arriba lo que debe el barrio; abajo sus abonados, del que más debe al que menos, con
 // búsqueda, filtros y la ficha de cada uno. Lo filtrado es lo que se imprime.
-export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
+export default function AbonadosBarrio({ barrio, field = "", combinacion: pedida = null, model, onClose }) {
+  // La combinación de "Por servicio" ("con agua y sin alcantarillado…"); `field` es un solo servicio.
+  const combinacion = useMemo(() => pedida || (field ? combinacionDe({ [field]: "con" }) : null), [pedida, field]);
+  const perfil = Boolean(combinacion && SERVICE_COLUMNS.some(([campo]) => combinacion[campo] !== "igual"));
+  const unico = perfil ? servicioUnico(combinacion) : "";
+  const quien = !perfil ? "" : unico ? `con ${serviceLabel(unico).toLowerCase()}` : fraseCombinacion(combinacion);
+  const enFoco = perfil ? SERVICE_COLUMNS.filter(([campo]) => combinacion[campo] === "con").map(([campo]) => campo) : [];
+  const cumple = (row) => cumpleCombinacion(combinacion, (campo) => row.servicios?.[campo]);
   const actualizado = model.serviceReport?.source?.updated_at || "";
   const llave = `${actualizado}|${barrio}`;
   // Cada respuesta queda marcada con la llave (versión y barrio) que la pidió; lo que
@@ -90,7 +97,6 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
   const cuerpo = useRef(null);
   const centinela = useRef(null);
   const origen = useRef(document.activeElement);
-  const servicio = field ? serviceLabel(field).toLowerCase() : "";
   // `model` se arma de nuevo en cada redibujo de la app: si la carga dependiera de él,
   // cada redibujo cancelaría la consulta en curso y el panel no terminaría de cargar.
   const apiFetch = useRef(model.apiFetch);
@@ -139,10 +145,10 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
   }, []);
 
   const barrioResumen = useMemo(() => resumirAbonados(estado.rows), [estado.rows]);
-  const conServicio = useMemo(() => (field ? estado.rows.filter((row) => row.servicios?.[field]).length : 0), [estado.rows, field]);
+  const conServicio = useMemo(() => (perfil ? estado.rows.filter(cumple).length : 0), [estado.rows, perfil, combinacion]);
   const visibles = useMemo(() => ordenarAbonados(estado.rows.filter((row) => (filtroSaldo === "todos" || estadoSaldo(row) === filtroSaldo)
-    && (!soloServicio || row.servicios?.[field])
-    && coincide(row, query)), orden), [estado.rows, filtroSaldo, soloServicio, field, query, orden]);
+    && (!soloServicio || cumple(row))
+    && coincide(row, query)), orden), [estado.rows, filtroSaldo, soloServicio, combinacion, query, orden]);
   const vistos = useMemo(() => resumirAbonados(visibles), [visibles]);
   const filtrado = visibles.length !== estado.rows.length;
   // La tanda vuelve a la primera cuando cambia lo que se ve (barrio, filtros u orden).
@@ -164,7 +170,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
 
   const filtrosActivos = [
     filtroSaldo !== "todos" ? ["Saldo", ESTADOS_SALDO.find(([clave]) => clave === filtroSaldo)?.[1]] : null,
-    soloServicio ? ["Servicio", `Con ${servicio}`] : null,
+    soloServicio ? ["Servicios", quien.charAt(0).toUpperCase() + quien.slice(1)] : null,
     query.trim() ? ["Búsqueda", `“${query.trim()}”`] : null
   ].filter(Boolean);
   const limpiar = () => { setQuery(""); setFiltroSaldo("todos"); setSoloServicio(false); buscador.current?.focus(); };
@@ -244,7 +250,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
       <header className="pq-abo-head">
         <div className="pq-abo-titulo">
           <h2 id="pq-abo-titulo">{barrio}</h2>
-          <p>{estado.cargando ? "Leyendo el padrón…" : <>{count(estado.rows.length)} {estado.rows.length === 1 ? "abonado" : "abonados"}{field ? <> · {count(conServicio)} con {servicio}</> : null}</>}{fechaPadron(actualizado) ? <> · padrón del {fechaPadron(actualizado)}</> : null}</p>
+          <p>{estado.cargando ? "Leyendo el padrón…" : <>{count(estado.rows.length)} {estado.rows.length === 1 ? "abonado" : "abonados"}{perfil ? <> · {count(conServicio)} {quien}</> : null}</>}{fechaPadron(actualizado) ? <> · padrón del {fechaPadron(actualizado)}</> : null}</p>
         </div>
         <button type="button" className="pq-abo-cerrar" onClick={onClose} aria-label="Cerrar"><Icon name="close" /></button>
 
@@ -279,7 +285,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
             {etiqueta}<small>{count(clave === "todos" ? estado.rows.length : barrioResumen[clave])}</small>
           </button>)}
         </div>
-        {field ? <label className="pq-check-toggle"><input type="checkbox" checked={soloServicio} onChange={(event) => setSoloServicio(event.target.checked)} />Solo con {servicio}</label> : null}
+        {perfil ? <label className="pq-check-toggle" title={unico ? undefined : `Usuarios ${quien}`}><input type="checkbox" checked={soloServicio} onChange={(event) => setSoloServicio(event.target.checked)} />{unico ? `Solo ${quien}` : "Solo los que cumplen"}</label> : null}
       </div>
 
       <div className="pq-abo-cuerpo" ref={cuerpo}>
@@ -291,7 +297,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
         </ol>
           : estado.error ? <div className="pq-abo-vacio is-error" role="alert"><p>{estado.error}</p><button type="button" className="pq-btn" onClick={() => setIntento((valor) => valor + 1)}><Icon name="refresh" />Reintentar</button></div>
             : !visibles.length ? <div className="pq-abo-vacio">
-              <p>{estado.rows.length ? `Ningún abonado ${[filtroSaldo !== "todos" ? ESTADOS_SALDO.find(([clave]) => clave === filtroSaldo)?.[1].toLowerCase() : "", soloServicio ? `con ${servicio}` : ""].filter(Boolean).join(" y ")}${query.trim() ? ` coincide con “${query.trim()}”` : " en esta lista"}.` : "El barrio no tiene abonados en el padrón."}</p>
+              <p>{estado.rows.length ? `Ningún abonado ${[filtroSaldo !== "todos" ? ESTADOS_SALDO.find(([clave]) => clave === filtroSaldo)?.[1].toLowerCase() : "", soloServicio ? quien : ""].filter(Boolean).join(" y ")}${query.trim() ? ` coincide con “${query.trim()}”` : " en esta lista"}.` : "El barrio no tiene abonados en el padrón."}</p>
               {estado.rows.length ? <button type="button" className="pq-btn" onClick={limpiar}>Ver todos los abonados</button> : null}
             </div>
               : <ol className="pq-abo-lista" ref={lista} aria-label={`Abonados de ${barrio}`}>
@@ -303,7 +309,7 @@ export default function AbonadosBarrio({ barrio, field = "", model, onClose }) {
                     <button type="button" className="pq-abo-fila" aria-expanded={abiertaEsta} onClick={() => setAbierta(abiertaEsta ? "" : id)} onKeyDown={moverFoco}>
                       <span className="pq-abo-id"><b>{claveDe(row)}</b><small>{row.abonado || "--"}</small></span>
                       <span className="pq-abo-nombre">{row.nombre || "Sin nombre"}</span>
-                      <Servicios row={row} field={field} />
+                      <Servicios row={row} focus={enFoco} />
                       <span className={`pq-abo-int ${Number(row.intereses) ? "" : "is-cero"}`.trim()}>{Number(row.intereses) ? money(row.intereses) : "—"}</span>
                       <Saldo row={row} />
                       <Icon name="chevronDown" className="pq-abo-flecha" />

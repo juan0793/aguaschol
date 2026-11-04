@@ -61,6 +61,40 @@ const model = {
     barrio("BO. EL CENTRO", 10105923.67, 640, 455, 690),
     ...relleno
   ],
+  // Responde como /claves/padron/lotes/comparacion (?lotes=no: sin lote anterior).
+  fetchLotesComparacion: async (anterior = "") => {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const lotes = [
+      { codigo: "FOX-20261028-0800", fecha_extraccion: "2026-10-28T14:00:00Z", estado: "APLICADO" },
+      { codigo: "FOX-20261021-0800", fecha_extraccion: "2026-10-21T14:00:00Z", estado: "APLICADO" }
+    ];
+    const base = { ok: true, actual: { codigo: "FOX-20261104-0800", fecha_extraccion: "2026-11-04T14:00:00Z", fecha_recepcion: "2026-11-04T14:10:00Z", fecha_corte: "2026-11-04T18:09:00Z" }, lotes,
+      pendiente: new URLSearchParams(window.location.search).has("pendiente") ? { codigo: "FOX-20261105-0800", fecha_extraccion: "2026-11-05T14:00:00Z", fecha_recepcion: "2026-11-05T14:12:00Z", nuevos: 6, modificados: 2140 } : null };
+    if (new URLSearchParams(window.location.search).get("lotes") === "no") return { ...base, lotes: [], disponible: false, motivo: "Todavía no hay un lote anterior aplicado para comparar." };
+    const k = anterior === lotes[1].codigo ? 2 : 1;
+    return {
+      ...base,
+      anterior: lotes[k - 1],
+      disponible: true,
+      comparacion: {
+        anterior: { cuentas: 25158 - 6 * k, con_mora: 19106 - 210 * k, mora_alta: 12925 + 75 * k, capital: 0, intereses: 0, total: 231919057.42 - 4120000 * k },
+        actual: { cuentas: 25158, con_mora: 19106, mora_alta: 12925, capital: 0, intereses: 0, total: 231919057.42 },
+        movimientos: {
+          nuevas: { cuentas: 9 * k, monto: 18400 * k }, salieron: { cuentas: 3 * k, monto: 2100 * k },
+          aumentaron: { cuentas: 8120 * k, monto: 6905000 * k }, bajaron: { cuentas: 1020 * k, monto: 1980000 * k },
+          saldaron: { cuentas: 431 * k, monto: 821300 * k }, cayeron_en_mora: { cuentas: 640 * k, monto: 512000 * k },
+          sin_cambio: 15200, cambio_servicio: 37 * k, cambio_barrio: 4 * k
+        },
+        barrios: {
+          subieron: [["BO. CABAÑAS", 910000], ["COL. JULIO MIDENCE", 640500], ["RESIDENCIAL MONTELIMAR 1 Y 2", 512300], ["BO. LA LIBERTAD", 388000], ["COL. VENECIA", 240100], ["BO. SAN JUAN", 98000]]
+            .map(([barrio, d], i) => ({ barrio, antes: 9000000, ahora: 9000000 + d * k, diferencia: d * k, cuentas: i === 2 ? 4 : 0 })),
+          bajaron: [["BO. EL CENTRO", -310000], ["COL. LAS COLINAS", -122000], ["BO. EL TAMARINDO", -41000]]
+            .map(([barrio, d]) => ({ barrio, antes: 6000000, ahora: 6000000 + d * k, diferencia: d * k, cuentas: -1 })),
+          con_cambios: 118
+        }
+      }
+    };
+  },
   // Responde como el endpoint /claves/services/accounts.
   fetchServiceAccounts: async (field) =>
     new Promise((resolve) =>
