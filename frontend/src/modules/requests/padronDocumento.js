@@ -57,8 +57,8 @@ const ESTILOS = `
     --doc-linea: #e4eaf1;
     --doc-banda: #f3f7fc;
     --doc-cebra: #f8fafc;
-    display: grid;
-    gap: 4.2mm;
+    /* Bloques y no rejilla: Chrome solo respeta "no cortar antes del pie" entre bloques. */
+    display: block;
     color: var(--doc-tinta);
     font-family: "PJS Doc", "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
     font-size: 9.5px;
@@ -87,12 +87,14 @@ const ESTILOS = `
   .pq-doc-cifras div:first-child dd { color: var(--doc-azul); font-size: 18px; }
   .pq-doc-cifras dd small { display: inline-block; margin-left: 4px; color: var(--doc-suave); font-size: 9px; font-weight: 600; }
   .pq-doc-cifras dt { margin-top: 2px; color: var(--doc-suave); font-size: 8.5px; line-height: 1.3; }
-  .pq-doc-seccion { display: grid; gap: 2mm; }
-  .pq-doc-seccion + .pq-doc-seccion { margin-top: 1.5mm; }
+  .pq-doc > * + * { margin-top: 3.4mm; }
+  .pq-doc-seccion > * + * { margin-top: 2mm; }
+  .pq-doc-seccion + .pq-doc-seccion { margin-top: 4.5mm; }
+  .pq-doc-seccion h2 { break-after: avoid; page-break-after: avoid; }
   .pq-doc-seccion h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0; color: var(--doc-azul); font-size: 12.5px; font-weight: 700; }
   .pq-doc-seccion h2 small { color: var(--doc-suave); font-size: 9px; font-weight: 400; }
   .pq-doc-seccion.is-salto { break-before: page; }
-  .pq-doc-seccion > p { font-size: 9.5px; line-height: 1.55; }
+  .pq-doc-seccion > p { color: var(--doc-tinta); font-size: 8.6px; line-height: 1.45; }
   /* El documento se imprime sin doctype (modo quirks): las tablas no heredan la letra. */
   .pq-doc table { width: 100%; border-collapse: separate; border-spacing: 0; font-family: inherit; font-size: 9.2px; line-height: 1.35; color: var(--doc-tinta); }
   .pq-doc thead { display: table-header-group; }
@@ -116,8 +118,10 @@ const ESTILOS = `
   .pq-doc-nota { color: var(--doc-suave); font-size: 8.5px; line-height: 1.5; }
   .pq-doc-nota b { color: var(--doc-tinta); font-weight: 600; }
   .pq-doc-vacio { padding: 10px; border: 1px dashed var(--doc-borde); border-radius: 5px; color: var(--doc-suave); text-align: center; }
-  .pq-doc-pie { display: flex; justify-content: space-between; gap: 12px; padding-top: 2.4mm; border-top: 1px solid var(--doc-linea); color: var(--doc-suave); font-size: 8px; }
-  .pq-doc-body .print-document-id { position: static; margin-top: 2px; color: #8796a5; font-family: "PJS Doc", Arial, sans-serif; font-size: 7.5px; }
+  /* La nota, el pie y el ID nunca quedan solos en una hoja nueva. */
+  .pq-doc-nota, .pq-doc-pie, .pq-doc-body .print-document-id { break-before: avoid; page-break-before: avoid; break-inside: avoid; }
+  .pq-doc-pie { display: flex; justify-content: space-between; gap: 12px; height: 11px; padding-top: 2mm; border-top: 1px solid var(--doc-linea); color: var(--doc-suave); font-size: 8px; }
+  .pq-doc-body .print-document-id { position: static; margin-top: -11px; text-align: right; color: #8796a5; font-family: "PJS Doc", Arial, sans-serif; font-size: 7.5px; }
 `;
 
 const CLASE = { num: "is-num", centro: "is-centro", mono: "is-mono", suave: "is-suave" };
@@ -170,7 +174,7 @@ const documentoHtml = (doc, generado) => `
         ${seccion.columnas ? tablaHtml(seccion) : `<p>${escapeHtml(seccion.texto || "")}</p>`}
       </section>`).join("")}
     ${doc.nota ? `<p class="pq-doc-nota"><b>Nota.</b> ${escapeHtml(doc.nota)}</p>` : ""}
-    <footer class="pq-doc-pie"><span>${CONFIDENCIAL} · ${CONFIDENCIAL_DETALLE}</span><span>${escapeHtml(doc.titulo)}</span></footer>
+    <footer class="pq-doc-pie"><span>${CONFIDENCIAL} · ${CONFIDENCIAL_DETALLE}</span></footer>
   </div>`;
 
 const padronTexto = (doc) => (doc.padronActualizado ? `Padrón del ${formatDateTime(doc.padronActualizado)}` : "Padrón maestro activo");
@@ -243,7 +247,7 @@ export const descargarPdfPadron = async (doc) => {
   const alto = pdf.internal.pageSize.getHeight();
   const util = ancho - MARGEN * 2;
   const generado = formatDateTime(new Date().toISOString());
-  const limite = alto - 18;
+  const limite = alto - 15;
   const texto = (contenido, x, y, { peso = "normal", tam = 8, color = TINTA, ...opciones } = {}) => {
     letra(peso);
     pdf.setFontSize(tam).setTextColor(...color).text(contenido, x, y, opciones);
@@ -268,12 +272,16 @@ export const descargarPdfPadron = async (doc) => {
   pdf.setDrawColor(...AZUL).setLineWidth(0.45).line(MARGEN, y, ancho - MARGEN, y);
 
   // Título, subtítulo y filtro.
+  // Un título largo (una combinación de cinco servicios) se achica hasta 15.5 pt para
+  // quedar en una línea; si aún no cabe, usa dos.
+  let tamTitulo = 19;
+  while (tamTitulo > 15.5 && medir(String(doc.titulo || ""), "bold", tamTitulo) > util) tamTitulo -= 0.5;
   letra("bold");
-  pdf.setFontSize(19);
-  const lineasTitulo = pdf.splitTextToSize(String(doc.titulo || ""), util * 0.86).slice(0, 2);
+  pdf.setFontSize(tamTitulo);
+  const lineasTitulo = pdf.splitTextToSize(String(doc.titulo || ""), util).slice(0, 2);
   y += 9.5;
-  texto(lineasTitulo, MARGEN, y, { peso: "bold", tam: 19, color: AZUL, lineHeightFactor: 1.12 });
-  y += (lineasTitulo.length - 1) * 7.5;
+  texto(lineasTitulo, MARGEN, y, { peso: "bold", tam: tamTitulo, color: AZUL, lineHeightFactor: 1.12 });
+  y += (lineasTitulo.length - 1) * tamTitulo * 0.4;
   if (doc.subtitulo) {
     y += 5.6;
     texto(doc.subtitulo, MARGEN, y, { tam: 9, color: SUAVE });
@@ -299,7 +307,7 @@ export const descargarPdfPadron = async (doc) => {
 
   // Cifras: fichas iguales; la primera, en azul profundo.
   if (doc.cifras?.length) {
-    y += 5;
+    y += 4.2;
     const hueco = 2.2;
     const anchoFicha = (util - hueco * (doc.cifras.length - 1)) / doc.cifras.length;
     const cabe = anchoFicha - 6;
@@ -336,18 +344,24 @@ export const descargarPdfPadron = async (doc) => {
   (doc.secciones || []).filter(Boolean).forEach((seccion, indice) => {
     if (seccion.salto && indice) y = nuevaHoja();
     else {
-      y += 8;
+      y += 6.5;
       if (y > limite - 24) y = nuevaHoja();
     }
     texto(seccion.titulo, MARGEN, y + 3, { peso: "bold", tam: 11, color: AZUL });
     if (seccion.detalle) texto(seccion.detalle, ancho - MARGEN, y + 3, { tam: 7.6, color: SUAVE, align: "right" });
     y += 6;
 
+    // Texto corrido (p. ej. los barrios donde nadie cumple): compacto y, si no cabe en la
+    // hoja, sigue en la siguiente en vez de salirse por debajo del pie.
     if (!seccion.columnas) {
       letra("normal");
-      const lineas = pdf.setFontSize(8.2).splitTextToSize(seccion.texto || "", util);
-      texto(lineas, MARGEN, y + 2.6, { tam: 8.2, lineHeightFactor: 1.45 });
-      y += lineas.length * 4.2 + 1;
+      const interlinea = 3.25;
+      const lineas = pdf.setFontSize(7).splitTextToSize(seccion.texto || "", util);
+      lineas.forEach((linea) => {
+        if (y + interlinea > limite) y = nuevaHoja();
+        texto(linea, MARGEN, y + 2.5, { tam: 7 });
+        y += interlinea;
+      });
       return;
     }
     if (!seccion.filas?.length) {
@@ -364,8 +378,8 @@ export const descargarPdfPadron = async (doc) => {
       const { texto: contenido, nota, cero, negrita, barra } = comoCelda(valor);
       const alinear = ALINEAR_PDF[columnas[posicion]?.alinear] || "left";
       const color = cero ? CERO : columnas[posicion]?.alinear === "suave" ? SUAVE : TINTA;
-      const principal = { content: contenido, barra, styles: { halign: alinear, textColor: color, fontStyle: negrita || enPie ? "bold" : "normal", ...(notas[posicion] ? { cellPadding: { top: 1.65, bottom: 1.65, left: 2.4, right: 1.2 } } : {}) } };
-      return notas[posicion] ? [principal, { content: nota, styles: { halign: "left", textColor: SUAVE, fontSize: 6.6, cellPadding: { top: 1.95, bottom: 1.65, left: 0, right: 2.4 } } }] : [principal];
+      const principal = { content: contenido, barra, styles: { halign: alinear, textColor: color, fontStyle: negrita || enPie ? "bold" : "normal", ...(notas[posicion] ? { cellPadding: { top: 1.45, bottom: 1.45, left: 2.4, right: 1.2 } } : {}) } };
+      return notas[posicion] ? [principal, { content: nota, styles: { halign: "left", textColor: SUAVE, fontSize: 6.6, cellPadding: { top: 1.75, bottom: 1.45, left: 0, right: 2.4 } } }] : [principal];
     });
     const cabeza = columnas.map((columna, posicion) => ({ content: String(columna.titulo || "").toUpperCase(), colSpan: notas[posicion] ? 2 : 1, styles: { halign: ALINEAR_PDF[columna.alinear] || "left" } }));
     autoTable(pdf, {
@@ -380,7 +394,7 @@ export const descargarPdfPadron = async (doc) => {
       showFoot: "lastPage",
       // El fondo de cada fila se pinta entero en willDrawCell: si cada celda pinta el suyo,
       // los visores dejan rayitas claras entre columnas.
-      styles: { font: familia, fontSize: 7.7, fillColor: false, cellPadding: { top: 1.65, bottom: 1.65, left: 2.4, right: 2.4 }, textColor: TINTA, lineColor: LINEA, lineWidth: { bottom: 0.2 }, overflow: "linebreak", valign: "top" },
+      styles: { font: familia, fontSize: 7.7, fillColor: false, cellPadding: { top: 1.45, bottom: 1.45, left: 2.4, right: 2.4 }, textColor: TINTA, lineColor: LINEA, lineWidth: { bottom: 0.2 }, overflow: "linebreak", valign: "top" },
       headStyles: { font: familiaSemi, fontStyle: fuentes ? "normal" : "bold", fillColor: false, textColor: BLANCO, fontSize: 6.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2.4, right: 2.4 }, lineWidth: 0 },
       footStyles: { fillColor: false, textColor: TINTA, lineColor: TINTA, lineWidth: { top: 0.45 } },
       willDrawCell: (data) => {
@@ -418,8 +432,9 @@ export const descargarPdfPadron = async (doc) => {
   if (doc.nota) {
     letra("normal");
     const lineas = pdf.setFontSize(7.4).splitTextToSize(`Nota. ${doc.nota}`, util);
-    if (y + 8 + lineas.length * 3.2 > limite) y = nuevaHoja();
-    texto(lineas, MARGEN, y + 7, { tam: 7.4, color: SUAVE, lineHeightFactor: 1.4 });
+    // La nota puede usar el aire que queda sobre el pie: así no se va sola a otra hoja.
+    if (y + 4.5 + lineas.length * 3.2 > alto - 12.5) y = nuevaHoja();
+    texto(lineas, MARGEN, y + 5, { tam: 7.4, color: SUAVE, lineHeightFactor: 1.4 });
   }
 
   // Pie en cada hoja: leyenda y número de página.

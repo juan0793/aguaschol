@@ -6,15 +6,17 @@ import PadronRequestsWorkspace from "../modules/requests/PadronRequestsWorkspace
 // Banco de pruebas de Consultas del padrón. Datos de mentira con la forma real de
 // GET /claves/services/report (incluidas las combinaciones por barrio): ningún barrio,
 // nombre ni clave es del padrón. Abre `qa-padron.html`; ?sinCombinaciones=1 simula un
-// backend anterior.
+// backend anterior y ?barrios=160 agrega barrios chicos (1 a 8 usuarios), como el padrón.
 const parametros = new URLSearchParams(location.search);
 const CAMPOS = ["agua", "alcantarillado", "barrido", "recoleccion", "desechos_peligrosos"];
 const ETIQUETAS = ["Agua potable", "Alcantarillado", "Barrido", "Recoleccion de desechos", "Desechos peligrosos"];
 let semilla = 11;
 const azar = (n) => { semilla = (semilla * 16807) % 2147483647; return semilla % n; };
-const nombres = ["Bo. Ficticio Norte", "Bo. de Prueba", "Col. Ejemplo", "Res. Imaginaria", "Bo. Ensayo Sur", "Col. Muestra", "Bo. Simulado", "Col. Demostración con Nombre Largo", "Bo. Prototipo", "Col. Borrador", "Bo. Maqueta", "Col. Patrón", "Bo. Modelo", "Col. Boceto", "Lot. Ensayo", "Res. Esquema", "Bo. Plantilla", "Col. Croquis"];
+const base = ["Bo. Ficticio Norte", "Bo. de Prueba", "Col. Ejemplo", "Res. Imaginaria", "Bo. Ensayo Sur", "Col. Muestra", "Bo. Simulado", "Col. Demostración con Nombre Largo", "Bo. Prototipo", "Col. Borrador", "Bo. Maqueta", "Col. Patrón", "Bo. Modelo", "Col. Boceto", "Lot. Ensayo", "Res. Esquema", "Bo. Plantilla", "Col. Croquis"];
+const CANTIDAD = Number(parametros.get("barrios")) || base.length;
+const nombres = Array.from({ length: CANTIDAD }, (_, i) => base[i] || `${["Bo.", "Col.", "Res.", "Lot."][i % 4]} Ficticio ${i + 1}`);
 const barrios = nombres.map((barrio_colonia, b) => {
-  const total = 3 + azar(b < 4 ? 600 : 160);
+  const total = b >= base.length ? 1 + azar(8) : 3 + azar(b < 4 ? 600 : 160);
   const grupos = new Map();
   const deuda = { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0 };
   const servicios = Object.fromEntries(CAMPOS.map((field, i) => [field, { field, label: ETIQUETAS[i], active: 0, inactive: 0, unknown: 0, percentage: 0, deuda: { capital: 0, intereses: 0, total: 0, deudores: 0, criticos: 0 } }]));
