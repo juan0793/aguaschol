@@ -109,6 +109,43 @@
 .pq-workspace .pq-service-pick button.is-active span, .pq-workspace .pq-service-pick button.is-active span .app-icon { color: var(--ds-blue, #1769e0); }
 
 /* Resumen del servicio elegido: una frase con las cifras en negrita. */
+/* Combinación de servicios en "Por servicio": cada servicio con, sin o da igual.
+   Con = azul institucional; Sin = pizarra (queda fuera); Da igual = columna en blanco. */
+.pq-workspace .pq-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pq-workspace .pq-combo { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.pq-workspace .pq-combo-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 12px; background: #fff; }
+.pq-workspace .pq-combo-item { display: grid; align-content: start; gap: 9px; min-width: 0; padding: 10px 12px 12px; border-left: 1px solid var(--ds-border, #e3ebf3); background: #fff; transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+.pq-workspace .pq-combo-item:first-child { border-left: 0; }
+.pq-workspace .pq-combo-item.is-con { background: var(--ds-blue-soft, #eef5ff); box-shadow: inset 0 -2px var(--ds-blue, #1769e0); }
+.pq-workspace .pq-combo-item.is-sin { background: #f5f7fa; box-shadow: inset 0 -2px #6b7f94; }
+.pq-workspace .pq-combo-name { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--ds-text, #102a43); font-size: 13.5px; font-weight: 750; white-space: nowrap; }
+.pq-workspace .pq-combo-name .app-icon { flex: none; width: 16px; height: 16px; margin: 0; color: var(--ds-text-faint, #94a3b8); }
+.pq-workspace .pq-combo-name small { overflow: hidden; margin-left: auto; color: var(--ds-text-muted, #627d98); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
+.pq-workspace .pq-combo-item.is-con .pq-combo-name, .pq-workspace .pq-combo-item.is-con .pq-combo-name .app-icon { color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-combo-item.is-sin .pq-combo-name { color: #3e5367; }
+.pq-workspace .pq-combo-item.is-sin .pq-combo-name .app-icon { color: #6b7f94; }
+.pq-workspace .pq-combo-seg { display: grid; grid-template-columns: 1fr 1fr 1.35fr; overflow: hidden; border: 1px solid #d3dfeb; border-radius: 8px; background: #fff; }
+.pq-workspace .pq-combo-seg button { min-width: 0; min-height: 30px; width: auto; margin: 0; padding: 0 6px; border: 0; border-left: 1px solid #d3dfeb; border-radius: 0; background: transparent; box-shadow: none; color: #3e5367; font-size: 12.5px; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; }
+.pq-workspace .pq-combo-seg button:first-child { border-left: 0; }
+.pq-workspace .pq-combo-seg button:hover:not(.is-active) { background: #f2f6fa; box-shadow: none; transform: none; }
+.pq-workspace .pq-combo-seg button:focus-visible { position: relative; outline: 2px solid var(--ds-blue, #1769e0); outline-offset: -2px; }
+.pq-workspace .pq-combo-seg button.is-active.is-con { background: var(--ds-blue, #1465d9); color: #fff; }
+.pq-workspace .pq-combo-seg button.is-active.is-sin { background: #52667a; color: #fff; }
+.pq-workspace .pq-combo-seg button.is-active.is-igual { background: #e9eef4; color: var(--ds-text, #102a43); }
+.pq-workspace .pq-combo-atajos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.pq-workspace .pq-combo-atajos > span { margin-right: 2px; color: var(--ds-text-muted, #627d98); font-size: 12.5px; font-weight: 650; }
+.pq-workspace .pq-combo-atajos button { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; width: auto; margin: 0; padding: 0 10px; border: 1px solid #d3dfeb; border-radius: 8px; background: #fff; box-shadow: none; color: #243b53; font-size: 12.5px; font-weight: 650; cursor: pointer; }
+.pq-workspace .pq-combo-atajos button:hover:not(:disabled) { border-color: #b9cde3; background: #f7fafd; box-shadow: none; transform: none; }
+.pq-workspace .pq-combo-atajos button.is-active { border-color: #9cc0ef; background: var(--ds-blue-soft, #eef5ff); color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-combo-atajos button.is-reset { border-color: transparent; background: none; color: var(--ds-text-muted, #627d98); }
+.pq-workspace .pq-combo-atajos button.is-reset:hover { color: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-combo-atajos .app-icon { width: 13px; height: 13px; margin: 0; }
+/* Línea fija de la selección: siempre ocupa su lugar, así marcar no empuja la tabla. */
+.pq-workspace .pq-mark-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; min-height: 32px; margin: -2px 0 -4px; color: var(--ds-text-muted, #627d98); font-size: 13px; }
+.pq-workspace .pq-mark-line.has-marks { color: var(--ds-text, #243b53); }
+.pq-workspace .pq-mark-line b { color: var(--ds-text, #102a43); font-weight: 750; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-mark-line > span { font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-mark-line em { color: #9a5a06; font-style: normal; font-weight: 650; }
 .pq-workspace .pq-focus-summary { max-width: 82ch; margin: 2px 0 0; color: var(--ds-text, #243b53); font-size: 14.5px; line-height: 1.55; text-wrap: pretty; }
 .pq-workspace .pq-focus-summary b { color: var(--ds-text, #102a43); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pq-workspace .pq-check-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--ds-text, #243b53); font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -453,6 +490,9 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
+  .pq-workspace .pq-combo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pq-workspace .pq-combo-item { border-bottom: 1px solid var(--ds-border, #e3ebf3); }
+  .pq-workspace .pq-combo-item:nth-child(3n + 1) { border-left: 0; }
   /* Los servicios se deslizan en una fila en vez de apretarse. */
   .pq-workspace .pq-service-pick { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); overflow-x: auto; scrollbar-width: none; }
   /* En pantallas angostas el índice de barrios es un selector. */
@@ -468,6 +508,13 @@
   .pq-workspace .pq-figure { padding: 0 16px; }
 }
 @media (max-width: 700px) {
+  /* La combinación baja a una lista: el servicio a la izquierda y sus tres opciones a la derecha. */
+  .pq-workspace .pq-combo-grid { grid-template-columns: minmax(0, 1fr); }
+  .pq-workspace .pq-combo-item { grid-template-columns: minmax(0, 1fr) minmax(176px, 0.9fr); align-items: center; padding: 8px 10px; border-left: 0; border-top: 1px solid var(--ds-border, #e3ebf3); border-bottom: 0; }
+  .pq-workspace .pq-combo-item:first-child { border-top: 0; }
+  .pq-workspace .pq-combo-name { flex-wrap: wrap; row-gap: 0; }
+  .pq-workspace .pq-combo-name small { flex-basis: 100%; margin-left: 23px; }
+  .pq-workspace .pq-combo-seg button { min-height: 36px; }
   .pq-workspace .pq-focus-summary { font-size: 14px; }
   .pq-workspace .pq-header { grid-template-areas: "title action" "source source" "ledger ledger"; align-items: center; column-gap: 12px; padding: 12px 14px 0; }
   .pq-workspace .pq-header h1 { font-size: 20px; }

@@ -50,12 +50,15 @@ export const imprimirTodosServicios = ({ rows = [], vista = "usuarios", filtro =
   }, modo);
 };
 
-// 2. Un solo servicio: ya se sabe que es la consulta individual, el título es el servicio.
+// 2. Por servicio: un servicio o una combinación ("con agua y sin alcantarillado…").
+// El título es el servicio o la combinación; `quien` la nombra dentro de las frases.
 export const imprimirServicio = (informe = {}, padronActualizado = "", modo) => {
   const { label = "", rows = [], totals = {}, resumen = {}, barriosSinNombres = [], filtro = "" } = informe;
-  const nombre = label.toLowerCase();
+  const quien = informe.quien || `con ${label.toLowerCase()}`;
+  const columnaCon = informe.columnaCon || "Con el servicio";
+  const unico = columnaCon === "Con el servicio";
   const columnas = [
-    { titulo: "Barrio" }, num("Usuarios"), num("Con el servicio"), num("Sin el servicio"), num("Cuentas con deuda"),
+    { titulo: "Barrio" }, num("Usuarios"), num(columnaCon), num(informe.columnaSin || "Sin el servicio"), num("Cuentas con deuda"),
     num("Capital"), num("Intereses"), num("Deuda"), num("Parte")
   ];
   const fila = (row) => [
@@ -73,23 +76,23 @@ export const imprimirServicio = (informe = {}, padronActualizado = "", modo) => 
   return salidaPadron({
     tipo: "Consulta por servicio",
     titulo: label,
-    subtitulo: `Barrios con ${nombre}, usuarios sin el servicio y deuda de esas cuentas.`,
+    subtitulo: unico ? `Barrios con usuarios ${quien}, usuarios sin el servicio y deuda de esas cuentas.` : "Usuarios que cumplen esta combinación de servicios en cada barrio, y la deuda de sus cuentas.",
     filtro: filtro ? [["Filtro", filtro]] : [],
     padronActualizado,
     orientacion: "landscape",
-    archivo: `consulta-${nombre}`,
+    archivo: `consulta-${quien.replace(/[^a-záéíóúñ0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`,
     cifras: [
-      [docCount(resumen.active), `usuarios con ${nombre}`, docPct(resumen.percentage)],
-      [docCount(resumen.barriosCon), "barrios con el servicio"],
+      [docCount(resumen.active), unico ? `usuarios ${quien}` : "usuarios que cumplen", docPct(resumen.percentage)],
+      [docCount(resumen.barriosCon), unico ? "barrios con el servicio" : "barrios donde alguien cumple"],
       [docCount(resumen.deudores), "cuentas con deuda"],
       [docMoney(resumen.deuda), "de deuda"],
       [docMoney(promedio), "promedio por cuenta"]
     ],
     secciones: [
       { titulo: "Barrios", detalle: `${docCount(rows.length)} en este informe`, columnas, filas: rows.map(fila), pie: fila({ ...totals, name: "Total" }) },
-      barriosSinNombres.length ? { titulo: `Barrios sin ${nombre}`, detalle: `${docCount(barriosSinNombres.length)} barrios`, texto: barriosSinNombres.join(" · ") } : null
+      barriosSinNombres.length ? { titulo: unico ? `Barrios sin ${label.toLowerCase()}` : "Barrios donde nadie cumple", detalle: `${docCount(barriosSinNombres.length)} barrios`, texto: barriosSinNombres.join(" · ") } : null
     ],
-    nota: `La deuda es la de las cuentas que tienen ${nombre}: el padrón no la separa por servicio. “Parte” es cuánto de esa deuda está en cada barrio.`
+    nota: `La deuda es la de las cuentas de los usuarios ${quien}: el padrón no la separa por servicio. “Parte” es cuánto de esa deuda está en cada barrio.`
   }, modo);
 };
 

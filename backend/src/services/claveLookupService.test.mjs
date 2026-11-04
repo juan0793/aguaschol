@@ -36,6 +36,19 @@ test("calcula deuda general y por servicio para cada barrio", async () => {
   assert.ok(report.barrios.every((barrio) => barrio.servicios.every((service) => Number.isFinite(service.deuda.total))));
 });
 
+test("cuenta los usuarios de cada barrio por combinación de servicios y cuadra con los totales", async () => {
+  const report = await getAguasServiceReport();
+  for (const barrio of report.barrios) {
+    assert.equal(barrio.combinaciones.reduce((total, grupo) => total + grupo.usuarios, 0), barrio.total_registros);
+    assert.ok(barrio.combinaciones.every((grupo) => /^[01]{5}$/.test(grupo.clave)));
+    const agua = barrio.servicios.find((service) => service.field === "agua");
+    assert.equal(barrio.combinaciones.filter((grupo) => grupo.clave[0] === "1").reduce((total, grupo) => total + grupo.usuarios, 0), agua.active);
+    assert.equal(Number(barrio.combinaciones.reduce((total, grupo) => total + grupo.total, 0).toFixed(2)), barrio.deuda.total);
+  }
+  const conAguaSinAlc = report.barrios.flatMap((barrio) => barrio.combinaciones).filter((grupo) => grupo.clave.startsWith("10")).reduce((total, grupo) => total + grupo.usuarios, 0);
+  assert.equal(conAguaSinAlc, report.summary.profiles.water_without_sewer);
+});
+
 test("busca el numero de abonado de forma exacta", async () => {
   const result = await searchClaveCatastral("1223", { field: "abonado" });
   assert.ok(result.matches.length > 0);
