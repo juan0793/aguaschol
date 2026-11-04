@@ -72,6 +72,7 @@ export default function ServiceFocus({ model, rows, combinacion }) {
       : [query.trim() ? `Barrios que contienen “${query.trim()}”` : "", conSin ? "Incluye barrios donde nadie cumple" : ""];
     return {
       label: titulo,
+      soloMarcados: marcados.length > 0,
       quien,
       columnaCon,
       columnaSin,
