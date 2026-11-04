@@ -21,7 +21,9 @@ const FUERA_FONDO = [253, 236, 238];
 const OCRE_FONDO = [255, 247, 232];
 const OCRE = [154, 90, 6];
 const MARGEN = 14;
-const ALTO_CAJETIN = 13;
+const ALTO_CAJETIN = 17;
+// Quien elabora los informes de pozos: va en el cajetín de cada hoja.
+export const ELABORADO_POR = "Ing. Juan Ordoñez Bonilla · Catastro";
 
 export const TIPOS_INFORME = {
   inventario: { titulo: "Inventario de pozos", codigo: "POZ-INV", orientacion: "landscape", archivo: "inventario-pozos" },
@@ -143,12 +145,18 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
       const celdas = [["Documento", info.codigo, 26], ["Generado", generadoEn || "--", 44], ["Hoja", `${hoja} de ${total}`, 20]];
       let cx = ancho - MARGEN - celdas.reduce((suma, celda) => suma + celda[2], 0);
       doc.line(cx, y, cx, y + ALTO_CAJETIN);
-      texto(`Fuente: ${fuente || "encuesta de pozos de Choluteca"}.`, MARGEN + 2.5, y + 4.4, { tam: 6.4, color: TENUE, max: cx - MARGEN - 5 });
-      texto(NORMA, MARGEN + 2.5, y + 8.2, { tam: 5.8, color: TENUE, max: cx - MARGEN - 5 });
+      const anchoTexto = cx - MARGEN - 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      const etiquetaElaborado = "Elaborado por: ";
+      texto(etiquetaElaborado, MARGEN + 2.5, y + 4.6, { tam: 6.8, color: TENUE });
+      texto(ELABORADO_POR, MARGEN + 2.5 + doc.getTextWidth(etiquetaElaborado), y + 4.6, { tam: 6.8, negrita: true });
+      texto(`Fuente: ${fuente || "encuesta de pozos de Choluteca"}.`, MARGEN + 2.5, y + 8.6, { tam: 6.4, color: TENUE, max: anchoTexto });
+      texto(NORMA, MARGEN + 2.5, y + 12.2, { tam: 5.8, color: TENUE, max: anchoTexto });
       celdas.forEach(([etiqueta, valor, anchoCelda], indice) => {
         if (indice) doc.line(cx, y, cx, y + ALTO_CAJETIN);
-        texto(etiqueta.toUpperCase(), cx + 2, y + 4, { tam: 5.4, negrita: true, color: TENUE });
-        texto(valor, cx + 2, y + 9.2, { tam: 7.6, negrita: true, color: indice === 0 ? AGUA : TINTA, max: anchoCelda - 3 });
+        texto(etiqueta.toUpperCase(), cx + 2, y + 5.2, { tam: 5.4, negrita: true, color: TENUE });
+        texto(valor, cx + 2, y + 11, { tam: 7.6, negrita: true, color: indice === 0 ? AGUA : TINTA, max: anchoCelda - 3 });
         cx += anchoCelda;
       });
     }
