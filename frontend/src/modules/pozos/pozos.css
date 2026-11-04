@@ -128,6 +128,13 @@
 .pz-drawer-datos { display: grid; align-content: start; gap: 18px; min-width: 0; }
 .pz-drawer-datos h3 { margin: 0 0 6px; color: var(--navy); font-size: 14px; font-weight: 750; }
 .pz-datos, .pz-mediciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0 16px; margin: 0; }
+.pz-legal-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+.pz-legal-form label { display: grid; gap: 4px; }
+.pz-legal-form input, .pz-legal-form select { min-width: 0; width: 100%; }
+.pz-legal-form p, .pz-legal-form button { grid-column: 1 / -1; }
+.pz-legal-resumen ul { list-style: none; margin: 0; padding: 0; }
+.pz-legal-resumen button { display: flex; justify-content: space-between; gap: 8px; width: 100%; }
+.pz-legal-canon span, .pz-legal-aviso { display: block; }
 .pz-mediciones { gap: 6px; padding: 0; list-style: none; }
 .pz-dato { padding: 8px 0; border-top: 1px solid #e4edf5; }
 .pz-dato.is-ancho { grid-column: 1 / -1; }

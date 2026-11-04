@@ -27,7 +27,7 @@ const enTandas = async (items, hacer, onAvance) => {
 
 /**
  * @param {object} opciones
- * @param {"inventario"|"fichas"|"calidad"|"levantamiento"} opciones.tipo
+ * @param {"inventario"|"fichas"|"calidad"|"levantamiento"|"legal"} opciones.tipo
  * @param {object[]} opciones.pozos  lista filtrada, en el orden de pantalla
  * @param {(texto: string) => void} [opciones.onProgreso]
  */

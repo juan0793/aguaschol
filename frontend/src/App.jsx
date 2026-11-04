@@ -872,7 +872,7 @@ function App() {
         </main>
       ) : workspaceView === "pozos" && (isAdmin || isManager) ? (
         <Suspense fallback={<ModuleSkeleton title="los pozos" />}>
-          <PozosWorkspace apiFetch={apiFetch} />
+          <PozosWorkspace apiFetch={apiFetch} isAdmin={isAdmin} />
         </Suspense>
       ) : workspaceView === "fallas" && (isAdmin || isManager) ? (
         <main className="team-activity-layout">

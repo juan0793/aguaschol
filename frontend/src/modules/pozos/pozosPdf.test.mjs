@@ -19,8 +19,8 @@ test("el plan agrupa por colonia los pozos con datos por levantar, por código",
   assert.equal(plan[0].datos, 2 + 5);
 });
 
-test("los cuatro informes se arman, también sin pozos", () => {
-  for (const tipo of ["inventario", "fichas", "calidad", "levantamiento"]) {
+test("los cinco informes se arman, también sin pozos", () => {
+  for (const tipo of ["inventario", "fichas", "calidad", "levantamiento", "legal"]) {
     const doc = crearInformePozos({ jsPDF, autoTable, tipo, pozos, alcance: "Prueba", generadoEn: "21/10/2026" });
     assert.ok(doc.getNumberOfPages() >= 1, tipo);
     assert.ok(crearInformePozos({ jsPDF, autoTable, tipo, pozos: [] }).getNumberOfPages() >= 1, `${tipo} vacío`);

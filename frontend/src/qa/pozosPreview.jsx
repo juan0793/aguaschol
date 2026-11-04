@@ -3,10 +3,46 @@ import ReactDOM from "react-dom/client";
 import "../styles.css";
 import PozosWorkspace from "../modules/pozos/PozosWorkspace";
 
-// Banco de pruebas de la pantalla Pozos. Datos de mentira con la forma real de /api/pozos:
-// nombres y mediciones inventados, ubicados en Choluteca. Abre `qa-pozos.html`.
+// Banco de pruebas de Pozos. Todos los nombres y claves son ficticios; cubre cada estado legal.
+// Abre `qa-pozos.html`.
 
-const colonias = ["Bo. Cabañas", "Bo. Guadalupe", "La Libertad", "Bo. Brisas del Sur", "Campo Sol"];
+const colonias = ["Colonia Ensayo Norte", "Barrio Muestra", "Sector Prueba Sur", "Loma Simulada", "Campo Modelo"];
+const estadosLegales = ["al_dia", "por_vencer", "vencido", "sin_permiso", "no_requiere", "por_definir"];
+const usosLegales = ["industrial_comercial", "purificadora", "agroforestal", "industrial_comercial", "domiciliario", "sin_dato", "comunitario", "sanitario"];
+
+const legalDe = (i) => {
+  const estado = estadosLegales[i % estadosLegales.length];
+  const uso = usosLegales[i % usosLegales.length];
+  const esProductivo = !["domiciliario", "comunitario", "sin_dato"].includes(uso);
+  const vence = estado === "vencido" ? "2025-08-15" : estado === "por_vencer" ? "2027-02-15" : "2031-06-15";
+  const caudal = Number((0.7 + (i % 5) * 0.35).toFixed(2));
+  const volumen = Math.round(caudal * 3.6 * (4 + (i % 4)) * 22 * 12);
+  return {
+    uso,
+    tamano_empresa: esProductivo ? (i % 2 ? "micro_pequena" : "mediana_grande") : "no_aplica",
+    clave_catastral: i % 3 === 0 ? `QA-POZO-${String(i + 1).padStart(3, "0")}` : "",
+    titular: `Titular ficticio ${i + 1}`,
+    permiso_tipo: estado === "sin_permiso" ? "ninguno" : estado === "por_definir" ? "sin_dato" : estado === "no_requiere" ? "ninguno" : estado === "por_vencer" ? "licencia_municipal" : "permiso_municipal",
+    permiso_numero: ["sin_permiso", "por_definir", "no_requiere"].includes(estado) ? "" : `QA-PERM-${100 + i}`,
+    permiso_fecha: ["sin_permiso", "por_definir", "no_requiere"].includes(estado) ? null : "2021-06-15",
+    permiso_vence: ["sin_permiso", "por_definir", "no_requiere"].includes(estado) ? null : vence,
+    caudal_autorizado_lps: esProductivo ? caudal : null,
+    caudal_lps: caudal,
+    horas_bombeo_dia: 4 + (i % 4),
+    dias_mes: 22,
+    volumen_declarado_m3: i % 5 === 0 ? null : volumen - 120,
+    anio_declarado: i % 5 === 0 ? null : 2026,
+    notas: "Registro ficticio para revisión visual.",
+    actualizado_por: "Administración de prueba",
+    actualizado_at: "2026-11-04T12:00:00.000Z",
+    estado,
+    falta_declaracion: i % 5 === 0,
+    articulo: estado === "no_requiere" ? "Art. 135" : estado === "por_vencer" ? "Art. 157" : estado === "sin_permiso" ? "Arts. 136 y 152–161" : "Arts. 57, 135 y 140",
+    uso_sugerido: uso,
+    volumen_estimado_m3: volumen,
+    canon_estimado_l: Number((volumen * 0.0025).toFixed(2))
+  };
+};
 const pozos = Array.from({ length: 14 }, (_, i) => {
   const valida = i !== 9;
   const lat = 13.296 + (i % 5) * 0.004 + Math.floor(i / 5) * 0.0015;
@@ -16,7 +52,7 @@ const pozos = Array.from({ length: 14 }, (_, i) => {
     codigo: `Pchol.-${String((i % 11) + 1).padStart(3, "0")}`,
     nombre: i % 3 === 0 ? `Pozo de prueba ${i + 1} con un nombre bastante largo para ver el corte` : `Pozo de prueba ${i + 1}`,
     colonia: colonias[i % colonias.length],
-    municipio: "Choluteca",
+    municipio: "Municipio de prueba",
     utm_x: 479000 + i * 120,
     utm_y: valida ? 1470200 + i * 90 : 14702443,
     elevacion_m: i % 4 ? 40 + i : null,
@@ -36,15 +72,42 @@ const pozos = Array.from({ length: 14 }, (_, i) => {
     oxigeno_disuelto: i % 2 ? 60 + i : null,
     conductividad: i % 2 ? "386/345" : null,
     cloro_residual: i % 2 ? 0.05 : null,
-    observaciones: i % 2 ? "Dato de prueba: pozo usado para limpieza, sellado en la parte superior. Encuestado ficticio." : null
+    observaciones: i % 2 ? "Dato de prueba: pozo usado para limpieza, sellado en la parte superior. Encuestado ficticio." : null,
+    legal: legalDe(i)
   };
 });
 
 // Se repiten los 14 pozos (con id nuevo) para tener más de una página en el listado.
 const inventario = [0, 1, 2].flatMap((vuelta) => pozos.map((pozo) => ({ ...pozo, id: pozo.id + vuelta * 100, codigo: `Pchol.-${String(Number(pozo.codigo.slice(-3)) + vuelta * 14).padStart(3, "0")}` })));
-const apiFetch = async () => {
+let actualizado = "2026-11-04T12:00:00.000Z";
+const respuesta = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+const apiFetch = async (url, options = {}) => {
   await new Promise((resolve) => window.setTimeout(resolve, 300));
-  return new Response(JSON.stringify({ fuente: "datos de prueba (QA)", actualizado: "2026-10-20T12:00:00.000Z", resumen: {}, pozos: inventario }), { status: 200, headers: { "Content-Type": "application/json" } });
+  const method = (options.method || "GET").toUpperCase();
+  if (url.startsWith("/claves/search")) {
+    const clave = new URL(url, window.location.origin).searchParams.get("clave") || "";
+    const pozo = inventario.find((item) => item.legal?.clave_catastral === clave);
+    const matches = pozo ? [{
+      clave_catastral: clave,
+      abonado: `QA-${pozo.id}`,
+      inquilino: `Abonado ficticio ${pozo.id}`,
+      barrio_colonia: pozo.colonia,
+      agua: pozo.id % 2 ? "N" : "S"
+    }] : [];
+    return respuesta({ ok: true, query: clave, normalized_query: clave, field: "clave", total_matches: matches.length, exists: Boolean(matches.length), matches });
+  }
+  const match = url.match(/^\/pozos\/(\d+)\/legal$/);
+  if (method === "PUT" && match) {
+    const indice = inventario.findIndex((pozo) => pozo.id === Number(match[1]));
+    if (indice < 0) return respuesta({ message: "Pozo de prueba no encontrado." }, 404);
+    const payload = options.body ? JSON.parse(options.body) : {};
+    const pozo = { ...inventario[indice], legal: { ...inventario[indice].legal, ...payload, actualizado_at: new Date().toISOString() } };
+    inventario[indice] = pozo;
+    actualizado = new Date().toISOString();
+    return respuesta(pozo);
+  }
+  if (url === "/pozos") return respuesta({ fuente: "datos de prueba (QA)", actualizado, resumen: {}, pozos: inventario });
+  return respuesta({ message: "Ruta QA no encontrada." }, 404);
 };
 
-ReactDOM.createRoot(document.getElementById("root")).render(<PozosWorkspace apiFetch={apiFetch} />);
+ReactDOM.createRoot(document.getElementById("root")).render(<PozosWorkspace apiFetch={apiFetch} isAdmin />);

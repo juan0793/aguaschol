@@ -318,6 +318,31 @@ const ensureSchema = async () => {
 
     const schemaSql = await fs.readFile(schemaPath, "utf8");
     await admin.query(schemaSql);
+    // Situación legal: se separa del inventario regenerable de pozos.
+    await admin.query(
+      `
+        CREATE TABLE IF NOT EXISTS pozos_situacion_legal (
+          pozo_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+          uso ENUM('domiciliario', 'comunitario', 'industrial_comercial', 'purificadora', 'agroforestal', 'sanitario', 'turistico', 'otro', 'sin_dato') NOT NULL DEFAULT 'sin_dato',
+          tamano_empresa ENUM('micro_pequena', 'mediana_grande', 'no_aplica') NOT NULL DEFAULT 'no_aplica',
+          clave_catastral VARCHAR(80) NOT NULL DEFAULT '',
+          titular VARCHAR(180) NOT NULL DEFAULT '',
+          permiso_tipo ENUM('ninguno', 'permiso_municipal', 'licencia_municipal', 'concesion', 'en_tramite', 'sin_dato') NOT NULL DEFAULT 'sin_dato',
+          permiso_numero VARCHAR(120) NOT NULL DEFAULT '',
+          permiso_fecha DATE NULL,
+          permiso_vence DATE NULL,
+          caudal_autorizado_lps DECIMAL(12,3) NULL,
+          caudal_lps DECIMAL(12,3) NULL,
+          horas_bombeo_dia DECIMAL(5,2) NULL,
+          dias_mes DECIMAL(5,2) NULL,
+          volumen_declarado_m3 DECIMAL(14,2) NULL,
+          anio_declarado SMALLINT UNSIGNED NULL,
+          notas TEXT NULL,
+          actualizado_por INT UNSIGNED NULL,
+          actualizado_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `
+    );
     await seedPlanosBarrios(admin);
     await ensureRoleEnum(admin);
     await ensureColumn(admin, { tableName: "auth_sessions", columnName: "preview_role", definition: "VARCHAR(32) NULL" });

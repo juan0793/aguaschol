@@ -4,11 +4,14 @@ import { Icon } from "../../components/Icon";
 import PozoQuimica from "./PozoQuimica";
 import PozosMapa from "./PozosMapa";
 import { conductividadDe, revisionesDelDato } from "./pozosQuimica";
-import { RANGOS, calidadDe, conCalidad, faltantesDe, formatoNumero, fueraDeRango } from "./pozosFiltros";
+import { ESTADOS_LEGALES, RANGOS, USOS_LEGALES, calidadDe, conCalidad, estadoLegalDe, etiquetaLegal, faltaDeclaracionDe, faltantesDe, formatoNumero, fueraDeRango, usoLegalDe } from "./pozosFiltros";
 
 const NADA = () => {};
 const Dato = ({ label, children, ancho = false }) => <div className={`pz-dato${ancho ? " is-ancho" : ""}`}><dt>{label}</dt><dd>{children ?? "—"}</dd></div>;
 const conUnidad = (valor, unidad, decimales = 2) => (valor === null || valor === undefined ? null : `${formatoNumero(valor, decimales)} ${unidad}`);
+const fechaInput = (valor) => valor ? String(valor).slice(0, 10) : "";
+const valorLegal = (valor) => valor ?? "";
+const USOS_PRODUCTIVOS = new Set(["industrial_comercial", "purificadora", "agroforestal", "sanitario", "turistico", "otro"]);
 
 // Escala de pH y TDS: la banda es el valor guía y la marca, la medición del pozo.
 const ESCALAS = { ph: { min: 4, max: 10 }, tds_g_l: { min: 0, max: 2 } };
@@ -42,9 +45,31 @@ function Medicion({ campo, label, valor, unidad = "", decimales = 2, detalle = "
 
 // Ficha de un pozo en el cajón del sistema (el mismo de Clandestinos e Inspecciones):
 // se abre encima de la bandeja, así la lista no se mueve. Flechas ← → recorren la lista filtrada.
-export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSiguiente, onCerrar, onFicha }) {
+export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSiguiente, onCerrar, onFicha, apiFetch, isAdmin, onLegalActualizado }) {
   const cerrarRef = useRef(null);
   const [lectura, setLectura] = useState(null);
+  const [draft, setDraft] = useState({});
+  const [errorLegal, setErrorLegal] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [padron, setPadron] = useState(null);
+  useEffect(() => { setDraft(pozo?.legal || {}); setErrorLegal(""); }, [pozo]);
+  useEffect(() => {
+    const clave = pozo?.legal?.clave_catastral;
+    setPadron(null);
+    if (!clave || !apiFetch) return;
+    let vigente = true;
+    apiFetch(`/claves/search?field=clave&clave=${encodeURIComponent(clave)}`).then(async (r) => { if (!r.ok) throw new Error(); return r.json(); }).then((data) => { if (vigente) setPadron(data); }).catch(() => { if (vigente) setPadron({ error: true }); });
+    return () => { vigente = false; };
+  }, [pozo?.legal?.clave_catastral, apiFetch]);
+  const guardarLegal = async (event) => {
+    event.preventDefault(); setGuardando(true); setErrorLegal("");
+    try {
+      const response = await apiFetch(`/pozos/${pozo.id}/legal`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || "No se pudo guardar.");
+      onLegalActualizado(body.pozo || body);
+    } catch (error) { setErrorLegal(error.message); } finally { setGuardando(false); }
+  };
   useEffect(() => { setLectura(null); }, [pozo?.id]);
   const soloEste = useMemo(() => (pozo?.coordenada_valida ? [pozo] : []), [pozo]);
 
@@ -110,6 +135,28 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
               <Dato label="Diámetro">{conUnidad(pozo.diametro_pulg, "pulg")}</Dato>
               <Dato label="Bomba" ancho>{pozo.tipo_bomba}</Dato>
             </dl>
+          </section>
+          <section aria-labelledby="pz-sec-legal">
+            <h3 id="pz-sec-legal">Situación legal</h3>
+            <dl className="pz-datos">
+              <Dato label="Estado">{etiquetaLegal(ESTADOS_LEGALES, estadoLegalDe(pozo))}{faltaDeclaracionDe(pozo) ? " · Falta declaración" : ""}</Dato>
+              <Dato label="Uso">{etiquetaLegal(USOS_LEGALES, usoLegalDe(pozo))}</Dato>
+              <Dato label="Permiso">{pozo.legal?.permiso_tipo?.replaceAll("_", " ") || "Sin dato"}</Dato>
+              <Dato label="Vence">{fechaInput(pozo.legal?.permiso_vence) || "—"}</Dato>
+              <Dato label="Caudal autorizado">{conUnidad(pozo.legal?.caudal_autorizado_lps, "L/s")}</Dato>
+              <Dato label="Volumen anual estimado">{conUnidad(pozo.legal?.volumen_estimado_m3, "m³")}</Dato>
+              <Dato label="Canon anual estimado">{conUnidad(pozo.legal?.canon_estimado_l, "L")}</Dato>
+            </dl>
+            <p>Según el Reglamento ({pozo.legal?.articulo || "arts. 57 y 135"}). Verificar con el área legal.</p>
+            {pozo.legal?.clave_catastral ? <p>Padrón: {padron?.error ? "No se pudo consultar" : !padron ? "Consultando…" : !padron.matches?.length ? "No existe en Aguas" : padron.matches.some((m) => String(m.agua).toUpperCase() === "S") ? "Existe y tiene servicio de agua" : "Existe sin servicio de agua"}{padron && !padron.error && USOS_PRODUCTIVOS.has(pozo.legal.uso) && !padron.matches?.some((m) => String(m.agua).toUpperCase() === "S") ? " · Posible cliente / revisar" : ""}</p> : null}
+            {isAdmin ? <details><summary>Editar situación legal</summary>
+              <form onSubmit={guardarLegal} className="pz-legal-form">
+                <p>Uso sugerido por el nombre: {etiquetaLegal(USOS_LEGALES, pozo.legal?.uso_sugerido || "sin_dato")}. Confírmalo antes de guardar.</p>
+                {[["uso", "Uso", USOS_LEGALES], ["tamano_empresa", "Tamaño de empresa", [["no_aplica", "No aplica"], ["micro_pequena", "Micro o pequeña"], ["mediana_grande", "Mediana o grande"]]], ["permiso_tipo", "Tipo de permiso", [["sin_dato", "Sin dato"], ["ninguno", "Ninguno"], ["permiso_municipal", "Permiso municipal"], ["licencia_municipal", "Licencia municipal"], ["concesion", "Concesión"], ["en_tramite", "En trámite"]]]].map(([campo, etiqueta, opciones]) => <label key={campo}>{etiqueta}<select value={draft[campo] || opciones[0][0]} onChange={(e) => setDraft({ ...draft, [campo]: e.target.value })}>{opciones.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}</select></label>)}
+                {[["clave_catastral", "Clave catastral", "text"], ["titular", "Titular", "text"], ["permiso_numero", "Número de permiso", "text"], ["permiso_fecha", "Fecha del permiso", "date"], ["permiso_vence", "Vencimiento", "date"], ["caudal_autorizado_lps", "Caudal autorizado (L/s)", "number"], ["caudal_lps", "Caudal estimado (L/s)", "number"], ["horas_bombeo_dia", "Horas de bombeo al día", "number"], ["dias_mes", "Días al mes", "number"], ["volumen_declarado_m3", "Volumen declarado (m³)", "number"], ["anio_declarado", "Año declarado", "number"], ["notas", "Notas", "text"]].map(([campo, etiqueta, tipo]) => <label key={campo}>{etiqueta}<input type={tipo} min={tipo === "number" ? 0 : undefined} step={tipo === "number" ? "any" : undefined} value={tipo === "date" ? fechaInput(draft[campo]) : valorLegal(draft[campo])} onChange={(e) => setDraft({ ...draft, [campo]: e.target.value })} /></label>)}
+                {errorLegal ? <p role="alert">{errorLegal}</p> : null}<button className="cl-primary" disabled={guardando}>{guardando ? "Guardando…" : "Guardar situación legal"}</button>
+              </form>
+            </details> : null}
           </section>
           <section aria-labelledby="pz-sec-ubicacion">
             <h3 id="pz-sec-ubicacion">Ubicación</h3>

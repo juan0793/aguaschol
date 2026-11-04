@@ -1,4 +1,4 @@
-// Informes en PDF de la red de pozos (sin React; los arma informesPozos.js). Cuatro documentos
+// Informes en PDF de la red de pozos (sin React; los arma informesPozos.js). Cinco documentos
 // con una identidad propia de hoja técnica: encabezado con doble filete "nivel de agua",
 // tonos agua y teal, escalas de pH y TDS dibujadas y un cajetín al pie de cada hoja, como en
 // un plano (documento, fuente, fecha y hoja). Todos parten de la lista filtrada en pantalla.
@@ -27,17 +27,28 @@ export const TIPOS_INFORME = {
   inventario: { titulo: "Inventario de pozos", codigo: "POZ-INV", orientacion: "landscape", archivo: "inventario-pozos" },
   fichas: { titulo: "Fichas técnicas de pozos", codigo: "POZ-FIC", orientacion: "portrait", archivo: "fichas-pozos" },
   calidad: { titulo: "Calidad del agua en pozos", codigo: "POZ-CAL", orientacion: "portrait", archivo: "calidad-agua-pozos" },
-  levantamiento: { titulo: "Plan de levantamiento de pozos", codigo: "POZ-LEV", orientacion: "portrait", archivo: "levantamiento-pozos" }
+  levantamiento: { titulo: "Plan de levantamiento de pozos", codigo: "POZ-LEV", orientacion: "portrait", archivo: "levantamiento-pozos" },
+  legal: { titulo: "Situación legal de pozos", codigo: "POZ-LEG", orientacion: "landscape", archivo: "situacion-legal-pozos" }
 };
 
 const NORMA = "Valores guía: pH de 6.5 a 8.5 y sólidos totales disueltos (TDS) hasta 1 g/L (1000 mg/L), Norma Técnica Nacional para la Calidad del Agua Potable de Honduras.";
+const REGLAMENTO = "Reglamento de la Ley General de Aguas: arts. 57, 135, 136, 140, 155, 157, 220 y 222 b. Verificar con el área legal.";
+export const ELABORADO_POR = "Ing. Juan Ordoñez Bonilla · Catastro";
 const ETIQUETA_CALIDAD = { dentro: "Dentro del valor guía", fuera: "Fuera del valor guía", sin: "Sin medición" };
+const ESTADO_LEGAL = { al_dia: "Al día", por_vencer: "Por vencer", vencido: "Vencido", sin_permiso: "Sin permiso", no_requiere: "No requiere", por_definir: "Por definir" };
+const USO_LEGAL = { domiciliario: "Domiciliario", comunitario: "Comunitario", industrial_comercial: "Industrial/comercial", purificadora: "Purificadora", agroforestal: "Agroforestal", sanitario: "Sanitario", turistico: "Turístico", otro: "Otro", sin_dato: "Sin dato" };
+const PERMISO_LEGAL = { ninguno: "Ninguno", permiso_municipal: "Permiso municipal", licencia_municipal: "Licencia municipal", concesion: "Concesión", en_tramite: "En trámite", sin_dato: "Sin dato" };
 const plural = (n, uno, varios) => `${Number(n).toLocaleString("es-HN")} ${n === 1 ? uno : varios}`;
 const vacio = (valor) => valor === null || valor === undefined || valor === "";
 const numero = (valor, decimales) => (vacio(valor) ? "--" : formatoNumero(valor, decimales, true));
 const conUnidad = (valor, unidad, decimales) => (vacio(valor) ? "--" : `${formatoNumero(valor, decimales)} ${unidad}`);
 const usoTexto = (pozo) => (pozo.en_uso === true ? "En uso" : pozo.en_uso === false ? "Fuera de uso" : "Sin dato");
 const numeroCodigo = (pozo) => String(pozo.codigo || "").replace(/^\D+/, "") || String(pozo.id);
+const legalDe = (pozo) => pozo.legal || {};
+const estadoLegalTexto = (pozo) => `${ESTADO_LEGAL[legalDe(pozo).estado] || "Por definir"}${legalDe(pozo).falta_declaracion ? " · falta declaración" : ""}`;
+const fechaLegal = (valor) => (valor ? new Date(`${String(valor).slice(0, 10)}T12:00:00`).toLocaleDateString("es-HN") : "--");
+const numeroLegal = (valor, decimales = 0) => (!vacio(valor) && Number.isFinite(Number(valor)) ? formatoNumero(valor, decimales) : "--");
+const esProductivoSinPermiso = (pozo) => legalDe(pozo).estado === "sin_permiso";
 
 // Pozos con algo por levantar, por colonia (la de más pendientes primero) y por código.
 export const planPorColonia = (pozos = []) => {
@@ -66,7 +77,7 @@ const tablaBase = {
 
 /**
  * @param {object} opciones
- * @param {"inventario"|"fichas"|"calidad"|"levantamiento"} opciones.tipo
+ * @param {"inventario"|"fichas"|"calidad"|"levantamiento"|"legal"} opciones.tipo
  * @param {object[]} opciones.pozos  la lista filtrada, en el orden de pantalla
  * @param {string} [opciones.alcance]  qué filtros se aplicaron ("Todos los pozos", "Bo. Guadalupe · Fuera del valor guía"…)
  * @param {string} [opciones.mapaGeneral]  mapa de todos los pozos con coordenada (inventario y calidad)
@@ -143,8 +154,8 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
       const celdas = [["Documento", info.codigo, 26], ["Generado", generadoEn || "--", 44], ["Hoja", `${hoja} de ${total}`, 20]];
       let cx = ancho - MARGEN - celdas.reduce((suma, celda) => suma + celda[2], 0);
       doc.line(cx, y, cx, y + ALTO_CAJETIN);
-      texto(`Fuente: ${fuente || "encuesta de pozos de Choluteca"}.`, MARGEN + 2.5, y + 4.4, { tam: 6.4, color: TENUE, max: cx - MARGEN - 5 });
-      texto(NORMA, MARGEN + 2.5, y + 8.2, { tam: 5.8, color: TENUE, max: cx - MARGEN - 5 });
+      texto(`Fuente: ${fuente || "encuesta de pozos de Choluteca"} · ${ELABORADO_POR}.`, MARGEN + 2.5, y + 4.4, { tam: 6.1, color: TENUE, max: cx - MARGEN - 5 });
+      texto(tipo === "legal" ? REGLAMENTO : NORMA, MARGEN + 2.5, y + 8.2, { tam: 5.8, color: TENUE, max: cx - MARGEN - 5 });
       celdas.forEach(([etiqueta, valor, anchoCelda], indice) => {
         if (indice) doc.line(cx, y, cx, y + ALTO_CAJETIN);
         texto(etiqueta.toUpperCase(), cx + 2, y + 4, { tam: 5.4, negrita: true, color: TENUE });
@@ -343,6 +354,65 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
       },
       margin: { left: MARGEN, right: MARGEN, top: 28, bottom: ALTO_CAJETIN + 10 },
       didDrawPage: (data) => { if (data.pageNumber > 1 && doc.getCurrentPageInfo().pageNumber > 2) encabezado({ compacto: true }); }
+    });
+    cajetines();
+    return doc;
+  }
+
+  // ======================================================================== situación legal
+  if (tipo === "legal") {
+    let y = encabezado();
+    if (!pozos.length) { sinPozos(); cajetines(); return doc; }
+    const cuenta = (estado) => pozos.filter((pozo) => legalDe(pozo).estado === estado).length;
+    const sinPermiso = cuenta("sin_permiso");
+    const vencidos = cuenta("vencido");
+    const porVencer = cuenta("por_vencer");
+    const sinDeclaracion = pozos.filter((pozo) => legalDe(pozo).falta_declaracion).length;
+    const canonTotal = pozos.reduce((suma, pozo) => suma + (Number(legalDe(pozo).canon_estimado_l ?? legalDe(pozo).canon_anual_estimado_l) || 0), 0);
+    y = cifras([
+      ["Pozos", String(pozos.length)],
+      ["Sin permiso", String(sinPermiso), sinPermiso ? COLOR.fuera : TINTA],
+      ["Vencidos", String(vencidos), vencidos ? COLOR.fuera : TINTA],
+      ["Por vencer", String(porVencer), porVencer ? OCRE : TINTA],
+      ["Sin declaración", String(sinDeclaracion), sinDeclaracion ? OCRE : TINTA],
+      ["Canon anual estimado", `L ${numeroLegal(canonTotal, 2)}`]
+    ], y);
+    const nota = partir("Ayuda de gestión según el Reglamento de la Ley General de Aguas (arts. 57, 135, 136, 140, 155, 157, 220 y 222 b). No es un dictamen legal: verificar con el área legal.", util, 7.4);
+    texto(nota, MARGEN, y - 2, { tam: 7.4, color: TENUE });
+    y += nota.length * 3.5 + 4;
+    const prioridadEstado = { sin_permiso: 0, vencido: 1, por_vencer: 2, por_definir: 3, al_dia: 4, no_requiere: 5 };
+    const orden = [...pozos].sort((a, b) =>
+      Number(esProductivoSinPermiso(b)) - Number(esProductivoSinPermiso(a))
+      || (prioridadEstado[legalDe(a).estado] ?? 9) - (prioridadEstado[legalDe(b).estado] ?? 9)
+      || Number(numeroCodigo(a)) - Number(numeroCodigo(b))
+      || (a.id ?? 0) - (b.id ?? 0)
+    );
+    autoTable(doc, {
+      ...tablaBase,
+      startY: y,
+      head: [["Código", "Nombre", "Colonia", "Uso", "Permiso", "Vence", "Estado", "Volumen est. m³/año", "Canon est. L/año"]],
+      body: orden.map((pozo) => {
+        const legal = legalDe(pozo);
+        const volumen = legal.volumen_anual_estimado_m3 ?? legal.volumen_estimado_m3;
+        const canon = legal.canon_estimado_l ?? legal.canon_anual_estimado_l;
+        return Object.assign([
+          pozo.codigo, pozo.nombre || "--", pozo.colonia || "--", USO_LEGAL[legal.uso] || "Sin dato", PERMISO_LEGAL[legal.permiso_tipo] || "Sin dato",
+          fechaLegal(legal.permiso_vence), estadoLegalTexto(pozo), numeroLegal(volumen, 0), `L ${numeroLegal(canon, 2)}`
+        ], { __pozo: pozo });
+      }),
+      columnStyles: {
+        0: { cellWidth: 18, fontStyle: "bold" }, 1: { cellWidth: 43 }, 2: { cellWidth: 30 }, 3: { cellWidth: 27 }, 4: { cellWidth: 32 },
+        5: { cellWidth: 20 }, 6: { cellWidth: 30, fontStyle: "bold" }, 7: { cellWidth: 27, halign: "right" }, 8: { halign: "right" }
+      },
+      didParseCell: (data) => {
+        if (data.section !== "body" || data.column.index !== 6) return;
+        const legal = legalDe(data.row.raw.__pozo);
+        const estado = legal.estado;
+        data.cell.styles.textColor = ["sin_permiso", "vencido"].includes(estado) ? COLOR.fuera : estado === "por_vencer" || legal.falta_declaracion ? OCRE : ["al_dia", "no_requiere"].includes(estado) ? [18, 128, 106] : TENUE;
+        if (legal.falta_declaracion) data.cell.styles.fillColor = OCRE_FONDO;
+      },
+      margin: { left: MARGEN, right: MARGEN, top: 28, bottom: ALTO_CAJETIN + 10 },
+      didDrawPage: (data) => { if (data.pageNumber > 1) encabezado({ compacto: true }); }
     });
     cajetines();
     return doc;

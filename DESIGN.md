@@ -433,6 +433,8 @@ Prompt interno sugerido:
 
 ### Pozos (desde 2026-10-20; Resumen y Análisis desde 2026-10-21)
 
+- Situación legal: filtros por uso y estado, columna en la lista y resumen plano con conteos y canon anual estimado. La ficha muestra artículos y permite editar solo a administración; la clave consulta el padrón y señala posibles clientes para revisar.
+- Informe legal horizontal `POZ-LEG`: cifras y tabla, primero los usos productivos sin permiso; cita el Reglamento y pide verificar con el área legal. El CSV incluye los datos legales.
 - Extensión del mundo de la bandeja de Clandestinos/Fichas en su variante plana (`cl-module is-flat`). Sin concept roll ni clave de semilla, porque el mundo se hereda.
 - Sin tarjetas. La pantalla tiene, en este orden:
   - encabezado con alcance y chips de filtro (colonia, calidad, dato que falta, búsqueda), estado "Al día", Actualizar y "Descargar": un menú con los cuatro informes en PDF y la tabla CSV, siempre de los pozos filtrados en el orden de la lista (en el teléfono, solo el icono y el menú como hoja al pie);

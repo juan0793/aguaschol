@@ -6,8 +6,8 @@ import PozoDetalle from "./PozoDetalle";
 import PozosMapa from "./PozosMapa";
 import { BarrasColonia, CalidadPorColonia, Cobertura, Dispersion, FranjaCalidad, FranjaUso, Hallazgos, Histograma, Panel } from "./PozosGraficos";
 import {
-  CALIDADES, DATOS, FILTROS_INICIALES, VISTAS, calidadDe, calidadPorColonia, coberturaDatos, coloniasDe, contarVistas, conteoUso,
-  filtrarPozos, formatoNumero, fueraDeRango, hallazgos, haceCuanto, histograma, ordenarPozos, paginar, pozosCsv, pozosPorColonia, resumenMetricas
+  CALIDADES, DATOS, ESTADOS_LEGALES, FILTROS_INICIALES, USOS_LEGALES, VISTAS, calidadDe, calidadPorColonia, coberturaDatos, coloniasDe, contarVistas, conteoUso,
+  estadoLegalDe, etiquetaLegal, faltaDeclaracionDe, filtrarPozos, formatoNumero, fueraDeRango, hallazgos, haceCuanto, histograma, ordenarPozos, paginar, pozosCsv, pozosPorColonia, resumenLegal, resumenMetricas, usoLegalDe
 } from "./pozosFiltros";
 import "../clandestinos/styles/clandestinos.css";
 import "./pozos.css";
@@ -22,16 +22,18 @@ const MODOS = [
   { clave: "mapa", label: "Mapa", icono: "map" },
   { clave: "analisis", label: "Análisis", icono: "barChart" }
 ];
-// Descargas: los cuatro informes en PDF (pozosPdf.js) y la tabla en CSV. Todos usan la lista filtrada.
+// Descargas: los informes en PDF (pozosPdf.js) y la tabla en CSV. Todos usan la lista filtrada.
 const DESCARGAS = [
   { tipo: "inventario", titulo: "Inventario de pozos", nota: "Cifras, gráficos, mapa general y la tabla completa." },
   { tipo: "fichas", titulo: "Fichas técnicas", nota: "Una hoja por pozo, con su mapa y la escala del valor guía." },
   { tipo: "calidad", titulo: "Calidad del agua", nota: "pH y TDS contra la norma, solo pozos medidos." },
   { tipo: "levantamiento", titulo: "Plan de levantamiento", nota: "Lo que falta medir, por colonia, con casillas para campo." },
+  { tipo: "legal", titulo: "Situación legal de pozos", nota: "Permisos, vencimientos, volumen y canon estimado." },
   { tipo: "csv", titulo: "Tabla para Excel (CSV)", nota: "Todos los datos de cada pozo en columnas." }
 ];
 const ETIQUETA_CALIDAD = { dentro: "Dentro de guía", fuera: "Fuera de guía", sin: "Sin medición" };
 const CLASE_CALIDAD = { dentro: "is-approved", fuera: "is-discarded", sin: "" };
+const CLASE_LEGAL = { al_dia: "is-approved", no_requiere: "is-approved", por_vencer: "is-info_requested", vencido: "is-discarded", sin_permiso: "is-discarded", por_definir: "" };
 
 // Columnas del listado: [clave de orden, encabezado, unidad, decimales, numérica].
 const COLUMNAS = [
@@ -39,6 +41,7 @@ const COLUMNAS = [
   ["colonia", "Colonia", "", 0, false],
   ["en_uso", "Uso", "", 0, false],
   ["calidad", "Calidad", "", 0, false],
+  ["situacion_legal", "Situación legal", "", 0, false],
   ["profundidad_m", "Prof.", "m", 2, true],
   ["nivel_freatico_m", "N. freático", "m", 2, true, "Nivel"],
   ["diametro_pulg", "Diám.", "pulg", 0, true],
@@ -56,10 +59,20 @@ function CeldaNumero({ campo, valor, decimales }) {
   return <td className={`pz-num${fuera ? " is-fuera" : ""}`} title={fuera ? "Fuera del valor guía" : undefined}>{formatoNumero(valor, decimales, true)}</td>;
 }
 
+function ResumenLegal({ resumen, onEstado, onUso }) {
+  const estados = ESTADOS_LEGALES.filter(([clave]) => resumen.estados[clave]);
+  const usos = USOS_LEGALES.filter(([clave]) => resumen.usos[clave]);
+  return <div className="pz-legal-resumen">
+    <p className="pz-legal-canon"><strong>L {formatoNumero(resumen.canon_anual_estimado_l, 2)}</strong><span>canon anual estimado · art. 222 b</span></p>
+    <div><h4>Estado</h4><ul>{estados.length ? estados.map(([clave, etiqueta]) => <li key={clave}><button type="button" onClick={() => onEstado(clave)}><span className={`pz-legal-punto is-${clave}`} />{etiqueta}<strong>{resumen.estados[clave]}</strong></button></li>) : <li>Sin situación registrada.</li>}</ul></div>
+    <div><h4>Uso</h4><ul>{usos.length ? usos.map(([clave, etiqueta]) => <li key={clave}><button type="button" onClick={() => onUso(clave)}>{etiqueta}<strong>{resumen.usos[clave]}</strong></button></li>) : <li>Sin uso definido.</li>}</ul></div>
+  </div>;
+}
+
 // "Pozos": inventario de pozos de Choluteca, solo consulta, para administración y Gerencia.
 // Usa la bandeja del sistema (la de Clandestinos e Inspecciones): pestañas con conteo, búsqueda,
 // tabla indexada con páginas y la ficha en el cajón. Se actualiza sola cada minuto.
-export default function PozosWorkspace({ apiFetch }) {
+export default function PozosWorkspace({ apiFetch, isAdmin = false }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -132,13 +145,14 @@ export default function PozosWorkspace({ apiFetch }) {
     ph: histograma(filtrados, "ph"),
     tds: histograma(filtrados, "tds_g_l"),
     calidad: calidadPorColonia(filtrados),
+    legal: resumenLegal(filtrados),
     conteoCalidad: CALIDADES.reduce((cuenta, calidad) => ({ ...cuenta, [calidad.clave]: filtrados.filter((pozo) => calidadDe(pozo) === calidad.clave).length }), {})
   } : null), [filtrados, modo]);
 
   // Alto estable, como en Fichas: cambiar de pestaña, colonia, página, orden o vista congela el alto
   // de la bandeja y lo suelta con una transición; mientras se busca, el mayor alto visto es el piso.
   const cambiarVista = (cambio) => { congelarAltura(inboxRef.current); cambio(); };
-  useLayoutEffect(() => { soltarAltura(inboxRef.current); }, [filtros.vista, filtros.colonia, filtros.calidad, filtros.falta, pagina, orden, modo]);
+  useLayoutEffect(() => { soltarAltura(inboxRef.current); }, [filtros.vista, filtros.colonia, filtros.calidad, filtros.falta, filtros.usoLegal, filtros.estadoLegal, pagina, orden, modo]);
   const buscando = Boolean(filtros.texto.trim());
   useLayoutEffect(() => {
     const inbox = inboxRef.current;
@@ -170,10 +184,12 @@ export default function PozosWorkspace({ apiFetch }) {
     cambiarVista(() => setPagina(nueva));
     tablaRef.current?.scrollIntoView({ block: "nearest" });
   };
-  const hayFiltros = filtros.texto.trim() || filtros.colonia || filtros.calidad || filtros.falta || filtros.vista !== "todos";
+  const hayFiltros = filtros.texto.trim() || filtros.colonia || filtros.calidad || filtros.falta || filtros.usoLegal || filtros.estadoLegal || filtros.vista !== "todos";
   const vistaActiva = VISTAS.find((vista) => vista.clave === filtros.vista);
   const calidadActiva = CALIDADES.find((calidad) => calidad.clave === filtros.calidad);
   const faltaActiva = DATOS.find((dato) => dato.clave === filtros.falta);
+  const usoLegalActivo = USOS_LEGALES.find(([clave]) => clave === filtros.usoLegal);
+  const estadoLegalActivo = ESTADOS_LEGALES.find(([clave]) => clave === filtros.estadoLegal);
   // Un gráfico o hallazgo lleva a la lista con su filtro aplicado; tocar lo ya elegido lo quita.
   const verEnLista = (cambio) => cambiarVista(() => { setFiltros((actual) => ({ ...actual, ...cambio })); setPagina(1); setModo("lista"); });
   const alternar = (campo) => (valor) => cambiar({ [campo]: filtros[campo] === valor ? "" : valor });
@@ -191,7 +207,7 @@ export default function PozosWorkspace({ apiFetch }) {
 
   // Qué filtros salen en el subtítulo del informe.
   const alcance = [
-    hayFiltros ? [vistaActiva && filtros.vista !== "todos" ? vistaActiva.label : "", filtros.colonia, calidadActiva?.label, faltaActiva ? `Sin ${faltaActiva.label.toLowerCase()}` : "", filtros.texto.trim() ? `“${filtros.texto.trim()}”` : ""].filter(Boolean).join(" · ") : "Todos los pozos",
+    hayFiltros ? [vistaActiva && filtros.vista !== "todos" ? vistaActiva.label : "", filtros.colonia, calidadActiva?.label, faltaActiva ? `Sin ${faltaActiva.label.toLowerCase()}` : "", usoLegalActivo?.[1], estadoLegalActivo?.[1], filtros.texto.trim() ? `“${filtros.texto.trim()}”` : ""].filter(Boolean).join(" · ") : "Todos los pozos",
     `${ordenados.length} de ${pozos.length} pozos`
   ].join(" · ");
   const generarInforme = async (tipo, lista = ordenados) => {
@@ -223,6 +239,11 @@ export default function PozosWorkspace({ apiFetch }) {
   const abierto = posicion >= 0 ? ordenados[posicion] : null;
   const abrir = useCallback((id) => setAbiertoId(id), []);
   useEffect(() => { if (abiertoId !== null && posicion < 0) setAbiertoId(null); }, [abiertoId, posicion]);
+  const actualizarPozo = useCallback((actualizado) => {
+    if (!actualizado?.id) return;
+    versionRef.current = null;
+    setData((actual) => actual ? { ...actual, actualizado: new Date().toISOString(), pozos: actual.pozos.map((pozo) => pozo.id === actualizado.id ? actualizado : pozo) } : actual);
+  }, []);
 
   return <main className="cl-module pz-module is-flat">
     <section ref={inboxRef} className="cl-inbox pz-inbox" aria-labelledby="pz-titulo">
@@ -236,6 +257,8 @@ export default function PozosWorkspace({ apiFetch }) {
             {filtros.colonia ? <span className="cl-scope-chip">{filtros.colonia}<button type="button" onClick={() => cambiar({ colonia: "" })} aria-label={`Quitar la colonia ${filtros.colonia}`}><Icon name="close" /></button></span> : null}
             {calidadActiva ? <span className="cl-scope-chip">{calidadActiva.label}<button type="button" onClick={() => cambiar({ calidad: "" })} aria-label={`Quitar el filtro ${calidadActiva.label}`}><Icon name="close" /></button></span> : null}
             {faltaActiva ? <span className="cl-scope-chip">Sin {faltaActiva.label.toLowerCase()}<button type="button" onClick={() => cambiar({ falta: "" })} aria-label={`Quitar el filtro sin ${faltaActiva.label.toLowerCase()}`}><Icon name="close" /></button></span> : null}
+            {usoLegalActivo ? <span className="cl-scope-chip">{usoLegalActivo[1]}<button type="button" onClick={() => cambiar({ usoLegal: "" })} aria-label={`Quitar el filtro ${usoLegalActivo[1]}`}><Icon name="close" /></button></span> : null}
+            {estadoLegalActivo ? <span className="cl-scope-chip">{estadoLegalActivo[1]}<button type="button" onClick={() => cambiar({ estadoLegal: "" })} aria-label={`Quitar el filtro ${estadoLegalActivo[1]}`}><Icon name="close" /></button></span> : null}
             {filtros.texto.trim() ? <span className="cl-scope-chip">“{filtros.texto.trim()}”<button type="button" onClick={() => cambiar({ texto: "" })} aria-label="Quitar la búsqueda"><Icon name="close" /></button></span> : null}
             {hayFiltros ? <button type="button" className="cl-scope-clear" onClick={() => cambiar(FILTROS_INICIALES)}>Ver todos</button> : null}
           </p>
@@ -280,6 +303,18 @@ export default function PozosWorkspace({ apiFetch }) {
             {DATOS.map((dato) => <option key={dato.clave} value={dato.clave}>{dato.label}</option>)}
           </select>
         </label>
+        <label><span>Uso legal</span>
+          <select value={filtros.usoLegal} onChange={(event) => cambiar({ usoLegal: event.target.value })}>
+            <option value="">Todo uso</option>
+            {USOS_LEGALES.map(([clave, etiqueta]) => <option key={clave} value={clave}>{etiqueta}</option>)}
+          </select>
+        </label>
+        <label><span>Situación legal</span>
+          <select value={filtros.estadoLegal} onChange={(event) => cambiar({ estadoLegal: event.target.value })}>
+            <option value="">Todo estado</option>
+            {ESTADOS_LEGALES.map(([clave, etiqueta]) => <option key={clave} value={clave}>{etiqueta}</option>)}
+          </select>
+        </label>
         <div className="pz-modo" role="group" aria-label="Ver como">
           <span>Ver como</span>
           <div>
@@ -313,6 +348,9 @@ export default function PozosWorkspace({ apiFetch }) {
         </Panel>
         <Panel id="pz-g-hallazgos" titulo="Para atender" nota="Cada línea filtra la tabla.">
           <Hallazgos items={graficos.hallazgos} onElegir={(filtro) => cambiar(filtro)} />
+        </Panel>
+        <Panel id="pz-g-legal" titulo="Situación legal" nota="Toca un estado o uso para filtrar. Verificar con el área legal.">
+          <ResumenLegal resumen={graficos.legal} onEstado={(estadoLegal) => cambiar({ estadoLegal: filtros.estadoLegal === estadoLegal ? "" : estadoLegal })} onUso={(usoLegal) => cambiar({ usoLegal: filtros.usoLegal === usoLegal ? "" : usoLegal })} />
         </Panel>
       </div> : null}
 
@@ -384,7 +422,8 @@ export default function PozosWorkspace({ apiFetch }) {
                   <td className="pz-colonia">{pozo.colonia || "Sin colonia"}</td>
                   <td>{pozo.en_uso ? <span className="cl-status is-approved"><i />En uso</span> : <span className="cl-status"><i />Sin dato</span>}</td>
                   <td><span className={`cl-status ${CLASE_CALIDAD[calidadDe(pozo)]}`}><i />{ETIQUETA_CALIDAD[calidadDe(pozo)]}</span></td>
-                  {COLUMNAS.slice(4).map(([campo, , , decimales]) => <CeldaNumero key={campo} campo={campo} valor={pozo[campo]} decimales={decimales} />)}
+                  <td><span className={`cl-status ${CLASE_LEGAL[estadoLegalDe(pozo)] || ""}`}><i />{etiquetaLegal(ESTADOS_LEGALES, estadoLegalDe(pozo))}</span>{faltaDeclaracionDe(pozo) ? <small className="pz-legal-aviso">Falta declaración</small> : null}</td>
+                  {COLUMNAS.slice(5).map(([campo, , , decimales]) => <CeldaNumero key={campo} campo={campo} valor={pozo[campo]} decimales={decimales} />)}
                   <td><button type="button" className="cl-icon-button" onClick={() => abrir(pozo.id)} aria-label={`Abrir ficha del pozo ${pozo.codigo}`}><Icon name="arrowRight" /></button></td>
                 </tr>)}
             </tbody>
@@ -411,6 +450,9 @@ export default function PozosWorkspace({ apiFetch }) {
       onSiguiente={posicion < ordenados.length - 1 ? () => setAbiertoId(ordenados[posicion + 1].id) : null}
       onCerrar={() => setAbiertoId(null)}
       onFicha={generando ? null : () => generarInforme("fichas", [abierto])}
+      apiFetch={apiFetch}
+      isAdmin={isAdmin}
+      onLegalActualizado={actualizarPozo}
     /> : null}
   </main>;
 }

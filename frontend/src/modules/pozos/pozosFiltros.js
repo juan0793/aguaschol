@@ -39,6 +39,38 @@ export const calidadDe = (pozo) => {
   return fueraDeGuia(pozo) ? "fuera" : "dentro";
 };
 
+// Situación legal: el inventario SIG no se altera; estos datos llegan en `pozo.legal`.
+// `falta_declaracion` es un aviso adicional al estado base, no lo reemplaza.
+export const USOS_LEGALES = [
+  ["domiciliario", "Domiciliario"], ["comunitario", "Comunitario"], ["industrial_comercial", "Industrial y comercial"],
+  ["purificadora", "Purificadora"], ["agroforestal", "Agroforestal"], ["sanitario", "Sanitario"],
+  ["turistico", "Turístico y recreativo"], ["otro", "Otro"], ["sin_dato", "Sin definir"]
+];
+export const ESTADOS_LEGALES = [
+  ["al_dia", "Al día"], ["por_vencer", "Por vencer"], ["vencido", "Vencido"], ["sin_permiso", "Sin permiso"],
+  ["no_requiere", "No requiere"], ["por_definir", "Por definir"], ["falta_declaracion", "Falta declaración"]
+];
+export const etiquetaLegal = (lista, clave, alternativa = "Por definir") => lista.find(([valor]) => valor === clave)?.[1] ?? alternativa;
+export const usoLegalDe = (pozo) => pozo?.legal?.uso || "sin_dato";
+export const estadoLegalDe = (pozo) => pozo?.legal?.estado || pozo?.legal?.estado_legal || "por_definir";
+export const faltaDeclaracionDe = (pozo) => Boolean(pozo?.legal?.falta_declaracion);
+
+export const resumenLegal = (pozos = []) => {
+  const estados = Object.fromEntries(ESTADOS_LEGALES.map(([clave]) => [clave, 0]));
+  const usos = Object.fromEntries(USOS_LEGALES.map(([clave]) => [clave, 0]));
+  let canon = 0;
+  pozos.forEach((pozo) => {
+    const estado = estadoLegalDe(pozo);
+    if (estados[estado] !== undefined) estados[estado] += 1;
+    if (faltaDeclaracionDe(pozo)) estados.falta_declaracion += 1;
+    const uso = usoLegalDe(pozo);
+    if (usos[uso] !== undefined) usos[uso] += 1;
+    const estimado = Number(pozo?.legal?.canon_estimado_l ?? pozo?.legal?.canon_estimado ?? 0);
+    if (Number.isFinite(estimado)) canon += estimado;
+  });
+  return { estados, usos, canon_anual_estimado_l: canon };
+};
+
 // Datos que la encuesta debía levantar en cada pozo. "Le falta" filtra los que no lo tienen,
 // para planificar la próxima visita de campo.
 export const DATOS = [
@@ -75,9 +107,9 @@ export const coloniasDe = (pozos = []) => {
     .sort((a, b) => a.colonia.localeCompare(b.colonia, "es"));
 };
 
-export const FILTROS_INICIALES = { texto: "", colonia: "", vista: "todos", calidad: "", falta: "" };
+export const FILTROS_INICIALES = { texto: "", colonia: "", vista: "todos", calidad: "", falta: "", usoLegal: "", estadoLegal: "" };
 
-export const filtrarPozos = (pozos = [], { texto = "", colonia = "", vista = "todos", calidad = "", falta = "" } = {}) => {
+export const filtrarPozos = (pozos = [], { texto = "", colonia = "", vista = "todos", calidad = "", falta = "", usoLegal = "", estadoLegal = "" } = {}) => {
   const buscado = normalizar(texto);
   const regla = VISTAS.find((item) => item.clave === vista)?.cumple ?? (() => true);
   const digitos = buscado.replace(/\D/g, "");
@@ -87,10 +119,12 @@ export const filtrarPozos = (pozos = [], { texto = "", colonia = "", vista = "to
     if (colonia && (pozo.colonia || "Sin colonia") !== colonia) return false;
     if (calidad && calidadDe(pozo) !== calidad) return false;
     if (falta && DATOS.find((dato) => dato.clave === falta)?.tiene(pozo) !== false) return false;
+    if (usoLegal && usoLegalDe(pozo) !== usoLegal) return false;
+    if (estadoLegal && (estadoLegal === "falta_declaracion" ? !faltaDeclaracionDe(pozo) : estadoLegalDe(pozo) !== estadoLegal)) return false;
     if (!buscado) return true;
     // "032", "pchol 32" y "Pchol.-032" encuentran el mismo pozo.
     if (buscaCodigo) return Number(String(pozo.codigo || "").replace(/\D/g, "")) === Number(digitos);
-    return [pozo.codigo, pozo.nombre, pozo.colonia, pozo.tipo_bomba, pozo.observaciones].some((campo) => normalizar(campo).includes(buscado));
+    return [pozo.codigo, pozo.nombre, pozo.colonia, pozo.tipo_bomba, pozo.observaciones, pozo.legal?.titular, pozo.legal?.clave_catastral, pozo.legal?.permiso_numero, etiquetaLegal(USOS_LEGALES, usoLegalDe(pozo))].some((campo) => normalizar(campo).includes(buscado));
   });
 };
 
@@ -101,6 +135,7 @@ export const COLUMNAS_ORDEN = {
   colonia: (pozo) => normalizar(pozo.colonia) || null,
   en_uso: (pozo) => (pozo.en_uso ? 1 : null),
   calidad: (pozo) => ({ fuera: 1, dentro: 2 })[calidadDe(pozo)] ?? null,
+  situacion_legal: (pozo) => ({ sin_permiso: 1, vencido: 2, por_vencer: 3, falta_declaracion: 4, por_definir: 5, al_dia: 6, no_requiere: 7 })[estadoLegalDe(pozo)] ?? null,
   profundidad_m: (pozo) => pozo.profundidad_m,
   nivel_freatico_m: (pozo) => pozo.nivel_freatico_m,
   diametro_pulg: (pozo) => pozo.diametro_pulg,
@@ -262,6 +297,12 @@ const COLUMNAS_CSV = [
   ["Conductividad", (pozo) => pozo.conductividad], ["Cloro residual", (pozo) => pozo.cloro_residual],
   ["Latitud", (pozo) => (pozo.coordenada_valida ? pozo.latitud : "")], ["Longitud", (pozo) => (pozo.coordenada_valida ? pozo.longitud : "")],
   ["UTM X", (pozo) => pozo.utm_x], ["UTM Y", (pozo) => pozo.utm_y], ["Elevación (m)", (pozo) => pozo.elevacion_m],
+  ["Uso legal", (pozo) => etiquetaLegal(USOS_LEGALES, usoLegalDe(pozo))], ["Situación legal", (pozo) => etiquetaLegal(ESTADOS_LEGALES, estadoLegalDe(pozo))],
+  ["Titular", (pozo) => pozo.legal?.titular], ["Clave catastral", (pozo) => pozo.legal?.clave_catastral],
+  ["Tipo de permiso", (pozo) => pozo.legal?.permiso_tipo], ["Número de permiso", (pozo) => pozo.legal?.permiso_numero],
+  ["Vence permiso", (pozo) => pozo.legal?.permiso_vence], ["Caudal autorizado (L/s)", (pozo) => pozo.legal?.caudal_autorizado_lps],
+  ["Volumen anual estimado (m³)", (pozo) => pozo.legal?.volumen_anual_estimado_m3], ["Canon anual estimado (L)", (pozo) => pozo.legal?.canon_estimado_l ?? pozo.legal?.canon_estimado],
+  ["Falta declaración", (pozo) => faltaDeclaracionDe(pozo) ? "Sí" : ""],
   ["Datos que faltan", (pozo) => faltantesDe(pozo).join("; ")], ["Observaciones", (pozo) => pozo.observaciones]
 ];
 const celdaCsv = (valor) => {
