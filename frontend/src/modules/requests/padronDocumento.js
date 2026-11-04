@@ -409,7 +409,8 @@ export const descargarPdfPadron = async (doc) => {
       didParseCell: (data) => {
         // El nombre (primera columna) en seminegrita; el pie, todo en negrita.
         if (data.section === "body" && data.column.index === 0) {
-          if (fuentes) data.cell.styles.font = familiaSemi;
+          // La seminegrita no tiene variante negrita: una celda en negrita usa la negrita normal.
+          if (fuentes) data.cell.styles.font = data.cell.styles.fontStyle === "bold" ? "PJS" : familiaSemi;
           else data.cell.styles.fontStyle = "bold";
         }
       },

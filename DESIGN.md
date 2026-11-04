@@ -299,6 +299,18 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - El encabezado del documento (título, subtítulo, descripción) va plegado al final y muestra el título actual.
   - Pie fijo: a la izquierda lo que sale ("98 puntos · 3 barrios" y la jornada), a la derecha "Vista previa" y la acción principal, que muestra el paso en curso al generar. No hay "Cancelar": cierran la X, Esc y el fondo.
   - QA: `frontend/qa-generar-documento.html?abrir=1` (datos simulados).
+- Lotes FoxPro en el tablero (desde 2026-11-04). El backend compara el padrón activo con el lote anterior aplicado (`GET /claves/padron/lotes/comparacion`, `?anterior=` elige otro). Saca el lote anterior del detalle en MySQL si todavía lo guarda, y si no, de su copia en R2. Cada cuenta se reconoce por su abonado.
+  - "Cuentas del padrón": las barras van a la escala del padrón, con el porcentaje al final de cada una. Una marca vertical en tinta señala dónde estaba el nivel en el lote anterior. A la derecha va el cambio: rojo si sube la mora, verde oscuro `#0f7a66` si baja y en tinta si es el total de cuentas. El eje 0–100 % va abajo y la leyenda nombra el lote anterior. La cartera lleva debajo "▲ L 4.1 M desde el lote anterior".
+  - "Cambios desde el lote anterior" es un panel plano de dos columnas. La izquierda es el puente de la mora: mora anterior, luego cuentas nuevas, subió, bajó, pagaron todo y salieron, y al final la mora de este lote. Cada movimiento es una barra divergente desde un eje central, con lo que suma a la derecha en rojo y lo que resta a la izquierda en verde. La derecha muestra los barrios donde más cambió la mora, con la misma barra. Debajo van cayeron en mora, cambiaron de servicio, de barrio e iguales.
+  - Si llegó un lote más nuevo que todavía no se activa, una línea entre filetes lo avisa y lleva a Importación. La comparación se imprime con el documento del padrón.
+  - QA: `frontend/qa-tablero-preview.html` (`?pendiente=1`, `?lotes=no`).
+- "Barrios sin Aguas" (menú propio en Gestión, ruta `/barrios-sin-aguas`, desde 2026-11-04). Muestra los barrios del padrón de Alcaldía cuyas claves no coinciden con ninguna clave de Aguas. El backend los entrega en `GET /claves/alcaldia/barrios-sin-aguas` y las claves de cada barrio en `.../claves?barrio=`.
+  - Arriba, cuatro columnas de criterio con su cifra: ninguna clave en Aguas, menos del 10 %, menos del 25 % y menos de la mitad. Debajo, una franja de cifras sin tarjetas.
+  - "Dónde se concentran" pone una barra por barrio a la escala del más grande, en rojo lo que no está en Aguas y en azul claro `#a9c7ec` lo que sí.
+  - La tabla se ordena por columna y tiene casillas para marcar. Con barrios marcados se imprimen solo ellos.
+  - Cada barrio lleva el barrio de Aguas con el nombre más parecido, en ocre. Puede estar en Aguas con otras claves, como pasa con claves provisionales de un desarrollador, y conviene revisarlo antes de mandarlo a campo.
+  - "Ver claves" abre la lista de claves del barrio: las que no tienen registro o todas. Se imprime o se guarda en PDF con el documento del padrón.
+  - QA: `frontend/qa-barrios-sin-aguas.html`.
 
 ### Busqueda de clave
 

@@ -2607,3 +2607,257 @@ body.dw-resizing * {
 /* Gerencia: saludo con el nombre y, debajo, el área. */
 .dashboard-refactor-mode .app-topbar-greeting { display: grid; flex: 1 1 auto; gap: 1px; min-width: 0; }
 .dashboard-refactor-mode .app-topbar-greeting > span { color: #526a7d; font-size: 13px; font-weight: 600; line-height: 1.2; }
+
+/* ===========================================================================
+   Cuentas del padrón con el lote anterior y "Cambios desde el lote anterior"
+   (desde 2026-11-04). Barras a la escala del padrón con el porcentaje al final;
+   la marca en tinta es el lote anterior y la columna derecha, el cambio. La mora
+   que sube va en rojo y la que baja en verde oscuro: el color es dato.
+   =========================================================================== */
+
+.dashboard-workspace {
+  --dw-baja: #0f7a66;
+  --dw-cambio-col: 4.8rem;
+}
+
+.dashboard-workspace .dw-niveles { gap: 0.6rem; }
+.dashboard-workspace .dw-niveles-lista { gap: 1rem; margin-top: 0.4rem; }
+.dashboard-workspace .dw-niveles-lista li { grid-template-columns: var(--nivel-label) minmax(0, 1fr); }
+.dashboard-workspace .dw-niveles-lista.has-previo li { grid-template-columns: var(--nivel-label) minmax(0, 1fr) var(--dw-cambio-col); }
+
+.dashboard-workspace .dw-nivel-barra {
+  position: relative;
+  display: block;
+  height: 14px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(90deg, var(--dw-grid) 0 1px, transparent 1px 25%),
+    linear-gradient(var(--dw-grid), var(--dw-grid)) right top / 1px 100% no-repeat,
+    linear-gradient(var(--dw-grid), var(--dw-grid)) left center / 100% 1px no-repeat;
+}
+.dashboard-workspace .dw-nivel-barra b {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  transition: width 600ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.dashboard-workspace .dw-niveles-lista .is-padron b { background: #b3c6db; }
+.dashboard-workspace .dw-niveles-lista .is-mora b { background: var(--dw-blue); }
+.dashboard-workspace .dw-niveles-lista .is-critica b { background: var(--dw-red); }
+
+/* El porcentaje va justo después del final de la barra; el del padrón, adentro. */
+.dashboard-workspace .dw-nivel-pct {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  color: var(--dw-body);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(7px, -50%);
+}
+.dashboard-workspace .dw-niveles-lista .is-padron .dw-nivel-pct { color: var(--dw-ink); transform: translate(calc(-100% - 7px), -50%); }
+
+.dashboard-workspace .dw-nivel-antes {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  z-index: 3;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--dw-ink);
+  box-shadow: 0 0 0 1px var(--dw-tint);
+}
+
+.dashboard-workspace .dw-nivel-cambio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  color: var(--dw-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.dashboard-workspace .dw-nivel-cambio .app-icon { width: 13px; height: 13px; }
+.dashboard-workspace .dw-niveles-lista .dw-nivel-cambio b { display: inline; height: auto; background: none; font-weight: 700; }
+.dashboard-workspace .dw-nivel-cambio.is-sube { color: var(--dw-red); }
+.dashboard-workspace .dw-nivel-cambio.is-baja { color: var(--dw-baja); }
+.dashboard-workspace .dw-niveles-lista .dw-nivel-cambio.is-igual b { color: var(--dw-ink); font-weight: 650; }
+
+.dashboard-workspace .dw-niveles-eje {
+  position: relative;
+  height: 12px;
+  margin-left: var(--nivel-label);
+}
+.dashboard-workspace .dw-niveles-lista.has-previo ~ .dw-niveles-eje { margin-right: var(--dw-cambio-col); }
+.dashboard-workspace .dw-niveles-eje span {
+  position: absolute;
+  top: 0;
+  color: var(--dw-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+.dashboard-workspace .dw-niveles-eje span:first-child { transform: none; }
+.dashboard-workspace .dw-niveles-eje span:last-child { transform: translateX(-100%); }
+
+.dashboard-workspace .dw-niveles-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 0 0 0 var(--nivel-label);
+  color: var(--dw-muted);
+  font-size: 11.5px;
+}
+.dashboard-workspace .dw-niveles-leyenda i { display: inline-block; flex: none; }
+.dashboard-workspace .dw-niveles-leyenda i.is-actual { width: 12px; height: 8px; border-radius: 0 2px 2px 0; background: var(--dw-blue); }
+.dashboard-workspace .dw-niveles-leyenda i.is-antes { width: 2px; height: 12px; margin-left: 10px; border-radius: 1px; background: var(--dw-ink); }
+
+.dashboard-workspace .dw-cartera-cambio {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--dw-muted);
+  font-size: 12px;
+}
+.dashboard-workspace .dw-cartera-cambio .app-icon { width: 13px; height: 13px; }
+.dashboard-workspace .dw-cartera-cambio b { font-weight: 700; }
+.dashboard-workspace .dw-cartera-cambio.is-sube .app-icon,
+.dashboard-workspace .dw-cartera-cambio.is-sube b { color: var(--dw-red); }
+.dashboard-workspace .dw-cartera-cambio.is-baja .app-icon,
+.dashboard-workspace .dw-cartera-cambio.is-baja b { color: var(--dw-baja); }
+
+/* ---------- Cambios desde el lote anterior ---------- */
+.dashboard-workspace .dw-lotes {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--dw-line);
+  border-radius: var(--dw-radius);
+  background: var(--dw-surface);
+  container-type: inline-size;
+}
+.dashboard-workspace .dw-lotes-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dashboard-workspace .dw-lotes-select { display: inline-block; }
+.dashboard-workspace .dw-lotes-sub { margin: 4px 0 0; color: var(--dw-muted); font-size: 12.5px; line-height: 1.6; }
+.dashboard-workspace .dw-lotes-sub b { color: var(--dw-ink); font-weight: 650; }
+.dashboard-workspace .dw-lotes-select select {
+  padding: 2px 6px;
+  border: 1px solid var(--dw-line);
+  border-radius: var(--dw-radius-sm);
+  background: var(--dw-surface);
+  color: var(--dw-ink);
+  font: inherit;
+  font-weight: 650;
+}
+.dashboard-workspace .dw-lotes-pendiente {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 8px 0;
+  border-block: 1px solid var(--dw-line-soft);
+  color: var(--dw-body);
+  font-size: 12.5px;
+}
+.dashboard-workspace .dw-lotes-pendiente > .app-icon { flex: none; width: 15px; height: 15px; color: var(--dw-blue); }
+.dashboard-workspace .dw-lotes-pendiente-texto { flex: 1 1 18rem; }
+.dashboard-workspace .dw-lotes-pendiente b { color: var(--dw-ink); }
+.dashboard-workspace .dw-lotes-pendiente button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dw-blue);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dashboard-workspace .dw-lotes-pendiente button .app-icon { width: 14px; height: 14px; }
+.dashboard-workspace .dw-lotes-vacio { margin: 0; color: var(--dw-muted); font-size: 12.5px; }
+.dashboard-workspace .dw-lotes-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.dashboard-workspace .dw-puente { padding-right: 1.25rem; }
+.dashboard-workspace .dw-barrios-cambio { padding-left: 1.25rem; border-left: 1px solid var(--dw-line-soft); }
+.dashboard-workspace .dw-lotes h3 { margin: 0 0 6px; color: var(--dw-ink); font-size: 12.5px; font-weight: 650; }
+.dashboard-workspace .dw-puente-extremo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 0;
+  color: var(--dw-body);
+  font-size: 12.5px;
+}
+.dashboard-workspace .dw-puente-extremo span { flex: 1; }
+.dashboard-workspace .dw-puente-extremo b { color: var(--dw-ink); font-size: 16px; font-weight: 700; }
+.dashboard-workspace .dw-puente-extremo.is-actual { flex-wrap: wrap; border-top: 1px solid var(--dw-line); }
+.dashboard-workspace .dw-puente-extremo em { flex-basis: 100%; color: var(--dw-muted); font-size: 12px; font-style: normal; font-weight: 700; text-align: right; }
+.dashboard-workspace .dw-puente-extremo em.is-sube { color: var(--dw-red); }
+.dashboard-workspace .dw-puente-extremo em.is-baja { color: var(--dw-baja); }
+
+.dashboard-workspace .dw-div-lista { display: grid; margin: 0; padding: 0; list-style: none; }
+.dashboard-workspace .dw-div-lista li {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 0.95fr) minmax(4rem, 1fr) 5.4rem;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--dw-line-soft);
+}
+.dashboard-workspace .dw-div-lista li.is-vacio { opacity: 0.55; }
+.dashboard-workspace .dw-div-texto { display: grid; min-width: 0; }
+.dashboard-workspace .dw-div-texto strong { overflow: hidden; color: var(--dw-ink); font-size: 12.5px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-workspace .dw-div-texto small { color: var(--dw-muted); font-size: 11px; }
+/* Eje al centro: lo que suma crece a la derecha y lo que resta, a la izquierda. */
+.dashboard-workspace .dw-div-barra {
+  position: relative;
+  height: 10px;
+  background: linear-gradient(var(--dw-line), var(--dw-line)) 50% 0 / 1px 100% no-repeat;
+}
+.dashboard-workspace .dw-div-barra i { position: absolute; top: 0; bottom: 0; transition: width 500ms cubic-bezier(0.23, 1, 0.32, 1); }
+.dashboard-workspace .dw-div-barra i.is-sube { border-radius: 0 3px 3px 0; background: var(--dw-red); }
+.dashboard-workspace .dw-div-barra i.is-baja { border-radius: 3px 0 0 3px; background: var(--dw-baja); }
+.dashboard-workspace .dw-div-lista b { color: var(--dw-ink); font-size: 12.5px; font-weight: 700; text-align: right; white-space: nowrap; }
+.dashboard-workspace .dw-div-lista b.is-sube { color: var(--dw-red); }
+.dashboard-workspace .dw-div-lista b.is-baja { color: var(--dw-baja); }
+.dashboard-workspace .dw-lotes-nota { margin: 6px 0 0; color: var(--dw-muted); font-size: 11.5px; }
+
+.dashboard-workspace .dw-lotes-cifras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 28px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--dw-line-soft);
+}
+.dashboard-workspace .dw-lotes-cifras div { display: flex; flex-direction: row-reverse; align-items: baseline; gap: 6px; }
+.dashboard-workspace .dw-lotes-cifras dt { color: var(--dw-muted); font-size: 12px; }
+.dashboard-workspace .dw-lotes-cifras dd { margin: 0; color: var(--dw-ink); font-size: 15px; font-weight: 700; }
+
+@container (max-width: 760px) {
+  .dashboard-workspace .dw-lotes-cuerpo { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .dashboard-workspace .dw-puente { padding-right: 0; }
+  .dashboard-workspace .dw-barrios-cambio { padding: 12px 0 0; border-top: 1px solid var(--dw-line-soft); border-left: 0; }
+}
+
+@media (max-width: 560px) {
+  .dashboard-workspace .dw-niveles-lista.has-previo li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.35rem; }
+  .dashboard-workspace .dw-niveles-lista.has-previo .dw-nivel-texto { grid-column: 1; grid-row: 1; }
+  .dashboard-workspace .dw-niveles-lista.has-previo .dw-nivel-cambio { grid-column: 2; grid-row: 1; }
+  .dashboard-workspace .dw-niveles-lista.has-previo .dw-nivel-barra { grid-column: 1 / -1; }
+  .dashboard-workspace .dw-niveles-lista.has-previo ~ .dw-niveles-eje { margin-right: 0; }
+  .dashboard-workspace .dw-div-lista li { grid-template-columns: minmax(0, 1fr) 4.8rem; }
+  .dashboard-workspace .dw-div-lista .dw-div-barra { grid-column: 1 / -1; grid-row: 2; }
+}

@@ -880,6 +880,16 @@ export const getAlcaldiaRecords = ({ reload = false } = {}) => {
   return alcaldiaRecords;
 };
 
+// Version liviana del padron de Alcaldia (sin releer los 29 MB): cambia al subir otro archivo.
+export const getAlcaldiaVersion = () => {
+  try {
+    return `${fs.statSync(alcaldiaMetaPath).mtimeMs}:${fs.statSync(alcaldiaPath).mtimeMs}`;
+  } catch {
+    return "sin-alcaldia";
+  }
+};
+export const getAlcaldiaMetaInMemory = () => ({ ...alcaldiaMeta, total_records: Number(alcaldiaMeta.total_records) || alcaldiaRecords.length });
+
 // Cambia cuando se importa o reprocesa el padron. Sirve para invalidar indices derivados.
 export const getMasterVersion = () =>
   `${masterMeta.updated_at || "sin-fecha"}:${masterRecords.length}`;

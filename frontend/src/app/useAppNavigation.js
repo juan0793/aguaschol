@@ -152,6 +152,14 @@ export function useAppNavigation({
             lead: "Servicios, deuda y abonados por barrio desde el padrón maestro, listos para imprimir y PDF.",
             kicker: "Análisis ejecutivo"
           },
+          barriosSinAguas: {
+            panelClass: "hero-panel-users",
+            cardClass: "search-card-users",
+            toplineLabel: "Cruce de padrones",
+            title: "Barrios sin Aguas",
+            lead: "Barrios de Alcaldía cuyas claves no aparecen en Aguas, con sus claves listas para imprimir.",
+            kicker: "Alcaldía y Aguas"
+          },
           logs: {
             panelClass: "hero-panel-logs",
             cardClass: "search-card-logs",
@@ -258,6 +266,7 @@ export function useAppNavigation({
             { key: "planos", label: "Planos y Croquis", icon: "map", group: "gps", helper: "Croquis PDF" },
             { key: "pozos", label: "Pozos", icon: "water", group: "gps", helper: "Inventario y calidad del agua" },
             { key: "requests", label: "Consultas del padrón", icon: "dashboard", group: "control", helper: "Servicios, abonados y Alcaldía" },
+            { key: "barriosSinAguas", label: "Barrios sin Aguas", icon: "map", group: "control", helper: "Alcaldía sin registro en Aguas" },
             { key: "barrioCodes", label: "Barrios", icon: "map", group: "control", helper: `${safeBarrioCodes.length} codigos` },
             { key: "padron", label: "Padrón", icon: "refresh", group: "control", helper: `${padronMeta?.total_records ?? 0} claves` },
             { key: "importacion", label: "Importación", icon: "refresh", group: "control", helper: "Lotes FoxPro" },

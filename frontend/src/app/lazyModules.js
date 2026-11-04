@@ -37,6 +37,7 @@ export const RailwayUsageWorkspace = lazyWithRetry(() => import("../components/R
 
 export const TeamActivityWorkspace = lazyWithRetry(() => import("../modules/actividad/TeamActivityWorkspace"));
 export const FallasWorkspace = lazyWithRetry(() => import("../modules/fallas/FallasWorkspace"));
+export const BarriosSinAguasWorkspace = lazyWithRetry(() => import("../modules/barriosSinAguas/BarriosSinAguasWorkspace"));
 
 export const PlanosWorkspace = lazyWithRetry(() => import("../modules/planos/PlanosWorkspace"));
 export const PozosWorkspace = lazyWithRetry(() => import("../modules/pozos/PozosWorkspace"));
@@ -84,7 +85,8 @@ export const MODULE_LOADERS = {
   profile: () => import("../components/profile/MyProfileWorkspace"),
   railwayUsage: () => import("../components/RailwayUsageWorkspace"),
   teamActivity: () => import("../modules/actividad/TeamActivityWorkspace"),
-  fallas: () => import("../modules/fallas/FallasWorkspace")
+  fallas: () => import("../modules/fallas/FallasWorkspace"),
+  barriosSinAguas: () => import("../modules/barriosSinAguas/BarriosSinAguasWorkspace")
 };
 
 // Un fallo aquí no es un error de la app: el módulo se volverá a pedir al entrar.

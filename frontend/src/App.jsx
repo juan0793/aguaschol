@@ -40,6 +40,7 @@ import {
   RailwayUsageWorkspace,
   TeamActivityWorkspace,
   FallasWorkspace,
+  BarriosSinAguasWorkspace,
   PlanosWorkspace,
   PozosWorkspace,
   ManagerDashboardWorkspace,
@@ -837,6 +838,13 @@ function App() {
               if (!response.ok) throw new Error(data.message || "No fue posible cargar las cuentas del servicio.");
               return data;
             },
+            // Diferencias entre el lote FoxPro activo y el anterior (o el que se elija).
+            fetchLotesComparacion: async (anterior = "") => {
+              const response = await apiFetch(`/claves/padron/lotes/comparacion${anterior ? `?anterior=${encodeURIComponent(anterior)}` : ""}`);
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.message || "No fue posible comparar los lotes del padrón.");
+              return data;
+            },
             debtSummary: padronServiceReport?.summary?.deuda || {},
             padronTotals: {
               records: Number(padronServiceReport?.summary?.total_records || 0),
@@ -873,6 +881,10 @@ function App() {
       ) : workspaceView === "pozos" && (isAdmin || isManager) ? (
         <Suspense fallback={<ModuleSkeleton title="los pozos" />}>
           <PozosWorkspace apiFetch={apiFetch} />
+        </Suspense>
+      ) : workspaceView === "barriosSinAguas" && (isAdmin || isManager) ? (
+        <Suspense fallback={<ModuleSkeleton title="los barrios sin Aguas" toolbar={false} rows={6} />}>
+          <BarriosSinAguasWorkspace apiFetch={apiFetch} />
         </Suspense>
       ) : workspaceView === "fallas" && (isAdmin || isManager) ? (
         <main className="team-activity-layout">

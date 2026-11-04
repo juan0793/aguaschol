@@ -1,5 +1,6 @@
 export const MANAGER_NAVIGATION = [
   { key: "requests", label: "Consultas e informes", icon: "records", helper: "Informes PDF gerenciales" },
+  { key: "barriosSinAguas", label: "Barrios sin Aguas", icon: "map", helper: "Alcaldía sin registro en Aguas" },
   { key: "inspecciones", label: "Inspecciones", icon: "activity", helper: "Consulta y desempeño" },
   { key: "entregas", label: "Control de entregas", icon: "archive", helper: "Seguimiento de reparto" },
   { key: "records", label: "Clandestinos", icon: "records", helper: "Fichas y evidencias" },
