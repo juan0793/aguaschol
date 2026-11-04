@@ -47,9 +47,25 @@ export const USOS_LEGALES = [
   ["turistico", "Turístico y recreativo"], ["otro", "Otro"], ["sin_dato", "Sin definir"]
 ];
 export const ESTADOS_LEGALES = [
-  ["al_dia", "Al día"], ["por_vencer", "Por vencer"], ["vencido", "Vencido"], ["sin_permiso", "Sin permiso"],
+  ["al_dia", "Al día"], ["por_vencer", "Por vencer"], ["en_tramite", "En trámite"], ["vencido", "Vencido"], ["sin_permiso", "Sin permiso"],
   ["no_requiere", "No requiere"], ["por_definir", "Por definir"], ["falta_declaracion", "Falta declaración"]
 ];
+export const PERMISOS_LEGALES = [
+  ["sin_dato", "Sin dato"], ["ninguno", "Ninguno"], ["permiso_municipal", "Permiso municipal"],
+  ["licencia_municipal", "Licencia municipal"], ["concesion", "Concesión"], ["en_tramite", "En trámite"]
+];
+export const TAMANOS_EMPRESA = [["no_aplica", "No aplica"], ["micro_pequena", "Micro o pequeña"], ["mediana_grande", "Mediana o grande"]];
+// Tono de cada estado (clases de cl-status del sistema): verde al día, ocre lo que vence o se
+// tramita, rojo lo vencido o sin permiso, gris lo que falta definir.
+export const CLASE_LEGAL = { al_dia: "is-approved", no_requiere: "is-approved", por_vencer: "is-info_requested", en_tramite: "is-info_requested", vencido: "is-discarded", sin_permiso: "is-discarded", por_definir: "" };
+// Lo que el formulario edita; lo demás (estado, artículos, estimados) lo calcula el servidor.
+export const CAMPOS_LEGALES = ["uso", "tamano_empresa", "clave_catastral", "titular", "permiso_tipo", "permiso_numero", "permiso_fecha", "permiso_vence", "caudal_autorizado_lps", "caudal_lps", "horas_bombeo_dia", "dias_mes", "volumen_declarado_m3", "anio_declarado", "notas"];
+export const borradorLegal = (legal = {}) => Object.fromEntries(CAMPOS_LEGALES.map((campo) => [
+  campo,
+  // El vencimiento que se edita es solo el escrito; si queda vacío rige fecha + 10 años (art. 157).
+  campo === "permiso_vence" ? (legal.permiso_vence_manual !== undefined ? legal.permiso_vence_manual : legal.permiso_vence) ?? "" : legal[campo] ?? ""
+]));
+export const fechaLegal = (valor) => (valor ? new Date(`${String(valor).slice(0, 10)}T12:00:00`).toLocaleDateString("es-HN", { day: "numeric", month: "short", year: "numeric" }).replace(".", "") : "");
 export const etiquetaLegal = (lista, clave, alternativa = "Por definir") => lista.find(([valor]) => valor === clave)?.[1] ?? alternativa;
 export const usoLegalDe = (pozo) => pozo?.legal?.uso || "sin_dato";
 export const estadoLegalDe = (pozo) => pozo?.legal?.estado || pozo?.legal?.estado_legal || "por_definir";
@@ -135,7 +151,7 @@ export const COLUMNAS_ORDEN = {
   colonia: (pozo) => normalizar(pozo.colonia) || null,
   en_uso: (pozo) => (pozo.en_uso ? 1 : null),
   calidad: (pozo) => ({ fuera: 1, dentro: 2 })[calidadDe(pozo)] ?? null,
-  situacion_legal: (pozo) => ({ sin_permiso: 1, vencido: 2, por_vencer: 3, falta_declaracion: 4, por_definir: 5, al_dia: 6, no_requiere: 7 })[estadoLegalDe(pozo)] ?? null,
+  situacion_legal: (pozo) => ({ sin_permiso: 1, vencido: 2, por_vencer: 3, en_tramite: 4, por_definir: 5, al_dia: 6, no_requiere: 7 })[estadoLegalDe(pozo)] ?? null,
   profundidad_m: (pozo) => pozo.profundidad_m,
   nivel_freatico_m: (pozo) => pozo.nivel_freatico_m,
   diametro_pulg: (pozo) => pozo.diametro_pulg,
@@ -299,9 +315,9 @@ const COLUMNAS_CSV = [
   ["UTM X", (pozo) => pozo.utm_x], ["UTM Y", (pozo) => pozo.utm_y], ["Elevación (m)", (pozo) => pozo.elevacion_m],
   ["Uso legal", (pozo) => etiquetaLegal(USOS_LEGALES, usoLegalDe(pozo))], ["Situación legal", (pozo) => etiquetaLegal(ESTADOS_LEGALES, estadoLegalDe(pozo))],
   ["Titular", (pozo) => pozo.legal?.titular], ["Clave catastral", (pozo) => pozo.legal?.clave_catastral],
-  ["Tipo de permiso", (pozo) => pozo.legal?.permiso_tipo], ["Número de permiso", (pozo) => pozo.legal?.permiso_numero],
+  ["Tipo de permiso", (pozo) => (pozo.legal?.permiso_tipo ? etiquetaLegal(PERMISOS_LEGALES, pozo.legal.permiso_tipo, "") : "")], ["Número de permiso", (pozo) => pozo.legal?.permiso_numero],
   ["Vence permiso", (pozo) => pozo.legal?.permiso_vence], ["Caudal autorizado (L/s)", (pozo) => pozo.legal?.caudal_autorizado_lps],
-  ["Volumen anual estimado (m³)", (pozo) => pozo.legal?.volumen_anual_estimado_m3], ["Canon anual estimado (L)", (pozo) => pozo.legal?.canon_estimado_l ?? pozo.legal?.canon_estimado],
+  ["Volumen anual estimado (m³)", (pozo) => pozo.legal?.volumen_estimado_m3 ?? pozo.legal?.volumen_anual_estimado_m3], ["Canon anual estimado (L)", (pozo) => pozo.legal?.canon_estimado_l ?? pozo.legal?.canon_estimado],
   ["Falta declaración", (pozo) => faltaDeclaracionDe(pozo) ? "Sí" : ""],
   ["Datos que faltan", (pozo) => faltantesDe(pozo).join("; ")], ["Observaciones", (pozo) => pozo.observaciones]
 ];

@@ -449,7 +449,12 @@ Prompt interno sugerido:
 
 ### Pozos (desde 2026-10-20; Resumen y Análisis desde 2026-10-21)
 
-- Situación legal: filtros por uso y estado, columna en la lista y resumen plano con conteos y canon anual estimado. La ficha muestra artículos y permite editar solo a administración; la clave consulta el padrón y señala posibles clientes para revisar.
+- Situación legal (revisada 2026-11-04). Filtros por uso y por estado, columna en la lista y un panel a todo el ancho en el Resumen.
+  - El panel lleva el canon anual estimado, una franja con los estados y su leyenda (cada estado filtra) y el uso del agua en barras. Tonos: verde al día, verde claro no requiere, ocre por vencer, ocre claro en trámite, rojo vencido, rojo oscuro sin permiso y gris por definir.
+  - En la ficha, el estado va como etiqueta de color, la fecha en formato corto ("15 jun 2031") y el formulario plegado en tres grupos: uso del agua, permiso o licencia, y consumo. Solo administración edita.
+  - El vencimiento vacío es la fecha del permiso + 10 años (art. 157); el escrito se guarda aparte del que rige.
+  - Cada registro guarda el código y el nombre del pozo. Si el inventario se regenera y ya no coinciden, la ficha lo avisa en rojo y el estado queda por definir hasta guardarlo de nuevo.
+  - La clave catastral consulta el padrón y marca en ocre a los usos productivos sin servicio de agua ("posible cliente").
 - Informe legal horizontal `POZ-LEG`: cifras y tabla, primero los usos productivos sin permiso; cita el Reglamento y pide verificar con el área legal. El CSV incluye los datos legales.
 - Extensión del mundo de la bandeja de Clandestinos/Fichas en su variante plana (`cl-module is-flat`). Sin concept roll ni clave de semilla, porque el mundo se hereda.
 - Sin tarjetas. La pantalla tiene, en este orden:

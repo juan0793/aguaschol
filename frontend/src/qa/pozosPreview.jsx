@@ -7,7 +7,7 @@ import PozosWorkspace from "../modules/pozos/PozosWorkspace";
 // Abre `qa-pozos.html`.
 
 const colonias = ["Colonia Ensayo Norte", "Barrio Muestra", "Sector Prueba Sur", "Loma Simulada", "Campo Modelo"];
-const estadosLegales = ["al_dia", "por_vencer", "vencido", "sin_permiso", "no_requiere", "por_definir"];
+const estadosLegales = ["al_dia", "por_vencer", "vencido", "sin_permiso", "no_requiere", "por_definir", "en_tramite"];
 const usosLegales = ["industrial_comercial", "purificadora", "agroforestal", "industrial_comercial", "domiciliario", "sin_dato", "comunitario", "sanitario"];
 
 const legalDe = (i) => {
@@ -22,7 +22,7 @@ const legalDe = (i) => {
     tamano_empresa: esProductivo ? (i % 2 ? "micro_pequena" : "mediana_grande") : "no_aplica",
     clave_catastral: i % 3 === 0 ? `QA-POZO-${String(i + 1).padStart(3, "0")}` : "",
     titular: `Titular ficticio ${i + 1}`,
-    permiso_tipo: estado === "sin_permiso" ? "ninguno" : estado === "por_definir" ? "sin_dato" : estado === "no_requiere" ? "ninguno" : estado === "por_vencer" ? "licencia_municipal" : "permiso_municipal",
+    permiso_tipo: estado === "en_tramite" ? "en_tramite" : estado === "sin_permiso" ? "ninguno" : estado === "por_definir" ? "sin_dato" : estado === "no_requiere" ? "ninguno" : estado === "por_vencer" ? "licencia_municipal" : "permiso_municipal",
     permiso_numero: ["sin_permiso", "por_definir", "no_requiere"].includes(estado) ? "" : `QA-PERM-${100 + i}`,
     permiso_fecha: ["sin_permiso", "por_definir", "no_requiere"].includes(estado) ? null : "2021-06-15",
     permiso_vence: ["sin_permiso", "por_definir", "no_requiere"].includes(estado) ? null : vence,
@@ -35,10 +35,15 @@ const legalDe = (i) => {
     notas: "Registro ficticio para revisión visual.",
     actualizado_por: "Administración de prueba",
     actualizado_at: "2026-11-04T12:00:00.000Z",
-    estado,
+    estado: i === 7 ? "por_definir" : estado,
     falta_declaracion: i % 5 === 0,
     articulo: estado === "no_requiere" ? "Art. 135" : estado === "por_vencer" ? "Art. 157" : estado === "sin_permiso" ? "Arts. 136 y 152–161" : "Arts. 57, 135 y 140",
-    uso_sugerido: uso,
+    // Como el servidor: vence escrito aparte del que rige; el pozo 8 trae un registro de otro pozo.
+    permiso_vence_manual: i % 2 ? null : (["sin_permiso", "por_definir", "no_requiere", "en_tramite"].includes(estado) ? null : vence),
+    pozo_codigo: `Pchol.-${String((i % 11) + 1).padStart(3, "0")}`,
+    desfasado: i === 7,
+    registrado_para: i === 7 ? { codigo: "Pchol.-021", nombre: "Pozo de prueba anterior" } : null,
+    uso_sugerido: i % 4 === 1 ? "industrial_comercial" : uso,
     volumen_estimado_m3: volumen,
     canon_estimado_l: Number((volumen * 0.0025).toFixed(2))
   };
@@ -101,7 +106,9 @@ const apiFetch = async (url, options = {}) => {
     const indice = inventario.findIndex((pozo) => pozo.id === Number(match[1]));
     if (indice < 0) return respuesta({ message: "Pozo de prueba no encontrado." }, 404);
     const payload = options.body ? JSON.parse(options.body) : {};
-    const pozo = { ...inventario[indice], legal: { ...inventario[indice].legal, ...payload, actualizado_at: new Date().toISOString() } };
+    const manual = payload.permiso_vence || null;
+    const vence = manual || (payload.permiso_fecha ? `${Number(String(payload.permiso_fecha).slice(0, 4)) + 10}${String(payload.permiso_fecha).slice(4, 10)}` : null);
+    const pozo = { ...inventario[indice], legal: { ...inventario[indice].legal, ...payload, permiso_vence: vence, permiso_vence_manual: manual, desfasado: false, registrado_para: null, estado: payload.permiso_tipo === "en_tramite" ? "en_tramite" : inventario[indice].legal.estado, actualizado_at: new Date().toISOString() } };
     inventario[indice] = pozo;
     actualizado = new Date().toISOString();
     return respuesta(pozo);

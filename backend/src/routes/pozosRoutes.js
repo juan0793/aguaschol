@@ -16,7 +16,7 @@ router.put("/:id/legal", requireRoles("admin"), async (req, res, next) => {
     const inventario = await listarPozos();
     const pozo = inventario.pozos.find((item) => Number(item.id) === id);
     if (!pozo) return res.status(404).json({ message: "Pozo no encontrado." });
-    const legal = await guardarSituacionLegal(id, req.body, req.authUser);
+    const legal = await guardarSituacionLegal(id, req.body, req.authUser, pozo);
     return res.json({ ...pozo, legal: presentarSituacionLegal(legal, pozo) });
   } catch (error) {
     return next(error);

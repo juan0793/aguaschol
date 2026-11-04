@@ -36,7 +36,7 @@ export const TIPOS_INFORME = {
 const NORMA = "Valores guía: pH de 6.5 a 8.5 y sólidos totales disueltos (TDS) hasta 1 g/L (1000 mg/L), Norma Técnica Nacional para la Calidad del Agua Potable de Honduras.";
 const REGLAMENTO = "Reglamento de la Ley General de Aguas: arts. 57, 135, 136, 140, 155, 157, 220 y 222 b. Verificar con el área legal.";
 const ETIQUETA_CALIDAD = { dentro: "Dentro del valor guía", fuera: "Fuera del valor guía", sin: "Sin medición" };
-const ESTADO_LEGAL = { al_dia: "Al día", por_vencer: "Por vencer", vencido: "Vencido", sin_permiso: "Sin permiso", no_requiere: "No requiere", por_definir: "Por definir" };
+const ESTADO_LEGAL = { al_dia: "Al día", por_vencer: "Por vencer", en_tramite: "En trámite", vencido: "Vencido", sin_permiso: "Sin permiso", no_requiere: "No requiere", por_definir: "Por definir" };
 const USO_LEGAL = { domiciliario: "Domiciliario", comunitario: "Comunitario", industrial_comercial: "Industrial/comercial", purificadora: "Purificadora", agroforestal: "Agroforestal", sanitario: "Sanitario", turistico: "Turístico", otro: "Otro", sin_dato: "Sin dato" };
 const PERMISO_LEGAL = { ninguno: "Ninguno", permiso_municipal: "Permiso municipal", licencia_municipal: "Licencia municipal", concesion: "Concesión", en_tramite: "En trámite", sin_dato: "Sin dato" };
 const plural = (n, uno, varios) => `${Number(n).toLocaleString("es-HN")} ${n === 1 ? uno : varios}`;
@@ -387,7 +387,7 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
     const nota = partir("Ayuda de gestión según el Reglamento de la Ley General de Aguas (arts. 57, 135, 136, 140, 155, 157, 220 y 222 b). No es un dictamen legal: verificar con el área legal.", util, 7.4);
     texto(nota, MARGEN, y - 2, { tam: 7.4, color: TENUE });
     y += nota.length * 3.5 + 4;
-    const prioridadEstado = { sin_permiso: 0, vencido: 1, por_vencer: 2, por_definir: 3, al_dia: 4, no_requiere: 5 };
+    const prioridadEstado = { sin_permiso: 0, vencido: 1, por_vencer: 2, en_tramite: 3, por_definir: 4, al_dia: 5, no_requiere: 6 };
     const orden = [...pozos].sort((a, b) =>
       Number(esProductivoSinPermiso(b)) - Number(esProductivoSinPermiso(a))
       || (prioridadEstado[legalDe(a).estado] ?? 9) - (prioridadEstado[legalDe(b).estado] ?? 9)
@@ -415,7 +415,7 @@ export function crearInformePozos({ jsPDF, autoTable, tipo, pozos = [], alcance 
         if (data.section !== "body" || data.column.index !== 6) return;
         const legal = legalDe(data.row.raw.__pozo);
         const estado = legal.estado;
-        data.cell.styles.textColor = ["sin_permiso", "vencido"].includes(estado) ? COLOR.fuera : estado === "por_vencer" || legal.falta_declaracion ? OCRE : ["al_dia", "no_requiere"].includes(estado) ? [18, 128, 106] : TENUE;
+        data.cell.styles.textColor = ["sin_permiso", "vencido"].includes(estado) ? COLOR.fuera : ["por_vencer", "en_tramite"].includes(estado) || legal.falta_declaracion ? OCRE : ["al_dia", "no_requiere"].includes(estado) ? [18, 128, 106] : TENUE;
         if (legal.falta_declaracion) data.cell.styles.fillColor = OCRE_FONDO;
       },
       margin: { left: MARGEN, right: MARGEN, top: 28, bottom: ALTO_CAJETIN + 10 },

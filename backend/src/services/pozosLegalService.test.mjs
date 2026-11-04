@@ -25,3 +25,41 @@ test("volumen, canon, sugerencias y validación", () => {
   assert.equal(sugerirUso("Pozo comunitario"), "comunitario");
   assert.throws(() => normalizarSituacionLegal({ horas_bombeo_dia: 25 }));
 });
+
+test("en trámite es su propio estado y el vencimiento escrito va aparte del calculado", async () => {
+  const { estadoLegal, presentarSituacionLegal } = await import("./pozosLegalService.js");
+  assert.equal(estadoLegal({ uso: "purificadora", permiso_tipo: "en_tramite" }, "2026-11-04").estado, "en_tramite");
+  const sinManual = presentarSituacionLegal({ uso: "purificadora", permiso_tipo: "permiso_municipal", permiso_fecha: "2020-03-10" }, { codigo: "P-1", nombre: "Uno" }, "2026-11-04");
+  assert.equal(sinManual.permiso_vence, "2030-03-10");
+  assert.equal(sinManual.permiso_vence_manual, null);
+});
+
+test("un registro guardado para otro pozo queda por definir y dice para cuál era", async () => {
+  const { presentarSituacionLegal } = await import("./pozosLegalService.js");
+  const registro = { pozo_codigo: "Pchol.-010", pozo_nombre: "Gasolinera", uso: "industrial_comercial", permiso_tipo: "permiso_municipal", permiso_vence: "2030-01-01" };
+  const mismo = presentarSituacionLegal(registro, { codigo: "Pchol.-010", nombre: "Gasolinera" }, "2026-11-04");
+  assert.equal(mismo.estado, "al_dia");
+  assert.equal(mismo.desfasado, false);
+  const otro = presentarSituacionLegal(registro, { codigo: "Pchol.-011", nombre: "Casa" }, "2026-11-04");
+  assert.equal(otro.estado, "por_definir");
+  assert.deepEqual(otro.registrado_para, { codigo: "Pchol.-010", nombre: "Gasolinera" });
+  assert.equal(presentarSituacionLegal({ ...registro, pozo_codigo: "" }, { codigo: "X" }, "2026-11-04").desfasado, false);
+});
+
+test("guardar anota el código y el nombre del pozo", async () => {
+  const { guardarSituacionLegal, __resetPozosLegalMemoryForTests } = await import("./pozosLegalService.js");
+  __resetPozosLegalMemoryForTests();
+  const guardado = await guardarSituacionLegal(7, { uso: "purificadora", permiso_tipo: "en_tramite" }, { id: 1 }, { codigo: "Pchol.-007", nombre: "Purificadora" });
+  assert.equal(guardado.pozo_codigo, "Pchol.-007");
+  assert.equal(guardado.pozo_nombre, "Purificadora");
+});
+
+test("renovar: con el vencimiento vacío rige la nueva fecha + 10 años", async () => {
+  const { normalizarSituacionLegal, presentarSituacionLegal } = await import("./pozosLegalService.js");
+  const antes = { uso: "purificadora", permiso_tipo: "permiso_municipal", permiso_fecha: "2016-01-10", permiso_vence: "2026-01-10" };
+  const renovado = normalizarSituacionLegal({ permiso_fecha: "2026-11-04", permiso_vence: "" }, antes);
+  assert.equal(renovado.permiso_vence, null);
+  const visto = presentarSituacionLegal(renovado, {}, "2026-11-05");
+  assert.equal(visto.permiso_vence, "2036-11-04");
+  assert.equal(visto.estado, "al_dia");
+});

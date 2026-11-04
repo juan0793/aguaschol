@@ -333,6 +333,8 @@ const ensureSchema = async () => {
       `
         CREATE TABLE IF NOT EXISTS pozos_situacion_legal (
           pozo_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+          pozo_codigo VARCHAR(80) NOT NULL DEFAULT '',
+          pozo_nombre VARCHAR(180) NOT NULL DEFAULT '',
           uso ENUM('domiciliario', 'comunitario', 'industrial_comercial', 'purificadora', 'agroforestal', 'sanitario', 'turistico', 'otro', 'sin_dato') NOT NULL DEFAULT 'sin_dato',
           tamano_empresa ENUM('micro_pequena', 'mediana_grande', 'no_aplica') NOT NULL DEFAULT 'no_aplica',
           clave_catastral VARCHAR(80) NOT NULL DEFAULT '',
@@ -353,6 +355,10 @@ const ensureSchema = async () => {
         )
       `
     );
+    // El id del pozo sale del orden del shapefile: el código y el nombre guardados permiten
+    // detectar un registro que quedó pegado a otro pozo al regenerar el inventario.
+    await ensureColumn(admin, { tableName: "pozos_situacion_legal", columnName: "pozo_codigo", definition: "VARCHAR(80) NOT NULL DEFAULT '' AFTER pozo_id" });
+    await ensureColumn(admin, { tableName: "pozos_situacion_legal", columnName: "pozo_nombre", definition: "VARCHAR(180) NOT NULL DEFAULT '' AFTER pozo_codigo" });
     await seedPlanosBarrios(admin);
     await ensureRoleEnum(admin);
     await ensureColumn(admin, { tableName: "auth_sessions", columnName: "preview_role", definition: "VARCHAR(32) NULL" });

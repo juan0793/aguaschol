@@ -54,6 +54,8 @@ const asIso = (value) => {
 };
 
 const defaults = () => ({
+  pozo_codigo: "",
+  pozo_nombre: "",
   uso: "sin_dato",
   tamano_empresa: "no_aplica",
   clave_catastral: "",
@@ -77,6 +79,8 @@ const mapRow = (row = {}) => ({
   ...defaults(),
   ...row,
   pozo_id: row.pozo_id == null ? undefined : Number(row.pozo_id),
+  pozo_codigo: clean(row.pozo_codigo),
+  pozo_nombre: clean(row.pozo_nombre),
   permiso_fecha: dateParts(row.permiso_fecha)?.iso || null,
   permiso_vence: dateParts(row.permiso_vence)?.iso || null,
   caudal_autorizado_lps: numberOrNull(row.caudal_autorizado_lps),
@@ -114,6 +118,8 @@ export const estadoLegal = (registro = {}, hoy = new Date()) => {
     estado = "por_definir";
   } else if (!requiere) {
     estado = "no_requiere";
+  } else if (registro?.permiso_tipo === "en_tramite") {
+    estado = "en_tramite";
   } else if (!TIPOS_VALIDOS.has(registro?.permiso_tipo)) {
     estado = "sin_permiso";
   } else {
@@ -168,13 +174,24 @@ const articulosAplicables = (registro, situacion) => {
   return articulos;
 };
 
+// El registro se guardó para otro pozo si su código o nombre ya no coinciden con el inventario
+// (el shapefile se regeneró y los ids se corrieron). Entonces no se confía en su estado.
+export const registroDesfasado = (legal = {}, pozo = {}) =>
+  Boolean(legal.pozo_codigo) && (legal.pozo_codigo !== clean(pozo.codigo) || legal.pozo_nombre !== clean(pozo.nombre));
+
 export const presentarSituacionLegal = (registro, pozo = {}, hoy = new Date()) => {
   const legal = mapRow(registro);
-  const situacion = estadoLegal(legal, hoy);
+  const desfasado = registroDesfasado(legal, pozo);
+  const situacion = desfasado ? { estado: "por_definir", falta_declaracion: false } : estadoLegal(legal, hoy);
   const articulos = articulosAplicables(legal, situacion);
   return {
     ...legal,
+    // permiso_vence es la fecha que rige (la escrita o la del permiso + 10 años, art. 157);
+    // permiso_vence_manual es solo la escrita, la que edita el formulario.
+    permiso_vence_manual: legal.permiso_vence,
     permiso_vence: fechaVencimientoPermiso(legal),
+    desfasado,
+    registrado_para: desfasado ? { codigo: legal.pozo_codigo, nombre: legal.pozo_nombre } : null,
     uso_sugerido: sugerirUso(pozo.nombre),
     requiere_permiso: requierePermiso(legal.uso),
     ...situacion,
@@ -284,11 +301,11 @@ const auditar = async (user, pozoId, legal) => {
   }
 };
 
-export const guardarSituacionLegal = async (pozoId, payload, user) => {
+export const guardarSituacionLegal = async (pozoId, payload, user, pozo = {}) => {
   const id = Number(pozoId);
   if (!Number.isInteger(id) || id <= 0) throw fail("Pozo no encontrado.", 404);
   const current = await getRecord(id);
-  const legal = normalizarSituacionLegal(payload, current);
+  const legal = { ...normalizarSituacionLegal(payload, current), pozo_codigo: clean(pozo.codigo).slice(0, 80), pozo_nombre: clean(pozo.nombre).slice(0, 180) };
   const actorId = Number.isInteger(Number(user?.id)) ? Number(user.id) : null;
 
   if (env.useMemoryDb) {
@@ -300,12 +317,12 @@ export const guardarSituacionLegal = async (pozoId, payload, user) => {
   const pool = getPool();
   await pool.query(
     `INSERT INTO pozos_situacion_legal (
-      pozo_id, uso, tamano_empresa, clave_catastral, titular, permiso_tipo, permiso_numero,
+      pozo_id, pozo_codigo, pozo_nombre, uso, tamano_empresa, clave_catastral, titular, permiso_tipo, permiso_numero,
       permiso_fecha, permiso_vence, caudal_autorizado_lps, caudal_lps, horas_bombeo_dia,
       dias_mes, volumen_declarado_m3, anio_declarado, notas, actualizado_por
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
-      uso = VALUES(uso), tamano_empresa = VALUES(tamano_empresa), clave_catastral = VALUES(clave_catastral),
+      pozo_codigo = VALUES(pozo_codigo), pozo_nombre = VALUES(pozo_nombre), uso = VALUES(uso), tamano_empresa = VALUES(tamano_empresa), clave_catastral = VALUES(clave_catastral),
       titular = VALUES(titular), permiso_tipo = VALUES(permiso_tipo), permiso_numero = VALUES(permiso_numero),
       permiso_fecha = VALUES(permiso_fecha), permiso_vence = VALUES(permiso_vence),
       caudal_autorizado_lps = VALUES(caudal_autorizado_lps), caudal_lps = VALUES(caudal_lps),
@@ -313,7 +330,7 @@ export const guardarSituacionLegal = async (pozoId, payload, user) => {
       volumen_declarado_m3 = VALUES(volumen_declarado_m3), anio_declarado = VALUES(anio_declarado),
       notas = VALUES(notas), actualizado_por = VALUES(actualizado_por), actualizado_at = CURRENT_TIMESTAMP`,
     [
-      id, legal.uso, legal.tamano_empresa, legal.clave_catastral, legal.titular, legal.permiso_tipo,
+      id, legal.pozo_codigo, legal.pozo_nombre, legal.uso, legal.tamano_empresa, legal.clave_catastral, legal.titular, legal.permiso_tipo,
       legal.permiso_numero, legal.permiso_fecha, legal.permiso_vence, legal.caudal_autorizado_lps,
       legal.caudal_lps, legal.horas_bombeo_dia, legal.dias_mes, legal.volumen_declarado_m3,
       legal.anio_declarado, legal.notas, actorId

@@ -4,9 +4,9 @@ import { TableSkeleton } from "../../components/ds/Skeleton";
 import { congelarAltura, soltarAltura } from "../clandestinos/alturaSuave";
 import PozoDetalle from "./PozoDetalle";
 import PozosMapa from "./PozosMapa";
-import { BarrasColonia, CalidadPorColonia, Cobertura, Dispersion, FranjaCalidad, FranjaUso, Hallazgos, Histograma, Panel } from "./PozosGraficos";
+import { BarrasColonia, CalidadPorColonia, Cobertura, Dispersion, FranjaCalidad, FranjaUso, Hallazgos, Histograma, Panel, SituacionLegal } from "./PozosGraficos";
 import {
-  CALIDADES, DATOS, ESTADOS_LEGALES, FILTROS_INICIALES, USOS_LEGALES, VISTAS, calidadDe, calidadPorColonia, coberturaDatos, coloniasDe, contarVistas, conteoUso,
+  CALIDADES, CLASE_LEGAL, DATOS, ESTADOS_LEGALES, FILTROS_INICIALES, USOS_LEGALES, VISTAS, calidadDe, calidadPorColonia, coberturaDatos, coloniasDe, contarVistas, conteoUso,
   estadoLegalDe, etiquetaLegal, faltaDeclaracionDe, filtrarPozos, formatoNumero, fueraDeRango, hallazgos, haceCuanto, histograma, ordenarPozos, paginar, pozosCsv, pozosPorColonia, resumenLegal, resumenMetricas, usoLegalDe
 } from "./pozosFiltros";
 import "../clandestinos/styles/clandestinos.css";
@@ -33,7 +33,6 @@ const DESCARGAS = [
 ];
 const ETIQUETA_CALIDAD = { dentro: "Dentro de guía", fuera: "Fuera de guía", sin: "Sin medición" };
 const CLASE_CALIDAD = { dentro: "is-approved", fuera: "is-discarded", sin: "" };
-const CLASE_LEGAL = { al_dia: "is-approved", no_requiere: "is-approved", por_vencer: "is-info_requested", vencido: "is-discarded", sin_permiso: "is-discarded", por_definir: "" };
 
 // Columnas del listado: [clave de orden, encabezado, unidad, decimales, numérica].
 const COLUMNAS = [
@@ -57,16 +56,6 @@ function CeldaNumero({ campo, valor, decimales }) {
   if (valor === null || valor === undefined) return <td className="pz-num is-vacio">—</td>;
   const fuera = fueraDeRango(campo, valor);
   return <td className={`pz-num${fuera ? " is-fuera" : ""}`} title={fuera ? "Fuera del valor guía" : undefined}>{formatoNumero(valor, decimales, true)}</td>;
-}
-
-function ResumenLegal({ resumen, onEstado, onUso }) {
-  const estados = ESTADOS_LEGALES.filter(([clave]) => resumen.estados[clave]);
-  const usos = USOS_LEGALES.filter(([clave]) => resumen.usos[clave]);
-  return <div className="pz-legal-resumen">
-    <p className="pz-legal-canon"><strong>L {formatoNumero(resumen.canon_anual_estimado_l, 2)}</strong><span>canon anual estimado · art. 222 b</span></p>
-    <div><h4>Estado</h4><ul>{estados.length ? estados.map(([clave, etiqueta]) => <li key={clave}><button type="button" onClick={() => onEstado(clave)}><span className={`pz-legal-punto is-${clave}`} />{etiqueta}<strong>{resumen.estados[clave]}</strong></button></li>) : <li>Sin situación registrada.</li>}</ul></div>
-    <div><h4>Uso</h4><ul>{usos.length ? usos.map(([clave, etiqueta]) => <li key={clave}><button type="button" onClick={() => onUso(clave)}>{etiqueta}<strong>{resumen.usos[clave]}</strong></button></li>) : <li>Sin uso definido.</li>}</ul></div>
-  </div>;
 }
 
 // "Pozos": inventario de pozos de Choluteca, solo consulta, para administración y Gerencia.
@@ -349,8 +338,8 @@ export default function PozosWorkspace({ apiFetch, isAdmin = false }) {
         <Panel id="pz-g-hallazgos" titulo="Para atender" nota="Cada línea filtra la tabla.">
           <Hallazgos items={graficos.hallazgos} onElegir={(filtro) => cambiar(filtro)} />
         </Panel>
-        <Panel id="pz-g-legal" titulo="Situación legal" nota="Toca un estado o uso para filtrar. Verificar con el área legal.">
-          <ResumenLegal resumen={graficos.legal} onEstado={(estadoLegal) => cambiar({ estadoLegal: filtros.estadoLegal === estadoLegal ? "" : estadoLegal })} onUso={(usoLegal) => cambiar({ usoLegal: filtros.usoLegal === usoLegal ? "" : usoLegal })} />
+        <Panel id="pz-g-legal" ancho titulo="Situación legal" nota="Toca un estado o un uso para ver esos pozos. Verificar con el área legal.">
+          <SituacionLegal resumen={graficos.legal} total={filtrados.length} estadoActivo={filtros.estadoLegal} usoActivo={filtros.usoLegal} onEstado={(estadoLegal) => cambiar({ estadoLegal: filtros.estadoLegal === estadoLegal ? "" : estadoLegal })} onUso={(usoLegal) => cambiar({ usoLegal: filtros.usoLegal === usoLegal ? "" : usoLegal })} />
         </Panel>
       </div> : null}
 

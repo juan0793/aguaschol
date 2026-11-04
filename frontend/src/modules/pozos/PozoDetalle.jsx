@@ -4,13 +4,19 @@ import { Icon } from "../../components/Icon";
 import PozoQuimica from "./PozoQuimica";
 import PozosMapa from "./PozosMapa";
 import { conductividadDe, revisionesDelDato } from "./pozosQuimica";
-import { ESTADOS_LEGALES, RANGOS, USOS_LEGALES, calidadDe, conCalidad, estadoLegalDe, etiquetaLegal, faltaDeclaracionDe, faltantesDe, formatoNumero, fueraDeRango, usoLegalDe } from "./pozosFiltros";
+import { CLASE_LEGAL, ESTADOS_LEGALES, PERMISOS_LEGALES, RANGOS, TAMANOS_EMPRESA, USOS_LEGALES, borradorLegal, calidadDe, conCalidad, estadoLegalDe, etiquetaLegal, faltaDeclaracionDe, faltantesDe, fechaLegal, formatoNumero, fueraDeRango, usoLegalDe } from "./pozosFiltros";
 
 const NADA = () => {};
 const Dato = ({ label, children, ancho = false }) => <div className={`pz-dato${ancho ? " is-ancho" : ""}`}><dt>{label}</dt><dd>{children ?? "—"}</dd></div>;
 const conUnidad = (valor, unidad, decimales = 2) => (valor === null || valor === undefined ? null : `${formatoNumero(valor, decimales)} ${unidad}`);
 const fechaInput = (valor) => valor ? String(valor).slice(0, 10) : "";
 const valorLegal = (valor) => valor ?? "";
+// Campos del formulario legal, en el orden en que se llenan: uso, permiso, consumo y notas.
+const GRUPOS_LEGALES = [
+  { titulo: "Uso del agua", campos: [["uso", "Uso", "select", USOS_LEGALES], ["tamano_empresa", "Tamaño de empresa", "select", TAMANOS_EMPRESA], ["titular", "Titular", "text"], ["clave_catastral", "Clave catastral del predio", "text"]] },
+  { titulo: "Permiso o licencia", campos: [["permiso_tipo", "Tipo", "select", PERMISOS_LEGALES], ["permiso_numero", "Número", "text"], ["permiso_fecha", "Fecha de otorgamiento", "date"], ["permiso_vence", "Vencimiento", "date", null, "Vacío: la fecha + 10 años (art. 157)"], ["caudal_autorizado_lps", "Caudal autorizado (L/s)", "number"]] },
+  { titulo: "Consumo", campos: [["caudal_lps", "Caudal medido (L/s)", "number"], ["horas_bombeo_dia", "Horas de bombeo al día", "number"], ["dias_mes", "Días al mes", "number"], ["volumen_declarado_m3", "Volumen declarado (m³)", "number"], ["anio_declarado", "Año de la declaración", "number"]] }
+];
 const USOS_PRODUCTIVOS = new Set(["industrial_comercial", "purificadora", "agroforestal", "sanitario", "turistico", "otro"]);
 
 // Escala de pH y TDS: la banda es el valor guía y la marca, la medición del pozo.
@@ -52,7 +58,7 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
   const [errorLegal, setErrorLegal] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [padron, setPadron] = useState(null);
-  useEffect(() => { setDraft(pozo?.legal || {}); setErrorLegal(""); }, [pozo]);
+  useEffect(() => { setDraft(borradorLegal(pozo?.legal)); setErrorLegal(""); }, [pozo]);
   useEffect(() => {
     const clave = pozo?.legal?.clave_catastral;
     setPadron(null);
@@ -136,25 +142,42 @@ export default function PozoDetalle({ pozo, posicion, total, onAnterior, onSigui
               <Dato label="Bomba" ancho>{pozo.tipo_bomba}</Dato>
             </dl>
           </section>
-          <section aria-labelledby="pz-sec-legal">
+          <section aria-labelledby="pz-sec-legal" className="pz-legal">
             <h3 id="pz-sec-legal">Situación legal</h3>
+            {pozo.legal?.desfasado ? <p className="pz-legal-alerta" role="alert"><Icon name="warning" />Este registro se guardó para el pozo {pozo.legal.registrado_para?.codigo}{pozo.legal.registrado_para?.nombre ? ` (${pozo.legal.registrado_para.nombre})` : ""}: el inventario cambió. Revísalo y guárdalo de nuevo.</p> : null}
+            <p className="pz-legal-estado">
+              <span className={`cl-status ${CLASE_LEGAL[estadoLegalDe(pozo)] || ""}`}><i />{etiquetaLegal(ESTADOS_LEGALES, estadoLegalDe(pozo))}</span>
+              {faltaDeclaracionDe(pozo) ? <span className="cl-status is-info_requested"><i />Falta declaración del año (art. 155)</span> : null}
+            </p>
             <dl className="pz-datos">
-              <Dato label="Estado">{etiquetaLegal(ESTADOS_LEGALES, estadoLegalDe(pozo))}{faltaDeclaracionDe(pozo) ? " · Falta declaración" : ""}</Dato>
-              <Dato label="Uso">{etiquetaLegal(USOS_LEGALES, usoLegalDe(pozo))}</Dato>
-              <Dato label="Permiso">{pozo.legal?.permiso_tipo?.replaceAll("_", " ") || "Sin dato"}</Dato>
-              <Dato label="Vence">{fechaInput(pozo.legal?.permiso_vence) || "—"}</Dato>
+              <Dato label="Uso">{etiquetaLegal(USOS_LEGALES, usoLegalDe(pozo))}{pozo.legal?.tamano_empresa && pozo.legal.tamano_empresa !== "no_aplica" ? ` · ${etiquetaLegal(TAMANOS_EMPRESA, pozo.legal.tamano_empresa, "")}` : ""}</Dato>
+              <Dato label="Permiso">{etiquetaLegal(PERMISOS_LEGALES, pozo.legal?.permiso_tipo || "sin_dato", "Sin dato")}{pozo.legal?.permiso_numero ? ` · ${pozo.legal.permiso_numero}` : ""}</Dato>
+              <Dato label="Vence">{fechaLegal(pozo.legal?.permiso_vence) || null}{pozo.legal?.permiso_vence && !pozo.legal?.permiso_vence_manual ? <small className="pz-legal-nota"> fecha + 10 años</small> : null}</Dato>
               <Dato label="Caudal autorizado">{conUnidad(pozo.legal?.caudal_autorizado_lps, "L/s")}</Dato>
-              <Dato label="Volumen anual estimado">{conUnidad(pozo.legal?.volumen_estimado_m3, "m³")}</Dato>
-              <Dato label="Canon anual estimado">{conUnidad(pozo.legal?.canon_estimado_l, "L")}</Dato>
+              <Dato label="Volumen anual estimado">{conUnidad(pozo.legal?.volumen_estimado_m3, "m³", 0)}</Dato>
+              <Dato label="Canon anual estimado">{pozo.legal?.canon_estimado_l == null ? null : `L ${formatoNumero(pozo.legal.canon_estimado_l, 2)}`}</Dato>
+              {pozo.legal?.titular ? <Dato label="Titular" ancho>{pozo.legal.titular}</Dato> : null}
             </dl>
-            <p>Según el Reglamento ({pozo.legal?.articulo || "arts. 57 y 135"}). Verificar con el área legal.</p>
-            {pozo.legal?.clave_catastral ? <p>Padrón: {padron?.error ? "No se pudo consultar" : !padron ? "Consultando…" : !padron.matches?.length ? "No existe en Aguas" : padron.matches.some((m) => String(m.agua).toUpperCase() === "S") ? "Existe y tiene servicio de agua" : "Existe sin servicio de agua"}{padron && !padron.error && USOS_PRODUCTIVOS.has(pozo.legal.uso) && !padron.matches?.some((m) => String(m.agua).toUpperCase() === "S") ? " · Posible cliente / revisar" : ""}</p> : null}
-            {isAdmin ? <details><summary>Editar situación legal</summary>
+            {pozo.legal?.clave_catastral ? <p className={`pz-legal-padron${padron && !padron.error && USOS_PRODUCTIVOS.has(pozo.legal.uso) && !padron.matches?.some((m) => String(m.agua).toUpperCase() === "S") ? " is-cliente" : ""}`}>
+              <Icon name="search" /><span>Clave <b>{pozo.legal.clave_catastral}</b>: {padron?.error ? "no se pudo consultar el padrón" : !padron ? "consultando el padrón…" : !padron.matches?.length ? "no existe en el padrón de Aguas" : padron.matches.some((m) => String(m.agua).toUpperCase() === "S") ? "está en Aguas y tiene servicio de agua" : "está en Aguas sin servicio de agua"}{padron && !padron.error && USOS_PRODUCTIVOS.has(pozo.legal.uso) && !padron.matches?.some((m) => String(m.agua).toUpperCase() === "S") ? ". Posible cliente: revisar." : "."}</span>
+            </p> : null}
+            <p className="pz-legal-nota">Según el Reglamento de la Ley General de Aguas ({pozo.legal?.articulo || "arts. 57 y 135"}). Verificar con el área legal.</p>
+            {isAdmin ? <details className="pz-legal-editar">
+              <summary><Icon name="edit" />Editar situación legal</summary>
               <form onSubmit={guardarLegal} className="pz-legal-form">
-                <p>Uso sugerido por el nombre: {etiquetaLegal(USOS_LEGALES, pozo.legal?.uso_sugerido || "sin_dato")}. Confírmalo antes de guardar.</p>
-                {[["uso", "Uso", USOS_LEGALES], ["tamano_empresa", "Tamaño de empresa", [["no_aplica", "No aplica"], ["micro_pequena", "Micro o pequeña"], ["mediana_grande", "Mediana o grande"]]], ["permiso_tipo", "Tipo de permiso", [["sin_dato", "Sin dato"], ["ninguno", "Ninguno"], ["permiso_municipal", "Permiso municipal"], ["licencia_municipal", "Licencia municipal"], ["concesion", "Concesión"], ["en_tramite", "En trámite"]]]].map(([campo, etiqueta, opciones]) => <label key={campo}>{etiqueta}<select value={draft[campo] || opciones[0][0]} onChange={(e) => setDraft({ ...draft, [campo]: e.target.value })}>{opciones.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}</select></label>)}
-                {[["clave_catastral", "Clave catastral", "text"], ["titular", "Titular", "text"], ["permiso_numero", "Número de permiso", "text"], ["permiso_fecha", "Fecha del permiso", "date"], ["permiso_vence", "Vencimiento", "date"], ["caudal_autorizado_lps", "Caudal autorizado (L/s)", "number"], ["caudal_lps", "Caudal estimado (L/s)", "number"], ["horas_bombeo_dia", "Horas de bombeo al día", "number"], ["dias_mes", "Días al mes", "number"], ["volumen_declarado_m3", "Volumen declarado (m³)", "number"], ["anio_declarado", "Año declarado", "number"], ["notas", "Notas", "text"]].map(([campo, etiqueta, tipo]) => <label key={campo}>{etiqueta}<input type={tipo} min={tipo === "number" ? 0 : undefined} step={tipo === "number" ? "any" : undefined} value={tipo === "date" ? fechaInput(draft[campo]) : valorLegal(draft[campo])} onChange={(e) => setDraft({ ...draft, [campo]: e.target.value })} /></label>)}
-                {errorLegal ? <p role="alert">{errorLegal}</p> : null}<button className="cl-primary" disabled={guardando}>{guardando ? "Guardando…" : "Guardar situación legal"}</button>
+                {pozo.legal?.uso_sugerido && pozo.legal.uso_sugerido !== "sin_dato" && pozo.legal.uso_sugerido !== draft.uso ? <p className="pz-legal-sugerencia">Por el nombre parece <b>{etiquetaLegal(USOS_LEGALES, pozo.legal.uso_sugerido)}</b>. <button type="button" onClick={() => setDraft({ ...draft, uso: pozo.legal.uso_sugerido })}>Usar esta sugerencia</button></p> : null}
+                {GRUPOS_LEGALES.map((grupo) => <fieldset key={grupo.titulo}>
+                  <legend>{grupo.titulo}</legend>
+                  {grupo.campos.map(([campo, etiqueta, tipo, opciones, ayuda]) => <label key={campo}><span>{etiqueta}</span>
+                    {tipo === "select"
+                      ? <select value={draft[campo] || opciones[0][0]} onChange={(e) => setDraft({ ...draft, [campo]: e.target.value })}>{opciones.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}</select>
+                      : <input type={tipo} min={tipo === "number" ? 0 : undefined} step={tipo === "number" ? "any" : undefined} value={tipo === "date" ? fechaInput(draft[campo]) : valorLegal(draft[campo])} onChange={(e) => setDraft({ ...draft, [campo]: e.target.value })} />}
+                    {ayuda ? <small>{ayuda}</small> : null}
+                  </label>)}
+                </fieldset>)}
+                <label className="is-ancho"><span>Notas</span><textarea rows={3} value={valorLegal(draft.notas)} onChange={(e) => setDraft({ ...draft, notas: e.target.value })} /></label>
+                {errorLegal ? <p className="pz-legal-error" role="alert">{errorLegal}</p> : null}
+                <div className="pz-legal-acciones"><button type="submit" className="cl-primary" disabled={guardando}>{guardando ? "Guardando…" : "Guardar situación legal"}</button></div>
               </form>
             </details> : null}
           </section>

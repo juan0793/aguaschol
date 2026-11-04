@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
-import { CALIDADES, RANGOS, calidadDe, formatoNumero } from "./pozosFiltros";
+import { CALIDADES, ESTADOS_LEGALES, RANGOS, USOS_LEGALES, calidadDe, formatoNumero } from "./pozosFiltros";
 
 // Gráficos de la pantalla Pozos en HTML/SVG, sin librería (como los de Entregas y el tablero).
 // Paleta validada: azul #1465d9 para una sola serie; calidad en teal (dentro), rojo (fuera) y
@@ -110,6 +110,47 @@ export function Cobertura({ filas, activa, onElegir }) {
         </li>;
       })}
     </ul>
+    {globo}
+  </div>;
+}
+
+// Situación legal: el canon estimado, una franja al 100 % con los estados (cada uno filtra la
+// lista) y el uso del agua como barras a la misma escala.
+export function SituacionLegal({ resumen, total, estadoActivo, usoActivo, onEstado, onUso }) {
+  const { figuraRef, props, globo } = useLectura();
+  const estados = ESTADOS_LEGALES.filter(([clave]) => clave !== "falta_declaracion" && resumen.estados[clave]).map(([clave, label]) => ({ clave, label, n: resumen.estados[clave] }));
+  const usos = USOS_LEGALES.filter(([clave]) => resumen.usos[clave]).map(([clave, label]) => ({ clave, label, n: resumen.usos[clave] })).sort((a, b) => b.n - a.n);
+  const maximo = Math.max(1, ...usos.map((uso) => uso.n));
+  const faltan = resumen.estados.falta_declaracion || 0;
+  return <div ref={figuraRef} className="pz-figura pz-legal-grafico">
+    <div className="pz-uso pz-legal-estados">
+    <p className="pz-uso-cifra"><strong>L {formatoNumero(resumen.canon_anual_estimado_l, 2)}</strong> de canon anual estimado (art. 222 b)</p>
+    <div className="pz-franja" role="img" aria-label={estados.map((estado) => `${estado.label}: ${estado.n}`).join(", ")}>
+      {estados.map((estado) => <span key={estado.clave} className={`is-legal-${estado.clave}`} style={{ flexGrow: estado.n }} tabIndex={0} {...props(`${estado.label}: ${plural(estado.n, "pozo", "pozos")} (${porcentaje(estado.n, total)} %)`)} />)}
+    </div>
+    <ul className="pz-leyenda-lista is-filtro">
+      {estados.map((estado) => <li key={estado.clave}>
+        <button type="button" className={estadoActivo === estado.clave ? "is-activa" : undefined} aria-pressed={estadoActivo === estado.clave} onClick={() => onEstado(estado.clave)}>
+          <i className={`is-legal-${estado.clave}`} />{estado.label}<strong>{estado.n}</strong><span>{porcentaje(estado.n, total)} %</span>
+        </button>
+      </li>)}
+      {faltan ? <li><button type="button" className={estadoActivo === "falta_declaracion" ? "is-activa" : undefined} aria-pressed={estadoActivo === "falta_declaracion"} onClick={() => onEstado("falta_declaracion")}>
+        <i className="is-legal-falta" />Falta declaración (art. 155)<strong>{faltan}</strong><span>{porcentaje(faltan, total)} %</span>
+      </button></li> : null}
+    </ul>
+    </div>
+    <div className="pz-legal-usos">
+    <p className="pz-legal-subtitulo">Uso del agua</p>
+    <ul className="pz-barras">
+      {usos.map((uso) => <li key={uso.clave}>
+        <button type="button" className={usoActivo === uso.clave ? "is-activa" : undefined} aria-label={`${uso.label}: ${plural(uso.n, "pozo", "pozos")}. Ver solo este uso`} {...props(`${uso.label}: ${plural(uso.n, "pozo", "pozos")}`)} onClick={() => onUso(uso.clave)}>
+          <span className="pz-barra-etiqueta">{uso.label}</span>
+          <span className="pz-barra-pista"><i style={{ "--escala": uso.n / maximo }} /></span>
+          <strong>{uso.n}</strong>
+        </button>
+      </li>)}
+    </ul>
+    </div>
     {globo}
   </div>;
 }
