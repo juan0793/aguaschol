@@ -7,6 +7,20 @@ const PAGE = 100;
 // El backend admite hasta 5,000 claves por envío; más se mandan por tandas.
 const SEND_CHUNK = 5000;
 const BANCO_ESTADOS = { pendiente: "En el banco", enviado: "Ya es ficha", descartado: "Descartada" };
+// Una clave pendiente que ya tiene técnico se lee "Asignada a …"; si no, por su estado.
+const asignadaA = (ref) => ref?.estado === "pendiente" && ref.asignado_a != null;
+const primerNombre = (nombre) => String(nombre || "").trim().split(/\s+/).slice(0, 2).join(" ");
+const bancoTag = (ref) => asignadaA(ref)
+  ? { clase: "is-asignado", texto: ref.asignado_nombre ? `Asignada a ${primerNombre(ref.asignado_nombre)}` : "Asignada a técnico", titulo: ref.asignado_nombre ? `Asignada a ${ref.asignado_nombre} para hacer ficha` : "" }
+  : { clase: `is-${ref.estado}`, texto: BANCO_ESTADOS[ref.estado] || "En el banco", titulo: "" };
+// Cuántas claves de una lista están en el banco y cuántas de esas ya tienen técnico.
+const contarBanco = (rows, refs) => rows.reduce((total, row) => {
+  const ref = refs.get(row.clave_catastral);
+  if (!ref) return total;
+  total.enBanco += 1;
+  if (asignadaA(ref)) total.asignadas += 1;
+  return total;
+}, { enBanco: 0, asignadas: 0 });
 // Qué pasó con un envío, en una frase: nuevas, ya estaban, y las que se omitieron
 // porque el predio ya estaba en el banco por otro origen o ya tenía ficha.
 const resumenEnvio = (total) => [
@@ -26,7 +40,7 @@ export default function ClavesSinAguas({ candidates, initialBarrio = "", statsBy
   const [activeBarrio, setActiveBarrio] = useState(initialBarrio);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState(() => new Map()); // clave -> barrio
-  const [bancoRefs, setBancoRefs] = useState(() => new Map()); // clave -> estado en el banco
+  const [bancoRefs, setBancoRefs] = useState(() => new Map()); // clave -> { estado, asignado_a, asignado_nombre }
   const [sending, setSending] = useState(false);
   const [lastSend, setLastSend] = useState(null);
 
@@ -47,7 +61,7 @@ export default function ClavesSinAguas({ candidates, initialBarrio = "", statsBy
     try {
       const response = await apiFetch("/clandestinos/banco/refs?origen=alcaldia");
       const body = await response.json().catch(() => ({}));
-      if (response.ok) setBancoRefs(new Map((body.items || []).map((item) => [item.origen_ref, item.estado])));
+      if (response.ok) setBancoRefs(new Map((body.items || []).map((item) => [item.origen_ref, { estado: item.estado, asignado_a: item.asignado_a ?? null, asignado_nombre: item.asignado_nombre || "" }])));
     } catch { /* sin marcas: la lista sigue funcionando */ }
   }, [apiFetch]);
   useEffect(() => { loadRefs(); }, [loadRefs]);
@@ -96,6 +110,8 @@ export default function ClavesSinAguas({ candidates, initialBarrio = "", statsBy
     }
   };
 
+  const totalBanco = useMemo(() => contarBanco(groups.flatMap((group) => group.rows), bancoRefs), [groups, bancoRefs]);
+  const barrioBanco = useMemo(() => (active ? contarBanco(active.rows, bancoRefs) : { enBanco: 0, asignadas: 0 }), [active, bancoRefs]);
   const pickBarrio = (barrio) => { setActiveBarrio(barrio); setPage(0); };
   const alcaldiaTotal = active ? statsByBarrio.get(active.barrio)?.alcaldia_total : 0;
 
@@ -103,6 +119,7 @@ export default function ClavesSinAguas({ candidates, initialBarrio = "", statsBy
     <header className="pq-claves-head">
       <div>
         <p>{count(matches)} {matches === 1 ? "clave" : "claves"} en {count(groups.length)} {groups.length === 1 ? "barrio" : "barrios"}{deferredQuery ? ` para “${deferredQuery}”` : ""}. Marca las que quieras mandar al Banco de clandestinos.</p>
+        {totalBanco.enBanco ? <p className="pq-claves-banco">{count(totalBanco.enBanco)} ya están en el banco{totalBanco.asignadas ? <>, <b>{count(totalBanco.asignadas)} {totalBanco.asignadas === 1 ? "asignada" : "asignadas"} a técnicos</b></> : ""}. Esas no se pueden volver a enviar.</p> : null}
       </div>
     </header>
 
@@ -142,7 +159,7 @@ export default function ClavesSinAguas({ candidates, initialBarrio = "", statsBy
         <header>
           <div>
             <h4>{active.barrio}</h4>
-            <p><b>{count(active.rows.length)}</b> {deferredQuery ? `de ${count(active.total)} ` : ""}sin registrar{alcaldiaTotal ? ` de ${count(alcaldiaTotal)} claves de Alcaldía` : ""}</p>
+            <p><b>{count(active.rows.length)}</b> {deferredQuery ? `de ${count(active.total)} ` : ""}sin registrar{alcaldiaTotal ? ` de ${count(alcaldiaTotal)} claves de Alcaldía` : ""}{barrioBanco.enBanco ? ` · ${count(barrioBanco.enBanco)} en el banco` : ""}{barrioBanco.asignadas ? <>, <b className="pq-claves-asignadas">{count(barrioBanco.asignadas)} {barrioBanco.asignadas === 1 ? "asignada" : "asignadas"} a técnicos</b></> : null}</p>
           </div>
           {barrioSelectable.length ? <button type="button" className="pq-link" onClick={() => setMany(active.rows, barrioSelected < barrioSelectable.length)}>
             {barrioSelected < barrioSelectable.length ? `Seleccionar las ${count(barrioSelectable.length)} del barrio` : "Quitar las del barrio"}
@@ -155,12 +172,14 @@ export default function ClavesSinAguas({ candidates, initialBarrio = "", statsBy
               <th>#</th><th>Clave Alcaldía</th><th>Formato Aguas</th><th>Propietario</th><th>Dirección</th><th>Último pago</th>
             </tr></thead>
             <tbody>{pageRows.map((row, rowIndex) => {
-              const estado = bancoRefs.get(row.clave_catastral);
+              const ref = bancoRefs.get(row.clave_catastral);
+              const estado = ref?.estado;
+              const tag = ref ? bancoTag(ref) : null;
               const isSelected = selected.has(row.clave_catastral);
               return <tr key={`${row.clave_catastral}-${currentPage * PAGE + rowIndex}`} className={`${isSelected ? "is-selected" : ""} ${estado ? "is-in-banco" : ""}`.trim()}>
                 <td className="pq-check">{estado ? null : <input type="checkbox" checked={isSelected} onChange={() => toggle(row)} aria-label={`Seleccionar ${row.clave_catastral}`} />}</td>
                 <td className="is-muted">{currentPage * PAGE + rowIndex + 1}</td>
-                <th scope="row" className="is-mono">{row.clave_catastral || "--"}{estado ? <span className={`pq-banco-tag is-${estado}`}>{BANCO_ESTADOS[estado] || "En el banco"}</span> : null}</th>
+                <th scope="row" className="is-mono">{row.clave_catastral || "--"}{tag ? <span className={`pq-banco-tag ${tag.clase}`} title={tag.titulo || undefined}>{tag.texto}</span> : null}</th>
                 <td className="is-mono is-muted">{row.clave_aguas_formato || "--"}</td>
                 <td>{row.nombre || "--"}</td>
                 <td className="is-muted">{row.direccion || "--"}</td>

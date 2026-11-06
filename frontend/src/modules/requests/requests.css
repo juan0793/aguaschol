@@ -371,6 +371,10 @@
 .pq-workspace .pq-banco-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: #eef3f8; color: var(--ds-text-muted, #627d98); font-family: var(--font-sans, system-ui, sans-serif); font-size: 11px; font-weight: 700; vertical-align: 1px; white-space: nowrap; }
 .pq-workspace .pq-banco-tag.is-pendiente { background: #fdf3e2; color: #8a5a12; }
 .pq-workspace .pq-banco-tag.is-enviado { background: #e6f6ee; color: #1a7a52; }
+.pq-workspace .pq-banco-tag.is-asignado { background: #e8effc; color: #1f4fa3; }
+.pq-workspace .pq-claves-banco { margin-top: 2px; color: var(--ds-text-muted, #627d98); }
+.pq-workspace .pq-claves-banco b,
+.pq-workspace .pq-claves-asignadas { color: #1f4fa3; font-weight: 700; }
 .pq-workspace .pq-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 12px; color: var(--ds-text-muted, #627d98); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pq-workspace .pq-pager > span:first-child { margin-right: auto; }
 .pq-workspace .pq-pager-page { color: var(--ds-text, #243b53); font-weight: 700; }

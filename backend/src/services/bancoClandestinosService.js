@@ -761,10 +761,23 @@ export const listarRefsBanco = async ({ origen = "" } = {}, user) => {
   if (!canFeed(user) && user?.role !== "gerente") throw fail("Tu rol no puede consultar el banco.", 403);
   origen = clean(origen).slice(0, 40);
   if (!origen) throw fail("Indica el origen.");
+  // Con el técnico asignado, para que la lista diga a quién le toca cada clave.
   const rows = env.useMemoryDb
     ? memoryBanco.filter((item) => item.origen === origen)
-    : (await getPool().query("SELECT origen_ref, estado FROM banco_clandestinos WHERE origen = ?", [origen]))[0];
-  return { origen, items: rows.map((row) => ({ origen_ref: row.origen_ref, estado: row.estado })) };
+    : (await getPool().query(
+      `SELECT banco_clandestinos.origen_ref, banco_clandestinos.estado, banco_clandestinos.asignado_a,
+        COALESCE(app_users.full_name, app_users.username, '') AS asignado_nombre
+       FROM banco_clandestinos LEFT JOIN app_users ON app_users.id = banco_clandestinos.asignado_a
+       WHERE banco_clandestinos.origen = ?`, [origen]))[0];
+  return {
+    origen,
+    items: rows.map((row) => ({
+      origen_ref: row.origen_ref,
+      estado: row.estado,
+      asignado_a: row.asignado_a == null ? null : Number(row.asignado_a),
+      asignado_nombre: row.asignado_nombre || ""
+    }))
+  };
 };
 
 // Vuelve a dictaminar los candidatos pendientes con los padrones cargados en este momento.
