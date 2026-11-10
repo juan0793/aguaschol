@@ -366,12 +366,24 @@ export function createPadronDataActions({
     }));
   };
 
-  const handleRunPadronRequest = async (event) => {
+  // `formOverride` deja generar el listado de una categoría en el mismo toque, sin
+  // esperar a que el estado del formulario se actualice.
+  // Toque en una categoría (Farmacias, Hoteles…): llena el formulario y genera el listado.
+  const handlePadronRequestPickTemplate = (templateId) => {
+    const template = padronRequestTemplates.find((item) => item.id === templateId);
+    if (!template) return;
+    const form = { preset_id: template.id, title: template.title, description: template.description, keywords: (template.keywords || []).join(", ") };
+    setPadronRequestForm(form);
+    return handleRunPadronRequest(null, form);
+  };
+
+  const handleRunPadronRequest = async (event, formOverride = null) => {
     if (event) {
       event.preventDefault();
     }
 
-    const keywords = String(padronRequestForm.keywords || "")
+    const form = formOverride || padronRequestForm;
+    const keywords = String(form.keywords || "")
       .split(",")
       .map((keyword) => keyword.trim())
       .filter(Boolean);
@@ -390,9 +402,9 @@ export function createPadronDataActions({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          preset_id: padronRequestForm.preset_id,
-          title: padronRequestForm.title,
-          description: padronRequestForm.description,
+          preset_id: form.preset_id,
+          title: form.title,
+          description: form.description,
           keywords
         })
       });
@@ -432,6 +444,7 @@ export function createPadronDataActions({
     loadPadronServiceReport,
     handlePadronRequestFormChange,
     handlePadronRequestPresetChange,
+    handlePadronRequestPickTemplate,
     handleRunPadronRequest
   };
 }

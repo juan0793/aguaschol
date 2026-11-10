@@ -14,7 +14,8 @@ import "./requests.css";
 
 // Consultas del padrón maestro, agrupadas como el resto de consultas del sistema:
 // las de servicios (todos, uno solo y el resumen con totales), los listados (barrios
-// y abonados, sin totales de la empresa) y el cruce con Alcaldía.
+// y abonados por categoría —comercios, salud, educación…—, sin totales de la empresa)
+// y el cruce con Alcaldía.
 const CONSULTAS = [
   ["Servicios", [
     ["todos", "Todos los servicios", "water"],
@@ -23,7 +24,7 @@ const CONSULTAS = [
   ]],
   ["Listados", [
     ["barrios", "Barrios", "map"],
-    ["abonados", "Abonados", "users"]
+    ["abonados", "Negocios y categorías", "users"]
   ]],
   ["Cruces", [
     ["comparativo", "Alcaldía vs Aguas", "activity"]

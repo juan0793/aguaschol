@@ -221,6 +221,10 @@ export const imprimirListadoAbonados = (resultado = {}, formatClave = (row) => r
   const include = resultado.request?.criteria?.include || resultado.request?.keywords || [];
   const exclude = resultado.request?.criteria?.exclude || [];
   const criterios = [...include, ...exclude.map((item) => `sin “${item}”`)].join(" · ");
+  // Si el listado se acotó con el deslizador de saldo, el documento lo dice.
+  const rango = resultado.request?.rango_saldo;
+  const busqueda = resultado.request?.busqueda;
+  const orden = resultado.request?.orden === "saldo" ? "mayor saldo primero" : "";
   const columnas = [
     { titulo: "#", alinear: "suave" }, { titulo: "Clave catastral", alinear: "mono" }, { titulo: "Abonado", alinear: "mono" },
     { titulo: "Nombre" }, num("Tarifa"), num("Saldo")
@@ -229,7 +233,13 @@ export const imprimirListadoAbonados = (resultado = {}, formatClave = (row) => r
     tipo: "Consulta de abonados",
     titulo: resultado.request?.title || "Listado de abonados",
     subtitulo: resultado.request?.description || "",
-    filtro: criterios ? [["Criterios", criterios], ["Resultado", `${docCount(resultado.summary?.total_registros)} abonados en ${docCount(barrios.length)} barrios`]] : [],
+    filtro: criterios || rango || busqueda ? [
+      ...(criterios ? [["Criterios", criterios]] : []),
+      ...(rango ? [["Saldo", `de ${docMoney(rango.desde)} a ${docMoney(rango.hasta)}`]] : []),
+      ...(busqueda ? [["Búsqueda", `“${busqueda}”`]] : []),
+      ...(orden ? [["Orden", orden]] : []),
+      ["Resultado", `${docCount(resultado.summary?.total_registros)} abonados en ${docCount(barrios.length)} barrios`]
+    ] : [],
     padronActualizado,
     secciones: barrios.map((barrio) => ({
       titulo: barrio.barrio_colonia,

@@ -490,3 +490,12 @@ Prompt interno sugerido:
   - Calidad (vertical): cifras, recuadro de la norma, histogramas de pH y TDS, mapa de los medidos y la tabla, primero los que están fuera.
   - Levantamiento (vertical): una hoja por colonia para repartir en campo, con mapa de etiquetas por código y una casilla vacía por dato que falta ("sí" si ya está), notas de campo y firma del técnico.
 
+
+### Consultas del padrón: "Negocios y categorías" (desde 2026-11-10)
+
+- Columna izquierda plana (288 px, filete a la derecha, sin tarjeta): "Categorías" con botones de 8 px de radio agrupados por Comercios, Salud, Educación y Vivienda; la elegida va en azul lleno. Debajo, palabras clave y "Generar listado".
+- A la derecha manda el listado: título de 21 px en azul profundo, Imprimir y Guardar PDF como acciones primarias, y un enlace para cambiar título y descripción del documento.
+- Rango de saldo como franja entre filetes: "Saldo", pista de 4 px con dos puntas, Desde y Hasta, y atajos. El atajo activo va en azul claro, no lleno.
+- Resumen en una frase ("90 de 140 abonados en 6 barrios · Saldo L … · Tarifa mensual L …") con la primera cifra a 24 px; no se usan fichas de cifras ni etiquetas numeradas.
+- Orden "Por clave" / "Mayor saldo" con el control segmentado del módulo. El índice de barrios aparece solo desde 9 barrios.
+- Teléfono: controles de 40 px o más, atajos en una fila deslizable, sin las columnas # y Tarifa, y Saldo fija a la derecha.

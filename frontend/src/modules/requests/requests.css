@@ -223,22 +223,74 @@
 .pq-workspace .pq-table.is-compare td { white-space: normal; }
 
 /* ---------- Listado de abonados ---------- */
-.pq-workspace .pq-listado { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); align-items: start; }
-.pq-workspace .pq-builder { position: sticky; top: 12px; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--ds-border, #dbe6f0); border-radius: 14px; background: #f9fbfd; }
-.pq-workspace .pq-builder header h2, .pq-workspace .pq-results-head h2 { margin: 2px 0 0; color: var(--ds-text, #102a43); font-size: 17px; font-weight: 800; }
+.pq-workspace .pq-listado { grid-template-columns: minmax(240px, 288px) minmax(0, 1fr); gap: 24px; align-items: start; }
+/* El formulario es una columna plana con un filete: el protagonista es el listado. */
+.pq-workspace .pq-builder { position: sticky; top: 12px; display: grid; gap: 14px; max-height: calc(100vh - 24px); overflow-y: auto; padding: 2px 20px 2px 2px; border-right: 1px solid var(--ds-border, #dfe5ec); }
+.pq-workspace .pq-builder h2 { margin: 0; color: var(--ds-text, #102a43); font-size: 15px; font-weight: 700; }
+.pq-workspace .pq-results-head h2 { margin: 0; color: #0b3f73; font-size: 21px; font-weight: 800; line-height: 1.2; text-wrap: balance; }
 .pq-workspace .pq-builder label { display: grid; gap: 5px; }
 .pq-workspace .pq-builder label > span, .pq-workspace .pq-chart-controls label > span { color: var(--ds-text, #243b53); font-size: 12.5px; font-weight: 700; letter-spacing: 0; }
 .pq-workspace .pq-builder label > small, .pq-workspace .pq-builder-note { color: var(--ds-text-muted, #627d98); font-size: 12px; }
 .pq-workspace .pq-builder input:not([type="checkbox"]), .pq-workspace .pq-panel .pq-builder select, .pq-workspace .pq-panel .pq-builder textarea, .pq-workspace .pq-panel .pq-chart-controls select { width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 9px; background: #fff; box-shadow: none; font-size: 13.5px; }
 .pq-workspace .pq-builder fieldset { display: grid; gap: 10px; margin: 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--ds-border, #e3ebf3); }
 .pq-workspace .pq-builder legend { padding: 0; color: var(--ds-blue, #1769e0); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.pq-workspace .pq-cats { display: grid; gap: 12px; }
+.pq-workspace .pq-cats-group { display: grid; gap: 6px; }
+.pq-workspace .pq-cats-group > span { color: var(--ds-text-muted, #597087); font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-cats-group > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.pq-workspace .pq-cats button, .pq-workspace .pq-rango-atajos button { width: auto; min-height: 32px; margin: 0; padding: 0 11px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 8px; background: #fff; box-shadow: none; color: var(--ds-text, #243b53); font-size: 13px; font-weight: 650; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+.pq-workspace .pq-cats button:hover:not(:disabled):not(.is-active), .pq-workspace .pq-rango-atajos button:hover:not(.is-active) { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue-soft, #eef5ff); box-shadow: none; transform: none; }
+.pq-workspace .pq-cats button.is-active { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue, #1769e0); color: #fff; }
+.pq-workspace .pq-cats button:disabled { opacity: 0.6; cursor: progress; }
+/* El atajo activo va en azul claro: el azul lleno queda para la categoría elegida y para imprimir. */
+.pq-workspace .pq-rango-atajos button.is-active { border-color: var(--ds-blue, #1769e0); background: var(--ds-blue-soft, #eef5ff); color: #0b3f73; }
+/* Rango de saldo: una franja entre filetes, no una tarjeta. */
+.pq-workspace .pq-rango { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 0; border-top: 1px solid var(--ds-border, #dfe5ec); border-bottom: 1px solid var(--ds-border, #dfe5ec); }
+.pq-workspace .pq-rango h3 { margin: 0; color: var(--ds-text, #102a43); font-size: 13.5px; font-weight: 700; }
+.pq-workspace .pq-rango-pista { position: relative; flex: 1 1 200px; min-width: 160px; height: 28px; }
+.pq-workspace .pq-rango-pista::before, .pq-workspace .pq-rango-pista > i { content: ""; position: absolute; top: 12px; height: 4px; border-radius: 999px; }
+.pq-workspace .pq-rango-pista::before { left: 0; right: 0; background: #dbe3ec; }
+.pq-workspace .pq-rango-pista > i { left: var(--desde); right: calc(100% - var(--hasta)); background: var(--ds-blue, #1769e0); }
+.pq-workspace .pq-rango-pista input[type="range"] { position: absolute; inset: 0; width: 100%; height: 28px; min-height: 0; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.pq-workspace .pq-rango-pista input[type="range"]::-webkit-slider-runnable-track { height: 28px; background: none; }
+.pq-workspace .pq-rango-pista input[type="range"]::-moz-range-track { height: 28px; background: none; }
+.pq-workspace .pq-rango-pista input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; margin-top: 4px; border: 2px solid var(--ds-blue, #1769e0); border-radius: 50%; background: #fff; cursor: grab; pointer-events: auto; }
+.pq-workspace .pq-rango-pista input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border: 2px solid var(--ds-blue, #1769e0); border-radius: 50%; background: #fff; cursor: grab; pointer-events: auto; }
+.pq-workspace .pq-rango-pista input[type="range"]:active::-webkit-slider-thumb { background: var(--ds-blue, #1769e0); cursor: grabbing; }
+.pq-workspace .pq-rango-pista input[type="range"]:focus-visible { outline: none; }
+.pq-workspace .pq-rango-pista input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid #0b3f73; outline-offset: 2px; }
+.pq-workspace .pq-rango-pista input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid #0b3f73; outline-offset: 2px; }
+.pq-workspace .pq-rango-montos { display: flex; gap: 8px; }
+.pq-workspace .pq-rango-campo { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 8px; background: #fff; cursor: text; }
+.pq-workspace .pq-rango-campo:focus-within { border-color: var(--ds-blue, #1769e0); box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.18); }
+.pq-workspace .pq-rango-campo > span { color: var(--ds-text-muted, #597087); font-size: 12.5px; font-weight: 650; }
+.pq-workspace .pq-rango-campo i { color: var(--ds-text, #243b53); font-size: 13.5px; font-style: normal; font-weight: 700; }
+.pq-workspace .pq-rango-campo input { width: 84px; min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; outline: none; color: var(--ds-text, #102a43); font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-rango-atajos { display: flex; flex-wrap: wrap; gap: 6px; }
+/* El resumen del listado: una frase con la cifra como protagonista, no fichas. */
+.pq-workspace .pq-resumen { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; margin: 0; color: var(--ds-text-muted, #597087); font-size: 14px; }
+.pq-workspace .pq-resumen b { color: var(--ds-text, #102a43); font-weight: 800; font-variant-numeric: tabular-nums; }
+.pq-workspace .pq-resumen > span:first-child b:first-child { font-size: 24px; }
+.pq-workspace .pq-resumen small { margin-left: auto; font-size: 12.5px; }
+.pq-workspace .pq-orden { display: inline-flex; align-items: center; gap: 8px; }
+.pq-workspace .pq-orden > span { color: var(--ds-text-muted, #597087); font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-doc { grid-column: 1 / -1; font-size: 13px; }
+.pq-workspace .pq-doc summary { display: inline-block; color: var(--ds-blue, #1769e0); font-weight: 650; cursor: pointer; }
+.pq-workspace .pq-doc > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; margin-top: 8px; }
+.pq-workspace .pq-doc label { display: grid; gap: 4px; }
+.pq-workspace .pq-doc label > span { color: var(--ds-text, #243b53); font-size: 12.5px; font-weight: 700; }
+.pq-workspace .pq-panel .pq-doc input { width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--ds-border-strong, #cfdce8); border-radius: 8px; background: #fff; box-shadow: none; font-size: 14px; }
+.pq-workspace .pq-barrio > h3 { margin: 0; font: inherit; }
+/* El anillo de foco global es celeste translúcido y casi no se ve sobre blanco. */
+.pq-workspace .pq-listado :is(button, a, summary):focus-visible { outline: 2px solid var(--ds-blue, #1769e0); outline-offset: 2px; box-shadow: none; }
+.pq-workspace .pq-listado .pq-barrio-head:focus-visible { outline-offset: -2px; }
 .pq-workspace .pq-help { border: 1px solid var(--ds-border, #e3ebf3); border-radius: 9px; background: #fff; font-size: 12.5px; }
 .pq-workspace .pq-help summary { display: flex; align-items: center; gap: 6px; padding: 8px 10px; color: var(--ds-blue, #1769e0); font-weight: 700; cursor: pointer; }
 .pq-workspace .pq-help summary .app-icon { width: 14px; height: 14px; }
 .pq-workspace .pq-help ul { display: grid; gap: 5px; margin: 0; padding: 0 10px 10px 28px; color: var(--ds-text-muted, #627d98); }
 .pq-workspace .pq-help code { padding: 1px 5px; border-radius: 5px; background: #eef3f8; color: var(--ds-text, #102a43); font-size: 12px; }
-.pq-workspace .pq-results { display: grid; gap: 12px; min-width: 0; }
-.pq-workspace .pq-results-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.pq-workspace .pq-results { display: grid; gap: 14px; min-width: 0; scroll-margin-top: 12px; }
+.pq-workspace .pq-results-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 16px; }
 .pq-workspace .pq-results-head p { margin: 3px 0 0; color: var(--ds-text-muted, #627d98); font-size: 13px; }
 .pq-workspace .pq-results-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .pq-workspace .pq-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
@@ -508,10 +560,33 @@
   .pq-workspace .pq-pager > span:first-child { flex: 1 1 100%; }
   .pq-workspace .pq-listado, .pq-workspace .pq-compare-grid { grid-template-columns: minmax(0, 1fr); }
   .pq-workspace .pq-builder, .pq-workspace .pq-detail { position: static; }
+  .pq-workspace .pq-builder { max-height: none; overflow: visible; padding: 0 0 16px; border-right: 0; border-bottom: 1px solid var(--ds-border, #dfe5ec); }
+  .pq-workspace .pq-resumen small { flex: 1 1 100%; margin-left: 0; }
   .pq-workspace .pq-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pq-workspace .pq-figure { padding: 0 16px; }
 }
 @media (max-width: 700px) {
+  /* Negocios y categorías en el teléfono: controles de 40 px o más y la deuda a la vista. */
+  .pq-workspace .pq-cats button, .pq-workspace .pq-rango-atajos button { min-height: 40px; padding: 0 14px; }
+  .pq-workspace .pq-rango-campo { flex: 1 1 0; min-height: 42px; }
+  .pq-workspace .pq-rango-campo input { width: 100%; }
+  .pq-workspace .pq-rango-montos { flex: 1 1 100%; }
+  .pq-workspace .pq-rango-pista { flex-basis: 100%; height: 36px; }
+  .pq-workspace .pq-rango-pista::before, .pq-workspace .pq-rango-pista > i { top: 16px; }
+  .pq-workspace .pq-rango-pista input[type="range"], .pq-workspace .pq-rango-pista input[type="range"]::-webkit-slider-runnable-track { height: 36px; }
+  .pq-workspace .pq-rango-pista input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
+  .pq-workspace .pq-results-head { grid-template-columns: minmax(0, 1fr); }
+  .pq-workspace .pq-results-head .pq-results-actions .pq-btn { flex: 1 1 0; min-height: 44px; }
+  .pq-workspace .pq-doc > div { grid-template-columns: minmax(0, 1fr); }
+  .pq-workspace .pq-listado .pq-toolbar .pq-link { min-height: 40px; }
+  .pq-workspace .pq-listado .pq-search { min-height: 44px; }
+  .pq-workspace .pq-table.is-listado .pq-c-idx, .pq-workspace .pq-table.is-listado .pq-c-tarifa { display: none; }
+  .pq-workspace .pq-table.is-listado tbody th { min-width: 120px; }
+  .pq-workspace .pq-table.is-listado :is(th, td) { padding-inline: 8px; }
+  .pq-workspace .pq-table.is-listado :is(th, td):last-child { position: sticky; right: 0; background: #fff; box-shadow: -1px 0 0 var(--ds-border, #e3ebf3); }
+  .pq-workspace .pq-table.is-listado thead th:last-child { background: #f6f9fc; }
+  .pq-workspace .pq-rango-atajos { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .pq-workspace .pq-rango-atajos button { flex: none; }
   /* La combinación baja a una lista: el servicio a la izquierda y sus tres opciones a la derecha. */
   .pq-workspace .pq-combo-grid { grid-template-columns: minmax(0, 1fr); }
   .pq-workspace .pq-combo-item { grid-template-columns: minmax(0, 1fr) minmax(176px, 0.9fr); align-items: center; padding: 8px 10px; border-left: 0; border-top: 1px solid var(--ds-border, #e3ebf3); border-bottom: 0; }

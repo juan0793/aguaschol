@@ -280,3 +280,12 @@ Rules:
   - `npm run build`.
   - Simulación del dictamen nuevo sobre los pendientes de la base local (solo lectura).
 - No se probó con sesión iniciada ni contra producción.
+
+## Nota para Claude: "Negocios y categorías" en Consultas del padrón (2026-11-10)
+
+- La pestaña "Abonados" de Consultas del padrón pasó a llamarse "Negocios y categorías" (`tabs/ListadoTab.jsx`). Las plantillas del backend (`PADRON_REQUEST_TEMPLATES`) llevan `group` (Comercios, Salud, Educación, Vivienda) y hay una nueva, "Tiendas y negocios". Un toque en una categoría genera el listado (`handlePadronRequestPickTemplate`).
+- Rango de saldo (`tabs/RangoSaldo.jsx`, reglas en `utils/rangoSaldo.js`, 6 pruebas en `npm run test:requests`): deslizador de dos puntas con curva cúbica, casillas Desde/Hasta y atajos. La posición de cada punta se guarda aparte del monto y las flechas saltan al siguiente monto distinto (`posicionVecina`); sin eso el teclado no movía nada.
+- Rango, búsqueda, orden ("Por clave" / "Mayor saldo") y título/descripción se aplican en el navegador a un solo objeto, que alimenta la tabla, la impresión y el PDF. El documento anota Saldo, Búsqueda y Orden.
+- Rediseño tras crítica de impeccable (25/40, en `.impeccable/critique/`): sin etiquetas numeradas, formulario plano con filete, resumen en una frase en vez de fichas, rango como franja, índice de barrios solo desde 9 barrios, título y descripción junto a Imprimir. En el teléfono el resultado se lleva a la vista y la columna Saldo queda fija.
+- Verificado en `frontend/qa-padron.html` (datos ficticios) a 1366 × 768 y 375 px: primera fila a 606 px (antes 836), teclado del deslizador, orden y "Quitar filtros". No se probó con sesión iniciada ni con el padrón real, ni se abrió la impresión o el PDF. No hubo segunda crítica.
+- Telegram (mismo día): el bot corría en `production` y `development` con el mismo token ("Conflict: terminated by other getUpdates request"). Se dejó `TELEGRAM_BOT_TOKEN` vacío en `development`.

@@ -614,6 +614,7 @@ const decorateAlcaldiaRecord = (item = {}, aguasIndex = buildAguasIndex()) => {
 const PADRON_REQUEST_TEMPLATES = [
   {
     id: "apartamentos",
+    group: "Vivienda",
     label: "Apartamentos",
     description: "Apartamentos y unidades habitacionales agrupadas por barrio para control administrativo.",
     title: "Reporte general de apartamentos",
@@ -621,7 +622,8 @@ const PADRON_REQUEST_TEMPLATES = [
   },
   {
     id: "salud",
-    label: "Salud",
+    group: "Salud",
+    label: "Clínicas y hospitales",
     description: "Clinicas, hospitales, odontologia y laboratorios agrupados por barrio.",
     title: "Listado institucional de establecimientos de salud",
     keywords: [
@@ -636,7 +638,16 @@ const PADRON_REQUEST_TEMPLATES = [
     ]
   },
   {
+    id: "tiendas",
+    group: "Comercios",
+    label: "Tiendas y negocios",
+    description: "Tiendas, pulperias, supermercados, ferreterias y negocios agrupados por barrio.",
+    title: "Listado institucional de tiendas y negocios",
+    keywords: ["tienda", "pulperia", "abarroteria", "supermercado", "minisuper", "mercadito", "ferreteria", "bodega", "negocio", "comercial", "inversiones"]
+  },
+  {
     id: "plazas_comerciales",
+    group: "Comercios",
     label: "Plazas comerciales",
     description: "Locales y plazas comerciales agrupados por barrio para revision institucional.",
     title: "Listado institucional de plazas comerciales",
@@ -644,6 +655,7 @@ const PADRON_REQUEST_TEMPLATES = [
   },
   {
     id: "farmacias",
+    group: "Salud",
     label: "Farmacias",
     description: "Farmacias y establecimientos relacionados agrupados por barrio.",
     title: "Listado institucional de farmacias",
@@ -651,13 +663,15 @@ const PADRON_REQUEST_TEMPLATES = [
   },
   {
     id: "educacion",
-    label: "Educacion",
+    group: "Educación",
+    label: "Centros educativos",
     description: "Escuelas, colegios, institutos, universidades y centros educativos.",
     title: "Listado institucional de centros educativos",
     keywords: ["escuela", "colegio", "instituto", "universidad", "kinder", "jardin"]
   },
   {
     id: "hoteles",
+    group: "Comercios",
     label: "Hoteles",
     description: "Hoteles, hostales y hospedajes agrupados por barrio.",
     title: "Listado institucional de hoteles y hospedajes",
@@ -665,6 +679,7 @@ const PADRON_REQUEST_TEMPLATES = [
   },
   {
     id: "restaurantes",
+    group: "Comercios",
     label: "Restaurantes",
     description: "Restaurantes, cafeterias y comedores agrupados por barrio.",
     title: "Listado institucional de restaurantes y cafeterias",
@@ -672,6 +687,7 @@ const PADRON_REQUEST_TEMPLATES = [
   },
   {
     id: "talleres",
+    group: "Comercios",
     label: "Talleres",
     description: "Talleres mecanicos, electricos y de servicio tecnico agrupados por barrio.",
     title: "Listado institucional de talleres y servicios tecnicos",
@@ -679,6 +695,7 @@ const PADRON_REQUEST_TEMPLATES = [
   },
   {
     id: "gasolineras",
+    group: "Comercios",
     label: "Gasolineras",
     description: "Gasolineras, estaciones de servicio y expendios de combustible.",
     title: "Listado institucional de gasolineras y estaciones de servicio",

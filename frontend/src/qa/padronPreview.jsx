@@ -57,8 +57,30 @@ const apiFetch = async (url) => {
   return { ok: true, json: async () => ({ barrios: [{ barrio, rows }] }) };
 };
 
+// Categorías y listado de mentira para la pestaña "Negocios y categorías".
+const templates = [
+  ["tiendas", "Comercios", "Tiendas y negocios"], ["plazas", "Comercios", "Plazas comerciales"], ["hoteles", "Comercios", "Hoteles"],
+  ["restaurantes", "Comercios", "Restaurantes"], ["salud", "Salud", "Clínicas y hospitales"], ["farmacias", "Salud", "Farmacias"],
+  ["educacion", "Educación", "Centros educativos"], ["apartamentos", "Vivienda", "Apartamentos"]
+].map(([id, group, label]) => ({ id, group, label, title: `Listado de prueba: ${label}`, description: `Categoría ficticia ${label}.`, keywords: [id] }));
+const listadoDePrueba = (template) => {
+  const rows = Array.from({ length: 140 }, (_, i) => {
+    const debe = azar(10) < 3 ? 0 : azar(10) < 8 ? 50 + azar(4000) : 5000 + azar(180000);
+    return { clave_catastral: `99-02-${String(i + 1).padStart(3, "0")}`, abonado: String(80000 + i), nombre: `${template.label.toUpperCase()} DE PRUEBA ${i + 1}`, barrio_colonia: nombres[i % 6], tarifa: 120 + azar(900), intereses: 0, total: debe };
+  });
+  const porBarrio = nombres.slice(0, 6).map((barrio_colonia) => {
+    const propias = rows.filter((row) => row.barrio_colonia === barrio_colonia);
+    return { barrio_colonia, rows: propias, total_registros: propias.length, tarifa_total: propias.reduce((t, r) => t + r.tarifa, 0), total_con_interes: propias.reduce((t, r) => t + r.total, 0) };
+  });
+  return { request: { preset_id: template.id, title: template.title, description: template.description, keywords: template.keywords, criteria: { include: template.keywords, exclude: [] } }, rows,
+    summary: { total_registros: rows.length, total_barrios: porBarrio.length, tarifa_total: rows.reduce((t, r) => t + r.tarifa, 0), total_con_interes: rows.reduce((t, r) => t + r.total, 0), barrios: porBarrio } };
+};
+
 function Preview() {
   const [selected, setSelected] = useState([]);
+  const [form, setForm] = useState({ preset_id: "", title: "", description: "", keywords: "" });
+  const [requestResult, setRequestResult] = useState(null);
+  const elegir = (id) => { const t = templates.find((item) => item.id === id); setForm({ preset_id: t.id, title: t.title, description: t.description, keywords: t.keywords.join(", ") }); setRequestResult(listadoDePrueba(t)); };
   const model = {
     serviceReport,
     serviceData: { services, barrios, totalRecords, deuda: deudaTotal, profiles: { water_without_sewer: 0, sewer_without_water: 0 }, hasData: true },
@@ -67,7 +89,13 @@ function Preview() {
     onToggleBarrio: (name) => setSelected((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name])),
     onSetSelectedBarrios: setSelected,
     notify: (m) => console.log("notify:", m),
-    apiFetch
+    apiFetch,
+    templates, form, requestResult, loadingRequest: false,
+    onFormChange: (event) => setForm((f) => ({ ...f, [event.target.name]: event.target.value })),
+    onPresetChange: (event) => elegir(event.target.value),
+    onPickTemplate: elegir,
+    onRunRequest: (event) => { event?.preventDefault(); if (form.preset_id) elegir(form.preset_id); },
+    formatClave: (row) => row.clave_catastral
   };
   return <PadronRequestsWorkspace model={model} />;
 }
