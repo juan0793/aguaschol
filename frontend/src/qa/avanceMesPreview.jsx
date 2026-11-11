@@ -20,5 +20,5 @@ const lotesHoy = [
 const model = { lotesHoy, resumenHoy: { lotes: 2, cerrados: 2, asignadas: 443, entregadas: 433, sobrantes: 10, en_ruta: 0 }, totalHoy: 2, anterior: null, totalAnterior: 0, desdeAnterior: "", loading: false, error: "", reload: () => {}, mes };
 // QA: ?lista=todos abre la lista completa; ?lista=N la abre desde el tramo del técnico N.
 const qaLista = new URLSearchParams(location.search).get("lista");
-if (qaLista) setTimeout(() => (qaLista === "todos" ? document.querySelector(".ent-mes-pie button") : document.querySelectorAll(".ent-mes-grupo")[Number(qaLista)])?.click(), 800);
+if (qaLista) setTimeout(() => (qaLista === "todos" ? document.querySelector(".ent-mes-pie button[aria-expanded]") : document.querySelectorAll(".ent-mes-grupo")[Number(qaLista)])?.click(), 800);
 ReactDOM.createRoot(document.getElementById("root")).render(<main className="cl-module ent-module" style={{ maxWidth: 1280, margin: "24px auto", padding: "0 20px" }}><AvanceJornada model={model} fecha="2026-10-12" onVerAnteriores={() => {}} onAbrirLote={() => {}} /></main>);

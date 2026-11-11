@@ -1,0 +1,42 @@
+/* Lista impresa de barrios de entrega con su técnico. Usa la hoja, el encabezado
+   y el aislamiento de impresión del acta de sobrantes (loteSobrantesStyles.css);
+   aquí solo van sus piezas: cinco cifras, el resumen y la tabla agrupada. */
+
+.ent-barrios-hoja .ent-barrios-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 14px; }
+
+.ent-barrios-resumen td strong { font-weight: 650; }
+
+.ent-barrios-tabla th, .ent-barrios-tabla td { padding-inline: 6px; }
+.ent-barrios-tabla td { vertical-align: middle; }
+.ent-barrios-tabla .is-clave { width: 44px; white-space: nowrap; }
+.ent-barrios-tabla th.is-num:first-child, .ent-barrios-tabla td.is-num:first-child { width: 22px; color: var(--hoja-tinta-suave); }
+.ent-barrios-tabla .ent-barrios-nombre { font-weight: 650; color: var(--hoja-tinta); }
+.ent-barrios-tabla .ent-barrios-tecnico { color: var(--hoja-azul-profundo); white-space: nowrap; }
+
+/* Cada técnico es un bloque: una raya más marcada al empezar el siguiente y sin
+   rayado alterno, que se cruzaría con el cambio de grupo. */
+.ent-barrios-hoja .ent-barrios-tabla tbody.ent-barrios-grupo tr td { background: #fff; }
+.ent-barrios-tabla tbody.ent-barrios-grupo tr.is-primero td { border-top: 1.5px solid #9fb0c0; }
+.ent-barrios-tabla tbody.ent-barrios-grupo:first-of-type tr.is-primero td { border-top: 0; }
+
+.ent-barrios-estado { display: inline-block; padding: 0 6px; border-radius: 3px; font-size: 8.5px; font-weight: 700; line-height: 1.6; white-space: nowrap; }
+.ent-barrios-estado.is-entregado { background: #e3f4ef; color: #0f6b58; }
+.ent-barrios-estado.is-en_curso { background: #f5e3c6; color: #7a4407; }
+.ent-barrios-estado.is-pendiente { background: #eef2f6; color: var(--hoja-tinta-suave); }
+
+.ent-barrios-tabla th.ent-barrios-casilla-th { width: 30px; text-align: center; }
+.ent-barrios-tabla td.ent-barrios-casilla { width: 30px; }
+.ent-barrios-tabla td.ent-barrios-casilla::after { content: ""; display: block; width: 11px; height: 11px; margin: 0 auto; border: 1px solid var(--hoja-tinta-suave); border-radius: 2px; }
+
+.ent-barrios-hoja .ent-barrios-tabla tbody.ent-barrios-total td {
+  padding-top: 6px;
+  border-top: 1.5px solid var(--hoja-azul-profundo);
+  border-bottom: 0;
+  background: #fff;
+  color: var(--hoja-azul-profundo);
+  font-weight: 750;
+}
+
+@media print {
+  .ent-barrios-estado { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

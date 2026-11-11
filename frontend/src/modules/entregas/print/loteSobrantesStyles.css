@@ -20,6 +20,21 @@
 .ent-hoja-listado { break-inside: auto; }
 .ent-hoja-tabla .is-clave { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
 
+/* Saldo de lo no entregado: segunda fila de cifras y columnas de capital, mora
+   y saldo por abonado, con su total al pie. */
+.ent-hoja-kpis.ent-acta-saldo { margin-top: 6px; }
+.ent-hoja-kpis.ent-acta-saldo .is-mora dd { color: #a8202d; }
+.ent-acta-saldo-nota { margin: 5px 0 14px; }
+.ent-acta-tabla-saldo td { vertical-align: top; }
+.ent-acta-tabla-saldo .ent-acta-obs { display: block; margin-top: 1px; color: var(--hoja-tinta-suave); font-size: 8.5px; line-height: 1.3; }
+.ent-acta-tabla-saldo .is-num { width: 74px; }
+.ent-acta-tabla-saldo th.is-num:first-child, .ent-acta-tabla-saldo td.is-num:first-child { width: 22px; }
+.ent-acta-tabla-saldo .is-mora { color: #a8202d; }
+.ent-acta-tabla-saldo .is-saldo { color: var(--hoja-azul-profundo); font-weight: 750; }
+.ent-acta-tabla-saldo .is-sin-padron { color: var(--hoja-tinta-suave); font-style: italic; text-align: right; }
+.ent-acta-tabla-saldo tfoot th { padding-top: 6px; border-top: 1.5px solid var(--hoja-azul-profundo); color: var(--hoja-azul-profundo); font-size: 9.5px; font-weight: 750; text-transform: none; letter-spacing: 0; }
+.ent-acta-tabla-saldo tfoot .is-num { font-size: 10px; }
+
 @media print {
   /* Esta es la regla que evita las hojas en blanco. La regla heredada solo hace
      `body * { visibility: hidden }`, que oculta la aplicacion pero le deja su
@@ -45,5 +60,8 @@
   body.ent-imprimiendo-acta .ent-acta-portal,
   body.ent-imprimiendo-acta .ent-acta-portal * { visibility: visible !important; }
 
+  /* El total va una sola vez, al final (Chrome repetiría un tfoot en cada hoja). */
+  .ent-acta-tabla-saldo tfoot { display: table-row-group; }
+  .ent-hoja-kpis.ent-acta-saldo .is-destacado { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .ent-hoja-datos { background: #f6f9fc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

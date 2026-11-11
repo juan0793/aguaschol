@@ -5,6 +5,7 @@ import {
   estadoLoteLabel,
   formatDate,
   formatDateTime,
+  formatLempiras,
   formatNumber,
   tipoDocumentoLabel
 } from "../utils/entregasFormatters";
@@ -19,6 +20,12 @@ export default function LoteSobrantesPrint({ lote, motivos = [], generadoEn }) {
   if (!lote) return null;
   const documentos = lote.no_entregadas || [];
   const motivoLabel = (codigo) => motivos.find((item) => item.codigo === codigo)?.etiqueta || String(codigo || "—").replaceAll("_", " ");
+  // El saldo solo llega a quien puede verlo (administración y gerencia); sin él,
+  // el acta sale como antes, sin columnas vacías.
+  const saldo = lote.saldo_sobrantes;
+  const conSaldo = Boolean(saldo) || documentos.some((documento) => documento.saldo);
+  const suma = (campo) => documentos.reduce((total, documento) => total + (documento.saldo?.encontrado ? Number(documento.saldo[campo]) || 0 : 0), 0);
+  const totales = { capital: saldo?.capital ?? suma("capital"), mora: saldo?.mora ?? suma("mora"), total: saldo?.total ?? suma("total") };
 
   return (
     <div className="ent-hojas">
@@ -76,6 +83,29 @@ export default function LoteSobrantesPrint({ lote, motivos = [], generadoEn }) {
           </div>
         </dl>
 
+        {conSaldo ? (
+          <dl className="ent-hoja-kpis ent-hoja-kpis-3 ent-acta-saldo">
+            <div>
+              <dt>Capital</dt>
+              <dd>{formatLempiras(totales.capital)}</dd>
+            </div>
+            <div className="is-mora">
+              <dt>Mora</dt>
+              <dd>{formatLempiras(totales.mora)}</dd>
+            </div>
+            <div className="is-destacado">
+              <dt>Saldo de lo no entregado</dt>
+              <dd>{formatLempiras(totales.total)}</dd>
+            </div>
+          </dl>
+        ) : null}
+        {saldo ? (
+          <p className="ent-hoja-nota ent-acta-saldo-nota">
+            Según el padrón vigente · {formatNumber(saldo.con_saldo)} de {formatNumber(saldo.cuentas)} cuentas con saldo
+            {saldo.sin_padron ? ` · ${formatNumber(saldo.sin_padron)} sin registro en el padrón` : ""}
+          </p>
+        ) : null}
+
         <Seccion
           ancha
           titulo="Detalle de documentos no entregados"
@@ -83,29 +113,72 @@ export default function LoteSobrantesPrint({ lote, motivos = [], generadoEn }) {
           aside={`${formatNumber(documentos.length)} documentos`}
         >
           {documentos.length ? (
-            <table className="ent-hoja-tabla">
+            <table className={`ent-hoja-tabla${conSaldo ? " ent-acta-tabla-saldo" : ""}`}>
               <thead>
                 <tr>
                   <th className="is-num">N.º</th>
                   <th>Documento</th>
                   <th>Abonado</th>
                   <th>Motivo</th>
-                  <th>Estado</th>
-                  <th>Observación</th>
+                  {conSaldo ? (
+                    <>
+                      <th className="is-num">Capital</th>
+                      <th className="is-num">Mora</th>
+                      <th className="is-num">Saldo</th>
+                    </>
+                  ) : (
+                    <>
+                      <th>Estado</th>
+                      <th>Observación</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {documentos.map((documento, indice) => (
-                  <tr key={documento.id}>
-                    <td className="is-num">{indice + 1}</td>
-                    <td className="is-clave">{documento.numero_abonado || documento.clave_catastral || "—"}</td>
-                    <td>{documento.abonado_nombre || documento.clave_catastral || "—"}</td>
-                    <td>{motivoLabel(documento.motivo)}</td>
-                    <td>{estadoDocumentoLabel(documento.estado)}</td>
-                    <td>{documento.observacion || ""}</td>
-                  </tr>
-                ))}
+                {documentos.map((documento, indice) => {
+                  const cuenta = documento.saldo;
+                  return (
+                    <tr key={documento.id}>
+                      <td className="is-num">{indice + 1}</td>
+                      <td className="is-clave">{documento.numero_abonado || documento.clave_catastral || "—"}</td>
+                      <td>
+                        {documento.abonado_nombre || documento.clave_catastral || "—"}
+                        {conSaldo && documento.observacion ? <small className="ent-acta-obs">{documento.observacion}</small> : null}
+                      </td>
+                      <td>
+                        {motivoLabel(documento.motivo)}
+                        {conSaldo ? <small className="ent-acta-obs">{estadoDocumentoLabel(documento.estado)}</small> : null}
+                      </td>
+                      {conSaldo ? (
+                        cuenta?.encontrado ? (
+                          <>
+                            <td className="is-num">{formatLempiras(cuenta.capital)}</td>
+                            <td className={`is-num${Number(cuenta.mora) > 0 ? " is-mora" : ""}`}>{formatLempiras(cuenta.mora)}</td>
+                            <td className="is-num is-saldo">{formatLempiras(cuenta.total)}</td>
+                          </>
+                        ) : (
+                          <td className="is-sin-padron" colSpan={3}>Sin registro en el padrón</td>
+                        )
+                      ) : (
+                        <>
+                          <td>{estadoDocumentoLabel(documento.estado)}</td>
+                          <td>{documento.observacion || ""}</td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
+              {conSaldo ? (
+                <tfoot>
+                  <tr>
+                    <th colSpan={4}>Total de lo no entregado · {formatNumber(documentos.length)} documentos</th>
+                    <th className="is-num">{formatLempiras(totales.capital)}</th>
+                    <th className="is-num is-mora">{formatLempiras(totales.mora)}</th>
+                    <th className="is-num is-saldo">{formatLempiras(totales.total)}</th>
+                  </tr>
+                </tfoot>
+              ) : null}
             </table>
           ) : (
             <p className="ent-hoja-nota">Este lote no registra documentos sobrantes.</p>

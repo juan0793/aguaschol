@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import BarriosEntregaPrint from "../print/BarriosEntregaPrint";
 import { formatNumber, formatPercent } from "../utils/entregasFormatters";
 import { gruposPorTecnico, listaAvance } from "../utils/avanceMes.js";
 
@@ -13,6 +15,35 @@ export default function AvanceMes({ mes, onAbrirLote }) {
   const [abierto, setAbierto] = useState(false);
   const [tecnico, setTecnico] = useState(null);
   const [activo, setActivo] = useState(null);
+  // Hoja de barrios por técnico: espera en un portal fuera de la vista, se imprime
+  // cuando el logo ya cargó y se quita al cerrar el diálogo (como Descartes).
+  const [hoja, setHoja] = useState(null);
+
+  useEffect(() => {
+    if (!hoja) return undefined;
+    let vivo = true;
+    const limpiarImpresion = () => {
+      document.body.classList.remove("ent-imprimiendo-acta");
+      if (vivo) setHoja(null);
+    };
+    const modoImpresion = window.matchMedia?.("print");
+    const alSalir = (evento) => { if (!evento.matches) limpiarImpresion(); };
+    const imagenes = [...document.querySelectorAll(".ent-acta-portal img")];
+    Promise.all(imagenes.map((imagen) => imagen.decode?.().catch(() => {}))).then(() => {
+      if (!vivo) return;
+      document.body.classList.add("ent-imprimiendo-acta");
+      window.addEventListener("afterprint", limpiarImpresion, { once: true });
+      modoImpresion?.addEventListener?.("change", alSalir);
+      window.print();
+    });
+    return () => {
+      vivo = false;
+      window.removeEventListener("afterprint", limpiarImpresion);
+      modoImpresion?.removeEventListener?.("change", alSalir);
+      document.body.classList.remove("ent-imprimiendo-acta");
+    };
+  }, [hoja]);
+
   if (!mes || !mes.total) return null;
   const grupos = gruposPorTecnico(mes.barrios);
   const { entregados, faltan } = listaAvance(mes.barrios, tecnico);
@@ -22,6 +53,8 @@ export default function AvanceMes({ mes, onAbrirLote }) {
     setTecnico(id);
     setAbierto(true);
   };
+  // Con la lista abierta y un técnico elegido, la hoja lleva solo sus barrios.
+  const imprimir = () => setHoja({ mes, tecnicoId: abierto ? tecnico : null, generadoEn: new Date().toISOString() });
   const lectura = activo
     ? `${activo.nombre} · ${activo.responsable_nombre} · ${ESTADOS[activo.estado]}${activo.estado !== "pendiente" ? ` · ${formatNumber(activo.entregadas)} entregadas` : ""}`
     : `${formatNumber(mes.en_curso)} con lote abierto · ${formatNumber(mes.pendientes)} pendientes · ${formatNumber(mes.documentos_entregados)} documentos entregados`;
@@ -54,9 +87,14 @@ export default function AvanceMes({ mes, onAbrirLote }) {
       </div>
       <div className="ent-mes-pie">
         <small aria-live="polite">{lectura}</small>
-        <button type="button" className="cl-quiet" aria-expanded={abierto && tecnico == null} onClick={() => abrir(null)}>
-          {abierto ? "Ocultar lista" : "Ver entregados y pendientes"}
-        </button>
+        <span className="ent-mes-acciones">
+          <button type="button" className="cl-quiet" onClick={imprimir} disabled={Boolean(hoja)}>
+            {abierto && elegido ? `Imprimir barrios de ${elegido.nombre}` : "Imprimir barrios"}
+          </button>
+          <button type="button" className="cl-quiet" aria-expanded={abierto && tecnico == null} onClick={() => abrir(null)}>
+            {abierto ? "Ocultar lista" : "Ver entregados y pendientes"}
+          </button>
+        </span>
       </div>
 
       {abierto ? (
@@ -112,6 +150,7 @@ export default function AvanceMes({ mes, onAbrirLote }) {
           </div>
         </section>
       ) : null}
+      {hoja ? createPortal(<div className="ent-acta-portal"><BarriosEntregaPrint hoja={hoja} /></div>, document.body) : null}
     </div>
   );
 }
