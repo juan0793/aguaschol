@@ -26,3 +26,13 @@ foxpro-reader/ControlAguasFoxProReader-win-x86*.zip
 
 .DS_Store
 Thumbs.db
+
+# Padrones con datos personales (nombres, identidades, saldos): viven en R2 y en
+# la base, nunca en git. El backend los baja al arrancar.
+backend/data/alcaldia-claves.json
+backend/data/alcaldia-meta.json
+backend/data/alcaldia-source-upload.bin
+backend/data/maestro-claves.json
+backend/data/maestro-meta.json
+backend/data/maestro-source-upload.bin
+referencia/*.xlsx

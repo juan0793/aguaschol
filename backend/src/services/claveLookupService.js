@@ -7,12 +7,12 @@ import { resolveBarrioFromRecord, resolveBarrioNameFromClave } from "./barrioCod
 import { persistActivePadron } from "./padronSnapshotService.js";
 import { r2PadronService } from "./r2PadronService.js";
 
-const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
-const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
-const maestroSourcePath = path.resolve(env.dbRoot, "backend", "data", "maestro-source-upload.bin");
-const alcaldiaPath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-claves.json");
-const alcaldiaMetaPath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-meta.json");
-const alcaldiaSourcePath = path.resolve(env.dbRoot, "backend", "data", "alcaldia-source-upload.bin");
+const maestroPath = path.resolve(env.padronDataDir, "maestro-claves.json");
+const maestroMetaPath = path.resolve(env.padronDataDir, "maestro-meta.json");
+const maestroSourcePath = path.resolve(env.padronDataDir, "maestro-source-upload.bin");
+const alcaldiaPath = path.resolve(env.padronDataDir, "alcaldia-claves.json");
+const alcaldiaMetaPath = path.resolve(env.padronDataDir, "alcaldia-meta.json");
+const alcaldiaSourcePath = path.resolve(env.padronDataDir, "alcaldia-source-upload.bin");
 
 const excelMimeTypeByExtension = {
   ".xls": "application/vnd.ms-excel",

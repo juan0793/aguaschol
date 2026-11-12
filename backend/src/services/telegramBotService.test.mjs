@@ -17,19 +17,19 @@ test("formatea la ficha y divide mensajes sin perder contenido", () => {
   assert.ok(chunks.every((chunk) => chunk.length <= 120));
 });
 
-test("consulta el padrón real por abonado o clave", async () => {
-  const byAbonado = await findPadronForTelegram("1223");
-  const byClave = await findPadronForTelegram("09-02-03");
-  assert.equal(byAbonado[0].clave_catastral, "10-24-06-02");
-  assert.ok(byClave.some((record) => record.abonado === "3421"));
+test("consulta el padrón de prueba por abonado o clave", async () => {
+  const byAbonado = await findPadronForTelegram("90123");
+  const byClave = await findPadronForTelegram("91-02-03");
+  assert.equal(byAbonado[0].clave_catastral, "91-24-06-02");
+  assert.ok(byClave.some((record) => record.abonado === "93421"));
   assert.match(formatPadronForTelegram(byAbonado[0]), /TOTAL:.*1[,.]430/);
 });
 
 test("encuentra la clave reportada y usa su base si el sufijo no coincide", async () => {
-  const exact = await findPadronForTelegram("45-54-09-01");
-  const byBase = await findPadronForTelegram("45-54-09-99");
-  assert.equal(exact[0]?.abonado, "21237");
-  assert.equal(byBase[0]?.clave_catastral, "45-54-09-01");
+  const exact = await findPadronForTelegram("95-54-09-01");
+  const byBase = await findPadronForTelegram("95-54-09-99");
+  assert.equal(exact[0]?.abonado, "92123");
+  assert.equal(byBase[0]?.clave_catastral, "95-54-09-01");
 });
 
 test("calcula el total desde capital e intereses y ordena la informacion", () => {

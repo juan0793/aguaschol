@@ -61,6 +61,10 @@ export const env = {
   dbConnectRetries: Number(process.env.DB_CONNECT_RETRIES ?? (isRailway ? 0 : 10)),
   dbConnectRetryDelayMs: Number(process.env.DB_CONNECT_RETRY_DELAY_MS ?? 5000),
   dbRoot: projectRoot,
+  // Carpeta de los padrones (Aguas y Alcaldía). Las pruebas apuntan a un padrón inventado.
+  padronDataDir: process.env.PADRON_DATA_DIR
+    ? path.resolve(backendRoot, process.env.PADRON_DATA_DIR)
+    : path.resolve(projectRoot, "backend", "data"),
   frontendDistDir: path.resolve(projectRoot, "frontend", "dist"),
   dbWorkspaceDir: path.resolve(projectRoot, ".db"),
   dbDataDir: path.resolve(projectRoot, ".db", "mariadb-data"),

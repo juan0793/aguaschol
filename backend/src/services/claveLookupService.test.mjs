@@ -52,9 +52,9 @@ test("cuenta los usuarios de cada barrio por combinación de servicios y cuadra 
 });
 
 test("busca el numero de abonado de forma exacta", async () => {
-  const result = await searchClaveCatastral("1223", { field: "abonado" });
+  const result = await searchClaveCatastral("90123", { field: "abonado" });
   assert.ok(result.matches.length > 0);
-  assert.ok(result.matches.every((record) => String(record.abonado) === "1223"));
+  assert.ok(result.matches.every((record) => String(record.abonado) === "90123"));
 });
 
 test("una importacion actualiza inmediatamente las consultas en memoria", async () => {
