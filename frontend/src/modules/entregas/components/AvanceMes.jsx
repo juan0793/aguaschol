@@ -18,6 +18,8 @@ export default function AvanceMes({ mes, onAbrirLote }) {
   // Hoja de barrios por técnico: espera en un portal fuera de la vista, se imprime
   // cuando el logo ya cargó y se quita al cerrar el diálogo (como Descartes).
   const [hoja, setHoja] = useState(null);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [errorPdf, setErrorPdf] = useState("");
 
   useEffect(() => {
     if (!hoja) return undefined;
@@ -54,7 +56,20 @@ export default function AvanceMes({ mes, onAbrirLote }) {
     setAbierto(true);
   };
   // Con la lista abierta y un técnico elegido, la hoja lleva solo sus barrios.
-  const imprimir = () => setHoja({ mes, tecnicoId: abierto ? tecnico : null, generadoEn: new Date().toISOString() });
+  const armarHoja = () => ({ mes, tecnicoId: abierto ? tecnico : null, generadoEn: new Date().toISOString() });
+  const imprimir = () => setHoja(armarHoja());
+  const guardarPdf = async () => {
+    setGenerandoPdf(true);
+    setErrorPdf("");
+    try {
+      const { descargarBarriosEntregaPdf } = await import("../print/barriosEntregaPdf");
+      await descargarBarriosEntregaPdf(armarHoja());
+    } catch (problema) {
+      setErrorPdf(problema?.message || "No se pudo generar el PDF.");
+    } finally {
+      setGenerandoPdf(false);
+    }
+  };
   const lectura = activo
     ? `${activo.nombre} · ${activo.responsable_nombre} · ${ESTADOS[activo.estado]}${activo.estado !== "pendiente" ? ` · ${formatNumber(activo.entregadas)} entregadas` : ""}`
     : `${formatNumber(mes.en_curso)} con lote abierto · ${formatNumber(mes.pendientes)} pendientes · ${formatNumber(mes.documentos_entregados)} documentos entregados`;
@@ -86,10 +101,13 @@ export default function AvanceMes({ mes, onAbrirLote }) {
         ))}
       </div>
       <div className="ent-mes-pie">
-        <small aria-live="polite">{lectura}</small>
+        <small aria-live="polite">{errorPdf || lectura}</small>
         <span className="ent-mes-acciones">
           <button type="button" className="cl-quiet" onClick={imprimir} disabled={Boolean(hoja)}>
             {abierto && elegido ? `Imprimir barrios de ${elegido.nombre}` : "Imprimir barrios"}
+          </button>
+          <button type="button" className="cl-quiet" onClick={guardarPdf} disabled={generandoPdf}>
+            {generandoPdf ? "Generando…" : "Guardar PDF"}
           </button>
           <button type="button" className="cl-quiet" aria-expanded={abierto && tecnico == null} onClick={() => abrir(null)}>
             {abierto ? "Ocultar lista" : "Ver entregados y pendientes"}
