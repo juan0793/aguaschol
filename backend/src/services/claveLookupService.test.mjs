@@ -7,7 +7,9 @@ import {
   getAguasServiceReport,
   getMasterRecordsForImport,
   normalizeLookupKey,
-  searchClaveCatastral
+  searchClaveCatastral,
+  getAlcaldiaRecords,
+  syncAlcaldiaWithR2
 } from "./claveLookupService.js";
 
 test("acepta claves catastrales historicas con bloques de tres digitos", () => {
@@ -81,5 +83,32 @@ test("descargar padron entrega el lote FoxPro activo y no el Excel manual viejo"
     assert.deepEqual(rows.map((row) => [row.catastral, row.inquilino, row.total]), [["89-13-15", "MARIA FUNEZ", 105], ["89-13-16", "JOSE ANDINO", 0]]);
   } finally {
     activateMasterRecordsInMemory(previous, { codigoLote: "RESTORE-TEST" });
+  }
+});
+
+test("sin R2 configurado no toca el padron de Alcaldia", async () => {
+  const llamadas = [];
+  const r2 = { configured: false, hasAlcaldia: async () => llamadas.push("has") };
+  const result = await syncAlcaldiaWithR2({ r2 });
+  assert.equal(result.r2, false);
+  assert.deepEqual(llamadas, []);
+});
+
+test("si R2 no tiene el padron de Alcaldia sube la copia local una sola vez", async () => {
+  const subidas = [];
+  const r2 = {
+    configured: true,
+    hasAlcaldia: async () => false,
+    loadAlcaldia: async () => { throw new Error("no debe bajar"); },
+    uploadAlcaldia: async (records) => subidas.push(records.length)
+  };
+  const result = await syncAlcaldiaWithR2({ r2 });
+  const locales = getAlcaldiaRecords().length;
+  if (locales) {
+    assert.equal(result.seeded, true);
+    assert.deepEqual(subidas, [locales]);
+  } else {
+    assert.equal(result.source, "none");
+    assert.deepEqual(subidas, []);
   }
 });

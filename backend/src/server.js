@@ -8,11 +8,16 @@ import { initializeProfileRealtime } from "./services/profileRealtimeService.js"
 import { startTelegramBot } from "./services/telegramBotService.js";
 import { startEntregasReminders } from "./services/entregasReminderService.js";
 import { startNotesPurge } from "./services/notesService.js";
+import { syncAlcaldiaWithR2 } from "./services/claveLookupService.js";
 
 try {
   validateRuntimeEnv();
   await fs.mkdir(env.uploadDir, { recursive: true });
   await startDatabaseReconnectLoop();
+  // En segundo plano para no demorar el healthcheck: son ~3 MB comprimidos.
+  syncAlcaldiaWithR2()
+    .then((result) => console.log(`Padron de Alcaldia: ${result.total_records} registros (origen ${result.source}${result.seeded ? ", copiado a R2" : ""}).`))
+    .catch((error) => console.error("No se pudo sincronizar el padron de Alcaldia con R2:", error.message));
   const server = http.createServer(app);
   const transportRealtime = initializeTransportRealtime({ server });
   const profileRealtime = initializeProfileRealtime({ server });

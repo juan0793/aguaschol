@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 import { createAuditLog } from "./auditService.js";
 import { resolveBarrioFromRecord, resolveBarrioNameFromClave } from "./barrioCodeService.js";
 import { persistActivePadron } from "./padronSnapshotService.js";
+import { r2PadronService } from "./r2PadronService.js";
 
 const maestroPath = path.resolve(env.dbRoot, "backend", "data", "maestro-claves.json");
 const maestroMetaPath = path.resolve(env.dbRoot, "backend", "data", "maestro-meta.json");
@@ -905,7 +906,33 @@ export const getAlcaldiaVersion = () => {
     return "sin-alcaldia";
   }
 };
-export const getAlcaldiaMetaInMemory = () => ({ ...alcaldiaMeta, total_records: Number(alcaldiaMeta.total_records) || alcaldiaRecords.length });
+// El padron de Alcaldia no se versiona en git (trae nombres e identidades). R2 es la
+// copia que manda: al arrancar se baja de ahi; si R2 aun no lo tiene y hay una copia
+// local, se sube una vez para que el siguiente despliegue no lo pierda.
+export const syncAlcaldiaWithR2 = async ({ r2 = r2PadronService } = {}) => {
+  if (!r2.configured) return { source: alcaldiaRecords.length ? "local" : "none", total_records: alcaldiaRecords.length, r2: false };
+
+  if (await r2.hasAlcaldia()) {
+    const loaded = await r2.loadAlcaldia();
+    const rows = normalizeAlcaldiaRows(loaded.records);
+    const meta = {
+      ...(loaded.meta || {}),
+      total_records: rows.length,
+      updated_at: loaded.meta?.updated_at || new Date().toISOString()
+    };
+    writeJsonFile(alcaldiaPath, rows);
+    writeJsonFile(alcaldiaMetaPath, meta);
+    alcaldiaRecords = rows;
+    alcaldiaMeta = meta;
+    return { source: "r2", total_records: rows.length, r2: true };
+  }
+
+  if (!alcaldiaRecords.length) return { source: "none", total_records: 0, r2: true };
+  await r2.uploadAlcaldia(alcaldiaRecords, alcaldiaMeta);
+  return { source: "local", seeded: true, total_records: alcaldiaRecords.length, r2: true };
+};
+
+export const getAlcaldiaMetaInMemory = () =>({ ...alcaldiaMeta, total_records: Number(alcaldiaMeta.total_records) || alcaldiaRecords.length });
 
 // Cambia cuando se importa o reprocesa el padron. Sirve para invalidar indices derivados.
 export const getMasterVersion = () =>
@@ -1356,10 +1383,22 @@ export const uploadAlcaldiaPadron = async ({ buffer, originalName = "" }, option
     // The padrón should still be updated even if audit logging is temporarily unavailable.
   }
 
+  // Sin la copia en R2 el padron se pierde en el siguiente despliegue: se avisa.
+  let r2Warning;
+  if (r2PadronService.configured) {
+    try {
+      await r2PadronService.uploadAlcaldia(rows, alcaldiaMeta);
+    } catch (error) {
+      console.error("No se pudo guardar el padron de Alcaldia en R2:", error.message);
+      r2Warning = "El padrón quedó cargado, pero no se pudo respaldar en R2; se perderá en el próximo despliegue. Vuelve a subirlo.";
+    }
+  }
+
   return {
     ok: true,
     meta: alcaldiaMeta,
-    import_summary: alcaldiaMeta.last_import_summary
+    import_summary: alcaldiaMeta.last_import_summary,
+    ...(r2Warning ? { r2_warning: r2Warning } : {})
   };
 };
 

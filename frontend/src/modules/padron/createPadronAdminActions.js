@@ -187,7 +187,7 @@ export function createPadronAdminActions({
       setAlcaldiaFile(null);
       clearPadronDerivedState();
       setDashboardLastUpdatedAt(Date.now());
-      showAlert(`Padron de alcaldia actualizado con ${data.meta?.total_records ?? 0} claves.`);
+      showAlert(data.r2_warning || `Padron de alcaldia actualizado con ${data.meta?.total_records ?? 0} claves.`);
     } catch (error) {
       updateAlcaldiaSyncState({
         status: "error",

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   ACTIVE_PADRON_KEY,
+  ALCALDIA_PADRON_KEY,
   compressPadronRecords,
   createR2PadronService,
   decompressPadronRecords
@@ -88,4 +89,18 @@ test("elimina historicos duplicados del mismo lote conservando la fecha correcta
   assert.equal(await service.removeHistoricalDuplicates("LOTE-TEST", correct.historical.key), 1);
   assert.equal(client.objects.has(first.historical.key), false);
   assert.equal(client.objects.has(correct.historical.key), true);
+});
+
+test("guarda y recupera el padron de Alcaldia con su meta", async () => {
+  const client = fakeClient();
+  const service = createR2PadronService({ config, client });
+  assert.equal(await service.hasAlcaldia(), false);
+  const records = [{ clave_catastral: "99-01-01-01", nombre: "PRUEBA" }];
+  await service.uploadAlcaldia(records, { file_name: "alcaldía.xlsx", total_records: 1 });
+  assert.equal(await service.hasAlcaldia(), true);
+  const loaded = await service.loadAlcaldia();
+  assert.equal(loaded.key, ALCALDIA_PADRON_KEY);
+  assert.deepEqual(loaded.records, records);
+  assert.equal(loaded.meta.file_name, "alcaldía.xlsx");
+  assert.equal(client.objects.has(ACTIVE_PADRON_KEY), false);
 });

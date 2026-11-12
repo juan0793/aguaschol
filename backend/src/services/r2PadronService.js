@@ -16,6 +16,10 @@ const gunzipAsync = promisify(gunzip);
 
 export const ACTIVE_PADRON_KEY = "padron/activo/padron-maestro.json.gz";
 export const HISTORICAL_PADRON_PREFIX = "padron/historico/";
+// Padron de Alcaldia (catastro municipal): no vive en el repositorio porque trae
+// nombres e identidades; el backend lo guarda aqui y lo recupera al arrancar.
+export const ALCALDIA_PADRON_KEY = "padron/alcaldia/padron-alcaldia.json.gz";
+export const ALCALDIA_META_KEY = "padron/alcaldia/meta.json";
 
 const fail = (message, status = 503) => Object.assign(new Error(message), { status });
 const cleanCode = (value = "PADRON") => String(value || "PADRON").trim().replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 80) || "PADRON";
@@ -147,6 +151,37 @@ export const createR2PadronService = ({ config = env, client = null } = {}) => {
       return download(key, expectedTotal);
     },
     uploadActive: (records, codigoLote) => uploadAndVerify(ACTIVE_PADRON_KEY, records, codigoLote),
+    uploadAlcaldia: async (records, meta = {}) => {
+      const uploaded = await uploadAndVerify(ALCALDIA_PADRON_KEY, records, "ALCALDIA");
+      await ensureConfigured().send(new PutObjectCommand({
+        Bucket: config.r2Bucket,
+        Key: ALCALDIA_META_KEY,
+        Body: Buffer.from(JSON.stringify(meta ?? {}), "utf8"),
+        ContentType: "application/json"
+      }));
+      return uploaded;
+    },
+    loadAlcaldia: async () => {
+      const loaded = await download(ALCALDIA_PADRON_KEY);
+      let meta = null;
+      try {
+        const result = await ensureConfigured().send(new GetObjectCommand({ Bucket: config.r2Bucket, Key: ALCALDIA_META_KEY }));
+        meta = JSON.parse((await bodyToBuffer(result.Body)).toString("utf8"));
+      } catch {
+        meta = null;
+      }
+      return { ...loaded, meta };
+    },
+    hasAlcaldia: async () => {
+      try {
+        await ensureConfigured().send(new HeadObjectCommand({ Bucket: config.r2Bucket, Key: ALCALDIA_PADRON_KEY }));
+        return true;
+      } catch (error) {
+        const status = error?.$metadata?.httpStatusCode;
+        if (status === 404 || ["NotFound", "NoSuchKey"].includes(error?.name) || /NoSuchKey|NotFound/.test(String(error?.message))) return false;
+        throw error;
+      }
+    },
     uploadHistorical: (records, codigoLote, date = new Date()) =>
       uploadAndVerify(buildHistoricalPadronKey(codigoLote, date), records, codigoLote),
     uploadVersions: async (records, codigoLote, date = new Date()) => {
