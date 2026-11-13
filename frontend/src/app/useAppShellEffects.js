@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { API_URL } from "../config/api";
 import { AUTH_STORAGE_KEY, SIDEBAR_COLLAPSED_STORAGE_KEY } from "../constants/storageKeys";
 import { getDefaultWorkspaceView } from "../utils/appShell";
-import { getPathForWorkspaceView } from "../components/sidebar/sidebarConfig";
+import { getPathForWorkspaceView, getWorkspaceViewFromPath } from "../components/sidebar/sidebarConfig";
+import { canOpenWorkspace } from "../utils/roleAccess.js";
 import { installSearchScrollGuard } from "../utils/searchScrollGuard";
 import { MANAGER_NAVIGATION } from "../utils/roleAccess.js";
 import { sessionMode } from "../utils/rolePreview.js";
@@ -185,6 +186,25 @@ export function useAppShellEffects({
       window.history.replaceState(window.history.state, "", `${path}${window.location.search}${window.location.hash}`);
     }
   }, [isAuthenticated, workspaceView]);
+
+  // Al tocar un aviso del sistema con la app ya abierta, el service worker la enfoca y
+  // manda la dirección del aviso: se abre esa vista con el detalle del hash, como la campana.
+  const role = session?.user?.role;
+  useEffect(() => {
+    if (!isAuthenticated || !("serviceWorker" in navigator)) return undefined;
+    const alAviso = (event) => {
+      if (event.data?.type !== "controlaguas:abrir-aviso") return;
+      let destino;
+      try { destino = new URL(event.data.url, window.location.origin); } catch { return; }
+      if (destino.origin !== window.location.origin) return;
+      const view = getWorkspaceViewFromPath(destino.pathname);
+      if (!view || !canOpenWorkspace(role, view)) return;
+      if (destino.hash) window.location.hash = destino.hash.slice(1);
+      setWorkspaceView(view);
+    };
+    navigator.serviceWorker.addEventListener("message", alAviso);
+    return () => navigator.serviceWorker.removeEventListener("message", alAviso);
+  }, [isAuthenticated, role, setWorkspaceView]);
 
   useEffect(() => {
     setShowMobileModuleMenu(false);

@@ -546,6 +546,25 @@ const ensureSchema = async () => {
         )
       `
     );
+    // Web Push: un navegador o teléfono por fila; se borra cuando el servicio responde 404/410.
+    await admin.query(
+      `
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          user_id INT UNSIGNED NOT NULL,
+          endpoint_hash CHAR(64) NOT NULL,
+          endpoint VARCHAR(1000) NOT NULL,
+          p256dh VARCHAR(200) NOT NULL,
+          auth VARCHAR(80) NOT NULL,
+          user_agent VARCHAR(255) NOT NULL DEFAULT '',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          last_success_at TIMESTAMP NULL DEFAULT NULL,
+          UNIQUE KEY uq_push_subscriptions_endpoint (endpoint_hash),
+          KEY idx_push_subscriptions_usuario (user_id),
+          CONSTRAINT fk_push_subscriptions_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+        )
+      `
+    );
     // Barrio y referencia de Nominatim por celda de ~11 m: se consulta una sola vez.
     await admin.query(
       `

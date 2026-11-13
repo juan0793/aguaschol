@@ -252,9 +252,10 @@
 .rc-responder label { font-size: 13px; font-weight: 650; }
 .rc-fila-acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .rc-fila-imprimir { display: inline-flex; gap: 6px; margin-right: auto; }
-.rc .rc-boton.is-cuadrado { width: 38px; padding: 0; color: var(--rc-muted); }
-.rc .rc-boton.is-cuadrado:hover { color: var(--rc-blue); }
-.rc .rc-boton.is-cuadrado.is-elegido { color: #fff; background: var(--rc-blue); border-color: var(--rc-blue); }
+.rc .rc-boton.is-juntar { color: var(--rc-muted); }
+.rc .rc-boton.is-juntar:hover { color: var(--rc-blue); }
+.rc .rc-boton.is-juntar.is-elegido { color: var(--rc-deep); background: var(--rc-blue-wash); border-color: var(--rc-blue); }
+.rc .rc-boton.is-juntar.is-elegido .app-icon { color: var(--rc-blue); }
 .rc .rc-boton.is-imprimir { color: var(--rc-muted); }
 .rc .rc-boton.is-imprimir:hover { color: var(--rc-blue); }
 .rc-fila.is-elegido { background: #f4f8fe; }
@@ -322,7 +323,7 @@
   .rc-hallazgo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "tecnico" "abonado" "notas" "accion"; }
   .rc-hallazgo-abonado { padding: 12px 0 0; }
   .rc-hallazgo-accion .rc-boton, .rc-form-acciones .rc-boton { flex: 1; min-height: 44px; }
-  .rc.is-campo .rc-head p { display: none; }
+  .rc.is-campo .rc-head p:not(.rc-pendientes) { display: none; }
   .rc-lista-filtros { width: 100%; }
   .rc-filtro-texto { flex: 1; min-width: 0; }
   .rc .rc-filtro-texto input { width: 100%; }
@@ -332,12 +333,84 @@
   .rc .rc-periodo button { flex: 1; }
   .rc-fila { padding: 14px 12px; }
   .rc-fila-acciones { justify-content: stretch; }
-  .rc-fila-acciones .rc-boton:not(.is-discreto):not(.is-cuadrado):not(.is-imprimir) { flex: 1; min-height: 44px; }
-  .rc .rc-boton.is-cuadrado, .rc .rc-boton.is-imprimir { width: 44px; min-height: 44px; padding: 0; }
+  .rc-fila-acciones .rc-boton:not(.is-discreto):not(.is-juntar):not(.is-imprimir) { flex: 1; min-height: 44px; }
+  .rc .rc-boton.is-juntar, .rc .rc-boton.is-imprimir { min-height: 44px; }
   .rc-fila-imprimir { margin-right: 0; }
-  .rc-texto-imprimir { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  /* En la oficina, "Imprimir" queda como icono para dejar sitio a Archivar. */
+  .rc:not(.is-campo) .rc-boton.is-imprimir, .rc:not(.is-campo) .rc-boton.is-juntar { width: 44px; padding: 0; }
+  .rc:not(.is-campo) .rc-texto-imprimir { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .rc:not(.is-campo) .rc-texto-juntar { display: none; }
   .rc-seleccion { padding: 10px 12px; }
   .rc-seleccion .rc-boton.is-primario { flex: 1 1 100%; min-height: 44px; }
+}
+
+/* ---------- Vista del técnico ----------
+   Una tarjeta por reclamo. Arriba, en palabras, el estado y la antigüedad; luego quién
+   reclama, qué pasó y quién es el responsable. Responder es la acción principal. */
+.rc-pendientes { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 10px 0 0 !important; color: var(--rc-ink) !important; font-size: 14px !important; }
+.rc-pendientes strong { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.rc-pendientes strong::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--rc-ocre); }
+.rc-pendientes.is-rojo strong { color: var(--rc-red-ink); }
+.rc-pendientes.is-rojo strong::before { background: var(--rc-red); }
+.rc-pendientes.is-verde strong { color: var(--rc-green-ink); }
+.rc-pendientes.is-verde strong::before { background: var(--rc-green); }
+.rc-pendientes span { color: var(--rc-muted); font-size: 13px; }
+
+.rc.is-campo .rc-lista { display: grid; gap: 10px; overflow: visible; background: none; border: 0; border-radius: 0; }
+.rc.is-campo .rc-fila { padding: 16px 18px; background: #fff; border: 1px solid var(--rc-line); border-radius: 8px; }
+.rc.is-campo .rc-fila:last-child { border-bottom: 1px solid var(--rc-line); }
+.rc.is-campo .rc-fila.is-atrasado { border-color: #efc4bc; }
+.rc.is-campo .rc-fila.is-elegido { background: #f7faff; border-color: #c9dbf3; }
+.rc.is-campo .rc-lista.is-cargando li { background: #fff; border: 1px solid var(--rc-line); border-radius: 8px; }
+
+.rc-tarjeta {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr);
+  grid-template-areas: "estado estado" "abonado tecnico" "motivo tecnico";
+  align-items: start; gap: 10px 32px;
+}
+.rc-tarjeta p { margin: 0; }
+.rc-tarjeta-estado { grid-area: estado; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.rc-tarjeta-estado time { color: var(--rc-muted); font-size: 13px; }
+.rc-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 26px; padding: 0 10px; border-radius: 13px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.rc-chip::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.rc-chip.is-ocre { color: var(--rc-ocre-ink); background: var(--rc-ocre-wash); }
+.rc-chip.is-ocre::before { background: var(--rc-ocre); }
+.rc-chip.is-rojo { color: var(--rc-red-ink); background: var(--rc-red-wash); }
+.rc-chip.is-azul { color: var(--rc-deep); background: var(--rc-blue-wash); }
+.rc-chip.is-azul::before { background: var(--rc-blue); }
+.rc-chip.is-verde { color: var(--rc-green-ink); background: #e6f5f1; }
+.rc-tarjeta-abonado { grid-area: abonado; min-width: 0; }
+.rc-tarjeta .rc-fila-nombre { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.rc-tarjeta .rc-fila-ident { margin-top: 4px !important; font-size: 13px; }
+.rc-tarjeta .rc-fila-ident span:first-child { font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+.rc-tarjeta-motivo { grid-area: motivo; min-width: 0; padding: 10px 12px; background: var(--rc-wash); border-radius: 8px; }
+.rc-tarjeta-que { font-size: 14px; line-height: 1.4; }
+.rc-tarjeta-que strong { font-weight: 700; }
+.rc-tarjeta-detalle {
+  display: -webkit-box; margin-top: 4px !important; overflow: hidden; color: #2f4861; font-size: 14px; line-height: 1.5;
+  overflow-wrap: anywhere; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+}
+.rc-tarjeta-detalle.is-completo { display: block; -webkit-line-clamp: unset; }
+.rc .rc-ver-mas { margin-top: 4px; font-size: 13px; }
+.rc-tarjeta-tecnico { grid-area: tecnico; display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding-left: 20px; border-left: 1px solid var(--rc-soft); }
+.rc-tarjeta-tecnico p { display: grid; gap: 1px; min-width: 0; }
+.rc-tarjeta-rol { color: var(--rc-muted); font-size: 12px; font-weight: 600; }
+.rc-tarjeta-tecnico strong { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.rc-tarjeta-tecnico small { color: var(--rc-muted); font-size: 12px; line-height: 1.4; }
+.rc.is-campo .rc-respuesta { margin-top: 12px; }
+.rc.is-campo .rc-fila-acciones { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rc-soft); }
+
+@container (max-width: 640px) {
+  .rc-tarjeta { grid-template-columns: minmax(0, 1fr); grid-template-areas: "estado" "abonado" "motivo" "tecnico"; gap: 10px; }
+  .rc-tarjeta-tecnico { padding-left: 0; border-left: 0; }
+}
+
+@media (max-width: 640px) {
+  .rc.is-campo .rc-fila { padding: 14px; }
+  .rc.is-campo .rc-fila-acciones { gap: 8px; }
+  .rc.is-campo .rc-fila-acciones > .rc-boton { order: -1; flex: 1 1 100%; min-height: 48px; font-size: 15px; }
+  .rc.is-campo .rc-fila-imprimir { display: grid; flex: 1 1 100%; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rc.is-campo .rc-fila-imprimir .rc-boton { width: auto; padding: 0 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

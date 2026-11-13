@@ -1,6 +1,7 @@
 import { WebSocketServer } from "ws";
 import { getSessionUser } from "./authService.js";
 import { registerSessionSocket } from "../utils/sessionSockets.js";
+import { avisarPorPush } from "./pushService.js";
 
 let websocketServer = null;
 const profileClients = new Set();
@@ -142,6 +143,8 @@ export const initializeProfileRealtime = ({ server }) => {
 };
 
 export const emitProfileMessage = (message) => {
+  // Con la app cerrada o en segundo plano el aviso llega como notificación del sistema.
+  avisarPorPush(message);
   if (!websocketServer) return;
 
   const event = {

@@ -100,3 +100,14 @@ export const leerJson = async (response, mensaje) => {
   if (!response.ok) throw new Error(cuerpo.message || mensaje);
   return cuerpo;
 };
+
+// La oficina suele escribir el detalle del reclamo todo en mayúsculas, que en el teléfono
+// se lee mal. Solo se pasa a minúsculas (con mayúscula al inicio de cada oración) cuando
+// el texto no trae ninguna minúscula; lo escrito con mayúsculas y minúsculas no se toca.
+export const textoLegible = (texto = "") => {
+  const limpio = String(texto ?? "");
+  if (/\p{Ll}/u.test(limpio) || !/\p{Lu}{3}/u.test(limpio)) return limpio;
+  return limpio
+    .toLocaleLowerCase("es")
+    .replace(/(^|[.!?¡¿]\s*)(\p{L})/gu, (_, borde, letra) => borde + letra.toLocaleUpperCase("es"));
+};

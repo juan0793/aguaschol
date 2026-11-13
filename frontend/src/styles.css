@@ -29505,3 +29505,21 @@ button.control-sidebar-home:focus-visible {
 .module-unavailable p { margin: 0; color: #5f7184; font-size: 14px; line-height: 1.5; }
 .module-unavailable button { min-height: 40px; margin-top: 4px; padding: 0 16px; color: #fff; background: #1465d9; border: 0; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
 .module-unavailable button:hover { background: #0b55bd; }
+
+/* Avisos con la app cerrada (Web Push), al pie de la campana. */
+.avisos-push { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: start; gap: 4px 10px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface-subtle); color: #183b5a; }
+.avisos-push > svg { margin-top: 2px; color: #1465d9; }
+.avisos-push.is-bloqueado > svg { color: #8a5206; }
+.avisos-push p { margin: 0; font-size: 12px; line-height: 1.45; color: #597087; }
+.avisos-push p strong { display: block; color: #183b5a; font-size: 13px; font-weight: 650; }
+.avisos-push-boton { align-self: center; min-height: 36px; padding: 0 12px; color: #fff; background: #1465d9; border: 1px solid #1465d9; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 650; white-space: nowrap; cursor: pointer; }
+.avisos-push-boton:hover { background: #0b55bd; }
+.avisos-push-boton:disabled, .avisos-push-enlace:disabled { opacity: .6; cursor: progress; }
+.avisos-push-enlace { align-self: center; min-height: 32px; padding: 0; color: #1465d9; background: none; border: 0; font: inherit; font-size: 13px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.avisos-push-error { grid-column: 2 / -1; color: #a32a1d !important; font-weight: 600; }
+.avisos-push.is-ios p, .avisos-push.is-bloqueado p { grid-column: 2 / -1; }
+@media (max-width: 420px) {
+  .avisos-push { grid-template-columns: 16px minmax(0, 1fr); }
+  .avisos-push-boton { grid-column: 2; justify-self: stretch; min-height: 44px; }
+  .avisos-push-enlace { grid-column: 2; justify-self: start; }
+}

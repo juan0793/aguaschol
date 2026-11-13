@@ -20,6 +20,7 @@ import {
   origenTexto,
   periodoHn,
   plural,
+  textoLegible,
   tituloPeriodo
 } from "./reclamosFormato";
 import "./reclamos.css";
@@ -187,6 +188,7 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
     userId={user?.id}
     permisos={permisos}
     esTecnico={esTecnico}
+    campo={!oficina}
     resaltado={resaltado === reclamo.id}
     elegido={seleccion.has(reclamo.id)}
     onElegir={() => alternar(reclamo)}
@@ -202,6 +204,11 @@ export default function ReclamosWorkspace({ apiFetch, session, showAlert }) {
         <p>{oficina
           ? "Escribe la clave o el abonado que reclama: el sistema dice qué técnico entregó ese barrio y el reclamo le llega a todo el equipo."
           : "Facturas y notas de cobro que el abonado dice que no recibió. Revisa el reclamo y escribe qué pasó con esa entrega."}</p>
+        {!oficina && data ? <p className={`rc-pendientes is-${!resumen.sin_respuesta ? "verde" : diasAntiguo > DIAS_ATRASO ? "rojo" : "ocre"}`} role="status">
+          {resumen.sin_respuesta
+            ? <><strong>{resumen.sin_respuesta === 1 ? "1 reclamo espera" : `${resumen.sin_respuesta} reclamos esperan`} respuesta</strong><span>El más antiguo, {haceCuanto(antiguo)}</span></>
+            : <strong>Ningún reclamo espera respuesta</strong>}
+        </p> : null}
       </div>
       <button type="button" className="rc-icono-boton" onClick={() => cargar()} disabled={cargando} aria-label="Actualizar" title="Actualizar"><Icon name="refresh" /></button>
     </header>
@@ -360,12 +367,13 @@ function PorTecnico({ filas, activo, onElegir }) {
   </section>;
 }
 
-function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, elegido, onElegir, onImprimir, onAccion }) {
+function ReclamoFila({ reclamo, userId, permisos, esTecnico, campo, resaltado, elegido, onElegir, onImprimir, onAccion }) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState("");
   const [ocupado, setOcupado] = useState("");
   const [error, setError] = useState("");
   const [confirmarBorrar, setConfirmarBorrar] = useState(false);
+  const [verDetalle, setVerDetalle] = useState(false);
   const areaRef = useRef(null);
 
   const dias = diasDesde(reclamo.created_at);
@@ -404,10 +412,41 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, elegido,
   };
 
   const nombre = reclamo.abonado_nombre ? nombrePropio(reclamo.abonado_nombre) : "Sin nombre en el padrón";
+  const detalle = textoLegible(reclamo.detalle);
+  // En el teléfono del técnico el estado y la antigüedad van arriba, en palabras.
+  const estadoCampo = atrasado ? `Atrasado · ${dias} días sin respuesta` : estado.label;
   const clase = ["rc-fila", `is-${reclamo.estado.toLowerCase()}`, atrasado ? "is-atrasado" : "", resaltado ? "is-nuevo" : "", elegido ? "is-elegido" : ""].filter(Boolean).join(" ");
 
   return <li className={clase}>
-    <div className="rc-fila-principal">
+    {campo ? <div className="rc-tarjeta">
+      <div className="rc-tarjeta-estado">
+        <span className={`rc-chip is-${atrasado ? "rojo" : estado.tono}`}>{estadoCampo}</span>
+        <time dateTime={reclamo.created_at} title={`Registrado el ${fechaHora(reclamo.created_at)} por ${reclamo.created_by_nombre || "la oficina"}`}>Registrado {haceCuanto(reclamo.created_at)}</time>
+      </div>
+      <div className="rc-tarjeta-abonado">
+        <p className="rc-fila-nombre">{nombre}</p>
+        <p className="rc-fila-ident">
+          {reclamo.clave_catastral ? <span>{reclamo.clave_catastral}</span> : null}
+          {reclamo.numero_abonado ? <span>Abonado {reclamo.numero_abonado}</span> : null}
+          {reclamo.barrio_nombre ? <span>{reclamo.barrio_nombre}</span> : null}
+        </p>
+      </div>
+      <div className="rc-tarjeta-motivo">
+        <p className="rc-tarjeta-que"><strong>{reclamo.motivo_etiqueta}</strong> · {documentos(reclamo.cantidad, reclamo.tipo_documento)}</p>
+        {detalle ? <>
+          <p className={`rc-tarjeta-detalle${verDetalle ? " is-completo" : ""}`}>{detalle}</p>
+          {detalle.length > 120 ? <button type="button" className="rc-enlace rc-ver-mas" aria-expanded={verDetalle} onClick={() => setVerDetalle((valor) => !valor)}>{verDetalle ? "Ver menos" : "Ver todo"}</button> : null}
+        </> : null}
+      </div>
+      <div className="rc-tarjeta-tecnico">
+        <span className="rc-avatar is-chico" aria-hidden="true">{reclamo.responsable ? inicial(reclamo.responsable.nombre) : "?"}</span>
+        <p>
+          <span className="rc-tarjeta-rol">Responsable</span>
+          <strong>{reclamo.responsable?.nombre || "Sin técnico"}</strong>
+          <small>{origenTexto({ origen: reclamo.responsable_origen, lote: reclamo.lote })}</small>
+        </p>
+      </div>
+    </div> : <div className="rc-fila-principal">
       <div className="rc-fila-abonado">
         <p className="rc-fila-nombre">{nombre}</p>
         <p className="rc-fila-ident">
@@ -431,7 +470,7 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, elegido,
         <span className={`rc-estado is-${atrasado ? "rojo" : estado.tono}`}>{atrasado ? `Sin respuesta · ${dias} días` : estado.label}</span>
         <time dateTime={reclamo.created_at} title={`Registrado el ${fechaHora(reclamo.created_at)} por ${reclamo.created_by_nombre || "la oficina"}`}>Registrado {haceCuanto(reclamo.created_at)}</time>
       </div>
-    </div>
+    </div>}
 
     {reclamo.respuesta && !editando ? <div className="rc-respuesta">
       <p className="rc-respuesta-quien"><Icon name="send" />{reclamo.respondido_por_nombre || "El técnico"} respondió <time dateTime={reclamo.respondido_en} title={fechaHora(reclamo.respondido_en)}>{haceCuanto(reclamo.respondido_en)}</time></p>
@@ -460,10 +499,10 @@ function ReclamoFila({ reclamo, userId, permisos, esTecnico, resaltado, elegido,
 
     {!editando ? <div className="rc-fila-acciones">
       <span className="rc-fila-imprimir">
-        <button type="button" className={`rc-boton is-cuadrado${elegido ? " is-elegido" : ""}`} onClick={onElegir} aria-pressed={elegido}
+        <button type="button" className={`rc-boton is-juntar${elegido ? " is-elegido" : ""}`} onClick={onElegir} aria-pressed={elegido}
           aria-label={elegido ? `Quitar el reclamo #${reclamo.id} de la impresión` : `Agregar el reclamo #${reclamo.id} para imprimir varios`}
-          title={elegido ? "Quitar de la impresión" : "Agregar para imprimir varios"}>
-          <Icon name={elegido ? "checkCircle" : "plus"} />
+          title={elegido ? "Quitar de la impresión" : "Juntar con otros reclamos para imprimirlos a la vez"}>
+          <Icon name={elegido ? "checkCircle" : "plus"} /><span className="rc-texto-juntar">{elegido ? "Juntado" : "Juntar para imprimir"}</span>
         </button>
         <button type="button" className="rc-boton is-imprimir" onClick={onImprimir} aria-label={`Imprimir el reclamo #${reclamo.id}`} title="Imprimir este reclamo">
           <Icon name="print" /><span className="rc-texto-imprimir">Imprimir</span>

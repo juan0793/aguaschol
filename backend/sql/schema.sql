@@ -1168,3 +1168,20 @@ CREATE TABLE IF NOT EXISTS fallas_equipo (
   KEY idx_fallas_equipo_user (user_id, ocurrido_en),
   CONSTRAINT fk_fallas_equipo_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE SET NULL
 );
+
+-- Web Push (2026-11-13): un navegador o telefono por fila; se borra cuando el
+-- servicio de push responde 404/410.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  endpoint_hash CHAR(64) NOT NULL,
+  endpoint VARCHAR(1000) NOT NULL,
+  p256dh VARCHAR(200) NOT NULL,
+  auth VARCHAR(80) NOT NULL,
+  user_agent VARCHAR(255) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_success_at TIMESTAMP NULL DEFAULT NULL,
+  UNIQUE KEY uq_push_subscriptions_endpoint (endpoint_hash),
+  KEY idx_push_subscriptions_usuario (user_id),
+  CONSTRAINT fk_push_subscriptions_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+);

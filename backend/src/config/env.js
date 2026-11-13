@@ -107,6 +107,11 @@ export const env = {
   r2Endpoint: process.env.R2_ENDPOINT?.trim() ?? "",
   r2Bucket: process.env.R2_BUCKET?.trim() ?? "",
   r2Region: process.env.R2_REGION?.trim() || "auto",
+  // Web Push (avisos con la app cerrada). Se generan una vez con `npx web-push generate-vapid-keys`;
+  // la privada solo vive en las variables del servidor. Sin ellas, la app funciona sin push.
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY?.trim() ?? "",
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY?.trim() ?? "",
+  vapidSubject: process.env.VAPID_SUBJECT?.trim() || "https://www.controlaguas.com",
   telegramAllowedChatIds: new Set(
     (process.env.TELEGRAM_ALLOWED_CHAT_IDS ?? "")
       .split(",")
@@ -116,6 +121,7 @@ export const env = {
 };
 
 env.useCloudinary = Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret);
+env.usePush = Boolean(env.vapidPublicKey && env.vapidPrivateKey);
 env.useR2 = Boolean(env.r2AccessKeyId && env.r2SecretAccessKey && env.r2Endpoint && env.r2Bucket);
 
 export const validateRuntimeEnv = (config = env) => {

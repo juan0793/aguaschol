@@ -5,6 +5,7 @@ import { NOTIFICATION_SOUND_MUTED_STORAGE_KEY } from "../constants/storageKeys.j
 import { getSharedProfileWebSocketManager, releaseSharedProfileWebSocketManager } from "../utils/profileWebSocket.js";
 import { playNotificationSound, primeNotificationSound } from "../utils/notificationSound.js";
 import { agruparActividad, resumenTrabajo } from "../modules/actividad/agruparActividad.js";
+import { AvisosPush } from "./AvisosPush.jsx";
 
 export function NotificationCenter({
   apiFetch,
@@ -392,6 +393,7 @@ export function NotificationCenter({
                 </button>
               </div>
             )}
+            {!session?.user?.preview ? <AvisosPush apiFetch={apiFetch} /> : null}
           </motion.div>
         )}
       </AnimatePresence>

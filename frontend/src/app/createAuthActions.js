@@ -1,3 +1,4 @@
+import { desactivarAvisos } from "../utils/pushAvisos.js";
 import { API_URL } from "../config/api";
 import { AUTH_STORAGE_KEY } from "../constants/storageKeys";
 import { getWorkspaceViewByRole, readJsonResponse } from "../utils/appShell";
@@ -88,6 +89,8 @@ export function createAuthActions({
     intentionalLogoutRef.current = true;
     try {
       setAuthFx({ mode: "logout", text: "Cerrando sesión..." });
+      // Este dispositivo deja de recibir los avisos de quien sale (como mucho 2 s de espera).
+      await Promise.race([desactivarAvisos(apiFetch), pause(2000)]).catch(() => {});
       await apiFetch("/auth/logout", { method: "POST" });
     } catch {
       // The local session should still be removed even if the request fails.

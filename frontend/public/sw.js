@@ -51,6 +51,47 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+// Avisos con la app cerrada (Web Push). El servidor manda { title, body, url, tag }.
+// Si la app está a la vista, la campana ya lo muestra y no se repite en el sistema.
+self.addEventListener("push", (event) => {
+  let aviso = {};
+  try {
+    aviso = event.data ? event.data.json() : {};
+  } catch {
+    aviso = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil((async () => {
+    const ventanas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (ventanas.some((ventana) => ventana.focused && ventana.visibilityState === "visible")) return;
+    await self.registration.showNotification(aviso.title || "Control Aguas", {
+      body: aviso.body || "Tienes un aviso nuevo.",
+      icon: "/icons/icon-192.png?v=2",
+      tag: aviso.tag || undefined,
+      lang: "es",
+      timestamp: Date.now(),
+      data: { url: aviso.url || "/" }
+    });
+  })());
+});
+
+// Tocar el aviso enfoca la app si ya está abierta (y la lleva a la pantalla del aviso)
+// o la abre en esa dirección.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const destino = new URL(event.notification.data?.url || "/", self.location.origin);
+  const url = destino.origin === self.location.origin ? destino.href : self.location.origin + "/";
+  event.waitUntil((async () => {
+    const ventanas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const app = ventanas.find((ventana) => new URL(ventana.url).origin === self.location.origin);
+    if (app) {
+      const enfocada = await app.focus().catch(() => app);
+      (enfocada || app).postMessage({ type: "controlaguas:abrir-aviso", url });
+      return;
+    }
+    await self.clients.openWindow(url);
+  })());
+});
+
 async function cacheAppShell() {
   const response = await fetch("/", { cache: "reload" });
   if (!response.ok) throw new Error("No fue posible guardar la app para uso sin conexión.");
