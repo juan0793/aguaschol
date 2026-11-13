@@ -845,6 +845,13 @@ function App() {
               if (!response.ok) throw new Error(data.message || "No fue posible comparar los lotes del padrón.");
               return data;
             },
+            // Contador de facturas entregadas del ciclo (Control de entregas).
+            fetchAvanceEntregas: async () => {
+              const response = await apiFetch("/entregas/avance-mes");
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.message || "No fue posible consultar el avance de entregas.");
+              return data;
+            },
             debtSummary: padronServiceReport?.summary?.deuda || {},
             padronTotals: {
               records: Number(padronServiceReport?.summary?.total_records || 0),

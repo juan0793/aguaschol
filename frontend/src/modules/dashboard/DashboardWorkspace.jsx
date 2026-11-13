@@ -8,6 +8,7 @@ import { printDocument } from "../../utils/printDocument";
 import { clampSplit, debtRankingAll, filterBarriosByQuery, formatCompactCurrency, interestPerCapital, ofEachTen, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import ServiceDotPlot from "./ServiceDotPlot";
+import EntregasAvance from "./EntregasAvance";
 import { CambiosDelLote, deltaCuentas, deltaMonto, fechaCorta, imprimirComparacionLotes, nivelesPrevios, useLotesComparacion } from "./LotesCambios";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
 import "./dashboard.css";
@@ -1167,6 +1168,9 @@ export default function DashboardWorkspace({ model }) {
         </div>
 
         <aside className="dw-col dw-col-side" aria-label="Pendientes y actividad">
+          {model.fetchAvanceEntregas ? (
+            <EntregasAvance fetchAvance={model.fetchAvanceEntregas} onAbrir={() => model.navigate("entregas")} />
+          ) : null}
           <article className="dw-panel dw-attention">
             <header className="dw-panel-head">
               <div>
@@ -1184,7 +1188,7 @@ export default function DashboardWorkspace({ model }) {
                         <strong>{item.title}</strong>
                         <small>{item.detail}</small>
                       </span>
-                      {Number.isFinite(item.count) ? <b className="dw-count dw-figure">{whole(item.count)}</b> : <i aria-hidden="true" />}
+                      {Number.isFinite(item.count) ? <LiveWhole as="b" className="dw-count dw-figure" value={item.count} flash="li" /> : <i aria-hidden="true" />}
                       <Icon name="arrowRight" />
                     </button>
                   </li>
@@ -1211,7 +1215,7 @@ export default function DashboardWorkspace({ model }) {
                         <small>{item.helper}</small>
                       </span>
                       <MiniBars series={item.series} unit={item.key === "gps" ? "puntos" : "fichas"} />
-                      <b className="dw-count is-neutral dw-figure">{whole(item.value)}</b>
+                      <LiveWhole as="b" className="dw-count is-neutral dw-figure" value={item.value} flash="li" />
                       <Icon name="arrowRight" />
                     </button>
                   </li>

@@ -908,7 +908,25 @@ export const getAvanceMes = async (user) => {
      GROUP BY barrio_codigo, estado`,
     [desde, hoy]
   );
-  return { ...armarAvanceMes({ barrios, lotes, personal, desde, hasta: hoy }), ciclo_declarado: Boolean(ciclo.fecha_inicio) };
+  // Lo de la jornada de hoy, para el contador del Tablero.
+  const [[jornada]] = await getPool().query(
+    `SELECT COUNT(*) AS lotes, SUM(estado = 'ABIERTO') AS abiertos, SUM(total_asignadas) AS asignadas,
+       SUM(CASE WHEN estado = 'ABIERTO' THEN 0 ELSE GREATEST(total_asignadas - total_sobrantes, 0) END) AS entregadas
+     FROM entrega_lotes WHERE fecha = ?`,
+    [hoy]
+  );
+  const avance = armarAvanceMes({ barrios, lotes, personal, desde, hasta: hoy });
+  return {
+    ...avance,
+    documentos_asignados: avance.barrios.reduce((suma, fila) => suma + fila.asignadas, 0),
+    hoy: {
+      lotes: toEntero(jornada?.lotes),
+      abiertos: toEntero(jornada?.abiertos),
+      asignadas: toEntero(jornada?.asignadas),
+      entregadas: toEntero(jornada?.entregadas)
+    },
+    ciclo_declarado: Boolean(ciclo.fecha_inicio)
+  };
 };
 
 // Cuando facturacion emite los documentos del mes nuevo, los pendientes del ciclo

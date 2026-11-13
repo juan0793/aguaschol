@@ -2861,3 +2861,177 @@ body.dw-resizing * {
   .dashboard-workspace .dw-div-lista li { grid-template-columns: minmax(0, 1fr) 4.8rem; }
   .dashboard-workspace .dw-div-lista .dw-div-barra { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* ---------- Entrega de facturas (contador del ciclo) ---------- */
+
+.dashboard-workspace .dw-entregas { gap: 0.8rem; border-radius: var(--dw-radius); }
+.dashboard-workspace .dw-entregas .dw-panel-head small { color: var(--dw-muted); font-size: 12px; }
+.dashboard-workspace .dw-entregas.is-cargando .dw-empty { min-height: 150px; }
+
+/* Estado del reparto: punto gris en reposo; verde y latiendo con lotes abiertos hoy. */
+.dashboard-workspace .dw-entregas-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  color: var(--dw-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dashboard-workspace .dw-entregas-estado i {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a9b8c7;
+}
+.dashboard-workspace .dw-entregas-estado.is-vivo { color: #0f7a64; }
+.dashboard-workspace .dw-entregas-estado.is-vivo i { background: var(--dw-teal); }
+.dashboard-workspace .dw-entregas-estado.is-vivo i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--dw-teal);
+  animation: dw-entregas-onda 1.8s ease-out infinite;
+}
+@keyframes dw-entregas-onda {
+  from { transform: scale(1); opacity: 0.55; }
+  to { transform: scale(3); opacity: 0; }
+}
+
+.dashboard-workspace .dw-entregas-cifra {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0;
+}
+.dashboard-workspace .dw-entregas-cifra strong {
+  color: var(--dw-ink);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+}
+.dashboard-workspace .dw-entregas-cifra > span {
+  display: grid;
+  gap: 0.15rem;
+  color: var(--dw-body);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.dashboard-workspace .dw-entregas-cifra small { color: var(--dw-muted); font-size: 12px; font-weight: 500; }
+.dashboard-workspace .dw-entregas[data-live] .dw-entregas-cifra strong { color: var(--dw-blue); transition: color 700ms ease; }
+
+/* Barra del ciclo: barrios entregados, en reparto (rayado que avanza) y lo que falta. */
+.dashboard-workspace .dw-entregas-avance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+.dashboard-workspace .dw-entregas-avance > b { min-width: 3.4em; color: var(--dw-ink); font-size: 14px; font-weight: 700; text-align: right; }
+.dashboard-workspace .dw-entregas-barra,
+.dashboard-workspace .dw-entregas-mini {
+  display: flex;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e4edf6;
+}
+.dashboard-workspace .dw-entregas-barra { height: 12px; }
+.dashboard-workspace .dw-entregas-mini { height: 6px; }
+.dashboard-workspace .dw-entregas-barra i,
+.dashboard-workspace .dw-entregas-mini i {
+  flex: none;
+  height: 100%;
+  transition: width 700ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.dashboard-workspace .dw-entregas i.is-entregado,
+.dashboard-workspace .dw-entregas-leyenda .is-entregado i { background: var(--dw-blue); }
+.dashboard-workspace .dw-entregas-barra .is-en-curso,
+.dashboard-workspace .dw-entregas-mini .is-en-curso {
+  background-color: #8ec5f2;
+  background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.55) 0 4px, transparent 4px 8px);
+  background-size: 11.32px 100%;
+  animation: dw-entregas-rayas 900ms linear infinite;
+}
+@keyframes dw-entregas-rayas { to { background-position: 11.32px 0; } }
+/* La barra entra creciendo una sola vez, como las demás del tablero. */
+.dashboard-workspace .dw-entregas-barra,
+.dashboard-workspace .dw-entregas-mini { position: relative; }
+.dashboard-workspace .dw-entregas-barra::after,
+.dashboard-workspace .dw-entregas-mini::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #e4edf6;
+  transform-origin: right center;
+  animation: dw-entregas-descubrir 800ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+@keyframes dw-entregas-descubrir { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+.dashboard-workspace .dw-entregas-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin: -0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--dw-muted);
+  font-size: 12px;
+}
+.dashboard-workspace .dw-entregas-leyenda li { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
+.dashboard-workspace .dw-entregas-leyenda b { color: var(--dw-ink); font-weight: 700; }
+.dashboard-workspace .dw-entregas-leyenda i { align-self: center; width: 8px; height: 8px; border-radius: 2px; }
+.dashboard-workspace .dw-entregas-leyenda .is-en-curso i { background: #8ec5f2; }
+.dashboard-workspace .dw-entregas-leyenda .is-pendiente i { background: #e4edf6; box-shadow: inset 0 0 0 1px #c5d5e6; }
+
+.dashboard-workspace .dw-entregas-tecnicos {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid var(--dw-line-soft);
+  list-style: none;
+}
+.dashboard-workspace .dw-entregas-tecnicos li {
+  display: grid;
+  grid-template-columns: minmax(0, 9.5rem) minmax(48px, 1fr) 3.2em;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 12.5px;
+}
+.dashboard-workspace .dw-entregas-tecnicos li > span:first-child {
+  overflow: hidden;
+  color: var(--dw-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-workspace .dw-entregas-tecnicos b { color: var(--dw-ink); font-weight: 700; text-align: right; }
+.dashboard-workspace .dw-entregas-abrir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: start;
+  min-height: 32px;
+}
+.dashboard-workspace .dw-entregas-abrir .app-icon { width: 14px; height: 14px; transition: transform 160ms ease; }
+.dashboard-workspace .dw-entregas-abrir:hover .app-icon { transform: translateX(3px); }
+
+/* Las cifras de las listas destellan su fila cuando cambian. */
+.dashboard-workspace .dw-list li { border-radius: 8px; }
+.dashboard-workspace .dw-list li[data-live] .dw-count { color: var(--dw-blue); transition: color 700ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace .dw-entregas-estado.is-vivo i::after,
+  .dashboard-workspace .dw-entregas-barra .is-en-curso,
+  .dashboard-workspace .dw-entregas-mini .is-en-curso,
+  .dashboard-workspace .dw-entregas-barra::after,
+  .dashboard-workspace .dw-entregas-mini::after { animation: none; }
+  .dashboard-workspace .dw-entregas-barra::after,
+  .dashboard-workspace .dw-entregas-mini::after { display: none; }
+  .dashboard-workspace .dw-entregas-barra i,
+  .dashboard-workspace .dw-entregas-mini i,
+  .dashboard-workspace .dw-entregas-abrir .app-icon { transition: none; }
+}
