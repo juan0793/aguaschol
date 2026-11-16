@@ -7,8 +7,19 @@ import UbicacionCompartida from "./UbicacionCompartida";
 import { NotificationCenter } from "../components/NotificationCenter.jsx";
 import { abrirMisAsignaciones } from "../modules/clandestinos/hooks/useBanco";
 import { formatMapDiaryLabel } from "../utils/datesAndBusiness";
-import { getDefaultWorkspaceView } from "../utils/appShell";
-import logoAguasCholuteca from "../assets/logo-aguas-choluteca.png";
+import { roleLabel } from "../utils/formatting";
+import { canOpenWorkspace } from "../utils/roleAccess.js";
+import BuscadorGlobal from "./BuscadorGlobal";
+import { pedirBusqueda } from "../utils/busquedaGlobal";
+import "./appChrome.css";
+
+// "Ana María Díaz" → "AD"; un solo nombre → sus dos primeras letras.
+const inicialesDe = (nombre = "") => {
+  const partes = String(nombre).trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
+};
 
 // Pantallas cuya franja bajo la barra tiene contenido propio. En las demás la tarjeta
 // quedaba vacía: la navegación del módulo vive en el menú lateral, y cuenta y
@@ -86,6 +97,13 @@ export default function AppHeader({ model }) {
     workspaceView,
     abrirActividadEquipo
   } = model;
+  const nombreUsuario = session?.user?.full_name || session?.user?.username || "Sesión activa";
+  const puedeBuscar = session?.user?.role !== "transport" && canOpenWorkspace(session?.user?.role, "lookup");
+  // El buscador deja el texto pendiente y abre "Buscar clave", que lo consulta
+  // al montarse (o al recibir el aviso si ya estaba abierta).
+  const abrirBusqueda = (texto) => {
+    if (pedirBusqueda(texto)) setWorkspaceView("lookup");
+  };
 
   const isManager = session?.user?.role === "gerente";
   const [now, setNow] = useState(() => new Date());
@@ -108,32 +126,21 @@ export default function AppHeader({ model }) {
         >
           <Icon name="menu" />
         </button>
-        {/* En el tablero la barra lleva el título de la página. En los demás módulos
-            el nombre ya está en el menú lateral y el título en la página: aquí solo va
-            el logo circular, al centro, como atajo al inicio. El hueco guarda su celda
-            en la rejilla para que la sesión no se mueva. */}
-        {workspaceView === "dashboard" ? (
-          isManager ? (
-            <div className="app-topbar-greeting">
-              <h1 className="app-topbar-title">{greetingFor({ fullName: session?.user?.full_name, username: session?.user?.username, firstVisit: isWelcomeVisit(session?.user), now })}</h1>
-              <span>Gerencia</span>
-            </div>
-          ) : <h1 className="app-topbar-title">{headerMeta.title}</h1>
-        ) : (<>
+        {/* Barra global, igual en todas las pantallas: el buscador (clave,
+            abonado o nombre) ocupa el lugar del título. El título de cada pantalla
+            va en su propia página; el logo ya está en el menú lateral. Gerencia
+            no consulta el padrón por clave: en su tablero queda el saludo. */}
+        {isManager && workspaceView === "dashboard" ? (
+          <div className="app-topbar-greeting">
+            <h1 className="app-topbar-title">{greetingFor({ fullName: session?.user?.full_name, username: session?.user?.username, firstVisit: isWelcomeVisit(session?.user), now })}</h1>
+            <span>Gerencia</span>
+          </div>
+        ) : puedeBuscar ? (
+          <BuscadorGlobal onBuscar={abrirBusqueda} />
+        ) : (
           <span className="app-topbar-slot" aria-hidden="true" />
-          <button
-            type="button"
-            className="app-topbar-brand is-logo-only"
-            onClick={() => setWorkspaceView(getDefaultWorkspaceView(session?.user?.role))}
-            aria-label="Aguas de Choluteca: ir al inicio"
-            title="Ir al inicio"
-          >
-            <span className="app-brand-mark" aria-hidden="true">
-              <img src={logoAguasCholuteca} alt="" className="app-topbar-logo" />
-            </span>
-          </button>
-        </>)}
-        <div className="app-topbar-kpis">
+        )}
+        <div className="app-topbar-kpis" hidden={workspaceView === "dashboard" || !headerStats.length}>
           {headerStats.map((stat) => (
             <span className="app-topbar-kpi" key={stat.label}>
               <small>{stat.label}</small>
@@ -187,12 +194,12 @@ export default function AppHeader({ model }) {
               setNotificationUserId(userId);
             }}
           /> : <><ManagerNotifications apiFetch={apiFetch} session={session} onOpenView={setWorkspaceView} /><span className="panel-pill">Solo lectura</span></>}
-          <button type="button" className="app-user-chip" aria-haspopup="menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu((current) => !current)}>
-            <Icon name="users" />
-            {session?.user?.full_name || session?.user?.username || "Sesion activa"}
+          <button type="button" className="app-user-chip is-avatar" aria-haspopup="menu" aria-expanded={showUserMenu} aria-label={`Tu cuenta: ${nombreUsuario}, ${roleLabel(session?.user?.role)}`} title={nombreUsuario} onClick={() => setShowUserMenu((current) => !current)}>
+            <span className="app-avatar" aria-hidden="true">{inicialesDe(nombreUsuario)}</span>
           </button>
           {showUserMenu ? (
             <div className="app-user-menu" role="menu">
+              <p className="app-user-menu-who"><strong>{nombreUsuario}</strong><small>{roleLabel(session?.user?.role)}</small></p>
               {!isManager ? <button type="button" role="menuitem" onClick={() => { setWorkspaceView("profile"); setShowUserMenu(false); }}><Icon name="users" />Mi perfil</button> : null}
               {!session.user.preview && <button type="button" role="menuitem" onClick={() => { setShowPasswordModal(true); setShowUserMenu(false); }}><Icon name="auth" />Cambiar contraseña</button>}
               <button type="button" role="menuitem" onClick={handleLogout}><Icon name="logout" />Cerrar sesión</button>
@@ -202,10 +209,6 @@ export default function AppHeader({ model }) {
       </div>
 
       <div className={`search-card ${headerMeta.cardClass} ${!isManager && VISTAS_CON_FRANJA.includes(workspaceView) ? "" : "is-hidden"} ${VISTAS_SOLO_TEXTO.includes(workspaceView) ? "is-text-only" : ""}`}>
-        <div className="search-card-head">
-          <span>{workspaceView === "dashboard" ? "Espacios de trabajo" : "Navegacion del modulo"}</span>
-          <span className="search-card-kicker">{workspaceView === "dashboard" ? headerMeta.kicker : currentModuleNavigation?.label || headerMeta.kicker}</span>
-        </div>
         {workspaceView === "logs" ? (
           <div className="log-module-command">
             <div className="log-module-command-art" aria-hidden="true">

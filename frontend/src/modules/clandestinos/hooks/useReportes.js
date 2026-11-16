@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AUTO_REFRESH_MS } from "../../../constants/workspace";
 
 // Se piden todos los reportes (son pocos) y el estado se filtra aquí: así las
 // etiquetas de estado muestran cuántos hay en cada uno sin otra consulta.
@@ -17,8 +18,8 @@ export const useReportes = (api, active = true) => {
   useEffect(() => { const timer = setTimeout(load, 160); return () => clearTimeout(timer); }, [load]);
   useEffect(() => {
     if (!active) return undefined;
-    const refresh = () => load({ silent: true });
-    const timer = setInterval(refresh, 10000);
+    const refresh = () => { if (document.visibilityState === "visible") load({ silent: true }); };
+    const timer = setInterval(refresh, AUTO_REFRESH_MS);
     addEventListener("visibilitychange", refresh);
     return () => { clearInterval(timer); removeEventListener("visibilitychange", refresh); };
   }, [active, load]);

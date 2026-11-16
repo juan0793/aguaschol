@@ -247,15 +247,8 @@ export function NotificationCenter({
 
   return (
     <div className="notification-center-container" ref={dropdownRef}>
-      <button
-        className={`notification-sound-toggle ${soundMuted ? "is-muted" : ""}`}
-        onClick={handleToggleSound}
-        title={soundMuted ? "Activar sonido de mensajes" : "Mutear sonido de mensajes"}
-        aria-label={soundMuted ? "Activar sonido de mensajes" : "Mutear sonido de mensajes"}
-        type="button"
-      >
-        {soundMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-      </button>
+      {/* El sonido es una preferencia de los avisos: vive dentro del panel, no
+          como otro ícono suelto en la barra superior. */}
       <button
         className={`notification-bell ${totalUnread > 0 ? "has-notifications" : ""}`}
         onClick={abrirCampana}
@@ -294,6 +287,16 @@ export function NotificationCenter({
           >
             <div className="notification-dropdown-header">
               <h4>Notificaciones</h4>
+              <button
+                type="button"
+                className={`notification-sound-toggle ${soundMuted ? "is-muted" : ""}`}
+                onClick={handleToggleSound}
+                aria-pressed={!soundMuted}
+                title={soundMuted ? "Activar el sonido de los mensajes" : "Silenciar el sonido de los mensajes"}
+              >
+                {soundMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                {soundMuted ? "Sonido apagado" : "Sonido activado"}
+              </button>
               {(!isAdmin || tab === "mensajes") && notifications.length > 0 && (
                 <button
                   className="notification-clear-btn"

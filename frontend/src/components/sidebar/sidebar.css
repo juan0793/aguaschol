@@ -495,8 +495,10 @@
 @media (max-width: 768px) {
   .page-shell,
   .page-shell.sidebar-collapsed { --current-sidebar-width: 0px; padding-left: .65rem !important; }
-  .control-sidebar { width: min(86vw, 300px); transform: translateX(-105%); box-shadow: 8px 0 28px rgba(2, 24, 43, 0.28); }
-  .control-sidebar.is-mobile-open { transform: translateX(0); }
+  /* La sombra solo con el menú abierto: cerrado, su difuminado asomaba sobre
+     el borde izquierdo de la barra y del buscador. */
+  .control-sidebar { width: min(86vw, 300px); transform: translateX(-105%); box-shadow: none; }
+  .control-sidebar.is-mobile-open { transform: translateX(0); box-shadow: 8px 0 28px rgba(2, 24, 43, 0.28); }
   .control-sidebar-header { padding-right: 14px; }
   .control-sidebar-toggle { display: none; }
   .control-sidebar-navigation { overscroll-behavior: contain; }

@@ -92,3 +92,35 @@ export const interestPerCapital = (intereses, capital) => {
   const base = Number(capital || 0);
   return base ? Number(intereses || 0) / base : 0;
 };
+
+// ── Tablero «sala de control» (2026-11-15) ──
+
+// Tope redondo de la escala de un medidor: 231.9 M → 250 M, 12.3 M → 15 M.
+// Pasos 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8 y 10 por potencia de diez, para que el
+// medidor quede lleno entre la mitad y casi todo su largo.
+export const escalaRedonda = (valor = 0) => {
+  const numero = Math.abs(Number(valor) || 0);
+  if (!numero) return 1;
+  const potencia = 10 ** Math.floor(Math.log10(numero));
+  const paso = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((factor) => factor * potencia >= numero);
+  return paso * potencia;
+};
+
+// Días completos entre el corte del padrón y ahora (null si no hay fecha).
+export const diasDesde = (fecha, ahora = new Date()) => {
+  const inicio = new Date(fecha);
+  if (!fecha || Number.isNaN(inicio.getTime())) return null;
+  return Math.max(0, Math.floor((new Date(ahora).getTime() - inicio.getTime()) / 86400000));
+};
+
+// Gravedad de un aviso de "Requiere atención": 1 crítico, 2 atención, 3 aviso.
+export const severidadAviso = (item = {}) => {
+  const nivel = String(item.level || "").toLowerCase();
+  if (nivel === "crítico" || nivel === "critico" || nivel === "critical" || item.tone === "is-critical") return 1;
+  if (nivel === "atención" || nivel === "atencion" || nivel === "pending" || item.tone === "is-warning") return 2;
+  return 3;
+};
+
+// Un aviso marcado como visto vuelve a encenderse si cambia su cifra: la clave
+// lleva el número. Así "4 vencidas" visto no tapa "5 vencidas".
+export const claveAviso = (item = {}) => `${item.key || item.title || ""}:${Number.isFinite(Number(item.count)) ? Number(item.count) : ""}`;

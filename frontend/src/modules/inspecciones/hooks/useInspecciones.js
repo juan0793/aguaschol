@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AUTO_REFRESH_MS } from "../../../constants/workspace";
 
 const STORAGE_KEY = "aguas.inspecciones.inbox.v1";
 const restore = () => {
@@ -42,8 +43,8 @@ export const useInspecciones = (api, active = true) => {
 
   useEffect(() => {
     if (!active) return undefined;
-    const refresh = () => load({ silent: true });
-    const timer = setInterval(refresh, 15000);
+    const refresh = () => { if (document.visibilityState === "visible") load({ silent: true }); };
+    const timer = setInterval(refresh, AUTO_REFRESH_MS);
     addEventListener("visibilitychange", refresh);
     return () => {
       clearInterval(timer);

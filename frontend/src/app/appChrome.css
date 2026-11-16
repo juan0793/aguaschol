@@ -1,0 +1,219 @@
+/* ===========================================================================
+   Barra superior igual en todas las pantallas (2026-11-15)
+   Antes, solo el Tablero tenía la barra plana (dashboard.css, ámbito
+   .dashboard-refactor-mode) y los demás módulos una tarjeta flotante con radio,
+   sombra y degradado que además volvía a aparecer desde transparente
+   (shellFadeUp). Al cambiar de pantalla la barra cambiaba de forma y parpadeaba.
+   Ahora la barra es marco de la página en todas las vistas: blanca, a lo ancho,
+   con un filete gris abajo y sin animación. Solo cambia su contenido (título en
+   el Tablero; logo y cifras del módulo en los demás).
+   `.page-shell .app-chrome` (0,2,0) con !important le gana a las capas de
+   styles.css, que usan `.app-chrome` / `.app-topbar` (0,1,0) con !important.
+   =========================================================================== */
+
+/* El hueco de la barra de desplazamiento queda reservado: al pasar de una
+   pantalla corta a una larga el contenido ya no se corre 15 px de lado. */
+html { scrollbar-gutter: stable; }
+
+.page-shell { --chrome-bleed: var(--app-shell-gap, 1rem); }
+@media (max-width: 768px) {
+  .page-shell { --chrome-bleed: 0.65rem; }
+}
+
+.page-shell .app-chrome {
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 calc(-1 * var(--chrome-bleed)) 12px !important;
+  padding: 0 var(--chrome-bleed) !important;
+  border-bottom: 1px solid #dfe5ec !important;
+  background: #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: none !important;
+}
+
+.page-shell .app-topbar,
+.page-shell .app-topbar:hover {
+  min-height: 56px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+.page-shell .app-topbar::before { content: none !important; }
+
+/* La fila de herramientas de algunos módulos queda dentro de la banda blanca,
+   debajo de la barra, sin entrar con su propio movimiento. */
+.page-shell .app-chrome > .search-card { animation: none !important; }
+
+/* ── Contenido de la barra (2026-11-15): buscador · cifras del módulo · cuenta ── */
+.page-shell .app-topbar {
+  display: flex !important;
+  align-items: center;
+  gap: 12px !important;
+}
+/* Las cifras propias de cada módulo no van en la barra global: la barra es la
+   misma en todas las pantallas. */
+.page-shell .app-topbar-kpis { display: none !important; }
+.page-shell .app-topbar-session { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+
+/* Estado de guardado: texto en gris, sin pastilla; en ámbar si hay cambios
+   sin guardar. */
+.page-shell .app-topbar .app-save-state {
+  min-height: 0;
+  margin-right: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent !important;
+  color: #5f6b78 !important;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: none;
+  animation: none !important;
+}
+.page-shell .app-topbar .app-save-state.is-live { color: #7a5300 !important; }
+.page-shell .app-topbar-greeting,
+.page-shell .app-topbar-slot { flex: 1 1 auto; min-width: 0; }
+
+.app-search {
+  flex: 0 1 440px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 38px;
+  border: 1px solid #d3dae2;
+  border-radius: 6px;
+  background: #f7f9fb;
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+.app-search:hover { border-color: #b9c3ce; }
+.app-search:focus-within { border-color: #1465d9; background: #fff; box-shadow: 0 0 0 1px #1465d9; }
+.app-search-label { display: grid; place-items: center; width: 38px; height: 100%; color: #5f6b78; cursor: text; }
+.app-search-label .app-icon { width: 16px; height: 16px; }
+.app-search-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* !important: styles.css da a todo input borde, fondo, radio y alto mínimo
+   (más grandes en el teléfono); aquí el borde es el de la caja entera. */
+.app-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 4px 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #16283b;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  box-shadow: none !important;
+}
+
+/* Menú (solo en pantallas angostas): ícono sin caja de color, como los demás. */
+.page-shell .app-topbar .app-menu-button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #16283b !important;
+  box-shadow: none !important;
+}
+.page-shell .app-topbar .app-menu-button .app-icon,
+.page-shell .app-topbar .app-menu-button svg { width: 20px; height: 20px; color: #16283b !important; stroke: currentColor !important; }
+.page-shell .app-topbar .app-menu-button:hover { background: #eef1f4 !important; }
+.app-search input::placeholder { color: #6b7783; }
+.app-search input::-webkit-search-cancel-button { display: none; }
+.app-search kbd {
+  margin-right: 8px;
+  padding: 0 6px;
+  border: 1px solid #d3dae2;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #fff;
+  color: #6b7783;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.app-search:focus-within kbd { visibility: hidden; }
+
+/* Íconos de la barra: mismo tamaño, sin caja, sin color hasta que hay algo. */
+.page-shell .app-topbar .notification-bell,
+.page-shell .app-topbar .fi-button {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #5f6b78;
+}
+.page-shell .app-topbar .notification-bell:hover,
+.page-shell .app-topbar .fi-button:hover { background: #eef1f4; color: #16283b; }
+.page-shell .app-topbar .fi-button.has-fallas { color: #b42318; background: transparent; }
+.page-shell .app-topbar .fi-button.has-fallas svg { animation: none; }
+
+/* Cuenta: avatar con iniciales; el nombre y el rol van dentro del menú. */
+.page-shell .app-topbar .app-user-chip.is-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  min-height: 40px !important;
+  height: 40px;
+  max-width: none;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.page-shell .app-topbar .app-user-chip.is-avatar:hover { background: #eef1f4; transform: none !important; box-shadow: none !important; }
+.app-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0b3f73;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.app-user-menu-who { display: grid; gap: 1px; margin: 0 0 4px; padding: 6px 8px 8px; border-bottom: 1px solid #e3e8ee; }
+.app-user-menu-who strong { color: #16283b; font-size: 14px; }
+.app-user-menu-who small { color: #5f6b78; font-size: 12px; }
+
+/* El sonido de los avisos, dentro del panel de notificaciones. */
+.notification-dropdown-header h4 { margin-right: auto !important; }
+.notification-dropdown-header .notification-sound-toggle {
+  width: auto;
+  height: 30px;
+  gap: 6px;
+  margin-right: 6px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: transparent;
+  color: #47525e;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.notification-dropdown-header .notification-sound-toggle.is-muted { background: transparent; color: #6b7783; }
+.notification-dropdown-header .notification-sound-toggle:hover { background: #eef1f4; color: #16283b; }
+
+@media (max-width: 768px) {
+  .page-shell .app-topbar { flex-wrap: wrap; row-gap: 8px !important; padding-bottom: 8px !important; }
+  .app-search { order: 5; flex: 1 1 100%; }
+  .app-search kbd { display: none; }
+}

@@ -1,9 +1,15 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Bell, Volume2 } from "lucide-react";
+import { Bell } from "lucide-react";
+import BuscadorGlobal from "../app/BuscadorGlobal";
+import "../app/appChrome.css";
+import AppSidebar from "../components/sidebar/AppSidebar.jsx";
+import { buildSidebarSections } from "../components/sidebar/sidebarConfig.js";
+import logo from "../assets/logo-aguas-choluteca.png";
 import DashboardWorkspace from "../modules/dashboard/DashboardWorkspace";
 import { Icon } from "../components/Icon";
 import "../styles.css";
+import "../components/sidebar/sidebar.css";
 import "../components/ds/design-system.css";
 
 // Banco de pruebas del tablero: tarjetas compactas, pulsación de las acciones
@@ -34,6 +40,7 @@ const model = {
   refreshing: false,
   connectionStatus: "live",
   syncLabel: "Sincronizado hace un momento",
+  lastUpdatedAt: "2026-11-15T14:42:00Z",
   padronTotals: { records: 25158, barrios: 127, updatedAt: "2026-09-18T14:05:00Z" },
   onlineUsers: [
     { id: 1, full_name: "Ana Díaz", roleLabel: "Administradora" },
@@ -115,35 +122,57 @@ const model = {
     ),
   feed: [
     { key: 1, title: "Ficha 0301-0012-0045 actualizada", detail: "admin · hace 4 minutos", icon: "records" },
-    { key: 2, title: "Punto GPS registrado en COL. VENECIA", detail: "Melisa maradiaga · hace 12 minutos", icon: "map" }
-  ]
+    { key: 2, title: "Punto GPS registrado en COL. VENECIA", detail: "Melisa Maradiaga · hace 12 minutos", icon: "map" },
+    { key: 3, title: "Lote FOX-20261105-0800 recibido", detail: "Importación · hace 30 minutos", icon: "download" },
+    { key: 4, title: "Ficha 0214-0031-0007 validada", detail: "Elena López · hace 47 minutos", icon: "records" },
+    { key: 5, title: "Inspección INS-0412 cerrada", detail: "Diego Andino · hace 1 hora", icon: "records" }
+  ],
+  // Responde como /entregas/avance-mes (ver avanceEntregasResumen.test.mjs).
+  fetchAvanceEntregas: async () => ({
+    desde: "2026-11-01", total: 76, entregados: 41, en_curso: 6, documentos_entregados: 15604, documentos_asignados: 25158,
+    hoy: { lotes: 6, abiertos: 4, asignadas: 2180, entregadas: 1310 },
+    barrios: Array.from({ length: 76 }, (_, i) => ({
+      codigo: String(i + 1).padStart(2, "0"), responsable_id: (i % 4) + 1, responsable_nombre: ["Diego Andino", "Luis Herrera", "Melisa Maradiaga", "Carlos Rivera"][i % 4],
+      estado: i < 41 ? "entregado" : i < 47 ? "en_curso" : "pendiente", entregadas: i < 41 ? 380 : 0
+    }))
+  })
 };
 
 // ?marco: el tablero dentro del mismo marco que App.jsx (page-shell con
 // dashboard-refactor-mode y la barra superior), para revisar la barra sin sesión.
+// Etiqueta del banco: estas cifras no son reales (PRODUCT.md, Evidence on Hand).
+const estiloEtiqueta = document.createElement("style");
+estiloEtiqueta.textContent = ".qa-datos-prueba{display:inline-block;margin:4px 0 24px;padding:4px 8px;border:1px dashed #5f6a75;border-radius:4px;background:#f6f7f8;color:#47525e;font:600 12px system-ui,sans-serif}";
+document.head.append(estiloEtiqueta);
+
 const conMarco = new URLSearchParams(window.location.search).has("marco");
+const secciones = buildSidebarSections(
+  ["records", "lookup", "map", "mapReports", "padron", "importacion", "entregas", "logs"].map((key) => ({ key, label: { records: "Fichas", lookup: "Buscar clave", map: "Puntos GPS", mapReports: "Reportes", padron: "Padrón", importacion: "Importación", entregas: "Control de entregas", logs: "Bitácora" }[key], icon: "records", helper: "Datos de prueba" })),
+  { key: "dashboard", label: "Tablero", helper: "Control", icon: "dashboard" }
+);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     {conMarco ? (
       <div className="page-shell dashboard-refactor-mode">
+        <AppSidebar sections={secciones} activeKey="dashboard" collapsed={false} mobileOpen={false} logo={logo} userName="Ana Díaz" userRole="Administradora" onToggleCollapsed={() => {}} onNavigate={() => {}} onCloseMobile={() => {}} onLogout={() => {}} />
         <header className="hero app-chrome no-print hero-admin">
           <div className="app-topbar">
             <button type="button" className="app-menu-button" aria-label="Abrir menú">
               <Icon name="menu" />
             </button>
-            <h1 className="app-topbar-title">Tablero</h1>
-            <div className="app-topbar-kpis" />
+            <BuscadorGlobal onBuscar={(texto) => window.alert(`Buscar: ${texto}`)} />
+            <div className="app-topbar-kpis" hidden />
             <div className="app-topbar-session">
               <div className="notification-center-container">
-                <button type="button" className="notification-sound-toggle" aria-label="Mutear sonido de mensajes"><Volume2 size={18} /></button>
                 <button type="button" className="notification-bell" aria-label="Abrir notificaciones"><Bell size={20} /></button>
               </div>
-              <button type="button" className="app-user-chip"><Icon name="users" />admin</button>
+              <button type="button" className="app-user-chip is-avatar" aria-label="Tu cuenta: Ana Díaz, Administradora"><span className="app-avatar" aria-hidden="true">AD</span></button>
             </div>
           </div>
         </header>
         <DashboardWorkspace model={model} />
+        <p className="qa-datos-prueba" role="note">Datos de prueba: cifras inventadas con la forma real del padrón.</p>
       </div>
     ) : (
       <DashboardWorkspace model={model} />

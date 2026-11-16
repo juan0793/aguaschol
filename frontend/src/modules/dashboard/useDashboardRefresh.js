@@ -20,9 +20,8 @@ export function useDashboardRefresh({
       setDashboardConnectionStatus("updating");
       try {
         // `loadUsers` no va aqui: el efecto de usuarios en linea ya es su dueño
-        // unico y lo refresca cada 20 s, ademas de al enfocar la ventana y al
-        // volver a la pestaña. Teniendolo tambien en este ciclo de 10 s, /users
-        // salia dos veces al abrir el tablero y nueve veces por minuto.
+        // unico (cada minuto, al enfocar la ventana y al volver a la pestaña).
+        // Este ciclo corre cada 2 min (DASHBOARD_REFRESH_INTERVAL_MS).
         await Promise.all([
           loadRecordSummary({ silent: true }),
           loadMapDiaryGroups({ silent: true }),

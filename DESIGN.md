@@ -15,13 +15,16 @@ Principios:
 
 Referencias de caracter:
 - Fichas y avisos: formato institucional, parecido a documento de oficina.
-- Tablero y listados: densidad tipo sistema administrativo moderno, cercano a shadcn admin dashboards.
+- Listados: densidad tipo sistema administrativo moderno, cercano a shadcn admin dashboards.
+- Tablero (desde 2026-11-15): panel de sala de control de acueducto, gris de planta y color solo para lo anormal (ver 5 › Tablero).
 - Formularios: claridad de datos y flujo guiado, sin adornos innecesarios.
 - Mapas y reportes: enfoque tecnico, coordenadas y resumen visual confiable.
 
 ## 1.1 Referencia shadcn admin
 
 El proyecto puede tomar de shadcn/ui la sobriedad de dashboard: cards blancas, bordes finos, radios de 8px a 12px, sidebar neutral, acciones compactas, estados discretos y tipografia clara.
+
+El Tablero no sigue esta referencia desde 2026-11-15: sus módulos son grises, de 4px y sin tarjetas blancas (ver 5 › Tablero).
 
 No asumir que shadcn debe instalarse por defecto. La app actual usa React + Vite + CSS puro; instalar shadcn completo implica agregar Tailwind, configurar aliases y posiblemente migrar a TypeScript. Para cambios visuales incrementales, preferir adaptar el estilo con CSS existente.
 
@@ -66,7 +69,11 @@ Evitar:
 ## 3. Tipografia
 
 Fuente principal:
-- `Plus Jakarta Sans`, con fallback a `system-ui`, `Segoe UI`, Arial.
+- `Plus Jakarta Sans`, con fallback a `system-ui`, `Segoe UI`, Arial (`--font-sans` en `frontend/src/styles.css`). Es la letra de toda la app, incluida la barra superior global, también cuando se ve el Tablero.
+
+Excepción con ámbito (desde 2026-11-15):
+- El Tablero (`.dashboard-workspace.dws`) usa `Archivo Variable`, autoalojada con `@fontsource-variable/archivo` (con el eje de ancho, importada en `DashboardWorkspace.jsx`), con fallback a `system-ui`, `Segoe UI`, Arial. Su escala está en 5 › Tablero.
+- No es un cambio de letra de la app: no usar Archivo fuera del Tablero ni Plus Jakarta Sans dentro de él, salvo que se decida como cambio de sistema.
 
 Reglas:
 - Texto de trabajo: 14px a 16px segun densidad.
@@ -97,12 +104,30 @@ Radios:
 - Controles pequenos: 8px a 10px.
 - Paneles y tarjetas: 10px a 14px.
 - Fichas/documentos imprimibles: maximo 8px en bloques internos.
+- Tablero: 4px en módulos y controles; 2px en pistas de medidores y barras (ver 5 › Tablero).
 - Evitar radios grandes en formatos oficiales.
 
 Sombras:
 - Usar sombras suaves solo para separar paneles interactivos.
 - En documentos y fichas, preferir borde fino sobre sombra fuerte.
 - En impresion, eliminar sombras.
+- Tablero: los módulos no llevan sombra; solo flota la lista de sugerencias del buscador de barrios (`0 6px 16px rgba(27, 34, 41, 0.12)`).
+
+### Barra superior global (desde 2026-11-15)
+
+La barra es marco de la página y es igual en todas las pantallas (`frontend/src/app/AppHeader.jsx`, `frontend/src/app/appChrome.css`). Reemplaza la tarjeta flotante con radio, sombra y degradado que en cada cambio de pantalla volvía a aparecer desde transparente.
+- Blanca, a todo el ancho (sangra sobre el margen de la página), 56px de alto mínimo, con un filete de 1px `#dfe5ec` abajo. Sin radio, sin sombra, sin desenfoque y sin animación de entrada.
+- Hereda la letra de la app (Plus Jakarta Sans), también sobre el Tablero.
+- De izquierda a derecha: el botón de menú (solo en pantallas angostas: icono de 20px sin caja), el buscador y, al final, la sesión.
+- Buscador global (`app/BuscadorGlobal.jsx`) en el lugar del título: "Clave catastral, abonado o nombre". Hasta 440px de ancho y 38px de alto, radio 6px, fondo `#f7f9fb` con filete `#d3dae2`; al enfocar pasa a blanco con borde y anillo de 1px azul `#1465d9`. Muestra la tecla `/` como pista, que se oculta con el foco. `/` y Ctrl+K lo enfocan, Esc lo vacía y lo suelta; al enviar abre "Buscar clave" con el texto. En el teléfono baja a su propia fila, a todo el ancho y sin pista de tecla. No lo tienen Transporte ni quien no puede abrir Buscar clave; Gerencia ve en su tablero el saludo en ese lugar.
+- Sin cifras del módulo en la barra: cada pantalla pone las suyas en su página.
+- El estado de guardado es texto gris `#5f6b78` de 12px, sin pastilla ("Todo guardado"); en ámbar `#7a5300` si hay cambios sin guardar. No aparece en Tablero ni en Entregas.
+- Íconos de la sesión, todos de 40 × 40, sin caja y sin color hasta que hay algo (gris `#5f6b78`; hover con fondo `#eef1f4` y tinta `#16283b`): la campana; el icono de fallas (administración y Gerencia), solo cuando hay fallas sin revisar, en el mismo rojo de alarma del tablero (`#c42b1c`) y quieto; y la cuenta.
+- El sonido de los avisos se activa o se silencia dentro del panel de notificaciones, junto a su título; no está en la barra.
+- Cuenta: avatar circular de 30px con las iniciales en blanco sobre azul profundo `#0b3f73`. El nombre y el rol van arriba de su menú (Mi perfil, Cambiar contraseña, Cerrar sesión), no en la barra.
+- En algunos módulos la franja de herramientas del módulo queda dentro de la banda blanca, debajo de la barra, sin movimiento propio. Debajo de todo, una línea fina avisa cuando la app está pidiendo datos.
+- Cambio de pantalla: el contenido nuevo entra con un solo fundido de opacidad de 160ms, sin moverse (`app/transicionVista.js`), y las entradas propias de cada módulo se terminan al instante. La barra, el menú lateral y los diálogos no se animan. Con movimiento reducido no hay fundido.
+- El hueco de la barra de desplazamiento queda reservado (`scrollbar-gutter: stable`): al pasar de una pantalla corta a una larga el contenido no se corre de lado.
 
 ## 5. Componentes
 
@@ -151,13 +176,52 @@ Los listados deben favorecer busqueda y comparacion:
 
 ### Tablero
 
-El tablero debe ser ejecutivo y escaneable:
-- KPIs compactos.
-- Alertas accionables.
-- Resumen de fichas, mapas, actividad y pendientes.
-- Evitar secciones tipo hero comercial.
+Panel de sala de control (desde 2026-11-15; reemplaza en el tablero el lenguaje de análisis tipo "Insights Dashboard" que usaba desde 2026-09-24). El tablero es la pantalla de operación de la cartera, como la de una sala de control de acueducto: gris sereno de planta, y solo lo que se sale de lo normal toma color. Rechaza la grilla de tarjetas blancas con KPI, icono y gráfico de adorno. Todo vive en `frontend/src/modules/dashboard/dashboardSala.css`, bajo `.dashboard-workspace.dws`; las piezas que se reusan (selección, buscador de barrios, desgloses, cambios del lote, entregas) toman la paleta por los tokens `--dw-*`, que ahí apuntan a los `--s-*`.
 
-Lenguaje de tablero de análisis (desde 2026-09-24, tomado de una referencia tipo "Insights Dashboard" en versión clara). Aplica al tablero principal y es la excepción documentada a las reglas generales de títulos y bordes:
+Paleta (tokens `--s-*`, solo dentro del tablero):
+- Gris de planta `#e2e5e8` (`--s-ground`): el suelo de toda la página mientras se ve el tablero.
+- Módulo `#f6f7f8` (`--s-panel`) y pozo `#eceef0` (`--s-well`: cabecera de tabla, pistas, desglose, selección, control segmentado). El blanco `#fff` queda para el hover de filas y botones y para el campo de búsqueda.
+- Filetes: `#c2c8ce` (`--s-rule`, borde de módulo y de control), `#d8dce0` (`--s-rule-soft`, divisiones internas) y `#e3e6e9` (`--s-grid`, rejilla del gráfico).
+- Tinta en tres pasos: `#1b2229` cifras y texto, `#47525e` secundario (y el capital del medidor), `#5f6a75` terciario (escalas, rango, sin dato).
+- Neutro de dato `#8e98a2` y su claro `#c4cad0`: puntos del gráfico, días anteriores, lo próximo a vencer y el rayado de intereses.
+- Azul de medida `#1465d9`, profundo `#0b3f73` y lavado `#dce8fa`: la magnitud medida, el foco, la fila elegida, los enlaces y el botón primario.
+- Alarma `#c42b1c` con lavado `#f6e1de`: solo lo crítico y lo que sube la mora.
+- Atención `#d89a0b` (relleno), `#7a5300` (texto) y lavado `#f7ecd2`: lo que pide atención, el corte viejo y "No se pudo actualizar".
+
+Reglas:
+- Color solo para lo anormal. Lo normal va en gris y tinta. No hay verde como "bueno": lo que baja la mora va en tinta y lo que la sube en rojo (cambios del lote, columna Cambio y deltas de los medidores).
+- Gravedad también por forma: Crítico es un cuadrado rojo, Atención un triángulo ámbar y Aviso un rombo gris (12px; el rombo 11px). La forma dice el nivel aun sin color. El cambio lleva un triángulo sólido hacia arriba o hacia abajo.
+- Una familia en cuatro tamaños: Archivo Variable en 12, 14, 20 y 44 px, con cifras tabulares en todo el tablero. Rótulos, cabeceras, escalas y ejes van condensados por ancho (82–88 %) y las cifras grandes a 85 %. Títulos de módulo de 14px, peso 720, en caso oración, sin mayúsculas ni tracking; título de la página de 20px, peso 750. Sin tracking negativo, tampoco en la cifra de 44px.
+- Módulos planos: fondo de módulo, filete de 1px, esquinas de 4px, sin sombra. Encabezado de 48px de alto mínimo con el título a la izquierda y los controles a la derecha, separado por un filete suave; cuerpo con 14 × 16 px de relleno; pie con filete arriba para la ayuda y el enlace al informe. 12px entre módulos y ancho máximo de 1680px.
+- Un gráfico se lee o no va: todo gráfico lleva escala, rótulos o una frase que lo lee debajo.
+- Verdad de datos: no hay historial de mora por lote (solo el lote anterior), así que no van series de mora; el cambio por barrio solo existe para los que más cambiaron (el resto dice "—"); los plazos de fichas no tienen dato de la semana anterior (sin delta ni marca).
+
+Orden de la pantalla:
+- Encabezado de página: "Tablero" y debajo la línea de origen ("Padrón maestro", "Corte del …" en tinta fuerte, o "Sin padrón cargado" en ámbar con "Importar padrón"; "· lote …"; "Hace N días" en ámbar con su triángulo si el corte pasa de 7 días; "· cifras de las HH:MM" o, si falla, "No se pudo actualizar · reintentando" en ámbar). Las acciones van al lado, o debajo cuando no caben: las secundarias como botones silenciosos de icono y texto, "Actualizar" y al final la primaria "Nueva ficha". En el teléfono, rejilla de dos columnas con borde.
+- "Requiere atención" a todo el ancho: una fila por aviso, ordenada por gravedad, con la forma y "Crítico / Atención / Aviso", qué pasa, el detalle, la cifra (20px) y las acciones "Marcar visto" y la que lleva al módulo. La fila se tiñe con el lavado de su gravedad. "Marcar visto" quita el tinte y deja el símbolo en contorno; la fila sigue hasta que el problema se resuelve y vuelve a encenderse si cambia su cifra. Sin avisos: "No hay prioridades pendientes."
+- Fila de medidores en proporción 5 : 4 : 3 (dos columnas bajo 1180px con Plazos a todo el ancho; una en el teléfono):
+  - "Cartera en mora": la cifra de 44px con su cambio desde el lote anterior; un medidor horizontal de 14px con el capital en tinta secundaria, los intereses rayados y la marca vertical en tinta (2px) del lote anterior; escala debajo y leyenda de capital e intereses.
+  - "Cuentas del padrón": un nivel por fila con su cifra, rótulo, nota, medidor azul de 8px a la escala del padrón, la marca del lote anterior y el cambio.
+  - "Plazos de fichas": franja segmentada de vencidas (rojo), por vencer (ámbar) y próximas (neutro), y una lista con la forma de cada nivel. "Regla de 7 días hábiles desde el registro."
+- "Cambios desde el lote anterior", con la paleta del tablero (ver "Lotes FoxPro en el tablero").
+- Columna ancha y columna angosta, con el separador arrastrable:
+  - "Barrios con mayor mora": controles segmentados de orden y cantidad, e imprimir. Debajo, la franja de concentración (cifra de 20px, una frase y una barra azul con un tramo por barrio), el buscador de barrios, la tabla y, debajo de la tabla, la selección, para que al elegir un barrio la fila no se corra bajo el cursor.
+  - La tabla: N.º, Barrio, la medida elegida con barra de 6px y su cifra, % del total, Con mora, Mora alta, Cambio y el desglose. Filas de 44px con filete suave; hover y fila señalada en blanco; la elegida en lavado azul con el nombre en azul profundo; foco con anillo azul por dentro. Las flechas recorren y Enter o espacio eligen. Las columnas dependen del ancho del módulo (container query): bajo 760px salen "% del total" y "Mora alta"; bajo 600px, también "Con mora".
+  - "Mora por servicio": el gráfico de puntos (un punto neutro por barrio; el barrio señalado en azul y los demás atenuados; con teclado, flechas para recorrer y Esc para soltar) y una fila por servicio con icono, pista azul de 6px, cifra y chevrón que despliega sus barrios.
+  - Firma: la fila de un barrio (cursor, foco o selección) enciende su punto en el gráfico por servicio y su tramo, en azul profundo, en la barra de concentración.
+  - Columna angosta: "Entregas" (avance del ciclo), "Campo" (filas de 52px con el indicador, su cifra de 20px y la serie de los últimos 7 días: columnas neutras, hoy en azul, el día bajo cada columna y el máximo como escala) y "Bitácora" (una línea por acción; vacía dice "Aún no hay actividad hoy.").
+- Los módulos se pliegan desde su encabezado y el estado se recuerda.
+
+Controles:
+- Botón: 36px de alto, 4px, filete y fondo de módulo, 14px peso 600; hover a blanco. Silencioso: sin borde ni fondo. Primario: azul de medida con texto blanco (hover `#0f56bd`). Botón de icono: 36 × 36, sin caja, tinta secundaria, hover al pozo.
+- Enlace: azul profundo subrayado de 1px; hover al azul de medida.
+- Control segmentado: pozo con filete; opciones de 28px en 12px condensado; la elegida en fondo de módulo con filete.
+- Foco: anillo azul de 2px a 2px de distancia. La selección de texto va en lavado azul.
+- Movimiento: cambios de color de 120ms, tinte del aviso en 200ms, chevrones en 160ms y barras de la tabla en 400ms con `cubic-bezier(0.23, 1, 0.32, 1)`. Con movimiento reducido no hay transiciones.
+
+QA: `frontend/qa-tablero-preview.html`; maqueta de referencia en `frontend/mockup-tablero.html`.
+
+Lenguaje de análisis (desde 2026-09-24, tomado de una referencia tipo "Insights Dashboard" en versión clara). Lo usan las pantallas que lo citan más abajo (monitoreo, resúmenes de proceso, Gerencia, Consultas, Reclamos, Pozos); el tablero principal lo dejó el 2026-11-15 por el panel de sala de control. Es la excepción documentada a las reglas generales de títulos y bordes:
 - Paneles planos: fondo blanco, filete gris de 1px (`#dfe5ec`), radio de 8px, sin sombras.
 - Sin filetes de color arriba ni a la izquierda, sin etiquetas en mayúsculas encima del título y sin insignias de fondo para los conteos.
 - Títulos de panel en caso oración, de 15px y peso 650. Es más chico que la regla general de 18 a 24px, porque en el tablero el protagonista es la cifra.
@@ -219,8 +283,7 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - En pantallas angostas, los pasos bajan uno debajo del otro y la flecha apunta hacia abajo.
 - Marca de la aplicación (desde 2026-10-05):
   - El menú lateral conserva el logo con el nombre "Aguas de Choluteca / Panel ejecutivo".
-  - Fuera del tablero, la barra superior no repite el nombre ni el título, porque el título ya lo dice la página. Lleva solo el logo, circular y sin letras, al centro de la barra (50px; 40px en el teléfono, junto al botón del menú). Un clic lleva al inicio. En reposo late cada 5 segundos: un leve pulso del logo y una onda azul que se apaga. Al pasar el puntero, la onda se acelera. Con movimiento reducido queda quieto.
-  - Las cifras de la barra nunca pasan por debajo del logo. Lo que no cabe antes del centro se oculta.
+  - La barra superior no repite el nombre ni el título, porque el título ya lo dice la página. Desde 2026-11-15 tampoco lleva el logo ni cifras del módulo: el logo queda en el menú lateral y la barra es la misma en todas las pantallas (ver 4 › Barra superior global).
   - El menú usa el mismo nombre que la página: "Consultas del padrón" (antes "Impresión e informes").
 - "Servicios por barrio" en Consultas del padrón permite elegir un servicio (desde 2026-10-05):
   - Arriba de la tabla hay una fila de columnas iguales: "Todos los servicios" y una columna por servicio, cada una con sus usuarios y su porcentaje del padrón. La columna elegida va en azul claro con un filete azul abajo.
@@ -283,7 +346,7 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
 - "Fallas del equipo" (desde 2026-10-13). Lo que técnicos y operadores intentaron guardar y no se pudo:
   - Se registra sola: el servidor anota toda acción que guarda algo y falla (404, 409, datos no válidos…) y cualquier error 500; el teléfono anota lo que ni siquiera salió por falta de señal y lo envía al volver la conexión. Nunca se guarda lo que la persona escribió, solo la acción ("Cerrar lote #41"), el motivo y cuántas veces pasó. No cuentan administración, Gerencia, la prueba de perfil ni la sesión (ingresar, contraseña).
   - El símbolo de las fallas es la "Gota rota" (`components/icons/GotaRota.jsx`): la gota de Aguas partida, con el trazo de los iconos de la app. Va en el encabezado, en el menú y en las fallas rechazadas (404, 409…); "sin conexión" y "error del servidor" conservan su icono para distinguirse.
-  - En el encabezado de administración y Gerencia, junto a la campana, va ese icono propio: tenue sin pendientes; rojo con su contador cuando hay fallas sin revisar, con un leve vaivén cada pocos segundos. Al tocarlo muestra las últimas, con un punto por tipo (ocre sin conexión, rojo rechazada, vino error del servidor).
+  - En el encabezado de administración y Gerencia, junto a la campana, va ese icono propio solo cuando hay fallas sin revisar: rojo, quieto y con su contador (desde 2026-11-15; antes se veía tenue sin pendientes y se mecía). Al tocarlo muestra las últimas, con un punto por tipo (ocre sin conexión, rojo rechazada, vino error del servidor).
   - La pantalla (Gestión → Fallas del equipo) abre con una franja de cifras por tipo que sirve de filtro, "Sin revisar / Todas" y persona. Cada fila: icono del tipo, acción, persona, código legible ("409 · ya había cambiado"), mensaje y hace cuánto. Administración marca una o todas como revisadas; Gerencia solo consulta.
 - Tablero de Apuntes (rediseño del 2026-10-13):
   - Encabezado con conteos vivos ("10 apuntes activos · 8 nuevos esta semana"), selector Tarjetas/Lista y botón "Atajos". "Todos / Fijados / Archivados" llevan su número. Debajo, filtros de un clic: un punto por color con su cantidad y una pastilla por categoría; "Quitar filtros" aparece solo con alguno activo. La categoría de una tarjeta también filtra al tocarla.
@@ -301,8 +364,8 @@ Resúmenes de proceso sin tarjetas (desde 2026-09-30, primero: "Resumen de cland
   - Pie fijo: a la izquierda lo que sale ("98 puntos · 3 barrios" y la jornada), a la derecha "Vista previa" y la acción principal, que muestra el paso en curso al generar. No hay "Cancelar": cierran la X, Esc y el fondo.
   - QA: `frontend/qa-generar-documento.html?abrir=1` (datos simulados).
 - Lotes FoxPro en el tablero (desde 2026-11-04). El backend compara el padrón activo con el lote anterior aplicado (`GET /claves/padron/lotes/comparacion`, `?anterior=` elige otro). Saca el lote anterior del detalle en MySQL si todavía lo guarda, y si no, de su copia en R2. Cada cuenta se reconoce por su abonado.
-  - "Cuentas del padrón": las barras van a la escala del padrón, con el porcentaje al final de cada una. Una marca vertical en tinta señala dónde estaba el nivel en el lote anterior. A la derecha va el cambio: rojo si sube la mora, verde oscuro `#0f7a66` si baja y en tinta si es el total de cuentas. El eje 0–100 % va abajo y la leyenda nombra el lote anterior. La cartera lleva debajo "▲ L 4.1 M desde el lote anterior".
-  - "Cambios desde el lote anterior" es un panel plano de dos columnas. La izquierda es el puente de la mora: mora anterior, luego cuentas nuevas, subió, bajó, pagaron todo y salieron, y al final la mora de este lote. Cada movimiento es una barra divergente desde un eje central, con lo que suma a la derecha en rojo y lo que resta a la izquierda en verde. La derecha muestra los barrios donde más cambió la mora, con la misma barra. Debajo van cayeron en mora, cambiaron de servicio, de barrio e iguales.
+  - "Cuentas del padrón": las barras van a la escala del padrón, con el porcentaje al final de cada una. Una marca vertical en tinta señala dónde estaba el nivel en el lote anterior. A la derecha va el cambio: rojo si sube la mora y en tinta si baja o si es el total de cuentas (desde 2026-11-15 el tablero no usa verde). El eje 0–100 % va abajo y la leyenda nombra el lote anterior. La cartera lleva junto a su cifra "▲ L 4.1 M desde el lote anterior".
+  - "Cambios desde el lote anterior" es un panel plano de dos columnas. La izquierda es el puente de la mora: mora anterior, luego cuentas nuevas, subió, bajó, pagaron todo y salieron, y al final la mora de este lote. Cada movimiento es una barra divergente desde un eje central, con lo que suma a la derecha en rojo y lo que resta a la izquierda en tinta. La derecha muestra los barrios donde más cambió la mora, con la misma barra. Debajo van cayeron en mora, cambiaron de servicio, de barrio e iguales.
   - Si llegó un lote más nuevo que todavía no se activa, una línea entre filetes lo avisa y lleva a Importación. La comparación se imprime con el documento del padrón.
   - QA: `frontend/qa-tablero-preview.html` (`?pendiente=1`, `?lotes=no`).
 - "Barrios sin Aguas" (menú propio en Gestión, ruta `/barrios-sin-aguas`, desde 2026-11-04). Muestra los barrios del padrón de Alcaldía cuyas claves no coinciden con ninguna clave de Aguas. El backend los entrega en `GET /claves/alcaldia/barrios-sin-aguas` y las claves de cada barrio en `.../claves?barrio=`.
@@ -426,6 +489,8 @@ Hacer:
 - Preferir componentes simples y mantenibles.
 - Separar visual de impresion con clases `no-print` y reglas `@media print`.
 - Diseñar primero para flujo operativo real.
+- En el Tablero, usar solo los tokens `--s-*` de `dashboardSala.css` y su escala de 12, 14, 20 y 44 px.
+- Mantener la barra superior igual en todas las pantallas: lo propio de cada módulo va en su página.
 
 No hacer:
 - No instalar una libreria UI grande sin necesidad.
@@ -434,6 +499,8 @@ No hacer:
 - No meter tarjetas dentro de tarjetas.
 - No cambiar todo el lenguaje visual por copiar una marca externa.
 - No romper la similitud de ficha/aviso con los formatos de referencia.
+- No llevar al Tablero tarjetas blancas, radios de 8–12px, sombras ni verde como "bueno".
+- No usar Archivo fuera del Tablero ni volver a poner cifras de módulo, logo o animación de entrada en la barra superior.
 
 ## 12. Guia para agentes
 

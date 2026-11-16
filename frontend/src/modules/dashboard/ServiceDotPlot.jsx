@@ -47,13 +47,19 @@ const useWidth = () => {
  * Con teclado: Tab entra, ↑/↓ recorren los barrios de la columna, ←/→ cambian
  * de servicio con el mismo barrio y Esc suelta.
  */
-export default function ServiceDotPlot({ debtBarrios = [] }) {
+export default function ServiceDotPlot({ debtBarrios = [], resaltado = "" }) {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState(null); // { barrio, field }
   const [pinned, setPinned] = useState(null);
-  const active = hover || pinned;
 
   const columns = useMemo(() => buildServiceColumns(debtBarrios, SERVICES).filter((column) => column.dots.length), [debtBarrios]);
+  // `resaltado` llega del tablero de barrios: la fila que se señala enciende su
+  // barrio aquí, en la primera columna donde aparece. Lo propio del gráfico
+  // (cursor o clic) manda sobre eso.
+  const externo = resaltado
+    ? { barrio: resaltado, field: columns.find((column) => column.dots.some((dot) => dot.barrio === resaltado))?.field || null }
+    : null;
+  const active = hover || pinned || (externo?.field ? externo : null);
   const maxValue = Math.max(1, ...columns.flatMap((column) => column.dots.map((dot) => dot.value)));
   const { top, ticks } = niceTicks(maxValue);
   const layout = useMemo(

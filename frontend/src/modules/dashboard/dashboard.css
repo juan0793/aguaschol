@@ -2616,7 +2616,8 @@ body.dw-resizing * {
    =========================================================================== */
 
 .dashboard-workspace {
-  --dw-baja: #0f7a66;
+  /* La baja no es "buena": va en tinta, como en el resto del tablero. */
+  --dw-baja: var(--dw-ink);
   --dw-cambio-col: 4.8rem;
 }
 

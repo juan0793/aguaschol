@@ -47,7 +47,7 @@ const check = async () => {
   document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true})); await wait();
   if (bell.getAttribute('aria-expanded') !== 'false') throw Error('Escape no cierra');
   document.querySelectorAll('.dw-filters button')[2].click(); await wait();
-  if (!document.querySelector('.dw-attention').textContent.includes('No hay prioridades')) throw Error('Filtro vacío incorrecto');
+  if (!document.querySelector('.dws-alarms').textContent.includes('No hay prioridades')) throw Error('Filtro vacío incorrecto');
   document.querySelectorAll('.dw-filters button')[0].click();
   }
   if (empty) {

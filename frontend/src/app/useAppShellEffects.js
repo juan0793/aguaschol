@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { API_URL } from "../config/api";
+import { suavizarCambioDeVista } from "./transicionVista";
 import { AUTH_STORAGE_KEY, SIDEBAR_COLLAPSED_STORAGE_KEY } from "../constants/storageKeys";
 import { getDefaultWorkspaceView } from "../utils/appShell";
 import { getPathForWorkspaceView, getWorkspaceViewFromPath } from "../components/sidebar/sidebarConfig";
@@ -7,6 +8,7 @@ import { canOpenWorkspace } from "../utils/roleAccess.js";
 import { installSearchScrollGuard } from "../utils/searchScrollGuard";
 import { MANAGER_NAVIGATION } from "../utils/roleAccess.js";
 import { sessionMode } from "../utils/rolePreview.js";
+import { PRESENCE_REFRESH_MS } from "../constants/workspace";
 
 export function useAppShellEffects({
   apiFetch,
@@ -158,7 +160,7 @@ export function useAppShellEffects({
     loadUnreadMessagesCount();
 
     // Actualizar cada 30 segundos
-    const intervalId = window.setInterval(loadUnreadMessagesCount, 30000);
+    const intervalId = window.setInterval(loadUnreadMessagesCount, PRESENCE_REFRESH_MS);
 
     return () => window.clearInterval(intervalId);
   }, [isAuthenticated, session?.user?.id, session?.user?.role, apiFetch]);
@@ -206,8 +208,14 @@ export function useAppShellEffects({
     return () => navigator.serviceWorker.removeEventListener("message", alAviso);
   }, [isAuthenticated, role, setWorkspaceView]);
 
+  // La primera vista entra como siempre; los cambios de pantalla, con un solo
+  // fundido corto y sin las entradas propias de cada módulo (transicionVista.js).
+  const vistaAnterior = useRef(workspaceView);
   useEffect(() => {
     setShowMobileModuleMenu(false);
     window.scrollTo(0, 0);
+    if (vistaAnterior.current === workspaceView) return undefined;
+    vistaAnterior.current = workspaceView;
+    return suavizarCambioDeVista();
   }, [workspaceView]);
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AUTO_REFRESH_MS } from "../../../constants/workspace";
 
 // Datos de la pestaña Resumen. `mes` vacío = mes en curso (lo decide el backend en hora de Honduras).
 export const useResumenInspecciones = (api, { mes = "", active = true } = {}) => {
@@ -31,7 +32,7 @@ export const useResumenInspecciones = (api, { mes = "", active = true } = {}) =>
     const refresh = () => {
       if (document.visibilityState === "visible") load({ silent: true });
     };
-    const timer = setInterval(refresh, 30000);
+    const timer = setInterval(refresh, AUTO_REFRESH_MS);
     addEventListener("visibilitychange", refresh);
     return () => {
       clearInterval(timer);

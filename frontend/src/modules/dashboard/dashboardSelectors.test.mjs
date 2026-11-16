@@ -74,3 +74,27 @@ assert.equal(ofEachTen(12925, 19106), "7 de cada 10");
 assert.equal(ofEachTen(1, 0), "");
 assert.equal(Math.round(interestPerCapital(116561243.32, 115357814.1) * 100) / 100, 1.01);
 assert.equal(interestPerCapital(5, 0), 0);
+
+import test from "node:test";
+import { claveAviso, diasDesde, escalaRedonda, severidadAviso } from "./dashboardSelectors.js";
+
+test("escalaRedonda da un tope redondo por encima del valor", () => {
+  assert.equal(escalaRedonda(231919057), 250000000);
+  assert.equal(escalaRedonda(12302140), 15000000);
+  assert.equal(escalaRedonda(100), 100);
+  assert.equal(escalaRedonda(0), 1);
+});
+
+test("diasDesde cuenta días completos y tolera fechas vacías", () => {
+  assert.equal(diasDesde("2026-11-04T12:09:00Z", "2026-11-15T13:00:00Z"), 11);
+  assert.equal(diasDesde("", "2026-11-15T13:00:00Z"), null);
+  assert.equal(diasDesde("2026-11-16T00:00:00Z", "2026-11-15T00:00:00Z"), 0);
+});
+
+test("severidadAviso y claveAviso", () => {
+  assert.equal(severidadAviso({ level: "Crítico" }), 1);
+  assert.equal(severidadAviso({ level: "Atención", tone: "is-warning" }), 2);
+  assert.equal(severidadAviso({ level: "Informativo" }), 3);
+  assert.equal(claveAviso({ key: "a", count: 4 }), "a:4");
+  assert.notEqual(claveAviso({ key: "a", count: 4 }), claveAviso({ key: "a", count: 5 }));
+});

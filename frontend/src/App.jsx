@@ -828,6 +828,8 @@ function App() {
               }
             },
             syncLabel: dashboardConnectionStatus === "retrying" ? "Reintentando conexión…" : dashboardRefreshing ? "Actualizando…" : `Sincronizado ${formatDashboardSyncRelativeTime(dashboardLastUpdatedAt, dashboardNow)}`,
+            // Hora de las cifras para el encabezado de la página ("cifras de las 08:42").
+            lastUpdatedAt: dashboardLastUpdatedAt,
             metrics: dashboardLiveMetrics,
             debtBarrios: Array.isArray(padronServiceReport?.barrios) ? padronServiceReport.barrios : [],
             // El informe de servicios llega agregado por barrio; las cuentas de

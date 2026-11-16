@@ -5,13 +5,15 @@ import { formatCurrency } from "../../utils/currency.js";
 import { formatSpanishDate } from "../../utils/datesAndBusiness";
 import { escapeHtml } from "../../utils/html";
 import { printDocument } from "../../utils/printDocument";
-import { clampSplit, debtRankingAll, filterBarriosByQuery, formatCompactCurrency, interestPerCapital, ofEachTen, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
+import { claveAviso, clampSplit, debtRankingAll, diasDesde, escalaRedonda, severidadAviso, filterBarriosByQuery, formatCompactCurrency, interestPerCapital, ofEachTen, SPLIT_DEFAULT, selectedRankedRows, sumSelectedDebt, sumSelectedServices } from "./dashboardSelectors";
 import { buildDebtRankingPrintMarkup } from "./debtRankingPrint";
 import ServiceDotPlot from "./ServiceDotPlot";
 import EntregasAvance from "./EntregasAvance";
 import { CambiosDelLote, deltaCuentas, deltaMonto, fechaCorta, imprimirComparacionLotes, nivelesPrevios, useLotesComparacion } from "./LotesCambios";
 import logoAguasCholuteca from "../../assets/logo-aguas-choluteca.png";
+import "@fontsource-variable/archivo/wdth.css";
 import "./dashboard.css";
+import "./dashboardSala.css";
 
 const QUICK_ACTIONS = [
   ["records", "plus", "Nueva ficha"],
@@ -28,6 +30,32 @@ const FIELD_VIEWS = { records: "records", gps: "map", online: "users", users: "u
 const LEVEL_ORDER = { Crítico: 0, critical: 0, Atención: 1, pending: 1, Informativo: 2 };
 
 const PANELES_KEY = "aguas.dashboard.paneles-plegados";
+const VISTOS_KEY = "aguas.dashboard.avisos-vistos";
+const SEVERIDAD_ETIQUETA = { 1: "Crítico", 2: "Atención", 3: "Aviso" };
+// Marcas de la escala del medidor: "50", "100"… y la última con unidad ("250 M").
+const etiquetaEscala = (valor, conUnidad) => {
+  const [divisor, unidad] = valor >= 1e6 ? [1e6, "M"] : valor >= 1e3 ? [1e3, "mil"] : [1, ""];
+  const numero = Number((valor / divisor).toFixed(1)).toLocaleString("es-HN");
+  return conUnidad && unidad ? `L ${numero} ${unidad}` : numero;
+};
+const hoyLocal = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Tegucigalpa" });
+
+const leerVistos = () => {
+  try {
+    const guardado = JSON.parse(window.localStorage.getItem(VISTOS_KEY) || "null");
+    return new Set(guardado?.fecha === hoyLocal() ? guardado.claves || [] : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const guardarVistos = (claves) => {
+  try {
+    window.localStorage.setItem(VISTOS_KEY, JSON.stringify({ fecha: hoyLocal(), claves: [...claves] }));
+  } catch {
+    // Sin almacenamiento, "Visto" vale solo mientras la página esté abierta.
+  }
+};
 const ANCHO_KEY = "aguas.dashboard.ancho-principal";
 // Ancho del separador: es a la vez el espacio entre columnas y la zona de agarre.
 const HANDLE_PX = 20;
@@ -153,49 +181,30 @@ const reportIcon = (name = "file") => {
 };
 
 const reportSectionTitle = (icon, title) => `<h3>${reportIcon(icon)}<span>${escapeHtml(title)}</span></h3>`;
-const dashboardReportHeader = (title, subtitle, serviceBadge = "") => `<header class="print-header"><div class="print-report-brand"><img src="${escapeHtml(logoAguasCholuteca)}" alt="Logo Aguas de Choluteca" class="print-report-logo" /><div><span class="print-report-kicker">Aguas de Choluteca · Reporte de control</span><h1>${escapeHtml(title)}</h1>${serviceBadge}${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}</div></div><div class="print-report-meta"><span>${escapeHtml(formatSpanishDate(new Date()))}</span><strong>REPORTE OPERATIVO</strong></div></header>`;
+const dashboardReportHeader = (title, subtitle, serviceBadge = "") => `<header class="print-header"><div class="print-report-brand"><img src="${escapeHtml(logoAguasCholuteca)}" alt="Logo Aguas de Choluteca" class="print-report-logo" /><div><h1>${escapeHtml(title)}</h1><span class="print-report-kicker">Aguas de Choluteca · Reporte de control</span>${serviceBadge}${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}</div></div><div class="print-report-meta"><span>${escapeHtml(formatSpanishDate(new Date()))}</span><strong>REPORTE OPERATIVO</strong></div></header>`;
 const serviceReportBadge = (service) => {
   const isHazardous = service.field === "desechos_peligrosos";
   return `<div class="print-report-service-flag${isHazardous ? " is-hazardous" : ""}">${reportIcon(isHazardous ? "alert" : "water")}<span><small>${isHazardous ? "Servicio prioritario" : "Servicio reportado"}</small><strong>${escapeHtml(service.label)}</strong></span></div>`;
 };
 
-// Siete barras, una por dia, de la mas antigua a hoy. Un solo tono: la altura
-// es la magnitud; hoy va en el tono oscuro para ubicarse sin leer fechas.
-function MiniBars({ series = [], unit = "" }) {
-  // Sin historial se deja el hueco para que las cifras sigan alineadas.
-  if (series.length < 2) return <i className="dw-minibars" aria-hidden="true" />;
-  const max = Math.max(1, ...series.map((day) => day.total));
-  const width = 64;
-  const height = 24;
-  const gap = 2;
-  const barWidth = (width - gap * (series.length - 1)) / series.length;
-  const dayLabel = (key) => new Intl.DateTimeFormat("es-HN", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${key}T12:00:00Z`));
+// Últimos días de un indicador de campo: una columna por día con su inicial
+// debajo y el máximo como escala. Hoy en azul.
+function SerieDias({ series = [], unidad = "" }) {
+  if (series.length < 2) return null;
+  const max = Math.max(1, ...series.map((dia) => Number(dia.total || 0)));
+  const dia = (key) => new Intl.DateTimeFormat("es-HN", { weekday: "short", timeZone: "UTC" }).format(new Date(`${key}T12:00:00Z`)).replace(".", "").slice(0, 2);
   return (
-    <svg
-      className="dw-minibars"
-      viewBox={`0 0 ${width} ${height}`}
-      width={width}
-      height={height}
-      role="img"
-      aria-label={`Últimos ${series.length} días: ${series.map((day) => `${dayLabel(day.key)} ${day.total}`).join(", ")}`}
-    >
-      {series.map((day, index) => {
-        const barHeight = day.total ? Math.max(2, (day.total / max) * height) : 1;
-        return (
-          <rect
-            key={day.key}
-            x={index * (barWidth + gap)}
-            y={height - barHeight}
-            width={barWidth}
-            height={barHeight}
-            rx="1.5"
-            className={index === series.length - 1 ? "is-today" : day.total ? "" : "is-empty"}
-          >
-            <title>{`${dayLabel(day.key)}: ${day.total.toLocaleString("es-HN")} ${unit}`.trim()}</title>
-          </rect>
-        );
-      })}
-    </svg>
+    <span className="dws-serie" role="img" aria-label={`Últimos ${series.length} días: ${series.map((d) => `${d.total} ${unidad}`).join(", ")}`}>
+      <span className="dws-serie-max">máx. {max.toLocaleString("es-HN")} {unidad} por día</span>
+      <span className="dws-serie-cols">
+        {series.map((d, index) => (
+          <span key={d.key} className={index === series.length - 1 ? "is-hoy" : ""} style={{ height: `${(Number(d.total || 0) / max) * 100}%` }} title={`${d.key}: ${Number(d.total || 0).toLocaleString("es-HN")} ${unidad}`} />
+        ))}
+      </span>
+      <span className="dws-serie-x" aria-hidden="true">
+        {series.map((d, index) => <span key={d.key}>{index === series.length - 1 ? "hoy" : dia(d.key)}</span>)}
+      </span>
+    </span>
   );
 }
 
@@ -249,7 +258,7 @@ export default function DashboardWorkspace({ model }) {
     });
 
   const [debtMetric, setDebtMetric] = useState("total");
-  const [topN, setTopN] = useState(5);
+  const [topN, setTopN] = useState(10);
   const [barrioQuery, setBarrioQuery] = useState("");
   const [resaltada, setResaltada] = useState(0);
   const [selectedBarrios, setSelectedBarrios] = useState([]);
@@ -515,619 +524,670 @@ export default function DashboardWorkspace({ model }) {
     );
   };
 
-  return (
-    <main className="dashboard-workspace">
-      {/* Banda de estado: de qué corte del padrón provienen las cifras de abajo.
-          El corte es lo único que no se repite en la página; las cuentas y los
-          barrios ya los muestra "Cuentas del padrón". */}
-      <section className="dw-status" aria-label="Estado del padrón">
-        <p className="dw-status-source">
-          <span className="dw-status-label">Padrón maestro</span>
-          {padronDate ? (
-            <strong className="dw-status-date">Corte del {padronDate}</strong>
-          ) : (
-            <span className="dw-status-date is-missing">Sin fecha de corte registrada</span>
-          )}
-        </p>
-        {/* Gerencia ya muestra la actualización arriba de sus pestañas. */}
-        {model.hideSync ? null : <div className="dw-status-side">
-          {model.onlineUsers.length ? (
-            <div
-              className="dw-team"
-              title={model.onlineUsers.map((user) => `${user.full_name || user.username} · ${user.roleLabel}`).join("\n")}
-            >
-              <span className="dw-team-avatars" aria-hidden="true">
-                {model.onlineUsers.slice(0, 4).map((user) => (
-                  <i key={user.id}>{(user.full_name || user.username || "U").trim().charAt(0).toUpperCase()}</i>
-                ))}
-                {model.onlineUsers.length > 4 ? <i className="is-more">+{model.onlineUsers.length - 4}</i> : null}
-              </span>
-              <span>{model.onlineUsers.length} en línea</span>
-            </div>
-          ) : null}
-          <span className={`dw-sync is-${model.refreshing && model.connectionStatus !== "retrying" ? "refreshing" : model.connectionStatus || "idle"}`} role="status">
-            <i className="dw-sync-dot" aria-hidden="true" />
-            {model.syncLabel}
-          </span>
-          {/* Discreto y solo atento a su propio clic: la recarga automática de
-              cada 10 s no lo deshabilita. */}
-          <button type="button" className="dw-refresh" onClick={model.refresh} disabled={model.manualRefreshing} aria-label="Actualizar las cifras del tablero">
-            <Icon name="refresh" className={model.manualRefreshing ? "ds-icon-spin" : ""} />Actualizar
-          </button>
-        </div>}
-      </section>
+  // Avisos marcados como vistos hoy (se olvidan al día siguiente).
+  const [vistos, setVistos] = useState(leerVistos);
+  const alternarVisto = (clave) =>
+    setVistos((actuales) => {
+      const siguiente = new Set(actuales);
+      if (siguiente.has(clave)) siguiente.delete(clave);
+      else siguiente.add(clave);
+      guardarVistos(siguiente);
+      return siguiente;
+    });
+  // El barrio que se señala en la tabla (cursor o foco) o el último elegido:
+  // se enciende en la barra de concentración y en el gráfico por servicio.
+  const [barrioHover, setBarrioHover] = useState("");
+  const barrioSenalado = barrioHover || selectedBarrios[selectedBarrios.length - 1] || "";
 
-      {/* La cartera es la cifra que define el dia: va primero y con mas peso.
-          Las tres tarjetas de al lado la explican o piden accion. */}
-      {/* Resumen de cartera: el monto y de donde sale (capital e intereses) a la
-          izquierda; a la derecha, las cuentas como niveles sobre una regla
-          graduada, a la escala del padron. Los plazos de fichas van aparte
-          porque son trabajo operativo, no cartera. */}
-      <section className="dw-overview" aria-label="Resumen de cartera">
-        <article className="dw-resumen">
-          <div className="dw-resumen-monto">
-            <header>
-              <h2 className="dw-eyebrow">Cartera en mora</h2>
-              <button type="button" className="dw-icon-button" onClick={printDebtSummary} hidden={model.canExport === false} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
-                <Icon name="print" />
-              </button>
-            </header>
-            <p className="dw-cartera-total">
-              <Amount value={debtTotal} className="is-hero" compact flash=".dw-resumen-monto" />
-              <small className="dw-cartera-exact dw-figure">{formatCurrency(debtTotal)}</small>
-              {previos?.total.cambio ? (
-                <small className={`dw-cartera-cambio ${previos.total.cambio > 0 ? "is-sube" : "is-baja"}`} title={`Lote anterior: ${formatCurrency(previos.total.antes)}`}>
-                  <Icon name={previos.total.cambio > 0 ? "arrowUp" : "arrowDown"} />
-                  <b className="dw-figure">{deltaMonto(previos.total.cambio)}</b> desde el lote anterior
-                </small>
+  // ── Sala de control (2026-11-15) ──
+  // Lo que se sale de lo normal arriba y en color; el resto, en gris sereno.
+  const embebido = Boolean(model.hideSync);
+  const lotePendiente = (() => {
+    const data = lotes.data;
+    if (!data?.pendiente) return null;
+    const recibido = new Date(data.pendiente.fecha_recepcion);
+    const vigente = data.actual?.fecha_recepcion ? new Date(data.actual.fecha_recepcion) : null;
+    return !vigente || recibido > vigente ? data.pendiente : null;
+  })();
+  const avisos = [
+    ...attentionItems.map((item) => ({ ...item, severidad: severidadAviso(item) })),
+    ...(lotePendiente && model.canImport !== false
+      ? [{
+          key: "lote-pendiente",
+          severidad: 2,
+          title: `Lote ${lotePendiente.codigo} recibido sin aplicar`,
+          detail: `${whole(lotePendiente.nuevos)} cuentas nuevas · ${whole(lotePendiente.modificados)} con cambios`,
+          actionView: "importacion",
+          actionLabel: "Revisar lote"
+        }]
+      : [])
+  ].sort((left, right) => left.severidad - right.severidad);
+  const sinVer = avisos.filter((item) => !vistos.has(claveAviso(item))).length;
+  const porGravedad = [1, 2, 3].map((nivel) => avisos.filter((item) => item.severidad === nivel).length);
+
+  const diasCorte = diasDesde(model.padronTotals.updatedAt);
+  const horaCifras = model.lastUpdatedAt
+    ? new Date(model.lastUpdatedAt).toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit", timeZone: "America/Tegucigalpa" })
+    : "";
+  const acciones = (model.quickActions || QUICK_ACTIONS).filter(([view]) => view !== "lookup");
+  const accionPrincipal = acciones.find(([view]) => view === "records");
+  const accionesSecundarias = acciones.filter(([view]) => view !== "records");
+
+  // Medidor de la cartera: escala redonda que cubre este lote y el anterior.
+  const moraAntes = previos?.total?.antes ?? null;
+  const escalaCartera = escalaRedonda(Math.max(debtTotal, moraAntes || 0));
+  const marcasCartera = [0, 0.2, 0.4, 0.6, 0.8, 1].map((parte) => parte * escalaCartera);
+
+  // Cambio de mora por barrio contra el lote anterior (solo los que el servidor
+  // lista como los que más cambiaron; los demás no se inventan).
+  const cambioBarrio = useMemo(() => {
+    const barrios = lotes.data?.comparacion?.barrios;
+    return new Map([...(barrios?.subieron || []), ...(barrios?.bajaron || [])].map((fila) => [fila.barrio, Number(fila.diferencia || 0)]));
+  }, [lotes.data]);
+
+  const fichasActivas = Number(metricByKey.records?.value || 0);
+  const basePlazos = Math.max(alertCount, fichasActivas, 1);
+
+  return (
+    <main className="dashboard-workspace dws">
+      {!embebido ? (
+        <header className="dws-pagehead">
+          <div className="dws-pagehead-copy">
+            <h1>{model.title || "Tablero"}</h1>
+            <p className="dws-source">
+              <span>Padrón maestro</span>
+              {padronDate ? <strong>Corte del {padronDate}</strong> : <strong className="is-missing">Sin padrón cargado</strong>}
+              {lotes.data?.actual?.codigo ? <span>· lote {lotes.data.actual.codigo}</span> : null}
+              {diasCorte != null && diasCorte > 7 ? (
+                <span className="dws-stale"><i className="dws-shape is-2" aria-hidden="true" />Hace {diasCorte} días</span>
+              ) : null}
+              {model.connectionStatus === "retrying" ? (
+                <span className="dws-stale" role="status"><i className="dws-shape is-2" aria-hidden="true" />No se pudo actualizar · reintentando</span>
+              ) : horaCifras ? <span>· cifras de las {horaCifras}</span> : null}
+              {!padronDate && model.canImport !== false ? (
+                <button type="button" className="dws-link" onClick={() => model.navigate("importacion")}>Importar padrón</button>
               ) : null}
             </p>
-            <div
-              className="dw-cartera-bar"
-              role="img"
-              aria-label={`Capital ${oneDecimal(capitalShare)}, intereses ${oneDecimal(interesShare)} de la mora total`}
-            >
-              <span className="dw-seg is-capital" style={{ width: `${capitalShare}%` }} />
-              <span className="dw-seg is-interes" style={{ width: `${interesShare}%` }} />
+          </div>
+          <nav className="dws-pageactions" aria-label="Acciones del tablero">
+            {accionesSecundarias.map(([view, icon, label]) => (
+              <button type="button" key={view} className="dws-btn is-quiet" onClick={() => model.navigate(view)}>
+                <Icon name={icon} />
+                <span>{label}</span>
+              </button>
+            ))}
+            <button type="button" className="dws-btn is-quiet" onClick={model.refresh} disabled={model.manualRefreshing} aria-label="Actualizar las cifras del tablero">
+              <Icon name="refresh" className={model.manualRefreshing ? "ds-icon-spin" : ""} />
+              <span>Actualizar</span>
+            </button>
+            {accionPrincipal ? (
+              <button type="button" className="dws-btn is-primary" onClick={() => model.navigate(accionPrincipal[0])}>
+                <Icon name="plus" />
+                <span>{accionPrincipal[2]}</span>
+              </button>
+            ) : null}
+          </nav>
+        </header>
+      ) : null}
+
+      {/* Banda de alarmas: lo que pide atención hoy, por gravedad. «Visto» deja
+          el símbolo en contorno; la fila sigue hasta que el problema se resuelve,
+          y vuelve a encenderse si cambia su cifra. */}
+      <section className="dws-mod dws-alarms" aria-labelledby="dws-alarmas-titulo">
+        <header className="dws-mod-head">
+          <h2 id="dws-alarmas-titulo">Requiere atención</h2>
+          {avisos.length ? (
+            <span className="dws-aside" aria-live="polite">
+              {[["crítica", "críticas"], ["de atención", "de atención"], ["aviso", "avisos"]]
+                .map(([uno, varios], index) => (porGravedad[index] ? `${porGravedad[index]} ${porGravedad[index] === 1 ? uno : varios}` : ""))
+                .filter(Boolean)
+                .join(" · ")}
+              {` · ${sinVer ? `${sinVer} sin ver` : "todas vistas"}`}
+            </span>
+          ) : null}
+        </header>
+        {avisos.length ? (
+          <ul className="dws-alarm-list">
+            {avisos.map((item) => {
+              const clave = claveAviso(item);
+              const visto = vistos.has(clave);
+              return (
+                <li key={item.key || item.title} className={`dws-alarm is-${item.severidad} ${visto ? "is-seen" : ""}`.trim()}>
+                  <span className="dws-sev">
+                    <i className={`dws-shape is-${item.severidad}`} aria-hidden="true" />
+                    {SEVERIDAD_ETIQUETA[item.severidad]}
+                  </span>
+                  <span className="dws-alarm-what">{item.title}</span>
+                  <span className="dws-alarm-detail">{item.detail}</span>
+                  <span className="dws-alarm-count">{Number.isFinite(item.count) ? <LiveWhole as="b" className="dw-figure" value={item.count} /> : null}</span>
+                  <span className="dws-alarm-act">
+                    <button type="button" className="dws-btn" aria-pressed={visto} onClick={() => alternarVisto(clave)}>
+                      <Icon name="success" />
+                      {visto ? "Visto" : "Marcar visto"}
+                    </button>
+                    {item.actionView ? (
+                      <button type="button" className="dws-btn" onClick={() => navigate(item.actionView, item.filter || "")}>
+                        {item.actionLabel || "Atender"}
+                        <Icon name="arrowRight" />
+                      </button>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="dws-empty">No hay prioridades pendientes.</p>
+        )}
+      </section>
+
+      <section className={`dws-gauges ${model.hideDeadlines ? "is-two" : ""}`.trim()} aria-label="Resumen de cartera">
+        {/* Cartera: la cifra es la lectura del medidor, no un KPI suelto. */}
+        <article className="dws-mod dws-cartera" aria-labelledby="dws-cartera-titulo">
+          <header className="dws-mod-head">
+            <h2 id="dws-cartera-titulo">Cartera en mora</h2>
+            <button type="button" className="dws-icon-btn" onClick={printDebtSummary} hidden={model.canExport === false} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora en PDF">
+              <Icon name="print" />
+            </button>
+          </header>
+          <div className="dws-mod-body">
+            <div className="dws-readout">
+              <Amount value={debtTotal} className="dws-big" compact flash=".dws-cartera" />
+              {previos?.total?.cambio ? (
+                <span className="dws-delta" title={`Lote anterior: ${formatCurrency(previos.total.antes)}`}>
+                  <i className={`dws-tri ${previos.total.cambio > 0 ? "is-up" : "is-down"}`} aria-hidden="true" />
+                  <b className="dw-figure">{deltaMonto(previos.total.cambio)}</b>
+                  <span>desde el lote anterior</span>
+                </span>
+              ) : null}
             </div>
-            <dl className="dw-cartera-legend">
+            <p className="dws-exact dw-figure">{formatCurrency(debtTotal)}</p>
+            <div
+              className="dws-gauge"
+              role="img"
+              aria-label={`Capital ${formatCompactCurrency(debt.capital)} e intereses ${formatCompactCurrency(debt.intereses)} sobre una escala de 0 a ${formatCompactCurrency(escalaCartera)}${moraAntes ? `; lote anterior ${formatCompactCurrency(moraAntes)}` : ""}`}
+            >
+              <span className="is-capital" style={{ width: `${percent(debt.capital, escalaCartera)}%` }} />
+              <span className="is-interes" style={{ left: `${percent(debt.capital, escalaCartera)}%`, width: `${percent(debt.intereses, escalaCartera)}%` }} />
+              {moraAntes ? <em style={{ left: `${Math.min(100, percent(moraAntes, escalaCartera))}%` }} title={`Lote anterior: ${formatCurrency(moraAntes)}`} /> : null}
+            </div>
+            <div className="dws-scale" aria-hidden="true">
+              {marcasCartera.map((marca, index) => (
+                <span key={marca} style={{ left: `${index * 20}%` }}>{etiquetaEscala(marca, index === marcasCartera.length - 1)}</span>
+              ))}
+            </div>
+            <dl className="dws-legend">
               <div>
-                <dt>
-                  <i className="is-capital" aria-hidden="true" />
-                  Capital
-                </dt>
-                <dd>
-                  <Amount value={debt.capital} compact />
-                  <b className="dw-figure">{oneDecimal(capitalShare)}</b>
-                </dd>
+                <dt><i className="is-capital" aria-hidden="true" />Capital</dt>
+                <dd><Amount value={debt.capital} compact /><span className="dw-figure">{oneDecimal(capitalShare)}</span></dd>
               </div>
               <div>
-                <dt>
-                  <i className="is-interes" aria-hidden="true" />
-                  Intereses
-                </dt>
-                <dd>
-                  <Amount value={debt.intereses} compact />
-                  <b className="dw-figure">{oneDecimal(interesShare)}</b>
-                </dd>
+                <dt><i className="is-interes" aria-hidden="true" />Intereses</dt>
+                <dd><Amount value={debt.intereses} compact /><span className="dw-figure">{oneDecimal(interesShare)}</span></dd>
               </div>
             </dl>
             {interesPorLempira ? (
-              <p className="dw-lectura">
-                Por cada <strong>L 1</strong> de capital se deben{" "}
-                <strong className="dw-figure">L {interesPorLempira.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> de intereses.
+              <p className="dws-reading">
+                Por cada <b>L 1</b> de capital se deben{" "}
+                <b className="dw-figure">L {interesPorLempira.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b> de intereses.
+                Promedio por cuenta con mora: <b><Amount value={promedioPorCuenta} compact /></b>.
               </p>
             ) : null}
           </div>
+        </article>
 
-          <div className="dw-niveles">
-            <header>
-              <h2 className="dw-eyebrow">Cuentas del padrón</h2>
-              <span className="dw-niveles-promedio">
-                Promedio por cuenta con mora <Amount value={promedioPorCuenta} compact />
+        <article className="dws-mod dws-cuentas" aria-labelledby="dws-cuentas-titulo">
+          <header className="dws-mod-head">
+            <h2 id="dws-cuentas-titulo">Cuentas del padrón</h2>
+            {previos ? (
+              <span className="dws-keymark" title={previos.lote?.codigo ? `Lote ${previos.lote.codigo}` : undefined}>
+                <i aria-hidden="true" />lote anterior{previos.lote?.codigo ? ` (${fechaCorta(previos.lote.fecha_extraccion || previos.lote.fecha_aplicacion) || previos.lote.codigo})` : ""}
               </span>
-            </header>
-            {/* Cada nivel es una barra a la escala del padrón, con su porcentaje al
-                final; la marca en tinta es donde estaba en el lote anterior y la
-                columna de la derecha dice cuánto cambió. */}
-            <ol className={`dw-niveles-lista ${previos ? "has-previo" : ""}`.trim()}>
+            ) : null}
+          </header>
+          <div className="dws-mod-body">
+            <ol className="dws-levels">
               {niveles.map((nivel) => {
                 const cambio = nivel.previo?.cambio ?? null;
-                const tono = nivel.key === "padron" || !cambio ? "is-igual" : cambio > 0 ? "is-sube" : "is-baja";
                 const antes = nivel.previo ? percent(nivel.previo.antes, padronRecords) : null;
                 return (
                   <li key={nivel.key} className={`is-${nivel.key}`}>
-                    <span className="dw-nivel-texto">
-                      <LiveWhole value={nivel.value} flash=".dw-niveles-lista li" />
-                      <span>{nivel.label}</span>
-                      <small className="dw-figure">{nivel.note}</small>
-                    </span>
+                    <div className="dws-level-top">
+                      <span>
+                        <LiveWhole value={nivel.value} className="dw-figure dws-mid" flash=".dws-levels li" />
+                        <span className="dws-level-label">{nivel.label}</span>
+                      </span>
+                      {previos ? (
+                        <span className="dws-delta" title={cambio ? `${deltaCuentas(cambio)} desde el lote anterior` : "Igual que en el lote anterior"}>
+                          {cambio ? <i className={`dws-tri ${cambio > 0 ? "is-up" : "is-down"}`} aria-hidden="true" /> : null}
+                          <b className="dw-figure">{cambio ? deltaCuentas(cambio) : "igual"}</b>
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="dws-level-sub">{nivel.note}</p>
                     <span
-                      className="dw-nivel-barra"
+                      className={`dws-meter ${nivel.key === "padron" ? "is-neutral" : ""}`.trim()}
                       role="img"
                       aria-label={`${whole(nivel.value)} ${nivel.label}, ${oneDecimal(nivel.share)} del padrón${nivel.previo ? `; en el lote anterior eran ${whole(nivel.previo.antes)}` : ""}`}
                     >
-                      <b style={{ width: `${Math.min(100, nivel.share)}%` }} />
-                      {antes != null && nivel.key !== "padron" ? <em className="dw-nivel-antes" style={{ left: `${Math.min(100, antes)}%` }} title={`Lote anterior: ${whole(nivel.previo.antes)}`} /> : null}
-                      <small className="dw-nivel-pct dw-figure" style={{ left: `${Math.min(100, nivel.share)}%` }}>{nivel.key === "padron" ? "100%" : oneDecimal(nivel.share)}</small>
+                      <span style={{ width: `${Math.min(100, nivel.share)}%` }} />
+                      {antes != null && nivel.key !== "padron" ? <em style={{ left: `${Math.min(100, antes)}%` }} /> : null}
                     </span>
-                    {previos ? (
-                      <span className={`dw-nivel-cambio ${tono}`} title={cambio ? `${deltaCuentas(cambio)} desde el lote anterior` : "Igual que en el lote anterior"}>
-                        {cambio ? <Icon name={cambio > 0 ? "arrowUp" : "arrowDown"} /> : null}
-                        <b className="dw-figure">{cambio ? deltaCuentas(cambio) : "igual"}</b>
-                      </span>
-                    ) : null}
                   </li>
                 );
               })}
             </ol>
-            <div className="dw-niveles-eje" aria-hidden="true">
-              {[0, 25, 50, 75, 100].map((mark) => <span key={mark} style={{ left: `${mark}%` }}>{mark}%</span>)}
+            <div className="dws-scale is-percent" aria-hidden="true">
+              {[0, 25, 50, 75, 100].map((mark) => <span key={mark} style={{ left: `${mark}%` }}>{mark === 100 ? "100 %" : mark}</span>)}
             </div>
-            {previos ? (
-              <p className="dw-niveles-leyenda">
-                <i className="is-actual" aria-hidden="true" />este lote
-                <i className="is-antes" aria-hidden="true" />lote anterior{previos.lote?.codigo ? ` (${previos.lote.codigo}${fechaCorta(previos.lote.fecha_extraccion || previos.lote.fecha_aplicacion) ? `, ${fechaCorta(previos.lote.fecha_extraccion || previos.lote.fecha_aplicacion)}` : ""})` : ""}
-              </p>
-            ) : null}
-            <p className="dw-lectura">
+            <p className="dws-reading is-foot">
               {ofEachTen(debt.criticos, debt.deudores) ? (
-                <>
-                  <strong>{ofEachTen(debt.criticos, debt.deudores)}</strong> cuentas con mora deben {"L\u00a01,000"} o más.{" "}
-                </>
+                <><b>{ofEachTen(debt.criticos, debt.deudores)}</b> cuentas con mora deben {"L 1,000"} o más. </>
               ) : null}
-              <LiveWhole value={cuentasAlDia} /> cuentas están al día.
+              <LiveWhole as="b" value={cuentasAlDia} /> cuentas están al día.
             </p>
           </div>
         </article>
 
-        {!model.hideDeadlines ? <button
-          type="button"
-          className={["dw-plazos", alertCount ? "has-alerts" : "", plazos[0].value ? "has-overdue" : ""].filter(Boolean).join(" ")}
-          aria-label={alertCount ? `Plazos de fichas: ${alertCount} con plazo crítico (${plazos.map((item) => `${item.value} ${item.label.toLowerCase()}`).join(", ")}). Revisar fichas` : "Plazos de fichas: ninguna vencida ni por vencer. Ver fichas"}
-          data-alerta={alertCount ? "" : undefined}
-          onClick={() => navigate("records", "alerts")}
-        >
-          <span className="dw-plazos-head">
-            <span className="dw-eyebrow">Plazos de fichas</span>
-            {/* Late solo cuando hay algo que atender, tres veces al aparecer o
-                al cambiar la cifra; un pulso permanente seria ruido. */}
-            <span key={alertCount ? `alerta-${alertCount}` : "ok"} className={alertCount ? "live-attention dw-plazos-icon" : "dw-plazos-icon"}><Icon name={alertCount ? "warning" : "checkCircle"} /></span>
-          </span>
-          <span className="dw-plazos-cifra">
-            <LiveWhole value={alertCount} flash=".dw-plazos" />
-            <span>{alertCount === 1 ? "ficha con plazo crítico" : "fichas con plazo crítico"}</span>
-          </span>
-          {alertCount ? (
-            <>
-              <span className="dw-plazos-barra" role="img" aria-label={plazos.map((item) => `${item.value} ${item.label.toLowerCase()}`).join(", ")}>
-                {plazos.filter((item) => item.value).map((item) => (
-                  <i key={item.key} className={`is-${item.key}`} style={{ width: `${(item.value / plazosTotal) * 100}%` }} />
-                ))}
+        {!model.hideDeadlines ? (
+          <article className="dws-mod dws-plazos" aria-labelledby="dws-plazos-titulo">
+            <header className="dws-mod-head">
+              <h2 id="dws-plazos-titulo">Plazos de fichas</h2>
+              {fichasActivas ? <span className="dws-aside dw-figure">{whole(fichasActivas)} activas</span> : null}
+            </header>
+            <div className="dws-mod-body">
+              <div className="dws-level-top">
+                <span>
+                  <LiveWhole value={alertCount} className="dw-figure dws-mid" flash=".dws-plazos" />
+                  <span className="dws-level-label">en plazo crítico</span>
+                </span>
+              </div>
+              <p className="dws-level-sub">
+                {fichasActivas ? `de ${whole(fichasActivas)} fichas activas · ${whole(Math.max(0, fichasActivas - alertCount))} en plazo` : "Regla de 7 días hábiles desde el registro"}
+              </p>
+              <span className="dws-seg" role="img" aria-label={`${plazos.map((item) => `${item.value} ${item.label.toLowerCase()}`).join(", ")}${fichasActivas ? ` de ${fichasActivas} fichas activas` : ""}`}>
+                {plazos.map((item) => (item.value ? <span key={item.key} className={`is-${item.key}`} style={{ width: `${(item.value / basePlazos) * 100}%` }} /> : null))}
               </span>
-              <span className="dw-plazos-leyenda">
-                {plazos.map((item) => (
-                  <span key={item.key} className={`is-${item.key}`} data-vacio={item.value ? undefined : ""}>
-                    <i aria-hidden="true" />
+              <ul className="dws-plazos-list">
+                {plazos.map((item, index) => (
+                  <li key={item.key} data-vacio={item.value ? undefined : ""}>
+                    <i className={`dws-shape is-${index + 1} ${index === 2 ? "is-outline" : ""}`.trim()} aria-hidden="true" />
                     <LiveWhole as="b" value={item.value} />
-                    {item.label}
-                  </span>
+                    <span>{item.label}</span>
+                  </li>
                 ))}
-              </span>
-            </>
-          ) : (
-            <span className="dw-plazos-ok">Ninguna ficha vencida ni por vencer. Regla de 7 días hábiles.</span>
-          )}
-          <span className="dw-stat-link">
-            {alertCount ? "Revisar fichas" : "Ver fichas"}
-            <Icon name="arrowRight" />
-          </span>
-        </button> : null}
+              </ul>
+              <p className="dws-reading">Regla de 7 días hábiles desde el registro.</p>
+              <button type="button" className="dws-link" onClick={() => navigate("records", "alerts")}>
+                {alertCount ? "Revisar fichas" : "Ver fichas"}
+              </button>
+            </div>
+          </article>
+        ) : null}
       </section>
 
-      {/* Lo que cambió entre el lote FoxPro activo y el anterior. */}
-      <CambiosDelLote lotes={lotes} navigate={model.canImport === false ? null : model.navigate} onPrint={model.canExport === false ? null : (data) => imprimirComparacionLotes(data)} />
+      {/* Lo que cambió entre el lote FoxPro activo y el anterior. El lote nuevo
+          sin aplicar ya está arriba, en «Requiere atención». */}
+      <CambiosDelLote lotes={lotes} ocultarPendiente navigate={model.canImport === false ? null : model.navigate} onPrint={model.canExport === false ? null : (data) => imprimirComparacionLotes(data)} />
 
-      {(model.quickActions || QUICK_ACTIONS).length ? <nav className="dw-actions" aria-label="Acciones rápidas">
-        {(model.quickActions || QUICK_ACTIONS).map(([view, icon, label]) => (
-          <button type="button" key={view} onClick={() => model.navigate(view)}>
-            <Icon name={icon} />
-            {label}
-          </button>
-        ))}
-      </nav> : null}
-
-      {/* Columna ancha para el analisis de la mora; la angosta para lo que se
-          atiende hoy. El separador reparte el ancho entre ambas: se arrastra,
-          se mueve con las flechas y doble clic (o Enter) lo restablece. */}
+      {/* Columna ancha para el análisis de la mora; la angosta para el campo y la
+          bitácora. El separador reparte el ancho: se arrastra, se mueve con las
+          flechas y doble clic (o Enter) lo restablece. */}
       <div
         ref={gridRef}
         className={`dw-grid ${arrastrando ? "is-resizing" : ""}`.trim()}
         style={{ "--dw-columns": `minmax(0, ${split}fr) ${HANDLE_PX}px minmax(0, ${100 - split}fr)` }}
       >
         <div className="dw-col dw-col-main" id="dw-col-main">
-          <article className="dw-panel dw-mora" data-metric={debtMetric} data-plegado={plegados.has("mora")}>
-                    <header className="dw-panel-head">
-                      <div>
-                        <h2>Barrios con mayor mora</h2>
-                      </div>
-                      {rankingAll.length > 5 ? (
-                        <div className="dw-top-switch" role="group" aria-label="Cantidad de barrios">
-                          {[5, 10].map((size) => (
-                            <button type="button" key={size} aria-pressed={topN === size} onClick={() => setTopN(size)}>
-                              Top {size}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                      <BotonPlegar plegado={plegados.has("mora")} titulo="los barrios con mayor mora" onToggle={() => alternarPanel("mora")} />
-                    </header>
-                    <div className="dw-panel-body"><div className="dw-panel-body-inner">
-                    <div className="dw-metric-switch" role="group" aria-label="Ordenar barrios por">
-                      {[["total", "Mora total", "records"], ["accounts", "Abonados", "users"], ["critical", "Mora alta", "trendUp"]].map(([metric, label, icon]) => (
-                        <button type="button" key={metric} aria-pressed={debtMetric === metric} onClick={() => setDebtMetric(metric)}>
-                          <Icon name={icon} />{label}
-                        </button>
-                      ))}
-                    </div>
-                    {ranking.length ? (
-                      <div className="dw-ranking-summary" role="status">
-                        <span><strong className="dw-figure">{oneDecimal(percent(rankingTotal, metricTotal))}</strong><span>{metricDescription} se concentra en estos {ranking.length} barrios.</span></span>
-                        <div><small>{debtMetric === "total" ? "Mora acumulada" : debtMetric === "accounts" ? "Abonados con mora" : "Cuentas con mora alta"}</small>
-                          {debtMetric === "total" ? <Amount value={rankingTotal} compact /> : <strong className="dw-figure">{whole(rankingTotal)}</strong>}
-                        </div>
-                        {/* Cada tramo es un barrio sobre el total del padron: la barra
-                            muestra la concentracion real, no solo el orden. */}
-                        <div className="dw-concentration" aria-hidden="true">
-                          {ranking.map((item) => (
-                            <i
-                              key={item.name}
-                              style={{ width: `${percent(item.value, metricTotal)}%` }}
-                              title={`${item.name}: ${oneDecimal(percent(item.value, metricTotal))}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    <div className="dw-barrio-picker">
-                      <div className="dw-barrio-search">
-                        <Icon name="search" />
-                        <input
-                          id="dw-barrio-search"
-                          ref={buscadorRef}
-                          type="text"
-                          role="combobox"
-                          value={barrioQuery}
-                          placeholder={`Agregar barrio · ${whole(rankingAll.length)} con mora`}
-                          aria-label="Buscar barrios para agregar a la selección"
-                          aria-expanded={sugerencias.length > 0}
-                          aria-controls="dw-barrio-sugerencias"
-                          aria-autocomplete="list"
-                          aria-activedescendant={sugerencias[resaltada] ? `dw-sug-${resaltada}` : undefined}
-                          autoComplete="off"
-                          onChange={(event) => { setBarrioQuery(event.target.value); setResaltada(0); }}
-                          onKeyDown={manejarTeclas}
+          <article className="dws-mod dws-board-mod" data-plegado={plegados.has("mora")}>
+            <header className="dws-mod-head">
+              <h2>Barrios con mayor mora</h2>
+              <div className="dws-controls">
+                <div className="dws-switch" role="group" aria-label="Ordenar barrios por">
+                  {[["total", "Mora total"], ["accounts", "Abonados con mora"], ["critical", "Mora alta"]].map(([metric, label]) => (
+                    <button type="button" key={metric} aria-pressed={debtMetric === metric} onClick={() => setDebtMetric(metric)}>{label}</button>
+                  ))}
+                </div>
+                {rankingAll.length > 10 ? (
+                  <div className="dws-switch" role="group" aria-label="Cantidad de barrios">
+                    {[10, 20].map((size) => (
+                      <button type="button" key={size} aria-pressed={topN === size} onClick={() => setTopN(size)}>{size}</button>
+                    ))}
+                  </div>
+                ) : null}
+                <button type="button" className="dws-icon-btn" onClick={printDebtRanking} hidden={model.canExport === false} disabled={!ranking.length} title="Imprimir mora por barrio" aria-label="Imprimir mora por barrio">
+                  <Icon name="print" />
+                </button>
+                <BotonPlegar plegado={plegados.has("mora")} titulo="los barrios con mayor mora" onToggle={() => alternarPanel("mora")} />
+              </div>
+            </header>
+            {!plegados.has("mora") ? (
+              <>
+                {ranking.length ? (
+                  <div className="dws-concentration" role="status">
+                    <p>
+                      <b className="dw-figure">{oneDecimal(percent(rankingTotal, metricTotal))}</b>
+                      {metricDescription} está en estos {ranking.length} barrios
+                      {debtMetric === "total" ? <> (<Amount value={rankingTotal} compact />)</> : null}.
+                    </p>
+                    <span className="dws-conc-bar" aria-hidden="true">
+                      {ranking.map((item) => (
+                        <span
+                          key={item.name}
+                          className={item.name === barrioSenalado ? "is-on" : ""}
+                          style={{ width: `${percent(item.value, metricTotal)}%` }}
+                          title={`${item.name}: ${oneDecimal(percent(item.value, metricTotal))}`}
                         />
-                        {buscando ? (
-                          <button type="button" className="dw-link" onClick={limpiarBusqueda}>Limpiar</button>
-                        ) : null}
-                      </div>
+                      ))}
+                    </span>
+                  </div>
+                ) : null}
 
-                      {buscando ? (
-                        sugerencias.length ? (
-                          <ul className="dw-suggestions" role="listbox" id="dw-barrio-sugerencias" aria-label="Barrios que coinciden">
-                            {sugerencias.map((item, index) => (
-                              <li key={item.name}>
+                <div className="dws-picker">
+                  <div className="dw-barrio-search">
+                    <Icon name="search" />
+                    <input
+                      id="dw-barrio-search"
+                      ref={buscadorRef}
+                      type="text"
+                      role="combobox"
+                      value={barrioQuery}
+                      placeholder={`Agregar barrio a la selección · ${whole(rankingAll.length)} con mora`}
+                      aria-label="Buscar barrios para agregar a la selección"
+                      aria-expanded={sugerencias.length > 0}
+                      aria-controls="dw-barrio-sugerencias"
+                      aria-autocomplete="list"
+                      aria-activedescendant={sugerencias[resaltada] ? `dw-sug-${resaltada}` : undefined}
+                      autoComplete="off"
+                      onChange={(event) => { setBarrioQuery(event.target.value); setResaltada(0); }}
+                      onKeyDown={manejarTeclas}
+                    />
+                    {buscando ? <button type="button" className="dws-link" onClick={limpiarBusqueda}>Limpiar</button> : null}
+                  </div>
+                  {buscando ? (
+                    sugerencias.length ? (
+                      <ul className="dw-suggestions" role="listbox" id="dw-barrio-sugerencias" aria-label="Barrios que coinciden">
+                        {sugerencias.map((item, index) => (
+                          <li key={item.name}>
+                            <button
+                              type="button"
+                              id={`dw-sug-${index}`}
+                              role="option"
+                              aria-selected={index === resaltada}
+                              className={index === resaltada ? "is-active" : ""}
+                              onMouseEnter={() => setResaltada(index)}
+                              onClick={() => agregarBarrio(item.name)}
+                            >
+                              <span className="dw-sug-rank dw-figure">#{posiciones.get(item.name) || "—"}</span>
+                              <span className="dw-sug-name">{item.name}</span>
+                              <span className="dw-sug-value">
+                                {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
+                              </span>
+                              <Icon name="plus" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="dws-empty">
+                        {searchHits.length ? "Ya agregaste todos los barrios que coinciden." : `Ningún barrio coincide con “${barrioQuery.trim()}”.`}
+                      </p>
+                    )
+                  ) : null}
+                </div>
+
+                {ranking.length ? (
+                  <div className="dws-table-wrap">
+                    <table className="dws-board" aria-describedby="dws-board-hint">
+                      <thead>
+                        <tr>
+                          <th scope="col" className="is-rank">N.º</th>
+                          <th scope="col">Barrio</th>
+                          <th scope="col" className="is-bar">{debtMetric === "total" ? "Mora total" : debtMetric === "accounts" ? "Abonados con mora" : "Cuentas con mora alta"}</th>
+                          <th scope="col" className="is-num is-opt">% del total</th>
+                          <th scope="col" className="is-num is-opt">Con mora</th>
+                          <th scope="col" className="is-num is-opt">Mora alta</th>
+                          <th scope="col" className="is-num">Cambio</th>
+                          <th scope="col" className="is-more"><span className="dw-sr">Desglose</span></th>
+                        </tr>
+                      </thead>
+                      {ranking.map((item) => {
+                        const elegido = selectedBarrios.includes(item.name);
+                        const abierto = barrioAbierto === item.name;
+                        const cambio = cambioBarrio.get(item.name);
+                        return (
+                          <tbody key={item.name} className={abierto ? "is-open" : ""}>
+                            <tr
+                              tabIndex={0}
+                              aria-selected={elegido}
+                              className={item.name === barrioSenalado ? "is-hl" : ""}
+                              onClick={() => toggleBarrio(item.name)}
+                              onKeyDown={(event) => {
+                                if (event.target !== event.currentTarget) return;
+                                if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleBarrio(item.name); }
+                                if (event.key === "ArrowDown") { event.preventDefault(); event.currentTarget.closest("tbody")?.nextElementSibling?.querySelector("tr")?.focus(); }
+                                if (event.key === "ArrowUp") { event.preventDefault(); event.currentTarget.closest("tbody")?.previousElementSibling?.querySelector("tr")?.focus(); }
+                              }}
+                              onPointerEnter={() => setBarrioHover(item.name)}
+                              onPointerLeave={() => setBarrioHover("")}
+                              onFocus={() => setBarrioHover(item.name)}
+                              onBlur={() => setBarrioHover("")}
+                            >
+                              <td className="is-rank dw-figure">{String(posiciones.get(item.name) || 0).padStart(2, "0")}</td>
+                              <td className="is-name">{item.name}</td>
+                              <td className="is-bar">
+                                <span className="dws-bar-cell">
+                                  <i aria-hidden="true"><span style={{ transform: `scaleX(${item.value / maxDebt})` }} /></i>
+                                  {debtMetric === "total" ? <Amount value={item.value} compact /> : <b className="dw-amount dw-figure">{whole(item.value)}</b>}
+                                </span>
+                              </td>
+                              <td className="is-num is-opt dw-figure">{oneDecimal(percent(item.debt?.total, debtTotal))}</td>
+                              <td className="is-num is-opt dw-figure">{whole(item.debt?.deudores)}</td>
+                              <td className="is-num is-opt dw-figure">{whole(item.debt?.criticos)}</td>
+                              <td className="is-num">
+                                {cambio ? (
+                                  <span className={`dws-chg dw-figure ${cambio > 0 ? "is-up" : "is-down"}`}>{deltaMonto(cambio)}</span>
+                                ) : (
+                                  <span className="dws-chg is-none" title="No está entre los barrios que más cambiaron">—</span>
+                                )}
+                              </td>
+                              <td className="is-more">
                                 <button
                                   type="button"
-                                  id={`dw-sug-${index}`}
-                                  role="option"
-                                  aria-selected={index === resaltada}
-                                  className={index === resaltada ? "is-active" : ""}
-                                  onMouseEnter={() => setResaltada(index)}
-                                  onClick={() => agregarBarrio(item.name)}
+                                  className="dws-icon-btn"
+                                  aria-expanded={abierto}
+                                  aria-label={`Ver desglose de ${item.name}`}
+                                  onClick={(event) => { event.stopPropagation(); setBarrioAbierto((actual) => (actual === item.name ? "" : item.name)); }}
                                 >
-                                  <span className="dw-sug-rank dw-figure">#{posiciones.get(item.name) || "—"}</span>
-                                  <span className="dw-sug-name">{item.name}</span>
-                                  <span className="dw-sug-value">
-                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
-                                  </span>
-                                  <Icon name="plus" />
+                                  <Icon name="chevronDown" />
                                 </button>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="dw-empty">
-                            {searchHits.length ? "Ya agregaste todos los barrios que coinciden." : `Ningún barrio coincide con “${barrioQuery.trim()}”.`}
-                          </p>
-                        )
-                      ) : null}
-                    </div>
-
-                    {selectedBarrios.length ? (
-                      <div className={`dw-selection ${selectedDetailsOpen ? "is-open" : ""}`.trim()}>
-                        <header>
-                          <button
-                            type="button"
-                            className="dw-disclosure"
-                            aria-expanded={selectedDetailsOpen}
-                            onClick={() => setSelectedDetailsOpen((value) => !value)}
-                          >
-                            <Icon name="arrowRight" />
-                            {selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}
+                              </td>
+                            </tr>
+                            {abierto ? (
+                              <tr className="dws-detail-row">
+                                <td colSpan={8}>
+                                  <dl className="dws-detail">
+                                    <div><dt>Capital</dt><dd><Amount value={item.debt.capital} /></dd></div>
+                                    <div><dt>Intereses</dt><dd><Amount value={item.debt.intereses} /></dd></div>
+                                    <div><dt>Mora total</dt><dd><Amount value={item.debt.total} /></dd></div>
+                                    <div><dt>Promedio por cuenta</dt><dd><Amount value={Number(item.debt.deudores || 0) ? Number(item.debt.total || 0) / Number(item.debt.deudores) : 0} /></dd></div>
+                                  </dl>
+                                </td>
+                              </tr>
+                            ) : null}
+                          </tbody>
+                        );
+                      })}
+                    </table>
+                  </div>
+                ) : (
+                  <p className="dws-empty">No hay desglose de mora por barrio disponible.</p>
+                )}
+                {/* La selección va debajo de la tabla: al elegir un barrio la fila
+                    no se corre de bajo el cursor. */}
+                {selectedBarrios.length ? (
+                  <div className={`dw-selection ${selectedDetailsOpen ? "is-open" : ""}`.trim()}>
+                    <header>
+                      <button type="button" className="dw-disclosure" aria-expanded={selectedDetailsOpen} onClick={() => setSelectedDetailsOpen((value) => !value)}>
+                        <Icon name="arrowRight" />
+                        {selectedBarrios.length} {selectedBarrios.length === 1 ? "barrio seleccionado" : "barrios seleccionados"}
+                      </button>
+                      <button type="button" className="dws-link" onClick={() => { setSelectedBarrios([]); setSelectedDetailsOpen(false); }}>Quitar todos</button>
+                    </header>
+                    <ul className="dw-selection-chips">
+                      {selectedBarrios.map((name) => (
+                        <li key={name}>
+                          <button type="button" onClick={() => toggleBarrio(name)} aria-label={`Quitar ${name} de la selección`}>
+                            {name}
+                            <Icon name="close" />
                           </button>
-                          <button
-                            type="button"
-                            className="dw-link"
-                            onClick={() => {
-                              setSelectedBarrios([]);
-                              setSelectedDetailsOpen(false);
-                            }}
-                          >
-                            Quitar todos
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="dw-selection-share">
+                      Concentran el <strong className="dw-figure">{oneDecimal(selectedShare)}</strong>
+                      {debtMetric === "accounts" ? " de los abonados con mora del padrón." : debtMetric === "critical" ? " de las cuentas con mora alta del padrón." : " de la mora del padrón."}
+                    </p>
+                    <dl className="dw-selection-figures">
+                      <div><dt>Abonados</dt><dd className="dw-amount dw-figure">{whole(selectedDebt.records)}</dd></div>
+                      <div><dt>Capital</dt><dd><Amount value={selectedDebt.capital} /></dd></div>
+                      <div><dt>Intereses</dt><dd><Amount value={selectedDebt.intereses} /></dd></div>
+                      <div><dt>Mora total</dt><dd><Amount value={selectedDebt.total} /></dd></div>
+                      <div><dt>Cuentas</dt><dd className="dw-amount dw-figure">{whole(selectedDebt.deudores)}</dd></div>
+                      <div><dt>Mora alta</dt><dd className="dw-amount dw-figure">{whole(selectedDebt.criticos)}</dd></div>
+                    </dl>
+                    {selectedRows.length > 1 ? (
+                      <section className="dw-selection-chart">
+                        <header>
+                          <strong>{debtMetric === "total" ? "Mora" : debtMetric === "accounts" ? "Abonados con mora" : "Cuentas con mora alta"} de los barrios elegidos</strong>
+                        </header>
+                        <ol>
+                          {selectedRows.map((item) => (
+                            <li key={item.name}>
+                              <span className="dw-sel-name" title={item.name}>{item.name}</span>
+                              <span className="dw-sel-value">
+                                {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
+                                <small className="dw-figure">{oneDecimal(percent(item.value, selectedTotal))} de la selección</small>
+                              </span>
+                              <i className="dw-sel-track" aria-hidden="true"><em style={{ transform: `scaleX(${item.value / maxSelected})` }} /></i>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
+                    ) : null}
+                    {selectedDetailsOpen ? (
+                      <section className="dw-services">
+                        <header>
+                          <strong>Servicios consolidados</strong>
+                          <button type="button" className="dws-btn" onClick={printSelection} hidden={model.canExport === false}>
+                            <Icon name="print" />
+                            Imprimir sumatoria
                           </button>
                         </header>
-                        <ul className="dw-selection-chips">
-                          {selectedBarrios.map((name) => (
-                            <li key={name}>
-                              <button type="button" onClick={() => toggleBarrio(name)} aria-label={`Quitar ${name} de la selección`}>
-                                {name}
-                                <span aria-hidden="true">✕</span>
-                              </button>
+                        <ul>
+                          {selectedServices.map((service) => (
+                            <li key={service.field}>
+                              <Icon name={SERVICE_ICONS[service.field] || "records"} />
+                              <span className="dw-service-copy">
+                                <strong>{service.label}</strong>
+                                <small>{whole(service.active)} activos · {whole(service.inactive)} inactivos</small>
+                              </span>
+                              <Amount value={service.debt} />
                             </li>
                           ))}
                         </ul>
-                        <p className="dw-selection-share">
-                          Concentran el <strong className="dw-figure">{oneDecimal(selectedShare)}</strong>
-                          {debtMetric === "accounts" ? " de los abonados con mora del padrón." : debtMetric === "critical" ? " de las cuentas con mora alta del padrón." : " de la mora del padrón."}
-                        </p>
-                        <dl className="dw-selection-figures">
-                          <div>
-                            <dt>Abonados</dt>
-                            <dd className="dw-amount dw-figure">{whole(selectedDebt.records)}</dd>
-                          </div>
-                          <div>
-                            <dt>Capital</dt>
-                            <dd>
-                              <Amount value={selectedDebt.capital} />
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Intereses</dt>
-                            <dd>
-                              <Amount value={selectedDebt.intereses} />
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Mora total</dt>
-                            <dd>
-                              <Amount value={selectedDebt.total} />
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Cuentas</dt>
-                            <dd className="dw-amount dw-figure">{whole(selectedDebt.deudores)}</dd>
-                          </div>
-                          <div>
-                            <dt>Mora alta</dt>
-                            <dd className="dw-amount dw-figure">{whole(selectedDebt.criticos)}</dd>
-                          </div>
-                        </dl>
-                        {selectedRows.length > 1 ? (
-                          <section className="dw-selection-chart">
-                            <header>
-                              <strong>{debtMetric === "total" ? "Mora" : debtMetric === "accounts" ? "Abonados con mora" : "Cuentas con mora alta"} de los barrios elegidos</strong>
-                              <small>Se rearma al agregar o quitar un barrio.</small>
-                            </header>
-                            <ol>
-                              {selectedRows.map((item) => (
-                                <li key={item.name}>
-                                  <span className="dw-sel-name" title={item.name}>{item.name}</span>
-                                  <span className="dw-sel-value">
-                                    {debtMetric === "total" ? <Amount value={item.value} /> : <span className="dw-amount dw-figure">{whole(item.value)}</span>}
-                                    <small className="dw-figure">{oneDecimal(percent(item.value, selectedTotal))} de la selección</small>
-                                  </span>
-                                  <i className="dw-sel-track" aria-hidden="true">
-                                    <em style={{ transform: `scaleX(${item.value / maxSelected})` }} />
-                                  </i>
-                                </li>
-                              ))}
-                            </ol>
-                          </section>
-                        ) : null}
-                        {selectedDetailsOpen ? (
-                          <section className="dw-services">
-                            <header>
-                              <strong>Servicios consolidados</strong>
-                              <button type="button" className="dw-button-secondary" onClick={printSelection} hidden={model.canExport === false}>
-                                <Icon name="print" />
-                                Imprimir sumatoria
-                              </button>
-                            </header>
-                            <ul>
-                              {selectedServices.map((service) => (
-                                <li key={service.field}>
-                                  <Icon name={SERVICE_ICONS[service.field] || "records"} />
-                                  <span className="dw-service-copy">
-                                    <strong>{service.label}</strong>
-                                    <small>
-                                      {whole(service.active)} activos · {whole(service.inactive)} inactivos
-                                    </small>
-                                  </span>
-                                  <Amount value={service.debt} />
-                                </li>
-                              ))}
-                            </ul>
-                          </section>
-                        ) : null}
-                      </div>
+                      </section>
                     ) : null}
+                  </div>
+                ) : null}
 
-                    {ranking.length ? (
-                      <p className="dw-chart-caption">
-                        Tocá un barrio para sumarlo a la selección · la flecha abre su desglose · la barra se compara con el primero.
-                      </p>
-                    ) : null}
-
-                    {ranking.length ? (
-                      <ol className="dw-ranking">
-                        {ranking.map((item) => (
-                          <li key={item.name} className={barrioAbierto === item.name ? "is-expanded" : ""}>
-                            <div className="dw-ranking-row">
-                              <button
-                                type="button"
-                                aria-pressed={selectedBarrios.includes(item.name)}
-                                className={selectedBarrios.includes(item.name) ? "is-selected" : ""}
-                                onClick={() => toggleBarrio(item.name)}
-                              >
-                                <b className="dw-rank-number dw-figure" aria-hidden="true">{selectedBarrios.includes(item.name) ? <Icon name="success" /> : String(posiciones.get(item.name) || 0).padStart(2, "0")}</b>
-                                <strong className="dw-ranking-name">{item.name}</strong>
-                                <span className="dw-ranking-value">
-                                  {debtMetric === "total" ? (
-                                    <Amount value={item.value} compact />
-                                  ) : (
-                                    <span className="dw-amount dw-figure">{whole(item.value)}</span>
-                                  )}
-                                </span>
-                                <i className="dw-ranking-track" aria-hidden="true">
-                                  <em style={{ transform: `scaleX(${item.value / maxDebt})` }} />
-                                </i>
-                                <small className="dw-ranking-share dw-figure" title={`${oneDecimal(percent(item.value, metricTotal))} ${metricDescription}`}>
-                                  {oneDecimal(percent(item.value, metricTotal))}
-                                </small>
-                              </button>
-                              <button
-                                type="button"
-                                className="dw-ranking-more"
-                                aria-expanded={barrioAbierto === item.name}
-                                aria-label={`Ver desglose de ${item.name}`}
-                                onClick={() => setBarrioAbierto((actual) => (actual === item.name ? "" : item.name))}
-                              >
-                                <Icon name="chevronDown" />
-                              </button>
-                            </div>
-                            {barrioAbierto === item.name ? (
-                              <dl className="dw-ranking-detail">
-                                <div><dt>Capital</dt><dd><Amount value={item.debt.capital} /></dd></div>
-                                <div><dt>Intereses</dt><dd><Amount value={item.debt.intereses} /></dd></div>
-                                <div><dt>Cuentas con mora</dt><dd className="dw-amount dw-figure">{whole(item.debt.deudores)}</dd></div>
-                                <div><dt>Mora alta</dt><dd className="dw-amount dw-figure">{whole(item.debt.criticos)}</dd></div>
-                                <div><dt>Promedio por cuenta</dt><dd><Amount value={Number(item.debt.deudores || 0) ? Number(item.debt.total || 0) / Number(item.debt.deudores) : 0} /></dd></div>
-                              </dl>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="dw-empty">
-                        No hay desglose de mora por barrio disponible.
-                      </p>
-                    )}
-
-
-                    <footer className="dw-panel-foot">
-                      <button type="button" className="dw-button-secondary" onClick={printDebtRanking} hidden={model.canExport === false} disabled={!ranking.length}>
-                        <Icon name="print" />
-                        Imprimir mora por barrio
-                      </button>
-                      <button type="button" className="dw-link" onClick={() => model.navigate(model.hideDeadlines ? "fieldValidation" : "mapReports")}>
-                        Ver informe
-                      </button>
-                    </footer>
-                    </div></div>
-                  </article>
-          {serviceDebt.length ? (
-            <article className="dw-panel dw-servicios" data-plegado={plegados.has("servicios")}>
-              <header className="dw-panel-head">
-                <div>
-                  <h2>Mora por servicio</h2>
-                </div>
-                <BotonPlegar plegado={plegados.has("servicios")} titulo="la mora por servicio" onToggle={() => alternarPanel("servicios")} />
-              </header>
-              <div className="dw-panel-body"><div className="dw-panel-body-inner">
-                <ServiceDotPlot debtBarrios={model.debtBarrios} />
-                <section className="dw-service-debt">
-                        <ul>
-                          {serviceDebt.map((service) => {
-                            const abierto = servicioAbierto === service.field;
-                            const filas = abierto ? barriosDeServicio(model.debtBarrios, service.field) : [];
-                            const mayor = Math.max(1, ...filas.map((fila) => fila.deuda));
-                            const cuentas = filas.reduce((suma, fila) => suma + fila.cuentas, 0);
-                            return (
-                              <li key={service.field} data-service={service.field} data-abierto={abierto ? "" : undefined}>
-                                <button
-                                  type="button"
-                                  className="dw-service-row"
-                                  aria-expanded={abierto}
-                                  onClick={() => {
-                                    setBarriosVisibles(6);
-                                    setServicioAbierto(abierto ? "" : service.field);
-                                    if (!abierto && model.fetchServiceAccounts && !cuentasPorServicio[service.field]) {
-                                      cargarCuentasServicio(service.field);
-                                    }
-                                  }}
-                                >
-                                  <span className="dw-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
-                                  <Amount value={service.debt} compact />
-                                  <Icon name="chevronDown" className="dw-service-chevron" />
-                                  <i className="dw-service-track" aria-hidden="true">
-                                    <em style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} />
-                                  </i>
-                                </button>
-                                {abierto ? (
-                                  <div className="dw-service-drill">
-                                    <p className="dw-service-drill-head">
-                                      <strong className="dw-figure">{whole(filas.length)}</strong> barrios con el servicio activo
-                                      <span className="dw-sep" aria-hidden="true" />
-                                      <strong className="dw-figure">{whole(cuentas)}</strong> cuentas
-                                    </p>
-                                    {filas.length ? (
-                                      <ul className="dw-drill-list">
-                                        {filas.slice(0, barriosVisibles).map((fila) => (
-                                          <li key={fila.barrio}>
-                                            <span className="dw-drill-name">{fila.barrio}</span>
-                                            <span className="dw-drill-meta">{whole(fila.cuentas)} cuentas · {whole(fila.criticos)} con mora alta</span>
-                                            <Amount value={fila.deuda} />
-                                            <i className="dw-service-track" aria-hidden="true">
-                                              <em style={{ transform: `scaleX(${fila.deuda / mayor})` }} />
-                                            </i>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    ) : (
-                                      <p className="dw-empty">Ningún barrio tiene este servicio activo.</p>
-                                    )}
-                                    {filas.length > barriosVisibles ? (
-                                      <button type="button" className="dw-link" onClick={() => setBarriosVisibles(filas.length)}>
-                                        Ver los {whole(filas.length)} barrios
-                                      </button>
-                                    ) : null}
-                                    <div className="dw-service-drill-actions">
-                                      <button type="button" className="dw-button-secondary" onClick={() => printServiceDebt(service)} hidden={model.canExport === false}>
-                                        <Icon name="print" />
-                                        Ver / imprimir PDF
-                                      </button>
-                                    </div>
-                                    <CuentasDelServicio
-                                      estado={cuentasPorServicio[service.field]}
-                                      onLoadAll={() => cargarCuentasServicio(service.field, "all")}
-                                    />
-                                  </div>
-                                ) : null}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                  <small className="dw-note">Una misma cuenta puede tener varios servicios activos, por eso la suma supera la mora total.</small>
-                </section>
-                <footer className="dw-panel-foot">
-                  <button type="button" className="dw-button-secondary" onClick={printDebtSummary} hidden={model.canExport === false}>
-                    <Icon name="print" />
-                    Ver / imprimir resumen PDF
-                  </button>
+                <footer className="dws-mod-foot">
+                  <span className="dws-hint" id="dws-board-hint">
+                    Clic en un barrio para sumarlo a la selección; la flecha abre su desglose.{lotes.data?.anterior?.codigo ? ` «Cambio» compara con el lote ${lotes.data.anterior.codigo}.` : ""}
+                  </span>
+                  <button type="button" className="dws-link" onClick={() => model.navigate(model.hideDeadlines ? "fieldValidation" : "mapReports")}>Ver informe completo</button>
                 </footer>
-              </div></div>
+              </>
+            ) : null}
+          </article>
+
+          {serviceDebt.length ? (
+            <article className="dws-mod dws-servicios" data-plegado={plegados.has("servicios")}>
+              <header className="dws-mod-head">
+                <h2>Mora por servicio</h2>
+                <div className="dws-controls">
+                  <button type="button" className="dws-icon-btn" onClick={printDebtSummary} hidden={model.canExport === false} title="Ver / imprimir resumen PDF" aria-label="Ver o imprimir el resumen de mora por servicio">
+                    <Icon name="print" />
+                  </button>
+                  <BotonPlegar plegado={plegados.has("servicios")} titulo="la mora por servicio" onToggle={() => alternarPanel("servicios")} />
+                </div>
+              </header>
+              {!plegados.has("servicios") ? (
+                <div className="dws-mod-body">
+                  <ServiceDotPlot debtBarrios={model.debtBarrios} resaltado={barrioSenalado} />
+                  <ul className="dws-services">
+                    {serviceDebt.map((service) => {
+                      const abierto = servicioAbierto === service.field;
+                      const filas = abierto ? barriosDeServicio(model.debtBarrios, service.field) : [];
+                      const mayor = Math.max(1, ...filas.map((fila) => fila.deuda));
+                      const cuentas = filas.reduce((suma, fila) => suma + fila.cuentas, 0);
+                      return (
+                        <li key={service.field} data-service={service.field} data-abierto={abierto ? "" : undefined}>
+                          <button
+                            type="button"
+                            className="dws-service-row"
+                            aria-expanded={abierto}
+                            onClick={() => {
+                              setBarriosVisibles(6);
+                              setServicioAbierto(abierto ? "" : service.field);
+                              if (!abierto && model.fetchServiceAccounts && !cuentasPorServicio[service.field]) cargarCuentasServicio(service.field);
+                            }}
+                          >
+                            <span className="dws-service-name"><Icon name={SERVICE_ICONS[service.field] || "records"} />{service.label}</span>
+                            <i className="dws-service-track" aria-hidden="true"><span style={{ transform: `scaleX(${service.debt / maxServiceDebt})` }} /></i>
+                            <Amount value={service.debt} compact />
+                            <Icon name="chevronDown" className="dws-chevron" />
+                          </button>
+                          {abierto ? (
+                            <div className="dw-service-drill">
+                              <p className="dw-service-drill-head">
+                                <strong className="dw-figure">{whole(filas.length)}</strong> barrios con el servicio activo
+                                <span className="dw-sep" aria-hidden="true" />
+                                <strong className="dw-figure">{whole(cuentas)}</strong> cuentas
+                              </p>
+                              {filas.length ? (
+                                <ul className="dw-drill-list">
+                                  {filas.slice(0, barriosVisibles).map((fila) => (
+                                    <li key={fila.barrio}>
+                                      <span className="dw-drill-name">{fila.barrio}</span>
+                                      <span className="dw-drill-meta">{whole(fila.cuentas)} cuentas · {whole(fila.criticos)} con mora alta</span>
+                                      <Amount value={fila.deuda} />
+                                      <i className="dw-service-track" aria-hidden="true"><em style={{ transform: `scaleX(${fila.deuda / mayor})` }} /></i>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="dws-empty">Ningún barrio tiene este servicio activo.</p>
+                              )}
+                              {filas.length > barriosVisibles ? (
+                                <button type="button" className="dws-link" onClick={() => setBarriosVisibles(filas.length)}>Ver los {whole(filas.length)} barrios</button>
+                              ) : null}
+                              <div className="dw-service-drill-actions">
+                                <button type="button" className="dws-btn" onClick={() => printServiceDebt(service)} hidden={model.canExport === false}>
+                                  <Icon name="print" />
+                                  Ver / imprimir PDF
+                                </button>
+                              </div>
+                              <CuentasDelServicio estado={cuentasPorServicio[service.field]} onLoadAll={() => cargarCuentasServicio(service.field, "all")} />
+                            </div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="dws-reading">Una misma cuenta puede tener varios servicios activos, por eso la suma de servicios supera la mora total.</p>
+                </div>
+              ) : null}
             </article>
           ) : null}
         </div>
@@ -1167,56 +1227,24 @@ export default function DashboardWorkspace({ model }) {
           </span>
         </div>
 
-        <aside className="dw-col dw-col-side" aria-label="Pendientes y actividad">
+        <aside className="dw-col dw-col-side" aria-label="Campo y bitácora">
           {model.fetchAvanceEntregas ? (
             <EntregasAvance fetchAvance={model.fetchAvanceEntregas} onAbrir={() => model.navigate("entregas")} />
           ) : null}
-          <article className="dw-panel dw-attention">
-            <header className="dw-panel-head">
-              <div>
-                <h2>Atención requerida</h2>
-              </div>
-            </header>
-            <ul className="dw-list">
-              {attentionItems.map((item) => {
-                const tone = LEVEL_ORDER[item.level] === 0 ? "is-critical" : item.tone || "";
-                return (
-                  <li key={item.key || item.title}>
-                    <button type="button" className={tone} onClick={() => navigate(item.actionView, item.filter || "")}>
-                      <Icon name={item.icon} />
-                      <span>
-                        <strong>{item.title}</strong>
-                        <small>{item.detail}</small>
-                      </span>
-                      {Number.isFinite(item.count) ? <LiveWhole as="b" className="dw-count dw-figure" value={item.count} flash="li" /> : <i aria-hidden="true" />}
-                      <Icon name="arrowRight" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {!attentionItems.length ? <p className="dw-empty">No hay prioridades pendientes.</p> : null}
-          </article>
 
           {fieldMetrics.length ? (
-            <article className="dw-panel dw-campo">
-              <header className="dw-panel-head">
-                <div>
-                  <h2>Actividad del equipo</h2>
-                </div>
-              </header>
-              <ul className="dw-list">
+            <article className="dws-mod dws-campo" aria-labelledby="dws-campo-titulo">
+              <header className="dws-mod-head"><h2 id="dws-campo-titulo">Campo</h2></header>
+              <ul className="dws-rows">
                 {fieldMetrics.map((item) => (
                   <li key={item.key}>
-                    <button type="button" className={item.tone || ""} onClick={() => navigate(item.targetView || FIELD_VIEWS[item.key] || "users")}>
-                      <Icon name={item.icon} />
-                      <span>
+                    <button type="button" className={item.series?.length > 1 ? "has-serie" : ""} onClick={() => navigate(item.targetView || FIELD_VIEWS[item.key] || "users")}>
+                      <span className="dws-row-copy">
                         <strong>{item.label}</strong>
                         <small>{item.helper}</small>
+                        <SerieDias series={item.series} unidad={item.key === "gps" ? "puntos" : "movimientos"} />
                       </span>
-                      <MiniBars series={item.series} unit={item.key === "gps" ? "puntos" : "fichas"} />
-                      <LiveWhole as="b" className="dw-count is-neutral dw-figure" value={item.value} flash="li" />
-                      <Icon name="arrowRight" />
+                      <LiveWhole as="b" className="dw-figure dws-mid" value={item.value} flash="li" />
                     </button>
                   </li>
                 ))}
@@ -1224,29 +1252,28 @@ export default function DashboardWorkspace({ model }) {
             </article>
           ) : null}
 
-          {model.aside ? model.aside : <article className="dw-panel dw-feed">
-                    <header className="dw-panel-head">
-                      <div>
-                        <h2>Actividad reciente</h2>
-                      </div>
-                    </header>
-                    <ul className="dw-list is-quiet">
-                      {model.feed.slice(0, 5).map((item) => (
-                        <li key={item.key}>
-                          <button type="button" onClick={() => model.navigate(item.targetView)}>
-                            <Icon name={item.icon} />
-                            <span>
-                              <strong>{item.title}</strong>
-                              <small>{item.detail}</small>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    {!model.feed.length ? <p className="dw-empty">Aún no hay actividad reciente.</p> : null}
-                  </article>}
+          {model.aside ? model.aside : (
+            <article className="dws-mod dws-feed" aria-labelledby="dws-feed-titulo">
+              <header className="dws-mod-head"><h2 id="dws-feed-titulo">Bitácora</h2></header>
+              {model.feed.length ? (
+                <ol className="dws-rows is-log">
+                  {model.feed.slice(0, 6).map((item) => (
+                    <li key={item.key}>
+                      <button type="button" onClick={() => model.navigate(item.targetView)}>
+                        <span className="dws-row-copy">
+                          <strong>{item.title}</strong>
+                          <small>{item.detail}</small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="dws-empty">Aún no hay actividad hoy.</p>}
+            </article>
+          )}
         </aside>
       </div>
     </main>
   );
+
 }

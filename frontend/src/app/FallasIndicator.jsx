@@ -42,6 +42,9 @@ export default function FallasIndicator({ apiFetch, onOpenView }) {
 
   const pendientes = data.sin_revisar;
   const ir = () => { setOpen(false); onOpenView("fallas"); };
+  // Sin fallas sin revisar no ocupa lugar en la barra: un ícono que casi siempre
+  // dice "nada" es ruido. Sigue consultando y aparece cuando hay una.
+  if (!pendientes && !open) return null;
   return <div className="fi" ref={ref}>
     <button type="button" className={`fi-button${pendientes ? " has-fallas" : ""}`} onClick={() => setOpen((value) => !value)} aria-haspopup="dialog" aria-expanded={open}
       aria-label={pendientes ? `Fallas del equipo: ${pendientes} sin revisar` : "Fallas del equipo: ninguna pendiente"} title={pendientes ? `${pendientes} fallas sin revisar` : "Sin fallas pendientes"}>

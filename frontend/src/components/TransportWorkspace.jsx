@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { WS_URL } from "../config/api";
 import { Icon } from "./Icon";
 import TransportMap from "./TransportMap";
+import { AUTO_REFRESH_MS } from "../constants/workspace";
 
 const emptyRouteForm = {
   id: null,
@@ -218,7 +219,7 @@ function TransportWorkspace({ apiFetch, clearSession, isActive, isAdmin, session
       }
     };
 
-    const intervalId = window.setInterval(refresh, 20000);
+    const intervalId = window.setInterval(refresh, AUTO_REFRESH_MS);
     document.addEventListener("visibilitychange", refresh);
     window.addEventListener("focus", refresh);
 

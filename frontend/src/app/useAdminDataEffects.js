@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { DASHBOARD_REFRESH_INTERVAL_MS } from "../constants/workspace";
+import { DASHBOARD_REFRESH_INTERVAL_MS, PRESENCE_REFRESH_MS } from "../constants/workspace";
 
 export function useAdminDataEffects({
   alcaldiaComparison,
@@ -74,8 +74,9 @@ export function useAdminDataEffects({
     }
 
     const intervalId = window.setInterval(() => {
-      loadPadronServiceReport({ silent: true });
-    }, 60000);
+      if (document.visibilityState === "visible") loadPadronServiceReport({ silent: true });
+      // El padrón cambia con cada lote importado, no de minuto a minuto.
+    }, 5 * 60 * 1000);
 
     return () => window.clearInterval(intervalId);
   }, [isAuthenticated, isAdmin, workspaceView]);
@@ -134,7 +135,7 @@ export function useAdminDataEffects({
       }
     };
 
-    const intervalId = window.setInterval(refreshOnlineUsers, 20000);
+    const intervalId = window.setInterval(refreshOnlineUsers, PRESENCE_REFRESH_MS);
     document.addEventListener("visibilitychange", refreshOnlineUsers);
     window.addEventListener("focus", refreshOnlineUsers);
 

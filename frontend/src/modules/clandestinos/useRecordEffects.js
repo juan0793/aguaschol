@@ -8,6 +8,7 @@ import {
 import { emptyForm } from "../../constants/formsAndUi";
 import { getBarrioNameFromClave } from "../../utils/barrioCodes";
 import { hasDraftContent } from "../../utils/records";
+import { AUTO_REFRESH_MS } from "../../constants/workspace";
 
 export function useRecordEffects({
   alertRecords,
@@ -52,9 +53,11 @@ export function useRecordEffects({
 
   useEffect(() => {
     if (workspaceView === "records") return undefined;
+    // Reloj de los textos "hace N min": basta con un tic por minuto. Con uno por
+    // segundo toda la app se redibujaba cada segundo.
     const timer = window.setInterval(() => {
       setDashboardNow(Date.now());
-    }, 1000);
+    }, 60000);
 
     return () => window.clearInterval(timer);
   }, [workspaceView]);
@@ -145,7 +148,7 @@ export function useRecordEffects({
     };
 
     const handleWindowFocus = () => refreshRecords();
-    const intervalId = window.setInterval(refreshRecords, 8000);
+    const intervalId = window.setInterval(refreshRecords, AUTO_REFRESH_MS);
     document.addEventListener("visibilitychange", refreshRecords);
     window.addEventListener("focus", handleWindowFocus);
 

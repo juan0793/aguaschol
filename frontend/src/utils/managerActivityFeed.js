@@ -1,6 +1,6 @@
 // Trabajo cerrado por el equipo, para Gerencia: una sola consulta compartida por la campana
 // y el panel "En vivo". Gerencia no usa sockets; se revisa cada 30 s con la pestaña visible.
-const POLL_MS = 30000;
+const POLL_MS = 60000;
 const LIMIT = 20;
 
 // Cómo se nombra cada trabajo cerrado en la campana y en el panel.

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AUTO_REFRESH_MS } from "../../../constants/workspace";
 
 const STORAGE_KEY = "aguas.clandestinos.inbox.v1";
 const PAGE_SIZE = 15;
@@ -100,7 +101,7 @@ export const useFichas = (api, active = true) => {
     return () => cancel(handle);
   }, [active, barrio, counts, page, query, request, state]);
 
-  useEffect(() => { if (!active) return undefined; const refresh = () => load({ silent: true }); const timer = setInterval(refresh, 10000); addEventListener("visibilitychange", refresh); return () => { clearInterval(timer); removeEventListener("visibilitychange", refresh); }; }, [active, load]);
+  useEffect(() => { if (!active) return undefined; const refresh = () => { if (document.visibilityState === "visible") load({ silent: true }); }; const timer = setInterval(refresh, AUTO_REFRESH_MS); addEventListener("visibilitychange", refresh); return () => { clearInterval(timer); removeEventListener("visibilitychange", refresh); }; }, [active, load]);
   useEffect(() => { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ query, state, barrio, page, granularidad })); }, [barrio, granularidad, page, query, state]);
 
   // El ritmo sigue los mismos filtros que el listado (sin la página). Se pide al

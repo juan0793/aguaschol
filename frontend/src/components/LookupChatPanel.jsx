@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BUSQUEDA_EVENTO, tomarBusquedaPendiente } from "../utils/busquedaGlobal";
 import { Icon } from "./Icon";
 import { isLookupQueryReady } from "../utils/claveAndLookup";
 import {
@@ -169,6 +170,21 @@ function LookupChatPanel({ apiFetch, padronMeta }) {
       setLoading(false);
     }
   };
+
+  // Lo que se escribió en el buscador de la barra superior llega aquí: al abrir
+  // la pantalla (pendiente) o, si ya estaba abierta, por el evento.
+  const submitRef = useRef(submitMessage);
+  submitRef.current = submitMessage;
+  useEffect(() => {
+    const pendiente = tomarBusquedaPendiente();
+    if (pendiente) submitRef.current(pendiente);
+    const alPedir = () => {
+      const texto = tomarBusquedaPendiente();
+      if (texto) submitRef.current(texto);
+    };
+    window.addEventListener(BUSQUEDA_EVENTO, alPedir);
+    return () => window.removeEventListener(BUSQUEDA_EVENTO, alPedir);
+  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();

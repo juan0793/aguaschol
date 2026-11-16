@@ -1,0 +1,531 @@
+/* ===========================================================================
+   Tablero «sala de control» (2026-11-15)
+   La pantalla de operación de la cartera: gris sereno de planta, y solo lo que
+   se sale de lo normal toma color (rojo crítico, ámbar atención). El azul
+   institucional marca la magnitud medida y el foco. Módulos planos con filete
+   de 1px y esquinas de 4px; una sola familia (Archivo, condensada en rótulos)
+   en cuatro tamaños: 12, 14, 20 y 44 px. Cifras tabulares.
+   Todo va bajo .dashboard-workspace.dws (0,3,0) para ganarle a dashboard.css
+   (0,2,0) sin !important. Las piezas que se reusan (selección, buscador de
+   barrios, desgloses, cambios del lote, entregas) toman la paleta por los
+   tokens --dw-*.
+   =========================================================================== */
+
+/* El gris de planta es el suelo de toda la página mientras se ve el tablero. */
+html:has(.dashboard-workspace.dws),
+body:has(.dashboard-workspace.dws),
+.page-shell:has(.dashboard-workspace.dws) { background: #e2e5e8 !important; }
+
+.dashboard-workspace.dws {
+  --s-ground: #e2e5e8;
+  --s-panel: #f6f7f8;
+  --s-well: #eceef0;
+  --s-rule: #c2c8ce;
+  --s-rule-soft: #d8dce0;
+  --s-grid: #e3e6e9;
+  --s-ink: #1b2229;
+  --s-ink-2: #47525e;
+  --s-ink-3: #5f6a75;
+  --s-neutral: #8e98a2;
+  --s-neutral-light: #c4cad0;
+  --s-measure: #1465d9;
+  --s-measure-deep: #0b3f73;
+  --s-measure-wash: #dce8fa;
+  --s-alarm: #c42b1c;
+  --s-alarm-wash: #f6e1de;
+  --s-warn: #d89a0b;
+  --s-warn-ink: #7a5300;
+  --s-warn-wash: #f7ecd2;
+  --s-radius: 4px;
+  --s-hatch: repeating-linear-gradient(135deg, var(--s-neutral) 0 2px, var(--s-neutral-light) 2px 5px);
+
+  /* Las piezas heredadas leen estos tokens. */
+  --dw-ink: var(--s-ink);
+  --dw-body: var(--s-ink);
+  --dw-muted: var(--s-ink-2);
+  --dw-blue: var(--s-measure);
+  --dw-red: var(--s-alarm);
+  --dw-gold: var(--s-warn-ink);
+  --dw-teal: var(--s-ink-2);
+  --dw-baja: var(--s-ink);
+  --dw-line: var(--s-rule);
+  --dw-line-soft: var(--s-rule-soft);
+  --dw-surface: var(--s-panel);
+  --dw-tint: var(--s-well);
+  --dw-grid: var(--s-grid);
+  --dw-radius: var(--s-radius);
+  --dw-radius-sm: var(--s-radius);
+
+  max-width: 1680px;
+  gap: 12px;
+  color: var(--s-ink);
+  font-family: "Archivo Variable", "Archivo", system-ui, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-workspace.dws ::selection { background: var(--s-measure-wash); color: var(--s-ink); }
+.dashboard-workspace.dws :focus-visible { outline: 2px solid var(--s-measure); outline-offset: 2px; }
+.dashboard-workspace.dws button { font: inherit; }
+.dashboard-workspace.dws .app-icon { width: 16px; height: 16px; }
+.dashboard-workspace.dws .dw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Encabezado de la página ─────────────────────────────────────────────── */
+.dashboard-workspace.dws .dws-pagehead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  padding: 4px 0 2px;
+}
+.dashboard-workspace.dws .dws-pagehead h1 { margin: 0; color: var(--s-ink); font-size: 20px; font-weight: 750; font-stretch: 85%; line-height: 1.2; }
+.dashboard-workspace.dws .dws-source { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin: 4px 0 0; color: var(--s-ink-2); font-size: 14px; }
+.dashboard-workspace.dws .dws-source strong { color: var(--s-ink); font-weight: 650; }
+.dashboard-workspace.dws .dws-source strong.is-missing { color: var(--s-warn-ink); }
+.dashboard-workspace.dws .dws-stale { display: inline-flex; align-items: center; gap: 6px; color: var(--s-warn-ink); font-weight: 650; }
+.dashboard-workspace.dws .dws-pageactions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
+/* ── Controles ──────────────────────────────────────────────────────────── */
+.dashboard-workspace.dws .dws-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--s-rule);
+  border-radius: var(--s-radius);
+  background: var(--s-panel);
+  color: var(--s-ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.dashboard-workspace.dws .dws-btn:hover { background: #fff; border-color: #aab2ba; }
+.dashboard-workspace.dws .dws-btn:disabled { color: var(--s-ink-3); cursor: progress; }
+.dashboard-workspace.dws .dws-btn.is-quiet { border-color: transparent; background: transparent; }
+.dashboard-workspace.dws .dws-btn.is-quiet:hover { background: #d6dade; }
+.dashboard-workspace.dws .dws-btn.is-primary { border-color: var(--s-measure); background: var(--s-measure); color: #fff; }
+.dashboard-workspace.dws .dws-btn.is-primary:hover { border-color: #0f56bd; background: #0f56bd; }
+.dashboard-workspace.dws .dws-btn[aria-pressed="true"] { color: var(--s-ink-3); }
+.dashboard-workspace.dws .dws-icon-btn,
+.dashboard-workspace.dws .dw-collapse {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--s-ink-2);
+  cursor: pointer;
+}
+.dashboard-workspace.dws .dws-icon-btn:hover,
+.dashboard-workspace.dws .dw-collapse:hover { background: var(--s-well); color: var(--s-ink); }
+.dashboard-workspace.dws .dws-icon-btn[aria-expanded="true"] .app-icon { transform: rotate(180deg); }
+.dashboard-workspace.dws .dws-icon-btn .app-icon { transition: transform 160ms ease-out; }
+.dashboard-workspace.dws .dws-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--s-measure-deep);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.dashboard-workspace.dws .dws-link:hover { color: var(--s-measure); }
+.dashboard-workspace.dws .dws-switch { display: inline-flex; padding: 2px; border: 1px solid var(--s-rule); border-radius: var(--s-radius); background: var(--s-well); }
+.dashboard-workspace.dws .dws-switch button { height: 28px; padding: 0 10px; border: 0; border-radius: 3px; background: transparent; color: var(--s-ink-2); font-size: 12px; font-weight: 650; font-stretch: 88%; white-space: nowrap; cursor: pointer; }
+.dashboard-workspace.dws .dws-switch button[aria-pressed="true"] { background: var(--s-panel); color: var(--s-ink); box-shadow: 0 0 0 1px var(--s-rule); }
+.dashboard-workspace.dws .dws-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ── Módulos ────────────────────────────────────────────────────────────── */
+.dashboard-workspace.dws .dws-mod,
+.dashboard-workspace.dws .dw-panel,
+.dashboard-workspace.dws .dw-lotes {
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--s-rule);
+  border-radius: var(--s-radius);
+  background: var(--s-panel);
+  box-shadow: none;
+}
+.dashboard-workspace.dws .dw-panel,
+.dashboard-workspace.dws .dw-lotes { padding: 14px 16px 16px; }
+.dashboard-workspace.dws .dws-mod-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--s-rule-soft);
+}
+.dashboard-workspace.dws .dws-mod-head h2,
+.dashboard-workspace.dws .dw-panel-head h2,
+.dashboard-workspace.dws .dw-lotes .dw-eyebrow {
+  margin: 0;
+  color: var(--s-ink);
+  font-size: 14px;
+  font-weight: 720;
+  font-stretch: 88%;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.dashboard-workspace.dws .dws-aside { color: var(--s-ink-2); font-size: 12px; font-weight: 600; }
+.dashboard-workspace.dws .dws-mod-body { padding: 14px 16px 16px; }
+.dashboard-workspace.dws .dws-mod-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-hint { color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-empty,
+.dashboard-workspace.dws .dw-empty { margin: 0; padding: 14px 16px; color: var(--s-ink-2); font-size: 14px; }
+.dashboard-workspace.dws .dws-reading { margin: 12px 0 0; color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-reading b { color: var(--s-ink); font-weight: 700; }
+.dashboard-workspace.dws .dws-reading.is-foot { padding-top: 10px; border-top: 1px solid var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-reading .dw-amount { font-size: 12px; }
+
+/* Símbolos de gravedad: la forma dice el nivel aun sin color. */
+.dashboard-workspace.dws .dws-shape { display: inline-block; flex: none; width: 12px; height: 12px; background: var(--s-ink-2); }
+.dashboard-workspace.dws .dws-shape.is-1 { background: var(--s-alarm); }
+.dashboard-workspace.dws .dws-shape.is-2 { background: var(--s-warn); clip-path: polygon(50% 4%, 100% 96%, 0 96%); }
+.dashboard-workspace.dws .dws-shape.is-3 { width: 11px; height: 11px; background: var(--s-ink-2); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.dashboard-workspace.dws .dws-shape.is-outline { background: transparent; box-shadow: inset 0 0 0 1.5px var(--s-ink-3); clip-path: none; width: 10px; height: 10px; transform: rotate(45deg); }
+.dashboard-workspace.dws .dws-tri { display: inline-block; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; }
+.dashboard-workspace.dws .dws-tri.is-up { border-bottom: 8px solid currentColor; }
+.dashboard-workspace.dws .dws-tri.is-down { border-top: 8px solid currentColor; }
+
+/* ── Banda de alarmas ───────────────────────────────────────────────────── */
+.dashboard-workspace.dws .dws-alarm-list { margin: 0; padding: 0; list-style: none; }
+.dashboard-workspace.dws .dws-alarm {
+  --sev-wash: var(--s-well);
+  --sev-ink: var(--s-ink-2);
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1.2fr) minmax(0, 1fr) 48px 270px;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--s-rule-soft);
+  background: var(--sev-wash);
+  transition: background-color 200ms ease-out;
+}
+.dashboard-workspace.dws .dws-alarm:first-child { border-top: 0; }
+.dashboard-workspace.dws .dws-alarm.is-1 { --sev-wash: var(--s-alarm-wash); --sev-ink: var(--s-alarm); }
+.dashboard-workspace.dws .dws-alarm.is-2 { --sev-wash: var(--s-warn-wash); --sev-ink: var(--s-warn-ink); }
+.dashboard-workspace.dws .dws-alarm.is-seen { background: transparent; }
+.dashboard-workspace.dws .dws-alarm.is-seen .dws-shape { background: transparent; box-shadow: inset 0 0 0 1.5px var(--sev-ink); }
+.dashboard-workspace.dws .dws-alarm.is-seen .dws-shape.is-2 { background: var(--sev-ink); clip-path: polygon(50% 4%, 100% 96%, 0 96%, 0 96%, 10% 86%, 90% 86%, 50% 22%, 10% 86%, 0 96%); box-shadow: none; }
+.dashboard-workspace.dws .dws-alarm.is-seen .dws-shape.is-3 { background: var(--sev-ink); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%, 14% 50%, 50% 86%, 86% 50%, 50% 14%, 14% 50%, 0 50%); box-shadow: none; }
+.dashboard-workspace.dws .dws-sev { display: inline-flex; align-items: center; gap: 8px; color: var(--sev-ink); font-size: 12px; font-weight: 750; font-stretch: 88%; }
+.dashboard-workspace.dws .dws-alarm-what { min-width: 0; font-weight: 650; }
+.dashboard-workspace.dws .dws-alarm-what b { font-weight: 800; }
+.dashboard-workspace.dws .dws-alarm-detail { min-width: 0; color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-alarm-count { text-align: right; font-size: 20px; font-weight: 750; font-stretch: 85%; color: var(--s-ink); }
+.dashboard-workspace.dws .dws-alarm-act { display: flex; gap: 6px; justify-content: flex-end; }
+.dashboard-workspace.dws .dws-alarm-act .dws-btn { height: 32px; padding: 0 10px; }
+
+/* ── Medidores ──────────────────────────────────────────────────────────── */
+.dashboard-workspace.dws .dws-gauges { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); gap: 12px; align-items: stretch; }
+.dashboard-workspace.dws .dws-gauges.is-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dashboard-workspace.dws .dws-readout { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.dashboard-workspace.dws .dws-big { color: var(--s-ink); font-size: 44px; font-weight: 750; font-stretch: 85%; line-height: 1; letter-spacing: 0; }
+.dashboard-workspace.dws .dws-big i { font-size: 20px; color: var(--s-ink-2); font-weight: 650; }
+.dashboard-workspace.dws .dws-mid { color: var(--s-ink); font-size: 20px; font-weight: 750; font-stretch: 85%; }
+.dashboard-workspace.dws .dws-exact { margin: 6px 0 0; color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-delta { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; color: var(--s-ink); font-size: 12px; font-weight: 650; }
+.dashboard-workspace.dws .dws-delta b { white-space: nowrap; }
+.dashboard-workspace.dws .dws-delta span { color: var(--s-ink-2); font-weight: 400; }
+
+.dashboard-workspace.dws .dws-gauge { position: relative; height: 14px; margin-top: 14px; border-radius: 2px; background: var(--s-well); box-shadow: inset 0 0 0 1px var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-gauge > span { position: absolute; top: 0; bottom: 0; left: 0; }
+.dashboard-workspace.dws .dws-gauge > .is-capital { background: var(--s-ink-2); border-radius: 2px 0 0 2px; }
+.dashboard-workspace.dws .dws-gauge > .is-interes { background: var(--s-hatch); }
+.dashboard-workspace.dws .dws-gauge > em,
+.dashboard-workspace.dws .dws-meter > em,
+.dashboard-workspace.dws .dws-seg > em { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--s-ink); transform: translateX(-1px); }
+.dashboard-workspace.dws .dws-scale { position: relative; height: 18px; color: var(--s-ink-3); font-size: 12px; font-stretch: 82%; }
+.dashboard-workspace.dws .dws-scale span { position: absolute; top: 4px; white-space: nowrap; transform: translateX(-50%); }
+.dashboard-workspace.dws .dws-scale span:first-child { transform: none; }
+.dashboard-workspace.dws .dws-scale span:last-child { transform: translateX(-100%); }
+.dashboard-workspace.dws .dws-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 0; }
+.dashboard-workspace.dws .dws-legend div { display: grid; gap: 1px; }
+.dashboard-workspace.dws .dws-legend dt { display: flex; align-items: center; gap: 6px; color: var(--s-ink-2); font-size: 12px; font-weight: 600; font-stretch: 82%; }
+.dashboard-workspace.dws .dws-legend dt i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.dashboard-workspace.dws .dws-legend dt i.is-capital { background: var(--s-ink-2); }
+.dashboard-workspace.dws .dws-legend dt i.is-interes { background: var(--s-hatch); }
+.dashboard-workspace.dws .dws-legend dd { display: flex; align-items: baseline; gap: 6px; margin: 0; }
+.dashboard-workspace.dws .dws-legend dd > span { color: var(--s-ink-2); font-size: 12px; }
+
+.dashboard-workspace.dws .dws-keymark { display: inline-flex; align-items: center; gap: 6px; color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-keymark i { display: inline-block; width: 2px; height: 12px; background: var(--s-ink); }
+.dashboard-workspace.dws .dws-levels { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.dashboard-workspace.dws .dws-level-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dashboard-workspace.dws .dws-level-label { margin-left: 6px; color: var(--s-ink-2); font-size: 12px; font-weight: 600; }
+.dashboard-workspace.dws .dws-level-sub { margin: 0; color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-meter { position: relative; display: block; height: 8px; margin-top: 6px; border-radius: 2px; background: var(--s-well); box-shadow: inset 0 0 0 1px var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-meter > span { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 2px; background: var(--s-measure); }
+.dashboard-workspace.dws .dws-meter.is-neutral > span { background: var(--s-neutral); }
+.dashboard-workspace.dws .dws-scale.is-percent { margin-top: 4px; }
+
+.dashboard-workspace.dws .dws-seg { position: relative; display: flex; height: 8px; margin: 8px 0 14px; overflow: visible; border-radius: 2px; background: var(--s-well); box-shadow: inset 0 0 0 1px var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-seg > span { height: 100%; }
+.dashboard-workspace.dws .dws-seg > .is-overdue { background: var(--s-alarm); border-radius: 2px 0 0 2px; }
+.dashboard-workspace.dws .dws-seg > .is-due { background: var(--s-warn); }
+.dashboard-workspace.dws .dws-seg > .is-upcoming { background: var(--s-neutral); }
+.dashboard-workspace.dws .dws-plazos-list { display: grid; gap: 6px; margin: 0 0 4px; padding: 0; list-style: none; }
+.dashboard-workspace.dws .dws-plazos-list li { display: grid; grid-template-columns: 16px 28px 1fr; align-items: center; gap: 6px; }
+.dashboard-workspace.dws .dws-plazos-list li[data-vacio] { color: var(--s-ink-3); }
+.dashboard-workspace.dws .dws-plazos-list b { text-align: right; font-weight: 750; }
+.dashboard-workspace.dws .dws-plazos .dws-reading { margin: 4px 0 10px; }
+
+/* ── Tablero de barrios ─────────────────────────────────────────────────── */
+.dashboard-workspace.dws .dws-concentration { display: grid; grid-template-columns: minmax(0, auto) minmax(120px, 1fr); align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-concentration p { max-width: 46ch; margin: 0; color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-concentration p > b { margin-right: 6px; color: var(--s-ink); font-size: 20px; font-weight: 750; font-stretch: 85%; }
+.dashboard-workspace.dws .dws-concentration .dw-amount { font-size: 12px; }
+.dashboard-workspace.dws .dws-conc-bar { display: flex; height: 10px; overflow: hidden; border-radius: 2px; background: var(--s-well); box-shadow: inset 0 0 0 1px var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-conc-bar span { height: 100%; border-right: 1px solid var(--s-panel); background: var(--s-measure); transition: background-color 120ms ease; }
+.dashboard-workspace.dws .dws-conc-bar span.is-on { background: var(--s-measure-deep); }
+
+.dashboard-workspace.dws .dws-picker { position: relative; padding: 10px 16px; border-bottom: 1px solid var(--s-rule-soft); }
+.dashboard-workspace.dws .dw-barrio-search { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 1px solid var(--s-rule); border-radius: var(--s-radius); background: #fff; box-shadow: none; }
+.dashboard-workspace.dws .dw-barrio-search:focus-within { border-color: var(--s-measure); box-shadow: 0 0 0 1px var(--s-measure); }
+.dashboard-workspace.dws .dw-barrio-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; outline: none; color: var(--s-ink); font: inherit; font-size: 14px; }
+.dashboard-workspace.dws .dw-barrio-search input::placeholder { color: var(--s-ink-3); }
+.dashboard-workspace.dws .dw-barrio-search .app-icon { color: var(--s-ink-2); }
+.dashboard-workspace.dws .dw-suggestions { border-radius: var(--s-radius); border-color: var(--s-rule); box-shadow: 0 6px 16px rgba(27, 34, 41, 0.12); }
+.dashboard-workspace.dws .dw-selection { margin: 0; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--s-rule-soft); border-radius: 0; background: var(--s-well); }
+.dashboard-workspace.dws .dw-selection-chips button { border-radius: var(--s-radius); border-color: var(--s-rule); background: var(--s-panel); }
+.dashboard-workspace.dws .dw-selection-chips .app-icon { width: 12px; height: 12px; }
+
+.dashboard-workspace.dws .dws-board-mod { container-type: inline-size; }
+.dashboard-workspace.dws .dws-table-wrap { overflow-x: auto; }
+/* La tabla suelta columnas por prioridad según el ancho que deja el separador:
+   primero "Mora alta" y "% del total", después "Con mora". */
+@container (max-width: 760px) {
+  .dashboard-workspace.dws .dws-board th:nth-child(4), .dashboard-workspace.dws .dws-board td:nth-child(4),
+  .dashboard-workspace.dws .dws-board th:nth-child(6), .dashboard-workspace.dws .dws-board td:nth-child(6) { display: none; }
+}
+@container (max-width: 600px) {
+  .dashboard-workspace.dws .dws-board .is-opt { display: none; }
+  .dashboard-workspace.dws .dws-board td.is-bar { width: auto; min-width: 140px; }
+}
+.dashboard-workspace.dws .dws-board { width: 100%; border-collapse: collapse; }
+.dashboard-workspace.dws .dws-board th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--s-rule-soft);
+  background: var(--s-well);
+  color: var(--s-ink-2);
+  font-size: 12px;
+  font-weight: 650;
+  font-stretch: 82%;
+  text-align: left;
+  white-space: nowrap;
+}
+.dashboard-workspace.dws .dws-board th.is-num,
+.dashboard-workspace.dws .dws-board td.is-num { text-align: right; }
+.dashboard-workspace.dws .dws-board td { height: 44px; padding: 0 10px; border-bottom: 1px solid var(--s-rule-soft); white-space: nowrap; }
+.dashboard-workspace.dws .dws-board tbody tr:first-child { cursor: pointer; transition: background-color 120ms ease; }
+.dashboard-workspace.dws .dws-board tbody tr:first-child:hover,
+.dashboard-workspace.dws .dws-board tbody tr.is-hl { background: #fff; }
+.dashboard-workspace.dws .dws-board tbody tr[aria-selected="true"] { background: var(--s-measure-wash); }
+.dashboard-workspace.dws .dws-board tbody tr[aria-selected="true"] .is-name { color: var(--s-measure-deep); }
+.dashboard-workspace.dws .dws-board tbody tr:focus-visible { outline: 2px solid var(--s-measure); outline-offset: -2px; }
+.dashboard-workspace.dws .dws-board .is-rank { width: 40px; color: var(--s-ink-3); }
+.dashboard-workspace.dws .dws-board .is-name { max-width: 260px; overflow: hidden; font-weight: 650; text-overflow: ellipsis; }
+.dashboard-workspace.dws .dws-board td.is-bar { width: 34%; min-width: 180px; }
+.dashboard-workspace.dws .dws-board .is-more { width: 44px; padding: 0 4px; text-align: right; }
+.dashboard-workspace.dws .dws-bar-cell { display: grid; grid-template-columns: minmax(40px, 1fr) 92px; align-items: center; gap: 10px; }
+.dashboard-workspace.dws .dws-bar-cell > i { position: relative; display: block; height: 6px; overflow: hidden; border-radius: 2px; background: var(--s-well); }
+.dashboard-workspace.dws .dws-bar-cell > i span { position: absolute; inset: 0; border-radius: 2px; background: var(--s-measure); transform-origin: left center; transition: transform 400ms cubic-bezier(0.23, 1, 0.32, 1); }
+.dashboard-workspace.dws .dws-bar-cell .dw-amount { justify-self: end; overflow: visible; font-size: 14px; white-space: nowrap; }
+.dashboard-workspace.dws .dws-chg { font-weight: 650; }
+.dashboard-workspace.dws .dws-chg.is-up { color: var(--s-alarm); }
+.dashboard-workspace.dws .dws-chg.is-down { color: var(--s-ink); }
+.dashboard-workspace.dws .dws-chg.is-none { color: var(--s-ink-3); font-weight: 400; }
+.dashboard-workspace.dws .dws-detail-row td { height: auto; padding: 8px 16px 12px 50px; background: var(--s-well); white-space: normal; }
+.dashboard-workspace.dws .dws-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; margin: 0; }
+.dashboard-workspace.dws .dws-detail dt { color: var(--s-ink-2); font-size: 12px; font-stretch: 82%; font-weight: 600; }
+.dashboard-workspace.dws .dws-detail dd { margin: 0; }
+
+/* ── Mora por servicio ──────────────────────────────────────────────────── */
+.dashboard-workspace.dws .dw-dotplot circle { fill: var(--s-neutral); }
+.dashboard-workspace.dws .dw-dotplot circle.is-linked { fill: var(--s-measure); stroke: var(--s-panel); stroke-width: 2px; }
+.dashboard-workspace.dws .dw-dotplot circle.is-dim { opacity: 0.35; }
+.dashboard-workspace.dws .dw-dotplot-grid line { stroke: var(--s-grid); }
+.dashboard-workspace.dws .dw-dotplot text { fill: var(--s-ink-3); font-size: 12px; font-stretch: 82%; }
+.dashboard-workspace.dws .dw-dotplot figcaption { color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dw-dotplot-tip { border-radius: var(--s-radius); border-color: var(--s-rule); }
+.dashboard-workspace.dws .dws-services { margin: 12px 0 0; padding: 0; list-style: none; }
+.dashboard-workspace.dws .dws-services > li { border-bottom: 1px solid var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-service-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(60px, 1fr) 88px 20px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--s-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.dashboard-workspace.dws .dws-service-row:hover { background: #fff; }
+.dashboard-workspace.dws .dws-service-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.dashboard-workspace.dws .dws-service-name .app-icon { color: var(--s-ink-2); }
+.dashboard-workspace.dws .dws-service-track { position: relative; height: 6px; overflow: hidden; border-radius: 2px; background: var(--s-well); }
+.dashboard-workspace.dws .dws-service-track span { position: absolute; inset: 0; background: var(--s-measure); transform-origin: left center; }
+.dashboard-workspace.dws .dws-service-row .dw-amount { justify-self: end; }
+.dashboard-workspace.dws .dws-chevron { color: var(--s-ink-3); transition: transform 160ms ease-out; }
+.dashboard-workspace.dws .dws-service-row[aria-expanded="true"] .dws-chevron { transform: rotate(180deg); }
+.dashboard-workspace.dws .dw-service-drill { padding: 8px 4px 14px; }
+
+/* ── Columna lateral ────────────────────────────────────────────────────── */
+.dashboard-workspace.dws .dws-rows { margin: 0; padding: 4px 0; list-style: none; }
+.dashboard-workspace.dws .dws-rows li + li { border-top: 1px solid var(--s-rule-soft); }
+.dashboard-workspace.dws .dws-rows button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--s-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.dashboard-workspace.dws .dws-rows button:hover { background: #fff; }
+.dashboard-workspace.dws .dws-row-copy { display: grid; gap: 2px; min-width: 0; }
+.dashboard-workspace.dws .dws-row-copy strong { font-size: 14px; font-weight: 600; }
+.dashboard-workspace.dws .dws-row-copy small { color: var(--s-ink-2); font-size: 12px; }
+.dashboard-workspace.dws .dws-rows.is-log button { grid-template-columns: minmax(0, 1fr); }
+.dashboard-workspace.dws .dws-rows button.has-serie { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+
+/* Últimos 7 días de un indicador de campo, con el día bajo cada columna y el
+   máximo como escala: un gráfico que se lee, no un adorno. */
+.dashboard-workspace.dws .dws-serie { display: grid; gap: 3px; margin-top: 8px; }
+.dashboard-workspace.dws .dws-serie-cols { position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; gap: 4px; height: 40px; border-bottom: 1px solid var(--s-rule); }
+.dashboard-workspace.dws .dws-serie-cols span { min-height: 1px; border-radius: 1px 1px 0 0; background: var(--s-neutral); }
+.dashboard-workspace.dws .dws-serie-cols span.is-hoy { background: var(--s-measure); }
+.dashboard-workspace.dws .dws-serie-x { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; color: var(--s-ink-3); font-size: 12px; font-stretch: 82%; text-align: center; }
+.dashboard-workspace.dws .dws-serie-max { color: var(--s-ink-3); font-size: 12px; font-stretch: 82%; }
+.dashboard-workspace.dws .dw-minibars rect { fill: var(--s-neutral); }
+.dashboard-workspace.dws .dw-minibars rect.is-today { fill: var(--s-measure); }
+.dashboard-workspace.dws .dw-minibars rect.is-empty { fill: var(--s-neutral-light); }
+
+/* Los cambios del lote y las entregas usan la misma paleta: alza en rojo,
+   baja en tinta; nada de verde como "bueno". */
+.dashboard-workspace.dws .dw-lotes .is-sube { color: var(--s-alarm); }
+.dashboard-workspace.dws .dw-lotes .is-baja { color: var(--s-ink); }
+
+/* ── Adaptación ─────────────────────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  .dashboard-workspace.dws .dws-gauges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-workspace.dws .dws-plazos { grid-column: 1 / -1; }
+  .dashboard-workspace.dws .dws-alarm { grid-template-columns: 100px minmax(0, 1fr) 40px 270px; }
+  .dashboard-workspace.dws .dws-alarm-detail { grid-column: 2; grid-row: 2; margin-top: -6px; }
+  .dashboard-workspace.dws .dws-alarm-count { grid-column: 3; grid-row: 1 / span 2; }
+  .dashboard-workspace.dws .dws-alarm-act { grid-column: 4; grid-row: 1 / span 2; }
+}
+@media (max-width: 760px) {
+  .dashboard-workspace.dws .dws-gauges,
+  .dashboard-workspace.dws .dws-gauges.is-two { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-workspace.dws .dws-pagehead { align-items: flex-start; }
+  .dashboard-workspace.dws .dws-pageactions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .dashboard-workspace.dws .dws-pageactions .dws-btn { justify-content: flex-start; border-color: var(--s-rule); background: var(--s-panel); }
+  .dashboard-workspace.dws .dws-pageactions .dws-btn.is-primary { background: var(--s-measure); }
+  .dashboard-workspace.dws .dws-alarm { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 14px; }
+  .dashboard-workspace.dws .dws-sev { grid-column: 1; }
+  .dashboard-workspace.dws .dws-alarm-count { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  .dashboard-workspace.dws .dws-alarm-what { grid-column: 1; }
+  .dashboard-workspace.dws .dws-alarm-detail,
+  .dashboard-workspace.dws .dws-alarm-act { grid-column: 1 / -1; grid-row: auto; margin: 0; }
+  .dashboard-workspace.dws .dws-alarm-act { justify-content: flex-start; margin-top: 6px; }
+  .dashboard-workspace.dws .dws-big { font-size: 44px; }
+  .dashboard-workspace.dws .dws-mod-head { flex-wrap: wrap; }
+  .dashboard-workspace.dws .dws-concentration { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .dashboard-workspace.dws .dws-board .is-opt { display: none; }
+  .dashboard-workspace.dws .dws-board td,
+  .dashboard-workspace.dws .dws-board th { padding: 0 6px; }
+  .dashboard-workspace.dws .dws-board th { padding: 8px 6px; }
+  .dashboard-workspace.dws .dws-board .is-name { max-width: 150px; white-space: normal; line-height: 1.25; padding-block: 6px; }
+  .dashboard-workspace.dws .dws-board td.is-bar { width: auto; min-width: 0; }
+  .dashboard-workspace.dws .dws-bar-cell { grid-template-columns: 64px; }
+  .dashboard-workspace.dws .dws-bar-cell > i { display: none; }
+  .dashboard-workspace.dws .dws-service-row { grid-template-columns: minmax(0, 1fr) 80px 20px; }
+  .dashboard-workspace.dws .dws-service-track { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-workspace.dws * { transition: none !important; }
+}
+
+/* El botón de imprimir de "Cambios desde el lote anterior", igual que los demás:
+   ícono sin caja. */
+.dashboard-workspace.dws .dw-lotes .dw-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--s-radius);
+  background: transparent;
+  box-shadow: none;
+  color: var(--s-ink-2);
+}
+.dashboard-workspace.dws .dw-lotes .dw-icon-button:hover { background: var(--s-well); color: var(--s-ink); }
+
+/* Entrega de facturas en la paleta de la sala: el reparto en curso es un
+   rayado neutro (no un celeste propio), "En reparto" va en tinta con el punto
+   azul de lo que se mide, y el enlace es el de los demás módulos. */
+.dashboard-workspace.dws .dw-entregas-estado.is-vivo { color: var(--s-ink-2); }
+.dashboard-workspace.dws .dw-entregas-estado.is-vivo i,
+.dashboard-workspace.dws .dw-entregas-estado.is-vivo i::after { background: var(--s-measure); }
+.dashboard-workspace.dws .dw-entregas-barra .is-en-curso,
+.dashboard-workspace.dws .dw-entregas-mini .is-en-curso {
+  background-color: var(--s-neutral-light);
+  background-image: repeating-linear-gradient(-45deg, var(--s-neutral) 0 2px, transparent 2px 6px);
+}
+.dashboard-workspace.dws .dw-entregas-leyenda .is-en-curso i { background: var(--s-hatch); }
+.dashboard-workspace.dws .dw-entregas-leyenda .is-pendiente i { background: var(--s-well); box-shadow: inset 0 0 0 1px var(--s-rule); }
+.dashboard-workspace.dws .dw-entregas-abrir {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--s-measure-deep);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.dashboard-workspace.dws .dw-entregas-abrir:hover { color: var(--s-measure); }
+.dashboard-workspace.dws .dw-entregas-abrir .app-icon { display: none; }
+.dashboard-workspace.dws .dw-entregas-cifra { flex-wrap: wrap; row-gap: 2px; }
+.dashboard-workspace.dws .dw-entregas-cifra strong { font-size: 44px; font-weight: 750; font-stretch: 85%; letter-spacing: 0; }
+.dashboard-workspace.dws .dw-entregas-cifra > span { flex: 1 1 150px; min-width: 0; }
+
+/* Alarmas: los dos botones con ancho fijo, así sus bordes forman columna. */
+.dashboard-workspace.dws .dws-alarm-act .dws-btn { justify-content: center; }
+.dashboard-workspace.dws .dws-alarm-act .dws-btn:first-child { width: 128px; }
+.dashboard-workspace.dws .dws-alarm-act .dws-btn:last-child:not(:first-child) { width: 132px; }
+@media (max-width: 760px) {
+  .dashboard-workspace.dws .dws-alarm-act .dws-btn:first-child,
+  .dashboard-workspace.dws .dws-alarm-act .dws-btn:last-child:not(:first-child) { width: auto; flex: 1 1 0; }
+}
+
+/* Campo: la cifra en una columna de ancho fijo, para que los gráficos de los
+   indicadores tengan el mismo ancho y terminen en la misma línea. */
+.dashboard-workspace.dws .dws-rows button.has-serie,
+.dashboard-workspace.dws .dws-campo .dws-rows button { grid-template-columns: minmax(0, 1fr) 76px; }
+.dashboard-workspace.dws .dws-campo .dws-rows button > b { justify-self: end; }

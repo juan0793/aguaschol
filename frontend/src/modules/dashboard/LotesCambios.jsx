@@ -62,7 +62,7 @@ const Barra = ({ valor, escala }) => {
   </span>;
 };
 
-export function CambiosDelLote({ lotes, navigate, onPrint }) {
+export function CambiosDelLote({ lotes, navigate, onPrint, ocultarPendiente = false }) {
   const data = lotes.data;
   if (!data && !lotes.error) return null;
   const comparacion = data?.disponible ? data.comparacion : null;
@@ -71,7 +71,7 @@ export function CambiosDelLote({ lotes, navigate, onPrint }) {
   const barrios = comparacion ? [...comparacion.barrios.subieron.slice(0, 5), ...comparacion.barrios.bajaron.slice(0, 5)].sort((a, b) => b.diferencia - a.diferencia) : [];
   const escalaBarrios = Math.max(1, ...barrios.map((fila) => Math.abs(fila.diferencia)));
   const diferencia = comparacion ? comparacion.actual.total - comparacion.anterior.total : 0;
-  const pendiente = data?.pendiente && (!data.actual?.fecha_recepcion || new Date(data.pendiente.fecha_recepcion) > new Date(data.actual.fecha_recepcion)) ? data.pendiente : null;
+  const pendiente = !ocultarPendiente && data?.pendiente && (!data.actual?.fecha_recepcion || new Date(data.pendiente.fecha_recepcion) > new Date(data.actual.fecha_recepcion)) ? data.pendiente : null;
 
   return <section className="dw-lotes" aria-labelledby="dw-lotes-titulo" aria-busy={lotes.cargando}>
     <header className="dw-lotes-head">
