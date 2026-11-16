@@ -5,12 +5,14 @@ import { buildAvisoHtml } from "../utils/avisoTemplate.js";
 import { deleteStoredPhoto, saveUploadedPhoto } from "./fileStorageService.js";
 import { getBarrioByClave } from "./barrioCodeService.js";
 import { likeValue, normalizeDateField, normalizeKey } from "../utils/normalize.js";
+import { claveCanonica } from "../utils/claveCanonica.js";
 import { getAnalistaDatos } from "./clandestinosAjustesService.js";
 
 const memoryRecords = [
   {
     id: 1,
     clave_catastral: "10-22-23",
+    clave_norm: "10-22-23",
     abonado: "",
     nombre_catastral: "10-22-23",
     inquilino: "",
@@ -46,8 +48,11 @@ const memoryRecords = [
 
 const padronStatuses = new Set(["clandestino", "varios_padrones", "reportada"]);
 
+// clave_catastral queda como se escribió (sale en documentos impresos); clave_norm es la
+// clave canónica con la que se compara el caso entre el banco, la Alcaldía y las fichas.
 const mapPayload = (payload) => ({
   clave_catastral: normalizeKey(payload.clave_catastral),
+  clave_norm: claveCanonica(payload.clave_catastral),
   abonado: payload.abonado?.trim() ?? "",
   nombre_catastral: payload.nombre_catastral?.trim() ?? "",
   inquilino: payload.inquilino?.trim() ?? "",
@@ -157,21 +162,46 @@ export const listInmuebleSummary = async () => {
   return rows;
 };
 
+// Busca la ficha activa de una clave. Compara por clave canónica, así "89-13-5" y
+// "89-13-05" son la misma ficha; si varias coinciden, gana la escrita igual. Una clave
+// que no se puede leer como clave solo coincide con su texto exacto.
 export const getByClave = async (clave) => {
   const normalized = normalizeKey(clave);
+  const canonica = claveCanonica(clave);
+  const coincide = (item) => item.clave_catastral === normalized || (canonica && (item.clave_norm || claveCanonica(item.clave_catastral)) === canonica);
 
   if (env.useMemoryDb) {
-    return (
-      memoryRecords.find((item) => item.clave_catastral === normalized && !item.archived_at) ?? null
-    );
+    const activas = memoryRecords.filter((item) => !item.archived_at && coincide(item));
+    return activas.find((item) => item.clave_catastral === normalized) ?? activas[0] ?? null;
   }
 
   const pool = getPool();
   const [rows] = await pool.query(
-    "SELECT * FROM inmuebles_clandestinos WHERE clave_catastral = ? AND archived_at IS NULL LIMIT 1",
-    [normalized]
+    `SELECT * FROM inmuebles_clandestinos
+     WHERE archived_at IS NULL AND (clave_catastral = ?${canonica ? " OR clave_norm = ?" : ""})
+     ORDER BY (clave_catastral = ?) DESC, id LIMIT 1`,
+    [normalized, ...(canonica ? [canonica] : []), normalized]
   );
   return rows[0] ?? null;
+};
+
+// Lo mínimo de cada ficha para el seguimiento de casos: todas, también las archivadas
+// (archivar no cambia la etapa del caso).
+export const listFichasSeguimiento = async () => {
+  if (env.useMemoryDb) {
+    return memoryRecords.map((item) => ({
+      id: item.id,
+      clave_catastral: item.clave_catastral,
+      clave_norm: item.clave_norm || claveCanonica(item.clave_catastral),
+      estado_operativo: item.estado_operativo || "pending",
+      archived_at: item.archived_at || null
+    }));
+  }
+
+  const [rows] = await getPool().query(
+    "SELECT id, clave_catastral, clave_norm, COALESCE(estado_operativo, 'pending') AS estado_operativo, archived_at FROM inmuebles_clandestinos"
+  );
+  return rows.map((row) => ({ ...row, id: Number(row.id), clave_norm: row.clave_norm || claveCanonica(row.clave_catastral) }));
 };
 
 export const findByAbonadoOrClave = async (value) => {
@@ -246,16 +276,17 @@ export const createInmueble = async (payload, options = {}) => {
   const [result] = await pool.query(
     `
       INSERT INTO inmuebles_clandestinos (
-        clave_catastral, abonado, nombre_catastral, inquilino, barrio_colonia,
+        clave_catastral, clave_norm, abonado, nombre_catastral, inquilino, barrio_colonia,
         identidad, telefono, accion_inspeccion, situacion_inmueble, tendencia_inmueble,
         uso_suelo, actividad, codigo_sector, comentarios, estado_padron,
         clave_alcaldia, nombre_alcaldia, barrio_alcaldia, conexion_agua,
         conexion_alcantarillado, recoleccion_desechos, fecha_aviso, firmante_aviso,
         cargo_firmante, levantamiento_datos, analista_datos
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       data.clave_catastral,
+      data.clave_norm,
       data.abonado,
       data.nombre_catastral,
       data.inquilino,
@@ -330,7 +361,7 @@ export const updateInmueble = async (id, payload, options = {}) => {
   const [result] = await pool.query(
     `
       UPDATE inmuebles_clandestinos
-      SET clave_catastral = ?, abonado = ?, nombre_catastral = ?, inquilino = ?,
+      SET clave_catastral = ?, clave_norm = ?, abonado = ?, nombre_catastral = ?, inquilino = ?,
           barrio_colonia = ?, identidad = ?, telefono = ?, accion_inspeccion = ?,
           situacion_inmueble = ?, tendencia_inmueble = ?, uso_suelo = ?,
           actividad = ?, codigo_sector = ?, comentarios = ?, estado_padron = ?,
@@ -341,6 +372,7 @@ export const updateInmueble = async (id, payload, options = {}) => {
     `,
     [
       data.clave_catastral,
+      data.clave_norm,
       data.abonado,
       data.nombre_catastral,
       data.inquilino,

@@ -4,6 +4,7 @@ import { createAuditLog } from "./auditService.js";
 import { getAlcaldiaRecords, getMasterRecords, getMasterVersion } from "./claveLookupService.js";
 import { createInmueble, getByClave, getById, listInmuebles } from "./inmuebleService.js";
 import { likeValue } from "../utils/normalize.js";
+import { claveCanonica, loteDeClave } from "../utils/claveCanonica.js";
 import { emitProfileMessage } from "./profileRealtimeService.js";
 
 // Banco de clandestinos: puntos levantados en campo que todavia no son fichas.
@@ -44,13 +45,10 @@ export const TECNICO_ROLES = ["operator", "validadora_campo"];
 export const soloLoSuyo = (user) => Boolean(user) && !["admin", "gerente"].includes(user.role);
 const canWork = (user, candidato) => canProcess(user) || (TECNICO_ROLES.includes(user?.role) && Number(candidato?.asignado_a) === Number(user?.id));
 
-// "89-13-15", "89 13 15" o "089-13-15-1" -> bloques de al menos dos digitos; "" si no es clave.
-export const normalizarClaveBanco = (value = "") => {
-  const parts = clean(value).split(/\D+/).filter(Boolean);
-  if (![3, 4].includes(parts.length) || parts.some((part) => part.length > 3)) return "";
-  return parts.map((part) => part.padStart(2, "0")).join("-");
-};
-const baseDe = (clave) => clave.split("-").slice(0, 3).join("-");
+// La clave del banco es la clave canónica (utils/claveCanonica.js); el nombre viejo se
+// conserva para lo que ya lo importa.
+export const normalizarClaveBanco = claveCanonica;
+const baseDe = loteDeClave;
 const manzanaDe = (clave) => clave.split("-").slice(0, 2).join("-");
 
 // Palabras de un nombre para compararlo entre padrones (sin tildes ni palabras de relleno).
@@ -245,6 +243,17 @@ const getCandidato = async (id) => {
   if (env.useMemoryDb) return mapCandidato(memoryBanco.find((item) => item.id === Number(id))) || null;
   const [rows] = await getPool().query(`${CANDIDATO_SELECT} WHERE banco_clandestinos.id = ? LIMIT 1`, [id]);
   return mapCandidato(rows[0]) || null;
+};
+
+// Lo mínimo de cada candidato principal (los que no son copia de otro) para el
+// seguimiento de casos (seguimientoClandestinosService).
+const CAMPOS_SEGUIMIENTO = ["id", "clave_catastral", "estado", "dictamen", "asignado_a", "inmueble_id", "motivo_descarte", "duplicado_de", "no_duplicado"];
+export const listCandidatosSeguimiento = async () => {
+  if (env.useMemoryDb) {
+    return memoryBanco.filter((item) => item.duplicado_de == null).map((item) => Object.fromEntries(CAMPOS_SEGUIMIENTO.map((campo) => [campo, item[campo] ?? null])));
+  }
+  const [rows] = await getPool().query(`SELECT ${CAMPOS_SEGUIMIENTO.join(", ")} FROM banco_clandestinos WHERE duplicado_de IS NULL`);
+  return rows;
 };
 
 // Largo maximo de cada columna del dictamen, para no romper en modo estricto con nombres largos.

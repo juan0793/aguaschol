@@ -252,6 +252,9 @@ CREATE TABLE IF NOT EXISTS user_achievements (
 CREATE TABLE IF NOT EXISTS inmuebles_clandestinos (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   clave_catastral VARCHAR(30) NOT NULL UNIQUE,
+  -- Clave canónica (utils/claveCanonica.js): con ella se compara el caso entre el banco,
+  -- la Alcaldía y las fichas. clave_catastral queda como se escribió.
+  clave_norm VARCHAR(30) NOT NULL DEFAULT '',
   abonado VARCHAR(180) NOT NULL DEFAULT '',
   nombre_catastral VARCHAR(180) NOT NULL DEFAULT '',
   inquilino VARCHAR(180) NOT NULL DEFAULT '',

@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import mysql from "mysql2/promise";
 import { env } from "./env.js";
 import { hashPassword } from "../utils/password.js";
+import { claveCanonica } from "../utils/claveCanonica.js";
 
 let pool;
 let initializationPromise = null;
@@ -876,6 +877,26 @@ const ensureSchema = async () => {
       indexName: "idx_inmuebles_estado_padron",
       columns: ["estado_padron"]
     });
+    // Seguimiento único de clandestinos (docs/DISENO_SEGUIMIENTO_CLANDESTINOS.md): la clave
+    // canónica de cada ficha. Se calcula de clave_catastral, que no se toca; por eso se
+    // puede repetir en cada arranque y solo escribe las filas que no coinciden.
+    await ensureColumn(admin, {
+      tableName: "inmuebles_clandestinos",
+      columnName: "clave_norm",
+      definition: "VARCHAR(30) NOT NULL DEFAULT '' AFTER clave_catastral"
+    });
+    await ensureIndex(admin, {
+      tableName: "inmuebles_clandestinos",
+      indexName: "idx_inmuebles_clave_norm",
+      columns: ["clave_norm"]
+    });
+    {
+      const [fichas] = await admin.query("SELECT id, clave_catastral, clave_norm FROM inmuebles_clandestinos");
+      for (const ficha of fichas) {
+        const canonica = claveCanonica(ficha.clave_catastral);
+        if (canonica !== ficha.clave_norm) await admin.query("UPDATE inmuebles_clandestinos SET clave_norm = ?, updated_at = updated_at WHERE id = ?", [canonica, ficha.id]);
+      }
+    }
     await ensureIndex(admin, {
       tableName: "map_points",
       indexName: "idx_map_points_created_at",

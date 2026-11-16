@@ -16,7 +16,7 @@ const invoke = (baseUrl, method, path, role = "gerente") => {
 test("Gerencia consulta módulos autorizados con respuestas no almacenables", () => {
   for (const [base, path] of [
     ["/api/inmuebles", "/"], ["/api/inmuebles", "/clave/01-02-03"],
-    ["/api/clandestinos", "/fichas"], ["/api/clandestinos", "/fichas/ritmo"],
+    ["/api/clandestinos", "/fichas"], ["/api/clandestinos", "/seguimiento"], ["/api/clandestinos", "/fichas/ritmo"],
     ["/api/inspecciones", "/stats/tablero"], ["/api/inspecciones", "/7/gps"],
     ["/api/entregas", "/lotes/4"], ["/api/entregas", "/avance-mes"], ["/api/entregas", "/exclusiones"], ["/api/entregas", "/reportes/semanales/preview"],
     ["/api/claves", "/services/report"], ["/api/field-validation", "/findings"],

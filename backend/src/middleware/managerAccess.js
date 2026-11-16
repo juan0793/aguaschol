@@ -2,7 +2,7 @@
 export const READ_ROUTES = {
   "/api/reports": /^\/manager\/RPT-\d{8}-\d{6}-[A-F0-9]{8}$/,
   "/api/inmuebles": /^\/(?:summary|clave\/[^/]+|\d+\/(?:history|aviso))?\/?$/,
-  "/api/clandestinos": /^\/(?:config|fichas(?:\/ritmo)?|reportes|history\/[^/]+\/\d+|banco(?:\/(?:listado|refs))?)\/?$/,
+  "/api/clandestinos": /^\/(?:config|seguimiento|fichas(?:\/ritmo)?|reportes|history\/[^/]+\/\d+|banco(?:\/(?:listado|refs))?)\/?$/,
   "/api/inspecciones": /^\/(?:config|tecnicos|resumen|stats(?:\/tablero)?|\d+(?:\/(?:tecnicos|gps|historial|print-data|print-history))?)?\/?$/,
   "/api/entregas": /^\/(?:config|resumen|avance-mes|descartes|exclusiones|personal|reparto(?:\/mapa)?|lotes(?:\/\d+)?|no-entregadas(?:\/\d+)?|reportes\/semanales(?:\/(?:preview|\d+))?)\/?$/,
   "/api/entregas/reclamos": /^\/(?:buscar)?\/?$/,
