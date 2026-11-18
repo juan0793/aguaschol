@@ -2,9 +2,32 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import BarriosEntregaPrint from "../print/BarriosEntregaPrint";
 import { formatNumber, formatPercent } from "../utils/entregasFormatters";
-import { gruposPorTecnico, listaAvance } from "../utils/avanceMes.js";
+import { textoFechaPlan } from "../utils/planBarrios.js";
+import { anotadosPara, cargaDe, cargaMaxima, cargaPendiente, gruposPorTecnico, jornadasNecesarias, listaAvance, ritmoPorTecnico, textoJornadas } from "../utils/avanceMes.js";
 
 const ESTADOS = { entregado: "Entregado", en_curso: "Lote abierto", pendiente: "Pendiente" };
+// Barra de carga de un barrio: documentos por ciclo (promedio de los últimos ciclos,
+// o las claves del padrón si todavía no hay historial) y cuánto de una jornada del
+// técnico representa.
+function CargaBarrio({ barrio, maxima, ritmo }) {
+  const documentos = cargaDe(barrio);
+  if (!documentos) return null;
+  const estimada = barrio.carga?.fuente !== "historial";
+  const jornadas = textoJornadas(jornadasNecesarias(documentos, ritmo));
+  const detalle = estimada
+    ? `${barrio.nombre}: sin entregas en los ciclos anteriores; se estima con ${formatNumber(documentos)} claves del padrón.`
+    : `${barrio.nombre}: ${formatNumber(documentos)} documentos por ciclo en promedio (${barrio.carga.ciclos} ${barrio.carga.ciclos === 1 ? "ciclo" : "ciclos"}; el último, ${formatNumber(barrio.carga.ultimo)}).`
+      + (barrio.carga.jornadas ? ` Se repartió en ${String(barrio.carga.jornadas).replace(".", ",")} jornadas por ciclo.` : "");
+  const ritmoTexto = ritmo ? ` ${barrio.responsable_nombre} reparte unos ${formatNumber(ritmo.documentos_por_jornada)} por jornada.` : "";
+  return (
+    <span className={`ent-mes-carga${estimada ? " is-estimada" : ""}`} title={detalle + ritmoTexto}>
+      <span className="ent-mes-carga-barra" aria-hidden="true"><i style={{ width: `${Math.max((documentos / maxima) * 100, 3)}%` }} /></span>
+      <small>{estimada ? "~" : "≈"}{formatNumber(documentos)} doc.{jornadas ? ` · ${jornadas}` : ""}</small>
+      <span className="sr-only">{detalle + ritmoTexto}</span>
+    </span>
+  );
+}
+
 const fechaCorta = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-HN", { day: "numeric", month: "short" }).replace(".", "") : "");
 
 // Avance del mes: un tramo por barrio del reparto, agrupado por técnico. El tramo se
@@ -50,6 +73,16 @@ export default function AvanceMes({ mes, onAbrirLote }) {
   const grupos = gruposPorTecnico(mes.barrios);
   const { entregados, faltan } = listaAvance(mes.barrios, tecnico);
   const elegido = grupos.find((grupo) => grupo.id === tecnico);
+  const maxima = cargaMaxima(mes.barrios);
+  const ritmos = ritmoPorTecnico(mes.ritmo_tecnicos);
+  const ritmoElegido = tecnico == null ? null : ritmos.get(tecnico);
+  const pendiente = cargaPendiente(faltan, ritmoElegido);
+  // Lo que los técnicos anotaron al cerrar su lote para la próxima jornada.
+  const proxima = mes.proxima_jornada || "";
+  const cuandoProxima = textoFechaPlan(proxima, mes.hasta);
+  const planDe = (barrio) => (barrio.plan ? `Anotado para ${textoFechaPlan(barrio.plan.fecha, mes.hasta)}` : "");
+  const anotadosTodos = anotadosPara(mes.barrios, proxima);
+  const anotados = anotadosPara(faltan, proxima);
   const abrir = (id) => {
     if (abierto && tecnico === id) { setAbierto(false); return; }
     setTecnico(id);
@@ -71,8 +104,8 @@ export default function AvanceMes({ mes, onAbrirLote }) {
     }
   };
   const lectura = activo
-    ? `${activo.nombre} · ${activo.responsable_nombre} · ${ESTADOS[activo.estado]}${activo.estado !== "pendiente" ? ` · ${formatNumber(activo.entregadas)} entregadas` : ""}`
-    : `${formatNumber(mes.en_curso)} con lote abierto · ${formatNumber(mes.pendientes)} pendientes · ${formatNumber(mes.documentos_entregados)} documentos entregados`;
+    ? `${activo.nombre} · ${activo.responsable_nombre} · ${ESTADOS[activo.estado]}${activo.estado !== "pendiente" ? ` · ${formatNumber(activo.entregadas)} entregadas` : ""}${activo.plan ? ` · ${planDe(activo)}` : ""}`
+    : `${formatNumber(mes.en_curso)} con lote abierto · ${formatNumber(mes.pendientes)} pendientes · ${formatNumber(mes.documentos_entregados)} documentos entregados${anotadosTodos.length ? ` · ${formatNumber(anotadosTodos.length)} anotados para ${cuandoProxima}` : ""}`;
 
   return (
     <div className="ent-mes">
@@ -95,7 +128,7 @@ export default function AvanceMes({ mes, onAbrirLote }) {
             aria-expanded={abierto && tecnico === grupo.id}
           >
             {grupo.barrios.map((barrio) => (
-              <i key={barrio.codigo} className={`is-${barrio.estado}${activo?.codigo === barrio.codigo ? " is-activo" : ""}`} onMouseEnter={() => setActivo(barrio)} />
+              <i key={barrio.codigo} className={`is-${barrio.estado}${barrio.plan ? " is-planeado" : ""}${activo?.codigo === barrio.codigo ? " is-activo" : ""}`} onMouseEnter={() => setActivo(barrio)} />
             ))}
           </button>
         ))}
@@ -127,6 +160,23 @@ export default function AvanceMes({ mes, onAbrirLote }) {
               </button>
             ))}
           </div>
+          {maxima ? (
+            <p className="ent-mes-resumen-carga">
+              {elegido ? `A ${elegido.nombre} le faltan` : "Faltan"} <strong>≈{formatNumber(pendiente.documentos)} documentos</strong> en {formatNumber(pendiente.barrios)} {pendiente.barrios === 1 ? "barrio" : "barrios"}
+              {ritmoElegido ? (
+                <>
+                  {" "}· reparte ≈{formatNumber(ritmoElegido.documentos_por_jornada)} por jornada (máx. {formatNumber(ritmoElegido.maximo_jornada)}, {String(ritmoElegido.barrios_por_jornada).replace(".", ",")} {ritmoElegido.barrios_por_jornada === 1 ? "barrio" : "barrios"} por día)
+                  {pendiente.jornadas ? <> → <strong>{textoJornadas(pendiente.jornadas)}</strong></> : null}
+                </>
+              ) : elegido ? " · todavía sin jornadas cerradas para medir su ritmo" : null}
+              {anotados.length ? (
+                <span className="ent-mes-plan-linea">
+                  Anotado para {cuandoProxima}: <strong>{elegido ? anotados.map((barrio) => barrio.nombre).join(", ") : `${formatNumber(anotados.length)} ${anotados.length === 1 ? "barrio" : "barrios"}`}</strong>
+                  {" "}(≈{formatNumber(cargaPendiente(anotados).documentos)} doc.{ritmoElegido && cargaPendiente(anotados, ritmoElegido).jornadas ? ` · ${textoJornadas(cargaPendiente(anotados, ritmoElegido).jornadas)}` : ""})
+                </span>
+              ) : elegido ? <span className="ent-mes-plan-linea">Todavía no anotó qué barrio trabaja {cuandoProxima}.</span> : null}
+            </p>
+          ) : null}
           <div className="ent-mes-columnas">
             <div>
               <h4>Ya entregados <span>{entregados.length}</span></h4>
@@ -135,6 +185,7 @@ export default function AvanceMes({ mes, onAbrirLote }) {
                   {entregados.map((barrio) => (
                     <li key={barrio.codigo}>
                       <span className="ent-mes-barrio"><i className="is-entregado" aria-hidden="true" /><strong>{barrio.nombre}</strong><small>{tecnico == null ? `${barrio.responsable_nombre} · ` : ""}{formatNumber(barrio.entregadas)} entregadas</small></span>
+                      {maxima ? <CargaBarrio barrio={barrio} maxima={maxima} ritmo={ritmos.get(barrio.responsable_id)} /> : null}
                       <span className="ent-mes-lotes">
                         {barrio.lotes_cerrados.slice(0, 3).map((id) => (
                           <button type="button" key={id} onClick={() => onAbrirLote?.({ id })} disabled={!onAbrirLote} title={`Abrir el lote #${id}`}>#{id}</button>
@@ -152,7 +203,8 @@ export default function AvanceMes({ mes, onAbrirLote }) {
                 <ul>
                   {faltan.map((barrio) => (
                     <li key={barrio.codigo}>
-                      <span className="ent-mes-barrio"><i className={`is-${barrio.estado}`} aria-hidden="true" /><strong>{barrio.nombre}</strong><small>{tecnico == null ? `${barrio.responsable_nombre} · ` : ""}{ESTADOS[barrio.estado]}</small></span>
+                      <span className="ent-mes-barrio"><i className={`is-${barrio.estado}`} aria-hidden="true" /><strong>{barrio.nombre}</strong><small>{tecnico == null ? `${barrio.responsable_nombre} · ` : ""}{ESTADOS[barrio.estado]}{barrio.plan ? <> · <span className="ent-mes-plan">{planDe(barrio)}</span></> : null}</small></span>
+                      {maxima ? <CargaBarrio barrio={barrio} maxima={maxima} ritmo={ritmos.get(barrio.responsable_id)} /> : null}
                       {barrio.lotes_abiertos.length ? (
                         <span className="ent-mes-lotes">
                           {barrio.lotes_abiertos.slice(0, 2).map((id) => (

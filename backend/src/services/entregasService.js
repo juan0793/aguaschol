@@ -40,9 +40,16 @@ import {
   validarMotivo,
   validarSobrantes,
   validarTotalAsignado,
-  armarAvanceMes
+  armarAvanceMes,
+  armarCargaHistorica,
+  armarRitmoTecnicos,
+  normalizarPlan,
+  planesPorBarrio,
+  proximaJornada
 } from "./entregasRules.js";
 
+// Días antes del ciclo vigente que se leen para la carga por barrio y el ritmo por técnico.
+const DIAS_DE_HISTORIAL = 120;
 const clean = (value) => String(value ?? "").trim();
 import { assertOperationalWrite } from "../utils/permissions.js";
 
@@ -893,6 +900,11 @@ export const getCicloVigente = async (executor = getPool()) => {
 // cortes declarados, el ciclo es el mes calendario en curso.
 export const getAvanceMes = async (user) => {
   if (!canReadAll(user)) throw fail("Solo quien ve a todo el equipo consulta el avance del mes.", 403);
+  return calcularAvanceMes();
+};
+
+// El avance sin control de permisos: lo usan el avance del mes y el plan del técnico.
+const calcularAvanceMes = async () => {
   const hoy = jornadaEntregas().fecha;
   const [{ barrios }, ciclo, [personal]] = await Promise.all([
     leerRepartoBarrios(),
@@ -915,7 +927,42 @@ export const getAvanceMes = async (user) => {
      FROM entrega_lotes WHERE fecha = ?`,
     [hoy]
   );
-  const avance = armarAvanceMes({ barrios, lotes, personal, desde, hasta: hoy });
+  // Carga de cada barrio en los ciclos anteriores y ritmo de cada técnico por jornada:
+  // unos cuatro meses atrás bastan para tres ciclos.
+  const inicioHistorial = addDays(desde, -DIAS_DE_HISTORIAL);
+  const [[historial], [jornadasTecnicos], [cortes], [planes]] = await Promise.all([
+    getPool().query(
+      `SELECT barrio_codigo, DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha, SUM(total_asignadas) AS documentos
+       FROM entrega_lotes WHERE fecha >= ? AND fecha < ? AND barrio_codigo <> ''
+       GROUP BY barrio_codigo, fecha`,
+      [inicioHistorial, desde]
+    ),
+    getPool().query(
+      `SELECT responsable_id, fecha, SUM(total_asignadas) AS documentos, COUNT(DISTINCT barrio_codigo) AS barrios
+       FROM entrega_lotes WHERE fecha >= ? AND fecha <= ? AND estado <> 'ABIERTO'
+       GROUP BY responsable_id, fecha`,
+      [inicioHistorial, hoy]
+    ),
+    getPool().query(
+      "SELECT DATE_FORMAT(fecha_corte, '%Y-%m-%d') AS fecha_corte FROM entrega_ciclos WHERE fecha_corte >= ?",
+      [inicioHistorial]
+    ),
+    getPool().query(
+      `SELECT DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha, responsable_id, barrio_codigo, anotado_por_nombre
+       FROM entrega_plan_barrios WHERE fecha >= ?`,
+      [hoy]
+    )
+  ]);
+  const avance = armarAvanceMes({
+    barrios,
+    lotes,
+    personal,
+    desde,
+    hasta: hoy,
+    carga: armarCargaHistorica({ historial, cortes: cortes.map((fila) => fila.fecha_corte) }),
+    ritmo: armarRitmoTecnicos(jornadasTecnicos),
+    planes: planesPorBarrio(planes, hoy)
+  });
   return {
     ...avance,
     documentos_asignados: avance.barrios.reduce((suma, fila) => suma + fila.asignadas, 0),
@@ -925,8 +972,102 @@ export const getAvanceMes = async (user) => {
       asignadas: toEntero(jornada?.asignadas),
       entregadas: toEntero(jornada?.entregadas)
     },
-    ciclo_declarado: Boolean(ciclo.fecha_inicio)
+    ciclo_declarado: Boolean(ciclo.fecha_inicio),
+    proxima_jornada: proximaJornada(hoy)
   };
+};
+
+/* -------------------------------------------------------------------------- */
+/* Plan del día siguiente                                                      */
+/* -------------------------------------------------------------------------- */
+
+// Quién puede anotar el plan de un responsable: la oficina (admin u operador) para
+// cualquiera; el técnico para sí mismo y para quien no tiene usuario (como en los lotes).
+const cargarResponsablePlan = async (responsableId, user, { escribir = false } = {}) => {
+  const [[responsable]] = await getPool().query(
+    "SELECT id, nombre_completo, user_id FROM personal_campo WHERE id = ? AND activo = 1 LIMIT 1",
+    [toEntero(responsableId)]
+  );
+  if (!responsable) throw fail("Esa persona no existe o está inactiva en Personal de campo.", 404);
+  if (isGestor(user) || (!escribir && canReadAll(user))) return { responsable, propio: false };
+  const personalPropio = await getPersonalDelUsuario(user);
+  if (!respondePor(responsable, personalPropio)) throw fail("Solo puedes anotar el plan de tus propios barrios.", 403);
+  return { responsable, propio: Number(personalPropio.id) === Number(responsable.id) };
+};
+
+// Barrios del reparto de un responsable, con su estado en el ciclo, su carga y lo ya
+// anotado para la fecha pedida (por defecto, la próxima jornada).
+export const getPlanBarrios = async (query = {}, user) => {
+  const { responsable, propio } = await cargarResponsablePlan(query.responsable_id, user);
+  const avance = await calcularAvanceMes();
+  const hoy = avance.hasta;
+  const fecha = normalizarPlan({ fecha: query.fecha, barrios: [] }, { hoy }).fecha;
+  const [anotados] = await getPool().query(
+    "SELECT barrio_codigo FROM entrega_plan_barrios WHERE fecha = ? AND responsable_id = ?",
+    [fecha, responsable.id]
+  );
+  const elegidos = new Set(anotados.map((fila) => String(fila.barrio_codigo)));
+  const barrios = avance.barrios
+    .filter((barrio) => barrio.responsable_id === Number(responsable.id))
+    .map((barrio) => ({
+      codigo: barrio.codigo,
+      nombre: barrio.nombre,
+      estado: barrio.estado,
+      orden_ruta: barrio.orden_ruta,
+      carga: barrio.carga,
+      anotado: elegidos.has(barrio.codigo)
+    }));
+  return {
+    fecha,
+    hoy,
+    propio,
+    responsable: { id: Number(responsable.id), nombre: responsable.nombre_completo },
+    ritmo: avance.ritmo_tecnicos.find((fila) => fila.responsable_id === Number(responsable.id)) || null,
+    barrios
+  };
+};
+
+// Reemplaza lo anotado para ese día: una lista vacía borra el plan.
+export const guardarPlanBarrios = async (payload = {}, user) => {
+  assertOperationalWrite(user);
+  if (user?.role === "gerente") throw fail("Gerencia consulta el plan, no lo anota.", 403);
+  const { responsable } = await cargarResponsablePlan(payload.responsable_id, user, { escribir: true });
+  const hoy = jornadaEntregas().fecha;
+  const [reparto] = await getPool().query(
+    "SELECT barrio_codigo FROM entrega_reparto_barrios WHERE responsable_id = ?",
+    [responsable.id]
+  );
+  const plan = normalizarPlan(payload, { hoy, permitidos: reparto.map((fila) => fila.barrio_codigo) });
+  const nombre = user?.full_name || user?.username || "";
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      "DELETE FROM entrega_plan_barrios WHERE fecha = ? AND responsable_id = ?",
+      [plan.fecha, responsable.id]
+    );
+    if (plan.barrios.length) {
+      await connection.query(
+        `INSERT INTO entrega_plan_barrios (fecha, responsable_id, barrio_codigo, lote_id, anotado_por, anotado_por_nombre)
+         VALUES ${plan.barrios.map(() => "(?, ?, ?, ?, ?, ?)").join(", ")}`,
+        plan.barrios.flatMap((codigo) => [plan.fecha, responsable.id, codigo, toEntero(payload.lote_id) || null, user?.id ?? null, nombre.slice(0, 160)])
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  await audit({
+    user,
+    action: "PLAN_BARRIOS",
+    entityId: responsable.id,
+    summary: `Plan del ${plan.fecha} de ${responsable.nombre_completo}: ${plan.barrios.length ? plan.barrios.join(", ") : "sin barrios"}`.slice(0, 250),
+    details: { ...plan, responsable_id: Number(responsable.id), lote_id: toEntero(payload.lote_id) || null }
+  });
+  return { ...plan, responsable_id: Number(responsable.id) };
 };
 
 // Cuando facturacion emite los documentos del mes nuevo, los pendientes del ciclo

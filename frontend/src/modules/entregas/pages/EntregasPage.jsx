@@ -585,6 +585,8 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
       {loteCerrado ? (
         <LoteCerradoAviso
           lote={loteCerrado}
+          api={api}
+          notify={notify}
           onListo={cerrarAviso}
           onVerLote={() => { const lote = loteCerrado; setLoteCerrado(null); abrirDetalle(lote); }}
         />

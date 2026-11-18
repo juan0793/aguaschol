@@ -948,11 +948,118 @@ export const armarControlDescartes = ({ fecha, ciclo, cortes = [], documentos = 
 /* Avance del mes por barrio                                                   */
 /* -------------------------------------------------------------------------- */
 
+// Ciclo al que pertenece una fecha: el primer corte en o después de ella. Antes del
+// primer corte (o sin cortes, o si el corte queda a más de 45 días) cuenta el mes
+// calendario. `cortes` llega ordenado de forma ascendente.
+const claveDeCiclo = (fecha, cortes) => {
+  const indice = cortes.findIndex((corte) => corte >= fecha);
+  if (indice >= 0 && (indice > 0 || diffInDays(fecha, cortes[indice]) <= 45)) return cortes[indice];
+  return fecha.slice(0, 7);
+};
+
+export const CICLOS_DE_CARGA = 3;
+
+// Carga histórica por barrio: documentos asignados en cada ciclo anterior (el más
+// reciente primero) y su promedio en los últimos CICLOS_DE_CARGA ciclos con entrega.
+// `historial` son filas { barrio_codigo, fecha, documentos } (una por barrio y día).
+export const armarCargaHistorica = ({ historial = [], cortes = [] } = {}) => {
+  const ordenados = cortes.map(toIsoDate).filter(Boolean).sort();
+  const porBarrio = new Map();
+  for (const fila of historial) {
+    const codigo = String(fila.barrio_codigo || "").trim();
+    const fecha = toIsoDate(fila.fecha);
+    if (!codigo || !fecha || toEntero(fila.documentos) <= 0) continue;
+    const ciclos = porBarrio.get(codigo) || new Map();
+    const clave = claveDeCiclo(fecha, ordenados);
+    const ciclo = ciclos.get(clave) || { documentos: 0, jornadas: new Set() };
+    ciclo.documentos += toEntero(fila.documentos);
+    ciclo.jornadas.add(fecha);
+    ciclos.set(clave, ciclo);
+    porBarrio.set(codigo, ciclos);
+  }
+  const carga = new Map();
+  for (const [codigo, ciclos] of porBarrio) {
+    const recientes = [...ciclos.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .slice(0, CICLOS_DE_CARGA)
+      .map(([, ciclo]) => ciclo);
+    if (!recientes.length) continue;
+    const promedio = (campo) => recientes.reduce((suma, ciclo) => suma + campo(ciclo), 0) / recientes.length;
+    carga.set(codigo, {
+      documentos: Math.round(promedio((ciclo) => ciclo.documentos)),
+      ultimo: recientes[0].documentos,
+      ciclos: recientes.length,
+      jornadas: Math.round(promedio((ciclo) => ciclo.jornadas.size) * 10) / 10,
+      fuente: "historial"
+    });
+  }
+  return carga;
+};
+
+// Ritmo de cada técnico: documentos que reparte en una jornada de trabajo (sumando
+// todos sus lotes cerrados del día). `jornadas` son filas { responsable_id, fecha,
+// documentos, barrios }.
+export const armarRitmoTecnicos = (jornadas = []) => {
+  const porTecnico = new Map();
+  for (const fila of jornadas) {
+    const id = toEntero(fila.responsable_id);
+    const documentos = toEntero(fila.documentos);
+    if (!id || documentos <= 0) continue;
+    const lista = porTecnico.get(id) || [];
+    lista.push({ documentos, barrios: toEntero(fila.barrios) });
+    porTecnico.set(id, lista);
+  }
+  return [...porTecnico.entries()].map(([id, lista]) => ({
+    responsable_id: id,
+    jornadas: lista.length,
+    documentos_por_jornada: Math.round(lista.reduce((suma, dia) => suma + dia.documentos, 0) / lista.length),
+    maximo_jornada: Math.max(...lista.map((dia) => dia.documentos)),
+    barrios_por_jornada: Math.round((lista.reduce((suma, dia) => suma + dia.barrios, 0) / lista.length) * 10) / 10
+  }));
+};
+
+// Plan del día siguiente: al cerrar un lote, el técnico anota qué barrios trabajará
+// en la próxima jornada. El domingo no se reparte, así que el sábado apunta al lunes.
+export const MAX_BARRIOS_PLAN = 8;
+export const proximaJornada = (hoy) => {
+  const siguiente = addDays(hoy, 1);
+  const fecha = dateFromIso(siguiente);
+  return fecha && fecha.getUTCDay() === 0 ? addDays(siguiente, 1) : siguiente;
+};
+
+// Valida lo que llega para guardar un plan: fecha entre hoy y una semana adelante y
+// barrios del reparto del responsable, sin repetir.
+export const normalizarPlan = ({ fecha, barrios } = {}, { hoy, permitidos = [] } = {}) => {
+  const dia = toIsoDate(fecha) || proximaJornada(hoy);
+  if (dia < hoy || diffInDays(hoy, dia) > 7) throw fail("El plan es para hoy o para los próximos 7 días.");
+  const lista = [...new Set((Array.isArray(barrios) ? barrios : []).map((codigo) => String(codigo ?? "").trim()).filter(Boolean))];
+  if (lista.length > MAX_BARRIOS_PLAN) throw fail(`Se pueden anotar hasta ${MAX_BARRIOS_PLAN} barrios por día.`);
+  const validos = new Set(permitidos.map(String));
+  const ajeno = lista.find((codigo) => !validos.has(codigo));
+  if (ajeno) throw fail(`El barrio ${ajeno} no está en el reparto de esta persona.`);
+  return { fecha: dia, barrios: lista };
+};
+
+// El plan más próximo de cada barrio (hoy o después): { codigo: { fecha, anotado_por_nombre } }.
+export const planesPorBarrio = (planes = [], hoy = "") => {
+  const porBarrio = new Map();
+  for (const fila of planes) {
+    const codigo = String(fila.barrio_codigo || "").trim();
+    const fecha = toIsoDate(fila.fecha);
+    if (!codigo || !fecha || fecha < hoy) continue;
+    const previo = porBarrio.get(codigo);
+    if (!previo || fecha < previo.fecha) {
+      porBarrio.set(codigo, { fecha, responsable_id: toEntero(fila.responsable_id), anotado_por_nombre: fila.anotado_por_nombre || "" });
+    }
+  }
+  return porBarrio;
+};
+
 // Avance del ciclo sobre los barrios del reparto. Un barrio queda "entregado" cuando
 // tiene al menos un lote cerrado en el ciclo y ninguno abierto; "en_curso" si tiene
 // un lote abierto; "pendiente" si todavía no tiene lotes. `lotes` llega agrupado por
 // barrio y estado: { barrio_codigo, estado, lotes, asignadas, entregadas, ids }.
-export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde = "", hasta = "" } = {}) => {
+export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde = "", hasta = "", carga = new Map(), ritmo = [], planes = new Map() } = {}) => {
   const porBarrio = new Map();
   for (const fila of lotes) {
     const codigo = String(fila.barrio_codigo || "").trim();
@@ -983,7 +1090,12 @@ export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde 
         lotes_cerrados: lote.ids_cerrados,
         lotes_abiertos: lote.ids_abiertos,
         asignadas: lote.asignadas,
-        entregadas: lote.entregadas
+        entregadas: lote.entregadas,
+        // Sin historial, la carga se estima con las claves del padrón (un documento por clave).
+        carga: carga.get(String(barrio.codigo))
+          || { documentos: toEntero(barrio.claves), ultimo: null, ciclos: 0, jornadas: null, fuente: "padron" },
+        // Lo que el técnico anotó para la próxima jornada; ya entregado no hace falta.
+        plan: estado === "entregado" ? null : planes.get(String(barrio.codigo)) || null
       };
     })
     // Agrupado por técnico, y dentro de cada uno por su orden de ruta o por nombre.
@@ -1001,6 +1113,7 @@ export const armarAvanceMes = ({ barrios = [], lotes = [], personal = [], desde 
     pendientes: contar("pendiente"),
     porcentaje: filas.length ? Math.round((entregados / filas.length) * 1000) / 10 : 0,
     documentos_entregados: filas.reduce((suma, fila) => suma + fila.entregadas, 0),
-    barrios: filas
+    barrios: filas,
+    ritmo_tecnicos: ritmo
   };
 };

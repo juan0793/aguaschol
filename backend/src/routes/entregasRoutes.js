@@ -35,7 +35,9 @@ import {
   repartoMapa,
   reportesList,
   resumen,
-  avanceMes
+  avanceMes,
+  planBarrios,
+  planBarriosGuardar
 } from "../controllers/entregasController.js";
 
 const router = Router();
@@ -43,6 +45,8 @@ const router = Router();
 router.get("/config", config);
 router.get("/resumen", resumen);
 router.get("/avance-mes", avanceMes);
+router.get("/plan", planBarrios);
+router.post("/plan", planBarriosGuardar);
 router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);
 router.get("/descartes", requireRoles("admin", "gerente"), descartes);
 router.get("/exclusiones", requireRoles("admin", "gerente"), exclusionesList);
