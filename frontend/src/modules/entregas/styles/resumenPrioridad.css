@@ -1,0 +1,124 @@
+/* Resumen de la oficina y Barrios por prioridad (desde 2026-11-18). Va aparte de
+   entregas.css para no alargarlo más; usa sus variables (--muted, --navy…). */
+
+/* ---------- Resumen de la oficina ----------
+   Dos columnas: a la izquierda el ciclo (avance, prioridad, días y sobrantes); a la
+   derecha lo que pide acción (atención y el equipo hoy). Una sola columna en tablet. */
+.ent-resumen-acciones { position: relative; display: flex; align-items: center; gap: 8px; }
+.ent-resumen-oficina { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 16px; align-items: start; margin-top: 16px; }
+.ent-resumen-col { display: grid; gap: 16px; min-width: 0; }
+.ent-resumen-col > .ent-card + .ent-card { margin-top: 0; }
+.ent-resumen-pareja { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.ent-resumen-pareja > * { min-width: 0; }
+.ent-resumen-avance .ent-mes { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.ent-atencion .ent-lista-plana li > div { display: grid; gap: 2px; }
+.ent-atencion .ent-lista-plana li small { padding-left: 16px; color: var(--muted); font-size: 12px; }
+@media (max-width: 1080px) {
+  .ent-resumen-oficina { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Menú Imprimir */
+.ent-imprimir { position: relative; }
+.ent-imprimir > .cl-secondary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+.ent-imprimir-menu { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; display: grid; gap: 2px; width: min(340px, calc(100vw - 32px)); padding: 6px; border: 1px solid #cfdbe7; border-radius: 10px; background: #fff; box-shadow: 0 10px 28px rgba(11, 63, 115, 0.16); }
+.ent-imprimir-menu button { display: grid; gap: 2px; width: 100%; min-height: 48px; padding: 9px 10px; border: 0; border-radius: 8px; background: none; color: var(--navy); font: inherit; text-align: left; cursor: pointer; }
+.ent-imprimir-menu button:hover, .ent-imprimir-menu button:focus-visible { background: #eef4fd; outline: none; }
+.ent-imprimir-menu button:disabled { cursor: not-allowed; opacity: 0.55; }
+.ent-imprimir-menu strong { font-size: 14px; }
+.ent-imprimir-menu small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+/* El equipo hoy */
+.ent-equipo .ent-card-head { margin-bottom: 4px; }
+.ent-equipo-lista { display: grid; margin: 0; padding: 0; list-style: none; }
+.ent-equipo-lista li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; border-bottom: 1px solid var(--ent-borde); }
+.ent-equipo-lista li:last-child { border-bottom: 0; }
+.ent-equipo-lista strong { color: var(--navy); font-size: 14px; }
+.ent-equipo-lista small { color: var(--muted); font-size: 12px; }
+.ent-equipo-estado { justify-self: end; font-size: 12px; font-weight: 700; }
+.ent-equipo-estado.is-abierto { color: var(--primary); }
+.ent-equipo-estado.is-cerrado { color: #0f7a62; }
+.ent-equipo-estado.is-sin_lote { color: #7a5300; }
+.ent-equipo-manana { text-align: right; }
+.ent-equipo-lista .ent-equipo-manana.is-sin-plan { color: #7a5300; font-weight: 600; }
+
+/* ---------- Barrios por prioridad ---------- */
+.ent-prio-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.ent-prio-acciones .cl-secondary, .ent-prio-top .cl-secondary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+.ent-prio-aviso { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: #eef4fd; color: #0b3f73; font-size: 13px; }
+.ent-prio-controles { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; }
+.ent-prio-controles > label { display: grid; gap: 4px; min-width: 200px; }
+.ent-prio-controles > label > span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.ent-prio-controles select { min-height: 40px; }
+.ent-prio-casillas { display: flex; flex-wrap: wrap; gap: 4px 16px; min-height: 40px; align-items: center; }
+.ent-prio-casillas label { display: inline-flex; align-items: center; gap: 6px; color: var(--navy); font-size: 13px; font-weight: 600; cursor: pointer; }
+.ent-prio-casillas input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); }
+.ent-prio-criterio { margin: 6px 0 12px; color: var(--muted); font-size: 12.5px; }
+.ent-prio-error { margin: 0 0 12px; color: #a2251a; font-weight: 600; }
+.ent-prio-resumen { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.ent-prio-resumen strong { color: var(--navy); }
+.ent-prio-resumen span { display: inline-flex; align-items: center; gap: 6px; }
+.ent-prio-resumen i { width: 8px; height: 8px; border-radius: 50%; }
+.ent-prio-resumen i.is-alta { background: #c42b1c; }
+.ent-prio-resumen i.is-media { background: #d99a1e; }
+.ent-prio-resumen i.is-baja { background: #9aabba; }
+.ent-prio-vacio { margin: 12px 0; color: var(--muted); }
+.ent-prio-nota { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+
+/* Lista: una línea por barrio en escritorio. La cabeza y cada fila usan la misma
+   plantilla, que cambia según haya columna de técnico y de mora. */
+.ent-prio-tabla-pantalla { --prio-cols: 30px minmax(170px, 1.3fr) minmax(180px, 1.6fr) 150px 86px; overflow-x: auto; }
+.ent-prio-tabla-pantalla.con-tecnico { --prio-cols: 30px minmax(170px, 1.3fr) 130px minmax(170px, 1.6fr) 150px 86px; }
+.ent-prio-tabla-pantalla.con-mora { --prio-cols: 30px minmax(170px, 1.3fr) minmax(170px, 1.6fr) 150px 110px 86px; }
+.ent-prio-tabla-pantalla.con-tecnico.con-mora { --prio-cols: 30px minmax(160px, 1.3fr) 130px minmax(160px, 1.5fr) 150px 110px 86px; }
+.ent-prio-tabla-pantalla.is-cargando { opacity: 0.6; }
+.ent-prio-cabeza, .ent-prio-fila { display: grid; grid-template-columns: var(--prio-cols); gap: 10px; align-items: center; }
+.ent-prio-cabeza { padding: 8px 6px; border-bottom: 1px solid #d6e0ea; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.ent-prio-cabeza .is-num { text-align: right; }
+.ent-prio-bloque-titulo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 14px 0 0; padding: 0 6px 6px; border-bottom: 1.5px solid #0b3f73; color: #0b3f73; font-size: 14px; }
+.ent-prio-bloque-titulo small { color: var(--muted); font-size: 12px; font-weight: 600; }
+.ent-prio-lista { margin: 0; padding: 0; list-style: none; }
+.ent-prio-fila { min-height: 52px; padding: 8px 6px; border-bottom: 1px solid var(--ent-borde); font-variant-numeric: tabular-nums; }
+.ent-prio-fila.is-mio { box-shadow: inset 3px 0 0 var(--primary); background: #f7faff; }
+.ent-prio-pos { color: #0b3f73; font-weight: 800; }
+.ent-prio-celda-barrio { display: grid; gap: 1px; min-width: 0; }
+.ent-prio-celda-barrio strong { overflow: hidden; color: var(--navy); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.ent-prio-celda-barrio small { color: var(--muted); font-size: 12px; }
+.ent-prio-celda-tecnico { overflow: hidden; color: #0b3f73; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.ent-prio-celda-motivo { color: #3c5674; font-size: 13px; }
+.ent-prio-celda-carga { display: flex; align-items: center; justify-content: flex-end; gap: 4px; color: var(--navy); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.ent-prio-celda-carga i { display: block; flex: 1; max-width: 60px; height: 6px; margin-right: 4px; overflow: hidden; border-radius: 2px; background: #eef2f6; }
+.ent-prio-celda-carga b { display: block; height: 100%; background: var(--primary); }
+.ent-prio-unidad { color: var(--muted); font-weight: 500; }
+.ent-prio-celda-mora { color: var(--navy); font-size: 13px; text-align: right; white-space: nowrap; }
+.ent-prio-chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.ent-prio-chip.is-alta { background: #fdecea; color: #a2251a; }
+.ent-prio-chip.is-media { background: #fdf3dc; color: #7a5300; }
+.ent-prio-chip.is-baja { background: #eef2f6; color: #3d5a73; }
+.ent-prio-mas { min-height: 32px; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; }
+.ent-prio-top .ent-card-head h3 { margin: 0; }
+.ent-prio-top .ent-card-head p { margin: 2px 0 0; font-size: 12.5px; }
+
+/* Teléfono: cada barrio es una tarjeta de tres o cuatro líneas. */
+@media (max-width: 760px) {
+  .ent-prio-controles > label { flex: 1 1 100%; min-width: 0; }
+  .ent-module .cl-inbox .cl-inbox-head.ent-head-compacta.ent-prio-head,
+  .ent-module .cl-inbox.ent-resumen > .cl-inbox-head.ent-head-compacta { grid-template-columns: minmax(0, 1fr); }
+  /* El menú se alinea con la fila de acciones, no con su botón, para no salirse de la pantalla. */
+  .ent-imprimir { position: static; }
+  .ent-imprimir-menu { right: auto; left: 0; }
+  .ent-prio-cabeza { display: none; }
+  .ent-prio-tabla-pantalla { overflow: visible; }
+  .ent-prio-fila { grid-template-columns: 26px minmax(0, 1fr) auto; grid-template-areas: "pos barrio nivel" "pos tecnico carga" "pos motivo motivo" "pos mora mora"; gap: 2px 10px; align-items: start; padding: 10px 4px; }
+  .ent-prio-pos { grid-area: pos; font-size: 16px; }
+  .ent-prio-celda-barrio { grid-area: barrio; }
+  .ent-prio-celda-nivel { grid-area: nivel; }
+  .ent-prio-celda-tecnico { grid-area: tecnico; font-size: 12.5px; }
+  .ent-prio-celda-carga { grid-area: carga; font-size: 12.5px; }
+  .ent-prio-celda-carga i { display: none; }
+  .ent-prio-celda-motivo { grid-area: motivo; font-size: 12.5px; }
+  .ent-prio-celda-mora { grid-area: mora; font-size: 12.5px; text-align: left; }
+  .ent-prio-celda-mora::before { content: "Mora "; color: var(--muted); }
+  .ent-prio-acciones { width: 100%; }
+  .ent-prio-acciones .cl-secondary { flex: 1; justify-content: center; }
+  .ent-resumen-acciones { justify-content: flex-start; }
+}

@@ -13,7 +13,10 @@ import {
   resetUserPasswordHandler,
   updateTelegramChatHandler,
   updateUserNameHandler,
-  updateUserRoleHandler
+  updateUserRoleHandler,
+  listUserAccesosHandler,
+  saveUserAccesoHandler,
+  deleteUserAccesoHandler
 } from "../controllers/userController.js";
 
 const router = Router();
@@ -26,6 +29,9 @@ router.get("/", listUsersHandler);
 router.post("/", createUserHandler);
 router.patch("/:id/role", updateUserRoleHandler);
 router.patch("/:id/name", updateUserNameHandler);
+router.get("/:id/accesos", listUserAccesosHandler);
+router.put("/:id/accesos/:clave", saveUserAccesoHandler);
+router.delete("/:id/accesos/:clave", deleteUserAccesoHandler);
 router.post("/:id/reset-password", resetUserPasswordHandler);
 router.delete("/:id", deleteUserHandler);
 router.get("/audit-logs", listAuditLogsHandler);

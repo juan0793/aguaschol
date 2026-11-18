@@ -37,7 +37,8 @@ import {
   resumen,
   avanceMes,
   planBarrios,
-  planBarriosGuardar
+  planBarriosGuardar,
+  prioridadBarrios
 } from "../controllers/entregasController.js";
 
 const router = Router();
@@ -45,6 +46,7 @@ const router = Router();
 router.get("/config", config);
 router.get("/resumen", resumen);
 router.get("/avance-mes", avanceMes);
+router.get("/prioridad", prioridadBarrios);
 router.get("/plan", planBarrios);
 router.post("/plan", planBarriosGuardar);
 router.post("/ciclos/cerrar", requireRoles("admin"), cicloCerrar);

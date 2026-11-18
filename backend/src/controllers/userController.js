@@ -1,5 +1,6 @@
 import { createAuditLog, createReportArchive, exportAuditLogsCsv, getReportArchive, listAuditLogs } from "../services/auditService.js";
 import { createUser, deleteUser, listUsers, resetUserPassword, updateUserName, updateUserRole } from "../services/userService.js";
+import { guardarAcceso, listarAccesosDe, quitarAcceso } from "../services/userAccesosService.js";
 import {
   createTelegramChat,
   deleteTelegramChat,
@@ -188,6 +189,31 @@ export const exportAuditLogsHandler = async (req, res, next) => {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="bitacora-auditoria.csv"');
     res.send(csv);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Accesos adicionales de un usuario (solo administración, como todo /api/users).
+export const listUserAccesosHandler = async (req, res, next) => {
+  try {
+    res.json(await listarAccesosDe(req.params.id));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const saveUserAccesoHandler = async (req, res, next) => {
+  try {
+    res.json(await guardarAcceso(req.params.id, req.params.clave, req.body || {}, req.authUser));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUserAccesoHandler = async (req, res, next) => {
+  try {
+    res.json(await quitarAcceso(req.params.id, req.params.clave, req.authUser));
   } catch (error) {
     next(error);
   }

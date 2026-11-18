@@ -22,6 +22,10 @@ import ExclusionesEntrega from "../components/ExclusionesEntrega";
 import PersonalCampoTable from "../components/PersonalCampoTable";
 import RepartoBarrios from "../components/RepartoBarrios";
 import ReportesSemanales from "../components/ReportesSemanales";
+import PrioridadBarrios, { PrioridadResumen } from "../components/PrioridadBarrios";
+import AvanceMes from "../components/AvanceMes";
+import { EquipoHoy, MenuImprimir } from "../components/ResumenOficina";
+import { equipoHoy, sinPlanParaManana, textoComparacion } from "../utils/resumenEntregas.js";
 import { GraficoBarriosSobrantes, GraficoPorDia } from "../components/ReporteCharts";
 import { formatDate, formatNumber } from "../utils/entregasFormatters";
 import { addDaysIso, toLocalIsoDate } from "../utils/entregasDate";
@@ -37,6 +41,7 @@ const SUBVISTAS = [
   { key: "pendientes", label: "No entregadas", corto: "Pendientes", cortoMovil: "Pend.", hint: "Seguimiento", icon: "warning" },
   { key: "descartes", label: "Descartes", corto: "Descartes", hint: "Sin entregar y repetidos", icon: "inbox" },
   { key: "reparto", label: "Reparto por barrio", corto: "Reparto", hint: "Zonas", icon: "map" },
+  { key: "prioridad", label: "Barrios por prioridad", corto: "Prioridad", hint: "Lo que falta, por urgencia", icon: "barChart" },
   { key: "personal", label: "Personal de campo", corto: "Personal", hint: "Técnicos", icon: "users" },
   { key: "reportes", label: "Reportes semanales", corto: "Reportes", hint: "Informes", icon: "archive" },
   { key: "exclusiones", label: "Exclusiones", corto: "Exclusiones", hint: "Otro departamento entrega", icon: "flag" }
@@ -94,13 +99,22 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
   // La barra de avance no sigue los filtros de la tabla: siempre mira la jornada
   // de hoy y, de lo anterior, solo el acumulado del ciclo vigente.
   const avance = useAvanceJornada(api, {
-    activo: Boolean(config) && vista === "lotes",
+    activo: Boolean(config) && (vista === "lotes" || (vista === "resumen" && config.permissions.can_view_all)),
     fecha: config?.jornada?.fecha || toLocalIsoDate(),
     desdeAnterior: config?.ciclo?.fecha_inicio || ""
   });
   const historial = useLotes(api, Boolean(config) && vista === "historial", { historial: true });
   const pendientes = useNoEntregadas(api, Boolean(config) && vista === "pendientes");
   const reparto = useReparto(api, Boolean(config?.permissions?.can_manage_reparto) && vista === "reparto", personal);
+  // Los primeros barrios por prioridad, para el Resumen de la oficina.
+  const [prioridadTop, setPrioridadTop] = useState({ datos: null, error: "" });
+  const resumenOficina = Boolean(config?.permissions?.can_view_all) && vista === "resumen";
+  const cargarPrioridadTop = useCallback(() => {
+    api.prioridad()
+      .then((datos) => setPrioridadTop({ datos, error: "" }))
+      .catch((error) => setPrioridadTop((actual) => ({ datos: actual.datos, error: error.message })));
+  }, [api]);
+  useEffect(() => { if (resumenOficina) cargarPrioridadTop(); }, [resumenOficina, cargarPrioridadTop]);
 
   const cargarPersonal = useCallback(async () => {
     try {
@@ -302,6 +316,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
   const subvistas = SUBVISTAS.filter((item) => {
     if (item.key === "reportes") return config.permissions.can_generate_report;
     if (item.key === "reparto") return config.permissions.can_manage_reparto;
+    if (item.key === "prioridad") return Boolean(config.permissions.can_view_prioridad);
     if (item.key === "descartes" || item.key === "exclusiones") return config.permissions.can_view_descartes;
     return true;
   });
@@ -335,7 +350,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
               type="button"
               className={`ent-menu-card ${vista === item.key ? "is-active" : ""}`}
               aria-current={vista === item.key ? "page" : undefined}
-              data-group={["reparto", "personal", "reportes", "exclusiones"].includes(item.key) ? "gestion" : "operacion"}
+              data-group={["reparto", "prioridad", "personal", "reportes", "exclusiones"].includes(item.key) ? "gestion" : "operacion"}
               onClick={() => ir(item.key)}
             >
               <Icon name={item.icon} />
@@ -389,73 +404,134 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
 
       {lotesAbiertosPrevios.total > 0 ? <div className="ent-critical-banner" role="status"><Icon name="warning" /><div><strong>{formatNumber(lotesAbiertosPrevios.total)} lotes de jornadas anteriores siguen abiertos</strong><span>Prioridad de cierre · la justificación no elimina el pendiente.</span></div><button type="button" className="cl-secondary" onClick={verAbiertosPrevios}>Resolver cierres →</button></div> : null}
 
-      {vista === "resumen" ? (
-        <section className="cl-inbox">
-          <div className="cl-inbox-head ent-head-compacta">
-            <div>
-              <h3>Semana del {resumen ? `${formatDate(resumen.periodo.fecha_inicio)} al ${formatDate(resumen.periodo.fecha_fin)}` : "…"}</h3>
-              {resumen?.lotes_abiertos ? <p>La efectividad es parcial: {formatNumber(resumen.lotes_abiertos)} {resumen.lotes_abiertos === 1 ? "lote sigue abierto" : "lotes siguen abiertos"}.</p> : null}
-            </div>
-            <button type="button" className="cl-quiet ent-icon-only" onClick={cargarResumen} disabled={cargandoResumen} aria-label={cargandoResumen ? "Actualizando…" : "Actualizar el resumen"} title="Actualizar">
-              <Icon name="refresh" className={cargandoResumen ? "ent-refresh-icon is-spinning" : "ent-refresh-icon"} />
+      {vista === "resumen" ? (() => {
+        const oficina = Boolean(config.permissions.can_view_all);
+        const filtrosSemana = { fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" };
+        const sinPlan = oficina ? sinPlanParaManana(avance.mes) : [];
+        const equipo = oficina && avance.mes ? equipoHoy({ barrios: avance.mes.barrios, lotesHoy: avance.lotesHoy, proxima: avance.mes.proxima_jornada }) : [];
+        const comparacion = textoComparacion(resumen?.periodo_anterior);
+        const actualizar = () => {
+          cargarResumen();
+          if (oficina) { avance.reload(); cargarPrioridadTop(); }
+        };
+        const atencion = (
+          <div className="ent-card ent-atencion">
+            <h3>Requiere atención</h3>
+            <ul className="ent-lista-plana" onKeyDown={(event) => { if (["Enter", " "].includes(event.key) && event.target.getAttribute("role") === "button") { event.preventDefault(); event.target.click(); } }}>
+              {oficina && sinPlan.length ? (
+                <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={() => ir("prioridad")} title="Al cerrar su lote, cada técnico anota qué barrio trabaja en la próxima jornada.">
+                  <div>
+                    <span className="ent-fila-etiqueta"><i />Sin plan para la próxima jornada</span>
+                    <small>{sinPlan.map((fila) => fila.nombre).join(" · ")}</small>
+                  </div>
+                  <strong>{formatNumber(sinPlan.length)}</strong>
+                </li>
+              ) : null}
+              <li className="is-clickable" role="button" tabIndex={0} onClick={() => { lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "ABIERTO", ...filtrosSemana }); ir("lotes"); }}>
+                <span className="ent-fila-etiqueta">
+                  <i />
+                  Lotes abiertos
+                </span>
+                <strong>{formatNumber(resumen?.lotes_abiertos)}</strong>
+              </li>
+              <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ dias_minimos: "3", ...filtrosSemana })}>
+                <span className="ent-fila-etiqueta">
+                  <i />
+                  Pendientes con más de 3 días
+                </span>
+                <strong>{formatNumber(resumen?.pendientes_mas_3_dias)}</strong>
+              </li>
+              <li className="is-critico is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ dias_minimos: "7", ...filtrosSemana })}>
+                <span className="ent-fila-etiqueta">
+                  <i />
+                  Pendientes con más de 7 días
+                </span>
+                <strong>{formatNumber(resumen?.pendientes_mas_7_dias)}</strong>
+              </li>
+            </ul>
+            <button type="button" className="cl-secondary" onClick={() => irAPendientes({ dias_minimos: "" })}>
+              Ver documentos pendientes
             </button>
           </div>
-
-          <EntregasStats
-            resumen={resumen}
-            onSelect={(clave) => {
-              if (["pendientes", "reentregadas", "no_localizadas"].includes(clave)) {
-                irAPendientes({ estado: { pendientes: "PENDIENTE", reentregadas: "REENTREGADA", no_localizadas: "NO_LOCALIZADA" }[clave], fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" });
-                return;
-              }
-              lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" });
+        );
+        const sobrantes = (
+          <GraficoBarriosSobrantes
+            rows={resumen?.por_barrio || []}
+            onSelect={(fila) => {
+              lotes.setFilters({ q: "", responsable_id: "", tipo_documento: "", estado: "", barrio_codigo: fila.barrio_codigo, ...filtrosSemana });
               ir("lotes");
             }}
           />
+        );
+        return (
+          <section className="cl-inbox ent-resumen">
+            <div className="cl-inbox-head ent-head-compacta">
+              <div>
+                <h3>Semana del {resumen ? `${formatDate(resumen.periodo.fecha_inicio)} al ${formatDate(resumen.periodo.fecha_fin)}` : "…"}</h3>
+                {resumen ? (
+                  <p>
+                    {comparacion ? `Las flechas comparan ${comparacion}.` : ""}
+                    {resumen.lotes_abiertos ? ` La efectividad es parcial: ${formatNumber(resumen.lotes_abiertos)} ${resumen.lotes_abiertos === 1 ? "lote sigue abierto" : "lotes siguen abiertos"}.` : ""}
+                  </p>
+                ) : null}
+              </div>
+              <div className="ent-resumen-acciones">
+                <button type="button" className="cl-quiet ent-icon-only" onClick={actualizar} disabled={cargandoResumen} aria-label={cargandoResumen ? "Actualizando…" : "Actualizar el resumen"} title="Actualizar">
+                  <Icon name="refresh" className={cargandoResumen ? "ent-refresh-icon is-spinning" : "ent-refresh-icon"} />
+                </button>
+                {oficina ? (
+                  <MenuImprimir
+                    mes={avance.mes}
+                    onPrioridad={() => ir("prioridad")}
+                    onReportes={config.permissions.can_generate_report ? () => ir("reportes") : null}
+                  />
+                ) : null}
+              </div>
+            </div>
 
-          <div className="ent-resumen-grid">
-            <GraficoPorDia rows={resumen?.por_dia || []} />
-            <div className="ent-card">
-              <h3>Requiere atención</h3>
-              <ul className="ent-lista-plana" onKeyDown={(event) => { if (["Enter", " "].includes(event.key) && event.target.getAttribute("role") === "button") { event.preventDefault(); event.target.click(); } }}>
-                <li className="is-clickable" role="button" tabIndex={0} onClick={() => { lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "ABIERTO", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" }); ir("lotes"); }}>
-                  <span className="ent-fila-etiqueta">
-                    <i />
-                    Lotes abiertos
-                  </span>
-                  <strong>{formatNumber(resumen?.lotes_abiertos)}</strong>
-                </li>
-                <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ dias_minimos: "3", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" })}>
-                  <span className="ent-fila-etiqueta">
-                    <i />
-                    Pendientes con más de 3 días
-                  </span>
-                  <strong>{formatNumber(resumen?.pendientes_mas_3_dias)}</strong>
-                </li>
-                <li className="is-critico is-clickable" role="button" tabIndex={0} onClick={() => irAPendientes({ dias_minimos: "7", fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" })}>
-                  <span className="ent-fila-etiqueta">
-                    <i />
-                    Pendientes con más de 7 días
-                  </span>
-                  <strong>{formatNumber(resumen?.pendientes_mas_7_dias)}</strong>
-                </li>
-              </ul>
-              <button type="button" className="cl-secondary" onClick={() => irAPendientes({ dias_minimos: "" })}>
-                Ver documentos pendientes
-              </button>
-            </div>
-            <div className="ent-resumen-wide">
-              <GraficoBarriosSobrantes
-                rows={resumen?.por_barrio || []}
-                onSelect={(fila) => {
-                  lotes.setFilters({ q: "", responsable_id: "", tipo_documento: "", estado: "", barrio_codigo: fila.barrio_codigo, fecha_desde: resumen?.periodo.fecha_inicio || "", fecha_hasta: resumen?.periodo.fecha_fin || "" });
-                  ir("lotes");
-                }}
-              />
-            </div>
-          </div>
-        </section>
-      ) : null}
+            <EntregasStats
+              resumen={resumen}
+              onSelect={(clave) => {
+                if (["pendientes", "reentregadas", "no_localizadas"].includes(clave)) {
+                  irAPendientes({ estado: { pendientes: "PENDIENTE", reentregadas: "REENTREGADA", no_localizadas: "NO_LOCALIZADA" }[clave], ...filtrosSemana });
+                  return;
+                }
+                lotes.setFilters({ q: "", responsable_id: "", barrio_codigo: "", tipo_documento: "", estado: "", ...filtrosSemana });
+                ir("lotes");
+              }}
+            />
+
+            {oficina ? (
+              <div className="ent-resumen-oficina">
+                <div className="ent-resumen-col">
+                  {avance.mes?.total ? (
+                    <div className="ent-card ent-resumen-avance">
+                      <AvanceMes mes={avance.mes} onAbrirLote={abrirDetalle} />
+                    </div>
+                  ) : null}
+                  {config.permissions.can_view_prioridad ? (
+                    <PrioridadResumen datos={prioridadTop.datos} error={prioridadTop.error} onVerTodo={() => ir("prioridad")} />
+                  ) : null}
+                  <div className="ent-resumen-pareja">
+                    <GraficoPorDia rows={resumen?.por_dia || []} />
+                    {sobrantes}
+                  </div>
+                </div>
+                <div className="ent-resumen-col">
+                  {atencion}
+                  <EquipoHoy filas={equipo} proxima={avance.mes?.proxima_jornada} hoy={avance.mes?.hasta} />
+                </div>
+              </div>
+            ) : (
+              <div className="ent-resumen-grid">
+                <GraficoPorDia rows={resumen?.por_dia || []} />
+                {atencion}
+                <div className="ent-resumen-wide">{sobrantes}</div>
+              </div>
+            )}
+          </section>
+        );
+      })() : null}
 
       {vista === "nuevo" && config.permissions.can_create_lote ? (
         <LoteForm
@@ -543,6 +619,10 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
           onOpen={abrirDetalle}
           onCerrar={abrirCierre}
         />
+      ) : null}
+
+      {vista === "prioridad" && config.permissions.can_view_prioridad ? (
+        <PrioridadBarrios api={api} config={config} notify={notify} />
       ) : null}
 
       {vista === "reparto" && config.permissions.can_manage_reparto ? (

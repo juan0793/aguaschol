@@ -47,6 +47,8 @@ import {
   planesPorBarrio,
   proximaJornada
 } from "./entregasRules.js";
+import { armarPrioridad, criterioValido, moraPorBarrio } from "./entregasPrioridadRules.js";
+import { accesoDe } from "./userAccesosService.js";
 
 // Días antes del ciclo vigente que se leen para la carga por barrio y el ritmo por técnico.
 const DIAS_DE_HISTORIAL = 120;
@@ -175,12 +177,14 @@ const barriosDelRepartoPara = async (personalPropio) => {
 };
 
 export const getEntregasConfig = async (user) => {
-  const [motivos, personalPropio, barrios, ciclo, exclusiones] = await Promise.all([
+  const [motivos, personalPropio, barrios, ciclo, exclusiones, accesoPrioridad] = await Promise.all([
     listMotivos(),
     getPersonalDelUsuario(user),
     listarBarriosParaLotes(),
     getCicloVigente(),
-    exclusionesParaConfig()
+    exclusionesParaConfig(),
+    // Quien no ve todo el equipo puede tener la pantalla de prioridad como acceso adicional.
+    canReadAll(user) ? Promise.resolve(null) : accesoDe(user, ACCESO_PRIORIDAD).catch(() => null)
   ]);
   // El técnico solo puede abrir lotes en los barrios que el reparto le dio al
   // responsable: el formulario necesita saber cuáles son, sin abrir todo el reparto.
@@ -220,7 +224,11 @@ export const getEntregasConfig = async (user) => {
       can_correct_report: isAdmin(user),
       can_view_all: canReadAll(user),
       can_view_saldo: veSaldo(user),
-      can_send_aviso: puedeAvisar(user)
+      can_send_aviso: puedeAvisar(user),
+      can_view_prioridad: canReadAll(user) || Boolean(accesoPrioridad),
+      // "propios": solo los barrios del reparto de quien mira (acceso adicional).
+      prioridad_alcance: canReadAll(user) ? "todos" : accesoPrioridad?.alcance || null,
+      prioridad_vence: accesoPrioridad?.vence || null
     }
   };
 };
@@ -974,6 +982,88 @@ const calcularAvanceMes = async () => {
     },
     ciclo_declarado: Boolean(ciclo.fecha_inicio),
     proxima_jornada: proximaJornada(hoy)
+  };
+};
+
+/* -------------------------------------------------------------------------- */
+/* Barrios por prioridad                                                       */
+/* -------------------------------------------------------------------------- */
+
+const ACCESO_PRIORIDAD = "entregas.prioridad";
+
+// La mora por barrio sale del padrón en memoria: se rehace solo si cambia su versión.
+let moraCache = { version: null, mapa: null };
+const moraDeBarrios = () => {
+  const version = getMasterVersion();
+  if (moraCache.version !== version || !moraCache.mapa) moraCache = { version, mapa: moraPorBarrio(getMasterRecords()) };
+  return moraCache.mapa;
+};
+
+const textoPlanPara = (hoy) => (plan) => {
+  if (plan.fecha === hoy) return "Anotado para hoy";
+  if (plan.fecha === addDays(hoy, 1)) return "Anotado para mañana";
+  const [, mes, dia] = String(plan.fecha).split("-");
+  return `Anotado para el ${dia}/${mes}`;
+};
+
+// Lo que falta entregar del ciclo, del más urgente al menos. Lo ven administración,
+// operadores y Gerencia; un técnico solo con el acceso adicional de Usuarios, y
+// nunca con montos.
+export const getPrioridadBarrios = async (query = {}, user) => {
+  let alcance = "todos";
+  if (!canReadAll(user)) {
+    const acceso = await accesoDe(user, ACCESO_PRIORIDAD);
+    if (!acceso) throw fail("No tienes acceso a Barrios por prioridad. Pídelo a administración.", 403);
+    alcance = acceso.alcance;
+  }
+  const conMora = veSaldo(user);
+  const hoy = jornadaEntregas().fecha;
+  const [avance, [ultimas]] = await Promise.all([
+    calcularAvanceMes(),
+    getPool().query(
+      `SELECT barrio_codigo, DATE_FORMAT(MAX(fecha), '%Y-%m-%d') AS ultima
+       FROM entrega_lotes WHERE estado <> 'ABIERTO' AND barrio_codigo <> '' AND fecha <= ?
+       GROUP BY barrio_codigo`,
+      [hoy]
+    )
+  ]);
+  let barrios = avance.barrios;
+  let propio = null;
+  if (alcance === "propios") {
+    propio = await getPersonalDelUsuario(user);
+    barrios = propio ? barrios.filter((barrio) => Number(barrio.responsable_id) === Number(propio.id)) : [];
+  }
+  const criterio = criterioValido(query.criterio, { conMora });
+  const filas = armarPrioridad({
+    barrios,
+    ultimas: new Map(ultimas.map((fila) => [String(fila.barrio_codigo), fila.ultima])),
+    mora: conMora ? moraDeBarrios() : null,
+    hoy,
+    criterio,
+    textoPlan: textoPlanPara(hoy)
+  });
+  const tecnicos = new Map();
+  for (const fila of filas) if (!tecnicos.has(fila.responsable_id)) tecnicos.set(fila.responsable_id, fila.responsable_nombre);
+  return {
+    hoy,
+    desde: avance.desde,
+    ciclo_declarado: avance.ciclo_declarado,
+    proxima_jornada: avance.proxima_jornada,
+    criterio,
+    con_mora: conMora,
+    alcance,
+    propio_id: propio?.id ?? null,
+    totales: {
+      barrios_ciclo: alcance === "propios" ? barrios.length : avance.total,
+      entregados: barrios.filter((barrio) => barrio.estado === "entregado").length,
+      faltan: filas.length,
+      en_curso: filas.filter((fila) => fila.estado === "en_curso").length,
+      documentos: filas.reduce((suma, fila) => suma + (Number(fila.carga?.documentos) || 0), 0),
+      mora: conMora ? Math.round(filas.reduce((suma, fila) => suma + (Number(fila.mora?.mora) || 0), 0) * 100) / 100 : null
+    },
+    tecnicos: [...tecnicos].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    ritmo_tecnicos: avance.ritmo_tecnicos,
+    barrios: filas
   };
 };
 
@@ -1802,9 +1892,15 @@ export const getResumen = async (query = {}, user) => {
 
   // Periodo previo de igual longitud, inmediatamente anterior al seleccionado,
   // para poder mostrar una tendencia (▲/▼) junto a cada indicador.
+  // Un periodo de hasta una semana se compara con los mismos días de la semana
+  // anterior (la semana operativa es de lunes a viernes: retroceder 5 días caería en
+  // miércoles). Si todavía no termina, solo hasta el mismo día: lunes a miércoles
+  // contra lunes a miércoles.
   const duracionDias = diffInDays(desde, hasta) + 1;
-  const desdeAnterior = addDays(desde, -duracionDias);
-  const hastaAnterior = addDays(desde, -1);
+  const salto = duracionDias <= 7 ? 7 : duracionDias;
+  const desdeAnterior = addDays(desde, -salto);
+  const parcial = hasta > hoy && hoy >= desde;
+  const hastaAnterior = addDays(parcial ? hoy : hasta, -salto);
   const paramsAnterior = [desdeAnterior, hastaAnterior, ...params.slice(2)];
   const [[totalesAnterior]] = await pool.query(totalesSql, paramsAnterior);
   const [[detalleAnterior]] = await pool.query(detalleSql, [hoy, hoy, ...paramsAnterior]);
@@ -1839,7 +1935,7 @@ export const getResumen = async (query = {}, user) => {
 
   return {
     periodo: { fecha_inicio: desde, fecha_fin: hasta },
-    periodo_anterior: { fecha_inicio: desdeAnterior, fecha_fin: hastaAnterior },
+    periodo_anterior: { fecha_inicio: desdeAnterior, fecha_fin: hastaAnterior, parcial },
     lotes: toEntero(totales.lotes),
     lotes_abiertos: toEntero(totales.lotes_abiertos),
     asignadas,

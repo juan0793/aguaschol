@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../Icon";
 import HoldButton from "../micro/HoldButton";
+import AccesosAdicionales from "./AccesosAdicionales";
 import {
   Dialog,
   DialogContent,
@@ -288,6 +289,7 @@ export function UsersSidebar({
                 <div className="record-card-top user-card-top">
                   <strong className="user-name">{user.full_name}</strong>
                   <span className="record-badge user-role-badge">{roleLabel(user.role)}</span>
+                  {user.accesos ? <span className="user-accesos-tag" title="Tiene accesos adicionales">+{user.accesos} {user.accesos === 1 ? "acceso" : "accesos"}</span> : null}
                 </div>
                 <span className="user-email"><Icon name="mail" /><span>{user.email}</span></span>
                 <span className={`user-status-line ${user.is_online ? "is-online" : ""}`}>
@@ -764,6 +766,8 @@ export function UsersContent({
                   <div><dt>Actualizado</dt><dd>{formatDateTime(selectedUser.updated_at)}</dd></div>
                 </dl>
               </section>
+
+              <AccesosAdicionales apiFetch={apiFetch} user={selectedUser} disabled={session?.user?.id === selectedUser.id} />
 
               <section className="users-access-section" aria-labelledby="users-access-clave">
                 <div className="users-access-section-head">

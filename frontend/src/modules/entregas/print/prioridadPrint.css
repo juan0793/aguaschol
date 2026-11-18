@@ -1,0 +1,36 @@
+/* Hoja de barrios por prioridad. Usa la hoja, el encabezado y el aislamiento de
+   impresión del acta de sobrantes (loteSobrantesStyles.css); aquí solo van sus
+   piezas: cifras, línea de filtros, la tabla y la nota de niveles. */
+
+.ent-prio-hoja .ent-prio-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 8px; }
+.ent-prio-hoja .ent-prio-kpis.con-mora { grid-template-columns: minmax(0, 1.1fr) repeat(4, minmax(0, 0.8fr)) minmax(0, 1.6fr); }
+.ent-prio-filtros { margin: 0 0 10px; color: var(--hoja-tinta-suave); font-size: 9px; }
+
+.ent-prio-tabla th, .ent-prio-tabla td { padding-inline: 5px; }
+.ent-prio-tabla td { vertical-align: middle; }
+.ent-prio-tabla th.is-num:first-child, .ent-prio-tabla td.is-num:first-child { width: 20px; color: var(--hoja-tinta-suave); }
+.ent-prio-barrio strong { color: var(--hoja-tinta); font-weight: 650; }
+.ent-prio-barrio span { color: var(--hoja-tinta-suave); font-size: 8.5px; }
+.ent-prio-tecnico { color: var(--hoja-azul-profundo); white-space: nowrap; }
+.ent-prio-motivo { color: var(--hoja-tinta-suave); }
+
+.ent-prio-hoja .ent-prio-tabla tbody.ent-prio-grupo tr td { background: #fff; }
+.ent-prio-tabla tr.ent-prio-grupo-head td { padding-top: 9px; border-bottom: 1.5px solid var(--hoja-azul-profundo); }
+.ent-prio-tabla tr.ent-prio-grupo-head strong { color: var(--hoja-azul-profundo); font-size: 10px; }
+.ent-prio-tabla tr.ent-prio-grupo-head span { margin-left: 8px; color: var(--hoja-tinta-suave); font-size: 8.5px; }
+
+.ent-prio-nivel { display: inline-block; padding: 0 6px; border-radius: 3px; font-size: 8.5px; font-weight: 700; line-height: 1.6; white-space: nowrap; }
+.ent-prio-nivel.is-alta { background: #fbe4e1; color: #8f1f14; }
+.ent-prio-nivel.is-media { background: #f8ecd2; color: #6b4600; }
+.ent-prio-nivel.is-baja { background: #eef2f6; color: #3d5a73; }
+
+.ent-prio-tabla th.ent-prio-casilla-th { width: 26px; text-align: center; }
+.ent-prio-tabla td.ent-prio-casilla { width: 26px; }
+.ent-prio-tabla td.ent-prio-casilla::after { content: ""; display: block; width: 11px; height: 11px; margin: 0 auto; border: 1px solid var(--hoja-tinta-suave); border-radius: 2px; }
+
+.ent-prio-hoja-nota { margin: 10px 0 0; color: var(--hoja-tinta-suave); font-size: 8.5px; line-height: 1.45; }
+
+@media print {
+  .ent-prio-nivel { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ent-prio-tabla tr { break-inside: avoid; }
+}

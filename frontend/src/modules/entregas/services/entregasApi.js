@@ -25,6 +25,7 @@ export const createEntregasApi = (apiFetch) => ({
   config: () => apiFetch("/entregas/config").then(json),
   resumen: (params = {}) => apiFetch(`/entregas/resumen${query(params)}`).then(json),
   avanceMes: () => apiFetch("/entregas/avance-mes").then(json),
+  prioridad: (params = {}) => apiFetch(`/entregas/prioridad${query(params)}`).then(json),
   planBarrios: (params = {}) => apiFetch(`/entregas/plan${query(params)}`).then(json),
   guardarPlan: (payload) => apiFetch("/entregas/plan", { method: "POST", ...jsonBody(payload) }).then(json),
 

@@ -3,6 +3,7 @@ import { createAuditLog } from "./auditService.js";
 import { sendPasswordResetEmail, sendUserCreatedEmail } from "./emailService.js";
 import { generatePassword, hashPassword } from "../utils/password.js";
 import { normalizeUserRole } from "../utils/userRoles.js";
+import { contarAccesosVigentes } from "./userAccesosService.js";
 
 const sanitizeUser = (user) => ({
   id: user.id,
@@ -81,8 +82,10 @@ export const listUsers = async () => {
       ORDER BY active_sessions DESC, app_users.full_name ASC, app_users.created_at DESC
     `
   );
+  // Accesos adicionales vigentes: la lista los marca con "+N acceso".
+  const accesos = await contarAccesosVigentes().catch(() => new Map());
 
-  return rows.map(sanitizeUser);
+  return rows.map((row) => ({ ...sanitizeUser(row), accesos: accesos.get(Number(row.id)) || 0 }));
 };
 
 export const createUser = async ({ full_name, email, role = "operator" }, actorUser) => {

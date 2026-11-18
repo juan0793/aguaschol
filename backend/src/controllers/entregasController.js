@@ -25,6 +25,7 @@ import {
   updatePersonal,
   getAvanceMes,
   getPlanBarrios,
+  getPrioridadBarrios,
   guardarPlanBarrios
 } from "../services/entregasService.js";
 import {
@@ -54,6 +55,7 @@ const handle = (fn) => async (req, res, next) => {
 export const config = handle(async (req, res) => res.json(await getEntregasConfig(req.authUser)));
 export const resumen = handle(async (req, res) => res.json(await getResumen(req.query, req.authUser)));
 export const avanceMes = handle(async (req, res) => res.json(await getAvanceMes(req.authUser)));
+export const prioridadBarrios = handle(async (req, res) => res.json(await getPrioridadBarrios(req.query, req.authUser)));
 export const planBarrios = handle(async (req, res) => res.json(await getPlanBarrios(req.query, req.authUser)));
 export const planBarriosGuardar = handle(async (req, res) => res.json(await guardarPlanBarrios(req.body, req.authUser)));
 
