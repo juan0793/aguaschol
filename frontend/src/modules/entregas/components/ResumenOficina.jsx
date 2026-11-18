@@ -76,11 +76,12 @@ export function MenuImprimir({ mes, onPrioridad, onReportes }) {
 const ESTADO_EQUIPO = { abierto: "Lote abierto", cerrado: "Cerró", sin_lote: "Sin lote hoy" };
 
 // Cómo va cada técnico en la jornada: su lote de hoy y lo que anotó para la próxima.
-export function EquipoHoy({ filas, proxima, hoy }) {
+// Con `onAnotar`, la oficina toca el plan de cada uno para anotarlo o cambiarlo.
+export function EquipoHoy({ filas, proxima, hoy, onAnotar }) {
   if (!filas?.length) return null;
   const cuando = textoFechaPlan(proxima, hoy);
   return (
-    <section className="ent-card ent-equipo" aria-labelledby="ent-equipo-titulo">
+    <section id="ent-equipo-hoy" className="ent-card ent-equipo" aria-labelledby="ent-equipo-titulo">
       <div className="ent-card-head">
         <h3 id="ent-equipo-titulo">El equipo hoy</h3>
       </div>
@@ -99,9 +100,18 @@ export function EquipoHoy({ filas, proxima, hoy }) {
               <strong>{fila.nombre}</strong>
               <span className={`ent-equipo-estado is-${fila.estado}`}>{ESTADO_EQUIPO[fila.estado]}</span>
               <small>{detalle}</small>
-              <small className={`ent-equipo-manana${!fila.manana.length && fila.faltan ? " is-sin-plan" : ""}`}>
-                {fila.manana.length ? `${cuando[0].toUpperCase()}${cuando.slice(1)}: ${fila.manana.join(", ")}` : fila.faltan ? "Sin plan" : ""}
-              </small>
+              {(() => {
+                const sinPlan = !fila.manana.length && fila.faltan > 0;
+                const texto = fila.manana.length ? `${cuando[0].toUpperCase()}${cuando.slice(1)}: ${fila.manana.join(", ")}` : fila.faltan ? "Sin plan" : "";
+                if (onAnotar && fila.faltan > 0) {
+                  return (
+                    <button type="button" className={`ent-equipo-manana-boton${sinPlan ? " is-sin-plan" : ""}`} onClick={() => onAnotar(fila)} aria-label={`${sinPlan ? "Anotar" : "Cambiar"} el plan de ${fila.nombre} para ${cuando}`}>
+                      {sinPlan ? "Anotar plan" : texto}
+                    </button>
+                  );
+                }
+                return <small className={`ent-equipo-manana${sinPlan ? " is-sin-plan" : ""}`}>{texto}</small>;
+              })()}
             </li>
           );
         })}

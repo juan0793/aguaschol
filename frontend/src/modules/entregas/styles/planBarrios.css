@@ -1,0 +1,21 @@
+/* Plan de la próxima jornada fuera del aviso de cierre (PlanBarrios.jsx). Reusa el
+   aviso (.ent-exito, .ent-plan-*) de entregas.css. */
+.ent-plan-saltar { display: block; min-height: 40px; margin: 6px auto 0; padding: 0 8px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ent-plan-saltar:hover { color: #0b2e4f; }
+.ent-exito.ent-plan-dialogo { text-align: left; }
+.ent-exito.ent-plan-dialogo h2 { margin-bottom: 12px; }
+.ent-exito.ent-plan-dialogo > p { margin: 0 0 14px; color: var(--muted); }
+
+/* Tarjeta del técnico en Hoy */
+.ent-plan-tarjeta { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid #d6e2ee; border-radius: 12px; background: #fff; color: #18344f; }
+.ent-plan-tarjeta > .app-icon { flex: none; color: var(--primary); }
+.ent-plan-tarjeta p { flex: 1; margin: 0; font-size: 13.5px; }
+.ent-plan-tarjeta strong { color: #0b2e4f; }
+.ent-plan-tarjeta .cl-secondary { flex: none; min-height: 40px; }
+.ent-plan-tarjeta.is-pendiente { border-color: #e8c98a; background: #fffaf0; }
+.ent-plan-tarjeta.is-pendiente > .app-icon { color: #9a6700; }
+
+/* "El equipo hoy": el plan de cada técnico se toca para anotarlo o cambiarlo. */
+.ent-equipo-manana-boton { justify-self: end; min-height: 32px; margin: -4px -6px; padding: 2px 6px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; font-size: 12px; text-align: right; cursor: pointer; }
+.ent-equipo-manana-boton:hover, .ent-equipo-manana-boton:focus-visible { background: #eef4fd; color: #0b3f73; outline: none; }
+.ent-equipo-manana-boton.is-sin-plan { color: #7a5300; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }

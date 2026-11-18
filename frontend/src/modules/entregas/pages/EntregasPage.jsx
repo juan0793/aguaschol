@@ -25,6 +25,7 @@ import ReportesSemanales from "../components/ReportesSemanales";
 import PrioridadBarrios, { PrioridadResumen } from "../components/PrioridadBarrios";
 import AvanceMes from "../components/AvanceMes";
 import { EquipoHoy, MenuImprimir } from "../components/ResumenOficina";
+import { PlanBarriosDialog, PlanMananaTarjeta } from "../components/PlanBarrios";
 import { equipoHoy, sinPlanParaManana, textoComparacion } from "../utils/resumenEntregas.js";
 import { GraficoBarriosSobrantes, GraficoPorDia } from "../components/ReporteCharts";
 import { formatDate, formatNumber } from "../utils/entregasFormatters";
@@ -121,6 +122,10 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
   // Contadores de las pestañas: lotes de hoy por cerrar y documentos pendientes.
   const [contadores, setContadores] = useState({ hoyAbiertos: 0, pendientes: 0 });
   const [loteCerrado, setLoteCerrado] = useState(null);
+  // La oficina anota el plan de un técnico desde "El equipo hoy".
+  const [planDe, setPlanDe] = useState(null);
+  // Sube al guardar un plan: la tarjeta de Hoy se vuelve a leer.
+  const [planVersion, setPlanVersion] = useState(0);
   const vista = vistaPedida || vistaInicial(config);
 
   const lotes = useLotes(api, Boolean(config) && ["lotes", "resumen"].includes(vista));
@@ -315,6 +320,12 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
   };
 
   const cerrarAviso = useCallback(() => setLoteCerrado(null), []);
+  const cerrarPlanDe = useCallback(() => setPlanDe(null), []);
+  const planGuardado = useCallback(() => {
+    setPlanVersion((valor) => valor + 1);
+    avance.reload();
+    if (config?.permissions?.can_view_all) cargarPrioridadTop();
+  }, [avance.reload, cargarPrioridadTop, config?.permissions?.can_view_all]);
 
   const guardarPersonal = async (id, payload) => {
     if (id) await api.actualizarPersonal(id, payload);
@@ -447,7 +458,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
             <h3>Requiere atención</h3>
             <ul className="ent-lista-plana" onKeyDown={(event) => { if (["Enter", " "].includes(event.key) && event.target.getAttribute("role") === "button") { event.preventDefault(); event.target.click(); } }}>
               {oficina && sinPlan.length ? (
-                <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={() => ir("prioridad")} title="Al cerrar su lote, cada técnico anota qué barrio trabaja en la próxima jornada.">
+                <li className="is-atencion is-clickable" role="button" tabIndex={0} onClick={() => { const tarjeta = document.getElementById("ent-equipo-hoy"); tarjeta?.scrollIntoView({ behavior: "smooth", block: "center" }); tarjeta?.querySelector(".ent-equipo-manana-boton.is-sin-plan")?.focus({ preventScroll: true }); }} title="Cada técnico lo anota al cerrar su lote o desde Hoy; la oficina, en El equipo hoy.">
                   <div>
                     <span className="ent-fila-etiqueta"><i />Sin plan para la próxima jornada</span>
                     <small>{sinPlan.map((fila) => fila.nombre).join(" · ")}</small>
@@ -547,7 +558,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
                 </div>
                 <div className="ent-resumen-col">
                   {atencion}
-                  <EquipoHoy filas={equipo} proxima={avance.mes?.proxima_jornada} hoy={avance.mes?.hasta} />
+                  <EquipoHoy filas={equipo} proxima={avance.mes?.proxima_jornada} hoy={avance.mes?.hasta} onAnotar={config.permissions.can_manage_reparto ? setPlanDe : null} />
                 </div>
               </div>
             ) : (
@@ -589,6 +600,9 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
         />
       ) : null}
 
+      {vista === "lotes" && config.permissions.can_close_own_lote && config.personal_vinculado?.id ? (
+        <PlanMananaTarjeta key={`plan-${config.personal_vinculado.id}-${planVersion}`} api={api} responsableId={config.personal_vinculado.id} notify={notify} onGuardado={avance.reload} />
+      ) : null}
       {vista === "lotes" && config.permissions.can_close_own_lote ? <MisLotesPorCerrar lotes={misLotesAbiertos} propioId={propioId} onCerrar={abrirCierre} onAbrir={abrirDetalle} /> : null}
 
       {vista === "lotes" && config.permissions.can_view_all ? (
@@ -697,7 +711,11 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
           notify={notify}
           onListo={cerrarAviso}
           onVerLote={() => { const lote = loteCerrado; setLoteCerrado(null); abrirDetalle(lote); }}
+          onPlanGuardado={planGuardado}
         />
+      ) : null}
+      {planDe ? (
+        <PlanBarriosDialog api={api} responsableId={planDe.id} notify={notify} onCerrar={cerrarPlanDe} onGuardado={planGuardado} />
       ) : null}
 
       {loteDetalle ? <LoteDetalle key={loteDetalle.id} lote={loteDetalle} permissions={config.permissions} motivos={config.motivos} plantillas={config.plantillas_aviso} api={api} notify={notify} onClose={cerrarDetalle} onEdit={abrirEdicion} onCerrar={abrirCierre} onChanged={() => { abrirDetalle(loteDetalle); refrescar(); }} onDeleted={() => { cerrarDetalle(); refrescar(); }} /> : null}

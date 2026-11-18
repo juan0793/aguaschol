@@ -3,6 +3,9 @@ import ReactDOM from "react-dom/client";
 import "../styles.css";
 import "../modules/clandestinos/styles/clandestinos.css";
 import EntregasPage from "../modules/entregas/pages/EntregasPage";
+import LoteCerradoAviso from "../modules/entregas/components/LoteCerradoAviso";
+import { createEntregasApi } from "../modules/entregas/services/entregasApi";
+import "../modules/entregas/styles/entregas.css";
 import { armarPrioridad, moraPorBarrio } from "../../../backend/src/services/entregasPrioridadRules.js";
 
 // Banco de pruebas del Resumen de la oficina y de Barrios por prioridad. Datos de
@@ -82,7 +85,7 @@ const resumen = {
 
 window.__registro = [];
 const respuesta = (cuerpo, status = 200) => new Response(JSON.stringify(cuerpo), { status, headers: { "Content-Type": "application/json" } });
-const apiFetch = async (ruta = "") => {
+const apiFetch = async (ruta = "", opciones = {}) => {
   await new Promise((resolve) => window.setTimeout(resolve, 120));
   const [camino, consulta = ""] = String(ruta).split("?");
   window.__registro.push(camino);
@@ -91,10 +94,33 @@ const apiFetch = async (ruta = "") => {
   if (camino === "/entregas/resumen") return respuesta(resumen);
   if (camino === "/entregas/avance-mes") return tecnico ? respuesta({ message: "Solo quien ve a todo el equipo consulta el avance del mes." }, 403) : respuesta(mes);
   if (camino === "/entregas/prioridad") return tecnico && sinAcceso ? respuesta({ message: "No tienes acceso a Barrios por prioridad." }, 403) : respuesta(prioridad(q.get("criterio") || "combinado"));
+  if (camino === "/entregas/plan" && opciones.method === "POST") {
+    const cuerpo = JSON.parse(opciones.body || "{}");
+    window.__planes = [...(window.__planes || []), cuerpo];
+    for (const barrio of barrios) {
+      if (barrio.responsable_id !== Number(cuerpo.responsable_id)) continue;
+      barrio.plan = cuerpo.barrios.includes(barrio.codigo) && barrio.estado !== "entregado" ? { fecha: cuerpo.fecha, responsable_id: barrio.responsable_id, anotado_por_nombre: "QA" } : null;
+    }
+    return respuesta({ fecha: cuerpo.fecha, barrios: cuerpo.barrios });
+  }
+  if (camino === "/entregas/plan") {
+    const id = Number(q.get("responsable_id"));
+    const persona = personas.find((p) => p.id === id);
+    return respuesta({
+      fecha: PROXIMA, hoy: HOY, propio: tecnico && id === 31, responsable: { id, nombre: persona?.nombre_completo || "" },
+      ritmo: mes.ritmo_tecnicos.find((r) => r.responsable_id === id) || null,
+      barrios: barrios.filter((b) => b.responsable_id === id).map((b) => ({ codigo: b.codigo, nombre: b.nombre, estado: b.estado, orden_ruta: b.orden_ruta, carga: b.carga, anotado: b.plan?.fecha === PROXIMA }))
+    });
+  }
   if (camino === "/entregas/personal") return respuesta(personas.map((p) => ({ ...p, activo: 1, tipo_personal: "TECNICO" })));
   if (camino === "/entregas/lotes" && q.get("fecha_desde") === HOY && q.get("fecha_hasta") === HOY) return respuesta({ items: lotesHoy, total: lotesHoy.length, resumen: null });
   return respuesta({ items: [], total: 0 });
 };
 
 const raiz = ReactDOM.createRoot(document.getElementById("root"));
-raiz.render(<EntregasPage apiFetch={apiFetch} session={{ user: { id: tecnico ? 9 : 1, role: tecnico ? "validadora_campo" : "admin", full_name: tecnico ? personas[1].nombre_completo : "Administración de prueba" } }} showAlert={(mensaje) => console.log("[aviso]", mensaje)} />);
+// ?aviso=1 muestra solo el aviso de cierre de un lote, con la pregunta del plan.
+if (parametros.has("aviso")) {
+  const api = createEntregasApi(apiFetch);
+  const lote = { id: 502, responsable_id: 31, barrio_nombre: "Bo. de Prueba", tipo_documento: "FACTURA", total_asignadas: 392, total_sobrantes: 4 };
+  raiz.render(<main className="ent-module"><LoteCerradoAviso lote={lote} api={api} notify={(m) => console.log("[aviso]", m)} onListo={() => { window.__avisoCerrado = (window.__avisoCerrado || 0) + 1; }} onVerLote={() => {}} /></main>);
+} else raiz.render(<EntregasPage apiFetch={apiFetch} session={{ user: { id: tecnico ? 9 : 1, role: tecnico ? "validadora_campo" : "admin", full_name: tecnico ? personas[1].nombre_completo : "Administración de prueba" } }} showAlert={(mensaje) => console.log("[aviso]", mensaje)} />);
