@@ -911,9 +911,11 @@
 /* Si las pestañas no caben junto a "Nuevo lote", se deslizan; el borde se desvanece en vez de mostrar la barra. */
 .ent-module .cl-module-header.ent-head .ent-menu { scrollbar-width: none; }
 .ent-module .cl-module-header.ent-head .ent-menu::-webkit-scrollbar { display: none; }
-@media (max-width: 1180px) {
-  .ent-module .cl-module-header.ent-head .ent-menu { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); padding-right: 24px !important; }
-}
+/* EntregasPage mide la barra: .is-compacto si no cabe con iconos; .is-desbordado si
+   aun compacta no cabe y hay que deslizarla. */
+.ent-module .cl-module-header .ent-menu.is-compacto .ent-menu-card { padding-inline: 10px !important; }
+.ent-module .cl-module-header .ent-menu.is-compacto .ent-menu-card > .app-icon { display: none; }
+.ent-module .cl-module-header.ent-head .ent-menu.is-desbordado { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); padding-right: 24px !important; }
 .ent-tab-contador { display: inline-grid; min-width: 20px; height: 20px; margin-left: 2px; padding: 0 6px; place-items: center; border-radius: 10px; background: #dceafb; color: #12518d; font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
 .ent-tab-contador.is-critico { background: #fbe3e3; color: #a1202d; }
 

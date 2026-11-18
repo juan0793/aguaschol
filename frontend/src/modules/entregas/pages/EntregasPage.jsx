@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { createEntregasApi } from "../services/entregasApi";
 import { useLotes } from "../hooks/useLotes";
@@ -66,6 +66,34 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
   const notify = useCallback((mensaje) => showAlert?.(mensaje), [showAlert]);
 
   const [vistaPedida, setVista] = useState(vistaDelHash);
+  // Pestañas del encabezado: si no caben junto a "Nuevo lote" se compactan (sin
+  // icono y con menos relleno) y, solo si aun así no caben, se desvanece el borde
+  // para que se note que la barra se desliza. Se mide con clases sobre el nodo
+  // (no con estado) para no redibujar la página.
+  const menuRef = useRef(null);
+  const observadorMenu = useRef(null);
+  const medirMenu = useCallback(() => {
+    const nav = menuRef.current;
+    if (!nav) return;
+    nav.classList.remove("is-compacto", "is-desbordado");
+    if (nav.scrollWidth <= nav.clientWidth + 1) return;
+    nav.classList.add("is-compacto");
+    if (nav.scrollWidth > nav.clientWidth + 1) nav.classList.add("is-desbordado");
+  }, []);
+  const refMenu = useCallback((nodo) => {
+    observadorMenu.current?.disconnect();
+    menuRef.current = nodo;
+    if (!nodo || typeof ResizeObserver === "undefined") return;
+    observadorMenu.current = new ResizeObserver(medirMenu);
+    observadorMenu.current.observe(nodo);
+  }, [medirMenu]);
+  // Los contadores de las pestañas cambian el ancho sin cambiar el tamaño de la barra.
+  useLayoutEffect(() => { medirMenu(); });
+  // Respaldo por si el navegador no avisa del cambio de tamaño de la barra.
+  useEffect(() => {
+    window.addEventListener("resize", medirMenu);
+    return () => window.removeEventListener("resize", medirMenu);
+  }, [medirMenu]);
   const [masMovilAbierto, setMasMovilAbierto] = useState(false);
   useEffect(() => {
     if (!masMovilAbierto) return undefined;
@@ -343,7 +371,7 @@ export default function EntregasPage({ apiFetch, session, showAlert }) {
           para lectores de pantalla, y las pestañas suben al lugar del título. */}
       <header className="cl-module-header ent-head">
         <h1 className="sr-only">Control de entregas</h1>
-        <nav className="ent-menu" aria-label="Secciones de Control de entregas">
+        <nav ref={refMenu} className="ent-menu" aria-label="Secciones de Control de entregas">
           {subvistas.map((item) => (
             <button
               key={item.key}
